@@ -413,6 +413,48 @@ describe('scheduler.ts unit tests', () => {
       expect(bufferCount / 60).toBeCloseTo(0.4, 1);
       expect(reflectCount / 60).toBeCloseTo(0.2, 1);
     });
+
+    it('assigns day_number and monotonic sequence_order to all sessions', async () => {
+      const mockGoal = {
+        id: 'goal-day-seq',
+        start_date: new Date('2026-09-14T00:00:00Z'),
+        goal_catalog: {
+          phases: [
+            {
+              phase_order: 1,
+              task_templates: [
+                {
+                  id: 'task-3days',
+                  sessions_per_week: 3,
+                  session_duration_minutes: 30,
+                  preferred_time_of_day: null,
+                },
+              ],
+            },
+          ],
+        },
+        user: { availability_slots: [] },
+      };
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.deleteMany as any).mockResolvedValue({ count: 0 });
+      (prisma.session.createMany as any).mockResolvedValue({ count: 36 });
+
+      await generateThreeMonthSchedule('goal-day-seq');
+
+      const createdSessions = (prisma.session.createMany as any).mock.calls[0][0].data;
+      expect(createdSessions.length).toBe(36);
+
+      // Verify sequence_order is strictly 1 to 36
+      for (let i = 0; i < createdSessions.length; i++) {
+        expect(createdSessions[i].sequence_order).toBe(i + 1);
+        expect(createdSessions[i].day_number).toBeGreaterThanOrEqual(0);
+        expect(createdSessions[i].day_number).toBeLessThan(84); // 12 weeks * 7 = 84 days
+        if (i > 0) {
+          expect(createdSessions[i].day_number).toBeGreaterThanOrEqual(createdSessions[i - 1].day_number);
+        }
+      }
+    });
   });
 
   describe('determineSessionTier', () => {

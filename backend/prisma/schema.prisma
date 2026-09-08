@@ -58,16 +58,17 @@ model TaskTemplate {
 }
 
 model UserGoal {
-  id              String      @id @default(uuid())
-  user_id         String
-  goal_catalog_id String
-  start_date      DateTime
-  target_end_date DateTime
-  status          String      @default("ACTIVE") // ACTIVE, COMPLETED, ABANDONED
-  slippage_days   Int         @default(0)
-  user            User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  goal_catalog    GoalCatalog @relation(fields: [goal_catalog_id], references: [id])
-  sessions        Session[]
+  id                      String      @id @default(uuid())
+  user_id                 String
+  goal_catalog_id         String
+  start_date              DateTime
+  target_end_date         DateTime
+  status                  String      @default("ACTIVE") // ACTIVE, COMPLETED, ABANDONED
+  slippage_days           Int         @default(0)
+  current_plan_day_offset Int         @default(0)
+  user                    User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  goal_catalog            GoalCatalog @relation(fields: [goal_catalog_id], references: [id])
+  sessions                Session[]
 
   @@map("user_goals")
 }
@@ -94,6 +95,8 @@ model Session {
   id               String       @id @default(uuid())
   user_goal_id     String
   task_template_id String
+  day_number       Int?
+  sequence_order   Int?
   scheduled_date   DateTime
   start_time       String
   end_time         String

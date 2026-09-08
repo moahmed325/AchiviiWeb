@@ -229,6 +229,8 @@ export async function generateThreeMonthSchedule(
   const sessionsToCreate: {
     user_goal_id: string;
     task_template_id: string;
+    day_number: number;
+    sequence_order: number;
     scheduled_date: Date;
     start_time: string;
     end_time: string;
@@ -364,6 +366,8 @@ export async function generateThreeMonthSchedule(
           sessionsToCreate.push({
             user_goal_id: userGoalId,
             task_template_id: task.id,
+            day_number: weekIndex * 7 + day.dayOffsetInWeek,
+            sequence_order: 0,
             scheduled_date: day.date,
             start_time: minutesToTime(chosenSlot.start),
             end_time: minutesToTime(chosenSlot.end),
@@ -389,6 +393,8 @@ export async function generateThreeMonthSchedule(
               sessionsToCreate.push({
                 user_goal_id: userGoalId,
                 task_template_id: task.id,
+                day_number: weekIndex * 7 + day.dayOffsetInWeek,
+                sequence_order: 0,
                 scheduled_date: day.date,
                 start_time: minutesToTime(slot.start),
                 end_time: minutesToTime(slot.end),
@@ -404,6 +410,17 @@ export async function generateThreeMonthSchedule(
       }
     }
   }
+
+  // Sort sessions chronologically and assign sequence_order (1-indexed)
+  sessionsToCreate.sort((a, b) => {
+    if (a.day_number !== b.day_number) {
+      return a.day_number - b.day_number;
+    }
+    return a.start_time.localeCompare(b.start_time);
+  });
+  sessionsToCreate.forEach((session, index) => {
+    session.sequence_order = index + 1;
+  });
 
   // Bulk create all sessions in database
   if (sessionsToCreate.length > 0) {

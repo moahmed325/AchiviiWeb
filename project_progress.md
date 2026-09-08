@@ -53,7 +53,7 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 > **Caution:** the production database is now a live Supabase Postgres instance with real seeded data (see Phase 6). Every schema change in this phase runs as an automatic migration against that live database the moment it's pushed to `main` — there is no manual "apply migration" step in between. Prefer additive changes (new nullable columns/tables) over anything that renames or drops existing columns. Test each migration against a real Postgres instance — a local Postgres or a Supabase branch/staging DB — not against SQLite alone, since the two can diverge in ways that only surface on Postgres. See "Commit & Deployment Protocol" below before pushing any migration.
 
 - [Done] Add `Session.tier` enum (`core` / `buffer` / `reflect`); update `scheduler.ts` to tag every generated session at creation time per plan Section 4.4 (rough default split: 40–50% core / 30% buffer / 20% reflect, tune during implementation)
-- [Todo] Add `Session.day_number` and `Session.sequence_order`; add `UserGoal.current_plan_day_offset` (default 0)
+- [Done] Add `Session.day_number` and `Session.sequence_order`; add `UserGoal.current_plan_day_offset` (default 0)
 - [Todo] Refactor `scheduler.ts` so only the current rolling week is materialized to real `scheduled_date` values; all other sessions are addressed by `day_number`/`sequence_order` relative to the goal's offset
 - [Todo] Write a migration script for existing seeded/test data (if any persists) to backfill `tier`, `day_number`, `sequence_order`
 - [Todo] Add `Session.completed_at_utc` and an idempotency token field; update the completion endpoint to write these
