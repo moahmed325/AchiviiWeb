@@ -1,4 +1,5 @@
 import { prisma } from './prisma.js';
+import { getZonedDateString, getZonedTimeParts } from './timezone.js';
 
 export interface RescheduleAction {
   sessionId: string;
@@ -40,14 +41,20 @@ export function minutesToTime(minutes: number): string {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-export function formatDateYYYYMMDD(date: Date): string {
+export function formatDateYYYYMMDD(date: Date, timezone?: string): string {
+  if (timezone) {
+    return getZonedDateString(date, timezone);
+  }
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
-export function getDayKey(date: Date): DayKey {
+export function getDayKey(date: Date, timezone?: string): DayKey {
+  if (timezone) {
+    return getZonedTimeParts(date, timezone).dayKey as DayKey;
+  }
   const jsDay = date.getDay();
   const dayKeyMap: Record<number, DayKey> = {
     0: 'SUN',
@@ -58,7 +65,7 @@ export function getDayKey(date: Date): DayKey {
     5: 'FRI',
     6: 'SAT',
   };
-  return dayKeyMap[jsDay];
+  return dayKeyMap[jsDay] || 'MON';
 }
 
 export function subtractIntervals(openings: TimeInterval[], busy: TimeInterval): TimeInterval[] {
@@ -141,9 +148,13 @@ export async function detectAndRescheduleMissed(
     throw new Error('Active user goal not found.');
   }
 
+  const userTimezone = (userGoal.user as any)?.timezone || 'UTC';
   const now = new Date();
-  const todayYYYYMMDD = formatDateYYYYMMDD(now);
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const zonedNow = getZonedTimeParts(now, userTimezone);
+  const todayYYYYMMDD = zonedNow.dateStr;
+  const nowMinutes = zonedNow.minutesFromMidnight;
+  const toDateStr = (d: Date) => formatDateYYYYMMDD(d, userTimezone);
+  const toDayKey = (d: Date) => getDayKey(d, userTimezone);
 
   // Load all sessions for this goal
   const allSessions = await prisma.session.findMany({
@@ -187,7 +198,7 @@ export async function detectAndRescheduleMissed(
     if (s.status === 'MISSED') {
       return true;
     }
-    const sessionDateStr = formatDateYYYYMMDD(new Date(s.scheduled_date));
+    const sessionDateStr = toDateStr(new Date(s.scheduled_date));
     if (sessionDateStr < todayYYYYMMDD && (s.status === 'UPCOMING' || s.status === 'RESCHEDULED')) {
       return true;
     }
@@ -208,7 +219,7 @@ export async function detectAndRescheduleMissed(
     // Only count active sessions not in our reschedule candidate queue
     const isCandidate = sessionsToReschedule.some((c) => c.id === s.id);
     if (!isCandidate && s.status !== 'MISSED' && s.scheduled_date && s.start_time && s.end_time) {
-      const dStr = formatDateYYYYMMDD(new Date(s.scheduled_date));
+      const dStr = toDateStr(new Date(s.scheduled_date));
       if (!bookedIntervalsByDate[dStr]) {
         bookedIntervalsByDate[dStr] = [];
       }
@@ -225,7 +236,7 @@ export async function detectAndRescheduleMissed(
     const sessionDate = new Date(session.scheduled_date);
     const duration = session.task_template.session_duration_minutes;
     const prefWindow = getPreferredWindow(session.task_template.preferred_time_of_day);
-    const origDateStr = formatDateYYYYMMDD(sessionDate);
+    const origDateStr = toDateStr(sessionDate);
     const origTimeStr = session.start_time && session.end_time ? `${session.start_time} - ${session.end_time}` : '';
 
     // Determine the week bounds for this session
@@ -241,13 +252,13 @@ export async function detectAndRescheduleMissed(
 
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
       const candidateDate = new Date(weekMonday.getTime() + dayOffset * 86400000);
-      const candidateDateStr = formatDateYYYYMMDD(candidateDate);
+      const candidateDateStr = toDateStr(candidateDate);
 
       // Must be after or equal to today, and strictly after original scheduled date (or today if session was today)
       if (candidateDateStr < todayYYYYMMDD) continue;
       if (candidateDateStr <= origDateStr && candidateDateStr !== todayYYYYMMDD) continue;
 
-      const dayKey = getDayKey(candidateDate);
+      const dayKey = toDayKey(candidateDate);
       let openings = getBaselineDayOpenings(dayKey);
 
       // Subtract user fixed busy blocks
@@ -301,7 +312,7 @@ export async function detectAndRescheduleMissed(
 
     if (foundSlot) {
       // Reallocate within same week
-      const newDateStr = formatDateYYYYMMDD(foundSlot.date);
+      const newDateStr = toDateStr(foundSlot.date);
       const newStartTime = minutesToTime(foundSlot.start);
       const newEndTime = minutesToTime(foundSlot.end);
 
@@ -333,7 +344,7 @@ export async function detectAndRescheduleMissed(
         newDate: newDateStr,
         newTime: `${newStartTime} - ${newEndTime}`,
         actionType: 'REALLOCATED_SAME_WEEK',
-        details: `Reallocated within the same week to ${getDayKey(foundSlot.date)} ${newDateStr} at ${newStartTime}.`,
+        details: `Reallocated within the same week to ${toDayKey(foundSlot.date)} ${newDateStr} at ${newStartTime}.`,
       });
     } else {
       // Rule 3 & 4: Push into NEXT week and shift the entire remaining plan by 7 days (+1 week extension)
@@ -347,7 +358,7 @@ export async function detectAndRescheduleMissed(
           s.id !== session.id &&
           s.status !== 'DONE' &&
           s.scheduled_date &&
-          formatDateYYYYMMDD(new Date(s.scheduled_date)) >= origDateStr
+          toDateStr(new Date(s.scheduled_date)) >= origDateStr
       );
 
       for (const fut of futureSessions) {
@@ -361,7 +372,7 @@ export async function detectAndRescheduleMissed(
 
       // Shift the missed session by +7 days into next week's corresponding slot
       const nextWeekDate = new Date(sessionDate.getTime() + shiftDays * 86400000);
-      const nextWeekDateStr = formatDateYYYYMMDD(nextWeekDate);
+      const nextWeekDateStr = toDateStr(nextWeekDate);
 
       await prisma.session.update({
         where: { id: session.id },

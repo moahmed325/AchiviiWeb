@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { updateSession, triggerReschedule } from '../lib/api';
+import { getLocalDateString } from '../lib/dateUtils';
 import { Session } from '../types';
 import { 
   X, 
@@ -27,10 +28,12 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   onClose,
   onSessionUpdated,
 }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   if (!session) return null;
 
-  const [dateStr, setDateStr] = useState<string>(() => session.scheduled_date.split('T')[0]);
+  const [dateStr, setDateStr] = useState<string>(() =>
+    session.scheduled_date ? getLocalDateString(session.scheduled_date, user?.timezone) : ''
+  );
   const [startTime, setStartTime] = useState<string>(session.start_time);
   const [endTime, setEndTime] = useState<string>(session.end_time);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);

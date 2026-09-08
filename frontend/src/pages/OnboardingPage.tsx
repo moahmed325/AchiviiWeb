@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchCatalog, fetchGoalById, submitOnboarding, fetchCurrentUserGoal } from '../lib/api';
+import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
 import { GoalCatalog, DayOfWeek, AvailabilitySlot } from '../types';
 import { 
   ArrowLeft, 
@@ -138,10 +139,7 @@ export const OnboardingPage: React.FC = () => {
   // Questionnaire Answers
   const [selectedPresetId, setSelectedPresetId] = useState<string>('standard_9_5');
   const [saturdayMode, setSaturdayMode] = useState<'FREE' | 'MORNING' | 'FULL_DAY'>('FREE');
-  const [startDate, setStartDate] = useState<string>(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [startDate, setStartDate] = useState<string>(() => getTodayDateString());
   const [quickDateOption, setQuickDateOption] = useState<'TODAY' | 'NEXT_MONDAY' | 'CUSTOM'>('TODAY');
 
   // Busy Blocks State (Initialized with standard 9-5)
@@ -181,7 +179,7 @@ export const OnboardingPage: React.FC = () => {
                 initialSelected = matchingGoal;
               }
               if (currentGoalData.user_goal.start_date) {
-                setStartDate(currentGoalData.user_goal.start_date.split('T')[0]);
+                setStartDate(getLocalDateString(currentGoalData.user_goal.start_date));
               }
               if (currentGoalData.availability_slots && currentGoalData.availability_slots.length > 0) {
                 setAvailabilitySlots(currentGoalData.availability_slots);
@@ -261,12 +259,12 @@ export const OnboardingPage: React.FC = () => {
     setQuickDateOption(option);
     const now = new Date();
     if (option === 'TODAY') {
-      setStartDate(now.toISOString().split('T')[0]);
+      setStartDate(getLocalDateString(now));
     } else if (option === 'NEXT_MONDAY') {
       const day = now.getDay();
       const diffToMonday = (8 - day) % 7 || 7;
       const nextMon = new Date(now.getTime() + diffToMonday * 24 * 60 * 60 * 1000);
-      setStartDate(nextMon.toISOString().split('T')[0]);
+      setStartDate(getLocalDateString(nextMon));
     }
   };
 

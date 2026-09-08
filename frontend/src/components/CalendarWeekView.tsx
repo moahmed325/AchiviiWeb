@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
 import { fetchWeekSessions, triggerReschedule, updateSession } from '../lib/api';
 import { WeekSessionsResponse, Session, DayOfWeek, AvailabilitySlot, RescheduleResult } from '../types';
 import { SlippageBanner } from './SlippageBanner';
@@ -42,7 +43,7 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
   initialWeekOffset = 0,
   onWeekChange 
 }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [weekOffset, setWeekOffset] = useState<number>(initialWeekOffset);
   const [data, setData] = useState<WeekSessionsResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -147,13 +148,14 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
     }
   };
 
-  const todayDateString = new Date().toISOString().split('T')[0];
+  const todayDateString = getTodayDateString(user?.timezone);
 
   // Helper to group sessions by date string YYYY-MM-DD
   const sessionsByDate: Record<string, Session[]> = {};
   if (data?.sessions) {
     for (const session of data.sessions) {
-      const dateStr = session.scheduled_date.split('T')[0];
+      if (!session.scheduled_date) continue;
+      const dateStr = getLocalDateString(session.scheduled_date, user?.timezone);
       if (!sessionsByDate[dateStr]) {
         sessionsByDate[dateStr] = [];
       }
@@ -168,7 +170,7 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
 
     return Array.from({ length: 7 }).map((_, idx) => {
       const dayDate = new Date(start.getTime() + idx * 24 * 60 * 60 * 1000);
-      const dateStr = dayDate.toISOString().split('T')[0];
+      const dateStr = getLocalDateString(dayDate, user?.timezone);
       const jsDay = dayDate.getDay();
       const meta = DAY_ORDER.find((d) => d.jsIndex === jsDay) || DAY_ORDER[0];
 

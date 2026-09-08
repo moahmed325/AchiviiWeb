@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import { generateThreeMonthSchedule, materializeWeekForGoal } from '../lib/scheduler.js';
 import { detectAndRescheduleMissed } from '../lib/rescheduler.js';
+import { getZonedDateString, getZonedDayBounds } from '../lib/timezone.js';
 
 export const sessionsRouter = Router();
 
@@ -59,6 +60,7 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
     }
 
     // Determine week offset (0 = Week 1, 1 = Week 2, etc.)
+    const userTimezone = (user as any).timezone || 'UTC';
     const goalStart = new Date(activeGoal.start_date);
     let weekOffset = parseInt(req.query.weekOffset as string, 10);
 
@@ -72,7 +74,8 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
       weekOffset = Math.max(0, Math.min(11, weekOffset));
     }
 
-    const startOfGoal = new Date(goalStart.getFullYear(), goalStart.getMonth(), goalStart.getDate(), 0, 0, 0, 0);
+    const goalStartDateStr = getZonedDateString(goalStart, userTimezone);
+    const { startOfDay: startOfGoal } = getZonedDayBounds(goalStartDateStr, userTimezone);
     const weekStart = new Date(startOfGoal.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
     const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -229,14 +232,17 @@ sessionsRouter.get('/day', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const targetDate = new Date(date);
-    if (isNaN(targetDate.getTime())) {
+    const userTimezone = (user as any).timezone || 'UTC';
+    let startOfDay: Date;
+    let endOfDay: Date;
+    try {
+      const bounds = getZonedDayBounds(date, userTimezone);
+      startOfDay = bounds.startOfDay;
+      endOfDay = bounds.endOfDay;
+    } catch {
       res.status(400).json({ error: 'Invalid date format.' });
       return;
     }
-
-    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
-    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
 
     const activeGoal = await prisma.userGoal.findFirst({
       where: { user_id: user.id, status: 'ACTIVE' },

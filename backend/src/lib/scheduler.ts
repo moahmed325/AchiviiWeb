@@ -1,5 +1,6 @@
 import { prisma } from './prisma.js';
 import { SessionTier } from '@prisma/client';
+import { getZonedDateString, getZonedTimeParts } from './timezone.js';
 
 export interface TimeInterval {
   start: number; // minutes from midnight
@@ -146,6 +147,7 @@ export async function generateThreeMonthSchedule(
 
   const { phases } = userGoal.goal_catalog;
   const availabilitySlots = userGoal.user.availability_slots;
+  const userTimezone = (userGoal.user as any)?.timezone || 'UTC';
   const startDate = new Date(userGoal.start_date);
 
   // Map busy blocks by day of week
@@ -257,28 +259,18 @@ export async function generateThreeMonthSchedule(
     const weekDays = Array.from({ length: 7 }).map((_, dayOffsetInWeek) => {
       const dayDate = new Date(startDate.getTime() + (weekIndex * 7 + dayOffsetInWeek) * 24 * 60 * 60 * 1000);
       
-      // Determine day key from JavaScript date (0 = Sun, 1 = Mon...)
-      const jsDay = dayDate.getDay();
-      const dayKeyMap: Record<number, DayKey> = {
-        0: 'SUN',
-        1: 'MON',
-        2: 'TUE',
-        3: 'WED',
-        4: 'THU',
-        5: 'FRI',
-        6: 'SAT',
-      };
-      const dayKey = dayKeyMap[jsDay];
+      // Determine day key from date in user timezone
+      const dayKey = getZonedTimeParts(dayDate, userTimezone).dayKey;
 
       let intervals = [...baselineFreeByDay[dayKey].map((i) => ({ ...i }))];
       let existingSessionCount = 0;
 
       // Deduct intervals of any sessions already completed on this day
       if (doneSessions.length > 0) {
-        const dStr = dayDate.toISOString().split('T')[0];
+        const dStr = getZonedDateString(dayDate, userTimezone);
         const dayDone = doneSessions.filter((s) => {
           if (!s.scheduled_date) return false;
-          const sStr = new Date(s.scheduled_date).toISOString().split('T')[0];
+          const sStr = getZonedDateString(s.scheduled_date, userTimezone);
           return sStr === dStr;
         });
 
@@ -480,6 +472,7 @@ export async function materializeWeekForGoal(
 
   const startDate = new Date(userGoal.start_date);
   const planOffset = userGoal.current_plan_day_offset || 0;
+  const userTimezone = (userGoal.user as any)?.timezone || 'UTC';
 
   // Build baseline free intervals for each day of week
   const busyByDay: Record<string, TimeInterval[]> = {
@@ -521,10 +514,7 @@ export async function materializeWeekForGoal(
   for (let d = weekStartDay; d < weekEndDay; d++) {
     const effectiveDay = d + planOffset;
     const dayDate = new Date(startDate.getTime() + effectiveDay * 24 * 60 * 60 * 1000);
-    const dayKeyMap: Record<number, DayKey> = {
-      0: 'SUN', 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT',
-    };
-    const dayKey = dayKeyMap[dayDate.getDay()];
+    const dayKey = getZonedTimeParts(dayDate, userTimezone).dayKey;
     let intervals = [...baselineFreeByDay[dayKey].map((i) => ({ ...i }))];
 
     // Subtract already materialized sessions on this day
