@@ -247,3 +247,29 @@ export interface GoalProgressResponse {
     status: string;
   }[];
 }
+
+export type GraduationChoice = 'start_new_goal' | 'maintenance_mode' | 'pause';
+
+export interface GraduationState {
+  eligible: boolean;
+  user_goal_id: string;
+  goal_title: string;
+  status: string;
+  elapsed_days: number;
+  remaining_plan_days: number;
+  total_plan_days: number;
+  completed_sessions: number;
+  total_sessions: number;
+  completion_rate: number;
+  options: GraduationChoice[];
+  graduation_message?: string;
+}
+
+export interface OnboardingLearnedDefaults {
+  has_historical_data: boolean;
+  preferred_time_of_day: 'morning' | 'afternoon' | 'evening' | 'flexible';
+  recommended_days_per_week: number;
+  suggested_session_duration_minutes: number;
+  high_completion_days: string[];
+  coaching_insight?: string;
+}

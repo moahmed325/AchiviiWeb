@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { fetchCatalog, fetchGoalById, submitOnboarding, fetchCurrentUserGoal, generateRoadmaps, selectRoadmap, fetchRoadmaps } from '../lib/api';
+import { fetchCatalog, fetchGoalById, submitOnboarding, fetchCurrentUserGoal, generateRoadmaps, selectRoadmap, fetchRoadmaps, fetchLearnedDefaults } from '../lib/api';
 import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
-import { GoalCatalog, DayOfWeek, AvailabilitySlot, Roadmap } from '../types';
+import { GoalCatalog, DayOfWeek, AvailabilitySlot, Roadmap, OnboardingLearnedDefaults } from '../types';
 import { RoadmapSelector } from '../components/RoadmapSelector';
 import { 
   ArrowLeft, 
@@ -163,6 +163,10 @@ export const OnboardingPage: React.FC = () => {
   const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
   const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
 
+  // Phase 5: Continuous Profile Learning State
+  const [learnedDefaults, setLearnedDefaults] = useState<OnboardingLearnedDefaults | null>(null);
+  const [showLearnedSuggestion, setShowLearnedSuggestion] = useState<boolean>(true);
+
   useEffect(() => {
     async function init() {
       setLoading(true);
@@ -171,6 +175,16 @@ export const OnboardingPage: React.FC = () => {
         setAllGoals(catalog);
 
         let initialSelected: GoalCatalog | null = null;
+
+        // Check for continuous profile learning defaults
+        if (token) {
+          try {
+            const defaults = await fetchLearnedDefaults(token);
+            if (defaults.has_historical_data) {
+              setLearnedDefaults(defaults);
+            }
+          } catch (_) {}
+        }
 
         // Check for existing active goal and pre-populate saved routine if returning
         if (token) {
@@ -684,6 +698,42 @@ export const OnboardingPage: React.FC = () => {
                   : 'Answer 3 quick questions below. We will calculate your schedule, let you verify your busy blocks, and then auto-generate all 12 weeks.'}
               </p>
             </div>
+
+            {/* Continuous Profile Learning: Editable Suggestions Banner (Guardrail 3) */}
+            {learnedDefaults && learnedDefaults.has_historical_data && showLearnedSuggestion && (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-purple-950/40 border border-purple-500/30 flex items-start justify-between gap-3 text-xs animate-in fade-in shadow-lg">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 shrink-0 mt-0.5">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-white text-sm">Learned Consistency Suggestions</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        Profile Memory
+                      </span>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed text-xs">
+                      {learnedDefaults.coaching_insight ||
+                        `From your previous goals, your consistency peaks with ${learnedDefaults.recommended_days_per_week} days/week and ${learnedDefaults.preferred_time_of_day} focus sessions.`}
+                    </p>
+                    <div className="flex items-center gap-2 pt-1 text-[11px] text-purple-300/80">
+                      <span>Suggested focus days: <strong>{learnedDefaults.high_completion_days.join(', ')}</strong></span>
+                      <span>•</span>
+                      <span className="italic">Fully editable below. Never applied without your review.</span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLearnedSuggestion(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors text-base"
+                  title="Dismiss suggestion"
+                >
+                  ×
+                </button>
+              </div>
+            )}
 
             {/* ---------------- KICKOFF DATE (NEW GOAL ONLY) OR TIMELINE SUMMARY (ACTIVE GOAL) ---------------- */}
             {isAdjustingRoutine ? (

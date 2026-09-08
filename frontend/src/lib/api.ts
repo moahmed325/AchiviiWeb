@@ -411,3 +411,99 @@ export async function selectRoadmap(
 
   return data;
 }
+
+export async function fetchGraduationStatus(
+  token: string,
+  userGoalId?: string
+): Promise<import('../types').GraduationState> {
+  const url = userGoalId
+    ? `${API_BASE_URL}/api/graduation/status?user_goal_id=${userGoalId}`
+    : `${API_BASE_URL}/api/graduation/status`;
+
+  const response = await fetch(url, {
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to check graduation status');
+  }
+
+  return data;
+}
+
+export async function submitGraduationChoice(
+  token: string,
+  userGoalId: string,
+  choice: 'start_new_goal' | 'maintenance_mode' | 'pause'
+): Promise<{
+  success: boolean;
+  choice: string;
+  status: string;
+  message: string;
+  user_goal: any;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/graduation/choice`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ user_goal_id: userGoalId, choice }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to submit graduation choice');
+  }
+
+  return data;
+}
+
+export async function resumeGoal(
+  token: string,
+  userGoalId: string
+): Promise<{
+  success: boolean;
+  user_goal: any;
+  days_paused: number;
+  new_target_end_date: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/graduation/resume`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ user_goal_id: userGoalId }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to resume goal');
+  }
+
+  return data;
+}
+
+export async function fetchLearnedDefaults(
+  token: string
+): Promise<import('../types').OnboardingLearnedDefaults> {
+  const response = await fetch(`${API_BASE_URL}/api/profile/learned-defaults`, {
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to load learned defaults');
+  }
+
+  return data;
+}
+

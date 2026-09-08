@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
-import { fetchWeekSessions, triggerReschedule, updateSession, fetchPendingRecovery, fetchPendingWeeklyReflection } from '../lib/api';
-import { WeekSessionsResponse, Session, DayOfWeek, AvailabilitySlot, RescheduleResult, PendingRecoveryState, PendingReflectionState } from '../types';
+import { fetchWeekSessions, triggerReschedule, updateSession, fetchPendingRecovery, fetchPendingWeeklyReflection, fetchGraduationStatus } from '../lib/api';
+import { WeekSessionsResponse, Session, DayOfWeek, AvailabilitySlot, RescheduleResult, PendingRecoveryState, PendingReflectionState, GraduationState } from '../types';
 import { SlippageBanner } from './SlippageBanner';
 import { RecoveryCheckIn } from './RecoveryCheckIn';
 import { WeeklyReflection } from './WeeklyReflection';
+import { GraduationModal } from './GraduationModal';
 import { SessionDetailModal } from './SessionDetailModal';
 import { DayDetailModal } from './DayDetailModal';
 import { 
@@ -66,6 +67,9 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
   // Phase 3 Weekly Reflection state
   const [pendingReflection, setPendingReflection] = useState<PendingReflectionState | null>(null);
 
+  // Phase 5 Graduation state
+  const [graduationState, setGraduationState] = useState<GraduationState | null>(null);
+
   // Phase 5 Rescheduling state
   const [isRescheduling, setIsRescheduling] = useState<boolean>(false);
   const [lastRescheduleResult, setLastRescheduleResult] = useState<RescheduleResult | null>(null);
@@ -119,6 +123,16 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
         }
       } else {
         setPendingReflection(null);
+      }
+
+      // Check graduation milestone eligibility lazily
+      if (res.goal?.id) {
+        try {
+          const grad = await fetchGraduationStatus(token, res.goal.id);
+          setGraduationState(grad.eligible ? grad : null);
+        } catch (_) {
+          setGraduationState(null);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load weekly schedule.');
@@ -286,6 +300,17 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
           reflectionState={pendingReflection}
           onResolved={async () => {
             setPendingReflection(null);
+            await loadWeek(weekOffset);
+          }}
+        />
+      )}
+
+      {/* Phase 5: Graduation Milestone Modal */}
+      {graduationState && graduationState.eligible && (
+        <GraduationModal
+          graduationState={graduationState}
+          onResolved={async () => {
+            setGraduationState(null);
             await loadWeek(weekOffset);
           }}
         />
