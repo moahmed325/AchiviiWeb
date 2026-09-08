@@ -1,6 +1,6 @@
 import React from 'react';
 import { GoalCatalog } from '../types';
-import { X, Clock, Calendar, CheckCircle2, Sun, Sunset, Moon, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { X, Clock, Calendar, CheckCircle2, Sun, Sunset, Moon, ArrowRight } from 'lucide-react';
 
 interface GoalDetailDrawerProps {
   goal: GoalCatalog | null;
@@ -14,102 +14,114 @@ export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({ goal, onClos
   const getTimeIcon = (time?: string | null) => {
     switch (time?.toLowerCase()) {
       case 'morning':
-        return <Sun className="w-3.5 h-3.5 text-amber-400" />;
+        return <Sun className="w-3.5 h-3.5 text-[#f59e0b]" />;
       case 'afternoon':
-        return <Sunset className="w-3.5 h-3.5 text-orange-400" />;
+        return <Sunset className="w-3.5 h-3.5 text-[#f59e0b]" />;
       case 'evening':
-        return <Moon className="w-3.5 h-3.5 text-indigo-400" />;
+        return <Moon className="w-3.5 h-3.5 text-[#a6b8ad]" />;
       default:
-        return <Clock className="w-3.5 h-3.5 text-slate-400" />;
+        return <Clock className="w-3.5 h-3.5 text-[#7e8f85]" />;
     }
   };
 
+  const totalPhases = goal.phases?.length || 3;
+  const totalWeeks = goal.phases?.reduce((sum, p) => sum + p.duration_weeks, 0) || 12;
+
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-50 overflow-hidden overscroll-none">
+      {/* Solid Dim Backdrop - NO glassmorphism */}
       <div
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/80 transition-opacity"
         onClick={onClose}
       />
 
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-xl glass-panel bg-slate-950/95 border-l border-slate-800 shadow-2xl flex flex-col justify-between">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
+        <div className="w-screen max-w-xl bg-[#0c1210] border-l border-[#182621] shadow-none flex flex-col justify-between">
           {/* Drawer Header */}
-          <div className="p-6 border-b border-slate-800 flex items-start justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
-                  {goal.category}
+          <div className="p-5 sm:p-6 border-b border-[#182621] flex items-start justify-between gap-4">
+            <div className="space-y-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
+                  BLUEPRINT SPECIFICATION // {goal.category.toUpperCase()}
                 </span>
-                <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300 font-medium">
-                  3 Months / 12 Weeks
+                <span className="px-1.5 py-0.2 rounded-sm bg-[#16221e] border border-[#1f332c] text-[9px] font-mono text-[#a6b8ad]">
+                  90-DAY CADENCE
                 </span>
               </div>
-              <h2 className="text-2xl font-black text-white">{goal.title}</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-[#e5ebe7] truncate">
+                {goal.title}
+              </h2>
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-sm text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#182621] transition-colors cursor-pointer shrink-0"
+              title="Close specification sheet"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Drawer Scrollable Content */}
-          <div className="p-6 overflow-y-auto space-y-6 flex-1">
+          <div className="p-5 sm:p-6 overflow-y-auto overscroll-contain space-y-6 flex-1">
             {/* Goal Overview */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">Goal Mission</h4>
-              <p className="text-slate-300 text-sm leading-relaxed">{goal.description}</p>
+            <div className="space-y-2 p-4 rounded-sm bg-[#080d0b] border border-[#182621]">
+              <span className="text-[10px] font-mono font-bold uppercase text-[#7e8f85] tracking-wider block">
+                MISSION OBJECTIVE & SCOPE
+              </span>
+              <p className="text-xs sm:text-sm text-[#a6b8ad] leading-relaxed font-mono">
+                {goal.description}
+              </p>
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400">
-                  <Clock className="w-5 h-5" />
+            <div className="grid grid-cols-2 gap-3 font-mono">
+              <div className="p-3.5 rounded-sm bg-[#080d0b] border border-[#182621] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-sm bg-[#111a17] text-[#07CB6C] flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-[11px] text-slate-400">Weekly Effort</div>
-                  <div className="text-sm font-bold text-white">{goal.est_weekly_hours} Hours / Week</div>
+                  <div className="text-[10px] text-[#55675c] uppercase">WEEKLY LOAD</div>
+                  <div className="text-xs sm:text-sm font-bold text-[#e5ebe7] mt-0.5">{goal.est_weekly_hours} HOURS / WK</div>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
-                  <Calendar className="w-5 h-5" />
+              <div className="p-3.5 rounded-sm bg-[#080d0b] border border-[#182621] flex items-center gap-3">
+                <div className="w-8 h-8 rounded-sm bg-[#111a17] text-[#07CB6C] flex items-center justify-center shrink-0">
+                  <Calendar className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-[11px] text-slate-400">Total Duration</div>
-                  <div className="text-sm font-bold text-white">12 Weeks (3 Phases)</div>
+                  <div className="text-[10px] text-[#55675c] uppercase">TOTAL TIMELINE</div>
+                  <div className="text-xs sm:text-sm font-bold text-[#e5ebe7] mt-0.5">{totalWeeks} WEEKS (3 MO)</div>
                 </div>
               </div>
             </div>
 
             {/* Structured Phases Roadmap */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider">
-                  12-Week Phase Execution Plan
-                </h4>
-                <span className="text-[11px] text-indigo-400 font-medium">Pre-Scoped Blueprints</span>
+              <div className="flex items-center justify-between border-b border-[#182621] pb-2">
+                <span className="text-[10px] font-mono font-bold uppercase text-[#7e8f85] tracking-wider">
+                  PHASE EXECUTION ARCHITECTURE ({totalPhases} PHASES)
+                </span>
+                <span className="text-[10px] font-mono text-[#07CB6C]">
+                  DETERMINISTIC BLUEPRINT
+                </span>
               </div>
 
               <div className="space-y-4">
                 {goal.phases?.map((phase, idx) => (
                   <div
                     key={phase.id}
-                    className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition-all space-y-3"
+                    className="p-4 rounded-sm bg-[#080d0b] border border-[#182621] space-y-3"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center justify-center">
-                          {idx + 1}
+                        <span className="w-5 h-5 rounded-sm bg-[#16221e] border border-[#1f332c] text-[#07CB6C] text-[10px] font-mono font-bold flex items-center justify-center">
+                          0{idx + 1}
                         </span>
-                        <h5 className="text-sm font-bold text-white">{phase.title}</h5>
+                        <h5 className="text-xs sm:text-sm font-bold text-[#e5ebe7]">{phase.title}</h5>
                       </div>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        {phase.duration_weeks} Weeks
+                      <span className="text-[10px] font-mono text-[#7e8f85]">
+                        {phase.duration_weeks} WEEKS
                       </span>
                     </div>
 
@@ -118,24 +130,24 @@ export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({ goal, onClos
                       {phase.task_templates?.map((task) => (
                         <div
                           key={task.id}
-                          className="p-3 rounded-lg bg-slate-950/80 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
+                          className="p-2.5 rounded-sm bg-[#0c1210] border border-[#182621] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono"
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <span className="text-slate-200 font-medium truncate">{task.title}</span>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />
+                            <span className="text-[#a6b8ad] truncate">{task.title}</span>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-semibold">
-                              {task.sessions_per_week}x / wk
+                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                            <span className="px-2 py-0.5 rounded-sm bg-[#080d0b] border border-[#182621] text-[#7e8f85] text-[10px]">
+                              {task.sessions_per_week}x / WK
                             </span>
-                            <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-mono">
-                              {task.session_duration_minutes}m
+                            <span className="px-2 py-0.5 rounded-sm bg-[#080d0b] border border-[#182621] text-[#7e8f85] text-[10px]">
+                              {task.session_duration_minutes}M
                             </span>
                             {task.preferred_time_of_day && (
                               <div
                                 title={`Preferred time: ${task.preferred_time_of_day}`}
-                                className="p-1 rounded bg-slate-800/80"
+                                className="p-1 rounded-sm bg-[#080d0b] border border-[#182621]"
                               >
                                 {getTimeIcon(task.preferred_time_of_day)}
                               </div>
@@ -148,37 +160,22 @@ export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({ goal, onClos
                 ))}
               </div>
             </div>
-
-            {/* Adaptive Rescheduling Guarantee Notice */}
-            <div className="p-4 rounded-xl bg-indigo-950/20 border border-indigo-500/20 flex items-start gap-3">
-              <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-slate-300 space-y-1">
-                <p className="font-semibold text-white">Adaptive Execution Guarantee</p>
-                <p className="text-slate-400 leading-relaxed">
-                  Unlike traditional calendars, Achivii automatically detects missed sessions and reschedules them into your open slots or seamlessly recalculates your finish date.
-                </p>
-              </div>
-            </div>
           </div>
 
-          {/* Drawer Footer CTA */}
-          <div className="p-6 border-t border-slate-800 bg-slate-950/80 flex items-center gap-3">
+          {/* Drawer Sticky Footer with CTA */}
+          <div className="p-4 sm:p-5 border-t border-[#182621] bg-[#0c1210] flex items-center justify-between gap-3">
             <button
               onClick={onClose}
-              className="py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-semibold transition-colors cursor-pointer"
+              className="min-h-[44px] px-4 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] text-xs font-mono border border-[#182621] transition-colors cursor-pointer"
             >
-              Close
+              CLOSE SPEC
             </button>
+
             <button
-              id="btn-drawer-commit-goal"
-              onClick={() => {
-                onClose();
-                onSelect(goal);
-              }}
-              className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              onClick={() => onSelect(goal)}
+              className="min-h-[44px] px-6 py-2 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center gap-2 transition-colors cursor-pointer"
             >
-              <Sparkles className="w-4 h-4" />
-              <span>Commit to this 3-Month Goal</span>
+              <span>INITIALIZE BLUEPRINT</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

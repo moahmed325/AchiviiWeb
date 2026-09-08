@@ -1,6 +1,6 @@
 import React from 'react';
 import { GoalCatalog } from '../types';
-import { Rocket, Flame, Clock, Calendar, ChevronRight, Layers, Sparkles, Globe, BookOpen, Server, Heart } from 'lucide-react';
+import { Clock, Calendar, ChevronRight, Terminal, Cpu, Database, Activity, Code, BookOpen, Layers } from 'lucide-react';
 
 interface GoalCardProps {
   goal: GoalCatalog;
@@ -9,22 +9,22 @@ interface GoalCardProps {
 }
 
 export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect }) => {
-  const getIcon = (iconName: string) => {
-    switch (iconName.toLowerCase()) {
-      case 'rocket':
-        return <Rocket className="w-6 h-6 text-indigo-400" />;
-      case 'flame':
-        return <Flame className="w-6 h-6 text-rose-400" />;
-      case 'globe':
-        return <Globe className="w-6 h-6 text-sky-400" />;
-      case 'bookopen':
-        return <BookOpen className="w-6 h-6 text-amber-400" />;
-      case 'server':
-        return <Server className="w-6 h-6 text-emerald-400" />;
-      case 'heart':
-        return <Heart className="w-6 h-6 text-pink-400" />;
+  const getCategoryIcon = (category: string) => {
+    switch (category.toLowerCase()) {
+      case 'software & technical':
+      case 'engineering':
+        return <Code className="w-4 h-4 text-[#07CB6C]" />;
+      case 'language & cognitive':
+        return <BookOpen className="w-4 h-4 text-[#07CB6C]" />;
+      case 'health & fitness':
+      case 'endurance':
+        return <Activity className="w-4 h-4 text-[#07CB6C]" />;
+      case 'data & analytics':
+        return <Database className="w-4 h-4 text-[#07CB6C]" />;
+      case 'system architecture':
+        return <Cpu className="w-4 h-4 text-[#07CB6C]" />;
       default:
-        return <Sparkles className="w-6 h-6 text-purple-400" />;
+        return <Terminal className="w-4 h-4 text-[#07CB6C]" />;
     }
   };
 
@@ -32,84 +32,103 @@ export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect })
   const totalWeeks = goal.phases?.reduce((sum, p) => sum + p.duration_weeks, 0) || 12;
 
   return (
-    <div className="group glass-panel rounded-2xl p-6 border border-slate-800 hover:border-indigo-500/40 transition-all duration-300 flex flex-col justify-between hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1">
+    <div className="rounded-md bg-[#0c1210] border border-[#182621] hover:border-[#2a443a] transition-colors p-5 flex flex-col justify-between space-y-5 shadow-none group">
       <div className="space-y-4">
-        {/* Top Header: Category & Est Time */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-slate-900 border border-slate-800/80 group-hover:border-indigo-500/30 group-hover:bg-indigo-950/20 transition-all">
-              {getIcon(goal.icon)}
-            </div>
-            <div>
-              <span className="text-[11px] font-bold tracking-wider uppercase text-indigo-400">
-                {goal.category}
+        {/* Technical Header with Monospace Micro-Label */}
+        <div className="flex items-start justify-between gap-3 border-b border-[#182621] pb-3.5">
+          <div className="space-y-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[#07CB6C] flex items-center gap-1.5">
+                {getCategoryIcon(goal.category)}
+                <span>SPEC // {goal.category.toUpperCase()}</span>
               </span>
-              <h3 className="text-xl font-bold text-white group-hover:text-indigo-200 transition-colors">
-                {goal.title}
-              </h3>
+              <span className="px-1.5 py-0.2 rounded-sm bg-[#16221e] border border-[#1f332c] text-[9px] font-mono text-[#a6b8ad]">
+                90-DAY
+              </span>
             </div>
+            <h3 className="text-base sm:text-lg font-bold text-[#e5ebe7] group-hover:text-white transition-colors truncate">
+              {goal.title}
+            </h3>
+          </div>
+
+          <div className="w-8 h-8 rounded-sm bg-[#080d0b] border border-[#182621] text-[#7e8f85] group-hover:text-[#07CB6C] group-hover:border-[#07CB6C]/30 flex items-center justify-center shrink-0 transition-colors">
+            <Layers className="w-4 h-4" />
           </div>
         </div>
 
-        {/* Description */}
-        <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">
+        {/* Blueprint Description */}
+        <p className="text-xs text-[#7e8f85] leading-relaxed line-clamp-2 font-mono">
           {goal.description}
         </p>
 
-        {/* Key Metrics Chips */}
-        <div className="grid grid-cols-2 gap-2 pt-2">
-          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/60 text-xs text-slate-300">
-            <Clock className="w-4 h-4 text-indigo-400 shrink-0" />
-            <span>
-              <strong className="text-white">{goal.est_weekly_hours}h</strong> / week
-            </span>
+        {/* Telemetry Metrics Row */}
+        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
+            <div className="text-[9px] text-[#55675c] uppercase flex items-center gap-1">
+              <Clock className="w-3 h-3 text-[#07CB6C]" />
+              <span>WEEKLY COMMITMENT</span>
+            </div>
+            <div className="text-xs font-bold text-[#e5ebe7] mt-0.5">
+              {goal.est_weekly_hours} HOURS / WK
+            </div>
           </div>
-          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/60 text-xs text-slate-300">
-            <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
-            <span>
-              <strong className="text-white">{totalWeeks}</strong> weeks (3 mo)
-            </span>
+
+          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
+            <div className="text-[9px] text-[#55675c] uppercase flex items-center gap-1">
+              <Calendar className="w-3 h-3 text-[#07CB6C]" />
+              <span>EXECUTION CADENCE</span>
+            </div>
+            <div className="text-xs font-bold text-[#e5ebe7] mt-0.5">
+              {totalWeeks} WEEKS (3 PHASES)
+            </div>
           </div>
         </div>
 
-        {/* Phase Timeline Progression Bar */}
+        {/* Phase Architecture Breakdown */}
         <div className="space-y-1.5 pt-1">
-          <div className="flex items-center justify-between text-[11px] text-slate-400">
-            <span className="flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-indigo-400" />
-              {totalPhases} Sequential Phases
-            </span>
-            <span className="text-indigo-300 font-mono text-[10px]">Pre-scoped Blueprints</span>
+          <div className="flex items-center justify-between text-[10px] font-mono text-[#7e8f85]">
+            <span>PHASE ARCHITECTURE ({totalPhases} STAGES)</span>
+            <span className="text-[#07CB6C]">RECOVERY: ADAPTIVE</span>
           </div>
+
           <div className="grid grid-cols-3 gap-1.5">
             {goal.phases?.map((phase, idx) => (
               <div
                 key={phase.id}
-                className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 group-hover:border-slate-700 text-[10px] text-center"
+                className="p-2 rounded-sm bg-[#080d0b] border border-[#182621] text-left space-y-0.5"
               >
-                <div className="text-indigo-400 font-bold">P{idx + 1}</div>
-                <div className="text-slate-400 truncate text-[9px]">{phase.duration_weeks}w</div>
+                <div className="text-[10px] font-mono font-bold text-[#07CB6C]">
+                  0{idx + 1} // P{idx + 1}
+                </div>
+                <div className="text-[10px] font-mono text-[#a6b8ad] truncate">
+                  {phase.title.split(':')[0]}
+                </div>
+                <div className="text-[9px] font-mono text-[#55675c]">
+                  {phase.duration_weeks} WEEKS
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Card Actions */}
-      <div className="pt-6 mt-4 border-t border-slate-800/80 flex items-center gap-2">
+      {/* Structured Technical Action Buttons with >= 44px touch targets */}
+      <div className="pt-4 border-t border-[#182621] flex items-center gap-2">
         <button
+          type="button"
           onClick={() => onInspect(goal)}
-          className="flex-1 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          className="min-h-[44px] flex-1 px-3 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
         >
-          <span>Inspect Roadmap</span>
-          <ChevronRight className="w-3.5 h-3.5" />
+          <span>INSPECT BLUEPRINT</span>
+          <ChevronRight className="w-3.5 h-3.5 text-[#07CB6C]" />
         </button>
 
         <button
+          type="button"
           onClick={() => onSelect(goal)}
-          className="py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all cursor-pointer"
+          className="min-h-[44px] px-4 py-2 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer shrink-0"
         >
-          Select Goal
+          <span>INITIALIZE</span>
         </button>
       </div>
     </div>
