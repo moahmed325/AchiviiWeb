@@ -90,9 +90,9 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 - [Done] Backend: `reflection.ts` routes — `GET` pending reflection (type: single-tap or full), `POST` response
 - [Done] Implement the ≥70% threshold as a configurable value (not hardcoded), first week of a goal defaults to single-tap regardless of signal
 - [Done] Implement trigger precedence: if a recovery check-in (Phase 2) is also pending, it takes priority and the reflection is deferred or merged into that week's copy — do not double-prompt
-- [Todo] Frontend: `WeeklyReflection.tsx` — single-tap variant and full 4-question variant
-- [Todo] Tests: threshold logic, first-week default, precedence-vs-recovery behavior
-- [Todo] Update this file: mark Phase 3 complete, commit
+- [Done] Frontend: `WeeklyReflection.tsx` — single-tap variant and full 4-question variant
+- [Done] Tests: threshold logic, first-week default, precedence-vs-recovery behavior
+- [Done] Update this file: mark Phase 3 complete, commit
 
 ---
 ## Phase 4 — AI Layer

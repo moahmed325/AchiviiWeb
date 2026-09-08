@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
-import { fetchWeekSessions, triggerReschedule, updateSession, fetchPendingRecovery } from '../lib/api';
-import { WeekSessionsResponse, Session, DayOfWeek, AvailabilitySlot, RescheduleResult, PendingRecoveryState } from '../types';
+import { fetchWeekSessions, triggerReschedule, updateSession, fetchPendingRecovery, fetchPendingWeeklyReflection } from '../lib/api';
+import { WeekSessionsResponse, Session, DayOfWeek, AvailabilitySlot, RescheduleResult, PendingRecoveryState, PendingReflectionState } from '../types';
 import { SlippageBanner } from './SlippageBanner';
 import { RecoveryCheckIn } from './RecoveryCheckIn';
+import { WeeklyReflection } from './WeeklyReflection';
 import { SessionDetailModal } from './SessionDetailModal';
 import { DayDetailModal } from './DayDetailModal';
 import { 
@@ -62,6 +63,9 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
   // Phase 2 Recovery UX state
   const [pendingRecovery, setPendingRecovery] = useState<PendingRecoveryState | null>(null);
 
+  // Phase 3 Weekly Reflection state
+  const [pendingReflection, setPendingReflection] = useState<PendingReflectionState | null>(null);
+
   // Phase 5 Rescheduling state
   const [isRescheduling, setIsRescheduling] = useState<boolean>(false);
   const [lastRescheduleResult, setLastRescheduleResult] = useState<RescheduleResult | null>(null);
@@ -91,15 +95,30 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
       setWeekOffset(res.weekOffset);
       if (onWeekChange) onWeekChange(res.weekOffset);
 
+      let isRecPending = false;
       if (res.pendingRecovery) {
         setPendingRecovery(res.pendingRecovery);
+        isRecPending = !!res.pendingRecovery.pending;
       } else {
         try {
           const rec = await fetchPendingRecovery(token);
           setPendingRecovery(rec.pending ? rec : null);
+          isRecPending = !!rec.pending;
         } catch (_) {
           setPendingRecovery(null);
         }
+      }
+
+      // Check weekly reflection only if recovery check-in is NOT pending (precedence rule)
+      if (!isRecPending) {
+        try {
+          const refl = await fetchPendingWeeklyReflection(token);
+          setPendingReflection(refl.pending ? refl : null);
+        } catch (_) {
+          setPendingReflection(null);
+        }
+      } else {
+        setPendingReflection(null);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load weekly schedule.');
@@ -256,6 +275,17 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
           recoveryState={pendingRecovery}
           onResolved={async () => {
             setPendingRecovery(null);
+            await loadWeek(weekOffset);
+          }}
+        />
+      )}
+
+      {/* Phase 3: Weekly Reflection (shown only when recovery check-in is not pending) */}
+      {(!pendingRecovery || !pendingRecovery.pending) && pendingReflection && pendingReflection.pending && (
+        <WeeklyReflection
+          reflectionState={pendingReflection}
+          onResolved={async () => {
+            setPendingReflection(null);
             await loadWeek(weekOffset);
           }}
         />

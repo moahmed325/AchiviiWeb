@@ -294,3 +294,52 @@ export async function submitRecoveryAction(
 
   return data;
 }
+
+export async function fetchPendingWeeklyReflection(
+  token: string,
+  threshold?: number
+): Promise<import('../types').PendingReflectionState> {
+  const url = threshold
+    ? `${API_BASE_URL}/api/reflection/pending?threshold=${threshold}`
+    : `${API_BASE_URL}/api/reflection/pending`;
+
+  const response = await fetch(url, {
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to load weekly reflection');
+  }
+
+  return data;
+}
+
+export async function submitWeeklyReflection(
+  token: string,
+  payload: {
+    user_goal_id: string;
+    week_number: number;
+    reflection_type: 'single_tap' | 'full';
+    responses?: any;
+  }
+): Promise<{ success: boolean; weeklyReview: any }> {
+  const response = await fetch(`${API_BASE_URL}/api/reflection/response`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to submit weekly reflection');
+  }
+
+  return data;
+}

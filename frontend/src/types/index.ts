@@ -99,6 +99,27 @@ export interface PendingRecoveryState {
   options?: ('shrink_week' | 'shift_timeline' | 'scope_reduction' | 'pause_goal')[];
 }
 
+export interface PendingReflectionState {
+  pending: boolean;
+  deferred?: boolean;
+  defer_reason?: string;
+  user_goal_id: string;
+  week_number?: number;
+  completion_rate?: number;
+  reflection_type?: 'single_tap' | 'full';
+  questions?: {
+    id: string;
+    question: string;
+    type: 'text' | 'choice';
+    options?: string[];
+  }[];
+  prompt_copy?: {
+    headline: string;
+    subheadline: string;
+    confirm_button: string;
+  };
+}
+
 export interface OnboardingPayload {
   goal_catalog_id: string;
   start_date: string;
