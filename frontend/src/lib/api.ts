@@ -1,7 +1,23 @@
 import { User, GoalCatalog, AuthResponse } from '../types';
 
-const rawApiUrl = ((import.meta as any).env?.VITE_API_BASE_URL) || 'http://localhost:5000';
-const API_BASE_URL = rawApiUrl.replace(/\/+$/, '');
+export function resolveApiBaseUrl(): string {
+  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
+    return envUrl.replace(/\/+$/, '');
+  }
+
+  // Runtime fallback: If running in browser on a production domain (e.g. *.vercel.app)
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    const hostname = window.location.hostname;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return 'https://achivii-api.onrender.com';
+    }
+  }
+
+  return 'http://localhost:5000';
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 export interface HealthResponse {
   status: string;

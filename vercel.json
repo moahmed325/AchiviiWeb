@@ -4,6 +4,14 @@
   "installCommand": "cd frontend && npm install",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
+  "env": {
+    "VITE_API_BASE_URL": "https://achivii-api.onrender.com"
+  },
+  "build": {
+    "env": {
+      "VITE_API_BASE_URL": "https://achivii-api.onrender.com"
+    }
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
