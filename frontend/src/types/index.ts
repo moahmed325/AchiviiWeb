@@ -46,6 +46,18 @@ export interface AvailabilitySlot {
   label?: string | null;
 }
 
+export interface Roadmap {
+  id: string;
+  user_goal_id: string;
+  name: string;
+  description: string;
+  trade_offs: string;
+  days_per_week: number;
+  daily_minutes_variance: number;
+  phase_emphasis?: Record<string, number> | null;
+  created_at: string;
+}
+
 export interface UserGoal {
   id: string;
   user_id: string;
@@ -54,7 +66,9 @@ export interface UserGoal {
   target_end_date: string;
   status: 'ACTIVE' | 'COMPLETED' | 'ABANDONED';
   slippage_days: number;
+  selected_roadmap_id?: string | null;
   goal_catalog?: GoalCatalog;
+  selected_roadmap?: Roadmap | null;
 }
 
 export interface Session {

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { fetchCatalog, fetchGoalById, submitOnboarding, fetchCurrentUserGoal } from '../lib/api';
+import { fetchCatalog, fetchGoalById, submitOnboarding, fetchCurrentUserGoal, generateRoadmaps, selectRoadmap, fetchRoadmaps } from '../lib/api';
 import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
-import { GoalCatalog, DayOfWeek, AvailabilitySlot } from '../types';
+import { GoalCatalog, DayOfWeek, AvailabilitySlot, Roadmap } from '../types';
+import { RoadmapSelector } from '../components/RoadmapSelector';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -158,6 +159,10 @@ export const OnboardingPage: React.FC = () => {
   const [newLabel, setNewLabel] = useState<string>('Work');
   const [generatedSessionCount, setGeneratedSessionCount] = useState<number>(60);
 
+  // Phase 4: Roadmap Selection State
+  const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
+  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
+
   useEffect(() => {
     async function init() {
       setLoading(true);
@@ -306,8 +311,8 @@ export const OnboardingPage: React.FC = () => {
     ]);
   };
 
-  // Submit onboarding & auto-generate schedule
-  const handleConfirmAndGenerate = async () => {
+  // Submit onboarding routine and transition to AI Roadmap selection
+  const handleProceedToRoadmaps = async () => {
     if (!user || !token) {
       openAuthModal('signup');
       return;
@@ -326,12 +331,44 @@ export const OnboardingPage: React.FC = () => {
         availability_slots: availabilitySlots,
       });
 
-      if (res.sessions_generated) {
-        setGeneratedSessionCount(res.sessions_generated);
+      const userGoalId = res.user_goal?.id;
+
+      // Generate or retrieve roadmap variants for this goal
+      let variants: Roadmap[] = [];
+      try {
+        const genRes = await generateRoadmaps(token, userGoalId);
+        variants = genRes.roadmaps || [];
+      } catch (genErr) {
+        const listRes = await fetchRoadmaps(token);
+        variants = listRes.roadmaps || [];
       }
-      setStep(3); // Success celebration screen
+
+      setRoadmaps(variants);
+      if (variants.length > 0) {
+        setSelectedRoadmapId(res.user_goal?.selected_roadmap_id || variants[0].id);
+      }
+      setStep(3); // Transition to RoadmapSelector
     } catch (err: any) {
-      setError(err.message || 'Failed to auto-generate schedule.');
+      setError(err.message || 'Failed to initialize pacing roadmaps.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Confirm chosen roadmap, modulate schedule, and land on celebration
+  const handleConfirmRoadmapAndGenerate = async () => {
+    if (!token || !selectedRoadmapId) return;
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await selectRoadmap(token, selectedRoadmapId);
+      if (res.session_count) {
+        setGeneratedSessionCount(res.session_count);
+      }
+      setStep(4); // Celebration screen
+    } catch (err: any) {
+      setError(err.message || 'Failed to select roadmap and modulate schedule.');
     } finally {
       setSubmitting(false);
     }
@@ -394,9 +431,9 @@ export const OnboardingPage: React.FC = () => {
 
       {/* Main Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 relative z-10 space-y-8">
-        {/* 2-Step Architecture Indicator */}
-        {step < 3 && (
-          <div className="flex items-center justify-center gap-4 sm:gap-8 text-xs">
+        {/* 3-Step Architecture Indicator */}
+        {step < 4 && (
+          <div className="flex items-center justify-center gap-2 sm:gap-6 text-xs">
             <div
               onClick={() => setStep(1)}
               className={`flex items-center gap-2 cursor-pointer transition-colors ${
@@ -410,10 +447,10 @@ export const OnboardingPage: React.FC = () => {
               >
                 1
               </div>
-              <span>Step 1: Choose Your Goal</span>
+              <span>Step 1: Goal</span>
             </div>
 
-            <div className="w-12 h-px bg-slate-800" />
+            <div className="w-6 sm:w-10 h-px bg-slate-800" />
 
             <div
               onClick={() => selectedGoal && setStep(2)}
@@ -428,7 +465,25 @@ export const OnboardingPage: React.FC = () => {
               >
                 2
               </div>
-              <span>Step 2: Learn About You & Verify Routine</span>
+              <span>Step 2: Routine</span>
+            </div>
+
+            <div className="w-6 sm:w-10 h-px bg-slate-800" />
+
+            <div
+              onClick={() => roadmaps.length > 0 && setStep(3)}
+              className={`flex items-center gap-2 transition-colors ${
+                roadmaps.length > 0 ? 'cursor-pointer hover:text-slate-300' : 'cursor-not-allowed opacity-50'
+              } ${step === 3 ? 'text-indigo-400 font-bold' : 'text-slate-500'}`}
+            >
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                  step === 3 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25' : 'bg-slate-900 border border-slate-800 text-slate-400'
+                }`}
+              >
+                3
+              </div>
+              <span>Step 3: Roadmap</span>
             </div>
           </div>
         )}
@@ -1049,19 +1104,19 @@ export const OnboardingPage: React.FC = () => {
               <button
                 id="btn-confirm-onboarding"
                 type="button"
-                onClick={handleConfirmAndGenerate}
+                onClick={handleProceedToRoadmaps}
                 disabled={submitting}
                 className="w-full sm:w-auto py-3.5 px-8 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white text-sm font-bold shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer disabled:opacity-50"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{isAdjustingRoutine ? 'Re-aligning Schedule...' : 'Auto-Generating 12-Week Plan...'}</span>
+                    <span>Analyzing Routine & Generating Roadmaps...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>{isAdjustingRoutine ? 'Save Routine & Re-align Schedule' : 'Verify & Auto-Generate 3-Month Plan'}</span>
+                    <span>{isAdjustingRoutine ? 'Update Routine & Pacing Roadmaps' : 'Next: Choose Pacing Roadmap'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -1071,9 +1126,24 @@ export const OnboardingPage: React.FC = () => {
         )}
 
         {/* ========================================================= */}
-        {/* STEP 3: CELEBRATION & LIVE CALENDAR LANDING */}
+        {/* STEP 3: CHOOSE PACING ROADMAP (AI LAYER) */}
         {/* ========================================================= */}
-        {step === 3 && selectedGoal && (
+        {step === 3 && (
+          <RoadmapSelector
+            roadmaps={roadmaps}
+            selectedRoadmapId={selectedRoadmapId}
+            onSelectRoadmap={(roadmap) => setSelectedRoadmapId(roadmap.id)}
+            onConfirm={handleConfirmRoadmapAndGenerate}
+            onBack={() => setStep(2)}
+            isSubmitting={submitting}
+            error={error}
+          />
+        )}
+
+        {/* ========================================================= */}
+        {/* STEP 4: CELEBRATION & LIVE CALENDAR LANDING */}
+        {/* ========================================================= */}
+        {step === 4 && selectedGoal && (
           <div className="glass-panel p-8 sm:p-12 rounded-3xl border border-indigo-500/40 text-center space-y-6 max-w-2xl mx-auto animate-in zoom-in-95 duration-300 shadow-2xl">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-600 p-0.5 mx-auto shadow-xl shadow-emerald-500/20">
               <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">

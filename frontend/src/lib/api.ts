@@ -343,3 +343,71 @@ export async function submitWeeklyReflection(
 
   return data;
 }
+
+export async function fetchRoadmaps(token: string): Promise<{
+  roadmaps: import('../types').Roadmap[];
+  selected_roadmap_id: string | null;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/roadmaps`, {
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch roadmaps');
+  }
+
+  return data;
+}
+
+export async function generateRoadmaps(
+  token: string,
+  userGoalId: string
+): Promise<{
+  message: string;
+  roadmaps: import('../types').Roadmap[];
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/roadmaps/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ user_goal_id: userGoalId }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to generate roadmap variants');
+  }
+
+  return data;
+}
+
+export async function selectRoadmap(
+  token: string,
+  roadmapId: string
+): Promise<{
+  message: string;
+  selected_roadmap: import('../types').Roadmap;
+  user_goal: import('../types').UserGoal;
+  session_count: number;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/roadmaps/${roadmapId}/select`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to select roadmap');
+  }
+
+  return data;
+}

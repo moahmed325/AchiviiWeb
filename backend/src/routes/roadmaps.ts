@@ -128,6 +128,7 @@ roadmapsRouter.post('/:id/select', async (req: Request, res: Response): Promise<
     try {
       sessionCount = await generateThreeMonthSchedule(roadmap.user_goal_id, {
         preserveCompleted: true,
+        roadmapId: roadmap.id,
       });
     } catch (schedErr) {
       console.warn('[Roadmap Selection] Re-scheduling notice:', schedErr);
