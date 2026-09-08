@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     rootDir: backend
-    buildCommand: npm install && npm run use:postgres && npx prisma db push && npm run build
+    buildCommand: npm install --include=dev && npm run use:postgres && npx prisma db push && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
