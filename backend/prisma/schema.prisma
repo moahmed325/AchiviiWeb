@@ -1,0 +1,99 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                 String             @id @default(uuid())
+  email              String             @unique
+  password_hash      String
+  created_at         DateTime           @default(now())
+  user_goals         UserGoal[]
+  availability_slots AvailabilitySlot[]
+
+  @@map("users")
+}
+
+model GoalCatalog {
+  id               String     @id @default(uuid())
+  title            String
+  description      String
+  category         String
+  icon             String
+  est_weekly_hours Int
+  created_at       DateTime   @default(now())
+  phases           Phase[]
+  user_goals       UserGoal[]
+
+  @@map("goal_catalogs")
+}
+
+model Phase {
+  id              String         @id @default(uuid())
+  goal_catalog_id String
+  phase_order     Int
+  title           String
+  duration_weeks  Int
+  goal_catalog    GoalCatalog    @relation(fields: [goal_catalog_id], references: [id], onDelete: Cascade)
+  task_templates  TaskTemplate[]
+
+  @@map("phases")
+}
+
+model TaskTemplate {
+  id                       String    @id @default(uuid())
+  phase_id                 String
+  title                    String
+  sessions_per_week        Int
+  session_duration_minutes Int
+  preferred_time_of_day    String?
+  phase                    Phase     @relation(fields: [phase_id], references: [id], onDelete: Cascade)
+  sessions                 Session[]
+
+  @@map("task_templates")
+}
+
+model UserGoal {
+  id              String      @id @default(uuid())
+  user_id         String
+  goal_catalog_id String
+  start_date      DateTime
+  target_end_date DateTime
+  status          String      @default("ACTIVE") // ACTIVE, COMPLETED, ABANDONED
+  slippage_days   Int         @default(0)
+  user            User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  goal_catalog    GoalCatalog @relation(fields: [goal_catalog_id], references: [id])
+  sessions        Session[]
+
+  @@map("user_goals")
+}
+
+model AvailabilitySlot {
+  id          String  @id @default(uuid())
+  user_id     String
+  day_of_week String  // MON, TUE, WED, THU, FRI, SAT
+  start_time  String
+  end_time    String
+  label       String?
+  user        User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("availability_slots")
+}
+
+model Session {
+  id               String       @id @default(uuid())
+  user_goal_id     String
+  task_template_id String
+  scheduled_date   DateTime
+  start_time       String
+  end_time         String
+  status           String       @default("UPCOMING") // UPCOMING, DONE, MISSED, RESCHEDULED
+  user_goal        UserGoal     @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
+  task_template    TaskTemplate @relation(fields: [task_template_id], references: [id])
+
+  @@map("sessions")
+}
