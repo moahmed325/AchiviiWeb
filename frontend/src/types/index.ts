@@ -79,6 +79,7 @@ export interface Session {
   start_time: string;     // HH:MM
   end_time: string;       // HH:MM
   status: 'UPCOMING' | 'DONE' | 'MISSED' | 'RESCHEDULED';
+  tier?: 'core' | 'buffer' | 'reflect';
   task_template?: TaskTemplate;
 }
 

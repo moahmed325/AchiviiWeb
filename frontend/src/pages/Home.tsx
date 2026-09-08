@@ -12,7 +12,6 @@ import {
   Layers, 
   RotateCcw, 
   CalendarClock, 
-  CheckCircle2, 
   Loader2, 
   Search, 
   ArrowRight,
@@ -133,26 +132,31 @@ export const Home: React.FC = () => {
         {/* Active User Goal Header & Tab Switcher (If active goal exists) */}
         {activeUserGoal && activeUserGoal.goal_catalog && (
           <div className="space-y-6">
-            <div className="p-5 sm:p-6 rounded-md bg-[#0c1210] border border-[#182621] space-y-4">
+            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#182621] space-y-4 shadow-none">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="space-y-2">
-                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-xs font-mono font-medium tracking-wide">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> ACTIVE 3-MONTH GOAL
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
+                      CYCLE TELEMETRY // ACTIVE BLUEPRINT
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded-sm bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-[9px] font-mono font-bold tracking-wider">
+                      STATUS: ACTIVE
+                    </span>
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-extrabold text-[#e5ebe7]">
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#e5ebe7] truncate">
                     {activeUserGoal.goal_catalog.title}
-                  </h3>
+                  </h2>
                   <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono text-[#7e8f85]">
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
-                      Started: <strong className="text-[#e5ebe7] font-mono">{new Date(activeUserGoal.start_date).toLocaleDateString()}</strong>
+                      STARTED: <strong className="text-[#e5ebe7] font-mono">{new Date(activeUserGoal.start_date).toLocaleDateString().toUpperCase()}</strong>
                     </span>
                     <span className="flex items-center gap-1.5">
                       <TrendingUp className="w-3.5 h-3.5 text-[#07CB6C]" />
-                      Target: <strong className="text-[#07CB6C] font-mono">{new Date(activeUserGoal.target_end_date).toLocaleDateString()}</strong>
+                      TARGET: <strong className="text-[#07CB6C] font-mono">{new Date(activeUserGoal.target_end_date).toLocaleDateString().toUpperCase()}</strong>
                     </span>
                     <span className="px-2 py-0.5 rounded-sm bg-[#080d0b] border border-[#182621] text-[10px] text-[#7e8f85]">
-                      Slippage: {activeUserGoal.slippage_days} days
+                      SLIPPAGE: {activeUserGoal.slippage_days > 0 ? `+${activeUserGoal.slippage_days} DAYS` : '0 DAYS [NOMINAL]'}
                     </span>
                   </div>
                 </div>
@@ -163,21 +167,21 @@ export const Home: React.FC = () => {
                     className="min-h-[44px] px-3.5 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] text-xs font-mono border border-[#182621] hover:border-[#1f332c] flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Settings className="w-3.5 h-3.5 text-[#7e8f85]" />
-                    <span>Adjust Routine</span>
+                    <span>ADJUST ROUTINE</span>
                   </button>
                   <button
                     onClick={() => navigate('/progress')}
                     className="min-h-[44px] px-3.5 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#07CB6C] text-xs font-mono border border-[#182621] hover:border-[#07CB6C]/30 flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <TrendingUp className="w-3.5 h-3.5" />
-                    <span>Progress</span>
+                    <span>PROGRESS</span>
                   </button>
                   <button
                     onClick={() => navigate('/schedule')}
                     className="min-h-[44px] px-4 py-2 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <Calendar className="w-3.5 h-3.5" />
-                    <span>Schedule</span>
+                    <span>12-WEEK SCHEDULE</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -195,7 +199,7 @@ export const Home: React.FC = () => {
                 }`}
               >
                 <Calendar className="w-4 h-4 text-[#07CB6C]" />
-                <span>This Week's Schedule</span>
+                <span>ROLLING AGENDA // THIS WEEK</span>
               </button>
 
               <button
@@ -207,7 +211,7 @@ export const Home: React.FC = () => {
                 }`}
               >
                 <Layers className="w-4 h-4 text-[#07CB6C]" />
-                <span>Explore Other Goals</span>
+                <span>EXPLORE GOAL CATALOG</span>
               </button>
             </div>
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { RescheduleResult } from '../types';
+import { AlertTriangle, Clock, CheckCircle2, Zap, Sliders } from 'lucide-react';
 
 interface SlippageBannerProps {
   slippageDays: number;
@@ -30,54 +31,58 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
   const isSlipped = slippageDays > 0;
 
   return (
-    <div className="mb-6 rounded-2xl overflow-hidden border shadow-sm transition-all duration-300">
+    <div className="mb-6 rounded-md bg-[#0c1210] border border-[#182621] shadow-none">
       {/* Guardrail critical alert */}
       {isGuardrail ? (
-        <div className="bg-gradient-to-r from-rose-900/30 via-red-900/20 to-neutral-900/50 border-rose-500/40 p-5">
+        <div className="p-4 sm:p-5 border-l-2 border-l-[#ef4444]">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0 text-xl">
-                🚨
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-sm bg-[#161214] border border-[#ef4444]/30 text-[#ef4444] flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-4 h-4" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-rose-300 text-base">
-                    Pace Guardrail Alert: {slippageDays} Days Behind Schedule
-                  </h3>
-                  <span className="px-2 py-0.5 text-xs font-semibold uppercase tracking-wider rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                    2+ Weeks Slippage
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#ef4444]">
+                    PACING TELEMETRY // GUARDRAIL ENGAGED
+                  </span>
+                  <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-sm bg-[#ef4444]/15 text-[#ef4444] border border-[#ef4444]/30">
+                    +{slippageDays}D SLIPPAGE
                   </span>
                 </div>
-                <p className="text-sm text-neutral-300 mt-1 max-w-2xl leading-relaxed">
-                  You are more than 2 weeks past your original target pacing. Projected finish has moved to{' '}
-                  <span className="font-semibold text-white">{formattedTarget}</span>.
-                  We recommend adjusting your routine availability or restarting Phase 1 to sustain healthy habits.
+                <h3 className="text-sm sm:text-base font-bold text-[#e5ebe7]">
+                  Critical Delay Detected: <span className="font-mono text-[#ef4444]">{slippageDays} Days</span> Behind Target
+                </h3>
+                <p className="text-xs text-[#7e8f85] max-w-2xl leading-relaxed">
+                  Execution pacing has drifted over 14 days. Target finish updated to{' '}
+                  <span className="font-mono text-[#e5ebe7] font-medium">{formattedTarget}</span>.
+                  Recommend re-calibrating busy slots or reducing weekly load to prevent total habit abandonment.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0">
               <Link
                 to="/onboarding?mode=adjust"
-                className="px-3.5 py-2 text-xs font-semibold bg-slate-900/80 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-700/60 rounded-xl transition-colors text-center"
+                className="min-h-[44px] px-3.5 py-2 text-xs font-mono font-medium bg-[#080d0b] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] rounded-sm transition-colors flex items-center gap-1.5"
               >
-                Adjust Routine
+                <Sliders className="w-3.5 h-3.5 text-[#7e8f85]" />
+                <span>Adjust Routine</span>
               </Link>
               <button
                 type="button"
                 onClick={onTriggerReschedule}
                 disabled={isRescheduling}
-                className="px-4 py-2 text-sm font-medium bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl shadow-md transition-colors flex items-center gap-2"
+                className="min-h-[44px] px-4 py-2 text-xs font-mono font-bold bg-[#ef4444] hover:bg-[#dc2626] disabled:opacity-40 text-[#050807] rounded-sm transition-colors flex items-center gap-2 cursor-pointer"
               >
                 {isRescheduling ? (
                   <>
-                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                    Rescheduling...
+                    <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-[#050807] border-t-transparent rounded-full" />
+                    <span>Re-evaluating...</span>
                   </>
                 ) : (
                   <>
-                    <span>⚡</span>
-                    <span>Re-evaluate Schedule</span>
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Run Recovery Scan</span>
                   </>
                 )}
               </button>
@@ -86,44 +91,47 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
         </div>
       ) : isSlipped ? (
         /* Moderate slippage notice */
-        <div className="bg-gradient-to-r from-amber-950/30 via-neutral-900/40 to-neutral-900/60 border-amber-500/30 p-5">
+        <div className="p-4 sm:p-5 border-l-2 border-l-[#f59e0b]">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0 text-xl">
-                ⏳
+            <div className="flex items-start gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-sm bg-[#16140d] border border-[#f59e0b]/30 text-[#f59e0b] flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-amber-200 text-base">
-                    Adaptive Rescheduling Active (+{slippageDays} {slippageDays === 1 ? 'day' : 'days'} slippage)
-                  </h3>
-                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    Timeline Extended
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#f59e0b]">
+                    PACING TELEMETRY // ADAPTIVE OFFSET
+                  </span>
+                  <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-sm bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30">
+                    +{slippageDays}D EXTENSION
                   </span>
                 </div>
-                <p className="text-sm text-neutral-300 mt-1 max-w-2xl leading-relaxed">
-                  Missed sessions were pushed into open buffer slots (including Sunday recovery). Your projected completion is now{' '}
-                  <span className="font-semibold text-white">{formattedTarget}</span>. No progress was lost!
+                <h3 className="text-sm sm:text-base font-bold text-[#e5ebe7]">
+                  Adaptive Reallocation Active: <span className="font-mono text-[#f59e0b]">+{slippageDays} {slippageDays === 1 ? 'Day' : 'Days'}</span>
+                </h3>
+                <p className="text-xs text-[#7e8f85] max-w-2xl leading-relaxed">
+                  Missed sessions have been reallocated into open buffer windows. Target finish dynamically shifted to{' '}
+                  <span className="font-mono text-[#e5ebe7] font-medium">{formattedTarget}</span> with zero lost session content.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0">
               <button
                 type="button"
                 onClick={onTriggerReschedule}
                 disabled={isRescheduling}
-                className="px-4 py-2 text-sm font-medium bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-xl shadow-md transition-colors flex items-center gap-2"
+                className="min-h-[44px] px-4 py-2 text-xs font-mono font-bold bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-40 text-[#050807] rounded-sm transition-colors flex items-center gap-2 cursor-pointer"
               >
                 {isRescheduling ? (
                   <>
-                    <span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                    Checking...
+                    <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-[#050807] border-t-transparent rounded-full" />
+                    <span>Scanning...</span>
                   </>
                 ) : (
                   <>
-                    <span>⚡</span>
-                    <span>Run Rescheduler</span>
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Reschedule Missed</span>
                   </>
                 )}
               </button>
@@ -132,19 +140,23 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
         </div>
       ) : (
         /* On track */
-        <div className="bg-gradient-to-r from-emerald-950/20 via-neutral-900/40 to-neutral-900/60 border-emerald-500/20 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold text-sm">
-                ✓
+        <div className="p-4 sm:p-5 border-l-2 border-l-[#07CB6C]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-sm bg-[#0a1711] border border-[#07CB6C]/30 text-[#07CB6C] flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-4 h-4" />
               </div>
-              <div>
+              <div className="min-w-0 space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-emerald-300 text-sm">100% On Schedule</span>
-                  <span className="text-xs text-neutral-400">· 0 days slippage</span>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
+                    PACING TELEMETRY // NOMINAL CADENCE
+                  </span>
+                  <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-sm bg-[#07CB6C]/15 text-[#07CB6C] border border-[#07CB6C]/30">
+                    100% ON TRACK
+                  </span>
                 </div>
-                <p className="text-xs text-neutral-400">
-                  Target finish: <span className="text-neutral-200 font-medium">{formattedTarget}</span>. Sunday buffer slots are currently unreserved.
+                <p className="text-xs text-[#7e8f85]">
+                  Target finish: <span className="font-mono text-[#e5ebe7] font-medium">{formattedTarget}</span> · Slippage: <span className="font-mono text-[#07CB6C]">0 days</span>. All buffer slots intact.
                 </p>
               </div>
             </div>
@@ -153,17 +165,17 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
               type="button"
               onClick={onTriggerReschedule}
               disabled={isRescheduling}
-              className="self-start sm:self-auto px-3 py-1.5 text-xs font-medium text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg transition-colors flex items-center gap-1.5"
+              className="min-h-[44px] px-3.5 py-2 text-xs font-mono font-medium text-[#a6b8ad] hover:text-[#e5ebe7] bg-[#080d0b] hover:bg-[#111a17] border border-[#182621] hover:border-[#1f332c] rounded-sm transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-auto cursor-pointer disabled:opacity-40"
             >
               {isRescheduling ? (
                 <>
-                  <span className="animate-spin inline-block w-3 h-3 border-2 border-neutral-400 border-t-transparent rounded-full" />
+                  <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-[#a6b8ad] border-t-transparent rounded-full" />
                   <span>Checking...</span>
                 </>
               ) : (
                 <>
-                  <span>⚡</span>
-                  <span>Check Pace</span>
+                  <Zap className="w-3.5 h-3.5 text-[#07CB6C]" />
+                  <span>Run Pacing Check</span>
                 </>
               )}
             </button>
@@ -173,40 +185,40 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
 
       {/* Reschedule Log drawer when actions occurred */}
       {lastRescheduleResult && lastRescheduleResult.actions.length > 0 && (
-        <div className="border-t border-neutral-800 bg-neutral-950/70 p-4 text-xs">
+        <div className="border-t border-[#182621] bg-[#080d0b] p-4 text-xs font-mono">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-neutral-300 flex items-center gap-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-violet-400 animate-ping" />
-              Recent Adaptive Actions ({lastRescheduleResult.actions.length} sessions reallocated)
+            <span className="font-semibold text-[#a6b8ad] flex items-center gap-2">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+              <span>REALLOCATION TELEMETRY // {lastRescheduleResult.actions.length} SESSIONS REALLOCATED</span>
             </span>
             <button
               type="button"
               onClick={() => setShowDetails(!showDetails)}
-              className="text-violet-400 hover:text-violet-300 transition-colors"
+              className="min-h-[44px] px-2 text-[#07CB6C] hover:text-[#06b560] transition-colors flex items-center gap-1 cursor-pointer"
             >
-              {showDetails ? 'Hide Details' : 'Show Details'}
+              <span>{showDetails ? 'COLLAPSE LOG [-]' : 'EXPAND LOG [+]'}</span>
             </button>
           </div>
 
           {showDetails && (
-            <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="mt-3 space-y-2 max-h-48 overflow-y-auto overscroll-contain pr-1">
               {lastRescheduleResult.actions.map((act, i) => (
                 <div
                   key={i}
-                  className="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800 flex items-start justify-between gap-2"
+                  className="p-2.5 rounded-sm bg-[#0c1210] border border-[#182621] flex items-start justify-between gap-2"
                 >
-                  <div>
-                    <span className="font-medium text-white">{act.taskTitle}</span>
-                    <p className="text-neutral-400 mt-0.5">{act.details}</p>
+                  <div className="min-w-0">
+                    <span className="font-bold text-[#e5ebe7] truncate block">{act.taskTitle}</span>
+                    <p className="text-[#7e8f85] text-[11px] mt-0.5">{act.details}</p>
                   </div>
                   <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
+                    className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider shrink-0 ${
                       act.actionType === 'REALLOCATED_SAME_WEEK'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                        ? 'bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30'
+                        : 'bg-[#ef4444]/15 text-[#ef4444] border border-[#ef4444]/30'
                     }`}
                   >
-                    {act.actionType === 'REALLOCATED_SAME_WEEK' ? 'Within Week' : 'Plan Extended'}
+                    {act.actionType === 'REALLOCATED_SAME_WEEK' ? 'WITHIN WEEK' : 'PLAN EXTENDED'}
                   </span>
                 </div>
               ))}

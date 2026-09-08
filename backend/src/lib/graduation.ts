@@ -237,7 +237,7 @@ export async function resumePausedGoal(
   const pausedAt = goal.paused_at ? new Date(goal.paused_at) : now;
   const daysPaused = Math.max(
     0,
-    Math.ceil((now.getTime() - pausedAt.getTime()) / (1000 * 60 * 60 * 24))
+    Math.round((now.getTime() - pausedAt.getTime()) / (1000 * 60 * 60 * 24))
   );
 
   // Extend target_end_date and current_plan_day_offset by days paused
