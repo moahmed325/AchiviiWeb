@@ -102,6 +102,8 @@ model Session {
   end_time         String?
   status           String       @default("UPCOMING") // UPCOMING, DONE, MISSED, RESCHEDULED
   tier             SessionTier  @default(core)
+  completed_at_utc DateTime?
+  idempotency_token String?
   user_goal        UserGoal     @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
   task_template    TaskTemplate @relation(fields: [task_template_id], references: [id])
 

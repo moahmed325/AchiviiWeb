@@ -297,13 +297,17 @@ sessionsRouter.patch('/:id', async (req: Request, res: Response): Promise<void> 
     }
 
     const { id } = req.params;
-    const { status, scheduled_date, start_time, end_time } = req.body;
+    const { status, scheduled_date, start_time, end_time, completed_at_utc, idempotency_token } = req.body;
+    const idempotencyKey = (idempotency_token || req.headers['idempotency-key']) as string | undefined;
 
     // Verify session belongs to user
     const existingSession = await prisma.session.findUnique({
       where: { id },
       include: {
         user_goal: true,
+        task_template: {
+          include: { phase: true },
+        },
       },
     });
 
@@ -314,6 +318,15 @@ sessionsRouter.patch('/:id', async (req: Request, res: Response): Promise<void> 
 
     if (existingSession.user_goal.user_id !== user.id) {
       res.status(403).json({ error: 'Forbidden: You do not own this session.' });
+      return;
+    }
+
+    // Return cached response if idempotency token matches an already processed request
+    if (idempotencyKey && existingSession.idempotency_token === idempotencyKey) {
+      res.status(200).json({
+        message: 'Session already updated with this idempotency token.',
+        session: existingSession,
+      });
       return;
     }
 
@@ -328,6 +341,17 @@ sessionsRouter.patch('/:id', async (req: Request, res: Response): Promise<void> 
         return;
       }
       updateData.status = status;
+
+      if (status === 'DONE') {
+        // If client sends timestamp (e.g. offline sync), use it; otherwise use server now
+        updateData.completed_at_utc = completed_at_utc ? new Date(completed_at_utc) : new Date();
+        if (idempotencyKey) {
+          updateData.idempotency_token = idempotencyKey;
+        }
+      } else {
+        updateData.completed_at_utc = null;
+        updateData.idempotency_token = null;
+      }
     }
 
     let timeChanged = false;
