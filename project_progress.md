@@ -40,7 +40,7 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 **Goal:** Get test coverage on the two modules everything else in this roadmap will touch, before touching them.
 
 - [Done] Add Vitest to `backend/package.json`, add a working `npm test` / `bun test` script
-- [Todo] Write tests for `scheduler.ts`: interval subtraction, tight schedules (<15 min slots), full weeks with zero availability, `preferred_time_of_day` respected when set
+- [Done] Write tests for `scheduler.ts`: interval subtraction, tight schedules (<15 min slots), full weeks with zero availability, `preferred_time_of_day` respected when set
 - [Todo] Write tests for `rescheduler.ts` **as it currently behaves** (baseline coverage before Phase 2 changes its logic) — same-week reallocation, +7 cascade, slippage accumulation
 - [Todo] Confirm both test suites run cleanly in CI-equivalent conditions (plain `node`/`npm`, not just Bun)
 - [Todo] Update this file: mark Phase 0 complete, commit

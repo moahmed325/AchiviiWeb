@@ -1,28 +1,28 @@
 import { prisma } from './prisma.js';
 
-interface TimeInterval {
+export interface TimeInterval {
   start: number; // minutes from midnight
   end: number;   // minutes from midnight
 }
 
-const DAY_KEYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
-type DayKey = typeof DAY_KEYS[number];
+export const DAY_KEYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
+export type DayKey = typeof DAY_KEYS[number];
 
 // Helper: Convert "HH:MM" string to minutes from midnight
-function timeToMinutes(timeStr: string): number {
+export function timeToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number);
   return (hours || 0) * 60 + (minutes || 0);
 }
 
 // Helper: Convert minutes from midnight to "HH:MM" string
-function minutesToTime(minutes: number): string {
+export function minutesToTime(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
 // Helper: Subtract busy intervals from an available window
-function subtractIntervals(openings: TimeInterval[], busy: TimeInterval): TimeInterval[] {
+export function subtractIntervals(openings: TimeInterval[], busy: TimeInterval): TimeInterval[] {
   const result: TimeInterval[] = [];
 
   for (const op of openings) {
@@ -56,7 +56,7 @@ function subtractIntervals(openings: TimeInterval[], busy: TimeInterval): TimeIn
 }
 
 // Helper: Get preferred interval window
-function getPreferredWindow(pref?: string | null): TimeInterval {
+export function getPreferredWindow(pref?: string | null): TimeInterval {
   switch (pref?.toLowerCase()) {
     case 'morning':
       return { start: 7 * 60, end: 12 * 60 };    // 07:00 – 12:00
