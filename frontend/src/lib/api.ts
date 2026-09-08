@@ -1,17 +1,21 @@
 import { User, GoalCatalog, AuthResponse } from '../types';
 
 export function resolveApiBaseUrl(): string {
-  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL;
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
-    return envUrl.replace(/\/+$/, '');
-  }
-
-  // Runtime fallback: If running in browser on a production domain (e.g. *.vercel.app)
+  // If running in browser and NOT on localhost or 127.0.0.1, always direct to production API
   if (typeof window !== 'undefined' && window.location?.hostname) {
     const hostname = window.location.hostname;
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      const prodEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
+      if (prodEnvUrl && typeof prodEnvUrl === 'string' && prodEnvUrl.trim() !== '' && !prodEnvUrl.includes('localhost') && !prodEnvUrl.includes('127.0.0.1')) {
+        return prodEnvUrl.replace(/\/+$/, '');
+      }
       return 'https://achivii-api.onrender.com';
     }
+  }
+
+  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
+  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
+    return envUrl.replace(/\/+$/, '');
   }
 
   return 'http://localhost:5000';

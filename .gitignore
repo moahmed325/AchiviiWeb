@@ -11,6 +11,7 @@ node_modules/
 .env.production.local
 *.env
 !*.env.example
+!frontend/.env.production
 *.pem
 *.key
 
