@@ -69,9 +69,11 @@ model UserGoal {
   current_plan_day_offset Int         @default(0)
   user                    User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
   goal_catalog            GoalCatalog @relation(fields: [goal_catalog_id], references: [id])
+  selected_roadmap_id     String?
   sessions                Session[]
   recovery_events         RecoveryEvent[]
   weekly_reviews          WeeklyReview[]
+  roadmaps                Roadmap[]
 
   @@map("user_goals")
 }
@@ -100,6 +102,21 @@ model WeeklyReview {
 
   @@unique([user_goal_id, week_number])
   @@map("weekly_reviews")
+}
+
+model Roadmap {
+  id                     String    @id @default(uuid())
+  user_goal_id           String
+  name                   String
+  description            String
+  trade_offs             String
+  days_per_week          Int
+  daily_minutes_variance Int       @default(0)
+  phase_emphasis         Json?
+  created_at             DateTime  @default(now())
+  user_goal              UserGoal  @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
+
+  @@map("roadmaps")
 }
 
 model AvailabilitySlot {

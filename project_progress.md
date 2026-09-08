@@ -100,7 +100,7 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 **Goal:** Build the actual LLM-backed roles. This is the first phase that calls the Anthropic API. Do not start this phase until Phases 0–3 are complete and tested — the deterministic substrate these roles plug into needs to be correct first.
 
 - [Todo] Backend: `planner.ts` — generates 2–3 structured roadmap variants per goal instance (numeric parameters: `days_per_week`, `daily_minutes_variance`, `phase_emphasis`), returned as validated structured JSON, never freehand task/date generation
-- [Todo] Add `Roadmap` table per plan Section 9; wire into `UserGoal.selected_roadmap_id`
+- [Done] Add `Roadmap` table per plan Section 9; wire into `UserGoal.selected_roadmap_id`
 - [Todo] Backend: constraint validation layer — check Planner output against the user's onboarding constraints (session-length caps, available days) before it's allowed to reach the scheduler; on violation, reject and re-request rather than clamp
 - [Todo] Backend: `roadmaps.ts` routes — `POST /generate` (post-onboarding, pre-schedule), `POST /:id/select`
 - [Todo] Update the onboarding flow (`OnboardingPage.tsx`) to insert a roadmap-selection step between busy-block input and schedule generation
