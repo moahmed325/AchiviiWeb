@@ -22,32 +22,32 @@ export interface RescheduleResult {
   actions: RescheduleAction[];
 }
 
-interface TimeInterval {
+export interface TimeInterval {
   start: number; // minutes from midnight
   end: number;   // minutes from midnight
 }
 
-type DayKey = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+export type DayKey = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 
-function timeToMinutes(timeStr: string): number {
+export function timeToMinutes(timeStr: string): number {
   const [hours, minutes] = timeStr.split(':').map(Number);
   return (hours || 0) * 60 + (minutes || 0);
 }
 
-function minutesToTime(minutes: number): string {
+export function minutesToTime(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-function formatDateYYYYMMDD(date: Date): string {
+export function formatDateYYYYMMDD(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
-function getDayKey(date: Date): DayKey {
+export function getDayKey(date: Date): DayKey {
   const jsDay = date.getDay();
   const dayKeyMap: Record<number, DayKey> = {
     0: 'SUN',
@@ -61,7 +61,7 @@ function getDayKey(date: Date): DayKey {
   return dayKeyMap[jsDay];
 }
 
-function subtractIntervals(openings: TimeInterval[], busy: TimeInterval): TimeInterval[] {
+export function subtractIntervals(openings: TimeInterval[], busy: TimeInterval): TimeInterval[] {
   const result: TimeInterval[] = [];
 
   for (const op of openings) {
@@ -87,7 +87,7 @@ function subtractIntervals(openings: TimeInterval[], busy: TimeInterval): TimeIn
   return result.filter((i) => i.end - i.start >= 15);
 }
 
-function getPreferredWindow(pref?: string | null): TimeInterval {
+export function getPreferredWindow(pref?: string | null): TimeInterval {
   switch (pref?.toLowerCase()) {
     case 'morning':
       return { start: 7 * 60, end: 12 * 60 };
@@ -100,7 +100,7 @@ function getPreferredWindow(pref?: string | null): TimeInterval {
   }
 }
 
-function getBaselineDayOpenings(dayKey: DayKey): TimeInterval[] {
+export function getBaselineDayOpenings(dayKey: DayKey): TimeInterval[] {
   if (dayKey === 'SUN') {
     return [{ start: 8 * 60, end: 21 * 60 }]; // 08:00 - 21:00
   }

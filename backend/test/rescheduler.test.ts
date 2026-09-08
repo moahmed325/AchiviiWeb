@@ -1,0 +1,391 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  formatDateYYYYMMDD,
+  getDayKey,
+  getBaselineDayOpenings,
+  detectAndRescheduleMissed,
+} from '../src/lib/rescheduler.js';
+import { prisma } from '../src/lib/prisma.js';
+
+vi.mock('../src/lib/prisma.js', () => ({
+  prisma: {
+    userGoal: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    session: {
+      findMany: vi.fn(),
+      update: vi.fn(),
+    },
+  },
+}));
+
+describe('rescheduler.ts baseline unit tests', () => {
+  const RealDate = globalThis.Date;
+  const mockFrozenTime = new RealDate('2026-09-16T15:00:00');
+
+  function freezeTime() {
+    if (typeof vi.useFakeTimers === 'function' && typeof vi.setSystemTime === 'function') {
+      vi.useFakeTimers();
+      vi.setSystemTime(mockFrozenTime);
+    }
+    // Cross-runtime fallback (e.g. Bun test runner)
+    const customDate = class extends RealDate {
+      constructor(...args: any[]) {
+        if (args.length === 0) {
+          super(mockFrozenTime.getTime());
+        } else {
+          // @ts-expect-error spread constructor
+          super(...args);
+        }
+      }
+      static now() {
+        return mockFrozenTime.getTime();
+      }
+    };
+    globalThis.Date = customDate as any;
+  }
+
+  function unfreezeTime() {
+    if (typeof vi.useRealTimers === 'function') {
+      vi.useRealTimers();
+    }
+    globalThis.Date = RealDate;
+  }
+  describe('helper functions', () => {
+    it('formats date as YYYY-MM-DD with zero-padding', () => {
+      const d1 = new Date(2026, 0, 5); // Jan 5 2026
+      expect(formatDateYYYYMMDD(d1)).toBe('2026-01-05');
+
+      const d2 = new Date(2026, 11, 25); // Dec 25 2026
+      expect(formatDateYYYYMMDD(d2)).toBe('2026-12-25');
+    });
+
+    it('identifies correct DayKey from date', () => {
+      // 2026-09-14 is Monday
+      expect(getDayKey(new Date('2026-09-14T12:00:00Z'))).toBe('MON');
+      // 2026-09-20 is Sunday
+      expect(getDayKey(new Date('2026-09-20T12:00:00Z'))).toBe('SUN');
+      // 2026-09-19 is Saturday
+      expect(getDayKey(new Date('2026-09-19T12:00:00Z'))).toBe('SAT');
+    });
+
+    it('returns baseline day openings according to day of week', () => {
+      expect(getBaselineDayOpenings('SUN')).toEqual([{ start: 480, end: 1260 }]); // 08:00 - 21:00
+      expect(getBaselineDayOpenings('SAT')).toEqual([{ start: 480, end: 1290 }]); // 08:00 - 21:30
+      expect(getBaselineDayOpenings('MON')).toEqual([{ start: 420, end: 1320 }]); // 07:00 - 22:00
+      expect(getBaselineDayOpenings('FRI')).toEqual([{ start: 420, end: 1320 }]); // 07:00 - 22:00
+    });
+  });
+
+  describe('detectAndRescheduleMissed', () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      freezeTime();
+    });
+
+    afterEach(() => {
+      unfreezeTime();
+    });
+
+    it('throws error if userGoal is not found', async () => {
+      (prisma.userGoal.findUnique as any).mockResolvedValue(null);
+      await expect(detectAndRescheduleMissed('nonexistent-goal')).rejects.toThrow(
+        'Active user goal not found.'
+      );
+    });
+
+    it('ignores DONE sessions and future sessions that are not past end_time', async () => {
+      const mockGoal = {
+        id: 'goal-1',
+        slippage_days: 0,
+        target_end_date: new Date('2026-12-07T00:00:00'),
+        user: { availability_slots: [] },
+        goal_catalog: { phases: [] },
+      };
+
+      const sessions = [
+        {
+          id: 's-done',
+          scheduled_date: new Date('2026-09-15T10:00:00'), // yesterday
+          start_time: '10:00',
+          end_time: '11:00',
+          status: 'DONE',
+          task_template: { title: 'Task 1', session_duration_minutes: 60, preferred_time_of_day: null },
+        },
+        {
+          id: 's-future',
+          scheduled_date: new Date('2026-09-17T10:00:00'), // tomorrow
+          start_time: '10:00',
+          end_time: '11:00',
+          status: 'UPCOMING',
+          task_template: { title: 'Task 2', session_duration_minutes: 60, preferred_time_of_day: null },
+        },
+      ];
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.findMany as any).mockResolvedValue(sessions);
+
+      const result = await detectAndRescheduleMissed('goal-1');
+
+      expect(result.missedDetectedCount).toBe(0);
+      expect(result.rescheduledCount).toBe(0);
+      expect(prisma.session.update).not.toHaveBeenCalled();
+    });
+
+    it('reallocates missed session within the same week when a slot is free', async () => {
+      // Current time is Wednesday 2026-09-16 15:00.
+      // Session was scheduled for Tuesday 2026-09-15 (yesterday) at 10:00-11:00 and missed (UPCOMING).
+      const mockGoal = {
+        id: 'goal-same-week',
+        slippage_days: 0,
+        target_end_date: new Date('2026-12-07T00:00:00'),
+        user: { availability_slots: [] }, // fully open
+        goal_catalog: { phases: [] },
+      };
+
+      const missedSession = {
+        id: 's-missed-tue',
+        scheduled_date: new Date('2026-09-15T10:00:00'),
+        start_time: '10:00',
+        end_time: '11:00',
+        status: 'UPCOMING',
+        task_template: {
+          title: 'Deep Work',
+          session_duration_minutes: 60,
+          preferred_time_of_day: 'morning',
+        },
+      };
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.findMany as any).mockResolvedValue([missedSession]);
+      (prisma.session.update as any).mockResolvedValue({});
+
+      const result = await detectAndRescheduleMissed('goal-same-week');
+
+      expect(result.missedDetectedCount).toBe(1);
+      expect(result.sameWeekReallocatedCount).toBe(1);
+      expect(result.planShiftCount).toBe(0);
+      expect(result.slippageDaysAdded).toBe(0);
+      expect(result.totalSlippageDays).toBe(0);
+      expect(result.guardrailTriggered).toBe(false);
+
+      expect(result.actions).toHaveLength(1);
+      expect(result.actions[0].actionType).toBe('REALLOCATED_SAME_WEEK');
+      expect(result.actions[0].sessionId).toBe('s-missed-tue');
+
+      // Check that session was updated with RESCHEDULED status
+      expect(prisma.session.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 's-missed-tue' },
+          data: expect.objectContaining({
+            status: 'RESCHEDULED',
+          }),
+        })
+      );
+      // UserGoal should not be updated since no slippage was added
+      expect(prisma.userGoal.update).not.toHaveBeenCalled();
+    });
+
+    it('cascades plan by +7 days and accumulates slippage when no free slot exists in current week', async () => {
+      // Missed session on Monday 2026-09-14.
+      // User has availability slots covering all remaining days of the week (Wed-Sun) 00:00-23:59.
+      const mockGoal = {
+        id: 'goal-cascade',
+        slippage_days: 0,
+        target_end_date: new Date('2026-12-07T00:00:00'),
+        user: {
+          availability_slots: [
+            { day_of_week: 'WED', start_time: '00:00', end_time: '23:59' },
+            { day_of_week: 'THU', start_time: '00:00', end_time: '23:59' },
+            { day_of_week: 'FRI', start_time: '00:00', end_time: '23:59' },
+            { day_of_week: 'SAT', start_time: '00:00', end_time: '23:59' },
+            // Sunday has baseline 08:00-21:00 with no user slots, but let's book Sunday full with another session
+          ],
+        },
+        goal_catalog: { phases: [] },
+      };
+
+      const missedSession = {
+        id: 's-missed',
+        scheduled_date: new Date('2026-09-14T09:00:00'),
+        start_time: '09:00',
+        end_time: '10:00',
+        status: 'MISSED',
+        task_template: {
+          title: 'Morning Run',
+          session_duration_minutes: 60,
+          preferred_time_of_day: 'morning',
+        },
+      };
+
+      // Book Sunday 2026-09-20 completely with another session (08:00 - 21:00) so no free window exists
+      const sundaySession = {
+        id: 's-sunday',
+        scheduled_date: new Date('2026-09-20T08:00:00'),
+        start_time: '08:00',
+        end_time: '21:00',
+        status: 'UPCOMING',
+        task_template: {
+          title: 'Full Day Event',
+          session_duration_minutes: 780,
+          preferred_time_of_day: null,
+        },
+      };
+
+      // Future session in week 2 that should be shifted
+      const futureSession = {
+        id: 's-future-w2',
+        scheduled_date: new Date('2026-09-21T09:00:00'),
+        start_time: '09:00',
+        end_time: '10:00',
+        status: 'UPCOMING',
+        task_template: {
+          title: 'Week 2 Run',
+          session_duration_minutes: 60,
+          preferred_time_of_day: null,
+        },
+      };
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.findMany as any).mockResolvedValue([
+        missedSession,
+        sundaySession,
+        futureSession,
+      ]);
+      (prisma.session.update as any).mockResolvedValue({});
+      (prisma.userGoal.update as any).mockResolvedValue({});
+
+      const result = await detectAndRescheduleMissed('goal-cascade');
+
+      expect(result.missedDetectedCount).toBe(1);
+      expect(result.sameWeekReallocatedCount).toBe(0);
+      expect(result.planShiftCount).toBe(1);
+      expect(result.slippageDaysAdded).toBe(7);
+      expect(result.totalSlippageDays).toBe(7);
+      expect(result.guardrailTriggered).toBe(false);
+
+      expect(result.actions).toHaveLength(1);
+      expect(result.actions[0].actionType).toBe('SHIFTED_NEXT_WEEK');
+
+      // Missed session should be shifted by 7 days (from 2026-09-14 to 2026-09-21)
+      expect(prisma.session.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 's-missed' },
+          data: expect.objectContaining({
+            status: 'RESCHEDULED',
+            scheduled_date: new Date('2026-09-21T09:00:00'),
+          }),
+        })
+      );
+
+      // Future session should also be shifted by 7 days (from 2026-09-21 to 2026-09-28)
+      expect(prisma.session.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 's-future-w2' },
+          data: expect.objectContaining({
+            scheduled_date: new Date('2026-09-28T09:00:00'),
+          }),
+        })
+      );
+
+      // UserGoal should be updated with new slippage and pushed target_end_date
+      expect(prisma.userGoal.update).toHaveBeenCalledWith({
+        where: { id: 'goal-cascade' },
+        data: {
+          slippage_days: 7,
+          target_end_date: new Date(new Date('2026-12-07T00:00:00').getTime() + 7 * 86400000),
+        },
+      });
+    });
+
+    it('triggers guardrail when accumulated slippage reaches >= 14 days', async () => {
+      // Current slippage is already 7 days. Another cascade will bring it to 14 days.
+      const mockGoal = {
+        id: 'goal-guardrail',
+        slippage_days: 7,
+        target_end_date: new Date('2026-12-14T00:00:00'),
+        user: {
+          availability_slots: [
+            { day_of_week: 'WED', start_time: '00:00', end_time: '23:59' },
+            { day_of_week: 'THU', start_time: '00:00', end_time: '23:59' },
+            { day_of_week: 'FRI', start_time: '00:00', end_time: '23:59' },
+            { day_of_week: 'SAT', start_time: '00:00', end_time: '23:59' },
+          ],
+        },
+        goal_catalog: { phases: [] },
+      };
+
+      const missedSession = {
+        id: 's-missed-2',
+        scheduled_date: new Date('2026-09-14T09:00:00'),
+        start_time: '09:00',
+        end_time: '10:00',
+        status: 'MISSED',
+        task_template: {
+          title: 'Writing',
+          session_duration_minutes: 60,
+          preferred_time_of_day: null,
+        },
+      };
+
+      const sundaySession = {
+        id: 's-sun-booked',
+        scheduled_date: new Date('2026-09-20T08:00:00'),
+        start_time: '08:00',
+        end_time: '21:00',
+        status: 'UPCOMING',
+        task_template: {
+          title: 'Booked Sun',
+          session_duration_minutes: 780,
+          preferred_time_of_day: null,
+        },
+      };
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.findMany as any).mockResolvedValue([missedSession, sundaySession]);
+      (prisma.session.update as any).mockResolvedValue({});
+      (prisma.userGoal.update as any).mockResolvedValue({});
+
+      const result = await detectAndRescheduleMissed('goal-guardrail');
+
+      expect(result.slippageDaysAdded).toBe(7);
+      expect(result.totalSlippageDays).toBe(14);
+      expect(result.guardrailTriggered).toBe(true);
+    });
+
+    it('forces rescheduling when forceRescheduleSessionId is specified', async () => {
+      // Future session that normally would not be rescheduled
+      const futureSession = {
+        id: 's-forced',
+        scheduled_date: new Date('2026-09-17T10:00:00'), // tomorrow
+        start_time: '10:00',
+        end_time: '11:00',
+        status: 'UPCOMING',
+        task_template: {
+          title: 'Forced Move',
+          session_duration_minutes: 60,
+          preferred_time_of_day: null,
+        },
+      };
+
+      const mockGoal = {
+        id: 'goal-force',
+        slippage_days: 0,
+        target_end_date: new Date('2026-12-07T00:00:00'),
+        user: { availability_slots: [] },
+        goal_catalog: { phases: [] },
+      };
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.findMany as any).mockResolvedValue([futureSession]);
+      (prisma.session.update as any).mockResolvedValue({});
+
+      const result = await detectAndRescheduleMissed('goal-force', 's-forced');
+
+      expect(result.missedDetectedCount).toBe(1);
+      expect(result.rescheduledCount).toBe(1);
+      expect(result.actions[0].sessionId).toBe('s-forced');
+    });
+  });
+});
