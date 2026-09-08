@@ -11,6 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "use:postgres": "node scripts/switch-db.js postgres && prisma generate",
     "use:sqlite": "node scripts/switch-db.js sqlite && prisma generate"
   },
@@ -32,7 +34,8 @@
     "@types/node": "^22.13.5",
     "prisma": "^6.4.1",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^5.0.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -5,6 +5,8 @@ Status values: `[Done]` `[In Progress]` `[Todo]` `[Blocked]`
 
 Work one phase at a time, in order. Do not start a phase until the previous one is marked complete, unless explicitly instructed otherwise. Update this file immediately after finishing any task — mark it Done, note any deviation from the plan, and commit.
 
+> **Deployment status note (2026-09-08):** Core hosting/CI/CD infrastructure (Supabase Postgres, Render backend, Vercel frontend, auto-deploy pipeline) was stood up ahead of the planned sequence — normally Phase 6 work. This is a deliberate, tracked deviation, not scope creep: it gives every phase from here on a real production target to verify against. See the updated Phase 6 section below for what's actually done vs. still open, and see "Commit & Deployment Protocol" near the end of this file — **pushing to `main` now triggers a live production deploy and an automatic database migration against the real Supabase database**, so every phase from Phase 1 onward needs to treat pushes with more care than before.
+
 ---
 ## Phase -1 — Legacy Baseline (already built, before this realignment)
 
@@ -37,7 +39,7 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 
 **Goal:** Get test coverage on the two modules everything else in this roadmap will touch, before touching them.
 
-- [Todo] Add Vitest to `backend/package.json`, add a working `npm test` / `bun test` script
+- [Done] Add Vitest to `backend/package.json`, add a working `npm test` / `bun test` script
 - [Todo] Write tests for `scheduler.ts`: interval subtraction, tight schedules (<15 min slots), full weeks with zero availability, `preferred_time_of_day` respected when set
 - [Todo] Write tests for `rescheduler.ts` **as it currently behaves** (baseline coverage before Phase 2 changes its logic) — same-week reallocation, +7 cascade, slippage accumulation
 - [Todo] Confirm both test suites run cleanly in CI-equivalent conditions (plain `node`/`npm`, not just Bun)
@@ -47,6 +49,8 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 ## Phase 1 — Data Model Correction
 
 **Goal:** Bring the schema in line with plan Section 9 before building any new user-facing behavior on top of it. This is a migration, not a rewrite.
+
+> **Caution:** the production database is now a live Supabase Postgres instance with real seeded data (see Phase 6). Every schema change in this phase runs as an automatic migration against that live database the moment it's pushed to `main` — there is no manual "apply migration" step in between. Prefer additive changes (new nullable columns/tables) over anything that renames or drops existing columns. Test each migration against a real Postgres instance — a local Postgres or a Supabase branch/staging DB — not against SQLite alone, since the two can diverge in ways that only surface on Postgres. See "Commit & Deployment Protocol" below before pushing any migration.
 
 - [Todo] Add `Session.tier` enum (`core` / `buffer` / `reflect`); update `scheduler.ts` to tag every generated session at creation time per plan Section 4.4 (rough default split: 40–50% core / 30% buffer / 20% reflect, tune during implementation)
 - [Todo] Add `Session.day_number` and `Session.sequence_order`; add `UserGoal.current_plan_day_offset` (default 0)
@@ -130,14 +134,38 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 
 **Goal:** Everything needed to actually ship, plus the smaller refine-later items not folded into earlier phases.
 
-- [Todo] Resolve SQLite/PostgreSQL divergence: switch Prisma provider, generate Postgres migrations, update `.env.example`/README to match reality
-- [Todo] Ensure `npm run dev` / `npm run build` work under plain Node (`tsx` for backend, `npx vite` for frontend) in addition to Bun
-- [Todo] Add Docker Compose or equivalent for local Postgres parity with production
+**Completed ahead of sequence, 2026-09-08:**
+
+- [Done] Resolve SQLite/PostgreSQL divergence: production database migrated to managed PostgreSQL on Supabase (transaction pooling), full Prisma schema applied, seeded with the 6 production-ready starter goals across their phases
+- [Done] Choose and configure hosting: backend (Node/Express/TypeScript API) deployed on Render at `https://achivii-api.onrender.com`; frontend (Vite/React 19/Tailwind) deployed on Vercel at `https://frontend-two-roan-35.vercel.app`
+- [Done] Production CORS policy configured, restricted to authorized Vercel subdomains; environment variables (including `VITE_API_BASE_URL`) injected into both build pipelines
+- [Done] SPA client-side routing/rewrites configured on Vercel so direct hits to `/onboarding`, `/schedule`, `/progress` resolve without 404s
+- [Done] CI/CD: repository connected to both Render and Vercel — every push to `main` triggers an automated build, an automatic Prisma schema migration against the live Supabase database, and deployment on both tiers, at zero hosting cost
+- [Done] 13-point synthetic end-to-end audit passing against the live stack: health checks, CORS preflight, registration/login, availability/routine setup, and upfront 12-week schedule generation, verified directly against the production database
+
+**Important distinction:** the 13-point E2E audit above is a production smoke test, not a substitute for the Vitest unit coverage required in **Phase 0**. `scheduler.ts` and `rescheduler.ts` still have zero unit test coverage as of this update — Phase 0 remains a real, unfinished prerequisite and should not be skipped because the E2E audit passed.
+
+**Still open:**
+
+- [Todo] Update `.env.example` / README to match the real production config (they may still reference the old SQLite-first assumption — confirm and correct)
+- [Todo] Ensure `npm run dev` / `npm run build` work under plain Node (`tsx` for backend, `npx vite` for frontend) in addition to Bun — unaffected by the deployment work above
+- [Todo] Decide whether local dev should now also run against Postgres (for parity with the live Supabase-backed production environment) rather than SQLite; add Docker Compose or equivalent if so
 - [Todo] Fix the broken analytics cross-reference (plan originally pointed "3 leading indicators" at the wrong section) — confirm analytics implementation is scoped against the actual Success Criteria in plan Section 2
 - [Todo] Implement minimal push notifications (daily reminder + recovery/graduation check-in nudge), with explicit frequency caps
-- [Todo] Choose and configure hosting (frontend + backend + DB) and CI/CD
 - [Todo] Accessibility pass (screen reader labels, dynamic text sizing) on the new components from Phases 2–5
 - [Todo] Update this file: mark Phase 6 complete, commit
+
+---
+## Commit & Deployment Protocol
+
+This project now has a live, auto-deploying production stack (see Phase 6). `git push origin main` is no longer a purely local/reviewable action — it immediately triggers a real deploy on both Render and Vercel, **and an automatic Prisma migration against the live Supabase database**. Commit and push discipline changed the moment that pipeline went live.
+
+- **Commit locally after every verified task**, same as before — small, atomic commits, one per `project_progress.md` item where practical. Commits are cheap and don't touch production.
+- **Push to `main` only when the change is actually safe to go live**, meaning: tests pass, the build succeeds locally, and — for anything touching `prisma/schema.prisma` — the migration has been checked against a real Postgres instance, not SQLite alone (see the caution note at the top of Phase 1).
+- **Treat schema migrations as higher-stakes pushes than ordinary code changes.** Prefer additive migrations (new nullable columns, new tables) over destructive ones (drops, renames, non-nullable columns without a default) whenever the plan allows it, since a bad migration hits the live database immediately with no manual approval step in between. If a task genuinely requires a destructive migration, flag it explicitly before pushing rather than pushing it as part of a routine task commit.
+- **It's fine to accumulate a few local commits before pushing** if they're all part of finishing one coherent task — you don't need to push after every single commit. But don't let verified, working commits sit unpushed for a long stretch either; the point of small commits is to push at natural checkpoints (end of a task, or end of a phase), not to batch up large, harder-to-diagnose deploys.
+- **After a push that reaches production, a quick manual sanity check against the live URLs is worth doing** for anything user-facing: `https://achivii-api.onrender.com` (API) and `https://frontend-two-roan-35.vercel.app` (frontend). This is a lightweight spot-check, not a replacement for the automated tests required before pushing in the first place.
+- **If a push causes something to visibly break in production, say so immediately and stop starting new tasks** until it's diagnosed — don't push a fix on top of an unclear failure without first understanding what broke.
 
 ---
 ## How to use this file
