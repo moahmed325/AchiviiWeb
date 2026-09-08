@@ -119,14 +119,14 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 
 **Goal:** Build the aggregation layer. Only meaningful once a real recovery/reflection loop exists to learn from (Phases 2–4).
 
-- [Todo] Implement graduation trigger evaluation (relative to remaining plan length, only for `active` goals; recompute on resume-from-pause)
-- [Todo] Backend + frontend: graduation prompt with three choices (new goal / maintenance mode / pause)
-- [Todo] "New goal" path: pre-fill onboarding from existing profile, editable
-- [Todo] Implement profile aggregation: `User.best_working_hours` (derived from completion timestamps), `User.lapse_pattern_summary` (derived from `RecoveryEvent` history)
-- [Todo] Feed aggregated profile into onboarding defaults and Planner context for a user's second+ goal
-- [Todo] Ensure profile-derived defaults are presented as editable suggestions, never silently applied
-- [Todo] Tests: graduation trigger timing, pause/resume recompute, profile aggregation correctness
-- [Todo] Update this file: mark Phase 5 complete, commit
+- [Done] Implement graduation trigger evaluation (relative to remaining plan length, only for `active` goals; recompute on resume-from-pause)
+- [Done] Backend + frontend: graduation prompt with three choices (`start_new_goal`, `maintenance_mode`, `pause`) via `GraduationModal.tsx`
+- [Done] "New goal" path: pre-fill onboarding from existing profile, presented as fully editable suggestions with user agency
+- [Done] Implement profile aggregation: `User.best_working_hours` (derived from completion timestamps), `User.lapse_pattern_summary` (derived from `RecoveryEvent` history) in `profile.ts`
+- [Done] Feed aggregated profile into onboarding defaults and Planner context for a user's second+ goal via `GET /api/profile/learned-defaults`
+- [Done] Ensure profile-derived defaults are presented as editable suggestions, never silently applied
+- [Done] Tests: `backend/test/graduation-profile.test.ts` covers graduation trigger timing, pause/resume recompute, and profile aggregation correctness (95/95 tests passing across Vitest and Bun)
+- [Done] Update this file: mark Phase 5 complete, commit
 
 ---
 ## Phase 6 — Deployment & Remaining Cleanup
