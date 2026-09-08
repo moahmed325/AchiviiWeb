@@ -1,6 +1,7 @@
 import { User, GoalCatalog, AuthResponse } from '../types';
 
-const API_BASE_URL = ((import.meta as any).env?.VITE_API_BASE_URL) || 'http://localhost:5000';
+const rawApiUrl = ((import.meta as any).env?.VITE_API_BASE_URL) || 'http://localhost:5000';
+const API_BASE_URL = rawApiUrl.replace(/\/+$/, '');
 
 export interface HealthResponse {
   status: string;

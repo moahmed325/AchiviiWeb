@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bun x vite",
     "web": "bun x vite",
-    "build": "npx tsc && npx vite build",
+    "build": "tsc && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
