@@ -71,6 +71,7 @@ model UserGoal {
   goal_catalog            GoalCatalog @relation(fields: [goal_catalog_id], references: [id])
   sessions                Session[]
   recovery_events         RecoveryEvent[]
+  weekly_reviews          WeeklyReview[]
 
   @@map("user_goals")
 }
@@ -85,6 +86,20 @@ model RecoveryEvent {
   user_goal            UserGoal @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
 
   @@map("recovery_events")
+}
+
+model WeeklyReview {
+  id                   String    @id @default(uuid())
+  user_goal_id         String
+  week_number          Int
+  completion_rate      Float
+  reflection_type      String    // 'single_tap' | 'full'
+  reflection_responses Json?
+  created_at           DateTime  @default(now())
+  user_goal            UserGoal  @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_goal_id, week_number])
+  @@map("weekly_reviews")
 }
 
 model AvailabilitySlot {

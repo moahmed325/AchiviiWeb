@@ -85,7 +85,7 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 
 **Goal:** Build the deterministic reflection flow (no LLM needed yet) — this produces signal the AI layer will later consume.
 
-- [Todo] Add `WeeklyReview` table per plan Section 9
+- [Done] Add `WeeklyReview` table per plan Section 9
 - [Todo] Backend: weekly completion-rate evaluation job (triggered lazily, consistent with the Phase 1 timezone approach — not a new cron)
 - [Todo] Backend: `reflection.ts` routes — `GET` pending reflection (type: single-tap or full), `POST` response
 - [Todo] Implement the ≥70% threshold as a configurable value (not hardcoded), first week of a goal defaults to single-tap regardless of signal
