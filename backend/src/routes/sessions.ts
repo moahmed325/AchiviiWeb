@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
-import { generateThreeMonthSchedule } from '../lib/scheduler.js';
+import { generateThreeMonthSchedule, materializeWeekForGoal } from '../lib/scheduler.js';
 import { detectAndRescheduleMissed } from '../lib/rescheduler.js';
 
 export const sessionsRouter = Router();
@@ -75,6 +75,13 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
     const startOfGoal = new Date(goalStart.getFullYear(), goalStart.getMonth(), goalStart.getDate(), 0, 0, 0, 0);
     const weekStart = new Date(startOfGoal.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
     const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    // Materialize sessions on demand if unmaterialized
+    try {
+      await materializeWeekForGoal(activeGoal.id, weekOffset);
+    } catch (matErr) {
+      console.error('Failed to materialize week sessions:', matErr);
+    }
 
     // Fetch sessions for this week
     const sessions = await prisma.session.findMany({

@@ -189,9 +189,9 @@ export async function generateThreeMonthSchedule(
   let doneSessions: Array<{
     id: string;
     task_template_id: string;
-    scheduled_date: Date;
-    start_time: string;
-    end_time: string;
+    scheduled_date: Date | null;
+    start_time: string | null;
+    end_time: string | null;
   }> = [];
 
   if (options?.preserveCompleted) {
@@ -231,9 +231,9 @@ export async function generateThreeMonthSchedule(
     task_template_id: string;
     day_number: number;
     sequence_order: number;
-    scheduled_date: Date;
-    start_time: string;
-    end_time: string;
+    scheduled_date: Date | null;
+    start_time: string | null;
+    end_time: string | null;
     status: string;
     tier: SessionTier;
   }[] = [];
@@ -242,6 +242,8 @@ export async function generateThreeMonthSchedule(
   const TOTAL_WEEKS = 12;
 
   for (let weekIndex = 0; weekIndex < TOTAL_WEEKS; weekIndex++) {
+    const isCurrentRollingWeek = weekIndex === 0;
+
     // Determine active phase for this week
     let activePhase = phases[0];
     if (weekIndex >= 4 && weekIndex < 8 && phases.length > 1) {
@@ -275,16 +277,19 @@ export async function generateThreeMonthSchedule(
       if (doneSessions.length > 0) {
         const dStr = dayDate.toISOString().split('T')[0];
         const dayDone = doneSessions.filter((s) => {
+          if (!s.scheduled_date) return false;
           const sStr = new Date(s.scheduled_date).toISOString().split('T')[0];
           return sStr === dStr;
         });
 
         for (const ds of dayDone) {
-          intervals = subtractIntervals(intervals, {
-            start: timeToMinutes(ds.start_time),
-            end: timeToMinutes(ds.end_time),
-          });
-          existingSessionCount++;
+          if (ds.start_time && ds.end_time) {
+            intervals = subtractIntervals(intervals, {
+              start: timeToMinutes(ds.start_time),
+              end: timeToMinutes(ds.end_time),
+            });
+            existingSessionCount++;
+          }
         }
       }
 
@@ -305,6 +310,7 @@ export async function generateThreeMonthSchedule(
         const weekStartTime = startDate.getTime() + weekIndex * 7 * 24 * 60 * 60 * 1000;
         const weekEndTime = weekStartTime + 7 * 24 * 60 * 60 * 1000;
         doneCountForTaskThisWeek = doneSessions.filter((s) => {
+          if (!s.scheduled_date) return false;
           const sTime = new Date(s.scheduled_date).getTime();
           return s.task_template_id === task.id && sTime >= weekStartTime && sTime < weekEndTime;
         }).length;
@@ -368,9 +374,9 @@ export async function generateThreeMonthSchedule(
             task_template_id: task.id,
             day_number: weekIndex * 7 + day.dayOffsetInWeek,
             sequence_order: 0,
-            scheduled_date: day.date,
-            start_time: minutesToTime(chosenSlot.start),
-            end_time: minutesToTime(chosenSlot.end),
+            scheduled_date: isCurrentRollingWeek ? day.date : null,
+            start_time: isCurrentRollingWeek ? minutesToTime(chosenSlot.start) : null,
+            end_time: isCurrentRollingWeek ? minutesToTime(chosenSlot.end) : null,
             status: 'UPCOMING',
             tier: sessionTier,
           });
@@ -395,9 +401,9 @@ export async function generateThreeMonthSchedule(
                 task_template_id: task.id,
                 day_number: weekIndex * 7 + day.dayOffsetInWeek,
                 sequence_order: 0,
-                scheduled_date: day.date,
-                start_time: minutesToTime(slot.start),
-                end_time: minutesToTime(slot.end),
+                scheduled_date: isCurrentRollingWeek ? day.date : null,
+                start_time: isCurrentRollingWeek ? minutesToTime(slot.start) : null,
+                end_time: isCurrentRollingWeek ? minutesToTime(slot.end) : null,
                 status: 'UPCOMING',
                 tier: sessionTier,
               });
@@ -416,7 +422,9 @@ export async function generateThreeMonthSchedule(
     if (a.day_number !== b.day_number) {
       return a.day_number - b.day_number;
     }
-    return a.start_time.localeCompare(b.start_time);
+    const aTime = a.start_time || '';
+    const bTime = b.start_time || '';
+    return aTime.localeCompare(bTime);
   });
   sessionsToCreate.forEach((session, index) => {
     session.sequence_order = index + 1;
@@ -430,4 +438,159 @@ export async function generateThreeMonthSchedule(
   }
 
   return sessionsToCreate.length + doneSessions.length;
+}
+
+/**
+ * Materializes sessions for a specific week offset (e.g. week 1, week 2...)
+ * into real calendar dates and start/end times based on the user's availability routine
+ * and current_plan_day_offset.
+ */
+export async function materializeWeekForGoal(
+  userGoalId: string,
+  weekOffset: number
+): Promise<number> {
+  const userGoal = await prisma.userGoal.findUnique({
+    where: { id: userGoalId },
+    include: {
+      user: {
+        include: { availability_slots: true },
+      },
+    },
+  });
+
+  if (!userGoal) return 0;
+
+  const weekStartDay = weekOffset * 7;
+  const weekEndDay = weekStartDay + 7;
+
+  // Find unmaterialized sessions for this week
+  const unmaterialized = await prisma.session.findMany({
+    where: {
+      user_goal_id: userGoalId,
+      day_number: { gte: weekStartDay, lt: weekEndDay },
+      scheduled_date: null,
+    },
+    include: {
+      task_template: true,
+    },
+    orderBy: { sequence_order: 'asc' },
+  });
+
+  if (unmaterialized.length === 0) return 0;
+
+  const startDate = new Date(userGoal.start_date);
+  const planOffset = userGoal.current_plan_day_offset || 0;
+
+  // Build baseline free intervals for each day of week
+  const busyByDay: Record<string, TimeInterval[]> = {
+    MON: [], TUE: [], WED: [], THU: [], FRI: [], SAT: [], SUN: [],
+  };
+  for (const slot of userGoal.user.availability_slots) {
+    if (busyByDay[slot.day_of_week]) {
+      busyByDay[slot.day_of_week].push({
+        start: timeToMinutes(slot.start_time),
+        end: timeToMinutes(slot.end_time),
+      });
+    }
+  }
+
+  const baselineFreeByDay: Record<string, TimeInterval[]> = {};
+  for (const day of DAY_KEYS) {
+    let openWindow: TimeInterval = { start: 7 * 60, end: 22 * 60 };
+    if (day === 'SUN') openWindow = { start: 8 * 60, end: 21 * 60 };
+    else if (day === 'SAT') openWindow = { start: 8 * 60, end: 21.5 * 60 };
+
+    let free = [openWindow];
+    for (const b of busyByDay[day] || []) {
+      free = subtractIntervals(free, b);
+    }
+    baselineFreeByDay[day] = free;
+  }
+
+  // Already materialized sessions in this week to avoid time collisions
+  const existingMaterialized = await prisma.session.findMany({
+    where: {
+      user_goal_id: userGoalId,
+      day_number: { gte: weekStartDay, lt: weekEndDay },
+      scheduled_date: { not: null },
+    },
+  });
+
+  const intervalsByDayNumber: Record<number, TimeInterval[]> = {};
+
+  for (let d = weekStartDay; d < weekEndDay; d++) {
+    const effectiveDay = d + planOffset;
+    const dayDate = new Date(startDate.getTime() + effectiveDay * 24 * 60 * 60 * 1000);
+    const dayKeyMap: Record<number, DayKey> = {
+      0: 'SUN', 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT',
+    };
+    const dayKey = dayKeyMap[dayDate.getDay()];
+    let intervals = [...baselineFreeByDay[dayKey].map((i) => ({ ...i }))];
+
+    // Subtract already materialized sessions on this day
+    const daySessions = existingMaterialized.filter((s) => s.day_number === d);
+    for (const ds of daySessions) {
+      if (ds.start_time && ds.end_time) {
+        intervals = subtractIntervals(intervals, {
+          start: timeToMinutes(ds.start_time),
+          end: timeToMinutes(ds.end_time),
+        });
+      }
+    }
+    intervalsByDayNumber[d] = intervals;
+  }
+
+  let materializedCount = 0;
+
+  for (const session of unmaterialized) {
+    if (session.day_number === null || session.day_number === undefined) continue;
+
+    const d = session.day_number;
+    const effectiveDay = d + planOffset;
+    const sessionDate = new Date(startDate.getTime() + effectiveDay * 24 * 60 * 60 * 1000);
+    const duration = session.task_template?.session_duration_minutes || 45;
+    const prefWindow = getPreferredWindow(session.task_template?.preferred_time_of_day);
+
+    let chosenSlot: TimeInterval | null = null;
+    const available = intervalsByDayNumber[d] || [];
+
+    for (const interval of available) {
+      if (interval.end - interval.start >= duration) {
+        const prefStart = Math.max(interval.start, prefWindow.start);
+        const prefEnd = Math.min(interval.end, prefWindow.end);
+        if (prefEnd - prefStart >= duration) {
+          chosenSlot = { start: prefStart, end: prefStart + duration };
+          break;
+        }
+      }
+    }
+
+    if (!chosenSlot) {
+      for (const interval of available) {
+        if (interval.end - interval.start >= duration) {
+          chosenSlot = { start: interval.start, end: interval.start + duration };
+          break;
+        }
+      }
+    }
+
+    // Default fallback if day is packed
+    if (!chosenSlot) {
+      chosenSlot = { start: 9 * 60, end: 9 * 60 + duration };
+    } else {
+      intervalsByDayNumber[d] = subtractIntervals(intervalsByDayNumber[d], chosenSlot);
+    }
+
+    await prisma.session.update({
+      where: { id: session.id },
+      data: {
+        scheduled_date: sessionDate,
+        start_time: minutesToTime(chosenSlot.start),
+        end_time: minutesToTime(chosenSlot.end),
+      },
+    });
+    materializedCount++;
+  }
+
+  return materializedCount;
 }

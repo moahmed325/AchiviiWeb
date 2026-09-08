@@ -6,6 +6,7 @@ import {
   getPreferredWindow,
   determineSessionTier,
   generateThreeMonthSchedule,
+  materializeWeekForGoal,
   type TimeInterval,
 } from '../src/lib/scheduler.js';
 import { SessionTier } from '@prisma/client';
@@ -216,8 +217,9 @@ describe('scheduler.ts unit tests', () => {
       expect(prisma.session.createMany).toHaveBeenCalled();
       const createdSessions = (prisma.session.createMany as any).mock.calls[0][0].data;
       
-      // All placed sessions must be on Sunday because Mon-Sat are completely busy
-      for (const s of createdSessions) {
+      // Materialized sessions in week 0 must be on Sunday because Mon-Sat are completely busy
+      const materialized = createdSessions.filter((s: any) => s.scheduled_date !== null);
+      for (const s of materialized) {
         const d = new Date(s.scheduled_date);
         expect(d.getDay()).toBe(0); // 0 is Sunday
       }
@@ -257,13 +259,24 @@ describe('scheduler.ts unit tests', () => {
       expect(prisma.session.createMany).toHaveBeenCalled();
       const createdSessions = (prisma.session.createMany as any).mock.calls[0][0].data;
 
-      // Check that placed sessions start within the morning window (>= 07:00 and < 12:00)
-      for (const s of createdSessions) {
+      // Materialized week 0 sessions start within the morning window (>= 07:00 and < 12:00)
+      const week0Sessions = createdSessions.filter((s: any) => s.scheduled_date !== null);
+      expect(week0Sessions.length).toBe(3);
+      for (const s of week0Sessions) {
         const startMinutes = timeToMinutes(s.start_time);
         const endMinutes = timeToMinutes(s.end_time);
         expect(startMinutes).toBeGreaterThanOrEqual(420); // 07:00
         expect(endMinutes).toBeLessThanOrEqual(720);      // 12:00
         expect(endMinutes - startMinutes).toBe(45);
+      }
+
+      // Future weeks (1..11) are unmaterialized (scheduled_date, start_time, end_time null)
+      const futureSessions = createdSessions.filter((s: any) => s.scheduled_date === null);
+      expect(futureSessions.length).toBe(33);
+      for (const s of futureSessions) {
+        expect(s.start_time).toBeNull();
+        expect(s.end_time).toBeNull();
+        expect(s.day_number).toBeGreaterThanOrEqual(7);
       }
     });
 
@@ -489,6 +502,74 @@ describe('scheduler.ts unit tests', () => {
         SessionTier.buffer,
         SessionTier.reflect,
       ]);
+    });
+  });
+
+  describe('materializeWeekForGoal', () => {
+    it('returns 0 if userGoal is not found', async () => {
+      (prisma.userGoal.findUnique as any).mockResolvedValue(null);
+      const count = await materializeWeekForGoal('nonexistent-goal', 1);
+      expect(count).toBe(0);
+    });
+
+    it('returns 0 if no unmaterialized sessions exist in the week', async () => {
+      (prisma.userGoal.findUnique as any).mockResolvedValue({
+        id: 'goal-1',
+        start_date: new Date('2026-09-14T00:00:00Z'),
+        user: { availability_slots: [] },
+      });
+      (prisma.session.findMany as any).mockResolvedValue([]);
+
+      const count = await materializeWeekForGoal('goal-1', 1);
+      expect(count).toBe(0);
+    });
+
+    it('materializes unmaterialized sessions taking into account current_plan_day_offset', async () => {
+      const mockGoal = {
+        id: 'goal-mat',
+        start_date: new Date('2026-09-14T00:00:00Z'), // Monday
+        current_plan_day_offset: 7, // shifted 7 days
+        user: { availability_slots: [] },
+      };
+
+      const unmaterializedSessions = [
+        {
+          id: 's-unmat-1',
+          day_number: 7, // Week 1 Monday relative
+          sequence_order: 4,
+          scheduled_date: null,
+          start_time: null,
+          end_time: null,
+          task_template: {
+            title: 'Week 1 Focus',
+            session_duration_minutes: 60,
+            preferred_time_of_day: 'morning',
+          },
+        },
+      ];
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.findMany as any)
+        .mockResolvedValueOnce(unmaterializedSessions) // unmaterialized query
+        .mockResolvedValueOnce([]);                    // existing materialized query
+      (prisma.session.update as any).mockResolvedValue({});
+
+      const count = await materializeWeekForGoal('goal-mat', 1);
+      expect(count).toBe(1);
+
+      // Effective day = 7 (offset) + 7 (day_number) = 14 days from start
+      const expectedDate = new Date(new Date('2026-09-14T00:00:00Z').getTime() + 14 * 24 * 60 * 60 * 1000);
+
+      expect(prisma.session.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 's-unmat-1' },
+          data: expect.objectContaining({
+            scheduled_date: expectedDate,
+            start_time: '07:00',
+            end_time: '08:00',
+          }),
+        })
+      );
     });
   });
 });

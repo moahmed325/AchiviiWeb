@@ -97,9 +97,9 @@ model Session {
   task_template_id String
   day_number       Int?
   sequence_order   Int?
-  scheduled_date   DateTime
-  start_time       String
-  end_time         String
+  scheduled_date   DateTime?
+  start_time       String?
+  end_time         String?
   status           String       @default("UPCOMING") // UPCOMING, DONE, MISSED, RESCHEDULED
   tier             SessionTier  @default(core)
   user_goal        UserGoal     @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)

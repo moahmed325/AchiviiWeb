@@ -181,7 +181,7 @@ export async function detectAndRescheduleMissed(
     if (forceRescheduleSessionId && s.id === forceRescheduleSessionId) {
       return true;
     }
-    if (s.status === 'DONE') {
+    if (s.status === 'DONE' || !s.scheduled_date) {
       return false;
     }
     if (s.status === 'MISSED') {
@@ -192,7 +192,7 @@ export async function detectAndRescheduleMissed(
       return true;
     }
     if (sessionDateStr === todayYYYYMMDD && (s.status === 'UPCOMING' || s.status === 'RESCHEDULED')) {
-      return timeToMinutes(s.end_time) <= nowMinutes;
+      return s.end_time ? timeToMinutes(s.end_time) <= nowMinutes : false;
     }
     return false;
   });
@@ -207,7 +207,7 @@ export async function detectAndRescheduleMissed(
   for (const s of allSessions) {
     // Only count active sessions not in our reschedule candidate queue
     const isCandidate = sessionsToReschedule.some((c) => c.id === s.id);
-    if (!isCandidate && s.status !== 'MISSED') {
+    if (!isCandidate && s.status !== 'MISSED' && s.scheduled_date && s.start_time && s.end_time) {
       const dStr = formatDateYYYYMMDD(new Date(s.scheduled_date));
       if (!bookedIntervalsByDate[dStr]) {
         bookedIntervalsByDate[dStr] = [];
@@ -221,11 +221,12 @@ export async function detectAndRescheduleMissed(
 
   // Process each missed session chronologically
   for (const session of sessionsToReschedule) {
+    if (!session.scheduled_date) continue;
     const sessionDate = new Date(session.scheduled_date);
     const duration = session.task_template.session_duration_minutes;
     const prefWindow = getPreferredWindow(session.task_template.preferred_time_of_day);
     const origDateStr = formatDateYYYYMMDD(sessionDate);
-    const origTimeStr = `${session.start_time} - ${session.end_time}`;
+    const origTimeStr = session.start_time && session.end_time ? `${session.start_time} - ${session.end_time}` : '';
 
     // Determine the week bounds for this session
     // Monday is start of week (day 1), Sunday is end of week (day 0)
@@ -345,10 +346,12 @@ export async function detectAndRescheduleMissed(
         (s) =>
           s.id !== session.id &&
           s.status !== 'DONE' &&
+          s.scheduled_date &&
           formatDateYYYYMMDD(new Date(s.scheduled_date)) >= origDateStr
       );
 
       for (const fut of futureSessions) {
+        if (!fut.scheduled_date) continue;
         const shiftedDate = new Date(new Date(fut.scheduled_date).getTime() + shiftDays * 86400000);
         await prisma.session.update({
           where: { id: fut.id },
@@ -374,7 +377,7 @@ export async function detectAndRescheduleMissed(
         originalDate: origDateStr,
         originalTime: origTimeStr,
         newDate: nextWeekDateStr,
-        newTime: `${session.start_time} - ${session.end_time}`,
+        newTime: session.start_time && session.end_time ? `${session.start_time} - ${session.end_time}` : '',
         actionType: 'SHIFTED_NEXT_WEEK',
         details: `No slot available in current week. Extended plan by 7 days and shifted session to next week.`,
       });

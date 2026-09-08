@@ -130,8 +130,8 @@ progressRouter.get('/', async (req: Request, res: Response): Promise<void> => {
 
     // Simple velocity / recent activity
     const nonUpcomingSessions = sessions
-      .filter((s) => s.status !== 'UPCOMING')
-      .sort((a, b) => new Date(b.scheduled_date).getTime() - new Date(a.scheduled_date).getTime())
+      .filter((s) => s.status !== 'UPCOMING' && s.scheduled_date)
+      .sort((a, b) => new Date(b.scheduled_date!).getTime() - new Date(a.scheduled_date!).getTime())
       .slice(0, 5);
 
     res.status(200).json({

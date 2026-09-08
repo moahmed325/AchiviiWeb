@@ -54,7 +54,7 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 
 - [Done] Add `Session.tier` enum (`core` / `buffer` / `reflect`); update `scheduler.ts` to tag every generated session at creation time per plan Section 4.4 (rough default split: 40–50% core / 30% buffer / 20% reflect, tune during implementation)
 - [Done] Add `Session.day_number` and `Session.sequence_order`; add `UserGoal.current_plan_day_offset` (default 0)
-- [Todo] Refactor `scheduler.ts` so only the current rolling week is materialized to real `scheduled_date` values; all other sessions are addressed by `day_number`/`sequence_order` relative to the goal's offset
+- [Done] Refactor `scheduler.ts` so only the current rolling week is materialized to real `scheduled_date` values; all other sessions are addressed by `day_number`/`sequence_order` relative to the goal's offset
 - [Todo] Write a migration script for existing seeded/test data (if any persists) to backfill `tier`, `day_number`, `sequence_order`
 - [Todo] Add `Session.completed_at_utc` and an idempotency token field; update the completion endpoint to write these
 - [Todo] Add `User.timezone` (IANA string); capture it client-side at signup/onboarding (browser `Intl.DateTimeFormat().resolvedOptions().timeZone` is a reasonable default source) and persist it
