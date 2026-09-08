@@ -11,10 +11,12 @@ model User {
   id                 String             @id @default(uuid())
   email              String             @unique
   password_hash      String
-  timezone           String             @default("UTC")
-  created_at         DateTime           @default(now())
-  user_goals         UserGoal[]
-  availability_slots AvailabilitySlot[]
+  timezone              String             @default("UTC")
+  best_working_hours    Json?              @map("best_working_hours")
+  lapse_pattern_summary Json?              @map("lapse_pattern_summary")
+  created_at            DateTime           @default(now())
+  user_goals            UserGoal[]
+  availability_slots    AvailabilitySlot[]
 
   @@map("users")
 }
@@ -70,6 +72,7 @@ model UserGoal {
   user                    User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
   goal_catalog            GoalCatalog @relation(fields: [goal_catalog_id], references: [id])
   selected_roadmap_id     String?
+  paused_at               DateTime?   @map("paused_at")
   sessions                Session[]
   recovery_events         RecoveryEvent[]
   weekly_reviews          WeeklyReview[]
