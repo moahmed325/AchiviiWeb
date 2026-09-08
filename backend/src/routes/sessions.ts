@@ -36,8 +36,10 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
     }
 
     // Run auto-reschedule check to detect any missed sessions and reallocate within-week or shift plan
+    let pendingRecoveryState = null;
     try {
       const rescheduleResult = await detectAndRescheduleMissed(activeGoal.id);
+      pendingRecoveryState = rescheduleResult.pendingRecovery || null;
       if (rescheduleResult.rescheduledCount > 0) {
         // Refresh active goal data if slippage occurred
         const refreshed = await prisma.userGoal.findUnique({
@@ -139,6 +141,7 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
       },
       sessions,
       availabilitySlots,
+      pendingRecovery: pendingRecoveryState,
     });
   } catch (error: any) {
     console.error('Fetch week sessions error:', error);

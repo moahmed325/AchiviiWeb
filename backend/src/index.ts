@@ -7,6 +7,7 @@ import { catalogRouter } from './routes/catalog.js';
 import { onboardingRouter, userGoalRouter } from './routes/onboarding.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { progressRouter } from './routes/progress.js';
+import { recoveryRouter } from './routes/recovery.js';
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use('/api/onboarding', onboardingRouter);
 app.use('/api/user-goal', userGoalRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/progress', progressRouter);
+app.use('/api/recovery', recoveryRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 Achivii Backend API running on http://localhost:${PORT}`);
