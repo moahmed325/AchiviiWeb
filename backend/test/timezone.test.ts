@@ -2,7 +2,14 @@ import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vites
 import express from 'express';
 import type { Server } from 'node:http';
 import { prisma } from '../src/lib/prisma.js';
-import { isValidTimezone, normalizeTimezone, getZonedDateString, getUserTodayDateString } from '../src/lib/timezone.js';
+import {
+  isValidTimezone,
+  normalizeTimezone,
+  getZonedDateString,
+  getUserTodayDateString,
+  getZonedTimeParts,
+  getZonedDayBounds,
+} from '../src/lib/timezone.js';
 import { authRouter } from '../src/routes/auth.js';
 
 vi.mock('../src/lib/prisma.js', () => ({
@@ -55,6 +62,46 @@ describe('Timezone Utility (Phase 1 Task 6 & 7)', () => {
   it('computes today string in user timezone', () => {
     const todayStr = getUserTodayDateString('UTC');
     expect(todayStr).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('breaks down date into accurate zoned time parts', () => {
+    // 2026-09-08 23:30 UTC
+    const testDate = new Date('2026-09-08T23:30:00.000Z');
+
+    const tokyoParts = getZonedTimeParts(testDate, 'Asia/Tokyo');
+    expect(tokyoParts.dateStr).toBe('2026-09-09');
+    expect(tokyoParts.hours).toBe(8);
+    expect(tokyoParts.minutes).toBe(30);
+    expect(tokyoParts.minutesFromMidnight).toBe(8 * 60 + 30);
+    expect(tokyoParts.dayKey).toBe('WED');
+
+    const nyParts = getZonedTimeParts(testDate, 'America/New_York');
+    expect(nyParts.dateStr).toBe('2026-09-08');
+    expect(nyParts.hours).toBe(19);
+    expect(nyParts.minutes).toBe(30);
+    expect(nyParts.minutesFromMidnight).toBe(19 * 60 + 30);
+    expect(nyParts.dayKey).toBe('TUE');
+  });
+
+  it('evaluates timezone-aware day bounds without naive UTC string splitting', () => {
+    // For UTC on 2026-09-08
+    const utcBounds = getZonedDayBounds('2026-09-08', 'UTC');
+    expect(utcBounds.startOfDay.toISOString()).toBe('2026-09-08T00:00:00.000Z');
+    expect(utcBounds.endOfDay.toISOString()).toBe('2026-09-08T23:59:59.999Z');
+
+    // For America/New_York (EDT, UTC-4 on Sept 8)
+    // 00:00 EDT = 04:00 UTC
+    // 23:59:59.999 EDT = 03:59:59.999 UTC next day
+    const nyBounds = getZonedDayBounds('2026-09-08', 'America/New_York');
+    expect(nyBounds.startOfDay.toISOString()).toBe('2026-09-08T04:00:00.000Z');
+    expect(nyBounds.endOfDay.toISOString()).toBe('2026-09-09T03:59:59.999Z');
+
+    // For Asia/Tokyo (JST, UTC+9)
+    // 00:00 JST = 15:00 UTC previous day
+    // 23:59:59.999 JST = 14:59:59.999 UTC
+    const tokyoBounds = getZonedDayBounds('2026-09-08', 'Asia/Tokyo');
+    expect(tokyoBounds.startOfDay.toISOString()).toBe('2026-09-07T15:00:00.000Z');
+    expect(tokyoBounds.endOfDay.toISOString()).toBe('2026-09-08T14:59:59.999Z');
   });
 });
 

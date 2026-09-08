@@ -76,6 +76,18 @@ describe('rescheduler.ts baseline unit tests', () => {
       expect(getBaselineDayOpenings('MON')).toEqual([{ start: 420, end: 1320 }]); // 07:00 - 22:00
       expect(getBaselineDayOpenings('FRI')).toEqual([{ start: 420, end: 1320 }]); // 07:00 - 22:00
     });
+
+    it('formats date according to user timezone when provided', () => {
+      const utcDate = new Date('2026-09-08T23:30:00Z');
+      expect(formatDateYYYYMMDD(utcDate, 'Asia/Tokyo')).toBe('2026-09-09');
+      expect(formatDateYYYYMMDD(utcDate, 'America/New_York')).toBe('2026-09-08');
+    });
+
+    it('identifies correct DayKey according to user timezone', () => {
+      const utcDate = new Date('2026-09-08T23:30:00Z');
+      expect(getDayKey(utcDate, 'Asia/Tokyo')).toBe('WED');
+      expect(getDayKey(utcDate, 'America/New_York')).toBe('TUE');
+    });
   });
 
   describe('detectAndRescheduleMissed', () => {

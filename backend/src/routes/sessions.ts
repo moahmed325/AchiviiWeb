@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import { generateThreeMonthSchedule, materializeWeekForGoal } from '../lib/scheduler.js';
 import { detectAndRescheduleMissed } from '../lib/rescheduler.js';
-import { getZonedDateString, getZonedDayBounds } from '../lib/timezone.js';
+import { getZonedDateString, getZonedDayBounds, getZonedTimeParts } from '../lib/timezone.js';
 
 export const sessionsRouter = Router();
 
@@ -269,12 +269,8 @@ sessionsRouter.get('/day', async (req: Request, res: Response): Promise<void> =>
       orderBy: { start_time: 'asc' },
     });
 
-    // Map day of week
-    const jsDay = targetDate.getDay();
-    const dayMap: Record<number, string> = {
-      0: 'SUN', 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT'
-    };
-    const dayKey = dayMap[jsDay];
+    // Map day of week in user timezone
+    const dayKey = getZonedTimeParts(startOfDay, userTimezone).dayKey;
 
     const availabilitySlots = await prisma.availabilitySlot.findMany({
       where: { user_id: user.id, day_of_week: dayKey },
