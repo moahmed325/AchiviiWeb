@@ -18,4 +18,8 @@ export default defineConfig({
     port: 5173,
     host: true,
   },
+  define: {
+    'process.env.VITE_API_URL': JSON.stringify('https://achivii-api.onrender.com'),
+    'process.env.VITE_API_BASE_URL': JSON.stringify('https://achivii-api.onrender.com'),
+  },
 });

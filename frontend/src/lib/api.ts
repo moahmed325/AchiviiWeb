@@ -1,24 +1,25 @@
 import { User, GoalCatalog, AuthResponse } from '../types';
 
 export function resolveApiBaseUrl(): string {
-  // If running in browser and NOT on localhost or 127.0.0.1, always direct to production API
-  if (typeof window !== 'undefined' && window.location?.hostname) {
-    const hostname = window.location.hostname;
-    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      const prodEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
-      if (prodEnvUrl && typeof prodEnvUrl === 'string' && prodEnvUrl.trim() !== '' && !prodEnvUrl.includes('localhost') && !prodEnvUrl.includes('127.0.0.1')) {
-        return prodEnvUrl.replace(/\/+$/, '');
-      }
-      return 'https://achivii-api.onrender.com';
+  // Only use localhost if explicitly running in Vite local dev mode AND connected via localhost
+  const isDev = Boolean((import.meta as any).env?.DEV);
+  const isLocalHost = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1');
+
+  if (isDev && isLocalHost) {
+    const devEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
+    if (devEnvUrl && typeof devEnvUrl === 'string' && devEnvUrl.trim() !== '') {
+      return devEnvUrl.replace(/\/+$/, '');
     }
+    return 'http://localhost:5000';
   }
 
-  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
-  if (envUrl && typeof envUrl === 'string' && envUrl.trim() !== '') {
-    return envUrl.replace(/\/+$/, '');
+  // In all other cases (production build, Vercel, staging, unknown), STRICTLY target Render production API
+  const prodEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
+  if (prodEnvUrl && typeof prodEnvUrl === 'string' && prodEnvUrl.trim() !== '' && !prodEnvUrl.includes('localhost') && !prodEnvUrl.includes('127.0.0.1')) {
+    return prodEnvUrl.replace(/\/+$/, '');
   }
 
-  return 'http://localhost:5000';
+  return 'https://achivii-api.onrender.com';
 }
 
 const API_BASE_URL = resolveApiBaseUrl();
