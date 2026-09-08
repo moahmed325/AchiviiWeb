@@ -73,15 +73,17 @@ export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
   return (
     <div
       id="recovery-check-in-card"
+      role="region"
+      aria-label="Adaptive Recovery Check-In"
       className="mb-6 rounded-2xl overflow-hidden border border-amber-500/30 bg-gradient-to-br from-amber-950/40 via-slate-900/90 to-slate-950/95 shadow-xl transition-all duration-300 relative"
     >
       {/* Non-blocking dismiss button */}
       <button
         type="button"
         onClick={() => setIsDismissed(true)}
-        className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800/60 transition-colors"
-        title="Dismiss for now"
-        aria-label="Dismiss check-in"
+        className="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-colors"
+        title="Dismiss check-in for now"
+        aria-label="Dismiss recovery check-in for now"
       >
         <X className="w-4 h-4" />
       </button>
@@ -140,21 +142,33 @@ export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
 
         {/* Success or Error Feedback */}
         {actionSuccessMessage && (
-          <div className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in"
+          >
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{actionSuccessMessage}</span>
           </div>
         )}
 
         {errorMessage && (
-          <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs"
+          >
             {errorMessage}
           </div>
         )}
 
         {/* Action Choice Cards */}
         {!actionSuccessMessage && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div
+            role="group"
+            aria-label="Recovery plan adjustment options"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1"
+          >
             {!isCircuitBreaker ? (
               <>
                 {/* Choice 1: Shrink Week */}
@@ -163,7 +177,8 @@ export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
                   type="button"
                   onClick={() => handleAction('shrink_week')}
                   disabled={isSubmitting}
-                  className="p-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-850 hover:border-indigo-500/50 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-50"
+                  aria-label="Option 1: Shrink this week. Drop buffer sessions and keep finish date intact."
+                  className="p-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-850 hover:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-50"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -195,7 +210,8 @@ export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
                   type="button"
                   onClick={() => handleAction('shift_timeline')}
                   disabled={isSubmitting}
-                  className="p-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-850 hover:border-amber-500/50 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-50"
+                  aria-label="Option 2: Shift the whole timeline forward by 7 days."
+                  className="p-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-850 hover:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-400 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-50"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -229,7 +245,8 @@ export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
                   type="button"
                   onClick={() => handleAction('scope_reduction')}
                   disabled={isSubmitting}
-                  className="p-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-850 hover:border-purple-500/50 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-50"
+                  aria-label="Pacing circuit breaker: Dial back goal commitment to a sustainable pace."
+                  className="p-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-850 hover:border-purple-500/50 focus:outline-none focus:ring-2 focus:ring-purple-400 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-50"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -261,7 +278,8 @@ export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
                   type="button"
                   onClick={() => handleAction('pause_goal')}
                   disabled={isSubmitting}
-                  className="p-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-850 hover:border-slate-500/50 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-50"
+                  aria-label="Pacing circuit breaker: Pause goal for now with zero penalty."
+                  className="p-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-850 hover:border-slate-500/50 focus:outline-none focus:ring-2 focus:ring-slate-400 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-50"
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">

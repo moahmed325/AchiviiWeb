@@ -100,15 +100,17 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
   return (
     <div
       id="weekly-reflection-card"
+      role="region"
+      aria-label="Weekly Reflection Check-In"
       className="mb-6 rounded-2xl overflow-hidden border border-indigo-500/30 bg-gradient-to-br from-indigo-950/40 via-slate-900/90 to-slate-950/95 shadow-xl transition-all duration-300 relative"
     >
       {/* Dismiss button */}
       <button
         type="button"
         onClick={() => setIsDismissed(true)}
-        className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800/60 transition-colors"
-        title="Dismiss for now"
-        aria-label="Dismiss reflection"
+        className="absolute top-4 right-4 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+        title="Dismiss reflection for now"
+        aria-label="Dismiss weekly reflection for now"
       >
         <X className="w-4 h-4" />
       </button>
@@ -150,14 +152,22 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
 
         {/* Feedback states */}
         {successMessage && (
-          <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2 animate-in fade-in"
+          >
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{successMessage}</span>
           </div>
         )}
 
         {errorMessage && (
-          <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs">
+          <div
+            role="alert"
+            aria-live="assertive"
+            className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs"
+          >
             {errorMessage}
           </div>
         )}
@@ -170,7 +180,8 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
               type="button"
               onClick={handleSingleTapConfirm}
               disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer disabled:opacity-50"
+              aria-label={`Keep same plan for Week ${weekNumber + 1}`}
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-white font-semibold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>
@@ -193,7 +204,7 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Question 1 */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">
+                <label htmlFor="reflection-q1" className="text-xs font-semibold text-slate-300">
                   1. What went well this week?
                 </label>
                 <textarea
@@ -202,13 +213,13 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
                   onChange={(e) => setWhatWentWell(e.target.value)}
                   placeholder="e.g. Morning sessions felt natural and productive..."
                   rows={2}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                 />
               </div>
 
               {/* Question 2 */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">
+                <label htmlFor="reflection-q2" className="text-xs font-semibold text-slate-300">
                   2. What got in the way of your sessions?
                 </label>
                 <textarea
@@ -217,23 +228,30 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
                   onChange={(e) => setWhatGotInWay(e.target.value)}
                   placeholder="e.g. Late work meetings clashed with Thursday session..."
                   rows={2}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
                 />
               </div>
             </div>
 
             {/* Question 3: Difficulty Choices */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">
+              <label id="difficulty-group-label" className="text-xs font-semibold text-slate-300">
                 3. How did the pacing and difficulty feel?
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div
+                role="radiogroup"
+                aria-labelledby="difficulty-group-label"
+                className="flex flex-wrap gap-2"
+              >
                 {['Too Easy', 'Just Right', 'Too Challenging'].map((option) => (
                   <button
                     key={option}
                     type="button"
+                    role="radio"
+                    aria-checked={difficulty === option}
+                    aria-label={`Difficulty: ${option}`}
                     onClick={() => setDifficulty(option)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
                       difficulty === option
                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                         : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
@@ -247,7 +265,7 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
 
             {/* Question 4: Routine Changes */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">
+              <label htmlFor="reflection-q4" className="text-xs font-semibold text-slate-300">
                 4. Do you need any adjustments to your weekly routine?
               </label>
               <textarea
@@ -256,7 +274,7 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
                 onChange={(e) => setScheduleChanges(e.target.value)}
                 placeholder="e.g. Free up Thursday evening and move to Saturday morning..."
                 rows={2}
-                className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
               />
             </div>
 

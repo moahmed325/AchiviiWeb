@@ -73,8 +73,12 @@ export const RoadmapSelector: React.FC<RoadmapSelectorProps> = ({
       )}
 
       {/* Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {roadmaps.map((roadmap) => {
+      <div
+        role="radiogroup"
+        aria-label="Available Roadmap Pacing Variants"
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+      >
+        {roadmaps.map((roadmap, index) => {
           const isSelected = selectedRoadmapId === roadmap.id;
           const badge = getPacingBadge(roadmap.days_per_week, roadmap.daily_minutes_variance);
 
@@ -82,15 +86,25 @@ export const RoadmapSelector: React.FC<RoadmapSelectorProps> = ({
             <div
               key={roadmap.id}
               onClick={() => onSelectRoadmap(roadmap)}
-              role="button"
+              role="radio"
+              aria-checked={isSelected}
+              aria-label={`${roadmap.name}, ${roadmap.days_per_week} days per week, ${getVarianceText(roadmap.daily_minutes_variance)}. ${roadmap.description}`}
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onSelectRoadmap(roadmap);
+                } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  const nextIndex = (index + 1) % roadmaps.length;
+                  onSelectRoadmap(roadmaps[nextIndex]);
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  const prevIndex = (index - 1 + roadmaps.length) % roadmaps.length;
+                  onSelectRoadmap(roadmaps[prevIndex]);
                 }
               }}
-              className={`relative flex flex-col justify-between p-6 rounded-2xl border transition-all duration-200 cursor-pointer text-left focus:outline-none ${
+              className={`relative flex flex-col justify-between p-6 rounded-2xl border transition-all duration-200 cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
                 isSelected
                   ? 'bg-gradient-to-b from-indigo-950/60 to-purple-950/40 border-indigo-500 ring-2 ring-indigo-500/30 shadow-xl shadow-indigo-950/50'
                   : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/90'

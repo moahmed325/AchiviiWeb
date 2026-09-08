@@ -30,6 +30,16 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDismissed(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   if (!graduationState.eligible || isDismissed) {
     return null;
   }
@@ -55,7 +65,13 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="graduation-modal-title"
+      aria-describedby="graduation-modal-desc"
+    >
       <div className="relative w-full max-w-2xl bg-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-indigo-950/60 text-left space-y-6 overflow-hidden">
         {/* Ambient Top Glow */}
         <div className="absolute -top-24 -left-24 w-72 h-72 bg-gradient-to-br from-indigo-500/20 to-purple-600/20 rounded-full blur-3xl pointer-events-none" />
@@ -63,7 +79,8 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
         {/* Dismiss Button */}
         <button
           onClick={() => setIsDismissed(true)}
-          className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-800"
+          aria-label="Close graduation dialog"
+          className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
         >
           <X className="w-5 h-5" />
         </button>
@@ -75,10 +92,10 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
             <span>Goal Milestone Reached</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+          <h2 id="graduation-modal-title" className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             Ready to Graduate "{graduationState.goal_title}"?
           </h2>
-          <p className="text-sm text-slate-300 leading-relaxed max-w-xl">
+          <p id="graduation-modal-desc" className="text-sm text-slate-300 leading-relaxed max-w-xl">
             {graduationState.graduation_message ||
               `You've reached the graduation window with ${graduationState.completed_sessions} completed sessions (${Math.round(graduationState.completion_rate * 100)}% completion). Decide how you'd like to shape your next phase.`}
           </p>
@@ -91,13 +108,28 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
         )}
 
         {/* Three Explicit Choices (Guardrail 1) */}
-        <div className="grid grid-cols-1 gap-3.5">
+        <div
+          role="radiogroup"
+          aria-label="Graduation phase options"
+          className="grid grid-cols-1 gap-3.5"
+        >
           {/* Option 1: Start New Goal */}
           <div
             onClick={() => setSelectedChoice('start_new_goal')}
-            role="button"
+            role="radio"
+            aria-checked={selectedChoice === 'start_new_goal'}
+            aria-label="Option 1: Start a New Goal. Leverage learned profile patterns for next goal."
             tabIndex={0}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelectedChoice('start_new_goal');
+              } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                setSelectedChoice('maintenance_mode');
+              }
+            }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
               selectedChoice === 'start_new_goal'
                 ? 'bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border-indigo-500 ring-2 ring-indigo-500/30'
                 : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
@@ -135,9 +167,23 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
           {/* Option 2: Maintenance Mode */}
           <div
             onClick={() => setSelectedChoice('maintenance_mode')}
-            role="button"
+            role="radio"
+            aria-checked={selectedChoice === 'maintenance_mode'}
+            aria-label="Option 2: Enter Maintenance Mode. Sustainable cadence with 1 to 2 core practice sessions per week."
             tabIndex={0}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelectedChoice('maintenance_mode');
+              } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                e.preventDefault();
+                setSelectedChoice('pause');
+              } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                setSelectedChoice('start_new_goal');
+              }
+            }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
               selectedChoice === 'maintenance_mode'
                 ? 'bg-gradient-to-r from-emerald-950/60 to-teal-950/40 border-emerald-500 ring-2 ring-emerald-500/30'
                 : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
@@ -172,9 +218,20 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
           {/* Option 3: Pause Goal */}
           <div
             onClick={() => setSelectedChoice('pause')}
-            role="button"
+            role="radio"
+            aria-checked={selectedChoice === 'pause'}
+            aria-label="Option 3: Pause Goal Safely. Freezes schedule without penalty."
             tabIndex={0}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 ${
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setSelectedChoice('pause');
+              } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                e.preventDefault();
+                setSelectedChoice('maintenance_mode');
+              }
+            }}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-amber-400 ${
               selectedChoice === 'pause'
                 ? 'bg-gradient-to-r from-amber-950/60 to-orange-950/40 border-amber-500 ring-2 ring-amber-500/30'
                 : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
