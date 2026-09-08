@@ -70,8 +70,21 @@ model UserGoal {
   user                    User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
   goal_catalog            GoalCatalog @relation(fields: [goal_catalog_id], references: [id])
   sessions                Session[]
+  recovery_events         RecoveryEvent[]
 
   @@map("user_goals")
+}
+
+model RecoveryEvent {
+  id                   String   @id @default(uuid())
+  user_goal_id         String
+  timestamp            DateTime @default(now())
+  trigger_condition    String
+  user_choice          String
+  resulting_adjustment Json?
+  user_goal            UserGoal @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
+
+  @@map("recovery_events")
 }
 
 model AvailabilitySlot {

@@ -69,7 +69,7 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 
 - [Done] Rework `rescheduler.ts`: Tier 1 (1–2 missed days) stays fully automatic/silent, using the offset/tier fields from Phase 1
 - [Done] Implement Tier 2 trigger detection (3+ consecutive missed days, or zero free slots left this week) — do **not** auto-resolve; instead surface a pending recovery state
-- [Todo] Add `RecoveryEvent` table per plan Section 9
+- [Done] Add `RecoveryEvent` table per plan Section 9
 - [Todo] Backend: new `recovery.ts` routes — `GET` pending recovery state, `POST` user's choice (`shrink_week` / `shift_timeline`)
 - [Todo] Implement `shrink_week`: deterministic filter dropping `buffer`-tier sessions first, respecting the session-length cap, never touching `core`-tier sessions
 - [Todo] Implement `shift_timeline`: update `current_plan_day_offset`, roll remaining plan forward — confirm this is an O(1) write, not a bulk session-row update
