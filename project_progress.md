@@ -144,15 +144,13 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 
 **Important distinction:** the 13-point E2E audit above is a production smoke test, not a substitute for the Vitest unit coverage required in **Phase 0**. `scheduler.ts` and `rescheduler.ts` still have zero unit test coverage as of this update — Phase 0 remains a real, unfinished prerequisite and should not be skipped because the E2E audit passed.
 
-**Still open:**
-
-- [Todo] Update `.env.example` / README to match the real production config (they may still reference the old SQLite-first assumption — confirm and correct)
-- [Todo] Ensure `npm run dev` / `npm run build` work under plain Node (`tsx` for backend, `npx vite` for frontend) in addition to Bun — unaffected by the deployment work above
-- [Todo] Decide whether local dev should now also run against Postgres (for parity with the live Supabase-backed production environment) rather than SQLite; add Docker Compose or equivalent if so
-- [Todo] Fix the broken analytics cross-reference (plan originally pointed "3 leading indicators" at the wrong section) — confirm analytics implementation is scoped against the actual Success Criteria in plan Section 2
-- [Todo] Implement minimal push notifications (daily reminder + recovery/graduation check-in nudge), with explicit frequency caps
-- [Todo] Accessibility pass (screen reader labels, dynamic text sizing) on the new components from Phases 2–5
-- [Todo] Update this file: mark Phase 6 complete, commit
+- [Done] Update `.env.example` / README to match the real production config (Supabase PostgreSQL pooler, Gemini AI key and model, and local SQLite option)
+- [Done] Ensure `npm run dev` / `npm run build` / `npm test` work under plain Node (`tsx watch` for backend, `vite` for frontend) in addition to Bun
+- [Done] Configure database environment: PostgreSQL (Supabase) as production default in schema.prisma and .env.example, with documented zero-config SQLite option via switch-db.js
+- [Done] Align product success analytics telemetry engine (`analytics.ts`) against the 3 core Success Criteria in Section 2 (Day-90 engagement rate, 3+ day lapse recovery rate, graduation re-enrollment rate)
+- [Done] Implement notification scaffolding (`notifications.ts`) supporting daily reminders, recovery nudges, weekly reflections, and graduation milestones with strictly enforced frequency caps
+- [Done] Accessibility pass (ARIA labels, radiogroup roles, keyboard navigation, focus management, and screen reader announcements) on `RoadmapSelector`, `RecoveryCheckIn`, `WeeklyReflection`, and `GraduationModal`
+- [Done] Update this file: mark Phase 6 complete, commit
 
 ---
 ## Commit & Deployment Protocol
