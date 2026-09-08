@@ -18,6 +18,7 @@
     "use:sqlite": "node scripts/switch-db.js sqlite && prisma generate"
   },
   "dependencies": {
+    "@google/genai": "^2.21.0",
     "@prisma/client": "^6.4.1",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",

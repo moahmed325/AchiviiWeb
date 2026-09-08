@@ -109,12 +109,14 @@ export function determineSessionTier(
 
 export interface ScheduleOptions {
   preserveCompleted?: boolean;
+  roadmapId?: string;
 }
 
 /**
  * Deterministic Schedule Generation Engine (§5 of Roadmap)
  * Generates all 12 weeks of sessions upfront based on user availability and phase blueprints.
  * Supports preserving completed (DONE) sessions when adjusting routines for active goals.
+ * Consumes selected roadmap parameters (days_per_week, daily_minutes_variance, phase_emphasis).
  */
 export async function generateThreeMonthSchedule(
   userGoalId: string,
@@ -143,6 +145,18 @@ export async function generateThreeMonthSchedule(
 
   if (!userGoal || !userGoal.goal_catalog) {
     throw new Error('UserGoal or GoalCatalog not found.');
+  }
+
+  const roadmapIdToUse = options?.roadmapId || (userGoal as any).selected_roadmap_id;
+  let selectedRoadmap: any = null;
+  if (roadmapIdToUse) {
+    try {
+      selectedRoadmap = await prisma.roadmap.findUnique({
+        where: { id: roadmapIdToUse },
+      });
+    } catch (_) {
+      selectedRoadmap = null;
+    }
   }
 
   const { phases } = userGoal.goal_catalog;
@@ -308,19 +322,35 @@ export async function generateThreeMonthSchedule(
         }).length;
       }
 
-      const neededSessions = Math.max(0, task.sessions_per_week - doneCountForTaskThisWeek);
+      let targetSessions = task.sessions_per_week;
+      if (selectedRoadmap?.phase_emphasis && typeof selectedRoadmap.phase_emphasis === 'object') {
+        const multiplier = (selectedRoadmap.phase_emphasis as any)[activePhase.title];
+        if (typeof multiplier === 'number' && multiplier > 0) {
+          targetSessions = Math.max(1, Math.round(task.sessions_per_week * multiplier));
+        }
+      }
+
+      const neededSessions = Math.max(0, targetSessions - doneCountForTaskThisWeek);
       if (neededSessions <= 0) {
         continue;
       }
 
-      const duration = task.session_duration_minutes;
+      const duration = Math.max(
+        15,
+        task.session_duration_minutes + (selectedRoadmap?.daily_minutes_variance || 0)
+      );
       const prefWindow = getPreferredWindow(task.preferred_time_of_day);
 
-      // Prioritize days to spread load evenly across week
+      // Prioritize days to spread load evenly across week, honoring roadmap days_per_week
       let placedCount = 0;
-
-      // Sort candidate days by fewest scheduled sessions, spreading across week
-      const candidateDayIndices = [0, 2, 4, 1, 3, 5, 6]; // Staggered: Mon, Wed, Fri, Tue, Thu, Sat, Sun
+      let candidateDayIndices = [0, 2, 4, 1, 3, 5, 6];
+      if (selectedRoadmap?.days_per_week === 3) {
+        candidateDayIndices = [0, 2, 4, 1, 3, 5, 6]; // Mon, Wed, Fri
+      } else if (selectedRoadmap?.days_per_week === 4) {
+        candidateDayIndices = [0, 1, 3, 5, 2, 4, 6]; // Mon, Tue, Thu, Sat
+      } else if (selectedRoadmap?.days_per_week === 5) {
+        candidateDayIndices = [0, 1, 2, 3, 4, 5, 6]; // Mon-Fri
+      }
 
       for (const dayIdx of candidateDayIndices) {
         if (placedCount >= neededSessions) break;
