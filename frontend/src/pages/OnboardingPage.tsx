@@ -418,25 +418,21 @@ export const OnboardingPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white relative overflow-hidden">
-      {/* Ambient background glows */}
-      <div className="absolute top-0 left-1/3 -translate-x-1/2 w-[700px] h-[350px] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[160px] pointer-events-none" />
-
+    <div className="w-full flex-1 flex flex-col bg-[#050807] text-[#e5ebe7] relative">
       {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-40">
+      <header className="border-b border-[#182621] bg-[#0c1210] sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors cursor-pointer"
+            className="min-h-[44px] inline-flex items-center gap-2 text-xs font-mono text-[#7e8f85] hover:text-[#e5ebe7] transition-colors cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5 text-[#07CB6C]" />
             <span>Back to Dashboard</span>
           </Link>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm font-black text-white">Achivii</span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wider">
+            <span className="text-sm font-bold text-[#e5ebe7]">Achivii</span>
+            <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20 uppercase tracking-wider">
               {isAdjustingRoutine ? 'Adjust Routine' : 'Goal Onboarding'}
             </span>
           </div>
@@ -444,19 +440,19 @@ export const OnboardingPage: React.FC = () => {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8 relative z-10 space-y-8">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 relative z-10 space-y-6 sm:space-y-8">
         {/* 3-Step Architecture Indicator */}
         {step < 4 && (
-          <div className="flex items-center justify-center gap-2 sm:gap-6 text-xs">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs font-mono">
             <div
               onClick={() => setStep(1)}
               className={`flex items-center gap-2 cursor-pointer transition-colors ${
-                step === 1 ? 'text-indigo-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                step === 1 ? 'text-[#07CB6C] font-bold' : 'text-[#7e8f85] hover:text-[#e5ebe7]'
               }`}
             >
               <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  step === 1 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25' : 'bg-slate-900 border border-slate-800 text-slate-400'
+                className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
+                  step === 1 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#182621] text-[#7e8f85]'
                 }`}
               >
                 1
@@ -464,17 +460,17 @@ export const OnboardingPage: React.FC = () => {
               <span>Step 1: Goal</span>
             </div>
 
-            <div className="w-6 sm:w-10 h-px bg-slate-800" />
+            <div className="w-6 sm:w-10 h-px bg-[#182621]" />
 
             <div
               onClick={() => selectedGoal && setStep(2)}
               className={`flex items-center gap-2 cursor-pointer transition-colors ${
-                step === 2 ? 'text-indigo-400 font-bold' : 'text-slate-500 hover:text-slate-300'
+                step === 2 ? 'text-[#07CB6C] font-bold' : 'text-[#7e8f85] hover:text-[#e5ebe7]'
               }`}
             >
               <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  step === 2 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25' : 'bg-slate-900 border border-slate-800 text-slate-400'
+                className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
+                  step === 2 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#182621] text-[#7e8f85]'
                 }`}
               >
                 2
@@ -482,17 +478,17 @@ export const OnboardingPage: React.FC = () => {
               <span>Step 2: Routine</span>
             </div>
 
-            <div className="w-6 sm:w-10 h-px bg-slate-800" />
+            <div className="w-6 sm:w-10 h-px bg-[#182621]" />
 
             <div
               onClick={() => roadmaps.length > 0 && setStep(3)}
               className={`flex items-center gap-2 transition-colors ${
-                roadmaps.length > 0 ? 'cursor-pointer hover:text-slate-300' : 'cursor-not-allowed opacity-50'
-              } ${step === 3 ? 'text-indigo-400 font-bold' : 'text-slate-500'}`}
+                roadmaps.length > 0 ? 'cursor-pointer hover:text-[#e5ebe7]' : 'cursor-not-allowed opacity-50'
+              } ${step === 3 ? 'text-[#07CB6C] font-bold' : 'text-[#7e8f85]'}`}
             >
               <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  step === 3 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25' : 'bg-slate-900 border border-slate-800 text-slate-400'
+                className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
+                  step === 3 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#182621] text-[#7e8f85]'
                 }`}
               >
                 3

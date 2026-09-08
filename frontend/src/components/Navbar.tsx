@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Target, LogOut, Sparkles, Calendar, TrendingUp, LayoutDashboard } from 'lucide-react';
+import { Target, LogOut, Calendar, TrendingUp, LayoutDashboard, ArrowRight } from 'lucide-react';
 
 interface NavbarProps {
   apiStatus: 'online' | 'offline' | 'checking';
@@ -18,29 +18,28 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
   ];
 
   return (
-    <header className="w-full border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-40">
+    <header className="w-full border-b border-[#182621] bg-[#0c1210] sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand & Navigation */}
-        <div className="flex items-center gap-6 sm:gap-8">
-          <Link to="/" className="flex items-center gap-3 group cursor-pointer">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 p-0.5 shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
-                <Target className="w-5 h-5 text-indigo-400" />
-              </div>
+        <div className="flex items-center gap-5 sm:gap-7">
+          <Link
+            to="/"
+            className="flex items-center gap-2.5 group cursor-pointer focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#07CB6C] rounded-sm"
+          >
+            <div className="w-8 h-8 rounded-sm bg-[#111a17] border border-[#182621] flex items-center justify-center transition-colors group-hover:border-[#07CB6C]/40">
+              <Target className="w-4 h-4 text-[#07CB6C]" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-black tracking-tight text-white">Achivii</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-wide">
-                  Engine
-                </span>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold tracking-tight text-[#e5ebe7]">Achivii</span>
+              <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20 uppercase tracking-wider">
+                ENGINE
+              </span>
             </div>
           </Link>
 
           {/* Nav Tabs for authenticated users */}
           {user && (
-            <nav className="hidden md:flex items-center gap-1 bg-slate-900/60 p-1 rounded-xl border border-slate-800/80">
+            <nav className="hidden md:flex items-center gap-1 bg-[#080d0b] p-1 rounded-sm border border-[#182621]">
               {navLinks.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = location.pathname === tab.path;
@@ -48,13 +47,13 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
                   <Link
                     key={tab.path}
                     to={tab.path}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm text-xs font-mono transition-colors ${
                       isActive
-                        ? 'bg-slate-800 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-850'
+                        ? 'bg-[#16221e] text-[#e5ebe7] border border-[#1f332c]'
+                        : 'text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#111a17] border border-transparent'
                     }`}
                   >
-                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#07CB6C]' : 'text-[#7e8f85]'}`} />
                     <span>{tab.name}</span>
                   </Link>
                 );
@@ -64,30 +63,30 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
         </div>
 
         {/* Right Actions: API health & User Auth */}
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           {/* Subtle API Health Status */}
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs">
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-[#080d0b] border border-[#182621] text-xs font-mono">
             <span
-              className={`w-2 h-2 rounded-full ${
+              className={`w-1.5 h-1.5 rounded-full ${
                 apiStatus === 'online'
-                  ? 'bg-emerald-400 animate-pulse'
+                  ? 'bg-[#07CB6C]'
                   : apiStatus === 'offline'
                   ? 'bg-rose-500'
                   : 'bg-amber-400'
               }`}
             />
-            <span className="text-slate-400 font-mono text-[11px]">
+            <span className="text-[#7e8f85] text-[11px]">
               {apiStatus === 'online' ? 'API 200' : apiStatus === 'offline' ? 'API Offline' : 'Connecting'}
             </span>
           </div>
 
           {user ? (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-[10px]">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-2.5 py-1 rounded-sm bg-[#080d0b] border border-[#182621] text-xs font-mono">
+                <span className="w-5 h-5 rounded-sm bg-[#16221e] border border-[#1f332c] flex items-center justify-center text-[#07CB6C] font-mono text-[10px] font-bold">
                   {user.email.slice(0, 2).toUpperCase()}
-                </div>
-                <span className="text-slate-300 font-medium max-w-[140px] truncate hidden sm:inline">
+                </span>
+                <span className="text-[#a6b8ad] max-w-[130px] truncate hidden sm:inline">
                   {user.email}
                 </span>
               </div>
@@ -95,9 +94,10 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
                 id="btn-logout"
                 onClick={logout}
                 title="Log out"
-                className="p-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-rose-500/40 text-slate-400 hover:text-rose-400 transition-all cursor-pointer"
+                aria-label="Log out"
+                className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 p-2 rounded-sm bg-[#080d0b] border border-[#182621] hover:border-rose-500/40 text-[#7e8f85] hover:text-rose-400 transition-colors cursor-pointer flex items-center justify-center"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           ) : (
@@ -105,17 +105,17 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
               <button
                 id="btn-signin-nav"
                 onClick={() => openAuthModal('signin')}
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer"
+                className="min-h-[44px] px-3.5 py-1.5 text-xs font-medium text-[#a6b8ad] hover:text-[#e5ebe7] transition-colors rounded-sm cursor-pointer flex items-center"
               >
                 Sign In
               </button>
               <button
                 id="btn-getstarted-nav"
                 onClick={() => openAuthModal('signup')}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/25 transition-all cursor-pointer"
+                className="min-h-[44px] flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-bold transition-colors cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5" />
                 <span>Get Started</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           )}

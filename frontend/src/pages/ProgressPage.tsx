@@ -45,11 +45,11 @@ export const ProgressPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <div className="w-full flex-1 flex flex-col bg-[#050807] text-[#e5ebe7]">
         <Navbar apiStatus="online" />
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-          <p className="text-sm text-slate-400">Aggregating 3-month goal metrics...</p>
+          <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
+          <p className="text-xs font-mono text-[#7e8f85]">Aggregating 3-month goal metrics...</p>
         </div>
       </div>
     );
@@ -57,24 +57,24 @@ export const ProgressPage: React.FC = () => {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      <div className="w-full flex-1 flex flex-col bg-[#050807] text-[#e5ebe7]">
         <Navbar apiStatus="online" />
         <div className="flex-1 max-w-xl mx-auto px-4 py-16 text-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center mx-auto">
-            <AlertCircle className="w-6 h-6" />
+          <div className="w-10 h-10 rounded-sm bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-5 h-5" />
           </div>
-          <h2 className="text-xl font-bold text-white">Could not load progress</h2>
-          <p className="text-sm text-slate-400">{error || 'No active goal found. Complete onboarding first.'}</p>
+          <h2 className="text-base font-bold text-[#e5ebe7]">Could not load progress</h2>
+          <p className="text-xs font-mono text-[#7e8f85]">{error || 'No active goal found. Complete onboarding first.'}</p>
           <div className="flex items-center justify-center gap-3 pt-2">
             <Link
               to="/onboarding"
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
+              className="min-h-[44px] px-4 py-2 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center"
             >
               Start Onboarding
             </Link>
             <Link
               to="/"
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+              className="min-h-[44px] px-4 py-2 rounded-sm bg-[#0c1210] hover:bg-[#111a17] text-[#e5ebe7] border border-[#182621] text-xs font-mono flex items-center"
             >
               Return Home
             </Link>
@@ -90,7 +90,6 @@ export const ProgressPage: React.FC = () => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
-      year: 'numeric',
     });
   };
 
@@ -98,22 +97,22 @@ export const ProgressPage: React.FC = () => {
     switch (goal.paceStatus) {
       case 'GUARDRAIL_ALERT':
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-semibold">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-rose-500/10 text-rose-300 border border-rose-500/30 text-xs font-mono">
             <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
             <span>Guardrail Alert (2+ Weeks Behind)</span>
           </div>
         );
       case 'BEHIND_PACE':
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-semibold">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-mono">
             <Zap className="w-3.5 h-3.5 text-amber-400" />
             <span>Timeline Extended (+{goal.slippageDays}d slippage)</span>
           </div>
         );
       default:
         return (
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 text-xs font-mono">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />
             <span>100% On Schedule (0d slippage)</span>
           </div>
         );
@@ -121,16 +120,12 @@ export const ProgressPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white relative overflow-hidden">
-      {/* Ambient background glows */}
-      <div className="absolute top-0 left-1/3 w-[600px] h-[350px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-40 right-1/4 w-[500px] h-[300px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none" />
-
+    <div className="w-full flex-1 flex flex-col bg-[#050807] text-[#e5ebe7] relative">
       <Navbar apiStatus="online" />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10 space-y-6 sm:space-y-8">
         {/* Header with Breadcrumb & Pace Status */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#182621]">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="text-xl">{goal.icon || '🎯'}</span>

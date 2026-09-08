@@ -10,12 +10,14 @@ export const App: React.FC = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/schedule" element={<SchedulePage />} />
-          <Route path="/progress" element={<ProgressPage />} />
-        </Routes>
+        <div className="min-h-[100dvh] w-full bg-[#050807] text-[#e5ebe7] flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] overscroll-contain">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/schedule" element={<SchedulePage />} />
+            <Route path="/progress" element={<ProgressPage />} />
+          </Routes>
+        </div>
       </BrowserRouter>
     </AuthProvider>
   );

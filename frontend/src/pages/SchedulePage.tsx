@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
 import { CalendarWeekView } from '../components/CalendarWeekView';
 import { regenerateSchedule } from '../lib/api';
-import { ArrowLeft, RefreshCw, Calendar, Sparkles } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Calendar } from 'lucide-react';
 
 export const SchedulePage: React.FC = () => {
   const { token } = useAuth();
@@ -32,54 +32,51 @@ export const SchedulePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white relative overflow-hidden">
-      {/* Background Glows */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-indigo-600/15 rounded-full blur-[140px] pointer-events-none" />
-
+    <div className="w-full flex-1 flex flex-col bg-[#050807] text-[#e5ebe7] relative">
       <Navbar apiStatus="online" />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10 space-y-6">
         {/* Top Header & Actions */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-slate-800/80">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-[#182621]">
           <div className="space-y-1">
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-1"
+              className="inline-flex items-center gap-1.5 text-xs font-mono text-[#7e8f85] hover:text-[#e5ebe7] transition-colors mb-1"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5 text-[#07CB6C]" />
               <span>Back to Dashboard</span>
             </Link>
-            <h1 className="text-3xl font-black text-white flex items-center gap-2.5">
-              <Calendar className="w-7 h-7 text-indigo-400" />
-              <span>12-Week Time-Blocked Schedule</span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#e5ebe7] flex items-center gap-2.5">
+              <Calendar className="w-6 h-6 text-[#07CB6C]" />
+              <span>12-Week Execution Schedule</span>
             </h1>
-            <p className="text-slate-400 text-xs sm:text-sm">
+            <p className="text-[#7e8f85] text-xs sm:text-sm">
               Explore every scheduled session of your 3-month goal plan, adapted to your weekly routine.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
               id="btn-regenerate-schedule"
               onClick={handleRegenerate}
               disabled={isRegenerating}
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white border border-slate-800 text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+              className="min-h-[44px] px-3.5 py-2 rounded-sm bg-[#0c1210] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] text-xs font-mono flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 text-[#07CB6C] ${isRegenerating ? 'animate-spin' : ''}`} />
               <span>Regenerate Plan</span>
             </button>
           </div>
         </div>
 
         {regenNotice && (
-          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div className="p-3.5 rounded-sm bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-xs font-mono flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
             <span>{regenNotice}</span>
           </div>
         )}
 
         {/* 12-Week Quick Selector Bar */}
-        <div className="p-2 rounded-2xl glass-panel border border-slate-800 flex items-center gap-1 overflow-x-auto scrollbar-none">
+        <div className="p-1.5 rounded-md bg-[#0c1210] border border-[#182621] flex items-center gap-1 overflow-x-auto scrollbar-none">
           {Array.from({ length: 12 }).map((_, idx) => {
             const isSelected = selectedWeekOffset === idx;
             const phaseNumber = idx < 4 ? 1 : idx < 8 ? 2 : 3;
@@ -87,14 +84,14 @@ export const SchedulePage: React.FC = () => {
               <button
                 key={idx}
                 onClick={() => setSelectedWeekOffset(idx)}
-                className={`py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex flex-col items-center gap-0.5 cursor-pointer ${
+                className={`min-h-[44px] py-1.5 px-3 rounded-sm text-xs font-mono whitespace-nowrap transition-colors flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                    : 'bg-slate-900/60 text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-[#16221e] text-[#e5ebe7] border border-[#1f332c]'
+                    : 'text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#080d0b] border border-transparent'
                 }`}
               >
                 <span>Week {idx + 1}</span>
-                <span className={`text-[9px] font-mono ${isSelected ? 'text-indigo-200' : 'text-slate-500'}`}>
+                <span className={`text-[9px] font-mono ${isSelected ? 'text-[#07CB6C]' : 'text-[#55675c]'}`}>
                   Phase {phaseNumber}
                 </span>
               </button>
