@@ -47,11 +47,12 @@ export async function fetchGoalById(id: string): Promise<GoalCatalog> {
   return data.goal;
 }
 
-export async function signupUser(email: string, password: string): Promise<AuthResponse> {
+export async function signupUser(email: string, password: string, timezone?: string): Promise<AuthResponse> {
+  const resolvedTimezone = timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
   const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, timezone: resolvedTimezone }),
   });
 
   const data = await response.json();
@@ -94,13 +95,17 @@ export async function fetchCurrentUser(token: string): Promise<User> {
 }
 
 export async function submitOnboarding(token: string, payload: import('../types').OnboardingPayload): Promise<import('../types').OnboardingResponse> {
+  const resolvedPayload = {
+    ...payload,
+    timezone: payload.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC',
+  };
   const response = await fetch(`${API_BASE_URL}/api/onboarding`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(resolvedPayload),
   });
 
   const data = await response.json();

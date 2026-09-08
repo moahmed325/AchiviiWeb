@@ -3,6 +3,7 @@ export type DayOfWeek = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT';
 export interface User {
   id: string;
   email: string;
+  timezone?: string;
   created_at: string;
 }
 
@@ -89,6 +90,7 @@ export interface OnboardingPayload {
   goal_catalog_id: string;
   start_date: string;
   availability_slots: AvailabilitySlot[];
+  timezone?: string;
 }
 
 export interface OnboardingResponse {

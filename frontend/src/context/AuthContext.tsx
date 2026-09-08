@@ -67,7 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = async (email: string, password: string) => {
-    const res = await signupUser(email, password);
+    const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
+    const res = await signupUser(email, password, tz);
     localStorage.setItem(TOKEN_STORAGE_KEY, res.token);
     setToken(res.token);
     setUser(res.user);

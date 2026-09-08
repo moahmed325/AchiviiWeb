@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
+import { normalizeTimezone } from '../lib/timezone.js';
 
 export const authRouter = Router();
 
@@ -64,7 +65,7 @@ export async function getAuthUser(req: Request) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, email: true, created_at: true },
+      select: { id: true, email: true, timezone: true, created_at: true },
     });
     return user;
   } catch {
@@ -75,7 +76,7 @@ export async function getAuthUser(req: Request) {
 // POST /api/auth/signup
 authRouter.post('/signup', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, timezone } = req.body;
 
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       res.status(400).json({ error: 'Please provide a valid email address.' });
@@ -88,6 +89,7 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+    const normalizedTimezone = normalizeTimezone(timezone);
 
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -104,10 +106,12 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
       data: {
         email: normalizedEmail,
         password_hash: passwordHash,
+        timezone: normalizedTimezone,
       },
       select: {
         id: true,
         email: true,
+        timezone: true,
         created_at: true,
       },
     });
@@ -160,6 +164,7 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
       user: {
         id: user.id,
         email: user.email,
+        timezone: user.timezone,
         created_at: user.created_at,
       },
     });

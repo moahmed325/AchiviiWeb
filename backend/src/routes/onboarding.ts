@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import { generateThreeMonthSchedule } from '../lib/scheduler.js';
+import { normalizeTimezone } from '../lib/timezone.js';
 
 export const onboardingRouter = Router();
 export const userGoalRouter = Router();
@@ -25,7 +26,14 @@ onboardingRouter.post('/', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const { goal_catalog_id, start_date, availability_slots } = req.body;
+    const { goal_catalog_id, start_date, availability_slots, timezone } = req.body;
+
+    if (timezone) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { timezone: normalizeTimezone(timezone) },
+      });
+    }
 
     if (!goal_catalog_id) {
       res.status(400).json({ error: 'goal_catalog_id is required.' });

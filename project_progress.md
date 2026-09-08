@@ -57,7 +57,7 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 - [Done] Refactor `scheduler.ts` so only the current rolling week is materialized to real `scheduled_date` values; all other sessions are addressed by `day_number`/`sequence_order` relative to the goal's offset
 - [Done] Write a migration script for existing seeded/test data (if any persists) to backfill `tier`, `day_number`, `sequence_order`
 - [Done] Add `Session.completed_at_utc` and an idempotency token field; update the completion endpoint to write these
-- [Todo] Add `User.timezone` (IANA string); capture it client-side at signup/onboarding (browser `Intl.DateTimeFormat().resolvedOptions().timeZone` is a reasonable default source) and persist it
+- [Done] Add `User.timezone` (IANA string); capture it client-side at signup/onboarding (browser `Intl.DateTimeFormat().resolvedOptions().timeZone` is a reasonable default source) and persist it
 - [Todo] Replace all `toISOString().split('T')[0]`-style date-boundary logic with timezone-aware evaluation using the stored `User.timezone`, evaluated lazily on request (no cron introduced yet)
 - [Todo] Extend Phase 0 tests to cover the new fields: tier assignment correctness, offset math, timezone-aware boundary evaluation
 - [Todo] Update this file: mark Phase 1 complete, commit
