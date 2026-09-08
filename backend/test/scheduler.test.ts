@@ -4,9 +4,11 @@ import {
   minutesToTime,
   subtractIntervals,
   getPreferredWindow,
+  determineSessionTier,
   generateThreeMonthSchedule,
   type TimeInterval,
 } from '../src/lib/scheduler.js';
+import { SessionTier } from '@prisma/client';
 import { prisma } from '../src/lib/prisma.js';
 
 vi.mock('../src/lib/prisma.js', () => ({
@@ -360,6 +362,91 @@ describe('scheduler.ts unit tests', () => {
       });
       // 1 done session preserved + 11 newly created sessions = 12 total
       expect(count).toBe(12);
+    });
+
+    it('tags every generated session with a tier and adheres to target split', async () => {
+      const mockGoal = {
+        id: 'goal-tiers',
+        start_date: new Date('2026-09-14T00:00:00Z'),
+        goal_catalog: {
+          phases: [
+            {
+              phase_order: 1,
+              task_templates: [
+                {
+                  id: 'task-5days',
+                  sessions_per_week: 5,
+                  session_duration_minutes: 45,
+                  preferred_time_of_day: null,
+                },
+              ],
+            },
+          ],
+        },
+        user: { availability_slots: [] },
+      };
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.deleteMany as any).mockResolvedValue({ count: 0 });
+      (prisma.session.createMany as any).mockResolvedValue({ count: 60 });
+
+      await generateThreeMonthSchedule('goal-tiers');
+
+      const createdSessions = (prisma.session.createMany as any).mock.calls[0][0].data;
+      expect(createdSessions.length).toBe(60);
+
+      // Verify each session has a valid tier
+      for (const s of createdSessions) {
+        expect(['core', 'buffer', 'reflect']).toContain(s.tier);
+      }
+
+      // Check tier distribution across the 60 sessions (12 weeks * 5 sessions)
+      const coreCount = createdSessions.filter((s: any) => s.tier === SessionTier.core).length;
+      const bufferCount = createdSessions.filter((s: any) => s.tier === SessionTier.buffer).length;
+      const reflectCount = createdSessions.filter((s: any) => s.tier === SessionTier.reflect).length;
+
+      // In a 5-session week: 2 core (40%), 2 buffer (40%), 1 reflect (20%) -> 24 core, 24 buffer, 12 reflect
+      expect(coreCount).toBe(24);
+      expect(bufferCount).toBe(24);
+      expect(reflectCount).toBe(12);
+      expect(coreCount / 60).toBeCloseTo(0.4, 1);
+      expect(bufferCount / 60).toBeCloseTo(0.4, 1);
+      expect(reflectCount / 60).toBeCloseTo(0.2, 1);
+    });
+  });
+
+  describe('determineSessionTier', () => {
+    it('returns core for single session weeks', () => {
+      expect(determineSessionTier(0, 1)).toBe(SessionTier.core);
+    });
+
+    it('splits 2-session weeks into core and buffer', () => {
+      expect(determineSessionTier(0, 2)).toBe(SessionTier.core);
+      expect(determineSessionTier(1, 2)).toBe(SessionTier.buffer);
+    });
+
+    it('splits 3-session weeks into core, buffer, and reflect', () => {
+      expect(determineSessionTier(0, 3)).toBe(SessionTier.core);
+      expect(determineSessionTier(1, 3)).toBe(SessionTier.buffer);
+      expect(determineSessionTier(2, 3)).toBe(SessionTier.reflect);
+    });
+
+    it('splits 4-session weeks with 50% core, 25% buffer, 25% reflect', () => {
+      expect(determineSessionTier(0, 4)).toBe(SessionTier.core);
+      expect(determineSessionTier(1, 4)).toBe(SessionTier.core);
+      expect(determineSessionTier(2, 4)).toBe(SessionTier.buffer);
+      expect(determineSessionTier(3, 4)).toBe(SessionTier.reflect);
+    });
+
+    it('splits 5-session weeks conforming to ~40-50% core, ~30-40% buffer, ~20% reflect', () => {
+      const tiers = [0, 1, 2, 3, 4].map((idx) => determineSessionTier(idx, 5));
+      expect(tiers).toEqual([
+        SessionTier.core,
+        SessionTier.core,
+        SessionTier.buffer,
+        SessionTier.buffer,
+        SessionTier.reflect,
+      ]);
     });
   });
 });

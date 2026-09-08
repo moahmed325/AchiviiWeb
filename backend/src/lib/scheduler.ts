@@ -1,4 +1,5 @@
 import { prisma } from './prisma.js';
+import { SessionTier } from '@prisma/client';
 
 export interface TimeInterval {
   start: number; // minutes from midnight
@@ -67,6 +68,42 @@ export function getPreferredWindow(pref?: string | null): TimeInterval {
     default:
       return { start: 7 * 60, end: 22 * 60 };     // 07:00 – 22:00
   }
+}
+
+/**
+ * Determine session tier based on plan Section 4.4 / Section 9:
+ * Target split: ~40-50% core / ~30% buffer / ~20% reflect.
+ */
+export function determineSessionTier(
+  sessionIndex: number,
+  totalSessions: number
+): SessionTier {
+  if (totalSessions <= 1) {
+    return SessionTier.core;
+  }
+  if (totalSessions === 2) {
+    return sessionIndex === 0 ? SessionTier.core : SessionTier.buffer;
+  }
+  if (totalSessions === 3) {
+    if (sessionIndex === 0) return SessionTier.core;
+    if (sessionIndex === 1) return SessionTier.buffer;
+    return SessionTier.reflect;
+  }
+  if (totalSessions === 4) {
+    if (sessionIndex < 2) return SessionTier.core; // 50% core
+    if (sessionIndex === 2) return SessionTier.buffer; // 25% buffer
+    return SessionTier.reflect; // 25% reflect
+  }
+  // For totalSessions >= 5
+  const coreCount = Math.max(1, Math.round(totalSessions * 0.45));
+  const reflectCount = Math.max(1, Math.round(totalSessions * 0.20));
+  if (sessionIndex < coreCount) {
+    return SessionTier.core;
+  }
+  if (sessionIndex >= totalSessions - reflectCount) {
+    return SessionTier.reflect;
+  }
+  return SessionTier.buffer;
 }
 
 export interface ScheduleOptions {
@@ -196,6 +233,7 @@ export async function generateThreeMonthSchedule(
     start_time: string;
     end_time: string;
     status: string;
+    tier: SessionTier;
   }[] = [];
 
   // Generate 12 weeks of sessions
@@ -318,6 +356,7 @@ export async function generateThreeMonthSchedule(
 
         if (chosenSlot) {
           // Reserve this slot
+          const sessionTier = determineSessionTier(placedCount, task.sessions_per_week);
           day.availableIntervals = subtractIntervals(day.availableIntervals, chosenSlot);
           day.sessionCount++;
           placedCount++;
@@ -329,6 +368,7 @@ export async function generateThreeMonthSchedule(
             start_time: minutesToTime(chosenSlot.start),
             end_time: minutesToTime(chosenSlot.end),
             status: 'UPCOMING',
+            tier: sessionTier,
           });
         }
       }
@@ -339,6 +379,7 @@ export async function generateThreeMonthSchedule(
         for (const day of weekDays) {
           for (const interval of day.availableIntervals) {
             if (interval.end - interval.start >= duration) {
+              const sessionTier = determineSessionTier(placedCount, task.sessions_per_week);
               const slot = { start: interval.start, end: interval.start + duration };
               day.availableIntervals = subtractIntervals(day.availableIntervals, slot);
               day.sessionCount++;
@@ -352,6 +393,7 @@ export async function generateThreeMonthSchedule(
                 start_time: minutesToTime(slot.start),
                 end_time: minutesToTime(slot.end),
                 status: 'UPCOMING',
+                tier: sessionTier,
               });
               break;
             }

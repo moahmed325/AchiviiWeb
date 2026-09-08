@@ -84,6 +84,12 @@ model AvailabilitySlot {
   @@map("availability_slots")
 }
 
+enum SessionTier {
+  core
+  buffer
+  reflect
+}
+
 model Session {
   id               String       @id @default(uuid())
   user_goal_id     String
@@ -92,6 +98,7 @@ model Session {
   start_time       String
   end_time         String
   status           String       @default("UPCOMING") // UPCOMING, DONE, MISSED, RESCHEDULED
+  tier             SessionTier  @default(core)
   user_goal        UserGoal     @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
   task_template    TaskTemplate @relation(fields: [task_template_id], references: [id])
 
