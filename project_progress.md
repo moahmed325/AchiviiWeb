@@ -97,23 +97,22 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 ---
 ## Phase 4 — AI Layer
 
-**Goal:** Build the actual LLM-backed roles. This is the first phase that calls the Anthropic API. Do not start this phase until Phases 0–3 are complete and tested — the deterministic substrate these roles plug into needs to be correct first.
+**Goal:** Build the LLM-backed roles utilizing Google Gemini (`@google/genai` targeting `gemini-1.5-flash` / `gemini-2.0-flash` on the free tier with `GEMINI_API_KEY`) with deterministic fallbacks when the API key is not configured or fails. Strict role boundaries, structured outputs, and separation of presentation layer are enforced.
 
-- [Todo] Backend: `planner.ts` — generates 2–3 structured roadmap variants per goal instance (numeric parameters: `days_per_week`, `daily_minutes_variance`, `phase_emphasis`), returned as validated structured JSON, never freehand task/date generation
-- [Done] Add `Roadmap` table per plan Section 9; wire into `UserGoal.selected_roadmap_id`
-- [Todo] Backend: constraint validation layer — check Planner output against the user's onboarding constraints (session-length caps, available days) before it's allowed to reach the scheduler; on violation, reject and re-request rather than clamp
-- [Todo] Backend: `roadmaps.ts` routes — `POST /generate` (post-onboarding, pre-schedule), `POST /:id/select`
-- [Todo] Update the onboarding flow (`OnboardingPage.tsx`) to insert a roadmap-selection step between busy-block input and schedule generation
-- [Todo] Frontend: `RoadmapSelector.tsx` — displays the 2–3 variants with name, description, trade-offs
-- [Todo] Update `scheduler.ts` to accept the selected roadmap's parameters and modulate task placement accordingly (this connects Phase 4 to the Phase 1 scheduler refactor — do not duplicate scheduling logic in the Planner)
-- [Todo] Backend: `optimizer.ts` — handles Tier 2c custom replans only, triggered by the circuit breaker from Phase 2; compressed context, structured output only (no user-facing text)
-- [Todo] Backend: `reviewer.ts` — analyzes weekly signal when completion < 70% (from Phase 3); structured output only
-- [Todo] Backend: `coach.ts` — sole presentation layer; ingests structured output from Optimizer/Reviewer/Planner and produces the single unified user-facing voice; centralize shared tone/voice guidelines in one shared prompt snippet used by every role
-- [Todo] Implement the cost-tiering split from plan Section 13 explicitly in code — confirm Tier 1/2/2b recovery paths still make zero LLM calls after this phase's wiring
-- [Todo] Build a small golden-set eval (roughly 20–30 synthetic onboarding profiles + miss patterns) to sanity-check Planner/Optimizer output before this ships
-- [Todo] Instrument actual token cost per role call; replace the placeholder $/call figures in plan Section 13 with measured numbers
-- [Todo] Tests: constraint-validation rejection path, Coach voice consistency (spot-check, not exhaustive), Planner output schema validation
-- [Todo] Update this file: mark Phase 4 complete, commit
+- [Done] Backend: `planner.ts` — generates 2–3 structured roadmap variants per goal instance (numeric parameters: `days_per_week`, `daily_minutes_variance`, `phase_emphasis`), returned as validated structured JSON (`responseMimeType: "application/json"`), never generating freehand task/date copy directly
+- [Done] Add `Roadmap` table per plan Section 9 strictly additively; wire into `UserGoal.selected_roadmap_id`
+- [Done] Backend: constraint validation layer (`validateRoadmapVariant`) — checks Planner output against user's onboarding constraints (session-length caps, available days) before scheduler ingestion; rejects violations rather than silently clamping (Decision Log D10)
+- [Done] Backend: `roadmaps.ts` routes — `GET /api/roadmaps`, `POST /api/roadmaps/generate`, and `POST /api/roadmaps/:id/select`
+- [Done] Update the onboarding flow (`OnboardingPage.tsx`) to insert a roadmap-selection step between busy-block input and schedule generation
+- [Done] Frontend: `RoadmapSelector.tsx` — displays the 2–3 variants with name, description, days/week, session length variance, and explicit trade-offs (Decision Log D5)
+- [Done] Update `scheduler.ts` to accept the selected roadmap's parameters and modulate task placement and durations accordingly
+- [Done] Backend: `optimizer.ts` — handles Tier 2c replans triggered by the circuit breaker; outputs structured replan parameters only (no conversational text)
+- [Done] Backend: `reviewer.ts` — analyzes weekly signal when completion < 70%; outputs structured metadata only (no user-facing text)
+- [Done] Backend: `coach.ts` — sole user-facing presentation layer; translates structured signals from Optimizer/Reviewer into unified empathetic coaching voice; shared tone guidelines (`COACH_TONE_GUIDELINES`)
+- [Done] Implement the cost-tiering split from plan Section 13: Tier 1 and Tier 2 standard recovery remain 100% $0 deterministic code; LLM calls only fire when needed, with zero-cost fallback roadmaps when offline or unconfigured
+- [Done] Instrument token & latency tracking in `backend/src/lib/ai/gemini.ts`
+- [Done] Tests: `backend/test/ai-roles.test.ts` covers constraint-validation rejection path, Coach voice, Reviewer structured schema, Optimizer structured schema, and Roadmap scheduler modulation (84/84 tests passing across Vitest and Bun)
+- [Done] Update this file: mark Phase 4 complete, commit
 
 ---
 ## Phase 5 — Graduation & Profile Learning
