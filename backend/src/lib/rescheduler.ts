@@ -12,6 +12,15 @@ export interface RescheduleAction {
   details: string;
 }
 
+export interface PendingRecoveryState {
+  triggered: boolean;
+  tier: 'TIER_1_SILENT' | 'TIER_2_PENDING' | 'NONE';
+  reason?: 'CONSECUTIVE_DAYS_MISSED' | 'NO_FREE_SLOTS' | 'MANUAL';
+  consecutiveMissedDays: number;
+  missedSessionIds: string[];
+  suggestedAction?: 'shrink_week' | 'shift_timeline';
+}
+
 export interface RescheduleResult {
   missedDetectedCount: number;
   rescheduledCount: number;
@@ -21,6 +30,7 @@ export interface RescheduleResult {
   totalSlippageDays: number;
   guardrailTriggered: boolean;
   actions: RescheduleAction[];
+  pendingRecovery?: PendingRecoveryState;
 }
 
 export interface TimeInterval {
@@ -118,9 +128,76 @@ export function getBaselineDayOpenings(dayKey: DayKey): TimeInterval[] {
 }
 
 /**
- * Adaptive Rescheduling Engine (§6 of Roadmap)
- * Detects missed or passed uncompleted sessions, reallocates within the current week,
- * or shifts the remaining plan by +7 days and accumulates slippage_days.
+ * Calculates consecutive missed days with scheduled sessions up to today/now.
+ * If a day has multiple sessions and at least one was completed (DONE),
+ * that day is not considered missed.
+ * A streak breaks as soon as a completed day is encountered looking backwards.
+ */
+export function calculateConsecutiveMissedDays(
+  allSessions: Array<{
+    scheduled_date: Date | string | null;
+    status: string;
+    end_time?: string | null;
+  }>,
+  todayStr: string,
+  nowMinutes: number,
+  timezone: string = 'UTC'
+): number {
+  const sessionsByDate: Record<string, Array<{ status: string; isPast: boolean }>> = {};
+
+  for (const s of allSessions) {
+    if (!s.scheduled_date) continue;
+    const dateStr = formatDateYYYYMMDD(new Date(s.scheduled_date), timezone);
+    if (dateStr > todayStr) continue;
+
+    let isPast = false;
+    if (dateStr < todayStr) {
+      isPast = true;
+    } else if (dateStr === todayStr) {
+      isPast = s.end_time ? timeToMinutes(s.end_time) <= nowMinutes : false;
+    }
+
+    if (!sessionsByDate[dateStr]) {
+      sessionsByDate[dateStr] = [];
+    }
+    sessionsByDate[dateStr].push({ status: s.status, isPast });
+  }
+
+  const sortedDates = Object.keys(sessionsByDate).sort();
+  if (sortedDates.length === 0) return 0;
+
+  const isDateMissed = (dStr: string) => {
+    const list = sessionsByDate[dStr] || [];
+    const pastSessions = list.filter((item) => item.isPast);
+    if (pastSessions.length === 0) return false;
+    const hasCompleted = pastSessions.some((item) => item.status === 'DONE');
+    return !hasCompleted;
+  };
+
+  let consecutiveCount = 0;
+  for (let i = sortedDates.length - 1; i >= 0; i--) {
+    const dStr = sortedDates[i];
+    const list = sessionsByDate[dStr] || [];
+    const hasPast = list.some((item) => item.isPast);
+    if (!hasPast) continue;
+
+    if (isDateMissed(dStr)) {
+      consecutiveCount++;
+    } else {
+      break;
+    }
+  }
+
+  return consecutiveCount;
+}
+
+/**
+ * Adaptive Rescheduling Engine (Phase 2 Real Recovery UX)
+ * - Tier 1 (1–2 consecutive missed days): Silently reallocates within the current week
+ *   if free slots exist. No RecoveryEvent is logged and no user prompt is raised.
+ * - Tier 2 (3+ consecutive missed days OR no free slots left this week):
+ *   Does NOT auto-shift or cascade the schedule in the background. Instead flags a
+ *   pending recovery state (Tier 2) for the user to resolve via RecoveryCheckIn.
  */
 export async function detectAndRescheduleMissed(
   userGoalId: string,
@@ -208,10 +285,56 @@ export async function detectAndRescheduleMissed(
     return false;
   });
 
-  const actions: RescheduleAction[] = [];
-  let sameWeekReallocatedCount = 0;
-  let planShiftCount = 0;
-  let cumulativeSlippageAdded = 0;
+  // Calculate consecutive missed days
+  const consecutiveMissedDays = calculateConsecutiveMissedDays(
+    allSessions,
+    todayYYYYMMDD,
+    nowMinutes,
+    userTimezone
+  );
+
+  // If no sessions need rescheduling
+  if (sessionsToReschedule.length === 0) {
+    return {
+      missedDetectedCount: 0,
+      rescheduledCount: 0,
+      sameWeekReallocatedCount: 0,
+      planShiftCount: 0,
+      slippageDaysAdded: 0,
+      totalSlippageDays: userGoal.slippage_days,
+      guardrailTriggered: userGoal.slippage_days >= 14,
+      actions: [],
+      pendingRecovery: {
+        triggered: false,
+        tier: 'NONE',
+        consecutiveMissedDays: 0,
+        missedSessionIds: [],
+      },
+    };
+  }
+
+  // Tier 2 Trigger: 3+ consecutive missed days
+  // (unless user is explicitly force-rescheduling a specific single session)
+  if (!forceRescheduleSessionId && consecutiveMissedDays >= 3) {
+    return {
+      missedDetectedCount: sessionsToReschedule.length,
+      rescheduledCount: 0,
+      sameWeekReallocatedCount: 0,
+      planShiftCount: 0,
+      slippageDaysAdded: 0,
+      totalSlippageDays: userGoal.slippage_days,
+      guardrailTriggered: userGoal.slippage_days >= 14,
+      actions: [],
+      pendingRecovery: {
+        triggered: true,
+        tier: 'TIER_2_PENDING',
+        reason: 'CONSECUTIVE_DAYS_MISSED',
+        consecutiveMissedDays,
+        missedSessionIds: sessionsToReschedule.map((s) => s.id),
+        suggestedAction: 'shrink_week',
+      },
+    };
+  }
 
   // Track currently booked intervals per YYYY-MM-DD
   const bookedIntervalsByDate: Record<string, TimeInterval[]> = {};
@@ -230,7 +353,21 @@ export async function detectAndRescheduleMissed(
     }
   }
 
-  // Process each missed session chronologically
+  // Stage potential same-week reallocations
+  interface StagedUpdate {
+    session: (typeof allSessions)[0];
+    foundSlot: { date: Date; start: number; end: number };
+    origDateStr: string;
+    origTimeStr: string;
+  }
+  const stagedUpdates: StagedUpdate[] = [];
+  let slotExhausted = false;
+
+  const simulatedBooked: Record<string, TimeInterval[]> = {};
+  for (const [k, v] of Object.entries(bookedIntervalsByDate)) {
+    simulatedBooked[k] = [...v];
+  }
+
   for (const session of sessionsToReschedule) {
     if (!session.scheduled_date) continue;
     const sessionDate = new Date(session.scheduled_date);
@@ -241,13 +378,11 @@ export async function detectAndRescheduleMissed(
 
     // Determine the week bounds for this session
     // Monday is start of week (day 1), Sunday is end of week (day 0)
-    const sessionJsDay = sessionDate.getDay(); // 0 is Sun, 1 is Mon...
-    const distFromMonday = (sessionJsDay + 6) % 7; // 0 for Mon, 6 for Sun
+    const sessionJsDay = sessionDate.getDay();
+    const distFromMonday = (sessionJsDay + 6) % 7;
     const weekMonday = new Date(sessionDate.getTime() - distFromMonday * 86400000);
     weekMonday.setHours(0, 0, 0, 0);
 
-    // Rule 1 & 2: Search for next available free slot later in the same week
-    // Candidate dates are from max(sessionDate + 1 day, today) through Sunday of that week
     let foundSlot: { date: Date; start: number; end: number } | null = null;
 
     for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
@@ -267,7 +402,7 @@ export async function detectAndRescheduleMissed(
       }
 
       // Subtract already scheduled sessions on this date
-      for (const occupied of bookedIntervalsByDate[candidateDateStr] || []) {
+      for (const occupied of simulatedBooked[candidateDateStr] || []) {
         openings = subtractIntervals(openings, occupied);
       }
 
@@ -311,117 +446,96 @@ export async function detectAndRescheduleMissed(
     }
 
     if (foundSlot) {
-      // Reallocate within same week
       const newDateStr = toDateStr(foundSlot.date);
-      const newStartTime = minutesToTime(foundSlot.start);
-      const newEndTime = minutesToTime(foundSlot.end);
-
-      await prisma.session.update({
-        where: { id: session.id },
-        data: {
-          scheduled_date: foundSlot.date,
-          start_time: newStartTime,
-          end_time: newEndTime,
-          status: 'RESCHEDULED',
-        },
-      });
-
-      // Update in-memory booking
-      if (!bookedIntervalsByDate[newDateStr]) {
-        bookedIntervalsByDate[newDateStr] = [];
+      if (!simulatedBooked[newDateStr]) {
+        simulatedBooked[newDateStr] = [];
       }
-      bookedIntervalsByDate[newDateStr].push({
+      simulatedBooked[newDateStr].push({
         start: foundSlot.start,
         end: foundSlot.end,
       });
 
-      sameWeekReallocatedCount++;
-      actions.push({
-        sessionId: session.id,
-        taskTitle: session.task_template.title,
-        originalDate: origDateStr,
-        originalTime: origTimeStr,
-        newDate: newDateStr,
-        newTime: `${newStartTime} - ${newEndTime}`,
-        actionType: 'REALLOCATED_SAME_WEEK',
-        details: `Reallocated within the same week to ${toDayKey(foundSlot.date)} ${newDateStr} at ${newStartTime}.`,
+      stagedUpdates.push({
+        session,
+        foundSlot,
+        origDateStr,
+        origTimeStr,
       });
     } else {
-      // Rule 3 & 4: Push into NEXT week and shift the entire remaining plan by 7 days (+1 week extension)
-      const shiftDays = 7;
-      cumulativeSlippageAdded += shiftDays;
-      planShiftCount++;
-
-      // Shift subsequent future uncompleted sessions by +7 days
-      const futureSessions = allSessions.filter(
-        (s) =>
-          s.id !== session.id &&
-          s.status !== 'DONE' &&
-          s.scheduled_date &&
-          toDateStr(new Date(s.scheduled_date)) >= origDateStr
-      );
-
-      for (const fut of futureSessions) {
-        if (!fut.scheduled_date) continue;
-        const shiftedDate = new Date(new Date(fut.scheduled_date).getTime() + shiftDays * 86400000);
-        await prisma.session.update({
-          where: { id: fut.id },
-          data: { scheduled_date: shiftedDate },
-        });
-      }
-
-      // Shift the missed session by +7 days into next week's corresponding slot
-      const nextWeekDate = new Date(sessionDate.getTime() + shiftDays * 86400000);
-      const nextWeekDateStr = toDateStr(nextWeekDate);
-
-      await prisma.session.update({
-        where: { id: session.id },
-        data: {
-          scheduled_date: nextWeekDate,
-          status: 'RESCHEDULED',
-        },
-      });
-
-      actions.push({
-        sessionId: session.id,
-        taskTitle: session.task_template.title,
-        originalDate: origDateStr,
-        originalTime: origTimeStr,
-        newDate: nextWeekDateStr,
-        newTime: session.start_time && session.end_time ? `${session.start_time} - ${session.end_time}` : '',
-        actionType: 'SHIFTED_NEXT_WEEK',
-        details: `No slot available in current week. Extended plan by 7 days and shifted session to next week.`,
-      });
+      // Slot exhausted in current week!
+      slotExhausted = true;
+      break;
     }
   }
 
-  // Update UserGoal slippage_days and target_end_date if plan shifted
-  let totalSlippage = userGoal.slippage_days;
-  if (cumulativeSlippageAdded > 0) {
-    totalSlippage += cumulativeSlippageAdded;
-    const newTargetEndDate = new Date(
-      new Date(userGoal.target_end_date).getTime() + cumulativeSlippageAdded * 86400000
-    );
-
-    await prisma.userGoal.update({
-      where: { id: userGoalId },
-      data: {
-        slippage_days: totalSlippage,
-        target_end_date: newTargetEndDate,
+  // If any session cannot find a slot in current week:
+  // Tier 2 Trigger: NO_FREE_SLOTS.
+  // Under Phase 2 Guardrail 2: Do NOT auto-shift or cascade the schedule.
+  // Instead, surface a pending recovery state for the user to resolve.
+  if (slotExhausted) {
+    return {
+      missedDetectedCount: sessionsToReschedule.length,
+      rescheduledCount: 0,
+      sameWeekReallocatedCount: 0,
+      planShiftCount: 0,
+      slippageDaysAdded: 0,
+      totalSlippageDays: userGoal.slippage_days,
+      guardrailTriggered: userGoal.slippage_days >= 14,
+      actions: [],
+      pendingRecovery: {
+        triggered: true,
+        tier: 'TIER_2_PENDING',
+        reason: 'NO_FREE_SLOTS',
+        consecutiveMissedDays,
+        missedSessionIds: sessionsToReschedule.map((s) => s.id),
+        suggestedAction: 'shift_timeline',
       },
-    });
+    };
   }
 
-  const guardrailTriggered = totalSlippage >= 14;
+  // Tier 1 Silent Recovery: All sessions reallocated within same week
+  const actions: RescheduleAction[] = [];
+  for (const update of stagedUpdates) {
+    const newDateStr = toDateStr(update.foundSlot.date);
+    const newStartTime = minutesToTime(update.foundSlot.start);
+    const newEndTime = minutesToTime(update.foundSlot.end);
+
+    await prisma.session.update({
+      where: { id: update.session.id },
+      data: {
+        scheduled_date: update.foundSlot.date,
+        start_time: newStartTime,
+        end_time: newEndTime,
+        status: 'RESCHEDULED',
+      },
+    });
+
+    actions.push({
+      sessionId: update.session.id,
+      taskTitle: update.session.task_template.title,
+      originalDate: update.origDateStr,
+      originalTime: update.origTimeStr,
+      newDate: newDateStr,
+      newTime: `${newStartTime} - ${newEndTime}`,
+      actionType: 'REALLOCATED_SAME_WEEK',
+      details: `Reallocated within the same week to ${toDayKey(update.foundSlot.date)} ${newDateStr} at ${newStartTime}.`,
+    });
+  }
 
   return {
     missedDetectedCount: sessionsToReschedule.length,
     rescheduledCount: actions.length,
-    sameWeekReallocatedCount,
-    planShiftCount,
-    slippageDaysAdded: cumulativeSlippageAdded,
-    totalSlippageDays: totalSlippage,
-    guardrailTriggered,
+    sameWeekReallocatedCount: actions.length,
+    planShiftCount: 0,
+    slippageDaysAdded: 0,
+    totalSlippageDays: userGoal.slippage_days,
+    guardrailTriggered: userGoal.slippage_days >= 14,
     actions,
+    pendingRecovery: {
+      triggered: false,
+      tier: 'TIER_1_SILENT',
+      consecutiveMissedDays,
+      missedSessionIds: [],
+    },
   };
 }

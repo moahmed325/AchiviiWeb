@@ -199,7 +199,7 @@ describe('rescheduler.ts baseline unit tests', () => {
       expect(prisma.userGoal.update).not.toHaveBeenCalled();
     });
 
-    it('cascades plan by +7 days and accumulates slippage when no free slot exists in current week', async () => {
+    it('flags pending recovery state (Tier 2: NO_FREE_SLOTS) without auto-shifting when no free slot exists in current week', async () => {
       // Missed session on Monday 2026-09-14.
       // User has availability slots covering all remaining days of the week (Wed-Sun) 00:00-23:59.
       const mockGoal = {
@@ -212,7 +212,6 @@ describe('rescheduler.ts baseline unit tests', () => {
             { day_of_week: 'THU', start_time: '00:00', end_time: '23:59' },
             { day_of_week: 'FRI', start_time: '00:00', end_time: '23:59' },
             { day_of_week: 'SAT', start_time: '00:00', end_time: '23:59' },
-            // Sunday has baseline 08:00-21:00 with no user slots, but let's book Sunday full with another session
           ],
         },
         goal_catalog: { phases: [] },
@@ -245,7 +244,7 @@ describe('rescheduler.ts baseline unit tests', () => {
         },
       };
 
-      // Future session in week 2 that should be shifted
+      // Future session in week 2 that must NOT be auto-shifted in Phase 2
       const futureSession = {
         id: 's-future-w2',
         scheduled_date: new Date('2026-09-21T09:00:00'),
@@ -265,105 +264,126 @@ describe('rescheduler.ts baseline unit tests', () => {
         sundaySession,
         futureSession,
       ]);
-      (prisma.session.update as any).mockResolvedValue({});
-      (prisma.userGoal.update as any).mockResolvedValue({});
 
       const result = await detectAndRescheduleMissed('goal-cascade');
 
       expect(result.missedDetectedCount).toBe(1);
       expect(result.sameWeekReallocatedCount).toBe(0);
-      expect(result.planShiftCount).toBe(1);
-      expect(result.slippageDaysAdded).toBe(7);
-      expect(result.totalSlippageDays).toBe(7);
+      expect(result.planShiftCount).toBe(0);
+      expect(result.slippageDaysAdded).toBe(0);
+      expect(result.totalSlippageDays).toBe(0);
       expect(result.guardrailTriggered).toBe(false);
 
-      expect(result.actions).toHaveLength(1);
-      expect(result.actions[0].actionType).toBe('SHIFTED_NEXT_WEEK');
+      // Tier 2 pending recovery flagged with reason NO_FREE_SLOTS
+      expect(result.pendingRecovery).toBeDefined();
+      expect(result.pendingRecovery?.triggered).toBe(true);
+      expect(result.pendingRecovery?.tier).toBe('TIER_2_PENDING');
+      expect(result.pendingRecovery?.reason).toBe('NO_FREE_SLOTS');
+      expect(result.pendingRecovery?.missedSessionIds).toContain('s-missed');
 
-      // Missed session should be shifted by 7 days (from 2026-09-14 to 2026-09-21)
-      expect(prisma.session.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 's-missed' },
-          data: expect.objectContaining({
-            status: 'RESCHEDULED',
-            scheduled_date: new Date('2026-09-21T09:00:00'),
-          }),
-        })
-      );
-
-      // Future session should also be shifted by 7 days (from 2026-09-21 to 2026-09-28)
-      expect(prisma.session.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 's-future-w2' },
-          data: expect.objectContaining({
-            scheduled_date: new Date('2026-09-28T09:00:00'),
-          }),
-        })
-      );
-
-      // UserGoal should be updated with new slippage and pushed target_end_date
-      expect(prisma.userGoal.update).toHaveBeenCalledWith({
-        where: { id: 'goal-cascade' },
-        data: {
-          slippage_days: 7,
-          target_end_date: new Date(new Date('2026-12-07T00:00:00').getTime() + 7 * 86400000),
-        },
-      });
+      // Crucial Phase 2 Guardrail 2: Do NOT mutate sessions or user goal in the background
+      expect(prisma.session.update).not.toHaveBeenCalled();
+      expect(prisma.userGoal.update).not.toHaveBeenCalled();
     });
 
-    it('triggers guardrail when accumulated slippage reaches >= 14 days', async () => {
-      // Current slippage is already 7 days. Another cascade will bring it to 14 days.
+    it('triggers Tier 2 pending state when 3+ consecutive days are missed without mutating sessions', async () => {
+      // Current frozen time is Wednesday 2026-09-16 15:00
+      // User missed sessions on Monday, Tuesday, and Wednesday (after 10-11 session)
       const mockGoal = {
-        id: 'goal-guardrail',
-        slippage_days: 7,
-        target_end_date: new Date('2026-12-14T00:00:00'),
-        user: {
-          availability_slots: [
-            { day_of_week: 'WED', start_time: '00:00', end_time: '23:59' },
-            { day_of_week: 'THU', start_time: '00:00', end_time: '23:59' },
-            { day_of_week: 'FRI', start_time: '00:00', end_time: '23:59' },
-            { day_of_week: 'SAT', start_time: '00:00', end_time: '23:59' },
-          ],
-        },
+        id: 'goal-3-missed',
+        slippage_days: 0,
+        target_end_date: new Date('2026-12-07T00:00:00'),
+        user: { availability_slots: [] }, // open slots on Thu/Fri/Sat/Sun
         goal_catalog: { phases: [] },
       };
 
-      const missedSession = {
-        id: 's-missed-2',
-        scheduled_date: new Date('2026-09-14T09:00:00'),
-        start_time: '09:00',
-        end_time: '10:00',
-        status: 'MISSED',
-        task_template: {
-          title: 'Writing',
-          session_duration_minutes: 60,
-          preferred_time_of_day: null,
+      const sessions = [
+        {
+          id: 's-mon',
+          scheduled_date: new Date('2026-09-14T10:00:00'),
+          start_time: '10:00',
+          end_time: '11:00',
+          status: 'UPCOMING',
+          task_template: { title: 'Day 1', session_duration_minutes: 60, preferred_time_of_day: null },
         },
-      };
-
-      const sundaySession = {
-        id: 's-sun-booked',
-        scheduled_date: new Date('2026-09-20T08:00:00'),
-        start_time: '08:00',
-        end_time: '21:00',
-        status: 'UPCOMING',
-        task_template: {
-          title: 'Booked Sun',
-          session_duration_minutes: 780,
-          preferred_time_of_day: null,
+        {
+          id: 's-tue',
+          scheduled_date: new Date('2026-09-15T10:00:00'),
+          start_time: '10:00',
+          end_time: '11:00',
+          status: 'UPCOMING',
+          task_template: { title: 'Day 2', session_duration_minutes: 60, preferred_time_of_day: null },
         },
-      };
+        {
+          id: 's-wed',
+          scheduled_date: new Date('2026-09-16T10:00:00'),
+          start_time: '10:00',
+          end_time: '11:00',
+          status: 'UPCOMING',
+          task_template: { title: 'Day 3', session_duration_minutes: 60, preferred_time_of_day: null },
+        },
+      ];
 
       (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
-      (prisma.session.findMany as any).mockResolvedValue([missedSession, sundaySession]);
+      (prisma.session.findMany as any).mockResolvedValue(sessions);
+
+      const result = await detectAndRescheduleMissed('goal-3-missed');
+
+      expect(result.missedDetectedCount).toBe(3);
+      expect(result.sameWeekReallocatedCount).toBe(0);
+      expect(result.planShiftCount).toBe(0);
+
+      expect(result.pendingRecovery?.triggered).toBe(true);
+      expect(result.pendingRecovery?.tier).toBe('TIER_2_PENDING');
+      expect(result.pendingRecovery?.reason).toBe('CONSECUTIVE_DAYS_MISSED');
+      expect(result.pendingRecovery?.consecutiveMissedDays).toBe(3);
+      expect(result.pendingRecovery?.missedSessionIds).toEqual(['s-mon', 's-tue', 's-wed']);
+
+      // No background mutation
+      expect(prisma.session.update).not.toHaveBeenCalled();
+      expect(prisma.userGoal.update).not.toHaveBeenCalled();
+    });
+
+    it('clears Tier 2 pending state retroactively when an offline completion reconciles (Decision Log D8)', async () => {
+      // Mon and Tue were missed, but Mon was completed offline and synced (status: 'DONE')
+      const mockGoal = {
+        id: 'goal-reconciled',
+        slippage_days: 0,
+        target_end_date: new Date('2026-12-07T00:00:00'),
+        user: { availability_slots: [] },
+        goal_catalog: { phases: [] },
+      };
+
+      const sessions = [
+        {
+          id: 's-mon-done',
+          scheduled_date: new Date('2026-09-14T10:00:00'),
+          start_time: '10:00',
+          end_time: '11:00',
+          status: 'DONE', // synced offline completion!
+          task_template: { title: 'Day 1', session_duration_minutes: 60, preferred_time_of_day: null },
+        },
+        {
+          id: 's-tue-missed',
+          scheduled_date: new Date('2026-09-15T10:00:00'),
+          start_time: '10:00',
+          end_time: '11:00',
+          status: 'UPCOMING', // only 1 day missed!
+          task_template: { title: 'Day 2', session_duration_minutes: 60, preferred_time_of_day: null },
+        },
+      ];
+
+      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
+      (prisma.session.findMany as any).mockResolvedValue(sessions);
       (prisma.session.update as any).mockResolvedValue({});
-      (prisma.userGoal.update as any).mockResolvedValue({});
 
-      const result = await detectAndRescheduleMissed('goal-guardrail');
+      const result = await detectAndRescheduleMissed('goal-reconciled');
 
-      expect(result.slippageDaysAdded).toBe(7);
-      expect(result.totalSlippageDays).toBe(14);
-      expect(result.guardrailTriggered).toBe(true);
+      // Mon being DONE broke the streak, so only 1 missed day (Tier 1 silent reallocation)
+      expect(result.missedDetectedCount).toBe(1);
+      expect(result.sameWeekReallocatedCount).toBe(1);
+      expect(result.pendingRecovery?.triggered).toBe(false);
+      expect(result.pendingRecovery?.tier).toBe('TIER_1_SILENT');
     });
 
     it('forces rescheduling when forceRescheduleSessionId is specified', async () => {
