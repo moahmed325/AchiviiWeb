@@ -84,6 +84,19 @@ export interface WeekSessionsResponse {
   };
   sessions: Session[];
   availabilitySlots: AvailabilitySlot[];
+  pendingRecovery?: PendingRecoveryState | null;
+}
+
+export interface PendingRecoveryState {
+  pending: boolean;
+  user_goal_id: string;
+  tier?: 'TIER_2_PENDING';
+  reason?: 'CONSECUTIVE_DAYS_MISSED' | 'NO_FREE_SLOTS' | 'MANUAL';
+  consecutive_missed_days?: number;
+  missed_session_count?: number;
+  rolling_28_day_events: number;
+  circuit_breaker_active: boolean;
+  options?: ('shrink_week' | 'shift_timeline' | 'scope_reduction' | 'pause_goal')[];
 }
 
 export interface OnboardingPayload {

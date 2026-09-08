@@ -73,12 +73,12 @@ This is what exists today in the `AchiviiWeb` repository, carried over from the 
 - [Done] Backend: new `recovery.ts` routes — `GET` pending recovery state, `POST` user's choice (`shrink_week` / `shift_timeline`)
 - [Done] Implement `shrink_week`: deterministic filter dropping `buffer`-tier sessions first, respecting the session-length cap, never touching `core`-tier sessions
 - [Done] Implement `shift_timeline`: update `current_plan_day_offset`, roll remaining plan forward — confirm this is an O(1) write, not a bulk session-row update
-- [Todo] Frontend: `RecoveryCheckIn.tsx` — non-blocking inline card (not a modal), warm/neutral copy, one-tap defaults, per plan Section 4.6 and Decision Log D11
+- [Done] Frontend: `RecoveryCheckIn.tsx` — non-blocking inline card (not a modal), warm/neutral copy, one-tap defaults, per plan Section 4.6 and Decision Log D11
 - [Done] Implement offline reconciliation: on sync, check for completions timestamped within a currently-pending lapse window and retroactively clear the flag before serving any check-in (Decision Log D8)
 - [Done] Implement the Lapse Circuit Breaker: query `RecoveryEvent` count in a rolling 28-day window per goal; on the 3rd event, serve a scope-reduction prompt instead of the standard Tier 2 check-in
-- [Todo] Retire or repurpose `SlippageBanner` — decide whether it becomes a passive summary alongside the new check-in, or is superseded by it
-- [Todo] Tests: Tier 1 silent behavior, Tier 2 trigger conditions, shrink/shift correctness against tiered sessions, circuit breaker firing at exactly the 3rd event, offline reconciliation clearing a flag correctly
-- [Todo] Update this file: mark Phase 2 complete, commit
+- [Done] Retire or repurpose `SlippageBanner` — decide whether it becomes a passive summary alongside the new check-in, or is superseded by it (Repurposed as passive pacing summary alongside RecoveryCheckIn)
+- [Done] Tests: Tier 1 silent behavior, Tier 2 trigger conditions, shrink/shift correctness against tiered sessions, circuit breaker firing at exactly the 3rd event, offline reconciliation clearing a flag correctly
+- [Done] Update this file: mark Phase 2 complete, commit
 
 ---
 ## Phase 3 — Weekly Reflection

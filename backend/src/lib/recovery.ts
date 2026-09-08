@@ -6,7 +6,7 @@ export interface PendingRecoveryResponse {
   pending: boolean;
   user_goal_id: string;
   tier?: 'TIER_2_PENDING';
-  reason?: 'CONSECUTIVE_DAYS_MISSED' | 'NO_FREE_SLOTS';
+  reason?: 'CONSECUTIVE_DAYS_MISSED' | 'NO_FREE_SLOTS' | 'MANUAL';
   consecutive_missed_days?: number;
   missed_session_count?: number;
   rolling_28_day_events: number;

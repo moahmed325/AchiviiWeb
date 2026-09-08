@@ -253,3 +253,44 @@ export async function fetchGoalProgress(token: string): Promise<import('../types
 
   return data;
 }
+
+export async function fetchPendingRecovery(token: string): Promise<import('../types').PendingRecoveryState> {
+  const response = await fetch(`${API_BASE_URL}/api/recovery/pending`, {
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to load recovery state');
+  }
+
+  return data;
+}
+
+export async function submitRecoveryAction(
+  token: string,
+  payload: {
+    user_goal_id: string;
+    choice: 'shrink_week' | 'shift_timeline' | 'scope_reduction' | 'pause_goal';
+    details?: any;
+  }
+): Promise<{ success: boolean; choice: string; recoveryEventId: string; resultingAdjustment: any }> {
+  const response = await fetch(`${API_BASE_URL}/api/recovery/action`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to submit recovery choice');
+  }
+
+  return data;
+}
