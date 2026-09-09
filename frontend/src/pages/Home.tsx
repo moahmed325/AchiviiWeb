@@ -17,8 +17,6 @@ import {
   Calendar,
   Settings,
   TrendingUp,
-  Cpu,
-  ShieldCheck,
   Clock,
   Check,
   Play,
@@ -560,54 +558,72 @@ export const Home: React.FC = () => {
           </section>
         )}
 
-        {/* Platform Technical Specifications (Engineering Infrastructure) */}
+        {/* Section 4: The Anti-Failure Philosophy */}
         {!activeUserGoal && (
-          <section className="pt-8 border-t border-[#182621]">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-[#182621] pb-3">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
-                  INFRASTRUCTURE SPECIFICATION // CORE PILLARS
-                </span>
-                <span className="text-[10px] font-mono text-[#55675c]">
-                  FOUNDATION STANDARDS
-                </span>
+          <section className="max-w-7xl mx-auto py-20 sm:py-32 border-t border-[#141f1b]">
+            {/* Section Header */}
+            <div>
+              <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase mb-4 block">
+                [ CORE PHILOSOPHY ]
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-semibold text-white tracking-tight mb-4">
+                Built for reality, not perfect streaks.
+              </h2>
+              <p className="text-neutral-400 text-sm sm:text-base max-w-2xl">
+                Most productivity systems assume you are a robot. We assume you are human. Here is why our protocol actually works when others fail.
+              </p>
+            </div>
+
+            {/* 3-Card Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 sm:mt-16">
+              {/* Card 1 */}
+              <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-xl p-6 md:p-8 flex flex-col gap-4">
+                <h3 className="text-white font-medium text-lg">
+                  Myth: Streaks build discipline.
+                </h3>
+                <p className="text-neutral-400 text-sm leading-relaxed">
+                  Reality: Streaks build fragility. A single sick day ruins a 60-day chain, leading to guilt and abandonment. Achivii uses dynamic buffers so a missed day is just a schedule shift, not a failure.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
-                <div className="p-5 sm:p-6 rounded-md bg-[#0c1210] border border-[#182621] space-y-3 shadow-none">
-                  <div className="w-8 h-8 rounded-sm bg-[#111a17] border border-[#182621] flex items-center justify-center text-[#07CB6C]">
-                    <Cpu className="w-4 h-4" />
-                  </div>
-                  <h4 className="text-sm font-bold text-[#e5ebe7] font-mono">DETERMINISTIC BLUEPRINTS</h4>
-                  <p className="text-xs text-[#7e8f85] leading-relaxed font-mono">
-                    Zero decision fatigue. Blueprints arrive pre-scoped with 3 sequential 4-week phases, concrete session durations, and optimal times of day.
-                  </p>
-                </div>
+              {/* Card 2 */}
+              <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-xl p-6 md:p-8 flex flex-col gap-4">
+                <h3 className="text-white font-medium text-lg">
+                  Myth: Open-ended goals work.
+                </h3>
+                <p className="text-neutral-400 text-sm leading-relaxed">
+                  Reality: &quot;Learn to code&quot; is a wish. &quot;12-Weeks to a SaaS MVP&quot; is a contract. Every Achivii blueprint is deterministically scoped to 90 days with a clear exit criteria.
+                </p>
+              </div>
 
-                <div className="p-5 sm:p-6 rounded-md bg-[#0c1210] border border-[#182621] space-y-3 shadow-none">
-                  <div className="w-8 h-8 rounded-sm bg-[#111a17] border border-[#182621] flex items-center justify-center text-[#07CB6C]">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <h4 className="text-sm font-bold text-[#e5ebe7] font-mono">AVAILABILITY BUFFER SYNC</h4>
-                  <p className="text-xs text-[#7e8f85] leading-relaxed font-mono">
-                    Learns your recurring weekly commitments (Mon–Sat busy blocks). Achivii slots goal units exclusively into genuine, unreserved free time.
-                  </p>
-                </div>
-
-                <div className="p-5 sm:p-6 rounded-md bg-[#0c1210] border border-[#182621] space-y-3 shadow-none">
-                  <div className="w-8 h-8 rounded-sm bg-[#111a17] border border-[#182621] flex items-center justify-center text-[#07CB6C]">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <h4 className="text-sm font-bold text-[#e5ebe7] font-mono">HABIT CIRCUIT BREAKER</h4>
-                  <p className="text-xs text-[#7e8f85] leading-relaxed font-mono">
-                    Eliminates the guilt and abandonment death-spiral. If life derails execution, the engine auto-dilates or prunes buffer blocks while defending core habits.
-                  </p>
-                </div>
+              {/* Card 3 */}
+              <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-xl p-6 md:p-8 flex flex-col gap-4">
+                <h3 className="text-white font-medium text-lg">
+                  Myth: More hours = better.
+                </h3>
+                <p className="text-neutral-400 text-sm leading-relaxed">
+                  Reality: Burnout is the enemy of consistency. Our pacing engine forces you to cap your weekly load, protecting you from over-committing in week one and quitting by week three.
+                </p>
               </div>
             </div>
           </section>
         )}
       </main>
+
+      {/* Global Minimal Editorial Footer */}
+      <footer className="border-t border-[#141f1b] py-12 px-4 sm:px-6 lg:px-8 bg-[#050807] text-neutral-500 text-xs font-mono">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+            <span className="text-neutral-300 font-medium">Achivii Protocol</span>
+            <span className="text-neutral-600">//</span>
+            <span>Deterministic 90-Day Execution Engine</span>
+          </div>
+          <div>
+            <span>© {new Date().getFullYear()} Achivii. Engineered for resilient execution.</span>
+          </div>
+        </div>
+      </footer>
 
       {/* Slide-over Technical Phase Inspection Drawer */}
       <GoalDetailDrawer
