@@ -8,7 +8,45 @@ interface GoalCardProps {
   onSelect: (goal: GoalCatalog) => void;
 }
 
+const BLUEPRINT_IMAGES: Record<string, string> = {
+  'build-and-launch-a-saas-mvp': '/images/blueprints/saas-mvp.png',
+  'saas-mvp': '/images/blueprints/saas-mvp.png',
+  'run-a-10k-half-marathon': '/images/blueprints/half-marathon.png',
+  'half-marathon': '/images/blueprints/half-marathon.png',
+  'learn-conversational-spanish-to-b1': '/images/blueprints/spanish-b1.png',
+  'spanish-b1': '/images/blueprints/spanish-b1.png',
+  'master-distributed-systems-architecture': '/images/blueprints/distributed-systems.png',
+  'distributed-systems': '/images/blueprints/distributed-systems.png',
+  'write-and-publish-a-non-fiction-book': '/images/blueprints/write-book.png',
+  'write-book': '/images/blueprints/write-book.png',
+  'daily-mindfulness-breathwork-habit': '/images/blueprints/mindfulness.png',
+  'mindfulness': '/images/blueprints/mindfulness.png',
+};
+
+const getBlueprintImage = (goal: GoalCatalog): string | null => {
+  if (!goal) return null;
+  const slug = (goal.title || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (BLUEPRINT_IMAGES[slug]) return BLUEPRINT_IMAGES[slug];
+
+  const title = (goal.title || '').toLowerCase();
+  if (title.includes('saas') || title.includes('mvp')) return '/images/blueprints/saas-mvp.png';
+  if (title.includes('marathon') || title.includes('10k')) return '/images/blueprints/half-marathon.png';
+  if (title.includes('spanish') || title.includes('conversational')) return '/images/blueprints/spanish-b1.png';
+  if (title.includes('distributed') || title.includes('systems')) return '/images/blueprints/distributed-systems.png';
+  if (title.includes('book') || title.includes('publish') || title.includes('non-fiction')) return '/images/blueprints/write-book.png';
+  if (title.includes('mindfulness') || title.includes('breathwork') || title.includes('habit')) return '/images/blueprints/mindfulness.png';
+
+  return null;
+};
+
 export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect }) => {
+  const [imageError, setImageError] = React.useState(false);
+  const imageSrc = getBlueprintImage(goal);
+
   const getCategoryIcon = (category: string) => {
     switch (category.toLowerCase()) {
       case 'software & technical':
@@ -162,113 +200,135 @@ export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect })
   const totalWeeks = goal.phases?.reduce((sum, p) => sum + p.duration_weeks, 0) || 12;
 
   return (
-    <div className="rounded-md bg-[#0c1210] border border-[#182621] hover:border-[#2a443a] transition-colors p-5 flex flex-col justify-between space-y-5 shadow-none group">
-      <div className="space-y-4">
-        {/* Technical Wireframe Schematic Banner */}
-        <div className="w-full rounded-sm bg-[#080d0b] border border-[#182621] p-2.5 flex flex-col justify-between overflow-hidden relative group-hover:border-[#1f332c] transition-colors">
+    <div className="rounded-md bg-[#0c1210] border border-[#182621] hover:border-[#2a443a] transition-colors flex flex-col justify-between shadow-none group overflow-hidden">
+      {/* 16:9 Aspect Ratio Image Header (or fallback schematic) */}
+      {imageSrc && !imageError ? (
+        <div className="relative w-full aspect-video overflow-hidden border-b border-[#182621] bg-[#0c1210]">
+          <img
+            src={imageSrc}
+            alt={goal.title}
+            loading="lazy"
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 filter brightness-90 contrast-110"
+          />
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0c1210] via-transparent to-transparent opacity-80 pointer-events-none" />
+
+          {/* Anchored Monospace Telemetry Badge (Top Right) */}
+          <div className="absolute top-2.5 right-2.5 font-mono text-[10px] tracking-widest px-2 py-0.5 bg-[#080d0b]/80 border border-[#182621] text-[#07CB6C] uppercase">
+            [12-WK PROTOCOL]
+          </div>
+        </div>
+      ) : (
+        <div className="w-full bg-[#080d0b] border-b border-[#182621] p-2.5 flex flex-col justify-between overflow-hidden relative">
           <div className="flex items-center justify-between text-[8px] font-mono text-[#55675c] uppercase tracking-wider mb-1.5">
             <span>SCHEMATIC // {getSchematicLabel(goal)}</span>
             <span className="text-[#07CB6C]/70">1PX WIREFRAME</span>
           </div>
           {renderSchematic(goal)}
         </div>
+      )}
 
-        {/* Technical Header with Monospace Micro-Label */}
-        <div className="flex items-start justify-between gap-3 border-b border-[#182621] pb-3.5">
-          <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[#07CB6C] flex items-center gap-1.5">
-                {getCategoryIcon(goal.category)}
-                <span>SPEC // {goal.category.toUpperCase()}</span>
-              </span>
-              <span className="px-1.5 py-0.2 rounded-sm bg-[#16221e] border border-[#1f332c] text-[9px] font-mono text-[#a6b8ad]">
-                90-DAY
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-bold text-[#e5ebe7] group-hover:text-white transition-colors truncate">
-              {goal.title}
-            </h3>
-          </div>
-
-          <div className="w-8 h-8 rounded-sm bg-[#080d0b] border border-[#182621] text-[#7e8f85] group-hover:text-[#07CB6C] group-hover:border-[#07CB6C]/30 flex items-center justify-center shrink-0 transition-colors">
-            <Layers className="w-4 h-4" />
-          </div>
-        </div>
-
-        {/* Blueprint Description */}
-        <p className="text-xs text-[#7e8f85] leading-relaxed line-clamp-2 font-mono">
-          {goal.description}
-        </p>
-
-        {/* Telemetry Metrics Row */}
-        <div className="grid grid-cols-2 gap-2 text-xs font-mono">
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
-            <div className="text-[9px] text-[#55675c] uppercase flex items-center gap-1">
-              <Clock className="w-3 h-3 text-[#07CB6C]" />
-              <span>WEEKLY COMMITMENT</span>
-            </div>
-            <div className="text-xs font-bold text-[#e5ebe7] mt-0.5">
-              {goal.est_weekly_hours} HOURS / WK
-            </div>
-          </div>
-
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
-            <div className="text-[9px] text-[#55675c] uppercase flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-[#07CB6C]" />
-              <span>EXECUTION CADENCE</span>
-            </div>
-            <div className="text-xs font-bold text-[#e5ebe7] mt-0.5">
-              {totalWeeks} WEEKS (3 PHASES)
-            </div>
-          </div>
-        </div>
-
-        {/* Phase Architecture Breakdown */}
-        <div className="space-y-1.5 pt-1">
-          <div className="flex items-center justify-between text-[10px] font-mono text-[#7e8f85]">
-            <span>PHASE ARCHITECTURE ({totalPhases} STAGES)</span>
-            <span className="text-[#07CB6C]">RECOVERY: ADAPTIVE</span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-1.5">
-            {goal.phases?.map((phase, idx) => (
-              <div
-                key={phase.id}
-                className="p-2 rounded-sm bg-[#080d0b] border border-[#182621] text-left space-y-0.5"
-              >
-                <div className="text-[10px] font-mono font-bold text-[#07CB6C]">
-                  0{idx + 1} // P{idx + 1}
-                </div>
-                <div className="text-[10px] font-mono text-[#a6b8ad] truncate">
-                  {phase.title.split(':')[0]}
-                </div>
-                <div className="text-[9px] font-mono text-[#55675c]">
-                  {phase.duration_weeks} WEEKS
-                </div>
+      {/* Card Content Body */}
+      <div className="p-5 flex-1 flex flex-col justify-between space-y-5">
+        <div className="space-y-4">
+          {/* Technical Header with Monospace Micro-Label */}
+          <div className="flex items-start justify-between gap-3 border-b border-[#182621] pb-3.5">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-[#07CB6C] flex items-center gap-1.5">
+                  {getCategoryIcon(goal.category)}
+                  <span>SPEC // {goal.category.toUpperCase()}</span>
+                </span>
+                <span className="px-1.5 py-0.2 rounded-sm bg-[#16221e] border border-[#1f332c] text-[9px] font-mono text-[#a6b8ad]">
+                  90-DAY
+                </span>
               </div>
-            ))}
+              <h3 className="text-base sm:text-lg font-bold text-[#e5ebe7] group-hover:text-white transition-colors truncate">
+                {goal.title}
+              </h3>
+            </div>
+
+            <div className="w-8 h-8 rounded-sm bg-[#080d0b] border border-[#182621] text-[#7e8f85] group-hover:text-[#07CB6C] group-hover:border-[#07CB6C]/30 flex items-center justify-center shrink-0 transition-colors">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+
+          {/* Blueprint Description */}
+          <p className="text-xs text-[#7e8f85] leading-relaxed line-clamp-2 font-mono">
+            {goal.description}
+          </p>
+
+          {/* Telemetry Metrics Row */}
+          <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+            <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
+              <div className="text-[9px] text-[#55675c] uppercase flex items-center gap-1">
+                <Clock className="w-3 h-3 text-[#07CB6C]" />
+                <span>WEEKLY COMMITMENT</span>
+              </div>
+              <div className="text-xs font-bold text-[#e5ebe7] mt-0.5">
+                {goal.est_weekly_hours} HOURS / WK
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
+              <div className="text-[9px] text-[#55675c] uppercase flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-[#07CB6C]" />
+                <span>EXECUTION CADENCE</span>
+              </div>
+              <div className="text-xs font-bold text-[#e5ebe7] mt-0.5">
+                {totalWeeks} WEEKS (3 PHASES)
+              </div>
+            </div>
+          </div>
+
+          {/* Phase Architecture Breakdown */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between text-[10px] font-mono text-[#7e8f85]">
+              <span>PHASE ARCHITECTURE ({totalPhases} STAGES)</span>
+              <span className="text-[#07CB6C]">RECOVERY: ADAPTIVE</span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              {goal.phases?.map((phase, idx) => (
+                <div
+                  key={phase.id}
+                  className="p-2 rounded-sm bg-[#080d0b] border border-[#182621] text-left space-y-0.5"
+                >
+                  <div className="text-[10px] font-mono font-bold text-[#07CB6C]">
+                    0{idx + 1} // P{idx + 1}
+                  </div>
+                  <div className="text-[10px] font-mono text-[#a6b8ad] truncate">
+                    {phase.title.split(':')[0]}
+                  </div>
+                  <div className="text-[9px] font-mono text-[#55675c]">
+                    {phase.duration_weeks} WEEKS
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Structured Technical Action Buttons with >= 44px touch targets */}
-      <div className="pt-4 border-t border-[#182621] flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => onInspect(goal)}
-          className="min-h-[44px] flex-1 px-3 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-        >
-          <span>INSPECT BLUEPRINT</span>
-          <ChevronRight className="w-3.5 h-3.5 text-[#07CB6C]" />
-        </button>
+        {/* Structured Technical Action Buttons with >= 44px touch targets */}
+        <div className="pt-4 border-t border-[#182621] flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onInspect(goal)}
+            className="min-h-[44px] flex-1 px-3 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] text-xs font-mono font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <span>INSPECT BLUEPRINT</span>
+            <ChevronRight className="w-3.5 h-3.5 text-[#07CB6C]" />
+          </button>
 
-        <button
-          type="button"
-          onClick={() => onSelect(goal)}
-          className="min-h-[44px] px-4 py-2 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer shrink-0"
-        >
-          <span>INITIALIZE</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => onSelect(goal)}
+            className="min-h-[44px] px-4 py-2 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer shrink-0"
+          >
+            <span>INITIALIZE</span>
+          </button>
+        </div>
       </div>
     </div>
   );
