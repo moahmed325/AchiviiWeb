@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchCatalog, fetchHealthCheck, fetchCurrentUserGoal } from '../lib/api';
 import { GoalCatalog, UserGoal } from '../types';
@@ -20,11 +20,40 @@ import {
   Clock,
   Check,
   Play,
-  Target,
-  Lock,
-  RefreshCw
+  ChevronDown
 } from 'lucide-react';
 import { CalendarWeekView } from '../components/CalendarWeekView';
+
+interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  videoSrc: string;
+}
+
+const FAQ_ITEMS: FaqItem[] = [
+  {
+    id: 'missed-week',
+    question: 'What happens if I miss a full week due to work or illness?',
+    answer:
+      'The recovery engine reallocates core sessions into your planned buffer slots. If total slippage exceeds the recovery threshold, the system flags a circuit breaker to reset expectations without guilt.',
+    videoSrc: '/videos/faq-missed-week.mp4',
+  },
+  {
+    id: 'no-streaks',
+    question: "Why don't you use streak counters like other apps?",
+    answer:
+      'Streaks reward presence over substance and introduce extreme fragility. One sick day wipes out 60 days of momentum. Achivii tracks completion volume across 90 days instead.',
+    videoSrc: '/videos/faq-no-streaks.mp4',
+  },
+  {
+    id: 'custom-goals',
+    question: 'Can I customize the weekly hours or create my own goal?',
+    answer:
+      'Yes. While our curated blueprints are pre-calibrated for optimal pacing, you can adjust weekly session duration or calibrate a fully custom protocol.',
+    videoSrc: '/videos/faq-custom-goals.mp4',
+  },
+];
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -40,6 +69,11 @@ export const Home: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [inspectedGoal, setInspectedGoal] = useState<GoalCatalog | null>(null);
+
+  // Video & Accordion states
+  const [introVideoPlaying, setIntroVideoPlaying] = useState(false);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const introVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -267,81 +301,92 @@ export const Home: React.FC = () => {
           </section>
         )}
 
-        {/* How Achivii Works // Protocol Specification Section */}
+        {/* Section 2: Personal Introduction & System Walkthrough */}
         {!activeUserGoal && (
-          <section className="py-16 sm:py-24 border-t border-[#141f1b] space-y-12">
-            {/* Section Header */}
-            <div className="space-y-4 max-w-3xl mx-auto text-center">
-              <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase block">
-                [ PROTOCOL SPECIFICATION ]
-              </span>
-              <h2 className="text-2xl sm:text-4xl font-semibold text-white tracking-tight">
-                How Achivii Guarantees 90-Day Execution
-              </h2>
-              <p className="text-neutral-400 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed font-normal">
-                Most habit trackers rely on fragile streaks. One missed day breaks momentum. Achivii uses engineering-grade buffers so your schedule adapts when life happens.
-              </p>
-            </div>
+          <section className="py-20 sm:py-28 border-t border-[#141f1b]">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center max-w-7xl mx-auto">
+              {/* Left Column (Text & Value Proposition - 5 cols) */}
+              <div className="lg:col-span-5 space-y-6">
+                <div>
+                  <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase mb-3 block">
+                    [ CREATOR NOTE // THE THESIS ]
+                  </span>
+                  <h2 className="text-2xl sm:text-4xl font-semibold text-white tracking-tight mb-4">
+                    Why I built Achivii.
+                  </h2>
+                  <div className="space-y-4 text-neutral-300 text-sm sm:text-base leading-relaxed">
+                    <p>
+                      For years, I watched ambitious engineers and operators burn out on rigid habit systems. Conventional trackers assume robotic conditions: zero illness, zero urgent production outages, and zero family emergencies.
+                    </p>
+                    <p>
+                      The moment reality intervenes, a broken streak triggers guilt, and the entire goal is abandoned. Achivii transforms intentions into deterministic 90-day execution using mathematical buffer absorption instead of fragile streak counters.
+                    </p>
+                  </div>
+                </div>
 
-            {/* 3-Step Mechanics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Step 01 */}
-              <div className="bg-[#0d1412] border border-[#1a2824] rounded-xl p-6 relative hover:border-[#07CB6C]/40 transition-colors flex flex-col justify-between space-y-6 group">
-                <div className="space-y-4">
-                  <div className="w-10 h-10 rounded-lg bg-[#131f1b] border border-[#1a2824] flex items-center justify-center text-[#07CB6C] group-hover:border-[#07CB6C]/40 transition-colors">
-                    <Target className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="font-mono text-xs text-[#07CB6C] tracking-wider uppercase block font-medium">
-                      01 // Pre-Scoped Blueprints
+                {/* Quick Bullet Highlights with Checkmarks */}
+                <div className="space-y-2.5 pt-2 border-t border-[#1a2824]">
+                  <div className="flex items-center gap-3 text-sm text-neutral-200">
+                    <span className="w-5 h-5 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] shrink-0">
+                      <Check className="w-3 h-3" />
                     </span>
-                    <h3 className="text-lg font-medium text-white">
-                      Mathematically Sourced
-                    </h3>
+                    <span>Zero streak tracking or guilt mechanisms</span>
                   </div>
-                  <p className="text-neutral-400 text-sm leading-relaxed">
-                    Select a curated 12-week roadmap. Every milestone, weekly hour commitment, and deliverable is mathematically scoped in advance.
-                  </p>
+                  <div className="flex items-center gap-3 text-sm text-neutral-200">
+                    <span className="w-5 h-5 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] shrink-0">
+                      <Check className="w-3 h-3" />
+                    </span>
+                    <span>Deterministic 90-day time horizons</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-neutral-200">
+                    <span className="w-5 h-5 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] shrink-0">
+                      <Check className="w-3 h-3" />
+                    </span>
+                    <span>Dynamic buffer slots that absorb missed sessions</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Step 02 */}
-              <div className="bg-[#0d1412] border border-[#1a2824] rounded-xl p-6 relative hover:border-[#07CB6C]/40 transition-colors flex flex-col justify-between space-y-6 group">
-                <div className="space-y-4">
-                  <div className="w-10 h-10 rounded-lg bg-[#131f1b] border border-[#1a2824] flex items-center justify-center text-[#07CB6C] group-hover:border-[#07CB6C]/40 transition-colors">
-                    <Lock className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="font-mono text-xs text-[#07CB6C] tracking-wider uppercase block font-medium">
-                      02 // Fixed Core Sessions
-                    </span>
-                    <h3 className="text-lg font-medium text-white">
-                      Protected Allocations
-                    </h3>
-                  </div>
-                  <p className="text-neutral-400 text-sm leading-relaxed">
-                    Lock 3–4 non-negotiable core sessions into your week. Treat them like production deployments—scheduled, protected, and focused.
-                  </p>
-                </div>
-              </div>
+              {/* Right Column (Video Player Frame - 7 cols) */}
+              <div className="lg:col-span-7 space-y-2">
+                <div className="relative aspect-video rounded-xl overflow-hidden border border-[#1a2824] bg-[#0d1412] shadow-2xl group">
+                  <video
+                    ref={introVideoRef}
+                    src="/videos/intro-walkthrough.mp4"
+                    controls={introVideoPlaying}
+                    controlsList="nodownload"
+                    className="w-full h-full object-cover"
+                    onPlay={() => setIntroVideoPlaying(true)}
+                    onPause={() => setIntroVideoPlaying(false)}
+                  />
 
-              {/* Step 03 */}
-              <div className="bg-[#0d1412] border border-[#1a2824] rounded-xl p-6 relative hover:border-[#07CB6C]/40 transition-colors flex flex-col justify-between space-y-6 group">
-                <div className="space-y-4">
-                  <div className="w-10 h-10 rounded-lg bg-[#131f1b] border border-[#1a2824] flex items-center justify-center text-[#07CB6C] group-hover:border-[#07CB6C]/40 transition-colors">
-                    <RefreshCw className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="font-mono text-xs text-[#07CB6C] tracking-wider uppercase block font-medium">
-                      03 // Dynamic Buffer Absorption
-                    </span>
-                    <h3 className="text-lg font-medium text-white">
-                      Zero-Guilt Reallocation
-                    </h3>
-                  </div>
-                  <p className="text-neutral-400 text-sm leading-relaxed">
-                    Life interrupts. When you miss a session, our recovery engine reallocates the workload into your buffer slots. Zero guilt. Zero broken streaks.
-                  </p>
+                  {!introVideoPlaying && (
+                    <div
+                      onClick={() => {
+                        setIntroVideoPlaying(true);
+                        if (introVideoRef.current) {
+                          introVideoRef.current.play().catch(() => {});
+                        }
+                      }}
+                      className="absolute inset-0 bg-gradient-to-t from-[#080d0b] via-[#0d1412]/80 to-[#080d0b]/90 flex flex-col items-center justify-center gap-4 cursor-pointer p-6 text-center"
+                    >
+                      <div className="w-14 h-14 rounded-full bg-[#07CB6C] text-[#080d0b] flex items-center justify-center hover:scale-105 transition-transform shadow-[0_0_25px_rgba(7,203,108,0.4)]">
+                        <Play className="w-6 h-6 fill-current translate-x-0.5" />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="font-mono text-xs uppercase tracking-wider text-[#07CB6C] block font-medium">
+                          System Architecture Walkthrough
+                        </span>
+                        <span className="text-white text-sm font-medium">
+                          Watch creator walkthrough (4:12)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between font-mono text-[11px] text-neutral-500 px-1">
+                  <span>SYSTEM BREAKDOWN // 4 MIN WALKTHROUGH</span>
+                  <span className="text-[#07CB6C]">1080P PRO RES</span>
                 </div>
               </div>
             </div>
@@ -558,69 +603,98 @@ export const Home: React.FC = () => {
           </section>
         )}
 
-        {/* Section 4: The Anti-Failure Philosophy */}
+        {/* Section 4: Interactive Video FAQ Accordion */}
         {!activeUserGoal && (
-          <section className="max-w-7xl mx-auto py-20 sm:py-32 border-t border-[#141f1b]">
-            {/* Section Header */}
-            <div>
-              <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase mb-4 block">
-                [ CORE PHILOSOPHY ]
+          <section className="max-w-4xl mx-auto py-20 sm:py-28 border-t border-[#141f1b] px-4">
+            {/* Header */}
+            <div className="text-center space-y-3 mb-10 sm:mb-12">
+              <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase block">
+                [ FREQUENTLY ANSWERED ]
               </span>
-              <h2 className="text-2xl sm:text-4xl font-semibold text-white tracking-tight mb-4">
-                Built for reality, not perfect streaks.
+              <h2 className="text-2xl sm:text-4xl font-semibold text-white tracking-tight">
+                Questions &amp; Video Answers
               </h2>
-              <p className="text-neutral-400 text-sm sm:text-base max-w-2xl">
-                Most productivity systems assume you are a robot. We assume you are human. Here is why our protocol actually works when others fail.
+              <p className="text-neutral-400 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+                Direct, honest answers about the protocol, recovery engine, and why this system actually works.
               </p>
             </div>
 
-            {/* 3-Card Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 sm:mt-16">
-              {/* Card 1 */}
-              <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-xl p-6 md:p-8 flex flex-col gap-4">
-                <h3 className="text-white font-medium text-lg">
-                  Myth: Streaks build discipline.
-                </h3>
-                <p className="text-neutral-400 text-sm leading-relaxed">
-                  Reality: Streaks build fragility. A single sick day ruins a 60-day chain, leading to guilt and abandonment. Achivii uses dynamic buffers so a missed day is just a schedule shift, not a failure.
-                </p>
-              </div>
+            {/* Accordion List */}
+            <div className="space-y-4">
+              {FAQ_ITEMS.map((item, index) => {
+                const isOpen = openFaqIndex === index;
+                return (
+                  <div
+                    key={item.id}
+                    className="border border-[#1a2824] bg-[#0a0f0d] rounded-xl overflow-hidden mb-4 transition-colors hover:border-[#22352f]"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                      className="w-full p-5 sm:p-6 flex items-center justify-between text-left gap-4 cursor-pointer"
+                    >
+                      <span className="text-white font-medium text-base sm:text-lg">
+                        {item.question}
+                      </span>
+                      <ChevronDown
+                        className={`w-5 h-5 text-neutral-400 shrink-0 transition-transform duration-200 ${
+                          isOpen ? 'rotate-180 text-[#07CB6C]' : ''
+                        }`}
+                      />
+                    </button>
 
-              {/* Card 2 */}
-              <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-xl p-6 md:p-8 flex flex-col gap-4">
-                <h3 className="text-white font-medium text-lg">
-                  Myth: Open-ended goals work.
-                </h3>
-                <p className="text-neutral-400 text-sm leading-relaxed">
-                  Reality: &quot;Learn to code&quot; is a wish. &quot;12-Weeks to a SaaS MVP&quot; is a contract. Every Achivii blueprint is deterministically scoped to 90 days with a clear exit criteria.
-                </p>
-              </div>
-
-              {/* Card 3 */}
-              <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-xl p-6 md:p-8 flex flex-col gap-4">
-                <h3 className="text-white font-medium text-lg">
-                  Myth: More hours = better.
-                </h3>
-                <p className="text-neutral-400 text-sm leading-relaxed">
-                  Reality: Burnout is the enemy of consistency. Our pacing engine forces you to cap your weekly load, protecting you from over-committing in week one and quitting by week three.
-                </p>
-              </div>
+                    {isOpen && (
+                      <div className="p-5 sm:p-6 border-t border-[#141f1b] bg-[#0c1310] space-y-4">
+                        <p className="text-neutral-300 text-sm sm:text-base leading-relaxed">
+                          {item.answer}
+                        </p>
+                        <div className="relative aspect-video w-full max-w-xl mx-auto rounded-lg overflow-hidden border border-[#1a2824] bg-[#080d0b]">
+                          <video
+                            src={item.videoSrc}
+                            controls
+                            controlsList="nodownload"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="text-right">
+                          <span className="font-mono text-[10px] text-neutral-500 uppercase">
+                            Video Brief // Protocol Q&amp;A
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
         )}
       </main>
 
-      {/* Global Minimal Editorial Footer */}
-      <footer className="border-t border-[#141f1b] py-12 px-4 sm:px-6 lg:px-8 bg-[#050807] text-neutral-500 text-xs font-mono">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-            <span className="text-neutral-300 font-medium">Achivii Protocol</span>
-            <span className="text-neutral-600">//</span>
-            <span>Deterministic 90-Day Execution Engine</span>
+      {/* Section 5: Clean Editorial Footer */}
+      <footer className="border-t border-[#141f1b] py-10 bg-[#070b09]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6 text-xs font-mono text-neutral-400">
+          {/* Left: Brand Monogram + Title */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-5 h-5 rounded bg-[#131f1b] border border-[#1a2824] flex items-center justify-center text-[#07CB6C] font-bold text-[11px]">
+              A
+            </div>
+            <span>
+              <strong className="text-white font-semibold">Achivii</strong> // Deterministic Execution Engine
+            </span>
           </div>
-          <div>
-            <span>© {new Date().getFullYear()} Achivii. Engineered for resilient execution.</span>
+
+          {/* Center: System Architecture Statement */}
+          <div className="text-neutral-500 text-center">
+            <span>Local-first SQLite • Zero cloud telemetry</span>
+          </div>
+
+          {/* Right: Copyright and Version Tag */}
+          <div className="flex items-center gap-3 text-neutral-500">
+            <span>© {new Date().getFullYear()} Achivii</span>
+            <span className="px-2 py-0.5 rounded bg-[#0d1412] border border-[#1a2824] text-[10px] text-[#07CB6C]">
+              v1.0.0-offline
+            </span>
           </div>
         </div>
       </footer>
