@@ -17,7 +17,6 @@ import {
   Calendar,
   Settings,
   TrendingUp,
-  Clock,
   Check,
   Play,
   ChevronDown
@@ -216,87 +215,20 @@ export const Home: React.FC = () => {
               </button>
             </div>
 
-            {/* Achivii Execution Workbench Preview Window */}
-            <div className="max-w-4xl mx-auto mt-12 sm:mt-16 w-full rounded-xl border border-[#1a2824] bg-[#0a0f0d] p-4 sm:p-6 shadow-2xl shadow-black/50 overflow-hidden relative">
-              {/* Top Chrome Bar */}
-              <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[#1a2824]">
-                {/* Traffic Light Window Controls */}
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#1a2824]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#1a2824]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#1a2824]" />
-                </div>
-
-                {/* Monospace Telemetry Pill */}
-                <div className="font-mono text-[11px] text-neutral-400 flex items-center gap-2 px-2.5 py-1 rounded bg-[#0d1412] border border-[#1a2824]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-                  <span>ENGINE STATUS: OPTIMAL</span>
-                </div>
-              </div>
-
-              {/* Mock 3-Day Execution Cadence Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
-                {/* Day 01 (Monday - Complete) */}
-                <div className="border border-[#1a2824] bg-[#0d1412] p-3.5 rounded-lg flex flex-col justify-between space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-neutral-400 font-medium">MON // 09:00</span>
-                    <span className="w-5 h-5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C]">
-                      <Check className="w-3 h-3" />
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-white leading-snug">Deep Work: Core Architecture</h4>
-                    <div className="inline-flex items-center text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30">
-                      [COMPLETED]
-                    </div>
-                  </div>
-                </div>
-
-                {/* Day 02 (Tuesday - Buffer Slot) */}
-                <div className="border border-dashed border-[#1a2824] bg-[#0c1210]/50 p-3.5 rounded-lg flex flex-col justify-between space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-amber-400 font-medium">TUE // BUFFER</span>
-                    <span className="w-5 h-5 rounded bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-[#f59e0b]">
-                      <Clock className="w-3 h-3" />
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-neutral-300 leading-snug">Dynamic Reallocation Buffer</h4>
-                    <div className="inline-flex items-center text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-amber-400/10 text-amber-400 border border-amber-400/30">
-                      [AVAILABLE]
-                    </div>
-                  </div>
-                </div>
-
-                {/* Day 03 (Wednesday - Scheduled) */}
-                <div className="border border-[#1a2824] bg-[#0d1412] p-3.5 rounded-lg flex flex-col justify-between space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs text-neutral-400 font-medium">WED // 14:00</span>
-                    <span className="w-5 h-5 rounded bg-neutral-800 border border-neutral-700 flex items-center justify-center text-neutral-400">
-                      <Play className="w-3 h-3 fill-current" />
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-white leading-snug">Sprint Execution: API Layer</h4>
-                    <div className="inline-flex items-center text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-neutral-800 text-neutral-400 border border-neutral-700">
-                      [LOCKED]
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Telemetry Sub-Bar */}
-              <div className="mt-4 pt-3 border-t border-[#1a2824] flex flex-wrap items-center justify-between gap-2">
-                <div className="text-[10px] text-neutral-500 font-mono flex items-center gap-2">
-                  <span>O(1) TIMELINE BUFFERING: 0 CORE BLOCKS DROPPED</span>
-                  <span className="text-neutral-700">•</span>
-                  <span>STREAK GUILT: ZERO</span>
-                </div>
-                <div className="text-[10px] text-[#07CB6C] font-mono flex items-center gap-1.5">
-                  <span className="w-1 h-1 rounded-full bg-[#07CB6C]" />
-                  <span>SYNCHRONIZED WITH RECOVERY ENGINE</span>
-                </div>
-              </div>
+            {/* Minimal High-Signal Proof Strip */}
+            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 pt-10 sm:pt-14 text-neutral-400 text-xs font-mono">
+              <span className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                12-Week Scoped Roadmaps
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                Dynamic Buffer Reallocation
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                Zero Fragile Streaks
+              </span>
             </div>
           </section>
         )}
