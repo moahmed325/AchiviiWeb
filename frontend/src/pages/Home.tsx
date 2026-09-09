@@ -7,11 +7,10 @@ import { Navbar } from '../components/Navbar';
 import { GoalCard } from '../components/GoalCard';
 import { GoalDetailDrawer } from '../components/GoalDetailDrawer';
 import { AuthModal } from '../components/AuthModal';
-import { RecoveryEngineVisualizer } from '../components/RecoveryEngineVisualizer';
 import { 
   Compass, 
   Layers, 
-  Loader2, 
+  Loader2,
   Search, 
   ArrowRight,
   AlertCircle,
@@ -107,80 +106,74 @@ export const Home: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10 space-y-12 sm:space-y-16">
         {/* Unauthenticated Landing Experience / Public View */}
         {!activeUserGoal && (
-          <div className="space-y-12 sm:space-y-16">
-            {/* Technical Hero Section */}
-            <section className="space-y-6 max-w-4xl mx-auto pt-2 sm:pt-4 text-center">
-              {/* Overhead Monospace Telemetry Chip */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-[#0c1210] border border-[#182621] text-[#07CB6C] text-xs font-mono font-medium tracking-wide">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                <span>SYSTEM SPEC // 12-WEEK RESILIENT CADENCE</span>
+          <section className="space-y-6 max-w-4xl mx-auto pt-2 sm:pt-4 text-center">
+            {/* Overhead Monospace Telemetry Chip */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-[#0c1210] border border-[#182621] text-[#07CB6C] text-xs font-mono font-medium tracking-wide">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+              <span>SYSTEM SPEC // 12-WEEK RESILIENT CADENCE</span>
+            </div>
+
+            {/* Stark High-Contrast Headline (Zero Gradient Text) */}
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#e5ebe7] leading-[1.15]">
+              Deterministic 90-Day <br className="hidden sm:inline" />
+              Execution Engine
+            </h1>
+
+            {/* Engineering Rationale & Copy */}
+            <p className="text-[#7e8f85] text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-mono">
+              Ambitious goals fail because life interrupts rigid plans. Achivii pairs pre-scoped blueprints with a 3-tier deterministic recovery engine that adapts your calendar whenever sessions are missed.
+            </p>
+
+            {/* Primary & Secondary Call to Actions */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!user) {
+                    openAuthModal('signup');
+                  } else {
+                    handleScrollToCatalog();
+                  }
+                }}
+                className="min-h-[44px] px-6 py-2.5 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <span>INITIALIZE GOAL</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleScrollToCatalog}
+                className="min-h-[44px] px-5 py-2.5 rounded-sm bg-[#0c1210] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] text-xs font-mono font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              >
+                <Compass className="w-4 h-4 text-[#07CB6C]" />
+                <span>EXPLORE BLUEPRINT CATALOG</span>
+              </button>
+            </div>
+
+            {/* Workbench Telemetry Status Bar */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 text-xs font-mono text-left">
+              <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
+                <span className="text-[9px] text-[#55675c] block uppercase">BLUEPRINT REPOSITORY</span>
+                <span className="text-xs font-bold text-[#e5ebe7]">{goals.length || 6} CURATED SCHEMAS</span>
               </div>
 
-              {/* Stark High-Contrast Headline (Zero Gradient Text) */}
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#e5ebe7] leading-[1.15]">
-                Deterministic 90-Day <br className="hidden sm:inline" />
-                Execution Engine
-              </h1>
-
-              {/* Engineering Rationale & Copy */}
-              <p className="text-[#7e8f85] text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-mono">
-                Ambitious goals fail because life interrupts rigid plans. Achivii pairs pre-scoped blueprints with a 3-tier deterministic recovery engine that adapts your calendar whenever sessions are missed.
-              </p>
-
-              {/* Primary & Secondary Call to Actions */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!user) {
-                      openAuthModal('signup');
-                    } else {
-                      handleScrollToCatalog();
-                    }
-                  }}
-                  className="min-h-[44px] px-6 py-2.5 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <span>INITIALIZE GOAL</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleScrollToCatalog}
-                  className="min-h-[44px] px-5 py-2.5 rounded-sm bg-[#0c1210] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] text-xs font-mono font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <Compass className="w-4 h-4 text-[#07CB6C]" />
-                  <span>EXPLORE BLUEPRINT CATALOG</span>
-                </button>
+              <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
+                <span className="text-[9px] text-[#55675c] block uppercase">EXECUTION HORIZON</span>
+                <span className="text-xs font-bold text-[#e5ebe7]">12 WEEKS // 84 DAYS</span>
               </div>
 
-              {/* Workbench Telemetry Status Bar */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 text-xs font-mono text-left">
-                <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
-                  <span className="text-[9px] text-[#55675c] block uppercase">BLUEPRINT REPOSITORY</span>
-                  <span className="text-xs font-bold text-[#e5ebe7]">{goals.length || 6} CURATED SCHEMAS</span>
-                </div>
-
-                <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
-                  <span className="text-[9px] text-[#55675c] block uppercase">EXECUTION HORIZON</span>
-                  <span className="text-xs font-bold text-[#e5ebe7]">12 WEEKS // 84 DAYS</span>
-                </div>
-
-                <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
-                  <span className="text-[9px] text-[#55675c] block uppercase">RECOVERY ENGINE</span>
-                  <span className="text-xs font-bold text-[#07CB6C]">3-TIER ADAPTIVE</span>
-                </div>
-
-                <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
-                  <span className="text-[9px] text-[#55675c] block uppercase">SYSTEM FAIL-SAFE</span>
-                  <span className="text-xs font-bold text-[#e5ebe7]">0 CORE DROPPED</span>
-                </div>
+              <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
+                <span className="text-[9px] text-[#55675c] block uppercase">RECOVERY ENGINE</span>
+                <span className="text-xs font-bold text-[#07CB6C]">3-TIER ADAPTIVE</span>
               </div>
-            </section>
 
-            {/* Architecture / Engine Visualizer (Replacing Cliché Feature Grid) */}
-            <RecoveryEngineVisualizer />
-          </div>
+              <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
+                <span className="text-[9px] text-[#55675c] block uppercase">SYSTEM FAIL-SAFE</span>
+                <span className="text-xs font-bold text-[#e5ebe7]">0 CORE DROPPED</span>
+              </div>
+            </div>
+          </section>
         )}
 
         {/* Authenticated State: Active Goal Header & Tab Switcher (If active goal exists) */}
