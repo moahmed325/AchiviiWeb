@@ -69,12 +69,22 @@ export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect })
     }
   };
 
+  const getEffortTag = (hours: number) => {
+    if (hours >= 10) return 'INTENSIVE TRACK';
+    if (hours >= 5) return 'MODERATE PACING';
+    return 'FOUNDATIONAL HABIT';
+  };
+
+  const handlePreview = () => {
+    onInspect(goal);
+  };
+
   return (
     <div className="rounded-md bg-[#0d1412] border border-[#1a2824] hover:border-[#07CB6C]/40 transition-all duration-300 flex flex-col justify-between shadow-none group overflow-hidden">
       {/* 16:9 Image Header Banner */}
       {imageSrc && !imageError && (
         <div
-          onClick={() => onInspect(goal)}
+          onClick={handlePreview}
           className="relative w-full aspect-video overflow-hidden border-b border-[#1a2824] bg-[#0c1210] cursor-pointer"
         >
           <img
@@ -97,9 +107,9 @@ export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect })
       {/* Card Body */}
       <div className="p-5 sm:p-6 flex-1 flex flex-col justify-between">
         <div>
-          {/* Card Title */}
+          {/* Card Title (Click triggers modal preview) */}
           <h3
-            onClick={() => onInspect(goal)}
+            onClick={handlePreview}
             className="text-lg sm:text-xl font-medium text-white tracking-normal mb-2 hover:text-[#07CB6C] transition-colors cursor-pointer"
           >
             {goal.title}
@@ -110,7 +120,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect })
             {goal.description}
           </p>
 
-          {/* Essential Metrics Strip: 3 legible neutral tags */}
+          {/* Essential Metrics Strip with Effort Tag */}
           <div className="flex flex-wrap items-center gap-2 mb-5">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#080d0b] border border-[#1a2824] text-xs font-mono text-neutral-300">
               <Clock className="w-3 h-3 text-[#07CB6C]" />
@@ -120,6 +130,9 @@ export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect })
               <Calendar className="w-3 h-3 text-[#07CB6C]" />
               <span>{goal.est_weekly_hours}H / WK</span>
             </span>
+            <span className="inline-flex items-center font-mono text-[10px] text-neutral-400 bg-[#121c18] px-2 py-1 rounded border border-[#1a2824]">
+              {getEffortTag(goal.est_weekly_hours)}
+            </span>
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#080d0b] border border-[#1a2824] text-xs font-mono text-[#07CB6C]">
               {getCategoryIcon(goal.category)}
               <span>{goal.category.toUpperCase()}</span>
@@ -127,21 +140,12 @@ export const GoalCard: React.FC<GoalCardProps> = ({ goal, onInspect, onSelect })
           </div>
         </div>
 
-        {/* Card Footer: Clear action buttons */}
-        <div className="pt-4 border-t border-[#1a2824] flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => onInspect(goal)}
-            className="min-h-[44px] px-3.5 py-2.5 rounded-md bg-transparent hover:bg-[#131f1b] text-neutral-400 hover:text-white border border-[#1a2824] hover:border-[#2a3e38] text-xs font-medium flex items-center justify-center gap-1 transition-colors cursor-pointer"
-            title="Inspect curriculum & phases"
-          >
-            <span>Overview</span>
-          </button>
-
+        {/* Card Footer: Single Decisive Full-Width CTA */}
+        <div className="pt-4 border-t border-[#1a2824]">
           <button
             type="button"
             onClick={() => onSelect(goal)}
-            className="w-full min-h-[44px] flex-1 px-4 py-2.5 rounded-md bg-[#131f1b] hover:bg-[#07CB6C] text-neutral-200 hover:text-[#080d0b] border border-[#1a2824] hover:border-[#07CB6C] text-xs sm:text-sm font-medium flex items-center justify-center gap-2 transition-all duration-200 cursor-pointer group/btn"
+            className="w-full min-h-[44px] py-2.5 px-4 rounded-lg bg-[#14221c] hover:bg-[#07CB6C] text-neutral-200 hover:text-[#080d0b] border border-[#1a2824] hover:border-[#07CB6C] font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer group/btn"
           >
             <span>Select Blueprint</span>
             <ArrowRight className="w-4 h-4 text-[#07CB6C] group-hover/btn:text-[#080d0b] group-hover/btn:translate-x-0.5 transition-transform" />

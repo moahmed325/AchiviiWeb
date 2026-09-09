@@ -39,7 +39,7 @@ export const Home: React.FC = () => {
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
   
   // Interactive UI states
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [inspectedGoal, setInspectedGoal] = useState<GoalCatalog | null>(null);
 
@@ -78,10 +78,38 @@ export const Home: React.FC = () => {
     loadData();
   }, [token]);
 
-  const categories = ['All', ...Array.from(new Set(goals.map((g) => g.category)))];
+  const CATALOG_FILTERS: Array<{ id: string; label: string; match: (g: GoalCatalog) => boolean }> = [
+    { id: 'all', label: 'All', match: () => true },
+    {
+      id: 'engineering',
+      label: 'Engineering',
+      match: (g: GoalCatalog) => /tech|engineer/i.test(g.category) || /saas|system|distributed/i.test(g.title),
+    },
+    {
+      id: 'athletics',
+      label: 'Athletics',
+      match: (g: GoalCatalog) => /fitness|athletic|health/i.test(g.category) || /run|marathon/i.test(g.title),
+    },
+    {
+      id: 'linguistics',
+      label: 'Linguistics',
+      match: (g: GoalCatalog) => /language/i.test(g.category) || /spanish|linguistic/i.test(g.title),
+    },
+    {
+      id: 'writing',
+      label: 'Writing',
+      match: (g: GoalCatalog) => /writing|creative/i.test(g.category) || /book|publish/i.test(g.title),
+    },
+    {
+      id: 'habits',
+      label: 'Habits',
+      match: (g: GoalCatalog) => /wellness|mindset/i.test(g.category) || /mindfulness|breathwork|habit/i.test(g.title),
+    },
+  ];
 
   const filteredGoals = goals.filter((g) => {
-    const matchesCategory = selectedCategory === 'All' || g.category === selectedCategory;
+    const activeFilter = CATALOG_FILTERS.find((f) => f.id === selectedCategory);
+    const matchesCategory = activeFilter ? activeFilter.match(g) : true;
     const matchesSearch =
       g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       g.description.toLowerCase().includes(searchQuery.toLowerCase());
@@ -437,21 +465,28 @@ export const Home: React.FC = () => {
 
             {/* Filter and Search Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-              {/* Category Filter Tabs with >= 44px Touch Targets */}
+              {/* Category Filter Tabs with >= 44px Touch Targets & Dynamic Counters */}
               <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`min-h-[44px] px-4 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
-                      selectedCategory === category
-                        ? 'bg-[#131f1b] text-[#07CB6C] border border-[#07CB6C]/40'
-                        : 'bg-[#0d1412] text-neutral-400 hover:text-white border border-[#1a2824] hover:border-[#2a3e38]'
-                    }`}
-                  >
-                    {category}
-                  </button>
-                ))}
+                {CATALOG_FILTERS.map((filter) => {
+                  const count = goals.filter(filter.match).length;
+                  const isSelected = selectedCategory === filter.id;
+                  return (
+                    <button
+                      key={filter.id}
+                      onClick={() => setSelectedCategory(filter.id)}
+                      className={`min-h-[44px] px-3.5 sm:px-4 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'border border-[#07CB6C] text-white bg-[#07CB6C]/10'
+                          : 'border border-[#1a2824] text-neutral-400 hover:text-white bg-[#0a0f0d]'
+                      }`}
+                    >
+                      <span>{filter.label}</span>
+                      <span className={`font-mono text-[11px] ${isSelected ? 'text-[#07CB6C]' : 'text-neutral-500'}`}>
+                        ({count})
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* Search Input with >= 16px Font Size on Mobile */}
@@ -499,7 +534,7 @@ export const Home: React.FC = () => {
                   <p className="text-xs font-mono uppercase">NO BLUEPRINTS MATCH SPECIFIED FILTER CRITERIA</p>
                   <button
                     onClick={() => {
-                      setSelectedCategory('All');
+                      setSelectedCategory('all');
                       setSearchQuery('');
                     }}
                     className="text-xs font-mono text-[#07CB6C] underline font-medium cursor-pointer"
