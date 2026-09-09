@@ -1,11 +1,11 @@
 import { User, GoalCatalog, AuthResponse } from '../types';
 
 export function resolveApiBaseUrl(): string {
-  // Only use localhost if explicitly running in Vite local dev mode AND connected via localhost
+  // Default to localhost:5000 when in Vite dev mode or connected via localhost / 127.0.0.1
   const isDev = Boolean((import.meta as any).env?.DEV);
   const isLocalHost = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1');
 
-  if (isDev && isLocalHost) {
+  if (isDev || isLocalHost) {
     const devEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
     if (devEnvUrl && typeof devEnvUrl === 'string' && devEnvUrl.trim() !== '') {
       return devEnvUrl.replace(/\/+$/, '');
@@ -13,9 +13,9 @@ export function resolveApiBaseUrl(): string {
     return 'http://localhost:5000';
   }
 
-  // In all other cases (production build, Vercel, staging, unknown), STRICTLY target Render production API
+  // In cloud production deployment (non-localhost), target configured URL or Render fallback
   const prodEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
-  if (prodEnvUrl && typeof prodEnvUrl === 'string' && prodEnvUrl.trim() !== '' && !prodEnvUrl.includes('localhost') && !prodEnvUrl.includes('127.0.0.1')) {
+  if (prodEnvUrl && typeof prodEnvUrl === 'string' && prodEnvUrl.trim() !== '') {
     return prodEnvUrl.replace(/\/+$/, '');
   }
 

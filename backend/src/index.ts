@@ -22,7 +22,7 @@ const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
 // Parse allowed origins from environment variable (supports comma-separated list)
 const configuredOrigins = CLIENT_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean);
-const defaultOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const defaultOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://127.0.0.1:3000'];
 const allowedOrigins = Array.from(new Set([...configuredOrigins, ...defaultOrigins]));
 
 // Dynamic CORS configuration supporting production domains and Vercel preview deployments (*.vercel.app)

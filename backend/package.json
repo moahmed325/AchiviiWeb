@@ -12,6 +12,7 @@
     "prisma:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "seed": "prisma db seed",
     "test": "vitest run",
     "test:watch": "vitest",
     "migrate:backfill": "tsx scripts/backfill-phase1-sessions.ts",
