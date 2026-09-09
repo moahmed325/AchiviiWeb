@@ -350,6 +350,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         onTriggerReschedule={handleTriggerReschedule}
         isRescheduling={isRescheduling}
         lastRescheduleResult={lastRescheduleResult}
+        onOpenRecovery={() => {
+          if (data.goal?.id) {
+            setPendingRecovery({
+              pending: true,
+              user_goal_id: data.goal.id,
+              circuit_breaker_active: (data.goal.slippage_days || 0) >= 14,
+              rolling_28_day_events: 0,
+              missed_session_count: data.sessions ? data.sessions.filter((s) => s.status === 'MISSED').length : 2,
+            });
+          }
+        }}
       />
 
       {/* Week Navigator & Metrics Instrumentation Panel */}

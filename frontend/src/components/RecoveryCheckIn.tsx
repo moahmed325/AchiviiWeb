@@ -1,19 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PendingRecoveryState, Session } from '../types';
 import { submitRecoveryAction } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle,
-  ShieldAlert,
-  Minimize2,
-  FastForward,
-  Sliders,
-  PauseCircle,
   CheckCircle2,
   Loader2,
   X,
-  ChevronDown,
-  ChevronUp,
+  ArrowRight,
+  AlertCircle
 } from 'lucide-react';
 
 export interface RecoveryCheckInProps {
@@ -23,457 +18,387 @@ export interface RecoveryCheckInProps {
   onResolved: () => void | Promise<void>;
 }
 
+interface BufferSlotItem {
+  id: string;
+  day: string;
+  time: string;
+  durationMinutes: number;
+  title: string;
+}
+
 export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
   recoveryState,
   sessions,
-  slippageDays,
+  slippageDays = 0,
   onResolved,
 }) => {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isMobileCollapsed, setIsMobileCollapsed] = useState<boolean>(false);
+  const [circuitChoice, setCircuitChoice] = useState<'shrink_week' | 'shift_timeline'>('shrink_week');
+
+  // Close on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsDismissed(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   if (!recoveryState.pending || isDismissed) {
     return null;
   }
 
+  // Calculate missed core blocks
+  const missedSessions = sessions
+    ? sessions.filter(
+        (s) =>
+          s.status === 'MISSED' ||
+          (s.tier === 'core' && s.status !== 'DONE' && new Date(s.scheduled_date) < new Date())
+      )
+    : [];
+
+  const missedCount =
+    missedSessions.length > 0
+      ? missedSessions.length
+      : recoveryState.missed_session_count ?? recoveryState.consecutive_missed_days ?? 2;
+
+  const missedHours =
+    missedSessions.length > 0
+      ? missedSessions.reduce((acc, s) => {
+          const dur = s.task_template?.session_duration_minutes || 60;
+          return acc + dur;
+        }, 0) / 60
+      : missedCount * 2.0;
+
+  // Calculate available buffer slots from sessions or structured defaults
+  const realBufferSessions = sessions
+    ? sessions.filter((s) => s.tier === 'buffer' && s.status !== 'DONE')
+    : [];
+
+  const availableBuffers: BufferSlotItem[] =
+    realBufferSessions.length > 0
+      ? realBufferSessions.map((s) => {
+          const d = new Date(s.scheduled_date);
+          const dayStr = isNaN(d.getTime())
+            ? 'BUF'
+            : d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+          return {
+            id: s.id,
+            day: dayStr,
+            time: s.start_time || '18:00',
+            durationMinutes: s.task_template?.session_duration_minutes || 60,
+            title: s.task_template?.title || 'Open Buffer Window',
+          };
+        })
+      : [
+          { id: 'buf-slot-1', day: 'TUE', time: '18:30', durationMinutes: 90, title: 'Evening Reallocation Buffer' },
+          { id: 'buf-slot-2', day: 'THU', time: '19:00', durationMinutes: 60, title: 'Mid-Week Dynamic Buffer' },
+          { id: 'buf-slot-3', day: 'SAT', time: '10:30', durationMinutes: 90, title: 'Weekend Absorption Window' },
+        ];
+
+  const totalBufferHours = availableBuffers.reduce((acc, b) => acc + b.durationMinutes, 0) / 60;
+
+  // Circuit breaker condition: explicit circuit breaker OR rolling events >= 2 OR slippage >= 14d OR buffer capacity strictly less than missed
   const isCircuitBreaker =
-    recoveryState.circuit_breaker_active || recoveryState.rolling_28_day_events >= 2;
+    recoveryState.circuit_breaker_active ||
+    recoveryState.rolling_28_day_events >= 2 ||
+    slippageDays >= 14 ||
+    totalBufferHours < missedHours;
 
-  // Real-time telemetry calculations
-  const lapsedSessions =
-    recoveryState.missed_session_count ??
-    (sessions ? sessions.filter((s) => s.status === 'MISSED').length : null) ??
-    (recoveryState.consecutive_missed_days ?? 3);
+  // Track user-selected buffer slots for reassignment
+  const [selectedBufferIds, setSelectedBufferIds] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    // Pre-select enough buffer slots to absorb missed sessions
+    for (let i = 0; i < Math.min(missedCount, availableBuffers.length); i++) {
+      initial.add(availableBuffers[i].id);
+    }
+    return initial;
+  });
 
-  const availableBuffers = sessions
-    ? sessions.filter((s) => s.tier === 'buffer' && s.status !== 'DONE').length
-    : 0;
+  const toggleBufferSlot = (id: string) => {
+    setSelectedBufferIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
 
-  const netTimelineDrift = slippageDays ?? 0;
-
-  // Header diagnostic telemetry indicator
-  let statusIndicatorText = 'DIAGNOSTIC PROTOCOL ENGAGED // CADENCE DRIFT DETECTED';
-  if (isCircuitBreaker) {
-    statusIndicatorText = `PACING CIRCUIT BREAKER // ${Math.max(
-      recoveryState.rolling_28_day_events,
-      3
-    )} RECOVERY EVENTS LOGGED`;
-  } else if (recoveryState.reason === 'CONSECUTIVE_DAYS_MISSED') {
-    statusIndicatorText = `DIAGNOSTIC PROTOCOL ENGAGED // ${
-      recoveryState.consecutive_missed_days ?? 3
-    } CONSECUTIVE LAPSES DETECTED`;
-  } else if (recoveryState.reason === 'NO_FREE_SLOTS') {
-    statusIndicatorText = 'DIAGNOSTIC PROTOCOL ENGAGED // BUFFER CAPACITY EXHAUSTED';
-  }
-
-  const handleAction = async (
-    choice: 'shrink_week' | 'shift_timeline' | 'scope_reduction' | 'pause_goal'
-  ) => {
+  const handleExecuteReallocation = async () => {
     if (!token) return;
     setIsSubmitting(true);
     setErrorMessage(null);
+
+    const choice = isCircuitBreaker ? circuitChoice : 'shrink_week';
+
     try {
-      const res = await submitRecoveryAction(token, {
+      await submitRecoveryAction(token, {
         user_goal_id: recoveryState.user_goal_id,
         choice,
+        details: {
+          reallocated_slots: Array.from(selectedBufferIds),
+        },
       });
 
-      if (choice === 'shrink_week') {
-        const droppedCount = res.resultingAdjustment?.dropped_sessions?.length || 0;
-        setActionSuccessMessage(
-          droppedCount > 0
-            ? `DIAGNOSTIC RESOLUTION APPLIED // DROPPED ${droppedCount} BUFFER SESSION(S). CORE TRAJECTORY PRESERVED.`
-            : 'DIAGNOSTIC RESOLUTION APPLIED // WEEK CONDENSED TO AVAILABLE CAPACITY.'
-        );
-      } else if (choice === 'shift_timeline') {
-        setActionSuccessMessage(
-          'DIAGNOSTIC RESOLUTION APPLIED // TIMELINE ADVANCED +7 DAYS VIA O(1) OFFSET. SESSIONS RE-ALIGNED.'
-        );
-      } else if (choice === 'scope_reduction') {
-        setActionSuccessMessage(
-          'DIAGNOSTIC RESOLUTION APPLIED // GOAL COMMITMENT RE-CALIBRATED TO SUSTAINABLE CADENCE.'
-        );
-      } else if (choice === 'pause_goal') {
-        setActionSuccessMessage(
-          'DIAGNOSTIC RESOLUTION APPLIED // GOAL SCHEDULE SUSPENDED. PROGRESS PRESERVED.'
-        );
-      }
+      setActionSuccessMessage(
+        choice === 'shift_timeline'
+          ? 'Trajectory adjusted: +7 days buffer window added with zero streak penalty.'
+          : 'Cadence re-aligned: orphaned sessions allocated to buffer slots.'
+      );
 
       setTimeout(async () => {
         await onResolved();
-      }, 1200);
+      }, 1100);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Diagnostic mutation failed: unable to update schedule.');
+      setErrorMessage(err.message || 'Unable to submit recovery choice.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <>
-      {/* Mobile Collapsed Dock Bar (< 768px) */}
-      {isMobileCollapsed ? (
-        <div
-          id="recovery-check-in-mobile-dock"
-          role="region"
-          aria-label="Recovery Telemetry Dock"
-          className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0c1210] border-t border-amber-500/40 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-none flex items-center justify-between gap-2 text-xs font-mono"
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="recovery-modal-title"
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setIsDismissed(true);
+      }}
+    >
+      <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-2xl max-w-xl w-full p-6 sm:p-8 shadow-2xl overflow-hidden relative my-8">
+        {/* Top Dismiss Button */}
+        <button
+          type="button"
+          onClick={() => setIsDismissed(true)}
+          className="absolute top-5 right-5 text-neutral-400 hover:text-white p-2 rounded-lg hover:bg-[#131f1b] transition-colors cursor-pointer"
+          aria-label="Close recovery protocol modal"
         >
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
-            <div className="min-w-0">
-              <span className="text-amber-400 font-bold truncate block text-[11px]">
-                {statusIndicatorText}
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="space-y-1.5 pr-8">
+            <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase block font-medium">
+              [ TIER 2 // RECOVERY PROTOCOL ]
+            </span>
+            <h2 id="recovery-modal-title" className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
+              Recalibrate Weekly Cadence
+            </h2>
+            <p className="text-neutral-400 text-sm leading-relaxed">
+              Your 90-day trajectory is preserved. Allocate orphaned sessions into upcoming buffer slots to absorb missed work without broken momentum.
+            </p>
+          </div>
+
+          {/* Diagnostic Readout: Clean 2-Metric Strip */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-[#0d1412] border border-[#1a2824] p-4 rounded-xl space-y-1">
+              <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block">
+                MISSED CORE BLOCKS
               </span>
-              <span className="text-[#7e8f85] text-[10px] truncate block">
-                Lapsed: {lapsedSessions} · Buffers: {availableBuffers} · Drift: +{netTimelineDrift}d
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-base sm:text-lg font-semibold text-amber-400">
+                  {missedCount} {missedCount === 1 ? 'Session' : 'Sessions'}
+                </span>
+                <span className="text-xs text-neutral-400 font-mono">
+                  / {missedHours.toFixed(1)}h
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-[#0d1412] border border-[#1a2824] p-4 rounded-xl space-y-1">
+              <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block">
+                RECOVERY CAPACITY
               </span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-base sm:text-lg font-semibold text-[#07CB6C]">
+                  {availableBuffers.length} Buffer Slots
+                </span>
+                <span className="text-xs text-neutral-400 font-mono">
+                  / {totalBufferHours.toFixed(1)}h
+                </span>
+              </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsMobileCollapsed(false)}
-            className="min-h-[44px] min-w-[44px] px-3 py-2 bg-amber-950/40 hover:bg-amber-900/50 active:scale-[0.98] border border-amber-500/40 text-amber-300 font-bold text-[11px] rounded-sm transition-colors flex items-center gap-1 shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-            aria-label="Expand diagnostic telemetry panel"
-          >
-            <span>EXPAND</span>
-            <ChevronUp className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      ) : null}
 
-      {/* Primary Diagnostic Banner / Mobile Drawer Container */}
-      <div
-        id="recovery-check-in-card"
-        role="region"
-        aria-label="Recovery Telemetry Diagnostic Banner"
-        className={`w-full max-w-full bg-[#0c1210] border border-amber-500/30 rounded-md shadow-none transition-all ${
-          isMobileCollapsed
-            ? 'hidden md:block'
-            : 'fixed bottom-0 left-0 right-0 z-40 max-h-[90dvh] overflow-y-auto overscroll-contain pb-[calc(1rem+env(safe-area-inset-bottom))] rounded-b-none md:rounded-b-md md:static md:z-auto md:max-h-none md:overflow-visible md:pb-0 mb-6'
-        }`}
-      >
-        {/* Mobile Drawer Grab / Collapse Header (< 768px) */}
-        <div className="md:hidden flex items-center justify-between px-4 pt-3 pb-2 border-b border-[#182621] bg-[#080d0b]">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold">
-              SYSTEM DIAGNOSTIC DRAWER
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsMobileCollapsed(true)}
-            className="min-h-[44px] min-w-[44px] px-2 text-xs font-mono text-[#7e8f85] hover:text-[#e5ebe7] active:scale-[0.98] flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 cursor-pointer"
-            aria-label="Collapse recovery drawer to bottom dock"
-          >
-            <ChevronDown className="w-4 h-4" />
-            <span>COLLAPSE</span>
-          </button>
-        </div>
-
-        <div className="p-4 sm:p-5 space-y-4">
-          {/* Diagnostic Telemetry Header */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
-              <div
-                className={`w-9 h-9 rounded-sm border shrink-0 flex items-center justify-center ${
-                  isCircuitBreaker
-                    ? 'bg-amber-950/40 text-amber-400 border-amber-500/50'
-                    : 'bg-amber-950/30 text-amber-400 border-amber-500/40'
-                }`}
-              >
-                {isCircuitBreaker ? (
-                  <ShieldAlert className="w-4 h-4" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4" />
-                )}
+          {/* Circuit Breaker Fallback (if capacity exhausted or safety triggered) */}
+          {isCircuitBreaker ? (
+            <div className="bg-amber-950/20 border border-amber-500/30 rounded-xl p-4 sm:p-5 space-y-3">
+              <div className="flex items-center gap-2 text-amber-400 font-mono text-xs font-medium">
+                <AlertCircle className="w-4 h-4" />
+                <span>[ PACING SAFETY GUARDRAIL TRIGGERED ]</span>
               </div>
-
-              <div className="min-w-0 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
-                    {statusIndicatorText}
-                  </span>
-                  <span
-                    className={`px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-sm border ${
-                      isCircuitBreaker
-                        ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
-                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                    }`}
-                  >
-                    {isCircuitBreaker ? 'PACING CIRCUIT BREAKER' : 'TIER 2 RECOVERY'}
-                  </span>
-                </div>
-
-                <h3 className="text-sm sm:text-base font-bold text-[#e5ebe7]">
-                  {isCircuitBreaker
-                    ? 'Pacing Safety Guardrail: Rolling Threshold Exceeded'
-                    : 'Cadence Divergence Detected: System Intervention Required'}
-                </h3>
-                <p className="text-xs text-[#7e8f85] max-w-3xl leading-relaxed">
-                  {isCircuitBreaker
-                    ? 'System logged 3 recovery interventions within the rolling 28-day window. Execution pacing has exceeded allowable tolerance. Pacing circuit breaker engaged to prevent compounding slippage. Sustainable scope reduction or schedule pause required.'
-                    : recoveryState.reason === 'CONSECUTIVE_DAYS_MISSED'
-                    ? `Autonomous pacing monitor logged ${
-                        recoveryState.consecutive_missed_days ?? 3
-                      } consecutive lapsed session dates. Buffer re-allocation or schedule shift required to preserve timeline.`
-                    : 'Autonomous pacing monitor detected schedule saturation. Weekly commitment exceeds remaining open capacity without buffer re-allocation. Select remediation vector:'}
+              <div>
+                <h4 className="text-sm font-semibold text-white">Circuit Breaker Engaged</h4>
+                <p className="text-xs text-neutral-400 leading-relaxed mt-1">
+                  Required recovery workload exceeds open buffer hours. Select an adaptive adjustment vector with zero guilt and zero streak penalty:
                 </p>
               </div>
-            </div>
 
-            {/* Non-blocking Dismiss Button */}
-            <button
-              type="button"
-              onClick={() => setIsDismissed(true)}
-              className="min-h-[44px] min-w-[44px] text-[#7e8f85] hover:text-[#e5ebe7] p-2.5 rounded-sm hover:bg-[#182621] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 transition-colors flex items-center justify-center shrink-0 cursor-pointer"
-              title="Dismiss diagnostic for now"
-              aria-label="Dismiss recovery diagnostic for now"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+              {/* Option Radio Cards */}
+              <div className="space-y-2 pt-1">
+                <div
+                  onClick={() => setCircuitChoice('shrink_week')}
+                  className={`p-3.5 rounded-lg border transition-all cursor-pointer flex items-start gap-3 ${
+                    circuitChoice === 'shrink_week'
+                      ? 'border-[#07CB6C] bg-[#07CB6C]/10 text-white'
+                      : 'border-[#1a2824] bg-[#0a0f0d] text-neutral-300 hover:border-[#2a3e38]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="circuitChoice"
+                    checked={circuitChoice === 'shrink_week'}
+                    onChange={() => setCircuitChoice('shrink_week')}
+                    className="mt-0.5 accent-[#07CB6C] cursor-pointer"
+                  />
+                  <div className="space-y-0.5">
+                    <span className="text-sm font-medium block">Option A: Compress Milestone Scope</span>
+                    <span className="text-xs text-neutral-400 block leading-normal">
+                      Drop non-essential buffer sessions to defend the milestone completion date.
+                    </span>
+                  </div>
+                </div>
 
-          {/* Real-Time Diagnostic Telemetry Readouts */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 font-mono text-xs pt-1">
-            <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621] flex flex-col justify-between">
-              <span className="text-[10px] text-[#7e8f85] uppercase tracking-wider block">
-                Lapsed Sessions
-              </span>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-sm sm:text-base font-bold text-amber-400">
-                  {lapsedSessions}
-                </span>
-                <span className="text-[10px] text-[#7e8f85]">UNCOMPLETED</span>
+                <div
+                  onClick={() => setCircuitChoice('shift_timeline')}
+                  className={`p-3.5 rounded-lg border transition-all cursor-pointer flex items-start gap-3 ${
+                    circuitChoice === 'shift_timeline'
+                      ? 'border-[#07CB6C] bg-[#07CB6C]/10 text-white'
+                      : 'border-[#1a2824] bg-[#0a0f0d] text-neutral-300 hover:border-[#2a3e38]'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="circuitChoice"
+                    checked={circuitChoice === 'shift_timeline'}
+                    onChange={() => setCircuitChoice('shift_timeline')}
+                    className="mt-0.5 accent-[#07CB6C] cursor-pointer"
+                  />
+                  <div className="space-y-0.5">
+                    <span className="text-sm font-medium block">Option B: Extend Timeline by 1 Week</span>
+                    <span className="text-xs text-neutral-400 block leading-normal">
+                      Add a 7-day buffer window. Zero streak penalty, all habit stats preserved.
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621] flex flex-col justify-between">
-              <span className="text-[10px] text-[#7e8f85] uppercase tracking-wider block">
-                Available Buffers
-              </span>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-sm sm:text-base font-bold text-[#e5ebe7]">
-                  {availableBuffers}
+          ) : (
+            /* Interactive Buffer Slot Picker */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-mono text-neutral-400 uppercase tracking-wider font-medium">
+                  SELECT REALLOCATION SLOTS
                 </span>
-                <span className="text-[10px] text-[#7e8f85]">OPEN SLOTS</span>
+                <span className="text-[#07CB6C] font-mono text-[11px]">
+                  {selectedBufferIds.size} / {missedCount} TARGETED
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {availableBuffers.map((slot) => {
+                  const isSelected = selectedBufferIds.has(slot.id);
+                  return (
+                    <div
+                      key={slot.id}
+                      onClick={() => toggleBufferSlot(slot.id)}
+                      className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                        isSelected
+                          ? 'border-[#07CB6C]/50 bg-[#07CB6C]/5 text-white'
+                          : 'border-[#1a2824] bg-[#0d1412] text-neutral-300 hover:border-[#2a3e38]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="px-2 py-1 rounded bg-[#0a0f0d] border border-[#1a2824] text-xs font-mono font-semibold text-white">
+                          {slot.day} // {slot.time}
+                        </span>
+                        <div>
+                          <span className="text-sm font-medium block">{slot.title}</span>
+                          <span className="text-[11px] text-neutral-400 font-mono">
+                            {slot.durationMinutes} MIN ALLOCATION
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0">
+                        {isSelected ? (
+                          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] font-medium">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>REALLOCATED</span>
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-[#0a0f0d] border border-[#1a2824] text-neutral-400">
+                            AVAILABLE
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+          )}
 
-            <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621] flex flex-col justify-between">
-              <span className="text-[10px] text-[#7e8f85] uppercase tracking-wider block">
-                Net Timeline Drift
-              </span>
-              <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-sm sm:text-base font-bold text-amber-400">
-                  +{netTimelineDrift} Days
-                </span>
-                <span className="text-[10px] text-[#7e8f85]">CUMULATIVE</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Success or Error Feedback */}
+          {/* Feedback banners */}
           {actionSuccessMessage && (
-            <div
-              role="alert"
-              aria-live="assertive"
-              className="p-3 rounded-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono flex items-center gap-2"
-            >
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="p-3.5 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-mono flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{actionSuccessMessage}</span>
             </div>
           )}
 
           {errorMessage && (
-            <div
-              role="alert"
-              aria-live="assertive"
-              className="p-3 rounded-sm bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-xs font-mono"
-            >
+            <div className="p-3.5 rounded-xl bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-xs font-mono">
               {errorMessage}
             </div>
           )}
 
-          {/* Action Vectors */}
-          {!actionSuccessMessage && (
-            <div
-              role="group"
-              aria-label="Recovery plan adjustment options"
-              className="pt-1"
+          {/* Action Footer */}
+          <div className="pt-4 border-t border-[#1a2824] flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                navigate('/onboarding?mode=adjust');
+                setIsDismissed(true);
+              }}
+              className="min-h-[44px] px-4 py-2.5 rounded-lg text-neutral-400 hover:text-white border border-[#1a2824] hover:border-[#2a3e38] text-xs font-mono font-medium transition-colors cursor-pointer text-center"
             >
-              {!isCircuitBreaker ? (
-                /* Standard Non-Blocking Recovery Actions */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {/* Action 1: Shrink Week */}
-                  <button
-                    id="btn-recovery-shrink-week"
-                    type="button"
-                    onClick={() => handleAction('shrink_week')}
-                    disabled={isSubmitting}
-                    aria-label="Shrink Week: Drop non-essential buffer sessions to preserve core progress and protect calendar end date."
-                    className="p-4 rounded-sm border border-[#182621] bg-[#080d0b] hover:bg-[#111a17] hover:border-amber-500/50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-40 min-h-[44px]"
-                  >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <Minimize2 className="w-3.5 h-3.5" /> OPTION 01 // SHRINK WEEK
-                        </span>
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold">
-                          PROTECT END DATE
-                        </span>
-                      </div>
-                      <h4 className="font-bold text-[#e5ebe7] text-sm group-hover:text-amber-200 transition-colors">
-                        Shrink Week
-                      </h4>
-                      <p className="text-xs text-[#7e8f85] leading-normal">
-                        Drop non-essential buffer sessions to preserve core progress and protect the calendar end date.
-                      </p>
-                    </div>
+              Adjust Manually
+            </button>
 
-                    <div className="pt-2 border-t border-[#182621] flex items-center justify-between text-xs font-mono font-semibold text-amber-400 min-h-[44px] items-center">
-                      <span>APPLY SHRINK WEEK</span>
-                      {isSubmitting ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <span>→</span>
-                      )}
-                    </div>
-                  </button>
-
-                  {/* Action 2: Shift Timeline */}
-                  <button
-                    id="btn-recovery-shift-timeline"
-                    type="button"
-                    onClick={() => handleAction('shift_timeline')}
-                    disabled={isSubmitting}
-                    aria-label="Shift Timeline: Advance plan window via O(1) day offset."
-                    className="p-4 rounded-sm border border-[#182621] bg-[#080d0b] hover:bg-[#111a17] hover:border-amber-500/50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-40 min-h-[44px]"
-                  >
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                          <FastForward className="w-3.5 h-3.5" /> OPTION 02 // SHIFT TIMELINE
-                        </span>
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold">
-                          +7D TIMELINE OFFSET
-                        </span>
-                      </div>
-                      <h4 className="font-bold text-[#e5ebe7] text-sm group-hover:text-amber-200 transition-colors">
-                        Shift Timeline (+7 Days)
-                      </h4>
-                      <p className="text-xs text-[#7e8f85] leading-normal">
-                        Advance plan window via O(1) day offset. Shifts uncompleted sessions to the next schedule window without day compression.
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-[#182621] flex items-center justify-between text-xs font-mono font-semibold text-amber-400 min-h-[44px] items-center">
-                      <span>SHIFT TIMELINE (+7D)</span>
-                      {isSubmitting ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <span>→</span>
-                      )}
-                    </div>
-                  </button>
-                </div>
+            <button
+              type="button"
+              onClick={handleExecuteReallocation}
+              disabled={isSubmitting}
+              className="min-h-[44px] px-5 py-2.5 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] active:scale-[0.99] text-[#080d0b] text-sm font-medium transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(7,203,108,0.25)] disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Locking Cadence...</span>
+                </>
               ) : (
-                /* Pacing Circuit Breaker Dedicated Amber Safety Panel */
-                <div className="p-4 rounded-sm border border-amber-500/30 bg-amber-950/20 space-y-4">
-                  <div className="flex items-center justify-between border-b border-amber-500/20 pb-2">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                      PACING SAFETY GUARDRAIL PANEL // SUSTAINABLE REMEDIATION
-                    </span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
-                      CIRCUIT ENGAGED
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* Circuit Action 1: Scope Reduction */}
-                    <button
-                      id="btn-circuit-scope-reduction"
-                      type="button"
-                      onClick={() => handleAction('scope_reduction')}
-                      disabled={isSubmitting}
-                      aria-label="Pacing circuit breaker: Reduce goal scope to a sustainable pace."
-                      className="p-4 rounded-sm border border-amber-500/40 bg-[#080d0b] hover:bg-[#111a17] hover:border-amber-400 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-40 min-h-[44px]"
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <Sliders className="w-3.5 h-3.5" /> SAFETY OPTION 01
-                          </span>
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold">
-                            SUSTAINABLE PACE
-                          </span>
-                        </div>
-                        <h4 className="font-bold text-[#e5ebe7] text-sm group-hover:text-amber-200 transition-colors">
-                          Reduce Goal Scope
-                        </h4>
-                        <p className="text-xs text-[#7e8f85] leading-normal">
-                          Scale down weekly session frequency and duration to establish a stable, sustainable execution baseline.
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-[#182621] flex items-center justify-between text-xs font-mono font-semibold text-amber-400 min-h-[44px] items-center">
-                        <span>APPLY SCOPE REDUCTION</span>
-                        {isSubmitting ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <span>→</span>
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Circuit Action 2: Pause Goal */}
-                    <button
-                      id="btn-circuit-pause-goal"
-                      type="button"
-                      onClick={() => handleAction('pause_goal')}
-                      disabled={isSubmitting}
-                      aria-label="Pacing circuit breaker: Penalty-free pause to preserve all stats."
-                      className="p-4 rounded-sm border border-[#182621] bg-[#080d0b] hover:bg-[#111a17] hover:border-amber-500/50 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 text-left transition-all group flex flex-col justify-between gap-3 cursor-pointer disabled:opacity-40 min-h-[44px]"
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-mono font-bold text-[#a6b8ad] uppercase tracking-wider flex items-center gap-1.5">
-                            <PauseCircle className="w-3.5 h-3.5" /> SAFETY OPTION 02
-                          </span>
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-[#182621] text-[#a6b8ad] border border-[#1f332c] font-semibold">
-                            PRESERVE ALL STATS
-                          </span>
-                        </div>
-                        <h4 className="font-bold text-[#e5ebe7] text-sm group-hover:text-white transition-colors">
-                          Penalty-Free Pause
-                        </h4>
-                        <p className="text-xs text-[#7e8f85] leading-normal">
-                          Freeze active schedule state with zero penalty. All progression milestones, streaks, and data remain preserved until manual resume.
-                        </p>
-                      </div>
-
-                      <div className="pt-2 border-t border-[#182621] flex items-center justify-between text-xs font-mono font-semibold text-[#a6b8ad] min-h-[44px] items-center">
-                        <span>ENGAGE GOAL PAUSE</span>
-                        {isSubmitting ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <span>→</span>
-                        )}
-                      </div>
-                    </button>
-                  </div>
-                </div>
+                <>
+                  <span>Lock Reallocation</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
               )}
-            </div>
-          )}
+            </button>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
