@@ -19,8 +19,7 @@ import {
   TrendingUp,
   Cpu,
   ShieldCheck,
-  Clock,
-  CheckCircle2
+  Clock
 } from 'lucide-react';
 import { CalendarWeekView } from '../components/CalendarWeekView';
 
@@ -172,125 +171,6 @@ export const Home: React.FC = () => {
               <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
                 <span className="text-[9px] text-[#55675c] block uppercase">SYSTEM FAIL-SAFE</span>
                 <span className="text-xs font-bold text-[#e5ebe7]">0 CORE DROPPED</span>
-              </div>
-            </div>
-
-            {/* The Workbench Preview Window Mockup */}
-            <div className="w-full rounded-md bg-[#0c1210] border border-[#182621] shadow-none overflow-hidden text-left mt-6">
-              {/* Window Titlebar */}
-              <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#080d0b] border-b border-[#182621]">
-                <div className="flex items-center gap-2">
-                  {/* Window dot controls */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444]/70 border border-[#ef4444]/90" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]/70 border border-[#f59e0b]/90" />
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#07CB6C]/70 border border-[#07CB6C]/90" />
-                  </div>
-                  <span className="text-[10px] font-mono text-[#55675c] ml-2 select-none tracking-wide">
-                    achivii-workbench // live-cycle-preview
-                  </span>
-                </div>
-
-                {/* Real-time telemetry badge */}
-                <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-[#16221e] border border-[#1f332c] text-[9px] font-mono font-bold text-[#07CB6C]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-                  <span>O(1) TIMELINE RECOVERY: 0 CORE BLOCKS DROPPED</span>
-                </div>
-              </div>
-
-              {/* Mobile-only Telemetry Badge */}
-              <div className="sm:hidden px-3.5 py-1.5 bg-[#080d0b] border-b border-[#182621] flex items-center justify-between text-[9px] font-mono font-bold text-[#07CB6C]">
-                <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-                  <span>O(1) RECOVERY ENGINE</span>
-                </span>
-                <span className="text-[#a6b8ad]">0 BLOCKS DROPPED</span>
-              </div>
-
-              {/* Mockup Body: Sample Rolling Week Schedule */}
-              <div className="p-3.5 sm:p-5 space-y-3 font-mono">
-                <div className="flex flex-wrap items-center justify-between text-[10px] text-[#7e8f85] border-b border-[#182621] pb-2.5 gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[#07CB6C] font-bold">CYCLE: WEEK 04</span>
-                    <span className="text-[#55675c]">//</span>
-                    <span className="text-[#e5ebe7]">STAGE 1: FOUNDATION ARCHITECTURE</span>
-                  </div>
-                  <div className="text-[#07CB6C] font-semibold flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                    <span>3/3 SESSIONS ALIGNED</span>
-                  </div>
-                </div>
-
-                {/* 3 Day Columns Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                  {/* Day 1: Completed [CORE] block */}
-                  <div className="p-3 rounded-sm bg-[#080d0b] border border-[#182621] space-y-2">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-[#e5ebe7] font-bold">TUE 18:00</span>
-                      <span className="px-1.5 py-0.5 rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 text-[9px] font-bold flex items-center gap-1">
-                        <CheckCircle2 className="w-2.5 h-2.5" />
-                        <span>VERIFIED</span>
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-sm bg-[#07CB6C] text-[#050807] space-y-1">
-                      <div className="flex items-center justify-between text-[9px] font-extrabold uppercase tracking-wider">
-                        <span>[CORE] SESSION 10</span>
-                        <span>90 MIN</span>
-                      </div>
-                      <div className="text-xs font-bold leading-tight line-clamp-1">
-                        Schema Migration & Data Models
-                      </div>
-                      <div className="text-[9px] font-medium opacity-90">
-                        Phase 1: Foundation • Completed
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Day 2: Active [CORE] block */}
-                  <div className="p-3 rounded-sm bg-[#080d0b] border border-[#1f332c] space-y-2 relative">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-[#e5ebe7] font-bold">THU 19:30</span>
-                      <span className="px-1.5 py-0.5 rounded-sm bg-[#16221e] text-[#07CB6C] border border-[#07CB6C]/50 text-[9px] font-bold flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-                        <span>READY TO EXECUTE</span>
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-sm bg-[#0c1210] border border-[#07CB6C] text-[#e5ebe7] space-y-1">
-                      <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-[#07CB6C]">
-                        <span>[CORE] SESSION 11</span>
-                        <span className="text-[#a6b8ad]">90 MIN</span>
-                      </div>
-                      <div className="text-xs font-bold leading-tight line-clamp-1 text-white">
-                        API Endpoints & Integration Tests
-                      </div>
-                      <div className="text-[9px] text-[#7e8f85]">
-                        Target: 19:30 – 21:00 • In Window
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Day 3: Dashed open [BUFFER] slot */}
-                  <div className="p-3 rounded-sm bg-[#080d0b] border border-dashed border-[#2a443a] space-y-2">
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-[#7e8f85] font-bold">SAT 10:00</span>
-                      <span className="px-1.5 py-0.5 rounded-sm bg-[#0c1210] text-[#7e8f85] border border-[#182621] text-[9px]">
-                        DYNAMIC RESERVED
-                      </span>
-                    </div>
-                    <div className="p-2.5 rounded-sm bg-[#0c1210]/60 border border-dashed border-[#1f332c] text-[#7e8f85] space-y-1">
-                      <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-[#7e8f85]">
-                        <span>[BUFFER] RESILIENCE SLOT</span>
-                        <span>60 MIN</span>
-                      </div>
-                      <div className="text-xs font-semibold leading-tight line-clamp-1 text-[#a6b8ad]">
-                        Standby Overflow Protection
-                      </div>
-                      <div className="text-[9px] text-[#55675c]">
-                        Auto-absorbs slips • Zero disruption
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </section>
