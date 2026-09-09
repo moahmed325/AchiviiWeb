@@ -21,7 +21,10 @@ import {
   ShieldCheck,
   Clock,
   Check,
-  Play
+  Play,
+  Target,
+  Lock,
+  RefreshCw
 } from 'lucide-react';
 import { CalendarWeekView } from '../components/CalendarWeekView';
 
@@ -232,6 +235,87 @@ export const Home: React.FC = () => {
                 <div className="text-[10px] text-[#07CB6C] font-mono flex items-center gap-1.5">
                   <span className="w-1 h-1 rounded-full bg-[#07CB6C]" />
                   <span>SYNCHRONIZED WITH RECOVERY ENGINE</span>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* How Achivii Works // Protocol Specification Section */}
+        {!activeUserGoal && (
+          <section className="py-16 sm:py-24 border-t border-[#141f1b] space-y-12">
+            {/* Section Header */}
+            <div className="space-y-4 max-w-3xl mx-auto text-center">
+              <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase block">
+                [ PROTOCOL SPECIFICATION ]
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-semibold text-white tracking-tight">
+                How Achivii Guarantees 90-Day Execution
+              </h2>
+              <p className="text-neutral-400 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed font-normal">
+                Most habit trackers rely on fragile streaks. One missed day breaks momentum. Achivii uses engineering-grade buffers so your schedule adapts when life happens.
+              </p>
+            </div>
+
+            {/* 3-Step Mechanics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Step 01 */}
+              <div className="bg-[#0d1412] border border-[#1a2824] rounded-xl p-6 relative hover:border-[#07CB6C]/40 transition-colors flex flex-col justify-between space-y-6 group">
+                <div className="space-y-4">
+                  <div className="w-10 h-10 rounded-lg bg-[#131f1b] border border-[#1a2824] flex items-center justify-center text-[#07CB6C] group-hover:border-[#07CB6C]/40 transition-colors">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-mono text-xs text-[#07CB6C] tracking-wider uppercase block font-medium">
+                      01 // Pre-Scoped Blueprints
+                    </span>
+                    <h3 className="text-lg font-medium text-white">
+                      Mathematically Sourced
+                    </h3>
+                  </div>
+                  <p className="text-neutral-400 text-sm leading-relaxed">
+                    Select a curated 12-week roadmap. Every milestone, weekly hour commitment, and deliverable is mathematically scoped in advance.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 02 */}
+              <div className="bg-[#0d1412] border border-[#1a2824] rounded-xl p-6 relative hover:border-[#07CB6C]/40 transition-colors flex flex-col justify-between space-y-6 group">
+                <div className="space-y-4">
+                  <div className="w-10 h-10 rounded-lg bg-[#131f1b] border border-[#1a2824] flex items-center justify-center text-[#07CB6C] group-hover:border-[#07CB6C]/40 transition-colors">
+                    <Lock className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-mono text-xs text-[#07CB6C] tracking-wider uppercase block font-medium">
+                      02 // Fixed Core Sessions
+                    </span>
+                    <h3 className="text-lg font-medium text-white">
+                      Protected Allocations
+                    </h3>
+                  </div>
+                  <p className="text-neutral-400 text-sm leading-relaxed">
+                    Lock 3–4 non-negotiable core sessions into your week. Treat them like production deployments—scheduled, protected, and focused.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 03 */}
+              <div className="bg-[#0d1412] border border-[#1a2824] rounded-xl p-6 relative hover:border-[#07CB6C]/40 transition-colors flex flex-col justify-between space-y-6 group">
+                <div className="space-y-4">
+                  <div className="w-10 h-10 rounded-lg bg-[#131f1b] border border-[#1a2824] flex items-center justify-center text-[#07CB6C] group-hover:border-[#07CB6C]/40 transition-colors">
+                    <RefreshCw className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <span className="font-mono text-xs text-[#07CB6C] tracking-wider uppercase block font-medium">
+                      03 // Dynamic Buffer Absorption
+                    </span>
+                    <h3 className="text-lg font-medium text-white">
+                      Zero-Guilt Reallocation
+                    </h3>
+                  </div>
+                  <p className="text-neutral-400 text-sm leading-relaxed">
+                    Life interrupts. When you miss a session, our recovery engine reallocates the workload into your buffer slots. Zero guilt. Zero broken streaks.
+                  </p>
                 </div>
               </div>
             </div>
