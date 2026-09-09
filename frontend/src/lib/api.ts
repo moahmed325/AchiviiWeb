@@ -564,3 +564,25 @@ export async function fetchAggregatedProfile(
   return data;
 }
 
+export async function discardGoal(
+  token: string,
+  goalId?: string
+): Promise<{ success: boolean; message: string; discarded_goal_id?: string }> {
+  const endpoint = goalId ? `${API_BASE_URL}/api/goals/${goalId}` : `${API_BASE_URL}/api/goals/current`;
+  const response = await fetch(endpoint, {
+    method: 'DELETE',
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || data.error || 'Failed to discard goal');
+  }
+
+  return data;
+}
+
+

@@ -19,9 +19,11 @@ import {
   TrendingUp,
   Check,
   Play,
-  ChevronDown
+  ChevronDown,
+  X,
 } from 'lucide-react';
 import { CalendarWeekView } from '../components/CalendarWeekView';
+import { DiscardGoalModal } from '../components/DiscardGoalModal';
 
 interface FaqItem {
   id: string;
@@ -147,9 +149,23 @@ export const Home: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
+  // Single Active Goal & Discard States
+  const [isDiscardModalOpen, setIsDiscardModalOpen] = useState<boolean>(false);
+  const [activeGoalConflictTarget, setActiveGoalConflictTarget] = useState<GoalCatalog | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
   const handleSelectGoal = (goal: GoalCatalog) => {
     if (!user) {
       openAuthModal('signup');
+      return;
+    }
+    if (activeUserGoal) {
+      if (activeUserGoal.goal_catalog_id === goal.id) {
+        navigate('/');
+        return;
+      }
+      // Single active goal guard: prompt with warning dialog
+      setActiveGoalConflictTarget(goal);
       return;
     }
     navigate(`/onboarding?goalId=${goal.id}`);
@@ -527,6 +543,8 @@ export const Home: React.FC = () => {
                       goal={goal}
                       onInspect={(g) => setInspectedGoal(g)}
                       onSelect={(g) => handleSelectGoal(g)}
+                      hasActiveGoal={Boolean(activeUserGoal)}
+                      isActiveGoal={activeUserGoal?.goal_catalog_id === goal.id}
                     />
                   ))}
                 </div>
@@ -636,7 +654,103 @@ export const Home: React.FC = () => {
         goal={inspectedGoal}
         onClose={() => setInspectedGoal(null)}
         onSelect={(goal) => handleSelectGoal(goal)}
+        hasActiveGoal={Boolean(activeUserGoal)}
+        isActiveGoal={activeUserGoal?.goal_catalog_id === inspectedGoal?.id}
       />
+
+      {/* Active Protocol In Progress Conflict Dialog */}
+      {activeGoalConflictTarget && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <div className="bg-[#0a0f0d] border border-amber-500/30 rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative space-y-5">
+            <button
+              type="button"
+              onClick={() => setActiveGoalConflictTarget(null)}
+              className="absolute top-4 right-4 p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-[#131f1b] transition-colors cursor-pointer"
+              title="Close warning"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="space-y-2">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-amber-400">
+                [ CONFLICT // ACTIVE PROTOCOL IN PROGRESS ]
+              </span>
+              <h3 className="text-xl font-bold text-white tracking-tight">
+                Active Protocol In Progress
+              </h3>
+            </div>
+
+            <div className="space-y-2.5 text-xs font-mono text-neutral-300 leading-relaxed border-l-2 border-amber-500/60 pl-3">
+              <p>
+                Only one active 90-day protocol can run concurrently. You are currently committed to:
+              </p>
+              <p className="text-white font-bold bg-[#0d1412] p-2 rounded border border-[#1a2824] truncate">
+                {activeUserGoal?.goal_catalog?.title || 'Active Blueprint'}
+              </p>
+              <p className="text-neutral-400">
+                To initialize <strong className="text-white">"{activeGoalConflictTarget.title}"</strong>, complete or discard your active protocol first.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveGoalConflictTarget(null);
+                  navigate('/');
+                }}
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] font-mono font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
+              >
+                <span>Go to Active Workbench →</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveGoalConflictTarget(null);
+                  setIsDiscardModalOpen(true);
+                }}
+                className="w-full min-h-[44px] py-2.5 px-4 rounded-lg bg-[#0d1412] hover:bg-red-950/20 text-red-400 hover:text-red-300 border border-red-500/30 font-mono text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Discard Current Protocol</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Discard Goal Typed Confirmation Modal */}
+      <DiscardGoalModal
+        isOpen={isDiscardModalOpen}
+        goalId={activeUserGoal?.id}
+        goalTitle={activeUserGoal?.goal_catalog?.title}
+        onClose={() => setIsDiscardModalOpen(false)}
+        onSuccess={async () => {
+          setIsDiscardModalOpen(false);
+          setActiveUserGoal(null);
+          setToastMessage('Protocol discarded. Catalog unlocked.');
+          await loadData();
+        }}
+      />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 p-4 rounded-lg bg-[#0a0f0d] border border-[#07CB6C]/40 text-[#07CB6C] text-xs font-mono flex items-center gap-2 shadow-2xl">
+          <Check className="w-4 h-4 shrink-0" />
+          <span>{toastMessage}</span>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            className="ml-3 text-neutral-400 hover:text-white cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Global Auth Modal */}
       <AuthModal />

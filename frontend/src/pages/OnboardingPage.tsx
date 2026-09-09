@@ -3,8 +3,9 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchCatalog, fetchGoalById, submitOnboarding, fetchCurrentUserGoal, generateRoadmaps, selectRoadmap, fetchRoadmaps, fetchLearnedDefaults } from '../lib/api';
 import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
-import { GoalCatalog, DayOfWeek, AvailabilitySlot, Roadmap, OnboardingLearnedDefaults } from '../types';
+import { GoalCatalog, DayOfWeek, AvailabilitySlot, Roadmap, OnboardingLearnedDefaults, UserGoal } from '../types';
 import { RoadmapSelector } from '../components/RoadmapSelector';
+import { DiscardGoalModal } from '../components/DiscardGoalModal';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -132,6 +133,8 @@ export const OnboardingPage: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isAdjustingRoutine, setIsAdjustingRoutine] = useState<boolean>(false);
+  const [existingActiveGoal, setExistingActiveGoal] = useState<UserGoal | null>(null);
+  const [isDiscardModalOpen, setIsDiscardModalOpen] = useState<boolean>(false);
 
   // Data State
   const [allGoals, setAllGoals] = useState<GoalCatalog[]>([]);
@@ -192,7 +195,9 @@ export const OnboardingPage: React.FC = () => {
           try {
             const currentGoalData = await fetchCurrentUserGoal(token);
             if (currentGoalData.user_goal) {
+              setExistingActiveGoal(currentGoalData.user_goal);
               const activeCatalogId = currentGoalData.user_goal.goal_catalog_id;
+              const isDifferentGoal = Boolean(goalIdParam && goalIdParam !== activeCatalogId);
               const targetGoalId = goalIdParam || activeCatalogId;
               const matchingGoal = catalog.find((g) => g.id === targetGoalId) || currentGoalData.user_goal.goal_catalog;
               if (matchingGoal) {
@@ -206,7 +211,7 @@ export const OnboardingPage: React.FC = () => {
               }
 
               // Direct entry into Step 2 when adjusting routine for active goal
-              const shouldAdjust = modeParam === 'adjust' || (goalIdParam ? goalIdParam === activeCatalogId : true);
+              const shouldAdjust = (modeParam === 'adjust' || !goalIdParam || goalIdParam === activeCatalogId) && !isDifferentGoal;
               if (shouldAdjust) {
                 setIsAdjustingRoutine(true);
                 setStep(2);
@@ -337,6 +342,12 @@ export const OnboardingPage: React.FC = () => {
       return;
     }
 
+    // Single Active Goal constraint guard
+    if (existingActiveGoal && !isAdjustingRoutine && existingActiveGoal.goal_catalog_id !== selectedGoal.id) {
+      setError('Only one active protocol can run concurrently. Discard or graduate current goal before initializing a new one.');
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -442,6 +453,41 @@ export const OnboardingPage: React.FC = () => {
 
       {/* Main Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 relative z-10 space-y-6 sm:space-y-8">
+        {/* Single Active Goal Conflict Warning Banner */}
+        {existingActiveGoal && (!isAdjustingRoutine || (selectedGoal && selectedGoal.id !== existingActiveGoal.goal_catalog_id)) && (
+          <div className="p-4 sm:p-5 rounded-md bg-[#0a0f0d] border border-amber-500/40 text-xs font-mono space-y-3 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>ACTIVE PROTOCOL IN PROGRESS // SINGLE ACTIVE GOAL RULE</span>
+              </div>
+              <span className="px-2 py-0.5 rounded bg-amber-400/10 border border-amber-400/30 text-amber-400 text-[10px]">
+                CONCURRENT LIMIT: 1
+              </span>
+            </div>
+            <p className="text-neutral-300 leading-relaxed">
+              You already have an active 90-day protocol running: <strong className="text-white font-mono">{existingActiveGoal.goal_catalog?.title || 'Active Protocol'}</strong>.
+              Achivii enforces a strict single-goal focus to prevent fragmentation and guarantee deterministic completion.
+            </p>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Link
+                to="/"
+                className="min-h-[38px] px-4 py-2 rounded-md bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] font-bold text-xs flex items-center gap-1.5 transition-colors"
+              >
+                <span>Go to Active Workbench</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => setIsDiscardModalOpen(true)}
+                className="min-h-[38px] px-3.5 py-2 rounded-md bg-[#0d1412] hover:bg-red-950/20 text-red-400 hover:text-red-300 border border-red-500/30 text-xs transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Discard Active Protocol</span>
+              </button>
+            </div>
+          </div>
+        )}
         {/* 3-Step Architecture Indicator */}
         {step < 4 && (
           <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs font-mono">
@@ -1258,6 +1304,19 @@ export const OnboardingPage: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Discard Active Goal Confirmation Modal */}
+      <DiscardGoalModal
+        isOpen={isDiscardModalOpen}
+        goalId={existingActiveGoal?.id}
+        goalTitle={existingActiveGoal?.goal_catalog?.title}
+        onClose={() => setIsDiscardModalOpen(false)}
+        onSuccess={() => {
+          setIsDiscardModalOpen(false);
+          setExistingActiveGoal(null);
+          setIsAdjustingRoutine(false);
+        }}
+      />
     </div>
   );
 };

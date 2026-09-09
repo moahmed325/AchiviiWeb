@@ -6,13 +6,10 @@
     "frontend"
   ],
   "scripts": {
-    "web": "npm run dev --workspace=frontend",
-    "dev": "npm run dev --workspace=frontend",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "dev:backend": "npm run dev --workspace=backend",
-    "test": "npm run test --workspace=backend",
+    "frontend": "npm run dev --workspace=frontend",
+    "backend": "npm run dev --workspace=backend",
     "build": "npm run build --workspaces",
-    "use:sqlite": "npm run use:sqlite --workspace=backend",
-    "use:postgres": "npm run use:postgres --workspace=backend"
+    "sqlite": "npm run sqlite --workspace=backend",
+    "postgres": "npm run postgres --workspace=backend"
   }
 }

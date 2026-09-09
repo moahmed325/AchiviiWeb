@@ -6,9 +6,17 @@ interface GoalDetailDrawerProps {
   goal: GoalCatalog | null;
   onClose: () => void;
   onSelect: (goal: GoalCatalog) => void;
+  hasActiveGoal?: boolean;
+  isActiveGoal?: boolean;
 }
 
-export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({ goal, onClose, onSelect }) => {
+export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({
+  goal,
+  onClose,
+  onSelect,
+  hasActiveGoal = false,
+  isActiveGoal = false,
+}) => {
   if (!goal) return null;
 
   const getTimeIcon = (time?: string | null) => {
@@ -171,13 +179,31 @@ export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({ goal, onClos
               CLOSE SPEC
             </button>
 
-            <button
-              onClick={() => onSelect(goal)}
-              className="min-h-[44px] px-6 py-2 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-medium flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
-            >
-              <span>INITIALIZE BLUEPRINT</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {isActiveGoal ? (
+              <button
+                onClick={() => onSelect(goal)}
+                className="min-h-[44px] px-6 py-2 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
+              >
+                <span>GO TO ACTIVE WORKBENCH</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : hasActiveGoal ? (
+              <button
+                onClick={() => onSelect(goal)}
+                className="min-h-[44px] px-6 py-2 rounded-lg bg-[#0d1412] hover:bg-[#161f1c] text-amber-400 hover:text-white border border-[#1a2824] hover:border-amber-500/40 text-xs font-mono font-semibold flex items-center gap-2 transition-all cursor-pointer"
+              >
+                <span>[ACTIVE PROTOCOL IN PROGRESS]</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={() => onSelect(goal)}
+                className="min-h-[44px] px-6 py-2 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-medium flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
+              >
+                <span>INITIALIZE BLUEPRINT</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

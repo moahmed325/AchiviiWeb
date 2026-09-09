@@ -27,7 +27,9 @@ import {
   Check,
   Calendar as CalendarIcon,
   CheckCircle,
+  ShieldAlert,
 } from 'lucide-react';
+import { DiscardGoalModal } from '../components/DiscardGoalModal';
 
 function timeToMinutes(timeStr?: string): number {
   if (!timeStr) return 0;
@@ -61,6 +63,7 @@ export const Dashboard: React.FC = () => {
   const [actionLoading, setActionLoading] = useState<boolean>(false);
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+  const [isDiscardModalOpen, setIsDiscardModalOpen] = useState<boolean>(false);
 
   // Focus Timer state for deep execution
   const [isFocusActive, setIsFocusActive] = useState<boolean>(false);
@@ -690,6 +693,44 @@ export const Dashboard: React.FC = () => {
                 onlyShowSlippageWhenDrifted={true}
               />
             </div>
+
+            {/* Protocol Maintenance & Discard Action */}
+            <div className="pt-6 border-t border-[#1a2824] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">
+                  ACTIVE PROTOCOL LIFECYCLE
+                </span>
+                <p className="text-xs font-mono text-neutral-400">
+                  Enrolled in <strong className="text-neutral-300 font-mono">{activeUserGoal.goal_catalog.title}</strong>. Single active goal policy enforced.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsDiscardModalOpen(true)}
+                className="min-h-[38px] px-3.5 py-1.5 rounded-md bg-[#0d1412] hover:bg-red-950/20 text-neutral-400 hover:text-red-400 border border-[#1a2824] hover:border-red-500/40 text-xs font-mono flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+                <span>DISCARD PROTOCOL</span>
+              </button>
+            </div>
+
+            {/* Discard Goal Typed Confirmation Modal */}
+            <DiscardGoalModal
+              isOpen={isDiscardModalOpen}
+              goalId={activeUserGoal.id}
+              goalTitle={activeUserGoal.goal_catalog.title}
+              onClose={() => setIsDiscardModalOpen(false)}
+              onSuccess={async () => {
+                setIsDiscardModalOpen(false);
+                setActiveUserGoal(null);
+                setActionFeedback({
+                  type: 'success',
+                  message: 'Protocol discarded. Catalog unlocked.',
+                });
+                await loadDashboardData();
+              }}
+            />
           </div>
         ) : error ? (
           <div className="rounded-md bg-[#0a0f0d] border border-rose-500/40 p-8 text-center text-rose-400 space-y-4 max-w-xl mx-auto">

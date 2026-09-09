@@ -77,14 +77,26 @@ onboardingRouter.post('/', async (req: Request, res: Response): Promise<void> =>
       }
     }
 
-    // Check if user already has an active goal with the same goal catalog ID
+    // Check if user already has an active goal
     const existingActiveGoal = await prisma.userGoal.findFirst({
-      where: { user_id: user.id, status: 'ACTIVE' },
+      where: {
+        user_id: user.id,
+        status: { in: ['ACTIVE', 'active', 'IN_PROGRESS', 'in_progress'] },
+      },
     });
 
     const isRoutineAdjustment = Boolean(
       existingActiveGoal && existingActiveGoal.goal_catalog_id === catalogGoal.id
     );
+
+    // Enforce strict Single Active Goal constraint
+    if (existingActiveGoal && !isRoutineAdjustment) {
+      res.status(409).json({
+        error: 'ACTIVE_GOAL_EXISTS',
+        message: 'Only one active protocol can run concurrently. Discard or graduate current goal before initializing a new one.',
+      });
+      return;
+    }
 
     // Execute atomic transaction
     const result = await prisma.$transaction(async (tx) => {
@@ -251,3 +263,71 @@ userGoalRouter.get('/current', async (req: Request, res: Response): Promise<void
     res.status(500).json({ error: 'Failed to retrieve active user goal.' });
   }
 });
+
+// Dedicated Goal Discard / Terminate Handler
+export async function handleDiscardGoal(req: Request, res: Response): Promise<void> {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+
+    const { id } = req.params;
+    const goalId = id || req.body?.user_goal_id || req.body?.goalId;
+
+    let targetGoal = null;
+    if (!goalId || goalId === 'current') {
+      targetGoal = await prisma.userGoal.findFirst({
+        where: {
+          user_id: user.id,
+          status: { in: ['ACTIVE', 'active', 'IN_PROGRESS', 'in_progress'] },
+        },
+      });
+    } else {
+      targetGoal = await prisma.userGoal.findFirst({
+        where: { id: goalId, user_id: user.id },
+      });
+    }
+
+    if (!targetGoal) {
+      res.status(404).json({
+        error: 'GOAL_NOT_FOUND',
+        message: 'Active goal not found or does not belong to user.',
+      });
+      return;
+    }
+
+    // Cleanly purge all associated sessions, schedule blocks, recovery telemetry, and user goal
+    await prisma.$transaction(async (tx) => {
+      await tx.session.deleteMany({ where: { user_goal_id: targetGoal.id } });
+      await tx.recoveryEvent.deleteMany({ where: { user_goal_id: targetGoal.id } });
+      await tx.weeklyReview.deleteMany({ where: { user_goal_id: targetGoal.id } });
+      await tx.roadmap.deleteMany({ where: { user_goal_id: targetGoal.id } });
+      await tx.userGoal.delete({ where: { id: targetGoal.id } });
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Protocol safely terminated and associated telemetry purged.',
+      discarded_goal_id: targetGoal.id,
+    });
+  } catch (error: any) {
+    console.error('Goal discard error:', error);
+    res.status(500).json({ error: 'Failed to discard goal.' });
+  }
+}
+
+// Discard endpoint bindings for userGoalRouter
+userGoalRouter.delete('/current', handleDiscardGoal);
+userGoalRouter.delete('/:id', handleDiscardGoal);
+userGoalRouter.post('/discard', handleDiscardGoal);
+userGoalRouter.post('/:id/discard', handleDiscardGoal);
+
+// Dedicated goalsRouter for /api/goals
+export const goalsRouter = Router();
+goalsRouter.delete('/current', handleDiscardGoal);
+goalsRouter.delete('/:id', handleDiscardGoal);
+goalsRouter.post('/discard', handleDiscardGoal);
+goalsRouter.post('/:id/discard', handleDiscardGoal);
+
