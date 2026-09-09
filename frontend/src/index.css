@@ -90,7 +90,7 @@
   }
 }
 
-/* ZeBeyond Structured Surface Panel - strictly no glassmorphism / no backdrop-blur */
+/* ZeBeyond Structured Surface Panel - strictly no glassmorphism / solid obsidian */
 .glass-panel,
 .surface-panel {
   background-color: #0c1210 !important;

@@ -14,10 +14,11 @@ import {
   Trash2, 
   Sun, 
   ShieldCheck, 
-  Sparkles, 
+  Zap, 
   Loader2, 
   AlertCircle,
-  Rocket,
+  Compass,
+  Activity,
   Flame,
   Globe,
   BookOpen,
@@ -237,13 +238,13 @@ export const OnboardingPage: React.FC = () => {
 
   const getGoalIcon = (iconName: string) => {
     switch (iconName?.toLowerCase()) {
-      case 'rocket': return <Rocket className="w-5 h-5 text-indigo-400" />;
+      case 'rocket': return <Zap className="w-5 h-5 text-indigo-400" />;
       case 'flame': return <Flame className="w-5 h-5 text-rose-400" />;
       case 'globe': return <Globe className="w-5 h-5 text-sky-400" />;
       case 'bookopen': return <BookOpen className="w-5 h-5 text-amber-400" />;
       case 'server': return <Server className="w-5 h-5 text-emerald-400" />;
       case 'heart': return <Heart className="w-5 h-5 text-pink-400" />;
-      default: return <Sparkles className="w-5 h-5 text-purple-400" />;
+      default: return <Compass className="w-5 h-5 text-purple-400" />;
     }
   };
 
@@ -541,10 +542,10 @@ export const OnboardingPage: React.FC = () => {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-full font-medium transition-all shrink-0 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded font-mono text-[11px] transition-colors shrink-0 cursor-pointer ${
                     selectedCategory === cat
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-semibold'
-                      : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-white'
+                      ? 'bg-emerald-500 text-black font-semibold shadow-none'
+                      : 'bg-[#0c1210] border border-[#182621] text-[#a6b8ad] hover:text-white'
                   }`}
                 >
                   {cat}
@@ -560,25 +561,25 @@ export const OnboardingPage: React.FC = () => {
                   <div
                     key={goal.id}
                     onClick={() => setSelectedGoal(goal)}
-                    className={`p-5 rounded-2xl cursor-pointer transition-all border relative flex flex-col justify-between ${
+                    className={`p-5 rounded-md cursor-pointer transition-all border relative flex flex-col justify-between ${
                       isSelected
-                        ? 'glass-panel border-indigo-500/80 ring-2 ring-indigo-500/30 shadow-lg shadow-indigo-600/10'
-                        : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900/90'
+                        ? 'bg-[#0c1210] border-emerald-500 ring-1 ring-emerald-500/50 shadow-none'
+                        : 'bg-[#0c1210] border-[#182621] hover:border-emerald-500/40'
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                          <div className="p-2 rounded-md bg-[#080d0b] border border-[#182621]">
                             {getGoalIcon(goal.icon)}
                           </div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400">
                             {goal.category}
                           </span>
                         </div>
                         {isSelected && (
-                          <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center">
-                            <Check className="w-3 h-3" />
+                          <div className="w-5 h-5 rounded bg-emerald-500 text-black flex items-center justify-center">
+                            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
                           </div>
                         )}
                       </div>
@@ -613,7 +614,7 @@ export const OnboardingPage: React.FC = () => {
                 id="btn-step1-continue"
                 onClick={() => setStep(2)}
                 disabled={!selectedGoal}
-                className="py-3 px-8 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                className="min-h-[44px] py-2.5 px-6 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold shadow-none flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
               >
                 <span>Continue to Step 2: Learn About You</span>
                 <ArrowRight className="w-4 h-4" />
@@ -629,17 +630,17 @@ export const OnboardingPage: React.FC = () => {
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header with Selected Goal Pill or Adjust Routine Banner */}
             {isAdjustingRoutine ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/40 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-md bg-[#0c1210] border border-[#182621] shadow-none">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-400">
+                  <div className="p-2 rounded-md bg-emerald-950/20 border border-emerald-500/30 text-emerald-400">
                     <RotateCcw className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400">
                         Adjusting Routine
                       </span>
-                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <span className="px-2 py-0.5 text-[10px] font-mono rounded bg-emerald-950/40 text-emerald-400 border border-emerald-500/30">
                         Active Plan
                       </span>
                     </div>
@@ -656,19 +657,19 @@ export const OnboardingPage: React.FC = () => {
                     setIsAdjustingRoutine(false);
                     setStep(1);
                   }}
-                  className="text-xs text-indigo-300 hover:text-white underline underline-offset-4 self-start sm:self-auto cursor-pointer shrink-0"
+                  className="text-xs text-emerald-400 hover:text-emerald-300 underline underline-offset-4 self-start sm:self-auto cursor-pointer shrink-0"
                 >
                   Switch to a different goal
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-indigo-950/20 border border-indigo-500/30">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-md bg-[#0c1210] border border-[#182621]">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-slate-900 border border-slate-800">
+                  <div className="p-2 rounded-md bg-[#080d0b] border border-[#182621]">
                     {getGoalIcon(selectedGoal.icon)}
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400">
                       Target Goal
                     </span>
                     <div className="font-bold text-sm text-white">{selectedGoal.title}</div>
@@ -685,7 +686,7 @@ export const OnboardingPage: React.FC = () => {
             )}
 
             <div className="text-center space-y-1.5">
-              <h2 className="text-3xl font-black text-white">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
                 {isAdjustingRoutine ? 'Adjust Your Weekly Availability' : "Let's Learn About Your Weekly Routine"}
               </h2>
               <p className="text-slate-400 text-sm max-w-xl mx-auto">
@@ -697,15 +698,15 @@ export const OnboardingPage: React.FC = () => {
 
             {/* Continuous Profile Learning: Editable Suggestions Banner (Guardrail 3) */}
             {learnedDefaults && learnedDefaults.has_historical_data && showLearnedSuggestion && (
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-purple-950/40 border border-purple-500/30 flex items-start justify-between gap-3 text-xs animate-in fade-in shadow-lg">
+              <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#182621] flex items-start justify-between gap-3 text-xs animate-in fade-in shadow-none">
                 <div className="flex items-start gap-3">
-                  <div className="p-2.5 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-300 shrink-0 mt-0.5">
-                    <Sparkles className="w-5 h-5" />
+                  <div className="p-2 rounded-md bg-emerald-950/30 border border-emerald-500/30 text-emerald-400 shrink-0 mt-0.5">
+                    <Activity className="w-5 h-5" />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-white text-sm">Learned Consistency Suggestions</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950/40 text-emerald-400 border border-emerald-500/30">
                         Profile Memory
                       </span>
                     </div>
@@ -713,8 +714,8 @@ export const OnboardingPage: React.FC = () => {
                       {learnedDefaults.coaching_insight ||
                         `From your previous goals, your consistency peaks with ${learnedDefaults.recommended_days_per_week} days/week and ${learnedDefaults.preferred_time_of_day} focus sessions.`}
                     </p>
-                    <div className="flex items-center gap-2 pt-1 text-[11px] text-purple-300/80">
-                      <span>Suggested focus days: <strong>{learnedDefaults.high_completion_days.join(', ')}</strong></span>
+                    <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-400">
+                      <span>Suggested focus days: <strong className="text-emerald-400">{learnedDefaults.high_completion_days.join(', ')}</strong></span>
                       <span>•</span>
                       <span className="italic">Fully editable below. Never applied without your review.</span>
                     </div>
@@ -723,7 +724,7 @@ export const OnboardingPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowLearnedSuggestion(false)}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors text-base"
+                  className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors text-base"
                   title="Dismiss suggestion"
                 >
                   ×
@@ -733,9 +734,9 @@ export const OnboardingPage: React.FC = () => {
 
             {/* ---------------- KICKOFF DATE (NEW GOAL ONLY) OR TIMELINE SUMMARY (ACTIVE GOAL) ---------------- */}
             {isAdjustingRoutine ? (
-              <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="bg-[#0c1210] p-4 sm:p-5 rounded-md border border-[#182621] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+                  <div className="p-2 rounded-md bg-[#080d0b] border border-[#182621] text-emerald-400">
                     <Calendar className="w-5 h-5" />
                   </div>
                   <div>
@@ -761,9 +762,9 @@ export const OnboardingPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
+              <div className="bg-[#0c1210] p-6 rounded-md border border-[#182621] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                  <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                     <Calendar className="w-4 h-4" />
                     <span>Question 1: When do you want to kick off?</span>
                   </span>
@@ -776,14 +777,14 @@ export const OnboardingPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleSelectQuickDate('TODAY')}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                       quickDateOption === 'TODAY'
-                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
+                        : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
                     }`}
                   >
                     <div className="font-bold text-xs">Today (Immediate Start)</div>
-                    <div className={`text-[11px] mt-0.5 font-mono ${quickDateOption === 'TODAY' ? 'text-indigo-100' : 'text-slate-400'}`}>
+                    <div className={`text-[11px] mt-0.5 font-mono ${quickDateOption === 'TODAY' ? 'text-emerald-400' : 'text-slate-400'}`}>
                       {new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </div>
                   </button>
@@ -791,27 +792,27 @@ export const OnboardingPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleSelectQuickDate('NEXT_MONDAY')}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                       quickDateOption === 'NEXT_MONDAY'
-                        ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                        ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
+                        : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
                     }`}
                   >
                     <div className="font-bold text-xs">Next Monday</div>
-                    <div className={`text-[11px] mt-0.5 font-mono ${quickDateOption === 'NEXT_MONDAY' ? 'text-indigo-100' : 'text-slate-400'}`}>
+                    <div className={`text-[11px] mt-0.5 font-mono ${quickDateOption === 'NEXT_MONDAY' ? 'text-emerald-400' : 'text-slate-400'}`}>
                       Clean Week Kickoff
                     </div>
                   </button>
 
                   <div
                     onClick={() => setQuickDateOption('CUSTOM')}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-center cursor-pointer ${
+                    className={`p-3 rounded-md border text-left flex flex-col justify-center cursor-pointer ${
                       quickDateOption === 'CUSTOM'
-                        ? 'bg-indigo-950/40 border-indigo-500/80 ring-1 ring-indigo-500/30'
-                        : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                        ? 'bg-emerald-950/40 border-emerald-500 ring-1 ring-emerald-500/40'
+                        : 'bg-[#080d0b] border-[#182621] hover:border-emerald-500/30'
                     }`}
                   >
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 block">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1 block">
                       Custom Date
                     </label>
                     <input
@@ -821,7 +822,7 @@ export const OnboardingPage: React.FC = () => {
                         setQuickDateOption('CUSTOM');
                         setStartDate(e.target.value);
                       }}
-                      className="w-full bg-transparent text-xs text-white font-mono focus:outline-none"
+                      className="w-full bg-transparent text-base sm:text-xs text-white font-mono focus:outline-none"
                     />
                   </div>
                 </div>
@@ -829,8 +830,8 @@ export const OnboardingPage: React.FC = () => {
             )}
 
             {/* ---------------- QUESTION: TYPICAL WEEKDAY (MON–FRI) ---------------- */}
-            <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+            <div className="bg-[#0c1210] p-6 rounded-md border border-[#182621] space-y-3">
+              <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <Clock className="w-4 h-4" />
                 <span>
                   {isAdjustingRoutine
@@ -847,24 +848,24 @@ export const OnboardingPage: React.FC = () => {
                       key={preset.id}
                       type="button"
                       onClick={() => handleSelectWeekdayPreset(preset)}
-                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      className={`p-3.5 rounded-md border text-left transition-all cursor-pointer flex flex-col justify-between ${
                         isSelected
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900/90'
+                          ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
+                          : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-lg">{preset.icon}</span>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                            isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-800 text-slate-400'
+                          <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                            isSelected ? 'bg-emerald-500 text-black font-bold' : 'bg-[#182621] text-slate-400'
                           }`}>
                             {preset.badge}
                           </span>
                         </div>
                         <div className="font-bold text-xs">{preset.title}</div>
                       </div>
-                      <div className={`text-[11px] font-mono mt-2 ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
+                      <div className={`text-[11px] font-mono mt-2 ${isSelected ? 'text-emerald-400' : 'text-slate-400'}`}>
                         {preset.timeStr}
                       </div>
                     </button>
@@ -880,24 +881,24 @@ export const OnboardingPage: React.FC = () => {
                       key={preset.id}
                       type="button"
                       onClick={() => handleSelectWeekdayPreset(preset)}
-                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                      className={`p-3.5 rounded-md border text-left transition-all cursor-pointer flex flex-col justify-between ${
                         isSelected
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900/90'
+                          ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
+                          : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-lg">{preset.icon}</span>
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                            isSelected ? 'bg-indigo-700 text-indigo-100' : 'bg-slate-800 text-slate-400'
+                          <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
+                            isSelected ? 'bg-emerald-500 text-black font-bold' : 'bg-[#182621] text-slate-400'
                           }`}>
                             {preset.badge}
                           </span>
                         </div>
                         <div className="font-bold text-xs">{preset.title}</div>
                       </div>
-                      <div className={`text-[11px] font-mono mt-2 ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
+                      <div className={`text-[11px] font-mono mt-2 ${isSelected ? 'text-emerald-400' : 'text-slate-400'}`}>
                         {preset.timeStr}
                       </div>
                     </button>
@@ -907,9 +908,9 @@ export const OnboardingPage: React.FC = () => {
             </div>
 
             {/* ---------------- QUESTION: SATURDAY OBLIGATIONS ---------------- */}
-            <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
+            <div className="bg-[#0c1210] p-6 rounded-md border border-[#182621] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                   <Sun className="w-4 h-4 text-amber-400" />
                   <span>
                     {isAdjustingRoutine
@@ -917,7 +918,7 @@ export const OnboardingPage: React.FC = () => {
                       : 'Question 3: Do you have work or commitments on Saturdays?'}
                   </span>
                 </span>
-                <span className="text-[11px] text-emerald-400 flex items-center gap-1">
+                <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-mono">
                   <span>Sunday is always 100% free buffer</span>
                 </span>
               </div>
@@ -926,14 +927,14 @@ export const OnboardingPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSelectSaturdayMode('FREE')}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                     saturdayMode === 'FREE'
-                      ? 'bg-emerald-600 text-white border-emerald-500 shadow-md shadow-emerald-600/20'
-                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                      ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
+                      : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
                   }`}
                 >
                   <div className="font-bold text-xs">Saturdays 100% Free</div>
-                  <div className={`text-[11px] mt-0.5 ${saturdayMode === 'FREE' ? 'text-emerald-100' : 'text-slate-400'}`}>
+                  <div className={`text-[11px] mt-0.5 ${saturdayMode === 'FREE' ? 'text-emerald-400' : 'text-slate-400'}`}>
                     Recommended for overflow recovery
                   </div>
                 </button>
@@ -941,14 +942,14 @@ export const OnboardingPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSelectSaturdayMode('MORNING')}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                     saturdayMode === 'MORNING'
-                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                      ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
+                      : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
                   }`}
                 >
                   <div className="font-bold text-xs">Saturday Morning Busy</div>
-                  <div className={`text-[11px] mt-0.5 font-mono ${saturdayMode === 'MORNING' ? 'text-indigo-100' : 'text-slate-400'}`}>
+                  <div className={`text-[11px] mt-0.5 font-mono ${saturdayMode === 'MORNING' ? 'text-emerald-400' : 'text-slate-400'}`}>
                     Busy 09:00 – 13:00
                   </div>
                 </button>
@@ -956,14 +957,14 @@ export const OnboardingPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleSelectSaturdayMode('FULL_DAY')}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                     saturdayMode === 'FULL_DAY'
-                      ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
-                      : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+                      ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
+                      : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
                   }`}
                 >
                   <div className="font-bold text-xs">Saturday Full Day Busy</div>
-                  <div className={`text-[11px] mt-0.5 font-mono ${saturdayMode === 'FULL_DAY' ? 'text-indigo-100' : 'text-slate-400'}`}>
+                  <div className={`text-[11px] mt-0.5 font-mono ${saturdayMode === 'FULL_DAY' ? 'text-emerald-400' : 'text-slate-400'}`}>
                     Busy 09:00 – 17:00
                   </div>
                 </button>
@@ -971,11 +972,11 @@ export const OnboardingPage: React.FC = () => {
             </div>
 
             {/* ---------------- SECTION B: VERIFY YOUR BUSY BLOCKS BEFOREHAND ---------------- */}
-            <div className="glass-panel p-6 rounded-2xl border-2 border-indigo-500/50 space-y-4 shadow-xl bg-slate-900/40">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-800">
+            <div className="bg-[#0c1210] p-6 rounded-md border border-[#182621] space-y-4 shadow-none">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#182621]">
                 <div>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-indigo-400" />
+                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
                     <h3 className="text-base font-bold text-white">
                       Verify Your Weekly Busy Blocks (Before Generating)
                     </h3>
@@ -1152,7 +1153,7 @@ export const OnboardingPage: React.FC = () => {
                 type="button"
                 onClick={handleProceedToRoadmaps}
                 disabled={submitting}
-                className="w-full sm:w-auto py-3.5 px-8 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white text-sm font-bold shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2.5 transition-all cursor-pointer disabled:opacity-50"
+                className="w-full sm:w-auto min-h-[44px] py-3 px-8 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-semibold flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {submitting ? (
                   <>
@@ -1161,7 +1162,7 @@ export const OnboardingPage: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-4 h-4" />
+                    <Zap className="w-4 h-4" />
                     <span>{isAdjustingRoutine ? 'Update Routine & Pacing Roadmaps' : 'Next: Choose Pacing Roadmap'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
@@ -1190,20 +1191,18 @@ export const OnboardingPage: React.FC = () => {
         {/* STEP 4: CELEBRATION & LIVE CALENDAR LANDING */}
         {/* ========================================================= */}
         {step === 4 && selectedGoal && (
-          <div className="glass-panel p-8 sm:p-12 rounded-3xl border border-indigo-500/40 text-center space-y-6 max-w-2xl mx-auto animate-in zoom-in-95 duration-300 shadow-2xl">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-600 p-0.5 mx-auto shadow-xl shadow-emerald-500/20">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-              </div>
+          <div className="bg-[#0c1210] p-8 sm:p-12 rounded-md border border-[#182621] text-center space-y-6 max-w-2xl mx-auto animate-in zoom-in-95 duration-300 shadow-none">
+            <div className="w-14 h-14 rounded-md bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
             </div>
 
             <div className="space-y-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center justify-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
+              <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center justify-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>{isAdjustingRoutine ? 'Schedule Re-Aligned Live' : '3-Month Schedule Generated Live'}</span>
               </span>
-              <h2 className="text-3xl sm:text-4xl font-black text-white">
-                {isAdjustingRoutine ? 'Routine Updated Successfully! ⚡' : 'Your Goal is Officially Locked In!'}
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                {isAdjustingRoutine ? 'Routine Updated Successfully' : 'Goal Locked In & Scheduled'}
               </h2>
               <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
                 {isAdjustingRoutine ? (
@@ -1235,7 +1234,7 @@ export const OnboardingPage: React.FC = () => {
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 onClick={() => navigate('/')}
-                className="w-full sm:w-auto py-3 px-6 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+                className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold flex items-center justify-center gap-2 shadow-none transition-colors cursor-pointer"
               >
                 <Calendar className="w-4 h-4" />
                 <span>Return to Dashboard</span>
@@ -1244,14 +1243,14 @@ export const OnboardingPage: React.FC = () => {
 
               <button
                 onClick={() => navigate('/calendar')}
-                className="w-full sm:w-auto py-3 px-6 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 text-xs font-semibold transition-colors text-center cursor-pointer"
+                className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-[#e5ebe7] border border-[#182621] text-xs font-semibold transition-colors text-center cursor-pointer shadow-none"
               >
                 View Live Calendar
               </button>
 
               <button
                 onClick={() => navigate('/progress')}
-                className="w-full sm:w-auto py-3 px-6 rounded-xl bg-purple-950/40 hover:bg-purple-900/50 text-purple-200 border border-purple-500/30 text-xs font-semibold transition-colors text-center cursor-pointer"
+                className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-colors text-center cursor-pointer shadow-none"
               >
                 View Progress & Milestones
               </button>

@@ -528,3 +528,39 @@ export async function fetchLearnedDefaults(
   return data;
 }
 
+export async function fetchAggregatedProfile(
+  token: string
+): Promise<{
+  best_working_hours: {
+    preferred_time_of_day: 'morning' | 'afternoon' | 'evening' | 'flexible';
+    peak_hour_window: { start: string; end: string };
+    days_distribution: Record<string, number>;
+    average_session_duration_minutes: number;
+    total_completed_sessions: number;
+    last_updated: string;
+  };
+  lapse_pattern_summary: {
+    total_recovery_events: number;
+    frequent_trigger: string;
+    preferred_recovery_choice: string;
+    circuit_breaker_count: number;
+    recovery_choices_breakdown: Record<string, number>;
+    last_updated: string;
+  };
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/profile/aggregate`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to load aggregated profile telemetry');
+  }
+
+  return data;
+}
+

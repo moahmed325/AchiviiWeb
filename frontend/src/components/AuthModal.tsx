@@ -35,34 +35,35 @@ export const AuthModal: React.FC = () => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-[#050807]/85 transition-opacity"
         onClick={closeAuthModal}
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-md glass-panel rounded-2xl p-6 sm:p-8 border border-slate-700/60 shadow-2xl z-10 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md bg-[#0c1210] rounded-md p-6 sm:p-8 border border-[#182621] shadow-none z-10 animate-in fade-in duration-200">
         <button
           onClick={closeAuthModal}
-          className="absolute top-5 right-5 p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition-colors cursor-pointer"
+          className="absolute top-5 right-5 min-h-[44px] min-w-[44px] p-2.5 rounded-sm text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#182621] transition-colors cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C]"
+          aria-label="Close authentication modal"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
         {/* Tab Switcher */}
-        <div className="flex rounded-xl bg-slate-900/90 p-1 border border-slate-800 mb-6">
+        <div className="flex rounded-sm bg-[#080d0b] p-1 border border-[#182621] mb-6">
           <button
             type="button"
             onClick={() => {
               setAuthModalMode('signin');
               setError(null);
             }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+            className={`flex-1 min-h-[44px] py-2 text-xs font-mono font-semibold rounded-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] ${
               authModalMode === 'signin'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#07CB6C] text-[#050807] font-bold'
+                : 'text-[#7e8f85] hover:text-[#e5ebe7]'
             }`}
           >
-            Sign In
+            SIGN IN
           </button>
           <button
             type="button"
@@ -70,56 +71,63 @@ export const AuthModal: React.FC = () => {
               setAuthModalMode('signup');
               setError(null);
             }}
-            className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+            className={`flex-1 min-h-[44px] py-2 text-xs font-mono font-semibold rounded-sm transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] ${
               authModalMode === 'signup'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#07CB6C] text-[#050807] font-bold'
+                : 'text-[#7e8f85] hover:text-[#e5ebe7]'
             }`}
           >
-            Create Account
+            CREATE ACCOUNT
           </button>
         </div>
 
         {/* Form Header */}
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-white">
-            {authModalMode === 'signin' ? 'Welcome Back' : 'Start Your 3-Month Goal'}
+        <div className="text-left mb-6">
+          <div className="text-[10px] font-mono text-[#07CB6C] uppercase tracking-wider mb-1">
+            AUTHENTICATION // SECURE ACCESS
+          </div>
+          <h3 className="text-lg font-bold text-[#e5ebe7]">
+            {authModalMode === 'signin' ? 'Account Login' : 'Initialize Account'}
           </h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-[#7e8f85] mt-1 font-mono">
             {authModalMode === 'signin'
-              ? 'Enter your credentials to access your goal schedule'
-              : 'Sign up to lock in your goal routine and adaptive plan'}
+              ? 'Enter credentials to access active goal telemetry.'
+              : 'Sign up to lock in routine telemetry and adaptive plans.'}
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-start gap-2.5 text-rose-300 text-xs">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          <div className="mb-4 p-3 rounded-sm bg-[#ef4444]/15 border border-[#ef4444]/30 flex items-start gap-2.5 text-[#ef4444] text-xs font-mono">
+            <AlertCircle className="w-4 h-4 text-[#ef4444] shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Email Address</label>
+            <label className="block text-xs font-mono text-[#7e8f85] mb-1.5 uppercase tracking-wider">
+              Email Address
+            </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Mail className="w-4 h-4 text-[#7e8f85] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="input-auth-email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                placeholder="developer@achivii.io"
+                className="w-full pl-10 pr-4 py-2.5 rounded-sm bg-[#080d0b] border border-[#182621] text-[#e5ebe7] placeholder-[#4e6155] text-base md:text-xs font-mono focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-all"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+            <label className="block text-xs font-mono text-[#7e8f85] mb-1.5 uppercase tracking-wider">
+              Password
+            </label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Lock className="w-4 h-4 text-[#7e8f85] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 id="input-auth-password"
                 type="password"
@@ -128,11 +136,11 @@ export const AuthModal: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 rounded-sm bg-[#080d0b] border border-[#182621] text-[#e5ebe7] placeholder-[#4e6155] text-base md:text-xs font-mono focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-all"
               />
             </div>
             {authModalMode === 'signup' && (
-              <p className="text-[11px] text-slate-500 mt-1">Must be at least 6 characters</p>
+              <p className="text-[11px] font-mono text-[#7e8f85] mt-1">Minimum 6 characters required.</p>
             )}
           </div>
 
@@ -140,13 +148,13 @@ export const AuthModal: React.FC = () => {
             id="btn-auth-submit"
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+            className="w-full mt-2 min-h-[44px] py-2.5 px-4 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.99] text-[#050807] font-mono font-bold text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C]"
           >
             {isSubmitting ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <>
-                <span>{authModalMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                <span>{authModalMode === 'signin' ? 'EXECUTE LOGIN' : 'CREATE ACCOUNT'}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

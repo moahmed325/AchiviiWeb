@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   Calendar,
   Clock,
-  Sparkles,
+  Zap,
   ArrowRight,
   ArrowLeft,
   Loader2,
@@ -104,15 +104,15 @@ export const RoadmapSelector: React.FC<RoadmapSelectorProps> = ({
                   onSelectRoadmap(roadmaps[prevIndex]);
                 }
               }}
-              className={`relative flex flex-col justify-between p-6 rounded-2xl border transition-all duration-200 cursor-pointer text-left focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+              className={`relative flex flex-col justify-between p-6 rounded-md border transition-all duration-200 cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] ${
                 isSelected
-                  ? 'bg-gradient-to-b from-indigo-950/60 to-purple-950/40 border-indigo-500 ring-2 ring-indigo-500/30 shadow-xl shadow-indigo-950/50'
-                  : 'bg-zinc-900/60 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/90'
+                  ? 'bg-[#0a1711] border-[#07CB6C] shadow-none'
+                  : 'bg-[#0c1210] border-[#182621] hover:border-[#1f332c]'
               }`}
             >
               {/* Selected Tag */}
               {isSelected && (
-                <div className="absolute -top-3 right-4 px-2.5 py-0.5 rounded-full bg-indigo-500 text-white text-[11px] font-bold tracking-wide flex items-center gap-1 shadow-md shadow-indigo-500/30">
+                <div className="absolute -top-3 right-4 px-2.5 py-0.5 rounded-sm bg-[#07CB6C] text-[#050807] text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 shadow-none">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Selected
                 </div>
@@ -205,17 +205,17 @@ export const RoadmapSelector: React.FC<RoadmapSelectorProps> = ({
           type="button"
           onClick={onConfirm}
           disabled={!selectedRoadmapId || isSubmitting}
-          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full sm:w-auto min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.99] text-[#050807] font-mono font-bold text-xs shadow-none transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] cursor-pointer"
         >
           {isSubmitting ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Generating Schedule with Roadmap...
+              <span>Generating Schedule with Roadmap...</span>
             </>
           ) : (
             <>
-              <Sparkles className="w-4 h-4" />
-              Confirm Roadmap & Generate Schedule
+              <Zap className="w-4 h-4" />
+              <span>Confirm Roadmap & Generate Schedule</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}

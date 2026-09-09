@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GraduationState, GraduationChoice } from '../types';
-import { submitGraduationChoice } from '../lib/api';
+import { submitGraduationChoice, fetchAggregatedProfile } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
-  GraduationCap,
-  Rocket,
+  Compass,
   ShieldCheck,
   PauseCircle,
   ArrowRight,
   CheckCircle2,
   Loader2,
   X,
+  Flag,
+  Activity,
 } from 'lucide-react';
 
 interface GraduationModalProps {
@@ -30,7 +31,15 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  React.useEffect(() => {
+  // Profile learning telemetry state
+  const [profileTelemetry, setProfileTelemetry] = useState<{
+    bestWorkingHours?: string;
+    peakWindow?: string;
+    lapseRisk?: string;
+    preferredRemediation?: string;
+  } | null>(null);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsDismissed(true);
@@ -40,9 +49,35 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  useEffect(() => {
+    if (!token) return;
+    fetchAggregatedProfile(token)
+      .then((data) => {
+        if (data && data.best_working_hours) {
+          setProfileTelemetry({
+            bestWorkingHours: data.best_working_hours.preferred_time_of_day?.toUpperCase() || 'MORNING',
+            peakWindow: `${data.best_working_hours.peak_hour_window?.start || '08:00'} - ${data.best_working_hours.peak_hour_window?.end || '10:00'}`,
+            lapseRisk: data.lapse_pattern_summary?.frequent_trigger || 'NOMINAL_CADENCE',
+            preferredRemediation: data.lapse_pattern_summary?.preferred_recovery_choice?.toUpperCase() || 'SHRINK_WEEK',
+          });
+        }
+      })
+      .catch(() => {
+        // Fallback default telemetry if not yet generated
+        setProfileTelemetry({
+          bestWorkingHours: 'MORNING',
+          peakWindow: '08:00 - 10:00',
+          lapseRisk: 'NOMINAL_CADENCE',
+          preferredRemediation: 'SHRINK_WEEK',
+        });
+      });
+  }, [token]);
+
   if (!graduationState.eligible || isDismissed) {
     return null;
   }
+
+  const completionRatePercent = Math.round(graduationState.completion_rate * 100);
 
   const handleConfirm = async () => {
     if (!token) return;
@@ -58,7 +93,7 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
         setIsDismissed(true);
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to process graduation decision.');
+      setErrorMessage(err.message || 'Mission completion command failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -66,59 +101,104 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#050807]/85 overflow-y-auto overscroll-contain animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="graduation-modal-title"
       aria-describedby="graduation-modal-desc"
     >
-      <div className="relative w-full max-w-2xl bg-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-indigo-950/60 text-left space-y-6 overflow-hidden">
-        {/* Ambient Top Glow */}
-        <div className="absolute -top-24 -left-24 w-72 h-72 bg-gradient-to-br from-indigo-500/20 to-purple-600/20 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="relative w-full max-w-2xl bg-[#0c1210] border border-[#182621] rounded-md p-5 sm:p-6 shadow-none text-left space-y-5 overflow-hidden my-auto">
         {/* Dismiss Button */}
         <button
           onClick={() => setIsDismissed(true)}
           aria-label="Close graduation dialog"
-          className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="absolute top-4 right-4 min-h-[44px] min-w-[44px] p-2.5 rounded-sm text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#182621] transition-colors cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C]"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
 
-        {/* Header */}
-        <div className="space-y-2 text-center sm:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold">
-            <GraduationCap className="w-4 h-4 text-indigo-400" />
-            <span>Goal Milestone Reached</span>
+        {/* Mission Completion Report Header */}
+        <div className="space-y-1.5 pr-10">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C] flex items-center gap-1.5">
+              <Flag className="w-3.5 h-3.5 text-[#07CB6C]" />
+              MISSION MILESTONE // GOAL BLUEPRINT COMPLETED
+            </span>
+            <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30">
+              {completionRatePercent}% CADENCE MET
+            </span>
           </div>
 
-          <h2 id="graduation-modal-title" className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            Ready to Graduate "{graduationState.goal_title}"?
+          <h2 id="graduation-modal-title" className="text-base sm:text-lg font-bold text-[#e5ebe7]">
+            Milestone Completion: "{graduationState.goal_title}"
           </h2>
-          <p id="graduation-modal-desc" className="text-sm text-slate-300 leading-relaxed max-w-xl">
+          <p id="graduation-modal-desc" className="text-xs text-[#7e8f85] font-mono leading-relaxed">
             {graduationState.graduation_message ||
-              `You've reached the graduation window with ${graduationState.completed_sessions} completed sessions (${Math.round(graduationState.completion_rate * 100)}% completion). Decide how you'd like to shape your next phase.`}
+              `Execution telemetry confirms milestone completion with ${graduationState.completed_sessions} completed sessions (${completionRatePercent}% completion). Select an operational trajectory for the next lifecycle phase.`}
           </p>
         </div>
 
+        {/* Monospace Continuous Profile Learning Key-Value Readouts */}
+        <div className="p-3 rounded-sm bg-[#080d0b] border border-[#182621] space-y-2">
+          <div className="flex items-center justify-between border-b border-[#182621] pb-1.5">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#a6b8ad] flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-[#07CB6C]" />
+              CONTINUOUS PROFILE LEARNING // TELEMETRY INSIGHTS
+            </span>
+            <span className="text-[9px] font-mono text-[#07CB6C] font-semibold">
+              CALIBRATED
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+            <div className="p-2 rounded-sm bg-[#0c1210] border border-[#182621]">
+              <span className="text-[9px] text-[#7e8f85] uppercase block truncate">Peak Window</span>
+              <span className="text-[11px] font-bold text-[#e5ebe7] block mt-0.5 truncate">
+                {profileTelemetry?.peakWindow || '08:00 - 10:00'}
+              </span>
+            </div>
+
+            <div className="p-2 rounded-sm bg-[#0c1210] border border-[#182621]">
+              <span className="text-[9px] text-[#7e8f85] uppercase block truncate">Optimal Day-Part</span>
+              <span className="text-[11px] font-bold text-[#07CB6C] block mt-0.5 truncate">
+                {profileTelemetry?.bestWorkingHours || 'MORNING'}
+              </span>
+            </div>
+
+            <div className="p-2 rounded-sm bg-[#0c1210] border border-[#182621]">
+              <span className="text-[9px] text-[#7e8f85] uppercase block truncate">Completed Ratio</span>
+              <span className="text-[11px] font-bold text-[#e5ebe7] block mt-0.5 truncate">
+                {graduationState.completed_sessions}/{graduationState.total_sessions}
+              </span>
+            </div>
+
+            <div className="p-2 rounded-sm bg-[#0c1210] border border-[#182621]">
+              <span className="text-[9px] text-[#7e8f85] uppercase block truncate">Preferred Vector</span>
+              <span className="text-[11px] font-bold text-amber-400 block mt-0.5 truncate">
+                {profileTelemetry?.preferredRemediation || 'SHRINK_WEEK'}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {errorMessage && (
-          <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
+          <div className="p-3 rounded-sm bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-xs font-mono">
             {errorMessage}
           </div>
         )}
 
-        {/* Three Explicit Choices (Guardrail 1) */}
+        {/* Three Distinct Paths as Modular Technical Cards */}
         <div
           role="radiogroup"
-          aria-label="Graduation phase options"
-          className="grid grid-cols-1 gap-3.5"
+          aria-label="Graduation operational pathways"
+          className="space-y-2.5"
         >
-          {/* Option 1: Start New Goal */}
+          {/* Option A: Initialize New Blueprint */}
           <div
             onClick={() => setSelectedChoice('start_new_goal')}
             role="radio"
             aria-checked={selectedChoice === 'start_new_goal'}
-            aria-label="Option 1: Start a New Goal. Leverage learned profile patterns for next goal."
+            aria-label="Option A: Initialize New Blueprint. Re-enrollment flow leveraging continuous profile learning."
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -129,47 +209,54 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
                 setSelectedChoice('maintenance_mode');
               }
             }}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-indigo-400 ${
+            className={`p-3.5 rounded-sm border transition-all cursor-pointer flex items-start gap-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] ${
               selectedChoice === 'start_new_goal'
-                ? 'bg-gradient-to-r from-indigo-950/60 to-purple-950/40 border-indigo-500 ring-2 ring-indigo-500/30'
-                : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                ? 'bg-[#0a1711] border-[#07CB6C] text-[#e5ebe7]'
+                : 'bg-[#080d0b] border-[#182621] hover:border-[#1f332c] text-[#7e8f85]'
             }`}
           >
-            <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 shrink-0 mt-0.5">
-              <Rocket className="w-5 h-5" />
+            <div
+              className={`w-9 h-9 rounded-sm border shrink-0 flex items-center justify-center mt-0.5 ${
+                selectedChoice === 'start_new_goal'
+                  ? 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]'
+                  : 'bg-[#0c1210] border-[#182621] text-[#7e8f85]'
+              }`}
+            >
+              <Compass className="w-4 h-4" />
             </div>
-            <div className="space-y-1 flex-1">
+
+            <div className="space-y-1 flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-white flex items-center gap-2">
-                  Start a New Goal
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
-                    Recommended
+                <span className="text-xs font-mono font-bold text-[#e5ebe7] flex items-center gap-2">
+                  OPTION A // INITIALIZE NEW BLUEPRINT
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 font-semibold">
+                    RECOMMENDED
                   </span>
                 </span>
-                <div
-                  className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                <span
+                  className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                     selectedChoice === 'start_new_goal'
-                      ? 'border-indigo-500 bg-indigo-500'
-                      : 'border-slate-700'
+                      ? 'border-[#07CB6C] bg-[#07CB6C]'
+                      : 'border-[#182621]'
                   }`}
                 >
                   {selectedChoice === 'start_new_goal' && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#050807]" />
                   )}
-                </div>
+                </span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Graduate this goal and leverage your continuous profile learning. We’ll pre-fill your next goal onboarding with your learned peak hours and consistency rhythms.
+              <p className="text-xs text-[#7e8f85] leading-normal font-sans">
+                Graduate current objective and initialize next blueprint. Continuous profile learning automatically pre-populates your routine with verified peak performance windows.
               </p>
             </div>
           </div>
 
-          {/* Option 2: Maintenance Mode */}
+          {/* Option B: Maintenance Cadence */}
           <div
             onClick={() => setSelectedChoice('maintenance_mode')}
             role="radio"
             aria-checked={selectedChoice === 'maintenance_mode'}
-            aria-label="Option 2: Enter Maintenance Mode. Sustainable cadence with 1 to 2 core practice sessions per week."
+            aria-label="Option B: Maintenance Cadence. 1 to 2 sessions per week habit sustainment."
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -183,44 +270,54 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
                 setSelectedChoice('start_new_goal');
               }
             }}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
+            className={`p-3.5 rounded-sm border transition-all cursor-pointer flex items-start gap-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] ${
               selectedChoice === 'maintenance_mode'
-                ? 'bg-gradient-to-r from-emerald-950/60 to-teal-950/40 border-emerald-500 ring-2 ring-emerald-500/30'
-                : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                ? 'bg-[#0a1711] border-[#07CB6C] text-[#e5ebe7]'
+                : 'bg-[#080d0b] border-[#182621] hover:border-[#1f332c] text-[#7e8f85]'
             }`}
           >
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shrink-0 mt-0.5">
-              <ShieldCheck className="w-5 h-5" />
+            <div
+              className={`w-9 h-9 rounded-sm border shrink-0 flex items-center justify-center mt-0.5 ${
+                selectedChoice === 'maintenance_mode'
+                  ? 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]'
+                  : 'bg-[#0c1210] border-[#182621] text-[#7e8f85]'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
             </div>
-            <div className="space-y-1 flex-1">
+
+            <div className="space-y-1 flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-white">
-                  Enter Maintenance Mode
+                <span className="text-xs font-mono font-bold text-[#e5ebe7] flex items-center gap-2">
+                  OPTION B // MAINTENANCE CADENCE
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-[#182621] text-[#a6b8ad] border border-[#1f332c] font-semibold">
+                    SUSTAINMENT
+                  </span>
                 </span>
-                <div
-                  className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                <span
+                  className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                     selectedChoice === 'maintenance_mode'
-                      ? 'border-emerald-500 bg-emerald-500'
-                      : 'border-slate-700'
+                      ? 'border-[#07CB6C] bg-[#07CB6C]'
+                      : 'border-[#182621]'
                   }`}
                 >
                   {selectedChoice === 'maintenance_mode' && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#050807]" />
                   )}
-                </div>
+                </span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Keep the momentum going with a light, sustainable cadence. Prunes non-essential sessions down to 1–2 core practice sessions per week.
+              <p className="text-xs text-[#7e8f85] leading-normal font-sans">
+                Maintain established skill momentum with a low-friction cadence. Prunes weekly schedule down to 1–2 core sustainment sessions with zero buffer overhead.
               </p>
             </div>
           </div>
 
-          {/* Option 3: Pause Goal */}
+          {/* Option C: Standby / Pause */}
           <div
             onClick={() => setSelectedChoice('pause')}
             role="radio"
             aria-checked={selectedChoice === 'pause'}
-            aria-label="Option 3: Pause Goal Safely. Freezes schedule without penalty."
+            aria-label="Option C: Standby / Pause. Freezes active schedule state with zero penalty."
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -231,65 +328,75 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
                 setSelectedChoice('maintenance_mode');
               }
             }}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-4 focus:outline-none focus:ring-2 focus:ring-amber-400 ${
+            className={`p-3.5 rounded-sm border transition-all cursor-pointer flex items-start gap-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
               selectedChoice === 'pause'
-                ? 'bg-gradient-to-r from-amber-950/60 to-orange-950/40 border-amber-500 ring-2 ring-amber-500/30'
-                : 'bg-slate-950/50 border-slate-800 hover:border-slate-700'
+                ? 'bg-amber-950/20 border-amber-500/50 text-[#e5ebe7]'
+                : 'bg-[#080d0b] border-[#182621] hover:border-[#1f332c] text-[#7e8f85]'
             }`}
           >
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shrink-0 mt-0.5">
-              <PauseCircle className="w-5 h-5" />
+            <div
+              className={`w-9 h-9 rounded-sm border shrink-0 flex items-center justify-center mt-0.5 ${
+                selectedChoice === 'pause'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  : 'bg-[#0c1210] border-[#182621] text-[#7e8f85]'
+              }`}
+            >
+              <PauseCircle className="w-4 h-4" />
             </div>
-            <div className="space-y-1 flex-1">
+
+            <div className="space-y-1 flex-1 min-w-0">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-white">
-                  Pause Goal Safely
+                <span className="text-xs font-mono font-bold text-[#e5ebe7] flex items-center gap-2">
+                  OPTION C // STANDBY / PAUSE
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
+                    FREEZE STATE
+                  </span>
                 </span>
-                <div
-                  className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                <span
+                  className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
                     selectedChoice === 'pause'
-                      ? 'border-amber-500 bg-amber-500'
-                      : 'border-slate-700'
+                      ? 'border-amber-400 bg-amber-400'
+                      : 'border-[#182621]'
                   }`}
                 >
                   {selectedChoice === 'pause' && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#050807]" />
                   )}
-                </div>
+                </span>
               </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Life is busy right now. Freezes your schedule without streak decay or penalties. You can resume at any time and your timeline will adjust smoothly.
+              <p className="text-xs text-[#7e8f85] leading-normal font-sans">
+                Freezes active schedule state without streak decay or penalties. All progression telemetry and completion history remain preserved for resumption at any time.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-800">
+        {/* Action Controls */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#182621]">
           <button
             type="button"
             onClick={() => setIsDismissed(true)}
-            className="w-full sm:w-auto px-4 py-2.5 rounded-xl text-slate-400 hover:text-white text-xs font-semibold transition-colors"
+            className="w-full sm:w-auto min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-sm text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#111a17] active:scale-[0.99] text-xs font-mono transition-colors cursor-pointer text-center"
           >
-            Decide Later
+            DISMISS REPORT [ESC]
           </button>
 
           <button
             type="button"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50"
+            className="w-full sm:w-auto min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.99] text-[#050807] font-mono font-bold text-xs transition-all disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C]"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Processing...</span>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>PROCESSING PROTOCOL...</span>
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Confirm Decision</span>
-                <ArrowRight className="w-4 h-4" />
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>EXECUTE TRANSITION // CONFIRM PROTOCOL</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
           </button>
