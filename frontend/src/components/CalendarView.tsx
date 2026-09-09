@@ -323,6 +323,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       {(!pendingRecovery || !pendingRecovery.pending) && pendingReflection && pendingReflection.pending && (
         <WeeklyReflection
           reflectionState={pendingReflection}
+          isRecoveryPending={!!(pendingRecovery && pendingRecovery.pending)}
           onResolved={async () => {
             setPendingReflection(null);
             await loadWeek(weekOffset);
