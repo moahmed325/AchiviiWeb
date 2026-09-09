@@ -54,11 +54,13 @@ const DAY_ORDER: { key: DayOfWeek | 'SUN'; name: string; short: string; jsIndex:
 export interface CalendarViewProps {
   initialWeekOffset?: number;
   onWeekChange?: (weekOffset: number) => void;
+  onlyShowSlippageWhenDrifted?: boolean;
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   initialWeekOffset = 0,
   onWeekChange,
+  onlyShowSlippageWhenDrifted = true,
 }) => {
   const { token, user } = useAuth();
   const [weekOffset, setWeekOffset] = useState<number>(initialWeekOffset);
@@ -343,26 +345,28 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         />
       )}
 
-      {/* Adaptive Rescheduling & Slippage Pacing Banner */}
-      <SlippageBanner
-        slippageDays={data.goal?.slippage_days || 0}
-        startDate={data.goal?.start_date || data.startDate}
-        targetEndDate={data.goal?.target_end_date || data.endDate}
-        onTriggerReschedule={handleTriggerReschedule}
-        isRescheduling={isRescheduling}
-        lastRescheduleResult={lastRescheduleResult}
-        onOpenRecovery={() => {
-          if (data.goal?.id) {
-            setPendingRecovery({
-              pending: true,
-              user_goal_id: data.goal.id,
-              circuit_breaker_active: (data.goal.slippage_days || 0) >= 14,
-              rolling_28_day_events: 0,
-              missed_session_count: data.sessions ? data.sessions.filter((s) => s.status === 'MISSED').length : 2,
-            });
-          }
-        }}
-      />
+      {/* Adaptive Rescheduling & Slippage Pacing Banner - mounts cleanly only when schedule drift is actively flagged */}
+      {(!onlyShowSlippageWhenDrifted || (data.goal?.slippage_days || 0) > 0) && (
+        <SlippageBanner
+          slippageDays={data.goal?.slippage_days || 0}
+          startDate={data.goal?.start_date || data.startDate}
+          targetEndDate={data.goal?.target_end_date || data.endDate}
+          onTriggerReschedule={handleTriggerReschedule}
+          isRescheduling={isRescheduling}
+          lastRescheduleResult={lastRescheduleResult}
+          onOpenRecovery={() => {
+            if (data.goal?.id) {
+              setPendingRecovery({
+                pending: true,
+                user_goal_id: data.goal.id,
+                circuit_breaker_active: (data.goal.slippage_days || 0) >= 14,
+                rolling_28_day_events: 0,
+                missed_session_count: data.sessions ? data.sessions.filter((s) => s.status === 'MISSED').length : 2,
+              });
+            }
+          }}
+        />
+      )}
 
       {/* Week Navigator & Metrics Instrumentation Panel */}
       <div className="rounded-md bg-[#0c1210] border border-[#1a2824] p-4 sm:p-5 shadow-none space-y-4">
@@ -424,7 +428,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 onClick={() => setWeekOffset(0)}
                 className={`min-h-[44px] px-3 text-xs font-mono font-semibold rounded-sm transition-colors cursor-pointer flex items-center justify-center ${
                   weekOffset === 0
-                    ? 'bg-[#16221e] text-[#07CB6C] border border-[#1f332c]'
+                    ? 'bg-[#16221e] text-[#07CB6C] border border-[#1a2824]'
                     : 'text-[#9ca3af] hover:text-[#e5ebe7] hover:bg-[#111a17]'
                 }`}
               >
@@ -576,7 +580,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               ? 'bg-[#0c1210] border border-[#07CB6C]/40 hover:border-[#07CB6C]'
                               : tier === 'buffer'
                               ? 'bg-[#0c1210] border border-dashed border-[#1a2824] hover:border-[#2a443a]'
-                              : 'bg-[#0c1210] border border-[#1f332c] hover:border-[#07CB6C]/50'
+                              : 'bg-[#0c1210] border border-[#1a2824] hover:border-[#07CB6C]/50'
                           }`}
                         >
                           {/* Title & Quick Check Target */}
