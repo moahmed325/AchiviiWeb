@@ -106,25 +106,25 @@ export const Home: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10 space-y-12 sm:space-y-16">
         {/* Unauthenticated Landing Experience / Public View */}
         {!activeUserGoal && (
-          <section className="space-y-6 max-w-4xl mx-auto pt-2 sm:pt-4 text-center">
-            {/* Overhead Monospace Telemetry Chip */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-sm bg-[#0c1210] border border-[#182621] text-[#07CB6C] text-xs font-mono font-medium tracking-wide">
+          <section className="space-y-6 sm:space-y-8 max-w-3xl mx-auto pt-6 sm:pt-10 pb-4 text-center">
+            {/* Subtle Operational Pill */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0d1412] border border-[#1a2824] text-[#07CB6C] text-xs font-mono font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-              <span>SYSTEM SPEC // 12-WEEK RESILIENT CADENCE</span>
+              <span>12-WEEK RESILIENT CADENCE</span>
             </div>
 
-            {/* Stark High-Contrast Headline (Zero Gradient Text) */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#e5ebe7] leading-[1.15]">
+            {/* Stark High-Contrast Editorial Headline */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-white leading-[1.1]">
               Deterministic 90-Day <br className="hidden sm:inline" />
               Execution Engine
             </h1>
 
-            {/* Engineering Rationale & Copy */}
-            <p className="text-[#7e8f85] text-sm sm:text-base md:text-lg max-w-2xl mx-auto leading-relaxed font-mono">
-              Ambitious goals fail because life interrupts rigid plans. Achivii pairs pre-scoped blueprints with a 3-tier deterministic recovery engine that adapts your calendar whenever sessions are missed.
+            {/* Tight 2-Sentence Plain Value Proposition */}
+            <p className="text-neutral-400 text-base sm:text-lg max-w-2xl mx-auto font-normal leading-relaxed">
+              Ambitious goals fail because life interrupts rigid plans. Achivii pairs pre-scoped blueprints with an adaptive recovery engine that automatically restructures your calendar when sessions are missed.
             </p>
 
-            {/* Primary & Secondary Call to Actions */}
+            {/* High-Contrast Editorial CTA Row */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 pt-2">
               <button
                 type="button"
@@ -135,43 +135,20 @@ export const Home: React.FC = () => {
                     handleScrollToCatalog();
                   }
                 }}
-                className="min-h-[44px] px-6 py-2.5 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="min-h-[44px] px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b862] text-[#080d0b] text-sm font-medium flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(7,203,108,0.2)] hover:shadow-[0_0_25px_rgba(7,203,108,0.35)] transition-all cursor-pointer"
               >
-                <span>INITIALIZE GOAL</span>
+                <span>Initialize Blueprint</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               <button
                 type="button"
                 onClick={handleScrollToCatalog}
-                className="min-h-[44px] px-5 py-2.5 rounded-sm bg-[#0c1210] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] text-xs font-mono font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                className="min-h-[44px] px-5 py-2.5 rounded-md bg-transparent hover:bg-[#0d1412] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#2a3e38] text-sm font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <Compass className="w-4 h-4 text-[#07CB6C]" />
-                <span>EXPLORE BLUEPRINT CATALOG</span>
+                <span>Explore Catalog</span>
               </button>
-            </div>
-
-            {/* Workbench Telemetry Status Bar */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-4 text-xs font-mono text-left">
-              <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
-                <span className="text-[9px] text-[#55675c] block uppercase">BLUEPRINT REPOSITORY</span>
-                <span className="text-xs font-bold text-[#e5ebe7]">{goals.length || 6} CURATED SCHEMAS</span>
-              </div>
-
-              <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
-                <span className="text-[9px] text-[#55675c] block uppercase">EXECUTION HORIZON</span>
-                <span className="text-xs font-bold text-[#e5ebe7]">12 WEEKS // 84 DAYS</span>
-              </div>
-
-              <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
-                <span className="text-[9px] text-[#55675c] block uppercase">RECOVERY ENGINE</span>
-                <span className="text-xs font-bold text-[#07CB6C]">3-TIER ADAPTIVE</span>
-              </div>
-
-              <div className="p-3 rounded-sm bg-[#0c1210] border border-[#182621] space-y-0.5">
-                <span className="text-[9px] text-[#55675c] block uppercase">SYSTEM FAIL-SAFE</span>
-                <span className="text-xs font-bold text-[#e5ebe7]">0 CORE DROPPED</span>
-              </div>
             </div>
           </section>
         )}
@@ -274,19 +251,19 @@ export const Home: React.FC = () => {
         {/* Goal Catalog Section (Shown if tab is catalog or no active goal) */}
         {(!activeUserGoal || dashboardTab === 'catalog') && (
           <section id="catalog-section" className="space-y-6 pt-4">
-            {/* Catalog Section Header Micro-Label */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#182621] pb-3">
+            {/* Catalog Section Header */}
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-[#1a2824] pb-4">
               <div className="space-y-1">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C] block">
-                  CURATED BLUEPRINTS // SELECT TARGET SPECIFICATION
+                <span className="text-xs font-mono font-medium uppercase tracking-wider text-[#07CB6C] block">
+                  Curated Catalog
                 </span>
-                <h2 className="text-xl sm:text-2xl font-bold text-[#e5ebe7]">
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">
                   Pre-Scoped 12-Week Blueprints
                 </h2>
               </div>
-              <span className="text-[10px] font-mono text-[#55675c]">
-                DETERMINISTIC 3-PHASE PROGRESSION
-              </span>
+              <p className="text-xs text-neutral-400 font-normal">
+                Battle-tested protocols with built-in recovery buffers
+              </p>
             </div>
 
             {/* Filter and Search Bar */}
@@ -297,26 +274,26 @@ export const Home: React.FC = () => {
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`min-h-[44px] px-3.5 py-2 rounded-sm text-xs font-mono font-medium transition-colors whitespace-nowrap cursor-pointer ${
+                    className={`min-h-[44px] px-4 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer ${
                       selectedCategory === category
-                        ? 'bg-[#16221e] text-[#07CB6C] border border-[#1f332c]'
-                        : 'bg-[#0c1210] text-[#7e8f85] hover:text-[#e5ebe7] border border-[#182621]'
+                        ? 'bg-[#131f1b] text-[#07CB6C] border border-[#07CB6C]/40'
+                        : 'bg-[#0d1412] text-neutral-400 hover:text-white border border-[#1a2824] hover:border-[#2a3e38]'
                     }`}
                   >
-                    {category.toUpperCase()}
+                    {category}
                   </button>
                 ))}
               </div>
 
               {/* Search Input with >= 16px Font Size on Mobile */}
               <div className="relative w-full sm:w-80">
-                <Search className="w-4 h-4 text-[#7e8f85] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filter by title, domain, or skills..."
-                  className="w-full min-h-[44px] pl-10 pr-4 py-2 rounded-sm bg-[#0c1210] border border-[#182621] text-[#e5ebe7] placeholder-[#55675c] text-base sm:text-xs font-mono focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-colors"
+                  className="w-full min-h-[44px] pl-10 pr-4 py-2 rounded-md bg-[#0d1412] border border-[#1a2824] text-white placeholder-neutral-500 text-base sm:text-xs font-normal focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-colors"
                 />
               </div>
             </div>
