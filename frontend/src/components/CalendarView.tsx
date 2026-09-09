@@ -159,12 +159,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const handleTriggerReschedule = async () => {
     if (!token) return;
     setIsRescheduling(true);
+    setError(null);
     try {
       const res = await triggerReschedule(token);
       setLastRescheduleResult(res.result);
       await loadWeek(weekOffset);
     } catch (err: any) {
-      alert(err.message || 'Rescheduling check failed.');
+      setError(err.message || 'Rescheduling check failed.');
     } finally {
       setIsRescheduling(false);
     }
@@ -178,7 +179,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       const res = await updateSession(token, session.id, { status: nextStatus });
       handleSessionUpdated(res.session);
     } catch (err: any) {
-      alert(err.message || 'Failed to toggle session status');
+      setError(err.message || 'Failed to toggle session status');
     }
   };
 
@@ -204,7 +205,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       case 'evening':
         return <Moon className="w-3 h-3 text-[#a6b8ad]" />;
       default:
-        return <Clock className="w-3 h-3 text-[#7e8f85]" />;
+        return <Clock className="w-3 h-3 text-[#9ca3af]" />;
     }
   };
 
@@ -267,7 +268,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   if (loading && !data) {
     return (
-      <div className="rounded-md bg-[#0c1210] border border-[#182621] p-12 flex flex-col items-center justify-center text-[#7e8f85] gap-3 shadow-none">
+      <div className="rounded-md bg-[#0c1210] border border-[#1a2824] p-12 flex flex-col items-center justify-center text-[#9ca3af] gap-3 shadow-none">
         <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
         <p className="text-xs font-mono tracking-wider uppercase">MATERIALIZING SCHEDULE TELEMETRY...</p>
       </div>
@@ -284,7 +285,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         <p className="text-xs font-mono text-[#a6b8ad] max-w-md mx-auto">{error}</p>
         <button
           onClick={() => loadWeek(weekOffset)}
-          className="min-h-[44px] px-4 py-2 rounded-sm bg-[#080d0b] hover:bg-[#161214] text-[#e5ebe7] text-xs font-mono border border-[#182621] transition-colors cursor-pointer"
+          className="min-h-[44px] px-4 py-2 rounded-sm bg-[#080d0b] hover:bg-[#161214] text-[#e5ebe7] text-xs font-mono border border-[#1a2824] transition-colors cursor-pointer"
         >
           RETRY TELEMETRY
         </button>
@@ -364,15 +365,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       />
 
       {/* Week Navigator & Metrics Instrumentation Panel */}
-      <div className="rounded-md bg-[#0c1210] border border-[#182621] p-4 sm:p-5 shadow-none space-y-4">
+      <div className="rounded-md bg-[#0c1210] border border-[#1a2824] p-4 sm:p-5 shadow-none space-y-4">
         {/* Section Header Micro-Label */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#182621] pb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1a2824] pb-4">
           <div className="space-y-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-[10px] font-mono font-bold tracking-wider text-[#07CB6C] uppercase">
                 WEEK {String(data.weekNumber).padStart(2, '0')} // 12-WEEK BLUEPRINT
               </span>
-              <span className="text-[10px] font-mono text-[#7e8f85]">
+              <span className="text-[10px] font-mono text-[#9ca3af]">
                 [{startDateFormatted} – {endDateFormatted}]
               </span>
             </div>
@@ -381,7 +382,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               {data.goal?.title || 'Goal Schedule'}
             </h2>
 
-            <div className="flex items-center gap-2 text-xs font-mono text-[#7e8f85]">
+            <div className="flex items-center gap-2 text-xs font-mono text-[#9ca3af]">
               <span className="text-[#07CB6C]">PHASE {data.phase?.phase_order || 1}:</span>
               <span className="text-[#a6b8ad] truncate">{data.phase?.title}</span>
             </div>
@@ -395,7 +396,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               type="button"
               onClick={handleTriggerReschedule}
               disabled={isRescheduling}
-              className="min-h-[44px] px-3.5 py-2 rounded-sm bg-[#080d0b] hover:bg-[#16140d] border border-[#182621] hover:border-[#f59e0b]/40 text-[#f59e0b] text-xs font-mono font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+              className="min-h-[44px] px-3.5 py-2 rounded-sm bg-[#080d0b] hover:bg-[#16140d] border border-[#1a2824] hover:border-[#f59e0b]/40 text-[#f59e0b] text-xs font-mono font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
               title="Scan and Recover Missed Sessions"
             >
               {isRescheduling ? (
@@ -407,12 +408,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </button>
 
             {/* Week Stepper Buttons */}
-            <div className="flex items-center gap-1 bg-[#080d0b] p-1 rounded-sm border border-[#182621]">
+            <div className="flex items-center gap-1 bg-[#080d0b] p-1 rounded-sm border border-[#1a2824]">
               <button
                 id="btn-prev-week"
                 onClick={handlePrevWeek}
                 disabled={weekOffset <= 0}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-sm text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#111a17] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-sm text-[#9ca3af] hover:text-[#e5ebe7] hover:bg-[#111a17] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 title="Previous Week"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -424,7 +425,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 className={`min-h-[44px] px-3 text-xs font-mono font-semibold rounded-sm transition-colors cursor-pointer flex items-center justify-center ${
                   weekOffset === 0
                     ? 'bg-[#16221e] text-[#07CB6C] border border-[#1f332c]'
-                    : 'text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#111a17]'
+                    : 'text-[#9ca3af] hover:text-[#e5ebe7] hover:bg-[#111a17]'
                 }`}
               >
                 WEEK 1
@@ -434,7 +435,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 id="btn-next-week"
                 onClick={handleNextWeek}
                 disabled={weekOffset >= 11}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-sm text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#111a17] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-sm text-[#9ca3af] hover:text-[#e5ebe7] hover:bg-[#111a17] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 title="Next Week"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -445,25 +446,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         {/* Telemetry Summary Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs font-mono">
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
-            <div className="text-[10px] text-[#7e8f85] uppercase">TOTAL SESSIONS</div>
+          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#1a2824]">
+            <div className="text-[10px] text-[#9ca3af] uppercase">TOTAL SESSIONS</div>
             <div className="text-sm font-bold text-[#e5ebe7] mt-0.5">{data.sessions.length} UNITS</div>
           </div>
 
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
-            <div className="text-[10px] text-[#7e8f85] uppercase">ESTIMATED RUNTIME</div>
+          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#1a2824]">
+            <div className="text-[10px] text-[#9ca3af] uppercase">ESTIMATED RUNTIME</div>
             <div className="text-sm font-bold text-[#e5ebe7] mt-0.5">{totalHours} HOURS</div>
           </div>
 
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
-            <div className="text-[10px] text-[#7e8f85] uppercase">COMPLETION RATE</div>
+          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#1a2824]">
+            <div className="text-[10px] text-[#9ca3af] uppercase">COMPLETION RATE</div>
             <div className="text-sm font-bold text-[#07CB6C] mt-0.5">
               {data.sessions.length > 0 ? Math.round((completedSessions / data.sessions.length) * 100) : 0}% ({completedSessions}/{data.sessions.length})
             </div>
           </div>
 
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#182621]">
-            <div className="text-[10px] text-[#7e8f85] uppercase">PACING DRIFT</div>
+          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#1a2824]">
+            <div className="text-[10px] text-[#9ca3af] uppercase">PACING DRIFT</div>
             <div className={`text-sm font-bold mt-0.5 ${data.goal?.slippage_days > 0 ? 'text-[#f59e0b]' : 'text-[#07CB6C]'}`}>
               {data.goal?.slippage_days > 0 ? `+${data.goal.slippage_days} DAYS` : '0 DAYS [NOMINAL]'}
             </div>
@@ -483,7 +484,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             className={`rounded-md bg-[#0c1210] flex flex-col justify-between transition-colors border shadow-none ${
               day.isToday
                 ? 'border-[#07CB6C] ring-1 ring-[#07CB6C]/30'
-                : 'border-[#182621] hover:border-[#2a443a]'
+                : 'border-[#1a2824] hover:border-[#2a443a]'
             }`}
           >
             {/* Day Header - Clickable for full Chrono Timeline Modal */}
@@ -499,11 +500,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               className={`min-h-[44px] w-full p-3 border-b flex items-center justify-between text-left cursor-pointer transition-colors group/header ${
                 day.isToday
                   ? 'border-[#07CB6C]/30 bg-[#07CB6C]/5 hover:bg-[#07CB6C]/10'
-                  : 'border-[#182621] bg-[#080d0b] hover:bg-[#111a17]'
+                  : 'border-[#1a2824] bg-[#080d0b] hover:bg-[#111a17]'
               }`}
             >
               <div className="min-w-0">
-                <div className="text-[10px] font-mono font-bold tracking-wider text-[#7e8f85] group-hover/header:text-[#07CB6C] transition-colors flex items-center gap-1">
+                <div className="text-[10px] font-mono font-bold tracking-wider text-[#9ca3af] group-hover/header:text-[#07CB6C] transition-colors flex items-center gap-1">
                   <span>{day.dayShort}</span>
                   <Eye className="w-2.5 h-2.5 opacity-0 group-hover/header:opacity-100 transition-opacity text-[#07CB6C]" />
                 </div>
@@ -520,7 +521,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 )}
 
                 {day.dayKey === 'SUN' && (
-                  <span className="px-1.5 py-0.5 rounded-sm bg-[#182621] border border-dashed border-[#2a443a] text-[#7e8f85] text-[9px] font-mono font-bold uppercase">
+                  <span className="px-1.5 py-0.5 rounded-sm bg-[#1a2824] border border-dashed border-[#2a443a] text-[#9ca3af] text-[9px] font-mono font-bold uppercase">
                     BUFFER
                   </span>
                 )}
@@ -540,7 +541,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     {day.busySlots.map((busy, bIdx) => (
                       <div
                         key={bIdx}
-                        className="px-2 py-1 rounded-sm bg-[#080d0b] border border-[#182621] text-[10px] font-mono text-[#7e8f85] flex items-center justify-between gap-1"
+                        className="px-2 py-1 rounded-sm bg-[#080d0b] border border-[#1a2824] text-[10px] font-mono text-[#9ca3af] flex items-center justify-between gap-1"
                       >
                         <span className="truncate max-w-[80px]">{busy.label || 'Busy'}</span>
                         <span className="shrink-0 text-[9px]">{busy.start_time}–{busy.end_time}</span>
@@ -553,7 +554,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               {/* Goal Sessions Section */}
               <div className="space-y-2 flex-1">
                 {day.sessions.length === 0 ? (
-                  <div className="h-full min-h-[80px] rounded-sm border border-dashed border-[#182621] p-3 flex flex-col items-center justify-center text-center text-[#55675c] text-[10px] font-mono">
+                  <div className="h-full min-h-[80px] rounded-sm border border-dashed border-[#1a2824] p-3 flex flex-col items-center justify-center text-center text-[#55675c] text-[10px] font-mono">
                     <span>UNRESERVED</span>
                     <span className="text-[9px] text-[#425047] mt-0.5">Open Buffer Window</span>
                   </div>
@@ -570,11 +571,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           onClick={() => setSelectedSession(session)}
                           className={`min-h-[44px] p-2.5 rounded-sm transition-colors space-y-2 cursor-pointer relative ${
                             isDone
-                              ? 'bg-[#080d0b] border border-[#182621] text-[#55675c]'
+                              ? 'bg-[#080d0b] border border-[#1a2824] text-[#55675c]'
                               : tier === 'core'
                               ? 'bg-[#0c1210] border border-[#07CB6C]/40 hover:border-[#07CB6C]'
                               : tier === 'buffer'
-                              ? 'bg-[#0c1210] border border-dashed border-[#182621] hover:border-[#2a443a]'
+                              ? 'bg-[#0c1210] border border-dashed border-[#1a2824] hover:border-[#2a443a]'
                               : 'bg-[#0c1210] border border-[#1f332c] hover:border-[#07CB6C]/50'
                           }`}
                         >
@@ -590,8 +591,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                   </span>
                                 )}
                                 {tier === 'buffer' && (
-                                  <span className="text-[9px] font-mono font-bold text-[#7e8f85] flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#7e8f85]" />
+                                  <span className="text-[9px] font-mono font-bold text-[#9ca3af] flex items-center gap-1">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#9ca3af]" />
                                     [BUFFER]
                                   </span>
                                 )}
@@ -625,7 +626,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               type="button"
                               onClick={(e) => handleToggleDoneDirect(e, session)}
                               title={isDone ? 'Mark Upcoming' : 'Mark Done'}
-                              className="min-h-[44px] min-w-[44px] -m-2 flex items-center justify-center rounded-sm text-[#7e8f85] hover:text-[#07CB6C] transition-colors cursor-pointer shrink-0"
+                              className="min-h-[44px] min-w-[44px] -m-2 flex items-center justify-center rounded-sm text-[#9ca3af] hover:text-[#07CB6C] transition-colors cursor-pointer shrink-0"
                             >
                               {isDone ? (
                                 <CheckCircle2 className="w-4 h-4 text-[#07CB6C]" />
@@ -636,11 +637,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           </div>
 
                           {/* Time & Duration in Tabular Monospace */}
-                          <div className="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-[#182621]">
+                          <div className="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-[#1a2824]">
                             <span className="text-[#a6b8ad]">
                               {session.start_time || '09:00'} – {session.end_time || '10:00'}
                             </span>
-                            <span className="text-[#7e8f85] flex items-center gap-1">
+                            <span className="text-[#9ca3af] flex items-center gap-1">
                               {getTimeIcon(session.task_template?.preferred_time_of_day)}
                               <span>{session.task_template?.session_duration_minutes || 60}M</span>
                             </span>

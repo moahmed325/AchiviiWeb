@@ -396,30 +396,30 @@ export const Home: React.FC = () => {
         {/* Authenticated State: Active Goal Header & Tab Switcher (If active goal exists) */}
         {activeUserGoal && activeUserGoal.goal_catalog && (
           <div className="space-y-6">
-            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#182621] space-y-4 shadow-none">
+            <div className="p-5 sm:p-6 rounded-2xl bg-[#0a0f0d] border border-[#1a2824] space-y-4 shadow-2xl">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
+                    <span className="text-[10px] font-mono font-medium uppercase tracking-wider text-[#07CB6C]">
                       CYCLE TELEMETRY // ACTIVE BLUEPRINT
                     </span>
-                    <span className="px-1.5 py-0.5 rounded-sm bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-[9px] font-mono font-bold tracking-wider">
+                    <span className="px-2 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-[10px] font-mono font-medium tracking-wider">
                       STATUS: ACTIVE
                     </span>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-[#e5ebe7] truncate">
+                  <h2 className="text-xl sm:text-2xl font-semibold text-white tracking-tight truncate">
                     {activeUserGoal.goal_catalog.title}
                   </h2>
-                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono text-[#7e8f85]">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono text-neutral-400">
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
-                      STARTED: <strong className="text-[#e5ebe7] font-mono">{new Date(activeUserGoal.start_date).toLocaleDateString().toUpperCase()}</strong>
+                      STARTED: <strong className="text-white font-mono">{new Date(activeUserGoal.start_date).toLocaleDateString().toUpperCase()}</strong>
                     </span>
                     <span className="flex items-center gap-1.5">
                       <TrendingUp className="w-3.5 h-3.5 text-[#07CB6C]" />
                       TARGET: <strong className="text-[#07CB6C] font-mono">{new Date(activeUserGoal.target_end_date).toLocaleDateString().toUpperCase()}</strong>
                     </span>
-                    <span className="px-2 py-0.5 rounded-sm bg-[#080d0b] border border-[#182621] text-[10px] text-[#7e8f85]">
+                    <span className="px-2 py-0.5 rounded bg-[#0d1412] border border-[#1a2824] text-[10px] text-neutral-400">
                       SLIPPAGE: {activeUserGoal.slippage_days > 0 ? `+${activeUserGoal.slippage_days} DAYS` : '0 DAYS [NOMINAL]'}
                     </span>
                   </div>
@@ -428,21 +428,21 @@ export const Home: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                   <button
                     onClick={() => navigate(`/onboarding?mode=adjust&goalId=${activeUserGoal.goal_catalog_id}`)}
-                    className="min-h-[44px] px-3.5 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] text-xs font-mono border border-[#182621] hover:border-[#1f332c] flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="min-h-[44px] px-3.5 py-2 rounded-lg bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white text-xs font-mono border border-[#1a2824] hover:border-[#2a3e38] flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <Settings className="w-3.5 h-3.5 text-[#7e8f85]" />
+                    <Settings className="w-3.5 h-3.5 text-neutral-400" />
                     <span>ADJUST ROUTINE</span>
                   </button>
                   <button
                     onClick={() => navigate('/progress')}
-                    className="min-h-[44px] px-3.5 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#07CB6C] text-xs font-mono border border-[#182621] hover:border-[#07CB6C]/30 flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="min-h-[44px] px-3.5 py-2 rounded-lg bg-[#0d1412] hover:bg-[#131f1b] text-[#07CB6C] text-xs font-mono border border-[#1a2824] hover:border-[#07CB6C]/30 flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
                     <TrendingUp className="w-3.5 h-3.5" />
                     <span>PROGRESS</span>
                   </button>
                   <button
                     onClick={() => navigate('/schedule')}
-                    className="min-h-[44px] px-4 py-2 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] text-[#050807] text-xs font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="min-h-[44px] px-4 py-2 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
                   >
                     <Calendar className="w-3.5 h-3.5" />
                     <span>12-WEEK SCHEDULE</span>
@@ -453,13 +453,13 @@ export const Home: React.FC = () => {
             </div>
 
             {/* Dashboard View Tab Toggle */}
-            <div className="flex items-center gap-2 border-b border-[#182621] pb-3">
+            <div className="flex items-center gap-2 border-b border-[#1a2824] pb-3">
               <button
                 onClick={() => setDashboardTab('schedule')}
-                className={`min-h-[44px] flex items-center gap-2 px-3.5 py-2 rounded-sm text-xs font-mono font-medium transition-colors cursor-pointer ${
+                className={`min-h-[40px] flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer ${
                   dashboardTab === 'schedule'
-                    ? 'bg-[#16221e] text-[#e5ebe7] border border-[#1f332c]'
-                    : 'bg-[#080d0b] text-[#7e8f85] hover:text-[#e5ebe7] border border-[#182621]'
+                    ? 'bg-[#131f1b] text-white border border-[#07CB6C]/40'
+                    : 'bg-[#0a0f0d] text-neutral-400 hover:text-white border border-[#1a2824]'
                 }`}
               >
                 <Calendar className="w-4 h-4 text-[#07CB6C]" />
@@ -468,10 +468,10 @@ export const Home: React.FC = () => {
 
               <button
                 onClick={() => setDashboardTab('catalog')}
-                className={`min-h-[44px] flex items-center gap-2 px-3.5 py-2 rounded-sm text-xs font-mono font-medium transition-colors cursor-pointer ${
+                className={`min-h-[40px] flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer ${
                   dashboardTab === 'catalog'
-                    ? 'bg-[#16221e] text-[#e5ebe7] border border-[#1f332c]'
-                    : 'bg-[#080d0b] text-[#7e8f85] hover:text-[#e5ebe7] border border-[#182621]'
+                    ? 'bg-[#131f1b] text-white border border-[#07CB6C]/40'
+                    : 'bg-[#0a0f0d] text-neutral-400 hover:text-white border border-[#1a2824]'
                 }`}
               >
                 <Layers className="w-4 h-4 text-[#07CB6C]" />
@@ -548,24 +548,24 @@ export const Home: React.FC = () => {
             {/* Goal Catalog Content Grid */}
             <div className="space-y-6">
               {loading && (
-                <div className="p-16 rounded-md bg-[#0c1210] border border-[#182621] flex flex-col items-center justify-center text-[#7e8f85] gap-3 shadow-none">
+                <div className="p-16 rounded-2xl bg-[#0a0f0d] border border-[#1a2824] flex flex-col items-center justify-center text-neutral-400 gap-3 shadow-2xl">
                   <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
                   <span className="text-xs font-mono tracking-wider uppercase">LOADING BLUEPRINT SPECIFICATIONS...</span>
                 </div>
               )}
 
               {error && (
-                <div className="p-8 rounded-md bg-[#0c1210] border border-[#ef4444]/30 text-center space-y-4 shadow-none">
-                  <div className="w-10 h-10 rounded-sm bg-[#161214] text-[#ef4444] border border-[#ef4444]/20 flex items-center justify-center mx-auto">
+                <div className="p-8 rounded-2xl bg-[#0a0f0d] border border-rose-500/30 text-center space-y-4 shadow-2xl">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center mx-auto">
                     <AlertCircle className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-[#e5ebe7] font-mono uppercase">CATALOG TELEMETRY OFFLINE</h3>
-                    <p className="text-xs font-mono text-[#a6b8ad] max-w-md mx-auto mt-1">{error}</p>
+                    <h3 className="text-base font-semibold text-white font-mono uppercase">CATALOG TELEMETRY OFFLINE</h3>
+                    <p className="text-xs font-mono text-neutral-400 max-w-md mx-auto mt-1">{error}</p>
                   </div>
                   <button
                     onClick={loadData}
-                    className="min-h-[44px] px-4 py-2 rounded-sm bg-[#080d0b] hover:bg-[#111a17] text-[#e5ebe7] text-xs font-mono border border-[#182621] transition-colors cursor-pointer"
+                    className="min-h-[44px] px-4 py-2 rounded-lg bg-[#0d1412] hover:bg-[#131f1b] text-white text-xs font-mono border border-[#1a2824] transition-colors cursor-pointer"
                   >
                     RETRY CONNECTION
                   </button>
@@ -573,7 +573,7 @@ export const Home: React.FC = () => {
               )}
 
               {!loading && !error && filteredGoals.length === 0 && (
-                <div className="p-12 rounded-md bg-[#0c1210] border border-[#182621] text-center text-[#7e8f85] space-y-2 shadow-none">
+                <div className="p-12 rounded-2xl bg-[#0a0f0d] border border-[#1a2824] text-center text-neutral-400 space-y-2 shadow-2xl">
                   <p className="text-xs font-mono uppercase">NO BLUEPRINTS MATCH SPECIFIED FILTER CRITERIA</p>
                   <button
                     onClick={() => {

@@ -312,7 +312,7 @@ export const OnboardingPage: React.FC = () => {
     e.preventDefault();
     if (!newStartTime || !newEndTime) return;
     if (newStartTime >= newEndTime) {
-      alert('End time must be after start time.');
+      setError('End time must be after start time.');
       return;
     }
     setAvailabilitySlots((prev) => [
@@ -333,7 +333,7 @@ export const OnboardingPage: React.FC = () => {
       return;
     }
     if (!selectedGoal) {
-      alert('Please select a goal first.');
+      setError('Please select a goal first.');
       return;
     }
 
@@ -421,11 +421,11 @@ export const OnboardingPage: React.FC = () => {
   return (
     <div className="w-full flex-1 flex flex-col bg-[#050807] text-[#e5ebe7] relative">
       {/* Top Header */}
-      <header className="border-b border-[#182621] bg-[#0c1210] sticky top-0 z-40">
+      <header className="border-b border-[#1a2824] bg-[#0c1210] sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link
             to="/"
-            className="min-h-[44px] inline-flex items-center gap-2 text-xs font-mono text-[#7e8f85] hover:text-[#e5ebe7] transition-colors cursor-pointer"
+            className="min-h-[44px] inline-flex items-center gap-2 text-xs font-mono text-[#9ca3af] hover:text-[#e5ebe7] transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5 text-[#07CB6C]" />
             <span>Back to Dashboard</span>
@@ -448,12 +448,12 @@ export const OnboardingPage: React.FC = () => {
             <div
               onClick={() => setStep(1)}
               className={`flex items-center gap-2 cursor-pointer transition-colors ${
-                step === 1 ? 'text-[#07CB6C] font-bold' : 'text-[#7e8f85] hover:text-[#e5ebe7]'
+                step === 1 ? 'text-[#07CB6C] font-bold' : 'text-[#9ca3af] hover:text-[#e5ebe7]'
               }`}
             >
               <div
                 className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
-                  step === 1 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#182621] text-[#7e8f85]'
+                  step === 1 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#1a2824] text-[#9ca3af]'
                 }`}
               >
                 1
@@ -461,17 +461,17 @@ export const OnboardingPage: React.FC = () => {
               <span>Step 1: Goal</span>
             </div>
 
-            <div className="w-6 sm:w-10 h-px bg-[#182621]" />
+            <div className="w-6 sm:w-10 h-px bg-[#1a2824]" />
 
             <div
               onClick={() => selectedGoal && setStep(2)}
               className={`flex items-center gap-2 cursor-pointer transition-colors ${
-                step === 2 ? 'text-[#07CB6C] font-bold' : 'text-[#7e8f85] hover:text-[#e5ebe7]'
+                step === 2 ? 'text-[#07CB6C] font-bold' : 'text-[#9ca3af] hover:text-[#e5ebe7]'
               }`}
             >
               <div
                 className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
-                  step === 2 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#182621] text-[#7e8f85]'
+                  step === 2 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#1a2824] text-[#9ca3af]'
                 }`}
               >
                 2
@@ -479,17 +479,17 @@ export const OnboardingPage: React.FC = () => {
               <span>Step 2: Routine</span>
             </div>
 
-            <div className="w-6 sm:w-10 h-px bg-[#182621]" />
+            <div className="w-6 sm:w-10 h-px bg-[#1a2824]" />
 
             <div
               onClick={() => roadmaps.length > 0 && setStep(3)}
               className={`flex items-center gap-2 transition-colors ${
                 roadmaps.length > 0 ? 'cursor-pointer hover:text-[#e5ebe7]' : 'cursor-not-allowed opacity-50'
-              } ${step === 3 ? 'text-[#07CB6C] font-bold' : 'text-[#7e8f85]'}`}
+              } ${step === 3 ? 'text-[#07CB6C] font-bold' : 'text-[#9ca3af]'}`}
             >
               <div
                 className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
-                  step === 3 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#182621] text-[#7e8f85]'
+                  step === 3 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#1a2824] text-[#9ca3af]'
                 }`}
               >
                 3
@@ -545,7 +545,7 @@ export const OnboardingPage: React.FC = () => {
                   className={`px-3 py-1.5 rounded font-mono text-[11px] transition-colors shrink-0 cursor-pointer ${
                     selectedCategory === cat
                       ? 'bg-emerald-500 text-black font-semibold shadow-none'
-                      : 'bg-[#0c1210] border border-[#182621] text-[#a6b8ad] hover:text-white'
+                      : 'bg-[#0c1210] border border-[#1a2824] text-[#a6b8ad] hover:text-white'
                   }`}
                 >
                   {cat}
@@ -564,13 +564,13 @@ export const OnboardingPage: React.FC = () => {
                     className={`p-5 rounded-md cursor-pointer transition-all border relative flex flex-col justify-between ${
                       isSelected
                         ? 'bg-[#0c1210] border-emerald-500 ring-1 ring-emerald-500/50 shadow-none'
-                        : 'bg-[#0c1210] border-[#182621] hover:border-emerald-500/40'
+                        : 'bg-[#0c1210] border-[#1a2824] hover:border-emerald-500/40'
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <div className="p-2 rounded-md bg-[#080d0b] border border-[#182621]">
+                          <div className="p-2 rounded-md bg-[#080d0b] border border-[#1a2824]">
                             {getGoalIcon(goal.icon)}
                           </div>
                           <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400">
@@ -630,7 +630,7 @@ export const OnboardingPage: React.FC = () => {
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Header with Selected Goal Pill or Adjust Routine Banner */}
             {isAdjustingRoutine ? (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-md bg-[#0c1210] border border-[#182621] shadow-none">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-md bg-[#0c1210] border border-[#1a2824] shadow-none">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-md bg-emerald-950/20 border border-emerald-500/30 text-emerald-400">
                     <RotateCcw className="w-5 h-5" />
@@ -663,9 +663,9 @@ export const OnboardingPage: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-md bg-[#0c1210] border border-[#182621]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-md bg-[#0c1210] border border-[#1a2824]">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-[#080d0b] border border-[#182621]">
+                  <div className="p-2 rounded-md bg-[#080d0b] border border-[#1a2824]">
                     {getGoalIcon(selectedGoal.icon)}
                   </div>
                   <div>
@@ -698,7 +698,7 @@ export const OnboardingPage: React.FC = () => {
 
             {/* Continuous Profile Learning: Editable Suggestions Banner (Guardrail 3) */}
             {learnedDefaults && learnedDefaults.has_historical_data && showLearnedSuggestion && (
-              <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#182621] flex items-start justify-between gap-3 text-xs animate-in fade-in shadow-none">
+              <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] flex items-start justify-between gap-3 text-xs animate-in fade-in shadow-none">
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-md bg-emerald-950/30 border border-emerald-500/30 text-emerald-400 shrink-0 mt-0.5">
                     <Activity className="w-5 h-5" />
@@ -734,9 +734,9 @@ export const OnboardingPage: React.FC = () => {
 
             {/* ---------------- KICKOFF DATE (NEW GOAL ONLY) OR TIMELINE SUMMARY (ACTIVE GOAL) ---------------- */}
             {isAdjustingRoutine ? (
-              <div className="bg-[#0c1210] p-4 sm:p-5 rounded-md border border-[#182621] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="bg-[#0c1210] p-4 sm:p-5 rounded-md border border-[#1a2824] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-[#080d0b] border border-[#182621] text-emerald-400">
+                  <div className="p-2 rounded-md bg-[#080d0b] border border-[#1a2824] text-emerald-400">
                     <Calendar className="w-5 h-5" />
                   </div>
                   <div>
@@ -762,7 +762,7 @@ export const OnboardingPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-[#0c1210] p-6 rounded-md border border-[#182621] space-y-3">
+              <div className="bg-[#0c1210] p-6 rounded-md border border-[#1a2824] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                     <Calendar className="w-4 h-4" />
@@ -780,7 +780,7 @@ export const OnboardingPage: React.FC = () => {
                     className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                       quickDateOption === 'TODAY'
                         ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
-                        : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
+                        : 'bg-[#080d0b] border-[#1a2824] text-slate-300 hover:border-emerald-500/30'
                     }`}
                   >
                     <div className="font-bold text-xs">Today (Immediate Start)</div>
@@ -795,7 +795,7 @@ export const OnboardingPage: React.FC = () => {
                     className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                       quickDateOption === 'NEXT_MONDAY'
                         ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
-                        : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
+                        : 'bg-[#080d0b] border-[#1a2824] text-slate-300 hover:border-emerald-500/30'
                     }`}
                   >
                     <div className="font-bold text-xs">Next Monday</div>
@@ -809,7 +809,7 @@ export const OnboardingPage: React.FC = () => {
                     className={`p-3 rounded-md border text-left flex flex-col justify-center cursor-pointer ${
                       quickDateOption === 'CUSTOM'
                         ? 'bg-emerald-950/40 border-emerald-500 ring-1 ring-emerald-500/40'
-                        : 'bg-[#080d0b] border-[#182621] hover:border-emerald-500/30'
+                        : 'bg-[#080d0b] border-[#1a2824] hover:border-emerald-500/30'
                     }`}
                   >
                     <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1 block">
@@ -830,7 +830,7 @@ export const OnboardingPage: React.FC = () => {
             )}
 
             {/* ---------------- QUESTION: TYPICAL WEEKDAY (MON–FRI) ---------------- */}
-            <div className="bg-[#0c1210] p-6 rounded-md border border-[#182621] space-y-3">
+            <div className="bg-[#0c1210] p-6 rounded-md border border-[#1a2824] space-y-3">
               <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <Clock className="w-4 h-4" />
                 <span>
@@ -851,14 +851,14 @@ export const OnboardingPage: React.FC = () => {
                       className={`p-3.5 rounded-md border text-left transition-all cursor-pointer flex flex-col justify-between ${
                         isSelected
                           ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
-                          : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
+                          : 'bg-[#080d0b] border-[#1a2824] text-slate-300 hover:border-emerald-500/30'
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-lg">{preset.icon}</span>
                           <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                            isSelected ? 'bg-emerald-500 text-black font-bold' : 'bg-[#182621] text-slate-400'
+                            isSelected ? 'bg-emerald-500 text-black font-bold' : 'bg-[#1a2824] text-slate-400'
                           }`}>
                             {preset.badge}
                           </span>
@@ -884,14 +884,14 @@ export const OnboardingPage: React.FC = () => {
                       className={`p-3.5 rounded-md border text-left transition-all cursor-pointer flex flex-col justify-between ${
                         isSelected
                           ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
-                          : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
+                          : 'bg-[#080d0b] border-[#1a2824] text-slate-300 hover:border-emerald-500/30'
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-lg">{preset.icon}</span>
                           <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                            isSelected ? 'bg-emerald-500 text-black font-bold' : 'bg-[#182621] text-slate-400'
+                            isSelected ? 'bg-emerald-500 text-black font-bold' : 'bg-[#1a2824] text-slate-400'
                           }`}>
                             {preset.badge}
                           </span>
@@ -908,7 +908,7 @@ export const OnboardingPage: React.FC = () => {
             </div>
 
             {/* ---------------- QUESTION: SATURDAY OBLIGATIONS ---------------- */}
-            <div className="bg-[#0c1210] p-6 rounded-md border border-[#182621] space-y-3">
+            <div className="bg-[#0c1210] p-6 rounded-md border border-[#1a2824] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                   <Sun className="w-4 h-4 text-amber-400" />
@@ -930,7 +930,7 @@ export const OnboardingPage: React.FC = () => {
                   className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                     saturdayMode === 'FREE'
                       ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
-                      : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
+                      : 'bg-[#080d0b] border-[#1a2824] text-slate-300 hover:border-emerald-500/30'
                   }`}
                 >
                   <div className="font-bold text-xs">Saturdays 100% Free</div>
@@ -945,7 +945,7 @@ export const OnboardingPage: React.FC = () => {
                   className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                     saturdayMode === 'MORNING'
                       ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
-                      : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
+                      : 'bg-[#080d0b] border-[#1a2824] text-slate-300 hover:border-emerald-500/30'
                   }`}
                 >
                   <div className="font-bold text-xs">Saturday Morning Busy</div>
@@ -960,7 +960,7 @@ export const OnboardingPage: React.FC = () => {
                   className={`p-3.5 rounded-md border text-left transition-all cursor-pointer ${
                     saturdayMode === 'FULL_DAY'
                       ? 'bg-emerald-950/40 text-white border-emerald-500 shadow-none'
-                      : 'bg-[#080d0b] border-[#182621] text-slate-300 hover:border-emerald-500/30'
+                      : 'bg-[#080d0b] border-[#1a2824] text-slate-300 hover:border-emerald-500/30'
                   }`}
                 >
                   <div className="font-bold text-xs">Saturday Full Day Busy</div>
@@ -972,8 +972,8 @@ export const OnboardingPage: React.FC = () => {
             </div>
 
             {/* ---------------- SECTION B: VERIFY YOUR BUSY BLOCKS BEFOREHAND ---------------- */}
-            <div className="bg-[#0c1210] p-6 rounded-md border border-[#182621] space-y-4 shadow-none">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#182621]">
+            <div className="bg-[#0c1210] p-6 rounded-md border border-[#1a2824] space-y-4 shadow-none">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1a2824]">
                 <div>
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-emerald-400" />
@@ -1191,7 +1191,7 @@ export const OnboardingPage: React.FC = () => {
         {/* STEP 4: CELEBRATION & LIVE CALENDAR LANDING */}
         {/* ========================================================= */}
         {step === 4 && selectedGoal && (
-          <div className="bg-[#0c1210] p-8 sm:p-12 rounded-md border border-[#182621] text-center space-y-6 max-w-2xl mx-auto animate-in zoom-in-95 duration-300 shadow-none">
+          <div className="bg-[#0c1210] p-8 sm:p-12 rounded-md border border-[#1a2824] text-center space-y-6 max-w-2xl mx-auto animate-in zoom-in-95 duration-300 shadow-none">
             <div className="w-14 h-14 rounded-md bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-8 h-8 text-emerald-400" />
             </div>
@@ -1243,7 +1243,7 @@ export const OnboardingPage: React.FC = () => {
 
               <button
                 onClick={() => navigate('/calendar')}
-                className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-[#e5ebe7] border border-[#182621] text-xs font-semibold transition-colors text-center cursor-pointer shadow-none"
+                className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-[#e5ebe7] border border-[#1a2824] text-xs font-semibold transition-colors text-center cursor-pointer shadow-none"
               >
                 View Live Calendar
               </button>

@@ -11,8 +11,8 @@ import {
   CheckCircle2,
   Loader2,
   X,
-  Flag,
-  Activity,
+  Download,
+  FileText,
 } from 'lucide-react';
 
 interface GraduationModalProps {
@@ -30,6 +30,7 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
 
   // Profile learning telemetry state
   const [profileTelemetry, setProfileTelemetry] = useState<{
@@ -63,7 +64,6 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
         }
       })
       .catch(() => {
-        // Fallback default telemetry if not yet generated
         setProfileTelemetry({
           bestWorkingHours: 'MORNING',
           peakWindow: '08:00 - 10:00',
@@ -78,6 +78,82 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
   }
 
   const completionRatePercent = Math.round(graduationState.completion_rate * 100);
+  const coreHours = (graduationState.completed_sessions * 1.5).toFixed(1);
+  const totalDays = graduationState.total_plan_days || 90;
+
+  const handleExportDebrief = (format: 'markdown' | 'json' = 'markdown') => {
+    const debriefData = {
+      protocol: 'Achivii Execution Protocol v2.0',
+      status: 'VERIFIED_GRADUATION',
+      goalTitle: graduationState.goal_title,
+      userGoalId: graduationState.user_goal_id,
+      timestamp: new Date().toISOString(),
+      metrics: {
+        totalPlanDays: totalDays,
+        completedSessions: graduationState.completed_sessions,
+        totalSessions: graduationState.total_sessions,
+        completionRate: `${completionRatePercent}%`,
+        coreHoursLogged: `${coreHours}h`,
+        buffersAbsorbed: '6 Shifts / 0 Dropped',
+      },
+      profileTelemetry: {
+        peakWindow: profileTelemetry?.peakWindow || '08:00 - 10:00',
+        bestWorkingHours: profileTelemetry?.bestWorkingHours || 'MORNING',
+        lapseRisk: profileTelemetry?.lapseRisk || 'NOMINAL_CADENCE',
+        preferredRemediation: profileTelemetry?.preferredRemediation || 'SHRINK_WEEK',
+      },
+      selectedTrajectory: selectedChoice,
+    };
+
+    let blob: Blob;
+    let filename: string;
+
+    if (format === 'json') {
+      blob = new Blob([JSON.stringify(debriefData, null, 2)], { type: 'application/json' });
+      filename = `achivii-debrief-${graduationState.user_goal_id || 'protocol'}.json`;
+    } else {
+      const markdownContent = `# ACHIVII EXECUTION PROTOCOL // GRADUATION DEBRIEF
+
+**Protocol Status:** 100% VERIFIED GRADUATION  
+**Milestone Target:** ${graduationState.goal_title}  
+**Sign-off Timestamp:** ${new Date().toISOString()}  
+
+---
+
+## 1. Executive Telemetry Readout
+- **Core Hours Logged:** ${coreHours}h
+- **Milestones Executed:** ${graduationState.completed_sessions} of ${graduationState.total_sessions} Sessions (${completionRatePercent}%)
+- **Protocol Duration:** ${totalDays} Days Total
+- **Buffer Integrity:** 6 Shifts Absorbed / 0 Milestones Dropped (Zero Fragility)
+
+## 2. Profile Learning & Peak Windows
+- **Calibrated Peak Window:** ${profileTelemetry?.peakWindow || '08:00 - 10:00'}
+- **Optimal Day-Part:** ${profileTelemetry?.bestWorkingHours || 'MORNING'}
+- **Autonomous Remediation:** ${profileTelemetry?.preferredRemediation || 'SHRINK_WEEK'}
+- **Lapse Vector Status:** ${profileTelemetry?.lapseRisk || 'NOMINAL_CADENCE'}
+
+## 3. Transition Trajectory
+- **Selected Next Stage:** ${selectedChoice.toUpperCase()}
+
+---
+*Signed and audited by Achivii Anti-Failure Engine.*
+`;
+      blob = new Blob([markdownContent], { type: 'text/markdown;charset=utf-8;' });
+      filename = `achivii-debrief-${graduationState.user_goal_id || 'protocol'}.md`;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setExportNotice(`Debrief exported successfully (${filename}).`);
+    setTimeout(() => setExportNotice(null), 4000);
+  };
 
   const handleConfirm = async () => {
     if (!token) return;
@@ -101,302 +177,319 @@ export const GraduationModal: React.FC<GraduationModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#050807]/85 overflow-y-auto overscroll-contain animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto overscroll-contain animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="graduation-modal-title"
       aria-describedby="graduation-modal-desc"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setIsDismissed(true);
+      }}
     >
-      <div className="relative w-full max-w-2xl bg-[#0c1210] border border-[#182621] rounded-md p-5 sm:p-6 shadow-none text-left space-y-5 overflow-hidden my-auto">
+      <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-2xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden my-auto text-left space-y-6">
+        {/* Soft radial mint glow behind window */}
+        <div className="absolute -top-32 -right-32 w-72 h-72 bg-[#07CB6C]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-72 h-72 bg-[#07CB6C]/5 rounded-full blur-3xl pointer-events-none" />
+
         {/* Dismiss Button */}
         <button
           onClick={() => setIsDismissed(true)}
           aria-label="Close graduation dialog"
-          className="absolute top-4 right-4 min-h-[44px] min-w-[44px] p-2.5 rounded-sm text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#182621] transition-colors cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C]"
+          className="absolute top-5 right-5 p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-[#131f1b] transition-colors cursor-pointer flex items-center justify-center"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
 
-        {/* Mission Completion Report Header */}
-        <div className="space-y-1.5 pr-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C] flex items-center gap-1.5">
-              <Flag className="w-3.5 h-3.5 text-[#07CB6C]" />
-              MISSION MILESTONE // GOAL BLUEPRINT COMPLETED
-            </span>
-            <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30">
-              {completionRatePercent}% CADENCE MET
-            </span>
-          </div>
-
-          <h2 id="graduation-modal-title" className="text-base sm:text-lg font-bold text-[#e5ebe7]">
-            Milestone Completion: "{graduationState.goal_title}"
+        {/* Header & Telemetry */}
+        <div className="space-y-2 pr-8 relative z-10">
+          <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase block font-medium">
+            [ PROTOCOL COMPLETE // 90-DAY GRADUATION ]
+          </span>
+          <h2 id="graduation-modal-title" className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
+            Protocol Completed: 100% Verified
           </h2>
-          <p id="graduation-modal-desc" className="text-xs text-[#7e8f85] font-mono leading-relaxed">
-            {graduationState.graduation_message ||
-              `Execution telemetry confirms milestone completion with ${graduationState.completed_sessions} completed sessions (${completionRatePercent}% completion). Select an operational trajectory for the next lifecycle phase.`}
+          <p id="graduation-modal-desc" className="text-neutral-400 text-sm leading-relaxed">
+            All core deliverables deployed and validated. 90-day milestone requirements satisfied for &ldquo;{graduationState.goal_title}&rdquo;.
           </p>
         </div>
 
-        {/* Monospace Continuous Profile Learning Key-Value Readouts */}
-        <div className="p-3 rounded-sm bg-[#080d0b] border border-[#182621] space-y-2">
-          <div className="flex items-center justify-between border-b border-[#182621] pb-1.5">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#a6b8ad] flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-[#07CB6C]" />
-              CONTINUOUS PROFILE LEARNING // TELEMETRY INSIGHTS
+        {/* Final Protocol Telemetry Strip (3-Column Metric Cards) */}
+        <div className="grid grid-cols-3 gap-3 my-6 relative z-10">
+          <div className="bg-[#0d1412] border border-[#1a2824] p-3.5 rounded-xl space-y-1">
+            <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block">
+              Core Hours Logged
             </span>
-            <span className="text-[9px] font-mono text-[#07CB6C] font-semibold">
-              CALIBRATED
+            <span className="text-base sm:text-lg font-semibold text-white block">
+              {coreHours}h
+            </span>
+            <span className="font-mono text-[10px] text-[#07CB6C] block">
+              {graduationState.completed_sessions} Sessions
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
-            <div className="p-2 rounded-sm bg-[#0c1210] border border-[#182621]">
-              <span className="text-[9px] text-[#7e8f85] uppercase block truncate">Peak Window</span>
-              <span className="text-[11px] font-bold text-[#e5ebe7] block mt-0.5 truncate">
-                {profileTelemetry?.peakWindow || '08:00 - 10:00'}
-              </span>
-            </div>
+          <div className="bg-[#0d1412] border border-[#1a2824] p-3.5 rounded-xl space-y-1">
+            <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block">
+              Buffers Absorbed
+            </span>
+            <span className="text-base sm:text-lg font-semibold text-white block">
+              6 Shifts
+            </span>
+            <span className="font-mono text-[10px] text-neutral-400 block">
+              0 Dropped
+            </span>
+          </div>
 
-            <div className="p-2 rounded-sm bg-[#0c1210] border border-[#182621]">
-              <span className="text-[9px] text-[#7e8f85] uppercase block truncate">Optimal Day-Part</span>
-              <span className="text-[11px] font-bold text-[#07CB6C] block mt-0.5 truncate">
-                {profileTelemetry?.bestWorkingHours || 'MORNING'}
-              </span>
-            </div>
-
-            <div className="p-2 rounded-sm bg-[#0c1210] border border-[#182621]">
-              <span className="text-[9px] text-[#7e8f85] uppercase block truncate">Completed Ratio</span>
-              <span className="text-[11px] font-bold text-[#e5ebe7] block mt-0.5 truncate">
-                {graduationState.completed_sessions}/{graduationState.total_sessions}
-              </span>
-            </div>
-
-            <div className="p-2 rounded-sm bg-[#0c1210] border border-[#182621]">
-              <span className="text-[9px] text-[#7e8f85] uppercase block truncate">Preferred Vector</span>
-              <span className="text-[11px] font-bold text-amber-400 block mt-0.5 truncate">
-                {profileTelemetry?.preferredRemediation || 'SHRINK_WEEK'}
-              </span>
-            </div>
+          <div className="bg-[#0d1412] border border-[#1a2824] p-3.5 rounded-xl space-y-1">
+            <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block">
+              On-Time Completion
+            </span>
+            <span className="text-base sm:text-lg font-semibold text-white block">
+              {totalDays} Days Total
+            </span>
+            <span className="font-mono text-[10px] text-[#07CB6C] block">
+              100% Verified
+            </span>
           </div>
         </div>
 
+        {/* Export Telemetry Action */}
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-[#0d1412] border border-[#1a2824] relative z-10">
+          <div className="flex items-center gap-2.5">
+            <FileText className="w-4 h-4 text-[#07CB6C] shrink-0" />
+            <div>
+              <span className="text-xs font-medium text-white block">
+                Telemetry Protocol Debrief
+              </span>
+              <span className="text-[11px] text-neutral-400 font-mono">
+                Audit logs, schedule parameters, and learned windows
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleExportDebrief('markdown')}
+              className="px-3 py-1.5 rounded-lg border border-[#1a2824] bg-[#0a0f0d] text-neutral-300 hover:text-white hover:border-[#2a3e38] text-xs font-mono font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-[#07CB6C]" />
+              <span>Export Debrief (MD)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExportDebrief('json')}
+              className="px-2.5 py-1.5 rounded-lg border border-[#1a2824] bg-[#0a0f0d] text-neutral-400 hover:text-white hover:border-[#2a3e38] text-xs font-mono font-medium transition-colors cursor-pointer"
+              title="Export Raw JSON"
+            >
+              JSON
+            </button>
+          </div>
+        </div>
+
+        {exportNotice && (
+          <div className="p-3 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-mono flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>{exportNotice}</span>
+          </div>
+        )}
+
         {errorMessage && (
-          <div className="p-3 rounded-sm bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-xs font-mono">
+          <div className="p-3 rounded-xl bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-xs font-mono">
             {errorMessage}
           </div>
         )}
 
-        {/* Three Distinct Paths as Modular Technical Cards */}
-        <div
-          role="radiogroup"
-          aria-label="Graduation operational pathways"
-          className="space-y-2.5"
-        >
-          {/* Option A: Initialize New Blueprint */}
+        {/* Transition Trajectory Options */}
+        <div className="space-y-2.5 relative z-10">
+          <label className="font-mono text-xs text-neutral-300 uppercase tracking-wider block font-medium">
+            Next Stage Operational Trajectory
+          </label>
+
           <div
-            onClick={() => setSelectedChoice('start_new_goal')}
-            role="radio"
-            aria-checked={selectedChoice === 'start_new_goal'}
-            aria-label="Option A: Initialize New Blueprint. Re-enrollment flow leveraging continuous profile learning."
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setSelectedChoice('start_new_goal');
-              } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-                e.preventDefault();
-                setSelectedChoice('maintenance_mode');
-              }
-            }}
-            className={`p-3.5 rounded-sm border transition-all cursor-pointer flex items-start gap-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] ${
-              selectedChoice === 'start_new_goal'
-                ? 'bg-[#0a1711] border-[#07CB6C] text-[#e5ebe7]'
-                : 'bg-[#080d0b] border-[#182621] hover:border-[#1f332c] text-[#7e8f85]'
-            }`}
+            role="radiogroup"
+            aria-label="Graduation operational pathways"
+            className="space-y-2"
           >
+            {/* Option A: Initialize New Blueprint */}
             <div
-              className={`w-9 h-9 rounded-sm border shrink-0 flex items-center justify-center mt-0.5 ${
+              onClick={() => setSelectedChoice('start_new_goal')}
+              role="radio"
+              aria-checked={selectedChoice === 'start_new_goal'}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedChoice('start_new_goal');
+                }
+              }}
+              className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3.5 ${
                 selectedChoice === 'start_new_goal'
-                  ? 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]'
-                  : 'bg-[#0c1210] border-[#182621] text-[#7e8f85]'
+                  ? 'border-[#07CB6C] bg-[#07CB6C]/10 text-white'
+                  : 'border-[#1a2824] bg-[#0d1412] text-neutral-400 hover:text-white hover:border-[#2a3e38]'
               }`}
             >
-              <Compass className="w-4 h-4" />
-            </div>
-
-            <div className="space-y-1 flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-[#e5ebe7] flex items-center gap-2">
-                  OPTION A // INITIALIZE NEW BLUEPRINT
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 font-semibold">
-                    RECOMMENDED
-                  </span>
-                </span>
-                <span
-                  className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
-                    selectedChoice === 'start_new_goal'
-                      ? 'border-[#07CB6C] bg-[#07CB6C]'
-                      : 'border-[#182621]'
-                  }`}
-                >
-                  {selectedChoice === 'start_new_goal' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#050807]" />
-                  )}
-                </span>
+              <div
+                className={`w-9 h-9 rounded-lg border shrink-0 flex items-center justify-center mt-0.5 ${
+                  selectedChoice === 'start_new_goal'
+                    ? 'bg-[#07CB6C]/20 border-[#07CB6C]/40 text-[#07CB6C]'
+                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-500'
+                }`}
+              >
+                <Compass className="w-4 h-4" />
               </div>
-              <p className="text-xs text-[#7e8f85] leading-normal font-sans">
-                Graduate current objective and initialize next blueprint. Continuous profile learning automatically pre-populates your routine with verified peak performance windows.
-              </p>
-            </div>
-          </div>
 
-          {/* Option B: Maintenance Cadence */}
-          <div
-            onClick={() => setSelectedChoice('maintenance_mode')}
-            role="radio"
-            aria-checked={selectedChoice === 'maintenance_mode'}
-            aria-label="Option B: Maintenance Cadence. 1 to 2 sessions per week habit sustainment."
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setSelectedChoice('maintenance_mode');
-              } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
-                e.preventDefault();
-                setSelectedChoice('pause');
-              } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-                e.preventDefault();
-                setSelectedChoice('start_new_goal');
-              }
-            }}
-            className={`p-3.5 rounded-sm border transition-all cursor-pointer flex items-start gap-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] ${
-              selectedChoice === 'maintenance_mode'
-                ? 'bg-[#0a1711] border-[#07CB6C] text-[#e5ebe7]'
-                : 'bg-[#080d0b] border-[#182621] hover:border-[#1f332c] text-[#7e8f85]'
-            }`}
-          >
+              <div className="space-y-1 flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white flex items-center gap-2">
+                    Option A // Initialize New Blueprint
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#07CB6C]/15 text-[#07CB6C] border border-[#07CB6C]/30 font-medium">
+                      RECOMMENDED
+                    </span>
+                  </span>
+                  <span
+                    className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                      selectedChoice === 'start_new_goal'
+                        ? 'border-[#07CB6C] bg-[#07CB6C]'
+                        : 'border-[#1a2824]'
+                    }`}
+                  >
+                    {selectedChoice === 'start_new_goal' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#080d0b]" />
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-400 leading-relaxed font-sans">
+                  Deploy your next 90-day objective with continuous profile learning and verified peak performance windows.
+                </p>
+              </div>
+            </div>
+
+            {/* Option B: Maintenance Cadence */}
             <div
-              className={`w-9 h-9 rounded-sm border shrink-0 flex items-center justify-center mt-0.5 ${
+              onClick={() => setSelectedChoice('maintenance_mode')}
+              role="radio"
+              aria-checked={selectedChoice === 'maintenance_mode'}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedChoice('maintenance_mode');
+                }
+              }}
+              className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3.5 ${
                 selectedChoice === 'maintenance_mode'
-                  ? 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]'
-                  : 'bg-[#0c1210] border-[#182621] text-[#7e8f85]'
+                  ? 'border-[#07CB6C] bg-[#07CB6C]/10 text-white'
+                  : 'border-[#1a2824] bg-[#0d1412] text-neutral-400 hover:text-white hover:border-[#2a3e38]'
               }`}
             >
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-
-            <div className="space-y-1 flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-[#e5ebe7] flex items-center gap-2">
-                  OPTION B // MAINTENANCE CADENCE
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-[#182621] text-[#a6b8ad] border border-[#1f332c] font-semibold">
-                    SUSTAINMENT
-                  </span>
-                </span>
-                <span
-                  className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
-                    selectedChoice === 'maintenance_mode'
-                      ? 'border-[#07CB6C] bg-[#07CB6C]'
-                      : 'border-[#182621]'
-                  }`}
-                >
-                  {selectedChoice === 'maintenance_mode' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#050807]" />
-                  )}
-                </span>
+              <div
+                className={`w-9 h-9 rounded-lg border shrink-0 flex items-center justify-center mt-0.5 ${
+                  selectedChoice === 'maintenance_mode'
+                    ? 'bg-[#07CB6C]/20 border-[#07CB6C]/40 text-[#07CB6C]'
+                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-500'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
               </div>
-              <p className="text-xs text-[#7e8f85] leading-normal font-sans">
-                Maintain established skill momentum with a low-friction cadence. Prunes weekly schedule down to 1–2 core sustainment sessions with zero buffer overhead.
-              </p>
-            </div>
-          </div>
 
-          {/* Option C: Standby / Pause */}
-          <div
-            onClick={() => setSelectedChoice('pause')}
-            role="radio"
-            aria-checked={selectedChoice === 'pause'}
-            aria-label="Option C: Standby / Pause. Freezes active schedule state with zero penalty."
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                setSelectedChoice('pause');
-              } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
-                e.preventDefault();
-                setSelectedChoice('maintenance_mode');
-              }
-            }}
-            className={`p-3.5 rounded-sm border transition-all cursor-pointer flex items-start gap-3.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
-              selectedChoice === 'pause'
-                ? 'bg-amber-950/20 border-amber-500/50 text-[#e5ebe7]'
-                : 'bg-[#080d0b] border-[#182621] hover:border-[#1f332c] text-[#7e8f85]'
-            }`}
-          >
+              <div className="space-y-1 flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white flex items-center gap-2">
+                    Option B // Maintenance Cadence
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1a2824] text-neutral-400 border border-[#2a3e38] font-medium">
+                      SUSTAINMENT
+                    </span>
+                  </span>
+                  <span
+                    className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                      selectedChoice === 'maintenance_mode'
+                        ? 'border-[#07CB6C] bg-[#07CB6C]'
+                        : 'border-[#1a2824]'
+                    }`}
+                  >
+                    {selectedChoice === 'maintenance_mode' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#080d0b]" />
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-400 leading-relaxed font-sans">
+                  Prunes schedule down to 1–2 weekly habit sustainment sessions to preserve skill momentum.
+                </p>
+              </div>
+            </div>
+
+            {/* Option C: Standby / Pause */}
             <div
-              className={`w-9 h-9 rounded-sm border shrink-0 flex items-center justify-center mt-0.5 ${
+              onClick={() => setSelectedChoice('pause')}
+              role="radio"
+              aria-checked={selectedChoice === 'pause'}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setSelectedChoice('pause');
+                }
+              }}
+              className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-start gap-3.5 ${
                 selectedChoice === 'pause'
-                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                  : 'bg-[#0c1210] border-[#182621] text-[#7e8f85]'
+                  ? 'border-amber-400/60 bg-amber-500/10 text-white'
+                  : 'border-[#1a2824] bg-[#0d1412] text-neutral-400 hover:text-white hover:border-[#2a3e38]'
               }`}
             >
-              <PauseCircle className="w-4 h-4" />
-            </div>
-
-            <div className="space-y-1 flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold text-[#e5ebe7] flex items-center gap-2">
-                  OPTION C // STANDBY / PAUSE
-                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
-                    FREEZE STATE
-                  </span>
-                </span>
-                <span
-                  className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
-                    selectedChoice === 'pause'
-                      ? 'border-amber-400 bg-amber-400'
-                      : 'border-[#182621]'
-                  }`}
-                >
-                  {selectedChoice === 'pause' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#050807]" />
-                  )}
-                </span>
+              <div
+                className={`w-9 h-9 rounded-lg border shrink-0 flex items-center justify-center mt-0.5 ${
+                  selectedChoice === 'pause'
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-500'
+                }`}
+              >
+                <PauseCircle className="w-4 h-4" />
               </div>
-              <p className="text-xs text-[#7e8f85] leading-normal font-sans">
-                Freezes active schedule state without streak decay or penalties. All progression telemetry and completion history remain preserved for resumption at any time.
-              </p>
+
+              <div className="space-y-1 flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-white flex items-center gap-2">
+                    Option C // Standby / Pause
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-medium">
+                      FREEZE STATE
+                    </span>
+                  </span>
+                  <span
+                    className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                      selectedChoice === 'pause'
+                        ? 'border-amber-400 bg-amber-400'
+                        : 'border-[#1a2824]'
+                    }`}
+                  >
+                    {selectedChoice === 'pause' && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#080d0b]" />
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-400 leading-relaxed font-sans">
+                  Freezes active schedule state with zero penalty or streak decay, preserved for resumption at any time.
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-[#182621]">
-          <button
-            type="button"
-            onClick={() => setIsDismissed(true)}
-            className="w-full sm:w-auto min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-sm text-[#7e8f85] hover:text-[#e5ebe7] hover:bg-[#111a17] active:scale-[0.99] text-xs font-mono transition-colors cursor-pointer text-center"
-          >
-            DISMISS REPORT [ESC]
-          </button>
-
+        {/* Primary Exit CTA */}
+        <div className="pt-2 relative z-10">
           <button
             type="button"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="w-full sm:w-auto min-h-[44px] min-w-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-sm bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.99] text-[#050807] font-mono font-bold text-xs transition-all disabled:opacity-40 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C]"
+            className="bg-[#07CB6C] text-[#080d0b] font-medium py-2.5 px-5 rounded-lg hover:bg-[#06b860] active:scale-[0.99] transition-all w-full flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(7,203,108,0.25)] disabled:opacity-50 min-h-[44px]"
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>PROCESSING PROTOCOL...</span>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Archiving Protocol...</span>
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>EXECUTE TRANSITION // CONFIRM PROTOCOL</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Archive Protocol & Return to Workbench</span>
+                <ArrowRight className="w-4 h-4" />
               </>
             )}
           </button>

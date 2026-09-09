@@ -8,7 +8,7 @@
   --color-surface-elevated: #111a17;
   --color-surface-hover: #16221e;
   
-  --color-border-subtle: #182621;
+  --color-border-subtle: #1a2824;
   --color-border-hairline: rgba(7, 203, 108, 0.15);
   
   --color-accent-mint: #07CB6C;
@@ -68,7 +68,7 @@
   /* Minimal custom scrollbars per Design.md §3 */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #182621 transparent;
+    scrollbar-color: #1a2824 transparent;
   }
 
   ::-webkit-scrollbar {
@@ -81,7 +81,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #182621;
+    background: #1a2824;
     border-radius: 3px;
   }
 
@@ -96,7 +96,7 @@
   background-color: #0c1210 !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  border: 1px solid #182621 !important;
+  border: 1px solid #1a2824 !important;
   border-radius: 0.375rem !important; /* rounded-md */
   box-shadow: none !important;
 }
@@ -112,7 +112,7 @@
 
 /* Hairline border utilities */
 .border-hairline {
-  border-color: #182621;
+  border-color: #1a2824;
 }
 
 .border-hairline-mint {
