@@ -55,7 +55,7 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
                 <p className="text-xs text-[#7e8f85] max-w-2xl leading-relaxed">
                   Execution pacing has drifted over 14 days. Target finish updated to{' '}
                   <span className="font-mono text-[#e5ebe7] font-medium">{formattedTarget}</span>.
-                  Recommend re-calibrating busy slots or reducing weekly load to prevent total habit abandonment.
+                  Pacing drift requires slot recalibration or recovery scan to re-index session sequence.
                 </p>
               </div>
             </div>
@@ -63,7 +63,7 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
             <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0">
               <Link
                 to="/onboarding?mode=adjust"
-                className="min-h-[44px] px-3.5 py-2 text-xs font-mono font-medium bg-[#080d0b] hover:bg-[#111a17] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] rounded-sm transition-colors flex items-center gap-1.5"
+                className="min-h-[44px] min-w-[44px] px-3.5 py-2 text-xs font-mono font-medium bg-[#080d0b] hover:bg-[#111a17] active:scale-[0.99] text-[#a6b8ad] hover:text-[#e5ebe7] border border-[#182621] hover:border-[#1f332c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 rounded-sm transition-colors flex items-center gap-1.5"
               >
                 <Sliders className="w-3.5 h-3.5 text-[#7e8f85]" />
                 <span>Adjust Routine</span>
@@ -72,7 +72,7 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
                 type="button"
                 onClick={onTriggerReschedule}
                 disabled={isRescheduling}
-                className="min-h-[44px] px-4 py-2 text-xs font-mono font-bold bg-[#ef4444] hover:bg-[#dc2626] disabled:opacity-40 text-[#050807] rounded-sm transition-colors flex items-center gap-2 cursor-pointer"
+                className="min-h-[44px] min-w-[44px] px-4 py-2 text-xs font-mono font-bold bg-[#ef4444] hover:bg-[#dc2626] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ef4444] disabled:opacity-40 text-[#050807] rounded-sm transition-colors flex items-center gap-2 cursor-pointer"
               >
                 {isRescheduling ? (
                   <>
@@ -91,23 +91,23 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
         </div>
       ) : isSlipped ? (
         /* Moderate slippage notice */
-        <div className="p-4 sm:p-5 border-l-2 border-l-[#f59e0b]">
+        <div className="p-4 sm:p-5 border-l-2 border-l-amber-500">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-sm bg-[#16140d] border border-[#f59e0b]/30 text-[#f59e0b] flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-sm bg-amber-950/20 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
                 <Clock className="w-4 h-4" />
               </div>
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#f59e0b]">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
                     PACING TELEMETRY // ADAPTIVE OFFSET
                   </span>
-                  <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-sm bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30">
+                  <span className="px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase rounded-sm bg-amber-500/15 text-amber-400 border border-amber-500/30">
                     +{slippageDays}D EXTENSION
                   </span>
                 </div>
                 <h3 className="text-sm sm:text-base font-bold text-[#e5ebe7]">
-                  Adaptive Reallocation Active: <span className="font-mono text-[#f59e0b]">+{slippageDays} {slippageDays === 1 ? 'Day' : 'Days'}</span>
+                  Adaptive Reallocation Active: <span className="font-mono text-amber-400">+{slippageDays} {slippageDays === 1 ? 'Day' : 'Days'}</span>
                 </h3>
                 <p className="text-xs text-[#7e8f85] max-w-2xl leading-relaxed">
                   Missed sessions have been reallocated into open buffer windows. Target finish dynamically shifted to{' '}
@@ -121,7 +121,7 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
                 type="button"
                 onClick={onTriggerReschedule}
                 disabled={isRescheduling}
-                className="min-h-[44px] px-4 py-2 text-xs font-mono font-bold bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-40 text-[#050807] rounded-sm transition-colors flex items-center gap-2 cursor-pointer"
+                className="min-h-[44px] min-w-[44px] px-4 py-2 text-xs font-mono font-bold bg-[#f59e0b] hover:bg-[#d97706] active:bg-[#b45309] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 disabled:opacity-40 text-[#050807] rounded-sm transition-colors flex items-center gap-2 cursor-pointer"
               >
                 {isRescheduling ? (
                   <>
@@ -165,7 +165,7 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
               type="button"
               onClick={onTriggerReschedule}
               disabled={isRescheduling}
-              className="min-h-[44px] px-3.5 py-2 text-xs font-mono font-medium text-[#a6b8ad] hover:text-[#e5ebe7] bg-[#080d0b] hover:bg-[#111a17] border border-[#182621] hover:border-[#1f332c] rounded-sm transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-auto cursor-pointer disabled:opacity-40"
+              className="min-h-[44px] min-w-[44px] px-3.5 py-2 text-xs font-mono font-medium text-[#a6b8ad] hover:text-[#e5ebe7] bg-[#080d0b] hover:bg-[#111a17] active:scale-[0.99] border border-[#182621] hover:border-[#1f332c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] rounded-sm transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-auto cursor-pointer disabled:opacity-40"
             >
               {isRescheduling ? (
                 <>
@@ -194,7 +194,7 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
             <button
               type="button"
               onClick={() => setShowDetails(!showDetails)}
-              className="min-h-[44px] px-2 text-[#07CB6C] hover:text-[#06b560] transition-colors flex items-center gap-1 cursor-pointer"
+              className="min-h-[44px] min-w-[44px] px-2 text-[#07CB6C] hover:text-[#06b560] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#07CB6C] rounded-sm transition-colors flex items-center gap-1 cursor-pointer"
             >
               <span>{showDetails ? 'COLLAPSE LOG [-]' : 'EXPAND LOG [+]'}</span>
             </button>
@@ -214,7 +214,7 @@ export const SlippageBanner: React.FC<SlippageBannerProps> = ({
                   <span
                     className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider shrink-0 ${
                       act.actionType === 'REALLOCATED_SAME_WEEK'
-                        ? 'bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30'
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
                         : 'bg-[#ef4444]/15 text-[#ef4444] border border-[#ef4444]/30'
                     }`}
                   >

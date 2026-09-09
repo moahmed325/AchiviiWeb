@@ -310,6 +310,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       {pendingRecovery && pendingRecovery.pending && (
         <RecoveryCheckIn
           recoveryState={pendingRecovery}
+          sessions={data?.sessions}
+          slippageDays={data?.goal?.slippage_days || 0}
           onResolved={async () => {
             setPendingRecovery(null);
             await loadWeek(weekOffset);
