@@ -180,7 +180,7 @@ export const Dashboard: React.FC = () => {
   // Ambition Hub Filters
   const HUB_FILTERS = useMemo(
     () => [
-      { id: 'all', label: 'All Ambitions', match: () => true },
+      { id: 'all', label: 'All Goals', match: () => true },
       {
         id: 'engineering',
         label: 'Engineering',
@@ -351,7 +351,7 @@ export const Dashboard: React.FC = () => {
               <div className="flex flex-wrap items-center gap-2.5">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-wider bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 font-medium">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-                  Ambition Hub // Workbench Standby
+                  Choose Your 90-Day Goal
                 </span>
                 <span className="text-neutral-600 text-xs">•</span>
                 <span className="text-xs font-mono text-neutral-400">{formattedToday}</span>
@@ -360,7 +360,7 @@ export const Dashboard: React.FC = () => {
                 Welcome back, {userDisplayName}
               </h1>
               <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl leading-relaxed">
-                Your daily execution workbench is currently clear. Select a calibrated 12-week blueprint below to calibrate your schedule, or define an entirely bespoke 90-day ambition.
+                Select a goal you want to achieve below to set up your schedule, or create your own custom goal.
               </p>
             </div>
 
@@ -370,7 +370,7 @@ export const Dashboard: React.FC = () => {
                 className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black shadow-[0_0_20px_rgba(7,203,108,0.2)] transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                <span>Define Custom Ambition</span>
+                <span>Create Your Own Goal</span>
               </Link>
             </div>
           </div>
@@ -422,19 +422,19 @@ export const Dashboard: React.FC = () => {
             </section>
           )}
 
-          {/* ─── ELEMENT 2: CURATED AMBITION CARDS IN WORKBENCH ─── */}
+          {/* ─── CHOOSE A GOAL WORKBENCH ─── */}
           <section className="space-y-6 pt-2">
             <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 border-b border-white/5 pb-4">
               <div className="space-y-1">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[#07CB6C] block">
-                  Curated Catalog
+                  Recommended Goals
                 </span>
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-                  Scoped 12-Week Blueprints
+                  Select a Goal You Want to Achieve
                 </h2>
               </div>
               <p className="text-xs text-neutral-400 font-normal">
-                Select a blueprint to calibrate your schedule or preview its phased curriculum
+                Choose a 12-week goal to set up your schedule and daily focus sessions
               </p>
             </div>
 
@@ -475,7 +475,7 @@ export const Dashboard: React.FC = () => {
                   type="text"
                   value={hubSearchQuery}
                   onChange={(e) => setHubSearchQuery(e.target.value)}
-                  placeholder="Filter blueprints..."
+                  placeholder="Search goals..."
                   className="w-full min-h-[40px] pl-10 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-neutral-500 text-xs font-normal focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-colors"
                 />
               </div>
@@ -484,7 +484,7 @@ export const Dashboard: React.FC = () => {
             {/* Catalog Grid */}
             {filteredCatalogGoals.length === 0 ? (
               <div className="p-12 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-neutral-400 space-y-3">
-                <p className="text-sm font-medium text-neutral-300">No blueprints match your filter criteria</p>
+                <p className="text-sm font-medium text-neutral-300">No goals match your search</p>
                 <button
                   onClick={() => {
                     setHubCategory('all');
@@ -511,25 +511,25 @@ export const Dashboard: React.FC = () => {
             )}
           </section>
 
-          {/* ─── ELEMENT 4: NATURAL APP NAVIGATION & BESPOKE AMBITION CTA ─── */}
+          {/* ─── CREATE YOUR OWN GOAL CTA ─── */}
           <section className="p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="space-y-1.5 text-center sm:text-left">
               <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-semibold text-[#07CB6C] uppercase tracking-wider">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Custom Ambition Protocol</span>
+                <span>Custom Goal</span>
               </div>
               <h3 className="text-base sm:text-lg font-bold text-white">
-                Have a unique goal that isn't in our catalog?
+                Have a specific goal in mind?
               </h3>
               <p className="text-xs text-neutral-400 max-w-xl leading-relaxed">
-                Achivii's formalization engine will structure your raw objective into a calibrated 90-day curriculum with customized daily focus doses.
+                Tell us what you want to achieve and we'll break it down into realistic weekly phases and daily focus sessions.
               </p>
             </div>
             <Link
               to="/onboarding"
               className="min-h-[44px] px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/15 hover:border-[#07CB6C]/50 transition-all flex items-center gap-2 shrink-0 cursor-pointer shadow-sm"
             >
-              <span>Initialize Custom Track</span>
+              <span>Create Custom Goal</span>
               <ArrowRight className="w-4 h-4 text-[#07CB6C]" />
             </Link>
           </section>

@@ -107,7 +107,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({
 
           {/* Anchored Monospace Telemetry Badge (Top Right) */}
           <div className="absolute top-3 right-3 font-mono text-[10px] tracking-wider px-2 py-0.5 rounded bg-[#080d0b]/90 border border-[#1a2824] text-[#07CB6C] uppercase font-medium">
-            12-WK PROTOCOL
+            12 WEEKS
           </div>
         </div>
       )}
@@ -165,8 +165,8 @@ export const GoalCard: React.FC<GoalCardProps> = ({
               onClick={() => onSelect(goal)}
               className="w-full min-h-[44px] py-2.5 px-4 rounded-lg bg-[#0d1412] hover:bg-[#161f1c] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-amber-500/40 font-mono text-xs transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer group/btn"
             >
-              <span className="text-amber-400 font-semibold">[Active Protocol In Progress]</span>
-              <span className="hidden sm:inline">Switch Protocol</span>
+              <span className="text-amber-400 font-semibold">[Current Active Goal]</span>
+              <span className="hidden sm:inline">Switch Goal</span>
               <ArrowRight className="w-4 h-4 text-amber-400 group-hover/btn:translate-x-0.5 transition-transform" />
             </button>
           ) : (
@@ -175,7 +175,7 @@ export const GoalCard: React.FC<GoalCardProps> = ({
               onClick={() => onSelect(goal)}
               className="w-full min-h-[44px] py-2.5 px-4 rounded-lg bg-[#14221c] hover:bg-[#07CB6C] text-neutral-200 hover:text-[#080d0b] border border-[#1a2824] hover:border-[#07CB6C] font-medium text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer group/btn"
             >
-              <span>Select Blueprint</span>
+              <span>Select Goal</span>
               <ArrowRight className="w-4 h-4 text-[#07CB6C] group-hover/btn:text-[#080d0b] group-hover/btn:translate-x-0.5 transition-transform" />
             </button>
           )}

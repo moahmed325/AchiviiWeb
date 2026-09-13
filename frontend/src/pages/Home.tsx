@@ -102,7 +102,7 @@ export const Home: React.FC = () => {
   }, [token]);
 
   const CATALOG_FILTERS: Array<{ id: string; label: string; match: (g: GoalCatalog) => boolean }> = [
-    { id: 'all', label: 'All Blueprints', match: () => true },
+    { id: 'all', label: 'All Goals', match: () => true },
     {
       id: 'engineering',
       label: 'Engineering',
@@ -177,7 +177,7 @@ export const Home: React.FC = () => {
 
           {/* High-Impact Value Proposition */}
           <p className="text-neutral-400 text-base sm:text-lg max-w-2xl mx-auto font-normal leading-relaxed">
-            Ambitious goals fail because life interrupts rigid habit trackers. Achivii pairs pre-calibrated blueprints with an adaptive engine that dynamically protects your schedule with zero catch-up debt.
+            Ambitious goals fail because life interrupts rigid habit trackers. Achivii pairs proven 90-day goals with an adaptive engine that dynamically protects your schedule with zero catch-up debt.
           </p>
 
           {/* Editorial CTA Row */}
@@ -197,7 +197,7 @@ export const Home: React.FC = () => {
               className="min-h-[46px] px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 text-sm font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
               <Compass className="w-4 h-4 text-[#07CB6C]" />
-              <span>Explore Curated Blueprints</span>
+              <span>Explore Goals</span>
             </button>
           </div>
 
@@ -343,14 +343,14 @@ export const Home: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 border-b border-white/10 pb-5">
             <div className="space-y-1">
               <span className="text-xs font-semibold uppercase tracking-wider text-[#07CB6C] block">
-                Curated Ambitions
+                Popular Goals
               </span>
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                Pre-Scoped 12-Week Blueprints
+                Select a Goal You Want to Achieve
               </h2>
             </div>
             <p className="text-xs text-neutral-400 font-normal">
-              Click any blueprint to explore its curriculum and weekly routine
+              Click any goal to explore its weekly routine and phases
             </p>
           </div>
 
@@ -398,7 +398,7 @@ export const Home: React.FC = () => {
             {loading && (
               <div className="p-16 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col items-center justify-center text-neutral-400 gap-3 shadow-xl">
                 <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
-                <span className="text-xs font-medium tracking-wide">Loading Curated Blueprints...</span>
+                <span className="text-xs font-medium tracking-wide">Loading Goals...</span>
               </div>
             )}
 
@@ -408,7 +408,7 @@ export const Home: React.FC = () => {
                   <AlertCircle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-white">Unable to Load Catalog</h3>
+                  <h3 className="text-base font-semibold text-white">Unable to Load Goals</h3>
                   <p className="text-xs text-neutral-400 max-w-md mx-auto mt-1">{error}</p>
                 </div>
                 <button
@@ -422,7 +422,7 @@ export const Home: React.FC = () => {
 
             {!loading && !error && filteredGoals.length === 0 && (
               <div className="p-12 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-neutral-400 space-y-2 shadow-xl">
-                <p className="text-sm font-medium text-neutral-300">No blueprints match your filter criteria</p>
+                <p className="text-sm font-medium text-neutral-300">No goals match your search</p>
                 <button
                   onClick={() => {
                     setSelectedCategory('all');
@@ -626,7 +626,7 @@ export const Home: React.FC = () => {
               onClick={handleStartOnboarding}
               className="min-h-[48px] px-8 py-3 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-sm font-semibold inline-flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(7,203,108,0.25)] hover:shadow-[0_0_35px_rgba(7,203,108,0.4)] transition-all cursor-pointer"
             >
-              <span>Initialize Your Blueprint</span>
+              <span>Choose Your Goal</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

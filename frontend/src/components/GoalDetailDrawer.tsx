@@ -50,10 +50,10 @@ export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({
             <div className="space-y-1.5 min-w-0 pr-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-[10px] font-mono font-medium uppercase tracking-wider text-[#07CB6C]">
-                  BLUEPRINT SPECIFICATION // {goal.category.toUpperCase()}
+                  GOAL OVERVIEW // {goal.category.toUpperCase()}
                 </span>
                 <span className="px-2 py-0.5 rounded bg-[#131f1b] border border-[#1a2824] text-[10px] font-mono text-neutral-400">
-                  90-DAY CADENCE
+                  90-DAY GOAL
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-semibold text-white tracking-tight truncate">
@@ -63,7 +63,7 @@ export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({
             <button
               onClick={onClose}
               className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-[#131f1b] transition-colors cursor-pointer shrink-0"
-              title="Close specification sheet"
+              title="Close"
             >
               <X className="w-5 h-5" />
             </button>
@@ -108,10 +108,10 @@ export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-[#1a2824] pb-2">
                 <span className="text-[10px] font-mono font-medium uppercase text-neutral-400 tracking-wider">
-                  PHASE EXECUTION ARCHITECTURE ({totalPhases} PHASES)
+                  ROADMAP ({totalPhases} PHASES)
                 </span>
                 <span className="text-[10px] font-mono text-[#07CB6C] font-medium">
-                  DETERMINISTIC BLUEPRINT
+                  12-WEEK PLAN
                 </span>
               </div>
 
@@ -200,7 +200,7 @@ export const GoalDetailDrawer: React.FC<GoalDetailDrawerProps> = ({
                 onClick={() => onSelect(goal)}
                 className="min-h-[44px] px-6 py-2 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-medium flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
               >
-                <span>INITIALIZE BLUEPRINT</span>
+                <span>START THIS GOAL</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             )}
