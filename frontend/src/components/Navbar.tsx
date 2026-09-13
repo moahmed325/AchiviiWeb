@@ -24,7 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
           {/* Brand & Desktop Navigation */}
           <div className="flex items-center gap-6 sm:gap-8">
             <Link
-              to="/"
+              to={user ? '/dashboard' : '/'}
               className="flex items-center gap-2.5 group cursor-pointer focus-visible:outline-none rounded-xl"
             >
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0c1410] to-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center transition-all group-hover:border-[#07CB6C]/60 shadow-[0_0_12px_rgba(7,203,108,0.15)]">
