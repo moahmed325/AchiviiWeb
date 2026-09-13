@@ -78,7 +78,7 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
 
   const handleRatify = async () => {
     setIsRatifying(true);
-    setSuccessMessage(`Trajectory ratified for Week ${effectiveWeek + 1}. Execution schedule committed.`);
+    setSuccessMessage(`Week ${effectiveWeek + 1} confirmed! Your execution schedule is ready.`);
     setTimeout(async () => {
       await onResolved();
       setIsDismissed(true);
@@ -101,30 +101,30 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
         <div className="flex items-start justify-between gap-4 border-b border-[#1a2824] pb-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30">
+              <span className="p-1 rounded-lg bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30">
                 <Sparkles className="w-4 h-4" />
               </span>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
-                WEEKLY STRATEGIC REVIEW // WEEK {effectiveWeek}
+              <span className="text-xs font-semibold text-[#07CB6C]">
+                Weekly Review • Week {effectiveWeek}
               </span>
-              <span className="px-2 py-0.5 rounded bg-[#0d1412] border border-[#1a2824] text-neutral-300 text-[10px] font-mono font-medium uppercase">
-                7 STRATEGIC QUESTIONS
+              <span className="px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-neutral-300 text-[10px] font-medium">
+                Weekly Checkpoint
               </span>
             </div>
 
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              System Telemetry Evaluation
+              Week {effectiveWeek} Progress Review
             </h2>
 
-            <p className="text-xs font-mono text-neutral-400 leading-relaxed max-w-xl">
-              Automated empirical audit evaluating dose adequacy, capability state transitions, and trajectory integrity.
+            <p className="text-xs text-neutral-400 leading-relaxed max-w-xl">
+              A quick review of what you accomplished, what shifted, and your game plan for next week.
             </p>
           </div>
 
           <button
             type="button"
             onClick={() => setIsDismissed(true)}
-            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-[#131f1b] transition-colors cursor-pointer shrink-0"
+            className="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer shrink-0"
             title="Dismiss review"
           >
             <X className="w-5 h-5" />
@@ -134,12 +134,12 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
         {loading ? (
           <div className="p-12 flex flex-col items-center justify-center gap-3 text-neutral-400">
             <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
-            <span className="text-xs font-mono uppercase tracking-wider">
-              EVALUATING 7 STRATEGIC TELEMETRY QUESTIONS...
+            <span className="text-xs font-medium tracking-wide">
+              Reviewing your week's progress...
             </span>
           </div>
         ) : errorMessage ? (
-          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono flex items-center gap-2">
+          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
@@ -147,44 +147,44 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             {/* Feedback notification toast */}
             {successMessage && (
-              <div className="p-3.5 rounded-lg bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-mono flex items-center gap-2">
+              <div className="p-3.5 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-medium flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{successMessage}</span>
               </div>
             )}
 
             {/* Question 1: Planned vs Actual */}
-            <div className="p-3.5 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                <Target className="w-3.5 h-3.5 text-[#07CB6C]" />
-                1. DOSE ADEQUACY // WHAT WAS SUPPOSED TO HAPPEN VS WHAT HAPPENED?
+            <div className="p-4 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-2.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-[#07CB6C]" />
+                1. Plan vs. Reality
               </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
-                <div className="p-2.5 rounded bg-[#0a0f0d] border border-[#1a2824]">
-                  <span className="text-[10px] text-neutral-500 block mb-0.5">PLANNED TARGET</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                <div className="p-3 rounded-lg bg-[#0a0f0d] border border-[#1a2824]">
+                  <span className="text-[11px] text-neutral-400 block mb-1 font-medium">Planned Focus</span>
                   <p className="text-neutral-300 leading-relaxed">{answers.whatWasSupposedToHappen}</p>
                 </div>
-                <div className="p-2.5 rounded bg-[#0a0f0d] border border-[#1a2824]">
-                  <span className="text-[10px] text-neutral-500 block mb-0.5">ACTUAL EXECUTION</span>
-                  <p className="text-white leading-relaxed">{answers.whatActuallyHappened}</p>
+                <div className="p-3 rounded-lg bg-[#0a0f0d] border border-[#1a2824]">
+                  <span className="text-[11px] text-[#07CB6C] block mb-1 font-medium">What You Completed</span>
+                  <p className="text-white leading-relaxed font-medium">{answers.whatActuallyHappened}</p>
                 </div>
               </div>
             </div>
 
             {/* Question 2: Capability State Transitions */}
-            <div className="p-3.5 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-2">
+            <div className="p-4 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-2.5">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-sky-400" />
-                  2. CAPABILITY STATE TRANSITIONS
+                <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-sky-400" />
+                  2. Skills &amp; Capability Milestones
                 </span>
                 {stateDeltas.length > 0 && (
-                  <span className="text-[10px] font-mono text-emerald-400 font-bold">
-                    +{stateDeltas.length} STATE ADVANCEMENTS
+                  <span className="text-[11px] text-emerald-400 font-semibold px-2 py-0.5 rounded-full bg-emerald-950/40 border border-emerald-500/30">
+                    +{stateDeltas.length} Milestones Reached
                   </span>
                 )}
               </div>
-              <p className="text-xs font-mono text-neutral-300 leading-relaxed bg-[#0a0f0d] p-2.5 rounded border border-[#1a2824]">
+              <p className="text-xs text-neutral-300 leading-relaxed bg-[#0a0f0d] p-3 rounded-lg border border-[#1a2824]">
                 {answers.whatChangedInCapabilityState}
               </p>
               {stateDeltas.length > 0 && (
@@ -192,12 +192,12 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
                   {stateDeltas.map(([capName, delta]) => (
                     <div
                       key={capName}
-                      className="px-2.5 py-1 rounded bg-emerald-950/30 border border-emerald-500/30 text-xs font-mono flex items-center gap-1.5"
+                      className="px-2.5 py-1 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-xs flex items-center gap-1.5"
                     >
-                      <span className="text-white font-semibold">{capName}:</span>
+                      <span className="text-white font-medium">{capName}:</span>
                       <span className="text-neutral-400">{delta.from}</span>
                       <span className="text-emerald-400">→</span>
-                      <span className="text-emerald-400 font-bold">{delta.to}</span>
+                      <span className="text-emerald-400 font-semibold">{delta.to}</span>
                     </div>
                   ))}
                 </div>
@@ -205,46 +205,46 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
             </div>
 
             {/* Question 3: Meaningful Deviations & Strategic Filtering */}
-            <div className="p-3.5 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-1.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                3. MEANINGFUL DEVIATIONS & STRATEGIC FILTERING
+            <div className="p-4 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                3. Key Learnings &amp; Adjustments
               </span>
-              <p className="text-xs font-mono text-neutral-300 leading-relaxed bg-[#0a0f0d] p-2.5 rounded border border-[#1a2824]">
+              <p className="text-xs text-neutral-300 leading-relaxed bg-[#0a0f0d] p-3 rounded-lg border border-[#1a2824]">
                 {answers.whatCausedMeaningfulDeviations}
               </p>
             </div>
 
             {/* Question 4 & 5: Bottleneck & Trajectory Validity */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3.5 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-1.5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  4. GOVERNING BOTTLENECK
+              <div className="p-4 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-amber-400" />
+                  4. Current Bottleneck
                 </span>
-                <p className="text-xs font-mono text-neutral-300 leading-relaxed bg-[#0a0f0d] p-2.5 rounded border border-[#1a2824]">
+                <p className="text-xs text-neutral-300 leading-relaxed bg-[#0a0f0d] p-3 rounded-lg border border-[#1a2824]">
                   {answers.isTheBottleneckStillTheBottleneck}
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-1.5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
-                  5. TRAJECTORY VALIDITY
+              <div className="p-4 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-sky-400" />
+                  5. Pace &amp; Feasibility
                 </span>
-                <p className="text-xs font-mono text-neutral-300 leading-relaxed bg-[#0a0f0d] p-2.5 rounded border border-[#1a2824]">
+                <p className="text-xs text-neutral-300 leading-relaxed bg-[#0a0f0d] p-3 rounded-lg border border-[#1a2824]">
                   {answers.isTheTrajectoryStillValid}
                 </p>
               </div>
             </div>
 
-            {/* Question 6 & 7: What Should Happen Next & System Recommendation */}
-            <div className="p-3.5 rounded-xl bg-[#0d1412] border border-[#07CB6C]/40 space-y-2">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[#07CB6C] font-bold flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
-                6 & 7. STRATEGIC RECOMMENDATION FOR WEEK {effectiveWeek + 1}
+            {/* Question 6 & 7: Next Week Focus */}
+            <div className="p-4 rounded-xl bg-[#0d1412] border border-[#07CB6C]/40 space-y-2.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#07CB6C] flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-[#07CB6C]" />
+                Next Week's Focus (Week {effectiveWeek + 1})
               </span>
-              <p className="text-xs font-mono text-white leading-relaxed bg-[#0a0f0d] p-3 rounded border border-[#1a2824]">
+              <p className="text-xs text-white leading-relaxed bg-[#0a0f0d] p-3 rounded-lg border border-[#1a2824]">
                 {answers.whatShouldHappenNext}
               </p>
             </div>
@@ -254,14 +254,14 @@ export const WeeklyReflection: React.FC<WeeklyReflectionProps> = ({
               type="button"
               onClick={handleRatify}
               disabled={isRatifying}
-              className="w-full min-h-[44px] px-5 py-2.5 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)] disabled:opacity-50"
+              className="w-full min-h-[44px] px-5 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)] disabled:opacity-50"
             >
               {isRatifying ? (
-                <Loader2 className="w-4 h-4 animate-spin text-[#080d0b]" />
+                <Loader2 className="w-4 h-4 animate-spin text-black" />
               ) : (
                 <CheckCircle2 className="w-4 h-4" />
               )}
-              <span>RATIFY TRAJECTORY CALIBRATION FOR WEEK {effectiveWeek + 1}</span>
+              <span>Confirm &amp; Start Week {effectiveWeek + 1}</span>
             </button>
           </div>
         ) : null}

@@ -9,21 +9,16 @@ import { GoalDetailDrawer } from '../components/GoalDetailDrawer';
 import { AuthModal } from '../components/AuthModal';
 import { 
   Compass, 
-  Layers, 
   Loader2,
   Search, 
   ArrowRight,
   AlertCircle,
-  Calendar,
-  Settings,
-  TrendingUp,
   Check,
   Play,
   ChevronDown,
   X,
   Zap,
 } from 'lucide-react';
-import { CalendarWeekView } from '../components/CalendarWeekView';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
 
 interface FaqItem {
@@ -62,7 +57,6 @@ export const Home: React.FC = () => {
   const { user, token, openAuthModal } = useAuth();
   const [goals, setGoals] = useState<GoalCatalog[]>([]);
   const [activeUserGoal, setActiveUserGoal] = useState<UserGoal | null>(null);
-  const [dashboardTab, setDashboardTab] = useState<'schedule' | 'catalog'>('schedule');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
@@ -93,7 +87,11 @@ export const Home: React.FC = () => {
       if (token) {
         try {
           const userGoalData = await fetchCurrentUserGoal(token);
-          setActiveUserGoal(userGoalData.user_goal);
+          if (userGoalData?.user_goal && !window.location.search.includes('browse')) {
+            navigate('/dashboard', { replace: true });
+            return;
+          }
+          setActiveUserGoal(userGoalData?.user_goal || null);
         } catch {
           setActiveUserGoal(null);
         }
@@ -188,24 +186,24 @@ export const Home: React.FC = () => {
         {/* Unauthenticated Landing Experience / Public View */}
         {!activeUserGoal && (
           <section className="space-y-6 sm:space-y-8 max-w-4xl mx-auto pt-6 sm:pt-10 pb-4 text-center">
-            {/* Subtle Operational Pill */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0d1412] border border-[#1a2824] text-[#07CB6C] text-xs font-mono font-medium">
+            {/* Refined Pill */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[#07CB6C] text-xs font-medium backdrop-blur-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-              <span>12-WEEK RESILIENT CADENCE</span>
+              <span>90-Day Execution System</span>
             </div>
 
-            {/* Stark High-Contrast Editorial Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-white leading-[1.1]">
-              Deterministic 90-Day <br className="hidden sm:inline" />
-              Execution Engine
+            {/* High-Contrast Editorial Headline */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-[1.15]">
+              Turn Your Highest Ambition <br className="hidden sm:inline" />
+              Into Daily Reality
             </h1>
 
-            {/* Tight 2-Sentence Plain Value Proposition */}
+            {/* Tight Plain Value Proposition */}
             <p className="text-neutral-400 text-base sm:text-lg max-w-2xl mx-auto font-normal leading-relaxed">
-              Ambitious goals fail because life interrupts rigid plans. Achivii pairs pre-scoped blueprints with an adaptive recovery engine that automatically restructures your calendar when sessions are missed.
+              Ambitious goals fail because life interrupts rigid habit trackers. Achivii pairs pre-calibrated blueprints with an adaptive engine that dynamically protects your schedule with zero catch-up debt.
             </p>
 
-            {/* High-Contrast Editorial CTA Row */}
+            {/* Editorial CTA Row */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 pt-2">
               <button
                 type="button"
@@ -216,35 +214,35 @@ export const Home: React.FC = () => {
                     handleScrollToCatalog();
                   }
                 }}
-                className="min-h-[44px] px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b862] text-[#080d0b] text-sm font-medium flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(7,203,108,0.2)] hover:shadow-[0_0_25px_rgba(7,203,108,0.35)] transition-all cursor-pointer"
+                className="min-h-[44px] px-6 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-sm font-semibold flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(7,203,108,0.25)] hover:shadow-[0_0_25px_rgba(7,203,108,0.4)] transition-all cursor-pointer"
               >
-                <span>Initialize Blueprint</span>
+                <span>Choose Your Ambition</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               <button
                 type="button"
                 onClick={handleScrollToCatalog}
-                className="min-h-[44px] px-5 py-2.5 rounded-md bg-transparent hover:bg-[#0d1412] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#2a3e38] text-sm font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 text-sm font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <Compass className="w-4 h-4 text-[#07CB6C]" />
-                <span>Explore Catalog</span>
+                <span>Explore Curated Blueprints</span>
               </button>
             </div>
 
             {/* Minimal High-Signal Proof Strip */}
-            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 pt-10 sm:pt-14 text-neutral-400 text-xs font-mono">
+            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 pt-10 sm:pt-14 text-neutral-400 text-xs font-medium">
               <span className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                12-Week Scoped Roadmaps
+                Pre-Calibrated 12-Week Blueprints
               </span>
               <span className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                Dynamic Buffer Reallocation
+                Automated Schedule Balancing
               </span>
               <span className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                Zero Fragile Streaks
+                Zero Guilt, Zero Broken Streaks
               </span>
             </div>
           </section>
@@ -258,7 +256,7 @@ export const Home: React.FC = () => {
               <div className="lg:col-span-5 space-y-6">
                 <div>
                   <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase mb-3 block">
-                    [ CREATOR NOTE // THE THESIS ]
+                    THE PHILOSOPHY
                   </span>
                   <h2 className="text-2xl sm:text-4xl font-semibold text-white tracking-tight mb-4">
                     Why I built Achivii.
@@ -324,129 +322,63 @@ export const Home: React.FC = () => {
                       </div>
                       <div className="space-y-1">
                         <span className="font-mono text-xs uppercase tracking-wider text-[#07CB6C] block font-medium">
-                          System Architecture Walkthrough
+                          System Walkthrough
                         </span>
                         <span className="text-white text-sm font-medium">
-                          Watch creator walkthrough (4:12)
+                          Watch how the adaptive engine works (4:12)
                         </span>
                       </div>
                     </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between font-mono text-[11px] text-neutral-500 px-1">
-                  <span>SYSTEM BREAKDOWN // 4 MIN WALKTHROUGH</span>
-                  <span className="text-[#07CB6C]">1080P PRO RES</span>
+                  <span>HOW ACHIVII WORKS // 4 MIN WALKTHROUGH</span>
+                  <span className="text-[#07CB6C]">HD VIDEO</span>
                 </div>
               </div>
             </div>
           </section>
         )}
 
-        {/* Authenticated State: Active Goal Header & Tab Switcher (If active goal exists) */}
+        {/* Authenticated State: Active Goal Header (If active goal exists and browsing catalog) */}
         {activeUserGoal && activeUserGoal.goal_catalog && (
-          <div className="space-y-6">
-            <div className="p-5 sm:p-6 rounded-2xl bg-[#0a0f0d] border border-[#1a2824] space-y-4 shadow-2xl">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-mono font-medium uppercase tracking-wider text-[#07CB6C]">
-                      CYCLE TELEMETRY // ACTIVE BLUEPRINT
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-[10px] font-mono font-medium tracking-wider">
-                      STATUS: ACTIVE
-                    </span>
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-semibold text-white tracking-tight truncate">
-                    {activeUserGoal.goal_catalog.title}
-                  </h2>
-                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono text-neutral-400">
-                    <span className="flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
-                      STARTED: <strong className="text-white font-mono">{new Date(activeUserGoal.start_date).toLocaleDateString().toUpperCase()}</strong>
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5 text-[#07CB6C]" />
-                      TARGET: <strong className="text-[#07CB6C] font-mono">{new Date(activeUserGoal.target_end_date).toLocaleDateString().toUpperCase()}</strong>
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-950/40 border border-emerald-500/30 text-[10px] text-emerald-400">
-                      TRAJECTORY: ACTIVE [ZERO BACKLOG DEBT]
-                    </span>
-                  </div>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-[#0a0f0d] border border-[#1a2824] shadow-xl">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] shrink-0">
+                <Compass className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-[#07CB6C]">Active Ambition</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                  <button
-                    onClick={() => navigate('/dashboard')}
-                    className="min-h-[44px] px-4 py-2 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
-                  >
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>DAILY WORKBENCH</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => navigate('/schedule')}
-                    className="min-h-[44px] px-3.5 py-2 rounded-lg bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white text-xs font-mono border border-[#1a2824] hover:border-[#2a3e38] flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
-                    <span>TRAJECTORY VIEW</span>
-                  </button>
-                  <button
-                    onClick={() => navigate('/progress')}
-                    className="min-h-[44px] px-3.5 py-2 rounded-lg bg-[#0d1412] hover:bg-[#131f1b] text-[#07CB6C] text-xs font-mono border border-[#1a2824] hover:border-[#07CB6C]/30 flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span>CAPABILITIES</span>
-                  </button>
-                  <button
-                    onClick={() => navigate(`/onboarding?mode=adjust&goalId=${activeUserGoal.goal_catalog_id}`)}
-                    className="min-h-[44px] px-3 py-2 rounded-lg bg-[#0d1412] hover:bg-[#131f1b] text-neutral-400 hover:text-neutral-200 text-xs font-mono border border-[#1a2824] flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Adjust Routine"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                <h2 className="text-lg sm:text-xl font-semibold text-white">
+                  {activeUserGoal.goal_catalog.title}
+                </h2>
               </div>
             </div>
 
-            {/* Dashboard View Tab Toggle */}
-            <div className="flex items-center gap-2 border-b border-[#1a2824] pb-3">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
               <button
-                onClick={() => setDashboardTab('schedule')}
-                className={`min-h-[40px] flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer ${
-                  dashboardTab === 'schedule'
-                    ? 'bg-[#131f1b] text-white border border-[#07CB6C]/40'
-                    : 'bg-[#0a0f0d] text-neutral-400 hover:text-white border border-[#1a2824]'
-                }`}
+                onClick={() => navigate('/dashboard')}
+                className="flex-1 sm:flex-initial min-h-[40px] px-4 py-2 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.2)]"
               >
-                <Calendar className="w-4 h-4 text-[#07CB6C]" />
-                <span>ROLLING AGENDA // THIS WEEK</span>
+                <Zap className="w-3.5 h-3.5" />
+                <span>Open Today's Workbench</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
-
               <button
-                onClick={() => setDashboardTab('catalog')}
-                className={`min-h-[40px] flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer ${
-                  dashboardTab === 'catalog'
-                    ? 'bg-[#131f1b] text-white border border-[#07CB6C]/40'
-                    : 'bg-[#0a0f0d] text-neutral-400 hover:text-white border border-[#1a2824]'
-                }`}
+                onClick={() => navigate('/schedule')}
+                className="min-h-[40px] px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white text-xs font-medium border border-white/10 transition-colors cursor-pointer"
               >
-                <Layers className="w-4 h-4 text-[#07CB6C]" />
-                <span>EXPLORE GOAL CATALOG</span>
+                Schedule
               </button>
             </div>
-
-            {/* If tab is 'schedule', render CalendarWeekView */}
-            {dashboardTab === 'schedule' && (
-              <div className="space-y-4">
-                <CalendarWeekView />
-              </div>
-            )}
           </div>
         )}
 
-        {/* Goal Catalog Section (Shown if tab is catalog or no active goal) */}
-        {(!activeUserGoal || dashboardTab === 'catalog') && (
-          <section id="catalog-section" className="space-y-6 pt-4">
+        {/* Goal Catalog Section */}
+        <section id="catalog-section" className="space-y-6 pt-4">
             {/* Catalog Section Header */}
             <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-[#1a2824] pb-4">
               <div className="space-y-1">
@@ -506,7 +438,7 @@ export const Home: React.FC = () => {
               {loading && (
                 <div className="p-16 rounded-2xl bg-[#0a0f0d] border border-[#1a2824] flex flex-col items-center justify-center text-neutral-400 gap-3 shadow-2xl">
                   <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
-                  <span className="text-xs font-mono tracking-wider uppercase">LOADING BLUEPRINT SPECIFICATIONS...</span>
+                  <span className="text-xs font-mono tracking-wider uppercase">Loading Curated Blueprints...</span>
                 </div>
               )}
 
@@ -516,29 +448,29 @@ export const Home: React.FC = () => {
                     <AlertCircle className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-white font-mono uppercase">CATALOG TELEMETRY OFFLINE</h3>
-                    <p className="text-xs font-mono text-neutral-400 max-w-md mx-auto mt-1">{error}</p>
+                    <h3 className="text-base font-semibold text-white">Unable to Load Catalog</h3>
+                    <p className="text-xs text-neutral-400 max-w-md mx-auto mt-1">{error}</p>
                   </div>
                   <button
                     onClick={loadData}
-                    className="min-h-[44px] px-4 py-2 rounded-lg bg-[#0d1412] hover:bg-[#131f1b] text-white text-xs font-mono border border-[#1a2824] transition-colors cursor-pointer"
+                    className="min-h-[44px] px-4 py-2 rounded-xl bg-[#0d1412] hover:bg-[#131f1b] text-white text-xs border border-[#1a2824] transition-colors cursor-pointer"
                   >
-                    RETRY CONNECTION
+                    Retry
                   </button>
                 </div>
               )}
 
               {!loading && !error && filteredGoals.length === 0 && (
                 <div className="p-12 rounded-2xl bg-[#0a0f0d] border border-[#1a2824] text-center text-neutral-400 space-y-2 shadow-2xl">
-                  <p className="text-xs font-mono uppercase">NO BLUEPRINTS MATCH SPECIFIED FILTER CRITERIA</p>
+                  <p className="text-sm font-medium text-neutral-300">No blueprints match your filter criteria</p>
                   <button
                     onClick={() => {
                       setSelectedCategory('all');
                       setSearchQuery('');
                     }}
-                    className="text-xs font-mono text-[#07CB6C] underline font-medium cursor-pointer"
+                    className="text-xs text-[#07CB6C] hover:underline font-medium cursor-pointer"
                   >
-                    Reset Filter Queries
+                    Reset Filters
                   </button>
                 </div>
               )}
@@ -559,7 +491,6 @@ export const Home: React.FC = () => {
               )}
             </div>
           </section>
-        )}
 
         {/* Section 4: Interactive Video FAQ Accordion */}
         {!activeUserGoal && (
