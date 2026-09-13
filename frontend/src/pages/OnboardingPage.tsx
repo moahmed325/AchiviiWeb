@@ -131,6 +131,51 @@ const DAYS_OF_WEEK = [
   { id: 'SUN', label: 'S' },
 ];
 
+const STARTER_GOAL_SUGGESTIONS = [
+  {
+    icon: '🏃',
+    label: 'Run a sub-25min 5K',
+    prompt: 'Run a continuous 5.0 km run in under 25 minutes with verified GPS pacing',
+    category: 'Health & Fitness',
+    hours: 5,
+  },
+  {
+    icon: '💻',
+    label: 'Launch a fullstack web app',
+    prompt: 'Build and deploy a fullstack web application with authentication and database to production',
+    category: 'Technology',
+    hours: 8,
+  },
+  {
+    icon: '🗣️',
+    label: 'Learn conversational French',
+    prompt: 'Learn conversational French to hold a continuous 10-minute unassisted dialogue',
+    category: 'Languages',
+    hours: 6,
+  },
+  {
+    icon: '✍️',
+    label: 'Write a 30,000-word book draft',
+    prompt: 'Complete a structured 30,000-word non-fiction book first draft with 8 chapters',
+    category: 'Writing & Creative',
+    hours: 6,
+  },
+];
+
+const CUSTOM_CATEGORIES = [
+  { id: 'tech', label: 'Technology & Code', category: 'Technology', domain: 'PROJECT' as GoalDomain, icon: '💻' },
+  { id: 'fitness', label: 'Health & Athletics', category: 'Health & Fitness', domain: 'PHYSICAL' as GoalDomain, icon: '🏃' },
+  { id: 'language', label: 'Languages & Learning', category: 'Languages', domain: 'COGNITIVE' as GoalDomain, icon: '🗣️' },
+  { id: 'writing', label: 'Writing & Content', category: 'Writing & Creative', domain: 'PROJECT' as GoalDomain, icon: '✍️' },
+  { id: 'habits', label: 'Habits & Mindset', category: 'Wellness & Mindset', domain: 'HABIT' as any, icon: '🧘' },
+];
+
+const WEEKLY_HOURS_PRESETS = [
+  { hours: 4, label: '4h / week', tag: 'Light', sub: '~35m daily or 3 focused sessions' },
+  { hours: 6, label: '6h / week', tag: 'Balanced', sub: '~50m daily or 4 focused sessions' },
+  { hours: 8, label: '8h / week', tag: 'Intensive', sub: '~70m daily or 5 focused sessions' },
+];
+
 export const formatRoutineSummary = (days: string[], startTime: string, endTime: string): string => {
   const timeStr = `${startTime}–${endTime}`;
   if (!days || days.length === 0) return `No days set • ${timeStr}`;
@@ -159,7 +204,21 @@ export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const goalIdParam = searchParams.get('goalId');
+  const isCustomParam = searchParams.get('mode') === 'custom' || searchParams.get('custom') === 'true';
   const { user, token, openAuthModal } = useAuth();
+
+  // Mode: 'recommended' or 'custom'
+  const [goalSelectionMode, setGoalSelectionMode] = useState<'recommended' | 'custom'>(() =>
+    isCustomParam ? 'custom' : 'recommended'
+  );
+
+  // Custom Goal Builder State
+  const [customRawGoal, setCustomRawGoal] = useState<string>('');
+  const [customCategory, setCustomCategory] = useState<string>('Technology');
+  const [customWeeklyHours, setCustomWeeklyHours] = useState<number>(6);
+  const [isFormalizing, setIsFormalizing] = useState<boolean>(false);
+  const [customFormalization, setCustomFormalization] = useState<GoalFormalizationResult | null>(null);
+  const [isCustomGoalActive, setIsCustomGoalActive] = useState<boolean>(false);
 
   // 4 Steps: 1 = Goal, 2 = Single-Question Walkthrough, 3 = Daily Routine, 4 = Roadmap & Start
   const [step, setStep] = useState<number>(1);
@@ -187,7 +246,7 @@ export const OnboardingPage: React.FC = () => {
   // Custom Routine Creator State
   const [isAddingCustom, setIsAddingCustom] = useState<boolean>(false);
   const [customTitle, setCustomTitle] = useState<string>('');
-  const [customCategory, setCustomCategory] = useState<RoutineItem['category']>('OTHER');
+  const [customRoutineCategory, setCustomRoutineCategory] = useState<RoutineItem['category']>('OTHER');
   const [customStartTime, setCustomStartTime] = useState<string>('08:00');
   const [customEndTime, setCustomEndTime] = useState<string>('09:00');
   const [customDays, setCustomDays] = useState<string[]>(['MON', 'TUE', 'WED', 'THU', 'FRI']);
@@ -231,14 +290,20 @@ export const OnboardingPage: React.FC = () => {
           }
         }
 
+        if (isCustomParam) {
+          setGoalSelectionMode('custom');
+        }
+
         if (!initialSelected && catalog.length > 0) {
           initialSelected = catalog[0];
         }
 
         if (initialSelected) {
           setSelectedGoal(initialSelected);
-          setOutcomeStatement(initialSelected.title);
-          setWeeklyAvailableHours(initialSelected.est_weekly_hours || 6);
+          if (!isCustomParam) {
+            setOutcomeStatement(initialSelected.title);
+            setWeeklyAvailableHours(initialSelected.est_weekly_hours || 6);
+          }
         }
       } catch (err: any) {
         setError(err.message || 'Failed to load catalog.');
@@ -247,10 +312,40 @@ export const OnboardingPage: React.FC = () => {
       }
     }
     init();
-  }, [token, goalIdParam]);
+  }, [token, goalIdParam, isCustomParam]);
 
-  // Parse questions from selected blueprint
+  // Parse questions from selected blueprint or custom formalization
   const parsedQuestions: OnboardingQuestion[] = useMemo(() => {
+    if (isCustomGoalActive && customFormalization?.baselineQuestions && customFormalization.baselineQuestions.length > 0) {
+      return customFormalization.baselineQuestions.map((q, idx) => ({
+        id: `custom_baseline_q_${idx + 1}`,
+        question: q,
+        help_text: 'Help us calibrate your starting point so your first weeks are paced just right.',
+        options: [
+          {
+            label: 'Beginner / Zero prior foundation',
+            value: 'BEGINNER',
+            description: 'Starting completely from scratch; build the basic foundation and daily habit first.',
+          },
+          {
+            label: 'Novice / Some casual practice',
+            value: 'NOVICE',
+            description: 'Have dabbled or tried this in the past, but inconsistent consistency.',
+          },
+          {
+            label: 'Intermediate / Solid fundamentals',
+            value: 'INTERMEDIATE',
+            description: 'Comfortable with the basics; ready for disciplined 90-day progression.',
+          },
+          {
+            label: 'Advanced / High active capability',
+            value: 'ADVANCED',
+            description: 'Strong foundation; aiming for peak performance and acceleration.',
+          },
+        ],
+      }));
+    }
+
     if (!selectedGoal?.onboarding_questions) return [];
     try {
       const raw = selectedGoal.onboarding_questions;
@@ -258,7 +353,7 @@ export const OnboardingPage: React.FC = () => {
     } catch {
       return [];
     }
-  }, [selectedGoal]);
+  }, [selectedGoal, isCustomGoalActive, customFormalization]);
 
   const currentQuestion: OnboardingQuestion | undefined = parsedQuestions[currentQuestionIndex];
   const isCurrentQuestionAnswered = Boolean(currentQuestion && questionnaireAnswers[currentQuestion.id]);
@@ -318,6 +413,7 @@ export const OnboardingPage: React.FC = () => {
       setIsDiscardModalOpen(true);
       return;
     }
+    setIsCustomGoalActive(false);
     setSelectedGoal(goal);
     setOutcomeStatement(goal.title);
     setWeeklyAvailableHours(goal.est_weekly_hours || 6);
@@ -331,6 +427,68 @@ export const OnboardingPage: React.FC = () => {
     setDomain(goalDomain);
 
     setCurrentQuestionIndex(0);
+    setStep(2);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Step 1: Formalize Custom Goal
+  const handleFormalizeCustomGoal = async () => {
+    const raw = customRawGoal.trim();
+    if (!raw) {
+      setError('Please enter what you want to achieve.');
+      return;
+    }
+    setIsFormalizing(true);
+    setError(null);
+    try {
+      const activeCat = CUSTOM_CATEGORIES.find((c) => c.category === customCategory) || CUSTOM_CATEGORIES[0];
+      const targetDomain = activeCat.domain;
+      setDomain(targetDomain);
+
+      const res = await formalizeGoal(token || '', {
+        rawGoal: raw,
+        domain: targetDomain,
+        deadlineType: 'SOFT',
+        weeklyAvailableHours: customWeeklyHours,
+      });
+
+      setCustomFormalization(res.formalization);
+    } catch (err: any) {
+      setError(err.message || 'Failed to clarify your goal. Please try again.');
+    } finally {
+      setIsFormalizing(false);
+    }
+  };
+
+  // Step 1: Accept Custom Goal and advance to Step 2
+  const handleAcceptCustomGoal = () => {
+    if (!customFormalization) return;
+    if (existingActiveGoal) {
+      setIsDiscardModalOpen(true);
+      return;
+    }
+
+    const baseCatalog =
+      allGoals.find((g) => g.category?.toLowerCase().includes(customCategory.toLowerCase())) ||
+      allGoals[0];
+
+    const virtualGoal: GoalCatalog = {
+      id: baseCatalog?.id || 'custom-goal-id',
+      title: customFormalization.concreteOutcomeStatement,
+      description: customFormalization.verificationCriteria,
+      category: customCategory,
+      icon: 'target',
+      est_weekly_hours: customWeeklyHours,
+      phases: baseCatalog?.phases || [],
+      created_at: new Date().toISOString(),
+    };
+
+    setSelectedGoal(virtualGoal);
+    setOutcomeStatement(customFormalization.concreteOutcomeStatement);
+    setWeeklyAvailableHours(customWeeklyHours);
+    setIsCustomGoalActive(true);
+    setCurrentQuestionIndex(0);
+    setQuestionnaireAnswers({});
     setStep(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -433,7 +591,7 @@ export const OnboardingPage: React.FC = () => {
     const newRoutine: RoutineItem = {
       id: `custom_${Date.now()}`,
       title: customTitle.trim(),
-      category: customCategory,
+      category: customRoutineCategory,
       startTime: customStartTime,
       endTime: customEndTime,
       days: customDays.length > 0 ? customDays : ['MON', 'TUE', 'WED', 'THU', 'FRI'],
@@ -522,9 +680,9 @@ export const OnboardingPage: React.FC = () => {
       }
 
       await commitGoal(token, {
-        goalCatalogId: selectedGoal.id,
-        outcomeStatement: outcomeStatement.trim() || formalizationResult?.concreteOutcomeStatement || selectedGoal.title,
-        verificationCriteria: formalizationResult?.verificationCriteria || 'Demonstrate unassisted real-world benchmark.',
+        goalCatalogId: isCustomGoalActive ? (allGoals[0]?.id || selectedGoal.id) : selectedGoal.id,
+        outcomeStatement: outcomeStatement.trim() || customFormalization?.concreteOutcomeStatement || formalizationResult?.concreteOutcomeStatement || selectedGoal.title,
+        verificationCriteria: customFormalization?.verificationCriteria || formalizationResult?.verificationCriteria || 'Demonstrate unassisted real-world benchmark.',
         deadlineType,
         domain,
         startDate: new Date(startDate).toISOString(),
@@ -628,64 +786,335 @@ export const OnboardingPage: React.FC = () => {
           </div>
         )}
 
-        {/* ─── STEP 1: CHOOSE AMBITION ─── */}
+        {/* ─── STEP 1: CHOOSE GOAL ─── */}
         {step === 1 && (
           <div className="space-y-8 animate-in fade-in duration-200">
-            <div className="space-y-1.5 text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                Choose Your 90-Day Ambition
-              </h1>
-              <p className="text-sm text-neutral-400 leading-relaxed max-w-xl">
-                Select what you want to achieve. We’ll tailor a daily plan that fits around your real schedule with zero catch-up debt.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1 text-center sm:text-left">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                  Choose Your 90-Day Goal
+                </h1>
+                <p className="text-sm text-neutral-400 leading-relaxed max-w-xl">
+                  Pick from our popular goals or define an entirely custom objective. We’ll tailor a daily plan that fits around your real schedule with zero catch-up debt.
+                </p>
+              </div>
+
+              {/* Mode Switcher Tabs */}
+              <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/10 self-center sm:self-auto shrink-0 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setGoalSelectionMode('recommended')}
+                  className={`min-h-[38px] px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                    goalSelectionMode === 'recommended'
+                      ? 'bg-[#07CB6C] text-black shadow-[0_0_15px_rgba(7,203,108,0.2)]'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  Recommended Goals
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGoalSelectionMode('custom')}
+                  className={`min-h-[38px] px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    goalSelectionMode === 'custom'
+                      ? 'bg-[#07CB6C] text-black shadow-[0_0_15px_rgba(7,203,108,0.2)]'
+                      : 'text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Create Your Own</span>
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              {allGoals.map((goal) => {
-                const isSelected = selectedGoal?.id === goal.id;
-                return (
-                  <div
-                    key={goal.id}
-                    onClick={() => handleSelectGoal(goal)}
-                    className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between group ${
-                      isSelected
-                        ? 'bg-[#0d1612] border-[#07CB6C]/60 shadow-[0_0_25px_rgba(7,203,108,0.12)]'
-                        : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                          {getGoalIcon(goal.icon)}
-                        </div>
-                        <span className="text-xs font-mono text-neutral-400">
-                          {goal.est_weekly_hours}h / week
+            {/* Custom Goal Creation View */}
+            {goalSelectionMode === 'custom' ? (
+              <div className="space-y-6 pt-2">
+                <div className="p-6 sm:p-8 rounded-2xl bg-[#0c1411] border border-white/10 space-y-6 shadow-xl">
+                  {/* 1. Goal Input */}
+                  <div className="space-y-2.5">
+                    <label className="block text-sm font-semibold text-white">
+                      What do you want to achieve in the next 90 days?
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={customRawGoal}
+                      onChange={(e) => {
+                        setCustomRawGoal(e.target.value);
+                        setCustomFormalization(null);
+                      }}
+                      placeholder="e.g. Run a continuous 5K without walking breaks, build and deploy an MVP web application, speak conversational French..."
+                      className="w-full p-4 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-colors resize-none leading-relaxed"
+                    />
+
+                    {/* Starter Chips */}
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[11px] font-mono text-neutral-400 block">
+                        Or pick an example to customize:
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {STARTER_GOAL_SUGGESTIONS.map((s) => (
+                          <button
+                            key={s.label}
+                            type="button"
+                            onClick={() => {
+                              setCustomRawGoal(s.prompt);
+                              setCustomCategory(s.category);
+                              setCustomWeeklyHours(s.hours);
+                              setCustomFormalization(null);
+                            }}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                          >
+                            <span>{s.icon}</span>
+                            <span>{s.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Category Selector */}
+                  <div className="space-y-2.5 pt-2 border-t border-white/5">
+                    <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400">
+                      Domain Category
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                      {CUSTOM_CATEGORIES.map((cat) => {
+                        const isSelected = customCategory === cat.category;
+                        return (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            onClick={() => setCustomCategory(cat.category)}
+                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
+                              isSelected
+                                ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white shadow-[0_0_15px_rgba(7,203,108,0.15)]'
+                                : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            <span className="text-base">{cat.icon}</span>
+                            <span className="text-xs font-medium">{cat.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 3. Weekly Hours Commitment */}
+                  <div className="space-y-2.5 pt-2 border-t border-white/5">
+                    <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400">
+                      Weekly Time Commitment
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {WEEKLY_HOURS_PRESETS.map((p) => {
+                        const isSelected = customWeeklyHours === p.hours;
+                        return (
+                          <button
+                            key={p.hours}
+                            type="button"
+                            onClick={() => setCustomWeeklyHours(p.hours)}
+                            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer space-y-1 ${
+                              isSelected
+                                ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white shadow-[0_0_15px_rgba(7,203,108,0.15)]'
+                                : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className={`text-sm font-bold font-mono ${isSelected ? 'text-[#07CB6C]' : 'text-white'}`}>
+                                {p.label}
+                              </span>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-neutral-300">
+                                {p.tag}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-neutral-400">{p.sub}</p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 4. Action Button */}
+                  {!customFormalization && (
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        disabled={isFormalizing || !customRawGoal.trim()}
+                        onClick={handleFormalizeCustomGoal}
+                        className="w-full sm:w-auto min-h-[46px] px-8 py-3 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(7,203,108,0.25)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isFormalizing ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Structuring Your 90-Day Plan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4" />
+                            <span>Structure &amp; Clarify Goal</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Formalization Result Card */}
+                {customFormalization && (
+                  <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-[#0d1814] via-[#0f211a] to-[#0d1814] border border-[#07CB6C]/40 space-y-6 shadow-[0_0_30px_rgba(7,203,108,0.12)] animate-in fade-in duration-300">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
+                      <div className="space-y-1">
+                        <span className="text-xs font-mono uppercase tracking-wider text-[#07CB6C] flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          AI-Clarified Outcome Specification
+                        </span>
+                        <h3 className="text-lg sm:text-xl font-bold text-white">
+                          Here is your verified finish line
+                        </h3>
+                      </div>
+                      <span className="text-[11px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-3 py-1 rounded-full border border-[#07CB6C]/20 self-start sm:self-auto font-semibold">
+                        VERIFIED BY ACHIVII
+                      </span>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-1.5">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block">
+                          Concrete Finish Line (90-Day Outcome)
+                        </span>
+                        <input
+                          type="text"
+                          value={customFormalization.concreteOutcomeStatement}
+                          onChange={(e) =>
+                            setCustomFormalization({
+                              ...customFormalization,
+                              concreteOutcomeStatement: e.target.value,
+                            })
+                          }
+                          className="w-full text-base font-semibold text-white bg-transparent border-b border-white/20 focus:border-[#07CB6C] focus:outline-none pb-1 transition-colors"
+                        />
+                        <span className="text-[11px] text-neutral-500 block">
+                          Click to edit or fine-tune this statement if desired
                         </span>
                       </div>
 
-                      <div>
-                        <h3 className="text-base font-semibold text-white group-hover:text-[#07CB6C] transition-colors">
-                          {goal.title}
-                        </h3>
-                        <p className="text-xs text-neutral-400 mt-1 line-clamp-2 leading-relaxed">
-                          {goal.description}
+                      <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block">
+                          Objective Proof on Day 90
+                        </span>
+                        <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
+                          {customFormalization.verificationCriteria}
                         </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="p-3 rounded-xl bg-black/30 border border-white/5">
+                          <span className="text-[10px] font-mono uppercase text-neutral-400 block">Timeline</span>
+                          <span className="text-sm font-bold font-mono text-white">12 WEEKS (90 DAYS)</span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-black/30 border border-white/5">
+                          <span className="text-[10px] font-mono uppercase text-neutral-400 block">Weekly Dose</span>
+                          <span className="text-sm font-bold font-mono text-[#07CB6C]">{customWeeklyHours} HOURS / WK</span>
+                        </div>
+                        <div className="p-3 rounded-xl bg-black/30 border border-white/5 col-span-2 sm:col-span-1">
+                          <span className="text-[10px] font-mono uppercase text-neutral-400 block">Buffer Safety</span>
+                          <span className="text-sm font-bold font-mono text-white">ZERO-DEBT ACTIVE</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="pt-4 mt-4 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-[11px] font-mono text-neutral-500">
-                        {goal.category}
-                      </span>
-                      <span className="flex items-center gap-1 text-xs font-semibold text-[#07CB6C] group-hover:translate-x-0.5 transition-transform">
-                        <span>Select</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </span>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 pt-4 border-t border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => setCustomFormalization(null)}
+                        className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer text-left"
+                      >
+                        ← Modify input or settings
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAcceptCustomGoal}
+                        className="min-h-[46px] px-7 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(7,203,108,0.25)]"
+                      >
+                        <span>Continue with this Goal</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                )}
+              </div>
+            ) : (
+              /* Recommended 6 Goals Grid */
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  {allGoals.map((goal) => {
+                    const isSelected = selectedGoal?.id === goal.id;
+                    return (
+                      <div
+                        key={goal.id}
+                        onClick={() => handleSelectGoal(goal)}
+                        className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between group ${
+                          isSelected
+                            ? 'bg-[#0d1612] border-[#07CB6C]/60 shadow-[0_0_25px_rgba(7,203,108,0.12)]'
+                            : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                              {getGoalIcon(goal.icon)}
+                            </div>
+                            <span className="text-xs font-mono text-neutral-400">
+                              {goal.est_weekly_hours}h / week
+                            </span>
+                          </div>
+
+                          <div>
+                            <h3 className="text-base font-semibold text-white group-hover:text-[#07CB6C] transition-colors">
+                              {goal.title}
+                            </h3>
+                            <p className="text-xs text-neutral-400 mt-1 line-clamp-2 leading-relaxed">
+                              {goal.description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 mt-4 border-t border-white/5 flex items-center justify-between">
+                          <span className="text-[11px] font-mono text-neutral-500">
+                            {goal.category}
+                          </span>
+                          <span className="flex items-center gap-1 text-xs font-semibold text-[#07CB6C] group-hover:translate-x-0.5 transition-transform">
+                            <span>Select</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Switch to Custom Callout Card */}
+                <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-white">Have a unique ambition?</h4>
+                      <p className="text-[11px] text-neutral-400">Define your own custom 90-day goal and let our engine calibrate the plan.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGoalSelectionMode('custom')}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    Switch to Custom Creator
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -965,8 +1394,8 @@ export const OnboardingPage: React.FC = () => {
                     <div className="space-y-1">
                       <label className="text-[11px] font-mono text-neutral-400">Category</label>
                       <select
-                        value={customCategory}
-                        onChange={(e) => setCustomCategory(e.target.value as any)}
+                        value={customRoutineCategory}
+                        onChange={(e) => setCustomRoutineCategory(e.target.value as RoutineItem['category'])}
                         className="w-full px-3 py-2 rounded-lg bg-[#0e1613] border border-white/10 text-xs text-white focus:outline-none focus:border-[#07CB6C]"
                       >
                         <option value="WORK">Work</option>

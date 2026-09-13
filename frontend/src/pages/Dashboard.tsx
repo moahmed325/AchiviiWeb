@@ -366,7 +366,7 @@ export const Dashboard: React.FC = () => {
 
             <div className="flex items-center gap-3 shrink-0">
               <Link
-                to="/onboarding"
+                to="/onboarding?mode=custom"
                 className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black shadow-[0_0_20px_rgba(7,203,108,0.2)] transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -526,7 +526,7 @@ export const Dashboard: React.FC = () => {
               </p>
             </div>
             <Link
-              to="/onboarding"
+              to="/onboarding?mode=custom"
               className="min-h-[44px] px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/15 hover:border-[#07CB6C]/50 transition-all flex items-center gap-2 shrink-0 cursor-pointer shadow-sm"
             >
               <span>Create Custom Goal</span>
