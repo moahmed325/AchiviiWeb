@@ -30,25 +30,25 @@ const INTEGRITY_CONFIG: Record<
   { label: string; badgeClass: string; textClass: string; icon: React.ReactNode }
 > = {
   INTACT: {
-    label: 'DESTINATION INTACT',
+    label: 'On Track',
     badgeClass: 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]',
     textClass: 'text-[#07CB6C]',
     icon: <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />,
   },
   REVISED: {
-    label: 'REVISED TRAJECTORY',
+    label: 'Adjusted Trajectory',
     badgeClass: 'bg-sky-500/10 border-sky-500/30 text-sky-400',
     textClass: 'text-sky-400',
     icon: <Sparkles className="w-3.5 h-3.5 text-sky-400" />,
   },
   AT_RISK: {
-    label: 'CRITICAL PATH AT RISK',
+    label: 'Attention Needed',
     badgeClass: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
     textClass: 'text-amber-400',
     icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />,
   },
   COMPROMISED: {
-    label: 'DESTINATION COMPROMISED',
+    label: 'Needs Recalibration',
     badgeClass: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
     textClass: 'text-rose-400',
     icon: <AlertCircle className="w-3.5 h-3.5 text-rose-400" />,
@@ -60,39 +60,39 @@ const STATE_CONFIG: Record<
   { label: string; bgClass: string; textClass: string; borderClass: string; desc: string }
 > = {
   ROBUST: {
-    label: 'ROBUST',
-    bgClass: 'bg-emerald-950/30',
+    label: 'Mastered',
+    bgClass: 'bg-emerald-950/20',
     textClass: 'text-emerald-400',
     borderClass: 'border-emerald-500/30',
     desc: 'Unassisted real-world capability demonstrated under varied conditions.',
   },
   ESTABLISHED: {
-    label: 'ESTABLISHED',
-    bgClass: 'bg-teal-950/30',
+    label: 'Mastered',
+    bgClass: 'bg-teal-950/20',
     textClass: 'text-teal-400',
     borderClass: 'border-teal-500/30',
     desc: 'Verified capability consistency across consecutive benchmarks.',
   },
   EMERGING: {
-    label: 'EMERGING',
-    bgClass: 'bg-amber-950/30',
+    label: 'In Progress',
+    bgClass: 'bg-amber-950/20',
     textClass: 'text-amber-400',
     borderClass: 'border-amber-500/30',
-    desc: 'Currently in active training stimulus. Partial consistency demonstrated.',
+    desc: 'Active training focus. Building consistency.',
   },
   UNTESTED: {
-    label: 'UNTESTED',
-    bgClass: 'bg-[#0d1412]',
+    label: 'Upcoming',
+    bgClass: 'bg-white/[0.02]',
     textClass: 'text-neutral-400',
-    borderClass: 'border-[#1a2824]',
-    desc: 'Prerequisites pending. Scheduled for upcoming capability blocks.',
+    borderClass: 'border-white/5',
+    desc: 'Scheduled for upcoming milestone blocks.',
   },
   REGRESSED: {
-    label: 'REGRESSED',
-    bgClass: 'bg-rose-950/30',
+    label: 'Needs Practice',
+    bgClass: 'bg-rose-950/20',
     textClass: 'text-rose-400',
     borderClass: 'border-rose-500/30',
-    desc: 'Performance decay detected. Targeted remediation queued.',
+    desc: 'Performance dip detected. Quick refresher scheduled.',
   },
 };
 
@@ -218,58 +218,60 @@ export const ProgressPage: React.FC = () => {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10 space-y-6 sm:space-y-8">
         {/* Header with Outcome Statement & Goal Integrity Status */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#1a2824]">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/5">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#07CB6C] px-2 py-0.5 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/20">
-                ADAPTIVE 90-DAY TRAJECTORY
+              <span className="text-xs font-semibold text-[#07CB6C] px-2.5 py-0.5 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/20">
+                90-Day Journey
               </span>
-              <span className="text-xs text-neutral-400 font-mono">
+              <span className="text-xs text-neutral-400 font-medium">
                 Week {currentWeek} of {totalWeeks}
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-3">
-              <span>{adaptiveData.outcomeStatement || activeUserGoal.goal_catalog?.title || 'Execution Protocol'}</span>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+              {adaptiveData.outcomeStatement || activeUserGoal.goal_catalog?.title || 'Your Progress'}
             </h1>
             <p className="text-xs sm:text-sm text-neutral-400 max-w-3xl leading-relaxed">
-              Real-time progress measured by verified capability state transitions rather than arbitrary checklist check-offs.
+              Track your real-world capability milestones, completion pacing, and sustainable weekly balance.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-mono font-bold ${integrityCfg.badgeClass}`}>
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium ${integrityCfg.badgeClass}`}>
               {integrityCfg.icon}
-              <span>[{integrityCfg.label}]</span>
+              <span>{integrityCfg.label}</span>
             </div>
             <Link
               to="/dashboard"
-              className="min-h-[44px] px-4 py-2 rounded-md bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-[0.99]"
+              className="min-h-[40px] px-4 py-2 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-xs font-semibold flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(7,203,108,0.15)]"
             >
-              <span>Daily Workbench</span>
+              <span>Today's Workbench</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>
 
-        {/* Executive KPI Cards Grid */}
+        {/* 4 Clean Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Capability Transitions */}
-          <div className="bg-[#0a0f0d] p-5 rounded-md border border-[#1a2824] space-y-3 relative overflow-hidden shadow-2xl">
+          {/* Card 1: Skills Mastered */}
+          <div className="bg-[#0a0f0d] p-5 rounded-2xl border border-white/10 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-medium uppercase tracking-wider text-neutral-400">
-                CAPABILITY MASTERY
+              <span className="text-xs font-medium text-neutral-400">
+                Skills Mastered
               </span>
-              <span className="p-1.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
+              <span className="p-1.5 rounded-lg bg-[#07CB6C]/10 text-[#07CB6C]">
                 <Target className="w-4 h-4" />
               </span>
             </div>
             <div>
-              <div className="text-3xl font-bold text-white font-mono">{capabilityProgressPct}%</div>
-              <div className="text-xs font-mono text-neutral-400 mt-0.5">
-                <strong className="text-emerald-400">{verifiedCount}</strong> of {totalCapabilities} capabilities verified
+              <div className="text-3xl font-bold text-white">
+                {verifiedCount} <span className="text-base font-normal text-neutral-500">/ {totalCapabilities}</span>
+              </div>
+              <div className="text-xs text-neutral-400 mt-0.5">
+                {capabilityProgressPct}% of milestones unlocked
               </div>
             </div>
-            <div className="w-full h-1.5 rounded-full bg-[#131f1b] overflow-hidden">
+            <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
               <div
                 className="h-full bg-[#07CB6C] transition-all duration-500 rounded-full"
                 style={{ width: `${Math.max(5, capabilityProgressPct)}%` }}
@@ -277,92 +279,102 @@ export const ProgressPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Card 2: Dynamic Forecast Window */}
-          <div className="bg-[#0a0f0d] p-5 rounded-md border border-[#1a2824] space-y-3 shadow-2xl">
+          {/* Card 2: Projected Finish */}
+          <div className="bg-[#0a0f0d] p-5 rounded-2xl border border-white/10 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-medium uppercase tracking-wider text-neutral-400">
-                DYNAMIC FORECAST
+              <span className="text-xs font-medium text-neutral-400">
+                Projected Finish
               </span>
-              <span className="p-1.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
+              <span className="p-1.5 rounded-lg bg-sky-500/10 text-sky-400">
                 <Activity className="w-4 h-4" />
               </span>
             </div>
             <div>
-              <div className="text-2xl font-bold text-white font-mono">
+              <div className="text-2xl font-bold text-white">
                 {adaptiveData.projectedCompletionWindow || 'Day 87–91'}
               </div>
-              <div className="text-xs font-mono text-sky-400 mt-0.5">
-                Confidence: {adaptiveData.confidenceLevel}
+              <div className="text-xs text-sky-400 mt-0.5">
+                {adaptiveData.confidenceLevel} Confidence
               </div>
             </div>
-            <div className="text-[11px] font-mono text-neutral-400">
-              Adapts dynamically from telemetry
+            <div className="text-[11px] text-neutral-400">
+              Adapts dynamically to your real pacing
             </div>
           </div>
 
-          {/* Card 3: Reliability Margin Headroom */}
-          <div className="bg-[#0a0f0d] p-5 rounded-md border border-[#1a2824] space-y-3 shadow-2xl">
+          {/* Card 3: Rest & Buffer Headroom */}
+          <div className="bg-[#0a0f0d] p-5 rounded-2xl border border-white/10 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-medium uppercase tracking-wider text-neutral-400">
-                RELIABILITY MARGIN
+              <span className="text-xs font-medium text-neutral-400">
+                Weekly Breathing Room
               </span>
-              <span className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400">
                 <ShieldCheck className="w-4 h-4" />
               </span>
             </div>
             <div>
-              <div className="text-3xl font-bold text-white font-mono">
+              <div className="text-3xl font-bold text-white">
                 {adaptiveData.reliabilityMarginHours.toFixed(1)}h
               </div>
-              <div className="text-xs font-mono text-emerald-400 mt-0.5">
-                Weekly buffer headroom
+              <div className="text-xs text-emerald-400 mt-0.5">
+                Built-in recovery buffer
               </div>
             </div>
-            <div className="text-[11px] font-mono text-neutral-400">
-              Zero catch-up debt guarantee
+            <div className="text-[11px] text-neutral-400">
+              Guaranteed zero backlog debt
             </div>
           </div>
 
-          {/* Card 4: Active Bottleneck */}
-          <div className="bg-[#0a0f0d] p-5 rounded-md border border-[#1a2824] space-y-3 shadow-2xl">
+          {/* Card 4: Current Focus */}
+          <div className="bg-[#0a0f0d] p-5 rounded-2xl border border-white/10 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono font-medium uppercase tracking-wider text-neutral-400">
-                ACTIVE BOTTLENECK
+              <span className="text-xs font-medium text-neutral-400">
+                Current Focus
               </span>
-              <span className="p-1.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-400">
                 <Zap className="w-4 h-4" />
               </span>
             </div>
             <div>
-              <div className="text-base font-semibold text-white truncate font-mono">
-                {adaptiveData.activeBottleneck?.name || 'Core Adaptation'}
+              <div className="text-base font-semibold text-white truncate">
+                {adaptiveData.activeBottleneck?.name || 'Core Fundamentals'}
               </div>
-              <div className="text-xs font-mono text-amber-400 mt-0.5 uppercase">
-                Status: {adaptiveData.activeBottleneck?.state || 'EMERGING'}
+              <div className="text-xs text-amber-400 mt-0.5">
+                Active Priority
               </div>
             </div>
-            <div className="text-[11px] font-mono text-neutral-400 truncate">
-              {adaptiveData.activeBottleneck?.description || 'Current critical path unlock'}
+            <div className="text-[11px] text-neutral-400 truncate">
+              {adaptiveData.activeBottleneck?.description || 'Next capability unlock'}
             </div>
           </div>
         </div>
 
-        {/* Capability State Graph & Prerequisites DAG */}
-        <div className="bg-[#0a0f0d] p-6 sm:p-7 rounded-md border border-[#1a2824] space-y-4 shadow-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1a2824] pb-3">
+        {/* Capability Milestones Roadmap */}
+        <div className="bg-[#0a0f0d] p-6 sm:p-7 rounded-2xl border border-white/10 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
             <div>
               <h2 className="text-base font-semibold text-white flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#07CB6C]" />
-                <span>Capability State Graph & Verification Hierarchy</span>
+                <span>Milestones & Skills Roadmap</span>
               </h2>
-              <p className="text-xs text-neutral-400 font-mono mt-0.5">
-                Progression is gated by verified capability acquisition rather than calendar days.
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Progression is measured by verified capability mastery rather than arbitrary checkboxes.
               </p>
             </div>
-            <div className="text-xs font-mono text-neutral-400">
-              Status: <span className="text-[#07CB6C] font-semibold">{verifiedCount} Verified</span>,{' '}
-              <span className="text-amber-400 font-semibold">{emergingCount} Emerging</span>,{' '}
-              <span className="text-neutral-400">{untestedCount} Untested</span>
+            <div className="text-xs text-neutral-400">
+              <span className="text-[#07CB6C] font-semibold">{verifiedCount} Mastered</span>
+              {emergingCount > 0 && (
+                <>
+                  <span className="text-neutral-600"> • </span>
+                  <span className="text-amber-400 font-semibold">{emergingCount} In Progress</span>
+                </>
+              )}
+              {untestedCount > 0 && (
+                <>
+                  <span className="text-neutral-600"> • </span>
+                  <span className="text-neutral-400">{untestedCount} Upcoming</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -374,33 +386,33 @@ export const ProgressPage: React.FC = () => {
               return (
                 <div
                   key={cap.id}
-                  className={`p-4 rounded-md border flex flex-col justify-between space-y-3 transition-all ${cfg.bgClass} ${cfg.borderClass} ${
-                    isBottleneck ? 'ring-1 ring-amber-500/50' : ''
+                  className={`p-5 rounded-xl border flex flex-col justify-between space-y-3.5 transition-all ${cfg.bgClass} ${cfg.borderClass} ${
+                    isBottleneck ? 'ring-1 ring-[#07CB6C]/40' : ''
                   }`}
                 >
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2 font-mono">
-                      <span className="text-[10px] uppercase text-neutral-400">
-                        Node {idx + 1} // {cap.tier === 'TIER_1_CRITICAL' ? 'Critical Path' : 'Supportive Tier'}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-neutral-400 font-medium">
+                        Milestone {idx + 1}
                       </span>
                       <span
-                        className={`text-[9px] font-mono px-2 py-0.5 rounded uppercase font-bold border ${cfg.textClass} ${cfg.borderClass}`}
+                        className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium border ${cfg.textClass} ${cfg.borderClass}`}
                       >
                         {cfg.label}
                       </span>
                     </div>
 
-                    <h3 className="text-sm font-bold text-white leading-snug">{cap.name}</h3>
+                    <h3 className="text-sm font-semibold text-white leading-snug">{cap.name}</h3>
 
-                    <p className="text-xs text-neutral-400 leading-relaxed font-mono">{cap.description}</p>
+                    <p className="text-xs text-neutral-400 leading-relaxed">{cap.description}</p>
                   </div>
 
-                  <div className="pt-2 border-t border-[#1a2824] space-y-1">
-                    <span className="text-[10px] font-mono text-neutral-500 block">VERIFICATION CRITERIA:</span>
-                    <p className="text-[11px] font-mono text-neutral-300 leading-tight">{cfg.desc}</p>
+                  <div className="pt-3 border-t border-white/5 space-y-1.5">
+                    <p className="text-[11px] text-neutral-300 leading-tight">{cfg.desc}</p>
                     {isBottleneck && (
-                      <span className="text-[10px] font-mono text-amber-400 font-bold uppercase tracking-wider block pt-1">
-                        ⚡ GOVERNING BOTTLENECK CONSTRAINT
+                      <span className="inline-flex items-center gap-1 text-[11px] text-[#07CB6C] font-medium pt-1">
+                        <Zap className="w-3 h-3" />
+                        Current Focus Priority
                       </span>
                     )}
                   </div>
@@ -410,63 +422,63 @@ export const ProgressPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Multi-Ambition Coordination & Life Capacity Limit */}
+        {/* Weekly Energy & Routine Balance */}
         {capacityAudit && (
-          <div className="bg-[#0a0f0d] p-5 sm:p-6 rounded-md border border-[#1a2824] space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#1a2824] pb-2.5">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
-                <Gauge className="w-3.5 h-3.5 text-[#07CB6C]" />
-                MULTI-AMBITION COORDINATION // GLOBAL CAPACITY AUDIT
+          <div className="bg-[#0a0f0d] p-5 sm:p-6 rounded-2xl border border-white/10 space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                <Gauge className="w-4 h-4 text-[#07CB6C]" />
+                Weekly Routine & Energy Balance
               </span>
               <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded border font-bold uppercase ${
+                className={`text-xs px-2.5 py-0.5 rounded-full border font-medium ${
                   capacityAudit.is_overloaded
                     ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
                     : 'bg-[#07CB6C]/10 text-[#07CB6C] border-[#07CB6C]/30'
                 }`}
               >
-                {capacityAudit.is_overloaded ? 'CAPACITY OVERLOAD DETECTED' : 'CAPACITY WITHIN SAFETY MARGIN'}
+                {capacityAudit.is_overloaded ? 'Schedule Overloaded' : 'Healthy Balance'}
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs font-mono">
-              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
-                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Weekly Free Discretionary</span>
-                <span className="text-base font-bold text-white block mt-1">{capacityAudit.total_weekly_free_hours}h</span>
-                <span className="text-[10px] text-neutral-500 block mt-0.5">Calculated from waking & routines</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="text-neutral-400 block">Weekly Discretionary Free Time</span>
+                <span className="text-lg font-bold text-white block mt-1">{capacityAudit.total_weekly_free_hours}h</span>
+                <span className="text-[11px] text-neutral-500 block mt-0.5">Outside sleep & fixed routines</span>
               </div>
 
-              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
-                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Committed Ambition Load</span>
-                <span className={`text-base font-bold block mt-1 ${capacityAudit.is_overloaded ? 'text-rose-400' : 'text-[#07CB6C]'}`}>
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="text-neutral-400 block">Ambition Focus Committed</span>
+                <span className={`text-lg font-bold block mt-1 ${capacityAudit.is_overloaded ? 'text-rose-400' : 'text-[#07CB6C]'}`}>
                   {capacityAudit.committed_ambition_hours}h
                 </span>
-                <span className="text-[10px] text-neutral-500 block mt-0.5">Across {capacityAudit.active_ambitions_count} active ambition(s)</span>
+                <span className="text-[11px] text-neutral-500 block mt-0.5">Across {capacityAudit.active_ambitions_count} active goal(s)</span>
               </div>
 
-              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
-                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Safe Ceiling (80% Limit)</span>
-                <span className="text-base font-bold text-white block mt-1">{capacityAudit.safe_capacity_limit_hours}h</span>
-                <span className="text-[10px] text-neutral-500 block mt-0.5">Mandatory 20% slack buffer</span>
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="text-neutral-400 block">Protected Buffer</span>
+                <span className="text-lg font-bold text-white block mt-1">{capacityAudit.safe_capacity_limit_hours}h</span>
+                <span className="text-[11px] text-neutral-500 block mt-0.5">Guaranteed slack margin</span>
               </div>
 
-              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
-                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Utilization Ratio</span>
-                <span className={`text-base font-bold block mt-1 ${capacityAudit.is_overloaded ? 'text-rose-400' : 'text-[#07CB6C]'}`}>
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="text-neutral-400 block">Schedule Load</span>
+                <span className={`text-lg font-bold block mt-1 ${capacityAudit.is_overloaded ? 'text-rose-400' : 'text-[#07CB6C]'}`}>
                   {capacityAudit.capacity_utilization_pct}%
                 </span>
-                <span className="text-[10px] text-neutral-500 block mt-0.5">
-                  {capacityAudit.is_overloaded ? 'De-prioritize lower tier' : 'Execution sustainable'}
+                <span className="text-[11px] text-neutral-500 block mt-0.5">
+                  {capacityAudit.is_overloaded ? 'Needs schedule trim' : 'Sustainable pace'}
                 </span>
               </div>
             </div>
 
-            {/* Recommendations or Invariant notice */}
+            {/* Recommendations */}
             {capacityAudit.recommendations.length > 0 && (
-              <div className="p-3 rounded bg-amber-500/10 border border-amber-500/20 text-xs font-mono space-y-1">
-                <span className="text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+              <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1">
+                <span className="text-amber-400 font-semibold flex items-center gap-1">
                   <AlertTriangle className="w-3.5 h-3.5" />
-                  Capacity Coordination Recommendations:
+                  Schedule Recommendations:
                 </span>
                 <ul className="list-disc list-inside text-neutral-300 space-y-0.5">
                   {capacityAudit.recommendations.map((rec, i) => (
@@ -478,60 +490,59 @@ export const ProgressPage: React.FC = () => {
           </div>
         )}
 
-        {/* Continuous Profile Learning Telemetry Section */}
+        {/* Your Rhythm & Habit Performance */}
         {profileTelemetry && (
-          <div className="bg-[#0a0f0d] p-5 sm:p-6 rounded-md border border-[#1a2824] space-y-3 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#1a2824] pb-2.5">
-              <span className="text-[10px] font-mono font-medium uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
-                <Activity className="w-3.5 h-3.5 text-[#07CB6C]" />
-                CONTINUOUS PROFILE LEARNING // AGGREGATED TELEMETRY
+          <div className="bg-[#0a0f0d] p-5 sm:p-6 rounded-2xl border border-white/10 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                <Activity className="w-4 h-4 text-[#07CB6C]" />
+                Your Rhythm & Performance Insights
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 font-medium uppercase">
-                ACTIVE AGGREGATION
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 font-medium">
+                Active Learning
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono pt-1">
-              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
-                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Peak Focus Window</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="text-neutral-400 block">Peak Focus Window</span>
                 <span className="text-sm font-semibold text-white block mt-1">{profileTelemetry.peakWindow}</span>
-                <span className="text-[10px] text-[#07CB6C] block mt-0.5">{profileTelemetry.bestWorkingHours} CADENCE</span>
+                <span className="text-[11px] text-[#07CB6C] block mt-0.5">{profileTelemetry.bestWorkingHours}</span>
               </div>
 
-              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
-                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Cumulative Volume</span>
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="text-neutral-400 block">Total Completed</span>
                 <span className="text-sm font-semibold text-white block mt-1">{profileTelemetry.totalCompleted} Sessions</span>
-                <span className="text-[10px] text-neutral-400 block mt-0.5">Avg {profileTelemetry.avgDuration}m / session</span>
+                <span className="text-[11px] text-neutral-400 block mt-0.5">Avg {profileTelemetry.avgDuration}m each</span>
               </div>
 
-              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
-                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Lapse Risk Diagnostic</span>
-                <span className="text-sm font-semibold text-amber-400 block mt-1 truncate">{profileTelemetry.frequentTrigger}</span>
-                <span className="text-[10px] text-neutral-400 block mt-0.5">{profileTelemetry.recoveryEvents} Events Logged</span>
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="text-neutral-400 block">Adaptations</span>
+                <span className="text-sm font-semibold text-white block mt-1">{profileTelemetry.recoveryEvents} Handled</span>
+                <span className="text-[11px] text-neutral-400 block mt-0.5">Seamless zero-debt moves</span>
               </div>
 
-              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
-                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Preferred Remediation</span>
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5">
+                <span className="text-neutral-400 block">Remediation Style</span>
                 <span className="text-sm font-semibold text-[#07CB6C] block mt-1 truncate">{profileTelemetry.recoveryChoice}</span>
-                <span className="text-[10px] text-neutral-400 block mt-0.5">Buffer-tier priority drop</span>
+                <span className="text-[11px] text-neutral-400 block mt-0.5">Protected baseline</span>
               </div>
             </div>
           </div>
         )}
 
-        {/* Latest Adaptive Decision Trace */}
-        <div className="bg-[#0a0f0d] p-5 sm:p-6 rounded-md border border-[#1a2824] space-y-2">
-          <div className="flex items-center justify-between border-b border-[#1a2824] pb-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
+        {/* Latest Pacing Update Note */}
+        {adaptiveData.latestPlanUpdate && (
+          <div className="bg-[#0a0f0d] p-4 sm:p-5 rounded-2xl border border-white/10 space-y-1.5 shadow-sm">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-neutral-300">
               <Zap className="w-3.5 h-3.5 text-sky-400" />
-              SYSTEM DIAGNOSTIC & ADAPTATION AUDIT
-            </span>
-            <span className="text-[10px] font-mono text-neutral-500">TRANSPARENT REASONING</span>
+              <span>Latest Pacing Note</span>
+            </div>
+            <p className="text-xs text-neutral-300 leading-relaxed">
+              {adaptiveData.latestPlanUpdate}
+            </p>
           </div>
-          <p className="text-xs font-mono text-neutral-300 leading-relaxed pt-1">
-            {adaptiveData.latestPlanUpdate || 'Trajectory progressing normally according to plan.'}
-          </p>
-        </div>
+        )}
       </main>
     </div>
   );
