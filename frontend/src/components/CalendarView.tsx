@@ -301,17 +301,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   if (error && !data) {
     return (
-      <div className="rounded-md bg-[#0c1210] border border-[#ef4444]/40 p-8 text-center text-[#ef4444] space-y-4 shadow-none">
-        <div className="flex items-center justify-center gap-2 text-xs font-mono uppercase tracking-wider">
+      <div className="rounded-2xl bg-white/[0.02] border border-rose-500/20 p-8 text-center text-rose-400 space-y-4">
+        <div className="flex items-center justify-center gap-2 text-xs font-medium">
           <AlertCircle className="w-4 h-4" />
-          <span>SCHEDULE SYNCHRONIZATION ERROR</span>
+          <span>Unable to sync schedule</span>
         </div>
-        <p className="text-xs font-mono text-[#a6b8ad] max-w-md mx-auto">{error}</p>
+        <p className="text-xs text-neutral-400 max-w-md mx-auto">{error}</p>
         <button
           onClick={() => loadWeek(weekOffset)}
-          className="min-h-[44px] px-4 py-2 rounded-sm bg-[#080d0b] hover:bg-[#161214] text-[#e5ebe7] text-xs font-mono border border-[#1a2824] transition-colors cursor-pointer"
+          className="min-h-[40px] px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-medium border border-white/10 transition-colors cursor-pointer"
         >
-          RETRY TELEMETRY
+          Try Again
         </button>
       </div>
     );
@@ -322,12 +322,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const startDateFormatted = new Date(data.startDate).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
-  }).toUpperCase();
+  });
   const endDateFormatted = new Date(new Date(data.endDate).getTime() - 24 * 60 * 60 * 1000).toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).toUpperCase();
+  });
 
   return (
     <div className="space-y-6 w-full max-w-full">
@@ -402,61 +402,54 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         />
       )}
 
-      {/* Week Navigator & Metrics Instrumentation Panel */}
-      <div className="rounded-md bg-[#0c1210] border border-[#1a2824] p-4 sm:p-5 shadow-none space-y-4">
-        {/* Section Header Micro-Label */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1a2824] pb-4">
+      {/* Week Navigator & Metrics Strip */}
+      <div className="rounded-2xl bg-[#0a0f0d] border border-white/10 p-4 sm:p-5 space-y-4">
+        {/* Week Title & Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
           <div className="space-y-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-mono font-bold tracking-wider text-[#07CB6C] uppercase">
-                WEEK {String(data.weekNumber).padStart(2, '0')} // 12-WEEK BLUEPRINT
+              <span className="text-xs font-semibold text-white">
+                Week {data.weekNumber} of 12
               </span>
-              <span className="text-[10px] font-mono text-[#9ca3af]">
-                [{startDateFormatted} – {endDateFormatted}]
+              <span className="text-xs text-neutral-500">•</span>
+              <span className="text-xs text-neutral-400 font-mono">
+                {startDateFormatted} – {endDateFormatted}
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
+                Phase {data.phase?.phase_order || (data.weekOffset < 4 ? 1 : data.weekOffset < 8 ? 2 : 3)}: {data.weekOffset < 4 ? 'Foundation' : data.weekOffset < 8 ? 'Acceleration' : 'Delivery'}
               </span>
             </div>
 
-            <h2 className="text-lg sm:text-xl font-bold text-[#e5ebe7] truncate">
-              {data.goal?.title || 'Goal Schedule'}
+            <h2 className="text-base sm:text-lg font-semibold text-white truncate">
+              {data.goal?.title || 'Weekly Schedule'}
             </h2>
-
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#07CB6C]/15 text-[#07CB6C] border border-[#07CB6C]/30">
-                PHASE {data.phase?.phase_order || (data.weekOffset < 4 ? 1 : data.weekOffset < 8 ? 2 : 3)}: {data.weekOffset < 4 ? 'FOUNDATION' : data.weekOffset < 8 ? 'ACCELERATION' : 'DELIVERY'}
-              </span>
-              <span className="text-[#9ca3af] text-[10px]">
-                [Weeks {data.weekOffset < 4 ? '1–4' : data.weekOffset < 8 ? '5–8' : '9–12'} • Week {(data.weekOffset % 4) + 1} of 4]
-              </span>
-              <span className="text-[#a6b8ad] truncate hidden sm:inline">— {data.phase?.title}</span>
-            </div>
           </div>
 
-          {/* Navigation Stepper Controls & Quick Reschedule */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end pt-2 md:pt-0">
-            {/* Quick Reschedule Action Trigger */}
+          {/* Stepper Controls & Adjust Schedule */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end">
             <button
               id="btn-quick-reschedule"
               type="button"
               onClick={handleTriggerReschedule}
               disabled={isRescheduling}
-              className="min-h-[44px] px-3.5 py-2 rounded-sm bg-[#080d0b] hover:bg-[#16140d] border border-[#1a2824] hover:border-[#f59e0b]/40 text-[#f59e0b] text-xs font-mono font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
-              title="Scan and Recover Missed Sessions"
+              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+              title="Reorganize sessions to fit your available time"
             >
               {isRescheduling ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#07CB6C]" />
               ) : (
-                <Zap className="w-3.5 h-3.5 text-[#f59e0b]" />
+                <Zap className="w-3.5 h-3.5 text-[#07CB6C]" />
               )}
-              <span>ADAPTIVE RESCHEDULE</span>
+              <span>Adjust Schedule</span>
             </button>
 
-            {/* Week Stepper Buttons */}
-            <div className="flex items-center gap-1 bg-[#080d0b] p-1 rounded-sm border border-[#1a2824]">
+            {/* Stepper buttons */}
+            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
               <button
                 id="btn-prev-week"
                 onClick={handlePrevWeek}
                 disabled={weekOffset <= 0}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-sm text-[#9ca3af] hover:text-[#e5ebe7] hover:bg-[#111a17] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="min-h-[34px] min-w-[34px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 title="Previous Week"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -465,20 +458,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               <button
                 id="btn-current-week"
                 onClick={() => setWeekOffset(0)}
-                className={`min-h-[44px] px-3 text-xs font-mono font-semibold rounded-sm transition-colors cursor-pointer flex items-center justify-center ${
+                className={`min-h-[34px] px-3 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
                   weekOffset === 0
-                    ? 'bg-[#16221e] text-[#07CB6C] border border-[#1a2824]'
-                    : 'text-[#9ca3af] hover:text-[#e5ebe7] hover:bg-[#111a17]'
+                    ? 'bg-[#07CB6C]/15 text-[#07CB6C] font-semibold border border-[#07CB6C]/30'
+                    : 'text-neutral-400 hover:text-white hover:bg-white/5'
                 }`}
               >
-                WEEK 1
+                Week 1
               </button>
 
               <button
                 id="btn-next-week"
                 onClick={handleNextWeek}
                 disabled={weekOffset >= 11}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-sm text-[#9ca3af] hover:text-[#e5ebe7] hover:bg-[#111a17] disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                className="min-h-[34px] min-w-[34px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 title="Next Week"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -487,30 +480,30 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
         </div>
 
-        {/* Telemetry Summary Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs font-mono">
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#1a2824]">
-            <div className="text-[10px] text-[#9ca3af] uppercase">TOTAL SESSIONS</div>
-            <div className="text-sm font-bold text-[#e5ebe7] mt-0.5">{data.sessions.length} UNITS</div>
+        {/* Calm Telemetry Summary */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+            <div className="text-[11px] text-neutral-400">Total Planned</div>
+            <div className="text-sm font-semibold text-white mt-0.5">{data.sessions.length} sessions ({totalHours}h)</div>
           </div>
 
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#1a2824]">
-            <div className="text-[10px] text-[#9ca3af] uppercase">ESTIMATED RUNTIME</div>
-            <div className="text-sm font-bold text-[#e5ebe7] mt-0.5">{totalHours} HOURS</div>
-          </div>
-
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#1a2824]">
-            <div className="text-[10px] text-[#9ca3af] uppercase">COMPLETION RATE</div>
-            <div className="text-sm font-bold text-[#07CB6C] mt-0.5">
-              {data.sessions.length > 0 ? Math.round((completedSessions / data.sessions.length) * 100) : 0}% ({completedSessions}/{data.sessions.length})
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+            <div className="text-[11px] text-neutral-400">Completed</div>
+            <div className="text-sm font-semibold text-[#07CB6C] mt-0.5">
+              {completedSessions} of {data.sessions.length} ({data.sessions.length > 0 ? Math.round((completedSessions / data.sessions.length) * 100) : 0}%)
             </div>
           </div>
 
-          <div className="p-2.5 rounded-sm bg-[#080d0b] border border-[#1a2824]">
-            <div className="text-[10px] text-[#9ca3af] uppercase">PACING DRIFT</div>
-            <div className={`text-sm font-bold mt-0.5 ${data.goal?.slippage_days > 0 ? 'text-[#f59e0b]' : 'text-[#07CB6C]'}`}>
-              {data.goal?.slippage_days > 0 ? `+${data.goal.slippage_days} DAYS` : '0 DAYS [NOMINAL]'}
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+            <div className="text-[11px] text-neutral-400">Pacing</div>
+            <div className={`text-sm font-semibold mt-0.5 ${data.goal?.slippage_days > 0 ? 'text-amber-400' : 'text-[#07CB6C]'}`}>
+              {data.goal?.slippage_days > 0 ? `+${data.goal.slippage_days} days adjusted` : 'On Schedule'}
             </div>
+          </div>
+
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
+            <div className="text-[11px] text-neutral-400">Reliability Buffer</div>
+            <div className="text-sm font-semibold text-neutral-200 mt-0.5">Protected Sunday</div>
           </div>
         </div>
       </div>
@@ -524,10 +517,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {weekDays.map((day) => (
           <div
             key={day.dateStr}
-            className={`rounded-md bg-[#0c1210] flex flex-col justify-between transition-colors border shadow-none ${
+            className={`rounded-2xl bg-[#0a0f0d] flex flex-col justify-between transition-all border ${
               day.isToday
-                ? 'border-[#07CB6C] ring-1 ring-[#07CB6C]/30'
-                : 'border-[#1a2824] hover:border-[#2a443a]'
+                ? 'border-[#07CB6C]/50 bg-[#07CB6C]/[0.02] shadow-[0_0_15px_rgba(7,203,108,0.06)]'
+                : 'border-white/5 hover:border-white/10'
             }`}
           >
             {/* Day Header - Clickable for full Chrono Timeline Modal */}
@@ -540,32 +533,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 busySlots: day.busySlots,
               })}
               title="Inspect day timeline"
-              className={`min-h-[44px] w-full p-3 border-b flex items-center justify-between text-left cursor-pointer transition-colors group/header ${
+              className={`min-h-[44px] w-full p-3 border-b flex items-center justify-between text-left cursor-pointer transition-colors rounded-t-2xl group/header ${
                 day.isToday
-                  ? 'border-[#07CB6C]/30 bg-[#07CB6C]/5 hover:bg-[#07CB6C]/10'
-                  : 'border-[#1a2824] bg-[#080d0b] hover:bg-[#111a17]'
+                  ? 'border-[#07CB6C]/20 bg-[#07CB6C]/5 hover:bg-[#07CB6C]/10'
+                  : 'border-white/5 bg-white/[0.01] hover:bg-white/[0.03]'
               }`}
             >
               <div className="min-w-0">
-                <div className="text-[10px] font-mono font-bold tracking-wider text-[#9ca3af] group-hover/header:text-[#07CB6C] transition-colors flex items-center gap-1">
+                <div className="text-xs font-semibold text-white group-hover/header:text-[#07CB6C] transition-colors flex items-center gap-1">
                   <span>{day.dayShort}</span>
                   <Eye className="w-2.5 h-2.5 opacity-0 group-hover/header:opacity-100 transition-opacity text-[#07CB6C]" />
                 </div>
-                <div className="text-xs sm:text-sm font-mono font-bold text-[#e5ebe7] truncate">
-                  {day.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}
+                <div className="text-[11px] font-mono text-neutral-400 truncate">
+                  {day.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                 </div>
               </div>
 
               <div className="flex items-center gap-1.5 shrink-0">
                 {day.isToday && (
-                  <span className="px-1.5 py-0.5 rounded-sm bg-[#07CB6C] text-[#050807] text-[9px] font-mono font-bold uppercase tracking-wide">
-                    TODAY
+                  <span className="px-2 py-0.5 rounded-full bg-[#07CB6C]/20 text-[#07CB6C] text-[10px] font-semibold">
+                    Today
                   </span>
                 )}
 
                 {day.dayKey === 'SUN' && (
-                  <span className="px-1.5 py-0.5 rounded-sm bg-[#1a2824] border border-dashed border-[#2a443a] text-[#9ca3af] text-[9px] font-mono font-bold uppercase">
-                    BUFFER
+                  <span className="px-2 py-0.5 rounded-full bg-white/5 text-neutral-400 text-[10px] font-mono">
+                    Buffer
                   </span>
                 )}
               </div>
@@ -576,30 +569,26 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               {/* Routine Busy Blocks Preview */}
               {day.busySlots.length > 0 && (
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1 text-[9px] font-mono text-[#55675c] uppercase tracking-wider">
-                    <Briefcase className="w-2.5 h-2.5" />
-                    <span>BUSY BLOCKS ({day.busySlots.length})</span>
-                  </div>
-                  <div className="space-y-1">
-                    {day.busySlots.map((busy, bIdx) => (
-                      <div
-                        key={bIdx}
-                        className="px-2 py-1 rounded-sm bg-[#080d0b] border border-[#1a2824] text-[10px] font-mono text-[#9ca3af] flex items-center justify-between gap-1"
-                      >
-                        <span className="truncate max-w-[80px]">{busy.label || 'Busy'}</span>
-                        <span className="shrink-0 text-[9px]">{busy.start_time}–{busy.end_time}</span>
+                  {day.busySlots.map((busy, bIdx) => (
+                    <div
+                      key={bIdx}
+                      className="px-2.5 py-1 rounded-lg bg-white/[0.02] border border-white/5 text-[11px] text-neutral-400 flex items-center justify-between gap-1"
+                    >
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Briefcase className="w-3 h-3 text-neutral-500 shrink-0" />
+                        <span className="truncate max-w-[85px]">{busy.label || 'Busy'}</span>
                       </div>
-                    ))}
-                  </div>
+                      <span className="shrink-0 text-[10px] font-mono text-neutral-500">{busy.start_time}–{busy.end_time}</span>
+                    </div>
+                  ))}
                 </div>
               )}
 
               {/* Goal Sessions Section */}
               <div className="space-y-2 flex-1">
                 {day.sessions.length === 0 ? (
-                  <div className="h-full min-h-[80px] rounded-sm border border-dashed border-[#1a2824] p-3 flex flex-col items-center justify-center text-center text-[#55675c] text-[10px] font-mono">
-                    <span>UNRESERVED</span>
-                    <span className="text-[9px] text-[#425047] mt-0.5">Open Buffer Window</span>
+                  <div className="h-full min-h-[70px] rounded-xl border border-dashed border-white/5 p-3 flex flex-col items-center justify-center text-center text-neutral-500 text-xs">
+                    <span>Open buffer time</span>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -612,64 +601,54 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         <div
                           key={session.id}
                           onClick={() => setSelectedSession(session)}
-                          className={`min-h-[44px] p-2.5 rounded-sm transition-colors space-y-2 cursor-pointer relative ${
+                          className={`min-h-[44px] p-3 rounded-xl transition-all space-y-2 cursor-pointer relative border ${
                             isDone
-                              ? 'bg-[#080d0b] border border-[#1a2824] text-[#55675c]'
+                              ? 'bg-white/[0.01] border-white/5 text-neutral-500 opacity-60'
                               : tier === 'core'
-                              ? 'bg-[#0c1210] border border-[#07CB6C]/40 hover:border-[#07CB6C]'
-                              : tier === 'buffer'
-                              ? 'bg-[#0c1210] border border-dashed border-[#1a2824] hover:border-[#2a443a]'
-                              : 'bg-[#0c1210] border border-[#1a2824] hover:border-[#07CB6C]/50'
+                              ? 'bg-[#0a140f] border-[#07CB6C]/30 hover:border-[#07CB6C]/70 shadow-sm'
+                              : tier === 'reflect'
+                              ? 'bg-[#0f1118] border-indigo-500/30 hover:border-indigo-500/60'
+                              : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                           }`}
                         >
-                          {/* Title & Quick Check Target */}
+                          {/* Title & Check Target */}
                           <div className="flex items-start justify-between gap-2 min-w-0">
-                            <div className="min-w-0 space-y-0.5">
-                              {/* Tier Micro-Tag */}
+                            <div className="min-w-0 space-y-1">
                               <div className="flex items-center gap-1.5">
-                                {tier === 'core' && (
-                                  <span className="text-[9px] font-mono font-bold text-[#07CB6C] flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                                    [CORE]
-                                  </span>
-                                )}
-                                {tier === 'buffer' && (
-                                  <span className="text-[9px] font-mono font-bold text-[#9ca3af] flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#9ca3af]" />
-                                    [BUFFER]
-                                  </span>
-                                )}
-                                {tier === 'reflect' && (
-                                  <span className="text-[9px] font-mono font-bold text-[#a6b8ad] flex items-center gap-1">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#6366f1]" />
-                                    [REFLECT]
-                                  </span>
-                                )}
-
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    tier === 'core'
+                                      ? 'bg-[#07CB6C]'
+                                      : tier === 'reflect'
+                                      ? 'bg-indigo-400'
+                                      : 'bg-neutral-500'
+                                  }`}
+                                />
+                                <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wide">
+                                  {tier === 'core' ? 'Core Focus' : tier === 'reflect' ? 'Weekly Review' : 'Buffer'}
+                                </span>
                                 {isRescheduled && (
-                                  <span className="text-[9px] font-mono font-bold text-[#f59e0b]">
-                                    ⚡ RESCHEDULED
+                                  <span className="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
+                                    Moved
                                   </span>
                                 )}
                               </div>
 
-                              <h4 className={`text-xs font-bold leading-snug truncate ${
-                                isDone
-                                  ? 'text-[#55675c] line-through'
-                                  : isRescheduled
-                                  ? 'text-[#f59e0b]'
-                                  : 'text-[#e5ebe7]'
-                              }`}>
+                              <h4
+                                className={`text-xs font-semibold leading-snug truncate ${
+                                  isDone ? 'line-through text-neutral-500' : 'text-white'
+                                }`}
+                              >
                                 {session.task_template?.title || 'Goal Session'}
                               </h4>
                             </div>
 
-                            {/* Quick Complete Button - 44x44px Touch Target Compliance */}
+                            {/* Complete Button */}
                             <button
                               type="button"
                               onClick={(e) => handleToggleDoneDirect(e, session)}
                               title={isDone ? 'Mark Upcoming' : 'Mark Done'}
-                              className="min-h-[44px] min-w-[44px] -m-2 flex items-center justify-center rounded-sm text-[#9ca3af] hover:text-[#07CB6C] transition-colors cursor-pointer shrink-0"
+                              className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-[#07CB6C] transition-colors cursor-pointer shrink-0"
                             >
                               {isDone ? (
                                 <CheckCircle2 className="w-4 h-4 text-[#07CB6C]" />
@@ -679,14 +658,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             </button>
                           </div>
 
-                          {/* Time & Duration in Tabular Monospace */}
-                          <div className="flex items-center justify-between text-[10px] font-mono pt-1 border-t border-[#1a2824]">
-                            <span className="text-[#a6b8ad]">
+                          {/* Time & Duration */}
+                          <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 pt-1.5 border-t border-white/5">
+                            <span>
                               {session.start_time || '09:00'} – {session.end_time || '10:00'}
                             </span>
-                            <span className="text-[#9ca3af] flex items-center gap-1">
+                            <span className="flex items-center gap-1 text-[10px]">
                               {getTimeIcon(session.task_template?.preferred_time_of_day)}
-                              <span>{session.task_template?.session_duration_minutes || 60}M</span>
+                              <span>{session.task_template?.session_duration_minutes || 60}m</span>
                             </span>
                           </div>
                         </div>
