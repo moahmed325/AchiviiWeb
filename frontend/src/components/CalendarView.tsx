@@ -91,6 +91,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [isRoutineModalOpen, setIsRoutineModalOpen] = useState<boolean>(false);
   const [isMissedCardDismissed, setIsMissedCardDismissed] = useState<boolean>(false);
 
+  // Live current time (e.g. "14:30") updated every 30 seconds for the live now line
+  const [currentTime, setCurrentTime] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+  });
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      setCurrentTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+    };
+    const timer = setInterval(update, 30000);
+    return () => clearInterval(timer);
+  }, []);
+
   const loadWeek = useCallback(async (offset: number) => {
     if (!token) return;
     setLoading(true);
@@ -514,117 +529,202 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               </div>
             </button>
 
-            {/* Day Column Body */}
-            <div className="p-2.5 space-y-2.5 flex-1 flex flex-col justify-between">
-              {/* Routine Busy Blocks Preview */}
-              {day.busySlots.length > 0 && (
-                <div className="space-y-1">
-                  {day.busySlots.map((busy, bIdx) => (
-                    <div
-                      key={bIdx}
-                      className="px-2.5 py-1 rounded-lg bg-white/[0.02] border border-white/5 text-[11px] text-neutral-400 flex items-center justify-between gap-1"
-                    >
-                      <div className="flex items-center gap-1.5 truncate">
-                        <Briefcase className="w-3 h-3 text-neutral-500 shrink-0" />
-                        <span className="truncate max-w-[85px]">{busy.label || 'Busy'}</span>
-                      </div>
-                      <span className="shrink-0 text-[10px] font-mono text-neutral-500">{busy.start_time}–{busy.end_time}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            {/* Day Column Body with Unified Chronological Flow & Live Now Line */}
+            {(() => {
+              const unifiedItems: Array<{
+                id: string;
+                type: 'busy' | 'session';
+                startTime: string;
+                endTime: string;
+                busy?: AvailabilitySlot;
+                session?: Session;
+              }> = [
+                ...day.busySlots.map((busy, bIdx) => ({
+                  id: `busy-${bIdx}-${busy.start_time}`,
+                  type: 'busy' as const,
+                  startTime: busy.start_time,
+                  endTime: busy.end_time,
+                  busy,
+                })),
+                ...day.sessions.map((session) => ({
+                  id: session.id,
+                  type: 'session' as const,
+                  startTime: session.start_time || '09:00',
+                  endTime: session.end_time || '10:00',
+                  session,
+                })),
+              ].sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-              {/* Goal Sessions Section */}
-              <div className="space-y-2 flex-1">
-                {day.sessions.length === 0 ? (
-                  <div className="h-full min-h-[70px] rounded-xl border border-dashed border-white/5 p-3 flex flex-col items-center justify-center text-center text-neutral-500 text-xs">
-                    <span>Open buffer time</span>
+              let hasRenderedNowLine = false;
+
+              const renderNowLine = () => (
+                <div
+                  key="live-now-line"
+                  className="relative py-1.5 flex items-center gap-2 my-1 z-10 animate-in fade-in duration-300"
+                  title={`Current Time: ${currentTime}`}
+                >
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#07CB6C] text-black text-[9px] font-mono font-bold shrink-0 shadow-[0_0_12px_rgba(7,203,108,0.5)]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping" />
+                    <span>{currentTime} NOW</span>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {day.sessions.map((session) => {
-                      const isDone = session.status === 'DONE';
-                      const isRescheduled = session.status === 'RESCHEDULED';
-                      const tier = getSessionTier(session);
+                  <div className="h-[2px] flex-1 bg-gradient-to-r from-[#07CB6C] via-[#07CB6C]/70 to-transparent shadow-[0_0_8px_rgba(7,203,108,0.4)]" />
+                </div>
+              );
 
-                      return (
-                        <div
-                          key={session.id}
-                          onClick={() => setSelectedSession(session)}
-                          className={`min-h-[44px] p-3 rounded-xl transition-all space-y-2 cursor-pointer relative border ${
-                            isDone
-                              ? 'bg-white/[0.01] border-white/5 text-neutral-500 opacity-60'
-                              : tier === 'core'
-                              ? 'bg-[#0a140f] border-[#07CB6C]/30 hover:border-[#07CB6C]/70 shadow-sm'
-                              : tier === 'reflect'
-                              ? 'bg-[#0f1118] border-indigo-500/30 hover:border-indigo-500/60'
-                              : 'bg-white/[0.02] border-white/10 hover:border-white/20'
-                          }`}
-                        >
-                          {/* Title & Check Target */}
-                          <div className="flex items-start justify-between gap-2 min-w-0">
-                            <div className="min-w-0 space-y-1">
-                              <div className="flex items-center gap-1.5">
-                                <span
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    tier === 'core'
-                                      ? 'bg-[#07CB6C]'
-                                      : tier === 'reflect'
-                                      ? 'bg-indigo-400'
-                                      : 'bg-neutral-500'
-                                  }`}
-                                />
-                                <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wide">
-                                  {tier === 'core' ? 'Core Focus' : tier === 'reflect' ? 'Weekly Review' : 'Buffer'}
-                                </span>
-                                {isRescheduled && (
-                                  <span className="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
-                                    Moved
-                                  </span>
-                                )}
-                              </div>
+              return (
+                <div className="p-2.5 space-y-2.5 flex-1 flex flex-col justify-between">
+                  {unifiedItems.length === 0 ? (
+                    <div className="space-y-2 flex-1 flex flex-col justify-center">
+                      {day.isToday && renderNowLine()}
+                      <div className="min-h-[70px] rounded-xl border border-dashed border-white/5 p-3 flex flex-col items-center justify-center text-center text-neutral-500 text-xs">
+                        <span>Open buffer time</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 flex-1">
+                      {unifiedItems.map((item) => {
+                        let nowLineBefore = false;
+                        if (day.isToday && !hasRenderedNowLine && currentTime < item.startTime) {
+                          nowLineBefore = true;
+                          hasRenderedNowLine = true;
+                        }
 
-                              <h4
-                                className={`text-xs font-semibold leading-snug truncate ${
-                                  isDone ? 'line-through text-neutral-500' : 'text-white'
+                        const isHappeningNow =
+                          day.isToday &&
+                          item.startTime <= currentTime &&
+                          item.endTime > currentTime;
+
+                        return (
+                          <React.Fragment key={item.id}>
+                            {nowLineBefore && renderNowLine()}
+
+                            {item.type === 'busy' && item.busy && (
+                              <div
+                                className={`px-2.5 py-1.5 rounded-lg border text-[11px] text-neutral-400 flex items-center justify-between gap-1 transition-all ${
+                                  isHappeningNow
+                                    ? 'bg-[#07CB6C]/10 border-[#07CB6C]/40 text-white shadow-[0_0_10px_rgba(7,203,108,0.1)]'
+                                    : 'bg-white/[0.02] border-white/5'
                                 }`}
                               >
-                                {session.task_template?.title || 'Goal Session'}
-                              </h4>
-                            </div>
+                                <div className="flex items-center gap-1.5 truncate">
+                                  <Briefcase
+                                    className={`w-3 h-3 shrink-0 ${
+                                      isHappeningNow ? 'text-[#07CB6C]' : 'text-neutral-500'
+                                    }`}
+                                  />
+                                  <span className="truncate max-w-[85px]">
+                                    {item.busy.label || 'Busy'}
+                                  </span>
+                                  {isHappeningNow && (
+                                    <span className="text-[9px] font-mono text-[#07CB6C] font-semibold">
+                                      • Now
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="shrink-0 text-[10px] font-mono text-neutral-500">
+                                  {item.startTime}–{item.endTime}
+                                </span>
+                              </div>
+                            )}
 
-                            {/* Complete Button */}
-                            <button
-                              type="button"
-                              onClick={(e) => handleToggleDoneDirect(e, session)}
-                              title={isDone ? 'Mark Upcoming' : 'Mark Done'}
-                              className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-[#07CB6C] transition-colors cursor-pointer shrink-0"
-                            >
-                              {isDone ? (
-                                <CheckCircle2 className="w-4 h-4 text-[#07CB6C]" />
-                              ) : (
-                                <Circle className="w-4 h-4 hover:text-[#07CB6C]" />
-                              )}
-                            </button>
-                          </div>
+                            {item.type === 'session' && item.session && (
+                              <div
+                                onClick={() => setSelectedSession(item.session!)}
+                                className={`min-h-[44px] p-3 rounded-xl transition-all space-y-2 cursor-pointer relative border ${
+                                  item.session.status === 'DONE'
+                                    ? 'bg-white/[0.01] border-white/5 text-neutral-500 opacity-60'
+                                    : isHappeningNow
+                                    ? 'bg-[#0a1811] border-[#07CB6C] shadow-[0_0_15px_rgba(7,203,108,0.18)]'
+                                    : getSessionTier(item.session) === 'core'
+                                    ? 'bg-[#0a140f] border-[#07CB6C]/30 hover:border-[#07CB6C]/70 shadow-sm'
+                                    : getSessionTier(item.session) === 'reflect'
+                                    ? 'bg-[#0f1118] border-indigo-500/30 hover:border-indigo-500/60'
+                                    : 'bg-white/[0.02] border-white/10 hover:border-white/20'
+                                }`}
+                              >
+                                {/* Title & Check Target */}
+                                <div className="flex items-start justify-between gap-2 min-w-0">
+                                  <div className="min-w-0 space-y-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full ${
+                                          isHappeningNow
+                                            ? 'bg-[#07CB6C] animate-pulse'
+                                            : getSessionTier(item.session) === 'core'
+                                            ? 'bg-[#07CB6C]'
+                                            : getSessionTier(item.session) === 'reflect'
+                                            ? 'bg-indigo-400'
+                                            : 'bg-neutral-500'
+                                        }`}
+                                      />
+                                      <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wide">
+                                        {getSessionTier(item.session) === 'core'
+                                          ? 'Core Focus'
+                                          : getSessionTier(item.session) === 'reflect'
+                                          ? 'Weekly Review'
+                                          : 'Buffer'}
+                                      </span>
+                                      {isHappeningNow && (
+                                        <span className="text-[9px] font-mono font-bold text-[#07CB6C] bg-[#07CB6C]/20 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                                          <span className="w-1 h-1 rounded-full bg-[#07CB6C] animate-ping" />
+                                          Live Now
+                                        </span>
+                                      )}
+                                      {item.session.status === 'RESCHEDULED' && (
+                                        <span className="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded">
+                                          Moved
+                                        </span>
+                                      )}
+                                    </div>
 
-                          {/* Time & Duration */}
-                          <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 pt-1.5 border-t border-white/5">
-                            <span>
-                              {session.start_time || '09:00'} – {session.end_time || '10:00'}
-                            </span>
-                            <span className="flex items-center gap-1 text-[10px]">
-                              {getTimeIcon(session.task_template?.preferred_time_of_day)}
-                              <span>{session.task_template?.session_duration_minutes || 60}m</span>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+                                    <h4
+                                      className={`text-xs font-semibold leading-snug truncate ${
+                                        item.session.status === 'DONE'
+                                          ? 'line-through text-neutral-500'
+                                          : 'text-white'
+                                      }`}
+                                    >
+                                      {item.session.task_template?.title || 'Goal Session'}
+                                    </h4>
+                                  </div>
+
+                                  {/* Complete Button */}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleToggleDoneDirect(e, item.session!)}
+                                    title={item.session.status === 'DONE' ? 'Mark Upcoming' : 'Mark Done'}
+                                    className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-[#07CB6C] transition-colors cursor-pointer shrink-0"
+                                  >
+                                    {item.session.status === 'DONE' ? (
+                                      <CheckCircle2 className="w-4 h-4 text-[#07CB6C]" />
+                                    ) : (
+                                      <Circle className="w-4 h-4 hover:text-[#07CB6C]" />
+                                    )}
+                                  </button>
+                                </div>
+
+                                {/* Time & Duration */}
+                                <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 pt-1.5 border-t border-white/5">
+                                  <span className={isHappeningNow ? 'text-[#07CB6C] font-semibold' : ''}>
+                                    {item.startTime} – {item.endTime}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-[10px]">
+                                    {getTimeIcon(item.session.task_template?.preferred_time_of_day)}
+                                    <span>{item.session.task_template?.session_duration_minutes || 60}m</span>
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+
+                      {day.isToday && !hasRenderedNowLine && renderNowLine()}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         ))}
       </div>
