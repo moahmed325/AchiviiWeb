@@ -226,6 +226,9 @@ export const OnboardingPage: React.FC = () => {
           } catch {
             initialSelected = catalog.find((g) => g.id === goalIdParam) || null;
           }
+          if (initialSelected) {
+            setStep(2);
+          }
         }
 
         if (!initialSelected && catalog.length > 0) {
@@ -347,8 +350,10 @@ export const OnboardingPage: React.FC = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setStep(1);
+      navigate('/onboarding', { replace: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, navigate]);
 
   const handleContinueToRoutines = useCallback(() => {
     for (const q of parsedQuestions) {
@@ -559,32 +564,53 @@ export const OnboardingPage: React.FC = () => {
             <span className="font-bold text-base tracking-tight text-white">Achivii</span>
           </Link>
 
-          {/* Stepper Dots */}
+          {/* Interactive Stepper */}
           <div className="flex items-center gap-3">
             {[
               { num: 1, label: 'Goal' },
               { num: 2, label: 'Questions' },
               { num: 3, label: 'Routine' },
               { num: 4, label: 'Plan' },
-            ].map((s) => (
-              <div key={s.num} className="flex items-center gap-1.5">
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold transition-all ${
-                    step === s.num
-                      ? 'bg-[#07CB6C] text-black ring-2 ring-[#07CB6C]/30'
-                      : step > s.num
-                      ? 'bg-white/10 text-[#07CB6C]'
-                      : 'bg-white/5 text-neutral-500'
-                  }`}
-                >
-                  {step > s.num ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : s.num}
+            ].map((s) => {
+              const isAccessible = s.num <= step || s.num === 1;
+              const isCurrent = step === s.num;
+              return (
+                <div key={s.num} className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={!isAccessible}
+                    onClick={() => {
+                      if (!isAccessible) return;
+                      setStep(s.num);
+                      if (s.num === 1) {
+                        navigate('/onboarding', { replace: true });
+                      }
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    title={s.num === 1 ? 'Go back to Goal Selection' : `Go to Step ${s.num}: ${s.label}`}
+                    className={`flex items-center gap-1.5 transition-all ${
+                      isAccessible ? 'cursor-pointer hover:opacity-85' : 'cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    <div
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-mono font-bold transition-all ${
+                        isCurrent
+                          ? 'bg-[#07CB6C] text-black ring-2 ring-[#07CB6C]/30'
+                          : step > s.num
+                          ? 'bg-white/10 text-[#07CB6C]'
+                          : 'bg-white/5 text-neutral-500'
+                      }`}
+                    >
+                      {step > s.num ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : s.num}
+                    </div>
+                    <span className={`text-xs hidden sm:inline ${isCurrent ? 'text-white font-semibold' : isAccessible ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                      {s.label}
+                    </span>
+                  </button>
+                  {s.num < 4 && <div className="w-3 h-px bg-white/10 mx-0.5 hidden sm:block" />}
                 </div>
-                <span className={`text-xs hidden sm:inline ${step === s.num ? 'text-white font-medium' : 'text-neutral-500'}`}>
-                  {s.label}
-                </span>
-                {s.num < 4 && <div className="w-3 h-px bg-white/10 mx-0.5 hidden sm:block" />}
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="text-xs font-mono text-neutral-500">
@@ -666,9 +692,32 @@ export const OnboardingPage: React.FC = () => {
         {/* ─── STEP 2: FULL-PAGE QUESTION WALKTHROUGH WITH SIDE CONTROLS ─── */}
         {step === 2 && selectedGoal && currentQuestion && (
           <div className="w-full space-y-8 animate-in fade-in duration-200">
-            {/* Top Progress & Hints */}
-            <div className="max-w-2xl w-full mx-auto space-y-2">
-              <div className="flex items-center justify-between text-xs font-mono text-neutral-400">
+            {/* Top Navigation & Progress */}
+            <div className="max-w-2xl w-full mx-auto space-y-3">
+              {/* Back to Goals & Goal indicator banner */}
+              <div className="flex items-center justify-between flex-wrap gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep(1);
+                    navigate('/onboarding', { replace: true });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-xs font-medium text-neutral-300 hover:text-white transition-all cursor-pointer shadow-sm group"
+                  title="Return to the ambition catalog to pick another goal"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-[#07CB6C]" />
+                  <span>Choose Different Goal</span>
+                </button>
+
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-neutral-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                  <span className="text-white font-medium truncate max-w-[200px] sm:max-w-[320px]">{selectedGoal.title}</span>
+                </div>
+              </div>
+
+              {/* Progress Counters & Hints */}
+              <div className="flex items-center justify-between text-xs font-mono text-neutral-400 pt-0.5">
                 <span className="text-[#07CB6C] font-semibold">
                   Question {currentQuestionIndex + 1} of {parsedQuestions.length}
                 </span>
@@ -701,11 +750,6 @@ export const OnboardingPage: React.FC = () => {
               {/* CENTER: Dedicated Question Card */}
               <div className="flex-1 max-w-xl mx-auto space-y-6 text-center sm:text-left">
                 <div className="space-y-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono text-neutral-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                    <span>{selectedGoal.title}</span>
-                  </div>
-
                   <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-snug">
                     {currentQuestion.question}
                   </h2>
@@ -793,10 +837,10 @@ export const OnboardingPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePrevQuestion}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 text-xs text-neutral-300 font-mono cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/5 text-xs text-neutral-300 font-medium cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
-                <span>{currentQuestionIndex === 0 ? 'Goal' : 'Back'}</span>
+                <span>{currentQuestionIndex === 0 ? 'Change Goal' : 'Previous'}</span>
               </button>
 
               <button
@@ -1150,13 +1194,26 @@ export const OnboardingPage: React.FC = () => {
 
             {/* Navigation */}
             <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-neutral-300 transition-colors cursor-pointer"
-              >
-                Back
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep(1);
+                    navigate('/onboarding', { replace: true });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  Change Goal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-neutral-300 transition-colors cursor-pointer"
+                >
+                  Back
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -1266,13 +1323,26 @@ export const OnboardingPage: React.FC = () => {
 
             {/* Action Bar */}
             <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-neutral-300 transition-colors cursor-pointer"
-              >
-                Back to Routine
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep(1);
+                    navigate('/onboarding', { replace: true });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  Change Goal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-mono text-neutral-300 transition-colors cursor-pointer"
+                >
+                  Back to Routine
+                </button>
+              </div>
 
               <button
                 type="button"
