@@ -15,7 +15,6 @@ import {
   Session, 
   WeekSessionsResponse, 
   AvailabilitySlot, 
-  RescheduleResult, 
   PendingRecoveryState, 
   PendingReflectionState, 
   GraduationState,
@@ -71,7 +70,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isRescheduling, setIsRescheduling] = useState<boolean>(false);
-  const [lastRescheduleResult, setLastRescheduleResult] = useState<RescheduleResult | null>(null);
 
   // Recovery, Diagnosis & Reflection State
   const [pendingDiagnosis, setPendingDiagnosis] = useState<DiagnosisPendingResponse | null>(null);
@@ -190,8 +188,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     setIsRescheduling(true);
     setError(null);
     try {
-      const res = await triggerReschedule(token);
-      setLastRescheduleResult(res.result);
+      await triggerReschedule(token);
       await loadWeek(weekOffset);
     } catch (err: any) {
       setError(err.message || 'Rescheduling check failed.');
@@ -384,26 +381,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           trajectoryVersion={(data as any).trajectoryVersion}
           goalIntegrityStatus={(data.goal as any)?.goal_integrity_status || 'INTACT'}
           isDisrupted={Boolean((pendingDiagnosis && pendingDiagnosis.pending) || (pendingRecovery && pendingRecovery.pending))}
-          onTriggerReschedule={handleTriggerReschedule}
-          isRescheduling={isRescheduling}
-          lastRescheduleResult={lastRescheduleResult}
-          onOpenRecovery={() => {
-            if (data.goal?.id) {
-              setPendingDiagnosis({
-                pending: true,
-                prompt: {
-                  userGoalId: data.goal.id,
-                  triggerReason: 'Manual strategic realignment requested by user.',
-                  activeBottleneck: data.goal.title,
-                } as any,
-                deviationReport: {
-                  severity: 'MATERIAL_DISRUPTION',
-                  requiresDiagnostic: true,
-                  explanation: 'Strategic replan requested.',
-                } as any,
-              });
-            }
-          }}
         />
       )}
 

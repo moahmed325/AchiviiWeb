@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { RescheduleResult } from '../types';
 import {
   ShieldCheck,
   AlertTriangle,
   Sparkles,
   Zap,
-  RotateCcw,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -13,9 +11,8 @@ export interface TrajectoryStatusBannerProps {
   slippageDays?: number;
   startDate?: string;
   targetEndDate: string;
-  onTriggerReschedule: () => Promise<void>;
+  onTriggerReschedule?: () => Promise<void>;
   isRescheduling?: boolean;
-  lastRescheduleResult?: RescheduleResult | null;
   onOpenRecovery?: () => void;
   trajectoryVersion?: {
     id: string;
@@ -29,11 +26,7 @@ export interface TrajectoryStatusBannerProps {
 
 export const SlippageBanner: React.FC<TrajectoryStatusBannerProps> = ({
   targetEndDate,
-  onTriggerReschedule,
-  isRescheduling = false,
-  onOpenRecovery,
   trajectoryVersion,
-  goalIntegrityStatus: _goalIntegrityStatus = 'INTACT',
   isDisrupted = false,
 }) => {
   const [isDismissed, setIsDismissed] = useState(false);
@@ -64,14 +57,6 @@ export const SlippageBanner: React.FC<TrajectoryStatusBannerProps> = ({
       </div>
     );
   }
-
-  const handleInitiate = () => {
-    if (onOpenRecovery) {
-      onOpenRecovery();
-    } else {
-      onTriggerReschedule();
-    }
-  };
 
   return (
     <div className="mb-6 bg-[#0a0f0d] border border-white/10 rounded-2xl p-4 sm:p-5 relative overflow-hidden transition-all">
@@ -104,7 +89,7 @@ export const SlippageBanner: React.FC<TrajectoryStatusBannerProps> = ({
                   : 'bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20'
               }`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${isDisrupted ? 'bg-amber-400' : 'bg-[#07CB6C]'}`} />
-                <span>{isDisrupted ? 'Adjustment Suggested' : 'On Track'}</span>
+                <span>{isDisrupted ? 'Adapting Schedule' : 'On Track'}</span>
               </span>
               <span className="text-xs text-neutral-400">
                 Target: <strong className="text-white font-medium">{formattedTarget}</strong>
@@ -113,25 +98,25 @@ export const SlippageBanner: React.FC<TrajectoryStatusBannerProps> = ({
 
             <h3 className="text-sm font-semibold text-white">
               {isDisrupted
-                ? 'Let’s realign your weekly sessions to fit your available time.'
+                ? 'Your upcoming schedule is balancing around your available time.'
                 : isRevised
-                ? `Route calibrated to your recent rhythm. Protected target: ${formattedTarget}.`
+                ? `Route calibrated to your rhythm. Target completion: ${formattedTarget}.`
                 : `Pacing is steady. You are scheduled to complete by ${formattedTarget}.`}
             </h3>
 
             <p className="text-xs text-neutral-400 max-w-2xl leading-relaxed">
               {isDisrupted
-                ? 'Achivii protects your energy. Reorganize your upcoming commitments without piling on catch-up debt.'
-                : 'Life comes first: missed sessions are absorbed naturally by buffer time. We adjust future days rather than creating guilt.'}
+                ? 'Achivii automatically absorbs missed sessions into protected buffer time without piling on debt.'
+                : 'Life comes first: missed sessions are absorbed naturally by buffer time so you never fall into backlog debt.'}
             </p>
           </div>
         </div>
 
-        {/* Right Column: Actions */}
+        {/* Right Column: Clean Actions */}
         <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0">
           <Link
             to="/dashboard"
-            className="min-h-[40px] px-3.5 py-2 text-xs font-medium bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 rounded-xl transition-colors flex items-center gap-1.5"
+            className="min-h-[38px] px-3.5 py-1.5 text-xs font-medium bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 rounded-xl transition-colors flex items-center gap-1.5"
           >
             <Zap className="w-3.5 h-3.5 text-[#07CB6C]" />
             <span>Workbench</span>
@@ -139,27 +124,8 @@ export const SlippageBanner: React.FC<TrajectoryStatusBannerProps> = ({
 
           <button
             type="button"
-            onClick={handleInitiate}
-            disabled={isRescheduling}
-            className="min-h-[40px] px-4 py-2 text-xs font-semibold bg-[#07CB6C] hover:bg-[#07CB6C]/90 active:scale-[0.99] text-black rounded-xl transition-all flex items-center gap-2 cursor-pointer disabled:opacity-40"
-          >
-            {isRescheduling ? (
-              <>
-                <span className="animate-spin inline-block w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full" />
-                <span>Adjusting...</span>
-              </>
-            ) : (
-              <>
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>{isDisrupted ? 'Rebalance Sessions' : 'Adjust Schedule'}</span>
-              </>
-            )}
-          </button>
-
-          <button
-            type="button"
             onClick={() => setIsDismissed(true)}
-            className="min-h-[40px] px-3 py-2 text-xs text-neutral-500 hover:text-white transition-colors cursor-pointer"
+            className="min-h-[38px] px-3 py-1.5 text-xs text-neutral-500 hover:text-white transition-colors cursor-pointer"
             title="Dismiss status"
           >
             Dismiss
