@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { updateSession, triggerReschedule } from '../lib/api';
+import { updateSession } from '../lib/api';
+import { recordSessionTelemetry } from '../lib/adaptiveApi';
 import { getLocalDateString } from '../lib/dateUtils';
 import { Session } from '../types';
+import type { ExecutionState } from '../types/adaptive';
 import { 
   X, 
   CheckCircle2, 
@@ -13,19 +15,23 @@ import {
   AlertCircle, 
   Loader2, 
   SkipForward, 
-  Zap
+  ShieldCheck,
+  FileText,
+  Activity,
 } from 'lucide-react';
 
 interface SessionDetailModalProps {
   session: Session | null;
   onClose: () => void;
   onSessionUpdated: (updated: Session) => void;
+  onDiagnosisTriggered?: () => void;
 }
 
 export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   session,
   onClose,
   onSessionUpdated,
+  onDiagnosisTriggered,
 }) => {
   const { token, user } = useAuth();
   if (!session) return null;
@@ -40,6 +46,19 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Adaptive Telemetry fields
+  const standardMinutes = session.task_template?.session_duration_minutes || 45;
+  const [doseLevel, setDoseLevel] = useState<'STANDARD' | 'REDUCED' | 'MVS'>('STANDARD');
+  const [proofText, setProofText] = useState<string>('');
+  const [rpe, setRpe] = useState<number>(7);
+
+  const activeDuration =
+    doseLevel === 'MVS'
+      ? Math.max(15, Math.round(standardMinutes * 0.4))
+      : doseLevel === 'REDUCED'
+      ? Math.max(20, Math.round(standardMinutes * 0.65))
+      : standardMinutes;
+
   const getTimeIcon = (pref?: string | null) => {
     switch (pref?.toLowerCase()) {
       case 'morning':
@@ -53,22 +72,48 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     }
   };
 
-  const handleToggleDone = async () => {
+  // Primary Action: Record Completed Execution Telemetry
+  const handleRecordCompleted = async () => {
     if (!token) return;
     setIsUpdating(true);
     setError(null);
     setNotice(null);
     try {
-      const nextStatus = session.status === 'DONE' ? 'UPCOMING' : 'DONE';
-      const res = await updateSession(token, session.id, { status: nextStatus });
-      onSessionUpdated(res.session);
+      const execState: ExecutionState =
+        doseLevel === 'MVS' ? 'MINIMUM_VIABLE' : doseLevel === 'REDUCED' ? 'REDUCED' : 'COMPLETED';
+
+      const res = await recordSessionTelemetry(token, {
+        sessionId: session.id,
+        executionState: execState,
+        proofOfWorkText: proofText.trim() || undefined,
+        rpeRating: rpe,
+        durationMinutes: activeDuration,
+      });
+
+      // Check deviation response
+      if (res.deviationReport?.requiresDiagnostic) {
+        setNotice('Session recorded. Strategic deviation flagged: Bottleneck capability requires diagnostic alignment.');
+        if (onDiagnosisTriggered) {
+          setTimeout(() => {
+            onDiagnosisTriggered();
+          }, 1200);
+        }
+      } else {
+        setNotice(`Telemetry ingested (${activeDuration}m, ${doseLevel} dose). Trajectory calibrated.`);
+      }
+
+      onSessionUpdated({ ...session, status: 'DONE' });
+      setTimeout(() => {
+        onClose();
+      }, 1400);
     } catch (err: any) {
-      setError(err.message || 'Failed to update status');
+      setError(err.message || 'Failed to record session telemetry.');
     } finally {
       setIsUpdating(false);
     }
   };
 
+  // Secondary Action: Skip Session & Strategic Filtering
   const handleSkip = async () => {
     if (!token) return;
     if (!confirmingSkip) {
@@ -80,8 +125,26 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     setConfirmingSkip(false);
     setError(null);
     try {
-      const res = await updateSession(token, session.id, { status: 'MISSED' });
-      onSessionUpdated(res.session);
+      const res = await recordSessionTelemetry(token, {
+        sessionId: session.id,
+        executionState: 'MISSED',
+      });
+
+      if (res.deviationReport?.requiresDiagnostic) {
+        setNotice('Material disruption detected: Critical path threatened. Initiating diagnostic replan.');
+        if (onDiagnosisTriggered) {
+          setTimeout(() => {
+            onDiagnosisTriggered();
+          }, 1200);
+        }
+      } else {
+        setNotice('Session missed. Low-impact variance silently absorbed by reliability margin. Zero catch-up debt added.');
+      }
+
+      onSessionUpdated({ ...session, status: 'MISSED' });
+      setTimeout(() => {
+        onClose();
+      }, 1600);
     } catch (err: any) {
       setError(err.message || 'Failed to skip session');
     } finally {
@@ -89,30 +152,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     }
   };
 
-  const handleAutoReschedule = async () => {
-    if (!token) return;
-    setIsUpdating(true);
-    setError(null);
-    setNotice(null);
-    try {
-      const res = await triggerReschedule(token, session.id);
-      if (res.result.actions.length > 0) {
-        const action = res.result.actions[0];
-        setNotice(`Session reallocated to ${action.newDate} (${action.newTime}). Schedule updated.`);
-      } else {
-        setNotice('Rescheduling evaluated: Current schedule confirmed optimal.');
-      }
-      setTimeout(() => {
-        onClose();
-        window.location.reload();
-      }, 1200);
-    } catch (err: any) {
-      setError(err.message || 'Failed to auto-reschedule session');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
+  // Manual Schedule Override
   const handleSaveTime = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
@@ -169,17 +209,17 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
               {/* Explicit Tier Tag */}
               {sessionTier === 'core' && (
                 <span className="px-1.5 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-[10px] font-mono font-medium tracking-wider">
-                  [CORE]
+                  [TIER 1 CORE]
                 </span>
               )}
               {sessionTier === 'buffer' && (
-                <span className="px-1.5 py-0.5 rounded bg-[#131f1b] border border-[#1a2824] text-neutral-400 text-[10px] font-mono font-medium tracking-wider">
-                  [BUFFER]
+                <span className="px-1.5 py-0.5 rounded bg-sky-950/40 border border-sky-500/30 text-sky-400 text-[10px] font-mono font-medium tracking-wider">
+                  [TIER 2 SUPPORTIVE]
                 </span>
               )}
               {sessionTier === 'reflect' && (
-                <span className="px-1.5 py-0.5 rounded bg-[#131f1b] border border-[#1a2824] text-[#07CB6C] text-[10px] font-mono font-medium tracking-wider">
-                  [REFLECT]
+                <span className="px-1.5 py-0.5 rounded bg-[#131f1b] border border-[#1a2824] text-neutral-300 text-[10px] font-mono font-medium tracking-wider">
+                  [TIER 3 BUFFER]
                 </span>
               )}
 
@@ -198,7 +238,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
               </span>
             </div>
             <h3 className="text-lg sm:text-xl font-semibold text-white tracking-tight truncate">
-              {session.task_template?.title || 'Goal Session'}
+              {session.task_template?.title || 'Execution Session'}
             </h3>
           </div>
 
@@ -212,9 +252,9 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
         </div>
 
         {notice && (
-          <div className="p-3 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-mono flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>{notice}</span>
+          <div className="p-3 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-mono flex items-start gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="leading-relaxed">{notice}</span>
           </div>
         )}
 
@@ -225,51 +265,133 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
           </div>
         )}
 
-        {/* Primary Completion Toggle Button */}
-        <div className="p-4 rounded-xl bg-[#0d1412] border border-[#1a2824] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-xs font-mono font-medium text-white">
-              {isDone ? 'SESSION STATUS: COMPLETED' : 'SESSION STATUS: PENDING EXECUTION'}
+        {/* Multi-Dose Telemetry Formulation */}
+        {!isDone && (
+          <div className="space-y-4 p-4 rounded-xl bg-[#0d1412] border border-[#1a2824]">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-[#07CB6C]" />
+                EXECUTION DOSE SELECTION
+              </span>
+              <span className="text-xs font-mono font-bold text-[#07CB6C]">
+                {activeDuration} MIN ESTIMATED
+              </span>
             </div>
-            <div className="text-xs text-neutral-400 mt-0.5">
-              {isDone ? 'Marked complete. Click button to revert to upcoming.' : 'Click to register session completion.'}
+
+            {/* Dose Level Selector */}
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setDoseLevel('STANDARD')}
+                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                  doseLevel === 'STANDARD'
+                    ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-white'
+                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-400 hover:text-white'
+                }`}
+              >
+                <span className="text-[10px] font-mono uppercase block text-neutral-400">Standard</span>
+                <span className="text-xs font-bold font-mono">{standardMinutes}m</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDoseLevel('REDUCED')}
+                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                  doseLevel === 'REDUCED'
+                    ? 'bg-amber-500/15 border-amber-500 text-white'
+                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-400 hover:text-white'
+                }`}
+              >
+                <span className="text-[10px] font-mono uppercase block text-amber-400">Reduced</span>
+                <span className="text-xs font-bold font-mono">{Math.max(20, Math.round(standardMinutes * 0.65))}m</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDoseLevel('MVS')}
+                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                  doseLevel === 'MVS'
+                    ? 'bg-sky-500/15 border-sky-500 text-white'
+                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-400 hover:text-white'
+                }`}
+              >
+                <span className="text-[10px] font-mono uppercase block text-sky-400">MVS Floor</span>
+                <span className="text-xs font-bold font-mono">{Math.max(15, Math.round(standardMinutes * 0.4))}m</span>
+              </button>
             </div>
+
+            {/* Proof of Work Text */}
+            <div className="space-y-1">
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
+                <FileText className="w-3 h-3 text-neutral-500" />
+                Proof of Work / Verification Notes (Optional)
+              </label>
+              <input
+                type="text"
+                value={proofText}
+                onChange={(e) => setProofText(e.target.value)}
+                placeholder="e.g. 5km completed in 24m30s, no pain"
+                className="w-full px-3 py-2 rounded-lg bg-[#0a0f0d] border border-[#1a2824] text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-[#07CB6C]"
+              />
+            </div>
+
+            {/* RPE Rating */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-mono">
+                <span className="text-neutral-400 uppercase tracking-wider">Perceived Exertion (RPE 1–10)</span>
+                <span className="text-[#07CB6C] font-bold">RPE {rpe} / 10</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                value={rpe}
+                onChange={(e) => setRpe(Number(e.target.value))}
+                className="w-full accent-[#07CB6C] cursor-pointer"
+              />
+            </div>
+
+            {/* Ingestion Trigger Button */}
+            <button
+              type="button"
+              onClick={handleRecordCompleted}
+              disabled={isUpdating}
+              className="w-full min-h-[44px] px-4 py-2.5 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] active:scale-[0.99] text-[#080d0b] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)] disabled:opacity-50"
+            >
+              {isUpdating ? (
+                <Loader2 className="w-4 h-4 animate-spin text-[#080d0b]" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              <span>LOG TELEMETRY & COMPLETE</span>
+            </button>
           </div>
+        )}
 
-          <button
-            id="btn-modal-toggle-done"
-            onClick={handleToggleDone}
-            disabled={isUpdating}
-            className={`min-h-[44px] px-4 py-2 rounded-lg text-xs font-mono font-medium flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 ${
-              isDone
-                ? 'bg-[#131f1b] hover:bg-[#1c2c26] text-[#07CB6C] border border-[#07CB6C]/40'
-                : 'bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b]'
-            }`}
-          >
-            {isUpdating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : isDone ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-[#07CB6C]" />
-                <span>COMPLETED ✓</span>
-              </>
-            ) : (
-              <>
-                <span>MARK COMPLETE</span>
-              </>
-            )}
-          </button>
-        </div>
+        {/* If Already Completed */}
+        {isDone && (
+          <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-xs font-mono font-bold text-emerald-400 block">
+                TELEMETRY VERIFIED & COMPLETE
+              </span>
+              <p className="text-[11px] font-mono text-neutral-400">
+                Session evidence has been factored into the Capability State Graph.
+              </p>
+            </div>
+            <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0" />
+          </div>
+        )}
 
-        {/* Edit Time Form */}
+        {/* Manual Schedule Override & Skip Action */}
         <form onSubmit={handleSaveTime} className="space-y-4 pt-2 border-t border-[#1a2824]">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono font-medium uppercase tracking-wider text-neutral-400">
-              MANUAL SCHEDULE OVERRIDE
+              SCHEDULE CALIBRATION OVERRIDE
             </span>
             <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-400">
               {getTimeIcon(session.task_template?.preferred_time_of_day)}
-              <span className="capitalize">{session.task_template?.preferred_time_of_day || 'Flexible'} preference</span>
+              <span className="capitalize">{session.task_template?.preferred_time_of_day || 'Flexible'} slot</span>
             </div>
           </div>
 
@@ -309,33 +431,20 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-2">
-              <button
-                id="btn-modal-skip-session"
-                type="button"
-                onClick={handleSkip}
-                disabled={isUpdating || isDone}
-                className={`min-h-[44px] flex-1 sm:flex-none px-3.5 py-2 rounded-lg text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 ${
-                  confirmingSkip
-                    ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50'
-                    : 'bg-[#0d1412] hover:bg-[#181014] text-neutral-400 hover:text-rose-400 border border-[#1a2824] hover:border-rose-500/40'
-                }`}
-              >
-                <SkipForward className="w-3.5 h-3.5" />
-                <span>{confirmingSkip ? 'CONFIRM SKIP?' : 'SKIP SESSION'}</span>
-              </button>
-
-              <button
-                id="btn-modal-auto-reschedule"
-                type="button"
-                onClick={handleAutoReschedule}
-                disabled={isUpdating || isDone}
-                className="min-h-[44px] flex-1 sm:flex-none px-3.5 py-2 rounded-lg bg-[#0d1412] hover:bg-[#18150e] text-amber-400 border border-[#1a2824] hover:border-amber-400/40 text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-400" />
-                <span>REALLOCATE</span>
-              </button>
-            </div>
+            <button
+              id="btn-modal-skip-session"
+              type="button"
+              onClick={handleSkip}
+              disabled={isUpdating || isDone}
+              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 ${
+                confirmingSkip
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50'
+                  : 'bg-[#0d1412] hover:bg-rose-950/20 text-neutral-400 hover:text-rose-400 border border-[#1a2824] hover:border-rose-500/40'
+              }`}
+            >
+              <SkipForward className="w-3.5 h-3.5" />
+              <span>{confirmingSkip ? 'CONFIRM SKIP (NO DEBT)?' : 'RECORD MISSED'}</span>
+            </button>
 
             <button
               id="btn-modal-save-time"
@@ -343,7 +452,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
               disabled={isUpdating}
               className="min-h-[44px] px-4 py-2 rounded-lg bg-[#131f1b] hover:bg-[#1c2c26] text-white text-xs font-mono font-medium border border-[#1a2824] hover:border-[#2a3e38] transition-colors cursor-pointer disabled:opacity-50"
             >
-              SAVE CHANGES
+              SAVE SCHEDULE OVERRIDE
             </button>
           </div>
         </form>

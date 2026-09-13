@@ -1,41 +1,11 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
 import { CalendarWeekView } from '../components/CalendarWeekView';
-import { regenerateSchedule } from '../lib/api';
-import { ArrowLeft, RefreshCw, Calendar } from 'lucide-react';
+import { ArrowLeft, Calendar, Activity } from 'lucide-react';
 
 export const SchedulePage: React.FC = () => {
-  const { token } = useAuth();
   const [selectedWeekOffset, setSelectedWeekOffset] = useState<number>(0);
-  const [isRegenerating, setIsRegenerating] = useState<boolean>(false);
-  const [isConfirmingRegen, setIsConfirmingRegen] = useState<boolean>(false);
-  const [regenNotice, setRegenNotice] = useState<string | null>(null);
-  const [regenError, setRegenError] = useState<string | null>(null);
-
-  const handleRegenerate = async () => {
-    if (!token) return;
-    if (!isConfirmingRegen) {
-      setIsConfirmingRegen(true);
-      return;
-    }
-
-    setIsRegenerating(true);
-    setIsConfirmingRegen(false);
-    setRegenNotice(null);
-    setRegenError(null);
-    try {
-      const res = await regenerateSchedule(token);
-      setRegenNotice(`Successfully generated ${res.sessionCount} sessions across all 12 weeks!`);
-      // Trigger re-render
-      setSelectedWeekOffset((prev) => prev);
-    } catch (err: any) {
-      setRegenError(err.message || 'Failed to regenerate schedule.');
-    } finally {
-      setIsRegenerating(false);
-    }
-  };
 
   return (
     <div className="w-full flex-1 flex flex-col bg-[#0c1210] text-white relative min-h-screen">
@@ -54,74 +24,128 @@ export const SchedulePage: React.FC = () => {
             </Link>
             <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
               <Calendar className="w-6 h-6 text-[#07CB6C]" />
-              <span>12-Week Execution Schedule</span>
+              <span>12-Week Execution Trajectory</span>
             </h1>
             <p className="text-neutral-400 text-xs sm:text-sm">
-              Explore every scheduled session of your 3-month goal plan, adapted to your weekly routine.
+              Explore your dynamic 90-day capability trajectory, continuously synchronized with your execution telemetry.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            {isConfirmingRegen && (
-              <button
-                onClick={() => setIsConfirmingRegen(false)}
-                className="px-3 py-2 rounded-lg text-neutral-400 hover:text-white border border-[#1a2824] hover:bg-[#131f1b] text-xs font-mono transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-            )}
-            <button
-              id="btn-regenerate-schedule"
-              onClick={handleRegenerate}
-              disabled={isRegenerating}
-              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs font-mono flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50 ${
-                isConfirmingRegen
-                  ? 'bg-amber-500 text-black font-semibold hover:bg-amber-400'
-                  : 'bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#2a3e38]'
-              }`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isConfirmingRegen ? 'text-black' : 'text-[#07CB6C]'} ${isRegenerating ? 'animate-spin' : ''}`} />
-              <span>{isConfirmingRegen ? 'Confirm Regenerate Plan?' : 'Regenerate Plan'}</span>
-            </button>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#0d1412] border border-[#1a2824] text-xs font-mono text-neutral-300">
+              <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
+              <Activity className="w-3.5 h-3.5 text-[#07CB6C]" />
+              <span>Adaptive Continuous Trajectory</span>
+            </div>
           </div>
         </div>
 
-        {regenNotice && (
-          <div className="p-3.5 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-mono flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-            <span>{regenNotice}</span>
-          </div>
-        )}
-
-        {regenError && (
-          <div className="p-3.5 rounded-xl bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-xs font-mono flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
-            <span>{regenError}</span>
-          </div>
-        )}
-
-        {/* 12-Week Quick Selector Bar */}
-        <div className="p-1.5 rounded-xl bg-[#0a0f0d] border border-[#1a2824] flex items-center gap-1 overflow-x-auto scrollbar-none">
-          {Array.from({ length: 12 }).map((_, idx) => {
-            const isSelected = selectedWeekOffset === idx;
-            const phaseNumber = idx < 4 ? 1 : idx < 8 ? 2 : 3;
+        {/* 3-Phase Roadmap Milestone Ribbon */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[
+            {
+              order: 1,
+              name: 'Foundation',
+              weeks: 'Weeks 1–4',
+              desc: 'Core architecture, prerequisites & habit baseline',
+              activeWeeks: [0, 1, 2, 3],
+            },
+            {
+              order: 2,
+              name: 'Acceleration',
+              weeks: 'Weeks 5–8',
+              desc: 'Endurance build, feature delivery & velocity flow',
+              activeWeeks: [4, 5, 6, 7],
+            },
+            {
+              order: 3,
+              name: 'Delivery',
+              weeks: 'Weeks 9–12',
+              desc: 'Capstone deliverables, launch readiness & graduation',
+              activeWeeks: [8, 9, 10, 11],
+            },
+          ].map((phase) => {
+            const isCurrentPhase = phase.activeWeeks.includes(selectedWeekOffset);
             return (
-              <button
-                key={idx}
-                onClick={() => setSelectedWeekOffset(idx)}
-                className={`min-h-[44px] py-1.5 px-3.5 rounded-lg text-xs font-mono whitespace-nowrap transition-colors flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#131f1b] text-white border border-[#07CB6C]/40'
-                    : 'text-neutral-400 hover:text-white hover:bg-[#0d1412] border border-transparent'
+              <div
+                key={phase.order}
+                onClick={() => setSelectedWeekOffset(phase.activeWeeks[0])}
+                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                  isCurrentPhase
+                    ? 'bg-[#0f1d17] border-[#07CB6C] shadow-[0_0_15px_rgba(7,203,108,0.15)]'
+                    : 'bg-[#0a0f0d] border-[#1a2824] hover:border-[#2a3e38] opacity-80 hover:opacity-100'
                 }`}
               >
-                <span>Week {idx + 1}</span>
-                <span className={`text-[10px] font-mono ${isSelected ? 'text-[#07CB6C]' : 'text-neutral-500'}`}>
-                  Phase {phaseNumber}
-                </span>
-              </button>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
+                    isCurrentPhase ? 'text-[#07CB6C]' : 'text-neutral-400'
+                  }`}>
+                    Phase {phase.order}: {phase.name}
+                  </span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${
+                    isCurrentPhase
+                      ? 'bg-[#07CB6C]/20 text-[#07CB6C] border border-[#07CB6C]/30 font-bold'
+                      : 'bg-[#131f1b] text-neutral-500'
+                  }`}>
+                    {phase.weeks}
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-300 line-clamp-1">
+                  {phase.desc}
+                </p>
+                <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400 pt-1 border-t border-[#1a2824]">
+                  <span>Active in view:</span>
+                  <span className={isCurrentPhase ? 'text-[#07CB6C] font-semibold' : 'text-neutral-500'}>
+                    {isCurrentPhase ? `Week ${selectedWeekOffset + 1} (${(selectedWeekOffset % 4) + 1}/4)` : 'Inactive'}
+                  </span>
+                </div>
+              </div>
             );
           })}
+        </div>
+
+        {/* 12-Week Quick Selector Bar with Explicit Phase Boundaries */}
+        <div className="p-2 rounded-xl bg-[#0a0f0d] border border-[#1a2824] flex flex-col sm:flex-row items-stretch sm:items-center gap-2 overflow-x-auto scrollbar-none">
+          {[
+            { phase: 1, name: 'Foundation', weeks: [0, 1, 2, 3] },
+            { phase: 2, name: 'Acceleration', weeks: [4, 5, 6, 7] },
+            { phase: 3, name: 'Delivery', weeks: [8, 9, 10, 11] },
+          ].map((group, gIdx) => (
+            <React.Fragment key={group.phase}>
+              <div className="flex-1 flex items-center gap-1 bg-[#0c1210] p-1.5 rounded-lg border border-[#16221e]">
+                <div className="hidden lg:flex flex-col justify-center px-2 py-1 text-[9px] font-mono uppercase tracking-wider text-neutral-500 border-r border-[#1a2824] shrink-0">
+                  <span className="font-bold text-neutral-400">P{group.phase}</span>
+                  <span className="text-[8px] text-neutral-600">{group.name}</span>
+                </div>
+                <div className="flex-1 grid grid-cols-4 gap-1">
+                  {group.weeks.map((idx) => {
+                    const isSelected = selectedWeekOffset === idx;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedWeekOffset(idx)}
+                        className={`min-h-[44px] py-1.5 px-2 rounded-md text-xs font-mono whitespace-nowrap transition-all flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#131f1b] text-white border border-[#07CB6C] shadow-[0_0_8px_rgba(7,203,108,0.2)] font-bold'
+                            : 'text-neutral-400 hover:text-white hover:bg-[#0d1412] border border-transparent'
+                        }`}
+                      >
+                        <span>W{idx + 1}</span>
+                        <span className={`text-[9px] font-mono ${isSelected ? 'text-[#07CB6C]' : 'text-neutral-500'}`}>
+                          Phase {group.phase}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {gIdx < 2 && (
+                <div className="hidden sm:flex items-center justify-center text-neutral-600 text-xs px-0.5">
+                  →
+                </div>
+              )}
+            </React.Fragment>
+          ))}
         </div>
 
         {/* Calendar Week View */}

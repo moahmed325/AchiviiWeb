@@ -1,18 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
 import { CalendarView } from '../components/CalendarView';
 import {
   fetchCurrentUserGoal,
   fetchHealthCheck,
-  fetchWeekSessions,
-  fetchGoalProgress,
-  updateSession,
-  triggerReschedule,
 } from '../lib/api';
-import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
-import { UserGoal, WeekSessionsResponse, GoalProgressResponse, Session } from '../types';
+import {
+  fetchAdaptiveDashboard,
+  recordSessionTelemetry,
+} from '../lib/adaptiveApi';
+import { UserGoal } from '../types';
+import type {
+  AdaptiveDashboardResponse,
+  GoalIntegrityStatus,
+  CapabilityState,
+} from '../types/adaptive';
 import {
   CheckCircle2,
   Clock,
@@ -28,33 +32,87 @@ import {
   Calendar as CalendarIcon,
   CheckCircle,
   ShieldAlert,
+  Zap,
+  AlertTriangle,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
+import { WeeklyReflection } from '../components/WeeklyReflection';
+import { GraduationModal } from '../components/GraduationModal';
 
-function timeToMinutes(timeStr?: string): number {
-  if (!timeStr) return 0;
-  const [h, m] = timeStr.split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
+const INTEGRITY_CONFIG: Record<
+  GoalIntegrityStatus,
+  { label: string; badgeClass: string; textClass: string; icon: React.ReactNode }
+> = {
+  INTACT: {
+    label: 'DESTINATION INTACT',
+    badgeClass: 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]',
+    textClass: 'text-[#07CB6C]',
+    icon: <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />,
+  },
+  REVISED: {
+    label: 'REVISED TRAJECTORY',
+    badgeClass: 'bg-sky-500/10 border-sky-500/30 text-sky-400',
+    textClass: 'text-sky-400',
+    icon: <Sparkles className="w-3.5 h-3.5 text-sky-400" />,
+  },
+  AT_RISK: {
+    label: 'CRITICAL PATH AT RISK',
+    badgeClass: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
+    textClass: 'text-amber-400',
+    icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />,
+  },
+  COMPROMISED: {
+    label: 'DESTINATION COMPROMISED',
+    badgeClass: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
+    textClass: 'text-rose-400',
+    icon: <AlertCircle className="w-3.5 h-3.5 text-rose-400" />,
+  },
+};
 
-function getSessionDuration(session: Session): number {
-  if (session.task_template?.session_duration_minutes) {
-    return session.task_template.session_duration_minutes;
-  }
-  if (session.start_time && session.end_time) {
-    const diff = timeToMinutes(session.end_time) - timeToMinutes(session.start_time);
-    if (diff > 0) return diff;
-  }
-  return 45;
-}
+const STATE_CONFIG: Record<
+  CapabilityState,
+  { label: string; bgClass: string; textClass: string; borderClass: string }
+> = {
+  ROBUST: {
+    label: 'ROBUST',
+    bgClass: 'bg-emerald-950/40',
+    textClass: 'text-emerald-400',
+    borderClass: 'border-emerald-500/30',
+  },
+  ESTABLISHED: {
+    label: 'ESTABLISHED',
+    bgClass: 'bg-teal-950/40',
+    textClass: 'text-teal-400',
+    borderClass: 'border-teal-500/30',
+  },
+  EMERGING: {
+    label: 'EMERGING',
+    bgClass: 'bg-amber-950/40',
+    textClass: 'text-amber-400',
+    borderClass: 'border-amber-500/30',
+  },
+  UNTESTED: {
+    label: 'UNTESTED',
+    bgClass: 'bg-[#131f1b]',
+    textClass: 'text-neutral-400',
+    borderClass: 'border-[#1a2824]',
+  },
+  REGRESSED: {
+    label: 'REGRESSED',
+    bgClass: 'bg-rose-950/40',
+    textClass: 'text-rose-400',
+    borderClass: 'border-rose-500/30',
+  },
+};
 
 export const Dashboard: React.FC = () => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
 
   const [activeUserGoal, setActiveUserGoal] = useState<UserGoal | null>(null);
-  const [weekData, setWeekData] = useState<WeekSessionsResponse | null>(null);
-  const [progressData, setProgressData] = useState<GoalProgressResponse | null>(null);
+  const [adaptiveData, setAdaptiveData] = useState<AdaptiveDashboardResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
@@ -64,8 +122,11 @@ export const Dashboard: React.FC = () => {
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
   const [isDiscardModalOpen, setIsDiscardModalOpen] = useState<boolean>(false);
+  const [isWeeklyReviewOpen, setIsWeeklyReviewOpen] = useState<boolean>(false);
+  const [isOutcomeGateOpen, setIsOutcomeGateOpen] = useState<boolean>(false);
 
-  // Focus Timer state for deep execution
+  // Focus Timer & Dose selection
+  const [selectedDose, setSelectedDose] = useState<'STANDARD' | 'REDUCED' | 'MVS'>('STANDARD');
   const [isFocusActive, setIsFocusActive] = useState<boolean>(false);
   const [focusSecondsLeft, setFocusSecondsLeft] = useState<number>(0);
   const [focusTotalSeconds, setFocusTotalSeconds] = useState<number>(0);
@@ -86,16 +147,11 @@ export const Dashboard: React.FC = () => {
       setActiveUserGoal(goalRes.user_goal);
 
       if (goalRes.user_goal) {
-        // Parallel fetch current week sessions (offset 0) and goal progress metrics
-        const [weekRes, progRes] = await Promise.all([
-          fetchWeekSessions(token, 0).catch(() => null),
-          fetchGoalProgress(token).catch(() => null),
-        ]);
-        setWeekData(weekRes);
-        setProgressData(progRes);
+        // Fetch Unified Adaptive Dashboard
+        const adaptRes = await fetchAdaptiveDashboard(token, goalRes.user_goal.id);
+        setAdaptiveData(adaptRes);
       } else {
-        setWeekData(null);
-        setProgressData(null);
+        setAdaptiveData(null);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to connect to Achivii engine.');
@@ -125,10 +181,6 @@ export const Dashboard: React.FC = () => {
   }, [isFocusActive, isFocusPaused, focusSecondsLeft]);
 
   // Today's date in user's timezone
-  const todayDateStr = useMemo(() => {
-    return getTodayDateString(user?.timezone);
-  }, [user?.timezone]);
-
   const formattedToday = useMemo(() => {
     try {
       return new Intl.DateTimeFormat('en-US', {
@@ -144,103 +196,19 @@ export const Dashboard: React.FC = () => {
     }
   }, [user?.timezone]);
 
-  // Identify sessions scheduled for today
-  const todaySessions = useMemo(() => {
-    if (!weekData?.sessions) return [];
-    return weekData.sessions.filter((s) => {
-      if (!s.scheduled_date) return false;
-      return getLocalDateString(s.scheduled_date, user?.timezone) === todayDateStr;
-    });
-  }, [weekData?.sessions, todayDateStr, user?.timezone]);
+  // Get current dose duration in minutes
+  const activeDurationMinutes = useMemo(() => {
+    const today = adaptiveData?.todayAction;
+    if (!today) return 45;
+    if (selectedDose === 'MVS') return today.mvsDoseMinutes || 15;
+    if (selectedDose === 'REDUCED') return today.reducedDoseMinutes || 30;
+    return today.standardDoseMinutes || 45;
+  }, [adaptiveData?.todayAction, selectedDose]);
 
-  // Today's actionable current/next session (UPCOMING or RESCHEDULED)
-  const nextSessionToday = useMemo(() => {
-    const pending = todaySessions
-      .filter((s) => s.status === 'UPCOMING' || s.status === 'RESCHEDULED')
-      .sort((a, b) => a.start_time.localeCompare(b.start_time));
-    return pending.length > 0 ? pending[0] : null;
-  }, [todaySessions]);
-
-  // If no sessions remain today, find the next upcoming session across the week
-  const nextUpcomingSession = useMemo(() => {
-    if (nextSessionToday) return null;
-    if (!weekData?.sessions) return null;
-
-    const upcoming = weekData.sessions
-      .filter((s) => {
-        if (s.status !== 'UPCOMING' && s.status !== 'RESCHEDULED') return false;
-        if (!s.scheduled_date) return false;
-        const dateStr = getLocalDateString(s.scheduled_date, user?.timezone);
-        return dateStr >= todayDateStr;
-      })
-      .sort((a, b) => {
-        const dateA = getLocalDateString(a.scheduled_date, user?.timezone);
-        const dateB = getLocalDateString(b.scheduled_date, user?.timezone);
-        if (dateA !== dateB) return dateA.localeCompare(dateB);
-        return a.start_time.localeCompare(b.start_time);
-      });
-
-    return upcoming.length > 0 ? upcoming[0] : null;
-  }, [nextSessionToday, weekData?.sessions, todayDateStr, user?.timezone]);
-
-  // Format the upcoming session's scheduled date string
-  const formattedUpcomingTime = useMemo(() => {
-    if (!nextUpcomingSession?.scheduled_date) return null;
-    try {
-      const dateStr = getLocalDateString(nextUpcomingSession.scheduled_date, user?.timezone);
-      const isTomorrow = (() => {
-        const today = new Date();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        return dateStr === getLocalDateString(tomorrow, user?.timezone);
-      })();
-
-      if (isTomorrow) {
-        return `Tomorrow at ${nextUpcomingSession.start_time}`;
-      }
-
-      const d = new Date(nextUpcomingSession.scheduled_date);
-      const dayName = new Intl.DateTimeFormat('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        timeZone: user?.timezone || 'UTC',
-      }).format(d);
-
-      return `${dayName} at ${nextUpcomingSession.start_time}`;
-    } catch {
-      return `Next at ${nextUpcomingSession.start_time}`;
-    }
-  }, [nextUpcomingSession, user?.timezone]);
-
-  // Primary Action: Mark Completed
-  const handleMarkCompleted = async (session: Session) => {
-    if (!token) return;
-    setActionLoading(true);
-    setActionFeedback(null);
-    try {
-      await updateSession(token, session.id, { status: 'DONE' });
-      setActionFeedback({
-        type: 'success',
-        message: `Milestone verified: "${session.task_template?.title || 'Session'}" marked complete.`,
-      });
-      setIsFocusActive(false);
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (err: any) {
-      setActionFeedback({
-        type: 'error',
-        message: err.message || 'Failed to update session status.',
-      });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Primary Action Alternative: Start/Toggle Focus
-  const handleStartFocus = (session: Session) => {
-    const duration = getSessionDuration(session);
-    setFocusTotalSeconds(duration * 60);
-    setFocusSecondsLeft(duration * 60);
+  // Primary Action: Start / Toggle Focus
+  const handleStartFocus = () => {
+    setFocusTotalSeconds(activeDurationMinutes * 60);
+    setFocusSecondsLeft(activeDurationMinutes * 60);
     setIsFocusPaused(false);
     setIsFocusActive(true);
   };
@@ -250,78 +218,71 @@ export const Dashboard: React.FC = () => {
     setIsFocusPaused(false);
   };
 
-  // Secondary Action: Defer to Buffer
-  const handleDeferToBuffer = async (session: Session) => {
-    if (!token) return;
+  // Primary Action: Mark Completed with Adaptive Telemetry
+  const handleMarkCompleted = async () => {
+    if (!token || !adaptiveData) return;
+    const todayAction = adaptiveData.todayAction;
     setActionLoading(true);
     setActionFeedback(null);
     try {
-      const res = await triggerReschedule(token, session.id);
-      const detail =
-        res.result?.actions?.[0]?.details ||
-        'Session reallocated to upcoming buffer capacity.';
+      // Find matching session ID if present
+      const sessionId =
+        todayAction?.trajectoryItemId ||
+        todayAction?.id ||
+        'session-today';
+
+      // Log execution telemetry
+      await recordSessionTelemetry(token, {
+        sessionId,
+        executionState: 'COMPLETED',
+        proofOfWorkText: `Executed ${selectedDose} dose (${activeDurationMinutes}m) for ${todayAction?.actionName || 'daily objective'}.`,
+        durationMinutes: activeDurationMinutes,
+        rpeRating: selectedDose === 'MVS' ? 4 : 7,
+      });
+
       setActionFeedback({
         type: 'success',
-        message: `Cadence preserved: ${detail}`,
+        message: `Milestone verified: Completed ${activeDurationMinutes}m session. Trajectory updated.`,
       });
       setIsFocusActive(false);
       setRefreshTrigger((prev) => prev + 1);
     } catch (err: any) {
       setActionFeedback({
         type: 'error',
-        message: err.message || 'Adaptive reallocation failed.',
+        message: err.message || 'Failed to record session telemetry.',
       });
     } finally {
       setActionLoading(false);
     }
   };
 
-  // ----------------------------------------------------
-  // Telemetry Calculations (Streamlined 3 Cards)
-  // ----------------------------------------------------
-
-  // Card 1: 90-Day Trajectory
-  const currentWeekNumber = progressData?.metrics?.currentWeek || weekData?.weekNumber || 1;
-  const totalWeeks = progressData?.metrics?.totalWeeks || weekData?.totalWeeks || 12;
-  const milestoneCompletionPct = progressData?.metrics?.completionPercentage || 0;
-  const slippageDays = activeUserGoal?.slippage_days || weekData?.goal?.slippage_days || 0;
-  const isPaceNominal = slippageDays === 0;
-
-  // Card 2: Weekly Hours Logged
-  const currentWeekSessions = weekData?.sessions || [];
-  const executedMinutesThisWeek = currentWeekSessions
-    .filter((s) => s.status === 'DONE')
-    .reduce((acc, s) => acc + getSessionDuration(s), 0);
-  const executedHoursThisWeek = executedMinutesThisWeek / 60;
-
-  const targetWeeklyHours = useMemo(() => {
-    if (activeUserGoal?.goal_catalog?.est_weekly_hours) {
-      return activeUserGoal.goal_catalog.est_weekly_hours;
+  // Secondary Action: Apply Minimum Viable Session (MVS) Fallback
+  const handleSelectDose = (dose: 'STANDARD' | 'REDUCED' | 'MVS') => {
+    setSelectedDose(dose);
+    if (isFocusActive) {
+      const today = adaptiveData?.todayAction;
+      const mins =
+        dose === 'MVS'
+          ? today?.mvsDoseMinutes || 15
+          : dose === 'REDUCED'
+          ? today?.reducedDoseMinutes || 30
+          : today?.standardDoseMinutes || 45;
+      setFocusTotalSeconds(mins * 60);
+      setFocusSecondsLeft(mins * 60);
     }
-    const scheduledMinutes = currentWeekSessions.reduce(
-      (acc, s) => acc + getSessionDuration(s),
-      0
-    );
-    return scheduledMinutes > 0 ? scheduledMinutes / 60 : 5.0;
-  }, [activeUserGoal?.goal_catalog?.est_weekly_hours, currentWeekSessions]);
+  };
 
-  const weeklyProgressPct = targetWeeklyHours > 0
-    ? Math.min(100, Math.round((executedHoursThisWeek / targetWeeklyHours) * 100))
-    : 0;
+  // Capability verified count
+  const capabilitiesList = adaptiveData?.capabilities || [];
+  const verifiedCapsCount = capabilitiesList.filter((c) => c.state === 'ESTABLISHED' || c.state === 'ROBUST').length;
+  const totalCapsCount = capabilitiesList.length || 3;
+  const verifiedProgressPct = totalCapsCount > 0 ? Math.round((verifiedCapsCount / totalCapsCount) * 100) : 0;
 
-  // Card 3: Buffer Capacity Status
-  const bufferSessionsThisWeek = currentWeekSessions.filter((s) => {
-    const isBufferTier = s.tier === 'buffer' || s.status === 'RESCHEDULED';
-    const title = s.task_template?.title?.toLowerCase() || '';
-    return isBufferTier || title.includes('buffer');
-  });
+  const integrity = adaptiveData?.goalIntegrityStatus || 'INTACT';
+  const integrityConfig = INTEGRITY_CONFIG[integrity] || INTEGRITY_CONFIG.INTACT;
 
-  const activeBufferSlotsRemaining = bufferSessionsThisWeek.filter(
-    (s) => s.status !== 'DONE' && s.status !== 'MISSED'
-  ).length;
-
-  const totalBufferSlotsThisWeek = Math.max(bufferSessionsThisWeek.length, 1);
-  const isBufferOptimal = activeBufferSlotsRemaining > 0;
+  const currentWeek = adaptiveData?.currentWeek || 1;
+  const totalWeeks = adaptiveData?.totalWeeks || 12;
 
   return (
     <div className="w-full flex-1 flex flex-col bg-[#0c1210] text-white relative min-h-screen">
@@ -329,7 +290,7 @@ export const Dashboard: React.FC = () => {
       <Navbar apiStatus={apiStatus} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10 space-y-6">
-        {activeUserGoal && activeUserGoal.goal_catalog ? (
+        {activeUserGoal && adaptiveData ? (
           <div className="space-y-6">
             {/* Feedback notification toast */}
             {actionFeedback && (
@@ -359,28 +320,140 @@ export const Dashboard: React.FC = () => {
             )}
 
             {/* ---------------------------------------------------- */}
-            {/* 1. HERO WORKBENCH HEADER ("NEXT UP")                 */}
+            {/* STRATEGIC DESTINATION HEADER                         */}
             {/* ---------------------------------------------------- */}
-            {nextSessionToday ? (
+            <div className="p-5 sm:p-6 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1a2824] pb-4">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
+                      90-DAY ADAPTIVE PROTOCOL
+                    </span>
+                    <span className="text-[#1a2824]">|</span>
+                    <span className="text-[10px] font-mono text-neutral-400">
+                      WEEK {String(currentWeek).padStart(2, '0')} OF {totalWeeks}
+                    </span>
+                    <span className="text-[#1a2824]">|</span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider flex items-center gap-1.5 ${integrityConfig.badgeClass}`}
+                    >
+                      {integrityConfig.icon}
+                      <span>[{integrityConfig.label}]</span>
+                    </span>
+                    {adaptiveData.confidenceLevel && (
+                      <span className="px-2 py-0.5 rounded bg-[#0d1412] border border-[#1a2824] text-[10px] font-mono text-neutral-300 font-medium">
+                        CONFIDENCE: {adaptiveData.confidenceLevel}
+                      </span>
+                    )}
+                  </div>
+
+                  <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                    {adaptiveData.outcomeStatement || activeUserGoal.goal_catalog?.title || 'Execution Protocol'}
+                  </h1>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsWeeklyReviewOpen(true)}
+                    className="min-h-[44px] px-3.5 py-2 rounded-md bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer"
+                    title="Open Weekly Strategic Review"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+                    <span>Weekly Review</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsOutcomeGateOpen(true)}
+                    className="min-h-[44px] px-3.5 py-2 rounded-md bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer"
+                    title="Verify Outcome Gate Readiness"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />
+                    <span>Outcome Gate</span>
+                  </button>
+                  <div className="p-2.5 px-3 rounded-md bg-[#0d1412] border border-[#1a2824] text-right hidden sm:block">
+                    <span className="text-[9px] font-mono uppercase text-neutral-400 block">
+                      DYNAMIC FORECAST
+                    </span>
+                    <span className="text-xs font-mono font-bold text-emerald-400">
+                      {adaptiveData.projectedCompletionWindow || 'Day 87–91'}
+                    </span>
+                  </div>
+                  <Link
+                    to="/progress"
+                    className="min-h-[44px] px-3.5 py-2 rounded-md bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-mono flex items-center gap-1.5 transition-all"
+                  >
+                    <span>Capabilities</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Capability State DAG Mini-Pipeline */}
+              {capabilitiesList.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-[10px] uppercase text-neutral-400 tracking-wider flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-[#07CB6C]" />
+                      CAPABILITY STATE TRANSITIONS ({verifiedCapsCount}/{totalCapsCount} VERIFIED)
+                    </span>
+                    <span className="text-[#07CB6C] font-semibold">{verifiedProgressPct}% MASTERY</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {capabilitiesList.map((cap) => {
+                      const stateCfg = STATE_CONFIG[cap.state] || STATE_CONFIG.UNTESTED;
+                      const isBottleneck = adaptiveData.activeBottleneck?.id === cap.id;
+                      return (
+                        <div
+                          key={cap.id}
+                          className={`p-2.5 rounded border transition-all ${stateCfg.bgClass} ${stateCfg.borderClass} ${
+                            isBottleneck ? 'ring-1 ring-amber-500/50' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1.5 mb-1">
+                            <span className="text-xs font-semibold text-white truncate">{cap.name}</span>
+                            <span
+                              className={`text-[9px] font-mono px-1.5 py-0.2 rounded border uppercase ${stateCfg.textClass} ${stateCfg.borderClass}`}
+                            >
+                              {stateCfg.label}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-neutral-400 line-clamp-1">{cap.description}</p>
+                          {isBottleneck && (
+                            <span className="text-[9px] font-mono text-amber-400 font-bold uppercase tracking-wider block mt-1">
+                              ⚡ ACTIVE BOTTLENECK
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ---------------------------------------------------- */}
+            {/* 1. HERO WORKBENCH HEADER ("DAILY ACTION // MVD")      */}
+            {/* ---------------------------------------------------- */}
+            {adaptiveData.todayAction ? (
               <div className="p-5 sm:p-6 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-5">
                 {/* Micro-Header Bar */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1a2824] pb-3">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
-                      DAILY WORKBENCH // PRIMARY OBJECTIVE
+                      DAILY WORKBENCH // MINIMUM VIABLE DAY
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-neutral-400">
-                      {formattedToday}
-                    </span>
+                    <span className="text-[10px] font-mono text-neutral-400">{formattedToday}</span>
                     <span className="px-2 py-0.5 rounded bg-[#0d1412] border border-[#1a2824] text-[10px] font-mono text-neutral-300 font-medium uppercase">
-                      {nextSessionToday.tier === 'buffer'
-                        ? '[BUFFER SESSION]'
-                        : nextSessionToday.tier === 'reflect'
-                        ? '[REFLECTION]'
-                        : '[CORE CADENCE]'}
+                      {adaptiveData.todayAction.priorityTier === 1
+                        ? '[TIER 1 CRITICAL]'
+                        : adaptiveData.todayAction.priorityTier === 2
+                        ? '[TIER 2 SUPPORTIVE]'
+                        : '[TIER 3 BUFFER]'}
                     </span>
                   </div>
                 </div>
@@ -388,34 +461,70 @@ export const Dashboard: React.FC = () => {
                 {/* Session Main Presentation & Focus Timer */}
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                   {/* Left Details */}
-                  <div className="space-y-2 min-w-0 max-w-2xl">
-                    <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-neutral-400">
+                  <div className="space-y-3 min-w-0 max-w-2xl">
+                    <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono text-neutral-400">
                       <span className="flex items-center gap-1.5 text-white font-semibold">
                         <Clock className="w-3.5 h-3.5 text-[#07CB6C]" />
-                        {nextSessionToday.start_time} – {nextSessionToday.end_time}
+                        {activeDurationMinutes} MIN DOSE
                       </span>
                       <span className="text-[#1a2824]">|</span>
                       <span className="text-neutral-300">
-                        {getSessionDuration(nextSessionToday)} MIN ESTIMATED
+                        {selectedDose === 'MVS'
+                          ? 'MINIMUM VIABLE SESSION'
+                          : selectedDose === 'REDUCED'
+                          ? 'REDUCED CAPACITY DOSE'
+                          : 'STANDARD CALIBRATION DOSE'}
                       </span>
-                      {nextSessionToday.task_template?.preferred_time_of_day && (
-                        <>
-                          <span className="text-[#1a2824]">|</span>
-                          <span className="text-neutral-400 uppercase">
-                            {nextSessionToday.task_template.preferred_time_of_day} SLOT
-                          </span>
-                        </>
-                      )}
                     </div>
 
-                    <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                      {nextSessionToday.task_template?.title || 'Scheduled Daily Focus'}
-                    </h1>
+                    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                      {adaptiveData.todayAction.actionName}
+                    </h2>
 
-                    <p className="text-xs font-mono text-neutral-400 leading-relaxed">
-                      {activeUserGoal.goal_catalog.title} // Phase{' '}
-                      {weekData?.phase?.phase_order || 1}: {weekData?.phase?.title || 'Execution Phase'}
-                    </p>
+                    {adaptiveData.todayAction.fallbackOptions && adaptiveData.todayAction.fallbackOptions.length > 0 && (
+                      <p className="text-xs font-mono text-neutral-400 leading-relaxed bg-[#0d1412] p-2.5 rounded border border-[#1a2824]">
+                        <span className="text-amber-400 font-semibold uppercase block mb-0.5">MVS Fallback Option:</span>
+                        {adaptiveData.todayAction.fallbackOptions[0]}
+                      </p>
+                    )}
+
+                    {/* Dose Level Selector Buttons */}
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider">DOSE:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDose('STANDARD')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer ${
+                          selectedDose === 'STANDARD'
+                            ? 'bg-[#07CB6C]/20 border border-[#07CB6C] text-[#07CB6C] font-bold'
+                            : 'bg-[#0d1412] border border-[#1a2824] text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        Standard ({adaptiveData.todayAction.standardDoseMinutes || 45}m)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDose('REDUCED')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer ${
+                          selectedDose === 'REDUCED'
+                            ? 'bg-amber-500/20 border border-amber-500 text-amber-400 font-bold'
+                            : 'bg-[#0d1412] border border-[#1a2824] text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        Reduced ({adaptiveData.todayAction.reducedDoseMinutes || 30}m)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectDose('MVS')}
+                        className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer ${
+                          selectedDose === 'MVS'
+                            ? 'bg-sky-500/20 border border-sky-500 text-sky-400 font-bold'
+                            : 'bg-[#0d1412] border border-[#1a2824] text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        MVS ({adaptiveData.todayAction.mvsDoseMinutes || 15}m)
+                      </button>
+                    </div>
                   </div>
 
                   {/* Right Actions & Focus Module */}
@@ -438,7 +547,14 @@ export const Dashboard: React.FC = () => {
                             <div
                               className="bg-[#07CB6C] h-full transition-all"
                               style={{
-                                width: `${focusTotalSeconds > 0 ? Math.min(100, Math.round(((focusTotalSeconds - focusSecondsLeft) / focusTotalSeconds) * 100)) : 0}%`,
+                                width: `${
+                                  focusTotalSeconds > 0
+                                    ? Math.min(
+                                        100,
+                                        Math.round(((focusTotalSeconds - focusSecondsLeft) / focusTotalSeconds) * 100)
+                                      )
+                                    : 0
+                                }%`,
                               }}
                             />
                           </div>
@@ -463,7 +579,7 @@ export const Dashboard: React.FC = () => {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => handleStartFocus(nextSessionToday)}
+                        onClick={handleStartFocus}
                         disabled={actionLoading}
                         className="min-h-[44px] px-4 py-2 rounded-md bg-[#0d1412] hover:bg-[#16221e] text-[#07CB6C] text-xs font-mono font-semibold border border-[#1a2824] hover:border-[#07CB6C]/40 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40"
                       >
@@ -475,7 +591,7 @@ export const Dashboard: React.FC = () => {
                     {/* Primary Action: Mark Completed */}
                     <button
                       type="button"
-                      onClick={() => handleMarkCompleted(nextSessionToday)}
+                      onClick={handleMarkCompleted}
                       disabled={actionLoading}
                       className="min-h-[44px] px-5 py-2 rounded-md bg-[#07CB6C] hover:bg-[#06b860] active:scale-[0.99] text-[#080d0b] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)] disabled:opacity-40"
                     >
@@ -484,19 +600,7 @@ export const Dashboard: React.FC = () => {
                       ) : (
                         <Check className="w-4 h-4 stroke-[3]" />
                       )}
-                      <span>MARK COMPLETED</span>
-                    </button>
-
-                    {/* Secondary Action: Defer to Buffer */}
-                    <button
-                      type="button"
-                      onClick={() => handleDeferToBuffer(nextSessionToday)}
-                      disabled={actionLoading}
-                      className="min-h-[44px] px-3.5 py-2 rounded-md bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white text-xs font-mono border border-[#1a2824] hover:border-amber-500/40 flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
-                      title="Defer session to an open buffer slot this week"
-                    >
-                      <Clock className="w-3.5 h-3.5 text-amber-400" />
-                      <span>DEFER TO BUFFER</span>
+                      <span>LOG TELEMETRY</span>
                     </button>
                   </div>
                 </div>
@@ -515,179 +619,133 @@ export const Dashboard: React.FC = () => {
                           DAILY CADENCE // STATUS SATISFIED
                         </span>
                         <span className="px-2 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-[10px] font-mono font-bold">
-                          100% COMPLETE
+                          100% NOMINAL
                         </span>
                       </div>
                       <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
                         Cadence Satisfied for Today
                       </h2>
                       <p className="text-xs font-mono text-neutral-400 max-w-xl leading-relaxed">
-                        All scheduled sessions completed or nominal cadence preserved. System trajectory is nominal — rest or review buffer.
+                        No critical-path obligations remaining for today. System trajectory is nominal — rest, review buffer, or continue unassisted practice.
                       </p>
                     </div>
                   </div>
 
-                  {/* Next session preview */}
                   <div className="p-3.5 rounded-md bg-[#0d1412] border border-[#1a2824] text-xs font-mono space-y-1.5 shrink-0 min-w-[220px]">
                     <span className="text-[10px] font-mono uppercase text-neutral-400 tracking-wider flex items-center gap-1.5">
                       <CalendarIcon className="w-3 h-3 text-[#07CB6C]" />
-                      NEXT UPCOMING SESSION
+                      ADAPTIVE TRAJECTORY
                     </span>
-                    {nextUpcomingSession && formattedUpcomingTime ? (
-                      <div>
-                        <span className="text-white font-semibold block">
-                          {formattedUpcomingTime}
-                        </span>
-                        <span className="text-neutral-400 text-[11px] truncate block max-w-[240px]">
-                          {nextUpcomingSession.task_template?.title || 'Next Session'} (
-                          {getSessionDuration(nextUpcomingSession)}m)
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-neutral-400 block text-[11px]">
-                        Weekly schedule fully executed. Next cycle commences next Monday.
-                      </span>
-                    )}
+                    <span className="text-white font-semibold block">
+                      Projected Window: {adaptiveData.projectedCompletionWindow}
+                    </span>
+                    <span className="text-neutral-400 text-[11px] block">
+                      Confidence: {adaptiveData.confidenceLevel}
+                    </span>
                   </div>
                 </div>
               </div>
             )}
 
             {/* ---------------------------------------------------- */}
-            {/* 2. STREAMLINED TELEMETRY ROW (3 CARDS ONLY)          */}
+            {/* 2. ADAPTIVE TELEMETRY ROW (3 CARDS)                  */}
             {/* ---------------------------------------------------- */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Card 1: 90-Day Trajectory */}
+              {/* Card 1: 90-Day Trajectory & Forecast */}
               <div className="p-4 sm:p-5 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-                    TELEMETRY // 90-DAY HORIZON
+                    DYNAMIC FORECAST // HORIZON
                   </span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider ${
-                      isPaceNominal
-                        ? 'bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C]'
-                        : 'bg-amber-400/10 border border-amber-400/30 text-amber-400'
-                    }`}
-                  >
-                    {isPaceNominal ? '[NOMINAL]' : `[+${slippageDays}D DRIFT]`}
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${integrityConfig.badgeClass}`}>
+                    {integrityConfig.label}
                   </span>
                 </div>
 
                 <div className="space-y-1">
                   <div className="text-2xl font-bold font-mono text-white tracking-tight">
-                    WEEK {String(currentWeekNumber).padStart(2, '0')}{' '}
-                    <span className="text-sm font-normal text-neutral-500">/ {totalWeeks}</span>
+                    {adaptiveData.projectedCompletionWindow || 'Day 87–91'}
                   </div>
                   <div className="text-xs font-mono text-[#07CB6C] font-semibold">
-                    {milestoneCompletionPct}% MILESTONE PROGRESS
+                    {verifiedCapsCount} / {totalCapsCount} CAPABILITIES UNLOCKED
                   </div>
                 </div>
 
                 <div className="pt-1 border-t border-[#1a2824] flex items-center justify-between text-[11px] font-mono text-neutral-400">
-                  <span>
-                    {progressData?.metrics?.completedSessions || 0} /{' '}
-                    {progressData?.metrics?.totalSessions || 60} SESSIONS LOGGED
-                  </span>
-                  <span className="text-neutral-500">DETERMINISTIC</span>
+                  <span>WEEK {currentWeek} OF {totalWeeks}</span>
+                  <span className="text-neutral-500">NO CATCH-UP DEBT</span>
                 </div>
               </div>
 
-              {/* Card 2: Weekly Hours Logged */}
+              {/* Card 2: Reliability Margin & Capacity */}
               <div className="p-4 sm:p-5 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-                    TELEMETRY // WEEKLY HOURS
-                  </span>
-                  <span className="text-[10px] font-mono text-neutral-400">
-                    WEEK {String(weekData?.weekNumber || 1).padStart(2, '0')} QUOTA
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-2xl font-bold font-mono text-white tracking-tight">
-                    {executedHoursThisWeek.toFixed(1)}h{' '}
-                    <span className="text-sm font-normal text-neutral-500">
-                      / {targetWeeklyHours.toFixed(1)}h TARGET
-                    </span>
-                  </div>
-
-                  {/* Mint Progress Bar */}
-                  <div className="w-full bg-[#0d1412] h-2 rounded-full overflow-hidden border border-[#1a2824]">
-                    <div
-                      className="bg-[#07CB6C] h-full transition-all duration-500 rounded-full"
-                      style={{ width: `${weeklyProgressPct}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-1 border-t border-[#1a2824] flex items-center justify-between text-[11px] font-mono text-neutral-400">
-                  <span className="text-[#07CB6C] font-semibold">
-                    {weeklyProgressPct}% EXECUTED
-                  </span>
-                  <span>
-                    {currentWeekSessions.filter((s) => s.status === 'DONE').length} /{' '}
-                    {currentWeekSessions.length} SESSIONS
-                  </span>
-                </div>
-              </div>
-
-              {/* Card 3: Buffer Capacity Status */}
-              <div className="p-4 sm:p-5 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-                    TELEMETRY // BUFFER CAPACITY
+                    RELIABILITY MARGIN // HEADROOM
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider ${
-                      isBufferOptimal
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                      adaptiveData.reliabilityMarginHours > 0
                         ? 'bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C]'
                         : 'bg-amber-400/10 border border-amber-400/30 text-amber-400'
                     }`}
                   >
-                    {isBufferOptimal ? '[OPTIMAL]' : '[DRAINED]'}
+                    {adaptiveData.reliabilityMarginHours > 0 ? '[OPTIMAL]' : '[CONSTRAINED]'}
                   </span>
                 </div>
 
                 <div className="space-y-1">
                   <div className="text-2xl font-bold font-mono text-white tracking-tight">
-                    {activeBufferSlotsRemaining}{' '}
-                    <span className="text-sm font-normal text-neutral-500">
-                      / {totalBufferSlotsThisWeek} ACTIVE SLOTS
-                    </span>
+                    {adaptiveData.reliabilityMarginHours.toFixed(1)}h{' '}
+                    <span className="text-sm font-normal text-neutral-500">BUFFER HEADROOM</span>
                   </div>
                   <div className="text-xs font-mono text-neutral-300">
-                    {isBufferOptimal
-                      ? 'Resilience headroom available'
-                      : 'Zero buffer slots remaining this week'}
+                    Absorbs disruptions without scolding or penalty
                   </div>
                 </div>
 
                 <div className="pt-1 border-t border-[#1a2824] flex items-center justify-between text-[11px] font-mono text-neutral-400">
-                  <span className="truncate max-w-[230px]">
-                    {isBufferOptimal
-                      ? 'Protects 90-day trajectory from slippage'
-                      : 'Reallocation required upon next miss'}
-                  </span>
+                  <span>STRATEGIC FILTERING</span>
                   <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />
+                </div>
+              </div>
+
+              {/* Card 3: Latest Adaptive Decision Trace */}
+              <div className="p-4 sm:p-5 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
+                    DECISION TRACE // SYSTEM REASONING
+                  </span>
+                  <span className="text-[10px] font-mono text-neutral-400">TRANSPARENT</span>
+                </div>
+
+                <div className="space-y-1">
+                  <p className="text-xs font-mono text-neutral-300 line-clamp-3 leading-relaxed">
+                    {adaptiveData.latestPlanUpdate || 'Trajectory progressing normally according to plan.'}
+                  </p>
+                </div>
+
+                <div className="pt-1 border-t border-[#1a2824] flex items-center justify-between text-[11px] font-mono text-neutral-400">
+                  <span className="truncate max-w-[200px]">Audited replanning</span>
+                  <Zap className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                 </div>
               </div>
             </div>
 
             {/* ---------------------------------------------------- */}
-            {/* 3. SCHEDULE & RECOVERY INTEGRATION                   */}
+            {/* 3. SCHEDULE & TRAJECTORY AGENDA                     */}
             {/* ---------------------------------------------------- */}
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between border-b border-[#1a2824] pb-2.5">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-                  WEEKLY EXECUTION AGENDA // ROLLING GRID
+                  WEEKLY EXECUTION AGENDA // ADAPTIVE TRAJECTORY
                 </span>
                 <span className="text-[10px] font-mono text-neutral-500">
-                  SCHEDULE DRIFT & RECOVERY INTEGRATED
+                  CONTINUOUS ROLLING SCHEDULE
                 </span>
               </div>
 
-              {/* Condensed Weekly Calendar schedule with SlippageBanner only when drifted */}
+              {/* Condensed Weekly Calendar schedule */}
               <CalendarView
                 key={refreshTrigger}
                 onlyShowSlippageWhenDrifted={true}
@@ -701,7 +759,7 @@ export const Dashboard: React.FC = () => {
                   ACTIVE PROTOCOL LIFECYCLE
                 </span>
                 <p className="text-xs font-mono text-neutral-400">
-                  Enrolled in <strong className="text-neutral-300 font-mono">{activeUserGoal.goal_catalog.title}</strong>. Single active goal policy enforced.
+                  Enrolled in <strong className="text-neutral-300 font-mono">{activeUserGoal.goal_catalog?.title || 'Goal Protocol'}</strong>. Single active goal policy enforced.
                 </p>
               </div>
 
@@ -719,11 +777,12 @@ export const Dashboard: React.FC = () => {
             <DiscardGoalModal
               isOpen={isDiscardModalOpen}
               goalId={activeUserGoal.id}
-              goalTitle={activeUserGoal.goal_catalog.title}
+              goalTitle={activeUserGoal.goal_catalog?.title || 'Goal Protocol'}
               onClose={() => setIsDiscardModalOpen(false)}
               onSuccess={async () => {
                 setIsDiscardModalOpen(false);
                 setActiveUserGoal(null);
+                setAdaptiveData(null);
                 setActionFeedback({
                   type: 'success',
                   message: 'Protocol discarded. Catalog unlocked.',
@@ -754,7 +813,7 @@ export const Dashboard: React.FC = () => {
           <div className="rounded-md bg-[#0a0f0d] border border-[#1a2824] p-16 flex flex-col items-center justify-center text-neutral-400 gap-3">
             <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
             <span className="text-xs font-mono uppercase tracking-wider">
-              RETRIEVING DASHBOARD TELEMETRY...
+              RETRIEVING ADAPTIVE DASHBOARD...
             </span>
           </div>
         ) : (
@@ -771,20 +830,44 @@ export const Dashboard: React.FC = () => {
                 No Active Goal Plan Initialized
               </h2>
               <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto leading-relaxed">
-                Choose a pre-scoped 3-month blueprint from our catalog to generate your tailored, time-blocked execution calendar.
+                Formalize a goal and commit your initial 90-day trajectory to activate adaptive execution.
               </p>
             </div>
 
             <div className="pt-2">
               <button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/onboarding')}
                 className="min-h-[44px] px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-bold inline-flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
               >
-                <span>EXPLORE GOAL CATALOG</span>
+                <span>COMMENCE GOAL FORMALIZATION</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           </div>
+        )}
+
+        {/* Weekly Strategic Review Modal */}
+        {isWeeklyReviewOpen && activeUserGoal && (
+          <WeeklyReflection
+            weekNumber={adaptiveData?.currentWeek || 1}
+            userGoalId={activeUserGoal.id}
+            onResolved={async () => {
+              setIsWeeklyReviewOpen(false);
+              setRefreshTrigger((prev) => prev + 1);
+            }}
+          />
+        )}
+
+        {/* Outcome Gate Verification Modal */}
+        {isOutcomeGateOpen && activeUserGoal && (
+          <GraduationModal
+            userGoalId={activeUserGoal.id}
+            goalTitle={adaptiveData?.outcomeStatement || activeUserGoal.goal_catalog?.title}
+            onResolved={async () => {
+              setIsOutcomeGateOpen(false);
+              setRefreshTrigger((prev) => prev + 1);
+            }}
+          />
         )}
       </main>
     </div>

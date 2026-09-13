@@ -1,10 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
+import {
+  computeForecast,
+  computeEvidenceConfidence,
+  auditGoalIntegrity,
+} from '../lib/adaptive/index.js';
 
 export const progressRouter = Router();
 
-// GET /api/progress - Compute overall progress, milestones, and timeline pacing
+// GET /api/progress - Compute canonical adaptive progress, capability mastery, and telemetry
 progressRouter.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await getAuthUser(req);
@@ -26,6 +31,15 @@ progressRouter.get('/', async (req: Request, res: Response): Promise<void> => {
             },
           },
         },
+        capabilities: {
+          include: {
+            evidences: true,
+          },
+        },
+        trajectory_versions: {
+          where: { is_active: true },
+          take: 1,
+        },
       },
     });
 
@@ -34,7 +48,26 @@ progressRouter.get('/', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Fetch all sessions for this goal
+    // Run dynamic evaluations
+    const forecast = await computeForecast(activeGoal.id);
+    const confidence = await computeEvidenceConfidence(activeGoal.id);
+    const integrity = await auditGoalIntegrity(activeGoal.id);
+
+    // Active bottleneck capability
+    const activeBottleneck = activeGoal.active_bottleneck_capability_id
+      ? activeGoal.capabilities.find((c) => c.id === activeGoal.active_bottleneck_capability_id)
+      : activeGoal.capabilities[0] || null;
+
+    // Capability state counts
+    const caps = activeGoal.capabilities || [];
+    const verifiedCount = caps.filter((c) => c.state === 'ROBUST' || c.state === 'ESTABLISHED').length;
+    const emergingCount = caps.filter((c) => c.state === 'EMERGING').length;
+    const untestedCount = caps.filter((c) => c.state === 'UNTESTED').length;
+    const regressedCount = caps.filter((c) => c.state === 'REGRESSED').length;
+    const totalCaps = caps.length || 1;
+    const capabilityMasteryPercentage = Math.round((verifiedCount / totalCaps) * 100);
+
+    // Fetch execution sessions for telemetry inspection
     const sessions = await prisma.session.findMany({
       where: { user_goal_id: activeGoal.id },
       include: {
@@ -54,123 +87,76 @@ progressRouter.get('/', async (req: Request, res: Response): Promise<void> => {
     const rescheduledSessions = sessions.filter((s) => s.status === 'RESCHEDULED').length;
     const missedSessions = sessions.filter((s) => s.status === 'MISSED').length;
 
-    const completionPercentage = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
-
-    // Hours calculation
     let completedMinutes = 0;
     let totalMinutes = 0;
     for (const s of sessions) {
-      const dur = s.task_template?.session_duration_minutes || 60;
+      const dur = s.task_template?.session_duration_minutes || 45;
       totalMinutes += dur;
       if (s.status === 'DONE') {
         completedMinutes += dur;
       }
     }
 
-    const completedHours = parseFloat((completedMinutes / 60).toFixed(1));
-    const totalHours = parseFloat((totalMinutes / 60).toFixed(1));
-
-    // Timeline calculation
     const now = new Date();
     const startDate = new Date(activeGoal.start_date);
-    const projectedTargetDate = new Date(activeGoal.target_end_date);
-    const originalTargetDate = new Date(startDate.getTime() + 84 * 24 * 60 * 60 * 1000);
-
     const daysElapsed = Math.max(0, Math.floor((now.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)));
-    const daysRemaining = Math.max(0, Math.ceil((projectedTargetDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
 
-    let paceStatus: 'ON_TRACK' | 'BEHIND_PACE' | 'GUARDRAIL_ALERT' = 'ON_TRACK';
-    if (activeGoal.slippage_days >= 14) {
-      paceStatus = 'GUARDRAIL_ALERT';
-    } else if (activeGoal.slippage_days > 0) {
-      paceStatus = 'BEHIND_PACE';
-    }
+    const activeTrajectory = activeGoal.trajectory_versions[0];
+    const targetDate = activeTrajectory?.projected_completion || activeGoal.target_end_date;
+    const daysRemaining = Math.max(0, Math.ceil((new Date(targetDate).getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
 
-    // Phase breakdown
-    const phaseBreakdown = activeGoal.goal_catalog.phases.map((phase) => {
-      const templateIds = new Set(phase.task_templates.map((t) => t.id));
-      const phaseSessions = sessions.filter((s) => templateIds.has(s.task_template_id));
-      const phaseTotal = phaseSessions.length;
-      const phaseCompleted = phaseSessions.filter((s) => s.status === 'DONE').length;
-      const phasePercentage = phaseTotal > 0 ? Math.round((phaseCompleted / phaseTotal) * 100) : 0;
-
-      let status: 'COMPLETED' | 'IN_PROGRESS' | 'UPCOMING' = 'UPCOMING';
-      if (phaseCompleted === phaseTotal && phaseTotal > 0) {
-        status = 'COMPLETED';
-      } else if (phaseCompleted > 0) {
-        status = 'IN_PROGRESS';
-      }
-
-      return {
-        id: phase.id,
-        phase_order: phase.phase_order,
-        title: phase.title,
-        duration_weeks: phase.duration_weeks,
-        totalSessions: phaseTotal,
-        completedSessions: phaseCompleted,
-        completionPercentage: phasePercentage,
-        status,
-        taskTemplates: phase.task_templates.map((t) => ({
-          id: t.id,
-          title: t.title,
-          sessions_per_week: t.sessions_per_week,
-          session_duration_minutes: t.session_duration_minutes,
-        })),
-      };
-    });
-
-    // Determine current active phase index
     const currentWeekOffset = Math.max(0, Math.min(11, Math.floor((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000))));
-    let currentPhaseIndex = 0;
-    if (currentWeekOffset >= 4 && currentWeekOffset < 8 && phaseBreakdown.length > 1) {
-      currentPhaseIndex = 1;
-    } else if (currentWeekOffset >= 8 && phaseBreakdown.length > 2) {
-      currentPhaseIndex = 2;
-    }
-
-    // Simple velocity / recent activity
-    const nonUpcomingSessions = sessions
-      .filter((s) => s.status !== 'UPCOMING' && s.scheduled_date)
-      .sort((a, b) => new Date(b.scheduled_date!).getTime() - new Date(a.scheduled_date!).getTime())
-      .slice(0, 5);
 
     res.status(200).json({
-      goal: {
-        id: activeGoal.id,
-        title: activeGoal.goal_catalog.title,
-        description: activeGoal.goal_catalog.description,
-        category: activeGoal.goal_catalog.category,
-        icon: activeGoal.goal_catalog.icon,
-        startDate: startDate.toISOString(),
-        originalTargetDate: originalTargetDate.toISOString(),
-        projectedTargetDate: projectedTargetDate.toISOString(),
-        slippageDays: activeGoal.slippage_days,
-        daysElapsed,
-        daysRemaining,
-        paceStatus,
-      },
-      metrics: {
+      // Canonical Adaptive Model
+      outcomeStatement: activeGoal.outcome_statement || activeGoal.goal_catalog.title,
+      goalIntegrityStatus: integrity.status,
+      feasibilityZone: activeGoal.feasibility_zone,
+      confidenceLevel: confidence,
+      projectedCompletionWindow: `Day ${forecast.projectedWindowDays[0]}–${forecast.projectedWindowDays[1]}`,
+      projectedCompletionDate: forecast.projectedCompletionDate,
+      activeBottleneck: activeBottleneck
+        ? {
+            id: activeBottleneck.id,
+            name: activeBottleneck.name,
+            state: activeBottleneck.state,
+            description: activeBottleneck.description,
+          }
+        : null,
+      sustainableCapacityHours: activeGoal.sustainable_weekly_capacity_hours,
+      medHours: activeGoal.current_med_hours,
+      reliabilityMarginHours: activeGoal.current_reliability_margin_hours,
+      capabilityMasteryPercentage,
+      capabilities: caps.map((c) => ({
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        tier: c.tier,
+        state: c.state,
+        evidenceCount: c.evidences?.length || 0,
+      })),
+      // Execution Telemetry (telemetry only, does not determine destination success)
+      executionTelemetry: {
         totalSessions,
         completedSessions,
         upcomingSessions,
         rescheduledSessions,
         missedSessions,
-        completionPercentage,
-        completedHours,
-        totalHours,
+        taskCompletionRate: totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0,
+        completedHours: parseFloat((completedMinutes / 60).toFixed(1)),
+        totalHours: parseFloat((totalMinutes / 60).toFixed(1)),
         currentWeek: currentWeekOffset + 1,
         totalWeeks: 12,
-        currentPhase: phaseBreakdown[currentPhaseIndex] || null,
+        daysElapsed,
+        daysRemaining,
       },
-      phaseBreakdown,
-      recentActivity: nonUpcomingSessions.map((s) => ({
-        id: s.id,
-        taskTitle: s.task_template?.title,
-        scheduledDate: s.scheduled_date,
-        startTime: s.start_time,
-        endTime: s.end_time,
-        status: s.status,
-      })),
+      goal: {
+        id: activeGoal.id,
+        title: activeGoal.outcome_statement || activeGoal.goal_catalog.title,
+        startDate: startDate.toISOString(),
+        projectedTargetDate: new Date(targetDate).toISOString(),
+        slippageDays: 0,
+      },
     });
   } catch (error: any) {
     console.error('Fetch goal progress error:', error);

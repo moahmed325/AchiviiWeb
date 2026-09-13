@@ -3,6 +3,11 @@ import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import { generateThreeMonthSchedule } from '../lib/scheduler.js';
 import { normalizeTimezone } from '../lib/timezone.js';
+import {
+  CapabilityStateGraph,
+  persistStateGraph,
+  generateInitialTrajectory,
+} from '../lib/adaptive/index.js';
 
 export const onboardingRouter = Router();
 export const userGoalRouter = Router();
@@ -199,12 +204,70 @@ onboardingRouter.post('/', async (req: Request, res: Response): Promise<void> =>
 
     // Automatically generate/re-align 12-week schedule upfront (§5)
     let sessionsGenerated = 0;
-    try {
-      sessionsGenerated = await generateThreeMonthSchedule(result.user_goal.id, {
-        preserveCompleted: result.is_adjustment,
-      });
-    } catch (schedErr) {
-      console.warn('Schedule generation/re-alignment warning:', schedErr);
+    if (result.user_goal?.id) {
+      try {
+        sessionsGenerated = await generateThreeMonthSchedule(result.user_goal.id, {
+          preserveCompleted: result.is_adjustment,
+        });
+      } catch (schedErr) {
+        console.warn('Schedule generation/re-alignment warning:', schedErr);
+      }
+
+      // Initialize Canonical Adaptive Architecture: Capability State Graph & Trajectory v1
+      try {
+        const existingCaps = await prisma.goalCapability.count({
+          where: { user_goal_id: result.user_goal.id },
+        });
+
+        if (existingCaps === 0) {
+          const graph = new CapabilityStateGraph();
+          const cap1Id = `cap-${Date.now()}-0`;
+          const cap2Id = `cap-${Date.now()}-1`;
+          const cap3Id = `cap-${Date.now()}-2`;
+          graph.addCapability({
+            id: cap1Id,
+            userGoalId: result.user_goal.id,
+            name: 'Core Adaptation Baseline',
+            description: 'Fundamental prerequisite capability',
+            tier: 'TIER_1_CRITICAL',
+            state: 'EMERGING',
+            prerequisites: [],
+          });
+          graph.addCapability({
+            id: cap2Id,
+            userGoalId: result.user_goal.id,
+            name: 'Progressive Work Capacity',
+            description: 'Target work volume expansion',
+            tier: 'TIER_1_CRITICAL',
+            state: 'UNTESTED',
+            prerequisites: [cap1Id],
+          });
+          graph.addCapability({
+            id: cap3Id,
+            userGoalId: result.user_goal.id,
+            name: 'Capstone Destination Mastery',
+            description: result.user_goal.outcome_statement || catalogGoal.title,
+            tier: 'TIER_1_CRITICAL',
+            state: 'UNTESTED',
+            prerequisites: [cap2Id],
+          });
+          await persistStateGraph(result.user_goal.id, graph);
+
+          await generateInitialTrajectory(
+            result.user_goal.id,
+            graph,
+            {
+              sustainableWeeklyHours: result.user_goal.sustainable_weekly_capacity_hours || 6.0,
+              medHours: 4.5,
+              reliabilityMarginHours: Math.max(0, (result.user_goal.sustainable_weekly_capacity_hours || 6.0) - 4.5),
+              maxSessionDurationMinutes: 60,
+            },
+            result.availability_slots || []
+          );
+        }
+      } catch (adaptErr) {
+        console.warn('Adaptive trajectory initialization warning in onboarding:', adaptErr);
+      }
     }
 
     res.status(result.is_adjustment ? 200 : 201).json({

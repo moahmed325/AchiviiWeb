@@ -1,22 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { fetchCatalog, fetchGoalById, submitOnboarding, fetchCurrentUserGoal, generateRoadmaps, selectRoadmap, fetchRoadmaps, fetchLearnedDefaults } from '../lib/api';
+import { fetchCatalog, fetchGoalById, fetchCurrentUserGoal, fetchLearnedDefaults } from '../lib/api';
+import { formalizeGoal, commitGoal } from '../lib/adaptiveApi';
 import { getLocalDateString, getTodayDateString } from '../lib/dateUtils';
-import { GoalCatalog, DayOfWeek, AvailabilitySlot, Roadmap, OnboardingLearnedDefaults, UserGoal } from '../types';
-import { RoadmapSelector } from '../components/RoadmapSelector';
+import { GoalCatalog, DayOfWeek, AvailabilitySlot, OnboardingLearnedDefaults, UserGoal } from '../types';
+import type {
+  GoalDomain,
+  DeadlineType,
+  FeasibilityZone,
+  GoalFormalizationResult,
+  FeasibilityAssessment,
+  CommitGoalResponse,
+} from '../types/adaptive';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Calendar, 
-  Clock, 
-  CheckCircle2, 
-  Trash2, 
-  Sun, 
-  ShieldCheck, 
-  Zap, 
-  Loader2, 
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  Trash2,
+  Sun,
+  ShieldCheck,
+  Zap,
+  Loader2,
   AlertCircle,
   Compass,
   Activity,
@@ -26,7 +34,11 @@ import {
   Server,
   Heart,
   Check,
-  RotateCcw
+  RotateCcw,
+  Target,
+  Shield,
+  TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
 
 const DAYS_OF_WEEK: { key: DayOfWeek; label: string; short: string }[] = [
@@ -120,6 +132,36 @@ const WEEKDAY_PRESETS: WeekdayPreset[] = [
   },
 ];
 
+const DOMAIN_OPTIONS: { value: GoalDomain; label: string; icon: string; desc: string }[] = [
+  { value: 'PHYSICAL', label: 'Physical', icon: '🏋️', desc: 'Fitness, sport, endurance, body composition' },
+  { value: 'COGNITIVE', label: 'Cognitive', icon: '🧠', desc: 'Learning, skills, language, certification' },
+  { value: 'PROJECT', label: 'Project', icon: '🚀', desc: 'Building, shipping, creative output' },
+];
+
+const FEASIBILITY_CONFIG: Record<FeasibilityZone, { color: string; bgClass: string; borderClass: string; label: string; icon: React.ReactNode }> = {
+  GREEN: {
+    color: 'text-emerald-400',
+    bgClass: 'bg-emerald-950/30',
+    borderClass: 'border-emerald-500/40',
+    label: 'HIGH FEASIBILITY',
+    icon: <CheckCircle2 className="w-5 h-5 text-emerald-400" />,
+  },
+  YELLOW: {
+    color: 'text-amber-400',
+    bgClass: 'bg-amber-950/30',
+    borderClass: 'border-amber-500/40',
+    label: 'MODERATE — ACHIEVABLE WITH DISCIPLINE',
+    icon: <AlertTriangle className="w-5 h-5 text-amber-400" />,
+  },
+  RED: {
+    color: 'text-rose-400',
+    bgClass: 'bg-rose-950/30',
+    borderClass: 'border-rose-500/40',
+    label: 'HIGH RISK — CONSIDER ADJUSTING',
+    icon: <AlertCircle className="w-5 h-5 text-rose-400" />,
+  },
+};
+
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -127,7 +169,7 @@ export const OnboardingPage: React.FC = () => {
   const modeParam = searchParams.get('mode');
   const { user, token, openAuthModal } = useAuth();
 
-  // 2-Step Architecture: 1 = Choose Goal, 2 = Learn About You & Verify, 3 = Generation Success
+  // 4-Step Architecture: 1 = Destination, 2 = Feasibility, 3 = Availability, 4 = Committed
   const [step, setStep] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -136,18 +178,31 @@ export const OnboardingPage: React.FC = () => {
   const [existingActiveGoal, setExistingActiveGoal] = useState<UserGoal | null>(null);
   const [isDiscardModalOpen, setIsDiscardModalOpen] = useState<boolean>(false);
 
-  // Data State
+  // Catalog State
   const [allGoals, setAllGoals] = useState<GoalCatalog[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedGoal, setSelectedGoal] = useState<GoalCatalog | null>(null);
 
-  // Questionnaire Answers
+  // Adaptive Goal Formalization State
+  const [outcomeStatement, setOutcomeStatement] = useState<string>('');
+  const [domain, setDomain] = useState<GoalDomain>('PHYSICAL');
+  const [deadlineType, setDeadlineType] = useState<DeadlineType>('SOFT');
+  const [weeklyAvailableHours, setWeeklyAvailableHours] = useState<number>(6);
+
+  // Formalization + Feasibility Results (set after Step 1 → Step 2 transition)
+  const [formalizationResult, setFormalizationResult] = useState<GoalFormalizationResult | null>(null);
+  const [feasibilityResult, setFeasibilityResult] = useState<FeasibilityAssessment | null>(null);
+
+  // Commit Result (set after Step 3 → Step 4 transition)
+  const [commitResult, setCommitResult] = useState<CommitGoalResponse | null>(null);
+
+  // Availability State (reused from legacy)
   const [selectedPresetId, setSelectedPresetId] = useState<string>('standard_9_5');
   const [saturdayMode, setSaturdayMode] = useState<'FREE' | 'MORNING' | 'FULL_DAY'>('FREE');
   const [startDate, setStartDate] = useState<string>(() => getTodayDateString());
   const [quickDateOption, setQuickDateOption] = useState<'TODAY' | 'NEXT_MONDAY' | 'CUSTOM'>('TODAY');
 
-  // Busy Blocks State (Initialized with standard 9-5)
+  // Busy Blocks State
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([
     { day_of_week: 'MON', start_time: '09:00', end_time: '17:00', label: 'Work' },
     { day_of_week: 'TUE', start_time: '09:00', end_time: '17:00', label: 'Work' },
@@ -161,13 +216,8 @@ export const OnboardingPage: React.FC = () => {
   const [newStartTime, setNewStartTime] = useState<string>('09:00');
   const [newEndTime, setNewEndTime] = useState<string>('17:00');
   const [newLabel, setNewLabel] = useState<string>('Work');
-  const [generatedSessionCount, setGeneratedSessionCount] = useState<number>(60);
 
-  // Phase 4: Roadmap Selection State
-  const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
-  const [selectedRoadmapId, setSelectedRoadmapId] = useState<string | null>(null);
-
-  // Phase 5: Continuous Profile Learning State
+  // Continuous Profile Learning State
   const [learnedDefaults, setLearnedDefaults] = useState<OnboardingLearnedDefaults | null>(null);
   const [showLearnedSuggestion, setShowLearnedSuggestion] = useState<boolean>(true);
 
@@ -210,11 +260,11 @@ export const OnboardingPage: React.FC = () => {
                 setAvailabilitySlots(currentGoalData.availability_slots);
               }
 
-              // Direct entry into Step 2 when adjusting routine for active goal
+              // Direct entry into Step 3 when adjusting routine for active goal
               const shouldAdjust = (modeParam === 'adjust' || !goalIdParam || goalIdParam === activeCatalogId) && !isDifferentGoal;
               if (shouldAdjust) {
                 setIsAdjustingRoutine(true);
-                setStep(2);
+                setStep(3);
               }
             }
           } catch (e) {
@@ -331,14 +381,19 @@ export const OnboardingPage: React.FC = () => {
     ]);
   };
 
-  // Submit onboarding routine and transition to AI Roadmap selection
-  const handleProceedToRoadmaps = async () => {
+  // ─── Step 1 → Step 2: Formalize goal and check feasibility ───
+  const handleFormalizeGoal = async () => {
     if (!user || !token) {
       openAuthModal('signup');
       return;
     }
     if (!selectedGoal) {
       setError('Please select a goal first.');
+      return;
+    }
+    const rawGoal = outcomeStatement.trim() || selectedGoal.title;
+    if (!rawGoal) {
+      setError('Please describe what you want to achieve.');
       return;
     }
 
@@ -351,57 +406,59 @@ export const OnboardingPage: React.FC = () => {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await submitOnboarding(token, {
-        goal_catalog_id: selectedGoal.id,
-        start_date: new Date(startDate).toISOString(),
-        availability_slots: availabilitySlots,
+      const res = await formalizeGoal(token, {
+        rawGoal,
+        domain,
+        deadlineType,
+        weeklyAvailableHours,
       });
-
-      const userGoalId = res.user_goal?.id;
-
-      // Generate or retrieve roadmap variants for this goal
-      let variants: Roadmap[] = [];
-      try {
-        const genRes = await generateRoadmaps(token, userGoalId);
-        variants = genRes.roadmaps || [];
-      } catch (genErr) {
-        const listRes = await fetchRoadmaps(token);
-        variants = listRes.roadmaps || [];
+      setFormalizationResult(res.formalization);
+      setFeasibilityResult(res.feasibility);
+      // Auto-populate outcome if user didn't customize
+      if (!outcomeStatement.trim()) {
+        setOutcomeStatement(res.formalization.concreteOutcomeStatement);
       }
-
-      setRoadmaps(variants);
-      if (variants.length > 0) {
-        setSelectedRoadmapId(res.user_goal?.selected_roadmap_id || variants[0].id);
-      }
-      setStep(3); // Transition to RoadmapSelector
+      setStep(2);
     } catch (err: any) {
-      setError(err.message || 'Failed to initialize pacing roadmaps.');
+      setError(err.message || 'Failed to formalize goal.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Confirm chosen roadmap, modulate schedule, and land on celebration
-  const handleConfirmRoadmapAndGenerate = async () => {
-    if (!token || !selectedRoadmapId) return;
+  // ─── Step 3 → Step 4: Commit goal with availability ───
+  const handleCommitGoal = async () => {
+    if (!token || !selectedGoal) return;
 
     setSubmitting(true);
     setError(null);
     try {
-      const res = await selectRoadmap(token, selectedRoadmapId);
-      if (res.session_count) {
-        setGeneratedSessionCount(res.session_count);
-      }
-      setStep(4); // Celebration screen
+      const res = await commitGoal(token, {
+        goalCatalogId: selectedGoal.id,
+        outcomeStatement: outcomeStatement.trim() || formalizationResult?.concreteOutcomeStatement || selectedGoal.title,
+        verificationCriteria: formalizationResult?.verificationCriteria || 'Demonstrate unassisted real-world capability.',
+        deadlineType,
+        domain,
+        startDate: new Date(startDate).toISOString(),
+        sustainableWeeklyHours: weeklyAvailableHours,
+        availabilitySlots: availabilitySlots.map(s => ({
+          day_of_week: s.day_of_week,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          label: s.label || undefined,
+        })),
+      });
+      setCommitResult(res);
+      setStep(4);
     } catch (err: any) {
-      setError(err.message || 'Failed to select roadmap and modulate schedule.');
+      setError(err.message || 'Failed to commit goal and generate trajectory.');
     } finally {
       setSubmitting(false);
     }
   };
 
   // Calculate timeline
-  const targetEndDate = new Date(new Date(startDate).getTime() + 12 * 7 * 24 * 60 * 60 * 1000);
+  const targetEndDate = new Date(new Date(startDate).getTime() + 90 * 24 * 60 * 60 * 1000);
   const formattedEndDate = isNaN(targetEndDate.getTime())
     ? '—'
     : targetEndDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -412,13 +469,14 @@ export const OnboardingPage: React.FC = () => {
     const [eh, em] = s.end_time.split(':').map(Number);
     return sum + (eh * 60 + em - (sh * 60 + sm));
   }, 0);
-  // Total operating window per week ~98 hours (15h weekdays * 5 + 13.5h Sat + 13h Sun)
   const estimatedFreeHours = Math.max(0, Math.round(98 - busyMinutesPerWeek / 60));
 
   const filteredGoals = allGoals.filter((g) => {
     if (selectedCategory === 'All') return true;
     return g.category.toLowerCase().includes(selectedCategory.toLowerCase());
   });
+
+  const STEP_LABELS = ['Destination', 'Feasibility', 'Availability', 'Committed'];
 
   if (loading) {
     return (
@@ -445,7 +503,7 @@ export const OnboardingPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-[#e5ebe7]">Achivii</span>
             <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded-sm bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20 uppercase tracking-wider">
-              {isAdjustingRoutine ? 'Adjust Routine' : 'Goal Onboarding'}
+              {isAdjustingRoutine ? 'Adjust Routine' : 'Adaptive Onboarding'}
             </span>
           </div>
         </div>
@@ -488,60 +546,40 @@ export const OnboardingPage: React.FC = () => {
             </div>
           </div>
         )}
-        {/* 3-Step Architecture Indicator */}
-        {step < 4 && (
-          <div className="flex items-center justify-center gap-2 sm:gap-4 text-xs font-mono">
-            <div
-              onClick={() => setStep(1)}
-              className={`flex items-center gap-2 cursor-pointer transition-colors ${
-                step === 1 ? 'text-[#07CB6C] font-bold' : 'text-[#9ca3af] hover:text-[#e5ebe7]'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
-                  step === 1 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#1a2824] text-[#9ca3af]'
-                }`}
-              >
-                1
-              </div>
-              <span>Step 1: Goal</span>
-            </div>
 
-            <div className="w-6 sm:w-10 h-px bg-[#1a2824]" />
-
-            <div
-              onClick={() => selectedGoal && setStep(2)}
-              className={`flex items-center gap-2 cursor-pointer transition-colors ${
-                step === 2 ? 'text-[#07CB6C] font-bold' : 'text-[#9ca3af] hover:text-[#e5ebe7]'
-              }`}
-            >
-              <div
-                className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
-                  step === 2 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#1a2824] text-[#9ca3af]'
-                }`}
-              >
-                2
-              </div>
-              <span>Step 2: Routine</span>
-            </div>
-
-            <div className="w-6 sm:w-10 h-px bg-[#1a2824]" />
-
-            <div
-              onClick={() => roadmaps.length > 0 && setStep(3)}
-              className={`flex items-center gap-2 transition-colors ${
-                roadmaps.length > 0 ? 'cursor-pointer hover:text-[#e5ebe7]' : 'cursor-not-allowed opacity-50'
-              } ${step === 3 ? 'text-[#07CB6C] font-bold' : 'text-[#9ca3af]'}`}
-            >
-              <div
-                className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
-                  step === 3 ? 'bg-[#07CB6C] text-[#050807]' : 'bg-[#0c1210] border border-[#1a2824] text-[#9ca3af]'
-                }`}
-              >
-                3
-              </div>
-              <span>Step 3: Roadmap</span>
-            </div>
+        {/* 4-Step Architecture Indicator */}
+        {step < 5 && (
+          <div className="flex items-center justify-center gap-2 sm:gap-3 text-xs font-mono">
+            {STEP_LABELS.map((label, idx) => {
+              const stepNum = idx + 1;
+              const isActive = step === stepNum;
+              const isCompleted = step > stepNum;
+              const isClickable = stepNum < step;
+              return (
+                <React.Fragment key={label}>
+                  {idx > 0 && <div className="w-4 sm:w-8 h-px bg-[#1a2824]" />}
+                  <div
+                    onClick={() => isClickable && setStep(stepNum)}
+                    className={`flex items-center gap-1.5 transition-colors ${
+                      isClickable ? 'cursor-pointer hover:text-[#e5ebe7]' : ''
+                    } ${isActive ? 'text-[#07CB6C] font-bold' : isCompleted ? 'text-emerald-600' : 'text-[#9ca3af]'}`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-sm flex items-center justify-center text-[10px] font-mono font-bold ${
+                        isActive
+                          ? 'bg-[#07CB6C] text-[#050807]'
+                          : isCompleted
+                          ? 'bg-emerald-800 text-emerald-200'
+                          : 'bg-[#0c1210] border border-[#1a2824] text-[#9ca3af]'
+                      }`}
+                    >
+                      {isCompleted ? <Check className="w-3 h-3" /> : stepNum}
+                    </div>
+                    <span className="hidden sm:inline">{label}</span>
+                  </div>
+                </React.Fragment>
+              );
+            })}
           </div>
         )}
 
@@ -552,33 +590,15 @@ export const OnboardingPage: React.FC = () => {
           </div>
         )}
 
-        {/* Adjust Routine Notice */}
-        {isAdjustingRoutine && step === 1 && (
-          <div className="p-4 rounded-xl bg-indigo-950/20 border border-indigo-500/30 flex items-center justify-between gap-3 text-xs text-indigo-300">
-            <div className="flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-indigo-400 shrink-0" />
-              <span>
-                <strong>Adjust Routine Mode:</strong> Your active goal is pre-selected. Click continue to tweak your routine questions.
-              </span>
-            </div>
-            <button
-              onClick={() => setStep(2)}
-              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-semibold text-xs transition-colors shrink-0 cursor-pointer"
-            >
-              Skip to Routine Questions →
-            </button>
-          </div>
-        )}
-
         {/* ========================================================= */}
-        {/* STEP 1: CHOOSE YOUR GOAL */}
+        {/* STEP 1: GOAL DESTINATION */}
         {/* ========================================================= */}
         {step === 1 && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="text-center space-y-2">
-              <h1 className="text-3xl sm:text-4xl font-black text-white">Choose Your 3-Month Goal</h1>
+              <h1 className="text-3xl sm:text-4xl font-black text-white">Define Your 90-Day Destination</h1>
               <p className="text-slate-400 text-sm max-w-xl mx-auto leading-relaxed">
-                Select your curated 12-week blueprint. Each goal is pre-scoped into 3 sequential phases with deterministic time-blocking.
+                Select a goal template, then describe the specific outcome you want to achieve. The system will verify feasibility before you commit.
               </p>
             </div>
 
@@ -606,7 +626,12 @@ export const OnboardingPage: React.FC = () => {
                 return (
                   <div
                     key={goal.id}
-                    onClick={() => setSelectedGoal(goal)}
+                    onClick={() => {
+                      setSelectedGoal(goal);
+                      if (!outcomeStatement.trim()) {
+                        setOutcomeStatement(goal.title);
+                      }
+                    }}
                     className={`p-5 rounded-md cursor-pointer transition-all border relative flex flex-col justify-between ${
                       isSelected
                         ? 'bg-[#0c1210] border-emerald-500 ring-1 ring-emerald-500/50 shadow-none'
@@ -639,13 +664,112 @@ export const OnboardingPage: React.FC = () => {
                         <Clock className="w-3.5 h-3.5 text-indigo-400" /> {goal.est_weekly_hours}h / week
                       </span>
                       <span className="flex items-center gap-1 font-mono text-[11px] text-purple-300">
-                        12 Weeks (3 Phases)
+                        90 Days (Adaptive)
                       </span>
                     </div>
                   </div>
                 );
               })}
             </div>
+
+            {/* Outcome Statement Input */}
+            {selectedGoal && (
+              <div className="bg-[#0c1210] p-6 rounded-md border border-[#1a2824] space-y-4">
+                <div className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-emerald-400" />
+                  <h3 className="text-sm font-bold text-white">Describe Your Concrete Outcome</h3>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  What specific, measurable result do you want to achieve in 90 days? Be as concrete as possible — this becomes your verification criteria.
+                </p>
+                <textarea
+                  value={outcomeStatement}
+                  onChange={(e) => setOutcomeStatement(e.target.value)}
+                  placeholder={`e.g. "Run a 5K in under 25 minutes without stopping" or "Build and ship a production web app with authentication"`}
+                  rows={3}
+                  className="w-full px-4 py-3 rounded-md bg-[#080d0b] border border-[#1a2824] text-white text-sm placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 resize-none"
+                />
+
+                {/* Domain & Weekly Hours Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {DOMAIN_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setDomain(opt.value)}
+                      className={`p-3 rounded-md border text-left transition-all cursor-pointer ${
+                        domain === opt.value
+                          ? 'bg-emerald-950/40 text-white border-emerald-500'
+                          : 'bg-[#080d0b] border-[#1a2824] text-slate-300 hover:border-emerald-500/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">{opt.icon}</span>
+                        <span className="font-bold text-xs">{opt.label}</span>
+                      </div>
+                      <div className={`text-[11px] ${domain === opt.value ? 'text-emerald-400' : 'text-slate-500'}`}>
+                        {opt.desc}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Deadline Type & Weekly Hours */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-[#080d0b] p-4 rounded-md border border-[#1a2824] space-y-2">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Deadline Type</label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDeadlineType('SOFT')}
+                        className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                          deadlineType === 'SOFT'
+                            ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-500'
+                            : 'bg-[#0c1210] border border-[#1a2824] text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Soft (Flexible)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeadlineType('HARD')}
+                        className={`flex-1 py-2 px-3 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                          deadlineType === 'HARD'
+                            ? 'bg-amber-950/40 text-amber-400 border border-amber-500'
+                            : 'bg-[#0c1210] border border-[#1a2824] text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Hard (Fixed)
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      {deadlineType === 'SOFT'
+                        ? 'System can extend timeline if scientifically warranted.'
+                        : 'System optimizes within fixed 90-day runway. No extension.'}
+                    </p>
+                  </div>
+
+                  <div className="bg-[#080d0b] p-4 rounded-md border border-[#1a2824] space-y-2">
+                    <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">Weekly Available Hours</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={2}
+                        max={20}
+                        step={0.5}
+                        value={weeklyAvailableHours}
+                        onChange={(e) => setWeeklyAvailableHours(parseFloat(e.target.value))}
+                        className="flex-1 accent-emerald-500"
+                      />
+                      <span className="text-lg font-bold text-emerald-400 font-mono w-14 text-right">{weeklyAvailableHours}h</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Hours per week you can sustainably dedicate to this goal.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Step 1 Continue CTA */}
             <div className="flex items-center justify-between pt-4 border-t border-slate-800/80">
@@ -658,11 +782,172 @@ export const OnboardingPage: React.FC = () => {
 
               <button
                 id="btn-step1-continue"
-                onClick={() => setStep(2)}
-                disabled={!selectedGoal}
+                onClick={handleFormalizeGoal}
+                disabled={!selectedGoal || submitting}
                 className="min-h-[44px] py-2.5 px-6 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold shadow-none flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
               >
-                <span>Continue to Step 2: Learn About You</span>
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Analyzing Feasibility...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Check Feasibility</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* STEP 2: FEASIBILITY GATE */}
+        {/* ========================================================= */}
+        {step === 2 && formalizationResult && feasibilityResult && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Feasibility Assessment</h2>
+              <p className="text-slate-400 text-sm max-w-xl mx-auto">
+                Your goal has been analyzed against 90-day physiological and cognitive adaptation timelines. Review the assessment below.
+              </p>
+            </div>
+
+            {/* Feasibility Zone Badge */}
+            {(() => {
+              const config = FEASIBILITY_CONFIG[feasibilityResult.zone];
+              return (
+                <div className={`p-5 sm:p-6 rounded-md border ${config.bgClass} ${config.borderClass} space-y-3`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {config.icon}
+                      <div>
+                        <span className={`text-[10px] font-mono uppercase tracking-wider ${config.color} font-bold block`}>
+                          {config.label}
+                        </span>
+                        <span className="text-white font-bold text-sm">
+                          Feasibility Score: {feasibilityResult.score}/100
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`text-2xl font-black font-mono ${config.color}`}>
+                      {feasibilityResult.zone}
+                    </span>
+                  </div>
+
+                  {feasibilityResult.zone === 'RED' && (
+                    <p className="text-xs text-rose-300 leading-relaxed">
+                      This goal carries high risk under the current parameters. Consider increasing weekly hours, adjusting the deadline type to SOFT, or narrowing the outcome scope.
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Formalized Outcome Statement */}
+            <div className="bg-[#0c1210] p-5 rounded-md border border-[#1a2824] space-y-3">
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-emerald-400" />
+                <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">Concrete Outcome Statement</span>
+              </div>
+              <p className="text-white text-sm font-semibold leading-relaxed">
+                "{formalizationResult.concreteOutcomeStatement}"
+              </p>
+              <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                <Shield className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Verification: {formalizationResult.verificationCriteria}</span>
+              </div>
+            </div>
+
+            {/* Baseline Questions */}
+            {formalizationResult.baselineQuestions.length > 0 && (
+              <div className="bg-[#0c1210] p-5 rounded-md border border-[#1a2824] space-y-3">
+                <div className="flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-indigo-400" />
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 font-bold">Baseline Assessment Questions</span>
+                </div>
+                <p className="text-xs text-slate-400">These questions help establish your starting point. You'll verify these during your first week.</p>
+                <div className="space-y-2">
+                  {formalizationResult.baselineQuestions.map((q, i) => (
+                    <div key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                      <span className="text-emerald-500 font-mono font-bold shrink-0 mt-0.5">{i + 1}.</span>
+                      <span>{q}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bottleneck Risks & Recommendations */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {feasibilityResult.bottleneckRisks.length > 0 && (
+                <div className="bg-[#0c1210] p-4 rounded-md border border-[#1a2824] space-y-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Bottleneck Risks
+                  </span>
+                  <ul className="space-y-1">
+                    {feasibilityResult.bottleneckRisks.map((r, i) => (
+                      <li key={i} className="text-xs text-slate-300 flex items-start gap-1.5">
+                        <span className="text-amber-500 mt-0.5">•</span>
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {feasibilityResult.recommendations.length > 0 && (
+                <div className="bg-[#0c1210] p-4 rounded-md border border-[#1a2824] space-y-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5" /> Recommendations
+                  </span>
+                  <ul className="space-y-1">
+                    {feasibilityResult.recommendations.map((r, i) => (
+                      <li key={i} className="text-xs text-slate-300 flex items-start gap-1.5">
+                        <span className="text-emerald-500 mt-0.5">•</span>
+                        <span>{r}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Domain & Parameters Summary */}
+            <div className="p-4 rounded-md bg-[#080d0b] border border-[#1a2824] grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+              <div>
+                <span className="text-slate-500 block mb-0.5">Domain</span>
+                <span className="text-white font-bold">{formalizationResult.domain}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block mb-0.5">Deadline</span>
+                <span className="text-white font-bold">{deadlineType}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block mb-0.5">Weekly Capacity</span>
+                <span className="text-emerald-400 font-bold">{weeklyAvailableHours}h</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block mb-0.5">Timeline</span>
+                <span className="text-white font-bold">90 Days</span>
+              </div>
+            </div>
+
+            {/* Step 2 Navigation */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="py-2.5 px-5 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-slate-300 text-xs font-semibold border border-[#1a2824] transition-colors cursor-pointer"
+              >
+                ← Adjust Destination
+              </button>
+
+              <button
+                onClick={() => setStep(3)}
+                className="min-h-[44px] py-2.5 px-6 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <span>Accept & Configure Availability</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -670,11 +955,11 @@ export const OnboardingPage: React.FC = () => {
         )}
 
         {/* ========================================================= */}
-        {/* STEP 2: LEARN ABOUT YOU QUESTIONNAIRE & VERIFY ROUTINE */}
+        {/* STEP 3: AVAILABILITY & COMMIT */}
         {/* ========================================================= */}
-        {step === 2 && selectedGoal && (
+        {step === 3 && (
           <div className="space-y-8 animate-in fade-in duration-300">
-            {/* Header with Selected Goal Pill or Adjust Routine Banner */}
+            {/* Header */}
             {isAdjustingRoutine ? (
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-md bg-[#0c1210] border border-[#1a2824] shadow-none">
                 <div className="flex items-center gap-3">
@@ -690,9 +975,9 @@ export const OnboardingPage: React.FC = () => {
                         Active Plan
                       </span>
                     </div>
-                    <div className="font-bold text-sm text-white">{selectedGoal.title}</div>
+                    <div className="font-bold text-sm text-white">{selectedGoal?.title || 'Active Goal'}</div>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Completed sessions and streaks are strictly preserved. Upcoming sessions will re-align to your new hours.
+                      Update your availability. The trajectory will re-adapt to your new hours automatically.
                     </p>
                   </div>
                 </div>
@@ -712,37 +997,42 @@ export const OnboardingPage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-md bg-[#0c1210] border border-[#1a2824]">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-md bg-[#080d0b] border border-[#1a2824]">
-                    {getGoalIcon(selectedGoal.icon)}
+                    {selectedGoal && getGoalIcon(selectedGoal.icon)}
                   </div>
                   <div>
                     <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400">
-                      Target Goal
+                      Destination Verified
                     </span>
-                    <div className="font-bold text-sm text-white">{selectedGoal.title}</div>
+                    <div className="font-bold text-sm text-white">{outcomeStatement || selectedGoal?.title}</div>
+                    {feasibilityResult && (
+                      <span className={`text-[10px] font-mono font-bold ${FEASIBILITY_CONFIG[feasibilityResult.zone].color}`}>
+                        Feasibility: {feasibilityResult.zone} ({feasibilityResult.score}/100)
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <button
-                  onClick={() => setStep(1)}
+                  onClick={() => setStep(2)}
                   className="text-xs text-slate-400 hover:text-white underline self-start sm:self-auto cursor-pointer"
                 >
-                  Change Goal
+                  Review Feasibility
                 </button>
               </div>
             )}
 
             <div className="text-center space-y-1.5">
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                {isAdjustingRoutine ? 'Adjust Your Weekly Availability' : "Let's Learn About Your Weekly Routine"}
+                {isAdjustingRoutine ? 'Adjust Your Weekly Availability' : 'Configure Your Weekly Availability'}
               </h2>
               <p className="text-slate-400 text-sm max-w-xl mx-auto">
                 {isAdjustingRoutine
-                  ? 'Update your routine hours, busy blocks, or start date below. When verified, your upcoming schedule will re-align automatically.'
-                  : 'Answer 3 quick questions below. We will calculate your schedule, let you verify your busy blocks, and then auto-generate all 12 weeks.'}
+                  ? 'Update your routine hours, busy blocks, or start date below. The trajectory will re-adapt automatically.'
+                  : 'Tell us when you\'re busy. The system will build your adaptive trajectory around your real availability.'}
               </p>
             </div>
 
-            {/* Continuous Profile Learning: Editable Suggestions Banner (Guardrail 3) */}
+            {/* Continuous Profile Learning: Editable Suggestions Banner */}
             {learnedDefaults && learnedDefaults.has_historical_data && showLearnedSuggestion && (
               <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] flex items-start justify-between gap-3 text-xs animate-in fade-in shadow-none">
                 <div className="flex items-start gap-3">
@@ -778,7 +1068,7 @@ export const OnboardingPage: React.FC = () => {
               </div>
             )}
 
-            {/* ---------------- KICKOFF DATE (NEW GOAL ONLY) OR TIMELINE SUMMARY (ACTIVE GOAL) ---------------- */}
+            {/* KICKOFF DATE */}
             {isAdjustingRoutine ? (
               <div className="bg-[#0c1210] p-4 sm:p-5 rounded-md border border-[#1a2824] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-3">
@@ -802,8 +1092,8 @@ export const OnboardingPage: React.FC = () => {
                   </div>
                   <div className="hidden sm:block w-px h-6 bg-slate-800" />
                   <div>
-                    <span className="text-slate-500 text-[10px] block">Roadmap Span</span>
-                    <span className="text-slate-300 font-bold">12 Weeks (84 Days)</span>
+                    <span className="text-slate-500 text-[10px] block">Adaptive Runway</span>
+                    <span className="text-slate-300 font-bold">90 Days</span>
                   </div>
                 </div>
               </div>
@@ -812,7 +1102,7 @@ export const OnboardingPage: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                     <Calendar className="w-4 h-4" />
-                    <span>Question 1: When do you want to kick off?</span>
+                    <span>When do you want to kick off?</span>
                   </span>
                   <span className="text-xs font-mono text-emerald-400">
                     Finish: {formattedEndDate}
@@ -875,15 +1165,11 @@ export const OnboardingPage: React.FC = () => {
               </div>
             )}
 
-            {/* ---------------- QUESTION: TYPICAL WEEKDAY (MON–FRI) ---------------- */}
+            {/* WEEKDAY PRESETS */}
             <div className="bg-[#0c1210] p-6 rounded-md border border-[#1a2824] space-y-3">
               <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <Clock className="w-4 h-4" />
-                <span>
-                  {isAdjustingRoutine
-                    ? 'Question 1: What does your updated weekday (Mon–Fri) routine look like?'
-                    : 'Question 2: What does your typical weekday (Mon–Fri) look like?'}
-                </span>
+                <span>What does your typical weekday (Mon–Fri) look like?</span>
               </span>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -953,16 +1239,12 @@ export const OnboardingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* ---------------- QUESTION: SATURDAY OBLIGATIONS ---------------- */}
+            {/* SATURDAY MODE */}
             <div className="bg-[#0c1210] p-6 rounded-md border border-[#1a2824] space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                   <Sun className="w-4 h-4 text-amber-400" />
-                  <span>
-                    {isAdjustingRoutine
-                      ? 'Question 2: What is your Saturday availability?'
-                      : 'Question 3: Do you have work or commitments on Saturdays?'}
-                  </span>
+                  <span>Do you have work or commitments on Saturdays?</span>
                 </span>
                 <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-mono">
                   <span>Sunday is always 100% free buffer</span>
@@ -1017,18 +1299,18 @@ export const OnboardingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* ---------------- SECTION B: VERIFY YOUR BUSY BLOCKS BEFOREHAND ---------------- */}
+            {/* VERIFY BUSY BLOCKS */}
             <div className="bg-[#0c1210] p-6 rounded-md border border-[#1a2824] space-y-4 shadow-none">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#1a2824]">
                 <div>
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="w-5 h-5 text-emerald-400" />
                     <h3 className="text-base font-bold text-white">
-                      Verify Your Weekly Busy Blocks (Before Generating)
+                      Verify Your Weekly Busy Blocks
                     </h3>
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Achivii will block out these times and schedule your goal sessions in your open windows.
+                    The system will build your adaptive trajectory around these committed hours.
                   </p>
                 </div>
 
@@ -1103,7 +1385,7 @@ export const OnboardingPage: React.FC = () => {
                   {availabilitySlots.filter((s) => s.day_of_week === activeVerificationDay).length === 0 ? (
                     <div className="text-xs text-emerald-400 flex items-center gap-1.5 py-1">
                       <Check className="w-4 h-4" />
-                      <span>Entire day is marked free. Goal sessions can be scheduled anytime from 07:00 to 22:00.</span>
+                      <span>Entire day is marked free. Sessions can be scheduled anytime from 07:00 to 22:00.</span>
                     </div>
                   ) : (
                     availabilitySlots
@@ -1174,42 +1456,42 @@ export const OnboardingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* ---------------- ACTION BAR: AUTO-GENERATE / SAVE ---------------- */}
+            {/* ACTION BAR: COMMIT GOAL */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800/80">
               {isAdjustingRoutine ? (
                 <button
                   type="button"
                   onClick={() => navigate('/')}
-                  className="w-full sm:w-auto py-2.5 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-colors cursor-pointer"
+                  className="w-full sm:w-auto py-2.5 px-5 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-slate-300 text-xs font-semibold border border-[#1a2824] transition-colors cursor-pointer"
                 >
                   ← Cancel & Return to Dashboard
                 </button>
               ) : (
                 <button
                   type="button"
-                  onClick={() => setStep(1)}
-                  className="w-full sm:w-auto py-2.5 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold border border-slate-800 transition-colors cursor-pointer"
+                  onClick={() => setStep(2)}
+                  className="w-full sm:w-auto py-2.5 px-5 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-slate-300 text-xs font-semibold border border-[#1a2824] transition-colors cursor-pointer"
                 >
-                  ← Back to Choose Goal
+                  ← Back to Feasibility
                 </button>
               )}
 
               <button
-                id="btn-confirm-onboarding"
+                id="btn-commit-goal"
                 type="button"
-                onClick={handleProceedToRoadmaps}
+                onClick={handleCommitGoal}
                 disabled={submitting}
                 className="w-full sm:w-auto min-h-[44px] py-3 px-8 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-semibold flex items-center justify-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analyzing Routine & Generating Roadmaps...</span>
+                    <span>Building Capability DAG & Trajectory...</span>
                   </>
                 ) : (
                   <>
                     <Zap className="w-4 h-4" />
-                    <span>{isAdjustingRoutine ? 'Update Routine & Pacing Roadmaps' : 'Next: Choose Pacing Roadmap'}</span>
+                    <span>{isAdjustingRoutine ? 'Update Trajectory' : 'Commit Goal & Generate Trajectory'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -1219,87 +1501,109 @@ export const OnboardingPage: React.FC = () => {
         )}
 
         {/* ========================================================= */}
-        {/* STEP 3: CHOOSE PACING ROADMAP (AI LAYER) */}
+        {/* STEP 4: TRAJECTORY COMMITTED */}
         {/* ========================================================= */}
-        {step === 3 && (
-          <RoadmapSelector
-            roadmaps={roadmaps}
-            selectedRoadmapId={selectedRoadmapId}
-            onSelectRoadmap={(roadmap) => setSelectedRoadmapId(roadmap.id)}
-            onConfirm={handleConfirmRoadmapAndGenerate}
-            onBack={() => setStep(2)}
-            isSubmitting={submitting}
-            error={error}
-          />
-        )}
-
-        {/* ========================================================= */}
-        {/* STEP 4: CELEBRATION & LIVE CALENDAR LANDING */}
-        {/* ========================================================= */}
-        {step === 4 && selectedGoal && (
-          <div className="bg-[#0c1210] p-8 sm:p-12 rounded-md border border-[#1a2824] text-center space-y-6 max-w-2xl mx-auto animate-in zoom-in-95 duration-300 shadow-none">
-            <div className="w-14 h-14 rounded-md bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-            </div>
-
-            <div className="space-y-2">
-              <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center justify-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{isAdjustingRoutine ? 'Schedule Re-Aligned Live' : '3-Month Schedule Generated Live'}</span>
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                {isAdjustingRoutine ? 'Routine Updated Successfully' : 'Goal Locked In & Scheduled'}
-              </h2>
-              <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
-                {isAdjustingRoutine ? (
-                  <>
-                    We updated your availability for <strong className="text-white">"{selectedGoal.title}"</strong>.
-                    All completed sessions remain intact, and upcoming sessions were re-aligned to fit your new free hours.
-                  </>
-                ) : (
-                  <>
-                    We mapped <strong className="text-white">"{selectedGoal.title}"</strong> to your verified routine and auto-generated{' '}
-                    <strong className="text-emerald-400">{generatedSessionCount} time-blocked sessions</strong> across all 12 weeks.
-                  </>
-                )}
-              </p>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 grid grid-cols-2 gap-3 text-xs font-mono">
-              <div>
-                <span className="text-slate-500 block mb-1">Kickoff Start</span>
-                <span className="text-white font-bold">{startDate}</span>
+        {step === 4 && commitResult && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="bg-[#0c1210] p-8 sm:p-12 rounded-md border border-[#1a2824] text-center space-y-6 max-w-2xl mx-auto animate-in zoom-in-95 duration-300 shadow-none">
+              <div className="w-14 h-14 rounded-md bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
               </div>
-              <div>
-                <span className="text-slate-500 block mb-1">Target Graduation</span>
-                <span className="text-emerald-400 font-bold">{formattedEndDate}</span>
+
+              <div className="space-y-2">
+                <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Adaptive Trajectory v1 Generated</span>
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                  Goal Committed & Trajectory Active
+                </h2>
+                <p className="text-slate-300 text-sm max-w-md mx-auto leading-relaxed">
+                  Your destination is locked. The system has built a Capability DAG and generated your first trajectory
+                  with <strong className="text-emerald-400">{commitResult.week1ExecutionObjects.length} Week 1 execution objects</strong>.
+                </p>
               </div>
-            </div>
 
-            {/* Direct Navigation */}
-            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button
-                onClick={() => navigate('/')}
-                className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold flex items-center justify-center gap-2 shadow-none transition-colors cursor-pointer"
-              >
-                <Calendar className="w-4 h-4" />
-                <span>Return to Dashboard</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              {/* Outcome Statement */}
+              <div className="p-4 rounded-md bg-[#080d0b] border border-[#1a2824] text-left space-y-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold">Locked Destination</span>
+                <p className="text-white text-sm font-semibold">
+                  "{outcomeStatement || formalizationResult?.concreteOutcomeStatement || selectedGoal?.title}"
+                </p>
+              </div>
 
-              <button
-                onClick={() => navigate('/calendar')}
-                className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-[#e5ebe7] border border-[#1a2824] text-xs font-semibold transition-colors text-center cursor-pointer shadow-none"
-              >
-                View Live Calendar
-              </button>
+              {/* Stats Grid */}
+              <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 grid grid-cols-2 gap-3 text-xs font-mono">
+                <div>
+                  <span className="text-slate-500 block mb-1">Capabilities</span>
+                  <span className="text-white font-bold">{commitResult.capabilitiesCount} nodes in DAG</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block mb-1">Trajectory</span>
+                  <span className="text-emerald-400 font-bold">v1 Active</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block mb-1">Kickoff</span>
+                  <span className="text-white font-bold">{startDate}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block mb-1">Projected Finish</span>
+                  <span className="text-emerald-400 font-bold">{formattedEndDate}</span>
+                </div>
+              </div>
 
-              <button
-                onClick={() => navigate('/progress')}
-                className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-colors text-center cursor-pointer shadow-none"
-              >
-                View Progress & Milestones
-              </button>
+              {/* Week 1 Execution Objects */}
+              {commitResult.week1ExecutionObjects.length > 0 && (
+                <div className="text-left space-y-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 font-bold">Week 1 Execution Objects</span>
+                  <div className="space-y-1.5">
+                    {commitResult.week1ExecutionObjects.slice(0, 5).map((eo, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-md bg-[#080d0b] border border-[#1a2824] text-xs">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${eo.priorityTier === 1 ? 'bg-emerald-400' : eo.priorityTier === 2 ? 'bg-sky-400' : 'bg-slate-500'}`} />
+                          <span className="text-white font-semibold">{eo.actionName}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-slate-400 font-mono text-[11px]">
+                          <span>{eo.standardDoseMinutes}m</span>
+                          <span className="text-slate-600">|</span>
+                          <span className="text-amber-400">{eo.reducedDoseMinutes}m</span>
+                          <span className="text-slate-600">|</span>
+                          <span className="text-rose-400">{eo.mvsDoseMinutes}m</span>
+                        </div>
+                      </div>
+                    ))}
+                    {commitResult.week1ExecutionObjects.length > 5 && (
+                      <p className="text-[11px] text-slate-500 text-center">
+                        + {commitResult.week1ExecutionObjects.length - 5} more execution objects
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-[10px] text-slate-500 pt-1">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-white inline-block" /> Standard dose</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> Reduced</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block" /> MVS (minimum)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Direct Navigation */}
+              <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  onClick={() => navigate('/')}
+                  className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold flex items-center justify-center gap-2 shadow-none transition-colors cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Go to Strategic Workbench</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => navigate('/progress')}
+                  className="w-full sm:w-auto min-h-[44px] py-3 px-6 rounded-md bg-[#0c1210] hover:bg-[#111a17] text-emerald-400 border border-emerald-500/30 text-xs font-semibold transition-colors text-center cursor-pointer shadow-none"
+                >
+                  View Progress & Capabilities
+                </button>
+              </div>
             </div>
           </div>
         )}

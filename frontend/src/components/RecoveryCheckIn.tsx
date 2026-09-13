@@ -1,44 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { PendingRecoveryState, Session } from '../types';
-import { submitRecoveryAction } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { submitDiagnosis } from '../lib/adaptiveApi';
+import type {
+  DiagnosisPendingResponse,
+  DiagnosticCategory,
+  DiagnosisSubmitResponse,
+} from '../types/adaptive';
+import { PendingRecoveryState, Session } from '../types';
 import {
-  CheckCircle2,
+  AlertTriangle,
   Loader2,
   X,
   ArrowRight,
-  AlertCircle
+  ShieldAlert,
+  Zap,
+  CheckCircle2,
 } from 'lucide-react';
 
 export interface RecoveryCheckInProps {
-  recoveryState: PendingRecoveryState;
+  diagnosisData?: DiagnosisPendingResponse | null;
+  recoveryState?: PendingRecoveryState | null;
   sessions?: Session[];
   slippageDays?: number;
+  userGoalId?: string;
   onResolved: () => void | Promise<void>;
 }
 
-interface BufferSlotItem {
-  id: string;
-  day: string;
-  time: string;
-  durationMinutes: number;
+const CATEGORIES: {
+  key: DiagnosticCategory;
   title: string;
-}
+  desc: string;
+  icon: string;
+}[] = [
+  {
+    key: 'CAPACITY',
+    title: 'Capacity & Schedule',
+    desc: 'Workload, busy calendar, or urgent professional deadlines',
+    icon: '💼',
+  },
+  {
+    key: 'CAPABILITY',
+    title: 'Difficulty & Prerequisite',
+    desc: 'Session difficulty exceeded current verified baseline',
+    icon: '🧠',
+  },
+  {
+    key: 'RECOVERY',
+    title: 'Fatigue & Health',
+    desc: 'Physical illness, muscle soreness, or sleep deficit',
+    icon: '🛌',
+  },
+  {
+    key: 'FRICTION',
+    title: 'Logistics & Setup',
+    desc: 'Equipment, gym access, software environment, or weather',
+    icon: '⚡',
+  },
+  {
+    key: 'MOTIVATION',
+    title: 'Energy & Focus',
+    desc: 'Mental friction, procrastination, or loss of clarity',
+    icon: '🔥',
+  },
+  {
+    key: 'EXTERNAL',
+    title: 'Life Events & Travel',
+    desc: 'Family obligations, unexpected travel, or emergencies',
+    icon: '✈️',
+  },
+];
 
 export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
+  diagnosisData,
   recoveryState,
-  sessions,
-  slippageDays = 0,
+  userGoalId,
   onResolved,
 }) => {
   const { token } = useAuth();
-  const navigate = useNavigate();
+  const [selectedCategory, setSelectedCategory] = useState<DiagnosticCategory>('CAPACITY');
+  const [isPersistent, setIsPersistent] = useState<boolean>(false);
+  const [newCapacityHours, setNewCapacityHours] = useState<number>(5.0);
+  const [details, setDetails] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
-  const [isDismissed, setIsDismissed] = useState<boolean>(false);
+  const [submitResult, setSubmitResult] = useState<DiagnosisSubmitResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [circuitChoice, setCircuitChoice] = useState<'shrink_week' | 'shift_timeline'>('shrink_week');
+  const [isDismissed, setIsDismissed] = useState<boolean>(false);
 
   // Close on Escape
   useEffect(() => {
@@ -51,353 +97,271 @@ export const RecoveryCheckIn: React.FC<RecoveryCheckInProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  if (!recoveryState.pending || isDismissed) {
+  const isPending = Boolean(diagnosisData?.pending || recoveryState?.pending);
+
+  if (!isPending || isDismissed) {
     return null;
   }
 
-  // Calculate missed core blocks
-  const missedSessions = sessions
-    ? sessions.filter(
-        (s) =>
-          s.status === 'MISSED' ||
-          (s.tier === 'core' && s.status !== 'DONE' && new Date(s.scheduled_date) < new Date())
-      )
-    : [];
+  const effectiveGoalId =
+    userGoalId ||
+    diagnosisData?.prompt?.userGoalId ||
+    diagnosisData?.deviationReport?.userGoalId ||
+    '';
 
-  const missedCount =
-    missedSessions.length > 0
-      ? missedSessions.length
-      : recoveryState.missed_session_count ?? recoveryState.consecutive_missed_days ?? 2;
+  const triggerReason =
+    diagnosisData?.prompt?.triggerReason ||
+    diagnosisData?.deviationReport?.explanation ||
+    'Consecutive misses detected threatening the active critical path.';
 
-  const missedHours =
-    missedSessions.length > 0
-      ? missedSessions.reduce((acc, s) => {
-          const dur = s.task_template?.session_duration_minutes || 60;
-          return acc + dur;
-        }, 0) / 60
-      : missedCount * 2.0;
+  const isBottleneckThreatened = diagnosisData?.deviationReport?.isBottleneckThreatened;
 
-  // Calculate available buffer slots from sessions or structured defaults
-  const realBufferSessions = sessions
-    ? sessions.filter((s) => s.tier === 'buffer' && s.status !== 'DONE')
-    : [];
-
-  const availableBuffers: BufferSlotItem[] =
-    realBufferSessions.length > 0
-      ? realBufferSessions.map((s) => {
-          const d = new Date(s.scheduled_date);
-          const dayStr = isNaN(d.getTime())
-            ? 'BUF'
-            : d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-          return {
-            id: s.id,
-            day: dayStr,
-            time: s.start_time || '18:00',
-            durationMinutes: s.task_template?.session_duration_minutes || 60,
-            title: s.task_template?.title || 'Open Buffer Window',
-          };
-        })
-      : [
-          { id: 'buf-slot-1', day: 'TUE', time: '18:30', durationMinutes: 90, title: 'Evening Reallocation Buffer' },
-          { id: 'buf-slot-2', day: 'THU', time: '19:00', durationMinutes: 60, title: 'Mid-Week Dynamic Buffer' },
-          { id: 'buf-slot-3', day: 'SAT', time: '10:30', durationMinutes: 90, title: 'Weekend Absorption Window' },
-        ];
-
-  const totalBufferHours = availableBuffers.reduce((acc, b) => acc + b.durationMinutes, 0) / 60;
-
-  // Circuit breaker condition: explicit circuit breaker OR rolling events >= 2 OR slippage >= 14d OR buffer capacity strictly less than missed
-  const isCircuitBreaker =
-    recoveryState.circuit_breaker_active ||
-    recoveryState.rolling_28_day_events >= 2 ||
-    slippageDays >= 14 ||
-    totalBufferHours < missedHours;
-
-  // Track user-selected buffer slots for reassignment
-  const [selectedBufferIds, setSelectedBufferIds] = useState<Set<string>>(() => {
-    const initial = new Set<string>();
-    // Pre-select enough buffer slots to absorb missed sessions
-    for (let i = 0; i < Math.min(missedCount, availableBuffers.length); i++) {
-      initial.add(availableBuffers[i].id);
-    }
-    return initial;
-  });
-
-  const toggleBufferSlot = (id: string) => {
-    setSelectedBufferIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const handleExecuteReallocation = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!token) return;
+
     setIsSubmitting(true);
     setErrorMessage(null);
-
-    const choice = isCircuitBreaker ? circuitChoice : 'shrink_week';
-
     try {
-      await submitRecoveryAction(token, {
-        user_goal_id: recoveryState.user_goal_id,
-        choice,
-        details: {
-          reallocated_slots: Array.from(selectedBufferIds),
-        },
+      const res = await submitDiagnosis(token, {
+        userGoalId: effectiveGoalId,
+        category: selectedCategory,
+        details: details.trim() || `Disruption resolved: ${selectedCategory} constraint diagnosed.`,
+        isPersistent,
+        newCapacityHours: isPersistent ? newCapacityHours : undefined,
       });
 
-      setActionSuccessMessage(
-        choice === 'shift_timeline'
-          ? 'Trajectory adjusted: +7 days buffer window added with zero streak penalty.'
-          : 'Cadence re-aligned: orphaned sessions allocated to buffer slots.'
-      );
-
-      setTimeout(async () => {
-        await onResolved();
-      }, 1100);
+      setSubmitResult(res);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Unable to submit recovery choice.');
+      setErrorMessage(err.message || 'Failed to submit strategic diagnosis.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="recovery-modal-title"
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) setIsDismissed(true);
-      }}
-    >
-      <div className="bg-[#0a0f0d] border border-[#1a2824] rounded-2xl max-w-xl w-full p-6 sm:p-8 shadow-2xl overflow-hidden relative my-8">
-        {/* Top Dismiss Button */}
-        <button
-          type="button"
-          onClick={() => setIsDismissed(true)}
-          className="absolute top-5 right-5 text-neutral-400 hover:text-white p-2 rounded-lg hover:bg-[#131f1b] transition-colors cursor-pointer"
-          aria-label="Close recovery protocol modal"
-        >
-          <X className="w-5 h-5" />
-        </button>
+  const handleAcknowledgeAndClose = async () => {
+    await onResolved();
+    setIsDismissed(true);
+  };
 
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="space-y-1.5 pr-8">
-            <span className="font-mono text-xs text-[#07CB6C] tracking-widest uppercase block font-medium">
-              [ TIER 2 // RECOVERY PROTOCOL ]
-            </span>
-            <h2 id="recovery-modal-title" className="text-xl sm:text-2xl font-semibold text-white tracking-tight">
-              Recalibrate Weekly Cadence
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      {/* Dim Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/85 backdrop-blur-md transition-opacity"
+        onClick={() => setIsDismissed(true)}
+      />
+
+      <div className="relative w-full max-w-2xl bg-[#0a0f0d] rounded-2xl p-6 sm:p-8 border border-amber-500/40 shadow-2xl z-10 space-y-6 my-auto text-white">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 border-b border-[#1a2824] pb-4">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                <ShieldAlert className="w-4 h-4" />
+              </span>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400">
+                STRATEGIC DIAGNOSTIC // ADAPTIVE CALIBRATION
+              </span>
+              {isBottleneckThreatened && (
+                <span className="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/30 text-rose-400 text-[10px] font-mono font-bold uppercase">
+                  CRITICAL BOTTLENECK THREATENED
+                </span>
+              )}
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+              System Disruption Diagnosis
             </h2>
-            <p className="text-neutral-400 text-sm leading-relaxed">
-              Your 90-day trajectory is preserved. Allocate orphaned sessions into upcoming buffer slots to absorb missed work without broken momentum.
+
+            <p className="text-xs font-mono text-neutral-400 leading-relaxed max-w-xl">
+              {triggerReason}
             </p>
           </div>
 
-          {/* Diagnostic Readout: Clean 2-Metric Strip */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#0d1412] border border-[#1a2824] p-4 rounded-xl space-y-1">
-              <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block">
-                MISSED CORE BLOCKS
-              </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-base sm:text-lg font-semibold text-amber-400">
-                  {missedCount} {missedCount === 1 ? 'Session' : 'Sessions'}
-                </span>
-                <span className="text-xs text-neutral-400 font-mono">
-                  / {missedHours.toFixed(1)}h
-                </span>
-              </div>
-            </div>
+          <button
+            type="button"
+            onClick={() => setIsDismissed(true)}
+            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-[#131f1b] transition-colors cursor-pointer shrink-0"
+            title="Dismiss diagnostic"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-            <div className="bg-[#0d1412] border border-[#1a2824] p-4 rounded-xl space-y-1">
-              <span className="font-mono text-[10px] text-neutral-400 uppercase tracking-wider block">
-                RECOVERY CAPACITY
-              </span>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-base sm:text-lg font-semibold text-[#07CB6C]">
-                  {availableBuffers.length} Buffer Slots
-                </span>
-                <span className="text-xs text-neutral-400 font-mono">
-                  / {totalBufferHours.toFixed(1)}h
-                </span>
-              </div>
-            </div>
+        {errorMessage && (
+          <div className="p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{errorMessage}</span>
           </div>
+        )}
 
-          {/* Circuit Breaker Fallback (if capacity exhausted or safety triggered) */}
-          {isCircuitBreaker ? (
-            <div className="bg-amber-950/20 border border-amber-500/30 rounded-xl p-4 sm:p-5 space-y-3">
-              <div className="flex items-center gap-2 text-amber-400 font-mono text-xs font-medium">
-                <AlertCircle className="w-4 h-4" />
-                <span>[ PACING SAFETY GUARDRAIL TRIGGERED ]</span>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold text-white">Circuit Breaker Engaged</h4>
-                <p className="text-xs text-neutral-400 leading-relaxed mt-1">
-                  Required recovery workload exceeds open buffer hours. Select an adaptive adjustment vector with zero guilt and zero streak penalty:
-                </p>
-              </div>
-
-              {/* Option Radio Cards */}
-              <div className="space-y-2 pt-1">
-                <div
-                  onClick={() => setCircuitChoice('shrink_week')}
-                  className={`p-3.5 rounded-lg border transition-all cursor-pointer flex items-start gap-3 ${
-                    circuitChoice === 'shrink_week'
-                      ? 'border-[#07CB6C] bg-[#07CB6C]/10 text-white'
-                      : 'border-[#1a2824] bg-[#0a0f0d] text-neutral-300 hover:border-[#2a3e38]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="circuitChoice"
-                    checked={circuitChoice === 'shrink_week'}
-                    onChange={() => setCircuitChoice('shrink_week')}
-                    className="mt-0.5 accent-[#07CB6C] cursor-pointer"
-                  />
-                  <div className="space-y-0.5">
-                    <span className="text-sm font-medium block">Option A: Compress Milestone Scope</span>
-                    <span className="text-xs text-neutral-400 block leading-normal">
-                      Drop non-essential buffer sessions to defend the milestone completion date.
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  onClick={() => setCircuitChoice('shift_timeline')}
-                  className={`p-3.5 rounded-lg border transition-all cursor-pointer flex items-start gap-3 ${
-                    circuitChoice === 'shift_timeline'
-                      ? 'border-[#07CB6C] bg-[#07CB6C]/10 text-white'
-                      : 'border-[#1a2824] bg-[#0a0f0d] text-neutral-300 hover:border-[#2a3e38]'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="circuitChoice"
-                    checked={circuitChoice === 'shift_timeline'}
-                    onChange={() => setCircuitChoice('shift_timeline')}
-                    className="mt-0.5 accent-[#07CB6C] cursor-pointer"
-                  />
-                  <div className="space-y-0.5">
-                    <span className="text-sm font-medium block">Option B: Extend Timeline by 1 Week</span>
-                    <span className="text-xs text-neutral-400 block leading-normal">
-                      Add a 7-day buffer window. Zero streak penalty, all habit stats preserved.
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* Interactive Buffer Slot Picker */
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-mono text-neutral-400 uppercase tracking-wider font-medium">
-                  SELECT REALLOCATION SLOTS
-                </span>
-                <span className="text-[#07CB6C] font-mono text-[11px]">
-                  {selectedBufferIds.size} / {missedCount} TARGETED
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {availableBuffers.map((slot) => {
-                  const isSelected = selectedBufferIds.has(slot.id);
+        {/* Diagnostic Form or Result Presentation */}
+        {!submitResult ? (
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Step 1: Root Cause Selection */}
+            <div className="space-y-2">
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-neutral-300">
+                1. What was the governing cause of this disruption?
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {CATEGORIES.map((cat) => {
+                  const isSelected = selectedCategory === cat.key;
                   return (
-                    <div
-                      key={slot.id}
-                      onClick={() => toggleBufferSlot(slot.id)}
-                      className={`p-3.5 rounded-xl border transition-all flex items-center justify-between gap-3 cursor-pointer ${
+                    <button
+                      key={cat.key}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.key)}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3 ${
                         isSelected
-                          ? 'border-[#07CB6C]/50 bg-[#07CB6C]/5 text-white'
-                          : 'border-[#1a2824] bg-[#0d1412] text-neutral-300 hover:border-[#2a3e38]'
+                          ? 'bg-amber-950/30 border-amber-500/60 ring-1 ring-amber-500/40'
+                          : 'bg-[#0d1412] border-[#1a2824] hover:border-neutral-700'
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="px-2 py-1 rounded bg-[#0a0f0d] border border-[#1a2824] text-xs font-mono font-semibold text-white">
-                          {slot.day} // {slot.time}
+                      <span className="text-xl">{cat.icon}</span>
+                      <div className="space-y-0.5 min-w-0">
+                        <span className={`text-xs font-bold font-mono block ${isSelected ? 'text-amber-400' : 'text-white'}`}>
+                          {cat.title}
                         </span>
-                        <div>
-                          <span className="text-sm font-medium block">{slot.title}</span>
-                          <span className="text-[11px] text-neutral-400 font-mono">
-                            {slot.durationMinutes} MIN ALLOCATION
-                          </span>
-                        </div>
+                        <span className="text-[11px] text-neutral-400 block leading-tight line-clamp-2 font-mono">
+                          {cat.desc}
+                        </span>
                       </div>
-
-                      <div className="shrink-0">
-                        {isSelected ? (
-                          <span className="inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] font-medium">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>REALLOCATED</span>
-                          </span>
-                        ) : (
-                          <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-[#0a0f0d] border border-[#1a2824] text-neutral-400">
-                            AVAILABLE
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             </div>
-          )}
 
-          {/* Feedback banners */}
-          {actionSuccessMessage && (
-            <div className="p-3.5 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-mono flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              <span>{actionSuccessMessage}</span>
+            {/* Step 2: Temporal Nature (Acute vs. Persistent) */}
+            <div className="space-y-2 pt-2 border-t border-[#1a2824]">
+              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-neutral-300">
+                2. Is this disruption temporary or an ongoing schedule change?
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPersistent(false)}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    !isPersistent
+                      ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-white'
+                      : 'bg-[#0d1412] border-[#1a2824] text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-bold font-mono block text-emerald-400 mb-0.5">
+                    Temporary (Acute Event)
+                  </span>
+                  <p className="text-[11px] font-mono text-neutral-400 leading-snug">
+                    Short-term friction (e.g. 2-day travel, brief illness). Compress or resume route with zero backlog debt.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPersistent(true)}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                    isPersistent
+                      ? 'bg-amber-500/15 border-amber-500 text-white'
+                      : 'bg-[#0d1412] border-[#1a2824] text-neutral-400 hover:text-white'
+                  }`}
+                >
+                  <span className="text-xs font-bold font-mono block text-amber-400 mb-0.5">
+                    Persistent Capacity Shift
+                  </span>
+                  <p className="text-[11px] font-mono text-neutral-400 leading-snug">
+                    Ongoing routine change (new job, reduced hours). System drops lower-tier work to protect critical path.
+                  </p>
+                </button>
+              </div>
             </div>
-          )}
 
-          {errorMessage && (
-            <div className="p-3.5 rounded-xl bg-[#ef4444]/15 border border-[#ef4444]/30 text-[#ef4444] text-xs font-mono">
-              {errorMessage}
+            {/* Step 3: Capacity Slider (if persistent) */}
+            {isPersistent && (
+              <div className="p-4 rounded-xl bg-[#0d1412] border border-[#1a2824] space-y-2">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-neutral-300 uppercase">Adjust Sustainable Weekly Capacity:</span>
+                  <span className="text-amber-400 font-bold">{newCapacityHours} Hours / Week</span>
+                </div>
+                <input
+                  type="range"
+                  min={2}
+                  max={12}
+                  step={0.5}
+                  value={newCapacityHours}
+                  onChange={(e) => setNewCapacityHours(Number(e.target.value))}
+                  className="w-full accent-amber-400 cursor-pointer"
+                />
+                <p className="text-[11px] font-mono text-neutral-400">
+                  Minimum Effective Dose (MED) will be calibrated to fit within this capacity.
+                </p>
+              </div>
+            )}
+
+            {/* Step 4: Notes */}
+            <div className="space-y-1">
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-neutral-400">
+                Additional Diagnostic Notes (Optional)
+              </label>
+              <input
+                type="text"
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                placeholder="e.g. Recovering from flu, back to full strength on Monday"
+                className="w-full px-3 py-2 rounded-lg bg-[#0d1412] border border-[#1a2824] text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-amber-400"
+              />
             </div>
-          )}
 
-          {/* Action Footer */}
-          <div className="pt-4 border-t border-[#1a2824] flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+            {/* Submit Action */}
             <button
-              type="button"
-              onClick={() => {
-                navigate('/onboarding?mode=adjust');
-                setIsDismissed(true);
-              }}
-              className="min-h-[44px] px-4 py-2.5 rounded-lg text-neutral-400 hover:text-white border border-[#1a2824] hover:border-[#2a3e38] text-xs font-mono font-medium transition-colors cursor-pointer text-center"
-            >
-              Adjust Manually
-            </button>
-
-            <button
-              type="button"
-              onClick={handleExecuteReallocation}
+              type="submit"
               disabled={isSubmitting}
-              className="min-h-[44px] px-5 py-2.5 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] active:scale-[0.99] text-[#080d0b] text-sm font-medium transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(7,203,108,0.25)] disabled:opacity-50"
+              className="w-full min-h-[44px] px-5 py-2.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-[#080d0b] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(251,191,36,0.2)] disabled:opacity-50"
             >
               {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Locking Cadence...</span>
-                </>
+                <Loader2 className="w-4 h-4 animate-spin text-[#080d0b]" />
               ) : (
-                <>
-                  <span>Lock Reallocation</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+                <Zap className="w-4 h-4" />
               )}
+              <span>REBALANCE TRAJECTORY // NO DEBT GUARANTEE</span>
+            </button>
+          </form>
+        ) : (
+          /* Rebalance Result Explanation */
+          <div className="space-y-5 p-5 rounded-xl bg-[#0d1412] border border-emerald-500/30">
+            <div className="flex items-center gap-2 text-emerald-400 font-mono font-bold text-sm">
+              <CheckCircle2 className="w-5 h-5" />
+              <span>TRAJECTORY RECALIBRATED SUCCESSFULLY</span>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">
+                DECISION TRACE EXPLANATION
+              </span>
+              <p className="text-xs font-mono text-white leading-relaxed bg-[#0a0f0d] p-3.5 rounded border border-[#1a2824]">
+                {submitResult.userFacingExplanation}
+              </p>
+            </div>
+
+            {submitResult.replanResult?.primaryAction && (
+              <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                <span className="text-neutral-400">Selected Core Action:</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 font-bold uppercase">
+                  [{submitResult.replanResult.primaryAction}]
+                </span>
+                <span className="text-neutral-400 ml-2">No-Debt Principle Enforced</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleAcknowledgeAndClose}
+              className="w-full min-h-[44px] px-5 py-2.5 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <span>CONTINUE EXECUTION PROTOCOL</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

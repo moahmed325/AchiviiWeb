@@ -1,9 +1,16 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
-import { generateThreeMonthSchedule, materializeWeekForGoal } from '../lib/scheduler.js';
-import { detectAndRescheduleMissed } from '../lib/rescheduler.js';
 import { getZonedDateString, getZonedDayBounds, getZonedTimeParts } from '../lib/timezone.js';
+import {
+  evaluateDeviation,
+  generateDiagnosticPrompt,
+  replanFromCurrentState,
+  formatUserFacingExplanation,
+  generateInitialTrajectory,
+  CapabilityStateGraph,
+  persistStateGraph,
+} from '../lib/adaptive/index.js';
 
 export const sessionsRouter = Router();
 
@@ -27,6 +34,12 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
             },
           },
         },
+        capabilities: true,
+        trajectory_versions: {
+          where: { is_active: true },
+          include: { items: true },
+          take: 1,
+        },
       },
     });
 
@@ -35,30 +48,52 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // Run auto-reschedule check to detect any missed sessions and reallocate within-week or shift plan
-    let pendingRecoveryState = null;
-    try {
-      const rescheduleResult = await detectAndRescheduleMissed(activeGoal.id);
-      pendingRecoveryState = rescheduleResult.pendingRecovery || null;
-      if (rescheduleResult.rescheduledCount > 0) {
-        // Refresh active goal data if slippage occurred
-        const refreshed = await prisma.userGoal.findUnique({
-          where: { id: activeGoal.id },
-          include: {
-            goal_catalog: {
-              include: {
-                phases: {
-                  orderBy: { phase_order: 'asc' },
-                  include: { task_templates: true },
-                },
-              },
-            },
-          },
+    // Ensure active TrajectoryVersion exists
+    let activeTrajectory = activeGoal.trajectory_versions[0];
+    if (!activeTrajectory) {
+      const graph = new CapabilityStateGraph();
+      if (activeGoal.capabilities && activeGoal.capabilities.length > 0) {
+        for (const c of activeGoal.capabilities) {
+          graph.addCapability({
+            id: c.id,
+            userGoalId: activeGoal.id,
+            name: c.name,
+            description: c.description,
+            tier: c.tier as any,
+            state: c.state as any,
+            prerequisites: (c.prerequisites_ids as string[]) || [],
+          });
+        }
+      } else {
+        const defaultCapId = `cap-${Date.now()}`;
+        graph.addCapability({
+          id: defaultCapId,
+          userGoalId: activeGoal.id,
+          name: activeGoal.outcome_statement || 'Foundational Capability',
+          description: 'Core milestone execution',
+          tier: 'TIER_1_CRITICAL',
+          state: 'EMERGING',
+          prerequisites: [],
         });
-        if (refreshed) activeGoal = refreshed;
+        await persistStateGraph(activeGoal.id, graph);
       }
-    } catch (autoErr) {
-      console.error('Auto-reschedule check failed:', autoErr);
+
+      const traj = await generateInitialTrajectory(
+        activeGoal.id,
+        graph,
+        {
+          sustainableWeeklyHours: activeGoal.sustainable_weekly_capacity_hours || 6.0,
+          medHours: 4.5,
+          reliabilityMarginHours: Math.max(0, (activeGoal.sustainable_weekly_capacity_hours || 6.0) - 4.5),
+          maxSessionDurationMinutes: 60,
+        }
+      );
+
+      const reloaded = await prisma.trajectoryVersion.findUnique({
+        where: { id: traj.id },
+        include: { items: true },
+      });
+      if (reloaded) activeTrajectory = reloaded;
     }
 
     // Determine week offset (0 = Week 1, 1 = Week 2, etc.)
@@ -67,7 +102,6 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
     let weekOffset = parseInt(req.query.weekOffset as string, 10);
 
     if (isNaN(weekOffset)) {
-      // Calculate current week offset based on today's date vs start date
       const now = new Date();
       const diffMs = now.getTime() - goalStart.getTime();
       const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
@@ -76,19 +110,84 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
       weekOffset = Math.max(0, Math.min(11, weekOffset));
     }
 
+    const weekNumber = weekOffset + 1;
     const goalStartDateStr = getZonedDateString(goalStart, userTimezone);
     const { startOfDay: startOfGoal } = getZonedDayBounds(goalStartDateStr, userTimezone);
     const weekStart = new Date(startOfGoal.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
     const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    // Materialize sessions on demand if unmaterialized
-    try {
-      await materializeWeekForGoal(activeGoal.id, weekOffset);
-    } catch (matErr) {
-      console.error('Failed to materialize week sessions:', matErr);
+    // Fetch user availability slots
+    const availabilitySlots = await prisma.availabilitySlot.findMany({
+      where: { user_id: user.id },
+      orderBy: [{ day_of_week: 'asc' }, { start_time: 'asc' }],
+    });
+
+    // CANONICAL SCHEDULE PROJECTION:
+    // Project week sessions from active TrajectoryVersion items for this planned week
+    const plannedItemsForWeek = activeTrajectory?.items?.filter(
+      (item) => item.planned_week === weekNumber
+    ) || [];
+
+    // Ensure sessions exist for each trajectory item of this week
+    let defaultTemplate = await prisma.taskTemplate.findFirst();
+    if (!defaultTemplate) {
+      const defaultCatalog = await prisma.goalCatalog.findFirst();
+      if (defaultCatalog) {
+        const defaultPhase = await prisma.phase.findFirst({ where: { goal_catalog_id: defaultCatalog.id } });
+        if (defaultPhase) {
+          defaultTemplate = await prisma.taskTemplate.create({
+            data: {
+              phase_id: defaultPhase.id,
+              title: 'Adaptive Session',
+              sessions_per_week: 3,
+              session_duration_minutes: 45,
+            },
+          });
+        }
+      }
     }
 
-    // Fetch sessions for this week
+    const dayKeyMap = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+    for (let i = 0; i < plannedItemsForWeek.length; i++) {
+      const item = plannedItemsForWeek[i];
+      const existingSession = await prisma.session.findFirst({
+        where: { trajectory_item_id: item.id },
+      });
+
+      if (!existingSession && defaultTemplate) {
+        // Space sessions through week e.g. Mon, Wed, Fri
+        const dayOffset = Math.min(6, i * 2);
+        const sessionDate = new Date(weekStart.getTime() + dayOffset * 24 * 60 * 60 * 1000);
+        const dayName = dayKeyMap[sessionDate.getDay()];
+        const matchingSlot = availabilitySlots.find((s) => s.day_of_week === dayName);
+
+        const startTime = matchingSlot ? matchingSlot.start_time : '09:00';
+        const [sh, sm] = startTime.split(':').map(Number);
+        const totalMinutes = (sh || 9) * 60 + (sm || 0) + item.standard_duration_minutes;
+        const eh = Math.floor(totalMinutes / 60);
+        const em = totalMinutes % 60;
+        const endTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+
+        await prisma.session.create({
+          data: {
+            user_goal_id: activeGoal.id,
+            task_template_id: defaultTemplate.id,
+            trajectory_item_id: item.id,
+            day_number: weekOffset * 7 + dayOffset + 1,
+            sequence_order: i + 1,
+            scheduled_date: sessionDate,
+            start_time: startTime,
+            end_time: endTime,
+            status: 'UPCOMING',
+            execution_state: 'PLANNED',
+            tier: item.priority_tier === 1 ? 'core' : item.priority_tier === 2 ? 'buffer' : 'reflect',
+          },
+        });
+      }
+    }
+
+    // Fetch projected sessions for this week
     const sessions = await prisma.session.findMany({
       where: {
         user_goal_id: activeGoal.id,
@@ -110,7 +209,31 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
       ],
     });
 
-    // Determine current phase
+    // Decorate sessions with trajectory item intervention details
+    const itemMap = new Map(activeTrajectory?.items?.map((i) => [i.id, i]) || []);
+    for (const s of sessions) {
+      if (s.trajectory_item_id && itemMap.has(s.trajectory_item_id)) {
+        const item = itemMap.get(s.trajectory_item_id)!;
+        if (s.task_template) {
+          s.task_template.title = item.intervention_name;
+          s.task_template.session_duration_minutes = item.standard_duration_minutes;
+        }
+      }
+    }
+
+    // Evaluate deviation canonically via Adaptive Deviation Detector
+    let pendingDiagnosis = null;
+    try {
+      const deviationReport = await evaluateDeviation(activeGoal.id);
+      if (deviationReport.severity === 'MATERIAL_DISRUPTION' || deviationReport.requiresDiagnostic) {
+        const prompt = generateDiagnosticPrompt(activeGoal.id, deviationReport);
+        pendingDiagnosis = { pending: true, prompt, deviationReport };
+      }
+    } catch (devErr) {
+      console.error('Deviation evaluation error in /api/sessions/week:', devErr);
+    }
+
+    // Phase breakdown for navigation display
     const phases = activeGoal.goal_catalog.phases;
     let currentPhase = phases[0];
     if (weekOffset >= 4 && weekOffset < 8 && phases.length > 1) {
@@ -119,29 +242,31 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
       currentPhase = phases[2];
     }
 
-    // Fetch user availability slots for overlay
-    const availabilitySlots = await prisma.availabilitySlot.findMany({
-      where: { user_id: user.id },
-      orderBy: [{ day_of_week: 'asc' }, { start_time: 'asc' }],
-    });
-
     res.status(200).json({
       weekOffset,
-      weekNumber: weekOffset + 1,
+      weekNumber,
       totalWeeks: 12,
       startDate: weekStart.toISOString(),
       endDate: weekEnd.toISOString(),
       phase: currentPhase,
+      trajectoryVersion: {
+        id: activeTrajectory?.id || 'v1',
+        versionNumber: activeTrajectory?.version_number || 1,
+        projectedCompletion: activeTrajectory?.projected_completion || activeGoal.target_end_date,
+        confidenceScore: activeTrajectory?.confidence_score || 0.85,
+      },
       goal: {
         id: activeGoal.id,
-        title: activeGoal.goal_catalog.title,
-        slippage_days: activeGoal.slippage_days,
+        title: activeGoal.outcome_statement || activeGoal.goal_catalog.title,
+        slippage_days: 0,
         start_date: activeGoal.start_date,
         target_end_date: activeGoal.target_end_date,
+        goal_integrity_status: activeGoal.goal_integrity_status,
       },
       sessions,
       availabilitySlots,
-      pendingRecovery: pendingRecoveryState,
+      pendingDiagnosis,
+      pendingRecovery: pendingDiagnosis ? { pending: true, user_goal_id: activeGoal.id } : null,
     });
   } catch (error: any) {
     console.error('Fetch week sessions error:', error);
@@ -423,16 +548,19 @@ sessionsRouter.post('/reschedule', async (req: Request, res: Response): Promise<
       return;
     }
 
-    const { sessionId } = req.body || {};
-    const result = await detectAndRescheduleMissed(activeGoal.id, sessionId);
+    const replanResult = await replanFromCurrentState(activeGoal.id);
+    const userFacingExplanation = formatUserFacingExplanation(replanResult.decisionTrace);
 
     res.status(200).json({
-      message: 'Adaptive rescheduling evaluated successfully.',
-      result,
+      message: 'Adaptive replan from current state executed successfully.',
+      replanResult,
+      userFacingExplanation,
+      trajectoryVersionId: replanResult.newTrajectoryVersionId,
+      newVersionNumber: replanResult.newVersionNumber,
     });
   } catch (error: any) {
     console.error('Adaptive reschedule trigger error:', error);
-    res.status(500).json({ error: 'Failed to run adaptive rescheduling.' });
+    res.status(500).json({ error: error.message || 'Failed to run adaptive rescheduling.' });
   }
 });
 

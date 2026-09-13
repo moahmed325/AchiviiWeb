@@ -13,6 +13,7 @@ import { roadmapsRouter } from './routes/roadmaps.js';
 import { graduationRouter } from './routes/graduation.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { adaptiveRouter } from './routes/adaptive.js';
 
 dotenv.config();
 
@@ -63,6 +64,7 @@ app.use('/api/graduation', graduationRouter);
 app.use('/api/profile', graduationRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/adaptive', adaptiveRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 Achivii Backend API running on http://localhost:${PORT}`);

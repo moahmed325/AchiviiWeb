@@ -12,7 +12,7 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
   const location = useLocation();
 
   const navLinks = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { name: 'Workbench', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Schedule', path: '/schedule', icon: Calendar },
     { name: 'Progress', path: '/progress', icon: TrendingUp },
   ];

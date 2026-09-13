@@ -8,6 +8,8 @@ import {
   fetchPendingWeeklyReflection, 
   fetchGraduationStatus 
 } from '../lib/api';
+import { fetchPendingDiagnosis } from '../lib/adaptiveApi';
+import type { DiagnosisPendingResponse } from '../types/adaptive';
 import { getLocalDateString } from '../lib/dateUtils';
 import { 
   Session, 
@@ -60,7 +62,7 @@ export interface CalendarViewProps {
 export const CalendarView: React.FC<CalendarViewProps> = ({
   initialWeekOffset = 0,
   onWeekChange,
-  onlyShowSlippageWhenDrifted = true,
+  onlyShowSlippageWhenDrifted: _onlyShowSlippageWhenDrifted = true,
 }) => {
   const { token, user } = useAuth();
   const [weekOffset, setWeekOffset] = useState<number>(initialWeekOffset);
@@ -70,7 +72,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [isRescheduling, setIsRescheduling] = useState<boolean>(false);
   const [lastRescheduleResult, setLastRescheduleResult] = useState<RescheduleResult | null>(null);
 
-  // Recovery & Reflection State
+  // Recovery, Diagnosis & Reflection State
+  const [pendingDiagnosis, setPendingDiagnosis] = useState<DiagnosisPendingResponse | null>(null);
   const [pendingRecovery, setPendingRecovery] = useState<PendingRecoveryState | null>(null);
   const [pendingReflection, setPendingReflection] = useState<PendingReflectionState | null>(null);
   const [graduationState, setGraduationState] = useState<GraduationState | null>(null);
@@ -96,22 +99,41 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       setWeekOffset(res.weekOffset);
       if (onWeekChange) onWeekChange(res.weekOffset);
 
-      let isRecPending = false;
-      if (res.pendingRecovery) {
-        setPendingRecovery(res.pendingRecovery);
-        isRecPending = !!res.pendingRecovery.pending;
-      } else {
-        try {
-          const rec = await fetchPendingRecovery(token);
-          setPendingRecovery(rec.pending ? rec : null);
-          isRecPending = !!rec.pending;
-        } catch {
-          setPendingRecovery(null);
+      let isDiagOrRecPending = false;
+
+      // 1. First priority: Adaptive Strategic Diagnosis
+      try {
+        const diag = await fetchPendingDiagnosis(token, res.goal?.id);
+        if (diag && diag.pending) {
+          setPendingDiagnosis(diag);
+          isDiagOrRecPending = true;
+        } else {
+          setPendingDiagnosis(null);
         }
+      } catch {
+        setPendingDiagnosis(null);
       }
 
-      // Check weekly reflection only if recovery check-in is NOT pending (precedence rule)
-      if (!isRecPending) {
+      // 2. Fallback legacy recovery check-in
+      if (!isDiagOrRecPending) {
+        if (res.pendingRecovery) {
+          setPendingRecovery(res.pendingRecovery);
+          isDiagOrRecPending = !!res.pendingRecovery.pending;
+        } else {
+          try {
+            const rec = await fetchPendingRecovery(token);
+            setPendingRecovery(rec.pending ? rec : null);
+            isDiagOrRecPending = !!rec.pending;
+          } catch {
+            setPendingRecovery(null);
+          }
+        }
+      } else {
+        setPendingRecovery(null);
+      }
+
+      // Check weekly reflection only if recovery/diagnosis check-in is NOT pending (precedence rule)
+      if (!isDiagOrRecPending) {
         try {
           const refl = await fetchPendingWeeklyReflection(token);
           setPendingReflection(refl.pending ? refl : null);
@@ -309,24 +331,27 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-full">
-      {/* Tier 2 Non-blocking inline check-in */}
-      {pendingRecovery && pendingRecovery.pending && (
+      {/* Tier 2 Non-blocking inline check-in: Adaptive Strategic Diagnosis */}
+      {((pendingDiagnosis && pendingDiagnosis.pending) || (pendingRecovery && pendingRecovery.pending)) && (
         <RecoveryCheckIn
+          diagnosisData={pendingDiagnosis}
           recoveryState={pendingRecovery}
+          userGoalId={data?.goal?.id}
           sessions={data?.sessions}
           slippageDays={data?.goal?.slippage_days || 0}
           onResolved={async () => {
+            setPendingDiagnosis(null);
             setPendingRecovery(null);
             await loadWeek(weekOffset);
           }}
         />
       )}
 
-      {/* Weekly Reflection (shown only when recovery check-in is not pending) */}
-      {(!pendingRecovery || !pendingRecovery.pending) && pendingReflection && pendingReflection.pending && (
+      {/* Weekly Reflection (shown only when recovery/diagnosis check-in is not pending) */}
+      {(!pendingDiagnosis || !pendingDiagnosis.pending) && (!pendingRecovery || !pendingRecovery.pending) && pendingReflection && pendingReflection.pending && (
         <WeeklyReflection
           reflectionState={pendingReflection}
-          isRecoveryPending={!!(pendingRecovery && pendingRecovery.pending)}
+          isRecoveryPending={!!((pendingDiagnosis && pendingDiagnosis.pending) || (pendingRecovery && pendingRecovery.pending))}
           onResolved={async () => {
             setPendingReflection(null);
             await loadWeek(weekOffset);
@@ -345,23 +370,32 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         />
       )}
 
-      {/* Adaptive Rescheduling & Slippage Pacing Banner - mounts cleanly only when schedule drift is actively flagged */}
-      {(!onlyShowSlippageWhenDrifted || (data.goal?.slippage_days || 0) > 0) && (
+      {/* Adaptive Trajectory Status Banner */}
+      {data.goal && (
         <SlippageBanner
           slippageDays={data.goal?.slippage_days || 0}
           startDate={data.goal?.start_date || data.startDate}
           targetEndDate={data.goal?.target_end_date || data.endDate}
+          trajectoryVersion={(data as any).trajectoryVersion}
+          goalIntegrityStatus={(data.goal as any)?.goal_integrity_status || 'INTACT'}
+          isDisrupted={Boolean((pendingDiagnosis && pendingDiagnosis.pending) || (pendingRecovery && pendingRecovery.pending))}
           onTriggerReschedule={handleTriggerReschedule}
           isRescheduling={isRescheduling}
           lastRescheduleResult={lastRescheduleResult}
           onOpenRecovery={() => {
             if (data.goal?.id) {
-              setPendingRecovery({
+              setPendingDiagnosis({
                 pending: true,
-                user_goal_id: data.goal.id,
-                circuit_breaker_active: (data.goal.slippage_days || 0) >= 14,
-                rolling_28_day_events: 0,
-                missed_session_count: data.sessions ? data.sessions.filter((s) => s.status === 'MISSED').length : 2,
+                prompt: {
+                  userGoalId: data.goal.id,
+                  triggerReason: 'Manual strategic realignment requested by user.',
+                  activeBottleneck: data.goal.title,
+                } as any,
+                deviationReport: {
+                  severity: 'MATERIAL_DISRUPTION',
+                  requiresDiagnostic: true,
+                  explanation: 'Strategic replan requested.',
+                } as any,
               });
             }
           }}
@@ -386,9 +420,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               {data.goal?.title || 'Goal Schedule'}
             </h2>
 
-            <div className="flex items-center gap-2 text-xs font-mono text-[#9ca3af]">
-              <span className="text-[#07CB6C]">PHASE {data.phase?.phase_order || 1}:</span>
-              <span className="text-[#a6b8ad] truncate">{data.phase?.title}</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#07CB6C]/15 text-[#07CB6C] border border-[#07CB6C]/30">
+                PHASE {data.phase?.phase_order || (data.weekOffset < 4 ? 1 : data.weekOffset < 8 ? 2 : 3)}: {data.weekOffset < 4 ? 'FOUNDATION' : data.weekOffset < 8 ? 'ACCELERATION' : 'DELIVERY'}
+              </span>
+              <span className="text-[#9ca3af] text-[10px]">
+                [Weeks {data.weekOffset < 4 ? '1–4' : data.weekOffset < 8 ? '5–8' : '9–12'} • Week {(data.weekOffset % 4) + 1} of 4]
+              </span>
+              <span className="text-[#a6b8ad] truncate hidden sm:inline">— {data.phase?.title}</span>
             </div>
           </div>
 
@@ -666,6 +705,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         session={selectedSession}
         onClose={() => setSelectedSession(null)}
         onSessionUpdated={handleSessionUpdated}
+        onDiagnosisTriggered={async () => {
+          setSelectedSession(null);
+          if (!token) return;
+          try {
+            const diag = await fetchPendingDiagnosis(token, data?.goal?.id || undefined);
+            if (diag && diag.pending) {
+              setPendingDiagnosis(diag);
+            }
+          } catch {}
+        }}
       />
 
       {/* Day Timeline Detail Modal */}

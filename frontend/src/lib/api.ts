@@ -115,6 +115,10 @@ export async function fetchCurrentUser(token: string): Promise<User> {
   return data.user;
 }
 
+/**
+ * @deprecated Phase 15: Replace with `commitGoal()` from `lib/adaptiveApi.ts`.
+ * The adaptive system replaces static schedule generation with Capability DAG + Trajectory v1.
+ */
 export async function submitOnboarding(token: string, payload: import('../types').OnboardingPayload): Promise<import('../types').OnboardingResponse> {
   const resolvedPayload = {
     ...payload,
@@ -153,6 +157,10 @@ export async function fetchCurrentUserGoal(token: string): Promise<import('../ty
   return data;
 }
 
+/**
+ * @deprecated Phase 16: Replace with `fetchAdaptiveDashboard()` from `lib/adaptiveApi.ts`.
+ * The adaptive system replaces static week sessions with trajectory-derived execution objects.
+ */
 export async function fetchWeekSessions(token: string, weekOffset?: number): Promise<import('../types').WeekSessionsResponse> {
   const query = typeof weekOffset === 'number' ? `?weekOffset=${weekOffset}` : '';
   const response = await fetch(`${API_BASE_URL}/api/sessions/week${query}`, {
@@ -170,6 +178,10 @@ export async function fetchWeekSessions(token: string, weekOffset?: number): Pro
   return data;
 }
 
+/**
+ * @deprecated Phase 18: Eliminated entirely. The adaptive system uses continuous trajectories;
+ * there is no discrete "regenerate schedule" action.
+ */
 export async function regenerateSchedule(token: string): Promise<{ message: string; sessionCount: number }> {
   const response = await fetch(`${API_BASE_URL}/api/sessions/generate`, {
     method: 'POST',
@@ -187,6 +199,11 @@ export async function regenerateSchedule(token: string): Promise<{ message: stri
   return data;
 }
 
+/**
+ * @deprecated Phase 17: Replace with `recordSessionTelemetry()` from `lib/adaptiveApi.ts`.
+ * The adaptive system records execution truth (COMPLETED, REDUCED, MVS, MISSED) via telemetry,
+ * not by patching session status fields.
+ */
 export async function updateSession(
   token: string,
   sessionId: string,
@@ -214,6 +231,10 @@ export async function updateSession(
   return data;
 }
 
+/**
+ * @deprecated Phase 17: Replace with `fetchAdaptiveDashboard()` + trajectory projection from `lib/adaptiveApi.ts`.
+ * The adaptive system derives daily execution objects from the active trajectory, not static session rows.
+ */
 export async function fetchDaySessions(
   token: string,
   dateStr: string
@@ -238,6 +259,10 @@ export async function fetchDaySessions(
   return data;
 }
 
+/**
+ * @deprecated Phase 17: Eliminated. Rescheduling is now auto-triggered by the telemetry/diagnosis pipeline.
+ * Use `recordSessionTelemetry()` + `submitDiagnosis()` from `lib/adaptiveApi.ts` instead.
+ */
 export async function triggerReschedule(
   token: string,
   sessionId?: string
@@ -259,6 +284,10 @@ export async function triggerReschedule(
   return data;
 }
 
+/**
+ * @deprecated Phase 16: Replace with `fetchAdaptiveDashboard()` from `lib/adaptiveApi.ts`.
+ * The adaptive dashboard provides capability-state-based progress, not checklist completion rates.
+ */
 export async function fetchGoalProgress(token: string): Promise<import('../types').GoalProgressResponse> {
   const response = await fetch(`${API_BASE_URL}/api/progress`, {
     headers: {
@@ -275,6 +304,10 @@ export async function fetchGoalProgress(token: string): Promise<import('../types
   return data;
 }
 
+/**
+ * @deprecated Phase 17: Replace with `fetchPendingDiagnosis()` from `lib/adaptiveApi.ts`.
+ * The adaptive system replaces binary recovery with 6-category diagnostic root-cause analysis.
+ */
 export async function fetchPendingRecovery(token: string): Promise<import('../types').PendingRecoveryState> {
   const response = await fetch(`${API_BASE_URL}/api/recovery/pending`, {
     headers: {
@@ -291,6 +324,11 @@ export async function fetchPendingRecovery(token: string): Promise<import('../ty
   return data;
 }
 
+/**
+ * @deprecated Phase 17: Replace with `submitDiagnosis()` from `lib/adaptiveApi.ts`.
+ * The adaptive system replaces fixed recovery choices with evidence-based diagnostic submission
+ * that triggers the Adaptive Rescheduler's No-Debt replan.
+ */
 export async function submitRecoveryAction(
   token: string,
   payload: {
@@ -316,6 +354,10 @@ export async function submitRecoveryAction(
   return data;
 }
 
+/**
+ * @deprecated Phase 18: Replace with `fetchWeeklyReview()` from `lib/adaptiveApi.ts`.
+ * The adaptive system replaces subjective reflection with the 7-question Weekly Strategic Review.
+ */
 export async function fetchPendingWeeklyReflection(
   token: string,
   threshold?: number
@@ -339,6 +381,10 @@ export async function fetchPendingWeeklyReflection(
   return data;
 }
 
+/**
+ * @deprecated Phase 18: Replace with `fetchWeeklyReview()` from `lib/adaptiveApi.ts`.
+ * The adaptive Weekly Strategic Review is auto-generated from ground-truth telemetry.
+ */
 export async function submitWeeklyReflection(
   token: string,
   payload: {
@@ -433,6 +479,10 @@ export async function selectRoadmap(
   return data;
 }
 
+/**
+ * @deprecated Phase 18: Replace with `verifyOutcomeGate()` from `lib/adaptiveApi.ts`.
+ * The adaptive system uses evidence-verified Outcome Gate instead of checklist-based graduation.
+ */
 export async function fetchGraduationStatus(
   token: string,
   userGoalId?: string
@@ -456,6 +506,10 @@ export async function fetchGraduationStatus(
   return data;
 }
 
+/**
+ * @deprecated Phase 18: Replace with `verifyOutcomeGate()` from `lib/adaptiveApi.ts`.
+ * Goal completion is now determined by objective evidence, not graduation choices.
+ */
 export async function submitGraduationChoice(
   token: string,
   userGoalId: string,
