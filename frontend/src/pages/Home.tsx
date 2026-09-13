@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchCatalog, fetchHealthCheck, fetchCurrentUserGoal } from '../lib/api';
+import { fetchCatalog, fetchHealthCheck } from '../lib/api';
 import { GoalCatalog } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
@@ -84,21 +84,10 @@ export const Home: React.FC = () => {
       const catalogData = await fetchCatalog();
       setGoals(catalogData);
 
-      // 3. Authenticated Routing: Clean separation
+      // 3. Authenticated Routing: Send logged-in users to /dashboard
       if (token) {
-        try {
-          const userGoalData = await fetchCurrentUserGoal(token);
-          if (userGoalData?.user_goal) {
-            navigate('/dashboard', { replace: true });
-            return;
-          } else {
-            navigate('/onboarding', { replace: true });
-            return;
-          }
-        } catch {
-          navigate('/onboarding', { replace: true });
-          return;
-        }
+        navigate('/dashboard', { replace: true });
+        return;
       }
     } catch (err: any) {
       setApiStatus('offline');

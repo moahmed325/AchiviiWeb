@@ -6,6 +6,8 @@ import { FullscreenFocusModal } from '../components/FullscreenFocusModal';
 import {
   fetchCurrentUserGoal,
   fetchHealthCheck,
+  fetchCatalog,
+  fetchAggregatedProfile,
 } from '../lib/api';
 import {
   fetchAdaptiveDashboard,
@@ -19,7 +21,7 @@ import {
   DailyScheduleItem,
   LifeStructure,
 } from '../lib/lifeApi';
-import { UserGoal } from '../types';
+import { UserGoal, GoalCatalog } from '../types';
 import type { AdaptiveDashboardResponse } from '../types/adaptive';
 import {
   CheckCircle2,
@@ -33,13 +35,19 @@ import {
   FastForward,
   ChevronDown,
   X,
-  Target,
   Briefcase,
   Coffee,
   Heart,
   Dumbbell,
   MoreHorizontal,
+  Award,
+  ShieldCheck,
+  Plus,
+  Sparkles,
+  Search,
 } from 'lucide-react';
+import { GoalCard } from '../components/GoalCard';
+import { GoalDetailDrawer } from '../components/GoalDetailDrawer';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
 import { WeeklyReflection } from '../components/WeeklyReflection';
 import { GraduationModal } from '../components/GraduationModal';
@@ -71,6 +79,13 @@ export const Dashboard: React.FC = () => {
   const [isOptionsOpen, setIsOptionsOpen] = useState<boolean>(false);
   const [shiftLoading, setShiftLoading] = useState<boolean>(false);
   const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Ambition Hub State (when !activeUserGoal)
+  const [catalogGoals, setCatalogGoals] = useState<GoalCatalog[]>([]);
+  const [profileTelemetry, setProfileTelemetry] = useState<Awaited<ReturnType<typeof fetchAggregatedProfile>> | null>(null);
+  const [hubCategory, setHubCategory] = useState<string>('all');
+  const [hubSearchQuery, setHubSearchQuery] = useState<string>('');
+  const [inspectedGoal, setInspectedGoal] = useState<GoalCatalog | null>(null);
 
   // Modals
   const [isDiscardModalOpen, setIsDiscardModalOpen] = useState<boolean>(false);
@@ -105,6 +120,13 @@ export const Dashboard: React.FC = () => {
       } else {
         setAdaptiveData(null);
         setTodaySchedule(null);
+        // Load Ambition Hub data: curated catalog & past telemetry
+        const [catalogRes, profileRes] = await Promise.all([
+          fetchCatalog().catch(() => []),
+          fetchAggregatedProfile(token).catch(() => null),
+        ]);
+        setCatalogGoals(catalogRes);
+        setProfileTelemetry(profileRes);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to connect to Achivii engine.');
@@ -148,6 +170,65 @@ export const Dashboard: React.FC = () => {
       return 'Today';
     }
   }, [user?.timezone]);
+
+  // Derived User Display Name
+  const userDisplayName = useMemo(() => {
+    if (!user?.email) return 'Pilot';
+    const namePart = user.email.split('@')[0];
+    return namePart.charAt(0).toUpperCase() + namePart.slice(1);
+  }, [user?.email]);
+
+  // Ambition Hub Filters
+  const HUB_FILTERS = useMemo(
+    () => [
+      { id: 'all', label: 'All Ambitions', match: () => true },
+      {
+        id: 'engineering',
+        label: 'Engineering',
+        match: (g: GoalCatalog) =>
+          /tech|engineer/i.test(g.category || '') || /saas|system|distributed/i.test(g.title || ''),
+      },
+      {
+        id: 'athletics',
+        label: 'Athletics & Health',
+        match: (g: GoalCatalog) =>
+          /health|fitness|endurance/i.test(g.category || '') || /marathon|10k/i.test(g.title || ''),
+      },
+      {
+        id: 'cognitive',
+        label: 'Languages & Cognitive',
+        match: (g: GoalCatalog) =>
+          /language|cognitive/i.test(g.category || '') || /spanish|b1/i.test(g.title || ''),
+      },
+      {
+        id: 'writing',
+        label: 'Writing & Publishing',
+        match: (g: GoalCatalog) =>
+          /writing/i.test(g.category || '') || /book|write|publish/i.test(g.title || ''),
+      },
+      {
+        id: 'habits',
+        label: 'Daily Habits',
+        match: (g: GoalCatalog) =>
+          /habit/i.test(g.category || '') || /mindfulness|breathwork/i.test(g.title || ''),
+      },
+    ],
+    []
+  );
+
+  // Filtered Catalog for Ambition Hub
+  const filteredCatalogGoals = useMemo(() => {
+    return catalogGoals.filter((goal) => {
+      const activeFilter = HUB_FILTERS.find((f) => f.id === hubCategory);
+      const matchesCategory = activeFilter ? activeFilter.match(goal) : true;
+      const matchesSearch =
+        !hubSearchQuery ||
+        (goal.title || '').toLowerCase().includes(hubSearchQuery.toLowerCase()) ||
+        (goal.description || '').toLowerCase().includes(hubSearchQuery.toLowerCase()) ||
+        (goal.category || '').toLowerCase().includes(hubSearchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [catalogGoals, hubCategory, hubSearchQuery, HUB_FILTERS]);
 
   // Handle Opening Fullscreen Focus Session
   const handleStartFocus = (dose: DailyScheduleItem) => {
@@ -255,29 +336,238 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  // Welcome state if no active ambition
+  // Ambition Hub view when no active goal
   if (!activeUserGoal) {
+    const hasCompletedHistory =
+      (profileTelemetry?.best_working_hours?.total_completed_sessions || 0) > 0;
+
     return (
-      <div className="min-h-screen bg-[#070b09] text-white flex flex-col">
+      <div className="min-h-screen bg-[#070b09] text-white flex flex-col selection:bg-[#07CB6C]/30">
         <Navbar apiStatus={apiStatus} />
-        <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#0e1613] border border-[#07CB6C]/30 flex items-center justify-center mb-6">
-            <Target className="w-7 h-7 text-[#07CB6C]" />
+
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
+          {/* ─── ELEMENT 1: WARM, PERSONALIZED WELCOME & STATUS ─── */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 pb-6 border-b border-white/5">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-mono uppercase tracking-wider bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
+                  Ambition Hub // Workbench Standby
+                </span>
+                <span className="text-neutral-600 text-xs">•</span>
+                <span className="text-xs font-mono text-neutral-400">{formattedToday}</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                Welcome back, {userDisplayName}
+              </h1>
+              <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl leading-relaxed">
+                Your daily execution workbench is currently clear. Select a calibrated 12-week blueprint below to calibrate your schedule, or define an entirely bespoke 90-day ambition.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <Link
+                to="/onboarding"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl text-xs font-semibold bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black shadow-[0_0_20px_rgba(7,203,108,0.2)] transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Define Custom Ambition</span>
+              </Link>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
-            No Active Ambition Yet
-          </h1>
-          <p className="text-neutral-400 text-sm max-w-md mb-8 leading-relaxed">
-            Achivii integrates your highest ambition into your real daily routine — with guaranteed zero backlog debt.
-          </p>
-          <Link
-            to="/onboarding"
-            className="flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black shadow-[0_0_25px_rgba(7,203,108,0.25)] transition-all cursor-pointer"
-          >
-            <span>Choose Your Goal</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+
+          {/* ─── ELEMENT 3: PAST ACCOMPLISHMENTS & GRADUATION TELEMETRY ─── */}
+          {hasCompletedHistory ? (
+            <section className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#0d1613] via-[#0f1c17] to-[#0d1613] border border-[#07CB6C]/30 shadow-[0_0_30px_rgba(7,203,108,0.06)] space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#07CB6C]/15 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C]">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-semibold text-white">Verified Execution Record</h2>
+                    <p className="text-xs text-neutral-400">Learned telemetry preserved across your completed sessions</p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-3 py-1 rounded-full border border-[#07CB6C]/20 self-start sm:self-auto font-medium">
+                  PERFORMANCE ARCHIVE ACTIVE
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block">Completed Sessions</span>
+                  <span className="text-2xl font-bold font-mono text-white">
+                    {profileTelemetry?.best_working_hours?.total_completed_sessions || 0}
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block">Avg Session Dose</span>
+                  <span className="text-2xl font-bold font-mono text-[#07CB6C]">
+                    {profileTelemetry?.best_working_hours?.average_session_duration_minutes || 0}m
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block">Peak Window</span>
+                  <span className="text-2xl font-bold font-mono text-white capitalize">
+                    {profileTelemetry?.best_working_hours?.preferred_time_of_day || 'Flexible'}
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block">Zero-Debt Absorptions</span>
+                  <span className="text-2xl font-bold font-mono text-white">
+                    {profileTelemetry?.lapse_pattern_summary?.total_recovery_events || 0}
+                  </span>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="p-5 sm:p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] shrink-0 mt-0.5">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-sm sm:text-base font-semibold text-white">Autonomous Adaptive Engine Ready</h2>
+                  <p className="text-xs text-neutral-400 max-w-2xl leading-relaxed">
+                    Zero streak guilt. Every blueprint below is protected by dynamic buffer slots that absorb missed sessions automatically without overwhelming debt.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <span className="text-[11px] font-mono text-neutral-300 bg-[#0d1412] px-3 py-1.5 rounded-lg border border-[#1a2824]">
+                  BUFFER RESILIENT
+                </span>
+                <span className="text-[11px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-3 py-1.5 rounded-lg border border-[#07CB6C]/20">
+                  READY TO INITIALIZE
+                </span>
+              </div>
+            </section>
+          )}
+
+          {/* ─── ELEMENT 2: CURATED AMBITION CARDS IN WORKBENCH ─── */}
+          <section className="space-y-6 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3 border-b border-white/5 pb-4">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[#07CB6C] block">
+                  Curated Catalog
+                </span>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                  Scoped 12-Week Blueprints
+                </h2>
+              </div>
+              <p className="text-xs text-neutral-400 font-normal">
+                Select a blueprint to calibrate your schedule or preview its phased curriculum
+              </p>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+                {HUB_FILTERS.map((filter) => {
+                  const count = catalogGoals.filter(filter.match).length;
+                  const isSelected = hubCategory === filter.id;
+                  return (
+                    <button
+                      key={filter.id}
+                      onClick={() => setHubCategory(filter.id)}
+                      className={`min-h-[40px] px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'border border-[#07CB6C] text-white bg-[#07CB6C]/10 shadow-[0_0_15px_rgba(7,203,108,0.15)]'
+                          : 'border border-white/10 text-neutral-400 hover:text-white bg-white/[0.02]'
+                      }`}
+                    >
+                      <span>{filter.label}</span>
+                      <span
+                        className={`text-[11px] ${
+                          isSelected ? 'text-[#07CB6C] font-semibold' : 'text-neutral-500'
+                        }`}
+                      >
+                        ({count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={hubSearchQuery}
+                  onChange={(e) => setHubSearchQuery(e.target.value)}
+                  placeholder="Filter blueprints..."
+                  className="w-full min-h-[40px] pl-10 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder-neutral-500 text-xs font-normal focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Catalog Grid */}
+            {filteredCatalogGoals.length === 0 ? (
+              <div className="p-12 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-neutral-400 space-y-3">
+                <p className="text-sm font-medium text-neutral-300">No blueprints match your filter criteria</p>
+                <button
+                  onClick={() => {
+                    setHubCategory('all');
+                    setHubSearchQuery('');
+                  }}
+                  className="text-xs text-[#07CB6C] hover:underline font-medium cursor-pointer"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+                {filteredCatalogGoals.map((goal) => (
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    onInspect={(g) => setInspectedGoal(g)}
+                    onSelect={(g) => navigate(`/onboarding?goalId=${g.id}`)}
+                    hasActiveGoal={false}
+                    isActiveGoal={false}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ─── ELEMENT 4: NATURAL APP NAVIGATION & BESPOKE AMBITION CTA ─── */}
+          <section className="p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="space-y-1.5 text-center sm:text-left">
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-semibold text-[#07CB6C] uppercase tracking-wider">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Custom Ambition Protocol</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-white">
+                Have a unique goal that isn't in our catalog?
+              </h3>
+              <p className="text-xs text-neutral-400 max-w-xl leading-relaxed">
+                Achivii's formalization engine will structure your raw objective into a calibrated 90-day curriculum with customized daily focus doses.
+              </p>
+            </div>
+            <Link
+              to="/onboarding"
+              className="min-h-[44px] px-6 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/15 hover:border-[#07CB6C]/50 transition-all flex items-center gap-2 shrink-0 cursor-pointer shadow-sm"
+            >
+              <span>Initialize Custom Track</span>
+              <ArrowRight className="w-4 h-4 text-[#07CB6C]" />
+            </Link>
+          </section>
         </main>
+
+        {/* Goal Detail Drawer (When inspecting a card) */}
+        <GoalDetailDrawer
+          goal={inspectedGoal}
+          onClose={() => setInspectedGoal(null)}
+          onSelect={(goal) => {
+            setInspectedGoal(null);
+            navigate(`/onboarding?goalId=${goal.id}`);
+          }}
+          hasActiveGoal={false}
+        />
       </div>
     );
   }
