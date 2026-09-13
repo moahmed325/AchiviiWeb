@@ -37,7 +37,6 @@ import {
 } from 'lucide-react';
 import { SessionDetailModal } from './SessionDetailModal';
 import { DayDetailModal } from './DayDetailModal';
-import { SlippageBanner } from './SlippageBanner';
 import { RecoveryCheckIn } from './RecoveryCheckIn';
 import { WeeklyReflection } from './WeeklyReflection';
 import { GraduationModal } from './GraduationModal';
@@ -285,18 +284,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     });
   }, [data, todayDateString]);
 
-  const totalMinutes = data?.sessions?.reduce(
-    (sum, s) => sum + (s.task_template?.session_duration_minutes || 60),
-    0
-  ) || 0;
-  const totalHours = (totalMinutes / 60).toFixed(1);
-  const completedSessions = data?.sessions?.filter((s) => s.status === 'DONE').length || 0;
-
   if (loading && !data) {
     return (
-      <div className="rounded-md bg-[#0c1210] border border-[#1a2824] p-12 flex flex-col items-center justify-center text-[#9ca3af] gap-3 shadow-none">
+      <div className="rounded-2xl bg-white/[0.02] border border-white/5 p-12 flex flex-col items-center justify-center text-neutral-400 gap-3">
         <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
-        <p className="text-xs font-mono tracking-wider uppercase">MATERIALIZING SCHEDULE TELEMETRY...</p>
+        <p className="text-xs font-medium text-neutral-300">Loading your schedule...</p>
       </div>
     );
   }
@@ -372,117 +364,54 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         />
       )}
 
-      {/* Adaptive Trajectory Status Banner */}
-      {data.goal && (
-        <SlippageBanner
-          slippageDays={data.goal?.slippage_days || 0}
-          startDate={data.goal?.start_date || data.startDate}
-          targetEndDate={data.goal?.target_end_date || data.endDate}
-          trajectoryVersion={(data as any).trajectoryVersion}
-          goalIntegrityStatus={(data.goal as any)?.goal_integrity_status || 'INTACT'}
-          isDisrupted={Boolean((pendingDiagnosis && pendingDiagnosis.pending) || (pendingRecovery && pendingRecovery.pending))}
-        />
-      )}
-
-      {/* Week Navigator & Metrics Strip */}
-      <div className="rounded-2xl bg-[#0a0f0d] border border-white/10 p-4 sm:p-5 space-y-4">
-        {/* Week Title & Actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5 pb-4">
-          <div className="space-y-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-white">
-                Week {data.weekNumber} of 12
-              </span>
-              <span className="text-xs text-neutral-500">•</span>
-              <span className="text-xs text-neutral-400 font-mono">
-                {startDateFormatted} – {endDateFormatted}
-              </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
-                Phase {data.phase?.phase_order || (data.weekOffset < 4 ? 1 : data.weekOffset < 8 ? 2 : 3)}: {data.weekOffset < 4 ? 'Foundation' : data.weekOffset < 8 ? 'Acceleration' : 'Delivery'}
-              </span>
-            </div>
-
-            <h2 className="text-base sm:text-lg font-semibold text-white truncate">
-              {data.goal?.title || 'Weekly Schedule'}
-            </h2>
-          </div>
-
-          {/* Stepper Controls & Edit Routine */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end">
+      {/* Sleek Week Header: Stepper + Date Range + Edit Routine */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
             <button
-              id="btn-edit-routine"
-              type="button"
-              onClick={() => setIsRoutineModalOpen(true)}
-              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Edit waking hours and fixed commitments"
+              id="btn-prev-week"
+              onClick={handlePrevWeek}
+              disabled={weekOffset <= 0}
+              className="min-h-[32px] min-w-[32px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Previous Week"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#07CB6C]" />
-              <span>Edit Routine</span>
+              <ChevronLeft className="w-4 h-4" />
             </button>
 
-            {/* Stepper buttons */}
-            <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
-              <button
-                id="btn-prev-week"
-                onClick={handlePrevWeek}
-                disabled={weekOffset <= 0}
-                className="min-h-[34px] min-w-[34px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                title="Previous Week"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+            <button
+              id="btn-current-week"
+              onClick={() => setWeekOffset(0)}
+              className="px-2.5 text-xs font-semibold text-white hover:text-[#07CB6C] transition-colors"
+            >
+              Week {data.weekNumber}
+            </button>
 
-              <button
-                id="btn-current-week"
-                onClick={() => setWeekOffset(0)}
-                className={`min-h-[34px] px-3 text-xs font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
-                  weekOffset === 0
-                    ? 'bg-[#07CB6C]/15 text-[#07CB6C] font-semibold border border-[#07CB6C]/30'
-                    : 'text-neutral-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                Week 1
-              </button>
-
-              <button
-                id="btn-next-week"
-                onClick={handleNextWeek}
-                disabled={weekOffset >= 11}
-                className="min-h-[34px] min-w-[34px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-                title="Next Week"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              id="btn-next-week"
+              onClick={handleNextWeek}
+              disabled={weekOffset >= 11}
+              className="min-h-[32px] min-w-[32px] flex items-center justify-center rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              title="Next Week"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
+
+          <span className="text-xs text-neutral-400 font-mono">
+            {startDateFormatted} – {endDateFormatted}
+          </span>
         </div>
 
-        {/* Calm Telemetry Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-            <div className="text-[11px] text-neutral-400">Total Planned</div>
-            <div className="text-sm font-semibold text-white mt-0.5">{data.sessions.length} sessions ({totalHours}h)</div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-            <div className="text-[11px] text-neutral-400">Completed</div>
-            <div className="text-sm font-semibold text-[#07CB6C] mt-0.5">
-              {completedSessions} of {data.sessions.length} ({data.sessions.length > 0 ? Math.round((completedSessions / data.sessions.length) * 100) : 0}%)
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-            <div className="text-[11px] text-neutral-400">Pacing</div>
-            <div className={`text-sm font-semibold mt-0.5 ${data.goal?.slippage_days > 0 ? 'text-amber-400' : 'text-[#07CB6C]'}`}>
-              {data.goal?.slippage_days > 0 ? `+${data.goal.slippage_days} days adjusted` : 'On Schedule'}
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5">
-            <div className="text-[11px] text-neutral-400">Reliability Buffer</div>
-            <div className="text-sm font-semibold text-neutral-200 mt-0.5">Protected Sunday</div>
-          </div>
-        </div>
+        <button
+          id="btn-edit-routine"
+          type="button"
+          onClick={() => setIsRoutineModalOpen(true)}
+          className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer self-start sm:self-auto"
+          title="Edit waking hours and fixed commitments"
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5 text-[#07CB6C]" />
+          <span>Edit Routine</span>
+        </button>
       </div>
 
       {/* Supportive Contextual Prompt when sessions from earlier in the week were missed */}

@@ -105,70 +105,28 @@ export const SchedulePage: React.FC = () => {
 
         {viewMode === 'trajectory' ? (
           <>
-            {/* Unified 12-Week Phase & Week Navigator */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-[#0a0f0d] border border-white/10 space-y-3.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-[#07CB6C]" />
-                  <span className="text-xs font-semibold text-white">90-Day Trajectory Roadmap</span>
-                </div>
-                <span className="text-xs text-neutral-400">
-                  Viewing: <strong className="text-white font-medium">Week {selectedWeekOffset + 1}</strong> of 12
-                </span>
+            {/* Sleek 1-line 12-Week Quick Scrubber */}
+            <div className="flex items-center justify-between gap-3 overflow-x-auto pb-1 text-xs">
+              <div className="flex items-center gap-1.5 flex-nowrap">
+                <span className="text-xs text-neutral-400 mr-1 hidden sm:inline font-medium">Week:</span>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelectedWeekOffset(i)}
+                    className={`min-h-[32px] px-2.5 py-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
+                      selectedWeekOffset === i
+                        ? 'bg-[#07CB6C] text-black font-bold shadow-sm'
+                        : 'bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/5'
+                    }`}
+                  >
+                    W{i + 1}
+                  </button>
+                ))}
               </div>
-
-              {/* 3 Phases with clean 4-week pills */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {[
-                  { phase: 1, name: 'Foundation', weeks: [0, 1, 2, 3], subtitle: 'Core habits & fundamentals' },
-                  { phase: 2, name: 'Acceleration', weeks: [4, 5, 6, 7], subtitle: 'Momentum & delivery' },
-                  { phase: 3, name: 'Delivery', weeks: [8, 9, 10, 11], subtitle: 'Capstone & graduation' },
-                ].map((group) => {
-                  const isGroupActive = group.weeks.includes(selectedWeekOffset);
-                  return (
-                    <div
-                      key={group.phase}
-                      className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between gap-2.5 ${
-                        isGroupActive
-                          ? 'bg-white/[0.03] border-[#07CB6C]/40 shadow-[0_0_12px_rgba(7,203,108,0.08)]'
-                          : 'bg-white/[0.01] border-white/5 hover:border-white/10'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-semibold text-white">
-                            Phase {group.phase}: {group.name}
-                          </div>
-                          <div className="text-[11px] text-neutral-400">{group.subtitle}</div>
-                        </div>
-                        {isGroupActive && (
-                          <span className="w-2 h-2 rounded-full bg-[#07CB6C]" />
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-4 gap-1.5 pt-1">
-                        {group.weeks.map((idx) => {
-                          const isSelected = selectedWeekOffset === idx;
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setSelectedWeekOffset(idx)}
-                              className={`min-h-[34px] py-1 px-1 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer flex flex-col items-center justify-center ${
-                                isSelected
-                                  ? 'bg-[#07CB6C] text-black font-bold shadow-sm'
-                                  : 'bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10'
-                              }`}
-                            >
-                              <span>W{idx + 1}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <span className="text-xs text-neutral-400 hidden md:inline shrink-0">
+                {selectedWeekOffset < 4 ? 'Phase 1: Foundation' : selectedWeekOffset < 8 ? 'Phase 2: Acceleration' : 'Phase 3: Delivery'}
+              </span>
             </div>
 
             {/* Calendar Week View */}
