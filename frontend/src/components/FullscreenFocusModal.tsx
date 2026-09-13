@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Pause, RotateCcw, CheckCircle2, Zap, Minimize2 } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  CheckCircle2,
+  Zap,
+  Minimize2,
+  Headphones,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { DailyScheduleItem } from '../lib/lifeApi';
+import { soundscape, SoundscapeType } from '../lib/soundscapeEngine';
 
 interface FullscreenFocusModalProps {
   isOpen: boolean;
@@ -27,6 +38,39 @@ export const FullscreenFocusModal: React.FC<FullscreenFocusModalProps> = ({
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
 
+  // Soundscape state
+  const [soundscapeType, setSoundscapeType] = useState<SoundscapeType>('off');
+  const [soundscapeVol, setSoundscapeVol] = useState<number>(0.5);
+  const [isSoundMenuOpen, setIsSoundMenuOpen] = useState<boolean>(false);
+
+  const handleClose = () => {
+    soundscape.stop();
+    setSoundscapeType('off');
+    setIsSoundMenuOpen(false);
+    onClose();
+  };
+
+  const handleSoundscapeChange = async (type: SoundscapeType) => {
+    setSoundscapeType(type);
+    if (type === 'off') {
+      soundscape.stop();
+    } else {
+      await soundscape.play(type, soundscapeVol);
+    }
+  };
+
+  const handleVolumeChange = (vol: number) => {
+    setSoundscapeVol(vol);
+    soundscape.setVolume(vol);
+  };
+
+  // Stop audio on unmount
+  useEffect(() => {
+    return () => {
+      soundscape.stop();
+    };
+  }, []);
+
   // Initialize duration when modal opens or item changes
   useEffect(() => {
     if (isOpen) {
@@ -35,6 +79,9 @@ export const FullscreenFocusModal: React.FC<FullscreenFocusModalProps> = ({
       setTotalSeconds(mins * 60);
       setIsRunning(true);
       setNotes('');
+    } else {
+      soundscape.stop();
+      setSoundscapeType('off');
     }
   }, [isOpen, item.id]);
 
@@ -42,12 +89,12 @@ export const FullscreenFocusModal: React.FC<FullscreenFocusModalProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
-        onClose();
+        handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   // Timer countdown
   useEffect(() => {
@@ -82,10 +129,11 @@ export const FullscreenFocusModal: React.FC<FullscreenFocusModalProps> = ({
   };
 
   const handleFinish = async () => {
+    soundscape.stop();
     setSubmitting(true);
     try {
       await onComplete(notes, isMvs);
-      onClose();
+      handleClose();
     } finally {
       setSubmitting(false);
     }
@@ -111,15 +159,92 @@ export const FullscreenFocusModal: React.FC<FullscreenFocusModalProps> = ({
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-xs font-mono transition-colors cursor-pointer"
-          title="Minimize Focus Mode (Esc)"
-        >
-          <Minimize2 className="w-3.5 h-3.5" />
-          <span>Exit (Esc)</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Soundscape Ambient Mode Selector */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsSoundMenuOpen((prev) => !prev)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-mono transition-all cursor-pointer ${
+                soundscapeType !== 'off'
+                  ? 'bg-[#07CB6C]/15 border-[#07CB6C]/40 text-[#07CB6C] shadow-[0_0_12px_rgba(7,203,108,0.15)]'
+                  : 'bg-white/5 border-white/10 text-neutral-400 hover:text-white hover:bg-white/10'
+              }`}
+              title="Ambient Focus Soundscapes"
+            >
+              <Headphones className="w-3.5 h-3.5" />
+              <span>
+                {soundscapeType === 'off' && 'Sound: Off'}
+                {soundscapeType === 'brown' && 'Brown Noise'}
+                {soundscapeType === 'rain' && 'Soft Rain'}
+                {soundscapeType === 'binaural' && '10Hz Alpha'}
+              </span>
+            </button>
+
+            {isSoundMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-[#0c120f] border border-white/10 shadow-2xl p-3 z-50 space-y-3">
+                <div className="text-[11px] font-mono text-neutral-400 uppercase tracking-wider font-semibold">
+                  Focus Soundscapes
+                </div>
+
+                <div className="space-y-1">
+                  {[
+                    { type: 'off' as const, label: 'Mute / Off' },
+                    { type: 'brown' as const, label: 'Brown Noise (Deep)' },
+                    { type: 'rain' as const, label: 'Soft Rain (Calm)' },
+                    { type: 'binaural' as const, label: '10Hz Alpha Waves' },
+                  ].map((s) => (
+                    <button
+                      key={s.type}
+                      onClick={() => handleSoundscapeChange(s.type)}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors flex items-center justify-between cursor-pointer ${
+                        soundscapeType === s.type
+                          ? 'bg-[#07CB6C]/15 text-[#07CB6C] font-semibold'
+                          : 'text-neutral-300 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <span>{s.label}</span>
+                      {soundscapeType === s.type && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {soundscapeType !== 'off' && (
+                  <div className="pt-2 border-t border-white/10 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-neutral-400">
+                      <span className="flex items-center gap-1">
+                        {soundscapeVol === 0 ? <VolumeX className="w-3 h-3" /> : <Volume2 className="w-3 h-3" />}
+                        Volume
+                      </span>
+                      <span>{Math.round(soundscapeVol * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.05"
+                      max="1"
+                      step="0.05"
+                      value={soundscapeVol}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#07CB6C]"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-xs font-mono transition-colors cursor-pointer"
+            title="Minimize Focus Mode (Esc)"
+          >
+            <Minimize2 className="w-3.5 h-3.5" />
+            <span>Exit (Esc)</span>
+          </button>
+        </div>
       </div>
 
       {/* ─── Center: Main Focus Area ─── */}
