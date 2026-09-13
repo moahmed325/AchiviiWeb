@@ -138,14 +138,40 @@ export interface FeasibilityAssessment {
   recommendations: string[];
 }
 
+export interface CustomBaselineOption {
+  value: string;
+  label: string;
+  score?: number;
+  recommended_weekly_hours?: number;
+}
+
+export interface CustomBaselineQuestion {
+  id: string;
+  question: string;
+  options: CustomBaselineOption[];
+}
+
+export interface CustomCapabilityBlueprint {
+  id: string;
+  name: string;
+  description: string;
+  tier: CapabilityTier;
+  prerequisites: string[];
+}
+
 export interface GoalFormalizationResult {
   concreteOutcomeStatement: string;
   verificationCriteria: string;
   deadlineType: DeadlineType;
-  baselineQuestions: string[];
+  baselineQuestions: (string | CustomBaselineQuestion)[];
   domain: GoalDomain;
   targetDeadline: string; // ISO date string
   isFallback: boolean;
+  category?: string;
+  recommendedWeeklyHours?: number;
+  feasibilityScore?: number;
+  feasibilityNote?: string;
+  capabilityDag?: CustomCapabilityBlueprint[];
 }
 
 export interface CapabilityEvidence {

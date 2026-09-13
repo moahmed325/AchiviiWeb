@@ -134,40 +134,40 @@ const DAYS_OF_WEEK = [
 const STARTER_GOAL_SUGGESTIONS = [
   {
     icon: '🏃',
-    label: 'Run a sub-25min 5K',
-    prompt: 'Run a continuous 5.0 km run in under 25 minutes with verified GPS pacing',
-    category: 'Health & Fitness',
+    label: 'Run a 5K continuously',
+    prompt: 'Run a continuous 5.0 km run without walking breaks at a steady conversational pace',
     hours: 5,
   },
   {
     icon: '💻',
-    label: 'Launch a fullstack web app',
+    label: 'Build & launch a web app',
     prompt: 'Build and deploy a fullstack web application with authentication and database to production',
-    category: 'Technology',
-    hours: 8,
+    hours: 6,
+  },
+  {
+    icon: '🏋️',
+    label: 'Strength train 3x / week',
+    prompt: 'Establish a consistent 3x/week compound strength training habit and improve main lifts safely',
+    hours: 4,
   },
   {
     icon: '🗣️',
-    label: 'Learn conversational French',
-    prompt: 'Learn conversational French to hold a continuous 10-minute unassisted dialogue',
-    category: 'Languages',
-    hours: 6,
+    label: 'Conversational Spanish',
+    prompt: 'Speak conversational Spanish to hold a 15-minute unassisted dialogue with a native speaker',
+    hours: 5,
+  },
+  {
+    icon: '🎸',
+    label: 'Guitar & 5 songs',
+    prompt: 'Learn acoustic guitar open chords and play 5 full songs smoothly with consistent rhythm',
+    hours: 4,
   },
   {
     icon: '✍️',
-    label: 'Write a 30,000-word book draft',
-    prompt: 'Complete a structured 30,000-word non-fiction book first draft with 8 chapters',
-    category: 'Writing & Creative',
-    hours: 6,
+    label: 'Publish 12 newsletter essays',
+    prompt: 'Write, edit, and publish 12 weekly deep-dive newsletter essays with structured arguments',
+    hours: 5,
   },
-];
-
-const CUSTOM_CATEGORIES = [
-  { id: 'tech', label: 'Technology & Code', category: 'Technology', domain: 'PROJECT' as GoalDomain, icon: '💻' },
-  { id: 'fitness', label: 'Health & Athletics', category: 'Health & Fitness', domain: 'PHYSICAL' as GoalDomain, icon: '🏃' },
-  { id: 'language', label: 'Languages & Learning', category: 'Languages', domain: 'COGNITIVE' as GoalDomain, icon: '🗣️' },
-  { id: 'writing', label: 'Writing & Content', category: 'Writing & Creative', domain: 'PROJECT' as GoalDomain, icon: '✍️' },
-  { id: 'habits', label: 'Habits & Mindset', category: 'Wellness & Mindset', domain: 'HABIT' as any, icon: '🧘' },
 ];
 
 const WEEKLY_HOURS_PRESETS = [
@@ -214,7 +214,6 @@ export const OnboardingPage: React.FC = () => {
 
   // Custom Goal Builder State
   const [customRawGoal, setCustomRawGoal] = useState<string>('');
-  const [customCategory, setCustomCategory] = useState<string>('Technology');
   const [customWeeklyHours, setCustomWeeklyHours] = useState<number>(6);
   const [isFormalizing, setIsFormalizing] = useState<boolean>(false);
   const [customFormalization, setCustomFormalization] = useState<GoalFormalizationResult | null>(null);
@@ -317,33 +316,49 @@ export const OnboardingPage: React.FC = () => {
   // Parse questions from selected blueprint or custom formalization
   const parsedQuestions: OnboardingQuestion[] = useMemo(() => {
     if (isCustomGoalActive && customFormalization?.baselineQuestions && customFormalization.baselineQuestions.length > 0) {
-      return customFormalization.baselineQuestions.map((q, idx) => ({
-        id: `custom_baseline_q_${idx + 1}`,
-        question: q,
-        help_text: 'Help us calibrate your starting point so your first weeks are paced just right.',
-        options: [
-          {
-            label: 'Beginner / Zero prior foundation',
-            value: 'BEGINNER',
-            description: 'Starting completely from scratch; build the basic foundation and daily habit first.',
-          },
-          {
-            label: 'Novice / Some casual practice',
-            value: 'NOVICE',
-            description: 'Have dabbled or tried this in the past, but inconsistent consistency.',
-          },
-          {
-            label: 'Intermediate / Solid fundamentals',
-            value: 'INTERMEDIATE',
-            description: 'Comfortable with the basics; ready for disciplined 90-day progression.',
-          },
-          {
-            label: 'Advanced / High active capability',
-            value: 'ADVANCED',
-            description: 'Strong foundation; aiming for peak performance and acceleration.',
-          },
-        ],
-      }));
+      return customFormalization.baselineQuestions.map((q: any, idx: number) => {
+        if (typeof q === 'object' && q?.question && Array.isArray(q?.options)) {
+          return {
+            id: q.id || `custom_baseline_q_${idx + 1}`,
+            question: q.question,
+            help_text: 'Help us calibrate your starting point so your first weeks are paced just right.',
+            options: q.options.map((opt: any) => ({
+              label: opt.label,
+              value: opt.value,
+              description: opt.score ? `Starting depth level ${opt.score} of 4` : undefined,
+              recommended_weekly_hours: opt.recommended_weekly_hours,
+            })),
+          };
+        }
+        const qText = typeof q === 'string' ? q : q?.question || 'Diagnostic Baseline Calibration';
+        return {
+          id: `custom_baseline_q_${idx + 1}`,
+          question: qText,
+          help_text: 'Help us calibrate your starting point so your first weeks are paced just right.',
+          options: [
+            {
+              label: 'Beginner / Zero prior foundation',
+              value: 'BEGINNER',
+              description: 'Starting completely from scratch; build the basic foundation and daily habit first.',
+            },
+            {
+              label: 'Novice / Some casual practice',
+              value: 'NOVICE',
+              description: 'Have dabbled or tried this in the past, but inconsistent consistency.',
+            },
+            {
+              label: 'Intermediate / Solid fundamentals',
+              value: 'INTERMEDIATE',
+              description: 'Comfortable with the basics; ready for disciplined 90-day progression.',
+            },
+            {
+              label: 'Advanced / High active capability',
+              value: 'ADVANCED',
+              description: 'Strong foundation; aiming for peak performance and acceleration.',
+            },
+          ],
+        };
+      });
     }
 
     if (!selectedGoal?.onboarding_questions) return [];
@@ -441,18 +456,16 @@ export const OnboardingPage: React.FC = () => {
     setIsFormalizing(true);
     setError(null);
     try {
-      const activeCat = CUSTOM_CATEGORIES.find((c) => c.category === customCategory) || CUSTOM_CATEGORIES[0];
-      const targetDomain = activeCat.domain;
-      setDomain(targetDomain);
-
       const res = await formalizeGoal(token || '', {
         rawGoal: raw,
-        domain: targetDomain,
         deadlineType: 'SOFT',
         weeklyAvailableHours: customWeeklyHours,
       });
 
       setCustomFormalization(res.formalization);
+      if (res.formalization.domain) {
+        setDomain(res.formalization.domain);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to clarify your goal. Please try again.');
     } finally {
@@ -468,15 +481,14 @@ export const OnboardingPage: React.FC = () => {
       return;
     }
 
-    const baseCatalog =
-      allGoals.find((g) => g.category?.toLowerCase().includes(customCategory.toLowerCase())) ||
-      allGoals[0];
+    const goalCategory = customFormalization.category || 'Personal Ambition';
+    const baseCatalog = allGoals[0];
 
     const virtualGoal: GoalCatalog = {
       id: baseCatalog?.id || 'custom-goal-id',
       title: customFormalization.concreteOutcomeStatement,
       description: customFormalization.verificationCriteria,
-      category: customCategory,
+      category: goalCategory,
       icon: 'target',
       est_weekly_hours: customWeeklyHours,
       phases: baseCatalog?.phases || [],
@@ -687,6 +699,7 @@ export const OnboardingPage: React.FC = () => {
         domain,
         startDate: new Date(startDate).toISOString(),
         sustainableWeeklyHours: weeklyAvailableHours,
+        capabilities: customFormalization?.capabilityDag,
         availabilitySlots,
         questionnaireAnswers,
       });
@@ -859,7 +872,6 @@ export const OnboardingPage: React.FC = () => {
                             type="button"
                             onClick={() => {
                               setCustomRawGoal(s.prompt);
-                              setCustomCategory(s.category);
                               setCustomWeeklyHours(s.hours);
                               setCustomFormalization(null);
                             }}
@@ -873,38 +885,16 @@ export const OnboardingPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 2. Category Selector */}
+                  {/* 2. Weekly Hours Commitment */}
                   <div className="space-y-2.5 pt-2 border-t border-white/5">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400">
-                      Domain Category
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {CUSTOM_CATEGORIES.map((cat) => {
-                        const isSelected = customCategory === cat.category;
-                        return (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => setCustomCategory(cat.category)}
-                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center gap-2.5 ${
-                              isSelected
-                                ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white shadow-[0_0_15px_rgba(7,203,108,0.15)]'
-                                : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04]'
-                            }`}
-                          >
-                            <span className="text-base">{cat.icon}</span>
-                            <span className="text-xs font-medium">{cat.label}</span>
-                          </button>
-                        );
-                      })}
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400">
+                        Weekly Time Commitment
+                      </label>
+                      <span className="text-[11px] font-mono text-[#07CB6C]">
+                        You choose your pace • AI adapts the route
+                      </span>
                     </div>
-                  </div>
-
-                  {/* 3. Weekly Hours Commitment */}
-                  <div className="space-y-2.5 pt-2 border-t border-white/5">
-                    <label className="block text-xs font-mono uppercase tracking-wider text-neutral-400">
-                      Weekly Time Commitment
-                    </label>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {WEEKLY_HOURS_PRESETS.map((p) => {
                         const isSelected = customWeeklyHours === p.hours;
@@ -934,7 +924,7 @@ export const OnboardingPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* 4. Action Button */}
+                  {/* 3. Action Button */}
                   {!customFormalization && (
                     <div className="pt-2">
                       <button
@@ -946,7 +936,7 @@ export const OnboardingPage: React.FC = () => {
                         {isFormalizing ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Structuring Your 90-Day Plan...</span>
+                            <span>Structuring Your 90-Day Plan with AI...</span>
                           </>
                         ) : (
                           <>
@@ -964,13 +954,20 @@ export const OnboardingPage: React.FC = () => {
                 {customFormalization && (
                   <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-[#0d1814] via-[#0f211a] to-[#0d1814] border border-[#07CB6C]/40 space-y-6 shadow-[0_0_30px_rgba(7,203,108,0.12)] animate-in fade-in duration-300">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-white/10">
-                      <div className="space-y-1">
-                        <span className="text-xs font-mono uppercase tracking-wider text-[#07CB6C] flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5" />
-                          AI-Clarified Outcome Specification
-                        </span>
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-mono uppercase tracking-wider text-[#07CB6C] flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            AI-Clarified Finish Line
+                          </span>
+                          {customFormalization.category && (
+                            <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-white/10 text-neutral-200 border border-white/10">
+                              {customFormalization.category}
+                            </span>
+                          )}
+                        </div>
                         <h3 className="text-lg sm:text-xl font-bold text-white">
-                          Here is your verified finish line
+                          Your 90-day finish line is locked in
                         </h3>
                       </div>
                       <span className="text-[11px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-3 py-1 rounded-full border border-[#07CB6C]/20 self-start sm:self-auto font-semibold">
@@ -995,7 +992,7 @@ export const OnboardingPage: React.FC = () => {
                           className="w-full text-base font-semibold text-white bg-transparent border-b border-white/20 focus:border-[#07CB6C] focus:outline-none pb-1 transition-colors"
                         />
                         <span className="text-[11px] text-neutral-500 block">
-                          Click to edit or fine-tune this statement if desired
+                          Click to fine-tune this statement if desired
                         </span>
                       </div>
 
@@ -1007,6 +1004,45 @@ export const OnboardingPage: React.FC = () => {
                           {customFormalization.verificationCriteria}
                         </p>
                       </div>
+
+                      {/* 4-Stage Progressive Milestones Preview */}
+                      {customFormalization.capabilityDag && customFormalization.capabilityDag.length > 0 && (
+                        <div className="space-y-2 pt-2">
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block">
+                            4-Stage Capability Progression (Macro Trajectory)
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            {customFormalization.capabilityDag.map((cap, idx) => (
+                              <div key={cap.id || idx} className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-mono text-[#07CB6C]">
+                                    {idx === 0
+                                      ? 'Phase 1: Foundation'
+                                      : idx === 1
+                                      ? 'Phase 2: Stimulus'
+                                      : idx === 2
+                                      ? 'Phase 3: Peak Volume'
+                                      : 'Phase 4: Capstone Trial'}
+                                  </span>
+                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-neutral-400">
+                                    Gate {idx + 1}
+                                  </span>
+                                </div>
+                                <h4 className="text-xs font-semibold text-white">{cap.name}</h4>
+                                <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">{cap.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Gentle Feasibility Note */}
+                      {customFormalization.feasibilityNote && (
+                        <div className="p-3 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/25 flex items-center gap-2 text-xs text-[#07CB6C]">
+                          <Sparkles className="w-4 h-4 shrink-0" />
+                          <span>{customFormalization.feasibilityNote}</span>
+                        </div>
+                      )}
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <div className="p-3 rounded-xl bg-black/30 border border-white/5">

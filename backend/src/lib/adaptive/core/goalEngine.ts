@@ -5,6 +5,8 @@ import {
   FeasibilityAssessment,
   FeasibilityZone,
   GoalIntegrityStatus,
+  CustomBaselineQuestion,
+  CustomCapabilityBlueprint,
 } from './types.js';
 import { generateStructuredContent } from '../../ai/gemini.js';
 
@@ -13,6 +15,7 @@ export interface FormalizeGoalInput {
   domain?: string;
   targetDeadline?: Date;
   deadlineType?: DeadlineType;
+  weeklyAvailableHours?: number;
 }
 
 export interface EvaluateFeasibilityInput {
@@ -50,46 +53,363 @@ export function inferDomain(rawGoal: string): GoalDomain {
 }
 
 /**
+ * Infers a clean human-facing category from raw goal text.
+ */
+export function inferCategory(rawGoal: string, domain: GoalDomain): string {
+  const lower = rawGoal.toLowerCase();
+  if (
+    lower.includes('code') ||
+    lower.includes('web') ||
+    lower.includes('app') ||
+    lower.includes('software') ||
+    lower.includes('python') ||
+    lower.includes('program') ||
+    lower.includes('build') ||
+    lower.includes('saas')
+  ) {
+    return 'Software & Technology';
+  }
+  if (
+    lower.includes('run') ||
+    lower.includes('marathon') ||
+    lower.includes('5k') ||
+    lower.includes('10k') ||
+    lower.includes('cardio') ||
+    lower.includes('swim') ||
+    lower.includes('bike')
+  ) {
+    return 'Athletics & Endurance';
+  }
+  if (
+    lower.includes('lift') ||
+    lower.includes('strength') ||
+    lower.includes('gym') ||
+    lower.includes('workout') ||
+    lower.includes('muscle') ||
+    lower.includes('hypertrophy')
+  ) {
+    return 'Strength & Fitness';
+  }
+  if (
+    lower.includes('spanish') ||
+    lower.includes('french') ||
+    lower.includes('german') ||
+    lower.includes('language') ||
+    lower.includes('speak') ||
+    lower.includes('japanese') ||
+    lower.includes('chinese') ||
+    lower.includes('arabic')
+  ) {
+    return 'Language & Fluency';
+  }
+  if (
+    lower.includes('guitar') ||
+    lower.includes('piano') ||
+    lower.includes('music') ||
+    lower.includes('song') ||
+    lower.includes('instrument') ||
+    lower.includes('sing') ||
+    lower.includes('draw') ||
+    lower.includes('art')
+  ) {
+    return 'Music & Creative Arts';
+  }
+  if (
+    lower.includes('write') ||
+    lower.includes('book') ||
+    lower.includes('essay') ||
+    lower.includes('publish') ||
+    lower.includes('newsletter') ||
+    lower.includes('video') ||
+    lower.includes('youtube')
+  ) {
+    return 'Writing & Publishing';
+  }
+  if (
+    lower.includes('meditat') ||
+    lower.includes('read') ||
+    lower.includes('habit') ||
+    lower.includes('sleep') ||
+    lower.includes('focus') ||
+    lower.includes('routine')
+  ) {
+    return 'Mind & Habits';
+  }
+  return domain === 'PHYSICAL'
+    ? 'Health & Athletics'
+    : domain === 'COGNITIVE'
+    ? 'Learning & Skill'
+    : 'Personal Project';
+}
+
+function generateDeterministicCapabilities(rawGoal: string, domain: GoalDomain): CustomCapabilityBlueprint[] {
+  if (domain === 'PHYSICAL') {
+    return [
+      {
+        id: 'cap_base',
+        name: 'Aerobic Base & Movement Economy',
+        description: 'Establish consistent foundational stimulus and movement efficiency',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: [],
+      },
+      {
+        id: 'cap_stimulus',
+        name: 'Aerobic Threshold & Work Capacity',
+        description: 'Expand continuous output duration without excessive fatigue',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_base'],
+      },
+      {
+        id: 'cap_resistance',
+        name: 'Pace Resistance & Sustained Volume',
+        description: 'Maintain target tempo under fatigue near milestone distance',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_stimulus'],
+      },
+      {
+        id: 'cap_capstone',
+        name: 'Destination Benchmark Trial',
+        description: `Execute full unassisted benchmark: ${rawGoal}`,
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_resistance'],
+      },
+    ];
+  } else if (domain === 'COGNITIVE') {
+    return [
+      {
+        id: 'cap_vocab',
+        name: 'Core Grammar & Retrieval Foundation',
+        description: 'Master high-frequency syntax and immediate retrieval drills',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: [],
+      },
+      {
+        id: 'cap_comprehension',
+        name: 'Comprehension & Interactive Dialogue',
+        description: 'Sustain active listening and unassisted real-time exchanges',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_vocab'],
+      },
+      {
+        id: 'cap_fluency',
+        name: 'Spontaneous Expression & Nuance',
+        description: 'Communicate smoothly without reliance on vocabulary aids',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_comprehension'],
+      },
+      {
+        id: 'cap_capstone',
+        name: 'Unassisted Real-World Demonstration',
+        description: `Deliver capstone trial: ${rawGoal}`,
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_fluency'],
+      },
+    ];
+  } else {
+    return [
+      {
+        id: 'cap_architecture',
+        name: 'Core Architecture & Prototype Foundation',
+        description: 'Validate requirements, establish skeleton structure, and setup workflow',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: [],
+      },
+      {
+        id: 'cap_features',
+        name: 'Essential Feature Implementation',
+        description: 'Build primary value loop and user-facing capabilities',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_architecture'],
+      },
+      {
+        id: 'cap_polish',
+        name: 'Hardening, Refinement & User Feedback',
+        description: 'Eliminate friction points, polish interactions, and test with real users',
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_features'],
+      },
+      {
+        id: 'cap_capstone',
+        name: 'Production Delivery & Launch',
+        description: `Deliver completed output: ${rawGoal}`,
+        tier: 'TIER_1_CRITICAL',
+        prerequisites: ['cap_polish'],
+      },
+    ];
+  }
+}
+
+function generateDeterministicBaselineQuestions(domain: GoalDomain): CustomBaselineQuestion[] {
+  return [
+    {
+      id: 'starting_experience',
+      question: 'What is your current experience level with this ambition?',
+      options: [
+        { value: 'complete_beginner', label: 'Complete beginner (starting from scratch)', score: 1, recommended_weekly_hours: 4 },
+        { value: 'novice', label: 'Novice (tried it a few times in the past)', score: 2, recommended_weekly_hours: 5 },
+        { value: 'intermediate', label: 'Intermediate (consistent basics, seeking structured progress)', score: 3, recommended_weekly_hours: 6 },
+        { value: 'advanced', label: 'Experienced (looking for peak refinement and mastery)', score: 4, recommended_weekly_hours: 8 },
+      ],
+    },
+    {
+      id: 'recent_frequency',
+      question: 'How much dedicated time have you spent on this over the last 4 weeks?',
+      options: [
+        { value: 'zero_hours', label: '0 hours (completely dormant or new)', score: 1 },
+        { value: 'light_practice', label: '1–2 hours per week sporadically', score: 2 },
+        { value: 'steady_practice', label: '3–4 hours per week consistently', score: 3 },
+        { value: 'heavy_practice', label: '5+ hours per week consistently', score: 4 },
+      ],
+    },
+    {
+      id: 'primary_obstacle',
+      question: 'What has been your biggest historical friction point or obstacle?',
+      options: [
+        { value: 'scheduling', label: 'Protecting consistent calendar windows around busy days', score: 1 },
+        { value: 'burnout', label: 'Starting with excessive intensity and burning out early', score: 2 },
+        { value: 'guidance', label: 'Uncertainty about what exact exercise or drill to do next', score: 3 },
+        { value: 'plateau', label: 'Losing motivation once the initial novelty wears off', score: 4 },
+      ],
+    },
+  ];
+}
+
+/**
  * Formalizes a user's raw goal into a concrete outcome, objective verification criteria,
- * and baseline assessment queries using Gemini (with deterministic heuristic fallback).
+ * 4-node capability DAG, and tailored baseline assessment queries using Gemini (with deterministic heuristic fallback).
  */
 export async function formalizeGoal(input: FormalizeGoalInput): Promise<GoalFormalizationResult> {
   const rawGoal = input.rawGoal.trim();
   const domain: GoalDomain = (input.domain as GoalDomain) || inferDomain(rawGoal);
   const deadlineType: DeadlineType = input.deadlineType || 'SOFT';
   const targetDeadline = input.targetDeadline || new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+  const userHours = input.weeklyAvailableHours || 6;
+
+  const systemInstruction = `You are the Lead Ambition Architect for Achivii, an elite Life + Ambition Execution System.
+Your job is to formalize a user's raw ambition into an inspiring, concrete 90-day execution contract.
+Adhere strictly to plain, encouraging English. Never use robotic jargon or MBA terms.
+Return ONLY valid JSON matching the requested schema.`;
 
   const prompt = `
-You are the Lead Architect of the Adaptive 90-Day Execution System.
 A user wants to achieve this 90-day goal: "${rawGoal}".
+${input.weeklyAvailableHours ? `The user has chosen a target pace of ${input.weeklyAvailableHours} hours/week.` : ''}
 
-Analyze this goal and return a JSON object with:
-1. concreteOutcomeStatement: A concrete, unambiguous definition of the achieved finish line (not a vague task).
-2. verificationCriteria: Specific, observable, and falsifiable real-world test to prove the goal is achieved.
-3. baselineQuestions: Exactly 3 simple, non-intimidating observable questions to determine their current starting state.
+Analyze this goal and return a JSON object strictly matching this schema:
+{
+  "category": "Auto-detected category string (e.g. 'Athletics & Endurance', 'Software & Technology', 'Language & Fluency', 'Strength & Fitness', 'Music & Creative Arts', 'Writing & Publishing', 'Mind & Habits')",
+  "domain": "PHYSICAL" | "COGNITIVE" | "PROJECT",
+  "concreteOutcomeStatement": "Concrete, inspiring, unambiguous definition of the achieved finish line on Day 90 (not a task list)",
+  "verificationCriteria": "Specific, observable, falsifiable real-world proof test to prove completion",
+  "recommendedWeeklyHours": Number (recommended sustainable hours/week, e.g. 4, 5, 6, 8),
+  "feasibilityScore": Number (between 0.75 and 0.95),
+  "feasibilityNote": "Short encouraging 1-sentence note explaining why this pace is sustainable",
+  "capabilityDag": [
+    {
+      "id": "cap_1",
+      "name": "Phase 1 Foundation Milestone Name",
+      "description": "Clear plain English description of this prerequisite capability",
+      "tier": "TIER_1_CRITICAL",
+      "prerequisites": []
+    },
+    {
+      "id": "cap_2",
+      "name": "Phase 2 Stimulus Milestone Name",
+      "description": "Progressive overload milestone",
+      "tier": "TIER_1_CRITICAL",
+      "prerequisites": ["cap_1"]
+    },
+    {
+      "id": "cap_3",
+      "name": "Phase 3 Peak Milestone Name",
+      "description": "Advanced endurance, pacing, or depth milestone",
+      "tier": "TIER_1_CRITICAL",
+      "prerequisites": ["cap_2"]
+    },
+    {
+      "id": "cap_4",
+      "name": "Capstone Verification Milestone Name",
+      "description": "Final trial rehearsal and benchmark",
+      "tier": "TIER_1_CRITICAL",
+      "prerequisites": ["cap_3"]
+    }
+  ],
+  "baselineQuestions": [
+    {
+      "id": "q1",
+      "question": "Clear, friendly question assessing their current starting experience or level",
+      "options": [
+        { "value": "complete_beginner", "label": "Complete beginner (starting from scratch)", "score": 1 },
+        { "value": "novice", "label": "Novice (tried it a few times in the past)", "score": 2 },
+        { "value": "intermediate", "label": "Moderate consistency (can do basic versions)", "score": 3 },
+        { "value": "experienced", "label": "Strong foundation (looking for structured breakthrough)", "score": 4 }
+      ]
+    },
+    {
+      "id": "q2",
+      "question": "Question assessing their current work volume, consistency, or recent frequency",
+      "options": [
+        { "value": "zero_recent", "label": "0 hours in the past month", "score": 1 },
+        { "value": "light_recent", "label": "1–2 hours per week sporadically", "score": 2 },
+        { "value": "consistent_recent", "label": "3–4 hours per week consistently", "score": 3 },
+        { "value": "high_recent", "label": "5+ hours per week consistently", "score": 4 }
+      ]
+    },
+    {
+      "id": "q3",
+      "question": "Question identifying their biggest historical friction point or obstacle",
+      "options": [
+        { "value": "time_consistency", "label": "Finding dedicated time without interruptions", "score": 1 },
+        { "value": "fatigue_burnout", "label": "Starting too hard and burning out / soreness", "score": 2 },
+        { "value": "clarity_structure", "label": "Not knowing exactly what to do in each session", "score": 3 },
+        { "value": "plateau", "label": "Hitting a plateau and losing motivation", "score": 4 }
+      ]
+    }
+  ]
+}
 `;
 
   const aiResult = await generateStructuredContent<{
+    category?: string;
+    domain?: GoalDomain;
     concreteOutcomeStatement: string;
     verificationCriteria: string;
-    baselineQuestions: string[];
-  }>(prompt, 'You format goals into concrete, verified outcome specifications.');
+    recommendedWeeklyHours?: number;
+    feasibilityScore?: number;
+    feasibilityNote?: string;
+    capabilityDag?: CustomCapabilityBlueprint[];
+    baselineQuestions?: CustomBaselineQuestion[];
+  }>(prompt, systemInstruction);
 
   if (aiResult.success && aiResult.data && !aiResult.isFallback) {
+    const finalDomain: GoalDomain = aiResult.data.domain || domain;
+    const finalCategory = aiResult.data.category || inferCategory(rawGoal, finalDomain);
+    const finalDag = Array.isArray(aiResult.data.capabilityDag) && aiResult.data.capabilityDag.length > 0
+      ? aiResult.data.capabilityDag
+      : generateDeterministicCapabilities(rawGoal, finalDomain);
+
+    const finalQuestions = Array.isArray(aiResult.data.baselineQuestions) && aiResult.data.baselineQuestions.length > 0
+      ? aiResult.data.baselineQuestions
+      : generateDeterministicBaselineQuestions(finalDomain);
+
     return {
       concreteOutcomeStatement: aiResult.data.concreteOutcomeStatement || rawGoal,
       verificationCriteria: aiResult.data.verificationCriteria || 'Real-world demonstrable evidence',
-      baselineQuestions: aiResult.data.baselineQuestions || getDefaultBaselineQuestions(domain),
+      baselineQuestions: finalQuestions,
       deadlineType,
-      domain,
+      domain: finalDomain,
       targetDeadline,
+      category: finalCategory,
+      recommendedWeeklyHours: aiResult.data.recommendedWeeklyHours || userHours,
+      feasibilityScore: aiResult.data.feasibilityScore || 0.88,
+      feasibilityNote: aiResult.data.feasibilityNote || `At ${userHours}h/week, this goal maintains high sustainable execution buffer.`,
+      capabilityDag: finalDag,
       isFallback: false,
     };
   }
 
   // Deterministic Fallback
   return {
-    ...generateDeterministicFormalization(rawGoal, domain),
+    ...generateDeterministicFormalization(rawGoal, domain, userHours),
     deadlineType,
     domain,
     targetDeadline,
@@ -97,35 +417,23 @@ Analyze this goal and return a JSON object with:
   };
 }
 
-function getDefaultBaselineQuestions(domain: GoalDomain): string[] {
-  switch (domain) {
-    case 'PHYSICAL':
-      return [
-        'What is the longest continuous session you have completed in the past month?',
-        'How many days per week have you consistently trained recently?',
-        'Are you currently managing any acute joint or muscle discomfort?',
-      ];
-    case 'COGNITIVE':
-      return [
-        'Can you currently hold a 5-minute unassisted dialogue or recall core concepts without notes?',
-        'How many hours per week have you dedicated to this skill over the last 4 weeks?',
-        'What is the most advanced material or lesson you have completed successfully?',
-      ];
-    case 'PROJECT':
-      return [
-        'Have you validated the problem or received direct interest from prospective users?',
-        'Do you already have a functional prototype, wireframe, or initial repository?',
-        'How many dedicated, uninterrupted hours can you guarantee each week?',
-      ];
-  }
-}
-
 function generateDeterministicFormalization(
   rawGoal: string,
-  domain: GoalDomain
-): { concreteOutcomeStatement: string; verificationCriteria: string; baselineQuestions: string[] } {
+  domain: GoalDomain,
+  userHours: number = 6
+): {
+  concreteOutcomeStatement: string;
+  verificationCriteria: string;
+  category: string;
+  recommendedWeeklyHours: number;
+  feasibilityScore: number;
+  feasibilityNote: string;
+  capabilityDag: CustomCapabilityBlueprint[];
+  baselineQuestions: CustomBaselineQuestion[];
+} {
   let concreteOutcomeStatement = rawGoal;
   let verificationCriteria = 'Demonstrate capability in an unassisted real-world benchmark session.';
+  const category = inferCategory(rawGoal, domain);
 
   if (domain === 'PHYSICAL') {
     concreteOutcomeStatement = rawGoal.includes('marathon')
@@ -147,7 +455,12 @@ function generateDeterministicFormalization(
   return {
     concreteOutcomeStatement,
     verificationCriteria,
-    baselineQuestions: getDefaultBaselineQuestions(domain),
+    category,
+    recommendedWeeklyHours: userHours,
+    feasibilityScore: 0.85,
+    feasibilityNote: `At ${userHours}h/week, pacing provides balanced progress with reliable rest buffers.`,
+    capabilityDag: generateDeterministicCapabilities(rawGoal, domain),
+    baselineQuestions: generateDeterministicBaselineQuestions(domain),
   };
 }
 

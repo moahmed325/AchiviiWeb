@@ -79,6 +79,7 @@ adaptiveRouter.post('/goal/formalize', async (req: Request, res: Response): Prom
       domain,
       targetDeadline: targetDeadline ? new Date(targetDeadline) : undefined,
       deadlineType: deadlineType || 'SOFT',
+      weeklyAvailableHours: weeklyAvailableHours ? Number(weeklyAvailableHours) : undefined,
     });
 
     const feasibility = evaluateFeasibility({
@@ -194,48 +195,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
     // Fetch user's life structure
     const lifeStructure = await getOrCreateLifeStructure(user.id);
 
-    // If questionnaireAnswers provided, run master planning engine
-    let masterPlan: any = null;
-    if (questionnaireAnswers && Object.keys(questionnaireAnswers).length > 0) {
-      try {
-        const planResult = await generateMasterPlan({
-          blueprint: catalogItem,
-          answers: questionnaireAnswers,
-          lifeStructure,
-          startDate: parsedStartDate,
-        });
-        masterPlan = planResult.plan;
-      } catch (err) {
-        console.warn('Master planning prompt error, proceeding with baseline:', err);
-      }
-    }
-
-    // Determine count of existing active goals to assign priority rank
-    const existingActiveCount = await prisma.userGoal.count({
-      where: { user_id: user.id, status: 'ACTIVE' },
-    });
-
-    const effectiveWeeklyHours = masterPlan?.weekly_target_hours || Number(sustainableWeeklyHours) || 6.0;
-
-    // Create UserGoal record
-    const userGoal = await prisma.userGoal.create({
-      data: {
-        user_id: user.id,
-        goal_catalog_id: catalogId,
-        outcome_statement: outcomeStatement.trim(),
-        verification_criteria: verificationCriteria || 'Demonstrate unassisted real-world benchmark.',
-        deadline_type: deadlineType,
-        start_date: parsedStartDate,
-        target_end_date: parsedTargetDate,
-        sustainable_weekly_capacity_hours: effectiveWeeklyHours,
-        current_med_hours: Math.round(effectiveWeeklyHours * 0.75 * 10) / 10,
-        current_reliability_margin_hours: Math.max(0, Math.round(effectiveWeeklyHours * 0.25 * 10) / 10),
-        priority_rank: existingActiveCount + 1,
-        status: 'ACTIVE',
-      },
-    });
-
-    // Build Capability State Graph
+    // Build Capability State Graph & resolve capabilities
     const graph = new CapabilityStateGraph();
     let capsToCreate = capabilities && capabilities.length > 0 ? capabilities : null;
 
@@ -280,6 +240,58 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
         },
       ];
     }
+
+    // If questionnaireAnswers provided, run master planning engine with custom blueprint
+    let masterPlan: any = null;
+    if (questionnaireAnswers && Object.keys(questionnaireAnswers).length > 0) {
+      try {
+        const planningBlueprint = {
+          id: catalogItem.id,
+          title: outcomeStatement.trim() || catalogItem.title,
+          category: catalogItem.category,
+          est_weekly_hours: Number(sustainableWeeklyHours) || catalogItem.est_weekly_hours || 6.0,
+          blueprint_metadata: {
+            capability_dag: capsToCreate,
+            nominal_session_duration_minutes: 45,
+            minimum_viable_session_minutes: 20,
+          },
+        };
+        const planResult = await generateMasterPlan({
+          blueprint: planningBlueprint,
+          answers: questionnaireAnswers,
+          lifeStructure,
+          startDate: parsedStartDate,
+        });
+        masterPlan = planResult.plan;
+      } catch (err) {
+        console.warn('Master planning prompt error, proceeding with baseline:', err);
+      }
+    }
+
+    // Determine count of existing active goals to assign priority rank
+    const existingActiveCount = await prisma.userGoal.count({
+      where: { user_id: user.id, status: 'ACTIVE' },
+    });
+
+    const effectiveWeeklyHours = masterPlan?.weekly_target_hours || Number(sustainableWeeklyHours) || 6.0;
+
+    // Create UserGoal record
+    const userGoal = await prisma.userGoal.create({
+      data: {
+        user_id: user.id,
+        goal_catalog_id: catalogId,
+        outcome_statement: outcomeStatement.trim(),
+        verification_criteria: verificationCriteria || 'Demonstrate unassisted real-world benchmark.',
+        deadline_type: deadlineType,
+        start_date: parsedStartDate,
+        target_end_date: parsedTargetDate,
+        sustainable_weekly_capacity_hours: effectiveWeeklyHours,
+        current_med_hours: Math.round(effectiveWeeklyHours * 0.75 * 10) / 10,
+        current_reliability_margin_hours: Math.max(0, Math.round(effectiveWeeklyHours * 0.25 * 10) / 10),
+        priority_rank: existingActiveCount + 1,
+        status: 'ACTIVE',
+      },
+    });
 
     let prevId: string | null = null;
     for (let i = 0; i < capsToCreate.length; i++) {

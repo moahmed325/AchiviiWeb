@@ -32,7 +32,7 @@ export function getGeminiClient(): GoogleGenAI | null {
   return clientInstance;
 }
 
-export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
 /**
  * Generates structured JSON using Gemini with responseMimeType: "application/json".
