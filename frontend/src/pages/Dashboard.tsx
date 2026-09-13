@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
-import { CalendarView } from '../components/CalendarView';
+import { FullscreenFocusModal } from '../components/FullscreenFocusModal';
 import {
   fetchCurrentUserGoal,
   fetchHealthCheck,
@@ -11,127 +11,73 @@ import {
   fetchAdaptiveDashboard,
   recordSessionTelemetry,
 } from '../lib/adaptiveApi';
+import {
+  fetchTodaySchedule,
+  fetchLifeStructure,
+  adaptSchedule,
+  updateScheduleItemStatus,
+  DailyScheduleItem,
+  LifeStructure,
+} from '../lib/lifeApi';
 import { UserGoal } from '../types';
-import type {
-  AdaptiveDashboardResponse,
-  GoalIntegrityStatus,
-  CapabilityState,
-} from '../types/adaptive';
+import type { AdaptiveDashboardResponse } from '../types/adaptive';
 import {
   CheckCircle2,
   Clock,
   ArrowRight,
-  AlertCircle,
   Loader2,
-  Compass,
   Play,
-  Pause,
-  RotateCcw,
-  ShieldCheck,
-  Check,
-  Calendar as CalendarIcon,
-  CheckCircle,
-  ShieldAlert,
   Zap,
-  AlertTriangle,
-  Layers,
-  Sparkles,
+  Sun,
+  Moon,
+  FastForward,
+  ChevronDown,
+  X,
+  Target,
+  Briefcase,
+  Coffee,
+  Heart,
+  Dumbbell,
+  MoreHorizontal,
 } from 'lucide-react';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
 import { WeeklyReflection } from '../components/WeeklyReflection';
 import { GraduationModal } from '../components/GraduationModal';
 
-const INTEGRITY_CONFIG: Record<
-  GoalIntegrityStatus,
-  { label: string; badgeClass: string; textClass: string; icon: React.ReactNode }
-> = {
-  INTACT: {
-    label: 'DESTINATION INTACT',
-    badgeClass: 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]',
-    textClass: 'text-[#07CB6C]',
-    icon: <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />,
-  },
-  REVISED: {
-    label: 'REVISED TRAJECTORY',
-    badgeClass: 'bg-sky-500/10 border-sky-500/30 text-sky-400',
-    textClass: 'text-sky-400',
-    icon: <Sparkles className="w-3.5 h-3.5 text-sky-400" />,
-  },
-  AT_RISK: {
-    label: 'CRITICAL PATH AT RISK',
-    badgeClass: 'bg-amber-500/10 border-amber-500/30 text-amber-400',
-    textClass: 'text-amber-400',
-    icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />,
-  },
-  COMPROMISED: {
-    label: 'DESTINATION COMPROMISED',
-    badgeClass: 'bg-rose-500/10 border-rose-500/30 text-rose-400',
-    textClass: 'text-rose-400',
-    icon: <AlertCircle className="w-3.5 h-3.5 text-rose-400" />,
-  },
-};
-
-const STATE_CONFIG: Record<
-  CapabilityState,
-  { label: string; bgClass: string; textClass: string; borderClass: string }
-> = {
-  ROBUST: {
-    label: 'ROBUST',
-    bgClass: 'bg-emerald-950/40',
-    textClass: 'text-emerald-400',
-    borderClass: 'border-emerald-500/30',
-  },
-  ESTABLISHED: {
-    label: 'ESTABLISHED',
-    bgClass: 'bg-teal-950/40',
-    textClass: 'text-teal-400',
-    borderClass: 'border-teal-500/30',
-  },
-  EMERGING: {
-    label: 'EMERGING',
-    bgClass: 'bg-amber-950/40',
-    textClass: 'text-amber-400',
-    borderClass: 'border-amber-500/30',
-  },
-  UNTESTED: {
-    label: 'UNTESTED',
-    bgClass: 'bg-[#131f1b]',
-    textClass: 'text-neutral-400',
-    borderClass: 'border-[#1a2824]',
-  },
-  REGRESSED: {
-    label: 'REGRESSED',
-    bgClass: 'bg-rose-950/40',
-    textClass: 'text-rose-400',
-    borderClass: 'border-rose-500/30',
-  },
-};
-
 export const Dashboard: React.FC = () => {
   const { token, user } = useAuth();
   const navigate = useNavigate();
 
+  // Core State
   const [activeUserGoal, setActiveUserGoal] = useState<UserGoal | null>(null);
   const [adaptiveData, setAdaptiveData] = useState<AdaptiveDashboardResponse | null>(null);
+  const [lifeStructure, setLifeStructure] = useState<LifeStructure | null>(null);
+  const [todaySchedule, setTodaySchedule] = useState<{
+    date: string;
+    items: DailyScheduleItem[];
+  } | null>(null);
+
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
-
-  // Action states for Hero workbench
-  const [actionLoading, setActionLoading] = useState<boolean>(false);
-  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState<number>(0);
+
+  // Fullscreen Focus Modal State
+  const [activeFocusDose, setActiveFocusDose] = useState<DailyScheduleItem | null>(null);
+  const [isFocusModalOpen, setIsFocusModalOpen] = useState<boolean>(false);
+
+  // Intraday Shift Dropdown & Actions
+  const [isShiftDropdownOpen, setIsShiftDropdownOpen] = useState<boolean>(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState<boolean>(false);
+  const [shiftLoading, setShiftLoading] = useState<boolean>(false);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Modals
   const [isDiscardModalOpen, setIsDiscardModalOpen] = useState<boolean>(false);
   const [isWeeklyReviewOpen, setIsWeeklyReviewOpen] = useState<boolean>(false);
   const [isOutcomeGateOpen, setIsOutcomeGateOpen] = useState<boolean>(false);
 
-  // Focus Timer & Dose selection
-  const [selectedDose, setSelectedDose] = useState<'STANDARD' | 'REDUCED' | 'MVS'>('STANDARD');
-  const [isFocusActive, setIsFocusActive] = useState<boolean>(false);
-  const [focusSecondsLeft, setFocusSecondsLeft] = useState<number>(0);
-  const [focusTotalSeconds, setFocusTotalSeconds] = useState<number>(0);
-  const [isFocusPaused, setIsFocusPaused] = useState<boolean>(false);
-
+  // Load Dashboard Data
   const loadDashboardData = async () => {
     if (!token) return;
     setLoading(true);
@@ -147,11 +93,18 @@ export const Dashboard: React.FC = () => {
       setActiveUserGoal(goalRes.user_goal);
 
       if (goalRes.user_goal) {
-        // Fetch Unified Adaptive Dashboard
-        const adaptRes = await fetchAdaptiveDashboard(token, goalRes.user_goal.id);
+        const [adaptRes, lifeRes, scheduleRes] = await Promise.all([
+          fetchAdaptiveDashboard(token, goalRes.user_goal.id).catch(() => null),
+          fetchLifeStructure(token).catch(() => null),
+          fetchTodaySchedule(token).catch(() => null),
+        ]);
+
         setAdaptiveData(adaptRes);
+        setLifeStructure(lifeRes);
+        setTodaySchedule(scheduleRes);
       } else {
         setAdaptiveData(null);
+        setTodaySchedule(null);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to connect to Achivii engine.');
@@ -165,711 +118,557 @@ export const Dashboard: React.FC = () => {
     loadDashboardData();
   }, [token, refreshTrigger]);
 
-  // Focus countdown timer effect
-  useEffect(() => {
-    if (!isFocusActive || isFocusPaused || focusSecondsLeft <= 0) return;
-    const interval = setInterval(() => {
-      setFocusSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isFocusActive, isFocusPaused, focusSecondsLeft]);
+  // Find the Next Active Ambition Dose for Today
+  const nextAmbitionDose = useMemo(() => {
+    if (!todaySchedule?.items) return null;
+    return (
+      todaySchedule.items.find(
+        (i) => i.item_type === 'AMBITION_DOSE' && i.status !== 'COMPLETED' && i.status !== 'SKIPPED_INTENTIONAL'
+      ) || null
+    );
+  }, [todaySchedule]);
 
-  // Today's date in user's timezone
+  // Check if all ambition doses today are completed
+  const allDosesCompletedToday = useMemo(() => {
+    if (!todaySchedule?.items) return false;
+    const ambitionItems = todaySchedule.items.filter((i) => i.item_type === 'AMBITION_DOSE');
+    return ambitionItems.length > 0 && ambitionItems.every((i) => i.status === 'COMPLETED' || i.status === 'SKIPPED_INTENTIONAL');
+  }, [todaySchedule]);
+
+  // Formatted date
   const formattedToday = useMemo(() => {
     try {
       return new Intl.DateTimeFormat('en-US', {
-        weekday: 'short',
+        weekday: 'long',
         month: 'short',
         day: 'numeric',
         timeZone: user?.timezone || 'UTC',
-      })
-        .format(new Date())
-        .toUpperCase();
+      }).format(new Date());
     } catch {
-      return 'TODAY';
+      return 'Today';
     }
   }, [user?.timezone]);
 
-  // Get current dose duration in minutes
-  const activeDurationMinutes = useMemo(() => {
-    const today = adaptiveData?.todayAction;
-    if (!today) return 45;
-    if (selectedDose === 'MVS') return today.mvsDoseMinutes || 15;
-    if (selectedDose === 'REDUCED') return today.reducedDoseMinutes || 30;
-    return today.standardDoseMinutes || 45;
-  }, [adaptiveData?.todayAction, selectedDose]);
-
-  // Primary Action: Start / Toggle Focus
-  const handleStartFocus = () => {
-    setFocusTotalSeconds(activeDurationMinutes * 60);
-    setFocusSecondsLeft(activeDurationMinutes * 60);
-    setIsFocusPaused(false);
-    setIsFocusActive(true);
+  // Handle Opening Fullscreen Focus Session
+  const handleStartFocus = (dose: DailyScheduleItem) => {
+    setActiveFocusDose(dose);
+    setIsFocusModalOpen(true);
   };
 
-  const handleStopFocus = () => {
-    setIsFocusActive(false);
-    setIsFocusPaused(false);
-  };
-
-  // Primary Action: Mark Completed with Adaptive Telemetry
-  const handleMarkCompleted = async () => {
-    if (!token || !adaptiveData) return;
-    const todayAction = adaptiveData.todayAction;
-    setActionLoading(true);
-    setActionFeedback(null);
+  // Handle Fullscreen Focus Session Completion
+  const handleCompleteSession = async (notes: string, isMvs: boolean) => {
+    if (!token || !activeFocusDose) return;
     try {
-      // Find matching session ID if present
-      const sessionId =
-        todayAction?.trajectoryItemId ||
-        todayAction?.id ||
-        'session-today';
+      await updateScheduleItemStatus(token, activeFocusDose.id, 'COMPLETED');
+      const mins = isMvs
+        ? activeFocusDose.minimum_viable_minutes || 20
+        : activeFocusDose.allocated_minutes || 45;
 
-      // Log execution telemetry
       await recordSessionTelemetry(token, {
-        sessionId,
-        executionState: 'COMPLETED',
-        proofOfWorkText: `Executed ${selectedDose} dose (${activeDurationMinutes}m) for ${todayAction?.actionName || 'daily objective'}.`,
-        durationMinutes: activeDurationMinutes,
-        rpeRating: selectedDose === 'MVS' ? 4 : 7,
+        sessionId: activeFocusDose.id,
+        executionState: isMvs ? 'MINIMUM_VIABLE' : 'COMPLETED',
+        proofOfWorkText: notes.trim() || `Completed ${mins}m dose for ${activeFocusDose.title}.`,
+        durationMinutes: mins,
+        rpeRating: isMvs ? 4 : 7,
       });
 
       setActionFeedback({
         type: 'success',
-        message: `Milestone verified: Completed ${activeDurationMinutes}m session. Trajectory updated.`,
+        message: 'Session verified and completed. Great work!',
       });
-      setIsFocusActive(false);
       setRefreshTrigger((prev) => prev + 1);
     } catch (err: any) {
       setActionFeedback({
         type: 'error',
-        message: err.message || 'Failed to record session telemetry.',
+        message: err.message || 'Failed to save session.',
+      });
+    }
+  };
+
+  // Handle Intraday Delay (+30m Shift)
+  const handleIntradayShift = async (minutes: number) => {
+    if (!token) return;
+    setShiftLoading(true);
+    setIsShiftDropdownOpen(false);
+    setActionFeedback(null);
+    try {
+      await adaptSchedule(token, minutes, 'User requested delay');
+      setActionFeedback({
+        type: 'success',
+        message: `Schedule pushed +${minutes}m smoothly. No catch-up debt created.`,
+      });
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err: any) {
+      setActionFeedback({
+        type: 'error',
+        message: err.message || 'Failed to shift schedule.',
       });
     } finally {
-      setActionLoading(false);
+      setShiftLoading(false);
     }
   };
 
-  // Secondary Action: Apply Minimum Viable Session (MVS) Fallback
-  const handleSelectDose = (dose: 'STANDARD' | 'REDUCED' | 'MVS') => {
-    setSelectedDose(dose);
-    if (isFocusActive) {
-      const today = adaptiveData?.todayAction;
-      const mins =
-        dose === 'MVS'
-          ? today?.mvsDoseMinutes || 15
-          : dose === 'REDUCED'
-          ? today?.reducedDoseMinutes || 30
-          : today?.standardDoseMinutes || 45;
-      setFocusTotalSeconds(mins * 60);
-      setFocusSecondsLeft(mins * 60);
+  // Handle Skip Dose (No Debt)
+  const handleSkipDose = async (doseId: string) => {
+    if (!token) return;
+    try {
+      await updateScheduleItemStatus(token, doseId, 'SKIPPED_INTENTIONAL');
+      setActionFeedback({
+        type: 'success',
+        message: 'Dose skipped for today. No debt rolled onto tomorrow.',
+      });
+      setIsFocusModalOpen(false);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (err: any) {
+      setActionFeedback({
+        type: 'error',
+        message: err.message || 'Failed to skip.',
+      });
     }
   };
 
-  // Capability verified count
-  const capabilitiesList = adaptiveData?.capabilities || [];
-  const verifiedCapsCount = capabilitiesList.filter((c) => c.state === 'ESTABLISHED' || c.state === 'ROBUST').length;
-  const totalCapsCount = capabilitiesList.length || 3;
-  const verifiedProgressPct = totalCapsCount > 0 ? Math.round((verifiedCapsCount / totalCapsCount) * 100) : 0;
+  // Category icon helper for lowkey timeline
+  const getCategoryIcon = (category?: string) => {
+    switch (category?.toUpperCase()) {
+      case 'WORK':
+        return <Briefcase className="w-3.5 h-3.5 text-neutral-400" />;
+      case 'FAMILY':
+        return <Heart className="w-3.5 h-3.5 text-neutral-400" />;
+      case 'HEALTH':
+        return <Dumbbell className="w-3.5 h-3.5 text-neutral-400" />;
+      case 'MEALS':
+      case 'FOOD':
+        return <Coffee className="w-3.5 h-3.5 text-neutral-400" />;
+      default:
+        return <Clock className="w-3.5 h-3.5 text-neutral-400" />;
+    }
+  };
 
-  const integrity = adaptiveData?.goalIntegrityStatus || 'INTACT';
-  const integrityConfig = INTEGRITY_CONFIG[integrity] || INTEGRITY_CONFIG.INTACT;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#070b09] flex items-center justify-center text-white">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-5 h-5 text-[#07CB6C] animate-spin" />
+          <span className="text-xs font-mono text-neutral-400">Loading your day...</span>
+        </div>
+      </div>
+    );
+  }
 
-  const currentWeek = adaptiveData?.currentWeek || 1;
-  const totalWeeks = adaptiveData?.totalWeeks || 12;
+  // Welcome state if no active ambition
+  if (!activeUserGoal) {
+    return (
+      <div className="min-h-screen bg-[#070b09] text-white flex flex-col">
+        <Navbar apiStatus={apiStatus} />
+        <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-20 flex flex-col items-center justify-center text-center">
+          <div className="w-14 h-14 rounded-2xl bg-[#0e1613] border border-[#07CB6C]/30 flex items-center justify-center mb-6">
+            <Target className="w-7 h-7 text-[#07CB6C]" />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
+            No Active Ambition Yet
+          </h1>
+          <p className="text-neutral-400 text-sm max-w-md mb-8 leading-relaxed">
+            Achivii integrates your highest ambition into your real daily routine — with guaranteed zero backlog debt.
+          </p>
+          <Link
+            to="/onboarding"
+            className="flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-bold bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black shadow-[0_0_25px_rgba(7,203,108,0.25)] transition-all cursor-pointer"
+          >
+            <span>Choose Your Goal</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full flex-1 flex flex-col bg-[#0c1210] text-white relative min-h-screen">
-      {/* Global Navigation */}
+    <div className="min-h-screen bg-[#070b09] text-white flex flex-col selection:bg-[#07CB6C]/30">
       <Navbar apiStatus={apiStatus} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10 space-y-6">
-        {activeUserGoal && adaptiveData ? (
-          <div className="space-y-6">
-            {/* Feedback notification toast */}
-            {actionFeedback && (
-              <div
-                className={`p-3.5 rounded-md text-xs font-mono flex items-center justify-between border transition-all ${
-                  actionFeedback.type === 'success'
-                    ? 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]'
-                    : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  {actionFeedback.type === 'success' ? (
-                    <CheckCircle className="w-4 h-4 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                  )}
-                  <span>{actionFeedback.message}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActionFeedback(null)}
-                  className="text-neutral-400 hover:text-white text-[11px] cursor-pointer"
-                >
-                  Dismiss
-                </button>
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+        {/* Error or Feedback Banners */}
+        {error && (
+          <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/30 flex items-center justify-between text-xs text-rose-300">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-neutral-400 hover:text-white">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {actionFeedback && (
+          <div
+            className={`p-3.5 rounded-xl text-xs flex items-center justify-between border ${
+              actionFeedback.type === 'success'
+                ? 'bg-[#07CB6C]/10 border-[#07CB6C]/30 text-[#07CB6C]'
+                : 'bg-rose-950/40 border-rose-500/30 text-rose-300'
+            }`}
+          >
+            <span>{actionFeedback.message}</span>
+            <button
+              onClick={() => setActionFeedback(null)}
+              className="text-neutral-400 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* ─── TOP BAR: Calm Header & Intraday Controls ─── */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 text-xs font-mono text-neutral-400">
+              <span>{formattedToday}</span>
+              {adaptiveData?.currentWeek && (
+                <>
+                  <span className="text-neutral-600">•</span>
+                  <span className="text-[#07CB6C]">Week {adaptiveData.currentWeek} of {adaptiveData.totalWeeks || 12}</span>
+                </>
+              )}
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+              {activeUserGoal.outcome_statement || activeUserGoal.goal_catalog?.title || 'Daily Execution'}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Waking / Sleep Hours Pill */}
+            {lifeStructure && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-neutral-400">
+                <Sun className="w-3.5 h-3.5 text-amber-400" />
+                <span>{lifeStructure.wake_time}</span>
+                <span className="text-neutral-600">–</span>
+                <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{lifeStructure.sleep_time}</span>
               </div>
             )}
 
-            {/* ---------------------------------------------------- */}
-            {/* STRATEGIC DESTINATION HEADER                         */}
-            {/* ---------------------------------------------------- */}
-            <div className="p-5 sm:p-6 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#1a2824] pb-4">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
-                      90-DAY ADAPTIVE PROTOCOL
-                    </span>
-                    <span className="text-[#1a2824]">|</span>
-                    <span className="text-[10px] font-mono text-neutral-400">
-                      WEEK {String(currentWeek).padStart(2, '0')} OF {totalWeeks}
-                    </span>
-                    <span className="text-[#1a2824]">|</span>
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider flex items-center gap-1.5 ${integrityConfig.badgeClass}`}
+            {/* "Running Late?" Quick Intraday Shift Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsShiftDropdownOpen((prev) => !prev)}
+                disabled={shiftLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-neutral-300 transition-colors cursor-pointer"
+              >
+                <FastForward className="w-3.5 h-3.5 text-amber-400" />
+                <span>Running Late?</span>
+                <ChevronDown className="w-3 h-3 text-neutral-500" />
+              </button>
+
+              {isShiftDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#0c120f] border border-white/10 shadow-2xl p-1.5 z-40 space-y-0.5">
+                  <div className="px-2.5 py-1 text-[10px] font-mono text-neutral-500 uppercase tracking-wider">
+                    Push Day (Zero Debt)
+                  </div>
+                  {[
+                    { label: '+15 minutes', mins: 15 },
+                    { label: '+30 minutes', mins: 30 },
+                    { label: '+45 minutes', mins: 45 },
+                    { label: '+60 minutes', mins: 60 },
+                  ].map((s) => (
+                    <button
+                      key={s.mins}
+                      onClick={() => handleIntradayShift(s.mins)}
+                      className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono text-neutral-300 hover:bg-white/5 hover:text-[#07CB6C] transition-colors"
                     >
-                      {integrityConfig.icon}
-                      <span>[{integrityConfig.label}]</span>
-                    </span>
-                    {adaptiveData.confidenceLevel && (
-                      <span className="px-2 py-0.5 rounded bg-[#0d1412] border border-[#1a2824] text-[10px] font-mono text-neutral-300 font-medium">
-                        CONFIDENCE: {adaptiveData.confidenceLevel}
-                      </span>
-                    )}
-                  </div>
-
-                  <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                    {adaptiveData.outcomeStatement || activeUserGoal.goal_catalog?.title || 'Execution Protocol'}
-                  </h1>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsWeeklyReviewOpen(true)}
-                    className="min-h-[44px] px-3.5 py-2 rounded-md bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer"
-                    title="Open Weekly Strategic Review"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-sky-400" />
-                    <span>Weekly Review</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsOutcomeGateOpen(true)}
-                    className="min-h-[44px] px-3.5 py-2 rounded-md bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer"
-                    title="Verify Outcome Gate Readiness"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />
-                    <span>Outcome Gate</span>
-                  </button>
-                  <div className="p-2.5 px-3 rounded-md bg-[#0d1412] border border-[#1a2824] text-right hidden sm:block">
-                    <span className="text-[9px] font-mono uppercase text-neutral-400 block">
-                      DYNAMIC FORECAST
-                    </span>
-                    <span className="text-xs font-mono font-bold text-emerald-400">
-                      {adaptiveData.projectedCompletionWindow || 'Day 87–91'}
-                    </span>
-                  </div>
-                  <Link
-                    to="/progress"
-                    className="min-h-[44px] px-3.5 py-2 rounded-md bg-[#0d1412] hover:bg-[#131f1b] text-neutral-300 hover:text-white border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-mono flex items-center gap-1.5 transition-all"
-                  >
-                    <span>Capabilities</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Capability State DAG Mini-Pipeline */}
-              {capabilitiesList.length > 0 && (
-                <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-[10px] uppercase text-neutral-400 tracking-wider flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-[#07CB6C]" />
-                      CAPABILITY STATE TRANSITIONS ({verifiedCapsCount}/{totalCapsCount} VERIFIED)
-                    </span>
-                    <span className="text-[#07CB6C] font-semibold">{verifiedProgressPct}% MASTERY</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    {capabilitiesList.map((cap) => {
-                      const stateCfg = STATE_CONFIG[cap.state] || STATE_CONFIG.UNTESTED;
-                      const isBottleneck = adaptiveData.activeBottleneck?.id === cap.id;
-                      return (
-                        <div
-                          key={cap.id}
-                          className={`p-2.5 rounded border transition-all ${stateCfg.bgClass} ${stateCfg.borderClass} ${
-                            isBottleneck ? 'ring-1 ring-amber-500/50' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-1.5 mb-1">
-                            <span className="text-xs font-semibold text-white truncate">{cap.name}</span>
-                            <span
-                              className={`text-[9px] font-mono px-1.5 py-0.2 rounded border uppercase ${stateCfg.textClass} ${stateCfg.borderClass}`}
-                            >
-                              {stateCfg.label}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-neutral-400 line-clamp-1">{cap.description}</p>
-                          {isBottleneck && (
-                            <span className="text-[9px] font-mono text-amber-400 font-bold uppercase tracking-wider block mt-1">
-                              ⚡ ACTIVE BOTTLENECK
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* ---------------------------------------------------- */}
-            {/* 1. HERO WORKBENCH HEADER ("DAILY ACTION // MVD")      */}
-            {/* ---------------------------------------------------- */}
-            {adaptiveData.todayAction ? (
-              <div className="p-5 sm:p-6 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-5">
-                {/* Micro-Header Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1a2824] pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
-                      DAILY WORKBENCH // MINIMUM VIABLE DAY
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono text-neutral-400">{formattedToday}</span>
-                    <span className="px-2 py-0.5 rounded bg-[#0d1412] border border-[#1a2824] text-[10px] font-mono text-neutral-300 font-medium uppercase">
-                      {adaptiveData.todayAction.priorityTier === 1
-                        ? '[TIER 1 CRITICAL]'
-                        : adaptiveData.todayAction.priorityTier === 2
-                        ? '[TIER 2 SUPPORTIVE]'
-                        : '[TIER 3 BUFFER]'}
-                    </span>
-                  </div>
+            {/* Subtle Options Dropdown (Reflection / Discard) */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsOptionsOpen((prev) => !prev)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                title="Options"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+
+              {isOptionsOpen && (
+                <div className="absolute right-0 mt-2 w-44 rounded-xl bg-[#0c120f] border border-white/10 shadow-2xl p-1.5 z-40 space-y-0.5">
+                  <button
+                    onClick={() => {
+                      setIsOptionsOpen(false);
+                      setIsWeeklyReviewOpen(true);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-neutral-300 hover:bg-white/5 transition-colors"
+                  >
+                    Weekly Reflection
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsOptionsOpen(false);
+                      setIsDiscardModalOpen(true);
+                    }}
+                    className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-rose-400 hover:bg-rose-950/30 transition-colors"
+                  >
+                    Change / Reset Ambition
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── HERO ACTION CARD: What Should I Do Right Now? ─── */}
+        {nextAmbitionDose ? (
+          <div className="p-6 sm:p-7 rounded-2xl bg-gradient-to-br from-[#0c1410] to-[#080d0b] border border-[#07CB6C]/30 shadow-[0_0_35px_rgba(7,203,108,0.08)] relative overflow-hidden">
+            <div className="absolute -right-12 -top-12 w-48 h-48 bg-[#07CB6C]/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
+                  <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#07CB6C]">
+                    Today's Focus
+                  </span>
+                  <span className="text-neutral-600">•</span>
+                  <span className="text-xs font-mono text-neutral-400">
+                    {nextAmbitionDose.start_time} – {nextAmbitionDose.end_time}
+                  </span>
                 </div>
 
-                {/* Session Main Presentation & Focus Timer */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                  {/* Left Details */}
-                  <div className="space-y-3 min-w-0 max-w-2xl">
-                    <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono text-neutral-400">
-                      <span className="flex items-center gap-1.5 text-white font-semibold">
-                        <Clock className="w-3.5 h-3.5 text-[#07CB6C]" />
-                        {activeDurationMinutes} MIN DOSE
-                      </span>
-                      <span className="text-[#1a2824]">|</span>
-                      <span className="text-neutral-300">
-                        {selectedDose === 'MVS'
-                          ? 'MINIMUM VIABLE SESSION'
-                          : selectedDose === 'REDUCED'
-                          ? 'REDUCED CAPACITY DOSE'
-                          : 'STANDARD CALIBRATION DOSE'}
-                      </span>
-                    </div>
-
-                    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                      {adaptiveData.todayAction.actionName}
-                    </h2>
-
-                    {adaptiveData.todayAction.fallbackOptions && adaptiveData.todayAction.fallbackOptions.length > 0 && (
-                      <p className="text-xs font-mono text-neutral-400 leading-relaxed bg-[#0d1412] p-2.5 rounded border border-[#1a2824]">
-                        <span className="text-amber-400 font-semibold uppercase block mb-0.5">MVS Fallback Option:</span>
-                        {adaptiveData.todayAction.fallbackOptions[0]}
-                      </p>
-                    )}
-
-                    {/* Dose Level Selector Buttons */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider">DOSE:</span>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectDose('STANDARD')}
-                        className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer ${
-                          selectedDose === 'STANDARD'
-                            ? 'bg-[#07CB6C]/20 border border-[#07CB6C] text-[#07CB6C] font-bold'
-                            : 'bg-[#0d1412] border border-[#1a2824] text-neutral-400 hover:text-white'
-                        }`}
-                      >
-                        Standard ({adaptiveData.todayAction.standardDoseMinutes || 45}m)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectDose('REDUCED')}
-                        className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer ${
-                          selectedDose === 'REDUCED'
-                            ? 'bg-amber-500/20 border border-amber-500 text-amber-400 font-bold'
-                            : 'bg-[#0d1412] border border-[#1a2824] text-neutral-400 hover:text-white'
-                        }`}
-                      >
-                        Reduced ({adaptiveData.todayAction.reducedDoseMinutes || 30}m)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectDose('MVS')}
-                        className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer ${
-                          selectedDose === 'MVS'
-                            ? 'bg-sky-500/20 border border-sky-500 text-sky-400 font-bold'
-                            : 'bg-[#0d1412] border border-[#1a2824] text-neutral-400 hover:text-white'
-                        }`}
-                      >
-                        MVS ({adaptiveData.todayAction.mvsDoseMinutes || 15}m)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Right Actions & Focus Module */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
-                    {/* Inline Focus Countdown Mode */}
-                    {isFocusActive ? (
-                      <div className="flex items-center gap-2 bg-[#0d1412] border border-[#07CB6C]/40 px-3.5 py-1.5 rounded-md">
-                        <div className="space-y-0.5 min-w-[70px]">
-                          <span className="text-[9px] font-mono text-neutral-400 uppercase tracking-wider block">
-                            FOCUS REMAINING
-                          </span>
-                          <span className="text-base font-mono font-bold text-[#07CB6C]">
-                            {Math.floor(focusSecondsLeft / 60)
-                              .toString()
-                              .padStart(2, '0')}
-                            :
-                            {(focusSecondsLeft % 60).toString().padStart(2, '0')}
-                          </span>
-                          <div className="w-16 bg-[#080d0b] h-1 rounded-full overflow-hidden border border-[#1a2824]">
-                            <div
-                              className="bg-[#07CB6C] h-full transition-all"
-                              style={{
-                                width: `${
-                                  focusTotalSeconds > 0
-                                    ? Math.min(
-                                        100,
-                                        Math.round(((focusTotalSeconds - focusSecondsLeft) / focusTotalSeconds) * 100)
-                                      )
-                                    : 0
-                                }%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsFocusPaused(!isFocusPaused)}
-                          className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded bg-[#16221e] hover:bg-[#1f332c] text-neutral-200 border border-[#1a2824] transition-colors cursor-pointer"
-                          title={isFocusPaused ? 'Resume Focus' : 'Pause Focus'}
-                        >
-                          {isFocusPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleStopFocus}
-                          className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded bg-[#16221e] hover:bg-[#1f332c] text-neutral-400 hover:text-white border border-[#1a2824] transition-colors cursor-pointer"
-                          title="Reset Focus Timer"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={handleStartFocus}
-                        disabled={actionLoading}
-                        className="min-h-[44px] px-4 py-2 rounded-md bg-[#0d1412] hover:bg-[#16221e] text-[#07CB6C] text-xs font-mono font-semibold border border-[#1a2824] hover:border-[#07CB6C]/40 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-40"
-                      >
-                        <Play className="w-3.5 h-3.5 text-[#07CB6C]" />
-                        <span>START FOCUS</span>
-                      </button>
-                    )}
-
-                    {/* Primary Action: Mark Completed */}
-                    <button
-                      type="button"
-                      onClick={handleMarkCompleted}
-                      disabled={actionLoading}
-                      className="min-h-[44px] px-5 py-2 rounded-md bg-[#07CB6C] hover:bg-[#06b860] active:scale-[0.99] text-[#080d0b] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)] disabled:opacity-40"
-                    >
-                      {actionLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-[#080d0b]" />
-                      ) : (
-                        <Check className="w-4 h-4 stroke-[3]" />
-                      )}
-                      <span>LOG TELEMETRY</span>
-                    </button>
-                  </div>
+                <div className="text-xs font-mono text-neutral-400">
+                  {nextAmbitionDose.allocated_minutes} min
                 </div>
               </div>
-            ) : (
-              /* Serene "Cadence Satisfied for Today" status card */
-              <div className="p-6 sm:p-7 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] shrink-0 mt-0.5">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
-                          DAILY CADENCE // STATUS SATISFIED
-                        </span>
-                        <span className="px-2 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-[10px] font-mono font-bold">
-                          100% NOMINAL
-                        </span>
-                      </div>
-                      <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                        Cadence Satisfied for Today
-                      </h2>
-                      <p className="text-xs font-mono text-neutral-400 max-w-xl leading-relaxed">
-                        No critical-path obligations remaining for today. System trajectory is nominal — rest, review buffer, or continue unassisted practice.
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="p-3.5 rounded-md bg-[#0d1412] border border-[#1a2824] text-xs font-mono space-y-1.5 shrink-0 min-w-[220px]">
-                    <span className="text-[10px] font-mono uppercase text-neutral-400 tracking-wider flex items-center gap-1.5">
-                      <CalendarIcon className="w-3 h-3 text-[#07CB6C]" />
-                      ADAPTIVE TRAJECTORY
-                    </span>
-                    <span className="text-white font-semibold block">
-                      Projected Window: {adaptiveData.projectedCompletionWindow}
-                    </span>
-                    <span className="text-neutral-400 text-[11px] block">
-                      Confidence: {adaptiveData.confidenceLevel}
-                    </span>
-                  </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                  {nextAmbitionDose.title}
+                </h2>
+                {nextAmbitionDose.description && (
+                  <p className="text-xs sm:text-sm text-neutral-400 mt-1 leading-relaxed">
+                    {nextAmbitionDose.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Controls */}
+              <div className="pt-2 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleStartFocus(nextAmbitionDose)}
+                  className="flex items-center gap-2 px-6 py-3 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black font-semibold text-xs tracking-wide shadow-[0_0_20px_rgba(7,203,108,0.2)] transition-all cursor-pointer"
+                >
+                  <Play className="w-4 h-4 fill-black" />
+                  <span>Start Session</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleStartFocus(nextAmbitionDose)}
+                  className="flex items-center gap-1.5 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white font-mono text-xs transition-colors cursor-pointer"
+                  title="Run shorter minimum viable session"
+                >
+                  <Zap className="w-3.5 h-3.5 text-[#07CB6C]" />
+                  <span>Quick {nextAmbitionDose.minimum_viable_minutes || 20}m Version</span>
+                </button>
+
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSkipDose(nextAmbitionDose.id)}
+                    className="px-3 py-2 text-neutral-500 hover:text-neutral-300 text-xs font-mono transition-colors cursor-pointer"
+                  >
+                    Skip Today
+                  </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        ) : allDosesCompletedToday ? (
+          <div className="p-6 rounded-2xl bg-gradient-to-br from-[#0c1410] to-[#080d0b] border border-white/10 text-center space-y-2">
+            <div className="w-10 h-10 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/20 flex items-center justify-center mx-auto text-[#07CB6C]">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg font-bold text-white">
+              All set for today
+            </h2>
+            <p className="text-xs text-neutral-400 max-w-sm mx-auto">
+              You showed up and completed your ambition session. Rest and recharge for tomorrow.
+            </p>
+          </div>
+        ) : null}
+
+        {/* ─── LOWKEY FULL-DAY TIMELINE ─── */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-mono uppercase tracking-wider text-neutral-400">
+              Full Day Rhythm
+            </h3>
+            <span className="text-xs font-mono text-neutral-500">
+              {todaySchedule?.items?.length || 0} events
+            </span>
+          </div>
+
+          <div className="relative pl-6 space-y-3 before:absolute before:left-2 before:top-3 before:bottom-3 before:w-px before:bg-white/10">
+            {/* Morning Wake Boundary */}
+            {lifeStructure && (
+              <div className="relative flex items-center gap-3 text-xs font-mono text-neutral-500">
+                <div className="absolute -left-6 w-4 h-4 rounded-full bg-[#070b09] border border-amber-500/40 flex items-center justify-center">
+                  <Sun className="w-2.5 h-2.5 text-amber-400" />
+                </div>
+                <span>{lifeStructure.wake_time}</span>
+                <span className="text-neutral-600">—</span>
+                <span>Wake Up</span>
               </div>
             )}
 
-            {/* ---------------------------------------------------- */}
-            {/* 2. ADAPTIVE TELEMETRY ROW (3 CARDS)                  */}
-            {/* ---------------------------------------------------- */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Card 1: 90-Day Trajectory & Forecast */}
-              <div className="p-4 sm:p-5 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-                    DYNAMIC FORECAST // HORIZON
-                  </span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${integrityConfig.badgeClass}`}>
-                    {integrityConfig.label}
-                  </span>
-                </div>
+            {/* Scheduled Day Events */}
+            {todaySchedule?.items && todaySchedule.items.length > 0 ? (
+              todaySchedule.items.map((item) => {
+                const isAmbition = item.item_type === 'AMBITION_DOSE';
+                const isCompleted = item.status === 'COMPLETED';
+                const isSkipped = item.status === 'SKIPPED_INTENTIONAL';
 
-                <div className="space-y-1">
-                  <div className="text-2xl font-bold font-mono text-white tracking-tight">
-                    {adaptiveData.projectedCompletionWindow || 'Day 87–91'}
-                  </div>
-                  <div className="text-xs font-mono text-[#07CB6C] font-semibold">
-                    {verifiedCapsCount} / {totalCapsCount} CAPABILITIES UNLOCKED
-                  </div>
-                </div>
-
-                <div className="pt-1 border-t border-[#1a2824] flex items-center justify-between text-[11px] font-mono text-neutral-400">
-                  <span>WEEK {currentWeek} OF {totalWeeks}</span>
-                  <span className="text-neutral-500">NO CATCH-UP DEBT</span>
-                </div>
-              </div>
-
-              {/* Card 2: Reliability Margin & Capacity */}
-              <div className="p-4 sm:p-5 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-                    RELIABILITY MARGIN // HEADROOM
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                      adaptiveData.reliabilityMarginHours > 0
-                        ? 'bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C]'
-                        : 'bg-amber-400/10 border border-amber-400/30 text-amber-400'
+                return (
+                  <div
+                    key={item.id}
+                    className={`relative rounded-xl border transition-all ${
+                      isCompleted ? 'opacity-50' : ''
+                    } ${
+                      isAmbition
+                        ? 'p-4 bg-[#0d1612] border-[#07CB6C]/30 shadow-[0_0_20px_rgba(7,203,108,0.05)]'
+                        : 'p-3.5 bg-white/[0.02] border-white/5 hover:border-white/10'
                     }`}
                   >
-                    {adaptiveData.reliabilityMarginHours > 0 ? '[OPTIMAL]' : '[CONSTRAINED]'}
-                  </span>
-                </div>
+                    {/* Node Dot on Timeline */}
+                    <div
+                      className={`absolute -left-6 top-5 w-2.5 h-2.5 rounded-full -translate-x-[3px] border ${
+                        isCompleted
+                          ? 'bg-[#07CB6C] border-[#07CB6C]'
+                          : isAmbition
+                          ? 'bg-[#07CB6C] border-[#07CB6C] ring-4 ring-[#07CB6C]/20'
+                          : 'bg-neutral-800 border-neutral-600'
+                      }`}
+                    />
 
-                <div className="space-y-1">
-                  <div className="text-2xl font-bold font-mono text-white tracking-tight">
-                    {adaptiveData.reliabilityMarginHours.toFixed(1)}h{' '}
-                    <span className="text-sm font-normal text-neutral-500">BUFFER HEADROOM</span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-neutral-400">
+                            {item.start_time} – {item.end_time}
+                          </span>
+
+                          <span
+                            className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase flex items-center gap-1 ${
+                              isAmbition
+                                ? 'bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20'
+                                : 'bg-white/5 text-neutral-400'
+                            }`}
+                          >
+                            {!isAmbition && getCategoryIcon(item.category)}
+                            <span>{isAmbition ? 'Ambition' : item.category || 'Routine'}</span>
+                          </span>
+                        </div>
+
+                        <div className="text-sm font-semibold text-white">
+                          {item.title}
+                        </div>
+                      </div>
+
+                      {/* Status / Action */}
+                      <div className="shrink-0">
+                        {isCompleted ? (
+                          <div className="flex items-center gap-1 text-xs font-mono text-[#07CB6C]">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Done</span>
+                          </div>
+                        ) : isSkipped ? (
+                          <span className="text-[10px] font-mono text-neutral-500">
+                            Skipped
+                          </span>
+                        ) : isAmbition ? (
+                          <button
+                            type="button"
+                            onClick={() => handleStartFocus(item)}
+                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-[#07CB6C] hover:text-black text-white font-mono text-xs transition-colors cursor-pointer"
+                          >
+                            Focus
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs font-mono text-neutral-300">
-                    Absorbs disruptions without scolding or penalty
-                  </div>
-                </div>
-
-                <div className="pt-1 border-t border-[#1a2824] flex items-center justify-between text-[11px] font-mono text-neutral-400">
-                  <span>STRATEGIC FILTERING</span>
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />
-                </div>
+                );
+              })
+            ) : (
+              <div className="p-4 text-xs font-mono text-neutral-500">
+                No events scheduled for today.
               </div>
+            )}
 
-              {/* Card 3: Latest Adaptive Decision Trace */}
-              <div className="p-4 sm:p-5 rounded-md bg-[#0a0f0d] border border-[#1a2824] space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-                    DECISION TRACE // SYSTEM REASONING
-                  </span>
-                  <span className="text-[10px] font-mono text-neutral-400">TRANSPARENT</span>
+            {/* Night Sleep Boundary */}
+            {lifeStructure && (
+              <div className="relative flex items-center gap-3 text-xs font-mono text-neutral-500 pt-1">
+                <div className="absolute -left-6 w-4 h-4 rounded-full bg-[#070b09] border border-indigo-500/40 flex items-center justify-center">
+                  <Moon className="w-2.5 h-2.5 text-indigo-400" />
                 </div>
-
-                <div className="space-y-1">
-                  <p className="text-xs font-mono text-neutral-300 line-clamp-3 leading-relaxed">
-                    {adaptiveData.latestPlanUpdate || 'Trajectory progressing normally according to plan.'}
-                  </p>
-                </div>
-
-                <div className="pt-1 border-t border-[#1a2824] flex items-center justify-between text-[11px] font-mono text-neutral-400">
-                  <span className="truncate max-w-[200px]">Audited replanning</span>
-                  <Zap className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                </div>
+                <span>{lifeStructure.sleep_time}</span>
+                <span className="text-neutral-600">—</span>
+                <span>Sleep & Recharge</span>
               </div>
-            </div>
-
-            {/* ---------------------------------------------------- */}
-            {/* 3. SCHEDULE & TRAJECTORY AGENDA                     */}
-            {/* ---------------------------------------------------- */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between border-b border-[#1a2824] pb-2.5">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400">
-                  WEEKLY EXECUTION AGENDA // ADAPTIVE TRAJECTORY
-                </span>
-                <span className="text-[10px] font-mono text-neutral-500">
-                  CONTINUOUS ROLLING SCHEDULE
-                </span>
-              </div>
-
-              {/* Condensed Weekly Calendar schedule */}
-              <CalendarView
-                key={refreshTrigger}
-                onlyShowSlippageWhenDrifted={true}
-              />
-            </div>
-
-            {/* Protocol Maintenance & Discard Action */}
-            <div className="pt-6 border-t border-[#1a2824] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="space-y-0.5">
-                <span className="text-[10px] font-mono text-neutral-500 uppercase tracking-wider block">
-                  ACTIVE PROTOCOL LIFECYCLE
-                </span>
-                <p className="text-xs font-mono text-neutral-400">
-                  Enrolled in <strong className="text-neutral-300 font-mono">{activeUserGoal.goal_catalog?.title || 'Goal Protocol'}</strong>. Single active goal policy enforced.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsDiscardModalOpen(true)}
-                className="min-h-[38px] px-3.5 py-1.5 rounded-md bg-[#0d1412] hover:bg-red-950/20 text-neutral-400 hover:text-red-400 border border-[#1a2824] hover:border-red-500/40 text-xs font-mono flex items-center gap-2 transition-colors cursor-pointer"
-              >
-                <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
-                <span>DISCARD PROTOCOL</span>
-              </button>
-            </div>
-
-            {/* Discard Goal Typed Confirmation Modal */}
-            <DiscardGoalModal
-              isOpen={isDiscardModalOpen}
-              goalId={activeUserGoal.id}
-              goalTitle={activeUserGoal.goal_catalog?.title || 'Goal Protocol'}
-              onClose={() => setIsDiscardModalOpen(false)}
-              onSuccess={async () => {
-                setIsDiscardModalOpen(false);
-                setActiveUserGoal(null);
-                setAdaptiveData(null);
-                setActionFeedback({
-                  type: 'success',
-                  message: 'Protocol discarded. Catalog unlocked.',
-                });
-                await loadDashboardData();
-              }}
-            />
+            )}
           </div>
-        ) : error ? (
-          <div className="rounded-md bg-[#0a0f0d] border border-rose-500/40 p-8 text-center text-rose-400 space-y-4 max-w-xl mx-auto">
-            <div className="w-10 h-10 rounded-md bg-rose-500/10 border border-rose-500/30 flex items-center justify-center mx-auto text-rose-400">
-              <AlertCircle className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-white uppercase font-mono">
-                CONNECTION TELEMETRY FAILED
-              </h3>
-              <p className="text-xs font-mono text-neutral-400">{error}</p>
-            </div>
-            <button
-              onClick={loadDashboardData}
-              className="min-h-[44px] px-4 py-2 rounded-md bg-[#0d1412] hover:bg-[#131f1b] text-white text-xs font-mono border border-[#1a2824] transition-colors cursor-pointer"
-            >
-              RETRY TELEMETRY
-            </button>
-          </div>
-        ) : loading ? (
-          <div className="rounded-md bg-[#0a0f0d] border border-[#1a2824] p-16 flex flex-col items-center justify-center text-neutral-400 gap-3">
-            <Loader2 className="w-6 h-6 animate-spin text-[#07CB6C]" />
-            <span className="text-xs font-mono uppercase tracking-wider">
-              RETRIEVING ADAPTIVE DASHBOARD...
-            </span>
-          </div>
-        ) : (
-          /* Empty state: prompt to select goal blueprint from catalog */
-          <div className="rounded-md bg-[#0a0f0d] border border-[#1a2824] p-8 sm:p-12 text-center space-y-6 max-w-2xl mx-auto">
-            <div className="w-12 h-12 rounded-md bg-[#0d1412] border border-[#1a2824] text-[#07CB6C] flex items-center justify-center mx-auto">
-              <Compass className="w-6 h-6" />
-            </div>
-            <div className="space-y-2">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#07CB6C]">
-                ACHIVII EXECUTION ENGINE
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                No Active Goal Plan Initialized
-              </h2>
-              <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto leading-relaxed">
-                Formalize a goal and commit your initial 90-day trajectory to activate adaptive execution.
-              </p>
-            </div>
-
-            <div className="pt-2">
-              <button
-                onClick={() => navigate('/onboarding')}
-                className="min-h-[44px] px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b860] text-[#080d0b] text-xs font-mono font-bold inline-flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)]"
-              >
-                <span>COMMENCE GOAL FORMALIZATION</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Weekly Strategic Review Modal */}
-        {isWeeklyReviewOpen && activeUserGoal && (
-          <WeeklyReflection
-            weekNumber={adaptiveData?.currentWeek || 1}
-            userGoalId={activeUserGoal.id}
-            onResolved={async () => {
-              setIsWeeklyReviewOpen(false);
-              setRefreshTrigger((prev) => prev + 1);
-            }}
-          />
-        )}
-
-        {/* Outcome Gate Verification Modal */}
-        {isOutcomeGateOpen && activeUserGoal && (
-          <GraduationModal
-            userGoalId={activeUserGoal.id}
-            goalTitle={adaptiveData?.outcomeStatement || activeUserGoal.goal_catalog?.title}
-            onResolved={async () => {
-              setIsOutcomeGateOpen(false);
-              setRefreshTrigger((prev) => prev + 1);
-            }}
-          />
-        )}
+        </div>
       </main>
+
+      {/* ─── DEDICATED FULLSCREEN FOCUS MODAL ─── */}
+      {activeFocusDose && (
+        <FullscreenFocusModal
+          isOpen={isFocusModalOpen}
+          item={activeFocusDose}
+          onClose={() => setIsFocusModalOpen(false)}
+          onComplete={handleCompleteSession}
+          onSkip={() => handleSkipDose(activeFocusDose.id)}
+        />
+      )}
+
+      {/* Discard / Change Goal Modal */}
+      {activeUserGoal && (
+        <DiscardGoalModal
+          isOpen={isDiscardModalOpen}
+          goalTitle={activeUserGoal.outcome_statement || activeUserGoal.goal_catalog?.title || 'Ambition Protocol'}
+          onClose={() => setIsDiscardModalOpen(false)}
+          onSuccess={() => {
+            setIsDiscardModalOpen(false);
+            setActiveUserGoal(null);
+            navigate('/onboarding');
+          }}
+        />
+      )}
+
+      {/* Weekly Strategic Review Modal */}
+      {isWeeklyReviewOpen && activeUserGoal && (
+        <WeeklyReflection
+          userGoalId={activeUserGoal.id}
+          weekNumber={1}
+          onResolved={() => {
+            setIsWeeklyReviewOpen(false);
+            setRefreshTrigger((prev) => prev + 1);
+          }}
+        />
+      )}
+
+      {/* Graduation Outcome Gate Modal */}
+      {isOutcomeGateOpen && activeUserGoal && (
+        <GraduationModal
+          userGoalId={activeUserGoal.id}
+          goalTitle={activeUserGoal.outcome_statement || activeUserGoal.goal_catalog?.title}
+          onResolved={() => {
+            setIsOutcomeGateOpen(false);
+            navigate('/onboarding');
+          }}
+        />
+      )}
     </div>
   );
 };

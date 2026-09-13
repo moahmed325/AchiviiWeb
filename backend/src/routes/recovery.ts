@@ -79,9 +79,11 @@ recoveryRouter.post('/action', async (req: Request, res: Response): Promise<void
     const isPersistent = choice === 'scope_reduction';
 
     const replanResult = await replanFromCurrentState(user_goal_id, {
-      primaryCategory: category,
+      triggerReason: `Recovery action requested: ${choice}`,
+      category: category as any,
       details: typeof details === 'string' ? details : `Recovery action requested: ${choice}`,
       isPersistent,
+      proposedAction: choice === 'shrink_week' ? 'COMPRESS' : choice === 'shift_timeline' ? 'EXTEND' : 'REPLACE',
     });
 
     const userFacingExplanation = formatUserFacingExplanation(replanResult.decisionTrace);

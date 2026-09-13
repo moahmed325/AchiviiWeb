@@ -26,6 +26,9 @@ import {
   RescheduleActionType,
   ProofType,
 } from '../lib/adaptive/index.js';
+import { generateMasterPlan } from '../lib/ai/masterPlanningPrompt.js';
+import { getOrCreateLifeStructure } from '../lib/life/lifeStructureEngine.js';
+import { materializeDays } from '../lib/life/dailyScheduler.js';
 
 export const adaptiveRouter = Router();
 
@@ -41,7 +44,7 @@ async function resolveGoalId(req: Request, userId: string): Promise<string | nul
 
   const activeGoal = await prisma.userGoal.findFirst({
     where: { user_id: userId, status: 'ACTIVE' },
-    orderBy: { created_at: 'desc' },
+    orderBy: { start_date: 'desc' },
   });
 
   return activeGoal ? activeGoal.id : null;
@@ -93,6 +96,43 @@ adaptiveRouter.post('/goal/formalize', async (req: Request, res: Response): Prom
   }
 });
 
+// 1.5 POST /api/adaptive/master-plan/preview
+adaptiveRouter.post('/master-plan/preview', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized. Authentication token required.' });
+      return;
+    }
+
+    const { blueprintId, questionnaireAnswers, startDate } = req.body;
+    const blueprint = await prisma.goalCatalog.findUnique({
+      where: { id: blueprintId },
+      include: { phases: true },
+    });
+
+    if (!blueprint) {
+      res.status(404).json({ error: 'Blueprint not found' });
+      return;
+    }
+
+    const lifeStructure = await getOrCreateLifeStructure(user.id);
+    const parsedStartDate = startDate ? new Date(startDate) : new Date();
+
+    const result = await generateMasterPlan({
+      blueprint,
+      answers: questionnaireAnswers || {},
+      lifeStructure,
+      startDate: parsedStartDate,
+    });
+
+    res.status(200).json({ masterPlan: result.plan, rawPrompt: result.rawPrompt });
+  } catch (error: any) {
+    console.error('Error generating master plan preview:', error);
+    res.status(500).json({ error: error.message || 'Failed to preview master plan' });
+  }
+});
+
 // 2. POST /api/adaptive/goal/commit
 adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -113,6 +153,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
       sustainableWeeklyHours = 6.0,
       capabilities,
       availabilitySlots,
+      questionnaireAnswers,
     } = req.body;
 
     if (!outcomeStatement || typeof outcomeStatement !== 'string' || !outcomeStatement.trim()) {
@@ -122,10 +163,14 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
 
     // Resolve or find fallback goal catalog
     let catalogId = goalCatalogId;
-    if (!catalogId) {
-      const existingCatalog = await prisma.goalCatalog.findFirst();
-      if (existingCatalog) {
-        catalogId = existingCatalog.id;
+    let catalogItem: any = null;
+    if (catalogId) {
+      catalogItem = await prisma.goalCatalog.findUnique({ where: { id: catalogId } });
+    }
+    if (!catalogItem) {
+      catalogItem = await prisma.goalCatalog.findFirst();
+      if (catalogItem) {
+        catalogId = catalogItem.id;
       } else {
         const defaultCatalog = await prisma.goalCatalog.create({
           data: {
@@ -137,6 +182,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
           },
         });
         catalogId = defaultCatalog.id;
+        catalogItem = defaultCatalog;
       }
     }
 
@@ -144,6 +190,32 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
     const parsedTargetDate = targetDeadline
       ? new Date(targetDeadline)
       : new Date(parsedStartDate.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    // Fetch user's life structure
+    const lifeStructure = await getOrCreateLifeStructure(user.id);
+
+    // If questionnaireAnswers provided, run master planning engine
+    let masterPlan: any = null;
+    if (questionnaireAnswers && Object.keys(questionnaireAnswers).length > 0) {
+      try {
+        const planResult = await generateMasterPlan({
+          blueprint: catalogItem,
+          answers: questionnaireAnswers,
+          lifeStructure,
+          startDate: parsedStartDate,
+        });
+        masterPlan = planResult.plan;
+      } catch (err) {
+        console.warn('Master planning prompt error, proceeding with baseline:', err);
+      }
+    }
+
+    // Determine count of existing active goals to assign priority rank
+    const existingActiveCount = await prisma.userGoal.count({
+      where: { user_id: user.id, status: 'ACTIVE' },
+    });
+
+    const effectiveWeeklyHours = masterPlan?.weekly_target_hours || Number(sustainableWeeklyHours) || 6.0;
 
     // Create UserGoal record
     const userGoal = await prisma.userGoal.create({
@@ -155,40 +227,64 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
         deadline_type: deadlineType,
         start_date: parsedStartDate,
         target_end_date: parsedTargetDate,
-        sustainable_weekly_capacity_hours: Number(sustainableWeeklyHours) || 6.0,
-        current_med_hours: 4.5,
-        current_reliability_margin_hours: Math.max(0, (Number(sustainableWeeklyHours) || 6.0) - 4.5),
+        sustainable_weekly_capacity_hours: effectiveWeeklyHours,
+        current_med_hours: Math.round(effectiveWeeklyHours * 0.75 * 10) / 10,
+        current_reliability_margin_hours: Math.max(0, Math.round(effectiveWeeklyHours * 0.25 * 10) / 10),
+        priority_rank: existingActiveCount + 1,
         status: 'ACTIVE',
       },
     });
 
     // Build Capability State Graph
     const graph = new CapabilityStateGraph();
-    const capsToCreate =
-      capabilities && capabilities.length > 0
-        ? capabilities
-        : [
-            {
-              name: 'Core Adaptation Baseline',
-              description: 'Fundamental prerequisite capability',
-              tier: 'TIER_1_CRITICAL',
-            },
-            {
-              name: 'Progressive Stimulus Capacity',
-              description: 'Target work capacity expansion',
-              tier: 'TIER_1_CRITICAL',
-            },
-            {
-              name: 'Capstone Destination Mastery',
-              description: outcomeStatement.trim(),
-              tier: 'TIER_1_CRITICAL',
-            },
-          ];
+    let capsToCreate = capabilities && capabilities.length > 0 ? capabilities : null;
+
+    if (!capsToCreate && catalogItem.blueprint_metadata) {
+      try {
+        const meta = typeof catalogItem.blueprint_metadata === 'string'
+          ? JSON.parse(catalogItem.blueprint_metadata)
+          : catalogItem.blueprint_metadata;
+        if (Array.isArray(meta.capability_dag) && meta.capability_dag.length > 0) {
+          capsToCreate = meta.capability_dag.map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            description: d.description,
+            tier: 'TIER_1_CRITICAL',
+            prerequisites: d.prerequisites,
+          }));
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!capsToCreate) {
+      capsToCreate = [
+        {
+          id: 'cap_baseline',
+          name: 'Core Adaptation Baseline',
+          description: 'Fundamental prerequisite capability',
+          tier: 'TIER_1_CRITICAL',
+        },
+        {
+          id: 'cap_stimulus',
+          name: 'Progressive Stimulus Capacity',
+          description: 'Target work capacity expansion',
+          tier: 'TIER_1_CRITICAL',
+        },
+        {
+          id: 'cap_mastery',
+          name: 'Capstone Destination Mastery',
+          description: outcomeStatement.trim(),
+          tier: 'TIER_1_CRITICAL',
+        },
+      ];
+    }
 
     let prevId: string | null = null;
     for (let i = 0; i < capsToCreate.length; i++) {
       const c = capsToCreate[i];
-      const capId = `cap-${Date.now()}-${i}`;
+      const capId = c.id || `cap-${Date.now()}-${i}`;
       graph.addCapability({
         id: capId,
         userGoalId: userGoal.id,
@@ -208,13 +304,17 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
       userGoal.id,
       graph,
       {
-        sustainableWeeklyHours: Number(sustainableWeeklyHours) || 6.0,
-        medHours: 4.5,
-        reliabilityMarginHours: Math.max(0, (Number(sustainableWeeklyHours) || 6.0) - 4.5),
-        maxSessionDurationMinutes: 60,
+        sustainableWeeklyHours: effectiveWeeklyHours,
+        medHours: Math.round(effectiveWeeklyHours * 0.75 * 10) / 10,
+        reliabilityMarginHours: Math.max(0, Math.round(effectiveWeeklyHours * 0.25 * 10) / 10),
+        maxSessionDurationMinutes: masterPlan?.recommended_dose_minutes || 60,
       },
       availabilitySlots || []
     );
+
+    // Materialize next 14 days of Daily Schedule (Routines + Ambition Doses)
+    const endDate14 = new Date(parsedStartDate.getTime() + 14 * 24 * 60 * 60 * 1000);
+    await materializeDays(user.id, parsedStartDate, endDate14, { forceRegenerate: true });
 
     // Materialize Week 1 execution objects
     const week1Items = await prisma.trajectoryItem.findMany({
@@ -241,7 +341,9 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
       trajectoryVersionId: trajectory.id,
       capabilitiesCount: graph.getAllCapabilities().length,
       week1ExecutionObjects,
-      message: 'Goal committed and Trajectory v1 generated successfully.',
+      dailyScheduleMaterialized: true,
+      masterPlan: masterPlan ? { summary: masterPlan.summary, target_date: masterPlan.target_date } : null,
+      message: 'Goal committed, Trajectory v1 generated, and Daily Life Schedule materialized successfully.',
     });
   } catch (error: any) {
     console.error('Error in /api/adaptive/goal/commit:', error);

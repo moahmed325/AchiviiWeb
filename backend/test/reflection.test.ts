@@ -151,13 +151,15 @@ describe('Phase 3 Weekly Reflection (Tasks 2, 3, 4, 5)', () => {
         slippage_days: 0,
         current_plan_day_offset: 0,
         user: { timezone: 'UTC', availability_slots: [] },
+        capabilities: [],
         sessions: [
           {
             id: 's-1',
             scheduled_date: new Date('2026-09-07T08:00:00.000Z'),
             start_time: '08:00',
             end_time: '09:00',
-            status: 'UPCOMING',
+            status: 'MISSED',
+            execution_state: 'MISSED',
             tier: 'core',
           },
           {
@@ -165,7 +167,8 @@ describe('Phase 3 Weekly Reflection (Tasks 2, 3, 4, 5)', () => {
             scheduled_date: new Date('2026-09-08T08:00:00.000Z'),
             start_time: '08:00',
             end_time: '09:00',
-            status: 'UPCOMING',
+            status: 'MISSED',
+            execution_state: 'MISSED',
             tier: 'core',
           },
           {
@@ -173,7 +176,8 @@ describe('Phase 3 Weekly Reflection (Tasks 2, 3, 4, 5)', () => {
             scheduled_date: new Date('2026-09-09T08:00:00.000Z'),
             start_time: '08:00',
             end_time: '09:00',
-            status: 'UPCOMING',
+            status: 'MISSED',
+            execution_state: 'MISSED',
             tier: 'core',
           },
         ],

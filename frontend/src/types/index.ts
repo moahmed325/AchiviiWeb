@@ -33,6 +33,8 @@ export interface GoalCatalog {
   category: string;
   icon: string;
   est_weekly_hours: number;
+  onboarding_questions?: string | null;
+  blueprint_metadata?: string | null;
   created_at: string;
   phases: Phase[];
 }
@@ -62,6 +64,9 @@ export interface UserGoal {
   id: string;
   user_id: string;
   goal_catalog_id: string;
+  outcome_statement?: string;
+  priority_rank?: number;
+  sustainable_weekly_capacity_hours?: number;
   start_date: string;
   target_end_date: string;
   status: 'ACTIVE' | 'COMPLETED' | 'ABANDONED';

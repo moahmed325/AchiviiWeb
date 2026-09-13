@@ -1,5 +1,5 @@
 import { prisma } from './prisma.js';
-import { getPendingRecoveryState } from './recovery.js';
+import { evaluateDeviation } from './adaptive/index.js';
 import { getZonedDateString, getZonedDayBounds } from './timezone.js';
 
 export const DEFAULT_COMPLETION_THRESHOLD = 0.70;
@@ -115,16 +115,20 @@ export async function getPendingWeeklyReflection(
     throw new Error(`UserGoal ${userGoalId} not found`);
   }
 
-  // 1. Check Phase 2 Recovery Precedence (Guardrail 3)
-  // If Tier 2 recovery check-in is pending, recovery takes absolute priority!
-  const recoveryState = await getPendingRecoveryState(userGoalId);
-  if (recoveryState.pending) {
-    return {
-      pending: false,
-      deferred: true,
-      defer_reason: 'RECOVERY_CHECKIN_PENDING',
-      user_goal_id: userGoalId,
-    };
+  // 1. Check Adaptive Diagnostic Precedence
+  // If a material disruption or diagnostic is pending, defer reflection
+  try {
+    const deviation = await evaluateDeviation(userGoalId);
+    if (deviation.severity === 'MATERIAL_DISRUPTION' || deviation.requiresDiagnostic) {
+      return {
+        pending: false,
+        deferred: true,
+        defer_reason: 'RECOVERY_CHECKIN_PENDING',
+        user_goal_id: userGoalId,
+      };
+    }
+  } catch {
+    // proceed if evaluation throws
   }
 
   // 2. Evaluate time elapsed in user's timezone

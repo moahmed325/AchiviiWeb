@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
-import { generateThreeMonthSchedule } from '../lib/scheduler.js';
 import { normalizeTimezone } from '../lib/timezone.js';
 import {
   CapabilityStateGraph,
   persistStateGraph,
   generateInitialTrajectory,
 } from '../lib/adaptive/index.js';
+import { materializeDays } from '../lib/life/dailyScheduler.js';
 
 export const onboardingRouter = Router();
 export const userGoalRouter = Router();
@@ -202,17 +202,8 @@ onboardingRouter.post('/', async (req: Request, res: Response): Promise<void> =>
       };
     });
 
-    // Automatically generate/re-align 12-week schedule upfront (§5)
     let sessionsGenerated = 0;
     if (result.user_goal?.id) {
-      try {
-        sessionsGenerated = await generateThreeMonthSchedule(result.user_goal.id, {
-          preserveCompleted: result.is_adjustment,
-        });
-      } catch (schedErr) {
-        console.warn('Schedule generation/re-alignment warning:', schedErr);
-      }
-
       // Initialize Canonical Adaptive Architecture: Capability State Graph & Trajectory v1
       try {
         const existingCaps = await prisma.goalCapability.count({
@@ -264,6 +255,15 @@ onboardingRouter.post('/', async (req: Request, res: Response): Promise<void> =>
             },
             result.availability_slots || []
           );
+        }
+
+        // Materialize canonical daily schedule projection
+        try {
+          const todayStr = new Date().toISOString().split('T')[0];
+          const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+          await materializeDays(user.id, todayStr, nextWeek);
+        } catch (matErr) {
+          console.warn('Daily schedule materialization warning in onboarding:', matErr);
         }
       } catch (adaptErr) {
         console.warn('Adaptive trajectory initialization warning in onboarding:', adaptErr);

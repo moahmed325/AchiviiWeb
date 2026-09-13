@@ -1,7 +1,7 @@
 import { prisma } from './prisma.js';
 import { getZonedDateString } from './timezone.js';
 import { evaluateGraduationEligibility } from './graduation.js';
-import { getPendingRecoveryState } from './recovery.js';
+import { evaluateDeviation } from './adaptive/index.js';
 import { getPendingWeeklyReflection } from './reflection.js';
 
 export type NotificationType =
@@ -118,19 +118,19 @@ export async function getActiveNotifications(
   const items: NotificationItem[] = [];
   const now = overrideNow || new Date();
 
-  // 1. Recovery Check-in (High Priority) - Frequency cap: 1 per 48h
+  // 1. Diagnostic / Adaptation Check-in (High Priority) - Frequency cap: 1 per 48h
   try {
-    const recoveryState = await getPendingRecoveryState(activeGoal.id);
-    if (recoveryState.pending) {
+    const deviation = await evaluateDeviation(activeGoal.id);
+    if (deviation.severity === 'MATERIAL_DISRUPTION' || deviation.requiresDiagnostic) {
       const cap = checkFrequencyCap(userId, 'recovery_nudge', now);
       if (cap.allowed) {
         items.push({
           id: `rec-${activeGoal.id}`,
           type: 'recovery_nudge',
           title: 'Gentle Pace Calibration Needed',
-          body: `We noticed a few sessions were missed on "${activeGoal.id}". Take 30 seconds to calibrate without guilt or stress.`,
-          cta_url: '/calendar',
-          cta_text: 'Calibrate Schedule',
+          body: deviation.explanation || `Pacing recalibration available for your ambition. Take 30 seconds to calibrate without guilt.`,
+          cta_url: '/progress',
+          cta_text: 'Review Trajectory',
           priority: 'high',
           created_at: now.toISOString(),
         });

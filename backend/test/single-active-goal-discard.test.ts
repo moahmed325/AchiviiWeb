@@ -69,9 +69,9 @@ vi.mock('../src/lib/prisma.js', () => {
   };
 });
 
-// Mock scheduler so onboarding doesn't try to generate schedules in test
-vi.mock('../src/lib/scheduler.js', () => ({
-  generateThreeMonthSchedule: vi.fn().mockResolvedValue(60),
+// Mock daily scheduler so onboarding doesn't try to generate real schedules in test
+vi.mock('../src/lib/life/dailyScheduler.js', () => ({
+  materializeDays: vi.fn().mockResolvedValue({ materializedCount: 7, days: [] }),
 }));
 
 describe('Single Active Goal & Discard Enforcement', () => {

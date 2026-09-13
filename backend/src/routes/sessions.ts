@@ -10,7 +10,9 @@ import {
   generateInitialTrajectory,
   CapabilityStateGraph,
   persistStateGraph,
+  recordSessionTelemetry,
 } from '../lib/adaptive/index.js';
+import { materializeDays } from '../lib/life/dailyScheduler.js';
 
 export const sessionsRouter = Router();
 
@@ -333,10 +335,13 @@ sessionsRouter.post('/generate', async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const sessionCount = await generateThreeMonthSchedule(activeGoal.id);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const nextWeek = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
+    await materializeDays(user.id, todayStr, nextWeek);
+    const sessionCount = await prisma.dailyScheduleItem.count({ where: { user_id: user.id } });
 
     res.status(200).json({
-      message: 'Schedule generated successfully.',
+      message: 'Schedule materialized successfully.',
       sessionCount,
     });
   } catch (error: any) {
@@ -519,6 +524,25 @@ sessionsRouter.patch('/:id', async (req: Request, res: Response): Promise<void> 
         },
       },
     });
+
+    if (status === 'DONE') {
+      if (existingSession.trajectory_item_id) {
+        await prisma.dailyScheduleItem.updateMany({
+          where: { trajectory_item_id: existingSession.trajectory_item_id },
+          data: { status: 'COMPLETED', completed_at: new Date() },
+        });
+      }
+
+      try {
+        await recordSessionTelemetry(existingSession.trajectory_item_id || existingSession.id, {
+          executionState: 'COMPLETED',
+          proofOfWorkText: req.body.notes || 'Completed via Session Schedule',
+          durationMinutes: existingSession.task_template?.session_duration_minutes || 60,
+        });
+      } catch (tErr) {
+        console.warn('Session completion telemetry notice:', tErr);
+      }
+    }
 
     res.status(200).json({
       message: 'Session updated successfully.',

@@ -9,11 +9,11 @@ import { sessionsRouter } from './routes/sessions.js';
 import { progressRouter } from './routes/progress.js';
 import { recoveryRouter } from './routes/recovery.js';
 import { reflectionRouter } from './routes/reflection.js';
-import { roadmapsRouter } from './routes/roadmaps.js';
 import { graduationRouter } from './routes/graduation.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { adaptiveRouter } from './routes/adaptive.js';
+import { lifeRouter } from './routes/life.js';
 
 dotenv.config();
 
@@ -59,12 +59,12 @@ app.use('/api/sessions', sessionsRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/recovery', recoveryRouter);
 app.use('/api/reflection', reflectionRouter);
-app.use('/api/roadmaps', roadmapsRouter);
 app.use('/api/graduation', graduationRouter);
 app.use('/api/profile', graduationRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/adaptive', adaptiveRouter);
+app.use('/api/life', lifeRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 Achivii Backend API running on http://localhost:${PORT}`);

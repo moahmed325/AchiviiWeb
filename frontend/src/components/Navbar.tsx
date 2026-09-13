@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Target, LogOut, Calendar, TrendingUp, LayoutDashboard, ArrowRight } from 'lucide-react';
+import { Target, LogOut, Calendar, LayoutDashboard, ArrowRight } from 'lucide-react';
 
 interface NavbarProps {
   apiStatus: 'online' | 'offline' | 'checking';
@@ -12,9 +12,9 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
   const location = useLocation();
 
   const navLinks = [
-    { name: 'Workbench', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Today', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Schedule', path: '/schedule', icon: Calendar },
-    { name: 'Progress', path: '/progress', icon: TrendingUp },
+    { name: 'Ambitions', path: '/progress', icon: Target },
   ];
 
   return (

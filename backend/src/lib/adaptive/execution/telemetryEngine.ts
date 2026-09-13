@@ -238,6 +238,8 @@ export async function recordExecutionTelemetry(
   };
 }
 
+export const recordSessionTelemetry = recordExecutionTelemetry;
+
 /**
  * Ingests evidence from telemetry into the capability state graph.
  * If proof-of-work or high dose is demonstrated, creates a CapabilityEvidence record,

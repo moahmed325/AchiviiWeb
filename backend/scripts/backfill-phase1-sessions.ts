@@ -1,5 +1,5 @@
 import { PrismaClient, SessionTier } from '@prisma/client';
-import { determineSessionTier } from '../src/lib/scheduler.js';
+import { determineSessionTier } from '../src/lib/timeUtils.js';
 
 export async function backfillLegacySessions(prisma: PrismaClient) {
   console.log('🔄 Starting Phase 1 Session backfill...');

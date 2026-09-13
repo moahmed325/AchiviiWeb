@@ -359,6 +359,7 @@ export interface CommitGoalParams {
     end_time: string;
     label?: string;
   }[];
+  questionnaireAnswers?: Record<string, string>;
 }
 
 export interface RecordSessionTelemetryParams {

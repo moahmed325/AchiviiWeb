@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  validateRoadmapVariant,
-  getDeterministicFallbackRoadmaps,
-  generateRoadmapVariants,
-  type RoadmapVariant,
-  type UserConstraints,
-} from '../src/lib/planner.js';
+  validateMasterPlanOutput,
+  buildDeterministicMasterPlan,
+  type MasterPlanOutput,
+} from '../src/lib/ai/masterPlanningPrompt.js';
 import {
   analyzeWeeklyPerformance,
   type WeeklyAnalysis,
@@ -19,7 +17,7 @@ import {
   generateWeeklyCoachingTakeaway,
   generateCircuitBreakerCoachingMessage,
 } from '../src/lib/coach.js';
-import { generateThreeMonthSchedule, timeToMinutes } from '../src/lib/scheduler.js';
+import { timeToMinutes } from '../src/lib/timeUtils.js';
 import { prisma } from '../src/lib/prisma.js';
 
 // Mock prisma
@@ -56,121 +54,75 @@ describe('Phase 4 AI Layer: Roles & Structured Output', () => {
     vi.clearAllMocks();
   });
 
-  describe('Planner: Constraint Validation & Deterministic Fallbacks', () => {
-    const baseConstraints: UserConstraints = {
-      availableDaysCount: 4,
-      maxSessionDurationMinutes: 90,
-      minSessionDurationMinutes: 30,
-      catalogTitle: 'Fullstack Web Development',
-      phases: [
-        { title: 'Foundation', order: 1, defaultDuration: 60 },
-        { title: 'API Development', order: 2, defaultDuration: 60 },
-      ],
-    };
-
-    it('approves valid roadmap variants within user constraints', () => {
-      const validVariant: RoadmapVariant = {
-        name: 'Steady & Balanced',
-        description: 'Consistent moderate pace',
-        trade_offs: 'Predictable cadence that fits regular schedules.',
-        days_per_week: 3,
-        daily_minutes_variance: 0,
-        phase_emphasis: {
-          Foundation: 1.0,
-          'API Development': 1.0,
-        },
+  describe('Master Planning Engine: Schema Validation & Deterministic Fallbacks', () => {
+    it('approves valid MasterPlanOutput objects adhering to schema', () => {
+      const validPlan: MasterPlanOutput = {
+        summary: '90-Day Full-Stack Web App Execution Protocol',
+        target_date: '2026-12-15',
+        weekly_target_hours: 8,
+        recommended_dose_minutes: 60,
+        minimum_viable_dose_minutes: 25,
+        preferred_window: 'MORNING',
+        energy_requirement: 'HIGH',
+        diagnostic_baseline: 'Demonstrate production deployment and authenticated CRUD',
+        interventions_needed: ['TDD scaffolding', 'Docker orchestration'],
+        phases: [
+          {
+            phase_number: 1,
+            phase_name: 'Core Architecture',
+            focus_description: 'Prerequisites & database schema',
+            items: [
+              {
+                intervention_name: 'Schema definition & migration',
+                standard_duration_minutes: 60,
+                mvs_duration_minutes: 25,
+                planned_week: 1,
+                priority_tier: 'TIER_1_CRITICAL',
+              },
+            ],
+          },
+        ],
       };
 
-      const result = validateRoadmapVariant(validVariant, baseConstraints);
+      const result = validateMasterPlanOutput(validPlan);
       expect(result.valid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('rejects variants whose days_per_week exceeds available days', () => {
-      const invalidVariant: RoadmapVariant = {
-        name: 'Overloaded Sprint',
-        description: 'Too many days',
-        trade_offs: 'High risk of burnout',
-        days_per_week: 5, // Exceeds availableDaysCount: 4
-        daily_minutes_variance: 0,
-        phase_emphasis: { Foundation: 1.0 },
+    it('rejects invalid MasterPlanOutput objects missing required fields', () => {
+      const invalidPlan: any = {
+        summary: 'Incomplete Plan',
       };
 
-      const result = validateRoadmapVariant(invalidVariant, baseConstraints);
+      const result = validateMasterPlanOutput(invalidPlan);
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes('exceeds user\'s available days'))).toBe(true);
+      expect(result.errors.length).toBeGreaterThan(0);
     });
 
-    it('rejects variants whose duration variance breaches session duration cap', () => {
-      const invalidVariant: RoadmapVariant = {
-        name: 'Heavy Sessions',
-        description: 'Too long',
-        trade_offs: 'Requires deep focus',
-        days_per_week: 3,
-        daily_minutes_variance: 40, // 60 + 40 = 100 > 90 cap
-        phase_emphasis: { Foundation: 1.0 },
-      };
-
-      const result = validateRoadmapVariant(invalidVariant, baseConstraints);
-      expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes('exceeds maximum cap'))).toBe(true);
-    });
-
-    it('rejects variants whose duration variance breaches minimum session duration', () => {
-      const invalidVariant: RoadmapVariant = {
-        name: 'Too Short',
-        description: 'Sessions too tiny',
-        trade_offs: 'Hardly enough time to start',
-        days_per_week: 3,
-        daily_minutes_variance: -40, // 60 - 40 = 20 < 30 min
-        phase_emphasis: { Foundation: 1.0 },
-      };
-
-      const result = validateRoadmapVariant(invalidVariant, baseConstraints);
-      expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.includes('below minimum'))).toBe(true);
-    });
-
-    it('generates 3 valid deterministic fallback variants', () => {
-      const fallbacks = getDeterministicFallbackRoadmaps(baseConstraints);
-      expect(fallbacks).toHaveLength(3);
-
-      for (const variant of fallbacks) {
-        const validation = validateRoadmapVariant(variant, baseConstraints);
-        expect(validation.valid).toBe(true);
-        expect(variant.days_per_week).toBeLessThanOrEqual(baseConstraints.availableDaysCount);
-      }
-    });
-
-    it('generates roadmap variants from database goal context without Gemini key', async () => {
-      const mockGoal = {
-        id: 'goal-p1',
-        title: 'Learn Go',
-        user: {
-          availability_slots: [
-            { day_of_week: 1, start_time: '09:00', end_time: '12:00' },
-            { day_of_week: 2, start_time: '09:00', end_time: '12:00' },
-            { day_of_week: 3, start_time: '09:00', end_time: '12:00' },
-            { day_of_week: 4, start_time: '09:00', end_time: '12:00' },
-          ],
+    it('generates a valid deterministic fallback MasterPlan with phases and doses', () => {
+      const fallback = buildDeterministicMasterPlan({
+        blueprint: {
+          id: 'test-bp',
+          title: 'Fullstack Web Development',
+          est_weekly_hours: 8,
         },
-        goal_catalog: {
-          title: 'Learn Go',
-          phases: [
-            {
-              title: 'Basics',
-              phase_order: 1,
-              task_templates: [{ estimated_duration_minutes: 60 }],
-            },
-          ],
+        answers: {
+          q_baseline: 'Intermediate JavaScript',
+          q_weekly_ceiling: '8 hours',
         },
-      };
+        lifeStructure: {
+          wake_time: '07:00',
+          sleep_time: '23:00',
+          buffer_minutes: 15,
+          schedule_reliability: 'HIGH',
+        },
+      });
 
-      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
-
-      const variants = await generateRoadmapVariants('goal-p1');
-      expect(variants).toHaveLength(3);
-      expect(variants[0].name).toBe('Steady & Balanced');
+      const validation = validateMasterPlanOutput(fallback);
+      expect(validation.valid).toBe(true);
+      expect(fallback.phases.length).toBeGreaterThan(0);
+      expect(fallback.weekly_target_hours).toBe(8);
+      expect(fallback.recommended_dose_minutes).toBeGreaterThan(0);
     });
   });
 
@@ -269,95 +221,6 @@ describe('Phase 4 AI Layer: Roles & Structured Output', () => {
       expect(message.length).toBeGreaterThan(20);
       expect(message.toLowerCase()).not.toContain('failed');
       expect(message.toLowerCase()).not.toContain('lazy');
-    });
-  });
-
-  describe('Scheduler: Consumes Chosen Roadmap Parameters', () => {
-    it('applies daily_minutes_variance and days_per_week from roadmap', async () => {
-      const mockGoal = {
-        id: 'goal-road-1',
-        title: 'Learn Rust',
-        target_hours: 30,
-        start_date: new Date('2026-03-01T00:00:00.000Z'),
-        end_date: new Date('2026-05-31T00:00:00.000Z'),
-        selected_roadmap_id: 'road-speedy',
-        current_plan_day_offset: 0,
-        user: {
-          timezone: 'UTC',
-          availability_slots: [
-            { day_of_week: 1, start_time: '09:00', end_time: '12:00' }, // Monday
-            { day_of_week: 2, start_time: '09:00', end_time: '12:00' }, // Tuesday
-            { day_of_week: 3, start_time: '09:00', end_time: '12:00' }, // Wednesday
-            { day_of_week: 4, start_time: '09:00', end_time: '12:00' }, // Thursday
-            { day_of_week: 5, start_time: '09:00', end_time: '12:00' }, // Friday
-          ],
-        },
-        goal_catalog: {
-          title: 'Learn Rust',
-          phases: [
-            {
-              id: 'phase-1',
-              title: 'Phase 1',
-              phase_order: 1,
-              task_templates: [
-                {
-                  id: 'task-template-1',
-                  title: 'Syntax Basics',
-                  sessions_per_week: 3,
-                  session_duration_minutes: 30,
-                  preferred_time_of_day: 'morning',
-                  tier: 'core',
-                  category: 'learn',
-                },
-              ],
-            },
-          ],
-        },
-      };
-
-      const mockRoadmap = {
-        id: 'road-speedy',
-        user_goal_id: 'goal-road-1',
-        roadmap_name: 'Sprint Builder',
-        days_per_week: 3,
-        daily_minutes_variance: 15,
-        phase_emphasis: { Phase1: 1.0 },
-      };
-
-      const mockTasks = [
-        {
-          id: 'task-1',
-          goal_id: 'goal-road-1',
-          title: 'Syntax Basics',
-          phase: 1,
-          order_index: 0,
-          session_duration_minutes: 30,
-          status: 'pending',
-          tier: 'core',
-          category: 'learn',
-        },
-      ];
-
-      (prisma.userGoal.findUnique as any).mockResolvedValue(mockGoal);
-      (prisma.roadmap.findUnique as any).mockResolvedValue(mockRoadmap);
-      (prisma.task.findMany as any).mockResolvedValue(mockTasks);
-      (prisma.busyBlock.findMany as any).mockResolvedValue([]);
-      (prisma.session.deleteMany as any).mockResolvedValue({ count: 0 });
-
-      let createdSessions: any[] = [];
-      (prisma.session.createMany as any).mockImplementation(async ({ data }: any) => {
-        createdSessions = data;
-        return { count: data.length };
-      });
-
-      await generateThreeMonthSchedule('goal-road-1', 'user-123');
-
-      expect(createdSessions.length).toBeGreaterThan(0);
-      // baseline duration was 30. With daily_minutes_variance = 15, duration should be 45
-      const firstSession = createdSessions[0];
-      const durationMinutes = timeToMinutes(firstSession.end_time) - timeToMinutes(firstSession.start_time);
-
-      expect(durationMinutes).toBe(45);
     });
   });
 });

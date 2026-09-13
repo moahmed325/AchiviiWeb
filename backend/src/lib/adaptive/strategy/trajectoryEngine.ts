@@ -9,7 +9,7 @@ import {
   minutesToTime,
   timeToMinutes,
   TimeInterval,
-} from '../../scheduler.js';
+} from '../../timeUtils.js';
 
 export interface AvailabilitySlotRecord {
   day_of_week: string; // 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN'
@@ -196,10 +196,10 @@ export async function generateInitialTrajectory(
     }
 
     // Link or create TaskTemplate placeholder if needed for DB schema constraint
-    let taskTemplateId = userGoal.selected_roadmap_id;
+    let taskTemplateId: string | null = userGoal.selected_roadmap_id;
     if (!taskTemplateId) {
       const firstTemplate = await prisma.taskTemplate.findFirst();
-      taskTemplateId = firstTemplate?.id;
+      taskTemplateId = firstTemplate?.id || null;
     }
 
     if (taskTemplateId) {

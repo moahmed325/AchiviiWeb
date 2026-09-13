@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/Navbar';
 import { fetchCurrentUserGoal, fetchAggregatedProfile } from '../lib/api';
 import { fetchAdaptiveDashboard } from '../lib/adaptiveApi';
+import { fetchCapacityAudit, CapacityAudit } from '../lib/lifeApi';
 import type {
   AdaptiveDashboardResponse,
   GoalIntegrityStatus,
@@ -21,6 +22,7 @@ import {
   Activity,
   Sparkles,
   Target,
+  Gauge,
 } from 'lucide-react';
 
 const INTEGRITY_CONFIG: Record<
@@ -98,6 +100,7 @@ export const ProgressPage: React.FC = () => {
   const { token } = useAuth();
   const [activeUserGoal, setActiveUserGoal] = useState<UserGoal | null>(null);
   const [adaptiveData, setAdaptiveData] = useState<AdaptiveDashboardResponse | null>(null);
+  const [capacityAudit, setCapacityAudit] = useState<CapacityAudit | null>(null);
   const [profileTelemetry, setProfileTelemetry] = useState<{
     bestWorkingHours: string;
     peakWindow: string;
@@ -115,12 +118,16 @@ export const ProgressPage: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [goalRes, profileRes] = await Promise.all([
+      const [goalRes, profileRes, auditRes] = await Promise.all([
         fetchCurrentUserGoal(token),
         fetchAggregatedProfile(token).catch(() => null),
+        fetchCapacityAudit(token).catch(() => null),
       ]);
 
       setActiveUserGoal(goalRes.user_goal);
+      if (auditRes) {
+        setCapacityAudit(auditRes);
+      }
 
       if (goalRes.user_goal) {
         const adaptRes = await fetchAdaptiveDashboard(token, goalRes.user_goal.id);
@@ -402,6 +409,74 @@ export const ProgressPage: React.FC = () => {
             })}
           </div>
         </div>
+
+        {/* Multi-Ambition Coordination & Life Capacity Limit */}
+        {capacityAudit && (
+          <div className="bg-[#0a0f0d] p-5 sm:p-6 rounded-md border border-[#1a2824] space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#1a2824] pb-2.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5 text-[#07CB6C]" />
+                MULTI-AMBITION COORDINATION // GLOBAL CAPACITY AUDIT
+              </span>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded border font-bold uppercase ${
+                  capacityAudit.is_overloaded
+                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                    : 'bg-[#07CB6C]/10 text-[#07CB6C] border-[#07CB6C]/30'
+                }`}
+              >
+                {capacityAudit.is_overloaded ? 'CAPACITY OVERLOAD DETECTED' : 'CAPACITY WITHIN SAFETY MARGIN'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs font-mono">
+              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
+                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Weekly Free Discretionary</span>
+                <span className="text-base font-bold text-white block mt-1">{capacityAudit.total_weekly_free_hours}h</span>
+                <span className="text-[10px] text-neutral-500 block mt-0.5">Calculated from waking & routines</span>
+              </div>
+
+              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
+                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Committed Ambition Load</span>
+                <span className={`text-base font-bold block mt-1 ${capacityAudit.is_overloaded ? 'text-rose-400' : 'text-[#07CB6C]'}`}>
+                  {capacityAudit.committed_ambition_hours}h
+                </span>
+                <span className="text-[10px] text-neutral-500 block mt-0.5">Across {capacityAudit.active_ambitions_count} active ambition(s)</span>
+              </div>
+
+              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
+                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Safe Ceiling (80% Limit)</span>
+                <span className="text-base font-bold text-white block mt-1">{capacityAudit.safe_capacity_limit_hours}h</span>
+                <span className="text-[10px] text-neutral-500 block mt-0.5">Mandatory 20% slack buffer</span>
+              </div>
+
+              <div className="p-3.5 rounded bg-[#0d1412] border border-[#1a2824]">
+                <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Utilization Ratio</span>
+                <span className={`text-base font-bold block mt-1 ${capacityAudit.is_overloaded ? 'text-rose-400' : 'text-[#07CB6C]'}`}>
+                  {capacityAudit.capacity_utilization_pct}%
+                </span>
+                <span className="text-[10px] text-neutral-500 block mt-0.5">
+                  {capacityAudit.is_overloaded ? 'De-prioritize lower tier' : 'Execution sustainable'}
+                </span>
+              </div>
+            </div>
+
+            {/* Recommendations or Invariant notice */}
+            {capacityAudit.recommendations.length > 0 && (
+              <div className="p-3 rounded bg-amber-500/10 border border-amber-500/20 text-xs font-mono space-y-1">
+                <span className="text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Capacity Coordination Recommendations:
+                </span>
+                <ul className="list-disc list-inside text-neutral-300 space-y-0.5">
+                  {capacityAudit.recommendations.map((rec, i) => (
+                    <li key={i}>{rec}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Continuous Profile Learning Telemetry Section */}
         {profileTelemetry && (
