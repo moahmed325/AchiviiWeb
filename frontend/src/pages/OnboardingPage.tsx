@@ -375,6 +375,17 @@ export const OnboardingPage: React.FC = () => {
     );
   };
 
+  const toggleRoutineDay = (routineId: string, day: string) => {
+    setRoutines((prev) =>
+      prev.map((r) => {
+        if (r.id !== routineId) return r;
+        const hasDay = r.days.includes(day);
+        const newDays = hasDay ? r.days.filter((d) => d !== day) : [...r.days, day];
+        return { ...r, days: newDays };
+      })
+    );
+  };
+
   const removeRoutine = (id: string) => {
     setRoutines((prev) => prev.filter((r) => r.id !== id));
   };
@@ -949,60 +960,87 @@ export const OnboardingPage: React.FC = () => {
                 {routines.map((routine) => (
                   <div
                     key={routine.id}
-                    className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                    className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
                       routine.enabled
                         ? 'bg-white/[0.03] border-white/10'
-                        : 'bg-white/[0.01] border-white/5 opacity-60'
+                        : 'bg-white/[0.01] border-white/5 opacity-50'
                     }`}
                   >
-                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                    <div className="flex items-start gap-3 select-none">
                       <input
                         type="checkbox"
+                        id={`toggle-${routine.id}`}
                         checked={routine.enabled}
                         onChange={() => toggleRoutine(routine.id)}
-                        className="w-4 h-4 accent-[#07CB6C] rounded cursor-pointer"
+                        className="w-4 h-4 accent-[#07CB6C] rounded cursor-pointer mt-1"
                       />
-                      <div className="space-y-0.5">
-                        <div className="text-xs font-semibold text-white flex items-center gap-2">
+                      <div className="space-y-2">
+                        <label
+                          htmlFor={`toggle-${routine.id}`}
+                          className="text-xs font-semibold text-white flex items-center gap-2 cursor-pointer"
+                        >
                           {getCategoryIcon(routine.category)}
                           <span>{routine.title}</span>
-                        </div>
-                        <div className="text-[11px] font-mono text-neutral-500">
-                          {routine.days.join(', ')}
+                        </label>
+
+                        {/* Interactive Day Selector Pills */}
+                        <div className="flex items-center gap-1">
+                          {DAYS_OF_WEEK.map((d) => {
+                            const isSelected = routine.days.includes(d.id);
+                            return (
+                              <button
+                                key={d.id}
+                                type="button"
+                                disabled={!routine.enabled}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  toggleRoutineDay(routine.id, d.id);
+                                }}
+                                className={`w-6 h-6 rounded-md text-[10px] font-mono font-semibold transition-all cursor-pointer ${
+                                  !routine.enabled
+                                    ? 'opacity-30 cursor-not-allowed bg-white/5 text-neutral-600'
+                                    : isSelected
+                                    ? 'bg-[#07CB6C] text-black shadow-sm font-bold'
+                                    : 'bg-white/5 text-neutral-500 hover:text-white hover:bg-white/10'
+                                }`}
+                                title={`${d.id}: Click to toggle`}
+                              >
+                                {d.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
-                    </label>
+                    </div>
 
                     {/* Time editors & delete button */}
-                    <div className="flex items-center gap-2 ml-7 sm:ml-0">
+                    <div className="flex items-center gap-2.5 ml-7 md:ml-0 self-end md:self-center">
                       {routine.enabled && (
-                        <div className="flex items-center gap-1.5 font-mono text-xs text-neutral-300">
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-neutral-300 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
                           <input
                             type="time"
                             value={routine.startTime}
                             onChange={(e) => updateRoutineTime(routine.id, 'startTime', e.target.value)}
-                            className="px-2 py-1 rounded bg-white/5 border border-white/10 text-white outline-none"
+                            className="bg-transparent text-white outline-none cursor-pointer"
                           />
                           <span className="text-neutral-500">–</span>
                           <input
                             type="time"
                             value={routine.endTime}
                             onChange={(e) => updateRoutineTime(routine.id, 'endTime', e.target.value)}
-                            className="px-2 py-1 rounded bg-white/5 border border-white/10 text-white outline-none"
+                            className="bg-transparent text-white outline-none cursor-pointer"
                           />
                         </div>
                       )}
 
-                      {routine.isCustom && (
-                        <button
-                          type="button"
-                          onClick={() => removeRoutine(routine.id)}
-                          className="p-1.5 text-neutral-500 hover:text-rose-400 transition-colors"
-                          title="Remove Commitment"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeRoutine(routine.id)}
+                        className="p-1.5 text-neutral-500 hover:text-rose-400 transition-colors cursor-pointer"
+                        title="Remove Commitment"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))}
