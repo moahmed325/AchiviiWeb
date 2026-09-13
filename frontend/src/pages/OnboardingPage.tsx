@@ -131,6 +131,30 @@ const DAYS_OF_WEEK = [
   { id: 'SUN', label: 'S' },
 ];
 
+export const formatRoutineSummary = (days: string[], startTime: string, endTime: string): string => {
+  const timeStr = `${startTime}–${endTime}`;
+  if (!days || days.length === 0) return `No days set • ${timeStr}`;
+  if (days.length === 7) return `Every day • ${timeStr}`;
+
+  const isWeekdays = days.length === 5 && ['MON', 'TUE', 'WED', 'THU', 'FRI'].every((d) => days.includes(d));
+  if (isWeekdays) return `Mon–Fri • ${timeStr}`;
+
+  const isWeekends = days.length === 2 && ['SAT', 'SUN'].every((d) => days.includes(d));
+  if (isWeekends) return `Weekends • ${timeStr}`;
+
+  const dayLabels: Record<string, string> = {
+    MON: 'Mon',
+    TUE: 'Tue',
+    WED: 'Wed',
+    THU: 'Thu',
+    FRI: 'Fri',
+    SAT: 'Sat',
+    SUN: 'Sun',
+  };
+  const formattedDays = days.map((d) => dayLabels[d] || d).join(', ');
+  return `${formattedDays} • ${timeStr}`;
+};
+
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -274,6 +298,15 @@ export const OnboardingPage: React.FC = () => {
       default:
         return <Clock className="w-3.5 h-3.5 text-neutral-400" />;
     }
+  };
+
+  const formatRoutineSummary = (days: string[], start: string, end: string) => {
+    let dayStr = '';
+    if (days.length === 7) dayStr = 'Every day';
+    else if (days.length === 5 && !days.includes('SAT') && !days.includes('SUN')) dayStr = 'Weekdays';
+    else if (days.length === 2 && days.includes('SAT') && days.includes('SUN')) dayStr = 'Weekends';
+    else dayStr = days.map((d) => d.slice(0, 1) + d.slice(1, 3).toLowerCase()).join(', ');
+    return `${dayStr} • ${start}–${end}`;
   };
 
   // Step 1: Select Goal
@@ -957,66 +990,105 @@ export const OnboardingPage: React.FC = () => {
 
               {/* List of Routines */}
               <div className="space-y-2.5">
-                {routines.map((routine) => (
-                  <div
-                    key={routine.id}
-                    className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-                      routine.enabled
-                        ? 'bg-white/[0.03] border-white/10'
-                        : 'bg-white/[0.01] border-white/5 opacity-50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3 select-none">
-                      <input
-                        type="checkbox"
-                        id={`toggle-${routine.id}`}
-                        checked={routine.enabled}
-                        onChange={() => toggleRoutine(routine.id)}
-                        className="w-4 h-4 accent-[#07CB6C] rounded cursor-pointer mt-1"
-                      />
-                      <div className="space-y-2">
-                        <label
-                          htmlFor={`toggle-${routine.id}`}
-                          className="text-xs font-semibold text-white flex items-center gap-2 cursor-pointer"
-                        >
-                          {getCategoryIcon(routine.category)}
-                          <span>{routine.title}</span>
-                        </label>
-
-                        {/* Interactive Day Selector Pills */}
-                        <div className="flex items-center gap-1">
-                          {DAYS_OF_WEEK.map((d) => {
-                            const isSelected = routine.days.includes(d.id);
-                            return (
-                              <button
-                                key={d.id}
-                                type="button"
-                                disabled={!routine.enabled}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  toggleRoutineDay(routine.id, d.id);
-                                }}
-                                className={`w-6 h-6 rounded-md text-[10px] font-mono font-semibold transition-all cursor-pointer ${
-                                  !routine.enabled
-                                    ? 'opacity-30 cursor-not-allowed bg-white/5 text-neutral-600'
-                                    : isSelected
-                                    ? 'bg-[#07CB6C] text-black shadow-sm font-bold'
-                                    : 'bg-white/5 text-neutral-500 hover:text-white hover:bg-white/10'
-                                }`}
-                                title={`${d.id}: Click to toggle`}
-                              >
-                                {d.label}
-                              </button>
-                            );
-                          })}
+                {routines.map((routine) =>
+                  !routine.enabled ? (
+                    // Inactive Routine: Clean, low-noise 1-line row
+                    <div
+                      key={routine.id}
+                      onClick={() => toggleRoutine(routine.id)}
+                      className="px-4 py-3 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/10 transition-all flex items-center justify-between gap-3 cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3 select-none min-w-0">
+                        <input
+                          type="checkbox"
+                          id={`toggle-${routine.id}`}
+                          checked={false}
+                          onChange={() => toggleRoutine(routine.id)}
+                          className="w-4 h-4 accent-[#07CB6C] rounded cursor-pointer shrink-0 opacity-40 group-hover:opacity-70"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex items-center gap-2.5 truncate">
+                          <span className="text-neutral-500 group-hover:text-neutral-300 transition-colors">
+                            {getCategoryIcon(routine.category)}
+                          </span>
+                          <span className="text-xs font-medium text-neutral-400 group-hover:text-neutral-200 transition-colors truncate">
+                            {routine.title}
+                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Time editors & delete button */}
-                    <div className="flex items-center gap-2.5 ml-7 md:ml-0 self-end md:self-center">
-                      {routine.enabled && (
-                        <div className="flex items-center gap-1.5 font-mono text-xs text-neutral-300 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-[11px] font-mono text-neutral-500 group-hover:text-neutral-400 transition-colors">
+                          {formatRoutineSummary(routine.days, routine.startTime, routine.endTime)}
+                        </span>
+                        {routine.isCustom && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeRoutine(routine.id);
+                            }}
+                            className="p-1 text-neutral-600 hover:text-rose-400 transition-colors cursor-pointer"
+                            title="Remove Commitment"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // Active Routine: Expanded interactive card with Day Selector Pills & Time Inputs
+                    <div
+                      key={routine.id}
+                      className="p-4 rounded-xl border border-[#07CB6C]/30 bg-white/[0.03] shadow-sm transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                    >
+                      <div className="flex items-start gap-3 select-none">
+                        <input
+                          type="checkbox"
+                          id={`toggle-${routine.id}`}
+                          checked={true}
+                          onChange={() => toggleRoutine(routine.id)}
+                          className="w-4 h-4 accent-[#07CB6C] rounded cursor-pointer mt-1"
+                        />
+                        <div className="space-y-2">
+                          <label
+                            htmlFor={`toggle-${routine.id}`}
+                            className="text-xs font-semibold text-white flex items-center gap-2 cursor-pointer"
+                          >
+                            <span className="text-[#07CB6C]">{getCategoryIcon(routine.category)}</span>
+                            <span>{routine.title}</span>
+                          </label>
+
+                          {/* Interactive Day Selector Pills */}
+                          <div className="flex items-center gap-1">
+                            {DAYS_OF_WEEK.map((d) => {
+                              const isSelected = routine.days.includes(d.id);
+                              return (
+                                <button
+                                  key={d.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    toggleRoutineDay(routine.id, d.id);
+                                  }}
+                                  className={`w-6 h-6 rounded-md text-[10px] font-mono font-semibold transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-[#07CB6C] text-black shadow-sm font-bold'
+                                      : 'bg-white/5 text-neutral-500 hover:text-white hover:bg-white/10'
+                                  }`}
+                                  title={`${d.id}: Click to toggle`}
+                                >
+                                  {d.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Time editors & delete button */}
+                      <div className="flex items-center gap-2.5 ml-7 md:ml-0 self-end md:self-center">
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-neutral-300 bg-white/5 px-2.5 py-1 rounded-lg border border-white/10">
                           <input
                             type="time"
                             value={routine.startTime}
@@ -1031,19 +1103,19 @@ export const OnboardingPage: React.FC = () => {
                             className="bg-transparent text-white outline-none cursor-pointer"
                           />
                         </div>
-                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => removeRoutine(routine.id)}
-                        className="p-1.5 text-neutral-500 hover:text-rose-400 transition-colors cursor-pointer"
-                        title="Remove Commitment"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => removeRoutine(routine.id)}
+                          className="p-1.5 text-neutral-500 hover:text-rose-400 transition-colors cursor-pointer"
+                          title="Remove Commitment"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             </div>
 
