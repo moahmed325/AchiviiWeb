@@ -33,8 +33,8 @@ import {
   Sunset, 
   Moon, 
   Briefcase,
-  Zap,
-  Eye
+  Eye,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { SessionDetailModal } from './SessionDetailModal';
 import { DayDetailModal } from './DayDetailModal';
@@ -42,6 +42,7 @@ import { SlippageBanner } from './SlippageBanner';
 import { RecoveryCheckIn } from './RecoveryCheckIn';
 import { WeeklyReflection } from './WeeklyReflection';
 import { GraduationModal } from './GraduationModal';
+import { RoutineSettingsModal } from './RoutineSettingsModal';
 
 const DAY_ORDER: { key: DayOfWeek | 'SUN'; name: string; short: string; jsIndex: number }[] = [
   { key: 'MON', name: 'Monday', short: 'MON', jsIndex: 1 },
@@ -88,6 +89,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     sessions: Session[];
     busySlots: AvailabilitySlot[];
   } | null>(null);
+
+  // Routine Settings Drawer Modal & Missed Prompt State
+  const [isRoutineModalOpen, setIsRoutineModalOpen] = useState<boolean>(false);
+  const [isMissedCardDismissed, setIsMissedCardDismissed] = useState<boolean>(false);
 
   const loadWeek = useCallback(async (offset: number) => {
     if (!token) return;
@@ -425,22 +430,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </h2>
           </div>
 
-          {/* Stepper Controls & Adjust Schedule */}
+          {/* Stepper Controls & Edit Routine */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full md:w-auto justify-between md:justify-end">
             <button
-              id="btn-quick-reschedule"
+              id="btn-edit-routine"
               type="button"
-              onClick={handleTriggerReschedule}
-              disabled={isRescheduling}
-              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
-              title="Reorganize sessions to fit your available time"
+              onClick={() => setIsRoutineModalOpen(true)}
+              className="min-h-[38px] px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Edit waking hours and fixed commitments"
             >
-              {isRescheduling ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#07CB6C]" />
-              ) : (
-                <Zap className="w-3.5 h-3.5 text-[#07CB6C]" />
-              )}
-              <span>Adjust Schedule</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#07CB6C]" />
+              <span>Edit Routine</span>
             </button>
 
             {/* Stepper buttons */}
@@ -507,6 +507,50 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Supportive Contextual Prompt when sessions from earlier in the week were missed */}
+      {!isMissedCardDismissed && (() => {
+        const todayLocal = new Date().toISOString().split('T')[0];
+        const missedSessions = (data.sessions || []).filter((s) => {
+          if (s.status === 'DONE') return false;
+          if (s.status === 'MISSED') return true;
+          const sDate = s.scheduled_date ? s.scheduled_date.split('T')[0] : '';
+          return sDate && sDate < todayLocal;
+        });
+
+        if (missedSessions.length === 0) return null;
+
+        return (
+          <div className="p-4 rounded-2xl bg-amber-400/[0.04] border border-amber-400/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs animate-in fade-in">
+            <div className="flex items-center gap-2.5 text-amber-300">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <span>
+                {missedSessions.length} session{missedSessions.length > 1 ? 's' : ''} from earlier wasn't completed. Achivii absorbs misses without backlog debt.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={async () => {
+                  await handleTriggerReschedule();
+                  setIsMissedCardDismissed(true);
+                }}
+                disabled={isRescheduling}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 font-semibold transition-colors cursor-pointer disabled:opacity-40"
+              >
+                Move to Sunday Buffer
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMissedCardDismissed(true)}
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              >
+                Keep Pace
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 
         7-Day Schedule Grid & Mobile Agenda Stack
@@ -704,6 +748,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         busySlots={selectedDay?.busySlots || []}
         onClose={() => setSelectedDay(null)}
         onSelectSession={(s) => setSelectedSession(s)}
+      />
+
+      {/* Routine Settings Drawer Modal */}
+      <RoutineSettingsModal
+        isOpen={isRoutineModalOpen}
+        onClose={() => setIsRoutineModalOpen(false)}
+        onSaved={() => loadWeek(weekOffset)}
       />
     </div>
   );

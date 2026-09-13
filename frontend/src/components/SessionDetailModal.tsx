@@ -15,9 +15,9 @@ import {
   AlertCircle, 
   Loader2, 
   SkipForward, 
-  ShieldCheck,
   FileText,
   Activity,
+  Calendar,
 } from 'lucide-react';
 
 interface SessionDetailModalProps {
@@ -46,11 +46,11 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Adaptive Telemetry fields
+  // Dose options
   const standardMinutes = session.task_template?.session_duration_minutes || 45;
   const [doseLevel, setDoseLevel] = useState<'STANDARD' | 'REDUCED' | 'MVS'>('STANDARD');
   const [proofText, setProofText] = useState<string>('');
-  const [rpe, setRpe] = useState<number>(7);
+  const rpe = 7;
 
   const activeDuration =
     doseLevel === 'MVS'
@@ -72,7 +72,28 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     }
   };
 
-  // Primary Action: Record Completed Execution Telemetry
+  // Quick Reschedule Helpers
+  const handleMoveToTomorrow = () => {
+    const base = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+    base.setDate(base.getDate() + 1);
+    const y = base.getFullYear();
+    const m = String(base.getMonth() + 1).padStart(2, '0');
+    const d = String(base.getDate()).padStart(2, '0');
+    setDateStr(`${y}-${m}-${d}`);
+  };
+
+  const handleMoveToSunday = () => {
+    const base = dateStr ? new Date(dateStr + 'T12:00:00') : new Date();
+    const day = base.getDay(); // 0 is Sunday
+    const daysUntilSunday = (7 - day) % 7 || 7;
+    base.setDate(base.getDate() + daysUntilSunday);
+    const y = base.getFullYear();
+    const m = String(base.getMonth() + 1).padStart(2, '0');
+    const d = String(base.getDate()).padStart(2, '0');
+    setDateStr(`${y}-${m}-${d}`);
+  };
+
+  // Action: Complete Session
   const handleRecordCompleted = async () => {
     if (!token) return;
     setIsUpdating(true);
@@ -90,30 +111,29 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
         durationMinutes: activeDuration,
       });
 
-      // Check deviation response
       if (res.deviationReport?.requiresDiagnostic) {
-        setNotice('Session recorded. Strategic deviation flagged: Bottleneck capability requires diagnostic alignment.');
+        setNotice('Session recorded. Strategic replan requested.');
         if (onDiagnosisTriggered) {
           setTimeout(() => {
             onDiagnosisTriggered();
           }, 1200);
         }
       } else {
-        setNotice(`Telemetry ingested (${activeDuration}m, ${doseLevel} dose). Trajectory calibrated.`);
+        setNotice(`Session completed (${activeDuration}m). Progress recorded!`);
       }
 
       onSessionUpdated({ ...session, status: 'DONE' });
       setTimeout(() => {
         onClose();
-      }, 1400);
+      }, 1200);
     } catch (err: any) {
-      setError(err.message || 'Failed to record session telemetry.');
+      setError(err.message || 'Failed to record session.');
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Secondary Action: Skip Session & Strategic Filtering
+  // Action: Skip / Miss Session
   const handleSkip = async () => {
     if (!token) return;
     if (!confirmingSkip) {
@@ -131,328 +151,288 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
       });
 
       if (res.deviationReport?.requiresDiagnostic) {
-        setNotice('Material disruption detected: Critical path threatened. Initiating diagnostic replan.');
+        setNotice('Session missed. Schedule adjusting to protect your outcome.');
         if (onDiagnosisTriggered) {
           setTimeout(() => {
             onDiagnosisTriggered();
           }, 1200);
         }
       } else {
-        setNotice('Session missed. Low-impact variance silently absorbed by reliability margin. Zero catch-up debt added.');
+        setNotice('Session marked missed. Absorbed into buffer without backlog debt.');
       }
 
       onSessionUpdated({ ...session, status: 'MISSED' });
       setTimeout(() => {
         onClose();
-      }, 1600);
+      }, 1200);
     } catch (err: any) {
-      setError(err.message || 'Failed to skip session');
+      setError(err.message || 'Failed to update session.');
     } finally {
       setIsUpdating(false);
     }
   };
 
-  // Manual Schedule Override
+  // Action: Save New Date & Time
   const handleSaveTime = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
-
-    if (startTime >= endTime) {
-      setError('End time must be after start time.');
-      return;
-    }
-
     setIsUpdating(true);
     setError(null);
     setNotice(null);
     try {
-      const res = await updateSession(token, session.id, {
-        scheduled_date: new Date(dateStr).toISOString(),
+      const updated = await updateSession(token, session.id, {
+        scheduled_date: new Date(`${dateStr}T12:00:00Z`).toISOString(),
         start_time: startTime,
         end_time: endTime,
+        status: session.status === 'DONE' ? 'DONE' : 'RESCHEDULED',
       });
-      setNotice('Session schedule updated successfully.');
-      onSessionUpdated(res.session);
+      setNotice('Session schedule updated.');
+      onSessionUpdated(updated.session);
+      setTimeout(() => {
+        onClose();
+      }, 800);
     } catch (err: any) {
-      setError(err.message || 'Failed to reschedule session');
+      setError(err.message || 'Failed to update session time.');
     } finally {
       setIsUpdating(false);
     }
   };
 
   const isDone = session.status === 'DONE';
-  const isMissed = session.status === 'MISSED';
   const isRescheduled = session.status === 'RESCHEDULED';
-
-  const sessionTier = session.tier || (
-    session.task_template?.title?.toLowerCase().includes('reflect') ? 'reflect' :
-    isRescheduled ? 'buffer' : 'core'
-  );
+  const sessionTier = (session as any).tier || (session.task_template as any)?.tier || 'core';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      {/* Dim Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      <div className="relative w-full max-w-lg bg-[#0a0f0d] rounded-2xl p-6 sm:p-8 border border-[#1a2824] shadow-2xl z-10 space-y-5 my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg bg-[#0a0f0d] rounded-2xl p-6 sm:p-7 border border-white/10 shadow-2xl z-10 space-y-5 my-auto max-h-[92vh] overflow-y-auto scrollbar-thin">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-[#1a2824] pb-4">
-          <div className="space-y-1.5 min-w-0 pr-6">
+        <div className="flex items-start justify-between gap-3 border-b border-white/5 pb-4">
+          <div className="space-y-1.5 min-w-0 pr-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-mono font-medium uppercase tracking-wider text-neutral-400">
-                SESSION TELEMETRY // {session.task_template?.phase?.title?.split(':')[0] || 'PHASE 1'}
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
+                {sessionTier === 'core' ? 'Core Focus' : sessionTier === 'reflect' ? 'Weekly Review' : 'Buffer Session'}
               </span>
 
-              {/* Explicit Tier Tag */}
-              {sessionTier === 'core' && (
-                <span className="px-1.5 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-[10px] font-mono font-medium tracking-wider">
-                  [TIER 1 CORE]
+              {isDone && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  Completed
                 </span>
               )}
-              {sessionTier === 'buffer' && (
-                <span className="px-1.5 py-0.5 rounded bg-sky-950/40 border border-sky-500/30 text-sky-400 text-[10px] font-mono font-medium tracking-wider">
-                  [TIER 2 SUPPORTIVE]
+              {isRescheduled && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                  Rescheduled
                 </span>
               )}
-              {sessionTier === 'reflect' && (
-                <span className="px-1.5 py-0.5 rounded bg-[#131f1b] border border-[#1a2824] text-neutral-300 text-[10px] font-mono font-medium tracking-wider">
-                  [TIER 3 BUFFER]
-                </span>
-              )}
-
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium uppercase border ${
-                  isDone
-                    ? 'bg-[#07CB6C]/10 text-[#07CB6C] border-[#07CB6C]/30'
-                    : isMissed
-                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                    : isRescheduled
-                    ? 'bg-amber-400/10 text-amber-400 border-amber-400/30'
-                    : 'bg-[#0d1412] text-neutral-400 border-[#1a2824]'
-                }`}
-              >
-                STATUS: {session.status}
-              </span>
             </div>
-            <h3 className="text-lg sm:text-xl font-semibold text-white tracking-tight truncate">
+
+            <h3 className="text-base sm:text-lg font-semibold text-white tracking-tight truncate">
               {session.task_template?.title || 'Execution Session'}
             </h3>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-[#131f1b] transition-colors cursor-pointer shrink-0"
-            title="Close modal"
+            className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer shrink-0"
+            title="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {notice && (
-          <div className="p-3 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs font-mono flex items-start gap-2">
+          <div className="p-3 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] text-xs flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
             <span className="leading-relaxed">{notice}</span>
           </div>
         )}
 
         {error && (
-          <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs font-mono flex items-center gap-2">
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Multi-Dose Telemetry Formulation */}
+        {/* Execution Dose & Completion */}
         {!isDone && (
-          <div className="space-y-4 p-4 rounded-xl bg-[#0d1412] border border-[#1a2824]">
+          <div className="space-y-3.5 p-4 rounded-xl bg-white/[0.02] border border-white/5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-300 flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5 text-[#07CB6C]" />
-                EXECUTION DOSE SELECTION
+                <span>Session Duration</span>
               </span>
-              <span className="text-xs font-mono font-bold text-[#07CB6C]">
-                {activeDuration} MIN ESTIMATED
+              <span className="text-xs font-mono font-medium text-[#07CB6C]">
+                {activeDuration} min target
               </span>
             </div>
 
-            {/* Dose Level Selector */}
+            {/* Dose Selector */}
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setDoseLevel('STANDARD')}
-                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                   doseLevel === 'STANDARD'
-                    ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-white'
-                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-400 hover:text-white'
+                    ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-white shadow-sm'
+                    : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
-                <span className="text-[10px] font-mono uppercase block text-neutral-400">Standard</span>
+                <span className="text-[10px] uppercase block text-neutral-400 font-medium">Standard</span>
                 <span className="text-xs font-bold font-mono">{standardMinutes}m</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setDoseLevel('REDUCED')}
-                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                   doseLevel === 'REDUCED'
-                    ? 'bg-amber-500/15 border-amber-500 text-white'
-                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-400 hover:text-white'
+                    ? 'bg-amber-500/15 border-amber-500 text-white shadow-sm'
+                    : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
-                <span className="text-[10px] font-mono uppercase block text-amber-400">Reduced</span>
+                <span className="text-[10px] uppercase block text-amber-400 font-medium">Reduced</span>
                 <span className="text-xs font-bold font-mono">{Math.max(20, Math.round(standardMinutes * 0.65))}m</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setDoseLevel('MVS')}
-                className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                   doseLevel === 'MVS'
-                    ? 'bg-sky-500/15 border-sky-500 text-white'
-                    : 'bg-[#0a0f0d] border-[#1a2824] text-neutral-400 hover:text-white'
+                    ? 'bg-sky-500/15 border-sky-500 text-white shadow-sm'
+                    : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
-                <span className="text-[10px] font-mono uppercase block text-sky-400">MVS Floor</span>
+                <span className="text-[10px] uppercase block text-sky-400 font-medium">Mini (MVS)</span>
                 <span className="text-xs font-bold font-mono">{Math.max(15, Math.round(standardMinutes * 0.4))}m</span>
               </button>
             </div>
 
-            {/* Proof of Work Text */}
+            {/* Verification Note */}
             <div className="space-y-1">
-              <label className="block text-[10px] font-mono uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
+              <label className="text-[11px] text-neutral-400 flex items-center gap-1.5">
                 <FileText className="w-3 h-3 text-neutral-500" />
-                Proof of Work / Verification Notes (Optional)
+                <span>Notes or Proof (Optional)</span>
               </label>
               <input
                 type="text"
                 value={proofText}
                 onChange={(e) => setProofText(e.target.value)}
-                placeholder="e.g. 5km completed in 24m30s, no pain"
-                className="w-full px-3 py-2 rounded-lg bg-[#0a0f0d] border border-[#1a2824] text-xs font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-[#07CB6C]"
+                placeholder="e.g., Finished module 3, felt good"
+                className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
               />
             </div>
 
-            {/* RPE Rating */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-[10px] font-mono">
-                <span className="text-neutral-400 uppercase tracking-wider">Perceived Exertion (RPE 1–10)</span>
-                <span className="text-[#07CB6C] font-bold">RPE {rpe} / 10</span>
-              </div>
-              <input
-                type="range"
-                min={1}
-                max={10}
-                value={rpe}
-                onChange={(e) => setRpe(Number(e.target.value))}
-                className="w-full accent-[#07CB6C] cursor-pointer"
-              />
-            </div>
-
-            {/* Ingestion Trigger Button */}
+            {/* Complete Button */}
             <button
               type="button"
               onClick={handleRecordCompleted}
               disabled={isUpdating}
-              className="w-full min-h-[44px] px-4 py-2.5 rounded-lg bg-[#07CB6C] hover:bg-[#06b860] active:scale-[0.99] text-[#080d0b] text-xs font-mono font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(7,203,108,0.25)] disabled:opacity-50"
+              className="w-full min-h-[42px] px-4 py-2 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
             >
               {isUpdating ? (
-                <Loader2 className="w-4 h-4 animate-spin text-[#080d0b]" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <CheckCircle2 className="w-4 h-4" />
               )}
-              <span>LOG TELEMETRY & COMPLETE</span>
+              <span>Mark Session Completed</span>
             </button>
           </div>
         )}
 
-        {/* If Already Completed */}
-        {isDone && (
-          <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between">
-            <div className="space-y-0.5">
-              <span className="text-xs font-mono font-bold text-emerald-400 block">
-                TELEMETRY VERIFIED & COMPLETE
-              </span>
-              <p className="text-[11px] font-mono text-neutral-400">
-                Session evidence has been factored into the Capability State Graph.
-              </p>
-            </div>
-            <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0" />
-          </div>
-        )}
-
-        {/* Manual Schedule Override & Skip Action */}
-        <form onSubmit={handleSaveTime} className="space-y-4 pt-2 border-t border-[#1a2824]">
+        {/* Reschedule Section */}
+        <form onSubmit={handleSaveTime} className="space-y-3.5 pt-2 border-t border-white/5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono font-medium uppercase tracking-wider text-neutral-400">
-              SCHEDULE CALIBRATION OVERRIDE
+            <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
+              <span>Reschedule Session</span>
             </span>
-            <div className="flex items-center gap-1.5 text-xs font-mono text-neutral-400">
+            <div className="flex items-center gap-1 text-xs text-neutral-400">
               {getTimeIcon(session.task_template?.preferred_time_of_day)}
               <span className="capitalize">{session.task_template?.preferred_time_of_day || 'Flexible'} slot</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Quick Reschedule Chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-neutral-400">Quick moves:</span>
+            <button
+              type="button"
+              onClick={handleMoveToTomorrow}
+              className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer"
+            >
+              Move to Tomorrow
+            </button>
+            <button
+              type="button"
+              onClick={handleMoveToSunday}
+              className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-neutral-300 hover:text-white transition-colors cursor-pointer"
+            >
+              Move to Sunday Buffer
+            </button>
+          </div>
+
+          {/* Date & Time Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div>
-              <label className="block text-[11px] font-mono text-neutral-400 mb-1">DATE</label>
+              <label className="block text-[11px] text-neutral-400 mb-1">Date</label>
               <input
                 type="date"
                 required
                 value={dateStr}
                 onChange={(e) => setDateStr(e.target.value)}
-                className="w-full min-h-[44px] px-3 py-2 rounded-lg bg-[#0d1412] border border-[#1a2824] text-white text-xs font-mono focus:outline-none focus:border-[#07CB6C] transition-colors"
+                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-[#07CB6C] transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-mono text-neutral-400 mb-1">START TIME</label>
+              <label className="block text-[11px] text-neutral-400 mb-1">Start Time</label>
               <input
                 type="time"
                 required
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full min-h-[44px] px-3 py-2 rounded-lg bg-[#0d1412] border border-[#1a2824] text-white text-xs font-mono focus:outline-none focus:border-[#07CB6C] transition-colors"
+                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-[#07CB6C] transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-mono text-neutral-400 mb-1">END TIME</label>
+              <label className="block text-[11px] text-neutral-400 mb-1">End Time</label>
               <input
                 type="time"
                 required
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full min-h-[44px] px-3 py-2 rounded-lg bg-[#0d1412] border border-[#1a2824] text-white text-xs font-mono focus:outline-none focus:border-[#07CB6C] transition-colors"
+                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-mono focus:outline-none focus:border-[#07CB6C] transition-colors"
               />
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2">
             <button
               id="btn-modal-skip-session"
               type="button"
               onClick={handleSkip}
               disabled={isUpdating || isDone}
-              className={`min-h-[44px] px-4 py-2 rounded-lg text-xs font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 ${
+              className={`px-3.5 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 ${
                 confirmingSkip
                   ? 'bg-rose-500/20 text-rose-400 border border-rose-500/50'
-                  : 'bg-[#0d1412] hover:bg-rose-950/20 text-neutral-400 hover:text-rose-400 border border-[#1a2824] hover:border-rose-500/40'
+                  : 'bg-white/5 hover:bg-rose-950/20 text-neutral-400 hover:text-rose-400 border border-white/10'
               }`}
             >
               <SkipForward className="w-3.5 h-3.5" />
-              <span>{confirmingSkip ? 'CONFIRM SKIP (NO DEBT)?' : 'RECORD MISSED'}</span>
+              <span>{confirmingSkip ? 'Confirm Skip (No Debt)?' : 'Mark as Missed'}</span>
             </button>
 
             <button
               id="btn-modal-save-time"
               type="submit"
               disabled={isUpdating}
-              className="min-h-[44px] px-4 py-2 rounded-lg bg-[#131f1b] hover:bg-[#1c2c26] text-white text-xs font-mono font-medium border border-[#1a2824] hover:border-[#2a3e38] transition-colors cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold border border-white/10 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
-              SAVE SCHEDULE OVERRIDE
+              {isUpdating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>Save New Time</span>
             </button>
           </div>
         </form>
@@ -460,3 +440,5 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
     </div>
   );
 };
+
+export default SessionDetailModal;
