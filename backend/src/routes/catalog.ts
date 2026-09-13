@@ -7,6 +7,13 @@ export const catalogRouter = Router();
 catalogRouter.get('/', async (_req: Request, res: Response): Promise<void> => {
   try {
     const goals = await prisma.goalCatalog.findMany({
+      where: {
+        NOT: [
+          { title: { contains: 'Test' } },
+          { title: { contains: 'Marathon API Blueprint' } },
+          { description: { contains: 'Integration test' } },
+        ],
+      },
       orderBy: { created_at: 'asc' },
       include: {
         phases: {
