@@ -41,7 +41,6 @@ import {
   Dumbbell,
   MoreHorizontal,
   Award,
-  ShieldCheck,
   Plus,
   Sparkles,
   Search,
@@ -376,8 +375,8 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* ─── ELEMENT 3: PAST ACCOMPLISHMENTS & GRADUATION TELEMETRY ─── */}
-          {hasCompletedHistory ? (
+          {/* ─── PAST ACCOMPLISHMENTS & GRADUATION TELEMETRY (If recorded) ─── */}
+          {hasCompletedHistory && (
             <section className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#0d1613] via-[#0f1c17] to-[#0d1613] border border-[#07CB6C]/30 shadow-[0_0_30px_rgba(7,203,108,0.06)] space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/5">
                 <div className="flex items-center gap-3">
@@ -419,28 +418,6 @@ export const Dashboard: React.FC = () => {
                     {profileTelemetry?.lapse_pattern_summary?.total_recovery_events || 0}
                   </span>
                 </div>
-              </div>
-            </section>
-          ) : (
-            <section className="p-5 sm:p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] shrink-0 mt-0.5">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div className="space-y-1">
-                  <h2 className="text-sm sm:text-base font-semibold text-white">Autonomous Adaptive Engine Ready</h2>
-                  <p className="text-xs text-neutral-400 max-w-2xl leading-relaxed">
-                    Zero streak guilt. Every blueprint below is protected by dynamic buffer slots that absorb missed sessions automatically without overwhelming debt.
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <span className="text-[11px] font-mono text-neutral-300 bg-[#0d1412] px-3 py-1.5 rounded-lg border border-[#1a2824]">
-                  BUFFER RESILIENT
-                </span>
-                <span className="text-[11px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-3 py-1.5 rounded-lg border border-[#07CB6C]/20">
-                  READY TO INITIALIZE
-                </span>
               </div>
             </section>
           )}
