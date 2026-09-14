@@ -22,6 +22,14 @@ The onboarding experience in Achivii is engineered for ambitious, busy individua
 * **Bake Failure-Prevention Directly into the Blueprint:**
   The goal blueprint itself must incorporate protective constraints (volume increase caps $\le 8\%$, mandatory vertical slices, built-in recovery buffers). The user does not need to self-diagnose their flaws in an onboarding quiz.
 
+### The Universal "Other" (Custom Write-in) Law:
+* **Every Question Always Features an "Other" Option:**
+  During Step 2 onboarding, every question (premade catalog and custom AI goals alike) automatically includes an `"Other"` option card with an expandable write-in text box.
+* **Zero Rigid Constraints on User Reality:**
+  Users are never trapped in predetermined multiple-choice categories when their baseline, injury history, schedule nuances, or technical background don't fit a standard mold.
+* **Direct Semantic Ingestion by Planning Intelligence:**
+  The user's custom write-in text is stored directly in `questionnaireAnswers` and injected verbatim into Gemini's master planning prompt and deterministic fallbacks. The engine respects their exact words to personalize Phase 1 scaffolding, pacing, and milestone exit criteria.
+
 ---
 
 ## 2. The 3-to-4 Question Blueprint Formula

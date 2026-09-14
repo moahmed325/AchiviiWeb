@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchCatalog, fetchGoalById, fetchCurrentUserGoal } from '../lib/api';
@@ -235,6 +235,9 @@ export const OnboardingPage: React.FC = () => {
 
   // Step 2 Questionnaire State
   const [questionnaireAnswers, setQuestionnaireAnswers] = useState<Record<string, string>>({});
+  const [otherCustomTexts, setOtherCustomTexts] = useState<Record<string, string>>({});
+  const [isOtherActiveMap, setIsOtherActiveMap] = useState<Record<string, boolean>>({});
+  const otherInputRef = useRef<HTMLInputElement>(null);
 
   // Step 3 Life Structure & Routine State
   const [wakeTime, setWakeTime] = useState<string>('07:00');
@@ -409,7 +412,20 @@ export const OnboardingPage: React.FC = () => {
   }, [selectedGoal, isCustomGoalActive, customFormalization]);
 
   const currentQuestion: OnboardingQuestion | undefined = parsedQuestions[currentQuestionIndex];
-  const isCurrentQuestionAnswered = Boolean(currentQuestion && questionnaireAnswers[currentQuestion.id]);
+  const currentAnswer = currentQuestion ? questionnaireAnswers[currentQuestion.id] : undefined;
+  const isOtherSelected = Boolean(
+    currentQuestion && (
+      isOtherActiveMap[currentQuestion.id] ||
+      (currentAnswer && !currentQuestion.options.some((o) => o.value === currentAnswer))
+    )
+  );
+  const isCurrentQuestionAnswered = Boolean(
+    currentQuestion && (
+      isOtherSelected
+        ? Boolean(currentAnswer && currentAnswer.trim().length > 0)
+        : Boolean(currentAnswer)
+    )
+  );
 
   // Goal Icon helper
   const getGoalIcon = (iconName?: string) => {
@@ -569,6 +585,16 @@ export const OnboardingPage: React.FC = () => {
       const opt = q.options.find((o) => o.value === chosenVal);
       if (opt?.recommended_weekly_hours) {
         setWeeklyAvailableHours(opt.recommended_weekly_hours);
+        break;
+      } else if (chosenVal) {
+        const match = chosenVal.match(/(\d+(\.\d+)?)/);
+        if (match) {
+          const num = parseFloat(match[1]);
+          if (!isNaN(num) && num >= 2 && num <= 30) {
+            setWeeklyAvailableHours(num);
+            break;
+          }
+        }
       }
     }
     setStep(3);
@@ -599,14 +625,20 @@ export const OnboardingPage: React.FC = () => {
       } else {
         const num = parseInt(e.key);
         if (!isNaN(num) && num >= 1 && num <= currentQuestion.options.length) {
+          setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: false }));
           handleAnswerQuestion(currentQuestion.id, currentQuestion.options[num - 1].value);
+        } else if (num === currentQuestion.options.length + 1 || e.key.toLowerCase() === 'o') {
+          setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: true }));
+          const existing = otherCustomTexts[currentQuestion.id] || '';
+          handleAnswerQuestion(currentQuestion.id, existing.trim());
+          setTimeout(() => otherInputRef.current?.focus(), 50);
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [step, currentQuestion, isCurrentQuestionAnswered, handlePrevQuestion, handleNextQuestion]);
+  }, [step, currentQuestion, isCurrentQuestionAnswered, handlePrevQuestion, handleNextQuestion, otherCustomTexts]);
 
   // Routine Handlers
   const toggleRoutine = (id: string) => {
@@ -1205,7 +1237,7 @@ export const OnboardingPage: React.FC = () => {
                   Question {currentQuestionIndex + 1} of {parsedQuestions.length}
                 </span>
                 <span className="text-neutral-500 hidden sm:inline">
-                  Press 1–{currentQuestion.options.length} or use keyboard arrows
+                  Press 1–{currentQuestion.options.length + 1} or use keyboard arrows
                 </span>
               </div>
 
@@ -1247,14 +1279,17 @@ export const OnboardingPage: React.FC = () => {
                 {/* Vertical Tactile Options */}
                 <div className="space-y-3 pt-2">
                   {currentQuestion.options.map((opt, optIdx) => {
-                    const isChosen = questionnaireAnswers[currentQuestion.id] === opt.value;
+                    const isChosen = !isOtherSelected && questionnaireAnswers[currentQuestion.id] === opt.value;
                     const keyNumber = optIdx + 1;
 
                     return (
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => handleAnswerQuestion(currentQuestion.id, opt.value)}
+                        onClick={() => {
+                          setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: false }));
+                          handleAnswerQuestion(currentQuestion.id, opt.value);
+                        }}
                         className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-4 active:scale-[0.99] ${
                           isChosen
                             ? 'bg-[#0d1612] border-[#07CB6C] text-white shadow-[0_0_20px_rgba(7,203,108,0.15)] ring-1 ring-[#07CB6C]/40'
@@ -1296,6 +1331,89 @@ export const OnboardingPage: React.FC = () => {
                       </button>
                     );
                   })}
+
+                  {/* Universal "Other" (Custom Write-in) Option Card */}
+                  {(() => {
+                    const otherKeyNumber = currentQuestion.options.length + 1;
+                    const otherVal = otherCustomTexts[currentQuestion.id] ?? (isOtherSelected ? (questionnaireAnswers[currentQuestion.id] || '') : '');
+                    const hasText = Boolean(otherVal.trim());
+
+                    return (
+                      <div
+                        onClick={() => {
+                          setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: true }));
+                          handleAnswerQuestion(currentQuestion.id, otherVal.trim());
+                          setTimeout(() => otherInputRef.current?.focus(), 50);
+                        }}
+                        className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                          isOtherSelected
+                            ? 'bg-[#0d1612] border-[#07CB6C] text-white shadow-[0_0_20px_rgba(7,203,108,0.15)] ring-1 ring-[#07CB6C]/40'
+                            : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] text-neutral-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3.5">
+                            <div
+                              className={`w-6 h-6 rounded-lg text-xs font-mono font-bold flex items-center justify-center shrink-0 border transition-colors ${
+                                isOtherSelected
+                                  ? 'bg-[#07CB6C] text-black border-[#07CB6C]'
+                                  : 'bg-white/5 text-neutral-400 border-white/10'
+                              }`}
+                            >
+                              {otherKeyNumber}
+                            </div>
+
+                            <div className="space-y-0.5">
+                              <div className={`text-sm font-semibold ${isOtherSelected ? 'text-white' : 'text-neutral-200'}`}>
+                                Other
+                              </div>
+                              <p className="text-xs text-neutral-400">
+                                Write your own specific answer
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="shrink-0">
+                            {isOtherSelected && hasText ? (
+                              <div className="w-5 h-5 rounded-full bg-[#07CB6C] text-black flex items-center justify-center">
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              </div>
+                            ) : (
+                              <div className={`w-5 h-5 rounded-full border ${isOtherSelected ? 'border-[#07CB6C]' : 'border-white/10'}`} />
+                            )}
+                          </div>
+                        </div>
+
+                        {isOtherSelected && (
+                          <div className="mt-3 pt-3 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              ref={otherInputRef}
+                              type="text"
+                              value={otherVal}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setOtherCustomTexts((prev) => ({ ...prev, [currentQuestion.id]: val }));
+                                handleAnswerQuestion(currentQuestion.id, val.trim());
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && isCurrentQuestionAnswered) {
+                                  e.preventDefault();
+                                  handleNextQuestion();
+                                }
+                              }}
+                              placeholder="Type your own answer here..."
+                              maxLength={180}
+                              className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C]/40 transition-all shadow-inner"
+                            />
+                            <div className="flex items-center justify-between mt-1.5 px-0.5 text-[11px] text-neutral-400">
+                              <span>Press Enter ↵ to advance</span>
+                              <span>{otherVal.length}/180</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

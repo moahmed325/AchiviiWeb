@@ -162,15 +162,18 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
     return String(val ?? '');
   }
 
-  // Parse weekly hours
+  // Parse weekly hours (handling standard option values or custom "Other" write-in answers)
   let weeklyHours = blueprint.est_weekly_hours || 6;
   for (const key of Object.keys(answers)) {
     const rawVal = answers[key];
     const val = extractAnswerString(rawVal);
-    const num = parseFloat(val);
-    if (!isNaN(num) && num >= 3 && num <= 25) {
-      weeklyHours = num;
-      break;
+    const match = val.match(/(\d+(\.\d+)?)/);
+    if (match) {
+      const num = parseFloat(match[1]);
+      if (!isNaN(num) && num >= 2 && num <= 30) {
+        weeklyHours = num;
+        break;
+      }
     }
   }
 
