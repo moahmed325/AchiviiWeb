@@ -365,3 +365,29 @@ export interface ExecutionItemContract {
 1. **Zero Backlog Debt:** Clicking "Switch to 15m MVS" completes the day at 100%. Tomorrow's schedule never doubles.
 2. **Habit Integrity:** Neural and behavioral momentum remains intact.
 3. **Adaptive Gate Review:** If a user runs MVS continuously for 3+ weeks, the engine does not fail them; at the 4-week gate checkpoint, it smooths Phase 2 pacing to ensure foundational capabilities are verified before scaling volume.
+
+---
+
+## 5.1 The Concise Naming & Card Detail Law
+
+1. **Title Simplicity (2 to 5 Words Max):**
+   - Every task title displayed across the UI (`Dashboard`, `Schedule`, `Calendar`, `Focus Mode`) MUST be simple, clear, and to the point (e.g., *"Scales & Chords"*, *"5K Interval Run"*, *"Grammar Drills"*, *"Drafting Sprint"*).
+   - Never use long compound sentences, robotic prefixes (e.g., *"Core Adaptation Session:"*, *"Consolidation Practice:"*), or generic jargon in titles.
+2. **Rich In-Card Details:**
+   - Detailed step-by-step execution instructions, technical nuances, and preparation guidance MUST be housed inside the card description (`description`), accompanied by `why_this_matters` (ROI rationale) and `mvs_fallback_description` (10-15m micro-task).
+
+---
+
+## 5.2 Routine-Strict & Context-Aware Intelligent Scheduling
+
+1. **Absolute Routine Non-Overlap:**
+   - Ambition doses MUST strictly never be scheduled during user routine blocks (e.g., Work 09:00–17:00, Meals 12:30–13:30, Family 19:00–20:00) or sleeping hours. All tasks are placed strictly within `calculateAvailableWindows` free time.
+2. **Multi-Context Window Scoring (`findOptimalAmbitionWindow`):**
+   - **Preferred Window Match:** Aligns with onboarding questionnaire preference (*Morning*, *Afternoon*, *Evening*).
+   - **Persistent Memory Context:**
+     - *Night Owl / Evening Worker:* Strongly favors evening windows (18:00+ or 20:00+ after dinner), penalizes early morning.
+     - *Early Bird:* Favors morning windows (07:00–08:30 before work), penalizes late night.
+     - *Parent / Caregiver:* Favors post-bedtime windows (20:00+) or early morning.
+     - *9-to-5 Worker:* Strictly outside 09:00–17:00.
+   - **Humane Time Alignment:** Start times align to clean 15-minute intervals (e.g., 07:15, 18:00, 20:00) rather than abrupt transitions.
+

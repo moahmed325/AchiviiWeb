@@ -12,7 +12,16 @@ import {
   persistStateGraph,
   recordSessionTelemetry,
 } from '../lib/adaptive/index.js';
-import { materializeDays } from '../lib/life/dailyScheduler.js';
+import {
+  materializeDays,
+  findOptimalAmbitionWindow,
+  cleanDoseTitle,
+} from '../lib/life/dailyScheduler.js';
+import {
+  calculateAvailableWindows,
+  getOrCreateLifeStructure,
+  minutesToTime,
+} from '../lib/life/lifeStructureEngine.js';
 
 export const sessionsRouter = Router();
 
@@ -118,11 +127,34 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
     const weekStart = new Date(startOfGoal.getTime() + weekOffset * 7 * 24 * 60 * 60 * 1000);
     const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    // Fetch user availability slots
+    // Fetch user life structure (source of truth for routines and waking hours)
+    const lifeStructure = await getOrCreateLifeStructure(user.id);
+
+    // Fetch legacy availability slots or map routine blocks into availability slots
     const availabilitySlots = await prisma.availabilitySlot.findMany({
       where: { user_id: user.id },
       orderBy: [{ day_of_week: 'asc' }, { start_time: 'asc' }],
     });
+
+    const dayKeyMap = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const routineSlots: any[] = [];
+    for (const block of lifeStructure.routine_blocks || []) {
+      try {
+        const days = JSON.parse(block.days_of_week) as number[];
+        for (const d of days) {
+          routineSlots.push({
+            id: `routine-${block.id}-${d}`,
+            day_of_week: dayKeyMap[d],
+            start_time: block.start_time,
+            end_time: block.end_time,
+            label: block.title,
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const effectiveAvailabilitySlots = availabilitySlots.length > 0 ? availabilitySlots : routineSlots;
 
     // CANONICAL SCHEDULE PROJECTION:
     // Project week sessions from active TrajectoryVersion items for this planned week
@@ -149,7 +181,16 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
       }
     }
 
-    const dayKeyMap = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    // Determine user preferred window from blueprint metadata or user memory
+    let prefWindow: 'MORNING' | 'AFTERNOON' | 'EVENING' | undefined;
+    if (activeGoal.goal_catalog?.blueprint_metadata) {
+      try {
+        const meta = typeof activeGoal.goal_catalog.blueprint_metadata === 'string'
+          ? JSON.parse(activeGoal.goal_catalog.blueprint_metadata)
+          : activeGoal.goal_catalog.blueprint_metadata;
+        prefWindow = meta.preferred_window;
+      } catch {}
+    }
 
     for (let i = 0; i < plannedItemsForWeek.length; i++) {
       const item = plannedItemsForWeek[i];
@@ -161,15 +202,34 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
         // Space sessions through week e.g. Mon, Wed, Fri
         const dayOffset = Math.min(6, i * 2);
         const sessionDate = new Date(weekStart.getTime() + dayOffset * 24 * 60 * 60 * 1000);
-        const dayName = dayKeyMap[sessionDate.getDay()];
-        const matchingSlot = availabilitySlots.find((s) => s.day_of_week === dayName);
+        const dateStr = sessionDate.toISOString().split('T')[0];
 
-        const startTime = matchingSlot ? matchingSlot.start_time : '09:00';
-        const [sh, sm] = startTime.split(':').map(Number);
-        const totalMinutes = (sh || 9) * 60 + (sm || 0) + item.standard_duration_minutes;
-        const eh = Math.floor(totalMinutes / 60);
-        const em = totalMinutes % 60;
-        const endTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+        // Calculate true open windows avoiding all routine blocks and sleep boundaries
+        const availableWindows = await calculateAvailableWindows(user.id, dateStr);
+
+        const optimal = findOptimalAmbitionWindow(availableWindows, {
+          nominalMinutes: item.standard_duration_minutes,
+          mvdMinutes: item.mvs_duration_minutes,
+          preferredWindow: prefWindow || (item as any).preferred_window,
+          userMemory: user.user_memory || undefined,
+          energyRequirement: item.priority_tier === 1 ? 'HIGH' : 'MEDIUM',
+        });
+
+        let startTime = '07:30';
+        let endTime = '08:15';
+
+        if (optimal) {
+          startTime = minutesToTime(optimal.startMins);
+          endTime = minutesToTime(optimal.endMins);
+        } else {
+          // Fallback if no window found: place outside standard work hours (e.g. evening or early morning)
+          startTime = prefWindow === 'EVENING' ? '19:30' : '07:30';
+          const [sh, sm] = startTime.split(':').map(Number);
+          const totalMinutes = (sh || 7) * 60 + (sm || 30) + item.standard_duration_minutes;
+          const eh = Math.floor(totalMinutes / 60);
+          const em = totalMinutes % 60;
+          endTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+        }
 
         await prisma.session.create({
           data: {
@@ -211,14 +271,22 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
       ],
     });
 
-    // Decorate sessions with trajectory item intervention details
+    // Decorate sessions with trajectory item intervention details (clean, simple title)
     const itemMap = new Map(activeTrajectory?.items?.map((i) => [i.id, i]) || []);
     for (const s of sessions) {
       if (s.trajectory_item_id && itemMap.has(s.trajectory_item_id)) {
         const item = itemMap.get(s.trajectory_item_id)!;
         if (s.task_template) {
-          s.task_template.title = item.intervention_name;
+          s.task_template.title = cleanDoseTitle(item.intervention_name);
           s.task_template.session_duration_minutes = item.standard_duration_minutes;
+          let detailDesc = (item as any).description || '';
+          if (!detailDesc && Array.isArray(item.fallback_options)) {
+            const whyEntry = item.fallback_options.find((f: any) => typeof f === 'string' && f.startsWith('WHY_THIS_MATTERS: '));
+            if (whyEntry) {
+              detailDesc = whyEntry.replace('WHY_THIS_MATTERS: ', '');
+            }
+          }
+          (s.task_template as any).description = detailDesc;
         }
       }
     }
@@ -266,7 +334,7 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
         goal_integrity_status: activeGoal.goal_integrity_status,
       },
       sessions,
-      availabilitySlots,
+      availabilitySlots: effectiveAvailabilitySlots,
       pendingDiagnosis,
       pendingRecovery: pendingDiagnosis ? { pending: true, user_goal_id: activeGoal.id } : null,
     });

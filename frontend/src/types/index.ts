@@ -11,6 +11,7 @@ export interface TaskTemplate {
   id: string;
   phase_id: string;
   title: string;
+  description?: string | null;
   sessions_per_week: number;
   session_duration_minutes: number;
   preferred_time_of_day?: 'morning' | 'afternoon' | 'evening' | string | null;

@@ -225,9 +225,15 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
               )}
             </div>
 
-            <h3 className="text-base sm:text-lg font-semibold text-white tracking-tight truncate">
+            <h3 className="text-base sm:text-lg font-semibold text-white tracking-tight">
               {session.task_template?.title || 'Execution Session'}
             </h3>
+
+            {session.task_template?.description && (
+              <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                {session.task_template.description}
+              </p>
+            )}
           </div>
 
           <button

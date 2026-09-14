@@ -112,11 +112,19 @@ export async function generateInitialTrajectory(
       const isHighLeverage = sessionIdx === 1;
       const priorityTier = isCritical ? 1 : isHighLeverage ? 2 : 3;
 
+      const cleanCapName = currentCapability.name
+        .replace(/^(Core Adaptation Session|Consolidation Practice|Supportive Continuity):\s*/i, '')
+        .replace(/^(Core|Foundational|Target|Capstone|Prerequisite)\s+/i, '')
+        .replace(/\s+(Prerequisites|Readiness|Baseline|Capacity|Mastery)$/i, '')
+        .trim();
+      const baseName = cleanCapName || 'Core Skill';
+
+      // Keep task names simple, punchy, and to the point (2 to 4 words max)
       const interventionName = isCritical
-        ? `Core Adaptation Session: ${currentCapability.name}`
+        ? `${baseName} Drills`
         : isHighLeverage
-        ? `Consolidation Practice: ${currentCapability.name}`
-        : `Supportive Continuity: ${currentCapability.name}`;
+        ? `${baseName} Practice`
+        : `${baseName} Review`;
 
       const standardMinutes = sessionDuration;
       const reducedMinutes = Math.max(15, Math.round(standardMinutes * 0.65));

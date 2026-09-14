@@ -237,6 +237,12 @@ export const SchedulePage: React.FC = () => {
                                 {item.title}
                               </p>
 
+                              {item.description && (
+                                <p className="text-[11px] text-neutral-400 leading-relaxed line-clamp-2 hover:line-clamp-none transition-all">
+                                  {item.description}
+                                </p>
+                              )}
+
                               {isDose && item.allocated_minutes && (
                                 <div className="text-[10px] text-neutral-400 flex items-center gap-1 pt-0.5">
                                   <Clock className="w-3 h-3 text-[#07CB6C]" />

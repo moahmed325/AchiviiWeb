@@ -840,6 +840,12 @@ export const Dashboard: React.FC = () => {
                         <div className="text-sm font-semibold text-white">
                           {item.title}
                         </div>
+
+                        {item.description && (
+                          <p className="text-xs text-neutral-400 mt-1 leading-relaxed max-w-xl">
+                            {item.description}
+                          </p>
+                        )}
                       </div>
 
                       {/* Status / Action */}

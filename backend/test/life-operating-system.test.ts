@@ -15,13 +15,15 @@ import {
 import {
   materializeDays,
   adaptTodaySchedule,
+  findOptimalAmbitionWindow,
+  cleanDoseTitle,
 } from '../src/lib/life/dailyScheduler';
 import {
   auditUserCapacity,
   updateAmbitionPriorities,
 } from '../src/lib/life/multiAmbitionCoordinator';
 
-describe('Life Operating System: Scenarios K through N', () => {
+describe('Life Operating System: Scenarios K through O', () => {
   const testUserId = `test-life-user-${Date.now()}`;
 
   beforeEach(async () => {
@@ -287,6 +289,86 @@ describe('Life Operating System: Scenarios K through N', () => {
 
       expect(prioritized[0].id).toBe(reorderedIds[0]);
       expect(prioritized[0].priority_rank).toBe(1);
+    });
+  });
+
+  // Scenario O: Simple Task Naming & Routine-Strict Intelligent Window Placement
+  describe('Scenario O: Simple Task Naming & Routine-Strict Intelligent Window Placement', () => {
+    it('generates concise to-the-point task titles (2 to 5 words max) with rich descriptions', () => {
+      // 1. cleanDoseTitle verifies concise punchy naming
+      expect(cleanDoseTitle('Core Adaptation Session: Jazz Piano Fundamentals')).toBe('Jazz Piano Fundamentals');
+      expect(cleanDoseTitle('Consolidation Practice: Aerobic Base Running')).toBe('Aerobic Base Running');
+      expect(cleanDoseTitle('Scales & Chords')).toBe('Scales & Chords');
+
+      // 2. Deterministic plan items verify 2-5 words title and rich description
+      const plan = generateDeterministicMasterPlan({
+        blueprint: {
+          id: 'jazz-piano-blueprint',
+          title: 'Learn to play Jazz piano',
+          est_weekly_hours: 6,
+        },
+        answers: {
+          preferred_time_window: 'evening',
+        },
+        userMemory: 'Night owl, works 9-5',
+      });
+
+      expect(plan.phases.length).toBe(3);
+      for (const phase of plan.phases) {
+        for (const item of phase.items) {
+          const words = item.title.split(/\s+/);
+          expect(words.length).toBeLessThanOrEqual(5);
+          expect(words.length).toBeGreaterThanOrEqual(2);
+          expect(item.description.length).toBeGreaterThan(15);
+          expect(item.why_this_matters).toBeDefined();
+          expect(item.mvs_fallback_description).toBeDefined();
+        }
+      }
+    });
+
+    it('schedules night owl / evening preference strictly into evening open window, never overlapping 9-5 work', () => {
+      // Available windows for a 9-to-5 worker (wake 07:00, sleep 23:00, work 09:00-17:00, dinner 19:00-20:00)
+      const mockWindows = [
+        { start_time: '07:00', end_time: '08:45', duration_minutes: 105, energy: 'HIGH' as const },
+        { start_time: '17:15', end_time: '19:00', duration_minutes: 105, energy: 'MEDIUM' as const },
+        { start_time: '20:15', end_time: '23:00', duration_minutes: 165, energy: 'LOW' as const },
+      ];
+
+      const optimal = findOptimalAmbitionWindow(mockWindows, {
+        nominalMinutes: 45,
+        mvdMinutes: 20,
+        preferredWindow: 'EVENING',
+        userMemory: 'Night owl, works 9-to-5, prefers focus sessions after 8pm',
+      });
+
+      expect(optimal).toBeDefined();
+      expect(optimal?.window.start_time).toBe('20:15');
+      // Starts in the evening (>= 20:00 / 1200 mins)
+      expect(optimal!.startMins).toBeGreaterThanOrEqual(1200);
+      // Finishes before sleep
+      expect(optimal!.endMins).toBeLessThanOrEqual(1380); // <= 23:00
+      // Strictly outside 09:00 - 17:00 (540 to 1020 mins)
+      expect(optimal!.startMins).toBeGreaterThanOrEqual(1020);
+    });
+
+    it('schedules early bird / morning preference strictly into morning open window before 9-5 work', () => {
+      const mockWindows = [
+        { start_time: '07:00', end_time: '08:45', duration_minutes: 105, energy: 'HIGH' as const },
+        { start_time: '17:15', end_time: '19:00', duration_minutes: 105, energy: 'MEDIUM' as const },
+        { start_time: '20:15', end_time: '23:00', duration_minutes: 165, energy: 'LOW' as const },
+      ];
+
+      const optimal = findOptimalAmbitionWindow(mockWindows, {
+        nominalMinutes: 45,
+        mvdMinutes: 20,
+        preferredWindow: 'MORNING',
+        userMemory: 'Early bird, morning runner',
+      });
+
+      expect(optimal).toBeDefined();
+      expect(optimal?.window.start_time).toBe('07:00');
+      // Finishes before work starts (09:00 / 540 mins)
+      expect(optimal!.endMins).toBeLessThanOrEqual(540);
     });
   });
 });

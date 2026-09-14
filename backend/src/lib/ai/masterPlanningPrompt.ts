@@ -199,7 +199,7 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
     }
   }
 
-  // Check preferred window from answers or life routine
+  // Check preferred window from answers, user memory, or life routine
   let prefWindow: 'MORNING' | 'AFTERNOON' | 'EVENING' = meta.preferred_window || 'MORNING';
   for (const [key, rawVal] of Object.entries(answers)) {
     const val = extractAnswerString(rawVal).toLowerCase();
@@ -210,9 +210,36 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
     }
   }
 
+  // Factor in persistent memory signals
+  const memLower = (input.userMemory || '').toLowerCase();
+  if (memLower.includes('night owl') || memLower.includes('evening') || memLower.includes('after work') || memLower.includes('after 8pm') || memLower.includes('after 7pm') || memLower.includes('kids sleep')) {
+    prefWindow = 'EVENING';
+  } else if (memLower.includes('early bird') || memLower.includes('morning person') || memLower.includes('before work') || memLower.includes('at sunrise')) {
+    prefWindow = 'MORNING';
+  }
+
   const energyReq: 'HIGH' | 'MEDIUM' | 'LOW' = meta.energy_requirement || 'HIGH';
   const nominalMinutes = meta.nominal_session_duration_minutes || 60;
   const mvdMinutes = meta.minimum_viable_session_minutes || 25;
+
+  // Clean goal subject for concise task titles (2 to 5 words max)
+  const cleanSubject = blueprint.title
+    .replace(/^(\d+[- ]day|90[- ]day|learn to|learn how to|master|become a|become an|prepare for|run a|run an|start a|build a)\s+/i, '')
+    .replace(/\s+(in 90 days|in 30 days|from scratch)$/i, '')
+    .trim() || blueprint.title;
+
+  function simplifyTitle(rawName: string | undefined, fallback: string): string {
+    if (!rawName) return fallback;
+    const cleaned = rawName
+      .replace(/^(Core Adaptation Session|Consolidation Practice|Supportive Continuity|Targeted Focus Scaffolding):\s*/i, '')
+      .replace(/^(Core|Foundational|Target|Capstone|Prerequisite)\s+/i, '')
+      .replace(/\s+(Prerequisites|Readiness|Baseline|Capacity|Mastery)$/i, '')
+      .trim();
+    const words = cleaned.split(/\s+/);
+    if (words.length <= 5 && words.length >= 2) return cleaned;
+    if (words.length > 5) return words.slice(0, 4).join(' ');
+    return fallback;
+  }
 
   // Interventions identified from answers and interpreted constraints
   const interventions: string[] = [];
@@ -243,8 +270,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
       duration_weeks: 4,
       items: [
         {
-          title: dags[0]?.name || `${blueprint.title} Core Foundation Sprint`,
-          description: dags[0]?.description || 'Master foundational techniques and establish habit anchor',
+          title: simplifyTitle(dags[0]?.name, `${cleanSubject} Foundations`),
+          description: dags[0]?.description || `Master foundational techniques for ${cleanSubject} and establish a consistent habit anchor.`,
           why_this_matters: 'Establishes fundamental neurological and physical adaptation without burnout, building the foundation for Phase 2 volume.',
           mvs_fallback_description: '15-minute low-friction sub-component drill to protect daily streak and neural momentum.',
           target_reps: 3,
@@ -255,8 +282,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
           week_number: 1,
         },
         {
-          title: dags[1]?.name || `${blueprint.title} Progression Drill`,
-          description: dags[1]?.description || 'Expand volume and reinforce consistent execution',
+          title: simplifyTitle(dags[1]?.name, `${cleanSubject} Drills`),
+          description: dags[1]?.description || `Expand volume and reinforce consistent execution of core ${cleanSubject} patterns.`,
           why_this_matters: 'Gradually overloads initial stimulus within safe biological limits to prepare for autonomous execution.',
           mvs_fallback_description: '15-minute core review or targeted technique practice.',
           target_reps: 2,
@@ -275,8 +302,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
       duration_weeks: 4,
       items: [
         {
-          title: dags[2]?.name || `${blueprint.title} Deep Work Interval`,
-          description: dags[2]?.description || 'Complex integration and extended focus practice',
+          title: simplifyTitle(dags[2]?.name, `${cleanSubject} Deep Work`),
+          description: dags[2]?.description || `Complex integration and extended focus practice to eliminate ${cleanSubject} bottlenecks.`,
           why_this_matters: 'Expands sustained work capacity and tackles core integration bottlenecks under progressive overload.',
           mvs_fallback_description: '20-minute focused single-component exercise to maintain momentum.',
           target_reps: 3,
@@ -287,8 +314,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
           week_number: 5,
         },
         {
-          title: dags[3]?.name || `${blueprint.title} Midpoint Benchmark Challenge`,
-          description: dags[3]?.description || 'Midway milestone validation and diagnostic audit',
+          title: simplifyTitle(dags[3]?.name, `${cleanSubject} Benchmark`),
+          description: dags[3]?.description || `Midway milestone validation and diagnostic audit for ${cleanSubject}.`,
           why_this_matters: 'Provides falsifiable mid-term diagnostic feedback before entering the capstone phase.',
           mvs_fallback_description: '15-minute diagnostic self-audit or progress assessment.',
           target_reps: 2,
@@ -307,8 +334,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
       duration_weeks: 4,
       items: [
         {
-          title: dags[4]?.name || `${blueprint.title} Final Stretch Sprint`,
-          description: dags[4]?.description || 'Refine deliverables, eliminate defects, and prepare for finish line',
+          title: simplifyTitle(dags[4]?.name, `${cleanSubject} Peak Sprint`),
+          description: dags[4]?.description || `Refine deliverables, eliminate defects, and prepare for finish line execution of ${cleanSubject}.`,
           why_this_matters: 'Sharpens precision and timing for the final capstone demonstration.',
           mvs_fallback_description: '15-minute rehearsal or checklist inspection.',
           target_reps: 3,
@@ -319,8 +346,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
           week_number: 9,
         },
         {
-          title: `${blueprint.title} Completion & Graduation Milestone`,
-          description: milestones[2]?.exit_criteria || 'Attain final 90-day ambition target and lock in sustained habit',
+          title: `${cleanSubject} Graduation`,
+          description: milestones[2]?.exit_criteria || `Attain final 90-day target outcome for ${cleanSubject} and lock in sustained mastery.`,
           why_this_matters: 'Executes the definitive real-world verification test proving goal completion.',
           mvs_fallback_description: '20-minute capstone rehearsal.',
           target_reps: 2,
@@ -361,6 +388,12 @@ export async function generateMasterPlan(
 
   const systemInstruction = `You are the Lead Master Planning Intelligence for an executive Life + Ambition Operating System.
 Your task is to take a Goal Blueprint, user onboarding answers, and the user's daily life schedule routines, and synthesize a structured 90-day trajectory.
+
+CRITICAL TASK NAMING RULE:
+Task titles ("title") MUST be simple, concise, and to the point (2 to 5 words max, e.g. "Scales & Chords", "5K Interval Run", "Grammar Drills", "Drafting Sprint", "Technique Practice").
+NEVER use long compound sentences, robotic prefixes (e.g. "Core Adaptation Session:", "Consolidation Practice:"), or generic jargon in titles.
+Keep all detailed instructions, step-by-step guidance, and techniques inside the "description" field.
+
 Ensure EVERY single item includes a clear, inspiring "why_this_matters" field and a practical "mvs_fallback_description" micro-task.
 If "User Persistent Memory & Life Context" is provided, adapt all session durations, focus styles, sprint intervals, and recovery buffers to explicitly honor their lifestyle, health, or ADHD/energy patterns.
 Return ONLY valid JSON matching this schema:
@@ -382,8 +415,8 @@ Return ONLY valid JSON matching this schema:
       "duration_weeks": number,
       "items": [
         {
-          "title": "string",
-          "description": "string",
+          "title": "Short, simple, to-the-point task title (2 to 5 words max, e.g. 'Scales & Chords', '5K Interval Run')",
+          "description": "Rich, step-by-step practical instructions for what to do during this focus session",
           "why_this_matters": "Plain English 1-2 sentence explanation of why this specific session matters and its tangible ROI",
           "mvs_fallback_description": "Concrete 10-15 min micro-task if user is completely exhausted or pressed for time",
           "target_reps": number,

@@ -796,7 +796,7 @@ export const OnboardingPage: React.FC = () => {
         startDate: new Date(startDate).toISOString(),
         sustainableWeeklyHours: weeklyAvailableHours,
         capabilities: customFormalization?.capabilityDag,
-        availabilitySlots,
+        availabilitySlots: [],
         questionnaireAnswers,
         interpretedProfile: interpretedProfile || undefined,
         userMemory: userMemory.trim() || undefined,
