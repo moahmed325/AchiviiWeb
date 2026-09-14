@@ -32,9 +32,13 @@ import {
   Sunset, 
   Moon, 
   Briefcase,
+  Dumbbell,
+  Coffee,
+  Heart,
   Eye,
   SlidersHorizontal,
 } from 'lucide-react';
+import { formatTaskTitle } from '../lib/formatters';
 import { SessionDetailModal } from './SessionDetailModal';
 import { DayDetailModal } from './DayDetailModal';
 import { RecoveryCheckIn } from './RecoveryCheckIn';
@@ -247,6 +251,24 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       default:
         return <Clock className="w-3 h-3 text-[#9ca3af]" />;
     }
+  };
+
+  const getBusyIcon = (label?: string | null, category?: string | null, isHappeningNow?: boolean) => {
+    const text = `${label || ''} ${category || ''}`.toLowerCase();
+    const activeColor = isHappeningNow ? 'text-[#07CB6C]' : '';
+    if (text.includes('workout') || text.includes('gym') || text.includes('run') || text.includes('fitness') || text.includes('exercise')) {
+      return <Dumbbell className={`w-3 h-3 shrink-0 ${activeColor || 'text-emerald-400'}`} />;
+    }
+    if (text.includes('lunch') || text.includes('meal') || text.includes('breakfast') || text.includes('coffee') || text.includes('food')) {
+      return <Coffee className={`w-3 h-3 shrink-0 ${activeColor || 'text-amber-400'}`} />;
+    }
+    if (text.includes('dinner') || text.includes('family') || text.includes('personal') || text.includes('kid')) {
+      return <Heart className={`w-3 h-3 shrink-0 ${activeColor || 'text-rose-400'}`} />;
+    }
+    if (text.includes('commute') || text.includes('travel') || text.includes('drive') || text.includes('transit')) {
+      return <Clock className={`w-3 h-3 shrink-0 ${activeColor || 'text-blue-400'}`} />;
+    }
+    return <Briefcase className={`w-3 h-3 shrink-0 ${activeColor || 'text-neutral-500'}`} />;
   };
 
   const getSessionTier = (s: Session): 'core' | 'buffer' | 'reflect' => {
@@ -606,17 +628,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     : 'bg-white/[0.02] border-white/5'
                                 }`}
                               >
-                                <div className="flex items-center gap-1.5 truncate">
-                                  <Briefcase
-                                    className={`w-3 h-3 shrink-0 ${
-                                      isHappeningNow ? 'text-[#07CB6C]' : 'text-neutral-500'
-                                    }`}
-                                  />
-                                  <span className="truncate max-w-[85px]">
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                  {getBusyIcon(item.busy.label, (item.busy as any).category, isHappeningNow)}
+                                  <span
+                                    className="truncate text-[11px]"
+                                    title={item.busy.label || 'Busy'}
+                                  >
                                     {item.busy.label || 'Busy'}
                                   </span>
                                   {isHappeningNow && (
-                                    <span className="text-[9px] font-mono text-[#07CB6C] font-semibold">
+                                    <span className="text-[9px] font-mono text-[#07CB6C] font-semibold shrink-0">
                                       • Now
                                     </span>
                                   )}
@@ -678,13 +699,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     </div>
 
                                     <h4
-                                      className={`text-xs font-semibold leading-snug truncate ${
+                                      title={item.session.task_template?.title || 'Goal Session'}
+                                      className={`text-xs font-semibold leading-tight line-clamp-2 break-words ${
                                         item.session.status === 'DONE'
                                           ? 'line-through text-neutral-500'
                                           : 'text-white'
                                       }`}
                                     >
-                                      {item.session.task_template?.title || 'Goal Session'}
+                                      {formatTaskTitle(item.session.task_template?.title || 'Goal Session')}
                                     </h4>
                                   </div>
 

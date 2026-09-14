@@ -21,6 +21,7 @@ import {
   calculateAvailableWindows,
   getOrCreateLifeStructure,
   minutesToTime,
+  timeToMinutes,
   normalizeDaysOfWeek,
 } from '../lib/life/lifeStructureEngine.js';
 
@@ -149,13 +150,14 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
             start_time: block.start_time,
             end_time: block.end_time,
             label: block.title,
+            category: block.category,
           });
         }
       } catch {
         // ignore
       }
     }
-    const effectiveAvailabilitySlots = availabilitySlots.length > 0 ? availabilitySlots : routineSlots;
+    const effectiveAvailabilitySlots = routineSlots.length > 0 ? routineSlots : availabilitySlots;
 
     // CANONICAL SCHEDULE PROJECTION:
     // Project week sessions from active TrajectoryVersion items for this planned week
@@ -216,17 +218,18 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
           energyRequirement: item.priority_tier === 1 ? 'HIGH' : 'MEDIUM',
         });
 
-        let startTime = '07:30';
-        let endTime = '08:15';
+        const jsDay = sessionDate.getDay();
+        let startTime = jsDay === 0 || jsDay === 6 ? '10:00' : '17:15';
+        let endTime = jsDay === 0 || jsDay === 6 ? '10:45' : '18:00';
 
         if (optimal) {
           startTime = minutesToTime(optimal.startMins);
           endTime = minutesToTime(optimal.endMins);
         } else {
-          // Fallback if no window found: place outside standard work hours (e.g. evening or early morning)
-          startTime = prefWindow === 'EVENING' ? '19:30' : '07:30';
+          // Fallback if no window found: place outside standard work hours (e.g. evening or weekend morning)
+          startTime = prefWindow === 'EVENING' ? '18:30' : (jsDay === 0 || jsDay === 6 ? '10:00' : '17:15');
           const [sh, sm] = startTime.split(':').map(Number);
-          const totalMinutes = (sh || 7) * 60 + (sm || 30) + item.standard_duration_minutes;
+          const totalMinutes = (sh || 17) * 60 + (sm || 15) + item.standard_duration_minutes;
           const eh = Math.floor(totalMinutes / 60);
           const em = totalMinutes % 60;
           endTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
@@ -288,6 +291,57 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
             }
           }
           (s.task_template as any).description = detailDesc;
+        }
+      }
+    }
+
+    // Auto-heal existing upcoming sessions that conflict with user's routine blocks (e.g. Work 09:00-17:00)
+    for (const s of sessions) {
+      if (s.status !== 'DONE') {
+        const sDate = new Date(s.scheduled_date);
+        const sDay = sDate.getDay();
+        const sStart = timeToMinutes(s.start_time);
+        const sEnd = timeToMinutes(s.end_time);
+
+        const hasRoutineConflict = (lifeStructure.routine_blocks || []).some((b: any) => {
+          const days = normalizeDaysOfWeek(b.days_of_week);
+          if (!days.includes(sDay)) return false;
+          const bStart = timeToMinutes(b.start_time) - (b.buffer_before_minutes || 0);
+          const bEnd = timeToMinutes(b.end_time) + (b.buffer_after_minutes || 0);
+          return sStart < bEnd && sEnd > bStart;
+        });
+
+        if (hasRoutineConflict) {
+          const dateStr = sDate.toISOString().split('T')[0];
+          const availableWindows = await calculateAvailableWindows(user.id, dateStr);
+          const duration = s.task_template?.session_duration_minutes || 45;
+          const optimal = findOptimalAmbitionWindow(availableWindows, {
+            nominalMinutes: duration,
+            mvdMinutes: Math.min(20, duration),
+            preferredWindow: prefWindow,
+            userMemory: user.user_memory || undefined,
+            energyRequirement: s.tier === 'core' ? 'HIGH' : 'MEDIUM',
+          });
+
+          if (optimal) {
+            s.start_time = minutesToTime(optimal.startMins);
+            s.end_time = minutesToTime(optimal.endMins);
+          } else {
+            s.start_time = sDay === 0 || sDay === 6 ? '10:00' : '17:15';
+            const [sh, sm] = s.start_time.split(':').map(Number);
+            const totalMinutes = sh * 60 + sm + duration;
+            const eh = Math.floor(totalMinutes / 60);
+            const em = totalMinutes % 60;
+            s.end_time = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
+          }
+
+          await prisma.session.update({
+            where: { id: s.id },
+            data: {
+              start_time: s.start_time,
+              end_time: s.end_time,
+            },
+          });
         }
       }
     }
@@ -474,16 +528,39 @@ sessionsRouter.get('/day', async (req: Request, res: Response): Promise<void> =>
     // Map day of week in user timezone
     const dayKey = getZonedTimeParts(startOfDay, userTimezone).dayKey;
 
+    const lifeStructure = await getOrCreateLifeStructure(user.id);
+    const dayIdx = new Date(startOfDay).getDay();
+    const dayKeyMap = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+    const routineSlots: any[] = [];
+    for (const block of lifeStructure.routine_blocks || []) {
+      try {
+        const days = normalizeDaysOfWeek(block.days_of_week);
+        if (days.includes(dayIdx)) {
+          routineSlots.push({
+            id: `routine-${block.id}-${dayIdx}`,
+            day_of_week: dayKeyMap[dayIdx],
+            start_time: block.start_time,
+            end_time: block.end_time,
+            label: block.title,
+            category: block.category,
+          });
+        }
+      } catch {}
+    }
+
     const availabilitySlots = await prisma.availabilitySlot.findMany({
       where: { user_id: user.id, day_of_week: dayKey },
       orderBy: { start_time: 'asc' },
     });
 
+    const effectiveAvailabilitySlots = routineSlots.length > 0 ? routineSlots : availabilitySlots;
+
     res.status(200).json({
       date: date,
       dayKey,
       sessions,
-      availabilitySlots,
+      availabilitySlots: effectiveAvailabilitySlots,
     });
   } catch (error: any) {
     console.error('Fetch day sessions error:', error);

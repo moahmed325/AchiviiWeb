@@ -10,6 +10,8 @@ import {
   timeToMinutes,
   TimeInterval,
 } from '../../timeUtils.js';
+import { calculateAvailableWindows } from '../../life/lifeStructureEngine.js';
+import { findOptimalAmbitionWindow } from '../../life/dailyScheduler.js';
 
 export interface AvailabilitySlotRecord {
   day_of_week: string; // 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN'
@@ -213,23 +215,33 @@ export async function generateInitialTrajectory(
     const sessionDate = new Date(startDate.getTime() + sessionDayOffset * 24 * 60 * 60 * 1000);
     const dayName = dayKeyMap[sessionDate.getDay()];
 
-    const matchingSlot = availabilitySlots.find((s) => s.day_of_week === dayName);
+    const dateStr = sessionDate.toISOString().split('T')[0];
+    const jsDay = sessionDate.getDay();
 
-    let startTime = '09:00';
-    let endTime = '09:45';
+    let startTime = jsDay === 0 || jsDay === 6 ? '10:00' : '17:15';
+    let endTime = jsDay === 0 || jsDay === 6 ? '10:45' : '18:00';
 
-    if (matchingSlot) {
-      const slotOpenings: TimeInterval[] = [
-        {
-          start: timeToMinutes(matchingSlot.start_time),
-          end: timeToMinutes(matchingSlot.end_time),
-        },
-      ];
-      // Interval subtraction demo
-      if (slotOpenings[0].end - slotOpenings[0].start >= item.standard_duration_minutes) {
-        startTime = minutesToTime(slotOpenings[0].start);
-        endTime = minutesToTime(slotOpenings[0].start + item.standard_duration_minutes);
+    try {
+      const openWindows = await calculateAvailableWindows(userGoal.user_id, dateStr);
+      const optimal = findOptimalAmbitionWindow(openWindows, {
+        nominalMinutes: item.standard_duration_minutes || 45,
+        mvdMinutes: item.mvs_duration_minutes || 20,
+        preferredWindow: (item as any).preferred_window,
+        energyRequirement: item.priority_tier === 1 ? 'HIGH' : 'MEDIUM',
+      });
+
+      if (optimal) {
+        startTime = minutesToTime(optimal.startMins);
+        endTime = minutesToTime(optimal.endMins);
+      } else {
+        const [sh, sm] = startTime.split(':').map(Number);
+        const totalMinutes = (sh || 17) * 60 + (sm || 15) + (item.standard_duration_minutes || 45);
+        const eh = Math.floor(totalMinutes / 60);
+        const em = totalMinutes % 60;
+        endTime = `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
       }
+    } catch {
+      // Safe fallback timing outside standard work hours
     }
 
     // Link or create TaskTemplate placeholder if needed for DB schema constraint

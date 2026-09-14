@@ -47,6 +47,7 @@ export interface AvailabilitySlot {
   start_time: string; // e.g. "09:00"
   end_time: string;   // e.g. "17:00"
   label?: string | null;
+  category?: string | null;
 }
 
 export interface Roadmap {
