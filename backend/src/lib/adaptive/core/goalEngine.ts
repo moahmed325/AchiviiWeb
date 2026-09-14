@@ -242,33 +242,31 @@ function generateDeterministicCapabilities(rawGoal: string, domain: GoalDomain):
 function generateDeterministicBaselineQuestions(domain: GoalDomain): CustomBaselineQuestion[] {
   return [
     {
-      id: 'starting_experience',
-      question: 'What is your current experience level with this ambition?',
+      id: 'starting_baseline',
+      question: 'What is your current hands-on experience level with this ambition?',
       options: [
-        { value: 'complete_beginner', label: 'Complete beginner (starting from scratch)', score: 1, recommended_weekly_hours: 4 },
-        { value: 'novice', label: 'Novice (tried it a few times in the past)', score: 2, recommended_weekly_hours: 5 },
+        { value: 'complete_beginner', label: 'Complete beginner (starting completely from scratch)', score: 1, recommended_weekly_hours: 4 },
+        { value: 'novice', label: 'Novice (have dabbled or tried basic versions casually)', score: 2, recommended_weekly_hours: 5 },
         { value: 'intermediate', label: 'Intermediate (consistent basics, seeking structured progress)', score: 3, recommended_weekly_hours: 6 },
-        { value: 'advanced', label: 'Experienced (looking for peak refinement and mastery)', score: 4, recommended_weekly_hours: 8 },
+        { value: 'advanced', label: 'Experienced (strong foundation, aiming for peak mastery)', score: 4, recommended_weekly_hours: 8 },
       ],
     },
     {
-      id: 'recent_frequency',
-      question: 'How much dedicated time have you spent on this over the last 4 weeks?',
+      id: 'skill_comfort_zone',
+      question: 'Where is your current comfort zone with this craft?',
       options: [
-        { value: 'zero_hours', label: '0 hours (completely dormant or new)', score: 1 },
-        { value: 'light_practice', label: '1–2 hours per week sporadically', score: 2 },
-        { value: 'steady_practice', label: '3–4 hours per week consistently', score: 3 },
-        { value: 'heavy_practice', label: '5+ hours per week consistently', score: 4 },
+        { value: 'theory_first', label: 'Comfortable with concepts and ideas, need structure for consistent execution', score: 1 },
+        { value: 'action_first', label: 'Eager to take action and practice, need clear drills and progression roadmap', score: 2 },
+        { value: 'foundation_needed', label: 'Starting fresh across both knowledge and execution', score: 3 },
       ],
     },
     {
-      id: 'primary_obstacle',
-      question: 'What has been your biggest historical friction point or obstacle?',
+      id: 'weekly_target_cadence',
+      question: 'How much dedicated focus time can you sustainably protect each week?',
       options: [
-        { value: 'scheduling', label: 'Protecting consistent calendar windows around busy days', score: 1 },
-        { value: 'burnout', label: 'Starting with excessive intensity and burning out early', score: 2 },
-        { value: 'guidance', label: 'Uncertainty about what exact exercise or drill to do next', score: 3 },
-        { value: 'plateau', label: 'Losing motivation once the initial novelty wears off', score: 4 },
+        { value: 'light_pace', label: 'Light pace: ~3.5–4.5 hours / week (3 focused sessions)', score: 1, recommended_weekly_hours: 4 },
+        { value: 'balanced_pace', label: 'Balanced pace: ~5–7 hours / week (4 focused sessions)', score: 2, recommended_weekly_hours: 6 },
+        { value: 'accelerated_pace', label: 'Accelerated pace: ~8–10 hours / week (5 focused sessions)', score: 3, recommended_weekly_hours: 8 },
       ],
     },
   ];
@@ -288,6 +286,15 @@ export async function formalizeGoal(input: FormalizeGoalInput): Promise<GoalForm
   const systemInstruction = `You are the Lead Ambition Architect for Achivii, an elite Life + Ambition Execution System.
 Your job is to formalize a user's raw ambition into an inspiring, concrete 90-day execution contract.
 Adhere strictly to plain, encouraging English. Never use robotic jargon or MBA terms.
+
+STRICT ONBOARDING QUESTION RULES:
+1. NEVER ask about sleep, wake times, work hours, or daily routine (Life Structure handles this separately).
+2. NEVER ask "How will you fail?" or "Why did you fail before?". Bake failure prevention into the milestones directly.
+3. Every question MUST be multiple-choice (3 to 4 options).
+4. Strictly generate 3 questions matching this blueprint:
+   - Q1: Objective Verifiable Baseline Gate (What can they objectively do right now? - purpose: BASELINE_CALIBRATION)
+   - Q2: Skill Asymmetry / Comfort Zone (Where are they strong vs where do they need guidance? - purpose: GUIDANCE_SCAFFOLDING)
+   - Q3: Sustainable Weekly Target Cadence (How much weekly time/frequency can they commit? - purpose: CAPACITY_BUDGET)
 Return ONLY valid JSON matching the requested schema.`;
 
   const prompt = `
@@ -335,33 +342,33 @@ Analyze this goal and return a JSON object strictly matching this schema:
   ],
   "baselineQuestions": [
     {
-      "id": "q1",
-      "question": "Clear, friendly question assessing their current starting experience or level",
+      "id": "baseline_gate",
+      "question": "Clear, objective question testing real-world capability or experience in the last 30 days",
+      "purpose": "BASELINE_CALIBRATION",
       "options": [
-        { "value": "complete_beginner", "label": "Complete beginner (starting from scratch)", "score": 1 },
-        { "value": "novice", "label": "Novice (tried it a few times in the past)", "score": 2 },
-        { "value": "intermediate", "label": "Moderate consistency (can do basic versions)", "score": 3 },
-        { "value": "experienced", "label": "Strong foundation (looking for structured breakthrough)", "score": 4 }
+        { "value": "beginner", "label": "Complete beginner (starting from scratch)", "score": 1, "recommended_weekly_hours": 4 },
+        { "value": "intermediate", "label": "Intermediate (solid fundamentals, looking for structured progress)", "score": 2, "recommended_weekly_hours": 6 },
+        { "value": "advanced", "label": "Advanced (experienced practitioner seeking peak refinement)", "score": 3, "recommended_weekly_hours": 8 }
       ]
     },
     {
-      "id": "q2",
-      "question": "Question assessing their current work volume, consistency, or recent frequency",
+      "id": "skill_asymmetry",
+      "question": "Question assessing existing comfort zone vs areas needing structured guidance",
+      "purpose": "GUIDANCE_SCAFFOLDING",
       "options": [
-        { "value": "zero_recent", "label": "0 hours in the past month", "score": 1 },
-        { "value": "light_recent", "label": "1–2 hours per week sporadically", "score": 2 },
-        { "value": "consistent_recent", "label": "3–4 hours per week consistently", "score": 3 },
-        { "value": "high_recent", "label": "5+ hours per week consistently", "score": 4 }
+        { "value": "strength_concepts", "label": "Comfortable with concepts and theory, need structured execution drills", "score": 1 },
+        { "value": "strength_execution", "label": "Comfortable jumping into action, need structured progression and technique refinement", "score": 2 },
+        { "value": "foundation_both", "label": "Starting fresh across both understanding and execution", "score": 3 }
       ]
     },
     {
-      "id": "q3",
-      "question": "Question identifying their biggest historical friction point or obstacle",
+      "id": "weekly_cadence",
+      "question": "Question establishing sustainable weekly hours and session frequency",
+      "purpose": "CAPACITY_BUDGET",
       "options": [
-        { "value": "time_consistency", "label": "Finding dedicated time without interruptions", "score": 1 },
-        { "value": "fatigue_burnout", "label": "Starting too hard and burning out / soreness", "score": 2 },
-        { "value": "clarity_structure", "label": "Not knowing exactly what to do in each session", "score": 3 },
-        { "value": "plateau", "label": "Hitting a plateau and losing motivation", "score": 4 }
+        { "value": "light", "label": "Light pace: ~3.5–4.5 hours / week (3 sessions)", "score": 1, "recommended_weekly_hours": 4 },
+        { "value": "balanced", "label": "Balanced pace: ~5–7 hours / week (4 sessions)", "score": 2, "recommended_weekly_hours": 6 },
+        { "value": "accelerated", "label": "Accelerated pace: ~8–10 hours / week (5 sessions)", "score": 3, "recommended_weekly_hours": 8 }
       ]
     }
   ]

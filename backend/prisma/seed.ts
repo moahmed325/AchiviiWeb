@@ -40,56 +40,38 @@ async function main() {
   const saasQuestions: OnboardingQuestion[] = [
     {
       id: 'current_technical_level',
-      question: 'What is your current technical & engineering background?',
+      question: 'What is your current hands-on software development experience?',
       options: [
-        { label: 'Experienced Developer', value: 'experienced', baseline_level: 'ADVANCED', description: 'Comfortable with full-stack code, databases, and APIs' },
-        { label: 'Junior / Self-Taught', value: 'junior', baseline_level: 'INTERMEDIATE', description: 'Know some code, need structured step-by-step guidance' },
-        { label: 'No-Code / Non-Technical', value: 'nocode', baseline_level: 'BEGINNER', description: 'Planning to build with modern no-code/low-code tools or AI scaffolding' },
+        { label: 'Complete beginner (written basic scripts or tutorials, never deployed live software)', value: 'beginner', baseline_level: 'BEGINNER' },
+        { label: 'Comfortable with frontend or backend code, but have never shipped a fullstack app with live auth and database', value: 'intermediate', baseline_level: 'INTERMEDIATE' },
+        { label: 'Professional engineer (ship code daily, seeking a disciplined sprint to launch an independent product)', value: 'advanced', baseline_level: 'ADVANCED' },
       ],
     },
     {
-      id: 'product_concept_status',
-      question: 'Where does your product concept stand today?',
+      id: 'technical_comfort_zone',
+      question: 'Where is your current technical comfort zone?',
       options: [
-        { label: 'Crystal-clear problem & validated demand', value: 'validated' },
-        { label: 'Rough idea, needs scoping & feature trimming', value: 'rough_idea' },
-        { label: 'Still exploring 2–3 different concepts', value: 'exploring' },
+        { label: 'Stronger on UI/design/frontend; need clear scaffolding for database schemas, auth, and backend APIs', value: 'frontend_heavy' },
+        { label: 'Stronger on databases and server logic; need structured layouts and clean component guidelines for UI', value: 'backend_heavy' },
+        { label: 'Comfortable across both; primary need is ruthless feature scoping and shipping discipline', value: 'fullstack_balanced' },
       ],
     },
     {
-      id: 'weekly_time_commitment',
-      question: 'How many hours per week can you reliably dedicate outside your main job?',
+      id: 'weekly_builder_bandwidth',
+      question: 'How much dedicated building time can you sustainably protect each week?',
       options: [
-        { label: '5–7 hours / week (Laser focused, 1 hr/day)', value: '6', recommended_weekly_hours: 6 },
-        { label: '8–10 hours / week (Standard pacing)', value: '9', recommended_weekly_hours: 9 },
-        { label: '12+ hours / week (Aggressive acceleration)', value: '14', recommended_weekly_hours: 14 },
+        { label: '~5 hours / week (Light pace: 3 sessions of ~90 min or 4 of ~75 min)', value: '5', recommended_weekly_hours: 5 },
+        { label: '~8 hours / week (Recommended MVP cadence: 4 sessions of ~2 hours)', value: '8', recommended_weekly_hours: 8 },
+        { label: '~12 hours / week (Aggressive sprint pace)', value: '12', recommended_weekly_hours: 12 },
       ],
     },
     {
-      id: 'primary_past_bottleneck',
-      question: 'What has been your biggest past obstacle when shipping side projects?',
+      id: 'target_launch_architecture',
+      question: 'What is your target launch architecture for Day 90?',
       options: [
-        { label: 'Scope creep (trying to build too much before launch)', value: 'scope_creep' },
-        { label: 'Friction finishing UI/UX and auth/billing details', value: 'finishing_details' },
-        { label: 'Inconsistent daily energy after work', value: 'energy_depletion' },
-      ],
-    },
-    {
-      id: 'ideal_dose_frequency',
-      question: 'What session format best fits your daily rhythm?',
-      options: [
-        { label: 'Daily micro-sprints (45–60 mins every weekday morning)', value: 'daily_micro' },
-        { label: '3–4 deep work sessions (90 mins in evening/weekend)', value: 'deep_blocks' },
-        { label: 'Weekend heavy focus with light weekday maintenance', value: 'weekend_heavy' },
-      ],
-    },
-    {
-      id: 'target_outcome_definition',
-      question: 'What does "Day 90 Success" mean for you?',
-      options: [
-        { label: 'Production deployed with first paying customer transaction', value: 'paying_customer' },
-        { label: 'Public beta launched with 25+ active weekly users', value: 'active_beta' },
-        { label: 'Polished MVP ready to pitch investors or showcase in portfolio', value: 'demo_ready' },
+        { label: 'Web application with Stripe subscriptions and self-serve onboarding', value: 'web_saas' },
+        { label: 'Developer tool, API service, or automated micro-SaaS workflow', value: 'api_tool' },
+        { label: 'Targeted B2B workflow tool solved for a specific client or business niche', value: 'internal_b2b' },
       ],
     },
   ];
@@ -137,47 +119,38 @@ async function main() {
   const runQuestions: OnboardingQuestion[] = [
     {
       id: 'current_running_baseline',
-      question: 'What is your current running distance baseline right now?',
+      question: 'What is the furthest you have run continuously in the last 30 days without walking?',
       options: [
-        { label: 'Can run 0–2 km (Beginner / returning from long break)', value: 'beginner', baseline_level: 'BEGINNER' },
-        { label: 'Comfortable running 5 km without stopping', value: '5k_comfortable', baseline_level: 'INTERMEDIATE' },
-        { label: 'Regularly running 8–10 km weekly', value: '10k_runner', baseline_level: 'ADVANCED' },
+        { label: '0 to 2 km (Complete beginner or returning from a long break)', value: '0_to_2k', baseline_level: 'BEGINNER' },
+        { label: 'Comfortable running 5 km non-stop at an easy, conversational pace', value: '5k_solid', baseline_level: 'INTERMEDIATE' },
+        { label: 'Regularly running 8–10 km weekly without difficulty', value: '10k_runner', baseline_level: 'ADVANCED' },
       ],
     },
     {
-      id: 'weekly_run_frequency',
-      question: 'How many days per week can your legs recover and train?',
+      id: 'cardio_tendon_balance',
+      question: 'How do your legs and lungs typically feel when running?',
       options: [
-        { label: '3 days / week (Run + cross-train + rest)', value: '3_days', recommended_weekly_hours: 3.5 },
-        { label: '4 days / week (Recommended marathon cadence)', value: '4_days', recommended_weekly_hours: 5 },
-        { label: '5 days / week (High volume)', value: '5_days', recommended_weekly_hours: 6.5 },
+        { label: 'Lungs and heart rate spike quickly, but muscles and joints feel fine', value: 'cardio_limited' },
+        { label: 'Breathing feels effortless, but knees, shins, or calves get tight and sore', value: 'tendon_limited' },
+        { label: 'Cardio and joint tolerance feel well-matched; ready for structured pacing intervals', value: 'balanced_engine' },
       ],
     },
     {
-      id: 'injury_history',
-      question: 'Do you have any past knee, shin, or tendon sensitivity?',
+      id: 'weekly_run_cadence',
+      question: 'How many days per week can your body train and recover?',
       options: [
-        { label: 'None, feeling strong and healthy', value: 'none' },
-        { label: 'Occasional knee or shin splints when ramping up fast', value: 'moderate' },
-        { label: 'High risk, need conservative slow mileage progression', value: 'high_risk' },
+        { label: '3 days / week (~3.5 to 4.5 hours total — optimal for busy schedules)', value: '3_days', recommended_weekly_hours: 4 },
+        { label: '4 days / week (~5 to 6 hours total — recommended half-marathon cadence)', value: '4_days', recommended_weekly_hours: 5.5 },
+        { label: '5 days / week (~6.5+ hours — high-volume endurance development)', value: '5_days', recommended_weekly_hours: 7 },
       ],
     },
     {
-      id: 'preferred_training_time',
-      question: 'When during your day can you reliably hit the road or treadmill?',
+      id: 'target_event_finish',
+      question: 'What is your target finish line for Day 90?',
       options: [
-        { label: 'Early Morning (before work/commitments)', value: 'early_morning' },
-        { label: 'Late Afternoon / Right after work', value: 'afternoon' },
-        { label: 'Weekend concentrated mornings', value: 'weekend' },
-      ],
-    },
-    {
-      id: 'target_event_timeline',
-      question: 'What is your event goal at the end of 90 days?',
-      options: [
-        { label: 'Finish a 10K with steady breathing and zero walking', value: 'solid_10k' },
-        { label: 'Complete a full Half-Marathon (21.1 km)', value: 'finish_half' },
-        { label: 'Break a specific personal pace record', value: 'pace_pr' },
+        { label: 'Finish a continuous 10 km with steady breathing and zero walking breaks', value: 'solid_10k' },
+        { label: 'Complete a full 21.1 km Half-Marathon with comfortable, sustained pacing', value: 'finish_half' },
+        { label: 'Break a specific personal record (10K sub-50 or Half sub-1:50)', value: 'pace_breakthrough' },
       ],
     },
   ];
@@ -224,47 +197,29 @@ async function main() {
   const spanishQuestions: OnboardingQuestion[] = [
     {
       id: 'current_fluency_stage',
-      question: 'How much Spanish do you know right now?',
+      question: 'What is your current grasp of spoken Spanish?',
       options: [
-        { label: 'Complete beginner (Ola, gracias, adios)', value: 'beginner', baseline_level: 'BEGINNER' },
-        { label: 'A1 / Elementary (Know basic vocab, struggle with grammar)', value: 'a1', baseline_level: 'INTERMEDIATE' },
-        { label: 'A2 / Pre-intermediate (Can read simple text, freeze speaking)', value: 'a2', baseline_level: 'ADVANCED' },
+        { label: 'Complete beginner (know basic greetings like hola, gracias, adios)', value: 'complete_beginner', baseline_level: 'BEGINNER' },
+        { label: 'Know basic vocabulary and present tense, but freeze when trying to speak real sentences', value: 'a1_elementary', baseline_level: 'INTERMEDIATE' },
+        { label: 'Can read simple text and understand slow audio, but struggle with past tenses and fast conversations', value: 'a2_intermediate', baseline_level: 'ADVANCED' },
       ],
     },
     {
-      id: 'daily_consistency_capacity',
-      question: 'How much daily immersion time can you maintain consistently?',
+      id: 'learning_comfort_zone',
+      question: 'Where is your current learning comfort zone?',
       options: [
-        { label: '20–30 mins daily (High consistency spaced repetition)', value: '25', recommended_weekly_hours: 3.5 },
-        { label: '45 mins daily (Vocab sprint + audio comprehension)', value: '45', recommended_weekly_hours: 5 },
-        { label: '60+ mins daily (Accelerated native media immersion)', value: '60', recommended_weekly_hours: 7 },
+        { label: 'Can recognize written words easily, but have trouble catching rapid spoken audio', value: 'visual_reading' },
+        { label: 'Good at repeating pronunciation and sounds, but get lost in grammar rules and conjugation tables', value: 'audio_mimic' },
+        { label: 'Understand the rules intellectually, but hesitate and overthink before speaking', value: 'grammar_conscious' },
       ],
     },
     {
-      id: 'main_learning_goal',
-      question: 'What is your primary motivation for Spanish?',
+      id: 'daily_immersion_pace',
+      question: 'What daily immersion pace fits your schedule best?',
       options: [
-        { label: 'Upcoming travel & everyday local conversations', value: 'travel' },
-        { label: 'Connect with family, friends, or bilingual colleagues', value: 'relationship' },
-        { label: 'Brain fitness and cultural appreciation', value: 'culture' },
-      ],
-    },
-    {
-      id: 'biggest_learning_blocker',
-      question: 'What has caused you to drop language learning in the past?',
-      options: [
-        { label: 'Grammar overload and feeling lost in conjugate charts', value: 'grammar_friction' },
-        { label: 'Boring flashcard apps that did not help spoken fluency', value: 'rote_monotony' },
-        { label: 'Fear of sounding foolish when attempting to speak', value: 'speaking_anxiety' },
-      ],
-    },
-    {
-      id: 'preferred_learning_style',
-      question: 'How do you absorb language best?',
-      options: [
-        { label: 'Audio & conversational podcasts during commutes/walks', value: 'audio' },
-        { label: 'Reading dialogues and structured pattern breakdown', value: 'visual_text' },
-        { label: 'Active speaking drills and prompt recording', value: 'active_recall' },
+        { label: '20–25 mins daily (~3.5 hrs/week — high consistency spaced repetition)', value: '20m_daily', recommended_weekly_hours: 3.5 },
+        { label: '35–40 mins daily (~4.5 hrs/week — balanced vocab + audio comprehension)', value: '35m_daily', recommended_weekly_hours: 4.5 },
+        { label: '50+ mins daily (~6 hrs/week — accelerated conversational sprint)', value: '50m_daily', recommended_weekly_hours: 6 },
       ],
     },
   ];
@@ -311,47 +266,38 @@ async function main() {
   const bookQuestions: OnboardingQuestion[] = [
     {
       id: 'manuscript_starting_state',
-      question: 'Where is your book or manuscript right now?',
+      question: 'Where does your book manuscript stand right now?',
       options: [
-        { label: 'Just an idea in my head and notes on my phone', value: 'idea_only', baseline_level: 'BEGINNER' },
-        { label: 'Detailed outline and bullet points ready', value: 'outline_ready', baseline_level: 'INTERMEDIATE' },
-        { label: '10,000+ words of raw drafts already written', value: 'draft_in_progress', baseline_level: 'ADVANCED' },
+        { label: 'Raw ideas, voice notes, or bullet points in my phone (0 words drafted)', value: 'idea_only', baseline_level: 'BEGINNER' },
+        { label: 'Clear chapter outline and core thesis ready, but haven\'t started full drafting', value: 'detailed_outline', baseline_level: 'INTERMEDIATE' },
+        { label: '10,000+ words of rough drafts already written', value: 'draft_in_progress', baseline_level: 'ADVANCED' },
       ],
     },
     {
-      id: 'target_word_count',
-      question: 'What is your target book length for publication?',
+      id: 'writing_comfort_zone',
+      question: 'What part of writing comes most naturally to you?',
       options: [
-        { label: 'Short guide / Manifesto (20,000–30,000 words)', value: '25k', recommended_weekly_hours: 5 },
-        { label: 'Standard non-fiction book (40,000–50,000 words)', value: '45k', recommended_weekly_hours: 7 },
-        { label: 'Comprehensive authority deep-dive (60,000+ words)', value: '60k', recommended_weekly_hours: 9 },
+        { label: 'Generating ideas, anecdotes, and stories is easy; structuring them into a coherent argument is hard', value: 'generative_flow' },
+        { label: 'Bullet points and logical frameworks are easy; expanding them into engaging prose is hard', value: 'logical_structure' },
+        { label: 'Line editing and sharpening sentences is easy; writing the messy first draft without self-censoring is hard', value: 'editing_polish' },
       ],
     },
     {
-      id: 'writing_environment',
-      question: 'When is your creative mind clearest for drafting?',
+      id: 'target_weekly_words',
+      question: 'What target weekly word output matches your bandwidth?',
       options: [
-        { label: 'Early morning coffee window (before email/messages)', value: 'early_morning' },
-        { label: 'Evening quiet hours after household settles', value: 'late_evening' },
-        { label: 'Dedicated weekend half-day writing marathons', value: 'weekend_blocks' },
+        { label: '~2,000 words / week (~4–5 hrs/wk — ideal for busy professionals)', value: 'light_sprint', recommended_weekly_hours: 4.5 },
+        { label: '~3,500 words / week (~6–7 hrs/wk — complete draft in 8 weeks)', value: 'standard_sprint', recommended_weekly_hours: 6.5 },
+        { label: '~5,000 words / week (~9 hrs/wk — dedicated writing marathon)', value: 'intensive_sprint', recommended_weekly_hours: 9 },
       ],
     },
     {
-      id: 'biggest_editorial_challenge',
-      question: 'What is your biggest fear or friction point in writing?',
+      id: 'distribution_format',
+      question: 'How do you plan to publish this book upon completion?',
       options: [
-        { label: 'Perfectionism (editing the first paragraph 20 times)', value: 'inner_critic' },
-        { label: 'Running out of structure and getting stuck midway', value: 'midpoint_slump' },
-        { label: 'Self-publishing mechanics (formatting, cover, Amazon setup)', value: 'publishing_tech' },
-      ],
-    },
-    {
-      id: 'primary_distribution_channel',
-      question: 'How do you intend to publish this book?',
-      options: [
-        { label: 'Amazon Kindle Direct Publishing (KDP) eBook & Paperback', value: 'kdp' },
-        { label: 'Personal website / Gumroad digital download', value: 'gumroad' },
-        { label: 'Lead magnet for business or professional brand', value: 'lead_magnet' },
+        { label: 'Amazon Kindle eBook & Paperback with professional interior formatting', value: 'amazon_kdp' },
+        { label: 'Personal website / Gumroad digital download (PDF/EPUB) for an existing audience', value: 'digital_direct' },
+        { label: 'High-value lead magnet or manifesto to establish professional brand authority', value: 'industry_authority' },
       ],
     },
   ];
@@ -398,47 +344,29 @@ async function main() {
   const sysQuestions: OnboardingQuestion[] = [
     {
       id: 'current_engineering_level',
-      question: 'What is your current software engineering experience level?',
+      question: 'What is your current backend engineering experience level?',
       options: [
-        { label: 'Mid-level backend engineer (ready to step into Senior)', value: 'mid_backend', baseline_level: 'INTERMEDIATE' },
-        { label: 'Senior engineer targeting Staff / Principal bar', value: 'senior_staff', baseline_level: 'ADVANCED' },
-        { label: 'Frontend / Fullstack engineer pivoting to deep infrastructure', value: 'fullstack_pivot', baseline_level: 'BEGINNER' },
+        { label: 'Fullstack or frontend engineer pivoting to deep backend and distributed infrastructure', value: 'fullstack_pivot', baseline_level: 'BEGINNER' },
+        { label: 'Mid-level backend engineer confident with single-node relational DBs, ready for distributed consensus, sharding, and scale', value: 'mid_backend', baseline_level: 'INTERMEDIATE' },
+        { label: 'Senior engineer preparing for Staff/Principal architecture reviews or Tier-1 system design interviews', value: 'senior_staff', baseline_level: 'ADVANCED' },
+      ],
+    },
+    {
+      id: 'architecture_comfort_zone',
+      question: 'Where do you feel least confident during architecture deep dives?',
+      options: [
+        { label: 'Database engines, LSM-trees vs B-Trees, WAL, write amplification, and sharding strategies', value: 'storage_internals' },
+        { label: 'Raft, Paxos, quorum arithmetic, linearizability, and split-brain recovery', value: 'consensus_replication' },
+        { label: 'Translating architectural knowledge into crisp 45-minute timed design presentations with clean math', value: 'whiteboard_defense' },
       ],
     },
     {
       id: 'weekly_study_bandwidth',
-      question: 'How much focused technical study can you execute weekly?',
+      question: 'How much deep-focus technical study can you execute weekly?',
       options: [
-        { label: '4–6 hours / week (Paced theoretical + paper reading)', value: '5', recommended_weekly_hours: 5 },
-        { label: '7–9 hours / week (Intensive labs + whiteboarding)', value: '8', recommended_weekly_hours: 8 },
-        { label: '10+ hours / week (Rapid interview crunch)', value: '11', recommended_weekly_hours: 11 },
-      ],
-    },
-    {
-      id: 'specific_interview_timeline',
-      question: 'Do you have upcoming system design interviews scheduled?',
-      options: [
-        { label: 'Yes, within 60–90 days (FAANG / Tier-1 tech)', value: 'upcoming_interviews' },
-        { label: 'No, long-term mastery for on-the-job architectural leadership', value: 'long_term_mastery' },
-        { label: 'Exploring for architecture certifications', value: 'certification' },
-      ],
-    },
-    {
-      id: 'primary_knowledge_gap',
-      question: 'Where do you feel least confident during architecture discussions?',
-      options: [
-        { label: 'Consensus algorithms (Raft, Paxos, quorum reads/writes)', value: 'consensus' },
-        { label: 'Data storage engines (LSM-trees, WAL, sharding strategies)', value: 'storage_engines' },
-        { label: 'High-throughput stream processing & event sourcing', value: 'stream_processing' },
-      ],
-    },
-    {
-      id: 'preferred_learning_format',
-      question: 'How do you synthesize complex systems concepts fastest?',
-      options: [
-        { label: 'Mock whiteboarding & timed 45-minute architectural designs', value: 'whiteboarding' },
-        { label: 'Hands-on code labs (building mini-Kafka or KV store)', value: 'code_labs' },
-        { label: 'Reading foundational engineering papers (Google Spanner, Dynamo)', value: 'papers' },
+        { label: '4–5 hours / week (Paced theoretical deep dive + paper breakdowns)', value: '5', recommended_weekly_hours: 5 },
+        { label: '7–8 hours / week (Balanced mix of paper reading + hands-on coding labs)', value: '8', recommended_weekly_hours: 8 },
+        { label: '10+ hours / week (Accelerated interview crunch / rapid mastery)', value: '11', recommended_weekly_hours: 11 },
       ],
     },
   ];
@@ -485,47 +413,29 @@ async function main() {
   const mindQuestions: OnboardingQuestion[] = [
     {
       id: 'meditation_history',
-      question: 'What is your past experience with meditation and breathwork?',
+      question: 'What is your past experience with daily meditation or breathwork?',
       options: [
-        { label: 'Never meditated or struggled to sit still for 2 minutes', value: 'novice', baseline_level: 'BEGINNER' },
-        { label: 'Used meditation apps (Headspace/Calm) intermittently', value: 'occasional', baseline_level: 'INTERMEDIATE' },
-        { label: 'Have maintained an active practice in the past', value: 'experienced', baseline_level: 'ADVANCED' },
+        { label: 'Complete novice (struggle to sit still or focus on breath for 2 uninterrupted minutes)', value: 'novice', baseline_level: 'BEGINNER' },
+        { label: 'Have used apps like Headspace or Calm on and off, but never maintained an unbreakable daily streak', value: 'intermittent', baseline_level: 'INTERMEDIATE' },
+        { label: 'Comfortable with unguided sitting, looking to integrate physiological breath resets into high-stress days', value: 'experienced', baseline_level: 'ADVANCED' },
       ],
     },
     {
-      id: 'primary_stress_driver',
-      question: 'What is the main trigger you want to regulate?',
+      id: 'practice_comfort_zone',
+      question: 'What style of practice feels most intuitive and grounding for you?',
       options: [
-        { label: 'Work burnout, racing thoughts, and sleep latency', value: 'burnout_sleep' },
-        { label: 'Attention fragmentation and constant context switching', value: 'focus_attention' },
-        { label: 'Physical tension and shallow breathing under deadlines', value: 'physical_tension' },
+        { label: 'Active breathing mechanics (Box breathing, physiological sigh, 4-7-8) that produce rapid physiological calm', value: 'physiological_breathwork' },
+        { label: 'Silent observation of thoughts and sensory awareness without judgment or reaction', value: 'open_monitoring' },
+        { label: 'Progressive muscle relaxation and body scans to release physical tension from the chest and shoulders', value: 'somatic_relaxation' },
       ],
     },
     {
-      id: 'daily_window_anchor',
-      question: 'When can you best anchor a 15-minute daily reset?',
+      id: 'daily_session_duration',
+      question: 'What daily session duration can you guarantee every single day without fail?',
       options: [
-        { label: 'First thing upon waking (before checking phone)', value: 'morning_anchor' },
-        { label: 'Midday transition (between morning work and lunch)', value: 'midday_anchor' },
-        { label: 'Nightly wind-down (30 mins before sleep)', value: 'evening_anchor' },
-      ],
-    },
-    {
-      id: 'preferred_breath_technique',
-      question: 'Which style of practice resonates most?',
-      options: [
-        { label: 'Physiological breathwork (Box breathing, 4-7-8, physiological sigh)', value: 'breathwork' },
-        { label: 'Mindful open-monitoring and sensory grounding', value: 'mindfulness' },
-        { label: 'Somatic body scans and progressive muscle relaxation', value: 'somatic' },
-      ],
-    },
-    {
-      id: 'streak_vulnerability',
-      question: 'What usually derails your daily habits?',
-      options: [
-        { label: 'Missing a single day and feeling like I failed completely', value: 'all_or_nothing' },
-        { label: 'Travel, busy mornings, or unexpected calendar fires', value: 'schedule_volatility' },
-        { label: 'Forgetting because it lacks a clear environmental cue', value: 'missing_trigger' },
+        { label: '10 minutes daily (Light, reliable baseline anchor)', value: '10m_daily', recommended_weekly_hours: 2 },
+        { label: '15 minutes daily (Recommended standard dose for neuroplastic adaptation)', value: '15m_daily', recommended_weekly_hours: 3 },
+        { label: '20 minutes daily (Deep meditation & nervous system regulation)', value: '20m_daily', recommended_weekly_hours: 4 },
       ],
     },
   ];

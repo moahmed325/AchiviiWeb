@@ -192,87 +192,56 @@ It must not independently own planning logic.
 
 ---
 
-# 5. ONBOARDING MUST CHANGE
+# 5. ONBOARDING MUST CHANGE: THE RULE OF 3–4 QUESTIONS
 
-The user first chooses a predefined goal.
+The user first chooses an ambition (either a vetted Predefined Blueprint or a Custom Ambition).
 
-Example:
+Example predefined goals:
+* Run a 10K / Half Marathon
+* Learn Conversational Spanish
+* Master Distributed Systems
+* Write & Publish a Book
+* Build & Launch a SaaS MVP
+* Daily Mindfulness Habit
 
-* Run a Half Marathon
-* Learn Spanish
-* Learn Python
-* Pass an Exam
-* Build a SaaS
-* Get a Job
-* etc.
+The predefined goal blueprint provides the vetted, domain-specific ground truth (the capability DAG, scientific progression, and failure-prevention guardrails).
 
-The predefined goal provides the domain-specific knowledge.
+After selecting the goal, the user receives strictly **3 to 4 high-leverage onboarding questions**.
 
-After selecting the goal, the user receives only **5–7 extremely simple onboarding questions**.
-
-Questions must be:
-
-* easy to understand
-* quick to answer
-* primarily multiple-choice
-* goal-specific
-* limited to information that materially changes the initial plan
+### Core Constraints on Questions:
+1. **Never Duplicate Life Routines:**
+   Do NOT ask the user about their sleep, wake times, work hours, preferred time of day, or schedule fragility in Step 2. Those belong strictly to **Step 3 (Life Structure & Routines)**, which canonically owns calendar reality.
+2. **Never Interrogate Failure ("How will you fail?"):**
+   Do NOT ask users why they failed before or how they might fail. Busy people fail for predictable, well-documented domain reasons (e.g., runners ramping mileage too fast and hurting tendons; coders spending weeks tweaking CSS instead of shipping). **The Blueprint itself must bake in failure prevention for busy people from day one** (volume caps, vertical slices, mandatory rest).
+3. **Keep Every Question Determinative:**
+   Every single question must alter an operational engine variable (starting DAG node, baseline score, volume budget, or prerequisite skips). If an answer does not change the generated roadmap, the question must be eliminated.
 
 Do NOT create a long planning questionnaire.
-
-Do NOT ask the user about:
-
-* bottlenecks
-* critical paths
-* MED
-* capability graphs
-* feasibility calculations
-* intervention selection
-* progression models
-
-Those are system responsibilities.
+Do NOT ask the user about bottlenecks, critical paths, MED, capability graphs, feasibility calculations, intervention selection, or progression models. Those are system responsibilities.
 
 ---
 
-# 6. GOAL-SPECIFIC ONBOARDING
+# 6. THE 3-TO-4 QUESTION BLUEPRINT FORMULA
 
-The question set should depend on the selected predefined goal.
+The question set should strictly follow this 3-to-4 question formula across both predefined blueprints and custom AI-generated ambitions:
 
-For example, a running goal might ask about:
+### Question 1: Objective Verifiable Baseline Gate
+* **Purpose:** Determines where in the Capability DAG the user enters (e.g., skipping introductory crawl nodes or requiring prerequisite foundation).
+* **Format:** Observable, objective benchmarks (e.g., *"What is the furthest you have run continuously in the last 30 days without stopping?"*), never vague self-perception.
 
-* current running level
-* recent longest run
-* target
-* available training days
-* available weekly time
-* relevant deadline
-* important constraints
+### Question 2: Skill Asymmetry / Starting Comfort Zone
+* **Purpose:** Identifies where the user has existing intuitive strength vs. where they need guided structure.
+* **Format:** Practical comfort zone options (e.g., *"I can read dialogues okay, but freeze when speaking"* vs *"I can pronounce words well, but grammar charts confuse me"*).
 
-A programming goal might ask about:
+### Question 3: Sustainable Weekly Target Cadence
+* **Purpose:** Sets the weekly workload budget and determines standard session count (3 vs 4 vs 5 days per week).
+* **Format:** Clear time commitments calibrated to the domain (e.g., Light: 3.5h/wk, Balanced: 5h/wk, Accelerated: 7h/wk).
 
-* current experience
-* desired ability
-* preferred learning format
-* available days
-* weekly time
-* target
-* constraints
-
-An exam goal might ask about:
-
-* current level
-* current practice performance
-* target score
-* exam date
-* weekly availability
-* study frequency
-* strongest/weakest area
-
-The exact questions should be determined by the selected goal blueprint.
+### Question 4 (Optional / Goal-Specific): Milestone Specifics or Core Tooling
+* **Purpose:** Tunes the concrete deliverables of the capstone phase (e.g., target event distance: 10K vs Half-Marathon; or distribution format: Kindle eBook vs Web).
 
 The objective is:
-
-> Collect the smallest amount of information necessary for the Master Planning Prompt to generate a high-quality personalized 90-day roadmap.
+> Collect the smallest amount of information necessary for the Master Planning Prompt to generate a high-quality personalized 90-day roadmap without survey fatigue.
 
 ---
 
@@ -339,6 +308,15 @@ Its job is to determine:
 14. Forecast
 15. Scheduling requirements
 16. Best placement of work inside the user's normal life
+17. Mandatory "Why This Matters" (Purpose) & MVS Fallback for every single execution item
+
+### Mandatory Task Item Contract:
+Every intervention item generated by the Master Planning Prompt MUST include:
+* `title`: Clear, action-oriented session name.
+* `why_this_matters`: Plain English 1–2 sentence explanation of the tangible return-on-investment / biological or technical purpose of this specific session (e.g. *"Running slow builds capillary density so your heart rate doesn't spike when running faster later"*).
+* `standard_duration_minutes`: Full nominal session dose.
+* `mvs_duration_minutes`: Minimum Viable Session dose (emergency fallback).
+* `mvs_fallback_description`: Exact concrete 10–15 min micro-task if user is completely out of time or energy.
 
 The Master Prompt should optimize for:
 
@@ -351,11 +329,8 @@ The Master Prompt should optimize for:
 * preservation of the actual outcome
 
 Do not optimize for maximum workload.
-
 Do not optimize for calendar compliance.
-
 Do not optimize for streaks.
-
 Do not optimize for task count.
 
 ---
@@ -528,9 +503,19 @@ The user should understand:
 * what to do
 * when to do it
 * how long it takes
-* why it matters
+* why it matters (clear, motivating ROI)
+* what the 1-click MVS fallback is if today gets chaotic
 
-without needing to understand the entire adaptive planning engine.
+### 13.1 MVS Mechanics & The Zero-Debt Law
+* **Daily Completion:** Executing an MVS dose counts as 100% valid completion for that day. The habit streak is preserved.
+* **Zero Backlog Debt:** Tomorrow's schedule NEVER increases or doubles because an MVS was performed today.
+* **Gate-Based Adaptation:** The 12-week roadmap is governed by **Adaptive State Gates**, not calendar checklists. If a user utilizes MVS repeatedly for 3 weeks, the engine does not punish or fail them; at the 4-week gate review, it automatically smooths the next phase's pacing to ensure foundational capabilities are solidly verified before scaling volume.
+
+### 13.2 Micro-Rewards & Progression Feedback
+Every completed dose provides immediate tangible feedback:
+* Advancement on the active **Capability Gate Progress**.
+* Maintained **Reliability Score**.
+* Acknowledgment of streak and zero-debt momentum.
 
 ---
 

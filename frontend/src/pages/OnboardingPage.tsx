@@ -336,7 +336,7 @@ export const OnboardingPage: React.FC = () => {
         const qLower = qText.toLowerCase();
 
         // Context-aware choices strictly tailored to the question being asked
-        let contextualOptions = [
+        let contextualOptions: OnboardingQuestionOption[] = [
           {
             label: 'Complete beginner (starting completely from scratch)',
             value: 'BEGINNER',
@@ -359,50 +359,43 @@ export const OnboardingPage: React.FC = () => {
           },
         ];
 
-        if (idx === 1 || qLower.includes('hour') || qLower.includes('time') || qLower.includes('frequency') || qLower.includes('week') || qLower.includes('month') || qLower.includes('recent')) {
+        if (idx === 1 || qLower.includes('comfort') || qLower.includes('skill') || qLower.includes('asymmetry') || qLower.includes('area')) {
           contextualOptions = [
             {
-              label: '0 hours in the past month (completely dormant or new)',
-              value: 'ZERO_HOURS',
-              description: 'Starting with a clean slate from today.',
+              label: 'Comfortable with concepts and theory, need structured execution drills',
+              value: 'strength_concepts',
+              description: 'Clear understanding of the ideas, ready for disciplined practice.',
             },
             {
-              label: '1–2 hours per week sporadically (casual practice)',
-              value: 'LIGHT_PRACTICE',
-              description: 'Occasional sessions whenever time allowed.',
+              label: 'Comfortable jumping into action, need structured progression and technique refinement',
+              value: 'strength_execution',
+              description: 'Motivated to practice, need roadmap and milestone guardrails.',
             },
             {
-              label: '3–4 hours per week consistently (steady baseline)',
-              value: 'STEADY_PRACTICE',
-              description: 'Consistent weekly routine already partially established.',
-            },
-            {
-              label: '5+ hours per week dedicated (high active volume)',
-              value: 'HEAVY_PRACTICE',
-              description: 'Substantial time investment already active.',
+              label: 'Starting fresh across both understanding and execution',
+              value: 'foundation_both',
+              description: 'Step-by-step guidance from first principles.',
             },
           ];
-        } else if (idx === 2 || qLower.includes('challenge') || qLower.includes('obstacle') || qLower.includes('friction') || qLower.includes('block') || qLower.includes('burnout') || qLower.includes('plateau')) {
+        } else if (idx === 2 || qLower.includes('hour') || qLower.includes('time') || qLower.includes('frequency') || qLower.includes('cadence') || qLower.includes('week')) {
           contextualOptions = [
             {
-              label: 'Protecting consistent calendar windows around busy days',
-              value: 'SCHEDULING_FRICTION',
-              description: 'Work or family disruptions breaking your planned streak.',
+              label: 'Light pace: ~3.5–4.5 hours / week (3 focused sessions)',
+              value: 'light',
+              description: 'Optimal for packed schedules; high consistency.',
+              recommended_weekly_hours: 4,
             },
             {
-              label: 'Starting with excessive intensity and burning out / soreness',
-              value: 'BURNOUT_PACING',
-              description: 'Pushing too hard early and needing days to recover.',
+              label: 'Balanced pace: ~5–7 hours / week (4 focused sessions)',
+              value: 'balanced',
+              description: 'Recommended cadence for sustained progress.',
+              recommended_weekly_hours: 6,
             },
             {
-              label: 'Uncertainty about what exact exercise or drill to do next',
-              value: 'CLARITY_STRUCTURE',
-              description: 'Wasting energy deciding what to do in each session.',
-            },
-            {
-              label: 'Losing motivation once initial novelty wears off',
-              value: 'MOTIVATION_PLATEAU',
-              description: 'Maintaining focus when sessions become routine.',
+              label: 'Accelerated pace: ~8–10 hours / week (5 focused sessions)',
+              value: 'accelerated',
+              description: 'Intensive sprint for rapid breakthrough.',
+              recommended_weekly_hours: 8,
             },
           ];
         }

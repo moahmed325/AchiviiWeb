@@ -165,6 +165,15 @@ export async function materializeDays(
         // Shrink the window
         win.startMins = endMins;
 
+        // Extract clear why_this_matters description if available
+        let doseDescription = (pendingItem as any).why_this_matters || (pendingItem as any).purpose || (pendingItem as any).description || '';
+        if (!doseDescription && Array.isArray((pendingItem as any).fallback_options)) {
+          const whyEntry = (pendingItem as any).fallback_options.find((f: any) => typeof f === 'string' && f.startsWith('WHY_THIS_MATTERS: '));
+          if (whyEntry) {
+            doseDescription = whyEntry.replace('WHY_THIS_MATTERS: ', '');
+          }
+        }
+
         const doseItem = await prisma.dailyScheduleItem.create({
           data: {
             user_id: userId,
@@ -176,7 +185,7 @@ export async function materializeDays(
             item_type: 'AMBITION_DOSE',
             category: (goal as any).category || 'AMBITION',
             title: (pendingItem as any).intervention_name || (pendingItem as any).title || 'Ambition Focus Dose',
-            description: (pendingItem as any).purpose || (pendingItem as any).description || '',
+            description: doseDescription || 'Core adaptation session focused on this milestone phase.',
             allocated_minutes: allocatedMinutes,
             minimum_viable_minutes: mvdMinutes,
             energy_level: reqEnergy,

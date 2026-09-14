@@ -4,6 +4,8 @@ import { AvailableWindow, calculateAvailableWindows } from '../life/lifeStructur
 export interface MasterPlanItem {
   title: string;
   description: string;
+  why_this_matters?: string;
+  mvs_fallback_description?: string;
   target_reps: number;
   estimated_minutes: number;
   energy_requirement: 'HIGH' | 'MEDIUM' | 'LOW';
@@ -201,8 +203,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
   const interventions: string[] = [];
   for (const [key, rawVal] of Object.entries(answers)) {
     const val = extractAnswerString(rawVal);
-    if (key.includes('bottleneck') || key.includes('challenge') || key.includes('vulnerability') || key.includes('blocker')) {
-      interventions.push(`Targeted Friction Interception: ${val.replace(/_/g, ' ')}`);
+    if (key.includes('bottleneck') || key.includes('challenge') || key.includes('vulnerability') || key.includes('blocker') || key.includes('comfort_zone')) {
+      interventions.push(`Targeted Focus Scaffolding: ${val.replace(/_/g, ' ')}`);
     }
   }
   if (interventions.length === 0) {
@@ -223,6 +225,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
         {
           title: dags[0]?.name || `${blueprint.title} Core Foundation Sprint`,
           description: dags[0]?.description || 'Master foundational techniques and establish habit anchor',
+          why_this_matters: 'Establishes fundamental neurological and physical adaptation without burnout, building the foundation for Phase 2 volume.',
+          mvs_fallback_description: '15-minute low-friction sub-component drill to protect daily streak and neural momentum.',
           target_reps: 3,
           estimated_minutes: nominalMinutes,
           energy_requirement: energyReq,
@@ -233,6 +237,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
         {
           title: dags[1]?.name || `${blueprint.title} Progression Drill`,
           description: dags[1]?.description || 'Expand volume and reinforce consistent execution',
+          why_this_matters: 'Gradually overloads initial stimulus within safe biological limits to prepare for autonomous execution.',
+          mvs_fallback_description: '15-minute core review or targeted technique practice.',
           target_reps: 2,
           estimated_minutes: nominalMinutes,
           energy_requirement: energyReq,
@@ -251,6 +257,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
         {
           title: dags[2]?.name || `${blueprint.title} Deep Work Interval`,
           description: dags[2]?.description || 'Complex integration and extended focus practice',
+          why_this_matters: 'Expands sustained work capacity and tackles core integration bottlenecks under progressive overload.',
+          mvs_fallback_description: '20-minute focused single-component exercise to maintain momentum.',
           target_reps: 3,
           estimated_minutes: nominalMinutes,
           energy_requirement: energyReq,
@@ -261,6 +269,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
         {
           title: dags[3]?.name || `${blueprint.title} Midpoint Benchmark Challenge`,
           description: dags[3]?.description || 'Midway milestone validation and diagnostic audit',
+          why_this_matters: 'Provides falsifiable mid-term diagnostic feedback before entering the capstone phase.',
+          mvs_fallback_description: '15-minute diagnostic self-audit or progress assessment.',
           target_reps: 2,
           estimated_minutes: Math.round(nominalMinutes * 1.15),
           energy_requirement: energyReq,
@@ -279,6 +289,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
         {
           title: dags[4]?.name || `${blueprint.title} Final Stretch Sprint`,
           description: dags[4]?.description || 'Refine deliverables, eliminate defects, and prepare for finish line',
+          why_this_matters: 'Sharpens precision and timing for the final capstone demonstration.',
+          mvs_fallback_description: '15-minute rehearsal or checklist inspection.',
           target_reps: 3,
           estimated_minutes: nominalMinutes,
           energy_requirement: energyReq,
@@ -289,6 +301,8 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
         {
           title: `${blueprint.title} Completion & Graduation Milestone`,
           description: milestones[2]?.exit_criteria || 'Attain final 90-day ambition target and lock in sustained habit',
+          why_this_matters: 'Executes the definitive real-world verification test proving goal completion.',
+          mvs_fallback_description: '20-minute capstone rehearsal.',
           target_reps: 2,
           estimated_minutes: nominalMinutes,
           energy_requirement: energyReq,
@@ -326,7 +340,8 @@ export async function generateMasterPlan(
   const deterministicPlan = generateDeterministicMasterPlan(input);
 
   const systemInstruction = `You are the Lead Master Planning Intelligence for an executive Life + Ambition Operating System.
-Your task is to take a Goal Blueprint, 5-7 user onboarding answers, and the user's daily life schedule routines, and synthesize a structured 90-day trajectory.
+Your task is to take a Goal Blueprint, user onboarding answers, and the user's daily life schedule routines, and synthesize a structured 90-day trajectory.
+Ensure EVERY single item includes a clear, inspiring "why_this_matters" field and a practical "mvs_fallback_description" micro-task.
 Return ONLY valid JSON matching this schema:
 {
   "summary": "string",
@@ -348,6 +363,8 @@ Return ONLY valid JSON matching this schema:
         {
           "title": "string",
           "description": "string",
+          "why_this_matters": "Plain English 1-2 sentence explanation of why this specific session matters and its tangible ROI",
+          "mvs_fallback_description": "Concrete 10-15 min micro-task if user is completely exhausted or pressed for time",
           "target_reps": number,
           "estimated_minutes": number,
           "energy_requirement": "HIGH" | "MEDIUM" | "LOW",

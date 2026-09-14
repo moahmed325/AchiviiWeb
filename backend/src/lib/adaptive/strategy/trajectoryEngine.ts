@@ -122,8 +122,17 @@ export async function generateInitialTrajectory(
       const reducedMinutes = Math.max(15, Math.round(standardMinutes * 0.65));
       const mvsMinutes = Math.max(15, Math.round(standardMinutes * 0.40));
 
+      const whyThisMatters = isCritical
+        ? `Develops the foundational stimulus for ${currentCapability.name}, unlocking the core adaptation needed for this milestone phase.`
+        : isHighLeverage
+        ? `Consolidates neural and physical retention for ${currentCapability.name}, ensuring gains are durable under fatigue.`
+        : `Maintains continuity and momentum on ${currentCapability.name} without overtaxing recovery.`;
+
+      const mvsFallback = `${mvsMinutes}m minimum viable session focused on ${currentCapability.name} to protect momentum.`;
+
       const fallbackOptions = [
-        `20m minimum viable session focused on ${currentCapability.name}`,
+        `WHY_THIS_MATTERS: ${whyThisMatters}`,
+        `MVS_FALLBACK: ${mvsFallback}`,
         'Low-friction active recovery / mental rehearsal alternative',
       ];
 
