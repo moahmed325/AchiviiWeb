@@ -65,3 +65,22 @@ export function formatGoalTitle(
 
   return catTitle || 'Daily Execution';
 }
+
+/**
+ * Converts "HH:mm" time string into minutes from midnight (0 - 1439).
+ */
+export function timeToMinutes(timeStr: string | null | undefined): number {
+  if (!timeStr) return 0;
+  const [h, m] = timeStr.split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+/**
+ * Converts minutes from midnight into "HH:mm".
+ */
+export function minutesToTime(minutes: number): string {
+  const normalized = Math.max(0, Math.min(1439, Math.floor(minutes)));
+  const h = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}

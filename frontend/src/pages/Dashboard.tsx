@@ -50,7 +50,7 @@ import { GoalDetailDrawer } from '../components/GoalDetailDrawer';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
 import { WeeklyReflection } from '../components/WeeklyReflection';
 import { GraduationModal } from '../components/GraduationModal';
-import { formatTaskTitle, formatGoalTitle } from '../lib/formatters';
+import { formatTaskTitle, formatGoalTitle, timeToMinutes } from '../lib/formatters';
 
 export const Dashboard: React.FC = () => {
   const { token, user } = useAuth();
@@ -177,6 +177,148 @@ export const Dashboard: React.FC = () => {
     const namePart = user.email.split('@')[0];
     return namePart.charAt(0).toUpperCase() + namePart.slice(1);
   }, [user?.email]);
+
+  // ─── LIVE TEMPORAL AWARENESS ("WHERE WE ARE RIGHT NOW") ───
+  // Live clock updating every 15 seconds
+  const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Current minutes from midnight in user's timezone
+  const currentMinutesFromMidnight = useMemo(() => {
+    const tz = user?.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
+    try {
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: false,
+        timeZone: tz,
+      }).formatToParts(currentTime);
+      const hour = parseInt(parts.find((p) => p.type === 'hour')?.value || '0', 10);
+      const minute = parseInt(parts.find((p) => p.type === 'minute')?.value || '0', 10);
+      return hour * 60 + minute;
+    } catch {
+      return currentTime.getHours() * 60 + currentTime.getMinutes();
+    }
+  }, [currentTime, user?.timezone]);
+
+  // Formatted live time string "HH:mm"
+  const currentTimeFormatted = useMemo(() => {
+    const tz = user?.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
+    try {
+      return new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: tz,
+      }).format(currentTime);
+    } catch {
+      const h = currentTime.getHours().toString().padStart(2, '0');
+      const m = currentTime.getMinutes().toString().padStart(2, '0');
+      return `${h}:${m}`;
+    }
+  }, [currentTime, user?.timezone]);
+
+  // Determine current active item (occurring right now)
+  const currentActiveItem = useMemo(() => {
+    if (!todaySchedule?.items) return null;
+    return (
+      todaySchedule.items.find((item) => {
+        const start = timeToMinutes(item.start_time);
+        const end = timeToMinutes(item.end_time);
+        return start <= currentMinutesFromMidnight && currentMinutesFromMidnight < end;
+      }) || null
+    );
+  }, [todaySchedule, currentMinutesFromMidnight]);
+
+  // Determine next upcoming item
+  const nextUpcomingItem = useMemo(() => {
+    if (!todaySchedule?.items) return null;
+    return (
+      todaySchedule.items.find((item) => {
+        const start = timeToMinutes(item.start_time);
+        return start > currentMinutesFromMidnight;
+      }) || null
+    );
+  }, [todaySchedule, currentMinutesFromMidnight]);
+
+  // High-level summary of current state
+  const currentStatusSummary = useMemo(() => {
+    if (currentActiveItem) {
+      const isAmbition = currentActiveItem.item_type === 'AMBITION_DOSE';
+      const endMins = timeToMinutes(currentActiveItem.end_time);
+      const minsLeft = Math.max(0, endMins - currentMinutesFromMidnight);
+      return `${isAmbition ? 'Ambition Dose' : formatTaskTitle(currentActiveItem.title)} (${minsLeft}m left)`;
+    }
+
+    const wakeMins = lifeStructure ? timeToMinutes(lifeStructure.wake_time) : 360;
+    const sleepMins = lifeStructure ? timeToMinutes(lifeStructure.sleep_time) : 1380;
+
+    if (currentMinutesFromMidnight < wakeMins) {
+      return `Rest & Sleep · Wake at ${lifeStructure?.wake_time || '06:00'}`;
+    }
+    if (currentMinutesFromMidnight >= sleepMins) {
+      return 'Night Wind-Down · Rest';
+    }
+    if (nextUpcomingItem) {
+      const startMins = timeToMinutes(nextUpcomingItem.start_time);
+      const minsUntil = Math.max(0, startMins - currentMinutesFromMidnight);
+      return `Buffer Window · Next: ${formatTaskTitle(nextUpcomingItem.title)} in ${minsUntil}m`;
+    }
+    return 'Day Complete · Free Evening';
+  }, [currentActiveItem, nextUpcomingItem, currentMinutesFromMidnight, lifeStructure]);
+
+  // Check if next ambition dose is active now or starting within 60 mins
+  const isDoseActiveNow = useMemo(() => {
+    if (!nextAmbitionDose) return false;
+    const s = timeToMinutes(nextAmbitionDose.start_time);
+    const e = timeToMinutes(nextAmbitionDose.end_time);
+    return s <= currentMinutesFromMidnight && currentMinutesFromMidnight < e;
+  }, [nextAmbitionDose, currentMinutesFromMidnight]);
+
+  const minsUntilNextDose = useMemo(() => {
+    if (!nextAmbitionDose) return null;
+    const s = timeToMinutes(nextAmbitionDose.start_time);
+    if (s > currentMinutesFromMidnight) {
+      return s - currentMinutesFromMidnight;
+    }
+    return null;
+  }, [nextAmbitionDose, currentMinutesFromMidnight]);
+
+  // Determine chronological index where the live NOW marker sits in the timeline
+  const nowMarkerPosition = useMemo(() => {
+    const wakeMins = lifeStructure ? timeToMinutes(lifeStructure.wake_time) : 360;
+    const sleepMins = lifeStructure ? timeToMinutes(lifeStructure.sleep_time) : 1380;
+    const items = todaySchedule?.items || [];
+
+    if (currentMinutesFromMidnight < wakeMins) {
+      return 'BEFORE_WAKE';
+    }
+
+    if (items.length === 0) {
+      if (currentMinutesFromMidnight >= sleepMins) return 'AFTER_SLEEP';
+      return 'AFTER_ITEMS_BEFORE_SLEEP';
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const start = timeToMinutes(items[i].start_time);
+      const end = timeToMinutes(items[i].end_time);
+
+      if (currentMinutesFromMidnight >= start && currentMinutesFromMidnight < end) {
+        return i; // sits right above active item
+      }
+      if (currentMinutesFromMidnight < start) {
+        return i; // sits in gap before this item
+      }
+    }
+
+    if (currentMinutesFromMidnight >= sleepMins) {
+      return 'AFTER_SLEEP';
+    }
+    return 'AFTER_ITEMS_BEFORE_SLEEP';
+  }, [lifeStructure, todaySchedule, currentMinutesFromMidnight]);
 
   // Ambition Hub Filters
   const HUB_FILTERS = useMemo(
@@ -605,7 +747,20 @@ export const Dashboard: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Live "Right Now" Status Pill */}
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-xs font-mono text-[#07CB6C] shadow-[0_0_15px_rgba(7,203,108,0.08)]"
+              title={`Current Time: ${currentTimeFormatted}`}
+            >
+              <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
+              <span className="font-bold text-white">{currentTimeFormatted}</span>
+              <span className="text-[#07CB6C]/40">•</span>
+              <span className="text-neutral-300 truncate max-w-[140px] sm:max-w-[200px]">
+                {currentStatusSummary}
+              </span>
+            </div>
+
             {/* Waking / Sleep Hours Pill */}
             {lifeStructure && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-neutral-400">
@@ -697,7 +852,7 @@ export const Dashboard: React.FC = () => {
 
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
                   <span className="text-xs font-mono font-semibold uppercase tracking-wider text-[#07CB6C]">
                     Today's Focus
@@ -706,6 +861,18 @@ export const Dashboard: React.FC = () => {
                   <span className="text-xs font-mono text-neutral-400">
                     {nextAmbitionDose.start_time} – {nextAmbitionDose.end_time}
                   </span>
+
+                  {isDoseActiveNow ? (
+                    <span className="ml-2 px-2.5 py-0.5 rounded-full bg-[#07CB6C] text-black font-mono text-[10px] font-bold tracking-wider uppercase flex items-center gap-1 shadow-[0_0_12px_rgba(7,203,108,0.5)] animate-pulse">
+                      <Play className="w-2.5 h-2.5 fill-black" />
+                      Active Now
+                    </span>
+                  ) : minsUntilNextDose !== null && minsUntilNextDose <= 60 && minsUntilNextDose > 0 ? (
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono text-[10px] font-semibold flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5" />
+                      Starts in {minsUntilNextDose}m
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="text-xs font-mono text-neutral-400">
@@ -783,6 +950,23 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="relative pl-6 space-y-3 before:absolute before:left-2 before:top-3 before:bottom-3 before:w-px before:bg-white/10">
+            {/* Live "NOW" Indicator when before wake time */}
+            {nowMarkerPosition === 'BEFORE_WAKE' && (
+              <div className="relative flex items-center gap-3 my-2.5 z-20" title={`Current time: ${currentTimeFormatted}`}>
+                <div className="absolute -left-6 w-4 h-4 rounded-full bg-[#070b09] border-2 border-[#07CB6C] flex items-center justify-center -translate-x-[3px] shadow-[0_0_15px_rgba(7,203,108,0.7)]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-ping" />
+                  <div className="absolute w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#07CB6C] text-black font-mono text-[11px] font-bold tracking-wide shadow-[0_0_20px_rgba(7,203,108,0.35)] shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                  <span>NOW · {currentTimeFormatted}</span>
+                  <span className="opacity-50">•</span>
+                  <span className="font-semibold">Pre-Dawn Rest</span>
+                </div>
+                <div className="flex-1 h-0.5 bg-gradient-to-r from-[#07CB6C] via-[#07CB6C]/40 to-transparent" />
+              </div>
+            )}
+
             {/* Morning Wake Boundary */}
             {lifeStructure && (
               <div className="relative flex items-center gap-3 text-xs font-mono text-neutral-500">
@@ -797,91 +981,178 @@ export const Dashboard: React.FC = () => {
 
             {/* Scheduled Day Events */}
             {todaySchedule?.items && todaySchedule.items.length > 0 ? (
-              todaySchedule.items.map((item) => {
+              todaySchedule.items.map((item, idx) => {
                 const isAmbition = item.item_type === 'AMBITION_DOSE';
                 const isCompleted = item.status === 'COMPLETED';
                 const isSkipped = item.status === 'SKIPPED_INTENTIONAL';
 
+                const startMins = timeToMinutes(item.start_time);
+                const endMins = timeToMinutes(item.end_time);
+                const isActiveNow = startMins <= currentMinutesFromMidnight && currentMinutesFromMidnight < endMins;
+                const isPast = currentMinutesFromMidnight >= endMins;
+
+                // Progress percentage for active task
+                const duration = Math.max(1, endMins - startMins);
+                const elapsed = Math.max(0, Math.min(duration, currentMinutesFromMidnight - startMins));
+                const progressPct = Math.round((elapsed / duration) * 100);
+                const minsRemaining = Math.max(0, endMins - currentMinutesFromMidnight);
+
+                const showNowMarkerBeforeThis = nowMarkerPosition === idx;
+
                 return (
-                  <div
-                    key={item.id}
-                    className={`relative rounded-xl border transition-all ${
-                      isCompleted ? 'opacity-50' : ''
-                    } ${
-                      isAmbition
-                        ? 'p-4 bg-[#0d1612] border-[#07CB6C]/30 shadow-[0_0_20px_rgba(7,203,108,0.05)]'
-                        : 'p-3.5 bg-white/[0.02] border-white/5 hover:border-white/10'
-                    }`}
-                  >
-                    {/* Node Dot on Timeline */}
-                    <div
-                      className={`absolute -left-6 top-5 w-2.5 h-2.5 rounded-full -translate-x-[3px] border ${
-                        isCompleted
-                          ? 'bg-[#07CB6C] border-[#07CB6C]'
-                          : isAmbition
-                          ? 'bg-[#07CB6C] border-[#07CB6C] ring-4 ring-[#07CB6C]/20'
-                          : 'bg-neutral-800 border-neutral-600'
-                      }`}
-                    />
-
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-neutral-400">
-                            {item.start_time} – {item.end_time}
-                          </span>
-
-                          <span
-                            className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase flex items-center gap-1 ${
-                              isAmbition
-                                ? 'bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20'
-                                : 'bg-white/5 text-neutral-400'
-                            }`}
-                          >
-                            {!isAmbition && getCategoryIcon(item.category)}
-                            <span>{isAmbition ? 'Ambition' : item.category || 'Routine'}</span>
-                          </span>
+                  <React.Fragment key={item.id}>
+                    {/* Live "NOW" Line chronologically placed before or during this block */}
+                    {showNowMarkerBeforeThis && (
+                      <div className="relative flex items-center gap-3 my-2.5 z-20" title={`Current time: ${currentTimeFormatted}`}>
+                        <div className="absolute -left-6 w-4 h-4 rounded-full bg-[#070b09] border-2 border-[#07CB6C] flex items-center justify-center -translate-x-[3px] shadow-[0_0_15px_rgba(7,203,108,0.7)]">
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-ping" />
+                          <div className="absolute w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
                         </div>
-
-                        <div className="text-sm font-semibold text-white">
-                          {formatTaskTitle(item.title)}
+                        <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#07CB6C] text-black font-mono text-[11px] font-bold tracking-wide shadow-[0_0_20px_rgba(7,203,108,0.35)] shrink-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                          <span>NOW · {currentTimeFormatted}</span>
+                          {isActiveNow && (
+                            <>
+                              <span className="opacity-50">•</span>
+                              <span className="font-semibold">{minsRemaining}m left in this block</span>
+                            </>
+                          )}
                         </div>
-
-                        {item.description && (
-                          <p className="text-xs text-neutral-400 mt-1 leading-relaxed max-w-xl">
-                            {item.description}
-                          </p>
-                        )}
+                        <div className="flex-1 h-0.5 bg-gradient-to-r from-[#07CB6C] via-[#07CB6C]/40 to-transparent" />
                       </div>
+                    )}
 
-                      {/* Status / Action */}
-                      <div className="shrink-0">
-                        {isCompleted ? (
-                          <div className="flex items-center gap-1 text-xs font-mono text-[#07CB6C]">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Done</span>
+                    <div
+                      className={`relative rounded-xl border transition-all ${
+                        isActiveNow
+                          ? isAmbition
+                            ? 'p-4 bg-gradient-to-br from-[#0e1f17] to-[#0a1510] border-[#07CB6C] ring-2 ring-[#07CB6C]/30 shadow-[0_0_30px_rgba(7,203,108,0.18)] z-10'
+                            : 'p-3.5 bg-gradient-to-br from-white/[0.06] to-white/[0.02] border-[#07CB6C]/60 shadow-[0_0_20px_rgba(7,203,108,0.1)] z-10'
+                          : isCompleted || isPast
+                          ? 'p-3.5 bg-white/[0.015] border-white/5 opacity-55 hover:opacity-90'
+                          : isAmbition
+                          ? 'p-4 bg-[#0d1612] border-[#07CB6C]/30 shadow-[0_0_20px_rgba(7,203,108,0.05)]'
+                          : 'p-3.5 bg-white/[0.02] border-white/5 hover:border-white/10'
+                      }`}
+                    >
+                      {/* Node Dot on Timeline */}
+                      <div
+                        className={`absolute -left-6 top-5 w-2.5 h-2.5 rounded-full -translate-x-[3px] border ${
+                          isActiveNow
+                            ? 'bg-[#07CB6C] border-[#07CB6C] ring-4 ring-[#07CB6C]/50 shadow-[0_0_12px_rgba(7,203,108,0.8)]'
+                            : isCompleted
+                            ? 'bg-[#07CB6C] border-[#07CB6C]'
+                            : isAmbition
+                            ? 'bg-[#07CB6C] border-[#07CB6C] ring-4 ring-[#07CB6C]/20'
+                            : isPast
+                            ? 'bg-neutral-800 border-neutral-700'
+                            : 'bg-neutral-700 border-neutral-500'
+                        }`}
+                      />
+
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-xs font-mono ${isActiveNow ? 'text-[#07CB6C] font-semibold' : 'text-neutral-400'}`}>
+                              {item.start_time} – {item.end_time}
+                            </span>
+
+                            <span
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded-full uppercase flex items-center gap-1 ${
+                                isAmbition
+                                  ? 'bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20'
+                                  : 'bg-white/5 text-neutral-400'
+                              }`}
+                            >
+                              {!isAmbition && getCategoryIcon(item.category)}
+                              <span>{isAmbition ? 'Ambition' : item.category || 'Routine'}</span>
+                            </span>
+
+                            {isActiveNow && (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#07CB6C] text-black font-bold uppercase tracking-wider flex items-center gap-1 shadow-[0_0_10px_rgba(7,203,108,0.4)] animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping" />
+                                Active Now
+                              </span>
+                            )}
                           </div>
-                        ) : isSkipped ? (
-                          <span className="text-[10px] font-mono text-neutral-500">
-                            Skipped
-                          </span>
-                        ) : isAmbition ? (
-                          <button
-                            type="button"
-                            onClick={() => handleStartFocus(item)}
-                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-[#07CB6C] hover:text-black text-white font-mono text-xs transition-colors cursor-pointer"
-                          >
-                            Focus
-                          </button>
-                        ) : null}
+
+                          <div className="text-sm font-semibold text-white">
+                            {formatTaskTitle(item.title)}
+                          </div>
+
+                          {item.description && (
+                            <p className="text-xs text-neutral-400 mt-1 leading-relaxed max-w-xl">
+                              {item.description}
+                            </p>
+                          )}
+
+                          {/* Live Progress Bar if active now */}
+                          {isActiveNow && (
+                            <div className="pt-2 space-y-1 max-w-sm">
+                              <div className="flex items-center justify-between text-[10px] font-mono text-[#07CB6C]">
+                                <span>{progressPct}% elapsed</span>
+                                <span>{minsRemaining}m remaining</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                <div
+                                  className="h-full bg-gradient-to-r from-[#07CB6C] to-emerald-300 rounded-full transition-all duration-500"
+                                  style={{ width: `${progressPct}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Status / Action */}
+                        <div className="shrink-0">
+                          {isCompleted ? (
+                            <div className="flex items-center gap-1 text-xs font-mono text-[#07CB6C]">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Done</span>
+                            </div>
+                          ) : isSkipped ? (
+                            <span className="text-[10px] font-mono text-neutral-500">
+                              Skipped
+                            </span>
+                          ) : isAmbition ? (
+                            <button
+                              type="button"
+                              onClick={() => handleStartFocus(item)}
+                              className={`px-3 py-1.5 rounded-lg font-mono text-xs transition-colors cursor-pointer ${
+                                isActiveNow
+                                  ? 'bg-[#07CB6C] text-black font-bold hover:bg-[#07CB6C]/90 shadow-[0_0_15px_rgba(7,203,108,0.3)]'
+                                  : 'bg-white/10 hover:bg-[#07CB6C] hover:text-black text-white'
+                              }`}
+                            >
+                              {isActiveNow ? 'Start Now' : 'Focus'}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </React.Fragment>
                 );
               })
             ) : (
               <div className="p-4 text-xs font-mono text-neutral-500">
                 No events scheduled for today.
+              </div>
+            )}
+
+            {/* Live "NOW" Indicator when after all items but before sleep */}
+            {nowMarkerPosition === 'AFTER_ITEMS_BEFORE_SLEEP' && (
+              <div className="relative flex items-center gap-3 my-2.5 z-20" title={`Current time: ${currentTimeFormatted}`}>
+                <div className="absolute -left-6 w-4 h-4 rounded-full bg-[#070b09] border-2 border-[#07CB6C] flex items-center justify-center -translate-x-[3px] shadow-[0_0_15px_rgba(7,203,108,0.7)]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-ping" />
+                  <div className="absolute w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#07CB6C] text-black font-mono text-[11px] font-bold tracking-wide shadow-[0_0_20px_rgba(7,203,108,0.35)] shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                  <span>NOW · {currentTimeFormatted}</span>
+                  <span className="opacity-50">•</span>
+                  <span className="font-semibold">Evening Buffer</span>
+                </div>
+                <div className="flex-1 h-0.5 bg-gradient-to-r from-[#07CB6C] via-[#07CB6C]/40 to-transparent" />
               </div>
             )}
 
@@ -894,6 +1165,23 @@ export const Dashboard: React.FC = () => {
                 <span>{lifeStructure.sleep_time}</span>
                 <span className="text-neutral-600">—</span>
                 <span>Sleep & Recharge</span>
+              </div>
+            )}
+
+            {/* Live "NOW" Indicator when after sleep time */}
+            {nowMarkerPosition === 'AFTER_SLEEP' && (
+              <div className="relative flex items-center gap-3 my-2.5 z-20" title={`Current time: ${currentTimeFormatted}`}>
+                <div className="absolute -left-6 w-4 h-4 rounded-full bg-[#070b09] border-2 border-[#07CB6C] flex items-center justify-center -translate-x-[3px] shadow-[0_0_15px_rgba(7,203,108,0.7)]">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-ping" />
+                  <div className="absolute w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#07CB6C] text-black font-mono text-[11px] font-bold tracking-wide shadow-[0_0_20px_rgba(7,203,108,0.35)] shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse" />
+                  <span>NOW · {currentTimeFormatted}</span>
+                  <span className="opacity-50">•</span>
+                  <span className="font-semibold">Night Wind-Down</span>
+                </div>
+                <div className="flex-1 h-0.5 bg-gradient-to-r from-[#07CB6C] via-[#07CB6C]/40 to-transparent" />
               </div>
             )}
           </div>
