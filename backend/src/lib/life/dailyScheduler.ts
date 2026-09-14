@@ -148,6 +148,14 @@ export function findOptimalAmbitionWindow(
     if (memoryLower.includes('parent') || memoryLower.includes('kids')) {
       if (cand.startMins >= 1200 || cand.startMins <= 480) score += 60;
     }
+    // Limited weekday energy: strongly prefer post-work transition (17:00-19:00) before family dinner, avoiding late-night fatigue
+    if (memoryLower.includes('limited') && (memoryLower.includes('energy') || memoryLower.includes('weekday'))) {
+      if (cand.startMins >= 1020 && cand.endMins <= 1140) {
+        score += 150;
+      } else if (cand.startMins >= 1200) {
+        score -= 80;
+      }
+    }
 
     // 3. Energy match
     if (params.energyRequirement) {
@@ -330,27 +338,34 @@ export async function materializeDays(
             });
             const startsAtWake = item.start_time === life.wake_time;
 
-            if (overlapsRoutine || startsAtWake) {
-              const openWins = await calculateAvailableWindows(userId, dateStr);
-              const nominal = roundToHumanDuration(item.allocated_minutes || 45);
-              const optimal = findOptimalAmbitionWindow(openWins, {
-                nominalMinutes: nominal,
-                mvdMinutes: item.minimum_viable_minutes || 20,
-                userMemory: userRecord?.user_memory || undefined,
+            const openWins = await calculateAvailableWindows(userId, dateStr);
+            const nominal = roundToHumanDuration(item.allocated_minutes || 45);
+            const optimal = findOptimalAmbitionWindow(openWins, {
+              nominalMinutes: nominal,
+              mvdMinutes: item.minimum_viable_minutes || 20,
+              userMemory: userRecord?.user_memory || undefined,
+            });
+
+            const isSuboptimal = Boolean(
+              optimal && (
+                overlapsRoutine ||
+                startsAtWake ||
+                Math.abs(doseStart - optimal.startMins) >= 60
+              )
+            );
+
+            if (isSuboptimal && optimal) {
+              item.start_time = minutesToTime(optimal.startMins);
+              item.end_time = minutesToTime(optimal.endMins);
+              item.allocated_minutes = optimal.allocatedMinutes;
+              await prisma.dailyScheduleItem.update({
+                where: { id: item.id },
+                data: {
+                  start_time: item.start_time,
+                  end_time: item.end_time,
+                  allocated_minutes: item.allocated_minutes,
+                },
               });
-              if (optimal) {
-                item.start_time = minutesToTime(optimal.startMins);
-                item.end_time = minutesToTime(optimal.endMins);
-                item.allocated_minutes = optimal.allocatedMinutes;
-                await prisma.dailyScheduleItem.update({
-                  where: { id: item.id },
-                  data: {
-                    start_time: item.start_time,
-                    end_time: item.end_time,
-                    allocated_minutes: item.allocated_minutes,
-                  },
-                });
-              }
             }
           }
         }

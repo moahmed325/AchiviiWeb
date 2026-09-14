@@ -151,6 +151,44 @@ export async function getOrCreateLifeStructure(userId: string) {
     });
   }
 
+  // Auto-heal: Ensure wake_time and sleep_time encompass all routine blocks
+  if (life.routine_blocks && life.routine_blocks.length > 0) {
+    const routineStarts = life.routine_blocks.map((b: any) => timeToMinutes(b.start_time));
+    const routineEnds = life.routine_blocks.map((b: any) => timeToMinutes(b.end_time));
+    const earliestStart = Math.min(...routineStarts);
+    const latestEnd = Math.max(...routineEnds);
+
+    const currentWake = timeToMinutes(life.wake_time);
+    const currentSleep = timeToMinutes(life.sleep_time);
+
+    let needsUpdate = false;
+    let newWake = life.wake_time;
+    let newSleep = life.sleep_time;
+
+    // Wake time should be at least 15-30m before the earliest routine
+    if (earliestStart <= currentWake) {
+      const targetWakeMins = Math.max(0, earliestStart - 30);
+      newWake = minutesToTime(targetWakeMins);
+      needsUpdate = true;
+    }
+
+    // Sleep time should be at least 15-30m after the latest routine
+    if (latestEnd >= currentSleep) {
+      const targetSleepMins = Math.min(1439, latestEnd + 30);
+      newSleep = minutesToTime(targetSleepMins);
+      needsUpdate = true;
+    }
+
+    if (needsUpdate) {
+      await prisma.lifeStructure.update({
+        where: { id: life.id },
+        data: { wake_time: newWake, sleep_time: newSleep },
+      });
+      life.wake_time = newWake;
+      life.sleep_time = newSleep;
+    }
+  }
+
   return life;
 }
 
@@ -281,12 +319,6 @@ export async function calculateAvailableWindows(
   const dateObj = typeof targetDate === 'string' ? new Date(targetDate) : targetDate;
   const dayOfWeek = dateObj.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
 
-  const wakeMins = timeToMinutes(life.wake_time);
-  const sleepMins = timeToMinutes(life.sleep_time);
-
-  // If sleep time is on or before wake time (e.g. night shift), adjust sleep to 1440
-  const effectiveSleepMins = sleepMins <= wakeMins ? 1440 : sleepMins;
-
   // Filter routine blocks for this day of week using robust normalization
   const activeBlocks = (life.routine_blocks || []).filter((block: any) => {
     try {
@@ -296,6 +328,17 @@ export async function calculateAvailableWindows(
       return false;
     }
   });
+
+  const rawWakeMins = timeToMinutes(life.wake_time);
+  const rawSleepMins = timeToMinutes(life.sleep_time);
+
+  // Compute effective wake/sleep times considering routine blocks on this day
+  const routineStarts = activeBlocks.map((b: any) => timeToMinutes(b.start_time) - (b.buffer_before_minutes || 0));
+  const routineEnds = activeBlocks.map((b: any) => timeToMinutes(b.end_time) + (b.buffer_after_minutes || 0));
+
+  const wakeMins = routineStarts.length > 0 ? Math.min(rawWakeMins, ...routineStarts) : rawWakeMins;
+  const nominalSleepMins = rawSleepMins <= rawWakeMins ? 1440 : rawSleepMins;
+  const effectiveSleepMins = routineEnds.length > 0 ? Math.max(nominalSleepMins, ...routineEnds) : nominalSleepMins;
 
   // Convert blocks into occupied intervals with their buffer times included
   interface Interval {

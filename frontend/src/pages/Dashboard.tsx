@@ -50,7 +50,7 @@ import { GoalDetailDrawer } from '../components/GoalDetailDrawer';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
 import { WeeklyReflection } from '../components/WeeklyReflection';
 import { GraduationModal } from '../components/GraduationModal';
-import { formatTaskTitle } from '../lib/formatters';
+import { formatTaskTitle, formatGoalTitle } from '../lib/formatters';
 
 export const Dashboard: React.FC = () => {
   const { token, user } = useAuth();
@@ -596,8 +596,13 @@ export const Dashboard: React.FC = () => {
               )}
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              {activeUserGoal.outcome_statement || activeUserGoal.goal_catalog?.title || 'Daily Execution'}
+              {formatGoalTitle(activeUserGoal)}
             </h1>
+            {activeUserGoal.outcome_statement && (
+              <p className="text-xs text-neutral-400 max-w-xl line-clamp-2 leading-relaxed pt-0.5">
+                {activeUserGoal.outcome_statement}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
