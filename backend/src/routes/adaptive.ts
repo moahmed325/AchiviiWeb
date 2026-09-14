@@ -54,7 +54,7 @@ async function resolveGoalId(req: Request, userId: string): Promise<string | nul
 // 1.2 POST /api/adaptive/interpret-answers (Optimistic Background Answer Interpreter)
 adaptiveRouter.post('/interpret-answers', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { goalTitle, domain, questionnaireAnswers, defaultWeeklyHours } = req.body;
+    const { goalTitle, domain, questionnaireAnswers, defaultWeeklyHours, userMemory } = req.body;
 
     if (!questionnaireAnswers || typeof questionnaireAnswers !== 'object') {
       res.status(400).json({ error: 'questionnaireAnswers object is required' });
@@ -66,6 +66,7 @@ adaptiveRouter.post('/interpret-answers', async (req: Request, res: Response): P
       domain,
       questionnaireAnswers,
       defaultWeeklyHours: typeof defaultWeeklyHours === 'number' ? defaultWeeklyHours : 6,
+      userMemory: typeof userMemory === 'string' ? userMemory.trim() : undefined,
     });
 
     res.status(200).json({ profile });
@@ -181,11 +182,24 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
       availabilitySlots,
       questionnaireAnswers,
       interpretedProfile,
+      userMemory,
     } = req.body;
 
     if (!outcomeStatement || typeof outcomeStatement !== 'string' || !outcomeStatement.trim()) {
       res.status(400).json({ error: 'outcomeStatement is required.' });
       return;
+    }
+
+    // Persist userMemory to User profile if provided
+    if (typeof userMemory === 'string' && userMemory.trim()) {
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { user_memory: userMemory.trim() },
+        });
+      } catch (memErr) {
+        console.warn('Failed to update user_memory:', memErr);
+      }
     }
 
     // Resolve or find fallback goal catalog
@@ -287,6 +301,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
           answers: questionnaireAnswers,
           interpretedProfile,
           lifeStructure,
+          userMemory: userMemory?.trim() || user.user_memory || undefined,
           startDate: parsedStartDate,
         });
         masterPlan = planResult.plan;

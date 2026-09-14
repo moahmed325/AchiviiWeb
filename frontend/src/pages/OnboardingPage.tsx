@@ -37,6 +37,7 @@ import {
   Car,
   Dumbbell,
   Clock,
+  Brain,
 } from 'lucide-react';
 
 interface OnboardingQuestionOption {
@@ -243,6 +244,10 @@ export const OnboardingPage: React.FC = () => {
   const [isAiCalibratingHours, setIsAiCalibratingHours] = useState<boolean>(false);
   const [hasUserManuallyAdjustedHours, setHasUserManuallyAdjustedHours] = useState<boolean>(false);
 
+  // Persistent AI Memory State (Phase 1)
+  const [userMemory, setUserMemory] = useState<string>('');
+  const [selectedMemoryChips, setSelectedMemoryChips] = useState<string[]>([]);
+
   // Step 3 Life Structure & Routine State
   const [wakeTime, setWakeTime] = useState<string>('07:00');
   const [sleepTime, setSleepTime] = useState<string>('23:00');
@@ -415,6 +420,7 @@ export const OnboardingPage: React.FC = () => {
     }
   }, [selectedGoal, isCustomGoalActive, customFormalization]);
 
+  const isMemoryStage = parsedQuestions.length > 0 && currentQuestionIndex === parsedQuestions.length;
   const currentQuestion: OnboardingQuestion | undefined = parsedQuestions[currentQuestionIndex];
   const currentAnswer = currentQuestion ? questionnaireAnswers[currentQuestion.id] : undefined;
   const isOtherSelected = Boolean(
@@ -424,12 +430,40 @@ export const OnboardingPage: React.FC = () => {
     )
   );
   const isCurrentQuestionAnswered = Boolean(
-    currentQuestion && (
-      isOtherSelected
-        ? Boolean(currentAnswer && currentAnswer.trim().length > 0)
-        : Boolean(currentAnswer)
-    )
+    isMemoryStage
+      ? true
+      : currentQuestion && (
+        isOtherSelected
+          ? Boolean(currentAnswer && currentAnswer.trim().length > 0)
+          : Boolean(currentAnswer)
+      )
   );
+
+  const INSPIRATION_CHIPS = useMemo(() => [
+    { id: 'parent', label: '🍼 Parent / Caregiver', text: 'I am a parent/caregiver with daily family commitments' },
+    { id: 'job_9to5', label: '💼 Demanding 9-to-5', text: 'I work a demanding 9-to-5 with limited weekday energy' },
+    { id: 'adhd', label: '🧠 ADHD / Short sprints', text: 'I have ADHD; I do best with short, focused 20-30 min sprints' },
+    { id: 'night_owl', label: '🦉 Night owl', text: 'I am a night owl; my peak focus happens after 8 PM' },
+    { id: 'early_bird', label: '🌅 Early bird', text: 'I am an early bird; I prefer early morning sessions before 8 AM' },
+    { id: 'injury', label: '🩹 Managing injury / fatigue', text: 'I am managing physical fatigue/injury and need gentle pacing' },
+  ], []);
+
+  const handleToggleMemoryChip = (chip: { id: string; label: string; text: string }) => {
+    const isSelected = selectedMemoryChips.includes(chip.id);
+    if (isSelected) {
+      setSelectedMemoryChips((prev) => prev.filter((id) => id !== chip.id));
+      setUserMemory((prev) => {
+        const pattern = new RegExp(`(^|[.\\s])\\s*${chip.text.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\.?`, 'gi');
+        return prev.replace(pattern, '').replace(/\s{2,}/g, ' ').trim();
+      });
+    } else {
+      setSelectedMemoryChips((prev) => [...prev, chip.id]);
+      setUserMemory((prev) => {
+        const clean = prev.trim();
+        return clean ? `${clean}. ${chip.text}` : chip.text;
+      });
+    }
+  };
 
   // Goal Icon helper
   const getGoalIcon = (iconName?: string) => {
@@ -583,7 +617,9 @@ export const OnboardingPage: React.FC = () => {
     }
   }, [currentQuestionIndex, navigate]);
 
-  const handleContinueToRoutines = useCallback(() => {
+  const handleContinueToRoutines = useCallback((overrideMemory?: string) => {
+    const memoryToUse = overrideMemory !== undefined ? overrideMemory : userMemory;
+
     // 1. Initial baseline check for immediate, zero-lag slider preset
     for (const q of parsedQuestions) {
       const chosenVal = questionnaireAnswers[q.id];
@@ -610,13 +646,16 @@ export const OnboardingPage: React.FC = () => {
     // 3. Fire Optimistic Background Answer Interpreter
     const token = localStorage.getItem('token');
     const hasCustomText = Object.values(questionnaireAnswers).some((ans) => ans && ans.includes(' ') && ans.length > 8);
-    if (token && hasCustomText) {
+    const hasUserMemory = Boolean(memoryToUse && memoryToUse.trim().length > 5);
+
+    if (token && (hasCustomText || hasUserMemory)) {
       setIsAiCalibratingHours(true);
       interpretOnboardingAnswers(token, {
         goalTitle: selectedGoal?.title || customFormalization?.concreteOutcomeStatement || 'My Ambition',
         domain: customFormalization?.domain || (selectedGoal?.category === 'Health & Fitness' ? 'PHYSICAL' : 'PROJECT'),
         questionnaireAnswers,
         defaultWeeklyHours: weeklyAvailableHours || 6,
+        userMemory: memoryToUse.trim() || undefined,
       })
         .then((res) => {
           if (res?.profile) {
@@ -633,11 +672,11 @@ export const OnboardingPage: React.FC = () => {
           setIsAiCalibratingHours(false);
         });
     }
-  }, [parsedQuestions, questionnaireAnswers, selectedGoal, customFormalization, weeklyAvailableHours, hasUserManuallyAdjustedHours]);
+  }, [parsedQuestions, questionnaireAnswers, selectedGoal, customFormalization, weeklyAvailableHours, hasUserManuallyAdjustedHours, userMemory]);
 
   const handleNextQuestion = useCallback(() => {
     if (!isCurrentQuestionAnswered) return;
-    if (currentQuestionIndex < parsedQuestions.length - 1) {
+    if (currentQuestionIndex < parsedQuestions.length) {
       setCurrentQuestionIndex((prev) => prev + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
@@ -645,18 +684,22 @@ export const OnboardingPage: React.FC = () => {
     }
   }, [isCurrentQuestionAnswered, currentQuestionIndex, parsedQuestions.length, handleContinueToRoutines]);
 
-  // Keyboard navigation for question walkthrough
+  // Keyboard navigation for question walkthrough & AI memory stage
   useEffect(() => {
-    if (step !== 2 || !currentQuestion) return;
+    if (step !== 2) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
 
       if (e.key === 'ArrowLeft') {
         handlePrevQuestion();
-      } else if ((e.key === 'ArrowRight' || e.key === 'Enter') && isCurrentQuestionAnswered) {
-        handleNextQuestion();
-      } else {
+      } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        if (isMemoryStage) {
+          handleContinueToRoutines();
+        } else if (isCurrentQuestionAnswered) {
+          handleNextQuestion();
+        }
+      } else if (!isMemoryStage && currentQuestion) {
         const num = parseInt(e.key);
         if (!isNaN(num) && num >= 1 && num <= currentQuestion.options.length) {
           setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: false }));
@@ -672,7 +715,7 @@ export const OnboardingPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [step, currentQuestion, isCurrentQuestionAnswered, handlePrevQuestion, handleNextQuestion, otherCustomTexts]);
+  }, [step, isMemoryStage, currentQuestion, isCurrentQuestionAnswered, handlePrevQuestion, handleNextQuestion, handleContinueToRoutines, otherCustomTexts]);
 
   // Routine Handlers
   const toggleRoutine = (id: string) => {
@@ -807,6 +850,7 @@ export const OnboardingPage: React.FC = () => {
         availabilitySlots,
         questionnaireAnswers,
         interpretedProfile: interpretedProfile || undefined,
+        userMemory: userMemory.trim() || undefined,
       });
 
       navigate('/dashboard');
@@ -1239,8 +1283,8 @@ export const OnboardingPage: React.FC = () => {
           </div>
         )}
 
-        {/* ─── STEP 2: FULL-PAGE QUESTION WALKTHROUGH WITH SIDE CONTROLS ─── */}
-        {step === 2 && selectedGoal && currentQuestion && (
+        {/* ─── STEP 2: FULL-PAGE QUESTION WALKTHROUGH WITH SIDE CONTROLS & AI MEMORY ─── */}
+        {step === 2 && selectedGoal && (currentQuestion || isMemoryStage) && (
           <div className="w-full space-y-8 animate-in fade-in duration-200">
             {/* Top Navigation & Progress */}
             <div className="max-w-2xl w-full mx-auto space-y-3">
@@ -1269,10 +1313,16 @@ export const OnboardingPage: React.FC = () => {
               {/* Progress Counters & Hints */}
               <div className="flex items-center justify-between text-xs font-mono text-neutral-400 pt-0.5">
                 <span className="text-[#07CB6C] font-semibold">
-                  Question {currentQuestionIndex + 1} of {parsedQuestions.length}
+                  {isMemoryStage
+                    ? 'AI Persistent Memory (Optional)'
+                    : `Question ${currentQuestionIndex + 1} of ${parsedQuestions.length}`}
                 </span>
                 <span className="text-neutral-500 hidden sm:inline">
-                  Press 1–{currentQuestion.options.length + 1} or use keyboard arrows
+                  {isMemoryStage
+                    ? 'Tap chips or type note • Press Enter ↵ or Skip'
+                    : currentQuestion
+                    ? `Press 1–${currentQuestion.options.length + 1} or use keyboard arrows`
+                    : ''}
                 </span>
               </div>
 
@@ -1280,7 +1330,9 @@ export const OnboardingPage: React.FC = () => {
               <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#07CB6C] transition-all duration-300 rounded-full"
-                  style={{ width: `${((currentQuestionIndex + 1) / parsedQuestions.length) * 100}%` }}
+                  style={{
+                    width: `${isMemoryStage ? 100 : Math.round(((currentQuestionIndex + 1) / (parsedQuestions.length + 1)) * 100)}%`,
+                  }}
                 />
               </div>
             </div>
@@ -1297,172 +1349,266 @@ export const OnboardingPage: React.FC = () => {
                 <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 group-hover:-translate-x-0.5 transition-transform" />
               </button>
 
-              {/* CENTER: Dedicated Question Card */}
-              <div className="flex-1 max-w-xl mx-auto space-y-6 text-center sm:text-left">
-                <div className="space-y-2">
-                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-snug">
-                    {currentQuestion.question}
-                  </h2>
-
-                  {currentQuestion.help_text && (
-                    <p className="text-xs sm:text-sm text-neutral-400">
-                      {currentQuestion.help_text}
+              {/* CENTER: AI Memory Card OR Question Card */}
+              {isMemoryStage ? (
+                <div className="flex-1 max-w-xl mx-auto space-y-6 text-center sm:text-left animate-in fade-in duration-300">
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-xs font-semibold text-[#07CB6C] mb-1">
+                      <Brain className="w-3.5 h-3.5" />
+                      <span>AI Persistent Memory</span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-snug">
+                      Anything Achivii should remember about you?
+                    </h2>
+                    <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed">
+                      Optional context about your work rhythm, energy peaks, family commitments, or health quirks to tailor every plan.
                     </p>
-                  )}
-                </div>
+                  </div>
 
-                {/* Vertical Tactile Options */}
-                <div className="space-y-3 pt-2">
-                  {currentQuestion.options.map((opt, optIdx) => {
-                    const isChosen = !isOtherSelected && questionnaireAnswers[currentQuestion.id] === opt.value;
-                    const keyNumber = optIdx + 1;
-
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: false }));
-                          handleAnswerQuestion(currentQuestion.id, opt.value);
-                        }}
-                        className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-4 active:scale-[0.99] ${
-                          isChosen
-                            ? 'bg-[#0d1612] border-[#07CB6C] text-white shadow-[0_0_20px_rgba(7,203,108,0.15)] ring-1 ring-[#07CB6C]/40'
-                            : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] text-neutral-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3.5">
-                          <div
-                            className={`w-6 h-6 rounded-lg text-xs font-mono font-bold flex items-center justify-center shrink-0 border transition-colors ${
-                              isChosen
-                                ? 'bg-[#07CB6C] text-black border-[#07CB6C]'
-                                : 'bg-white/5 text-neutral-400 border-white/10'
+                  {/* Quick-Tap Inspiration Chips */}
+                  <div className="space-y-2.5 pt-1">
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-400 block">
+                      Quick-tap to add context (1-click)
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {INSPIRATION_CHIPS.map((chip) => {
+                        const isSelected = selectedMemoryChips.includes(chip.id);
+                        return (
+                          <button
+                            key={chip.id}
+                            type="button"
+                            onClick={() => handleToggleMemoryChip(chip)}
+                            className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                              isSelected
+                                ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-[#07CB6C] shadow-[0_0_12px_rgba(7,203,108,0.2)]'
+                                : 'bg-white/[0.02] border-white/10 hover:border-white/20 text-neutral-300 hover:text-white hover:bg-white/[0.05]'
                             }`}
                           >
-                            {keyNumber}
-                          </div>
+                            <span>{chip.label}</span>
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                          <div className="space-y-0.5">
-                            <div className={`text-sm font-semibold ${isChosen ? 'text-white' : 'text-neutral-200'}`}>
-                              {opt.label}
-                            </div>
-                            {opt.description && (
-                              <p className="text-xs text-neutral-400 leading-relaxed">
-                                {opt.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="shrink-0">
-                          {isChosen ? (
-                            <div className="w-5 h-5 rounded-full bg-[#07CB6C] text-black flex items-center justify-center">
-                              <Check className="w-3 h-3 stroke-[3]" />
-                            </div>
-                          ) : (
-                            <div className="w-5 h-5 rounded-full border border-white/10" />
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-
-                  {/* Universal "Other" (Custom Write-in) Option Card */}
-                  {(() => {
-                    const otherKeyNumber = currentQuestion.options.length + 1;
-                    const otherVal = otherCustomTexts[currentQuestion.id] ?? (isOtherSelected ? (questionnaireAnswers[currentQuestion.id] || '') : '');
-                    const hasText = Boolean(otherVal.trim());
-
-                    return (
-                      <div
-                        onClick={() => {
-                          setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: true }));
-                          handleAnswerQuestion(currentQuestion.id, otherVal.trim());
-                          setTimeout(() => otherInputRef.current?.focus(), 50);
+                  {/* Dark Glassmorphic Textarea */}
+                  <div className="space-y-2 pt-1">
+                    <div className="relative">
+                      <textarea
+                        value={userMemory}
+                        onChange={(e) => setUserMemory(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                            e.preventDefault();
+                            handleContinueToRoutines();
+                          }
                         }}
-                        className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-                          isOtherSelected
-                            ? 'bg-[#0d1612] border-[#07CB6C] text-white shadow-[0_0_20px_rgba(7,203,108,0.15)] ring-1 ring-[#07CB6C]/40'
-                            : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] text-neutral-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-4">
+                        placeholder="e.g. 'I work irregular night shifts', 'Keep weekend sessions short', 'I do best with short focus bursts'..."
+                        maxLength={300}
+                        rows={3}
+                        className="w-full px-4 py-3 rounded-2xl bg-black/60 border border-white/15 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C]/40 transition-all shadow-inner resize-none leading-relaxed"
+                      />
+                      <div className="flex items-center justify-between px-1 text-[11px] font-mono text-neutral-500">
+                        <span>Press Ctrl+Enter or Continue below</span>
+                        <span>{userMemory.length}/300</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Row */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleContinueToRoutines('')}
+                      className="px-4 py-2.5 rounded-xl text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer text-center sm:text-left order-2 sm:order-1"
+                    >
+                      Skip for now
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleContinueToRoutines()}
+                      className="min-h-[46px] px-7 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(7,203,108,0.25)] order-1 sm:order-2"
+                    >
+                      <span>{userMemory.trim() ? 'Save & Continue to Routines' : 'Continue to Routines'}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : currentQuestion ? (
+                <div className="flex-1 max-w-xl mx-auto space-y-6 text-center sm:text-left">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white leading-snug">
+                      {currentQuestion.question}
+                    </h2>
+
+                    {currentQuestion.help_text && (
+                      <p className="text-xs sm:text-sm text-neutral-400">
+                        {currentQuestion.help_text}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Vertical Tactile Options */}
+                  <div className="space-y-3 pt-2">
+                    {currentQuestion.options.map((opt, optIdx) => {
+                      const isChosen = !isOtherSelected && questionnaireAnswers[currentQuestion.id] === opt.value;
+                      const keyNumber = optIdx + 1;
+
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => {
+                            setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: false }));
+                            handleAnswerQuestion(currentQuestion.id, opt.value);
+                          }}
+                          className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-4 active:scale-[0.99] ${
+                            isChosen
+                              ? 'bg-[#0d1612] border-[#07CB6C] text-white shadow-[0_0_20px_rgba(7,203,108,0.15)] ring-1 ring-[#07CB6C]/40'
+                              : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] text-neutral-300'
+                          }`}
+                        >
                           <div className="flex items-center gap-3.5">
                             <div
                               className={`w-6 h-6 rounded-lg text-xs font-mono font-bold flex items-center justify-center shrink-0 border transition-colors ${
-                                isOtherSelected
+                                isChosen
                                   ? 'bg-[#07CB6C] text-black border-[#07CB6C]'
                                   : 'bg-white/5 text-neutral-400 border-white/10'
                               }`}
                             >
-                              {otherKeyNumber}
+                              {keyNumber}
                             </div>
 
                             <div className="space-y-0.5">
-                              <div className={`text-sm font-semibold ${isOtherSelected ? 'text-white' : 'text-neutral-200'}`}>
-                                Other
+                              <div className={`text-sm font-semibold ${isChosen ? 'text-white' : 'text-neutral-200'}`}>
+                                {opt.label}
                               </div>
-                              <p className="text-xs text-neutral-400">
-                                Write your own specific answer
-                              </p>
+                              {opt.description && (
+                                <p className="text-xs text-neutral-400 leading-relaxed">
+                                  {opt.description}
+                                </p>
+                              )}
                             </div>
                           </div>
 
                           <div className="shrink-0">
-                            {isOtherSelected && hasText ? (
+                            {isChosen ? (
                               <div className="w-5 h-5 rounded-full bg-[#07CB6C] text-black flex items-center justify-center">
                                 <Check className="w-3 h-3 stroke-[3]" />
                               </div>
                             ) : (
-                              <div className={`w-5 h-5 rounded-full border ${isOtherSelected ? 'border-[#07CB6C]' : 'border-white/10'}`} />
+                              <div className="w-5 h-5 rounded-full border border-white/10" />
                             )}
                           </div>
-                        </div>
+                        </button>
+                      );
+                    })}
 
-                        {isOtherSelected && (
-                          <div className="mt-3 pt-3 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              ref={otherInputRef}
-                              type="text"
-                              value={otherVal}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setOtherCustomTexts((prev) => ({ ...prev, [currentQuestion.id]: val }));
-                                handleAnswerQuestion(currentQuestion.id, val.trim());
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && isCurrentQuestionAnswered) {
-                                  e.preventDefault();
-                                  handleNextQuestion();
-                                }
-                              }}
-                              placeholder="Type your own answer here..."
-                              maxLength={180}
-                              className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C]/40 transition-all shadow-inner"
-                            />
-                            <div className="flex items-center justify-between mt-1.5 px-0.5 text-[11px] text-neutral-400">
-                              <span>Press Enter ↵ to advance</span>
-                              <span>{otherVal.length}/180</span>
+                    {/* Universal "Other" (Custom Write-in) Option Card */}
+                    {(() => {
+                      const otherKeyNumber = currentQuestion.options.length + 1;
+                      const otherVal = otherCustomTexts[currentQuestion.id] ?? (isOtherSelected ? (questionnaireAnswers[currentQuestion.id] || '') : '');
+                      const hasText = Boolean(otherVal.trim());
+
+                      return (
+                        <div
+                          onClick={() => {
+                            setIsOtherActiveMap((prev) => ({ ...prev, [currentQuestion.id]: true }));
+                            handleAnswerQuestion(currentQuestion.id, otherVal.trim());
+                            setTimeout(() => otherInputRef.current?.focus(), 50);
+                          }}
+                          className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                            isOtherSelected
+                              ? 'bg-[#0d1612] border-[#07CB6C] text-white shadow-[0_0_20px_rgba(7,203,108,0.15)] ring-1 ring-[#07CB6C]/40'
+                              : 'bg-white/[0.02] border-white/5 hover:border-white/15 hover:bg-white/[0.04] text-neutral-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-3.5">
+                              <div
+                                className={`w-6 h-6 rounded-lg text-xs font-mono font-bold flex items-center justify-center shrink-0 border transition-colors ${
+                                  isOtherSelected
+                                    ? 'bg-[#07CB6C] text-black border-[#07CB6C]'
+                                    : 'bg-white/5 text-neutral-400 border-white/10'
+                                }`}
+                              >
+                                {otherKeyNumber}
+                              </div>
+
+                              <div className="space-y-0.5">
+                                <div className={`text-sm font-semibold ${isOtherSelected ? 'text-white' : 'text-neutral-200'}`}>
+                                  Other
+                                </div>
+                                <p className="text-xs text-neutral-400">
+                                  Write your own specific answer
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0">
+                              {isOtherSelected && hasText ? (
+                                <div className="w-5 h-5 rounded-full bg-[#07CB6C] text-black flex items-center justify-center">
+                                  <Check className="w-3 h-3 stroke-[3]" />
+                                </div>
+                              ) : (
+                                <div className={`w-5 h-5 rounded-full border ${isOtherSelected ? 'border-[#07CB6C]' : 'border-white/10'}`} />
+                              )}
                             </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })()}
+
+                          {isOtherSelected && (
+                            <div className="mt-3 pt-3 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                ref={otherInputRef}
+                                type="text"
+                                value={otherVal}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setOtherCustomTexts((prev) => ({ ...prev, [currentQuestion.id]: val }));
+                                  handleAnswerQuestion(currentQuestion.id, val.trim());
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && isCurrentQuestionAnswered) {
+                                    e.preventDefault();
+                                    handleNextQuestion();
+                                  }
+                                }}
+                                placeholder="Type your own answer here..."
+                                maxLength={180}
+                                className="w-full px-3.5 py-2.5 rounded-xl bg-black/60 border border-white/15 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C]/40 transition-all shadow-inner"
+                              />
+                              <div className="flex items-center justify-between mt-1.5 px-0.5 text-[11px] text-neutral-400">
+                                <span>Press Enter ↵ to advance</span>
+                                <span>{otherVal.length}/180</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               {/* RIGHT: Next / Forward Button */}
               <button
                 type="button"
-                onClick={handleNextQuestion}
+                onClick={() => {
+                  if (isMemoryStage) {
+                    handleContinueToRoutines();
+                  } else {
+                    handleNextQuestion();
+                  }
+                }}
                 disabled={!isCurrentQuestionAnswered}
                 className={`group shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-lg active:scale-95 ${
                   isCurrentQuestionAnswered
                     ? 'bg-[#07CB6C] text-black hover:bg-[#07CB6C]/90 shadow-[0_0_25px_rgba(7,203,108,0.3)]'
                     : 'bg-white/5 text-neutral-600 border border-white/5 cursor-not-allowed opacity-40'
                 }`}
-                title={currentQuestionIndex === parsedQuestions.length - 1 ? 'Continue to Routine (→)' : 'Next Question (→)'}
+                title={isMemoryStage ? 'Continue to Routine (→)' : currentQuestionIndex === parsedQuestions.length - 1 ? 'AI Memory (→)' : 'Next Question (→)'}
               >
                 <ChevronRight className={`w-5 h-5 sm:w-6 sm:h-6 ${isCurrentQuestionAnswered ? 'group-hover:translate-x-0.5' : ''} transition-transform`} />
               </button>
@@ -1481,7 +1627,13 @@ export const OnboardingPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={handleNextQuestion}
+                onClick={() => {
+                  if (isMemoryStage) {
+                    handleContinueToRoutines();
+                  } else {
+                    handleNextQuestion();
+                  }
+                }}
                 disabled={!isCurrentQuestionAnswered}
                 className={`flex items-center gap-1.5 px-5 py-2 rounded-xl font-semibold text-xs cursor-pointer ${
                   isCurrentQuestionAnswered
@@ -1489,7 +1641,7 @@ export const OnboardingPage: React.FC = () => {
                     : 'bg-white/5 text-neutral-500 cursor-not-allowed'
                 }`}
               >
-                <span>{currentQuestionIndex === parsedQuestions.length - 1 ? 'Routine' : 'Next'}</span>
+                <span>{isMemoryStage ? 'Routines' : currentQuestionIndex === parsedQuestions.length - 1 ? 'Memory' : 'Next'}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -1513,6 +1665,14 @@ export const OnboardingPage: React.FC = () => {
               <p className="text-sm text-neutral-400 leading-relaxed">
                 Tell us your waking boundaries and existing commitments. We’ll protect them so your ambition fits naturally without stress.
               </p>
+              {userMemory.trim() && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-xs text-[#07CB6C] font-medium mt-1">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate max-w-[340px] sm:max-w-[500px]">
+                    Context Active: "{userMemory.length > 55 ? userMemory.slice(0, 55) + '...' : userMemory}"
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Sustainable Weekly Hours Budget Card with AI Calibration */}

@@ -14,6 +14,7 @@ export interface InterpretAnswersInput {
   domain?: GoalDomain | string;
   questionnaireAnswers: Record<string, string>;
   defaultWeeklyHours?: number;
+  userMemory?: string;
 }
 
 /**
@@ -21,8 +22,8 @@ export interface InterpretAnswersInput {
  * Reasons through common phrases, sums compound day commitments, and flags protective constraints.
  */
 export function heuristicInterpretAnswers(input: InterpretAnswersInput): InterpretedAnswerProfile {
-  const { questionnaireAnswers, defaultWeeklyHours = 6 } = input;
-  const allText = Object.values(questionnaireAnswers).join(' ').toLowerCase();
+  const { questionnaireAnswers, defaultWeeklyHours = 6, userMemory } = input;
+  const allText = [Object.values(questionnaireAnswers).join(' '), userMemory || ''].join(' ').toLowerCase();
 
   // 1. Calculate suggested weekly hours
   let suggestedWeeklyHours: number = defaultWeeklyHours;
@@ -58,6 +59,18 @@ export function heuristicInterpretAnswers(input: InterpretAnswersInput): Interpr
   if (allText.includes('asthma') || allText.includes('breath') || allText.includes('lungs')) {
     detectedConstraints.push('aerobic_pacing_guardrail');
   }
+  if (allText.includes('adhd') || allText.includes('focus') || allText.includes('distract') || allText.includes('sprint')) {
+    detectedConstraints.push('adhd_short_sprints');
+  }
+  if (allText.includes('parent') || allText.includes('toddler') || allText.includes('baby') || allText.includes('kid') || allText.includes('caregiv')) {
+    detectedConstraints.push('caregiver_family_buffer');
+  }
+  if (allText.includes('night owl') || allText.includes('after 8') || allText.includes('late night')) {
+    detectedConstraints.push('night_chronotype');
+  }
+  if (allText.includes('early bird') || allText.includes('before 8') || allText.includes('morning person')) {
+    detectedConstraints.push('morning_chronotype');
+  }
 
   // 3. Baseline assessment
   let assessedBaselineLevel: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' = 'BEGINNER';
@@ -90,8 +103,9 @@ export async function interpretOnboardingAnswers(input: InterpretAnswersInput): 
   // If answers only contain simple pre-set option keys without custom write-ins, heuristic is instant and perfect
   const answersList = Object.values(input.questionnaireAnswers);
   const hasLongCustomText = answersList.some((ans) => ans.includes(' ') && ans.length > 15);
+  const hasUserMemory = Boolean(input.userMemory && input.userMemory.trim().length > 5);
 
-  if (!hasLongCustomText) {
+  if (!hasLongCustomText && !hasUserMemory) {
     return heuristicInterpretAnswers(input);
   }
 
@@ -102,7 +116,7 @@ STRICT NORMALIZATION RULES:
 1. "suggestedWeeklyHours": Compute realistic weekly hours. If the user mentions split time (e.g. "2 hours Sat and 3 hours Sun"), SUM THEM (2 + 3 = 5.0). Range: 2.0 to 25.0.
 2. "rationale": Short 1-phrase explanation of how you computed their hours (e.g. "Calculated 5h/wk from 2h Sat + 3h Sun").
 3. "assessedBaselineLevel": Choose strictly "BEGINNER", "INTERMEDIATE", or "ADVANCED".
-4. "detectedConstraints": Array of short tags (e.g. ["injury_recovery", "weekend_clustered", "high_travel"]).
+4. "detectedConstraints": Array of short tags (e.g. ["injury_recovery", "weekend_clustered", "adhd_sprints", "caregiver_buffer"]).
 5. "interpretedScaffolding": 1 concise sentence describing how the early roadmap should scaffold their journey.
 
 Return ONLY valid JSON matching this schema:
@@ -118,6 +132,7 @@ Return ONLY valid JSON matching this schema:
 Domain: ${input.domain || 'PHYSICAL'}
 User Onboarding Questionnaire Answers:
 ${JSON.stringify(input.questionnaireAnswers, null, 2)}
+${input.userMemory ? `User Persistent Memory / Context Note: "${input.userMemory}"` : ''}
 Default Fallback Hours: ${input.defaultWeeklyHours || 6}
 
 Interpret these answers and return the normalized JSON object.`;

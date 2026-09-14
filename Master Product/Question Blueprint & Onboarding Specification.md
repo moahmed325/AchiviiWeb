@@ -42,6 +42,22 @@ The onboarding experience in Achivii is engineered for ambitious, busy individua
 * **Master Planning Integration:**
   The normalized profile (`InterpretedAnswerProfile`) along with the raw verbatim answers are passed to the Master Planner at Step 4, giving Gemini rich structured context to design safe, realistic 12-week trajectories.
 
+### 1.5 The AI Persistent Memory Law (Cross-Goal Context)
+* **Persistent User Memory Model:**
+  Achivii captures cross-goal user context (family caregiving, demanding 9-to-5 schedules, ADHD/focus patterns, night-owl chronotypes, and injury histories) at the user profile level (`User.user_memory` in SQLite/Postgres).
+* **Optional, Zero-Stress Capstone Question:**
+  Positioned at the end of Step 2 onboarding, the AI Memory Card is 100% optional with an instant "Skip for now" action and 1-click inspiration chips:
+  - `🍼 Parent / Caregiver`
+  - `💼 Demanding 9-to-5`
+  - `🧠 ADHD / Short sprints`
+  - `🦉 Night owl`
+  - `🌅 Early bird`
+  - `🩹 Managing injury / fatigue`
+* **Cross-Goal Continuity:**
+  Because memory is stored at the `User` level, future ambitions inherit this context without re-interrogation.
+* **Master Planning Adaptation:**
+  The Master Planner AI explicitly respects `userMemory` in prompt synthesis, adapting session lengths (e.g., breaking 60-min deep work into 25-min high-focus sprints for ADHD users), respecting chronotypes, and embedding fatigue recovery buffers.
+
 ---
 
 ## 2. The 3-to-4 Question Blueprint Formula

@@ -58,6 +58,7 @@ export interface MasterPlanInput {
     schedule_reliability: string;
     routine_blocks?: any[];
   };
+  userMemory?: string;
   startDate?: string | Date;
 }
 
@@ -361,6 +362,7 @@ export async function generateMasterPlan(
   const systemInstruction = `You are the Lead Master Planning Intelligence for an executive Life + Ambition Operating System.
 Your task is to take a Goal Blueprint, user onboarding answers, and the user's daily life schedule routines, and synthesize a structured 90-day trajectory.
 Ensure EVERY single item includes a clear, inspiring "why_this_matters" field and a practical "mvs_fallback_description" micro-task.
+If "User Persistent Memory & Life Context" is provided, adapt all session durations, focus styles, sprint intervals, and recovery buffers to explicitly honor their lifestyle, health, or ADHD/energy patterns.
 Return ONLY valid JSON matching this schema:
 {
   "summary": "string",
@@ -399,6 +401,7 @@ Return ONLY valid JSON matching this schema:
   const prompt = `Goal Blueprint: ${JSON.stringify(input.blueprint)}
 User Onboarding Questionnaire Answers: ${JSON.stringify(input.answers)}
 ${input.interpretedProfile ? `Normalized User Profile & Inferred Constraints: ${JSON.stringify(input.interpretedProfile)}` : ''}
+${input.userMemory ? `User Persistent Memory & Life Context: "${input.userMemory}"` : ''}
 User Life Structure & Daily Routines: ${JSON.stringify(input.lifeStructure || {})}
 Start Date: ${input.startDate ? new Date(input.startDate).toISOString() : new Date().toISOString()}`;
 

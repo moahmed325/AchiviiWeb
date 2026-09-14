@@ -388,6 +388,7 @@ export interface CommitGoalParams {
   }[];
   questionnaireAnswers?: Record<string, string>;
   interpretedProfile?: InterpretedAnswerProfile;
+  userMemory?: string;
 }
 
 export interface InterpretedAnswerProfile {
@@ -403,6 +404,7 @@ export interface InterpretAnswersParams {
   domain?: string;
   questionnaireAnswers: Record<string, string>;
   defaultWeeklyHours?: number;
+  userMemory?: string;
 }
 
 export interface InterpretAnswersResponse {

@@ -14,6 +14,7 @@ model User {
   timezone              String             @default("UTC")
   best_working_hours    Json?              @map("best_working_hours")
   lapse_pattern_summary Json?              @map("lapse_pattern_summary")
+  user_memory           String?            @map("user_memory")
   created_at            DateTime           @default(now())
   user_goals            UserGoal[]
   availability_slots    AvailabilitySlot[]
