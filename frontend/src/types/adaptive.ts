@@ -157,6 +157,7 @@ export interface CustomCapabilityBlueprint {
   description: string;
   tier: CapabilityTier;
   prerequisites: string[];
+  verification_criteria?: string;
 }
 
 export interface GoalFormalizationResult {

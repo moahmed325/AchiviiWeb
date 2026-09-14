@@ -317,46 +317,101 @@ export const OnboardingPage: React.FC = () => {
   const parsedQuestions: OnboardingQuestion[] = useMemo(() => {
     if (isCustomGoalActive && customFormalization?.baselineQuestions && customFormalization.baselineQuestions.length > 0) {
       return customFormalization.baselineQuestions.map((q: any, idx: number) => {
-        if (typeof q === 'object' && q?.question && Array.isArray(q?.options)) {
+        // If question already has its own specific options from AI, use them directly
+        if (typeof q === 'object' && q?.question && Array.isArray(q?.options) && q.options.length > 0) {
           return {
             id: q.id || `custom_baseline_q_${idx + 1}`,
             question: q.question,
             help_text: 'Help us calibrate your starting point so your first weeks are paced just right.',
             options: q.options.map((opt: any) => ({
               label: opt.label,
-              value: opt.value,
-              description: opt.score ? `Starting depth level ${opt.score} of 4` : undefined,
+              value: opt.value || `opt_${opt.score || Math.random()}`,
+              description: opt.description,
               recommended_weekly_hours: opt.recommended_weekly_hours,
             })),
           };
         }
+
         const qText = typeof q === 'string' ? q : q?.question || 'Diagnostic Baseline Calibration';
+        const qLower = qText.toLowerCase();
+
+        // Context-aware choices strictly tailored to the question being asked
+        let contextualOptions = [
+          {
+            label: 'Complete beginner (starting completely from scratch)',
+            value: 'BEGINNER',
+            description: 'Build foundational capability and daily habit first.',
+          },
+          {
+            label: 'Novice (have dabbled or tried casually in the past)',
+            value: 'NOVICE',
+            description: 'Some familiarity, ready to develop disciplined consistency.',
+          },
+          {
+            label: 'Intermediate (consistent basics, solid foundation)',
+            value: 'INTERMEDIATE',
+            description: 'Comfortable with fundamentals; seeking accelerated progress.',
+          },
+          {
+            label: 'Advanced (high active capability, looking for peak mastery)',
+            value: 'ADVANCED',
+            description: 'Refined foundation; ready for intense milestone breakthrough.',
+          },
+        ];
+
+        if (idx === 1 || qLower.includes('hour') || qLower.includes('time') || qLower.includes('frequency') || qLower.includes('week') || qLower.includes('month') || qLower.includes('recent')) {
+          contextualOptions = [
+            {
+              label: '0 hours in the past month (completely dormant or new)',
+              value: 'ZERO_HOURS',
+              description: 'Starting with a clean slate from today.',
+            },
+            {
+              label: '1–2 hours per week sporadically (casual practice)',
+              value: 'LIGHT_PRACTICE',
+              description: 'Occasional sessions whenever time allowed.',
+            },
+            {
+              label: '3–4 hours per week consistently (steady baseline)',
+              value: 'STEADY_PRACTICE',
+              description: 'Consistent weekly routine already partially established.',
+            },
+            {
+              label: '5+ hours per week dedicated (high active volume)',
+              value: 'HEAVY_PRACTICE',
+              description: 'Substantial time investment already active.',
+            },
+          ];
+        } else if (idx === 2 || qLower.includes('challenge') || qLower.includes('obstacle') || qLower.includes('friction') || qLower.includes('block') || qLower.includes('burnout') || qLower.includes('plateau')) {
+          contextualOptions = [
+            {
+              label: 'Protecting consistent calendar windows around busy days',
+              value: 'SCHEDULING_FRICTION',
+              description: 'Work or family disruptions breaking your planned streak.',
+            },
+            {
+              label: 'Starting with excessive intensity and burning out / soreness',
+              value: 'BURNOUT_PACING',
+              description: 'Pushing too hard early and needing days to recover.',
+            },
+            {
+              label: 'Uncertainty about what exact exercise or drill to do next',
+              value: 'CLARITY_STRUCTURE',
+              description: 'Wasting energy deciding what to do in each session.',
+            },
+            {
+              label: 'Losing motivation once initial novelty wears off',
+              value: 'MOTIVATION_PLATEAU',
+              description: 'Maintaining focus when sessions become routine.',
+            },
+          ];
+        }
+
         return {
           id: `custom_baseline_q_${idx + 1}`,
           question: qText,
           help_text: 'Help us calibrate your starting point so your first weeks are paced just right.',
-          options: [
-            {
-              label: 'Beginner / Zero prior foundation',
-              value: 'BEGINNER',
-              description: 'Starting completely from scratch; build the basic foundation and daily habit first.',
-            },
-            {
-              label: 'Novice / Some casual practice',
-              value: 'NOVICE',
-              description: 'Have dabbled or tried this in the past, but inconsistent consistency.',
-            },
-            {
-              label: 'Intermediate / Solid fundamentals',
-              value: 'INTERMEDIATE',
-              description: 'Comfortable with the basics; ready for disciplined 90-day progression.',
-            },
-            {
-              label: 'Advanced / High active capability',
-              value: 'ADVANCED',
-              description: 'Strong foundation; aiming for peak performance and acceleration.',
-            },
-          ],
+          options: contextualOptions,
         };
       });
     }
@@ -936,12 +991,12 @@ export const OnboardingPage: React.FC = () => {
                         {isFormalizing ? (
                           <>
                             <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Structuring Your 90-Day Plan with AI...</span>
+                            <span>Clarifying Your Goal with AI...</span>
                           </>
                         ) : (
                           <>
                             <Sparkles className="w-4 h-4" />
-                            <span>Structure &amp; Clarify Goal</span>
+                            <span>Clarify Finish Line &amp; Proof</span>
                             <ArrowRight className="w-4 h-4" />
                           </>
                         )}
@@ -1005,37 +1060,6 @@ export const OnboardingPage: React.FC = () => {
                         </p>
                       </div>
 
-                      {/* 4-Stage Progressive Milestones Preview */}
-                      {customFormalization.capabilityDag && customFormalization.capabilityDag.length > 0 && (
-                        <div className="space-y-2 pt-2">
-                          <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block">
-                            4-Stage Capability Progression (Macro Trajectory)
-                          </span>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            {customFormalization.capabilityDag.map((cap, idx) => (
-                              <div key={cap.id || idx} className="p-3.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-mono text-[#07CB6C]">
-                                    {idx === 0
-                                      ? 'Phase 1: Foundation'
-                                      : idx === 1
-                                      ? 'Phase 2: Stimulus'
-                                      : idx === 2
-                                      ? 'Phase 3: Peak Volume'
-                                      : 'Phase 4: Capstone Trial'}
-                                  </span>
-                                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-neutral-400">
-                                    Gate {idx + 1}
-                                  </span>
-                                </div>
-                                <h4 className="text-xs font-semibold text-white">{cap.name}</h4>
-                                <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">{cap.description}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       {/* Gentle Feasibility Note */}
                       {customFormalization.feasibilityNote && (
                         <div className="p-3 rounded-xl bg-[#07CB6C]/10 border border-[#07CB6C]/25 flex items-center gap-2 text-xs text-[#07CB6C]">
@@ -1043,6 +1067,17 @@ export const OnboardingPage: React.FC = () => {
                           <span>{customFormalization.feasibilityNote}</span>
                         </div>
                       )}
+
+                      {/* Next Step Explanation Banner */}
+                      <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 space-y-1.5">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-[#07CB6C]">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Next step: Calibration</span>
+                        </div>
+                        <p className="text-xs text-neutral-300 leading-relaxed">
+                          Next, we'll ask 3 quick diagnostic questions to calibrate your starting baseline, then map your daily routine. We will then synthesize your personalized 12-week roadmap and milestone progression.
+                        </p>
+                      </div>
 
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <div className="p-3 rounded-xl bg-black/30 border border-white/5">
@@ -1073,7 +1108,7 @@ export const OnboardingPage: React.FC = () => {
                         onClick={handleAcceptCustomGoal}
                         className="min-h-[46px] px-7 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(7,203,108,0.25)]"
                       >
-                        <span>Continue with this Goal</span>
+                        <span>Lock in Destination &amp; Continue</span>
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -1738,43 +1773,116 @@ export const OnboardingPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 3 Phases Preview */}
+            {/* 12-Week Progression Milestones Preview */}
             <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
-              <h3 className="text-sm font-semibold text-white">
-                The 3 Milestones
-              </h3>
-
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                  <div className="w-6 h-6 rounded-full bg-[#07CB6C]/10 text-[#07CB6C] flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
-                    1
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-white">Weeks 1–4: Foundation & Habit Anchor</h4>
-                    <p className="text-xs text-neutral-400 mt-0.5">Build daily consistency and establish baseline capability without burnout.</p>
-                  </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-white">
+                    {(customFormalization?.capabilityDag || formalizationResult?.capabilityDag)
+                      ? 'Personalized 4-Stage Capability Progression'
+                      : 'The 3 Milestones'}
+                  </h3>
+                  <p className="text-xs text-neutral-400 mt-0.5">
+                    Calibrated against your starting baseline and weekly schedule.
+                  </p>
                 </div>
-
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                  <div className="w-6 h-6 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
-                    2
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-white">Weeks 5–8: Volume, Pacing & Core Execution</h4>
-                    <p className="text-xs text-neutral-400 mt-0.5">Deepen focus, tackle primary bottlenecks, and accelerate sustained output.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                  <div className="w-6 h-6 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
-                    3
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold text-white">Weeks 9–12: Integration, Polish & Capstone Delivery</h4>
-                    <p className="text-xs text-neutral-400 mt-0.5">Synthesize capabilities, complete the final real-world benchmark, and cross the finish line.</p>
-                  </div>
-                </div>
+                {(customFormalization?.capabilityDag || formalizationResult?.capabilityDag) && (
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
+                    ADAPTIVE GATES
+                  </span>
+                )}
               </div>
+
+              {(customFormalization?.capabilityDag || formalizationResult?.capabilityDag) ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(customFormalization?.capabilityDag || formalizationResult?.capabilityDag)!.map((cap, idx) => {
+                    const phaseColors = [
+                      'text-[#07CB6C] bg-[#07CB6C]/10 border-[#07CB6C]/20',
+                      'text-sky-400 bg-sky-500/10 border-sky-500/20',
+                      'text-amber-400 bg-amber-500/10 border-amber-500/20',
+                      'text-purple-400 bg-purple-500/10 border-purple-500/20',
+                    ];
+                    const badgeClass = phaseColors[idx % phaseColors.length];
+
+                    return (
+                      <div key={cap.id || idx} className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${badgeClass}`}>
+                            {idx === 0
+                              ? 'Gate 1: Foundation (W1–3)'
+                              : idx === 1
+                              ? 'Gate 2: Stimulus (W4–6)'
+                              : idx === 2
+                              ? 'Gate 3: Peak Volume (W7–9)'
+                              : 'Gate 4: Capstone Trial (W10–12)'}
+                          </span>
+                          <span className="text-[9px] font-mono text-neutral-400">
+                            Required Gate
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-semibold text-white">{cap.name}</h4>
+                        <p className="text-[11px] text-neutral-400 leading-relaxed">{cap.description}</p>
+                        {cap.verification_criteria && (
+                          <div className="pt-2 border-t border-white/5 text-[10px] text-neutral-500">
+                            <span className="text-neutral-400 font-mono">Verification: </span>
+                            {cap.verification_criteria}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : selectedGoal?.phases && selectedGoal.phases.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedGoal.phases.map((phase, idx) => (
+                    <div key={phase.id || idx} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                      <div className="w-6 h-6 rounded-full bg-[#07CB6C]/10 text-[#07CB6C] flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-semibold text-white">{phase.title} ({phase.duration_weeks || 4} Weeks)</h4>
+                        <p className="text-xs text-neutral-400 mt-0.5">
+                          {phase.task_templates?.length
+                            ? `${phase.task_templates.length} core execution templates calibrated to this phase.`
+                            : 'Dedicated milestone phase towards goal completion.'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <div className="w-6 h-6 rounded-full bg-[#07CB6C]/10 text-[#07CB6C] flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
+                      1
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-white">Weeks 1–4: Foundation &amp; Habit Anchor</h4>
+                      <p className="text-xs text-neutral-400 mt-0.5">Build daily consistency and establish baseline capability without burnout.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <div className="w-6 h-6 rounded-full bg-sky-500/10 text-sky-400 flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
+                      2
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-white">Weeks 5–8: Volume, Pacing &amp; Core Execution</h4>
+                      <p className="text-xs text-neutral-400 mt-0.5">Deepen focus, tackle primary bottlenecks, and accelerate sustained output.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5">
+                    <div className="w-6 h-6 rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center font-mono text-xs font-bold shrink-0 mt-0.5">
+                      3
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-semibold text-white">Weeks 9–12: Integration, Polish &amp; Capstone Delivery</h4>
+                      <p className="text-xs text-neutral-400 mt-0.5">Synthesize capabilities, complete the final real-world benchmark, and cross the finish line.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Humane No-Debt Reassurance Callout */}
