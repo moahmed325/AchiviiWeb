@@ -245,28 +245,28 @@ function generateDeterministicBaselineQuestions(domain: GoalDomain): CustomBasel
       id: 'starting_baseline',
       question: 'What is your current hands-on experience level with this ambition?',
       options: [
-        { value: 'complete_beginner', label: 'Complete beginner (starting completely from scratch)', score: 1, recommended_weekly_hours: 4 },
-        { value: 'novice', label: 'Novice (have dabbled or tried basic versions casually)', score: 2, recommended_weekly_hours: 5 },
-        { value: 'intermediate', label: 'Intermediate (consistent basics, seeking structured progress)', score: 3, recommended_weekly_hours: 6 },
-        { value: 'advanced', label: 'Experienced (strong foundation, aiming for peak mastery)', score: 4, recommended_weekly_hours: 8 },
+        { value: 'complete_beginner', label: 'Complete beginner', score: 1, recommended_weekly_hours: 4 },
+        { value: 'novice', label: 'Novice (some casual practice)', score: 2, recommended_weekly_hours: 5 },
+        { value: 'intermediate', label: 'Intermediate (solid fundamentals)', score: 3, recommended_weekly_hours: 6 },
+        { value: 'advanced', label: 'Experienced / Advanced', score: 4, recommended_weekly_hours: 8 },
       ],
     },
     {
       id: 'skill_comfort_zone',
       question: 'Where is your current comfort zone with this craft?',
       options: [
-        { value: 'theory_first', label: 'Comfortable with concepts and ideas, need structure for consistent execution', score: 1 },
-        { value: 'action_first', label: 'Eager to take action and practice, need clear drills and progression roadmap', score: 2 },
-        { value: 'foundation_needed', label: 'Starting fresh across both knowledge and execution', score: 3 },
+        { value: 'theory_first', label: 'Concepts & strategy first', score: 1 },
+        { value: 'action_first', label: 'Hands-on action first', score: 2 },
+        { value: 'foundation_needed', label: 'Starting fresh across both', score: 3 },
       ],
     },
     {
       id: 'weekly_target_cadence',
       question: 'How much dedicated focus time can you sustainably protect each week?',
       options: [
-        { value: 'light_pace', label: 'Light pace: ~3.5–4.5 hours / week (3 focused sessions)', score: 1, recommended_weekly_hours: 4 },
-        { value: 'balanced_pace', label: 'Balanced pace: ~5–7 hours / week (4 focused sessions)', score: 2, recommended_weekly_hours: 6 },
-        { value: 'accelerated_pace', label: 'Accelerated pace: ~8–10 hours / week (5 focused sessions)', score: 3, recommended_weekly_hours: 8 },
+        { value: 'light_pace', label: 'Light (~4 hrs / week)', score: 1, recommended_weekly_hours: 4 },
+        { value: 'balanced_pace', label: 'Balanced (~6 hrs / week)', score: 2, recommended_weekly_hours: 6 },
+        { value: 'accelerated_pace', label: 'Intensive (~8 hrs / week)', score: 3, recommended_weekly_hours: 8 },
       ],
     },
   ];
@@ -291,7 +291,8 @@ STRICT ONBOARDING QUESTION RULES:
 1. NEVER ask about sleep, wake times, work hours, or daily routine (Life Structure handles this separately).
 2. NEVER ask "How will you fail?" or "Why did you fail before?". Bake failure prevention into the milestones directly.
 3. Every question MUST be multiple-choice (3 to 4 options).
-4. Strictly generate 3 questions matching this blueprint:
+4. STRICTLY KEEP ALL ANSWER LABELS SHORT, CRISP, AND TO THE POINT (2 to 6 words max). NEVER write long paragraphs or stressful explanations in answer options. Keep choices easy and zero-stress to scan.
+5. Strictly generate 3 questions matching this blueprint:
    - Q1: Objective Verifiable Baseline Gate (What can they objectively do right now? - purpose: BASELINE_CALIBRATION)
    - Q2: Skill Asymmetry / Comfort Zone (Where are they strong vs where do they need guidance? - purpose: GUIDANCE_SCAFFOLDING)
    - Q3: Sustainable Weekly Target Cadence (How much weekly time/frequency can they commit? - purpose: CAPACITY_BUDGET)
@@ -346,9 +347,9 @@ Analyze this goal and return a JSON object strictly matching this schema:
       "question": "Clear, objective question testing real-world capability or experience in the last 30 days",
       "purpose": "BASELINE_CALIBRATION",
       "options": [
-        { "value": "beginner", "label": "Complete beginner (starting from scratch)", "score": 1, "recommended_weekly_hours": 4 },
-        { "value": "intermediate", "label": "Intermediate (solid fundamentals, looking for structured progress)", "score": 2, "recommended_weekly_hours": 6 },
-        { "value": "advanced", "label": "Advanced (experienced practitioner seeking peak refinement)", "score": 3, "recommended_weekly_hours": 8 }
+        { "value": "beginner", "label": "Complete beginner", "score": 1, "recommended_weekly_hours": 4 },
+        { "value": "intermediate", "label": "Intermediate (solid fundamentals)", "score": 2, "recommended_weekly_hours": 6 },
+        { "value": "advanced", "label": "Experienced / Advanced", "score": 3, "recommended_weekly_hours": 8 }
       ]
     },
     {
@@ -356,9 +357,9 @@ Analyze this goal and return a JSON object strictly matching this schema:
       "question": "Question assessing existing comfort zone vs areas needing structured guidance",
       "purpose": "GUIDANCE_SCAFFOLDING",
       "options": [
-        { "value": "strength_concepts", "label": "Comfortable with concepts and theory, need structured execution drills", "score": 1 },
-        { "value": "strength_execution", "label": "Comfortable jumping into action, need structured progression and technique refinement", "score": 2 },
-        { "value": "foundation_both", "label": "Starting fresh across both understanding and execution", "score": 3 }
+        { "value": "strength_concepts", "label": "Concepts & strategy first", "score": 1 },
+        { "value": "strength_execution", "label": "Hands-on action first", "score": 2 },
+        { "value": "foundation_both", "label": "Starting fresh across both", "score": 3 }
       ]
     },
     {
@@ -366,9 +367,9 @@ Analyze this goal and return a JSON object strictly matching this schema:
       "question": "Question establishing sustainable weekly hours and session frequency",
       "purpose": "CAPACITY_BUDGET",
       "options": [
-        { "value": "light", "label": "Light pace: ~3.5–4.5 hours / week (3 sessions)", "score": 1, "recommended_weekly_hours": 4 },
-        { "value": "balanced", "label": "Balanced pace: ~5–7 hours / week (4 sessions)", "score": 2, "recommended_weekly_hours": 6 },
-        { "value": "accelerated", "label": "Accelerated pace: ~8–10 hours / week (5 sessions)", "score": 3, "recommended_weekly_hours": 8 }
+        { "value": "light", "label": "Light (~4 hrs / week)", "score": 1, "recommended_weekly_hours": 4 },
+        { "value": "balanced", "label": "Balanced (~6 hrs / week)", "score": 2, recommended_weekly_hours: 6 },
+        { "value": "accelerated", "label": "Intensive (~8 hrs / week)", "score": 3, recommended_weekly_hours: 8 }
       ]
     }
   ]

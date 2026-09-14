@@ -52,7 +52,7 @@ Every goal—whether chosen from the vetted catalog or created custom via AI—m
 
 ## 3. The 6 Premade Goal Question Sets (Canonical Seed Blueprint)
 
-These vetted question sets are designed to replace the legacy questions in `backend/prisma/seed.ts`.
+These vetted question sets are designed for rapid, stress-free scanning (2–6 words per answer choice) in `backend/prisma/seed.ts`.
 
 ---
 
@@ -62,30 +62,30 @@ These vetted question sets are designed to replace the legacy questions in `back
 #### Question 1 (Baseline Gate)
 * **Question:** *"What is your current hands-on software development experience?"*
 * **Options:**
-  1. `beginner`: Complete beginner (have written basic scripts or tutorials, never deployed live software).
-  2. `intermediate`: Comfortable with frontend or backend code, but have never shipped a fullstack app with live authentication and database.
-  3. `advanced`: Professional engineer (ship code daily, but want a structured, disciplined sprint to launch an independent product).
+  1. `beginner`: Beginner (first-time builder)
+  2. `intermediate`: Intermediate (know code, never shipped fullstack)
+  3. `advanced`: Experienced (professional engineer)
 
 #### Question 2 (Skill Asymmetry)
 * **Question:** *"Where is your current technical comfort zone?"*
 * **Options:**
-  1. `frontend_heavy`: Stronger on UI/design/frontend; need clear scaffolding for database schemas, auth, and backend APIs.
-  2. `backend_heavy`: Stronger on databases and server logic; need structured layouts and clean component guidelines for UI.
-  3. `fullstack_balanced`: Comfortable across both; primary need is ruthless feature scoping and shipping discipline.
+  1. `frontend_heavy`: Frontend & UI design
+  2. `backend_heavy`: Backend & databases
+  3. `fullstack_balanced`: Balanced fullstack
 
 #### Question 3 (Weekly Cadence)
 * **Question:** *"How much dedicated building time can you sustainably protect each week?"*
 * **Options:**
-  1. `5_hours`: ~5 hours / week (3 focused sessions of ~90 min or 4 of ~75 min)
-  2. `8_hours`: ~8 hours / week (Recommended MVP cadence — 4 sessions of ~2 hours)
-  3. `12_hours`: ~12 hours / week (Aggressive sprint pace)
+  1. `5_hours`: 5 hours / week (Light pace)
+  2. `8_hours`: 8 hours / week (Recommended MVP pace)
+  3. `12_hours`: 12 hours / week (Accelerated sprint)
 
 #### Question 4 (Capstone Deliverable)
 * **Question:** *"What is your target launch architecture for Day 90?"*
 * **Options:**
-  1. `web_saas`: Web application with Stripe subscriptions and self-serve onboarding.
-  2. `api_tool`: Developer tool, API service, or automated micro-SaaS workflow.
-  3. `internal_b2b`: Targeted B2B workflow tool solved for a specific client or business niche.
+  1. `web_saas`: Web SaaS (with Stripe subscriptions)
+  2. `api_tool`: Developer Tool or API Service
+  3. `internal_b2b`: B2B Niche Workflow App
 
 ---
 
@@ -95,30 +95,30 @@ These vetted question sets are designed to replace the legacy questions in `back
 #### Question 1 (Baseline Gate)
 * **Question:** *"What is the furthest you have run continuously in the last 30 days without walking?"*
 * **Options:**
-  1. `0_to_2k`: 0 to 2 km (Complete beginner or returning from a long break).
-  2. `5k_solid`: Comfortable running 5 km non-stop at an easy, conversational pace.
-  3. `10k_runner`: Regularly running 8–10 km weekly without difficulty.
+  1. `0_to_2k`: 0–2 km (Starting out / returning)
+  2. `5k_solid`: 5 km (Comfortable without walking)
+  3. `10k_runner`: 10+ km (Regular weekly runner)
 
 #### Question 2 (Skill Asymmetry)
 * **Question:** *"How do your legs and lungs typically feel when running?"*
 * **Options:**
-  1. `cardio_limited`: Lungs and heart rate spike quickly, but muscles and joints feel fine. *(Engine focus: Strict Zone 2 aerobic base building)*.
-  2. `tendon_limited`: Breathing feels effortless, but knees, shins, or calves get tight and sore. *(Engine focus: Conservative volume ramp $\le 8\%$ + tendon priming)*.
-  3. `balanced_engine`: Cardio and joint tolerance feel well-matched; ready for structured pacing intervals.
+  1. `cardio_limited`: Lungs & cardio get tired first
+  2. `tendon_limited`: Legs & joints get sore first
+  3. `balanced_engine`: Balanced (ready for intervals)
 
 #### Question 3 (Weekly Cadence)
 * **Question:** *"How many days per week can your body train and recover?"*
 * **Options:**
-  1. `3_days`: 3 days / week (~3.5 to 4.5 hours total — optimal for busy schedules).
-  2. `4_days`: 4 days / week (~5 to 6 hours total — recommended half-marathon cadence).
-  3. `5_days`: 5 days / week (~6.5+ hours — high-volume endurance development).
+  1. `3_days`: 3 days / week (~4 hours)
+  2. `4_days`: 4 days / week (~5.5 hours)
+  3. `5_days`: 5 days / week (~7 hours)
 
 #### Question 4 (Event Milestone)
 * **Question:** *"What is your target finish line for Day 90?"*
 * **Options:**
-  1. `solid_10k`: Finish a continuous 10 km with steady breathing and zero walking breaks.
-  2. `finish_half`: Complete a full 21.1 km Half-Marathon with comfortable, sustained pacing.
-  3. `pace_breakthrough`: Break a specific personal record (10K sub-50 or Half sub-1:50).
+  1. `solid_10k`: Continuous 10 km
+  2. `finish_half`: Full Half-Marathon (21.1 km)
+  3. `pace_breakthrough`: Personal Pace Record
 
 ---
 
@@ -128,23 +128,23 @@ These vetted question sets are designed to replace the legacy questions in `back
 #### Question 1 (Baseline Gate)
 * **Question:** *"What is your current grasp of spoken Spanish?"*
 * **Options:**
-  1. `complete_beginner`: Complete beginner (know basic greetings like *hola, gracias, adios*).
-  2. `a1_elementary`: Know basic vocabulary and present tense, but freeze when trying to speak real sentences.
-  3. `a2_intermediate`: Can read simple text and understand slow audio, but struggle with past tenses and fast conversations.
+  1. `complete_beginner`: Complete beginner
+  2. `a1_elementary`: Know basic vocab, freeze speaking
+  3. `a2_intermediate`: Can read, want spoken fluency
 
 #### Question 2 (Skill Asymmetry)
 * **Question:** *"Where is your current learning comfort zone?"*
 * **Options:**
-  1. `visual_reading`: Can recognize written words easily, but have trouble catching rapid spoken audio.
-  2. `audio_mimic`: Good at repeating pronunciation and sounds, but get lost in grammar rules and conjugation tables.
-  3. `grammar_conscious`: Understand the rules intellectually, but hesitate and overthink before speaking.
+  1. `visual_reading`: Reading & written words
+  2. `audio_mimic`: Listening & pronunciation
+  3. `grammar_conscious`: Grammar & sentence rules
 
 #### Question 3 (Weekly Cadence)
 * **Question:** *"What daily immersion pace fits your schedule best?"*
 * **Options:**
-  1. `20m_daily`: 20–25 mins daily (~3.5 hrs/week — high consistency spaced repetition).
-  2. `35m_daily`: 35–40 mins daily (~4.5 hrs/week — balanced vocab + audio comprehension).
-  3. `50m_daily`: 50+ mins daily (~6 hrs/week — accelerated conversational sprint).
+  1. `20m_daily`: 20 mins / day (~3.5 hrs/wk)
+  2. `35m_daily`: 35 mins / day (~4.5 hrs/wk)
+  3. `50m_daily`: 50 mins / day (~6 hrs/wk)
 
 ---
 
@@ -154,30 +154,30 @@ These vetted question sets are designed to replace the legacy questions in `back
 #### Question 1 (Baseline Gate)
 * **Question:** *"Where does your book manuscript stand right now?"*
 * **Options:**
-  1. `idea_only`: Raw ideas, voice notes, or bullet points in my phone (0 words drafted).
-  2. `detailed_outline`: Clear chapter outline and core thesis ready, but haven't started full drafting.
-  3. `draft_in_progress`: 10,000+ words of rough drafts already written.
+  1. `idea_only`: Just an idea (0 words)
+  2. `detailed_outline`: Outline ready (no drafts yet)
+  3. `draft_in_progress`: Draft in progress (10k+ words)
 
 #### Question 2 (Skill Asymmetry)
 * **Question:** *"What part of writing comes most naturally to you?"*
 * **Options:**
-  1. `generative_flow`: Generating ideas, anecdotes, and stories is easy; structuring them into a coherent argument is hard.
-  2. `logical_structure`: Bullet points and logical frameworks are easy; expanding them into engaging prose is hard.
-  3. `editing_polish`: Line editing and sharpening sentences is easy; writing the messy first draft without self-censoring is hard.
+  1. `generative_flow`: Generating ideas & stories
+  2. `logical_structure`: Outlining & structured arguments
+  3. `editing_polish`: Line editing & polishing
 
 #### Question 3 (Weekly Cadence)
 * **Question:** *"What target weekly word output matches your bandwidth?"*
 * **Options:**
-  1. `light_sprint`: ~2,000 words / week (~4–5 hrs/wk — ideal for busy professionals).
-  2. `standard_sprint`: ~3,500 words / week (~6–7 hrs/wk — complete draft in 8 weeks).
-  3. `intensive_sprint`: ~5,000 words / week (~9 hrs/wk — dedicated writing marathon).
+  1. `light_sprint`: 2,000 words / week (Light pace)
+  2. `standard_sprint`: 3,500 words / week (Recommended pace)
+  3. `intensive_sprint`: 5,000 words / week (Intensive marathon)
 
 #### Question 4 (Distribution Format)
 * **Question:** *"How do you plan to publish this book upon completion?"*
 * **Options:**
-  1. `amazon_kdp`: Amazon Kindle eBook & Paperback with professional interior formatting.
-  2. `digital_direct`: Personal website / Gumroad digital download (PDF/EPUB) for an existing audience.
-  3. `industry_authority`: High-value lead magnet or manifesto to establish professional brand authority.
+  1. `amazon_kdp`: Amazon Kindle & Paperback
+  2. `digital_direct`: Digital download (PDF / EPUB)
+  3. `industry_authority`: Free industry lead magnet
 
 ---
 
@@ -187,23 +187,23 @@ These vetted question sets are designed to replace the legacy questions in `back
 #### Question 1 (Baseline Gate)
 * **Question:** *"What is your current backend engineering experience level?"*
 * **Options:**
-  1. `fullstack_pivot`: Fullstack or frontend engineer pivoting to deep backend and distributed infrastructure.
-  2. `mid_backend`: Mid-level backend engineer confident with single-node relational DBs, ready for distributed consensus, sharding, and scale.
-  3. `senior_engineer`: Senior engineer preparing for Staff/Principal architecture reviews or Tier-1 system design interviews.
+  1. `fullstack_pivot`: Frontend / Fullstack pivoting to backend
+  2. `mid_backend`: Mid-level backend engineer
+  3. `senior_engineer`: Senior engineer targeting Staff bar
 
 #### Question 2 (Skill Asymmetry)
 * **Question:** *"Where do you feel least confident during architecture deep dives?"*
 * **Options:**
-  1. `storage_internals`: Database engines, LSM-trees vs B-Trees, WAL, write amplification, and sharding strategies.
-  2. `consensus_replication`: Raft, Paxos, quorum arithmetic, linearizability, and split-brain recovery.
-  3. `whiteboard_defense`: Translating architectural knowledge into crisp 45-minute timed design presentations with clean math.
+  1. `storage_internals`: Storage engines & database internals
+  2. `consensus_replication`: Consensus & replication (Raft/Paxos)
+  3. `whiteboard_defense`: Timed 45-min whiteboard defense
 
 #### Question 3 (Weekly Cadence)
 * **Question:** *"How much deep-focus technical study can you execute weekly?"*
 * **Options:**
-  1. `5_hours`: 4–5 hours / week (Paced theoretical deep dive + paper breakdowns).
-  2. `8_hours`: 7–8 hours / week (Balanced mix of paper reading + hands-on coding labs).
-  3. `11_hours`: 10+ hours / week (Accelerated interview crunch / rapid mastery).
+  1. `5_hours`: 5 hours / week (Paced study)
+  2. `8_hours`: 8 hours / week (Balanced study + labs)
+  3. `11_hours`: 11 hours / week (Accelerated crunch)
 
 ---
 
@@ -213,23 +213,23 @@ These vetted question sets are designed to replace the legacy questions in `back
 #### Question 1 (Baseline Gate)
 * **Question:** *"What is your past experience with daily meditation or breathwork?"*
 * **Options:**
-  1. `novice`: Complete novice (struggle to sit still or focus on breath for 2 uninterrupted minutes).
-  2. `intermittent`: Have used apps like Headspace or Calm on and off, but never maintained an unbreakable daily streak.
-  3. `experienced`: Comfortable with unguided sitting, looking to integrate physiological breath resets into high-stress days.
+  1. `novice`: Complete novice
+  2. `intermittent`: Used meditation apps on and off
+  3. `experienced`: Experienced daily practitioner
 
 #### Question 2 (Skill Asymmetry)
 * **Question:** *"What style of practice feels most intuitive and grounding for you?"*
 * **Options:**
-  1. `physiological_breathwork`: Active breathing mechanics (Box breathing, physiological sigh, 4-7-8) that produce rapid physiological calm.
-  2. `open_monitoring`: Silent observation of thoughts and sensory awareness without judgment or reaction.
-  3. `somatic_relaxation`: Progressive muscle relaxation and body scans to release physical tension from the chest and shoulders.
+  1. `physiological_breathwork`: Breathwork (Box, 4-7-8, sigh)
+  2. `open_monitoring`: Silent open monitoring
+  3. `somatic_relaxation`: Body scan & somatic release
 
 #### Question 3 (Daily Cadence)
 * **Question:** *"What daily session duration can you guarantee every single day without fail?"*
 * **Options:**
-  1. `10m_daily`: 10 minutes daily (Light, reliable baseline anchor).
-  2. `15m_daily`: 15 minutes daily (Recommended standard dose for neuroplastic adaptation).
-  3. `20m_daily`: 20 minutes daily (Deep meditation & nervous system regulation).
+  1. `10m_daily`: 10 minutes / day (Light)
+  2. `15m_daily`: 15 minutes / day (Recommended)
+  3. `20m_daily`: 20 minutes / day (Deep reset)
 
 ---
 
@@ -246,7 +246,8 @@ STRICT CONSTRAINTS:
 1. NEVER ask about sleep, wake times, work hours, or daily routine. (The Life Structure engine handles this separately).
 2. NEVER ask "How will you fail?" or "Why did you fail before?". Bake failure-prevention into the capability milestones directly.
 3. Every question MUST be multiple-choice (3 to 4 options).
-4. Every question MUST directly map to:
+4. STRICTLY KEEP ALL ANSWER LABELS SHORT, CRISP, AND TO THE POINT (2 to 6 words max). NEVER write long paragraphs or stressful explanations in answer options. Keep choices easy and zero-stress to scan.
+5. Every question MUST directly map to:
    - Q1: Objective Verifiable Baseline Gate (What can they objectively do right now?)
    - Q2: Skill Asymmetry / Comfort Zone (Where are they strong vs where do they need guidance?)
    - Q3: Weekly Sustainable Target Cadence (How much weekly time/frequency can they commit?)
@@ -262,9 +263,9 @@ STRICT CONSTRAINTS:
       "question": "Clear, objective question testing real-world capability in the last 30 days",
       "purpose": "BASELINE_CALIBRATION",
       "options": [
-        { "value": "beginner", "label": "Clear plain English description of starting tier", "baseline_level": "BEGINNER", "score": 1 },
-        { "value": "intermediate", "label": "Clear plain English description of middle tier", "baseline_level": "INTERMEDIATE", "score": 2 },
-        { "value": "advanced", "label": "Clear plain English description of advanced tier", "baseline_level": "ADVANCED", "score": 3 }
+        { "value": "beginner", "label": "Complete beginner", "baseline_level": "BEGINNER", "score": 1 },
+        { "value": "intermediate", "label": "Intermediate (solid fundamentals)", "baseline_level": "INTERMEDIATE", "score": 2 },
+        { "value": "advanced", "label": "Experienced / Advanced", "baseline_level": "ADVANCED", "score": 3 }
       ]
     },
     {
@@ -272,9 +273,9 @@ STRICT CONSTRAINTS:
       "question": "Question assessing existing comfort zone vs areas needing structured guidance",
       "purpose": "GUIDANCE_SCAFFOLDING",
       "options": [
-        { "value": "strength_a", "label": "Comfortable with X, need structured guidance on Y" },
-        { "value": "strength_b", "label": "Comfortable with Y, need structured guidance on X" },
-        { "value": "foundation_both", "label": "Need step-by-step foundation across both" }
+        { "value": "strength_a", "label": "Concepts & strategy first" },
+        { "value": "strength_b", "label": "Hands-on action first" },
+        { "value": "foundation_both", "label": "Starting fresh across both" }
       ]
     },
     {
@@ -282,9 +283,9 @@ STRICT CONSTRAINTS:
       "question": "Question establishing sustainable weekly hours and session frequency",
       "purpose": "CAPACITY_BUDGET",
       "options": [
-        { "value": "light", "label": "Light pace: ~3.5–4.5 hrs/week", "recommended_weekly_hours": 4 },
-        { "value": "balanced", "label": "Balanced pace: ~5–7 hrs/week", "recommended_weekly_hours": 6 },
-        { "value": "accelerated", "label": "Accelerated pace: ~8–10 hrs/week", "recommended_weekly_hours": 8 }
+        { "value": "light", "label": "Light (~4 hrs / week)", "recommended_weekly_hours": 4 },
+        { "value": "balanced", "label": "Balanced (~6 hrs / week)", "recommended_weekly_hours": 6 },
+        { "value": "accelerated", "label": "Intensive (~8 hrs / week)", "recommended_weekly_hours": 8 }
       ]
     }
   ]

@@ -338,63 +338,53 @@ export const OnboardingPage: React.FC = () => {
         // Context-aware choices strictly tailored to the question being asked
         let contextualOptions: OnboardingQuestionOption[] = [
           {
-            label: 'Complete beginner (starting completely from scratch)',
+            label: 'Complete beginner',
             value: 'BEGINNER',
-            description: 'Build foundational capability and daily habit first.',
           },
           {
-            label: 'Novice (have dabbled or tried casually in the past)',
+            label: 'Novice (some casual practice)',
             value: 'NOVICE',
-            description: 'Some familiarity, ready to develop disciplined consistency.',
           },
           {
-            label: 'Intermediate (consistent basics, solid foundation)',
+            label: 'Intermediate (solid fundamentals)',
             value: 'INTERMEDIATE',
-            description: 'Comfortable with fundamentals; seeking accelerated progress.',
           },
           {
-            label: 'Advanced (high active capability, looking for peak mastery)',
+            label: 'Experienced / Advanced',
             value: 'ADVANCED',
-            description: 'Refined foundation; ready for intense milestone breakthrough.',
           },
         ];
 
         if (idx === 1 || qLower.includes('comfort') || qLower.includes('skill') || qLower.includes('asymmetry') || qLower.includes('area')) {
           contextualOptions = [
             {
-              label: 'Comfortable with concepts and theory, need structured execution drills',
+              label: 'Concepts & strategy first',
               value: 'strength_concepts',
-              description: 'Clear understanding of the ideas, ready for disciplined practice.',
             },
             {
-              label: 'Comfortable jumping into action, need structured progression and technique refinement',
+              label: 'Hands-on action first',
               value: 'strength_execution',
-              description: 'Motivated to practice, need roadmap and milestone guardrails.',
             },
             {
-              label: 'Starting fresh across both understanding and execution',
+              label: 'Starting fresh across both',
               value: 'foundation_both',
-              description: 'Step-by-step guidance from first principles.',
             },
           ];
         } else if (idx === 2 || qLower.includes('hour') || qLower.includes('time') || qLower.includes('frequency') || qLower.includes('cadence') || qLower.includes('week')) {
           contextualOptions = [
             {
-              label: 'Light pace: ~3.5–4.5 hours / week (3 focused sessions)',
+              label: 'Light (~4 hrs / week)',
               value: 'light',
-              description: 'Optimal for packed schedules; high consistency.',
               recommended_weekly_hours: 4,
             },
             {
-              label: 'Balanced pace: ~5–7 hours / week (4 focused sessions)',
+              label: 'Balanced (~6 hrs / week)',
               value: 'balanced',
-              description: 'Recommended cadence for sustained progress.',
               recommended_weekly_hours: 6,
             },
             {
-              label: 'Accelerated pace: ~8–10 hours / week (5 focused sessions)',
+              label: 'Intensive (~8 hrs / week)',
               value: 'accelerated',
-              description: 'Intensive sprint for rapid breakthrough.',
               recommended_weekly_hours: 8,
             },
           ];
