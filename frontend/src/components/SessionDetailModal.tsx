@@ -19,6 +19,7 @@ import {
   Activity,
   Calendar,
 } from 'lucide-react';
+import { formatTaskTitle } from '../lib/formatters';
 
 interface SessionDetailModalProps {
   session: Session | null;
@@ -226,7 +227,7 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
             </div>
 
             <h3 className="text-base sm:text-lg font-semibold text-white tracking-tight">
-              {session.task_template?.title || 'Execution Session'}
+              {formatTaskTitle(session.task_template?.title) || 'Execution Session'}
             </h3>
 
             {session.task_template?.description && (

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { DailyScheduleItem } from '../lib/lifeApi';
 import { soundscape, SoundscapeType } from '../lib/soundscapeEngine';
+import { formatTaskTitle } from '../lib/formatters';
 
 interface FullscreenFocusModalProps {
   isOpen: boolean;
@@ -252,7 +253,7 @@ export const FullscreenFocusModal: React.FC<FullscreenFocusModalProps> = ({
         {/* Session Title & Window */}
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-white">
-            {item.title}
+            {formatTaskTitle(item.title)}
           </h1>
           {item.description && (
             <p className="text-sm sm:text-base text-neutral-400 max-w-lg mx-auto leading-relaxed">

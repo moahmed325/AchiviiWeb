@@ -13,6 +13,7 @@ import {
   Loader2,
   CalendarDays,
 } from 'lucide-react';
+import { formatTaskTitle } from '../lib/formatters';
 
 export const SchedulePage: React.FC = () => {
   const { token } = useAuth();
@@ -234,7 +235,7 @@ export const SchedulePage: React.FC = () => {
                               </div>
 
                               <p className={`text-xs font-medium leading-snug ${isDone ? 'line-through text-neutral-500' : 'text-white'}`}>
-                                {item.title}
+                                {formatTaskTitle(item.title)}
                               </p>
 
                               {item.description && (

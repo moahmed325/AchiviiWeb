@@ -10,12 +10,58 @@ export interface AvailableWindow {
 export interface RoutineBlockInput {
   title: string;
   category: string;
-  days_of_week: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
+  days_of_week: number[] | string[]; // 0=Sun, 1=Mon, ..., 6=Sat or ['MON', 'TUE', ...]
   start_time: string;     // "HH:mm"
   end_time: string;       // "HH:mm"
   is_hard_constraint?: boolean;
   buffer_before_minutes?: number;
   buffer_after_minutes?: number;
+}
+
+const DAY_NAME_TO_INT: Record<string, number> = {
+  SUN: 0, SUNDAY: 0,
+  MON: 1, MONDAY: 1,
+  TUE: 2, TUESDAY: 2,
+  WED: 3, WEDNESDAY: 3,
+  THU: 4, THURSDAY: 4,
+  FRI: 5, FRIDAY: 5,
+  SAT: 6, SATURDAY: 6,
+};
+
+/**
+ * Normalizes any format of days of week (numbers 0-6, string abbreviations like 'MON', 'TUE',
+ * JSON arrays, or comma-separated strings) into a sorted array of unique integers (0=Sun..6=Sat).
+ */
+export function normalizeDaysOfWeek(rawDays: any): number[] {
+  if (!rawDays) return [1, 2, 3, 4, 5];
+  let parsed = rawDays;
+  if (typeof rawDays === 'string') {
+    try {
+      parsed = JSON.parse(rawDays);
+    } catch {
+      parsed = rawDays.split(',').map((s: string) => s.trim());
+    }
+  }
+  if (!Array.isArray(parsed)) return [1, 2, 3, 4, 5];
+
+  const result: number[] = [];
+  for (const item of parsed) {
+    if (typeof item === 'number' && item >= 0 && item <= 6) {
+      if (!result.includes(item)) result.push(item);
+    } else if (typeof item === 'string') {
+      const upper = item.trim().toUpperCase();
+      if (DAY_NAME_TO_INT[upper] !== undefined) {
+        const d = DAY_NAME_TO_INT[upper];
+        if (!result.includes(d)) result.push(d);
+      } else {
+        const n = parseInt(upper, 10);
+        if (!isNaN(n) && n >= 0 && n <= 6 && !result.includes(n)) {
+          result.push(n);
+        }
+      }
+    }
+  }
+  return result.length > 0 ? result.sort((a, b) => a - b) : [1, 2, 3, 4, 5];
 }
 
 /**
@@ -151,12 +197,13 @@ export async function updateLifeStructure(
     });
 
     for (const rb of routine_blocks) {
+      const normalizedDays = normalizeDaysOfWeek(rb.days_of_week);
       await prisma.routineBlock.create({
         data: {
           life_structure_id: life.id,
           title: rb.title,
           category: rb.category || 'WORK',
-          days_of_week: Array.isArray(rb.days_of_week) ? JSON.stringify(rb.days_of_week) : rb.days_of_week || '[]',
+          days_of_week: JSON.stringify(normalizedDays),
           start_time: rb.start_time,
           end_time: rb.end_time,
           is_hard_constraint: rb.is_hard_constraint ?? true,
@@ -185,7 +232,7 @@ export async function createRoutineBlock(userId: string, data: RoutineBlockInput
       life_structure_id: life.id,
       title: data.title,
       category: data.category,
-      days_of_week: JSON.stringify(data.days_of_week),
+      days_of_week: JSON.stringify(normalizeDaysOfWeek(data.days_of_week)),
       start_time: data.start_time,
       end_time: data.end_time,
       is_hard_constraint: data.is_hard_constraint ?? true,
@@ -204,7 +251,7 @@ export async function updateRoutineBlock(
 ) {
   const updateData: any = { ...data };
   if (data.days_of_week) {
-    updateData.days_of_week = JSON.stringify(data.days_of_week);
+    updateData.days_of_week = JSON.stringify(normalizeDaysOfWeek(data.days_of_week));
   }
   return prisma.routineBlock.update({
     where: { id: blockId },
@@ -213,7 +260,7 @@ export async function updateRoutineBlock(
 }
 
 /**
- * Deletes an existing routine block.
+ * Deletes a routine block.
  */
 export async function deleteRoutineBlock(blockId: string) {
   return prisma.routineBlock.delete({
@@ -240,11 +287,11 @@ export async function calculateAvailableWindows(
   // If sleep time is on or before wake time (e.g. night shift), adjust sleep to 1440
   const effectiveSleepMins = sleepMins <= wakeMins ? 1440 : sleepMins;
 
-  // Filter routine blocks for this day of week
+  // Filter routine blocks for this day of week using robust normalization
   const activeBlocks = (life.routine_blocks || []).filter((block: any) => {
     try {
-      const days = JSON.parse(block.days_of_week) as number[];
-      return Array.isArray(days) && days.includes(dayOfWeek);
+      const days = normalizeDaysOfWeek(block.days_of_week);
+      return days.includes(dayOfWeek);
     } catch {
       return false;
     }

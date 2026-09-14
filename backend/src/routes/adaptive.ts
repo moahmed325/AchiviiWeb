@@ -28,7 +28,7 @@ import {
 } from '../lib/adaptive/index.js';
 import { generateMasterPlan } from '../lib/ai/masterPlanningPrompt.js';
 import { getOrCreateLifeStructure } from '../lib/life/lifeStructureEngine.js';
-import { materializeDays } from '../lib/life/dailyScheduler.js';
+import { materializeDays, cleanDoseTitle } from '../lib/life/dailyScheduler.js';
 import { interpretOnboardingAnswers } from '../lib/adaptive/core/answerInterpreter.js';
 
 export const adaptiveRouter = Router();
@@ -380,7 +380,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
         trajectoryItemId: item.id,
         userGoalId: userGoal.id,
         targetCapabilityId: item.target_capability_id || '',
-        actionName: item.intervention_name,
+        actionName: cleanDoseTitle(item.intervention_name),
         purpose: 'Week 1 adaptation stimulus',
         priorityTier: item.priority_tier,
         standardDoseMinutes: item.standard_duration_minutes,

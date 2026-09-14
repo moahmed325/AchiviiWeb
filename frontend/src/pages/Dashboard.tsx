@@ -50,6 +50,7 @@ import { GoalDetailDrawer } from '../components/GoalDetailDrawer';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
 import { WeeklyReflection } from '../components/WeeklyReflection';
 import { GraduationModal } from '../components/GraduationModal';
+import { formatTaskTitle } from '../lib/formatters';
 
 export const Dashboard: React.FC = () => {
   const { token, user } = useAuth();
@@ -709,7 +710,7 @@ export const Dashboard: React.FC = () => {
 
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                  {nextAmbitionDose.title}
+                  {formatTaskTitle(nextAmbitionDose.title)}
                 </h2>
                 {nextAmbitionDose.description && (
                   <p className="text-xs sm:text-sm text-neutral-400 mt-1 leading-relaxed">
@@ -838,7 +839,7 @@ export const Dashboard: React.FC = () => {
                         </div>
 
                         <div className="text-sm font-semibold text-white">
-                          {item.title}
+                          {formatTaskTitle(item.title)}
                         </div>
 
                         {item.description && (

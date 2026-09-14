@@ -6,7 +6,9 @@ import {
   calculateAvailableWindows,
   timeToMinutes,
   minutesToTime,
+  normalizeDaysOfWeek,
 } from '../src/lib/life/lifeStructureEngine';
+import { roundToHumanDuration } from '../src/lib/adaptive/strategy/trajectoryEngine';
 import {
   generateDeterministicMasterPlan,
   validateMasterPlanOutput,
@@ -369,6 +371,56 @@ describe('Life Operating System: Scenarios K through O', () => {
       expect(optimal?.window.start_time).toBe('07:00');
       // Finishes before work starts (09:00 / 540 mins)
       expect(optimal!.endMins).toBeLessThanOrEqual(540);
+    });
+
+    it('normalizes days of week across all format representations (tokens, arrays, strings)', () => {
+      expect(normalizeDaysOfWeek(['MON', 'TUE', 'WED', 'THU', 'FRI'])).toEqual([1, 2, 3, 4, 5]);
+      expect(normalizeDaysOfWeek(['MON', 'WED', 'FRI'])).toEqual([1, 3, 5]);
+      expect(normalizeDaysOfWeek(['SAT', 'SUN'])).toEqual([0, 6]);
+      expect(normalizeDaysOfWeek('["MON", "TUE", "WED"]')).toEqual([1, 2, 3]);
+      expect(normalizeDaysOfWeek([0, 1, 2, 3, 4, 5, 6])).toEqual([0, 1, 2, 3, 4, 5, 6]);
+      expect(normalizeDaysOfWeek('MON, TUE, FRI')).toEqual([1, 2, 5]);
+    });
+
+    it('snaps raw session durations to humane standard intervals (roundToHumanDuration)', () => {
+      expect(roundToHumanDuration(67)).toBe(60);
+      expect(roundToHumanDuration(27)).toBe(30);
+      expect(roundToHumanDuration(22)).toBe(20);
+      expect(roundToHumanDuration(44)).toBe(45);
+      expect(roundToHumanDuration(72)).toBe(75);
+    });
+
+    it('auto-heals missing routine blocks when existing daily schedule items have no routines', async () => {
+      const healDate = '2026-09-15';
+      const dayStart = new Date(healDate + 'T00:00:00.000Z');
+
+      // Create a corrupted/legacy schedule item that has only AMBITION_DOSE with robotic prefix
+      await prisma.dailyScheduleItem.create({
+        data: {
+          user_id: testUserId,
+          date: dayStart,
+          start_time: '07:00',
+          end_time: '08:07',
+          allocated_minutes: 67,
+          item_type: 'AMBITION_DOSE',
+          category: 'AMBITION',
+          title: 'Core Adaptation Session: Amharic Core Sounds & Greetings',
+          status: 'SCHEDULED',
+        },
+      });
+
+      // Running materializeDays auto-heals without needing forceRegenerate
+      const healedItems = await materializeDays(testUserId, healDate, healDate);
+
+      // Verify routine blocks (Work, Lunch, Dinner, etc.) are now present!
+      const routineCount = healedItems.filter((i) => i.item_type === 'ROUTINE').length;
+      expect(routineCount).toBeGreaterThanOrEqual(1);
+
+      // Verify the ambition dose title was cleaned permanently
+      const healedDose = healedItems.find((i) => i.item_type === 'AMBITION_DOSE');
+      expect(healedDose).toBeDefined();
+      expect(healedDose!.title).toBe('Amharic Core Sounds & Greetings');
+      expect(healedDose!.title).not.toContain('Core Adaptation Session:');
     });
   });
 });

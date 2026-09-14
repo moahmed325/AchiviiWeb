@@ -19,6 +19,18 @@ export interface AvailabilitySlotRecord {
 }
 
 /**
+ * Snaps raw minute durations to standard human intervals (20m, 30m, 45m, 60m, 75m).
+ */
+export function roundToHumanDuration(mins: number): number {
+  if (mins < 25) return 20;
+  if (mins < 38) return 30;
+  if (mins < 53) return 45;
+  if (mins < 68) return 60;
+  if (mins < 83) return 75;
+  return Math.round(mins / 15) * 15;
+}
+
+/**
  * Generates Trajectory v1: The initial planned route towards the goal destination.
  * Maps the critical path and Minimum Effective Dose (MED) across 12 weeks, ensuring
  * that total weekly workload never exceeds sustainable capacity minus reliability margin.
@@ -51,7 +63,8 @@ export async function generateInitialTrajectory(
 
   // Determine sessions per week (3 or 4) and duration
   const sessionsPerWeek = maxWeeklyMinutes >= 240 ? 4 : 3;
-  const sessionDuration = Math.max(20, Math.floor(maxWeeklyMinutes / sessionsPerWeek));
+  const rawDuration = Math.max(20, Math.floor(maxWeeklyMinutes / sessionsPerWeek));
+  const sessionDuration = roundToHumanDuration(rawDuration);
 
   // 3. Partition capabilities from DAG across the 12 weeks
   const topologicalNodes = graph.getTopologicalOrder();
@@ -119,16 +132,23 @@ export async function generateInitialTrajectory(
         .trim();
       const baseName = cleanCapName || 'Core Skill';
 
-      // Keep task names simple, punchy, and to the point (2 to 4 words max)
-      const interventionName = isCritical
-        ? `${baseName} Drills`
-        : isHighLeverage
-        ? `${baseName} Practice`
-        : `${baseName} Review`;
+      // Keep task names simple, punchy, and to the point (2 to 5 words max)
+      let interventionName = baseName;
+      if (!/(drills|practice|review|session|foundations|fundamentals)$/i.test(baseName)) {
+        interventionName = isCritical
+          ? `${baseName} Drills`
+          : isHighLeverage
+          ? `${baseName} Practice`
+          : `${baseName} Review`;
+      }
+      const words = interventionName.split(/\s+/);
+      if (words.length > 5) {
+        interventionName = words.slice(0, 4).join(' ');
+      }
 
       const standardMinutes = sessionDuration;
-      const reducedMinutes = Math.max(15, Math.round(standardMinutes * 0.65));
-      const mvsMinutes = Math.max(15, Math.round(standardMinutes * 0.40));
+      const reducedMinutes = roundToHumanDuration(Math.max(15, Math.round(standardMinutes * 0.65)));
+      const mvsMinutes = roundToHumanDuration(Math.max(15, Math.round(standardMinutes * 0.40)));
 
       const whyThisMatters = isCritical
         ? `Develops the foundational stimulus for ${currentCapability.name}, unlocking the core adaptation needed for this milestone phase.`

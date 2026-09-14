@@ -21,6 +21,7 @@ import {
   calculateAvailableWindows,
   getOrCreateLifeStructure,
   minutesToTime,
+  normalizeDaysOfWeek,
 } from '../lib/life/lifeStructureEngine.js';
 
 export const sessionsRouter = Router();
@@ -140,7 +141,7 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
     const routineSlots: any[] = [];
     for (const block of lifeStructure.routine_blocks || []) {
       try {
-        const days = JSON.parse(block.days_of_week) as number[];
+        const days = normalizeDaysOfWeek(block.days_of_week);
         for (const d of days) {
           routineSlots.push({
             id: `routine-${block.id}-${d}`,

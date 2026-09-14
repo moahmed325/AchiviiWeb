@@ -12,6 +12,7 @@ import {
 import {
   materializeDays,
   adaptTodaySchedule,
+  cleanDoseTitle,
 } from '../lib/life/dailyScheduler.js';
 import {
   auditUserCapacity,
@@ -54,6 +55,8 @@ lifeRouter.put('/structure', async (req: Request, res: Response): Promise<void> 
     }
 
     const updated = await updateLifeStructure(user.id, req.body);
+    const todayStr = new Date().toISOString().split('T')[0];
+    await materializeDays(user.id, todayStr, todayStr, { forceRegenerate: true }).catch(() => {});
     res.status(200).json(updated);
   } catch (err: any) {
     console.error('Error updating life structure:', err);
@@ -162,9 +165,14 @@ lifeRouter.get('/schedule/today', async (req: Request, res: Response): Promise<v
 
     const openWindows = await calculateAvailableWindows(user.id, todayStr);
 
+    const sanitizedItems = items.map((item) => ({
+      ...item,
+      title: item.item_type === 'AMBITION_DOSE' ? cleanDoseTitle(item.title) : item.title,
+    }));
+
     res.status(200).json({
       date: todayStr,
-      items,
+      items: sanitizedItems,
       open_windows: openWindows,
     });
   } catch (err: any) {
@@ -219,10 +227,15 @@ lifeRouter.get('/schedule/week', async (req: Request, res: Response): Promise<vo
       orderBy: [{ date: 'asc' }, { start_time: 'asc' }],
     });
 
+    const sanitizedItems = items.map((item) => ({
+      ...item,
+      title: item.item_type === 'AMBITION_DOSE' ? cleanDoseTitle(item.title) : item.title,
+    }));
+
     res.status(200).json({
       startDate: startStr,
       endDate: endStr,
-      items,
+      items: sanitizedItems,
     });
   } catch (err: any) {
     console.error('Error fetching week schedule:', err);

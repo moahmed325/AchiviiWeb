@@ -5,6 +5,7 @@ import {
   minutesToTime,
   getOrCreateLifeStructure,
   AvailableWindow,
+  normalizeDaysOfWeek,
 } from './lifeStructureEngine.js';
 
 export interface ScheduleDayOptions {
@@ -24,6 +25,18 @@ export interface OptimalWindowResult {
   startMins: number;
   endMins: number;
   allocatedMinutes: number;
+}
+
+/**
+ * Snaps raw minute durations to standard human intervals (20m, 30m, 45m, 60m, 75m).
+ */
+export function roundToHumanDuration(mins: number): number {
+  if (mins < 25) return 20;
+  if (mins < 38) return 30;
+  if (mins < 53) return 45;
+  if (mins < 68) return 60;
+  if (mins < 83) return 75;
+  return Math.round(mins / 15) * 15;
 }
 
 /**
@@ -160,7 +173,7 @@ export function findOptimalAmbitionWindow(
   const best = scored[0].cand;
 
   // Calculate clean start and end minutes within best window
-  const allocatedMinutes = Math.min(nominal, best.capacity);
+  const allocatedMinutes = Math.min(nominal, Math.floor(best.capacity / 5) * 5);
   let chosenStart = best.startMins;
 
   // If the window is in the evening and preferred is EVENING (or night owl):
@@ -169,6 +182,13 @@ export function findOptimalAmbitionWindow(
   } else if (prefWindow === 'EVENING' && chosenStart < 1140 && best.endMins >= 1140 + allocatedMinutes) {
     chosenStart = 1140; // 19:00
   } else {
+    // If window starts early morning (e.g. 07:00) and has plenty of extra room:
+    if (chosenStart <= 420 && best.capacity >= allocatedMinutes + 30) {
+      chosenStart += 30; // e.g. 07:00 -> 07:30
+    } else if (chosenStart <= 420 && best.capacity >= allocatedMinutes + 15) {
+      chosenStart += 15; // e.g. 07:00 -> 07:15
+    }
+
     // Align to 15-minute boundary if it fits
     const rem15 = chosenStart % 15;
     if (rem15 !== 0 && chosenStart + (15 - rem15) + allocatedMinutes <= best.endMins) {
@@ -176,7 +196,10 @@ export function findOptimalAmbitionWindow(
     }
   }
 
-  const chosenEnd = chosenStart + allocatedMinutes;
+  let chosenEnd = chosenStart + allocatedMinutes;
+  if (chosenEnd > best.endMins) {
+    chosenEnd = best.endMins;
+  }
 
   return {
     window: {
@@ -253,6 +276,86 @@ export async function materializeDays(
     });
 
     if (existing.length > 0 && !options.forceRegenerate) {
+      // Auto-heal 1: Check if routines were never materialized for this date
+      const existingRoutineCount = existing.filter((i) => i.item_type === 'ROUTINE').length;
+      const expectedRoutineBlocks = (life.routine_blocks || []).filter((block: any) => {
+        try {
+          const days = normalizeDaysOfWeek(block.days_of_week);
+          return days.includes(dayOfWeek);
+        } catch {
+          return false;
+        }
+      });
+
+      if (existingRoutineCount === 0 && expectedRoutineBlocks.length > 0) {
+        for (const b of expectedRoutineBlocks) {
+          const routineItem = await prisma.dailyScheduleItem.create({
+            data: {
+              user_id: userId,
+              date: dayStart,
+              start_time: b.start_time,
+              end_time: b.end_time,
+              item_type: 'ROUTINE',
+              category: b.category,
+              title: b.title,
+              is_locked: b.is_hard_constraint,
+              status: 'SCHEDULED',
+            },
+          });
+          existing.push(routineItem);
+        }
+        existing.sort((a, b) => a.start_time.localeCompare(b.start_time));
+      }
+
+      // Auto-heal 2: Sanitize titles and heal ambition doses placed at wake time or overlapping routines
+      for (const item of existing) {
+        if (item.item_type === 'AMBITION_DOSE') {
+          const cleaned = cleanDoseTitle(item.title);
+          if (cleaned !== item.title) {
+            item.title = cleaned;
+            await prisma.dailyScheduleItem.update({
+              where: { id: item.id },
+              data: { title: cleaned },
+            });
+          }
+
+          // If scheduled ambition dose was placed at 07:00 (exact wake time) or overlaps an expected routine, relocate it
+          if (item.status === 'SCHEDULED') {
+            const doseStart = timeToMinutes(item.start_time);
+            const doseEnd = timeToMinutes(item.end_time);
+            const overlapsRoutine = expectedRoutineBlocks.some((rb: any) => {
+              const rbStart = timeToMinutes(rb.start_time);
+              const rbEnd = timeToMinutes(rb.end_time);
+              return doseStart < rbEnd && doseEnd > rbStart;
+            });
+            const startsAtWake = item.start_time === life.wake_time;
+
+            if (overlapsRoutine || startsAtWake) {
+              const openWins = await calculateAvailableWindows(userId, dateStr);
+              const nominal = roundToHumanDuration(item.allocated_minutes || 45);
+              const optimal = findOptimalAmbitionWindow(openWins, {
+                nominalMinutes: nominal,
+                mvdMinutes: item.minimum_viable_minutes || 20,
+                userMemory: userRecord?.user_memory || undefined,
+              });
+              if (optimal) {
+                item.start_time = minutesToTime(optimal.startMins);
+                item.end_time = minutesToTime(optimal.endMins);
+                item.allocated_minutes = optimal.allocatedMinutes;
+                await prisma.dailyScheduleItem.update({
+                  where: { id: item.id },
+                  data: {
+                    start_time: item.start_time,
+                    end_time: item.end_time,
+                    allocated_minutes: item.allocated_minutes,
+                  },
+                });
+              }
+            }
+          }
+        }
+      }
+
       allMaterialized.push(...existing);
       cur.setDate(cur.getDate() + 1);
       continue;
@@ -275,8 +378,8 @@ export async function materializeDays(
     // 1. Materialize Routine Blocks for this day
     const routineBlocks = (life.routine_blocks || []).filter((block: any) => {
       try {
-        const days = JSON.parse(block.days_of_week) as number[];
-        return Array.isArray(days) && days.includes(dayOfWeek);
+        const days = normalizeDaysOfWeek(block.days_of_week);
+        return days.includes(dayOfWeek);
       } catch {
         return false;
       }
@@ -348,8 +451,9 @@ export async function materializeDays(
 
       if (!shouldScheduleToday) continue;
 
-      const nominalMinutes = (pendingItem as any).standard_duration_minutes || (pendingItem as any).estimated_minutes || 60;
-      const mvdMinutes = (pendingItem as any).mvs_duration_minutes || Math.max(15, Math.round(nominalMinutes * 0.4));
+      const rawNominal = (pendingItem as any).standard_duration_minutes || (pendingItem as any).estimated_minutes || 60;
+      const nominalMinutes = roundToHumanDuration(rawNominal);
+      const mvdMinutes = roundToHumanDuration((pendingItem as any).mvs_duration_minutes || Math.max(15, Math.round(nominalMinutes * 0.4)));
       const reqEnergy = (pendingItem as any).energy_requirement || 'MEDIUM';
 
       // Determine preferred window from metadata or item
