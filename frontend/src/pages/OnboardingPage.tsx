@@ -327,86 +327,34 @@ export const OnboardingPage: React.FC = () => {
 
   // Parse questions from selected blueprint or custom formalization
   const parsedQuestions: OnboardingQuestion[] = useMemo(() => {
-    if (isCustomGoalActive && customFormalization?.baselineQuestions && customFormalization.baselineQuestions.length > 0) {
-      return customFormalization.baselineQuestions.map((q: any, idx: number) => {
-        // If question already has its own specific options from AI, use them directly
-        if (typeof q === 'object' && q?.question && Array.isArray(q?.options) && q.options.length > 0) {
-          return {
-            id: q.id || `custom_baseline_q_${idx + 1}`,
-            question: q.question,
-            help_text: 'Help us calibrate your starting point so your first weeks are paced just right.',
-            options: q.options.map((opt: any) => ({
-              label: opt.label,
-              value: opt.value || `opt_${opt.score || Math.random()}`,
-              description: opt.description,
-              recommended_weekly_hours: opt.recommended_weekly_hours,
-            })),
-          };
-        }
+    // 1. Check if custom goal questions exist in customFormalization or selectedGoal
+    const customQuestions = customFormalization?.baselineQuestions ||
+      ((isCustomGoalActive || selectedGoal?.id?.startsWith('custom'))
+        ? (typeof selectedGoal?.onboarding_questions === 'string'
+            ? JSON.parse(selectedGoal.onboarding_questions)
+            : selectedGoal?.onboarding_questions)
+        : null);
 
-        const qText = typeof q === 'string' ? q : q?.question || 'Diagnostic Baseline Calibration';
-        const qLower = qText.toLowerCase();
-
-        // Context-aware choices strictly tailored to the question being asked
-        let contextualOptions: OnboardingQuestionOption[] = [
-          {
-            label: 'Complete beginner',
-            value: 'BEGINNER',
-          },
-          {
-            label: 'Novice (some casual practice)',
-            value: 'NOVICE',
-          },
-          {
-            label: 'Intermediate (solid fundamentals)',
-            value: 'INTERMEDIATE',
-          },
-          {
-            label: 'Experienced / Advanced',
-            value: 'ADVANCED',
-          },
-        ];
-
-        if (idx === 1 || qLower.includes('comfort') || qLower.includes('skill') || qLower.includes('asymmetry') || qLower.includes('area')) {
-          contextualOptions = [
-            {
-              label: 'Concepts & strategy first',
-              value: 'strength_concepts',
-            },
-            {
-              label: 'Hands-on action first',
-              value: 'strength_execution',
-            },
-            {
-              label: 'Starting fresh across both',
-              value: 'foundation_both',
-            },
-          ];
-        } else if (idx === 2 || qLower.includes('hour') || qLower.includes('time') || qLower.includes('frequency') || qLower.includes('cadence') || qLower.includes('week')) {
-          contextualOptions = [
-            {
-              label: 'Light (~4 hrs / week)',
-              value: 'light',
-              recommended_weekly_hours: 4,
-            },
-            {
-              label: 'Balanced (~6 hrs / week)',
-              value: 'balanced',
-              recommended_weekly_hours: 6,
-            },
-            {
-              label: 'Intensive (~8 hrs / week)',
-              value: 'accelerated',
-              recommended_weekly_hours: 8,
-            },
-          ];
-        }
+    if (customQuestions && Array.isArray(customQuestions) && customQuestions.length > 0) {
+      return customQuestions.map((q: any, idx: number) => {
+        const qText = typeof q === 'string' ? q : (q?.question || `Diagnostic Question ${idx + 1}`);
+        const rawOptions = Array.isArray(q?.options) ? q.options : [];
+        const options: OnboardingQuestionOption[] = rawOptions.map((opt: any, optIdx: number) => ({
+          label: typeof opt === 'string' ? opt : (opt?.label || `Option ${optIdx + 1}`),
+          value: typeof opt === 'string' ? opt : (opt?.value || `opt_${optIdx + 1}`),
+          description: opt?.description,
+          recommended_weekly_hours: opt?.recommended_weekly_hours,
+        }));
 
         return {
-          id: `custom_baseline_q_${idx + 1}`,
+          id: q.id || `custom_baseline_q_${idx + 1}`,
           question: qText,
-          help_text: 'Help us calibrate your starting point so your first weeks are paced just right.',
-          options: contextualOptions,
+          help_text: q?.help_text || 'Help us calibrate your starting point so your first weeks are paced just right.',
+          options: options.length > 0 ? options : [
+            { label: 'Starting fresh (Beginner)', value: 'opt_beginner' },
+            { label: 'Some experience (Intermediate)', value: 'opt_intermediate' },
+            { label: 'Solid foundation (Advanced)', value: 'opt_advanced' },
+          ],
         };
       });
     }
@@ -577,12 +525,13 @@ export const OnboardingPage: React.FC = () => {
     const baseCatalog = allGoals[0];
 
     const virtualGoal: GoalCatalog = {
-      id: baseCatalog?.id || 'custom-goal-id',
+      id: `custom_${Date.now()}`,
       title: customFormalization.concreteOutcomeStatement,
       description: customFormalization.verificationCriteria,
       category: goalCategory,
       icon: 'target',
       est_weekly_hours: customWeeklyHours,
+      onboarding_questions: JSON.stringify(customFormalization.baselineQuestions),
       phases: baseCatalog?.phases || [],
       created_at: new Date().toISOString(),
     };

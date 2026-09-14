@@ -38,6 +38,23 @@ describe('Adaptive Goal Engine & 90-Day Feasibility Gate', () => {
       expect(result.verificationCriteria).toBeDefined();
       expect(result.baselineQuestions).toHaveLength(3);
       expect(result.targetDeadline).toBeInstanceOf(Date);
+      // Questions must be specifically tailored to the subject, not generic placeholders
+      expect(result.baselineQuestions[0].question.toLowerCase()).toContain('half marathon');
+      expect(result.baselineQuestions[1].question.toLowerCase()).toContain('half marathon');
+      expect(result.baselineQuestions[2].question.toLowerCase()).toContain('half marathon');
+    });
+
+    it('generates goal-specific questions for custom cognitive ambition', async () => {
+      const result = await formalizeGoal({
+        rawGoal: 'Learn conversational Italian to B1 level',
+        deadlineType: 'SOFT',
+      });
+
+      expect(result.domain).toBe('COGNITIVE');
+      expect(result.baselineQuestions).toHaveLength(3);
+      expect(result.baselineQuestions[0].question.toLowerCase()).toContain('italian');
+      expect(result.baselineQuestions[1].question.toLowerCase()).toContain('italian');
+      expect(result.baselineQuestions[2].question.toLowerCase()).toContain('italian');
     });
   });
 

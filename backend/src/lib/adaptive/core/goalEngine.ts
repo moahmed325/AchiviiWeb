@@ -38,9 +38,9 @@ export function inferDomain(rawGoal: string): GoalDomain {
     'endurance', 'cardio', 'pace',
   ];
   const cognitiveKeywords = [
-    'spanish', 'french', 'german', 'japanese', 'chinese', 'language', 'speak',
-    'study', 'exam', 'read', 'book', 'certification', 'cert', 'course', 'math',
-    'retrieval', 'fluent', 'vocabulary',
+    'spanish', 'french', 'german', 'italian', 'japanese', 'chinese', 'russian', 'portuguese', 'arabic', 'korean',
+    'language', 'speak', 'conversation', 'conversational', 'study', 'exam', 'read', 'book', 'certification', 'cert',
+    'course', 'math', 'retrieval', 'fluent', 'fluency', 'vocabulary',
   ];
 
   if (physicalKeywords.some((kw) => lower.includes(kw))) {
@@ -239,34 +239,86 @@ function generateDeterministicCapabilities(rawGoal: string, domain: GoalDomain):
   }
 }
 
-function generateDeterministicBaselineQuestions(domain: GoalDomain): CustomBaselineQuestion[] {
+function cleanGoalSubject(rawGoal: string): string {
+  const cleaned = rawGoal
+    .replace(/^(i want to|i'd like to|i plan to|my goal is to|learn how to|learn to|learn|build an?|build|master|run an?|run|write an?|write|achieve|become an?|become)\s+/i, '')
+    .trim();
+  return cleaned.length > 0 ? cleaned : rawGoal;
+}
+
+function generateDeterministicBaselineQuestions(rawGoal: string, domain: GoalDomain): CustomBaselineQuestion[] {
+  const subject = cleanGoalSubject(rawGoal);
+
+  // Domain-specific option sets
+  let baselineOptions = [
+    { value: 'complete_beginner', label: 'Complete beginner (starting fresh)', score: 1, recommended_weekly_hours: 4 },
+    { value: 'novice', label: 'Novice (some basic practice)', score: 2, recommended_weekly_hours: 5 },
+    { value: 'intermediate', label: 'Intermediate (solid fundamentals)', score: 3, recommended_weekly_hours: 6 },
+    { value: 'advanced', label: 'Experienced / Advanced practitioner', score: 4, recommended_weekly_hours: 8 },
+  ];
+
+  let comfortOptions = [
+    { value: 'theory_first', label: 'Concepts & fundamental strategy', score: 1 },
+    { value: 'action_first', label: 'Hands-on practice & execution', score: 2 },
+    { value: 'foundation_needed', label: 'Starting fresh across both', score: 3 },
+  ];
+
+  if (domain === 'PHYSICAL') {
+    baselineOptions = [
+      { value: 'fitness_beginner', label: '0–2 weeks casual training', score: 1, recommended_weekly_hours: 4 },
+      { value: 'fitness_intermediate', label: 'Consistent weekly workouts', score: 2, recommended_weekly_hours: 5.5 },
+      { value: 'fitness_advanced', label: 'High volume regular athlete', score: 3, recommended_weekly_hours: 7 },
+    ];
+    comfortOptions = [
+      { value: 'stamina_cardio', label: 'Aerobic stamina & lungs', score: 1 },
+      { value: 'strength_joints', label: 'Muscular strength & power', score: 2 },
+      { value: 'balanced_intervals', label: 'Balanced (ready for intervals)', score: 3 },
+    ];
+  } else if (domain === 'PROJECT') {
+    baselineOptions = [
+      { value: 'project_beginner', label: 'First-time builder (new to this)', score: 1, recommended_weekly_hours: 4 },
+      { value: 'project_intermediate', label: 'Built before, never launched full product', score: 2, recommended_weekly_hours: 6 },
+      { value: 'project_advanced', label: 'Experienced builder / professional', score: 3, recommended_weekly_hours: 8 },
+    ];
+    comfortOptions = [
+      { value: 'frontend_design', label: 'User interface & presentation', score: 1 },
+      { value: 'backend_logic', label: 'Core architecture & data logic', score: 2 },
+      { value: 'balanced_fullstack', label: 'Balanced full-cycle delivery', score: 3 },
+    ];
+  } else if (domain === 'COGNITIVE') {
+    baselineOptions = [
+      { value: 'study_beginner', label: 'Starting completely fresh', score: 1, recommended_weekly_hours: 3.5 },
+      { value: 'study_intermediate', label: 'Know basic concepts & terms', score: 2, recommended_weekly_hours: 5 },
+      { value: 'study_advanced', label: 'Solid grasp, targeting mastery', score: 3, recommended_weekly_hours: 6.5 },
+    ];
+    comfortOptions = [
+      { value: 'reading_comprehension', label: 'Reading & absorbing concepts', score: 1 },
+      { value: 'active_production', label: 'Speaking, writing, or active recall', score: 2 },
+      { value: 'structured_rules', label: 'Rules, syntax, and theory', score: 3 },
+    ];
+  }
+
   return [
     {
-      id: 'starting_baseline',
-      question: 'What is your current hands-on experience level with this ambition?',
-      options: [
-        { value: 'complete_beginner', label: 'Complete beginner', score: 1, recommended_weekly_hours: 4 },
-        { value: 'novice', label: 'Novice (some casual practice)', score: 2, recommended_weekly_hours: 5 },
-        { value: 'intermediate', label: 'Intermediate (solid fundamentals)', score: 3, recommended_weekly_hours: 6 },
-        { value: 'advanced', label: 'Experienced / Advanced', score: 4, recommended_weekly_hours: 8 },
-      ],
+      id: 'baseline_gate',
+      question: `What is your current experience level with "${subject}"?`,
+      purpose: 'BASELINE_CALIBRATION',
+      options: baselineOptions,
     },
     {
       id: 'skill_comfort_zone',
-      question: 'Where is your current comfort zone with this craft?',
-      options: [
-        { value: 'theory_first', label: 'Concepts & strategy first', score: 1 },
-        { value: 'action_first', label: 'Hands-on action first', score: 2 },
-        { value: 'foundation_needed', label: 'Starting fresh across both', score: 3 },
-      ],
+      question: `Which area of "${subject}" is your primary comfort zone?`,
+      purpose: 'GUIDANCE_SCAFFOLDING',
+      options: comfortOptions,
     },
     {
       id: 'weekly_target_cadence',
-      question: 'How much dedicated focus time can you sustainably protect each week?',
+      question: `How much weekly time can you protect for "${subject}"?`,
+      purpose: 'CAPACITY_BUDGET',
       options: [
-        { value: 'light_pace', label: 'Light (~4 hrs / week)', score: 1, recommended_weekly_hours: 4 },
-        { value: 'balanced_pace', label: 'Balanced (~6 hrs / week)', score: 2, recommended_weekly_hours: 6 },
-        { value: 'accelerated_pace', label: 'Intensive (~8 hrs / week)', score: 3, recommended_weekly_hours: 8 },
+        { value: 'light_pace', label: 'Light pace (~4 hrs / week)', score: 1, recommended_weekly_hours: 4 },
+        { value: 'balanced_pace', label: 'Balanced pace (~6 hrs / week)', score: 2, recommended_weekly_hours: 6 },
+        { value: 'accelerated_pace', label: 'Intensive sprint (~8+ hrs / week)', score: 3, recommended_weekly_hours: 8 },
       ],
     },
   ];
@@ -287,26 +339,37 @@ export async function formalizeGoal(input: FormalizeGoalInput): Promise<GoalForm
 Your job is to formalize a user's raw ambition into an inspiring, concrete 90-day execution contract.
 Adhere strictly to plain, encouraging English. Never use robotic jargon or MBA terms.
 
-STRICT ONBOARDING QUESTION RULES:
-1. NEVER ask about sleep, wake times, work hours, or daily routine (Life Structure handles this separately).
-2. NEVER ask "How will you fail?" or "Why did you fail before?". Bake failure prevention into the milestones directly.
-3. Every question MUST be multiple-choice (3 to 4 options).
-4. STRICTLY KEEP ALL ANSWER LABELS SHORT, CRISP, AND TO THE POINT (2 to 6 words max). NEVER write long paragraphs or stressful explanations in answer options. Keep choices easy and zero-stress to scan.
-5. Strictly generate 3 questions matching this blueprint:
-   - Q1: Objective Verifiable Baseline Gate (What can they objectively do right now? - purpose: BASELINE_CALIBRATION)
-   - Q2: Skill Asymmetry / Comfort Zone (Where are they strong vs where do they need guidance? - purpose: GUIDANCE_SCAFFOLDING)
-   - Q3: Sustainable Weekly Target Cadence (How much weekly time/frequency can they commit? - purpose: CAPACITY_BUDGET)
+STRICT GOAL-SPECIFIC QUESTION RULES:
+1. THE 3 ONBOARDING QUESTIONS AND EVERY SINGLE ANSWER OPTION MUST BE 100% SPECIFIC TO THE USER'S GOAL: "${rawGoal}".
+   - NEVER use generic placeholders like "this ambition", "this craft", "in the last 30 days", "Concepts & strategy", or "Complete beginner".
+   - Explicitly name the specific skill, sport, technology, language, instrument, or craft in the question titles and in all option labels!
+2. QUESTION BLUEPRINT:
+   - Question 1 (id: "baseline_gate", purpose: "BASELINE_CALIBRATION"):
+     Ask specifically what their current real-world experience or benchmark is with "${rawGoal}".
+     The 3 options MUST be concrete progressive tiers specific to this craft (2 to 6 words each).
+   - Question 2 (id: "skill_asymmetry", purpose: "GUIDANCE_SCAFFOLDING"):
+     Ask which sub-skill, discipline, or area of "${rawGoal}" they feel most comfortable with vs need guidance.
+     The 3 options MUST name concrete sub-disciplines or components of "${rawGoal}" (2 to 6 words each).
+   - Question 3 (id: "weekly_cadence", purpose: "CAPACITY_BUDGET"):
+     Ask how much weekly time or frequency they can protect specifically for practicing/building/training "${rawGoal}".
+     The 3 options must specify hours/week with domain-appropriate pace labels (2 to 6 words each).
+3. NEVER ask about sleep, wake times, work hours, or daily routine (Life Structure handles this separately).
+4. NEVER ask "How will you fail?" or "Why did you fail before?". Bake failure prevention into the milestones directly.
+5. Every question MUST have 3 to 4 options, each with a crisp, low-stress label (2 to 6 words max).
 Return ONLY valid JSON matching the requested schema.`;
 
   const prompt = `
-A user wants to achieve this 90-day goal: "${rawGoal}".
+A user wants to achieve this custom 90-day goal: "${rawGoal}".
 ${input.weeklyAvailableHours ? `The user has chosen a target pace of ${input.weeklyAvailableHours} hours/week.` : ''}
 
-Analyze this goal and return a JSON object strictly matching this schema:
+Generate custom milestone architecture and 3 custom onboarding questions strictly tailored to "${rawGoal}".
+CRITICAL: The questions and every answer choice must be written specifically about "${rawGoal}". Do not return generic options.
+
+Return a JSON object strictly matching this schema:
 {
   "category": "Auto-detected category string (e.g. 'Athletics & Endurance', 'Software & Technology', 'Language & Fluency', 'Strength & Fitness', 'Music & Creative Arts', 'Writing & Publishing', 'Mind & Habits')",
   "domain": "PHYSICAL" | "COGNITIVE" | "PROJECT",
-  "concreteOutcomeStatement": "Concrete, inspiring, unambiguous definition of the achieved finish line on Day 90 (not a task list)",
+  "concreteOutcomeStatement": "Concrete, inspiring, unambiguous definition of the achieved finish line on Day 90",
   "verificationCriteria": "Specific, observable, falsifiable real-world proof test to prove completion",
   "recommendedWeeklyHours": Number (recommended sustainable hours/week, e.g. 4, 5, 6, 8),
   "feasibilityScore": Number (between 0.75 and 0.95),
@@ -314,28 +377,28 @@ Analyze this goal and return a JSON object strictly matching this schema:
   "capabilityDag": [
     {
       "id": "cap_1",
-      "name": "Phase 1 Foundation Milestone Name",
+      "name": "Phase 1 Foundation Milestone Name for ${rawGoal}",
       "description": "Clear plain English description of this prerequisite capability",
       "tier": "TIER_1_CRITICAL",
       "prerequisites": []
     },
     {
       "id": "cap_2",
-      "name": "Phase 2 Stimulus Milestone Name",
+      "name": "Phase 2 Stimulus Milestone Name for ${rawGoal}",
       "description": "Progressive overload milestone",
       "tier": "TIER_1_CRITICAL",
       "prerequisites": ["cap_1"]
     },
     {
       "id": "cap_3",
-      "name": "Phase 3 Peak Milestone Name",
+      "name": "Phase 3 Peak Milestone Name for ${rawGoal}",
       "description": "Advanced endurance, pacing, or depth milestone",
       "tier": "TIER_1_CRITICAL",
       "prerequisites": ["cap_2"]
     },
     {
       "id": "cap_4",
-      "name": "Capstone Verification Milestone Name",
+      "name": "Capstone Verification Milestone Name for ${rawGoal}",
       "description": "Final trial rehearsal and benchmark",
       "tier": "TIER_1_CRITICAL",
       "prerequisites": ["cap_3"]
@@ -344,32 +407,32 @@ Analyze this goal and return a JSON object strictly matching this schema:
   "baselineQuestions": [
     {
       "id": "baseline_gate",
-      "question": "Clear, objective question testing real-world capability or experience in the last 30 days",
+      "question": "Specific question testing real-world baseline in ${rawGoal}",
       "purpose": "BASELINE_CALIBRATION",
       "options": [
-        { "value": "beginner", "label": "Complete beginner", "score": 1, "recommended_weekly_hours": 4 },
-        { "value": "intermediate", "label": "Intermediate (solid fundamentals)", "score": 2, "recommended_weekly_hours": 6 },
-        { "value": "advanced", "label": "Experienced / Advanced", "score": 3, "recommended_weekly_hours": 8 }
+        { "value": "opt_1", "label": "Specific beginner level in this craft (2-6 words)", "score": 1, "recommended_weekly_hours": 4 },
+        { "value": "opt_2", "label": "Specific intermediate level in this craft (2-6 words)", "score": 2, "recommended_weekly_hours": 6 },
+        { "value": "opt_3", "label": "Specific advanced level in this craft (2-6 words)", "score": 3, "recommended_weekly_hours": 8 }
       ]
     },
     {
       "id": "skill_asymmetry",
-      "question": "Question assessing existing comfort zone vs areas needing structured guidance",
+      "question": "Specific question assessing comfort zone across sub-skills of ${rawGoal}",
       "purpose": "GUIDANCE_SCAFFOLDING",
       "options": [
-        { "value": "strength_concepts", "label": "Concepts & strategy first", "score": 1 },
-        { "value": "strength_execution", "label": "Hands-on action first", "score": 2 },
-        { "value": "foundation_both", "label": "Starting fresh across both", "score": 3 }
+        { "value": "opt_1", "label": "Specific sub-skill A of this craft (2-6 words)", "score": 1 },
+        { "value": "opt_2", "label": "Specific sub-skill B of this craft (2-6 words)", "score": 2 },
+        { "value": "opt_3", "label": "Specific sub-skill C of this craft (2-6 words)", "score": 3 }
       ]
     },
     {
       "id": "weekly_cadence",
-      "question": "Question establishing sustainable weekly hours and session frequency",
+      "question": "Specific question establishing weekly dedicated hours/cadence for ${rawGoal}",
       "purpose": "CAPACITY_BUDGET",
       "options": [
-        { "value": "light", "label": "Light (~4 hrs / week)", "score": 1, "recommended_weekly_hours": 4 },
-        { "value": "balanced", "label": "Balanced (~6 hrs / week)", "score": 2, recommended_weekly_hours: 6 },
-        { "value": "accelerated", "label": "Intensive (~8 hrs / week)", "score": 3, recommended_weekly_hours: 8 }
+        { "value": "light", "label": "Light pace with hours (2-6 words)", "score": 1, "recommended_weekly_hours": 4 },
+        { "value": "balanced", "label": "Recommended pace with hours (2-6 words)", "score": 2, "recommended_weekly_hours": 6 },
+        { "value": "accelerated", "label": "Intensive pace with hours (2-6 words)", "score": 3, "recommended_weekly_hours": 8 }
       ]
     }
   ]
@@ -397,7 +460,7 @@ Analyze this goal and return a JSON object strictly matching this schema:
 
     const finalQuestions = Array.isArray(aiResult.data.baselineQuestions) && aiResult.data.baselineQuestions.length > 0
       ? aiResult.data.baselineQuestions
-      : generateDeterministicBaselineQuestions(finalDomain);
+      : generateDeterministicBaselineQuestions(rawGoal, finalDomain);
 
     return {
       concreteOutcomeStatement: aiResult.data.concreteOutcomeStatement || rawGoal,
@@ -468,7 +531,7 @@ function generateDeterministicFormalization(
     feasibilityScore: 0.85,
     feasibilityNote: `At ${userHours}h/week, pacing provides balanced progress with reliable rest buffers.`,
     capabilityDag: generateDeterministicCapabilities(rawGoal, domain),
-    baselineQuestions: generateDeterministicBaselineQuestions(domain),
+    baselineQuestions: generateDeterministicBaselineQuestions(rawGoal, domain),
   };
 }
 
