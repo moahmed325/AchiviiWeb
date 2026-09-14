@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchCatalog, fetchGoalById, fetchCurrentUserGoal } from '../lib/api';
-import { formalizeGoal, commitGoal } from '../lib/adaptiveApi';
+import { formalizeGoal, commitGoal, interpretOnboardingAnswers } from '../lib/adaptiveApi';
 import { updateLifeStructure } from '../lib/lifeApi';
 import { getTodayDateString } from '../lib/dateUtils';
 import { GoalCatalog, UserGoal } from '../types';
@@ -10,6 +10,7 @@ import type {
   GoalDomain,
   DeadlineType,
   GoalFormalizationResult,
+  InterpretedAnswerProfile,
 } from '../types/adaptive';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
 import {
@@ -238,6 +239,9 @@ export const OnboardingPage: React.FC = () => {
   const [otherCustomTexts, setOtherCustomTexts] = useState<Record<string, string>>({});
   const [isOtherActiveMap, setIsOtherActiveMap] = useState<Record<string, boolean>>({});
   const otherInputRef = useRef<HTMLInputElement>(null);
+  const [interpretedProfile, setInterpretedProfile] = useState<InterpretedAnswerProfile | null>(null);
+  const [isAiCalibratingHours, setIsAiCalibratingHours] = useState<boolean>(false);
+  const [hasUserManuallyAdjustedHours, setHasUserManuallyAdjustedHours] = useState<boolean>(false);
 
   // Step 3 Life Structure & Routine State
   const [wakeTime, setWakeTime] = useState<string>('07:00');
@@ -580,6 +584,7 @@ export const OnboardingPage: React.FC = () => {
   }, [currentQuestionIndex, navigate]);
 
   const handleContinueToRoutines = useCallback(() => {
+    // 1. Initial baseline check for immediate, zero-lag slider preset
     for (const q of parsedQuestions) {
       const chosenVal = questionnaireAnswers[q.id];
       const opt = q.options.find((o) => o.value === chosenVal);
@@ -597,9 +602,38 @@ export const OnboardingPage: React.FC = () => {
         }
       }
     }
+
+    // 2. Immediate zero-latency transition to Step 3
     setStep(3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [parsedQuestions, questionnaireAnswers]);
+
+    // 3. Fire Optimistic Background Answer Interpreter
+    const token = localStorage.getItem('token');
+    const hasCustomText = Object.values(questionnaireAnswers).some((ans) => ans && ans.includes(' ') && ans.length > 8);
+    if (token && hasCustomText) {
+      setIsAiCalibratingHours(true);
+      interpretOnboardingAnswers(token, {
+        goalTitle: selectedGoal?.title || customFormalization?.concreteOutcomeStatement || 'My Ambition',
+        domain: customFormalization?.domain || (selectedGoal?.category === 'Health & Fitness' ? 'PHYSICAL' : 'PROJECT'),
+        questionnaireAnswers,
+        defaultWeeklyHours: weeklyAvailableHours || 6,
+      })
+        .then((res) => {
+          if (res?.profile) {
+            setInterpretedProfile(res.profile);
+            if (!hasUserManuallyAdjustedHours && typeof res.profile.suggestedWeeklyHours === 'number') {
+              setWeeklyAvailableHours(res.profile.suggestedWeeklyHours);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Background answer interpretation error:', err);
+        })
+        .finally(() => {
+          setIsAiCalibratingHours(false);
+        });
+    }
+  }, [parsedQuestions, questionnaireAnswers, selectedGoal, customFormalization, weeklyAvailableHours, hasUserManuallyAdjustedHours]);
 
   const handleNextQuestion = useCallback(() => {
     if (!isCurrentQuestionAnswered) return;
@@ -772,6 +806,7 @@ export const OnboardingPage: React.FC = () => {
         capabilities: customFormalization?.capabilityDag,
         availabilitySlots,
         questionnaireAnswers,
+        interpretedProfile: interpretedProfile || undefined,
       });
 
       navigate('/dashboard');
@@ -1478,6 +1513,60 @@ export const OnboardingPage: React.FC = () => {
               <p className="text-sm text-neutral-400 leading-relaxed">
                 Tell us your waking boundaries and existing commitments. We’ll protect them so your ambition fits naturally without stress.
               </p>
+            </div>
+
+            {/* Sustainable Weekly Hours Budget Card with AI Calibration */}
+            <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <span>Sustainable Weekly Hours</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] font-mono font-bold">
+                      {weeklyAvailableHours} hrs / week
+                    </span>
+                  </h3>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    How much dedicated time you can protect without burn-out.
+                  </p>
+                </div>
+
+                {/* AI Calibration Badge */}
+                {isAiCalibratingHours && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-neutral-400 animate-pulse">
+                    <Loader2 className="w-3 h-3 animate-spin text-[#07CB6C]" />
+                    <span>Calibrating from notes...</span>
+                  </div>
+                )}
+                {interpretedProfile?.rationale && !isAiCalibratingHours && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-xs text-[#07CB6C] animate-in fade-in duration-300">
+                    <Sparkles className="w-3.5 h-3.5 shrink-0 text-[#07CB6C]" />
+                    <span className="truncate max-w-[280px]" title={interpretedProfile.rationale}>
+                      {interpretedProfile.rationale}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Interactive Hours Slider */}
+              <div className="space-y-2 pt-1">
+                <input
+                  type="range"
+                  min={2}
+                  max={20}
+                  step={0.5}
+                  value={weeklyAvailableHours}
+                  onChange={(e) => {
+                    setHasUserManuallyAdjustedHours(true);
+                    setWeeklyAvailableHours(parseFloat(e.target.value));
+                  }}
+                  className="w-full accent-[#07CB6C] cursor-pointer"
+                />
+                <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500">
+                  <span>Light (2h)</span>
+                  <span>Recommended (6h)</span>
+                  <span>Intensive (12h+)</span>
+                </div>
+              </div>
             </div>
 
             {/* Waking & Sleep Time Card */}

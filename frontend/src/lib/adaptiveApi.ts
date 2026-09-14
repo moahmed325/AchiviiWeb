@@ -21,6 +21,8 @@ import type {
   WeeklyReviewResponse,
   VerifyOutcomeGateParams,
   OutcomeGateResponse,
+  InterpretAnswersParams,
+  InterpretAnswersResponse,
 } from '../types/adaptive';
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -101,6 +103,28 @@ export async function commitGoal(
   return handleResponse<CommitGoalResponse>(
     response,
     'Failed to commit goal.'
+  );
+}
+
+/**
+ * POST /api/adaptive/interpret-answers
+ *
+ * Normalizes user onboarding answers (especially open-ended "Other" write-ins)
+ * in the background into structured weekly hours, baseline level, and constraints.
+ */
+export async function interpretOnboardingAnswers(
+  token: string,
+  params: InterpretAnswersParams
+): Promise<InterpretAnswersResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/adaptive/interpret-answers`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(params),
+  });
+
+  return handleResponse<InterpretAnswersResponse>(
+    response,
+    'Failed to interpret onboarding answers.'
   );
 }
 

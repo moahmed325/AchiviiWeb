@@ -387,6 +387,26 @@ export interface CommitGoalParams {
     label?: string;
   }[];
   questionnaireAnswers?: Record<string, string>;
+  interpretedProfile?: InterpretedAnswerProfile;
+}
+
+export interface InterpretedAnswerProfile {
+  suggestedWeeklyHours?: number;
+  rationale?: string;
+  assessedBaselineLevel?: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+  detectedConstraints: string[];
+  interpretedScaffolding: string;
+}
+
+export interface InterpretAnswersParams {
+  goalTitle: string;
+  domain?: string;
+  questionnaireAnswers: Record<string, string>;
+  defaultWeeklyHours?: number;
+}
+
+export interface InterpretAnswersResponse {
+  profile: InterpretedAnswerProfile;
 }
 
 export interface RecordSessionTelemetryParams {

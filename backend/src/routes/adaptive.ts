@@ -29,6 +29,7 @@ import {
 import { generateMasterPlan } from '../lib/ai/masterPlanningPrompt.js';
 import { getOrCreateLifeStructure } from '../lib/life/lifeStructureEngine.js';
 import { materializeDays } from '../lib/life/dailyScheduler.js';
+import { interpretOnboardingAnswers } from '../lib/adaptive/core/answerInterpreter.js';
 
 export const adaptiveRouter = Router();
 
@@ -49,6 +50,30 @@ async function resolveGoalId(req: Request, userId: string): Promise<string | nul
 
   return activeGoal ? activeGoal.id : null;
 }
+
+// 1.2 POST /api/adaptive/interpret-answers (Optimistic Background Answer Interpreter)
+adaptiveRouter.post('/interpret-answers', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { goalTitle, domain, questionnaireAnswers, defaultWeeklyHours } = req.body;
+
+    if (!questionnaireAnswers || typeof questionnaireAnswers !== 'object') {
+      res.status(400).json({ error: 'questionnaireAnswers object is required' });
+      return;
+    }
+
+    const profile = await interpretOnboardingAnswers({
+      goalTitle: goalTitle || 'My Ambition',
+      domain,
+      questionnaireAnswers,
+      defaultWeeklyHours: typeof defaultWeeklyHours === 'number' ? defaultWeeklyHours : 6,
+    });
+
+    res.status(200).json({ profile });
+  } catch (error: any) {
+    console.error('Error in /api/adaptive/interpret-answers:', error);
+    res.status(500).json({ error: error.message || 'Failed to interpret answers' });
+  }
+});
 
 // 1. POST /api/adaptive/goal/formalize
 adaptiveRouter.post('/goal/formalize', async (req: Request, res: Response): Promise<void> => {
@@ -155,6 +180,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
       capabilities,
       availabilitySlots,
       questionnaireAnswers,
+      interpretedProfile,
     } = req.body;
 
     if (!outcomeStatement || typeof outcomeStatement !== 'string' || !outcomeStatement.trim()) {
@@ -259,6 +285,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
         const planResult = await generateMasterPlan({
           blueprint: planningBlueprint,
           answers: questionnaireAnswers,
+          interpretedProfile,
           lifeStructure,
           startDate: parsedStartDate,
         });

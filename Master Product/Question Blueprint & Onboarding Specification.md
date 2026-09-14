@@ -30,6 +30,18 @@ The onboarding experience in Achivii is engineered for ambitious, busy individua
 * **Direct Semantic Ingestion by Planning Intelligence:**
   The user's custom write-in text is stored directly in `questionnaireAnswers` and injected verbatim into Gemini's master planning prompt and deterministic fallbacks. The engine respects their exact words to personalize Phase 1 scaffolding, pacing, and milestone exit criteria.
 
+### 1.4 The Optimistic Background Answer Interpreter Architecture
+* **Zero UI Blocking (0ms Latency):**
+  When a user answers with custom "Other" write-in entries and clicks "Continue to Routine", the UI transitions immediately to Step 3 without any loading spinner or pause.
+* **Concurrent Background Normalization:**
+  An AI micro-agent (`POST /api/adaptive/interpret-answers`) runs asynchronously in the background (~800ms) to parse complex human sentences into structured pipeline variables:
+  - *Arithmetic hour calculation:* e.g., *"2h Sat and 3h Sun"* is parsed and summed into `5.0 hrs/week`.
+  - *Constraint & injury identification:* e.g., *"knee sprain"* or *"night shifts"* mapped to protective scaffolding directives.
+* **Non-Intrusive Reactive UI Feedback:**
+  The Step 3 Weekly Budget slider smoothly updates to the AI-computed value and displays a subtle confirmation badge (`✨ Calibrated from your notes: 5 hrs/wk`). If the user manually drags the slider, their manual override is strictly preserved.
+* **Master Planning Integration:**
+  The normalized profile (`InterpretedAnswerProfile`) along with the raw verbatim answers are passed to the Master Planner at Step 4, giving Gemini rich structured context to design safe, realistic 12-week trajectories.
+
 ---
 
 ## 2. The 3-to-4 Question Blueprint Formula

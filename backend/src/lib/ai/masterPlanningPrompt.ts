@@ -44,6 +44,13 @@ export interface MasterPlanInput {
     blueprint_metadata?: string | any;
   };
   answers: Record<string, string>;
+  interpretedProfile?: {
+    suggestedWeeklyHours?: number;
+    rationale?: string;
+    assessedBaselineLevel?: string;
+    detectedConstraints?: string[];
+    interpretedScaffolding?: string;
+  };
   lifeStructure?: {
     wake_time: string;
     sleep_time: string;
@@ -131,7 +138,7 @@ export function validateMasterPlanOutput(data: any): { valid: boolean; data?: Ma
  * Guarantees zero latency and rock-solid schema compliance.
  */
 export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterPlanOutput {
-  const { blueprint, answers, lifeStructure } = input;
+  const { blueprint, answers, lifeStructure, interpretedProfile } = input;
   const start = input.startDate ? new Date(input.startDate) : new Date();
   
   // 90 days out
@@ -162,28 +169,32 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
     return String(val ?? '');
   }
 
-  // Parse weekly hours (handling standard option values or custom "Other" write-in answers)
-  let weeklyHours = blueprint.est_weekly_hours || 6;
-  for (const key of Object.keys(answers)) {
-    const rawVal = answers[key];
-    const val = extractAnswerString(rawVal);
-    const match = val.match(/(\d+(\.\d+)?)/);
-    if (match) {
-      const num = parseFloat(match[1]);
-      if (!isNaN(num) && num >= 2 && num <= 30) {
-        weeklyHours = num;
-        break;
+  // Parse weekly hours: prioritize interpretedProfile if provided by AI normalizer
+  let weeklyHours = interpretedProfile?.suggestedWeeklyHours || blueprint.est_weekly_hours || 6;
+  if (!interpretedProfile?.suggestedWeeklyHours) {
+    for (const key of Object.keys(answers)) {
+      const rawVal = answers[key];
+      const val = extractAnswerString(rawVal);
+      const match = val.match(/(\d+(\.\d+)?)/);
+      if (match) {
+        const num = parseFloat(match[1]);
+        if (!isNaN(num) && num >= 2 && num <= 30) {
+          weeklyHours = num;
+          break;
+        }
       }
     }
   }
 
   // Determine baseline description from answers
-  let baselineDesc = 'Standard starting point';
-  for (const [key, rawVal] of Object.entries(answers)) {
-    const val = extractAnswerString(rawVal);
-    if (key.includes('level') || key.includes('baseline') || key.includes('stage') || key.includes('history')) {
-      baselineDesc = `Assessed Baseline: ${val.replace(/_/g, ' ').toUpperCase()}`;
-      break;
+  let baselineDesc = interpretedProfile?.assessedBaselineLevel ? `Assessed Baseline: ${interpretedProfile.assessedBaselineLevel}` : 'Standard starting point';
+  if (!interpretedProfile?.assessedBaselineLevel) {
+    for (const [key, rawVal] of Object.entries(answers)) {
+      const val = extractAnswerString(rawVal);
+      if (key.includes('level') || key.includes('baseline') || key.includes('stage') || key.includes('history')) {
+        baselineDesc = `Assessed Baseline: ${val.replace(/_/g, ' ').toUpperCase()}`;
+        break;
+      }
     }
   }
 
@@ -202,8 +213,13 @@ export function generateDeterministicMasterPlan(input: MasterPlanInput): MasterP
   const nominalMinutes = meta.nominal_session_duration_minutes || 60;
   const mvdMinutes = meta.minimum_viable_session_minutes || 25;
 
-  // Interventions identified from answers
+  // Interventions identified from answers and interpreted constraints
   const interventions: string[] = [];
+  if (interpretedProfile?.detectedConstraints && interpretedProfile.detectedConstraints.length > 0) {
+    for (const c of interpretedProfile.detectedConstraints) {
+      interventions.push(`Targeted Constraint Guardrail: ${c.replace(/_/g, ' ')}`);
+    }
+  }
   for (const [key, rawVal] of Object.entries(answers)) {
     const val = extractAnswerString(rawVal);
     if (key.includes('bottleneck') || key.includes('challenge') || key.includes('vulnerability') || key.includes('blocker') || key.includes('comfort_zone')) {
@@ -382,6 +398,7 @@ Return ONLY valid JSON matching this schema:
 
   const prompt = `Goal Blueprint: ${JSON.stringify(input.blueprint)}
 User Onboarding Questionnaire Answers: ${JSON.stringify(input.answers)}
+${input.interpretedProfile ? `Normalized User Profile & Inferred Constraints: ${JSON.stringify(input.interpretedProfile)}` : ''}
 User Life Structure & Daily Routines: ${JSON.stringify(input.lifeStructure || {})}
 Start Date: ${input.startDate ? new Date(input.startDate).toISOString() : new Date().toISOString()}`;
 
