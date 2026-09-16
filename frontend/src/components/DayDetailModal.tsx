@@ -8,8 +8,9 @@ import {
   CheckCircle2, 
   Sun, 
   Sunset, 
-  Moon
+  Moon,
 } from 'lucide-react';
+import { formatTaskTitle, getTaskExecutionGuide } from '../lib/formatters';
 
 interface DayDetailModalProps {
   dayDate: Date | null;
@@ -242,7 +243,10 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
                               [{sessionTier.toUpperCase()}]
                             </span>
                             <span className={`font-medium truncate ${isDone ? 'line-through text-neutral-500' : 'text-white'}`}>
-                              {item.title}
+                              {formatTaskTitle(item.title)}
+                            </span>
+                            <span className="text-[9px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 border border-[#07CB6C]/20 px-1.5 py-0.2 rounded shrink-0">
+                              📋 Guide
                             </span>
                             {isHappeningNow && (
                               <span className="text-[9px] font-mono font-bold text-[#07CB6C] bg-[#07CB6C]/20 px-1.5 py-0.5 rounded-full flex items-center gap-1">
@@ -251,7 +255,21 @@ export const DayDetailModal: React.FC<DayDetailModalProps> = ({
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-neutral-400 font-mono flex items-center gap-1.5 mt-0.5">
+                          {(() => {
+                            const guide = getTaskExecutionGuide({
+                              title: item.title,
+                              description: s.task_template?.description,
+                              category: (s as any).category,
+                              allocated_minutes: s.task_template?.session_duration_minutes,
+                              guide: (s as any).guide,
+                            });
+                            return (
+                              <p className="text-[11px] text-neutral-400 line-clamp-1 mt-0.5 leading-snug">
+                                {guide.summary || s.task_template?.description}
+                              </p>
+                            );
+                          })()}
+                          <div className="text-[10px] text-neutral-500 font-mono flex items-center gap-1.5 mt-0.5">
                             <span>{s.task_template?.session_duration_minutes || 60}m session</span>
                             <span>•</span>
                             <span>{s.task_template?.phase?.title?.split(':')[0] || 'Phase 1'}</span>

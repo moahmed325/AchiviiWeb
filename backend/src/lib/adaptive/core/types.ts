@@ -20,6 +20,7 @@ export interface CustomBaselineOption {
 export interface CustomBaselineQuestion {
   id: string;
   question: string;
+  purpose?: string;
   options: CustomBaselineOption[];
 }
 

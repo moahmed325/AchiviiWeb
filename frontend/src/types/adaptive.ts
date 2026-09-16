@@ -514,3 +514,46 @@ export type WeeklyReviewResponse = WeeklyReviewSummary;
 
 /** Outcome Gate response is the OutcomeGateStatus directly */
 export type OutcomeGateResponse = OutcomeGateStatus;
+
+// ---------------------------------------------------------------------------
+// Field Manual & Actionable Checklist Types
+// ---------------------------------------------------------------------------
+
+export interface ChecklistItem {
+  step_number: number;
+  action: string;
+  duration_minutes: number;
+  is_checkpoint: boolean;
+}
+
+export interface CuratedResource {
+  type: 'YOUTUBE' | 'DOCS' | 'TEMPLATE' | 'PROMPT' | 'TOOL';
+  title: string;
+  url_or_payload: string;
+  why_recommended: string;
+}
+
+export interface FallbackHierarchy {
+  level_1_standard: string;
+  level_2_reduced: string;
+  level_3_mvs: string;
+  level_4_substitute: string;
+}
+
+export interface PitfallGuardrail {
+  trap: string;
+  antidote: string;
+}
+
+export interface TaskFieldManual {
+  objective: string;
+  checklist: ChecklistItem[];
+  resources: CuratedResource[];
+  pitfall_guardrail: PitfallGuardrail;
+  fallbacks: FallbackHierarchy;
+}
+
+export interface SessionFieldManualResponse {
+  fieldManual: TaskFieldManual;
+}
+

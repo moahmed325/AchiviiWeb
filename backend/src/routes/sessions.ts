@@ -17,6 +17,7 @@ import {
   findOptimalAmbitionWindow,
   cleanDoseTitle,
 } from '../lib/life/dailyScheduler.js';
+import { generateTaskExecutionGuide } from '../lib/life/taskGuideGenerator.js';
 import {
   calculateAvailableWindows,
   getOrCreateLifeStructure,
@@ -26,6 +27,28 @@ import {
 } from '../lib/life/lifeStructureEngine.js';
 
 export const sessionsRouter = Router();
+
+function decorateSessionWithGuide(session: any, category?: string, outcome?: string) {
+  if (!session) return session;
+  if (session.task_template) {
+    session.task_template.title = cleanDoseTitle(session.task_template.title);
+    const duration = session.task_template.session_duration_minutes || 45;
+    const cat = category || (session.user_goal as any)?.category || (session as any).category;
+    const out = outcome || session.user_goal?.outcome_statement;
+    const guide = generateTaskExecutionGuide(session.task_template.title, cat, duration, out);
+    if (
+      !session.task_template.description ||
+      session.task_template.description === 'null' ||
+      session.task_template.description.includes('Consolidates neural and physical retention') ||
+      session.task_template.description.includes('Maintains continuity and momentum') ||
+      session.task_template.description.includes('Develops the foundational stimulus')
+    ) {
+      session.task_template.description = guide.summary;
+    }
+    session.guide = guide;
+  }
+  return session;
+}
 
 // GET /api/sessions/week
 sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> => {
@@ -286,18 +309,19 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
           let detailDesc = (item as any).description || '';
           if (!detailDesc && Array.isArray(item.fallback_options)) {
             const whyEntry = item.fallback_options.find((f: any) => typeof f === 'string' && f.startsWith('WHY_THIS_MATTERS: '));
-            if (whyEntry) {
+            if (typeof whyEntry === 'string') {
               detailDesc = whyEntry.replace('WHY_THIS_MATTERS: ', '');
             }
           }
           (s.task_template as any).description = detailDesc;
         }
       }
+      decorateSessionWithGuide(s, (activeGoal as any).category, activeGoal.outcome_statement || undefined);
     }
 
     // Auto-heal existing upcoming sessions that conflict with user's routine blocks (e.g. Work 09:00-17:00)
     for (const s of sessions) {
-      if (s.status !== 'DONE') {
+      if (s.status !== 'DONE' && s.scheduled_date && s.start_time && s.end_time) {
         const sDate = new Date(s.scheduled_date);
         const sDay = sDate.getDay();
         const sStart = timeToMinutes(s.start_time);
@@ -430,6 +454,10 @@ sessionsRouter.get('/all', async (req: Request, res: Response): Promise<void> =>
       ],
     });
 
+    for (const s of sessions) {
+      decorateSessionWithGuide(s, (activeGoal as any).category, activeGoal.outcome_statement || undefined);
+    }
+
     res.status(200).json({
       totalSessions: sessions.length,
       sessions,
@@ -524,6 +552,10 @@ sessionsRouter.get('/day', async (req: Request, res: Response): Promise<void> =>
       },
       orderBy: { start_time: 'asc' },
     });
+
+    for (const s of sessions) {
+      decorateSessionWithGuide(s, (activeGoal as any).category, activeGoal.outcome_statement || undefined);
+    }
 
     // Map day of week in user timezone
     const dayKey = getZonedTimeParts(startOfDay, userTimezone).dayKey;
@@ -689,6 +721,8 @@ sessionsRouter.patch('/:id', async (req: Request, res: Response): Promise<void> 
         console.warn('Session completion telemetry notice:', tErr);
       }
     }
+
+    decorateSessionWithGuide(updatedSession, (existingSession.user_goal as any)?.category, existingSession.user_goal?.outcome_statement || undefined);
 
     res.status(200).json({
       message: 'Session updated successfully.',

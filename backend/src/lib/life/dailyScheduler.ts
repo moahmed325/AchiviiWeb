@@ -7,6 +7,7 @@ import {
   AvailableWindow,
   normalizeDaysOfWeek,
 } from './lifeStructureEngine.js';
+import { generateTaskExecutionGuide } from './taskGuideGenerator.js';
 
 export interface ScheduleDayOptions {
   forceRegenerate?: boolean;
@@ -44,8 +45,10 @@ export function roundToHumanDuration(mins: number): number {
  */
 export function cleanDoseTitle(rawTitle: string): string {
   if (!rawTitle) return 'Ambition Focus Dose';
-  const cleaned = rawTitle
-    .replace(/^(Core Adaptation Session|Consolidation Practice|Supportive Continuity|Targeted Focus Scaffolding):\s*/i, '')
+  let cleaned = rawTitle
+    .replace(/^(Core Adaptation Session|Consolidation Practice|Supportive Continuity|Targeted Focus Scaffolding|Preparation Session|Intervention Session|Core Focus|Daily Focus|Session \d+|Week \d+ Dose \d+|Milestone \d+):\s*/i, '')
+    .replace(/^Core Adaptation Baseline$/i, 'Core Skills Baseline')
+    .replace(/^(Core|Consolidation|Supportive|Dose \d+):\s*/i, '')
     .trim();
   const words = cleaned.split(/\s+/);
   if (words.length <= 5) return cleaned;
@@ -319,11 +322,27 @@ export async function materializeDays(
       for (const item of existing) {
         if (item.item_type === 'AMBITION_DOSE') {
           const cleaned = cleanDoseTitle(item.title);
-          if (cleaned !== item.title) {
+          const needsTitleUpdate = cleaned !== item.title;
+          const isGenericDesc =
+            !item.description ||
+            item.description === 'null' ||
+            item.description.includes('Consolidates neural and physical retention') ||
+            item.description.includes('Maintains continuity and momentum') ||
+            item.description.includes('Develops the foundational stimulus') ||
+            item.description.includes('Core adaptation session focused on this milestone phase.');
+
+          let newDesc = item.description;
+          if (isGenericDesc) {
+            const guide = generateTaskExecutionGuide(cleaned, item.category || undefined, item.allocated_minutes || 45);
+            newDesc = guide.summary;
+          }
+
+          if (needsTitleUpdate || isGenericDesc) {
             item.title = cleaned;
+            item.description = newDesc;
             await prisma.dailyScheduleItem.update({
               where: { id: item.id },
-              data: { title: cleaned },
+              data: { title: cleaned, description: newDesc },
             });
           }
 
@@ -523,6 +542,17 @@ export async function materializeDays(
 
         const rawTitle = (pendingItem as any).intervention_name || (pendingItem as any).title || 'Ambition Focus Dose';
         const cleanTitle = cleanDoseTitle(rawTitle);
+
+        if (
+          !doseDescription ||
+          doseDescription === 'null' ||
+          doseDescription.includes('Consolidates neural and physical retention') ||
+          doseDescription.includes('Maintains continuity and momentum') ||
+          doseDescription.includes('Develops the foundational stimulus')
+        ) {
+          const guide = generateTaskExecutionGuide(cleanTitle, (goal as any).category, optimal.allocatedMinutes, goal.outcome_statement || undefined);
+          doseDescription = guide.summary;
+        }
 
         const doseItem = await prisma.dailyScheduleItem.create({
           data: {

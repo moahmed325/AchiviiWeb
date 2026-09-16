@@ -18,8 +18,16 @@ import {
   FileText,
   Activity,
   Calendar,
+  ListChecks,
+  ExternalLink,
+  Copy,
+  Check,
+  Youtube,
+  AlertTriangle,
 } from 'lucide-react';
-import { formatTaskTitle } from '../lib/formatters';
+import { formatTaskTitle, getTaskExecutionGuide } from '../lib/formatters';
+import { getSessionFieldManual } from '../lib/adaptiveApi';
+import { TaskFieldManual } from '../types/adaptive';
 
 interface SessionDetailModalProps {
   session: Session | null;
@@ -47,11 +55,30 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Dose options
   const standardMinutes = session.task_template?.session_duration_minutes || 45;
-  const [doseLevel, setDoseLevel] = useState<'STANDARD' | 'REDUCED' | 'MVS'>('STANDARD');
+  const [doseLevel, setDoseLevel] = useState<'STANDARD' | 'REDUCED' | 'MVS' | 'SUBSTITUTE'>('STANDARD');
   const [proofText, setProofText] = useState<string>('');
+  const [fieldManual, setFieldManual] = useState<TaskFieldManual | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const rpe = 7;
+
+  React.useEffect(() => {
+    if (session && token) {
+      getSessionFieldManual(token, session.id)
+        .then((manual) => {
+          if (manual) setFieldManual(manual);
+        })
+        .catch((err) => console.warn('Could not load session manual:', err));
+    }
+  }, [session?.id, token]);
+
+  const guide = getTaskExecutionGuide({
+    title: session.task_template?.title,
+    description: session.task_template?.description,
+    category: (session as any).category,
+    allocated_minutes: standardMinutes,
+    guide: (session as any).guide,
+  });
 
   const activeDuration =
     doseLevel === 'MVS'
@@ -230,11 +257,9 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
               {formatTaskTitle(session.task_template?.title) || 'Execution Session'}
             </h3>
 
-            {session.task_template?.description && (
-              <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
-                {session.task_template.description}
-              </p>
-            )}
+            <p className="text-xs text-neutral-300 mt-1 leading-relaxed">
+              {guide.summary || session.task_template?.description}
+            </p>
           </div>
 
           <button
@@ -260,13 +285,134 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
           </div>
         )}
 
+        {/* Step-by-Step Execution Guide & Checklist */}
+        <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-white uppercase font-mono tracking-wider flex items-center gap-1.5">
+              <ListChecks className="w-3.5 h-3.5 text-[#07CB6C]" />
+              <span>Field Manual • Actionable Steps</span>
+            </span>
+            <span className="text-[10px] font-mono text-neutral-400">
+              {fieldManual?.checklist?.length || guide.steps.length} Steps · {activeDuration}m target
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {(fieldManual?.checklist && fieldManual.checklist.length > 0
+              ? fieldManual.checklist
+              : guide.steps.map((s) => ({
+                  step_number: s.step,
+                  action: `${s.title}: ${s.instruction}`,
+                  duration_minutes: parseInt(s.duration, 10) || 10,
+                  is_checkpoint: s.step === 2,
+                }))
+            ).map((st: any) => (
+              <div
+                key={st.step_number || st.step}
+                className="p-2.5 rounded-lg bg-white/[0.02] border border-white/5 flex items-start gap-2.5 text-xs"
+              >
+                <span className="w-5 h-5 rounded-full bg-[#07CB6C]/15 text-[#07CB6C] font-mono font-bold text-[10px] flex items-center justify-center border border-[#07CB6C]/30 shrink-0 mt-0.5">
+                  {st.step_number || st.step}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-white text-xs">Step {st.step_number || st.step}</span>
+                      {st.is_checkpoint && (
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Checkpoint
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-mono text-neutral-400 px-1.5 py-0.5 rounded bg-white/5">
+                      {st.duration_minutes ? `${st.duration_minutes}m` : st.duration}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-neutral-300 mt-1 leading-relaxed">{st.action || st.instruction}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Curated Resources */}
+          {fieldManual?.resources && fieldManual.resources.length > 0 && (
+            <div className="pt-2 border-t border-white/5 space-y-1.5">
+              <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider font-semibold">
+                Curated Resources & Prompts
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {fieldManual.resources.map((res, idx) => {
+                  const isCopied = copiedIndex === idx;
+                  if (res.type === 'PROMPT' || res.type === 'TEMPLATE') {
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(res.url_or_payload);
+                          setCopiedIndex(idx);
+                          setTimeout(() => setCopiedIndex(null), 2500);
+                        }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+                          isCopied
+                            ? 'bg-purple-500/20 border-purple-500/40 text-purple-300'
+                            : 'bg-white/5 border-white/10 text-neutral-300 hover:bg-white/10 hover:text-white'
+                        }`}
+                        title={res.why_recommended}
+                      >
+                        {isCopied ? <Check className="w-3 h-3 text-purple-400" /> : <Copy className="w-3 h-3 text-purple-400" />}
+                        <span>{isCopied ? 'Copied!' : res.title}</span>
+                      </button>
+                    );
+                  }
+
+                  return (
+                    <a
+                      key={idx}
+                      href={res.url_or_payload}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+                        res.type === 'YOUTUBE'
+                          ? 'bg-red-500/10 border-red-500/20 text-red-300 hover:bg-red-500/20'
+                          : 'bg-blue-500/10 border-blue-500/20 text-blue-300 hover:bg-blue-500/20'
+                      }`}
+                      title={res.why_recommended}
+                    >
+                      {res.type === 'YOUTUBE' ? <Youtube className="w-3 h-3 text-red-400" /> : <ExternalLink className="w-3 h-3 text-blue-400" />}
+                      <span>{res.title}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Friction Antidote */}
+          {fieldManual?.pitfall_guardrail && (
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 text-xs text-neutral-300">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-semibold text-amber-300 font-mono uppercase text-[10px] mr-1.5">
+                  Trap:
+                </span>
+                <span className="text-[11px] text-neutral-400">{fieldManual.pitfall_guardrail.trap} </span>
+                <span className="font-semibold text-[#07CB6C] font-mono uppercase text-[10px] ml-2 mr-1.5">
+                  Antidote:
+                </span>
+                <span className="text-[11px] text-neutral-200">{fieldManual.pitfall_guardrail.antidote}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Execution Dose & Completion */}
         {!isDone && (
           <div className="space-y-3.5 p-4 rounded-xl bg-white/[0.02] border border-white/5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
                 <Activity className="w-3.5 h-3.5 text-[#07CB6C]" />
-                <span>Session Duration</span>
+                <span>Session Duration (Section 9.9 Fallback Hierarchy)</span>
               </span>
               <span className="text-xs font-mono font-medium text-[#07CB6C]">
                 {activeDuration} min target
@@ -274,44 +420,57 @@ export const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
             </div>
 
             {/* Dose Selector */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => setDoseLevel('STANDARD')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
                   doseLevel === 'STANDARD'
                     ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-white shadow-sm'
                     : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
-                <span className="text-[10px] uppercase block text-neutral-400 font-medium">Standard</span>
+                <span className="text-[10px] uppercase block text-neutral-400 font-medium">L1: Standard</span>
                 <span className="text-xs font-bold font-mono">{standardMinutes}m</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setDoseLevel('REDUCED')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
                   doseLevel === 'REDUCED'
                     ? 'bg-amber-500/15 border-amber-500 text-white shadow-sm'
                     : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
-                <span className="text-[10px] uppercase block text-amber-400 font-medium">Reduced</span>
+                <span className="text-[10px] uppercase block text-amber-400 font-medium">L2: Reduced</span>
                 <span className="text-xs font-bold font-mono">{Math.max(20, Math.round(standardMinutes * 0.65))}m</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setDoseLevel('MVS')}
-                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
                   doseLevel === 'MVS'
                     ? 'bg-sky-500/15 border-sky-500 text-white shadow-sm'
                     : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-white'
                 }`}
               >
-                <span className="text-[10px] uppercase block text-sky-400 font-medium">Mini (MVS)</span>
+                <span className="text-[10px] uppercase block text-sky-400 font-medium">L3: MVS</span>
                 <span className="text-xs font-bold font-mono">{Math.max(15, Math.round(standardMinutes * 0.4))}m</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDoseLevel('SUBSTITUTE')}
+                className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
+                  doseLevel === 'SUBSTITUTE'
+                    ? 'bg-blue-500/15 border-blue-500 text-white shadow-sm'
+                    : 'bg-white/[0.02] border-white/5 text-neutral-400 hover:text-white'
+                }`}
+              >
+                <span className="text-[10px] uppercase block text-blue-400 font-medium">L4: Substitute</span>
+                <span className="text-xs font-bold font-mono">10m</span>
               </button>
             </div>
 

@@ -30,6 +30,7 @@ import { generateMasterPlan } from '../lib/ai/masterPlanningPrompt.js';
 import { getOrCreateLifeStructure } from '../lib/life/lifeStructureEngine.js';
 import { materializeDays, cleanDoseTitle } from '../lib/life/dailyScheduler.js';
 import { interpretOnboardingAnswers } from '../lib/adaptive/core/answerInterpreter.js';
+import { generateFieldManual } from '../lib/life/fieldManualEngine.js';
 
 export const adaptiveRouter = Router();
 
@@ -736,3 +737,119 @@ adaptiveRouter.post('/outcome-gate/verify', async (req: Request, res: Response):
     res.status(500).json({ error: error.message || 'Internal server error verifying outcome gate.' });
   }
 });
+
+// 9. GET /api/adaptive/session-field-manual/:itemId
+adaptiveRouter.get('/session-field-manual/:itemId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized. Authentication token required.' });
+      return;
+    }
+
+    const { itemId } = req.params;
+    if (!itemId) {
+      res.status(400).json({ error: 'itemId is required.' });
+      return;
+    }
+
+    // 1. Check if itemId is a DailyScheduleItem
+    let dailyItem = await prisma.dailyScheduleItem.findUnique({
+      where: { id: itemId },
+      include: {
+        trajectory_item: true,
+        user_goal: {
+          include: {
+            goal_catalog: true,
+          },
+        },
+      },
+    });
+
+    let trajectoryItem = dailyItem?.trajectory_item || null;
+    let taskTitle = dailyItem?.title || '';
+    let category = dailyItem?.category || dailyItem?.user_goal?.goal_catalog?.category || 'General';
+    let durationMins = dailyItem?.allocated_minutes || dailyItem?.duration_minutes || 45;
+    let goalContext = dailyItem?.user_goal?.outcome_statement || '';
+
+    // 2. If not a daily item, check if it's a TrajectoryItem
+    if (!dailyItem) {
+      const traj = await prisma.trajectoryItem.findUnique({
+        where: { id: itemId },
+        include: {
+          trajectory_version: {
+            include: {
+              user_goal: {
+                include: {
+                  goal_catalog: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (traj) {
+        trajectoryItem = traj;
+        taskTitle = traj.intervention_name;
+        category = traj.trajectory_version.user_goal?.goal_catalog?.category || 'General';
+        durationMins = traj.standard_duration_minutes || 45;
+        goalContext = traj.trajectory_version.user_goal?.outcome_statement || '';
+      }
+    }
+
+    if (!taskTitle) {
+      taskTitle = 'Focused Execution Session';
+    }
+
+    // 3. Check if cached in fallback_options
+    if (trajectoryItem?.fallback_options && Array.isArray(trajectoryItem.fallback_options)) {
+      const manualEntry = (trajectoryItem.fallback_options as string[]).find(
+        (f) => typeof f === 'string' && f.startsWith('FIELD_MANUAL: ')
+      );
+      if (manualEntry) {
+        try {
+          const parsed = JSON.parse(manualEntry.replace('FIELD_MANUAL: ', ''));
+          res.status(200).json({ fieldManual: parsed });
+          return;
+        } catch {
+          // parse failed, continue
+        }
+      }
+    }
+
+    // 4. Generate field manual via Gemini (or deterministic fallback)
+    const fieldManual = await generateFieldManual(
+      taskTitle,
+      category,
+      durationMins,
+      goalContext,
+      user.user_memory || undefined
+    );
+
+    // 5. Cache on trajectory item if present
+    if (trajectoryItem) {
+      try {
+        const existingOptions = Array.isArray(trajectoryItem.fallback_options)
+          ? (trajectoryItem.fallback_options as string[]).filter(
+              (f) => typeof f === 'string' && !f.startsWith('FIELD_MANUAL: ')
+            )
+          : [];
+        existingOptions.push(`FIELD_MANUAL: ${JSON.stringify(fieldManual)}`);
+
+        await prisma.trajectoryItem.update({
+          where: { id: trajectoryItem.id },
+          data: { fallback_options: existingOptions },
+        });
+      } catch (cacheErr) {
+        console.warn('Could not cache field manual on trajectoryItem:', cacheErr);
+      }
+    }
+
+    res.status(200).json({ fieldManual });
+  } catch (error: any) {
+    console.error('Error in /api/adaptive/session-field-manual/:itemId:', error);
+    res.status(500).json({ error: error.message || 'Internal server error generating session field manual.' });
+  }
+});
+

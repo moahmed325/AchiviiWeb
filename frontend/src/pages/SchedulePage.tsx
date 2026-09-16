@@ -13,7 +13,7 @@ import {
   Loader2,
   CalendarDays,
 } from 'lucide-react';
-import { formatTaskTitle } from '../lib/formatters';
+import { formatTaskTitle, getTaskExecutionGuide } from '../lib/formatters';
 
 export const SchedulePage: React.FC = () => {
   const { token } = useAuth();
@@ -238,16 +238,27 @@ export const SchedulePage: React.FC = () => {
                                 {formatTaskTitle(item.title)}
                               </p>
 
-                              {item.description && (
-                                <p className="text-[11px] text-neutral-400 leading-relaxed line-clamp-2 hover:line-clamp-none transition-all">
-                                  {item.description}
-                                </p>
-                              )}
+                              {(() => {
+                                const guide = isDose ? getTaskExecutionGuide(item) : null;
+                                const desc = guide?.summary || item.description;
+                                return desc ? (
+                                  <p className="text-[11px] text-neutral-400 leading-relaxed line-clamp-2 hover:line-clamp-none transition-all">
+                                    {desc}
+                                  </p>
+                                ) : null;
+                              })()}
 
-                              {isDose && item.allocated_minutes && (
-                                <div className="text-[10px] text-neutral-400 flex items-center gap-1 pt-0.5">
-                                  <Clock className="w-3 h-3 text-[#07CB6C]" />
-                                  <span>{item.allocated_minutes}m</span>
+                              {isDose && (
+                                <div className="flex items-center justify-between text-[10px] text-neutral-400 pt-0.5">
+                                  <span className="font-mono text-[9px] text-[#07CB6C] bg-[#07CB6C]/10 border border-[#07CB6C]/20 px-1 py-0.2 rounded">
+                                    📋 Guide
+                                  </span>
+                                  {item.allocated_minutes && (
+                                    <div className="flex items-center gap-1 font-mono">
+                                      <Clock className="w-3 h-3 text-[#07CB6C]" />
+                                      <span>{item.allocated_minutes}m</span>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>

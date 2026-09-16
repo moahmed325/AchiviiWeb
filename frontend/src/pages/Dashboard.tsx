@@ -44,13 +44,16 @@ import {
   Plus,
   Sparkles,
   Search,
+  ListChecks,
+  Lightbulb,
+  ChevronUp,
 } from 'lucide-react';
 import { GoalCard } from '../components/GoalCard';
 import { GoalDetailDrawer } from '../components/GoalDetailDrawer';
 import { DiscardGoalModal } from '../components/DiscardGoalModal';
 import { WeeklyReflection } from '../components/WeeklyReflection';
 import { GraduationModal } from '../components/GraduationModal';
-import { formatTaskTitle, formatGoalTitle, timeToMinutes } from '../lib/formatters';
+import { formatTaskTitle, formatGoalTitle, timeToMinutes, getTaskExecutionGuide } from '../lib/formatters';
 
 export const Dashboard: React.FC = () => {
   const { token, user } = useAuth();
@@ -91,6 +94,12 @@ export const Dashboard: React.FC = () => {
   const [isDiscardModalOpen, setIsDiscardModalOpen] = useState<boolean>(false);
   const [isWeeklyReviewOpen, setIsWeeklyReviewOpen] = useState<boolean>(false);
   const [isOutcomeGateOpen, setIsOutcomeGateOpen] = useState<boolean>(false);
+
+  // Expanded Execution Guides State
+  const [expandedGuideIds, setExpandedGuideIds] = useState<Record<string, boolean>>({});
+  const toggleGuide = (id: string) => {
+    setExpandedGuideIds((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Load Dashboard Data
   const loadDashboardData = async () => {
@@ -156,6 +165,12 @@ export const Dashboard: React.FC = () => {
     const ambitionItems = todaySchedule.items.filter((i) => i.item_type === 'AMBITION_DOSE');
     return ambitionItems.length > 0 && ambitionItems.every((i) => i.status === 'COMPLETED' || i.status === 'SKIPPED_INTENTIONAL');
   }, [todaySchedule]);
+
+  // Derive execution guide for next ambition dose
+  const nextDoseGuide = useMemo(() => {
+    if (!nextAmbitionDose) return null;
+    return getTaskExecutionGuide(nextAmbitionDose);
+  }, [nextAmbitionDose]);
 
   // Formatted date
   const formattedToday = useMemo(() => {
@@ -884,12 +899,63 @@ export const Dashboard: React.FC = () => {
                 <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                   {formatTaskTitle(nextAmbitionDose.title)}
                 </h2>
-                {nextAmbitionDose.description && (
-                  <p className="text-xs sm:text-sm text-neutral-400 mt-1 leading-relaxed">
-                    {nextAmbitionDose.description}
-                  </p>
-                )}
+                <p className="text-xs sm:text-sm text-neutral-300 mt-1 leading-relaxed">
+                  {nextDoseGuide?.summary || nextAmbitionDose.description}
+                </p>
               </div>
+
+              {/* Step-by-Step Execution Guide */}
+              {nextDoseGuide && (
+                <div className="rounded-xl bg-black/40 border border-white/10 p-4 space-y-3 mt-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ListChecks className="w-4 h-4 text-[#07CB6C]" />
+                      <span className="text-xs font-semibold text-white tracking-wide uppercase font-mono">
+                        Execution Guide · How to Complete This Task
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-mono text-neutral-400">
+                      3 Steps · {nextAmbitionDose.allocated_minutes}m total
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    {nextDoseGuide.steps.map((step) => (
+                      <div
+                        key={step.step}
+                        className="p-3 rounded-lg bg-white/[0.02] border border-white/5 space-y-1.5 flex flex-col justify-between"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="w-5 h-5 rounded-full bg-[#07CB6C]/15 text-[#07CB6C] font-mono font-bold text-[10px] flex items-center justify-center border border-[#07CB6C]/30 shrink-0">
+                            {step.step}
+                          </span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-neutral-400">
+                            {step.duration}
+                          </span>
+                        </div>
+                        <h4 className="text-xs font-semibold text-white">
+                          {step.title}
+                        </h4>
+                        <p className="text-[11px] text-neutral-400 leading-relaxed">
+                          {step.instruction}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {nextDoseGuide.proTip && (
+                    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-[#07CB6C]/5 border border-[#07CB6C]/20 text-[11px] text-neutral-300">
+                      <Lightbulb className="w-3.5 h-3.5 text-[#07CB6C] shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold text-[#07CB6C] font-mono uppercase text-[10px] mr-1.5">
+                          Pro-Tip:
+                        </span>
+                        <span>{nextDoseGuide.proTip}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Action Controls */}
               <div className="pt-2 flex flex-wrap items-center gap-3">
@@ -1080,11 +1146,63 @@ export const Dashboard: React.FC = () => {
                             {formatTaskTitle(item.title)}
                           </div>
 
-                          {item.description && (
-                            <p className="text-xs text-neutral-400 mt-1 leading-relaxed max-w-xl">
-                              {item.description}
-                            </p>
-                          )}
+                          {(() => {
+                            const itemGuide = getTaskExecutionGuide(item);
+                            const isGuideOpen = expandedGuideIds[item.id] || (isActiveNow && isAmbition);
+                            return (
+                              <>
+                                <p className="text-xs text-neutral-300 mt-0.5 leading-relaxed max-w-xl">
+                                  {itemGuide.summary || item.description}
+                                </p>
+
+                                {/* Quick Execution Guide Accordion for ambition doses */}
+                                {isAmbition && (
+                                  <div className="pt-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleGuide(item.id)}
+                                      className="flex items-center gap-1.5 text-[11px] font-mono text-[#07CB6C] hover:text-[#07CB6C]/80 transition-colors cursor-pointer"
+                                    >
+                                      <ListChecks className="w-3 h-3" />
+                                      <span>{isGuideOpen ? 'Hide Execution Guide' : 'How to do this task (3 steps)'}</span>
+                                      {isGuideOpen ? (
+                                        <ChevronUp className="w-3 h-3" />
+                                      ) : (
+                                        <ChevronDown className="w-3 h-3" />
+                                      )}
+                                    </button>
+
+                                    {isGuideOpen && (
+                                      <div className="mt-2 p-3 rounded-xl bg-black/50 border border-white/10 space-y-2 max-w-xl animate-in fade-in duration-200">
+                                        <div className="space-y-2">
+                                          {itemGuide.steps.map((st) => (
+                                            <div key={st.step} className="flex items-start gap-2 text-[11px]">
+                                              <span className="w-4 h-4 rounded-full bg-[#07CB6C]/20 text-[#07CB6C] font-mono text-[9px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                                                {st.step}
+                                              </span>
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="font-semibold text-neutral-200">{st.title}</span>
+                                                  <span className="font-mono text-[10px] text-neutral-400">({st.duration})</span>
+                                                </div>
+                                                <p className="text-neutral-400 mt-0.5 leading-relaxed">{st.instruction}</p>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                        {itemGuide.proTip && (
+                                          <div className="pt-2 border-t border-white/5 flex items-start gap-1.5 text-[10px] text-neutral-300">
+                                            <Lightbulb className="w-3 h-3 text-[#07CB6C] shrink-0 mt-0.5" />
+                                            <span><strong className="text-[#07CB6C]">Pro-Tip:</strong> {itemGuide.proTip}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
 
                           {/* Live Progress Bar if active now */}
                           {isActiveNow && (

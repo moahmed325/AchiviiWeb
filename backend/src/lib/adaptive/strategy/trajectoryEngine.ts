@@ -12,6 +12,7 @@ import {
 } from '../../timeUtils.js';
 import { calculateAvailableWindows } from '../../life/lifeStructureEngine.js';
 import { findOptimalAmbitionWindow } from '../../life/dailyScheduler.js';
+import { generateDeterministicFieldManual } from '../../life/fieldManualEngine.js';
 
 export interface AvailabilitySlotRecord {
   day_of_week: string; // 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN'
@@ -30,6 +31,71 @@ export function roundToHumanDuration(mins: number): number {
   if (mins < 68) return 60;
   if (mins < 83) return 75;
   return Math.round(mins / 15) * 15;
+}
+
+/**
+ * Generates progressive, distinct session titles across 12 weeks to avoid repetitive naming.
+ */
+function getProgressiveSessionName(baseName: string, week: number, sessionIdx: number): string {
+  if (week === 1) {
+    if (sessionIdx === 0) return `${baseName} Setup & Setup Drills`;
+    if (sessionIdx === 1) return `${baseName} Foundations`;
+    return `${baseName} Baseline Check`;
+  }
+  if (week === 2) {
+    if (sessionIdx === 0) return `${baseName} Core Patterns`;
+    if (sessionIdx === 1) return `${baseName} Guided Practice`;
+    return `${baseName} Retention Check`;
+  }
+  if (week === 3) {
+    if (sessionIdx === 0) return `${baseName} First Increment`;
+    if (sessionIdx === 1) return `${baseName} Technique Sprint`;
+    return `${baseName} Error Handling`;
+  }
+  if (week === 4) {
+    if (sessionIdx === 0) return `${baseName} Milestone Integration`;
+    if (sessionIdx === 1) return `${baseName} Sprint Trial`;
+    return `${baseName} Phase 1 Audit`;
+  }
+  if (week === 5) {
+    if (sessionIdx === 0) return `${baseName} Feature Sprint`;
+    if (sessionIdx === 1) return `${baseName} Deep Work Block`;
+    return `${baseName} Gap Analysis`;
+  }
+  if (week === 6) {
+    if (sessionIdx === 0) return `${baseName} Progressive Overload`;
+    if (sessionIdx === 1) return `${baseName} Volume Ramp`;
+    return `${baseName} Quality Check`;
+  }
+  if (week === 7) {
+    if (sessionIdx === 0) return `${baseName} Complex Integration`;
+    if (sessionIdx === 1) return `${baseName} Endurance Block`;
+    return `${baseName} Refactoring Sprint`;
+  }
+  if (week === 8) {
+    if (sessionIdx === 0) return `${baseName} Midway Benchmark`;
+    if (sessionIdx === 1) return `${baseName} Diagnostic Trial`;
+    return `${baseName} Phase 2 Audit`;
+  }
+  if (week === 9) {
+    if (sessionIdx === 0) return `${baseName} Polish & Hardening`;
+    if (sessionIdx === 1) return `${baseName} Edge Cases`;
+    return `${baseName} Performance Optimization`;
+  }
+  if (week === 10) {
+    if (sessionIdx === 0) return `${baseName} User Flow Drill`;
+    if (sessionIdx === 1) return `${baseName} Staging Test`;
+    return `${baseName} Friction Hunt`;
+  }
+  if (week === 11) {
+    if (sessionIdx === 0) return `${baseName} Pre-Launch Audit`;
+    if (sessionIdx === 1) return `${baseName} Final Refinement`;
+    return `${baseName} Dress Rehearsal`;
+  }
+  // Week 12
+  if (sessionIdx === 0) return `${baseName} Capstone Demonstration`;
+  if (sessionIdx === 1) return `${baseName} Final Delivery`;
+  return `${baseName} Graduation Review`;
 }
 
 /**
@@ -134,15 +200,8 @@ export async function generateInitialTrajectory(
         .trim();
       const baseName = cleanCapName || 'Core Skill';
 
-      // Keep task names simple, punchy, and to the point (2 to 5 words max)
-      let interventionName = baseName;
-      if (!/(drills|practice|review|session|foundations|fundamentals)$/i.test(baseName)) {
-        interventionName = isCritical
-          ? `${baseName} Drills`
-          : isHighLeverage
-          ? `${baseName} Practice`
-          : `${baseName} Review`;
-      }
+      // Assign progressive, non-repetitive task names across weeks
+      let interventionName = getProgressiveSessionName(baseName, week, sessionIdx);
       const words = interventionName.split(/\s+/);
       if (words.length > 5) {
         interventionName = words.slice(0, 4).join(' ');
@@ -160,9 +219,18 @@ export async function generateInitialTrajectory(
 
       const mvsFallback = `${mvsMinutes}m minimum viable session focused on ${currentCapability.name} to protect momentum.`;
 
+      // Pre-calculate structured field manual
+      const fieldManual = generateDeterministicFieldManual(
+        interventionName,
+        (userGoal as any).category,
+        standardMinutes,
+        userGoal.outcome_statement || undefined
+      );
+
       const fallbackOptions = [
         `WHY_THIS_MATTERS: ${whyThisMatters}`,
         `MVS_FALLBACK: ${mvsFallback}`,
+        `FIELD_MANUAL: ${JSON.stringify(fieldManual)}`,
         'Low-friction active recovery / mental rehearsal alternative',
       ];
 

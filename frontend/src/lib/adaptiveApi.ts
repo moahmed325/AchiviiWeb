@@ -23,6 +23,8 @@ import type {
   OutcomeGateResponse,
   InterpretAnswersParams,
   InterpretAnswersResponse,
+  SessionFieldManualResponse,
+  TaskFieldManual,
 } from '../types/adaptive';
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -287,3 +289,30 @@ export async function verifyOutcomeGate(
     'Failed to verify outcome gate.'
   );
 }
+
+// ---------------------------------------------------------------------------
+// 9. Session Field Manual & Actionable Checklist
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /api/adaptive/session-field-manual/:itemId
+ *
+ * Retrieve or dynamically generate the deep field manual (interactive checklist,
+ * vetted resources, Section 9.9 fallback hierarchy, Section 9.10 friction model).
+ */
+export async function getSessionFieldManual(
+  token: string,
+  itemId: string
+): Promise<TaskFieldManual> {
+  const response = await fetch(`${API_BASE_URL}/api/adaptive/session-field-manual/${encodeURIComponent(itemId)}`, {
+    method: 'GET',
+    headers: readHeaders(token),
+  });
+
+  const data = await handleResponse<SessionFieldManualResponse>(
+    response,
+    'Failed to load session field manual.'
+  );
+  return data.fieldManual;
+}
+

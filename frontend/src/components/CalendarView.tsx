@@ -696,11 +696,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                           Moved
                                         </span>
                                       )}
+                                      <span className="text-[9px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 border border-[#07CB6C]/20 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                                        📋 Guide
+                                      </span>
                                     </div>
 
                                     <h4
                                       title={item.session.task_template?.title || 'Goal Session'}
-                                      className={`text-xs font-semibold leading-tight line-clamp-2 break-words ${
+                                      className={`text-xs font-semibold leading-tight line-clamp-1 break-words ${
                                         item.session.status === 'DONE'
                                           ? 'line-through text-neutral-500'
                                           : 'text-white'
@@ -708,6 +711,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                     >
                                       {formatTaskTitle(item.session.task_template?.title || 'Goal Session')}
                                     </h4>
+
+                                    {item.session.task_template?.description && (
+                                      <p className="text-[10px] text-neutral-400 line-clamp-1 mt-0.5 leading-snug">
+                                        {item.session.task_template.description}
+                                      </p>
+                                    )}
                                   </div>
 
                                   {/* Complete Button */}

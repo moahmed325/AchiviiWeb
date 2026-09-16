@@ -14,6 +14,7 @@ import {
   adaptTodaySchedule,
   cleanDoseTitle,
 } from '../lib/life/dailyScheduler.js';
+import { generateTaskExecutionGuide } from '../lib/life/taskGuideGenerator.js';
 import {
   auditUserCapacity,
   updateAmbitionPriorities,
@@ -165,10 +166,22 @@ lifeRouter.get('/schedule/today', async (req: Request, res: Response): Promise<v
 
     const openWindows = await calculateAvailableWindows(user.id, todayStr);
 
-    const sanitizedItems = items.map((item) => ({
-      ...item,
-      title: item.item_type === 'AMBITION_DOSE' ? cleanDoseTitle(item.title) : item.title,
-    }));
+    const sanitizedItems = items.map((item) => {
+      const cleanTitle = item.item_type === 'AMBITION_DOSE' ? cleanDoseTitle(item.title) : item.title;
+      const guide = item.item_type === 'AMBITION_DOSE'
+        ? generateTaskExecutionGuide(cleanTitle, item.category || undefined, item.allocated_minutes || 45, item.user_goal?.outcome_statement || undefined)
+        : null;
+      let desc = item.description;
+      if (item.item_type === 'AMBITION_DOSE' && (!desc || desc === 'null' || desc.includes('Consolidates neural and physical retention') || desc.includes('Maintains continuity and momentum') || desc.includes('Develops the foundational stimulus'))) {
+        desc = guide?.summary || desc;
+      }
+      return {
+        ...item,
+        title: cleanTitle,
+        description: desc,
+        guide,
+      };
+    });
 
     res.status(200).json({
       date: todayStr,
@@ -227,10 +240,22 @@ lifeRouter.get('/schedule/week', async (req: Request, res: Response): Promise<vo
       orderBy: [{ date: 'asc' }, { start_time: 'asc' }],
     });
 
-    const sanitizedItems = items.map((item) => ({
-      ...item,
-      title: item.item_type === 'AMBITION_DOSE' ? cleanDoseTitle(item.title) : item.title,
-    }));
+    const sanitizedItems = items.map((item) => {
+      const cleanTitle = item.item_type === 'AMBITION_DOSE' ? cleanDoseTitle(item.title) : item.title;
+      const guide = item.item_type === 'AMBITION_DOSE'
+        ? generateTaskExecutionGuide(cleanTitle, item.category || undefined, item.allocated_minutes || 45, item.user_goal?.outcome_statement || undefined)
+        : null;
+      let desc = item.description;
+      if (item.item_type === 'AMBITION_DOSE' && (!desc || desc === 'null' || desc.includes('Consolidates neural and physical retention') || desc.includes('Maintains continuity and momentum') || desc.includes('Develops the foundational stimulus'))) {
+        desc = guide?.summary || desc;
+      }
+      return {
+        ...item,
+        title: cleanTitle,
+        description: desc,
+        guide,
+      };
+    });
 
     res.status(200).json({
       startDate: startStr,
