@@ -4,7 +4,6 @@ import {
   CapabilityState,
 } from '../core/types.js';
 import { prisma } from '../../prisma.js';
-import { checkGoalIntegrity } from '../core/goalEngine.js';
 
 export interface ForecastResult {
   userGoalId: string;
@@ -316,6 +315,76 @@ export async function computeForecast(userGoalId: string): Promise<ForecastResul
     totalCapabilitiesCount,
     isWithinPlannedRunway,
   };
+}
+
+/**
+ * Audits Goal Integrity: ensures the destination is protected against silent degradation.
+ * Compares original outcome and verification criteria against current parameters.
+ */
+export function checkGoalIntegrity(
+  originalOutcome: string,
+  currentOutcome: string,
+  originalCriteria: string,
+  currentCriteria: string
+): GoalIntegrityStatus {
+  const normOrigOut = originalOutcome.trim().toLowerCase();
+  const normCurrOut = currentOutcome.trim().toLowerCase();
+  const normOrigCrit = originalCriteria.trim().toLowerCase();
+  const normCurrCrit = currentCriteria.trim().toLowerCase();
+
+  // 1. Identical destination & criteria
+  if (normOrigOut === normCurrOut && normOrigCrit === normCurrCrit) {
+    return 'INTACT';
+  }
+
+  // 2. Explicit Revision Check
+  if (
+    normCurrOut.includes('[revised]') ||
+    normCurrCrit.includes('[revised]') ||
+    normCurrOut.includes('(revised)')
+  ) {
+    return 'REVISED';
+  }
+
+  // 3. Known Downgrade Signatures
+  const downgradePairs = [
+    { original: 'half marathon', degraded: '10k' },
+    { original: 'half marathon', degraded: '10 km' },
+    { original: 'half marathon', degraded: '5k' },
+    { original: 'marathon', degraded: 'half marathon' },
+    { original: '10 real users', degraded: 'finish prototype' },
+    { original: '10 real users', degraded: 'prototype only' },
+    { original: '30-minute conversation', degraded: '500 words' },
+    { original: '30-minute conversation', degraded: '10-minute' },
+    { original: 'conversational', degraded: 'learn vocabulary' },
+  ];
+
+  for (const pair of downgradePairs) {
+    if (normOrigOut.includes(pair.original) && (normCurrOut.includes(pair.degraded) || normCurrCrit.includes(pair.degraded))) {
+      return 'COMPROMISED';
+    }
+  }
+
+  // 4. Token overlap comparison to detect material destination shifts
+  const origWords = new Set(normOrigOut.split(/\s+/).filter((w) => w.length > 3));
+  const currWords = new Set(normCurrOut.split(/\s+/).filter((w) => w.length > 3));
+
+  let sharedCount = 0;
+  for (const word of currWords) {
+    if (origWords.has(word)) sharedCount++;
+  }
+
+  const similarity = origWords.size > 0 ? sharedCount / origWords.size : 1.0;
+
+  if (similarity < 0.4) {
+    return 'COMPROMISED';
+  }
+
+  if (similarity < 0.75 || normOrigCrit !== normCurrCrit) {
+    return 'AT_RISK';
+  }
+
+  return 'INTACT';
 }
 
 /**

@@ -10,11 +10,6 @@ import {
 } from '../src/lib/life/lifeStructureEngine';
 import { roundToHumanDuration } from '../src/lib/adaptive/strategy/trajectoryEngine';
 import {
-  generateDeterministicMasterPlan,
-  validateMasterPlanOutput,
-  generateMasterPlan,
-} from '../src/lib/ai/masterPlanningPrompt';
-import {
   materializeDays,
   adaptTodaySchedule,
   findOptimalAmbitionWindow,
@@ -89,45 +84,6 @@ describe('Life Operating System: Scenarios K through O', () => {
     });
   });
 
-  // Scenario L: Master Planning Prompt Engine & Deterministic Fallback
-  describe('Scenario L: Master Planning Prompt Engine', () => {
-    it('generates a verified 90-day trajectory from blueprint and 5-7 questions', async () => {
-      const saasCatalog = await prisma.goalCatalog.findUnique({
-        where: { id: 'saas-mvp-catalog-id' },
-      });
-      expect(saasCatalog).toBeDefined();
-
-      const answers = {
-        current_technical_level: 'experienced',
-        weekly_time_commitment: '9',
-        preferred_dose_frequency: 'daily_micro',
-        primary_past_bottleneck: 'scope_creep',
-      };
-
-      const result = await generateMasterPlan({
-        blueprint: saasCatalog!,
-        answers,
-        lifeStructure: {
-          wake_time: '07:00',
-          sleep_time: '23:00',
-          buffer_minutes: 30,
-          schedule_reliability: 'HIGH',
-        },
-        startDate: '2026-09-14',
-      });
-
-      expect(result.plan).toBeDefined();
-      const validation = validateMasterPlanOutput(result.plan);
-      expect(validation.valid).toBe(true);
-
-      // Verify personalized properties
-      expect(result.plan.weekly_target_hours).toBe(9);
-      expect(result.plan.phases.length).toBe(3);
-      expect(result.plan.phases[0].items.length).toBeGreaterThanOrEqual(2);
-      expect(result.plan.diagnostic_baseline).toContain('EXPERIENCED');
-      expect(result.plan.interventions_needed.some((i) => i.includes('scope creep'))).toBe(true);
-    });
-  });
 
   // Scenario M: Intraday Friction & Adaptation without Backlog Debt
   describe('Scenario M: Daily Scheduler & No-Debt Invariant', () => {
@@ -296,36 +252,11 @@ describe('Life Operating System: Scenarios K through O', () => {
 
   // Scenario O: Simple Task Naming & Routine-Strict Intelligent Window Placement
   describe('Scenario O: Simple Task Naming & Routine-Strict Intelligent Window Placement', () => {
-    it('generates concise to-the-point task titles (2 to 5 words max) with rich descriptions', () => {
+    it('generates concise to-the-point task titles with rich descriptions', () => {
       // 1. cleanDoseTitle verifies concise punchy naming
       expect(cleanDoseTitle('Core Adaptation Session: Jazz Piano Fundamentals')).toBe('Jazz Piano Fundamentals');
       expect(cleanDoseTitle('Consolidation Practice: Aerobic Base Running')).toBe('Aerobic Base Running');
       expect(cleanDoseTitle('Scales & Chords')).toBe('Scales & Chords');
-
-      // 2. Deterministic plan items verify 2-5 words title and rich description
-      const plan = generateDeterministicMasterPlan({
-        blueprint: {
-          id: 'jazz-piano-blueprint',
-          title: 'Learn to play Jazz piano',
-          est_weekly_hours: 6,
-        },
-        answers: {
-          preferred_time_window: 'evening',
-        },
-        userMemory: 'Night owl, works 9-5',
-      });
-
-      expect(plan.phases.length).toBe(3);
-      for (const phase of plan.phases) {
-        for (const item of phase.items) {
-          const words = item.title.split(/\s+/);
-          expect(words.length).toBeLessThanOrEqual(5);
-          expect(words.length).toBeGreaterThanOrEqual(2);
-          expect(item.description.length).toBeGreaterThan(15);
-          expect(item.why_this_matters).toBeDefined();
-          expect(item.mvs_fallback_description).toBeDefined();
-        }
-      }
     });
 
     it('schedules night owl / evening preference strictly into evening open window, never overlapping 9-5 work', () => {

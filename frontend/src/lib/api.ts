@@ -43,29 +43,11 @@ export async function fetchHealthCheck(): Promise<HealthResponse> {
 }
 
 export async function fetchCatalog(): Promise<GoalCatalog[]> {
-  const response = await fetch(`${API_BASE_URL}/api/catalog`, {
-    headers: { 'Accept': 'application/json' },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to load goal catalog (${response.status})`);
-  }
-
-  const data = await response.json();
-  return data.goals || [];
+  return [];
 }
 
 export async function fetchGoalById(id: string): Promise<GoalCatalog> {
-  const response = await fetch(`${API_BASE_URL}/api/catalog/${id}`, {
-    headers: { 'Accept': 'application/json' },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to load goal details (${response.status})`);
-  }
-
-  const data = await response.json();
-  return data.goal;
+  throw new Error(`Goal catalog has been retired for fresh goal architecture (ID: ${id})`);
 }
 
 export async function signupUser(email: string, password: string, timezone?: string): Promise<AuthResponse> {

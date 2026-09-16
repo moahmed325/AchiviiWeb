@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from 'vitest';
 import express from 'express';
 import type { Server } from 'node:http';
-import { onboardingRouter, userGoalRouter, goalsRouter } from '../src/routes/onboarding.js';
+import { userGoalRouter, goalsRouter } from '../src/routes/userGoal.js';
 import { prisma } from '../src/lib/prisma.js';
 import * as authModule from '../src/routes/auth.js';
 
@@ -23,25 +23,53 @@ vi.mock('../src/lib/prisma.js', () => {
       deleteMany: vi.fn().mockResolvedValue({ count: 5 }),
     },
     recoveryEvent: {
-      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     weeklyReview: {
-      deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     roadmap: {
-      deleteMany: vi.fn().mockResolvedValue({ count: 2 }),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    dailyScheduleItem: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    replanAudit: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    weeklyStrategicReview: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    goalCapability: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    trajectoryVersion: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    milestoneProgress: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    habitProgress: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    milestone: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    habit: {
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
   };
 
   return {
     prisma: {
-      goalCatalog: {
-        findUnique: vi.fn(),
-      },
       userGoal: {
         findFirst: vi.fn(),
-        findUnique: vi.fn(),
-        delete: vi.fn(),
+      },
+      routine: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+      },
+      weeklyReview: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
       session: {
         deleteMany: vi.fn().mockResolvedValue({ count: 5 }),
@@ -49,11 +77,26 @@ vi.mock('../src/lib/prisma.js', () => {
       recoveryEvent: {
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
-      weeklyReview: {
+      weeklyStrategicReview: {
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
-      roadmap: {
-        deleteMany: vi.fn().mockResolvedValue({ count: 2 }),
+      goalCapability: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      trajectoryVersion: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      milestoneProgress: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      habitProgress: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      milestone: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+      habit: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
       availabilitySlot: {
         findMany: vi.fn().mockResolvedValue([]),
@@ -69,11 +112,6 @@ vi.mock('../src/lib/prisma.js', () => {
   };
 });
 
-// Mock daily scheduler so onboarding doesn't try to generate real schedules in test
-vi.mock('../src/lib/life/dailyScheduler.js', () => ({
-  materializeDays: vi.fn().mockResolvedValue({ materializedCount: 7, days: [] }),
-}));
-
 describe('Single Active Goal & Discard Enforcement', () => {
   let server: Server;
   let baseUrl: string;
@@ -81,7 +119,6 @@ describe('Single Active Goal & Discard Enforcement', () => {
   beforeAll(async () => {
     const app = express();
     app.use(express.json());
-    app.use('/api/onboarding', onboardingRouter);
     app.use('/api/user-goal', userGoalRouter);
     app.use('/api/goals', goalsRouter);
 
@@ -106,73 +143,6 @@ describe('Single Active Goal & Discard Enforcement', () => {
       id: 'user-active-1',
       email: 'pilot@achivii.internal',
     } as any);
-  });
-
-  it('rejects goal creation with 409 Conflict when an active goal already exists', async () => {
-    // Catalog goal requested
-    (prisma.goalCatalog.findUnique as any).mockResolvedValue({
-      id: 'catalog-goal-new',
-      title: 'Run Half Marathon',
-      phases: [{ id: 'phase-1' }],
-    });
-
-    // Existing active goal with a different catalog ID
-    (prisma.userGoal.findFirst as any).mockResolvedValue({
-      id: 'user-goal-existing',
-      user_id: 'user-active-1',
-      goal_catalog_id: 'catalog-goal-old',
-      status: 'ACTIVE',
-    });
-
-    const res = await fetch(`${baseUrl}/api/onboarding`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-123' },
-      body: JSON.stringify({
-        goal_catalog_id: 'catalog-goal-new',
-        start_date: '2026-09-10',
-        availability_slots: [
-          { day_of_week: 'MON', start_time: '08:00', end_time: '09:00' },
-        ],
-      }),
-    });
-
-    expect(res.status).toBe(409);
-    const data = await res.json();
-    expect(data.error).toBe('ACTIVE_GOAL_EXISTS');
-    expect(data.message).toContain('Only one active protocol can run concurrently');
-  });
-
-  it('allows routine adjustment when goal_catalog_id matches active goal', async () => {
-    (prisma.goalCatalog.findUnique as any).mockResolvedValue({
-      id: 'catalog-goal-same',
-      title: 'SaaS MVP',
-      phases: [{ id: 'phase-1' }],
-    });
-
-    (prisma.userGoal.findFirst as any).mockResolvedValue({
-      id: 'user-goal-existing',
-      user_id: 'user-active-1',
-      goal_catalog_id: 'catalog-goal-same',
-      status: 'ACTIVE',
-      start_date: new Date('2026-09-01'),
-      target_end_date: new Date('2026-11-24'),
-    });
-
-    const res = await fetch(`${baseUrl}/api/onboarding`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token-123' },
-      body: JSON.stringify({
-        goal_catalog_id: 'catalog-goal-same',
-        start_date: '2026-09-01',
-        availability_slots: [
-          { day_of_week: 'TUE', start_time: '09:00', end_time: '10:00' },
-        ],
-      }),
-    });
-
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.is_adjustment).toBe(true);
   });
 
   it('discards active goal and cascade-purges associated sessions via DELETE /api/goals/:id', async () => {

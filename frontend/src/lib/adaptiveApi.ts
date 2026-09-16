@@ -8,10 +8,6 @@
 
 import { resolveApiBaseUrl } from './api';
 import type {
-  FormalizeGoalParams,
-  FormalizeGoalResponse,
-  CommitGoalParams,
-  CommitGoalResponse,
   AdaptiveDashboardResponse,
   RecordSessionTelemetryParams,
   TelemetrySessionResponse,
@@ -21,8 +17,6 @@ import type {
   WeeklyReviewResponse,
   VerifyOutcomeGateParams,
   OutcomeGateResponse,
-  InterpretAnswersParams,
-  InterpretAnswersResponse,
   SessionFieldManualResponse,
   TaskFieldManual,
 } from '../types/adaptive';
@@ -54,80 +48,6 @@ async function handleResponse<T>(response: Response, fallbackMessage: string): P
     throw new Error(data.error || fallbackMessage);
   }
   return data as T;
-}
-
-// ---------------------------------------------------------------------------
-// 1. Goal Formalization & Feasibility Gate
-// ---------------------------------------------------------------------------
-
-/**
- * POST /api/adaptive/goal/formalize
- *
- * Parse user goal into a concrete outcome statement, generate baseline
- * verification questions, and evaluate 90-day feasibility (RED/YELLOW/GREEN).
- */
-export async function formalizeGoal(
-  token: string,
-  params: FormalizeGoalParams
-): Promise<FormalizeGoalResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/adaptive/goal/formalize`, {
-    method: 'POST',
-    headers: authHeaders(token),
-    body: JSON.stringify(params),
-  });
-
-  return handleResponse<FormalizeGoalResponse>(
-    response,
-    'Failed to formalize goal.'
-  );
-}
-
-// ---------------------------------------------------------------------------
-// 2. Goal Commitment (Trajectory v1)
-// ---------------------------------------------------------------------------
-
-/**
- * POST /api/adaptive/goal/commit
- *
- * Commit formalized goal: creates UserGoal, generates Trajectory v1,
- * and materializes Week 1 Execution Objects.
- */
-export async function commitGoal(
-  token: string,
-  params: CommitGoalParams
-): Promise<CommitGoalResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/adaptive/goal/commit`, {
-    method: 'POST',
-    headers: authHeaders(token),
-    body: JSON.stringify(params),
-  });
-
-  return handleResponse<CommitGoalResponse>(
-    response,
-    'Failed to commit goal.'
-  );
-}
-
-/**
- * POST /api/adaptive/interpret-answers
- *
- * Normalizes user onboarding answers (especially open-ended "Other" write-ins)
- * in the background into structured weekly hours, baseline level, and constraints.
- */
-export async function interpretOnboardingAnswers(
-  token: string,
-  params: InterpretAnswersParams
-): Promise<InterpretAnswersResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/adaptive/interpret-answers`, {
-    method: 'POST',
-    headers: authHeaders(token),
-    body: JSON.stringify(params),
-  });
-
-  return handleResponse<InterpretAnswersResponse>(
-    response,
-    'Failed to interpret onboarding answers.'
-  );
 }
 
 // ---------------------------------------------------------------------------

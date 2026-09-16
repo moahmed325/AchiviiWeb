@@ -3,8 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
-import { catalogRouter } from './routes/catalog.js';
-import { onboardingRouter, userGoalRouter, goalsRouter } from './routes/onboarding.js';
+import { userGoalRouter, goalsRouter } from './routes/userGoal.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { progressRouter } from './routes/progress.js';
 import { recoveryRouter } from './routes/recovery.js';
@@ -51,8 +50,6 @@ app.use(express.json());
 // Routes
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
-app.use('/api/catalog', catalogRouter);
-app.use('/api/onboarding', onboardingRouter);
 app.use('/api/user-goal', userGoalRouter);
 app.use('/api/goals', goalsRouter);
 app.use('/api/sessions', sessionsRouter);
