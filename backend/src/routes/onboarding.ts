@@ -3,8 +3,6 @@ import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import { normalizeTimezone } from '../lib/timezone.js';
 import {
-  CapabilityStateGraph,
-  persistStateGraph,
   generateInitialTrajectory,
 } from '../lib/adaptive/index.js';
 import { materializeDays } from '../lib/life/dailyScheduler.js';
@@ -211,42 +209,8 @@ onboardingRouter.post('/', async (req: Request, res: Response): Promise<void> =>
         });
 
         if (existingCaps === 0) {
-          const graph = new CapabilityStateGraph();
-          const cap1Id = `cap-${Date.now()}-0`;
-          const cap2Id = `cap-${Date.now()}-1`;
-          const cap3Id = `cap-${Date.now()}-2`;
-          graph.addCapability({
-            id: cap1Id,
-            userGoalId: result.user_goal.id,
-            name: 'Core Adaptation Baseline',
-            description: 'Fundamental prerequisite capability',
-            tier: 'TIER_1_CRITICAL',
-            state: 'EMERGING',
-            prerequisites: [],
-          });
-          graph.addCapability({
-            id: cap2Id,
-            userGoalId: result.user_goal.id,
-            name: 'Progressive Work Capacity',
-            description: 'Target work volume expansion',
-            tier: 'TIER_1_CRITICAL',
-            state: 'UNTESTED',
-            prerequisites: [cap1Id],
-          });
-          graph.addCapability({
-            id: cap3Id,
-            userGoalId: result.user_goal.id,
-            name: 'Capstone Destination Mastery',
-            description: result.user_goal.outcome_statement || catalogGoal.title,
-            tier: 'TIER_1_CRITICAL',
-            state: 'UNTESTED',
-            prerequisites: [cap2Id],
-          });
-          await persistStateGraph(result.user_goal.id, graph);
-
           await generateInitialTrajectory(
             result.user_goal.id,
-            graph,
             {
               sustainableWeeklyHours: result.user_goal.sustainable_weekly_capacity_hours || 6.0,
               medHours: 4.5,

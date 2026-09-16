@@ -1,11 +1,6 @@
 import { prisma } from '../../prisma.js';
 import { ExecutionObject } from '../core/types.js';
 import { createExecutionObject } from '../execution/executionModel.js';
-import { loadStateGraph } from '../core/stateGraph.js';
-import {
-  identifyCriticalPath,
-  identifyCurrentBottleneck,
-} from '../strategy/bottleneckEngine.js';
 import { computeForecast, computeEvidenceConfidence } from '../strategy/forecastEngine.js';
 
 export interface WeeklyStrategicQuestions {
@@ -157,44 +152,18 @@ export async function generateWeeklyReview(
     whatCausedMeaningfulDeviations = 'No meaningful disruptions; execution was consistent with planned runway.';
   }
 
-  // Q5: Is the bottleneck still the bottleneck?
-  const graph = await loadStateGraph(userGoalId);
-  const allCaps = graph.getAllCapabilities();
-  const targetNode =
-    allCaps.length > 0
-      ? allCaps[allCaps.length - 1]
-      : {
-          id: 'cap-capstone',
-          name: userGoal.outcome_statement || 'Target Outcome',
-          userGoalId,
-          description: 'Capstone',
-          tier: 'TIER_1_CRITICAL' as const,
-          state: 'UNTESTED' as const,
-          prerequisites: [],
-        };
-
-  if (!graph.getCapability(targetNode.id)) {
-    graph.addCapability(targetNode);
-  }
-
-  const criticalPath = identifyCriticalPath(graph, targetNode.id);
-  const currentBottleneck = identifyCurrentBottleneck(criticalPath) || targetNode;
+  // Q5: Is execution on track?
+  const unestablishedCap =
+    userGoal.capabilities.find((c) => c.state !== 'ROBUST' && c.state !== 'ESTABLISHED') ||
+    userGoal.capabilities[userGoal.capabilities.length - 1];
+  const activeFocus = unestablishedCap?.name || userGoal.outcome_statement || 'Goal Milestones';
 
   let isTheBottleneckStillTheBottleneck = '';
-  if (
-    userGoal.active_bottleneck_capability_id &&
-    userGoal.active_bottleneck_capability_id !== currentBottleneck.id
-  ) {
-    isTheBottleneckStillTheBottleneck = `Bottleneck has shifted: Now actively constrained by "${currentBottleneck.name}" (State: ${currentBottleneck.state}).`;
+  if (missed.length > 0) {
+    isTheBottleneckStillTheBottleneck = `Attention needed on "${activeFocus}": ${missed.length} session(s) slipped this week. Planned schedule adapted cleanly without backlog debt.`;
   } else {
-    isTheBottleneckStillTheBottleneck = `Yes, "${currentBottleneck.name}" remains the primary limiting constraint on the critical path.`;
+    isTheBottleneckStillTheBottleneck = `Yes, "${activeFocus}" remains the primary limiting constraint and focus on the trajectory.`;
   }
-
-  // Update active bottleneck in UserGoal
-  await prisma.userGoal.update({
-    where: { id: userGoalId },
-    data: { active_bottleneck_capability_id: currentBottleneck.id },
-  });
 
   // Q6: Is the trajectory still valid?
   const forecast = await computeForecast(userGoalId);
@@ -209,7 +178,7 @@ export async function generateWeeklyReview(
   }
 
   // Q7: What should happen next?
-  const whatShouldHappenNext = `Focus next week's highest-priority sessions on unlocking "${currentBottleneck.name}". Protect your ${margin.toFixed(1)}h reliability buffer and do not take on catch-up debt.`;
+  const whatShouldHappenNext = `Focus next week's highest-priority sessions on unlocking "${activeFocus}". Protect your ${margin.toFixed(1)}h reliability buffer and do not take on catch-up debt.`;
 
   const answers: WeeklyStrategicQuestions = {
     whatWasSupposedToHappen,

@@ -5,7 +5,6 @@ import {
   generateFieldManual,
   TaskFieldManual,
 } from '../src/lib/life/fieldManualEngine.js';
-import { CapabilityStateGraph } from '../src/lib/adaptive/core/stateGraph.js';
 import { generateInitialTrajectory } from '../src/lib/adaptive/strategy/trajectoryEngine.js';
 
 describe('Interactive Field Manual & Step-by-Step Task System', () => {
@@ -107,19 +106,8 @@ describe('Interactive Field Manual & Step-by-Step Task System', () => {
         },
       });
 
-      const graph = new CapabilityStateGraph();
-      graph.addCapability({
-        id: `cap-base-${Date.now()}`,
-        userGoalId: userGoal.id,
-        name: 'Full-Stack Architecture Foundation',
-        description: 'Next.js & Database',
-        tier: 'TIER_1_CRITICAL',
-        state: 'EMERGING',
-        prerequisites: [],
-      });
-
       // 2. Generate trajectory
-      const traj = await generateInitialTrajectory(userGoal.id, graph, {
+      const traj = await generateInitialTrajectory(userGoal.id, {
         sustainableWeeklyHours: 6,
         medHours: 4.5,
         reliabilityMarginHours: 1.5,

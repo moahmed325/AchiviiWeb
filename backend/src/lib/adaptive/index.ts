@@ -1,7 +1,5 @@
 export * from './core/types.js';
 export * from './core/goalEngine.js';
-export * from './core/stateGraph.js';
-export * from './strategy/bottleneckEngine.js';
 export * from './strategy/capacityModel.js';
 export * from './strategy/trajectoryEngine.js';
 export * from './execution/executionModel.js';

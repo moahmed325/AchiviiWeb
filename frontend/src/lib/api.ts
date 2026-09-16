@@ -117,7 +117,7 @@ export async function fetchCurrentUser(token: string): Promise<User> {
 
 /**
  * @deprecated Phase 15: Replace with `commitGoal()` from `lib/adaptiveApi.ts`.
- * The adaptive system replaces static schedule generation with Capability DAG + Trajectory v1.
+ * The adaptive system replaces static schedule generation with Adaptive Trajectory v1.
  */
 export async function submitOnboarding(token: string, payload: import('../types').OnboardingPayload): Promise<import('../types').OnboardingResponse> {
   const resolvedPayload = {

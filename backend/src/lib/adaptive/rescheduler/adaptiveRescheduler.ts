@@ -4,11 +4,6 @@ import {
   DiagnosticRecord,
 } from '../core/types.js';
 import { prisma } from '../../prisma.js';
-import { loadStateGraph } from '../core/stateGraph.js';
-import {
-  identifyCriticalPath,
-  identifyCurrentBottleneck,
-} from '../strategy/bottleneckEngine.js';
 import { calculateMED } from '../strategy/capacityModel.js';
 
 export interface CandidateRoute {
@@ -70,36 +65,16 @@ export async function replanFromCurrentState(
   const previousVersionNumber = activeTrajectory ? activeTrajectory.version_number : 0;
   const newVersionNumber = previousVersionNumber + 1;
 
-  // Step 2: Load capability DAG and recalculate critical path & bottleneck
-  const graph = await loadStateGraph(userGoalId);
-  const allCapabilities = graph.getAllCapabilities();
-
-  // Target node is the final capstone capability (or highest tier outcome)
-  const targetNode =
-    allCapabilities.length > 0
-      ? allCapabilities[allCapabilities.length - 1]
-      : {
-          id: 'target-capstone',
-          name: userGoal.outcome_statement || 'Goal Outcome',
-          userGoalId,
-          description: 'Destination outcome',
-          tier: 'TIER_1_CRITICAL' as const,
-          state: 'UNTESTED' as const,
-          prerequisites: [],
-        };
-
-  if (!graph.getCapability(targetNode.id)) {
-    graph.addCapability(targetNode);
-  }
-
-  const criticalPath = identifyCriticalPath(graph, targetNode.id);
-  const currentBottleneck = identifyCurrentBottleneck(criticalPath) || targetNode;
-
-  // Update active bottleneck in UserGoal
-  await prisma.userGoal.update({
-    where: { id: userGoalId },
-    data: { active_bottleneck_capability_id: currentBottleneck.id },
-  });
+  // Step 2: Milestone context
+  const activeCapId =
+    userGoal.active_bottleneck_capability_id ||
+    (userGoal.capabilities && userGoal.capabilities[0]?.id) ||
+    null;
+  const currentBottleneck = {
+    id: activeCapId,
+    name: userGoal.outcome_statement || 'Goal Focus',
+    state: 'UNTESTED',
+  };
 
   // Step 3: Recheck sustainable capacity and remaining runway
   const sustainableCapacityHours = userGoal.sustainable_weekly_capacity_hours;
@@ -111,9 +86,9 @@ export async function replanFromCurrentState(
   const totalPlanDays = 90; // 90-Day Execution System
   const remainingDays = Math.max(7, totalPlanDays - daysElapsed);
 
-  // Compute MED for remaining bottleneck
+  // Compute MED for remaining runway
   const medCalculation = calculateMED(
-    currentBottleneck,
+    null,
     remainingDays,
     userGoal.goal_catalog_id ? 'PHYSICAL' : 'COGNITIVE'
   );

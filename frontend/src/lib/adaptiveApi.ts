@@ -83,14 +83,14 @@ export async function formalizeGoal(
 }
 
 // ---------------------------------------------------------------------------
-// 2. Goal Commitment (Capability DAG + Trajectory v1)
+// 2. Goal Commitment (Trajectory v1)
 // ---------------------------------------------------------------------------
 
 /**
  * POST /api/adaptive/goal/commit
  *
- * Commit formalized goal: creates UserGoal, constructs Capability DAG,
- * generates Trajectory v1, and materializes Week 1 Execution Objects.
+ * Commit formalized goal: creates UserGoal, generates Trajectory v1,
+ * and materializes Week 1 Execution Objects.
  */
 export async function commitGoal(
   token: string,

@@ -2,7 +2,6 @@ import {
   TrajectoryVersion as TrajectoryVersionType,
   CapacityModel,
 } from '../core/types.js';
-import { CapabilityStateGraph } from '../core/stateGraph.js';
 import { prisma } from '../../prisma.js';
 import {
   subtractIntervals,
@@ -88,9 +87,9 @@ function getProgressiveSessionName(baseName: string, week: number, sessionIdx: n
     return `${baseName} Friction Hunt`;
   }
   if (week === 11) {
-    if (sessionIdx === 0) return `${baseName} Pre-Launch Audit`;
-    if (sessionIdx === 1) return `${baseName} Final Refinement`;
-    return `${baseName} Dress Rehearsal`;
+    if (sessionIdx === 0) return `${baseName} Production Rehearsal`;
+    if (sessionIdx === 1) return `${baseName} Pre-Launch Verification`;
+    return `${baseName} Readiness Audit`;
   }
   // Week 12
   if (sessionIdx === 0) return `${baseName} Capstone Demonstration`;
@@ -100,18 +99,18 @@ function getProgressiveSessionName(baseName: string, week: number, sessionIdx: n
 
 /**
  * Generates Trajectory v1: The initial planned route towards the goal destination.
- * Maps the critical path and Minimum Effective Dose (MED) across 12 weeks, ensuring
- * that total weekly workload never exceeds sustainable capacity minus reliability margin.
+ * Maps sessions across 12 weeks, ensuring that total weekly workload never
+ * exceeds sustainable capacity minus reliability margin.
  */
 export async function generateInitialTrajectory(
   userGoalId: string,
-  graph: CapabilityStateGraph,
   capacity: CapacityModel,
   availabilitySlots: AvailabilitySlotRecord[] = []
 ): Promise<TrajectoryVersionType> {
   // 1. Fetch user goal context
   const userGoal = await prisma.userGoal.findUnique({
     where: { id: userGoalId },
+    include: { goal_catalog: true },
   });
 
   if (!userGoal) {
@@ -134,22 +133,10 @@ export async function generateInitialTrajectory(
   const rawDuration = Math.max(20, Math.floor(maxWeeklyMinutes / sessionsPerWeek));
   const sessionDuration = roundToHumanDuration(rawDuration);
 
-  // 3. Partition capabilities from DAG across the 12 weeks
-  const topologicalNodes = graph.getTopologicalOrder();
-  const activeNodes =
-    topologicalNodes.length > 0
-      ? topologicalNodes
-      : [
-          {
-            id: 'cap-default-foundation',
-            name: 'Foundation Readiness',
-            description: 'Core physical or technical capability',
-            tier: 'TIER_1_CRITICAL' as const,
-            state: 'UNTESTED' as const,
-            userGoalId,
-            prerequisites: [],
-          },
-        ];
+  // 3. Goal theme base name for session synthesis
+  const baseGoalTitle = (userGoal.outcome_statement || userGoal.goal_catalog?.title || 'Core Skill')
+    .replace(/^(Launch|Run|Build|Learn|Complete|Achieve)\s+/i, '')
+    .trim();
 
   // 4. Create TrajectoryVersion record in DB
   const createdVersion = await prisma.trajectoryVersion.create({
@@ -177,47 +164,33 @@ export async function generateInitialTrajectory(
   }> = [];
 
   for (let week = 1; week <= 12; week++) {
-    // Select capability focus based on 3 phases (W1-4 Phase 1, W5-8 Phase 2, W9-12 Phase 3)
-    let nodeIndex = 0;
-    if (week > 8 && activeNodes.length >= 3) {
-      nodeIndex = activeNodes.length - 1; // Capstone phase
-    } else if (week > 4 && activeNodes.length >= 2) {
-      nodeIndex = Math.min(activeNodes.length - 1, 1); // Acceleration phase
-    } else {
-      nodeIndex = 0; // Foundation phase
-    }
-    const currentCapability = activeNodes[nodeIndex];
+    // 3 phases: W1-4 Phase 1 Foundation, W5-8 Phase 2 Core Acceleration, W9-12 Phase 3 Capstone Mastery
+    const phaseName = week > 8
+      ? `${baseGoalTitle} Capstone`
+      : week > 4
+      ? `${baseGoalTitle} Acceleration`
+      : `${baseGoalTitle} Foundation`;
 
     for (let sessionIdx = 0; sessionIdx < sessionsPerWeek; sessionIdx++) {
       const isCritical = sessionIdx === 0;
       const isHighLeverage = sessionIdx === 1;
       const priorityTier = isCritical ? 1 : isHighLeverage ? 2 : 3;
 
-      const cleanCapName = currentCapability.name
-        .replace(/^(Core Adaptation Session|Consolidation Practice|Supportive Continuity):\s*/i, '')
-        .replace(/^(Core|Foundational|Target|Capstone|Prerequisite)\s+/i, '')
-        .replace(/\s+(Prerequisites|Readiness|Baseline|Capacity|Mastery)$/i, '')
-        .trim();
-      const baseName = cleanCapName || 'Core Skill';
-
-      // Assign progressive, non-repetitive task names across weeks
-      let interventionName = getProgressiveSessionName(baseName, week, sessionIdx);
-      const words = interventionName.split(/\s+/);
-      if (words.length > 5) {
-        interventionName = words.slice(0, 4).join(' ');
-      }
+      const baseWords = (baseGoalTitle || 'Core Skill').split(/\s+/);
+      const shortBase = baseWords.slice(0, 2).join(' ');
+      let interventionName = getProgressiveSessionName(shortBase, week, sessionIdx);
 
       const standardMinutes = sessionDuration;
       const reducedMinutes = roundToHumanDuration(Math.max(15, Math.round(standardMinutes * 0.65)));
       const mvsMinutes = roundToHumanDuration(Math.max(15, Math.round(standardMinutes * 0.40)));
 
       const whyThisMatters = isCritical
-        ? `Develops the foundational stimulus for ${currentCapability.name}, unlocking the core adaptation needed for this milestone phase.`
+        ? `Develops the foundational stimulus for ${phaseName}, unlocking the core adaptation needed for this milestone phase.`
         : isHighLeverage
-        ? `Consolidates neural and physical retention for ${currentCapability.name}, ensuring gains are durable under fatigue.`
-        : `Maintains continuity and momentum on ${currentCapability.name} without overtaxing recovery.`;
+        ? `Consolidates retention for ${phaseName}, ensuring gains are durable under fatigue.`
+        : `Maintains continuity and momentum on ${phaseName} without overtaxing recovery.`;
 
-      const mvsFallback = `${mvsMinutes}m minimum viable session focused on ${currentCapability.name} to protect momentum.`;
+      const mvsFallback = `${mvsMinutes}m minimum viable session focused on ${phaseName} to protect momentum.`;
 
       // Pre-calculate structured field manual
       const fieldManual = generateDeterministicFieldManual(
@@ -236,7 +209,7 @@ export async function generateInitialTrajectory(
 
       itemsToCreate.push({
         trajectory_version_id: createdVersion.id,
-        target_capability_id: currentCapability.id || null,
+        target_capability_id: null,
         intervention_name: interventionName,
         planned_week: week,
         priority_tier: priorityTier,

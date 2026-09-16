@@ -163,15 +163,6 @@ export async function formalizeGoal(input: FormalizeGoalInput): Promise<GoalForm
     recommendedWeeklyHours: userHours,
     feasibilityScore: 0.85,
     feasibilityNote: 'Ready for new goal architecture.',
-    capabilityDag: [
-      {
-        id: 'cap_1',
-        name: 'Milestone 1',
-        description: 'First capability milestone',
-        tier: 'TIER_1_CRITICAL',
-        prerequisites: [],
-      },
-    ],
     isFallback: true,
   };
 }

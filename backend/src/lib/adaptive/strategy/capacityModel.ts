@@ -1,4 +1,7 @@
-import { CapabilityNode } from '../core/types.js';
+export interface BottleneckContext {
+  tier?: string;
+  state?: string;
+}
 
 export interface MEDCalculationResult {
   medWeeklyMinutes: number;
@@ -17,31 +20,33 @@ export interface ReliabilityMarginResult {
 }
 
 /**
- * Computes the Minimum Effective Dose (MED) required to advance the active bottleneck capability.
+ * Computes the Minimum Effective Dose (MED) required to advance the active goal.
  * MED represents the smallest practical weekly dosage that produces a high probability of adaptation.
  */
 export function calculateMED(
-  bottleneck: CapabilityNode,
+  bottleneckOrContext: BottleneckContext | null | undefined,
   remainingRunwayDays: number,
   domain: string
 ): MEDCalculationResult {
   // Base minutes by domain for critical capabilities
   let baseMinutes = 240; // 4 hours baseline
   const normDomain = domain.toUpperCase();
+  const tier = bottleneckOrContext?.tier || 'TIER_1_CRITICAL';
+  const state = bottleneckOrContext?.state || 'UNTESTED';
 
   if (normDomain === 'PHYSICAL') {
-    baseMinutes = bottleneck.tier === 'TIER_1_CRITICAL' ? 270 : 200;
+    baseMinutes = tier === 'TIER_1_CRITICAL' ? 270 : 200;
   } else if (normDomain === 'COGNITIVE') {
-    baseMinutes = bottleneck.tier === 'TIER_1_CRITICAL' ? 240 : 180;
+    baseMinutes = tier === 'TIER_1_CRITICAL' ? 240 : 180;
   } else if (normDomain === 'PROJECT') {
-    baseMinutes = bottleneck.tier === 'TIER_1_CRITICAL' ? 300 : 210;
+    baseMinutes = tier === 'TIER_1_CRITICAL' ? 300 : 210;
   }
 
   // Adjust for state urgency
-  if (bottleneck.state === 'REGRESSED') {
+  if (state === 'REGRESSED') {
     // For regressed state, initial volume is throttled to establish safe adaptation without overload
     baseMinutes *= 0.85;
-  } else if (bottleneck.state === 'EMERGING') {
+  } else if (state === 'EMERGING') {
     // Consolidation dose
     baseMinutes *= 1.0;
   }

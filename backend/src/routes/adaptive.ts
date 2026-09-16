@@ -4,8 +4,6 @@ import { getAuthUser } from './auth.js';
 import {
   formalizeGoal,
   evaluateFeasibility,
-  CapabilityStateGraph,
-  persistStateGraph,
   generateInitialTrajectory,
   createExecutionObject,
   recordExecutionTelemetry,
@@ -236,53 +234,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
     // Fetch user's life structure
     const lifeStructure = await getOrCreateLifeStructure(user.id);
 
-    // Build Capability State Graph & resolve capabilities
-    const graph = new CapabilityStateGraph();
-    let capsToCreate = capabilities && capabilities.length > 0 ? capabilities : null;
-
-    if (!capsToCreate && catalogItem.blueprint_metadata) {
-      try {
-        const meta = typeof catalogItem.blueprint_metadata === 'string'
-          ? JSON.parse(catalogItem.blueprint_metadata)
-          : catalogItem.blueprint_metadata;
-        if (Array.isArray(meta.capability_dag) && meta.capability_dag.length > 0) {
-          capsToCreate = meta.capability_dag.map((d: any) => ({
-            id: d.id,
-            name: d.name,
-            description: d.description,
-            tier: 'TIER_1_CRITICAL',
-            prerequisites: d.prerequisites,
-          }));
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (!capsToCreate) {
-      capsToCreate = [
-        {
-          id: 'cap_baseline',
-          name: 'Core Adaptation Baseline',
-          description: 'Fundamental prerequisite capability',
-          tier: 'TIER_1_CRITICAL',
-        },
-        {
-          id: 'cap_stimulus',
-          name: 'Progressive Stimulus Capacity',
-          description: 'Target work capacity expansion',
-          tier: 'TIER_1_CRITICAL',
-        },
-        {
-          id: 'cap_mastery',
-          name: 'Capstone Destination Mastery',
-          description: outcomeStatement.trim(),
-          tier: 'TIER_1_CRITICAL',
-        },
-      ];
-    }
-
-    // If questionnaireAnswers provided, run master planning engine with custom blueprint
+    // If questionnaireAnswers provided, run master planning engine
     let masterPlan: any = null;
     if (questionnaireAnswers && Object.keys(questionnaireAnswers).length > 0) {
       try {
@@ -292,7 +244,6 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
           category: catalogItem.category,
           est_weekly_hours: Number(sustainableWeeklyHours) || catalogItem.est_weekly_hours || 6.0,
           blueprint_metadata: {
-            capability_dag: capsToCreate,
             nominal_session_duration_minutes: 45,
             minimum_viable_session_minutes: 20,
           },
@@ -336,28 +287,9 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
       },
     });
 
-    let prevId: string | null = null;
-    for (let i = 0; i < capsToCreate.length; i++) {
-      const c = capsToCreate[i];
-      const capId = c.id || `cap-${Date.now()}-${i}`;
-      graph.addCapability({
-        id: capId,
-        userGoalId: userGoal.id,
-        name: c.name,
-        description: c.description || c.name,
-        tier: (c.tier as any) || 'TIER_1_CRITICAL',
-        state: i === 0 ? 'EMERGING' : 'UNTESTED',
-        prerequisites: c.prerequisites || (prevId ? [prevId] : []),
-      });
-      prevId = capId;
-    }
-
-    await persistStateGraph(userGoal.id, graph);
-
     // Generate Initial Trajectory v1
     const trajectory = await generateInitialTrajectory(
       userGoal.id,
-      graph,
       {
         sustainableWeeklyHours: effectiveWeeklyHours,
         medHours: Math.round(effectiveWeeklyHours * 0.75 * 10) / 10,
@@ -394,7 +326,7 @@ adaptiveRouter.post('/goal/commit', async (req: Request, res: Response): Promise
     res.status(201).json({
       userGoalId: userGoal.id,
       trajectoryVersionId: trajectory.id,
-      capabilitiesCount: graph.getAllCapabilities().length,
+      capabilitiesCount: 0,
       week1ExecutionObjects,
       dailyScheduleMaterialized: true,
       masterPlan: masterPlan ? { summary: masterPlan.summary, target_date: masterPlan.target_date } : null,

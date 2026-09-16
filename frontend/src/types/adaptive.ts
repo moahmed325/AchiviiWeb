@@ -172,7 +172,6 @@ export interface GoalFormalizationResult {
   recommendedWeeklyHours?: number;
   feasibilityScore?: number;
   feasibilityNote?: string;
-  capabilityDag?: CustomCapabilityBlueprint[];
 }
 
 export interface CapabilityEvidence {

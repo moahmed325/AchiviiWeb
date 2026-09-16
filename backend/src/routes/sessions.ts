@@ -8,8 +8,6 @@ import {
   replanFromCurrentState,
   formatUserFacingExplanation,
   generateInitialTrajectory,
-  CapabilityStateGraph,
-  persistStateGraph,
   recordSessionTelemetry,
 } from '../lib/adaptive/index.js';
 import {
@@ -87,36 +85,8 @@ sessionsRouter.get('/week', async (req: Request, res: Response): Promise<void> =
     // Ensure active TrajectoryVersion exists
     let activeTrajectory = activeGoal.trajectory_versions[0];
     if (!activeTrajectory) {
-      const graph = new CapabilityStateGraph();
-      if (activeGoal.capabilities && activeGoal.capabilities.length > 0) {
-        for (const c of activeGoal.capabilities) {
-          graph.addCapability({
-            id: c.id,
-            userGoalId: activeGoal.id,
-            name: c.name,
-            description: c.description,
-            tier: c.tier as any,
-            state: c.state as any,
-            prerequisites: (c.prerequisites_ids as string[]) || [],
-          });
-        }
-      } else {
-        const defaultCapId = `cap-${Date.now()}`;
-        graph.addCapability({
-          id: defaultCapId,
-          userGoalId: activeGoal.id,
-          name: activeGoal.outcome_statement || 'Foundational Capability',
-          description: 'Core milestone execution',
-          tier: 'TIER_1_CRITICAL',
-          state: 'EMERGING',
-          prerequisites: [],
-        });
-        await persistStateGraph(activeGoal.id, graph);
-      }
-
       const traj = await generateInitialTrajectory(
         activeGoal.id,
-        graph,
         {
           sustainableWeeklyHours: activeGoal.sustainable_weekly_capacity_hours || 6.0,
           medHours: 4.5,

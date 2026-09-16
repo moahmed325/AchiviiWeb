@@ -1,10 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import {
-  CapabilityStateGraph,
-  persistStateGraph,
-  identifyCriticalPath,
-  identifyCurrentBottleneck,
   recordExecutionTelemetry,
   evaluateDeviation,
   generateDiagnosticPrompt,
@@ -137,36 +133,6 @@ describe('Adaptive 90-Day Execution System: End-to-End Acceptance Test', () => {
       },
     });
 
-    const graph = new CapabilityStateGraph();
-    graph.addCapability({
-      id: cap1.id,
-      userGoalId,
-      name: cap1.name,
-      description: cap1.description,
-      tier: 'TIER_1_CRITICAL',
-      state: 'UNTESTED',
-      prerequisites: [],
-    });
-    graph.addCapability({
-      id: cap2.id,
-      userGoalId,
-      name: cap2.name,
-      description: cap2.description,
-      tier: 'TIER_1_CRITICAL',
-      state: 'UNTESTED',
-      prerequisites: [cap1.id],
-    });
-
-    await persistStateGraph(userGoalId, graph);
-
-    // Step 3: Critical Path & Bottleneck Identification
-    const criticalPath = identifyCriticalPath(graph, cap2.id);
-    expect(criticalPath.length).toBe(2);
-    expect(criticalPath[0].id).toBe(cap1.id);
-
-    const bottleneck = identifyCurrentBottleneck(criticalPath);
-    expect(bottleneck?.id).toBe(cap1.id);
-
     // Step 4: Feasibility & Capacity Audit (Reliability Margin)
     const integrity = await auditGoalIntegrity(userGoalId);
     expect(integrity.status).toBe('INTACT');
@@ -179,7 +145,7 @@ describe('Adaptive 90-Day Execution System: End-to-End Acceptance Test', () => {
       reliabilityMarginHours: 2.0,
       maxSessionDurationMinutes: 90,
     };
-    const trajectoryV1 = await generateInitialTrajectory(userGoalId, graph, capacityModel);
+    const trajectoryV1 = await generateInitialTrajectory(userGoalId, capacityModel);
     expect(trajectoryV1.versionNumber).toBe(1);
 
     const v1VersionDb = await prisma.trajectoryVersion.findFirst({
@@ -281,34 +247,11 @@ describe('Adaptive 90-Day Execution System: End-to-End Acceptance Test', () => {
     });
     expect(v2Active?.version_number).toBe(2);
 
-    // Step 14: Evidence Mastery & Shift Bottleneck
+    // Step 14: Evidence Mastery
     await prisma.goalCapability.update({
       where: { id: cap1.id },
       data: { state: 'ROBUST' },
     });
-    const updatedGraph = new CapabilityStateGraph();
-    updatedGraph.addCapability({
-      id: cap1.id,
-      userGoalId,
-      name: cap1.name,
-      description: cap1.description,
-      tier: 'TIER_1_CRITICAL',
-      state: 'ROBUST',
-      prerequisites: [],
-    });
-    updatedGraph.addCapability({
-      id: cap2.id,
-      userGoalId,
-      name: cap2.name,
-      description: cap2.description,
-      tier: 'TIER_1_CRITICAL',
-      state: 'UNTESTED',
-      prerequisites: [cap1.id],
-    });
-
-    const updatedCriticalPath = identifyCriticalPath(updatedGraph, cap2.id);
-    const newBottleneck = identifyCurrentBottleneck(updatedCriticalPath);
-    expect(newBottleneck?.id).toBe(cap2.id); // Bottleneck moved forward!
 
     // Step 15: Outcome Gate Verification
     const gateCheck = await verifyOutcomeGate(userGoalId);

@@ -1,11 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
 import {
-  CapabilityStateGraph,
-  persistStateGraph,
-  identifyCriticalPath,
-  identifyCurrentBottleneck,
-  detectBottleneckShift,
   recordExecutionTelemetry,
   evaluateDeviation,
   generateDiagnosticPrompt,
@@ -402,49 +397,6 @@ describe('Adaptive 90-Day Execution System: 10 Canonical Architectural Scenarios
     expect(criticalItems[0].target_capability_id).toBe(capCritical.id);
   });
 
-  // ---------------------------------------------------------------------------
-  // SCENARIO E: Bottleneck Shift (Prerequisite Becomes Robust)
-  // ---------------------------------------------------------------------------
-  it('Scenario E (Bottleneck Shift): prerequisite capability reaches ROBUST; bottleneck shifts downstream', async () => {
-    const goalId = `goal-scen-e-${Date.now()}`;
-    createdGoalIds.push(goalId);
-
-    const graph = new CapabilityStateGraph();
-
-    const cap1 = graph.addCapability({
-      id: `cap-e1-${Date.now()}`,
-      userGoalId: goalId,
-      name: 'Aerobic Base Building',
-      description: 'Prerequisite base',
-      tier: 'TIER_1_CRITICAL',
-      state: 'EMERGING',
-    });
-
-    const cap2 = graph.addCapability({
-      id: `cap-e2-${Date.now()}`,
-      userGoalId: goalId,
-      name: 'Lactate Threshold Intervals',
-      description: 'Downstream capacity',
-      tier: 'TIER_1_CRITICAL',
-      state: 'UNTESTED',
-      prerequisites: [cap1.id],
-    });
-
-    // 1. Initially, Cap 1 is the limiting bottleneck
-    let criticalPath = identifyCriticalPath(graph, cap2.id);
-    let bottleneck = identifyCurrentBottleneck(criticalPath);
-    expect(bottleneck?.id).toBe(cap1.id);
-
-    // 2. Cap 1 matures to ROBUST with verified evidence
-    cap1.state = 'ROBUST';
-
-    // 3. Bottleneck shifts to downstream Cap 2
-    criticalPath = identifyCriticalPath(graph, cap2.id);
-    const updatedBottleneck = identifyCurrentBottleneck(criticalPath);
-    expect(updatedBottleneck?.id).toBe(cap2.id);
-    const hasShifted = detectBottleneckShift(bottleneck?.id || null, updatedBottleneck?.id || null);
-    expect(hasShifted).toBe(true);
-  });
 
   // ---------------------------------------------------------------------------
   // SCENARIO F: Intervention Failure (Format Replacement)

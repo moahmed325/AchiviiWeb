@@ -45,7 +45,6 @@ export interface GoalFormalizationResult {
   recommendedWeeklyHours?: number;
   feasibilityScore?: number;
   feasibilityNote?: string;
-  capabilityDag?: CustomCapabilityBlueprint[];
 }
 
 export type FeasibilityZone = 'GREEN' | 'YELLOW' | 'RED';

@@ -1,6 +1,5 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import {
-  CapabilityStateGraph,
   CapacityModel,
   createExecutionObject,
   canTransitionExecutionState,
@@ -109,33 +108,7 @@ describe('Initial Trajectory Engine & Multi-Tier Execution Model', () => {
         },
       });
 
-      // 2. Setup Capability DAG
-      const graph = new CapabilityStateGraph();
-      const cap1 = graph.addCapability({
-        id: `${testGoalId}-cap-1`,
-        userGoalId: testGoalId,
-        name: 'Aerobic Base',
-        description: 'Zone 2 aerobic foundation',
-        tier: 'TIER_1_CRITICAL',
-      });
-      const cap2 = graph.addCapability({
-        id: `${testGoalId}-cap-2`,
-        userGoalId: testGoalId,
-        name: 'Musculoskeletal Durability',
-        description: 'Impact tolerance',
-        tier: 'TIER_1_CRITICAL',
-        prerequisites: [cap1.id],
-      });
-      const cap3 = graph.addCapability({
-        id: `${testGoalId}-cap-3`,
-        userGoalId: testGoalId,
-        name: 'Race Specificity',
-        description: 'Pace control',
-        tier: 'TIER_1_CRITICAL',
-        prerequisites: [cap2.id],
-      });
-
-      // 3. Define Capacity Model (6h sustainable, 1.5h reliability margin -> 4.5h MED)
+      // 2. Define Capacity Model (6h sustainable, 1.5h reliability margin -> 4.5h MED)
       const capacity: CapacityModel = {
         sustainableWeeklyHours: 6.0,
         medHours: 4.5,
@@ -143,10 +116,9 @@ describe('Initial Trajectory Engine & Multi-Tier Execution Model', () => {
         maxSessionDurationMinutes: 75,
       };
 
-      // 4. Generate Initial Trajectory
+      // 3. Generate Initial Trajectory
       const trajectory = await generateInitialTrajectory(
         testGoalId,
-        graph,
         capacity,
         [
           { day_of_week: 'TUE', start_time: '06:30', end_time: '08:00' },

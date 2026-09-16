@@ -4,7 +4,6 @@ import {
   ProofType,
 } from '../core/types.js';
 import { prisma } from '../../prisma.js';
-import { loadStateGraph } from '../core/stateGraph.js';
 
 export interface RecordExecutionTelemetryInput {
   executionState: ExecutionState;
@@ -324,17 +323,22 @@ export async function ingestEvidenceFromTelemetry(
     },
   });
 
-  // Re-evaluate capability state in state graph
-  const graph = await loadStateGraph(userGoalId);
-  const newState = graph.evaluateCapabilityState(targetCapabilityId);
-
+  // Advance capability state directly if completed session
+  let newState: CapabilityState = previousState || 'ESTABLISHED';
+  if (telemetry.executionState === 'COMPLETED') {
+    if (proofType === 'PERFORMANCE_TEST' || proofType === 'DELIVERABLE') {
+      newState = 'ESTABLISHED';
+    } else {
+      newState = previousState === 'UNTESTED' ? 'EMERGING' : 'ESTABLISHED';
+    }
+  }
   const stateTransitioned = newState !== previousState;
 
   if (stateTransitioned) {
     await prisma.goalCapability.update({
       where: { id: targetCapabilityId },
       data: { state: newState },
-    });
+    }).catch(() => {});
   }
 
   return {
