@@ -1,139 +1,223 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Target, LogOut, Calendar, LayoutDashboard, ArrowRight } from 'lucide-react';
+import { useGoal } from '../context/GoalContext';
+import {
+  Target,
+  LogOut,
+  ChevronDown,
+  RotateCcw,
+} from 'lucide-react';
+import { formatGoalTitle } from '../lib/formatters';
 
 interface NavbarProps {
-  apiStatus: 'online' | 'offline' | 'checking';
+  apiStatus?: 'online' | 'offline' | 'checking';
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ apiStatus }) => {
+export const Navbar: React.FC<NavbarProps> = ({ apiStatus: propApiStatus }) => {
   const { user, logout, openAuthModal } = useAuth();
+  const { activeGoal, resetGoal, apiStatus: contextApiStatus } = useGoal();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const navLinks = [
-    { name: 'Today', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Schedule', path: '/schedule', icon: Calendar },
-    { name: 'Progress', path: '/progress', icon: Target },
-  ];
+  const apiStatus = propApiStatus || contextApiStatus;
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Determine home link destination based on user state
+  const homeLink = user ? (activeGoal ? '/dashboard' : '/onboarding') : '/';
+
+  const handleResetPlan = async () => {
+    if (!window.confirm('Are you sure you want to reset your 90-day plan? All task progress will be cleared.')) {
+      return;
+    }
+    setIsResetting(true);
+    const success = await resetGoal();
+    setIsResetting(false);
+    setIsMenuOpen(false);
+    if (success) {
+      navigate('/onboarding');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsMenuOpen(false);
+    logout();
+    navigate('/');
+  };
 
   return (
-    <>
-      <header className="w-full border-b border-white/5 bg-[#070b09]/80 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Brand & Desktop Navigation */}
-          <div className="flex items-center gap-6 sm:gap-8">
-            <Link
-              to={user ? '/dashboard' : '/'}
-              className="flex items-center gap-2.5 group cursor-pointer focus-visible:outline-none rounded-xl"
-            >
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0c1410] to-[#07CB6C]/10 border border-[#07CB6C]/30 flex items-center justify-center transition-all group-hover:border-[#07CB6C]/60 shadow-[0_0_12px_rgba(7,203,108,0.15)]">
-                <Target className="w-4 h-4 text-[#07CB6C]" />
-              </div>
-              <span className="text-lg font-bold tracking-tight text-white">Achivii</span>
-            </Link>
+    <header className="w-full border-b border-white/5 bg-[#050807]/90 backdrop-blur-md sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+        {/* Left: Brand & Navigation */}
+        <div className="flex items-center gap-6">
+          <Link
+            to={homeLink}
+            className="flex items-center gap-2.5 group cursor-pointer focus-visible:outline-none"
+          >
+            <div className="w-7 h-7 rounded-md bg-[#0c1410] border border-[#07CB6C]/30 flex items-center justify-center transition-all group-hover:border-[#07CB6C]/60">
+              <Target className="w-3.5 h-3.5 text-[#07CB6C]" />
+            </div>
+            <span className="text-base font-bold tracking-tight text-white">Achivii</span>
+          </Link>
 
-            {/* Nav Tabs for authenticated users on desktop */}
-            {user && (
-              <nav className="hidden md:flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
-                {navLinks.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = location.pathname === tab.path;
-                  return (
-                    <Link
-                      key={tab.path}
-                      to={tab.path}
-                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        isActive
-                          ? 'bg-[#07CB6C]/15 text-[#07CB6C] font-semibold border border-[#07CB6C]/30 shadow-sm'
-                          : 'text-neutral-400 hover:text-white border border-transparent'
-                      }`}
-                    >
-                      <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#07CB6C]' : 'text-neutral-400'}`} />
-                      <span>{tab.name}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-          </div>
-
-          {/* Right Actions: Offline Alert & User Auth */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Show only if offline */}
-            {apiStatus === 'offline' && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                <span className="text-[11px] font-medium">Offline</span>
-              </div>
-            )}
-
-            {user ? (
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs">
-                  <span className="w-5 h-5 rounded-full bg-[#07CB6C]/20 border border-[#07CB6C]/30 flex items-center justify-center text-[#07CB6C] font-mono text-[10px] font-bold">
-                    {user.email.slice(0, 2).toUpperCase()}
-                  </span>
-                  <span className="text-neutral-300 max-w-[140px] truncate hidden sm:inline text-xs font-medium">
-                    {user.email}
-                  </span>
-                </div>
-                <button
-                  id="btn-logout"
-                  onClick={logout}
-                  title="Log out"
-                  aria-label="Log out"
-                  className="min-h-[36px] min-w-[36px] p-2 rounded-xl bg-white/5 border border-white/10 hover:border-rose-500/40 text-neutral-400 hover:text-rose-400 transition-colors cursor-pointer flex items-center justify-center"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  id="btn-signin-nav"
-                  onClick={() => openAuthModal('signin')}
-                  className="min-h-[38px] px-3.5 py-1.5 text-xs font-medium text-neutral-400 hover:text-white transition-colors rounded-xl cursor-pointer flex items-center"
-                >
-                  Sign In
-                </button>
-                <button
-                  id="btn-getstarted-nav"
-                  onClick={() => openAuthModal('signup')}
-                  className="min-h-[38px] flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-xs font-semibold shadow-[0_0_15px_rgba(7,203,108,0.2)] transition-all cursor-pointer"
-                >
-                  <span>Get Started</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Mobile Bottom Navigation Bar (Visible only on < 768px for authenticated users) */}
-      {user && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#070b09]/90 backdrop-blur-xl border-t border-white/10 px-6 py-2 flex items-center justify-around pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-2xl">
-          {navLinks.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = location.pathname === tab.path;
-            return (
+          {/* Navigation Tabs (Only visible when user has an active goal) */}
+          {user && activeGoal && (
+            <nav className="hidden sm:flex items-center gap-1.5" aria-label="Main Navigation">
               <Link
-                key={tab.path}
-                to={tab.path}
-                className={`flex flex-col items-center gap-1 py-1 px-4 rounded-xl text-[11px] font-medium transition-all ${
-                  isActive
-                    ? 'text-[#07CB6C] font-semibold scale-105'
-                    : 'text-neutral-400 hover:text-white'
+                to="/dashboard"
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                  location.pathname === '/dashboard'
+                    ? 'bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/25 shadow-xs'
+                    : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? 'text-[#07CB6C]' : 'text-neutral-400'}`} />
-                <span>{tab.name}</span>
+                <span>Today</span>
               </Link>
-            );
-          })}
-        </nav>
-      )}
-    </>
+
+              <Link
+                to="/roadmap"
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+                  location.pathname === '/roadmap'
+                    ? 'bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/25 shadow-xs'
+                    : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
+                }`}
+              >
+                <span>Roadmap</span>
+              </Link>
+            </nav>
+          )}
+        </div>
+
+        {/* Mobile Navigation Tabs (Shown under top bar if needed or compact in bar) */}
+        {user && activeGoal && (
+          <div className="flex sm:hidden items-center gap-1">
+            <Link
+              to="/dashboard"
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                location.pathname === '/dashboard'
+                  ? 'bg-[#07CB6C]/15 text-[#07CB6C]'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              Today
+            </Link>
+            <Link
+              to="/roadmap"
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                location.pathname === '/roadmap'
+                  ? 'bg-[#07CB6C]/15 text-[#07CB6C]'
+                  : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              Roadmap
+            </Link>
+          </div>
+        )}
+
+        {/* Right Actions */}
+        <div className="flex items-center gap-2.5">
+          {/* Offline indicator — only shown when offline */}
+          {apiStatus === 'offline' && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+              <span className="text-[11px] font-medium">Offline</span>
+            </div>
+          )}
+
+          {user ? (
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex items-center gap-2 p-1 pl-1.5 pr-2 rounded-md hover:bg-white/5 border border-white/5 hover:border-white/10 transition-colors cursor-pointer focus-visible:outline-none"
+                aria-expanded={isMenuOpen}
+                aria-haspopup="true"
+              >
+                <span className="w-6 h-6 rounded-full bg-[#07CB6C]/15 border border-[#07CB6C]/25 flex items-center justify-center text-[#07CB6C] font-mono text-[10px] font-bold">
+                  {user.email ? user.email.slice(0, 2).toUpperCase() : 'U'}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+              </button>
+
+              {/* Profile / Settings Dropdown Menu */}
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-[#0c1210] border border-[#1a2824] rounded-md shadow-xl py-1.5 z-50 animate-fadeIn">
+                  <div className="px-3.5 py-2 border-b border-[#1a2824]/80">
+                    <p className="text-[11px] text-neutral-500 uppercase tracking-wider font-mono">
+                      Signed in as
+                    </p>
+                    <p className="text-xs text-white font-medium truncate mt-0.5">
+                      {user.email}
+                    </p>
+                    {activeGoal && (
+                      <p className="text-[11px] text-[#07CB6C] truncate mt-1">
+                        Week {activeGoal.currentWeek || 1} • {formatGoalTitle(activeGoal.clarifiedOutcome, activeGoal.rawGoal)}
+                      </p>
+                    )}
+                  </div>
+
+                  {activeGoal && (
+                    <div className="py-1 border-b border-[#1a2824]/80">
+                      <button
+                        type="button"
+                        disabled={isResetting}
+                        onClick={handleResetPlan}
+                        className="w-full px-3.5 py-2 text-left text-xs text-neutral-300 hover:text-amber-400 hover:bg-white/5 flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                        <span>{isResetting ? 'Resetting...' : 'Reset 90-Day Plan'}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full px-3.5 py-2 text-left text-xs text-neutral-300 hover:text-rose-400 hover:bg-white/5 flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 shrink-0" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                id="btn-signin-nav"
+                onClick={() => openAuthModal('signin')}
+                className="min-h-[36px] px-3 py-1.5 text-xs font-medium text-neutral-400 hover:text-white transition-colors rounded-md cursor-pointer"
+              >
+                Sign In
+              </button>
+              <button
+                id="btn-getstarted-nav"
+                onClick={() => openAuthModal('signup')}
+                className="min-h-[36px] px-4 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-xs font-semibold transition-all cursor-pointer"
+              >
+                Get Started
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
   );
 };
+
+export default Navbar;

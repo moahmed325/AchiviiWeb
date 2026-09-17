@@ -3,16 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
-import { userGoalRouter, goalsRouter } from './routes/userGoal.js';
-import { sessionsRouter } from './routes/sessions.js';
-import { progressRouter } from './routes/progress.js';
-import { recoveryRouter } from './routes/recovery.js';
-import { reflectionRouter } from './routes/reflection.js';
-import { graduationRouter } from './routes/graduation.js';
-import { notificationsRouter } from './routes/notifications.js';
-import { analyticsRouter } from './routes/analytics.js';
-import { adaptiveRouter } from './routes/adaptive.js';
-import { lifeRouter } from './routes/life.js';
+import { goalRouter } from './routes/goal.js';
 
 dotenv.config();
 
@@ -50,18 +41,7 @@ app.use(express.json());
 // Routes
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
-app.use('/api/user-goal', userGoalRouter);
-app.use('/api/goals', goalsRouter);
-app.use('/api/sessions', sessionsRouter);
-app.use('/api/progress', progressRouter);
-app.use('/api/recovery', recoveryRouter);
-app.use('/api/reflection', reflectionRouter);
-app.use('/api/graduation', graduationRouter);
-app.use('/api/profile', graduationRouter);
-app.use('/api/notifications', notificationsRouter);
-app.use('/api/analytics', analyticsRouter);
-app.use('/api/adaptive', adaptiveRouter);
-app.use('/api/life', lifeRouter);
+app.use('/api/goal', goalRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 Achivii Backend API running on http://localhost:${PORT}`);

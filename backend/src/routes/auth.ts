@@ -65,7 +65,7 @@ export async function getAuthUser(req: Request) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: { id: true, email: true, timezone: true, created_at: true, user_memory: true },
+      select: { id: true, email: true, timezone: true, created_at: true },
     });
     return user;
   } catch {

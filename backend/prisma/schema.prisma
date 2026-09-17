@@ -8,357 +8,102 @@ generator client {
 }
 
 model User {
-  id                 String             @id @default(uuid())
-  email              String             @unique
-  password_hash      String
-  timezone              String             @default("UTC")
-  best_working_hours    Json?              @map("best_working_hours")
-  lapse_pattern_summary Json?              @map("lapse_pattern_summary")
-  user_memory           String?            @map("user_memory")
-  created_at            DateTime           @default(now())
-  user_goals            UserGoal[]
-  availability_slots    AvailabilitySlot[]
-  life_structure        LifeStructure?
-  daily_schedule_items  DailyScheduleItem[]
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  timezone      String   @default("UTC")
+  created_at    DateTime @default(now())
+
+  goals         Goal[]
 
   @@map("users")
 }
 
-model GoalCatalog {
-  id                   String     @id @default(uuid())
-  title                String
-  description          String
-  category             String
-  icon                 String
-  est_weekly_hours     Int
-  onboarding_questions Json?
-  blueprint_metadata   Json?
-  created_at           DateTime   @default(now())
-  phases               Phase[]
-  user_goals           UserGoal[]
+model Goal {
+  id               String         @id @default(uuid())
+  userId           String
+  rawGoal          String
+  clarifiedOutcome String
+  methodologyNotes String         @default("")
+  status           String         @default("active")
+  startDate        DateTime       @default(now())
+  targetDate       DateTime
+  currentWeek      Int            @default(1)
+  answers          String         @default("{}")
+  routine          String         @default("{}")
+  created_at       DateTime       @default(now())
+  updated_at       DateTime       @updatedAt
 
-  @@map("goal_catalogs")
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roadmapWeeks     RoadmapWeek[]
+  dailyTasks       DailyTask[]
+  weeklyReviews    WeeklyReview[]
+
+  @@map("goals")
 }
 
-model Phase {
-  id              String         @id @default(uuid())
-  goal_catalog_id String
-  phase_order     Int
-  title           String
-  duration_weeks  Int
-  goal_catalog    GoalCatalog    @relation(fields: [goal_catalog_id], references: [id], onDelete: Cascade)
-  task_templates  TaskTemplate[]
+model RoadmapWeek {
+  id              String   @id @default(uuid())
+  goalId          String
+  weekNumber      Int
+  phase           String
+  theme           String
+  objective       String
+  keyMilestone    String
+  targetIntensity Int      @default(60)
+  plannedMinutes  Int      @default(30)
+  status          String   @default("pending")
+  executionScore  Float?
+  reviewNotes     String?
+  created_at      DateTime @default(now())
 
-  @@map("phases")
+  goal            Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, weekNumber])
+  @@map("roadmap_weeks")
 }
 
-model TaskTemplate {
-  id                       String    @id @default(uuid())
-  phase_id                 String
-  title                    String
-  sessions_per_week        Int
-  session_duration_minutes Int
-  preferred_time_of_day    String?
-  phase                    Phase     @relation(fields: [phase_id], references: [id], onDelete: Cascade)
-  sessions                 Session[]
+model DailyTask {
+  id                      String    @id @default(uuid())
+  goalId                  String
+  weekNumber              Int
+  dayNumber               Int
+  date                    String
+  dayOfWeek               String    @default("Monday")
+  title                   String
+  detailedSteps           String
+  implementationIntention String
+  durationMinutes         Int       @default(30)
+  slotTime                String?
+  isRestDay               Boolean   @default(false)
+  status                  String    @default("pending")
+  completedAt             DateTime?
+  notes                   String?
+  resourceTitle           String?
+  resourceUrl             String?
+  resourceType            String?
+  resourceWhy             String?
+  created_at              DateTime  @default(now())
 
-  @@map("task_templates")
-}
+  goal                    Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
-model UserGoal {
-  id                      String      @id @default(uuid())
-  user_id                 String
-  goal_catalog_id         String
-  start_date              DateTime
-  target_end_date         DateTime
-  status                  String      @default("ACTIVE") // ACTIVE, COMPLETED, ABANDONED
-  slippage_days           Int         @default(0)
-  current_plan_day_offset Int         @default(0)
-  user                    User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  goal_catalog            GoalCatalog @relation(fields: [goal_catalog_id], references: [id])
-  selected_roadmap_id                  String?
-  paused_at                            DateTime?               @map("paused_at")
-  outcome_statement                    String?
-  verification_criteria                String?
-  deadline_type                        String                  @default("SOFT") // "HARD" | "SOFT"
-  goal_integrity_status                String                  @default("INTACT") // "INTACT" | "AT_RISK" | "COMPROMISED" | "REVISED"
-  feasibility_zone                     String                  @default("GREEN") // "GREEN" | "YELLOW" | "RED"
-  confidence_level                     String                  @default("MODERATE") // "HIGH" | "MODERATE" | "LOW"
-  projected_completion_date            DateTime?
-  sustainable_weekly_capacity_hours    Float                   @default(6.0)
-  current_med_hours                    Float                   @default(4.5)
-  current_reliability_margin_hours     Float                   @default(1.5)
-  active_bottleneck_capability_id      String?
-  priority_rank                        Int                     @default(1)
-  sessions                             Session[]
-  recovery_events                      RecoveryEvent[]
-  weekly_reviews                       WeeklyReview[]
-  roadmaps                             Roadmap[]
-  capabilities                         GoalCapability[]
-  trajectory_versions                  TrajectoryVersion[]
-  diagnostic_events                    DiagnosticEvent[]
-  replan_audits                        ReplanAudit[]
-  strategic_reviews                    WeeklyStrategicReview[]
-  daily_schedule_items                 DailyScheduleItem[]
-
-  @@map("user_goals")
-}
-
-model RecoveryEvent {
-  id                   String   @id @default(uuid())
-  user_goal_id         String
-  timestamp            DateTime @default(now())
-  trigger_condition    String
-  user_choice          String
-  resulting_adjustment Json?
-  user_goal            UserGoal @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
-
-  @@map("recovery_events")
+  @@index([goalId, weekNumber])
+  @@map("daily_tasks")
 }
 
 model WeeklyReview {
-  id                   String    @id @default(uuid())
-  user_goal_id         String
-  week_number          Int
-  completion_rate      Float
-  reflection_type      String    // 'single_tap' | 'full'
-  reflection_responses Json?
-  created_at           DateTime  @default(now())
-  user_goal            UserGoal  @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
+  id                  String   @id @default(uuid())
+  goalId              String
+  weekNumber          Int
+  tasksPlanned        Int
+  tasksCompleted      Int
+  scorePercentage     Float
+  reflection          String?
+  aiAdaptationInsight String?
+  created_at          DateTime @default(now())
 
-  @@unique([user_goal_id, week_number])
+  goal                Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, weekNumber])
   @@map("weekly_reviews")
-}
-
-model Roadmap {
-  id                     String    @id @default(uuid())
-  user_goal_id           String
-  name                   String
-  description            String
-  trade_offs             String
-  days_per_week          Int
-  daily_minutes_variance Int       @default(0)
-  phase_emphasis         Json?
-  created_at             DateTime  @default(now())
-  user_goal              UserGoal  @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
-
-  @@map("roadmaps")
-}
-
-model AvailabilitySlot {
-  id          String  @id @default(uuid())
-  user_id     String
-  day_of_week String  // MON, TUE, WED, THU, FRI, SAT
-  start_time  String
-  end_time    String
-  label       String?
-  user        User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@map("availability_slots")
-}
-
-enum SessionTier {
-  core
-  buffer
-  reflect
-}
-
-model Session {
-  id                 String       @id @default(uuid())
-  user_goal_id       String
-  task_template_id   String
-  day_number         Int?
-  sequence_order     Int?
-  scheduled_date     DateTime?
-  start_time         String?
-  end_time           String?
-  status             String       @default("UPCOMING") // UPCOMING, DONE, MISSED, RESCHEDULED
-  tier               SessionTier  @default(core)
-  completed_at_utc   DateTime?
-  idempotency_token  String?
-  execution_state    String       @default("PLANNED")
-  proof_of_work_text String?
-  telemetry_signals  Json?
-  trajectory_item_id String?
-  user_goal          UserGoal     @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
-  task_template      TaskTemplate @relation(fields: [task_template_id], references: [id])
-
-  @@map("sessions")
-}
-
-model GoalCapability {
-  id                String               @id @default(uuid())
-  user_goal_id      String
-  name              String
-  description       String
-  tier              String
-  state             String               @default("UNTESTED")
-  prerequisites_ids Json?
-  target_metric     Float?
-  current_metric    Float?
-  created_at        DateTime             @default(now())
-  user_goal         UserGoal             @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
-  evidences         CapabilityEvidence[]
-
-  @@map("goal_capabilities")
-}
-
-model CapabilityEvidence {
-  id                String         @id @default(uuid())
-  capability_id     String
-  proof_type        String
-  payload           Json?
-  confidence_weight Float          @default(1.0)
-  recorded_at       DateTime       @default(now())
-  capability        GoalCapability @relation(fields: [capability_id], references: [id], onDelete: Cascade)
-
-  @@map("capability_evidences")
-}
-
-model TrajectoryVersion {
-  id                   String           @id @default(uuid())
-  user_goal_id         String
-  version_number       Int
-  trigger_type         String
-  projected_completion DateTime
-  confidence_score     Float
-  is_active            Boolean          @default(true)
-  created_at           DateTime         @default(now())
-  user_goal            UserGoal         @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
-  items                TrajectoryItem[]
-  replans_to           ReplanAudit[]    @relation("ToTrajectory")
-  replans_from         ReplanAudit[]    @relation("FromTrajectory")
-
-  @@map("trajectory_versions")
-}
-
-model TrajectoryItem {
-  id                        String              @id @default(uuid())
-  trajectory_version_id     String
-  target_capability_id      String?
-  intervention_name         String
-  planned_week              Int
-  priority_tier             Int
-  standard_duration_minutes Int
-  reduced_duration_minutes  Int
-  mvs_duration_minutes      Int
-  preferred_window          String?
-  energy_requirement        String?
-  fallback_options          Json?
-  created_at                DateTime            @default(now())
-  trajectory_version        TrajectoryVersion   @relation(fields: [trajectory_version_id], references: [id], onDelete: Cascade)
-  daily_schedule_items      DailyScheduleItem[]
-
-  @@map("trajectory_items")
-}
-
-model DiagnosticEvent {
-  id                 String    @id @default(uuid())
-  user_goal_id       String
-  trigger_reason     String
-  category           String
-  root_cause_details String
-  is_persistent      Boolean   @default(false)
-  resolved_at        DateTime?
-  created_at         DateTime  @default(now())
-  user_goal          UserGoal  @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
-
-  @@map("diagnostic_events")
-}
-
-model ReplanAudit {
-  id                 String             @id @default(uuid())
-  user_goal_id       String
-  from_trajectory_id String?
-  to_trajectory_id   String?
-  primary_action     String
-  decision_trace     Json
-  created_at         DateTime           @default(now())
-  user_goal          UserGoal           @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
-  from_trajectory    TrajectoryVersion? @relation("FromTrajectory", fields: [from_trajectory_id], references: [id])
-  to_trajectory      TrajectoryVersion? @relation("ToTrajectory", fields: [to_trajectory_id], references: [id])
-
-  @@map("replan_audits")
-}
-
-model WeeklyStrategicReview {
-  id           String    @id @default(uuid())
-  user_goal_id String
-  week_number  Int
-  answers      Json
-  state_deltas Json?
-  created_at   DateTime  @default(now())
-  user_goal    UserGoal  @relation(fields: [user_goal_id], references: [id], onDelete: Cascade)
-
-  @@map("weekly_strategic_reviews")
-}
-
-model LifeStructure {
-  id                   String         @id @default(uuid())
-  user_id              String         @unique
-  wake_time            String         @default("07:00")
-  sleep_time           String         @default("23:00")
-  target_sleep_hours   Float          @default(8.0)
-  schedule_rigidity    String         @default("MODERATE") // "FLEXIBLE" | "MODERATE" | "STRICT"
-  schedule_reliability String         @default("HIGH")     // "HIGH" | "MEDIUM" | "LOW"
-  buffer_minutes       Int            @default(30)
-  energy_profile       String?
-  created_at           DateTime       @default(now())
-  updated_at           DateTime       @updatedAt
-  user                 User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  routine_blocks       RoutineBlock[]
-
-  @@map("life_structures")
-}
-
-model RoutineBlock {
-  id                    String              @id @default(uuid())
-  life_structure_id     String
-  title                 String              // e.g. "Work Shift", "Morning Routine", "Dinner", "Commute"
-  category              String              // "WORK" | "SLEEP" | "ROUTINE" | "COMMUTE" | "MEAL" | "PERSONAL" | "FAMILY"
-  day_of_week           String?             // "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN"
-  days_of_week          String              @default("[1,2,3,4,5]") // JSON array e.g. [1,2,3,4,5]
-  start_time            String              // "09:00"
-  end_time              String              // "17:00"
-  flexibility           String              @default("FIXED") // "FIXED" | "PREFERRED" | "FLEXIBLE"
-  energy_level          String              @default("MODERATE") // "HIGH" | "MODERATE" | "LOW"
-  is_hard_constraint    Boolean             @default(true)
-  buffer_before_minutes Int                 @default(0)
-  buffer_after_minutes  Int                 @default(0)
-  life_structure        LifeStructure       @relation(fields: [life_structure_id], references: [id], onDelete: Cascade)
-  daily_schedule_items  DailyScheduleItem[]
-
-  @@map("routine_blocks")
-}
-
-model DailyScheduleItem {
-  id                     String          @id @default(uuid())
-  user_id                String
-  date                   DateTime
-  start_time             String          // "07:30"
-  end_time               String          // "08:15"
-  title                  String
-  description            String?
-  category               String?
-  item_type              String          // "AMBITION" | "AMBITION_DOSE" | "ROUTINE" | "BUFFER"
-  status                 String          @default("SCHEDULED") // "SCHEDULED" | "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "MISSED" | "SKIPPED" | "SKIPPED_INTENTIONAL"
-  trajectory_item_id     String?
-  user_goal_id           String?
-  goal_id                String?
-  routine_block_id       String?
-  dose_type              String?         // "STANDARD" | "REDUCED" | "MVS"
-  duration_minutes       Int             @default(45)
-  allocated_minutes      Int?
-  minimum_viable_minutes Int?
-  energy_level           String?
-  is_fixed               Boolean         @default(false)
-  is_locked              Boolean         @default(false)
-  completed_at           DateTime?
-  user                   User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  trajectory_item        TrajectoryItem? @relation(fields: [trajectory_item_id], references: [id], onDelete: SetNull)
-  user_goal              UserGoal?       @relation(fields: [user_goal_id], references: [id], onDelete: SetNull)
-  routine_block          RoutineBlock?   @relation(fields: [routine_block_id], references: [id], onDelete: SetNull)
-
-  @@index([user_id, date])
-  @@map("daily_schedule_items")
 }

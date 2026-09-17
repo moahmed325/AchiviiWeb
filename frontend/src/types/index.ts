@@ -1,164 +1,8 @@
-export type DayOfWeek = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT';
-
 export interface User {
   id: string;
   email: string;
   timezone?: string;
   created_at: string;
-}
-
-export interface TaskTemplate {
-  id: string;
-  phase_id: string;
-  title: string;
-  description?: string | null;
-  sessions_per_week: number;
-  session_duration_minutes: number;
-  preferred_time_of_day?: 'morning' | 'afternoon' | 'evening' | string | null;
-  phase?: Phase;
-}
-
-export interface Phase {
-  id: string;
-  goal_catalog_id: string;
-  phase_order: number;
-  title: string;
-  duration_weeks: number;
-  task_templates: TaskTemplate[];
-}
-
-export interface GoalCatalog {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  icon: string;
-  est_weekly_hours: number;
-  onboarding_questions?: string | null;
-  blueprint_metadata?: string | null;
-  created_at: string;
-  phases: Phase[];
-}
-
-export interface AvailabilitySlot {
-  id?: string;
-  user_id?: string;
-  day_of_week: DayOfWeek;
-  start_time: string; // e.g. "09:00"
-  end_time: string;   // e.g. "17:00"
-  label?: string | null;
-  category?: string | null;
-}
-
-export interface Roadmap {
-  id: string;
-  user_goal_id: string;
-  name: string;
-  description: string;
-  trade_offs: string;
-  days_per_week: number;
-  daily_minutes_variance: number;
-  phase_emphasis?: Record<string, number> | null;
-  created_at: string;
-}
-
-export interface UserGoal {
-  id: string;
-  user_id: string;
-  goal_catalog_id: string;
-  outcome_statement?: string;
-  priority_rank?: number;
-  sustainable_weekly_capacity_hours?: number;
-  start_date: string;
-  target_end_date: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'ABANDONED';
-  slippage_days: number;
-  selected_roadmap_id?: string | null;
-  goal_catalog?: GoalCatalog;
-  selected_roadmap?: Roadmap | null;
-}
-
-export interface Session {
-  id: string;
-  user_goal_id: string;
-  task_template_id: string;
-  scheduled_date: string; // ISO string
-  start_time: string;     // HH:MM
-  end_time: string;       // HH:MM
-  status: 'UPCOMING' | 'DONE' | 'MISSED' | 'RESCHEDULED';
-  tier?: 'core' | 'buffer' | 'reflect';
-  task_template?: TaskTemplate;
-}
-
-export interface WeekSessionsResponse {
-  weekOffset: number;
-  weekNumber: number;
-  totalWeeks: number;
-  startDate: string;
-  endDate: string;
-  phase: Phase;
-  goal: {
-    id: string;
-    title: string;
-    slippage_days: number;
-    start_date: string;
-    target_end_date: string;
-  };
-  sessions: Session[];
-  availabilitySlots: AvailabilitySlot[];
-  pendingRecovery?: PendingRecoveryState | null;
-}
-
-export interface PendingRecoveryState {
-  pending: boolean;
-  user_goal_id: string;
-  tier?: 'TIER_2_PENDING';
-  reason?: 'CONSECUTIVE_DAYS_MISSED' | 'NO_FREE_SLOTS' | 'MANUAL';
-  consecutive_missed_days?: number;
-  missed_session_count?: number;
-  rolling_28_day_events: number;
-  circuit_breaker_active: boolean;
-  options?: ('shrink_week' | 'shift_timeline' | 'scope_reduction' | 'pause_goal')[];
-}
-
-export interface PendingReflectionState {
-  pending: boolean;
-  deferred?: boolean;
-  defer_reason?: string;
-  user_goal_id: string;
-  week_number?: number;
-  completion_rate?: number;
-  reflection_type?: 'single_tap' | 'full';
-  questions?: {
-    id: string;
-    question: string;
-    type: 'text' | 'choice';
-    options?: string[];
-  }[];
-  prompt_copy?: {
-    headline: string;
-    subheadline: string;
-    confirm_button: string;
-  };
-}
-
-export interface OnboardingPayload {
-  goal_catalog_id: string;
-  start_date: string;
-  availability_slots: AvailabilitySlot[];
-  timezone?: string;
-}
-
-export interface OnboardingResponse {
-  message: string;
-  user_goal: UserGoal;
-  availability_slots: AvailabilitySlot[];
-  sessions_generated?: number;
-}
-
-export interface CurrentGoalResponse {
-  user_goal: UserGoal | null;
-  availability_slots: AvailabilitySlot[];
 }
 
 export interface AuthResponse {
@@ -167,117 +11,146 @@ export interface AuthResponse {
   user: User;
 }
 
-export interface CatalogResponse {
-  goals: GoalCatalog[];
+export interface ScientificFramework {
+  name: string;
+  description: string;
+  application: string;
 }
 
-export interface RescheduleAction {
-  sessionId: string;
-  taskTitle: string;
-  originalDate: string;
-  originalTime: string;
-  newDate: string;
-  newTime: string;
-  actionType: 'REALLOCATED_SAME_WEEK' | 'SHIFTED_NEXT_WEEK';
-  details: string;
-}
-
-export interface RescheduleResult {
-  missedDetectedCount: number;
-  rescheduledCount: number;
-  sameWeekReallocatedCount: number;
-  planShiftCount: number;
-  slippageDaysAdded: number;
-  totalSlippageDays: number;
-  guardrailTriggered: boolean;
-  actions: RescheduleAction[];
-}
-
-export interface RescheduleResponse {
-  message: string;
-  result: RescheduleResult;
-}
-
-export type PaceStatus = 'ON_TRACK' | 'BEHIND_PACE' | 'GUARDRAIL_ALERT';
-
-export interface PhaseProgressBreakdown {
+export interface FollowUpQuestion {
   id: string;
-  phase_order: number;
+  question: string;
+  subtitle: string;
+  options: string[];
+  allowCustom: boolean;
+}
+
+export interface GoalClarification {
+  clarifiedOutcome: string;
+  primaryDomain: string;
+  capabilities?: string[];
+  scientificFrameworks: ScientificFramework[];
+  verificationCriteria: string;
+  followUpQuestions: FollowUpQuestion[];
+}
+
+export interface RoutineSettings {
+  wakeTime: string; // e.g. "07:00"
+  sleepTime: string; // e.g. "23:00"
+  busyHours: string; // e.g. "09:00 - 17:00"
+  preferredSlot: 'morning' | 'afternoon' | 'evening';
+  dailyMinutes: number; // 30, 45, 60, 90
+  planVariant?: 'steady' | 'accelerated' | 'minimal';
+}
+
+export type ResourceType =
+  | 'youtube_video'
+  | 'documentation'
+  | 'scientific_study'
+  | 'interactive_tool'
+  | 'guide'
+  | 'video';
+
+export interface DetailedStep {
+  stepNumber: number;
   title: string;
-  duration_weeks: number;
-  totalSessions: number;
-  completedSessions: number;
-  completionPercentage: number;
-  status: 'COMPLETED' | 'IN_PROGRESS' | 'UPCOMING';
-  taskTemplates: {
-    id: string;
-    title: string;
-    sessions_per_week: number;
-    session_duration_minutes: number;
-  }[];
+  durationMinutes: number;
+  instructions: string;
+  focusCue: string;
+  pitfallToAvoid: string;
+  resourceTitle?: string;
+  resourceUrl?: string;
+  resourceType?: ResourceType;
+  resourceWhy?: string;
 }
 
-export interface GoalProgressResponse {
-  goal: {
-    id: string;
-    title: string;
-    description: string;
-    category: string;
-    icon: string;
-    startDate: string;
-    originalTargetDate: string;
-    projectedTargetDate: string;
-    slippageDays: number;
-    daysElapsed: number;
-    daysRemaining: number;
-    paceStatus: PaceStatus;
-  };
-  metrics: {
-    totalSessions: number;
-    completedSessions: number;
-    upcomingSessions: number;
-    rescheduledSessions: number;
-    missedSessions: number;
-    completionPercentage: number;
-    completedHours: number;
-    totalHours: number;
-    currentWeek: number;
-    totalWeeks: number;
-    currentPhase: PhaseProgressBreakdown | null;
-  };
-  phaseBreakdown: PhaseProgressBreakdown[];
-  recentActivity: {
-    id: string;
-    taskTitle: string;
-    scheduledDate: string;
-    startTime: string;
-    endTime: string;
-    status: string;
-  }[];
+export interface DailyTask {
+  id: string;
+  goalId: string;
+  weekNumber: number;
+  dayNumber: number;
+  date: string;
+  dayOfWeek: string;
+  title: string;
+  detailedSteps: string; // JSON string of DetailedStep[]
+  implementationIntention: string;
+  durationMinutes: number;
+  slotTime?: string;
+  isRestDay: boolean;
+  status: 'pending' | 'completed' | 'skipped';
+  completedAt?: string;
+  notes?: string;
+  resourceTitle?: string;
+  resourceUrl?: string;
+  resourceType?: ResourceType;
+  resourceWhy?: string;
+  created_at: string;
 }
 
-export type GraduationChoice = 'start_new_goal' | 'maintenance_mode' | 'pause';
-
-export interface GraduationState {
-  eligible: boolean;
-  user_goal_id: string;
-  goal_title: string;
-  status: string;
-  elapsed_days: number;
-  remaining_plan_days: number;
-  total_plan_days: number;
-  completed_sessions: number;
-  total_sessions: number;
-  completion_rate: number;
-  options: GraduationChoice[];
-  graduation_message?: string;
+export interface RoadmapWeek {
+  id: string;
+  goalId: string;
+  weekNumber: number;
+  phase: 'Foundation' | 'Acceleration' | 'Mastery';
+  theme: string;
+  objective: string;
+  keyMilestone: string;
+  targetIntensity: number;
+  plannedMinutes: number;
+  status: 'active' | 'pending' | 'completed' | 'adapted';
+  executionScore?: number;
+  reviewNotes?: string;
+  created_at: string;
 }
 
-export interface OnboardingLearnedDefaults {
-  has_historical_data: boolean;
-  preferred_time_of_day: 'morning' | 'afternoon' | 'evening' | 'flexible';
-  recommended_days_per_week: number;
-  suggested_session_duration_minutes: number;
-  high_completion_days: string[];
-  coaching_insight?: string;
+export interface WeeklyReview {
+  id: string;
+  goalId: string;
+  weekNumber: number;
+  tasksPlanned: number;
+  tasksCompleted: number;
+  scorePercentage: number;
+  reflection?: string;
+  aiAdaptationInsight?: string;
+  created_at: string;
+}
+
+export interface Goal {
+  id: string;
+  userId: string;
+  rawGoal: string;
+  clarifiedOutcome: string;
+  methodologyNotes: string;
+  status: 'active' | 'completed' | 'paused' | 'archived';
+  startDate: string;
+  targetDate: string;
+  currentWeek: number;
+  answers: string; // JSON string
+  routine: string; // JSON string
+  created_at: string;
+  updated_at: string;
+  roadmapWeeks?: RoadmapWeek[];
+  dailyTasks?: DailyTask[];
+  weeklyReviews?: WeeklyReview[];
+}
+
+export interface CreateGoalPayload {
+  rawGoal: string;
+  clarifiedOutcome: string;
+  answers: Record<string, string>;
+  routine: RoutineSettings;
+  startDate?: string;
+}
+
+export interface CreateGoalResponse {
+  goal: Goal;
+  roadmapWeeks: RoadmapWeek[];
+  dailyTasks: DailyTask[];
+}
+
+export interface WeeklyReviewResponse {
+  review: WeeklyReview;
+  scorePercentage: number;
+  nextWeekNumber: number | null;
+  nextWeekTasks: DailyTask[];
 }
