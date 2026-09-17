@@ -27,6 +27,7 @@ import { updateDailyTask, submitWeeklyReview, fetchActiveGoal } from '../lib/api
 import { formatGoalTitle } from '../lib/formatters';
 import { FullDayVisualizer } from './FullDayVisualizer';
 import { FocusSessionModal } from './FocusSessionModal';
+import { StepChallengeWidget } from './StepChallengeWidget';
 
 interface StepResourceConfig {
   badgeLabel: string;
@@ -704,6 +705,11 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                     <p className="text-xs sm:text-sm text-neutral-300 pl-8 leading-relaxed">
                       {step.instructions}
                     </p>
+
+                    {/* Interactive Challenge Widget */}
+                    <div className="pl-8 pt-1">
+                      <StepChallengeWidget step={step} />
+                    </div>
 
                     {/* Tips — simplified */}
                     {(step.focusCue || step.pitfallToAvoid) && (

@@ -51,6 +51,41 @@ export type ResourceType =
   | 'guide'
   | 'video';
 
+export type ChallengeType = 'repetitions' | 'active_recall' | 'checklist' | 'exercise';
+
+export interface RepetitionsChallenge {
+  type: 'repetitions';
+  drillName: string;
+  targetCount: number;
+  totalSets: number;
+  unit: string; // e.g. "reps", "seconds", "measures", "rounds"
+}
+
+export interface ActiveRecallChallenge {
+  type: 'active_recall';
+  question: string;
+  hint?: string;
+  keyTakeaway: string;
+}
+
+export interface ChecklistChallenge {
+  type: 'checklist';
+  items: Array<{ id: string; label: string }>;
+}
+
+export interface ExerciseChallenge {
+  type: 'exercise';
+  prompt: string;
+  targetDeliverable: string;
+  evaluationCriteria: string;
+}
+
+export type StepChallenge =
+  | RepetitionsChallenge
+  | ActiveRecallChallenge
+  | ChecklistChallenge
+  | ExerciseChallenge;
+
 export interface DetailedStep {
   stepNumber: number;
   title: string;
@@ -58,6 +93,7 @@ export interface DetailedStep {
   instructions: string;
   focusCue: string;
   pitfallToAvoid: string;
+  challenge?: StepChallenge;
   resourceTitle?: string;
   resourceUrl?: string;
   resourceType?: ResourceType;

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { DailyTask, DetailedStep } from '../types';
 import { playSessionStart, playStepTransition, playSessionComplete } from '../lib/audio';
+import { StepChallengeWidget } from './StepChallengeWidget';
 
 interface FocusSessionModalProps {
   task: DailyTask;
@@ -363,10 +364,13 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
                     <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
                       {currentStep.title}
                     </h3>
-                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-h-32 overflow-y-auto pr-1">
+                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-h-24 overflow-y-auto pr-1">
                       {currentStep.instructions}
                     </p>
                   </div>
+
+                  {/* Interactive Challenge Widget */}
+                  <StepChallengeWidget step={currentStep} />
 
                   {/* Collapsible Tips & Guidance Toggle */}
                   {(currentStep.focusCue || currentStep.pitfallToAvoid) && (

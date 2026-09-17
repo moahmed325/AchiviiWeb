@@ -29,6 +29,55 @@ export interface RoadmapWeekPlan {
   plannedMinutes: number;
 }
 
+export type ChallengeType = 'repetitions' | 'active_recall' | 'checklist' | 'exercise';
+
+export interface RepetitionsChallenge {
+  type: 'repetitions';
+  drillName: string;
+  targetCount: number;
+  totalSets: number;
+  unit: string; // e.g. "reps", "seconds", "measures", "rounds"
+}
+
+export interface ActiveRecallChallenge {
+  type: 'active_recall';
+  question: string;
+  hint?: string;
+  keyTakeaway: string;
+}
+
+export interface ChecklistChallenge {
+  type: 'checklist';
+  items: Array<{ id: string; label: string }>;
+}
+
+export interface ExerciseChallenge {
+  type: 'exercise';
+  prompt: string;
+  targetDeliverable: string;
+  evaluationCriteria: string;
+}
+
+export type StepChallenge =
+  | RepetitionsChallenge
+  | ActiveRecallChallenge
+  | ChecklistChallenge
+  | ExerciseChallenge;
+
+export interface DetailedStep {
+  stepNumber: number;
+  title: string;
+  durationMinutes: number;
+  instructions: string;
+  focusCue: string;
+  pitfallToAvoid: string;
+  challenge?: StepChallenge;
+  resourceTitle?: string;
+  resourceUrl?: string;
+  resourceType?: 'youtube_video' | 'documentation' | 'scientific_study' | 'interactive_tool' | 'guide';
+  resourceWhy?: string;
+}
+
 export interface DailyTaskPlan {
   dayNumber: number;
   dayOfWeek: string;
@@ -41,18 +90,7 @@ export interface DailyTaskPlan {
   resourceUrl?: string;
   resourceType?: 'documentation' | 'video' | 'interactive_tool' | 'guide';
   resourceWhy?: string;
-  detailedSteps: Array<{
-    stepNumber: number;
-    title: string;
-    durationMinutes: number;
-    instructions: string;
-    focusCue: string;
-    pitfallToAvoid: string;
-    resourceTitle?: string;
-    resourceUrl?: string;
-    resourceType?: 'youtube_video' | 'documentation' | 'scientific_study' | 'interactive_tool' | 'guide';
-    resourceWhy?: string;
-  }>;
+  detailedSteps: DetailedStep[];
 }
 
 export interface PlanGenerationResult {
@@ -203,21 +241,26 @@ Required Output:
    - Design exactly ${activeDaysTarget} active deliberate practice days, and ${restDaysTarget} rest days (conforming to the ${planVariant} track).
    - STRICT CONSTRAINT: Never schedule 2 rest days consecutively (The 2-Day Rule).
    - If isRestDay is true, title should be "Active Recovery & Reflection", durationMinutes should be 10 or 15, and detailedSteps should guide low-friction mental review.
-   - Active days must have 3-4 detailedSteps with exact stepNumber, title, durationMinutes (summing to ${dailyMins}), instructions, focusCue, and pitfallToAvoid.
-   - "implementationIntention": formatted as "When: [TIME] | Where: [ENVIRONMENT] | Action: [EXACT ACTION]"
-   - MANDATORY REQUIREMENT — BEST RESOURCE SPECIFIC TO EVERY INDIVIDUAL SUB-TASK / STEP:
-     For EVERY single step in detailedSteps, you MUST provide the single best, most effective resource format to help the user complete that exact step!
-     Choose the format that fits best:
-     * "youtube_video" for visual/motor/audio demonstrations (YouTube walkthrough, visual mechanics)
-     * "documentation" for official technical documentation, syntax specs, or installation guides
-     * "scientific_study" for cognitive science, deliberate practice research, or physiology studies
-     * "interactive_tool" for online coding sandboxes, metronomes, simulators, or testing tools
-     * "guide" for comprehensive step-by-step master guides and cheatsheets
-     Each step must include:
-     * "resourceTitle": Specific resource title for this step
-     * "resourceUrl": Canonical HTTPS URL directly relevant to this step. For "youtube_video", use high-precision search query URL format (e.g. https://www.youtube.com/results?search_query=topic+drill+tutorial) to prevent broken links or deleted video IDs.
-     * "resourceType": One of "youtube_video", "documentation", "scientific_study", "interactive_tool", "guide"
-     * "resourceWhy": One concise sentence telling the user what specifically to look for, watch, or do in that resource.
+    - Active days must have 3-4 detailedSteps with exact stepNumber, title, durationMinutes (summing to ${dailyMins}), instructions, focusCue, pitfallToAvoid, and challenge.
+    - "implementationIntention": formatted as "When: [TIME] | Where: [ENVIRONMENT] | Action: [EXACT ACTION]"
+    - MANDATORY REQUIREMENT — DYNAMIC INTERACTIVE CHALLENGE SPECIFIC TO THE ACTIVITY DOMAIN:
+      For EVERY step, generate an appropriate "challenge" object based on the domain nature of the task:
+      * For physical, motor, instrument, or endurance drills (gym, calisthenics, guitar, tempo):
+        "challenge": { "type": "repetitions", "drillName": "...", "targetCount": 10, "totalSets": 3, "unit": "reps" | "seconds" | "clean bars" }
+      * For cognitive, memory, languages, or conceptual learning:
+        "challenge": { "type": "active_recall", "question": "...", "hint": "...", "keyTakeaway": "..." }
+      * For engineering, coding, writing, or practical building:
+        "challenge": { "type": "checklist", "items": [{ "id": "c1", "label": "..." }, { "id": "c2", "label": "..." }] }
+      * For creative or problem-solving exercises:
+        "challenge": { "type": "exercise", "prompt": "...", "targetDeliverable": "...", "evaluationCriteria": "..." }
+    - MANDATORY REQUIREMENT — BEST RESOURCE SPECIFIC TO EVERY INDIVIDUAL SUB-TASK / STEP:
+      For EVERY single step in detailedSteps, you MUST provide the single best, most effective resource format:
+      * "youtube_video" for visual/motor/audio demonstrations
+      * "documentation" for official technical documentation or installation guides
+      * "scientific_study" for deliberate practice research or physiology studies
+      * "interactive_tool" for online sandboxes, metronomes, or simulators
+      * "guide" for comprehensive step-by-step guides
+      Each step must include: resourceTitle, resourceUrl, resourceType, resourceWhy.
 
 Respond with JSON matching schema:
 {
@@ -251,6 +294,20 @@ Respond with JSON matching schema:
           "instructions": string,
           "focusCue": string,
           "pitfallToAvoid": string,
+          "challenge": {
+            "type": "repetitions" | "active_recall" | "checklist" | "exercise",
+            "drillName"?: string,
+            "targetCount"?: number,
+            "totalSets"?: number,
+            "unit"?: string,
+            "question"?: string,
+            "hint"?: string,
+            "keyTakeaway"?: string,
+            "items"?: [{ "id": string, "label": string }],
+            "prompt"?: string,
+            "targetDeliverable"?: string,
+            "evaluationCriteria"?: string
+          },
           "resourceTitle": string,
           "resourceUrl": string,
           "resourceType": "youtube_video" | "documentation" | "scientific_study" | "interactive_tool" | "guide",
@@ -604,6 +661,13 @@ function getDeterministicWeeklyTasks(
             instructions: 'Begin at 60% speed. Focus on flawless form, posture, and zero unnecessary physical tension.',
             focusCue: 'Smooth and slow is faster than rushed and sloppy.',
             pitfallToAvoid: 'Speeding up before the motion is clean.',
+            challenge: {
+              type: 'repetitions',
+              drillName: 'Clean Form Calibration',
+              targetCount: 10,
+              totalSets: 3,
+              unit: 'slow reps'
+            },
             resourceTitle: 'Biomechanics & Kinetic Alignment Walkthrough',
             resourceUrl: 'https://www.youtube.com/results?search_query=biomechanics+proper+posture+and+ergonomics+tutorial',
             resourceType: 'youtube_video',
@@ -616,6 +680,13 @@ function getDeterministicWeeklyTasks(
             instructions: `Execute targeted repetitions of the central technique for ${theme}. Take 10-second pauses between micro-sets.`,
             focusCue: 'Pay intense attention to the precise contact point and timing.',
             pitfallToAvoid: 'Allowing your mind to wander; treat this as an active mental workout.',
+            challenge: {
+              type: 'repetitions',
+              drillName: 'Paced Execution Drill',
+              targetCount: 8,
+              totalSets: 4,
+              unit: 'focused sets'
+            },
             resourceTitle: 'Interactive Practice Engine & Paced Rep Metronome',
             resourceUrl: 'https://www.flutetunes.com/metronome/',
             resourceType: 'interactive_tool',
@@ -628,6 +699,14 @@ function getDeterministicWeeklyTasks(
             instructions: 'Integrate the technique into a continuous sequence or musical phrase. Log any points of resistance.',
             focusCue: 'Focus on rhythm and seamless flow across transitions.',
             pitfallToAvoid: 'Ending abruptly without reviewing what went well.',
+            challenge: {
+              type: 'checklist',
+              items: [
+                { id: 'c1', label: 'Perform 1 unbroken fluency sequence' },
+                { id: 'c2', label: 'Self-diagnose any friction points' },
+                { id: 'c3', label: 'Complete 60-second mental replay' }
+              ]
+            },
             resourceTitle: 'Dr. Pascual-Leone: Mental Practice & Motor Cortex Reorganization Study',
             resourceUrl: 'https://pubmed.ncbi.nlm.nih.gov/7500130/',
             resourceType: 'scientific_study',
