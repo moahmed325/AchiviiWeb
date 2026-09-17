@@ -222,21 +222,6 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
     }
   }, [goal.routine]);
 
-  // Handle routine slot change
-  const handleSlotChange = async (newSlotTime: string) => {
-    if (!selectedTask || isUpdatingTask) return;
-    setIsUpdatingTask(true);
-    try {
-      const updated = await updateDailyTask(selectedTask.id, { slotTime: newSlotTime }, token);
-      const updatedTasks = dailyTasks.map((t) => (t.id === selectedTask.id ? updated : t));
-      onGoalUpdated({ ...goal, dailyTasks: updatedTasks });
-    } catch (err) {
-      console.error('Failed to update task slot:', err);
-    } finally {
-      setIsUpdatingTask(false);
-    }
-  };
-
   // --------------------------------------------------------------------------
   // Save Session Notes
   // --------------------------------------------------------------------------
@@ -590,12 +575,10 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
             </button>
           </div>
 
-          {/* Daily Routine Visualization & Slot Picker */}
+          {/* Daily Routine Visualization */}
           <DayRoutineTimeline
             routine={userRoutine}
             task={selectedTask}
-            onSlotChange={handleSlotChange}
-            isUpdating={isUpdatingTask}
           />
 
           {/* Session Plan (When/Where/Action) */}
