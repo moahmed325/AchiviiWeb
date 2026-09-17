@@ -80,6 +80,17 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
     }
   }, [isOpen, totalDurationSeconds]);
 
+  // Lock body scroll while focus modal is open to eliminate background scrolling and scrollbars
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
+
   const triggerCompletion = useCallback(() => {
     setIsActive(false);
     setIsCelebration(true);
@@ -180,15 +191,18 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   const currentStep = steps[currentStepIndex];
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#050807]/98 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-6 lg:p-8 h-screen w-screen overflow-hidden animate-fadeIn text-white select-none">
+    <div className="fixed inset-0 z-50 bg-[#050807] flex flex-col justify-between p-4 sm:p-6 w-full h-full overflow-hidden animate-fadeIn text-white select-none">
+      {/* Ambient Zen Focus Glow */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(7,203,108,0.06),transparent_80%)]" />
+
       {/* Top Controls Bar */}
-      <div className="w-full max-w-5xl mx-auto flex items-center justify-between shrink-0 pb-2 border-b border-[#1a2824]/60">
+      <div className="w-full max-w-6xl mx-auto flex items-center justify-between shrink-0 pb-3 border-b border-[#1a2824]/60 z-10">
         <div className="flex items-center gap-3">
           <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
           <span className="text-xs font-mono font-bold tracking-wider uppercase text-neutral-300">
             Day {dayNumber} of 90 • Focus Mode
           </span>
-          <span className="hidden sm:inline-block text-[11px] font-mono text-neutral-500 bg-[#0c1210] px-2 py-0.5 rounded border border-[#1a2824]">
+          <span className="hidden sm:inline-block text-[11px] font-mono text-neutral-400 bg-[#0c1210] px-2.5 py-0.5 rounded border border-[#1a2824]">
             {task.durationMinutes || 30}m deliberate practice
           </span>
         </div>
@@ -217,17 +231,17 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
         </div>
       </div>
 
-      {/* Main Focus Stage: 2-Column Balanced Zen Split */}
-      <div className="w-full max-w-5xl mx-auto my-auto flex-1 flex flex-col justify-center overflow-y-auto md:overflow-hidden py-4">
+      {/* Main Focus Stage: Balanced 2-Column Zen Layout */}
+      <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-2 sm:py-4">
         {!isCelebration ? (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-12 items-center w-full">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-10 items-center w-full min-h-0">
             {/* ================================================================= */}
             {/* LEFT COLUMN: TIMER HUB & ATMOSPHERE */}
             {/* ================================================================= */}
-            <div className="md:col-span-5 flex flex-col items-center text-center space-y-4 lg:space-y-5">
+            <div className="md:col-span-5 flex flex-col items-center text-center space-y-3 lg:space-y-4">
               {/* Task Title */}
-              <div className="space-y-1 max-w-xs">
-                <h2 className="text-base sm:text-lg font-bold tracking-tight text-white line-clamp-2 leading-snug">
+              <div className="space-y-1 max-w-sm">
+                <h2 className="text-base sm:text-lg lg:text-xl font-bold tracking-tight text-white line-clamp-2 leading-snug">
                   {task.title}
                 </h2>
                 <p className="text-[11px] text-neutral-400 font-mono">
@@ -237,7 +251,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
 
               {/* Scaled Circular SVG Timer */}
               <div className="relative inline-flex items-center justify-center">
-                <svg className="w-40 h-40 sm:w-48 sm:h-48 -rotate-90 transform">
+                <svg className="w-36 h-36 sm:w-44 sm:h-44 -rotate-90 transform">
                   {/* Background Ring */}
                   <circle
                     cx="50%"
@@ -266,7 +280,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
                   <span className="text-3xl sm:text-4xl font-mono font-bold tracking-tight text-white">
                     {timeFormatted}
                   </span>
-                  <span className={`text-[10px] font-mono uppercase tracking-widest mt-1 px-2 py-0.5 rounded-full ${
+                  <span className={`text-[10px] font-mono uppercase tracking-widest mt-1 px-2.5 py-0.5 rounded-full ${
                     isActive ? 'bg-[#07CB6C]/10 text-[#07CB6C]' : 'bg-neutral-800 text-neutral-400'
                   }`}>
                     {isActive ? 'In Flow' : 'Paused'}
@@ -313,7 +327,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
 
               {/* Horizontal Step Indicator Pills */}
               {steps.length > 0 && (
-                <div className="flex items-center justify-center gap-1 pt-1">
+                <div className="flex items-center justify-center gap-1.5 pt-1">
                   {steps.map((_, idx) => (
                     <button
                       key={idx}
@@ -328,8 +342,8 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
                         idx === currentStepIndex
                           ? 'w-7 bg-[#07CB6C]'
                           : idx < currentStepIndex
-                          ? 'w-3.5 bg-[#07CB6C]/40'
-                          : 'w-3.5 bg-[#1a2824]'
+                          ? 'w-3 bg-[#07CB6C]/40'
+                          : 'w-3 bg-[#1a2824]'
                       }`}
                     />
                   ))}
@@ -342,7 +356,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
             {/* ================================================================= */}
             <div className="md:col-span-7">
               {currentStep ? (
-                <div className="p-5 sm:p-6 rounded-xl bg-[#09100d] border border-[#1a2824] text-left space-y-4 shadow-xl">
+                <div className="p-4 sm:p-5 lg:p-6 rounded-xl bg-[#09100d] border border-[#1a2824] text-left space-y-3.5 shadow-xl">
                   {/* Step Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -360,11 +374,11 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
                   </div>
 
                   {/* Step Title & Instructions */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
                       {currentStep.title}
                     </h3>
-                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-h-24 overflow-y-auto pr-1">
+                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-h-20 overflow-y-auto pr-1">
                       {currentStep.instructions}
                     </p>
                   </div>
@@ -388,21 +402,21 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
                       {showTips && (
                         <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs animate-fadeIn">
                           {currentStep.focusCue && (
-                            <div className="p-2.5 rounded-md bg-[#07CB6C]/5 border border-[#07CB6C]/20 flex items-start gap-2 text-neutral-300">
+                            <div className="p-2 rounded-md bg-[#07CB6C]/5 border border-[#07CB6C]/20 flex items-start gap-2 text-neutral-300">
                               <Target className="w-3.5 h-3.5 text-[#07CB6C] shrink-0 mt-0.5" />
                               <div>
                                 <span className="text-[10px] text-neutral-500 uppercase block font-mono">Focus Cue</span>
-                                <span>{currentStep.focusCue}</span>
+                                <span className="leading-snug">{currentStep.focusCue}</span>
                               </div>
                             </div>
                           )}
 
                           {currentStep.pitfallToAvoid && (
-                            <div className="p-2.5 rounded-md bg-neutral-900/50 border border-[#1a2824] flex items-start gap-2 text-neutral-300">
+                            <div className="p-2 rounded-md bg-neutral-900/50 border border-[#1a2824] flex items-start gap-2 text-neutral-300">
                               <AlertTriangle className="w-3.5 h-3.5 text-amber-400/80 shrink-0 mt-0.5" />
                               <div>
                                 <span className="text-[10px] text-neutral-500 uppercase block font-mono">Pitfall</span>
-                                <span>{currentStep.pitfallToAvoid}</span>
+                                <span className="leading-snug">{currentStep.pitfallToAvoid}</span>
                               </div>
                             </div>
                           )}
@@ -427,7 +441,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
                   )}
 
                   {/* Step Navigation Controls */}
-                  <div className="pt-2 flex items-center justify-between border-t border-[#1a2824]">
+                  <div className="pt-2.5 flex items-center justify-between border-t border-[#1a2824]">
                     <button
                       type="button"
                       onClick={handlePrevStep}
@@ -469,15 +483,15 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
           /* ===================================================================== */
           /* POST-SESSION ZEN CELEBRATION SCREEN (ZERO SCROLL) */
           /* ===================================================================== */
-          <div className="max-w-md mx-auto my-auto text-center space-y-5 py-4 animate-fadeIn">
+          <div className="max-w-md mx-auto my-auto text-center space-y-4 py-2 animate-fadeIn">
             {/* Glowing Celebration Badge */}
             <div className="relative inline-flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full bg-[#07CB6C]/10 border-2 border-[#07CB6C] flex items-center justify-center text-[#07CB6C] shadow-[0_0_25px_rgba(7,203,108,0.3)] animate-bounce">
-                <CheckCircle2 className="w-8 h-8" />
+              <div className="w-14 h-14 rounded-full bg-[#07CB6C]/10 border-2 border-[#07CB6C] flex items-center justify-center text-[#07CB6C] shadow-[0_0_25px_rgba(7,203,108,0.3)] animate-bounce">
+                <CheckCircle2 className="w-7 h-7" />
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[11px] font-mono font-bold text-[#07CB6C]">
                 <Sparkles className="w-3 h-3" />
                 <span>Deliberate Practice Complete</span>
@@ -542,7 +556,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
       </div>
 
       {/* Subtle Footer Brand Line */}
-      <div className="w-full max-w-5xl mx-auto flex items-center justify-between text-[11px] font-mono text-neutral-600 shrink-0 pt-2 border-t border-[#1a2824]/40">
+      <div className="w-full max-w-6xl mx-auto flex items-center justify-between text-[11px] font-mono text-neutral-600 shrink-0 pt-2 border-t border-[#1a2824]/40 z-10">
         <span>ACHIVII FLOW ENGINE</span>
         <span>ZERO DISTRACTION MODE</span>
       </div>
