@@ -19,6 +19,7 @@ import {
   Goal
 } from '../types';
 import { clarifyGoal, createGoalPlan } from '../lib/api';
+import { SaaSBuilderModal } from './SaaSBuilderModal';
 
 interface OnboardingWizardProps {
   token: string;
@@ -38,6 +39,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   const [rawGoal, setRawGoal] = useState('');
   const [isClarifying, setIsClarifying] = useState(false);
   const [clarificationError, setClarificationError] = useState<string | null>(null);
+  const [isSaaSModalOpen, setIsSaaSModalOpen] = useState(false);
 
   // Step 2 State
   const [clarification, setClarification] = useState<GoalClarification | null>(null);
@@ -180,12 +182,66 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       {/* ===================================================================== */}
       {step === 1 && (
         <div className="space-y-6 animate-fadeInUp">
+          {/* ================================================================= */}
+          {/* FLAGSHIP PRESET SPOTLIGHT BANNER */}
+          {/* ================================================================= */}
+          <div className="p-4 sm:p-5 rounded-md bg-[#080d0b] border border-[#1a2824] hover:border-[#07CB6C]/50 transition-all text-left space-y-3 relative overflow-hidden group">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#07CB6C] font-bold">
+                  Curated 90-Day Masterclass
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-neutral-400 bg-[#111a17] px-2 py-0.5 rounded border border-[#1a2824]">
+                Next.js 15 • 60 min/day
+              </span>
+            </div>
+
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-white tracking-tight group-hover:text-[#07CB6C] transition-colors">
+                Ship a Production Full-Stack SaaS MVP
+              </h3>
+              <p className="text-xs sm:text-sm text-neutral-400 mt-1 leading-relaxed">
+                Build and launch a real software product with Next.js 15, TypeScript, PostgreSQL, and Stripe. Choose a battle-tested starter or build your custom idea with our CTO Diagnostic.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap gap-1.5 text-[10px] font-mono text-neutral-400">
+                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">Next.js 15</span>
+                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">TypeScript</span>
+                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">Prisma</span>
+                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">Stripe</span>
+                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">Vercel</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsSaaSModalOpen(true)}
+                className="px-4 py-2 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
+              >
+                <span>Launch SaaS Studio</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="relative flex items-center justify-center py-1">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[#1a2824]" />
+            </div>
+            <span className="relative px-3 bg-[#050807] text-[11px] font-mono uppercase tracking-wider text-neutral-500">
+              Or Define Any Other Goal
+            </span>
+          </div>
+
           <div className="space-y-2 text-left">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              What do you want to achieve?
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+              What other goal do you want to achieve?
             </h1>
             <p className="text-sm text-neutral-400 leading-relaxed">
-              Describe your goal and we'll create a personalized daily plan tailored to your life.
+              Describe your personal goal (e.g. Guitar, Running, Spanish) and we'll create your custom 90-day plan.
             </p>
           </div>
 
@@ -739,6 +795,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
           )}
         </div>
       )}
+
+      {/* SaaS Builder Studio Modal */}
+      <SaaSBuilderModal
+        isOpen={isSaaSModalOpen}
+        onClose={() => setIsSaaSModalOpen(false)}
+        onLaunchGoal={(createdGoal) => {
+          onGoalCreated(createdGoal);
+        }}
+      />
     </div>
   );
 };
