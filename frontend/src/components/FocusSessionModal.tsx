@@ -13,6 +13,9 @@ import {
   AlertTriangle,
   Sparkles,
   ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Lightbulb,
 } from 'lucide-react';
 import { DailyTask, DetailedStep } from '../types';
 import { playSessionStart, playStepTransition, playSessionComplete } from '../lib/audio';
@@ -49,24 +52,26 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
     return mins * 60;
   }, [task.durationMinutes]);
 
-  // Timer State
+  // Timer & UI State
   const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
   const [isActive, setIsActive] = useState<boolean>(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isCelebration, setIsCelebration] = useState<boolean>(false);
+  const [showTips, setShowTips] = useState<boolean>(false);
   const [reflectionNote, setReflectionNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Initialize/Reset when modal opens
+  // Initialize / Reset when modal opens
   useEffect(() => {
     if (isOpen) {
       setSecondsRemaining(totalDurationSeconds);
       setIsActive(true);
       setCurrentStepIndex(0);
       setIsCelebration(false);
+      setShowTips(false);
       setReflectionNote('');
       playSessionStart(isMuted);
     } else {
@@ -74,28 +79,29 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
     }
   }, [isOpen, totalDurationSeconds]);
 
-  // Step transition audio
-  const handleNextStep = useCallback(() => {
-    if (currentStepIndex < steps.length - 1) {
-      setCurrentStepIndex((prev) => prev + 1);
-      playStepTransition(isMuted);
-    } else {
-      // Last step finished -> trigger celebration
-      triggerCompletion();
-    }
-  }, [currentStepIndex, steps.length, isMuted]);
-
-  const handlePrevStep = useCallback(() => {
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex((prev) => prev - 1);
-    }
-  }, [currentStepIndex]);
-
   const triggerCompletion = useCallback(() => {
     setIsActive(false);
     setIsCelebration(true);
     playSessionComplete(isMuted);
   }, [isMuted]);
+
+  // Step transition
+  const handleNextStep = useCallback(() => {
+    if (currentStepIndex < steps.length - 1) {
+      setCurrentStepIndex((prev) => prev + 1);
+      setShowTips(false); // Reset tips accordion on new step
+      playStepTransition(isMuted);
+    } else {
+      triggerCompletion();
+    }
+  }, [currentStepIndex, steps.length, isMuted, triggerCompletion]);
+
+  const handlePrevStep = useCallback(() => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex((prev) => prev - 1);
+      setShowTips(false);
+    }
+  }, [currentStepIndex]);
 
   // Countdown timer loop
   useEffect(() => {
@@ -166,20 +172,23 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
 
   // Circular progress calculation
   const progressRatio = (totalDurationSeconds - secondsRemaining) / totalDurationSeconds;
-  const radius = 54;
+  const radius = 48;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - progressRatio * circumference;
 
   const currentStep = steps[currentStepIndex];
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#050807]/97 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-8 animate-fadeIn text-white select-none overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-[#050807]/98 backdrop-blur-2xl flex flex-col justify-between p-4 sm:p-6 lg:p-8 h-screen w-screen overflow-hidden animate-fadeIn text-white select-none">
       {/* Top Controls Bar */}
-      <div className="w-full max-w-4xl mx-auto flex items-center justify-between">
+      <div className="w-full max-w-5xl mx-auto flex items-center justify-between shrink-0 pb-2 border-b border-[#1a2824]/60">
         <div className="flex items-center gap-3">
           <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
-          <span className="text-xs font-mono font-bold tracking-wider uppercase text-neutral-400">
-            Day {dayNumber} • Focus Mode
+          <span className="text-xs font-mono font-bold tracking-wider uppercase text-neutral-300">
+            Day {dayNumber} of 90 • Focus Mode
+          </span>
+          <span className="hidden sm:inline-block text-[11px] font-mono text-neutral-500 bg-[#0c1210] px-2 py-0.5 rounded border border-[#1a2824]">
+            {task.durationMinutes || 30}m deliberate practice
           </span>
         </div>
 
@@ -199,236 +208,294 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
             type="button"
             onClick={onClose}
             title="Exit focus mode (Esc)"
-            className="p-2 rounded-md bg-[#0d1411] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+            className="p-2 rounded-md bg-[#0d1411] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
           >
+            <span className="text-[10px] font-mono text-neutral-500 hidden sm:inline">ESC</span>
             <X className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Main Focus Stage */}
-      <div className="w-full max-w-2xl mx-auto my-auto py-6 space-y-8 text-center">
+      {/* Main Focus Stage: 2-Column Balanced Zen Split */}
+      <div className="w-full max-w-5xl mx-auto my-auto flex-1 flex flex-col justify-center overflow-y-auto md:overflow-hidden py-4">
         {!isCelebration ? (
-          <>
-            {/* Session Headline */}
-            <div className="space-y-1">
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-snug">
-                {task.title}
-              </h2>
-              <p className="text-xs text-neutral-400">
-                Immerse yourself in deliberate practice. Press <kbd className="px-1.5 py-0.5 rounded bg-[#111a17] border border-[#1a2824] font-mono text-[11px] text-neutral-300">Space</kbd> to pause.
-              </p>
-            </div>
-
-            {/* Circular Progress Timer */}
-            <div className="relative inline-flex items-center justify-center">
-              <svg className="w-44 h-44 sm:w-52 sm:h-52 -rotate-90 transform">
-                {/* Background Ring */}
-                <circle
-                  cx="50%"
-                  cy="50%"
-                  r={radius}
-                  className="stroke-[#101a16]"
-                  strokeWidth="6"
-                  fill="transparent"
-                />
-                {/* Mint Progress Ring */}
-                <circle
-                  cx="50%"
-                  cy="50%"
-                  r={radius}
-                  className="stroke-[#07CB6C] transition-all duration-1000 ease-linear"
-                  strokeWidth="6"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  fill="transparent"
-                />
-              </svg>
-
-              {/* Time Inside Ring */}
-              <div className="absolute flex flex-col items-center justify-center">
-                <span className="text-4xl sm:text-5xl font-mono font-bold tracking-tight text-white">
-                  {timeFormatted}
-                </span>
-                <span className="text-[11px] font-mono text-neutral-500 uppercase tracking-widest mt-1">
-                  {isActive ? 'In Flow' : 'Paused'}
-                </span>
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-12 items-center w-full">
+            {/* ================================================================= */}
+            {/* LEFT COLUMN: TIMER HUB & ATMOSPHERE */}
+            {/* ================================================================= */}
+            <div className="md:col-span-5 flex flex-col items-center text-center space-y-4 lg:space-y-5">
+              {/* Task Title */}
+              <div className="space-y-1 max-w-xs">
+                <h2 className="text-base sm:text-lg font-bold tracking-tight text-white line-clamp-2 leading-snug">
+                  {task.title}
+                </h2>
+                <p className="text-[11px] text-neutral-400 font-mono">
+                  Press <kbd className="px-1.5 py-0.5 rounded bg-[#111a17] border border-[#1a2824] text-neutral-300">Space</kbd> to {isActive ? 'pause' : 'resume'}
+                </p>
               </div>
-            </div>
 
-            {/* Timer Play / Pause Controls */}
-            <div className="flex items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setIsActive(!isActive)}
-                className={`px-6 py-2.5 rounded-full font-semibold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-lg ${
-                  isActive
-                    ? 'bg-[#111a17] border border-[#1a2824] text-neutral-200 hover:border-[#07CB6C]/40 hover:text-white'
-                    : 'bg-[#07CB6C] text-black hover:bg-[#06b560] hover:scale-105'
-                }`}
-              >
-                {isActive ? (
-                  <>
-                    <Pause className="w-3.5 h-3.5" />
-                    <span>Pause</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    <span>Resume</span>
-                  </>
-                )}
-              </button>
+              {/* Scaled Circular SVG Timer */}
+              <div className="relative inline-flex items-center justify-center">
+                <svg className="w-40 h-40 sm:w-48 sm:h-48 -rotate-90 transform">
+                  {/* Background Ring */}
+                  <circle
+                    cx="50%"
+                    cy="50%"
+                    r={radius}
+                    className="stroke-[#101a16]"
+                    strokeWidth="5"
+                    fill="transparent"
+                  />
+                  {/* Mint Progress Ring */}
+                  <circle
+                    cx="50%"
+                    cy="50%"
+                    r={radius}
+                    className="stroke-[#07CB6C] transition-all duration-1000 ease-linear"
+                    strokeWidth="5"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    fill="transparent"
+                  />
+                </svg>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setSecondsRemaining(totalDurationSeconds);
-                  setIsActive(false);
-                }}
-                title="Reset timer"
-                className="p-2.5 rounded-full bg-[#0d1411] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Active Step Runner */}
-            {currentStep ? (
-              <div className="p-5 sm:p-6 rounded-xl bg-[#09100d] border border-[#1a2824] text-left space-y-4 shadow-xl">
-                {/* Step Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-[#07CB6C]/20 text-[#07CB6C] text-xs font-mono font-bold flex items-center justify-center">
-                      {currentStepIndex + 1}
-                    </span>
-                    <span className="text-xs font-mono text-neutral-400 uppercase tracking-wider">
-                      Step {currentStepIndex + 1} of {steps.length}
-                    </span>
-                  </div>
-
-                  <span className="text-xs font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2 py-0.5 rounded border border-[#07CB6C]/20">
-                    {currentStep.durationMinutes} min target
+                {/* Time Inside Ring */}
+                <div className="absolute flex flex-col items-center justify-center">
+                  <span className="text-3xl sm:text-4xl font-mono font-bold tracking-tight text-white">
+                    {timeFormatted}
+                  </span>
+                  <span className={`text-[10px] font-mono uppercase tracking-widest mt-1 px-2 py-0.5 rounded-full ${
+                    isActive ? 'bg-[#07CB6C]/10 text-[#07CB6C]' : 'bg-neutral-800 text-neutral-400'
+                  }`}>
+                    {isActive ? 'In Flow' : 'Paused'}
                   </span>
                 </div>
-
-                {/* Step Title & Instructions */}
-                <div className="space-y-1.5">
-                  <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                    {currentStep.title}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
-                    {currentStep.instructions}
-                  </p>
-                </div>
-
-                {/* Tip or Cue */}
-                {(currentStep.focusCue || currentStep.pitfallToAvoid) && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                    {currentStep.focusCue && (
-                      <div className="p-2 rounded-md bg-[#07CB6C]/5 border border-[#07CB6C]/20 flex items-start gap-2 text-neutral-300">
-                        <Target className="w-3.5 h-3.5 text-[#07CB6C] shrink-0 mt-0.5" />
-                        <span>{currentStep.focusCue}</span>
-                      </div>
-                    )}
-                    {currentStep.pitfallToAvoid && (
-                      <div className="p-2 rounded-md bg-neutral-900/50 border border-[#1a2824] flex items-start gap-2 text-neutral-300">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400/80 shrink-0 mt-0.5" />
-                        <span>{currentStep.pitfallToAvoid}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Step Resource if available */}
-                {currentStep.resourceUrl && (
-                  <div className="pt-1">
-                    <a
-                      href={currentStep.resourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-xs text-[#07CB6C] hover:underline"
-                    >
-                      <span>{currentStep.resourceTitle || 'External Guide'}</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
-                )}
-
-                {/* Step Navigation Controls */}
-                <div className="pt-2 flex items-center justify-between border-t border-[#1a2824]">
-                  <button
-                    type="button"
-                    onClick={handlePrevStep}
-                    disabled={currentStepIndex === 0}
-                    className="px-3 py-1.5 rounded-md border border-[#1a2824] text-xs font-medium text-neutral-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    <span>Previous</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleNextStep}
-                    className="px-4 py-1.5 rounded-md bg-[#07CB6C] text-black hover:bg-[#06b560] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>{currentStepIndex === steps.length - 1 ? 'Complete Practice' : 'Next Step'}</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
               </div>
-            ) : (
-              /* Fallback if task has no parsed sub-steps */
-              <div className="p-6 rounded-xl bg-[#09100d] border border-[#1a2824] space-y-4">
-                <p className="text-sm text-neutral-300">
-                  Focus on the primary daily outcome: <strong>{task.title}</strong>
-                </p>
+
+              {/* Timer Controls */}
+              <div className="flex items-center justify-center gap-2.5">
                 <button
                   type="button"
-                  onClick={triggerCompletion}
-                  className="px-5 py-2 rounded-md bg-[#07CB6C] text-black font-bold text-xs hover:bg-[#06b560] transition-colors cursor-pointer"
+                  onClick={() => setIsActive(!isActive)}
+                  className={`px-5 py-2 rounded-full font-semibold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-md ${
+                    isActive
+                      ? 'bg-[#111a17] border border-[#1a2824] text-neutral-200 hover:border-[#07CB6C]/40 hover:text-white'
+                      : 'bg-[#07CB6C] text-black hover:bg-[#06b560] hover:scale-105'
+                  }`}
                 >
-                  Mark Practice Finished
+                  {isActive ? (
+                    <>
+                      <Pause className="w-3.5 h-3.5" />
+                      <span>Pause</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Resume</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSecondsRemaining(totalDurationSeconds);
+                    setIsActive(false);
+                  }}
+                  title="Reset timer"
+                  className="p-2 rounded-full bg-[#0d1411] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
                 </button>
               </div>
-            )}
-          </>
+
+              {/* Horizontal Step Indicator Pills */}
+              {steps.length > 0 && (
+                <div className="flex items-center justify-center gap-1 pt-1">
+                  {steps.map((_, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setCurrentStepIndex(idx);
+                        setShowTips(false);
+                        playStepTransition(isMuted);
+                      }}
+                      title={`Step ${idx + 1}: ${steps[idx]?.title || ''}`}
+                      className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                        idx === currentStepIndex
+                          ? 'w-7 bg-[#07CB6C]'
+                          : idx < currentStepIndex
+                          ? 'w-3.5 bg-[#07CB6C]/40'
+                          : 'w-3.5 bg-[#1a2824]'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ================================================================= */}
+            {/* RIGHT COLUMN: DELIBERATE PRACTICE STEP RUNNER */}
+            {/* ================================================================= */}
+            <div className="md:col-span-7">
+              {currentStep ? (
+                <div className="p-5 sm:p-6 rounded-xl bg-[#09100d] border border-[#1a2824] text-left space-y-4 shadow-xl">
+                  {/* Step Header */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-[#07CB6C]/20 text-[#07CB6C] text-xs font-mono font-bold flex items-center justify-center border border-[#07CB6C]/30">
+                        {currentStepIndex + 1}
+                      </span>
+                      <span className="text-xs font-mono text-neutral-400 uppercase tracking-wider">
+                        Step {currentStepIndex + 1} of {steps.length}
+                      </span>
+                    </div>
+
+                    <span className="text-xs font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2.5 py-0.5 rounded border border-[#07CB6C]/20">
+                      {currentStep.durationMinutes} min target
+                    </span>
+                  </div>
+
+                  {/* Step Title & Instructions */}
+                  <div className="space-y-1.5">
+                    <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
+                      {currentStep.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-h-32 overflow-y-auto pr-1">
+                      {currentStep.instructions}
+                    </p>
+                  </div>
+
+                  {/* Collapsible Tips & Guidance Toggle */}
+                  {(currentStep.focusCue || currentStep.pitfallToAvoid) && (
+                    <div className="border-t border-[#1a2824] pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowTips(!showTips)}
+                        className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer select-none"
+                      >
+                        <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+                        <span>{showTips ? 'Hide Tips & Cues' : 'View Tips & Guidance'}</span>
+                        {showTips ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+
+                      {showTips && (
+                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs animate-fadeIn">
+                          {currentStep.focusCue && (
+                            <div className="p-2.5 rounded-md bg-[#07CB6C]/5 border border-[#07CB6C]/20 flex items-start gap-2 text-neutral-300">
+                              <Target className="w-3.5 h-3.5 text-[#07CB6C] shrink-0 mt-0.5" />
+                              <div>
+                                <span className="text-[10px] text-neutral-500 uppercase block font-mono">Focus Cue</span>
+                                <span>{currentStep.focusCue}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {currentStep.pitfallToAvoid && (
+                            <div className="p-2.5 rounded-md bg-neutral-900/50 border border-[#1a2824] flex items-start gap-2 text-neutral-300">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400/80 shrink-0 mt-0.5" />
+                              <div>
+                                <span className="text-[10px] text-neutral-500 uppercase block font-mono">Pitfall</span>
+                                <span>{currentStep.pitfallToAvoid}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* External Resource Link (if present) */}
+                  {currentStep.resourceUrl && (
+                    <div className="pt-0.5">
+                      <a
+                        href={currentStep.resourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-[#07CB6C] hover:underline"
+                      >
+                        <span>{currentStep.resourceTitle || 'Recommended Guide'}</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Step Navigation Controls */}
+                  <div className="pt-2 flex items-center justify-between border-t border-[#1a2824]">
+                    <button
+                      type="button"
+                      onClick={handlePrevStep}
+                      disabled={currentStepIndex === 0}
+                      className="px-3.5 py-1.5 rounded-md border border-[#1a2824] text-xs font-medium text-neutral-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" />
+                      <span>Previous</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleNextStep}
+                      className="px-4 py-1.5 rounded-md bg-[#07CB6C] text-black hover:bg-[#06b560] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.02]"
+                    >
+                      <span>{currentStepIndex === steps.length - 1 ? 'Complete Session' : 'Next Step'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Fallback if task has no parsed sub-steps */
+                <div className="p-6 rounded-xl bg-[#09100d] border border-[#1a2824] space-y-4">
+                  <p className="text-sm text-neutral-300">
+                    Focus on the primary deliberate practice outcome: <strong>{task.title}</strong>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={triggerCompletion}
+                    className="px-5 py-2 rounded-md bg-[#07CB6C] text-black font-bold text-xs hover:bg-[#06b560] transition-colors cursor-pointer"
+                  >
+                    Complete Practice Session
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           /* ===================================================================== */
-          /* Post-Session Zen Celebration Screen */
+          /* POST-SESSION ZEN CELEBRATION SCREEN (ZERO SCROLL) */
           /* ===================================================================== */
-          <div className="space-y-6 animate-fadeIn py-4">
+          <div className="max-w-md mx-auto my-auto text-center space-y-5 py-4 animate-fadeIn">
             {/* Glowing Celebration Badge */}
             <div className="relative inline-flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-[#07CB6C]/10 border-2 border-[#07CB6C] flex items-center justify-center text-[#07CB6C] shadow-[0_0_30px_rgba(7,203,108,0.35)] animate-bounce">
-                <CheckCircle2 className="w-10 h-10" />
+              <div className="w-16 h-16 rounded-full bg-[#07CB6C]/10 border-2 border-[#07CB6C] flex items-center justify-center text-[#07CB6C] shadow-[0_0_25px_rgba(7,203,108,0.3)] animate-bounce">
+                <CheckCircle2 className="w-8 h-8" />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-xs font-mono font-bold text-[#07CB6C]">
-                <Sparkles className="w-3.5 h-3.5" />
+            <div className="space-y-1.5">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[11px] font-mono font-bold text-[#07CB6C]">
+                <Sparkles className="w-3 h-3" />
                 <span>Deliberate Practice Complete</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                 Day {dayNumber} Mastered
               </h2>
-              <p className="text-xs text-neutral-400 max-w-md mx-auto">
-                You showed up and executed your deliberate practice for today. Another step closer to your 90-day mastery outcome.
+              <p className="text-xs text-neutral-400">
+                You showed up and executed your session. Another day closer to 90-day mastery.
               </p>
             </div>
 
             {/* Quick Stats Summary */}
-            <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto text-left">
+            <div className="grid grid-cols-2 gap-3 text-left">
               <div className="p-3 rounded-lg bg-[#080d0b] border border-[#1a2824]">
-                <span className="text-[10px] font-mono text-neutral-500 uppercase block">Time Invested</span>
+                <span className="text-[10px] font-mono text-neutral-500 uppercase block">Time Logged</span>
                 <span className="text-base font-bold font-mono text-white">
                   {task.durationMinutes || 30} min
                 </span>
               </div>
               <div className="p-3 rounded-lg bg-[#080d0b] border border-[#1a2824]">
-                <span className="text-[10px] font-mono text-neutral-500 uppercase block">Trajectory</span>
+                <span className="text-[10px] font-mono text-neutral-500 uppercase block">Progress</span>
                 <span className="text-base font-bold font-mono text-[#07CB6C]">
                   Day {dayNumber} / 90
                 </span>
@@ -436,7 +503,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
             </div>
 
             {/* Reflection Note Input */}
-            <div className="max-w-md mx-auto text-left space-y-2">
+            <div className="text-left space-y-1.5">
               <label htmlFor="reflectionInput" className="text-xs font-medium text-neutral-300 block">
                 Quick Reflection (Optional):
               </label>
@@ -445,8 +512,8 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
                 type="text"
                 value={reflectionNote}
                 onChange={(e) => setReflectionNote(e.target.value)}
-                placeholder="What went well or what was your breakthrough?"
-                className="w-full px-3.5 py-2.5 rounded-md bg-[#080d0b] border border-[#1a2824] focus:border-[#07CB6C] text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none transition-colors"
+                placeholder="What was your breakthrough today?"
+                className="w-full px-3 py-2 rounded-md bg-[#080d0b] border border-[#1a2824] focus:border-[#07CB6C] text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none transition-colors"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleSaveAndExit();
@@ -456,43 +523,25 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
             </div>
 
             {/* Return Button */}
-            <div className="pt-2">
+            <div className="pt-1">
               <button
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleSaveAndExit}
-                className="px-8 py-3 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs tracking-wide uppercase transition-all shadow-lg hover:scale-105 cursor-pointer disabled:opacity-50"
+                className="w-full py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs tracking-wide uppercase transition-all shadow-md hover:scale-[1.02] cursor-pointer disabled:opacity-50"
               >
-                {isSubmitting ? 'Saving Progress...' : 'Save & Return to Dashboard'}
+                {isSubmitting ? 'Saving...' : 'Save & Return to Dashboard'}
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom Step Indicator Bar (During active practice) */}
-      {!isCelebration && steps.length > 0 && (
-        <div className="w-full max-w-md mx-auto flex items-center justify-center gap-1.5 pb-2">
-          {steps.map((_, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => {
-                setCurrentStepIndex(idx);
-                playStepTransition(isMuted);
-              }}
-              title={`Jump to step ${idx + 1}`}
-              className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                idx === currentStepIndex
-                  ? 'w-8 bg-[#07CB6C]'
-                  : idx < currentStepIndex
-                  ? 'w-4 bg-[#07CB6C]/40'
-                  : 'w-4 bg-[#1a2824]'
-              }`}
-            />
-          ))}
-        </div>
-      )}
+      {/* Subtle Footer Brand Line */}
+      <div className="w-full max-w-5xl mx-auto flex items-center justify-between text-[11px] font-mono text-neutral-600 shrink-0 pt-2 border-t border-[#1a2824]/40">
+        <span>ACHIVII FLOW ENGINE</span>
+        <span>ZERO DISTRACTION MODE</span>
+      </div>
     </div>
   );
 };
