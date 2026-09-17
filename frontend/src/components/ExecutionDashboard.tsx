@@ -28,7 +28,7 @@ import {
 import { Goal, DailyTask, DetailedStep, RoutineSettings } from '../types';
 import { updateDailyTask, submitWeeklyReview, resetActiveGoal, fetchActiveGoal } from '../lib/api';
 import { formatGoalTitle } from '../lib/formatters';
-import { DayRoutineTimeline } from './DayRoutineTimeline';
+import { FullDayVisualizer } from './FullDayVisualizer';
 
 interface StepResourceConfig {
   badgeLabel: string;
@@ -134,6 +134,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
   // UI Toggles
   const [showFullOutcome, setShowFullOutcome] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [isTaskExpanded, setIsTaskExpanded] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
   const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
@@ -523,31 +524,24 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
       </div>
 
       {/* ===================================================================== */}
-      {/* 3. TODAY'S SESSION — THE ACTION CENTER */}
+      {/* 3. TODAY'S SESSION — FULL DAY VISUALIZER */}
       {/* ===================================================================== */}
       {selectedTask ? (
-        <div className="p-6 sm:p-7 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-6 relative overflow-hidden">
-          {/* Top Header */}
+        <FullDayVisualizer
+          routine={userRoutine}
+          task={selectedTask}
+          isExpanded={isTaskExpanded}
+          onToggleExpand={() => setIsTaskExpanded(!isTaskExpanded)}
+        >
+          {/* Action Header when expanded */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1a2824] pb-5">
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="inline-flex items-center gap-1 text-neutral-300">
-                  <Clock className="w-3.5 h-3.5 text-[#07CB6C]" />
-                  <span>{selectedTask.slotTime ? selectedTask.slotTime : 'Anytime'}</span>
-                </span>
-                <span className="text-neutral-500">·</span>
-                <span className="text-neutral-300">{selectedTask.durationMinutes} min</span>
-
-                {selectedTask.isRestDay && (
-                  <span className="px-2 py-0.5 rounded-sm bg-blue-950/40 text-blue-400 border border-blue-800/40 text-[10px]">
-                    Recovery Day
-                  </span>
-                )}
-              </div>
-
-              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
                 {selectedTask.title}
-              </h2>
+              </h3>
+              <p className="text-xs text-neutral-400">
+                Follow the deliberate practice steps below and mark complete when finished.
+              </p>
             </div>
 
             {/* Complete Toggle */}
@@ -574,12 +568,6 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
               )}
             </button>
           </div>
-
-          {/* Daily Routine Visualization */}
-          <DayRoutineTimeline
-            routine={userRoutine}
-            task={selectedTask}
-          />
 
           {/* Session Plan (When/Where/Action) */}
           {parsedIntention && (
@@ -864,7 +852,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
               </div>
             )}
           </div>
-        </div>
+        </FullDayVisualizer>
       ) : (
         <div className="p-8 rounded-md bg-[#0c1210] border border-[#1a2824] text-center space-y-3">
           <div className="w-8 h-8 border-2 border-[#07CB6C]/30 border-t-[#07CB6C] rounded-full animate-spin mx-auto" />
