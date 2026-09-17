@@ -19,12 +19,14 @@ import {
   PlayCircle,
   BookOpen,
   GraduationCap,
-  Terminal
+  Terminal,
+  Zap,
 } from 'lucide-react';
 import { Goal, DailyTask, DetailedStep, RoutineSettings } from '../types';
 import { updateDailyTask, submitWeeklyReview, fetchActiveGoal } from '../lib/api';
 import { formatGoalTitle } from '../lib/formatters';
 import { FullDayVisualizer } from './FullDayVisualizer';
+import { FocusSessionModal } from './FocusSessionModal';
 
 interface StepResourceConfig {
   badgeLabel: string;
@@ -142,6 +144,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewReflection, setReviewReflection] = useState('');
   const [activeVideoStep, setActiveVideoStep] = useState<string | null>(null);
+  const [isFocusModalOpen, setIsFocusModalOpen] = useState(false);
   const [milestoneGateModal, setMilestoneGateModal] = useState<{
     completedPhase: string;
     nextPhase: string;
@@ -236,6 +239,30 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
       } catch (err) {
         console.error('Failed to save notes:', err);
       }
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // Complete Focus Session
+  // --------------------------------------------------------------------------
+  const handleCompleteFocusSession = async (reflectionNotes?: string) => {
+    if (!selectedTask) return;
+    try {
+      const finalNotes = reflectionNotes?.trim()
+        ? selectedTask.notes
+          ? `${selectedTask.notes}\n• Focus win: ${reflectionNotes.trim()}`
+          : reflectionNotes.trim()
+        : selectedTask.notes;
+
+      const updated = await updateDailyTask(
+        selectedTask.id,
+        { status: 'completed', notes: finalNotes },
+        token
+      );
+      const updatedTasks = dailyTasks.map((t) => (t.id === selectedTask.id ? updated : t));
+      onGoalUpdated({ ...goal, dailyTasks: updatedTasks });
+    } catch (err) {
+      console.error('Failed to complete focus session:', err);
     }
   };
 
@@ -482,6 +509,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
           task={selectedTask}
           isExpanded={isTaskExpanded}
           onToggleExpand={() => setIsTaskExpanded(!isTaskExpanded)}
+          onStartFocusSession={() => setIsFocusModalOpen(true)}
         >
           {/* Action Header when expanded */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1a2824] pb-5">
@@ -490,33 +518,45 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                 {selectedTask.title}
               </h3>
               <p className="text-xs text-neutral-400">
-                Follow the deliberate practice steps below and mark complete when finished.
+                Follow the deliberate practice steps below or enter distraction-free focus mode.
               </p>
             </div>
 
-            {/* Complete Toggle */}
-            <button
-              type="button"
-              disabled={isUpdatingTask}
-              onClick={() => handleToggleTask(selectedTask)}
-              className={`flex items-center justify-center gap-2.5 px-6 py-3 rounded-md font-semibold text-sm transition-all cursor-pointer shrink-0 ${
-                selectedTask.status === 'completed'
-                  ? 'bg-[#07CB6C]/20 border border-[#07CB6C] text-[#07CB6C] hover:bg-[#07CB6C]/30'
-                  : 'bg-[#07CB6C] hover:bg-[#06b560] text-black hover:scale-[1.02]'
-              }`}
-            >
-              {selectedTask.status === 'completed' ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5 text-[#07CB6C]" />
-                  <span>Completed ✓</span>
-                </>
-              ) : (
-                <>
-                  <Circle className="w-5 h-5" />
-                  <span>Mark Complete</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+              {/* Focus Mode Button */}
+              <button
+                type="button"
+                onClick={() => setIsFocusModalOpen(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-md font-semibold text-xs bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/50 text-neutral-200 hover:text-white transition-all cursor-pointer shadow-sm"
+              >
+                <Zap className="w-3.5 h-3.5 text-[#07CB6C] fill-[#07CB6C]" />
+                <span>Focus Mode ({selectedTask.durationMinutes || 30}m)</span>
+              </button>
+
+              {/* Complete Toggle */}
+              <button
+                type="button"
+                disabled={isUpdatingTask}
+                onClick={() => handleToggleTask(selectedTask)}
+                className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-md font-semibold text-xs transition-all cursor-pointer ${
+                  selectedTask.status === 'completed'
+                    ? 'bg-[#07CB6C]/20 border border-[#07CB6C] text-[#07CB6C] hover:bg-[#07CB6C]/30'
+                    : 'bg-[#07CB6C] hover:bg-[#06b560] text-black hover:scale-[1.02]'
+                }`}
+              >
+                {selectedTask.status === 'completed' ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-[#07CB6C]" />
+                    <span>Completed ✓</span>
+                  </>
+                ) : (
+                  <>
+                    <Circle className="w-4 h-4" />
+                    <span>Mark Complete</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Session Plan (When/Where/Action) */}
@@ -954,6 +994,19 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* 5. FULLSCREEN ZEN FOCUS SESSION MODAL */}
+      {/* ===================================================================== */}
+      {selectedTask && (
+        <FocusSessionModal
+          task={selectedTask}
+          dayNumber={dayNumberCurrent}
+          isOpen={isFocusModalOpen}
+          onClose={() => setIsFocusModalOpen(false)}
+          onCompleteSession={handleCompleteFocusSession}
+        />
       )}
     </div>
   );

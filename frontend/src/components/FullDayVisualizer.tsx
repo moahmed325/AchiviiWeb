@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Calendar,
+  Zap,
 } from 'lucide-react';
 
 interface FullDayVisualizerProps {
@@ -17,6 +18,7 @@ interface FullDayVisualizerProps {
   task: DailyTask;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  onStartFocusSession?: () => void;
   children: React.ReactNode;
 }
 
@@ -25,6 +27,7 @@ export const FullDayVisualizer: React.FC<FullDayVisualizerProps> = ({
   task,
   isExpanded,
   onToggleExpand,
+  onStartFocusSession,
   children,
 }) => {
   const wakeTime = routine?.wakeTime || '07:00';
@@ -119,6 +122,20 @@ export const FullDayVisualizer: React.FC<FullDayVisualizerProps> = ({
           </div>
 
           <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
+            {onStartFocusSession && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStartFocusSession();
+                }}
+                className="px-2.5 py-1 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105"
+              >
+                <Zap className="w-3.5 h-3.5 fill-black" />
+                <span>Focus ({durationMinutes}m)</span>
+              </button>
+            )}
+
             <span
               className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium ${
                 task.status === 'completed'
@@ -130,7 +147,7 @@ export const FullDayVisualizer: React.FC<FullDayVisualizerProps> = ({
             </span>
 
             <div className="inline-flex items-center gap-1 text-xs text-[#07CB6C] font-semibold hover:text-[#06b560]">
-              <span>{isExpanded ? 'Hide details' : 'View session'}</span>
+              <span>{isExpanded ? 'Hide' : 'Details'}</span>
               {isExpanded ? (
                 <ChevronUp className="w-3.5 h-3.5" />
               ) : (
