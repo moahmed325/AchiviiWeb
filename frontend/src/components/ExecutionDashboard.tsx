@@ -1,15 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Target,
   CheckCircle2,
   Circle,
   Clock,
   Calendar,
-  Layers,
   Award,
-  RotateCcw,
-  Check,
   AlertTriangle,
   Flame,
   ArrowRight,
@@ -26,7 +22,7 @@ import {
   Terminal
 } from 'lucide-react';
 import { Goal, DailyTask, DetailedStep, RoutineSettings } from '../types';
-import { updateDailyTask, submitWeeklyReview, resetActiveGoal, fetchActiveGoal } from '../lib/api';
+import { updateDailyTask, submitWeeklyReview, fetchActiveGoal } from '../lib/api';
 import { formatGoalTitle } from '../lib/formatters';
 import { FullDayVisualizer } from './FullDayVisualizer';
 
@@ -40,53 +36,57 @@ interface StepResourceConfig {
 }
 
 function getStepResourceConfig(type?: string): StepResourceConfig {
+  const baseButton = 'bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-neutral-200 hover:text-white';
+  const baseContainer = 'bg-[#080d0b] border border-[#1a2824] hover:border-[#1a2824]/80';
+  const baseBadge = 'bg-[#111a17] text-neutral-400 border border-[#1a2824]';
+
   switch (type) {
     case 'youtube_video':
     case 'video':
       return {
         badgeLabel: 'Video',
-        badgeClass: 'bg-red-950/40 text-red-400 border-red-500/30',
-        icon: <PlayCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />,
+        badgeClass: baseBadge,
+        icon: <PlayCircle className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />,
         actionLabel: 'Watch',
-        buttonClass: 'bg-red-500/15 hover:bg-red-500/25 border-red-500/40 text-red-300 hover:text-white hover:border-red-400',
-        containerClass: 'bg-gradient-to-r from-red-950/20 to-[#0c1210] border-red-500/25'
+        buttonClass: baseButton,
+        containerClass: baseContainer
       };
     case 'documentation':
       return {
         badgeLabel: 'Docs',
-        badgeClass: 'bg-sky-950/40 text-sky-400 border-sky-500/30',
-        icon: <BookOpen className="w-3.5 h-3.5 text-sky-400 shrink-0" />,
+        badgeClass: baseBadge,
+        icon: <BookOpen className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />,
         actionLabel: 'Read',
-        buttonClass: 'bg-sky-500/15 hover:bg-sky-500/25 border-sky-500/40 text-sky-300 hover:text-white hover:border-sky-400',
-        containerClass: 'bg-gradient-to-r from-sky-950/20 to-[#0c1210] border-sky-500/25'
+        buttonClass: baseButton,
+        containerClass: baseContainer
       };
     case 'scientific_study':
       return {
         badgeLabel: 'Study',
-        badgeClass: 'bg-purple-950/40 text-purple-400 border-purple-500/30',
-        icon: <GraduationCap className="w-3.5 h-3.5 text-purple-400 shrink-0" />,
+        badgeClass: baseBadge,
+        icon: <GraduationCap className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />,
         actionLabel: 'Read',
-        buttonClass: 'bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/40 text-purple-300 hover:text-white hover:border-purple-400',
-        containerClass: 'bg-gradient-to-r from-purple-950/20 to-[#0c1210] border-purple-500/25'
+        buttonClass: baseButton,
+        containerClass: baseContainer
       };
     case 'interactive_tool':
       return {
         badgeLabel: 'Tool',
-        badgeClass: 'bg-amber-950/40 text-amber-400 border-amber-500/30',
-        icon: <Terminal className="w-3.5 h-3.5 text-amber-400 shrink-0" />,
+        badgeClass: baseBadge,
+        icon: <Terminal className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />,
         actionLabel: 'Open',
-        buttonClass: 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/40 text-amber-300 hover:text-white hover:border-amber-400',
-        containerClass: 'bg-gradient-to-r from-amber-950/20 to-[#0c1210] border-amber-500/25'
+        buttonClass: baseButton,
+        containerClass: baseContainer
       };
     case 'guide':
     default:
       return {
         badgeLabel: 'Guide',
-        badgeClass: 'bg-emerald-950/40 text-[#07CB6C] border-[#07CB6C]/30',
+        badgeClass: baseBadge,
         icon: <Compass className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />,
         actionLabel: 'Open',
-        buttonClass: 'bg-[#07CB6C]/15 hover:bg-[#07CB6C]/25 border-[#07CB6C]/40 text-[#07CB6C] hover:text-white hover:border-[#07CB6C]',
-        containerClass: 'bg-gradient-to-r from-emerald-950/20 to-[#0c1210] border-[#07CB6C]/25'
+        buttonClass: baseButton,
+        containerClass: baseContainer
       };
   }
 }
@@ -102,14 +102,14 @@ interface ExecutionDashboardProps {
   goal: Goal;
   token: string;
   onGoalUpdated: (goal: Goal) => void;
-  onResetGoal: () => void;
+  onResetGoal?: () => void;
 }
 
 export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
   goal,
   token,
   onGoalUpdated,
-  onResetGoal
+  onResetGoal: _onResetGoal
 }) => {
   const currentWeekNum = goal.currentWeek || 1;
   const roadmapWeeks = goal.roadmapWeeks || [];
@@ -141,7 +141,6 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
   const [isNoteSaved, setIsNoteSaved] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewReflection, setReviewReflection] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
   const [activeVideoStep, setActiveVideoStep] = useState<string | null>(null);
   const [milestoneGateModal, setMilestoneGateModal] = useState<{
     completedPhase: string;
@@ -283,21 +282,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
     }
   };
 
-  // --------------------------------------------------------------------------
-  // Reset Goal
-  // --------------------------------------------------------------------------
-  const handleReset = async () => {
-    if (!window.confirm('Are you sure you want to reset your current plan and start fresh?')) return;
-    setIsResetting(true);
-    try {
-      await resetActiveGoal(token);
-      onResetGoal();
-    } catch (err) {
-      console.error('Reset failed:', err);
-    } finally {
-      setIsResetting(false);
-    }
-  };
+
 
   // Parse steps from detailedSteps JSON
   const parsedSteps: DetailedStep[] = useMemo(() => {
@@ -387,81 +372,36 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
 
           {/* Quick Actions */}
           <div className="flex items-center gap-2 self-start md:self-center shrink-0">
-            <Link
-              to="/roadmap"
-              className="px-3 py-2 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-medium text-neutral-200 transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Layers className="w-3.5 h-3.5 text-[#07CB6C]" />
-              <span>Roadmap</span>
-            </Link>
-
             <button
               type="button"
               onClick={() => setShowReviewModal(true)}
-              className="px-3 py-2 rounded-md bg-[#07CB6C]/10 hover:bg-[#07CB6C]/20 border border-[#07CB6C]/30 text-xs font-semibold text-[#07CB6C] transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-semibold text-neutral-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <Award className="w-3.5 h-3.5" />
+              <Award className="w-3.5 h-3.5 text-[#07CB6C]" />
               <span>Week Review</span>
             </button>
-
-            <button
-              type="button"
-              onClick={handleReset}
-              disabled={isResetting}
-              title="Reset plan"
-              aria-label="Reset plan"
-              className="p-2 rounded-md bg-[#080d0b] hover:bg-neutral-900 border border-[#1a2824] text-neutral-500 hover:text-red-400 transition-colors cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* 12-Week Micro-Bar Timeline */}
-        <div className="pt-2 border-t border-[#1a2824]/60">
-          <div className="grid grid-cols-12 gap-1 h-1.5 w-full">
-            {Array.from({ length: 12 }).map((_, idx) => {
-              const weekIdx = idx + 1;
-              const isPast = weekIdx < currentWeekNum;
-              const isCurrent = weekIdx === currentWeekNum;
-              const isGate = weekIdx === 4 || weekIdx === 8 || weekIdx === 12;
-              return (
-                <div
-                  key={idx}
-                  title={`Week ${weekIdx}: ${roadmapWeeks.find((w) => w.weekNumber === weekIdx)?.theme || ''}`}
-                  className={`h-full rounded-full transition-all ${
-                    isPast
-                      ? isGate ? 'bg-[#f59e0b]' : 'bg-[#07CB6C]'
-                      : isCurrent
-                      ? isGate
-                        ? 'bg-[#f59e0b] shadow-[0_0_8px_rgba(245,158,11,0.6)]'
-                        : 'bg-[#07CB6C] shadow-[0_0_8px_rgba(7,203,108,0.6)]'
-                      : isGate
-                      ? 'bg-[#f59e0b]/40 border border-[#f59e0b]/60'
-                      : 'bg-[#1a2824]'
-                  }`}
-                />
-              );
-            })}
           </div>
         </div>
       </div>
 
       {/* ===================================================================== */}
-      {/* 2. 7-DAY SCHEDULE STRIP */}
+      {/* 2. 7-DAY SCHEDULE STRIP (Sleek Zen Pill Bar) */}
       {/* ===================================================================== */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#07CB6C]" />
-            <h2 className="text-sm font-semibold text-white">
-              {currentRoadmapWeek?.theme || `Week ${currentWeekNum}`}
-            </h2>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-0.5 text-xs">
+          <div className="flex items-center gap-2 text-neutral-400">
+            <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
+            <span className="font-semibold text-white">
+              Week {currentWeekNum}: {currentRoadmapWeek?.theme || 'Active Focus'}
+            </span>
           </div>
+          <span className="text-[11px] font-mono text-neutral-500">
+            {currentWeekTasks.filter((t) => t.status === 'completed').length}/7 days completed
+          </span>
         </div>
 
-        {/* Day Cards Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-7 gap-2.5">
+        {/* 7-Day Pill Bar */}
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2 p-1.5 rounded-lg bg-[#080d0b] border border-[#1a2824]">
           {currentWeekTasks.map((t) => {
             const isSelected = selectedTask?.id === t.id;
             const isDone = t.status === 'completed';
@@ -474,47 +414,57 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                 key={t.id}
                 type="button"
                 onClick={() => setSelectedTaskId(t.id)}
-                className={`p-3 rounded-md border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
+                className={`py-2 px-1 sm:px-2.5 rounded-md border text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
                   isSelected
-                    ? 'bg-[#0f1915] border-[#07CB6C] ring-1 ring-[#07CB6C]/30'
+                    ? 'bg-[#0f1f18] border-[#07CB6C] text-[#07CB6C] shadow-sm'
                     : isDone
-                    ? 'bg-[#09120f] border-[#07CB6C]/30 hover:border-[#07CB6C]/50'
-                    : 'bg-[#0c1210] border-[#1a2824] hover:border-neutral-700'
+                    ? 'bg-[#0a1410] border-[#07CB6C]/30 text-neutral-300 hover:border-[#07CB6C]/60'
+                    : isToday
+                    ? 'bg-[#0d1713] border-neutral-600 text-white hover:border-neutral-500'
+                    : 'bg-[#090e0c] border-transparent text-neutral-400 hover:bg-[#0e1612] hover:text-neutral-200'
                 }`}
               >
-                <div>
-                  <div className="flex items-center justify-between text-[11px] font-mono mb-1.5">
-                    <span className={`font-semibold ${isSelected ? 'text-[#07CB6C]' : 'text-neutral-300'}`}>
-                      {t.dayOfWeek.slice(0, 3).toUpperCase()} {t.date.slice(8)}
-                    </span>
-                    {isToday && (
-                      <span className="px-1.5 py-0.2 rounded-sm bg-[#07CB6C] text-black font-mono font-bold text-[9px]">
-                        TODAY
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="text-xs font-medium text-white line-clamp-2 leading-snug">
-                    {t.title}
-                  </div>
+                {/* Day name & date number */}
+                <div className="flex flex-col items-center leading-none gap-0.5">
+                  <span
+                    className={`text-[10px] font-mono uppercase tracking-wider ${
+                      isSelected
+                        ? 'text-[#07CB6C] font-bold'
+                        : isToday
+                        ? 'text-white font-semibold'
+                        : 'text-neutral-500'
+                    }`}
+                  >
+                    {t.dayOfWeek.slice(0, 3)}
+                  </span>
+                  <span
+                    className={`text-xs sm:text-sm font-mono font-bold ${
+                      isSelected
+                        ? 'text-[#07CB6C]'
+                        : isToday
+                        ? 'text-white'
+                        : isDone
+                        ? 'text-neutral-200'
+                        : 'text-neutral-400'
+                    }`}
+                  >
+                    {t.date.slice(8)}
+                  </span>
                 </div>
 
-                <div className="pt-2 flex items-center justify-between text-[10px] font-mono">
-                  <span className="text-neutral-500">
-                    {isRest ? 'Rest' : `${t.durationMinutes}m`}
-                  </span>
-
+                {/* Status Dot */}
+                <div className="flex items-center justify-center h-2">
                   {isDone ? (
-                    <span className="inline-flex items-center gap-1 text-[#07CB6C] font-semibold">
-                      <Check className="w-3 h-3" />
-                      <span>Done</span>
-                    </span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" title="Completed" />
+                  ) : isToday ? (
+                    <span
+                      className="w-1.5 h-1.5 rounded-full bg-white ring-2 ring-[#07CB6C]/40 animate-pulse"
+                      title="Today"
+                    />
                   ) : isRest ? (
-                    <span className="text-neutral-500">Recovery</span>
+                    <span className="text-[9px] font-mono text-neutral-600 font-medium">zZ</span>
                   ) : (
-                    <span className="text-neutral-400">
-                      {t.slotTime || 'Scheduled'}
-                    </span>
+                    <span className="w-1 h-1 rounded-full bg-neutral-700" />
                   )}
                 </div>
               </button>
@@ -642,9 +592,9 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                       <button
                         type="button"
                         onClick={() => setActiveVideoStep(isDailyVideoOpen ? null : `daily_${selectedTask.id}`)}
-                        className="px-3 py-1.5 rounded-md bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-xs font-semibold text-red-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        className="px-3 py-1.5 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-semibold text-neutral-200 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
                       >
-                        <PlayCircle className="w-3.5 h-3.5 text-red-400" />
+                        <PlayCircle className="w-3.5 h-3.5 text-[#07CB6C]" />
                         <span>{isDailyVideoOpen ? 'Close' : 'Watch'}</span>
                       </button>
                     )}
@@ -663,7 +613,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                 </div>
 
                 {dailyYtEmbed && isDailyVideoOpen && (
-                  <div className="mt-2 aspect-video w-full rounded-md overflow-hidden border border-red-500/30 bg-black">
+                  <div className="mt-2 aspect-video w-full rounded-md overflow-hidden border border-[#1a2824] bg-black">
                     <iframe
                       src={dailyYtEmbed}
                       title={selectedTask.resourceTitle}
@@ -726,8 +676,8 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                         )}
 
                         {step.pitfallToAvoid && (
-                          <div className="p-2.5 rounded-md bg-[#f59e0b]/5 border border-[#f59e0b]/20 flex items-start gap-2">
-                            <AlertTriangle className="w-3.5 h-3.5 text-[#f59e0b] shrink-0 mt-0.5" />
+                          <div className="p-2.5 rounded-md bg-neutral-900/40 border border-[#1a2824] flex items-start gap-2">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400/80 shrink-0 mt-0.5" />
                             <span className="text-neutral-300">{step.pitfallToAvoid}</span>
                           </div>
                         )}
@@ -761,9 +711,9 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => setActiveVideoStep(isVideoOpen ? null : stepKey)}
-                                    className="px-2.5 py-1 rounded-md bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-[11px] font-semibold text-red-300 transition-colors flex items-center gap-1.5 cursor-pointer"
+                                    className="px-2.5 py-1 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-[11px] font-semibold text-neutral-200 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
                                   >
-                                    <PlayCircle className="w-3.5 h-3.5 text-red-400" />
+                                    <PlayCircle className="w-3.5 h-3.5 text-[#07CB6C]" />
                                     <span>{isVideoOpen ? 'Close' : 'Watch'}</span>
                                   </button>
                                 )}

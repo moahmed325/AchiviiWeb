@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Check,
 } from 'lucide-react';
 import { formatGoalTitle } from '../lib/formatters';
 import { RoutineSettings } from '../types';
@@ -112,7 +113,7 @@ export const RoadmapPage: React.FC = () => {
         </div>
 
         {/* Minimal Header */}
-        <div className="border-b border-[#1a2824] pb-5 space-y-2">
+        <div className="border-b border-[#1a2824] pb-4 space-y-2">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
               Roadmap
@@ -144,34 +145,27 @@ export const RoadmapPage: React.FC = () => {
               {activeGoal.clarifiedOutcome}
             </div>
           )}
+
+          {/* Daily Routine Cadence — Quiet inline subtitle */}
+          {routine && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-400 pt-1">
+              <span className="inline-flex items-center gap-1 text-[#07CB6C] font-medium">
+                <Clock className="w-3.5 h-3.5" />
+                <span>{routine.dailyMinutes}m daily sessions</span>
+              </span>
+              <span className="text-neutral-600">•</span>
+              <span>{routine.preferredSlot} slot</span>
+              <span className="text-neutral-600">•</span>
+              <span className="font-mono text-[11px] text-neutral-500">
+                Wake {routine.wakeTime} · Busy {routine.busyHours} · Sleep {routine.sleepTime}
+              </span>
+            </div>
+          )}
         </div>
-
-        {/* Daily Routine Cadence — Built around user's schedule */}
-        {routine && (
-          <div className="p-3.5 rounded-md bg-[#080d0b] border border-[#1a2824] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
-              <Clock className="w-4 h-4 text-[#07CB6C] shrink-0" />
-              <div>
-                <span className="font-semibold text-white">Built for your daily routine: </span>
-                <span className="text-neutral-300">
-                  {routine.dailyMinutes}m sessions • {routine.preferredSlot} slot
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-[11px] font-mono text-neutral-400 bg-[#0c1210] px-2.5 py-1 rounded border border-[#1a2824]">
-              <span>Wake: {routine.wakeTime}</span>
-              <span>•</span>
-              <span>Busy: {routine.busyHours}</span>
-              <span>•</span>
-              <span>Sleep: {routine.sleepTime}</span>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Phase List */}
-      <div className="space-y-4">
+      {/* 90-Day Vertical Trajectory Stream */}
+      <div className="border-l border-[#1a2824] ml-3 sm:ml-4 pl-4 sm:pl-7 space-y-8 relative pt-2">
         {phases.map((phase) => {
           const isCurrentPhase = phase.id === currentPhaseId;
           const isPhaseCompleted =
@@ -179,144 +173,114 @@ export const RoadmapPage: React.FC = () => {
           const isExpanded = !!expandedPhases[phase.id];
 
           return (
-            <div
-              key={phase.id}
-              className={`rounded-md border transition-all ${
-                isCurrentPhase
-                  ? 'border-[#07CB6C]/40 bg-[#080d0b]'
-                  : isPhaseCompleted
-                  ? 'border-[#1a2824] bg-[#070b09]'
-                  : 'border-[#14201c] bg-[#060908]'
-              }`}
-            >
-              {/* Phase Header Accordion */}
-              <button
-                type="button"
-                onClick={() => togglePhase(phase.id)}
-                className="w-full px-4 py-3.5 flex items-center justify-between text-left cursor-pointer select-none hover:bg-white/[0.02] transition-colors rounded-md focus-visible:outline-none"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-6 h-6 rounded-md border flex items-center justify-center text-xs font-mono font-bold ${
-                      isCurrentPhase
-                        ? 'border-[#07CB6C]/50 bg-[#07CB6C]/15 text-[#07CB6C]'
-                        : isPhaseCompleted
-                        ? 'border-[#07CB6C]/30 bg-[#07CB6C]/10 text-[#07CB6C]'
-                        : 'border-[#1a2824] bg-neutral-900 text-neutral-500'
-                    }`}
-                  >
-                    {phase.id === 'p1' ? '1' : phase.id === 'p2' ? '2' : '3'}
-                  </div>
+            <div key={phase.id} className="relative space-y-4">
+              {/* Node Marker on Hairline */}
+              <span
+                className={`absolute -left-[21px] sm:-left-[33px] top-1.5 w-3 h-3 rounded-full border-2 border-[#050807] transition-all ${
+                  isCurrentPhase
+                    ? 'bg-[#07CB6C] ring-4 ring-[#07CB6C]/25'
+                    : isPhaseCompleted
+                    ? 'bg-[#07CB6C]'
+                    : 'bg-neutral-800'
+                }`}
+              />
 
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-semibold text-white">
-                      {phase.name}
-                    </h2>
-                    <span className="text-xs text-neutral-500 font-mono">
-                      • {phase.weeksLabel}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium ${
-                      isPhaseCompleted
-                        ? 'bg-[#07CB6C]/15 text-[#07CB6C] border border-[#07CB6C]/30'
-                        : isCurrentPhase
-                        ? 'bg-[#07CB6C] text-black font-semibold'
-                        : 'bg-neutral-800 text-neutral-400'
-                    }`}
-                  >
-                    {isPhaseCompleted ? 'Done' : isCurrentPhase ? 'Active' : 'Upcoming'}
+              {/* Phase Header Bar */}
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => togglePhase(phase.id)}
+                  className="flex items-center gap-2.5 text-left cursor-pointer group focus-visible:outline-none"
+                >
+                  <h2 className="text-base sm:text-lg font-bold text-white tracking-tight group-hover:text-[#07CB6C] transition-colors">
+                    {phase.name}
+                  </h2>
+                  <span className="text-xs text-neutral-500 font-mono">
+                    ({phase.weeksLabel})
                   </span>
+                  <span className="text-neutral-500 group-hover:text-white transition-colors">
+                    {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </span>
+                </button>
 
-                  <div className="text-neutral-400">
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4" />
-                    )}
-                  </div>
-                </div>
-              </button>
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono font-medium ${
+                    isPhaseCompleted
+                      ? 'text-[#07CB6C] bg-[#07CB6C]/10 border border-[#07CB6C]/25'
+                      : isCurrentPhase
+                      ? 'bg-[#07CB6C] text-black font-semibold'
+                      : 'text-neutral-500 bg-[#0c1210] border border-[#1a2824]'
+                  }`}
+                >
+                  {isPhaseCompleted ? 'Completed' : isCurrentPhase ? 'In Progress' : 'Upcoming'}
+                </span>
+              </div>
 
-              {/* Collapsible Weeks Grid */}
+              {/* Collapsible Weeks */}
               {isExpanded && (
-                <div className="px-4 pb-4 pt-1 border-t border-[#1a2824]/60">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2.5">
-                    {phase.weeks.map((week) => {
-                      const isCurrent = week.weekNumber === currentWeekNum;
-                      const isCompleted = week.status === 'completed' || week.weekNumber < currentWeekNum;
-                      const isGate =
-                        week.weekNumber === 4 || week.weekNumber === 8 || week.weekNumber === 12;
+                <div className="space-y-2 pt-1 animate-fadeIn">
+                  {phase.weeks.map((week) => {
+                    const isCurrent = week.weekNumber === currentWeekNum;
+                    const isCompleted = week.status === 'completed' || week.weekNumber < currentWeekNum;
+                    const isGate = week.weekNumber === 4 || week.weekNumber === 8 || week.weekNumber === 12;
 
-                      return (
-                        <div
-                          key={week.weekNumber}
-                          className={`p-3.5 rounded-md border text-xs space-y-2 transition-all ${
-                            isCurrent
-                              ? 'bg-[#0f1915] border-[#07CB6C]'
-                              : isGate
-                              ? isCompleted
-                                ? 'bg-[#09120f] border-[#f59e0b]/30'
-                                : 'bg-[#0a100d] border-[#f59e0b]/20'
-                              : isCompleted
-                              ? 'bg-[#09120f] border-[#07CB6C]/20'
-                              : 'bg-[#080d0b] border-[#1a2824]'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono font-bold text-white text-xs">
-                                Week {week.weekNumber}
+                    return (
+                      <div
+                        key={week.weekNumber}
+                        className={`p-3.5 rounded-md border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                          isCurrent
+                            ? 'bg-[#0c1612] border-[#07CB6C]/50 ring-1 ring-[#07CB6C]/20'
+                            : isCompleted
+                            ? 'bg-[#080e0c] border-[#1a2824] hover:border-[#1a2824]/80'
+                            : 'bg-[#070b09] border-[#15201c] hover:border-neutral-800'
+                        }`}
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`font-mono text-xs font-bold ${isCurrent ? 'text-[#07CB6C]' : 'text-neutral-300'}`}>
+                              Week {week.weekNumber}
+                            </span>
+                            {isGate && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-medium uppercase tracking-wider bg-amber-400/10 text-amber-400/90 border border-amber-400/20">
+                                {week.weekNumber === 12 ? 'Capstone' : 'Milestone Gate'}
                               </span>
-                              {isGate && (
-                                <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase tracking-wider bg-[#f59e0b]/15 text-[#f59e0b] border border-[#f59e0b]/30">
-                                  {week.weekNumber === 12 ? 'Capstone' : 'Milestone'}
-                                </span>
-                              )}
-                            </div>
-
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-medium ${
-                                isCurrent
-                                  ? 'bg-[#07CB6C] text-black font-semibold'
-                                  : isCompleted
-                                  ? 'text-[#07CB6C]'
-                                  : 'text-neutral-500'
-                              }`}
-                            >
-                              {isCurrent
-                                ? 'Active'
-                                : isCompleted
-                                ? '✓ Done'
-                                : 'Upcoming'}
-                            </span>
+                            )}
+                            {isCurrent && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-[#07CB6C] text-black">
+                                ACTIVE
+                              </span>
+                            )}
                           </div>
 
-                          <div className="font-semibold text-neutral-100 text-xs sm:text-sm line-clamp-1">
+                          <h3 className="text-sm font-semibold text-white">
                             {week.theme}
-                          </div>
+                          </h3>
 
-                          <div
-                            className={`pt-1 border-t border-white/5 text-[11px] flex items-center gap-1.5 ${
-                              isGate ? 'text-[#f59e0b]' : 'text-neutral-400'
-                            }`}
-                          >
-                            <Award
-                              className={`w-3.5 h-3.5 shrink-0 ${
-                                isGate ? 'text-[#f59e0b]' : 'text-[#07CB6C]'
-                              }`}
-                            />
-                            <span className="line-clamp-1 font-normal text-neutral-300">
-                              {week.keyMilestone}
-                            </span>
+                          <div className="flex items-center gap-1.5 text-xs text-neutral-400">
+                            <Award className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />
+                            <span className="line-clamp-1">{week.keyMilestone}</span>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+
+                        <div className="self-end sm:self-center shrink-0">
+                          {isCompleted ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-mono font-medium text-[#07CB6C]">
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Done</span>
+                            </span>
+                          ) : isCurrent ? (
+                            <span className="text-xs font-mono font-medium text-[#07CB6C]">
+                              Current Focus
+                            </span>
+                          ) : (
+                            <span className="text-xs font-mono text-neutral-600">
+                              Upcoming
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

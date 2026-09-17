@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Clock,
   Calendar,
 } from 'lucide-react';
 
@@ -50,261 +49,176 @@ export const FullDayVisualizer: React.FC<FullDayVisualizerProps> = ({
     return parts[1] || '17:00';
   }, [busyHours]);
 
-  const isMorningSlot = preferredSlot === 'morning' || scheduledTime.toLowerCase().includes('07:') || scheduledTime.toLowerCase().includes('08:');
+  const isMorningSlot =
+    preferredSlot === 'morning' ||
+    scheduledTime.toLowerCase().includes('07:') ||
+    scheduledTime.toLowerCase().includes('08:');
+
+  // Render the session card
+  const renderSessionCard = () => (
+    <div className="relative">
+      {/* Node Dot on Timeline */}
+      <span
+        className={`absolute -left-[21px] sm:-left-[29px] top-6 w-3 h-3 rounded-full border-2 border-[#050807] transition-all ${
+          task.status === 'completed'
+            ? 'bg-[#07CB6C] ring-4 ring-[#07CB6C]/20'
+            : 'bg-[#07CB6C] ring-4 ring-[#07CB6C]/30 animate-pulse'
+        }`}
+      />
+
+      <div
+        className={`rounded-md border transition-all ${
+          isExpanded
+            ? 'border-[#07CB6C] bg-[#0c1410] ring-1 ring-[#07CB6C]/30 shadow-md'
+            : task.status === 'completed'
+            ? 'border-[#07CB6C]/30 bg-[#09120f] hover:border-[#07CB6C]/60'
+            : 'border-[#1a2824] bg-[#0a120e] hover:border-[#07CB6C]/60 hover:bg-[#0d1813]'
+        }`}
+      >
+        {/* Clickable Header */}
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          className="w-full p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left cursor-pointer focus-visible:outline-none"
+        >
+          <div className="flex items-start sm:items-center gap-3">
+            <div
+              className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 border ${
+                task.status === 'completed'
+                  ? 'bg-[#07CB6C]/20 border-[#07CB6C] text-[#07CB6C]'
+                  : 'bg-[#07CB6C] text-black font-bold border-[#07CB6C]'
+              }`}
+            >
+              {task.status === 'completed' ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <Target className="w-3.5 h-3.5" />
+              )}
+            </div>
+
+            <div className="space-y-0.5">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                <span className="font-bold text-[#07CB6C]">
+                  {scheduledTime}
+                </span>
+                <span className="text-neutral-600">•</span>
+                <span className="text-neutral-400">
+                  {durationMinutes} min practice
+                </span>
+                {task.isRestDay && (
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-neutral-800 text-neutral-400">
+                    Rest Day
+                  </span>
+                )}
+              </div>
+
+              <h4 className="text-sm sm:text-base font-bold text-white tracking-tight leading-snug">
+                {task.title}
+              </h4>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 self-end sm:self-center shrink-0">
+            <span
+              className={`px-2 py-0.5 rounded text-[11px] font-mono font-medium ${
+                task.status === 'completed'
+                  ? 'text-[#07CB6C]'
+                  : 'text-neutral-400'
+              }`}
+            >
+              {task.status === 'completed' ? '✓ Completed' : 'Pending'}
+            </span>
+
+            <div className="inline-flex items-center gap-1 text-xs text-[#07CB6C] font-semibold hover:text-[#06b560]">
+              <span>{isExpanded ? 'Hide details' : 'View session'}</span>
+              {isExpanded ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </div>
+          </div>
+        </button>
+
+        {/* Revealed Details on Click */}
+        {isExpanded && (
+          <div className="border-t border-[#1a2824] p-5 sm:p-6 space-y-6 animate-fadeIn">
+            {children}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="rounded-md bg-[#0c1210] border border-[#1a2824] p-5 sm:p-6 space-y-5 animate-fadeIn">
-      {/* Schedule Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1a2824] pb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-[#07CB6C]" />
-            <h3 className="text-base font-bold text-white tracking-tight">
-              {task.dayOfWeek} Schedule
-            </h3>
-            <span className="text-xs font-mono text-neutral-400">
-              ({task.date})
-            </span>
-          </div>
-          <p className="text-xs text-neutral-400 mt-0.5">
-            Your daily timeline built around your routine. Click your focus session to view steps.
-          </p>
+    <div className="space-y-4 animate-fadeIn">
+      {/* Quiet Header */}
+      <div className="flex items-center justify-between text-xs text-neutral-400 pb-1">
+        <div className="flex items-center gap-2">
+          <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
+          <span className="font-semibold text-white">
+            {task.dayOfWeek}, {task.date}
+          </span>
         </div>
-
-        <div className="flex items-center gap-2 text-xs font-mono text-[#07CB6C] bg-[#07CB6C]/10 border border-[#07CB6C]/20 px-2.5 py-1 rounded-md self-start sm:self-auto">
-          <Clock className="w-3.5 h-3.5" />
-          <span>{scheduledTime} ({durationMinutes}m)</span>
-        </div>
+        <span className="font-mono text-[11px] text-neutral-500">
+          Daily Routine Stream
+        </span>
       </div>
 
-      {/* Chronological Day Timeline */}
-      <div className="space-y-3">
-        {/* 1. Wake Up */}
-        <div className="p-3 rounded-md bg-[#080d0b] border border-[#14201c] flex items-center justify-between text-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 rounded bg-amber-950/30 border border-amber-500/20 flex items-center justify-center">
-              <Sun className="w-3.5 h-3.5 text-amber-400" />
-            </div>
-            <div>
-              <span className="font-mono font-semibold text-neutral-200">{wakeTime}</span>
-              <span className="ml-2 text-neutral-400">Wake Up & Morning Window</span>
-            </div>
+      {/* Vertical Timeline Stream */}
+      <div className="border-l border-[#1a2824] ml-3 sm:ml-4 pl-4 sm:pl-6 space-y-6 relative py-1">
+        {/* 1. Wake Up Milestone */}
+        <div className="relative flex items-center justify-between text-xs text-neutral-400">
+          <span className="absolute -left-[21px] sm:-left-[29px] w-2.5 h-2.5 rounded-full bg-amber-400/80 border-2 border-[#050807]" />
+          <div className="flex items-center gap-2">
+            <Sun className="w-3.5 h-3.5 text-amber-400/80 shrink-0" />
+            <span className="font-mono font-medium text-neutral-300">{wakeTime}</span>
+            <span className="text-neutral-500">•</span>
+            <span>Wake Up & Morning Window</span>
           </div>
-          <span className="text-[10px] font-mono text-neutral-500">Day Start</span>
+          <span className="text-[10px] font-mono text-neutral-600 hidden sm:inline">Start</span>
         </div>
 
-        {/* 2. Morning Focus Task (If morning slot) */}
-        {isMorningSlot && (
-          <div
-            className={`rounded-md border transition-all ${
-              isExpanded
-                ? 'border-[#07CB6C] bg-[#0c1511] ring-1 ring-[#07CB6C]/30 shadow-lg'
-                : task.status === 'completed'
-                ? 'border-[#07CB6C]/40 bg-[#09120f] hover:border-[#07CB6C]/60'
-                : 'border-[#07CB6C]/70 bg-[#09140f] hover:border-[#07CB6C]'
-            }`}
-          >
-            {/* Clickable Task Block Header */}
-            <button
-              type="button"
-              onClick={onToggleExpand}
-              className="w-full p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left cursor-pointer focus-visible:outline-none"
-            >
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div
-                  className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 border ${
-                    task.status === 'completed'
-                      ? 'bg-[#07CB6C]/20 border-[#07CB6C] text-[#07CB6C]'
-                      : 'bg-[#07CB6C] text-black font-bold border-[#07CB6C]'
-                  }`}
-                >
-                  {task.status === 'completed' ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : (
-                    <Target className="w-4 h-4" />
-                  )}
-                </div>
+        {/* 2. Morning Session (If morning slot) */}
+        {isMorningSlot && renderSessionCard()}
 
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-mono font-bold text-[#07CB6C]">
-                      ⚡ {scheduledTime}
-                    </span>
-                    <span className="text-neutral-600">•</span>
-                    <span className="text-xs font-mono text-neutral-300">
-                      {durationMinutes} min practice
-                    </span>
-                    {task.isRestDay && (
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-950/40 text-blue-400 border border-blue-800/40">
-                        Recovery Day
-                      </span>
-                    )}
-                  </div>
-
-                  <h4 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
-                    {task.title}
-                  </h4>
-                </div>
-              </div>
-
-              {/* Status & Click Indicator */}
-              <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                <span
-                  className={`px-2.5 py-1 rounded text-xs font-mono font-semibold ${
-                    task.status === 'completed'
-                      ? 'bg-[#07CB6C]/20 text-[#07CB6C]'
-                      : 'bg-[#07CB6C] text-black'
-                  }`}
-                >
-                  {task.status === 'completed' ? '✓ Completed' : 'Ready'}
-                </span>
-
-                <div className="inline-flex items-center gap-1 text-xs text-[#07CB6C] font-semibold">
-                  <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
-                  {isExpanded ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </div>
-              </div>
-            </button>
-
-            {/* Revealed Details on Click */}
-            {isExpanded && (
-              <div className="border-t border-[#1a2824] p-5 sm:p-6 space-y-6 animate-fadeIn">
-                {children}
-              </div>
-            )}
+        {/* 3. Work / Committed Hours */}
+        <div className="relative flex items-center justify-between text-xs text-neutral-500">
+          <span className="absolute -left-[21px] sm:-left-[29px] w-2.5 h-2.5 rounded-full bg-neutral-700 border-2 border-[#050807]" />
+          <div className="flex items-center gap-2">
+            <Briefcase className="w-3.5 h-3.5 text-neutral-600 shrink-0" />
+            <span className="font-mono font-medium text-neutral-400">{busyHours}</span>
+            <span className="text-neutral-600">•</span>
+            <span>Work & Committed Hours</span>
           </div>
-        )}
-
-        {/* 3. Work / Busy Block */}
-        <div className="p-3.5 rounded-md bg-[#070b09] border border-[#14201c] flex items-center justify-between text-xs text-neutral-400">
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 rounded bg-neutral-900 border border-white/5 flex items-center justify-center">
-              <Briefcase className="w-3.5 h-3.5 text-neutral-500" />
-            </div>
-            <div>
-              <span className="font-mono font-semibold text-neutral-300">{busyHours}</span>
-              <span className="ml-2 text-neutral-400">Work & Committed Hours</span>
-            </div>
-          </div>
-          <span className="text-[10px] font-mono text-neutral-500">Busy Window</span>
+          <span className="text-[10px] font-mono text-neutral-600 hidden sm:inline">Busy Block</span>
         </div>
 
-        {/* 4. Midday / Evening Focus Task (If not morning slot) */}
-        {!isMorningSlot && (
-          <div
-            className={`rounded-md border transition-all ${
-              isExpanded
-                ? 'border-[#07CB6C] bg-[#0c1511] ring-1 ring-[#07CB6C]/30 shadow-lg'
-                : task.status === 'completed'
-                ? 'border-[#07CB6C]/40 bg-[#09120f] hover:border-[#07CB6C]/60'
-                : 'border-[#07CB6C]/70 bg-[#09140f] hover:border-[#07CB6C]'
-            }`}
-          >
-            {/* Clickable Task Block Header */}
-            <button
-              type="button"
-              onClick={onToggleExpand}
-              className="w-full p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-left cursor-pointer focus-visible:outline-none"
-            >
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div
-                  className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 border ${
-                    task.status === 'completed'
-                      ? 'bg-[#07CB6C]/20 border-[#07CB6C] text-[#07CB6C]'
-                      : 'bg-[#07CB6C] text-black font-bold border-[#07CB6C]'
-                  }`}
-                >
-                  {task.status === 'completed' ? (
-                    <CheckCircle2 className="w-5 h-5" />
-                  ) : (
-                    <Target className="w-4 h-4" />
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-mono font-bold text-[#07CB6C]">
-                      ⚡ {scheduledTime}
-                    </span>
-                    <span className="text-neutral-600">•</span>
-                    <span className="text-xs font-mono text-neutral-300">
-                      {durationMinutes} min practice
-                    </span>
-                    {task.isRestDay && (
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-blue-950/40 text-blue-400 border border-blue-800/40">
-                        Recovery Day
-                      </span>
-                    )}
-                  </div>
-
-                  <h4 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
-                    {task.title}
-                  </h4>
-                </div>
-              </div>
-
-              {/* Status & Click Indicator */}
-              <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                <span
-                  className={`px-2.5 py-1 rounded text-xs font-mono font-semibold ${
-                    task.status === 'completed'
-                      ? 'bg-[#07CB6C]/20 text-[#07CB6C]'
-                      : 'bg-[#07CB6C] text-black'
-                  }`}
-                >
-                  {task.status === 'completed' ? '✓ Completed' : 'Ready'}
-                </span>
-
-                <div className="inline-flex items-center gap-1 text-xs text-[#07CB6C] font-semibold">
-                  <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
-                  {isExpanded ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </div>
-              </div>
-            </button>
-
-            {/* Revealed Details on Click */}
-            {isExpanded && (
-              <div className="border-t border-[#1a2824] p-5 sm:p-6 space-y-6 animate-fadeIn">
-                {children}
-              </div>
-            )}
-          </div>
-        )}
+        {/* 4. Afternoon / Evening Session (If not morning slot) */}
+        {!isMorningSlot && renderSessionCard()}
 
         {/* 5. Evening Free Time */}
-        <div className="p-3 rounded-md bg-[#080d0b] border border-[#14201c] flex items-center justify-between text-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 rounded bg-indigo-950/30 border border-indigo-500/20 flex items-center justify-center">
-              <Sunset className="w-3.5 h-3.5 text-indigo-400" />
-            </div>
-            <div>
-              <span className="font-mono font-semibold text-neutral-200">{busyEnd} – {sleepTime}</span>
-              <span className="ml-2 text-neutral-400">Evening Free Time & Wind Down</span>
-            </div>
+        <div className="relative flex items-center justify-between text-xs text-neutral-400">
+          <span className="absolute -left-[21px] sm:-left-[29px] w-2.5 h-2.5 rounded-full bg-orange-400/60 border-2 border-[#050807]" />
+          <div className="flex items-center gap-2">
+            <Sunset className="w-3.5 h-3.5 text-orange-400/70 shrink-0" />
+            <span className="font-mono font-medium text-neutral-300">{busyEnd} – {sleepTime}</span>
+            <span className="text-neutral-500">•</span>
+            <span>Evening Personal Time</span>
           </div>
-          <span className="text-[10px] font-mono text-neutral-500">Free Time</span>
+          <span className="text-[10px] font-mono text-neutral-600 hidden sm:inline">Wind Down</span>
         </div>
 
-        {/* 6. Sleep */}
-        <div className="p-3 rounded-md bg-[#080d0b] border border-[#14201c] flex items-center justify-between text-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 rounded bg-purple-950/30 border border-purple-500/20 flex items-center justify-center">
-              <Moon className="w-3.5 h-3.5 text-purple-400" />
-            </div>
-            <div>
-              <span className="font-mono font-semibold text-neutral-200">{sleepTime}</span>
-              <span className="ml-2 text-neutral-400">Sleep & Full Recovery</span>
-            </div>
+        {/* 6. Sleep Milestone */}
+        <div className="relative flex items-center justify-between text-xs text-neutral-400">
+          <span className="absolute -left-[21px] sm:-left-[29px] w-2.5 h-2.5 rounded-full bg-indigo-400/80 border-2 border-[#050807]" />
+          <div className="flex items-center gap-2">
+            <Moon className="w-3.5 h-3.5 text-indigo-400/80 shrink-0" />
+            <span className="font-mono font-medium text-neutral-300">{sleepTime}</span>
+            <span className="text-neutral-500">•</span>
+            <span>Sleep & Recovery</span>
           </div>
-          <span className="text-[10px] font-mono text-neutral-500">Rest</span>
+          <span className="text-[10px] font-mono text-neutral-600 hidden sm:inline">Night Rest</span>
         </div>
       </div>
     </div>
