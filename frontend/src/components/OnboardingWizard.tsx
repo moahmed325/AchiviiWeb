@@ -24,7 +24,9 @@ import {
   Sparkles,
   Calendar,
   GripVertical,
-  Hand
+  Hand,
+  Trash2,
+  SlidersHorizontal
 } from 'lucide-react';
 import {
   GoalClarification,
@@ -538,7 +540,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   const [customPracticeStartMins, setCustomPracticeStartMins] = useState<number | null>(null);
   const [isDraggingPractice, setIsDraggingPractice] = useState(false);
   const [dragHoverMins, setDragHoverMins] = useState<number | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const dragDistanceRef = useRef(0);
+  const dragStartPosRef = useRef(0);
 
   // Active practice start: use real-time drag hover if currently dragging, else stored custom
   const activePracticeStart =
@@ -549,6 +554,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     () => computeDaySchedule(routine, activePracticeStart),
     [routine, activePracticeStart]
   );
+
+  const selectedBlock = useMemo(() => {
+    if (!selectedBlockId) return null;
+    return daySchedule.allBlocks.find((b) => b.id === selectedBlockId) || null;
+  }, [selectedBlockId, daySchedule.allBlocks]);
 
   const updatePracticeFromPointer = (clientX: number) => {
     const rect = timelineRef.current?.getBoundingClientRect();
@@ -582,6 +592,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   const handlePracticePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    dragDistanceRef.current = 0;
+    dragStartPosRef.current = e.clientX;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     setIsDraggingPractice(true);
     updatePracticeFromPointer(e.clientX);
@@ -590,6 +602,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   const handlePracticePointerMove = (e: React.PointerEvent) => {
     if (!isDraggingPractice) return;
     e.preventDefault();
+    dragDistanceRef.current = Math.abs(e.clientX - dragStartPosRef.current);
     updatePracticeFromPointer(e.clientX);
   };
 
@@ -608,6 +621,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       setRoutine((prev) => ({ ...prev, preferredSlot: finalSlot }));
     }
     setDragHoverMins(null);
+    setSelectedBlockId('practice-session');
   };
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -641,6 +655,94 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     setCustomPracticeStartMins(target);
     const finalSlot = target < 720 ? 'morning' : target < 1020 ? 'afternoon' : 'evening';
     setRoutine((prev) => ({ ...prev, preferredSlot: finalSlot }));
+    setSelectedBlockId('practice-session');
+  };
+
+  // Block Inspector Direct Adjustments
+  const handleAdjustCommitmentDuration = (id: string, deltaMins: number) => {
+    setRoutine((prev) => {
+      const list = prev.commitments || [];
+      return {
+        ...prev,
+        commitments: list.map((c) => {
+          if (c.id !== id) return c;
+          const currentBlock = daySchedule.allBlocks.find((b) => b.id === id);
+          const curStart = currentBlock?.startMins ?? 1080;
+          const curDur = currentBlock?.durationMins ?? 60;
+          const newDur = Math.max(15, Math.min(360, curDur + deltaMins));
+          const newEnd = curStart + newDur;
+          return {
+            ...c,
+            time: `${formatMinutesTo24h(curStart)} - ${formatMinutesTo24h(newEnd)}`
+          };
+        })
+      };
+    });
+  };
+
+  const handleShiftCommitmentTime = (id: string, deltaMins: number) => {
+    setRoutine((prev) => {
+      const list = prev.commitments || [];
+      return {
+        ...prev,
+        commitments: list.map((c) => {
+          if (c.id !== id) return c;
+          const currentBlock = daySchedule.allBlocks.find((b) => b.id === id);
+          const curStart = currentBlock?.startMins ?? 1080;
+          const curDur = currentBlock?.durationMins ?? 60;
+          const newStart = Math.max(0, Math.min(1440 - curDur, curStart + deltaMins));
+          const newEnd = newStart + curDur;
+          return {
+            ...c,
+            time: `${formatMinutesTo24h(newStart)} - ${formatMinutesTo24h(newEnd)}`
+          };
+        })
+      };
+    });
+  };
+
+  const handleAdjustPracticeDuration = (deltaMins: number) => {
+    setRoutine((prev) => ({
+      ...prev,
+      dailyMinutes: Math.max(15, Math.min(180, (prev.dailyMinutes || 60) + deltaMins))
+    }));
+  };
+
+  const handleShiftPracticeTime = (deltaMins: number) => {
+    const currentBlock = daySchedule.allBlocks.find((b) => b.isPractice);
+    const curStart = currentBlock?.startMins ?? 1170;
+    const practiceDuration = routine.dailyMinutes || 60;
+    const newStart = Math.max(0, Math.min(1440 - practiceDuration, curStart + deltaMins));
+    setCustomPracticeStartMins(newStart);
+    const finalSlot = newStart < 720 ? 'morning' : newStart < 1020 ? 'afternoon' : 'evening';
+    setRoutine((prev) => ({ ...prev, preferredSlot: finalSlot }));
+  };
+
+  const handleAdjustWorkHours = (field: 'start' | 'end', deltaMins: number) => {
+    const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
+    let startMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
+    let endMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
+    if (field === 'start') {
+      startMins = Math.max(0, Math.min(endMins - 60, startMins + deltaMins));
+    } else {
+      endMins = Math.max(startMins + 60, Math.min(1440, endMins + deltaMins));
+    }
+    setRoutine((prev) => ({
+      ...prev,
+      busyHours: `${formatMinutesTo24h(startMins)} - ${formatMinutesTo24h(endMins)}`
+    }));
+  };
+
+  const handleAdjustSleepTime = (field: 'wake' | 'sleep', deltaMins: number) => {
+    if (field === 'wake') {
+      const cur = parseTimeToMinutes(routine.wakeTime, 420);
+      const updated = Math.max(0, Math.min(720, cur + deltaMins));
+      setRoutine((prev) => ({ ...prev, wakeTime: formatMinutesTo24h(updated) }));
+    } else {
+      const cur = parseTimeToMinutes(routine.sleepTime, 1380);
+      const updated = Math.max(720, Math.min(1440, cur + deltaMins));
+      setRoutine((prev) => ({ ...prev, sleepTime: formatMinutesTo24h(updated) }));
+    }
   };
 
   // Custom Commitment Input State
@@ -1363,6 +1465,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                       const leftPct = (b.startMins / 1440) * 100;
                       const widthPct = Math.max(2.6, (b.durationMins / 1440) * 100);
                       const BlockIcon = b.icon;
+                      const isSelected = selectedBlockId === b.id;
 
                       if (b.isPractice) {
                         return (
@@ -1376,6 +1479,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                             className={`absolute top-0.5 bottom-0.5 bg-[#07CB6C] text-black font-bold text-[10px] rounded-md flex items-center justify-center z-20 border border-white/60 ring-1 ring-[#040706] touch-none select-none cursor-grab active:cursor-grabbing ${
                               isDraggingPractice
                                 ? 'shadow-2xl shadow-[#07CB6C]/70 scale-105 ring-2 ring-white z-30'
+                                : isSelected
+                                ? 'ring-2 ring-white scale-105 shadow-xl shadow-[#07CB6C]/50 z-30'
                                 : 'shadow-lg shadow-[#07CB6C]/40 hover:brightness-110'
                             }`}
                             style={{
@@ -1385,7 +1490,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                                 ? 'none'
                                 : 'left 0.4s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease'
                             }}
-                            title={`🎯 Drag to reposition Practice session (${b.timeLabel} • ${b.durationMins}m)`}
+                            title={`🎯 Drag to reposition Practice session or click to inspect (${b.timeLabel} • ${b.durationMins}m)`}
                           >
                             {/* Floating Real-time Snapping Tooltip */}
                             {isDraggingPractice && (
@@ -1409,12 +1514,18 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                         <div
                           key={b.id}
                           data-no-track-jump="true"
-                          className={`absolute top-1 bottom-1 ${b.bg} border ${b.border} ring-1 ring-[#040706] rounded-md flex items-center justify-center text-[9px] ${b.color} font-mono overflow-hidden shadow-sm transition-all duration-500 ease-out z-10 group`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedBlockId((prev) => (prev === b.id ? null : b.id));
+                          }}
+                          className={`absolute top-1 bottom-1 ${b.bg} border ${b.border} ring-1 ring-[#040706] rounded-md flex items-center justify-center text-[9px] ${b.color} font-mono overflow-hidden shadow-sm transition-all duration-300 ease-out cursor-pointer hover:brightness-125 z-10 group ${
+                            isSelected ? 'ring-2 ring-white scale-[1.03] brightness-125 z-25 shadow-md' : ''
+                          }`}
                           style={{
                             left: `${leftPct}%`,
                             width: `${widthPct}%`
                           }}
-                          title={`${b.title} (${b.timeLabel} • ${b.durationMins}m)`}
+                          title={`Click to inspect & edit: ${b.title} (${b.timeLabel} • ${b.durationMins}m)`}
                         >
                           <div className="flex items-center gap-1 truncate px-1 pointer-events-none select-none">
                             {BlockIcon && <BlockIcon className="w-2.5 h-2.5 shrink-0 opacity-85" />}
@@ -1434,6 +1545,226 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                     <span>12 AM</span>
                   </div>
                 </div>
+
+                {/* Interactive Block Inspector Panel */}
+                {selectedBlock && (
+                  <div className="p-3 sm:p-3.5 rounded-lg bg-[#080d0b] border border-[#1a2824] shadow-xl space-y-2.5 transition-all">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-6 h-6 rounded flex items-center justify-center ${selectedBlock.bg} ${selectedBlock.border} border`}>
+                          {selectedBlock.icon && <selectedBlock.icon className={`w-3.5 h-3.5 ${selectedBlock.color}`} />}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-white">{selectedBlock.title}</span>
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/60 text-neutral-300 border border-neutral-800">
+                            {formatMinutesTo12h(selectedBlock.startMins)} – {formatMinutesTo12h(selectedBlock.endMins)}
+                          </span>
+                          <span className="text-[10px] font-mono text-[#07CB6C] font-semibold">
+                            {selectedBlock.durationMins} min
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedBlockId(null)}
+                        className="p-1 text-neutral-400 hover:text-white rounded hover:bg-neutral-800 transition-colors cursor-pointer"
+                        title="Close Inspector"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Commitment Block Controls */}
+                    {selectedBlock.type === 'commitment' && (
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
+                        <div className="flex items-center gap-1 bg-[#040706] p-1 rounded-md border border-[#1a2824]">
+                          <span className="text-[10px] text-neutral-400 px-1 font-mono">Duration:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustCommitmentDuration(selectedBlock.id, -15)}
+                            disabled={selectedBlock.durationMins <= 15}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 rounded text-white cursor-pointer transition-colors"
+                          >
+                            -15m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustCommitmentDuration(selectedBlock.id, 15)}
+                            disabled={selectedBlock.durationMins >= 360}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 rounded text-white cursor-pointer transition-colors"
+                          >
+                            +15m
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-[#040706] p-1 rounded-md border border-[#1a2824]">
+                          <span className="text-[10px] text-neutral-400 px-1 font-mono">Shift:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleShiftCommitmentTime(selectedBlock.id, -15)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            ◀ -15m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleShiftCommitmentTime(selectedBlock.id, 15)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            +15m ▶
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleRemoveCommitment(selectedBlock.id);
+                            setSelectedBlockId(null);
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-medium bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 rounded-md flex items-center gap-1.5 ml-auto cursor-pointer transition-colors"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-400" />
+                          <span>Remove Commitment</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Practice Block Controls */}
+                    {selectedBlock.isPractice && (
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
+                        <div className="flex items-center gap-1 bg-[#040706] p-1 rounded-md border border-[#1a2824]">
+                          <span className="text-[10px] text-neutral-400 px-1 font-mono">Duration:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustPracticeDuration(-15)}
+                            disabled={(routine.dailyMinutes || 60) <= 15}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 rounded text-white cursor-pointer transition-colors"
+                          >
+                            -15m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustPracticeDuration(15)}
+                            disabled={(routine.dailyMinutes || 60) >= 180}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 rounded text-white cursor-pointer transition-colors"
+                          >
+                            +15m
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-[#040706] p-1 rounded-md border border-[#1a2824]">
+                          <span className="text-[10px] text-neutral-400 px-1 font-mono">Shift:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleShiftPracticeTime(-15)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            ◀ -15m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleShiftPracticeTime(15)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            +15m ▶
+                          </button>
+                        </div>
+
+                        <span className="text-[10px] text-neutral-400 font-mono ml-auto flex items-center gap-1">
+                          <Hand className="w-3 h-3 text-[#07CB6C]" />
+                          <span>Tip: Drag practice block on timeline anytime!</span>
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Work / Study Block Controls */}
+                    {selectedBlock.type === 'work' && (
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
+                        <div className="flex items-center gap-1 bg-[#040706] p-1 rounded-md border border-[#1a2824]">
+                          <span className="text-[10px] text-neutral-400 px-1 font-mono">Work Start:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustWorkHours('start', -30)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            -30m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustWorkHours('start', 30)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            +30m
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-[#040706] p-1 rounded-md border border-[#1a2824]">
+                          <span className="text-[10px] text-neutral-400 px-1 font-mono">Work End:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustWorkHours('end', -30)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            -30m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustWorkHours('end', 30)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            +30m
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sleep Block Controls */}
+                    {(selectedBlock.type === 'sleep_morning' || selectedBlock.type === 'sleep_night') && (
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs">
+                        <div className="flex items-center gap-1 bg-[#040706] p-1 rounded-md border border-[#1a2824]">
+                          <span className="text-[10px] text-neutral-400 px-1 font-mono">Wake ({routine.wakeTime}):</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustSleepTime('wake', -15)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            -15m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustSleepTime('wake', 15)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            +15m
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-1 bg-[#040706] p-1 rounded-md border border-[#1a2824]">
+                          <span className="text-[10px] text-neutral-400 px-1 font-mono">Bedtime ({routine.sleepTime}):</span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustSleepTime('sleep', -15)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            -15m
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustSleepTime('sleep', 15)}
+                            className="px-2 py-0.5 text-[10px] font-mono bg-neutral-800 hover:bg-neutral-700 rounded text-white cursor-pointer transition-colors"
+                          >
+                            +15m
+                          </button>
+                        </div>
+
+                        <span className="text-[10px] text-indigo-400/80 font-mono ml-auto">
+                          {((1440 - parseTimeToMinutes(routine.sleepTime, 1380) + parseTimeToMinutes(routine.wakeTime, 420)) / 60).toFixed(1)} hrs sleep
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Legend & Interactive Reposition Hint */}
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-400 pt-0.5">
@@ -1457,8 +1788,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                   </div>
 
                   <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2 py-0.5 rounded border border-[#07CB6C]/20">
-                    <Hand className="w-3 h-3 text-[#07CB6C]" />
-                    <span>Drag Practice block or tap timeline to set time</span>
+                    <SlidersHorizontal className="w-3 h-3 text-[#07CB6C]" />
+                    <span>
+                      {selectedBlock
+                        ? `Editing: ${selectedBlock.title}`
+                        : 'Tap any block to edit hours or drag Practice'}
+                    </span>
                   </div>
                 </div>
               </div>
