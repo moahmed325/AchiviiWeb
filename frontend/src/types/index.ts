@@ -34,6 +34,13 @@ export interface GoalClarification {
   followUpQuestions: FollowUpQuestion[];
 }
 
+export interface CommitmentItem {
+  id: string;
+  title: string;
+  time?: string;
+  category?: 'fitness' | 'education' | 'commute' | 'family' | 'sports' | 'work' | 'other';
+}
+
 export interface RoutineSettings {
   wakeTime: string; // e.g. "07:00"
   sleepTime: string; // e.g. "23:00"
@@ -41,6 +48,7 @@ export interface RoutineSettings {
   preferredSlot: 'morning' | 'afternoon' | 'evening';
   dailyMinutes: number; // 30, 45, 60, 90
   planVariant?: 'steady' | 'accelerated' | 'minimal';
+  commitments?: CommitmentItem[];
 }
 
 export type ResourceType =
@@ -86,6 +94,8 @@ export type StepChallenge =
   | ChecklistChallenge
   | ExerciseChallenge;
 
+export type TaskLayerType = 'mechanism' | 'adherence' | 'safety';
+
 export interface DetailedStep {
   stepNumber: number;
   title: string;
@@ -93,6 +103,8 @@ export interface DetailedStep {
   instructions: string;
   focusCue: string;
   pitfallToAvoid: string;
+  layer?: TaskLayerType;
+  layerReasoning?: string;
   challenge?: StepChallenge;
   resourceTitle?: string;
   resourceUrl?: string;

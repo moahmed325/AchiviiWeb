@@ -64,6 +64,10 @@ export type StepChallenge =
   | ChecklistChallenge
   | ExerciseChallenge;
 
+export type TaskLayerType = 'mechanism' | 'adherence' | 'safety';
+
+export const VALID_TASK_LAYERS: readonly TaskLayerType[] = ['mechanism', 'adherence', 'safety'] as const;
+
 export interface DetailedStep {
   stepNumber: number;
   title: string;
@@ -71,11 +75,34 @@ export interface DetailedStep {
   instructions: string;
   focusCue: string;
   pitfallToAvoid: string;
+  layer: TaskLayerType;
+  layerReasoning: string;
   challenge?: StepChallenge;
   resourceTitle?: string;
   resourceUrl?: string;
   resourceType?: 'youtube_video' | 'documentation' | 'scientific_study' | 'interactive_tool' | 'guide';
   resourceWhy?: string;
+}
+
+export function validateStepLayers(tasks: DailyTaskPlan[]): boolean {
+  for (const task of tasks) {
+    if (!task.detailedSteps || !Array.isArray(task.detailedSteps)) continue;
+    for (const step of task.detailedSteps) {
+      if (!step.layer || !VALID_TASK_LAYERS.includes(step.layer)) {
+        console.error(
+          `[GoalDecomposer] Validation Error: Missing or invalid layer '${(step as any).layer}' on Day ${task.dayNumber} step ${step.stepNumber} ("${step.title}")`
+        );
+        return false;
+      }
+      if (!step.layerReasoning || typeof step.layerReasoning !== 'string' || !step.layerReasoning.trim()) {
+        console.error(
+          `[GoalDecomposer] Validation Error: Missing or empty layerReasoning on Day ${task.dayNumber} step ${step.stepNumber} ("${step.title}")`
+        );
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 export interface DailyTaskPlan {
@@ -100,6 +127,13 @@ export interface PlanGenerationResult {
   initialTasks: DailyTaskPlan[];
 }
 
+export interface CommitmentItem {
+  id?: string;
+  title: string;
+  time?: string;
+  category?: string;
+}
+
 export interface UserRoutineInput {
   wakeTime?: string; // e.g. "07:00"
   sleepTime?: string; // e.g. "23:00"
@@ -107,6 +141,7 @@ export interface UserRoutineInput {
   preferredSlot?: 'morning' | 'afternoon' | 'evening';
   dailyMinutes?: number; // e.g. 30, 45, 60, 90
   planVariant?: 'steady' | 'accelerated' | 'minimal';
+  commitments?: Array<CommitmentItem | string>;
 }
 
 /**
@@ -194,12 +229,18 @@ export async function generate12WeekPlanWithAI(
   routine: UserRoutineInput,
   startDate: Date = new Date()
 ): Promise<PlanGenerationResult> {
-  const dailyMins = routine.dailyMinutes || 30;
-  const preferredSlot = routine.preferredSlot || 'morning';
+  const dailyMins = routine.dailyMinutes || 60;
+  const preferredSlot = routine.preferredSlot || 'evening';
   const defaultSlotTime = preferredSlot === 'morning' ? '07:30' : preferredSlot === 'afternoon' ? '14:00' : '19:30';
   const planVariant = routine.planVariant || 'steady';
   const activeDaysTarget = planVariant === 'minimal' ? 4 : planVariant === 'accelerated' ? 6 : 5;
   const restDaysTarget = 7 - activeDaysTarget;
+
+  const commitmentsFormatted = routine.commitments && routine.commitments.length > 0
+    ? routine.commitments
+        .map(c => typeof c === 'string' ? `- ${c}` : `- ${c.title}${c.time ? ` (${c.time})` : ''}`)
+        .join('\n')
+    : 'None';
 
   const systemInstruction = `You are Achivii's Principal Curriculum Engineer and Execution Coach.
 You create world-class 90-day goal blueprints.
@@ -208,7 +249,15 @@ You follow:
 - Milestone Gates: Week 4, Week 8, and Week 12 are hard-gate milestone checkpoints.
 - Plan Variant Pacing: Obey the selected track (${planVariant}: ${activeDaysTarget} active days, ${restDaysTarget} rest days).
 - The 2-Day Rule: User MUST NEVER have 2 consecutive rest days.
-- Wonderwall-level Task Precision: Every single day's task must have an implementation intention, explicit micro-drills with timing, focus cues, failure pitfalls, and curated learning resources.`;
+- Wonderwall-level Task Precision: Every single day's task must have an implementation intention, explicit micro-drills with timing, focus cues, failure pitfalls, and curated learning resources.
+
+THREE EVIDENCE LAYERS & CONFLICT RULE:
+For every single step you generate, you must classify it under exactly one evidence layer:
+- 'mechanism': grounded in established science/research for this domain
+- 'adherence': grounded in what real people who succeeded at similar goals actually did in practice, even if it's not the theoretically optimal approach
+- 'safety': grounded in how professionals/practitioners in this domain sequence things to prevent injury, burnout, or wasted effort
+
+CONFLICT RULE: When the scientifically optimal approach and the most commonly-succeeded-with real-world approach differ for a given step, default to the adherence-favoring version during Weeks 1-8 (Foundation and Acceleration phases). Introduce the more optimal/science-favoring version starting Week 9 (Mastery phase), once the habit is established. Safety/professional guidance always overrides both other layers with no exceptions — never generate a step a professional in this domain would consider unsafe or poorly sequenced, even if it's scientifically optimal or socially popular.`;
 
   const answersFormatted = Object.entries(answers)
     .map(([q, a]) => `- ${q}: ${a}`)
@@ -219,12 +268,17 @@ Refined Outcome: "${clarifiedOutcome}"
 User Diagnostic Answers:
 ${answersFormatted || 'None provided'}
 
-User Routine & Plan Variant:
+User Routine & Commitments:
 - Plan Variant Track: "${planVariant.toUpperCase()}" (${activeDaysTarget} active practice days, ${restDaysTarget} rest/recovery days per week).
 - Wake: ${routine.wakeTime || '07:00'} | Sleep: ${routine.sleepTime || '23:00'}
 - Work/Busy block: ${routine.busyHours || '09:00 - 17:00'}
+- Other Daily Commitments (Gym, Classes, Commute, etc.):
+${commitmentsFormatted}
 - Preferred Focus Window: ${preferredSlot} (Target Slot: ${defaultSlotTime})
 - Daily Session Duration: ${dailyMins} minutes
+
+CRITICAL SCHEDULING CONSTRAINT:
+Deliberate practice sessions must NEVER overlap with the user's work/busy hours (${routine.busyHours || '09:00 - 17:00'}) or other recurring commitments (e.g. gym, classes, commute). Respect the target focus slot ${defaultSlotTime}.
 
 Required Output:
 1. "methodologyNotes": Concise 2-sentence summary of the scientific curriculum strategy.
@@ -240,8 +294,9 @@ Required Output:
    - Day 1 is ${startDate.toLocaleDateString('en-US', { weekday: 'long' })}.
    - Design exactly ${activeDaysTarget} active deliberate practice days, and ${restDaysTarget} rest days (conforming to the ${planVariant} track).
    - STRICT CONSTRAINT: Never schedule 2 rest days consecutively (The 2-Day Rule).
-   - If isRestDay is true, title should be "Active Recovery & Reflection", durationMinutes should be 10 or 15, and detailedSteps should guide low-friction mental review.
-    - Active days must have 3-4 detailedSteps with exact stepNumber, title, durationMinutes (summing to ${dailyMins}), instructions, focusCue, pitfallToAvoid, and challenge.
+    - If isRestDay is true, title should be "Active Recovery & Reflection", durationMinutes should be 10 or 15, and detailedSteps should guide low-friction mental review.
+    - Active days must have 3-4 detailedSteps with exact stepNumber, title, durationMinutes (summing to ${dailyMins}), instructions, focusCue, pitfallToAvoid, layer, layerReasoning, and challenge.
+    - For 'layerReasoning', be specific — name the actual research finding, real-world pattern, or professional practice (e.g. 'Based on spaced retrieval research for motor memory consolidation' or 'Mirrors how most self-taught players stay motivated by playing a recognizable riff early' or 'Trainers front-load this to prevent wrist strain before increasing tempo'). Never write a generic filler reasoning like 'this is proven to help.'
     - "implementationIntention": formatted as "When: [TIME] | Where: [ENVIRONMENT] | Action: [EXACT ACTION]"
     - MANDATORY REQUIREMENT — DYNAMIC INTERACTIVE CHALLENGE SPECIFIC TO THE ACTIVITY DOMAIN:
       For EVERY step, generate an appropriate "challenge" object based on the domain nature of the task:
@@ -294,6 +349,8 @@ Respond with JSON matching schema:
           "instructions": string,
           "focusCue": string,
           "pitfallToAvoid": string,
+          "layer": "mechanism" | "adherence" | "safety",
+          "layerReasoning": string,
           "challenge": {
             "type": "repetitions" | "active_recall" | "checklist" | "exercise",
             "drillName"?: string,
@@ -321,7 +378,13 @@ Respond with JSON matching schema:
 
   const result = await generateStructuredContent<PlanGenerationResult>(prompt, systemInstruction);
 
-  if (result.success && result.data && result.data.weeks?.length === 12 && result.data.initialTasks?.length === 7) {
+  if (
+    result.success &&
+    result.data &&
+    result.data.weeks?.length === 12 &&
+    result.data.initialTasks?.length === 7 &&
+    validateStepLayers(result.data.initialTasks)
+  ) {
     return result.data;
   }
 
@@ -353,12 +416,18 @@ export async function adaptUpcomingWeekTasksWithAI(
   weekStartDate: Date,
   previousWeekTasks: PreviousWeekTaskSummary[] = []
 ): Promise<DailyTaskPlan[]> {
-  const dailyMins = routine.dailyMinutes || 30;
-  const preferredSlot = routine.preferredSlot || 'morning';
+  const dailyMins = routine.dailyMinutes || 60;
+  const preferredSlot = routine.preferredSlot || 'evening';
   const defaultSlotTime = preferredSlot === 'morning' ? '07:30' : preferredSlot === 'afternoon' ? '14:00' : '19:30';
   const planVariant = routine.planVariant || 'steady';
   const activeDaysTarget = planVariant === 'minimal' ? 4 : planVariant === 'accelerated' ? 6 : 5;
   const restDaysTarget = 7 - activeDaysTarget;
+
+  const commitmentsFormatted = routine.commitments && routine.commitments.length > 0
+    ? routine.commitments
+        .map(c => typeof c === 'string' ? `- ${c}` : `- ${c.title}${c.time ? ` (${c.time})` : ''}`)
+        .join('\n')
+    : 'None';
 
   const systemInstruction = `You are Achivii's Adaptive Goal Coach and Curriculum Sequencer.
 You generate Week ${targetWeekNumber}'s daily practice protocol based on the user's Week ${targetWeekNumber - 1} actual execution history.
@@ -377,7 +446,15 @@ STRICT GROUNDING & ANTI-HALLUCINATION RULES:
    - User MUST NEVER have 2 consecutive rest days.
 5. RESOURCE GROUNDING (ZERO DEAD LINKS):
    - For "youtube_video", use high-precision search query URL format (e.g. https://www.youtube.com/results?search_query=[topic+drill+tutorial]) to guarantee 100% working links without broken video IDs.
-   - For documentation or scientific studies, use canonical verified base domains (e.g., wikipedia.org, pubmed.ncbi.nlm.nih.gov, developer.mozilla.org, etc.).`;
+   - For documentation or scientific studies, use canonical verified base domains (e.g., wikipedia.org, pubmed.ncbi.nlm.nih.gov, developer.mozilla.org, etc.).
+
+THREE EVIDENCE LAYERS & CONFLICT RULE:
+For every single step you generate, you must classify it under exactly one evidence layer:
+- 'mechanism': grounded in established science/research for this domain
+- 'adherence': grounded in what real people who succeeded at similar goals actually did in practice, even if it's not the theoretically optimal approach
+- 'safety': grounded in how professionals/practitioners in this domain sequence things to prevent injury, burnout, or wasted effort
+
+CONFLICT RULE: When the scientifically optimal approach and the most commonly-succeeded-with real-world approach differ for a given step, default to the adherence-favoring version during Weeks 1-8 (Foundation and Acceleration phases). Introduce the more optimal/science-favoring version starting Week 9 (Mastery phase), once the habit is established. Safety/professional guidance always overrides both other layers with no exceptions — never generate a step a professional in this domain would consider unsafe or poorly sequenced, even if it's scientifically optimal or socially popular.`;
 
   const previousTasksFormatted = previousWeekTasks.length > 0
     ? previousWeekTasks.map(t => {
@@ -394,6 +471,10 @@ Target Theme: "${targetWeekTheme}"
 Target Objective: "${targetWeekObjective}"
 Plan Track: "${planVariant}" (${activeDaysTarget} active days, ${restDaysTarget} rest days)
 Daily Target Time: ${dailyMins} minutes. Preferred Slot: ${defaultSlotTime}
+Work/Busy Hours: ${routine.busyHours || '09:00 - 17:00'}
+Other Recurring Commitments (Gym, Classes, Commute, etc.):
+${commitmentsFormatted}
+STRICT CONSTRAINT: Do not schedule sessions during work/busy hours or recurring commitments. Target focus slot: ${defaultSlotTime}.
 
 PREVIOUS WEEK (WEEK ${targetWeekNumber - 1}) ACTUAL EXECUTION AUDIT:
 Execution Adherence Score: ${Math.round(previousWeekScore)}% (${previousWeekScore >= 85 ? 'Benchmark Met (>=85%) - Ready for Accelerated Progression' : 'Below Benchmark (<85%) - Needs Consolidation & Error-Proofing'})
@@ -405,6 +486,9 @@ TASK:
 Generate exactly 7 daily tasks for Week ${targetWeekNumber} (Days ${(targetWeekNumber - 1) * 7 + 1} to ${targetWeekNumber * 7}) starting on ${weekStartDate.toLocaleDateString('en-US', { weekday: 'long' })}.
 Ensure exactly ${activeDaysTarget} active deliberate practice days and ${restDaysTarget} rest days conforming to "${planVariant}" and the 2-Day Rule.
 Ensure seamless continuity from the execution audit above. Explicitly bridge any unmastered skills or user notes into the first 2 active days before escalating difficulty.
+
+Active days must have 3-4 detailedSteps with exact stepNumber, title, durationMinutes (summing to ${dailyMins}), instructions, focusCue, pitfallToAvoid, layer, layerReasoning, challenge, and curated resources.
+For 'layerReasoning', be specific — name the actual research finding, real-world pattern, or professional practice. Never write a generic filler reasoning like 'this is proven to help.'
 
 MANDATORY: For EVERY single step in detailedSteps, provide the single BEST resource in the ideal format: "youtube_video", "documentation", "scientific_study", "interactive_tool", or "guide". For YouTube videos, use high-precision search URLs (https://www.youtube.com/results?search_query=...).
 
@@ -427,6 +511,22 @@ JSON Schema:
           "instructions": string,
           "focusCue": string,
           "pitfallToAvoid": string,
+          "layer": "mechanism" | "adherence" | "safety",
+          "layerReasoning": string,
+          "challenge": {
+            "type": "repetitions" | "active_recall" | "checklist" | "exercise",
+            "drillName"?: string,
+            "targetCount"?: number,
+            "totalSets"?: number,
+            "unit"?: string,
+            "question"?: string,
+            "hint"?: string,
+            "keyTakeaway"?: string,
+            "items"?: [{ "id": string, "label": string }],
+            "prompt"?: string,
+            "targetDeliverable"?: string,
+            "evaluationCriteria"?: string
+          },
           "resourceTitle": string,
           "resourceUrl": string,
           "resourceType": "youtube_video" | "documentation" | "scientific_study" | "interactive_tool" | "guide",
@@ -435,11 +535,17 @@ JSON Schema:
       ]
     }
   ]
-}`;
+}
+`;
 
   const result = await generateStructuredContent<{ tasks: DailyTaskPlan[] }>(prompt, systemInstruction);
 
-  if (result.success && result.data && result.data.tasks?.length === 7) {
+  if (
+    result.success &&
+    result.data &&
+    result.data.tasks?.length === 7 &&
+    validateStepLayers(result.data.tasks)
+  ) {
     return result.data.tasks;
   }
 
@@ -452,10 +558,11 @@ JSON Schema:
 
 function getDeterministicClarification(rawGoal: string): GoalClarification {
   const cleanGoal = rawGoal.trim();
+  const baseTitle = cleanGoal.length > 0
+    ? cleanGoal.charAt(0).toUpperCase() + cleanGoal.slice(1)
+    : 'Master Your Goal';
   return {
-    clarifiedOutcome: cleanGoal.length > 0
-      ? cleanGoal.charAt(0).toUpperCase() + cleanGoal.slice(1)
-      : 'Master Your 90-Day Goal',
+    clarifiedOutcome: baseTitle.toLowerCase().includes('90') ? baseTitle : `${baseTitle} in 90 Days`,
     primaryDomain: 'High Performance Skill Acquisition',
     capabilities: [
       'Foundational Mechanics & Technique Precision',
@@ -529,8 +636,8 @@ function getDeterministic12WeekPlan(
   routine: UserRoutineInput,
   startDate: Date
 ): PlanGenerationResult {
-  const dailyMins = routine.dailyMinutes || 30;
-  const preferredSlot = routine.preferredSlot || 'morning';
+  const dailyMins = routine.dailyMinutes || 60;
+  const preferredSlot = routine.preferredSlot || 'evening';
   const defaultSlotTime = preferredSlot === 'morning' ? '07:30' : preferredSlot === 'afternoon' ? '14:00' : '19:30';
   const planVariant = routine.planVariant || 'steady';
 
@@ -617,6 +724,8 @@ function getDeterministicWeeklyTasks(
             instructions: 'Review completed sessions from this week. Identify which drills felt easiest and which had friction.',
             focusCue: 'Be honest and objective; friction reveals where skill is growing.',
             pitfallToAvoid: 'Skipping the reflection or feeling guilty about imperfect execution.',
+            layer: 'mechanism',
+            layerReasoning: 'Metacognitive self-auditing consolidates memory traces and identifies micro-errors before they habituate.',
             resourceTitle: 'Harvard Business Review: The Power of Meaningful Reflection',
             resourceUrl: 'https://hbr.org/2014/03/why-you-should-make-time-for-self-reflection-even-if-youre-too-busy',
             resourceType: 'guide',
@@ -629,6 +738,8 @@ function getDeterministicWeeklyTasks(
             instructions: 'Confirm your practice space and calendar blocks for the upcoming 6 practice days.',
             focusCue: 'Clear physical environment beforehand so friction to start is near zero.',
             pitfallToAvoid: 'Leaving scheduling to chance on busy mornings.',
+            layer: 'adherence',
+            layerReasoning: 'Pre-committing time blocks and removing friction mirrors the primary environmental trigger pattern of long-term performers.',
             resourceTitle: 'James Clear: Habit Triggers and Environment Architecture',
             resourceUrl: 'https://jamesclear.com/environment-design-habits',
             resourceType: 'scientific_study',
@@ -661,6 +772,8 @@ function getDeterministicWeeklyTasks(
             instructions: 'Begin at 60% speed. Focus on flawless form, posture, and zero unnecessary physical tension.',
             focusCue: 'Smooth and slow is faster than rushed and sloppy.',
             pitfallToAvoid: 'Speeding up before the motion is clean.',
+            layer: 'safety',
+            layerReasoning: 'Practitioner coaching standard: calibrate posture and ergonomics at slow tempo to prevent tendonitis and early fatigue.',
             challenge: {
               type: 'repetitions',
               drillName: 'Clean Form Calibration',
@@ -680,6 +793,8 @@ function getDeterministicWeeklyTasks(
             instructions: `Execute targeted repetitions of the central technique for ${theme}. Take 10-second pauses between micro-sets.`,
             focusCue: 'Pay intense attention to the precise contact point and timing.',
             pitfallToAvoid: 'Allowing your mind to wander; treat this as an active mental workout.',
+            layer: 'mechanism',
+            layerReasoning: 'Anders Ericsson deliberate practice protocol: targeted sub-skill repetition at edge of current ability with immediate error detection.',
             challenge: {
               type: 'repetitions',
               drillName: 'Paced Execution Drill',
@@ -699,6 +814,8 @@ function getDeterministicWeeklyTasks(
             instructions: 'Integrate the technique into a continuous sequence or musical phrase. Log any points of resistance.',
             focusCue: 'Focus on rhythm and seamless flow across transitions.',
             pitfallToAvoid: 'Ending abruptly without reviewing what went well.',
+            layer: 'adherence',
+            layerReasoning: 'Connects isolated mechanics to a recognizable musical or practical deliverable to provide immediate intrinsic reward and prevent drop-off.',
             challenge: {
               type: 'checklist',
               items: [

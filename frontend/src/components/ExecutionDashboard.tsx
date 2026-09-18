@@ -21,13 +21,52 @@ import {
   GraduationCap,
   Terminal,
   Zap,
+  Sparkles,
+  Users,
+  ShieldCheck,
 } from 'lucide-react';
-import { Goal, DailyTask, DetailedStep, RoutineSettings } from '../types';
+import { Goal, DailyTask, DetailedStep, RoutineSettings, TaskLayerType } from '../types';
 import { updateDailyTask, submitWeeklyReview, fetchActiveGoal } from '../lib/api';
 import { formatGoalTitle } from '../lib/formatters';
 import { FullDayVisualizer } from './FullDayVisualizer';
 import { FocusSessionModal } from './FocusSessionModal';
 import { StepChallengeWidget } from './StepChallengeWidget';
+
+interface EvidenceLayerConfig {
+  label: string;
+  badgeClass: string;
+  icon: React.ReactNode;
+  disclaimer: string;
+}
+
+function getEvidenceLayerConfig(layer?: TaskLayerType): EvidenceLayerConfig | null {
+  if (!layer) return null;
+  switch (layer) {
+    case 'mechanism':
+      return {
+        label: 'Science-backed',
+        badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25',
+        icon: <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />,
+        disclaimer: 'Based on controlled scientific research (e.g. deliberate practice, spaced retrieval, cognitive load theory).'
+      };
+    case 'adherence':
+      return {
+        label: 'Proven in practice',
+        badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/25',
+        icon: <Users className="w-3 h-3 text-purple-400 shrink-0" />,
+        disclaimer: 'Based on commonly reported real-world success patterns and habit stacking, not verified laboratory outcome data.'
+      };
+    case 'safety':
+      return {
+        label: 'Expert guidance',
+        badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/25',
+        icon: <ShieldCheck className="w-3 h-3 text-amber-400 shrink-0" />,
+        disclaimer: 'Based on professional practitioner sequencing to prevent injury, burnout, or mechanical strain.'
+      };
+    default:
+      return null;
+  }
+}
 
 interface StepResourceConfig {
   badgeLabel: string;
@@ -701,6 +740,36 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                         {step.durationMinutes} min
                       </span>
                     </div>
+
+                    {/* Evidence Layer Badge & Reasoning */}
+                    {step.layer && (() => {
+                      const layerConfig = getEvidenceLayerConfig(step.layer);
+                      if (!layerConfig) return null;
+                      return (
+                        <div className="pl-8 flex flex-wrap items-center gap-2 pt-0.5">
+                          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${layerConfig.badgeClass} group relative cursor-help`}>
+                            {layerConfig.icon}
+                            <span>{layerConfig.label}</span>
+                            <span className="text-[10px] opacity-75 group-hover:opacity-100 transition-opacity">ⓘ</span>
+
+                            {/* One-line tooltip modal/popover */}
+                            <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block z-30 w-72 p-2.5 rounded-md bg-[#0d1411] border border-[#1a2824] shadow-2xl text-[11px] text-neutral-300 pointer-events-none leading-relaxed">
+                              <p className="font-semibold text-white mb-0.5 flex items-center gap-1.5">
+                                {layerConfig.icon}
+                                <span>{layerConfig.label}</span>
+                              </p>
+                              <p className="text-neutral-400">{layerConfig.disclaimer}</p>
+                            </div>
+                          </div>
+
+                          {step.layerReasoning && (
+                            <span className="text-[11px] text-neutral-400 italic">
+                              — {step.layerReasoning}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     <p className="text-xs sm:text-sm text-neutral-300 pl-8 leading-relaxed">
                       {step.instructions}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Target,
   ArrowRight,
@@ -10,7 +10,21 @@ import {
   Edit3,
   ChevronDown,
   ChevronUp,
-  Check
+  Check,
+  Plus,
+  X,
+  Dumbbell,
+  GraduationCap,
+  Briefcase,
+  Car,
+  Utensils,
+  Flame,
+  Heart,
+  Clock,
+  ShieldCheck,
+  Sparkles,
+  Calendar,
+  Trash2
 } from 'lucide-react';
 import {
   GoalClarification,
@@ -19,7 +33,183 @@ import {
   Goal
 } from '../types';
 import { clarifyGoal, createGoalPlan } from '../lib/api';
-import { SaaSBuilderModal } from './SaaSBuilderModal';
+
+interface PresetCommitment {
+  id: string;
+  category: 'fitness' | 'education' | 'commute' | 'family' | 'sports' | 'work' | 'other';
+  title: string;
+  defaultTime: string;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accentColor: string;
+  bgColor: string;
+  borderColor: string;
+}
+
+const PRESET_COMMITMENTS: PresetCommitment[] = [
+  {
+    id: 'gym',
+    category: 'fitness',
+    title: 'Gym & Fitness',
+    defaultTime: '18:00 - 19:30',
+    subtitle: 'Strength, cardio, or mobility',
+    icon: Dumbbell,
+    accentColor: 'text-emerald-400',
+    bgColor: 'bg-emerald-500/10',
+    borderColor: 'border-emerald-500/30'
+  },
+  {
+    id: 'university',
+    category: 'education',
+    title: 'Classes & Study',
+    defaultTime: '09:00 - 14:00',
+    subtitle: 'University, lectures, or school',
+    icon: GraduationCap,
+    accentColor: 'text-sky-400',
+    bgColor: 'bg-sky-500/10',
+    borderColor: 'border-sky-500/30'
+  },
+  {
+    id: 'commute',
+    category: 'commute',
+    title: 'Daily Commute',
+    defaultTime: '08:00 - 09:00, 17:30 - 18:30',
+    subtitle: 'Transit, driving, or cycling',
+    icon: Car,
+    accentColor: 'text-amber-400',
+    bgColor: 'bg-amber-500/10',
+    borderColor: 'border-amber-500/30'
+  },
+  {
+    id: 'dinner',
+    category: 'family',
+    title: 'Dinner & Family',
+    defaultTime: '19:30 - 20:30',
+    subtitle: 'Evenings, family, or meal prep',
+    icon: Utensils,
+    accentColor: 'text-rose-400',
+    bgColor: 'bg-rose-500/10',
+    borderColor: 'border-rose-500/30'
+  },
+  {
+    id: 'sports',
+    category: 'sports',
+    title: 'Sports & Martial Arts',
+    defaultTime: '19:00 - 20:30',
+    subtitle: 'Boxing, football, yoga, tennis',
+    icon: Flame,
+    accentColor: 'text-orange-400',
+    bgColor: 'bg-orange-500/10',
+    borderColor: 'border-orange-500/30'
+  },
+  {
+    id: 'work_shift',
+    category: 'work',
+    title: 'Part-Time Shift / Job',
+    defaultTime: '16:00 - 21:00',
+    subtitle: 'Evening shift, freelance, or gig',
+    icon: Briefcase,
+    accentColor: 'text-teal-400',
+    bgColor: 'bg-teal-500/10',
+    borderColor: 'border-teal-500/30'
+  }
+];
+
+const CUSTOM_CATEGORIES = [
+  { id: 'fitness', label: 'Fitness', icon: Dumbbell, color: 'text-emerald-400' },
+  { id: 'education', label: 'Study', icon: GraduationCap, color: 'text-sky-400' },
+  { id: 'commute', label: 'Commute', icon: Car, color: 'text-amber-400' },
+  { id: 'family', label: 'Dinner', icon: Utensils, color: 'text-rose-400' },
+  { id: 'sports', label: 'Sports', icon: Flame, color: 'text-orange-400' },
+  { id: 'work', label: 'Work', icon: Briefcase, color: 'text-teal-400' },
+  { id: 'other', label: 'Personal', icon: Heart, color: 'text-pink-400' }
+] as const;
+
+const QUICK_SUGGESTIONS = [
+  { title: 'Boxing Club', category: 'sports' as const, time: '19:00 - 20:30' },
+  { title: 'Morning Yoga', category: 'fitness' as const, time: '06:30 - 07:30' },
+  { title: 'Night Study Session', category: 'education' as const, time: '21:00 - 22:30' },
+  { title: 'Side Project Sprint', category: 'work' as const, time: '18:00 - 19:30' },
+  { title: 'Evening Walk & Reset', category: 'other' as const, time: '20:30 - 21:30' }
+];
+
+const QUICK_TIME_PRESETS = [
+  { label: 'Morning (07:00 - 08:30)', value: '07:00 - 08:30' },
+  { label: 'Afternoon (12:30 - 14:00)', value: '12:30 - 14:00' },
+  { label: 'After Work (17:30 - 19:00)', value: '17:30 - 19:00' },
+  { label: 'Evening (19:00 - 20:30)', value: '19:00 - 20:30' },
+  { label: 'Night (21:00 - 22:30)', value: '21:00 - 22:30' }
+];
+
+const getCategoryDetails = (category?: string) => {
+  switch (category) {
+    case 'fitness':
+      return {
+        icon: Dumbbell,
+        label: 'Fitness',
+        color: 'text-emerald-400',
+        bg: 'bg-emerald-500/10',
+        border: 'border-emerald-500/30'
+      };
+    case 'education':
+      return {
+        icon: GraduationCap,
+        label: 'Study',
+        color: 'text-sky-400',
+        bg: 'bg-sky-500/10',
+        border: 'border-sky-500/30'
+      };
+    case 'commute':
+      return {
+        icon: Car,
+        label: 'Commute',
+        color: 'text-amber-400',
+        bg: 'bg-amber-500/10',
+        border: 'border-amber-500/30'
+      };
+    case 'family':
+      return {
+        icon: Utensils,
+        label: 'Dinner',
+        color: 'text-rose-400',
+        bg: 'bg-rose-500/10',
+        border: 'border-rose-500/30'
+      };
+    case 'sports':
+      return {
+        icon: Flame,
+        label: 'Sports',
+        color: 'text-orange-400',
+        bg: 'bg-orange-500/10',
+        border: 'border-orange-500/30'
+      };
+    case 'work':
+      return {
+        icon: Briefcase,
+        label: 'Work Shift',
+        color: 'text-teal-400',
+        bg: 'bg-teal-500/10',
+        border: 'border-teal-500/30'
+      };
+    default:
+      return {
+        icon: Heart,
+        label: 'Personal',
+        color: 'text-pink-400',
+        bg: 'bg-pink-500/10',
+        border: 'border-pink-500/30'
+      };
+  }
+};
+
+const parseTimeToMinutes = (timeStr: string, fallback: number): number => {
+  if (!timeStr) return fallback;
+  const match = timeStr.match(/(\d{1,2}):(\d{2})/);
+  if (!match) return fallback;
+  const hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  return hours * 60 + minutes;
+};
 
 interface OnboardingWizardProps {
   token: string;
@@ -36,35 +226,104 @@ const INSPIRATION_GOALS = [
 
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoalCreated }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [rawGoal, setRawGoal] = useState('');
+  const [rawGoal, setRawGoal] = useState(() => {
+    const saved = localStorage.getItem('achivii_draft_goal');
+    if (saved) {
+      localStorage.removeItem('achivii_draft_goal');
+      return saved;
+    }
+    return '';
+  });
+
   const [isClarifying, setIsClarifying] = useState(false);
   const [clarificationError, setClarificationError] = useState<string | null>(null);
-  const [isSaaSModalOpen, setIsSaaSModalOpen] = useState(false);
+  const [isWaitingForClarification, setIsWaitingForClarification] = useState(false);
+  const [lastClarifiedGoal, setLastClarifiedGoal] = useState<string | null>(null);
 
-  // Step 2 State
+  // Clarification AI Output State
   const [clarification, setClarification] = useState<GoalClarification | null>(null);
   const [editedOutcome, setEditedOutcome] = useState('');
   const [isEditingOutcome, setIsEditingOutcome] = useState(false);
 
-  // Step 3 State (Question Answers)
+  // Diagnostic Question Answers State
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
 
-  // Step 4 State (Routine)
+  // Routine / Schedule State (Now Step 2!)
   const [routine, setRoutine] = useState<RoutineSettings>({
     wakeTime: '07:00',
     sleepTime: '23:00',
     busyHours: '09:00 - 17:00',
-    preferredSlot: 'morning',
-    dailyMinutes: 30,
-    planVariant: 'steady'
+    preferredSlot: 'evening',
+    dailyMinutes: 60,
+    planVariant: 'steady',
+    commitments: []
   });
+
+  // Custom Commitment Input State
+  const [isCustomDrawerOpen, setIsCustomDrawerOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<
+    'fitness' | 'education' | 'commute' | 'family' | 'sports' | 'work' | 'other'
+  >('fitness');
+  const [newCommitmentTitle, setNewCommitmentTitle] = useState('');
+  const [newCommitmentTime, setNewCommitmentTime] = useState('');
+
+  const handleTogglePresetCommitment = (preset: PresetCommitment) => {
+    const existingIndex = (routine.commitments || []).findIndex(
+      (c) => c.title.toLowerCase() === preset.title.toLowerCase()
+    );
+    if (existingIndex >= 0) {
+      setRoutine((prev) => ({
+        ...prev,
+        commitments: (prev.commitments || []).filter((_, idx) => idx !== existingIndex)
+      }));
+    } else {
+      setRoutine((prev) => ({
+        ...prev,
+        commitments: [
+          ...(prev.commitments || []),
+          {
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+            title: preset.title,
+            time: preset.defaultTime,
+            category: preset.category
+          }
+        ]
+      }));
+    }
+  };
+
+  const handleAddCustomCommitment = () => {
+    if (!newCommitmentTitle.trim()) return;
+    setRoutine((prev) => ({
+      ...prev,
+      commitments: [
+        ...(prev.commitments || []),
+        {
+          id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+          title: newCommitmentTitle.trim(),
+          time: newCommitmentTime.trim() || undefined,
+          category: selectedCategory
+        }
+      ]
+    }));
+    setNewCommitmentTitle('');
+    setNewCommitmentTime('');
+    setIsCustomDrawerOpen(false);
+  };
+
+  const handleRemoveCommitment = (id: string) => {
+    setRoutine((prev) => ({
+      ...prev,
+      commitments: (prev.commitments || []).filter((c) => c.id !== id)
+    }));
+  };
 
   // Step 5 State (Plan Generation)
   const [generationStage, setGenerationStage] = useState(0);
   const [generationError, setGenerationError] = useState<string | null>(null);
 
-  // Step 2 disclosure
+  // Methodologies disclosure in Refine step
   const [showMethodologies, setShowMethodologies] = useState(false);
 
   const generationStages = [
@@ -76,37 +335,81 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   ];
 
   // --------------------------------------------------------------------------
-  // Step 1: Submit Goal for Clarification
+  // Background AI Clarification Runner
   // --------------------------------------------------------------------------
-  const handleClarify = async (goalText: string) => {
-    const textToUse = goalText || rawGoal;
-    if (!textToUse.trim()) return;
+  const startClarification = (goalText: string) => {
+    const textToUse = (goalText || rawGoal).trim();
+    if (!textToUse) return;
+
+    if (clarification && lastClarifiedGoal === textToUse) {
+      return;
+    }
 
     setIsClarifying(true);
     setClarificationError(null);
+    setLastClarifiedGoal(textToUse);
 
-    try {
-      const result = await clarifyGoal(textToUse.trim());
-      setClarification(result);
-      setEditedOutcome(result.clarifiedOutcome);
+    clarifyGoal(textToUse)
+      .then((result) => {
+        setClarification(result);
+        setEditedOutcome(result.clarifiedOutcome);
 
-      // Pre-seed default answers for questions
-      const initialAnswers: Record<string, string> = {};
-      result.followUpQuestions.forEach((q) => {
-        if (q.options?.length > 0) {
-          initialAnswers[q.id] = q.options[0];
-        }
+        // Pre-seed default answers for questions
+        const initialAnswers: Record<string, string> = {};
+        result.followUpQuestions.forEach((q) => {
+          if (q.options?.length > 0) {
+            initialAnswers[q.id] = q.options[0];
+          }
+        });
+        setAnswers(initialAnswers);
+      })
+      .catch((err: any) => {
+        console.error('[OnboardingWizard] Clarification error:', err);
+        setClarificationError(err.message || 'Something went wrong while analyzing your goal.');
+      })
+      .finally(() => {
+        setIsClarifying(false);
       });
-      setAnswers(initialAnswers);
+  };
 
-      setStep(2);
-    } catch (err: any) {
-      console.error(err);
-      setClarificationError(err.message || 'Something went wrong. Please try again.');
-    } finally {
-      setIsClarifying(false);
+  // --------------------------------------------------------------------------
+  // Step 1: Submit Goal -> Instant 0ms transition to Step 2 (Schedule)
+  // --------------------------------------------------------------------------
+  const handleStartGoal = (goalText: string) => {
+    const textToUse = (goalText || rawGoal).trim();
+    if (!textToUse) return;
+
+    setRawGoal(textToUse);
+    setEditedOutcome(textToUse);
+
+    // Instant 0ms jump to Schedule while AI starts in background
+    setStep(2);
+    startClarification(textToUse);
+  };
+
+  // --------------------------------------------------------------------------
+  // Step 2: From Schedule -> Advance to Step 3 (Refine Outcome)
+  // --------------------------------------------------------------------------
+  const handleProceedFromSchedule = () => {
+    if (isClarifying) {
+      // User finished schedule in <2s while AI is still finishing
+      setIsWaitingForClarification(true);
+    } else if (clarification) {
+      setStep(3);
+    } else if (clarificationError) {
+      // If error occurred, retry analysis
+      startClarification(rawGoal);
+      setIsWaitingForClarification(true);
     }
   };
+
+  // Auto-advance to Step 3 as soon as clarification resolves if user is waiting
+  useEffect(() => {
+    if (isWaitingForClarification && !isClarifying && clarification) {
+      setIsWaitingForClarification(false);
+      setStep(3);
+    }
+  }, [isWaitingForClarification, isClarifying, clarification]);
 
   // --------------------------------------------------------------------------
   // Step 4: Final Generation Trigger
@@ -163,9 +466,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
           <span>Step {step} of 5</span>
           <span className="text-[#07CB6C] font-medium">
             {step === 1 && 'Your goal'}
-            {step === 2 && 'Refine'}
+            {step === 2 && 'Your schedule'}
             {step === 3 && 'Quick questions'}
-            {step === 4 && 'Your schedule'}
+            {step === 4 && 'What success looks like'}
             {step === 5 && 'Building plan'}
           </span>
         </div>
@@ -182,83 +485,23 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       {/* ===================================================================== */}
       {step === 1 && (
         <div className="space-y-6 animate-fadeInUp">
-          {/* ================================================================= */}
-          {/* FLAGSHIP PRESET SPOTLIGHT BANNER */}
-          {/* ================================================================= */}
-          <div className="p-4 sm:p-5 rounded-md bg-[#080d0b] border border-[#1a2824] hover:border-[#07CB6C]/50 transition-all text-left space-y-3 relative overflow-hidden group">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
-                <span className="text-[11px] font-mono uppercase tracking-wider text-[#07CB6C] font-bold">
-                  Curated 90-Day Masterclass
-                </span>
-              </div>
-              <span className="text-[10px] font-mono text-neutral-400 bg-[#111a17] px-2 py-0.5 rounded border border-[#1a2824]">
-                Next.js 15 • 60 min/day
-              </span>
-            </div>
-
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-white tracking-tight group-hover:text-[#07CB6C] transition-colors">
-                Ship a Production Full-Stack SaaS MVP
-              </h3>
-              <p className="text-xs sm:text-sm text-neutral-400 mt-1 leading-relaxed">
-                Build and launch a real software product with Next.js 15, TypeScript, PostgreSQL, and Stripe. Choose a battle-tested starter or build your custom idea with our CTO Diagnostic.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-              <div className="flex flex-wrap gap-1.5 text-[10px] font-mono text-neutral-400">
-                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">Next.js 15</span>
-                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">TypeScript</span>
-                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">Prisma</span>
-                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">Stripe</span>
-                <span className="px-2 py-0.5 rounded bg-[#0c1210] border border-[#1a2824]">Vercel</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsSaaSModalOpen(true)}
-                className="px-4 py-2 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm hover:scale-[1.02]"
-              >
-                <span>Launch SaaS Studio</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="relative flex items-center justify-center py-1">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#1a2824]" />
-            </div>
-            <span className="relative px-3 bg-[#050807] text-[11px] font-mono uppercase tracking-wider text-neutral-500">
-              Or Define Any Other Goal
-            </span>
-          </div>
-
           <div className="space-y-2 text-left">
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              What other goal do you want to achieve?
+              What goal do you want to achieve?
             </h1>
             <p className="text-sm text-neutral-400 leading-relaxed">
-              Describe your personal goal (e.g. Guitar, Running, Spanish) and we'll create your custom 90-day plan.
+              Describe what you want to achieve in the next 90 days. Be as specific as you like.
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-4 text-left">
             <textarea
+              rows={4}
+              placeholder="e.g. Play acoustic guitar well enough to play 5 songs from memory, or Run a 10K under 50 minutes..."
               value={rawGoal}
               onChange={(e) => setRawGoal(e.target.value)}
-              placeholder="e.g. Learn acoustic guitar so I can play 5 campfire songs from memory..."
-              rows={4}
-              className="w-full px-4 py-3.5 rounded-md bg-[#0c1210] border border-[#1a2824] text-white placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-all text-sm sm:text-base resize-none"
+              className="w-full p-4 rounded-md bg-[#0c1210] border border-[#1a2824] text-white placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C] transition-all resize-none text-sm leading-relaxed"
             />
-
-            {clarificationError && (
-              <p className="text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-md p-2.5">
-                {clarificationError}
-              </p>
-            )}
 
             {/* Inspiration Chips */}
             <div className="space-y-2 pt-2">
@@ -272,7 +515,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                     type="button"
                     onClick={() => {
                       setRawGoal(insp);
-                      handleClarify(insp);
+                      handleStartGoal(insp);
                     }}
                     className="text-xs text-neutral-300 bg-[#0c1210] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 px-3 py-1.5 rounded-md text-left transition-colors cursor-pointer"
                   >
@@ -286,134 +529,728 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
           <div className="flex justify-end pt-4">
             <button
               type="button"
-              disabled={!rawGoal.trim() || isClarifying}
-              onClick={() => handleClarify(rawGoal)}
+              disabled={!rawGoal.trim()}
+              onClick={() => handleStartGoal(rawGoal)}
               className="flex items-center gap-2 px-6 py-3 rounded-md bg-[#07CB6C] hover:bg-[#06b560] disabled:bg-neutral-800 disabled:text-neutral-500 text-black font-semibold text-sm transition-all cursor-pointer disabled:cursor-not-allowed"
             >
-              {isClarifying ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" />
-                  <span>Thinking...</span>
-                </>
-              ) : (
-                <>
-                  <span>Continue</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
+              <span>Continue</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
       {/* ===================================================================== */}
-      {/* STEP 2: CLARIFIED OUTCOME CONFIRMATION */}
+      {/* STEP 2: ROUTINE / SCHEDULE CAPTURE (Zero Wait!) */}
       {/* ===================================================================== */}
-      {step === 2 && clarification && (
+      {step === 2 && (
         <div className="space-y-6 text-left animate-fadeInUp">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-xs font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{clarification.primaryDomain}</span>
-            </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              Your goal, sharpened
+              When works best for you?
             </h2>
             <p className="text-xs sm:text-sm text-neutral-400">
-              A clear goal makes success easier. Here's what we'll work toward.
+              We'll schedule deliberate practice sessions around your life so they actually stick.
             </p>
           </div>
 
-          {/* Outcome Card */}
-          <div className="p-5 rounded-md bg-[#0c1210] border border-[#07CB6C]/30 space-y-3 relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium uppercase text-[#07CB6C] tracking-wider">
-                What success looks like
-              </span>
-              <button
-                type="button"
-                onClick={() => setIsEditingOutcome(!isEditingOutcome)}
-                className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>{isEditingOutcome ? 'Done' : 'Edit'}</span>
-              </button>
+          <div className="space-y-4">
+            {/* Roadmap Plan Variant Selector */}
+            <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-neutral-400 font-medium">
+                    How many days per week?
+                  </label>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] font-semibold border border-[#07CB6C]/30">
+                    Recommended: 5 days
+                  </span>
+                </div>
+                <span className="text-xs text-[#07CB6C] font-medium">
+                  {routine.planVariant === 'minimal' && '4 days / week'}
+                  {(!routine.planVariant || routine.planVariant === 'steady') && '5 days / week'}
+                  {routine.planVariant === 'accelerated' && '6 days / week'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {[
+                  {
+                    id: 'minimal',
+                    title: 'Light',
+                    days: '4 days / week',
+                    badge: 'Flexible',
+                    desc: '4 sessions with 3 rest days. Great if you have a busy schedule.'
+                  },
+                  {
+                    id: 'steady',
+                    title: 'Steady',
+                    days: '5 days / week',
+                    badge: 'Recommended',
+                    desc: '5 sessions with 2 rest days. The sweet spot for consistent progress.'
+                  },
+                  {
+                    id: 'accelerated',
+                    title: 'Intensive',
+                    days: '6 days / week',
+                    badge: 'Fast track',
+                    desc: '6 sessions with 1 rest day. For when you want to move fast.'
+                  }
+                ].map((variant) => {
+                  const isSelected = (routine.planVariant || 'steady') === variant.id;
+                  const isRec = variant.id === 'steady';
+                  return (
+                    <button
+                      key={variant.id}
+                      type="button"
+                      onClick={() =>
+                        setRoutine((prev) => ({
+                          ...prev,
+                          planVariant: variant.id as any
+                        }))
+                      }
+                      className={`p-3.5 rounded-md border text-left transition-all cursor-pointer space-y-2 flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white'
+                          : 'bg-[#080d0b] border-[#1a2824] text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-white">{variant.title}</span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
+                            isSelected
+                              ? 'bg-[#07CB6C] text-black'
+                              : isRec
+                              ? 'bg-[#07CB6C]/15 text-[#07CB6C] border border-[#07CB6C]/30'
+                              : 'bg-[#16221e] text-neutral-400 border border-[#1a2824]'
+                          }`}
+                        >
+                          {variant.badge}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-neutral-300 font-mono">{variant.days}</div>
+                      <p className="text-[11px] text-neutral-500 leading-snug">{variant.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {isEditingOutcome ? (
-              <textarea
-                value={editedOutcome}
-                onChange={(e) => setEditedOutcome(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 bg-[#080d0b] border border-[#1a2824] rounded-md text-white text-sm focus:outline-none focus:border-[#07CB6C]"
-              />
-            ) : (
-              <p className="text-base sm:text-lg font-medium text-white leading-relaxed">
-                "{editedOutcome}"
-              </p>
-            )}
+            {/* Preferred Focus Window */}
+            <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <label className="text-xs text-neutral-400 font-medium">
+                  When's your best focus time?
+                </label>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] font-semibold border border-[#07CB6C]/30">
+                  Recommended: Evening
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2.5">
+                {[
+                  { id: 'morning', label: 'Morning', icon: Sun, time: '~7:30 AM' },
+                  { id: 'afternoon', label: 'Afternoon', icon: Sunset, time: '~2:00 PM' },
+                  { id: 'evening', label: 'Evening', icon: Moon, time: '~7:30 PM', badge: 'Recommended' }
+                ].map((slot) => {
+                  const Icon = slot.icon;
+                  const isSelected = routine.preferredSlot === slot.id;
+                  const isRec = slot.id === 'evening';
+                  return (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() =>
+                        setRoutine((prev) => ({
+                          ...prev,
+                          preferredSlot: slot.id as any
+                        }))
+                      }
+                      className={`p-3 rounded-md border text-center transition-all cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white'
+                          : 'bg-[#080d0b] border-[#1a2824] text-neutral-400 hover:border-neutral-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center min-h-[18px] mb-1">
+                        {isRec ? (
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
+                            isSelected
+                              ? 'bg-[#07CB6C] text-black'
+                              : 'bg-[#07CB6C]/15 text-[#07CB6C] border border-[#07CB6C]/30'
+                          }`}>
+                            Recommended
+                          </span>
+                        ) : null}
+                      </div>
+                      <Icon
+                        className={`w-5 h-5 mx-auto mb-1.5 ${
+                          isSelected ? 'text-[#07CB6C]' : 'text-neutral-400'
+                        }`}
+                      />
+                      <div className="text-xs font-medium">{slot.label}</div>
+                      <div className="text-[10px] text-neutral-500">{slot.time}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-            <div className="pt-2 border-t border-[#1a2824] flex items-center gap-2 text-xs text-neutral-400">
-              <AwardIcon className="w-4 h-4 text-[#f59e0b] shrink-0" />
-              <span>
-                <strong className="text-neutral-200">How you'll know you made it:</strong> {clarification.verificationCriteria}
-              </span>
+            {/* Daily Commitment Minutes */}
+            <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-neutral-400 font-medium">
+                    How much time per day?
+                  </label>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] font-semibold border border-[#07CB6C]/30">
+                    Recommended: 60 min
+                  </span>
+                </div>
+                <span className="text-xs text-[#07CB6C] font-medium">
+                  {routine.dailyMinutes} min / day
+                </span>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[30, 45, 60, 90].map((mins) => {
+                  const isRec = mins === 60;
+                  const isSelected = routine.dailyMinutes === mins;
+                  return (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() =>
+                        setRoutine((prev) => ({ ...prev, dailyMinutes: mins }))
+                      }
+                      className={`py-2 px-2.5 rounded-md border text-xs font-medium transition-all cursor-pointer flex flex-col items-center justify-center ${
+                        isSelected
+                          ? 'bg-[#07CB6C] text-black font-semibold border-[#07CB6C]'
+                          : 'bg-[#080d0b] border-[#1a2824] text-neutral-300 hover:border-neutral-700'
+                      }`}
+                    >
+                      <span className="text-xs">{mins} min</span>
+                      {isRec && (
+                        <span className={`text-[9px] font-mono ${isSelected ? 'text-black/80 font-bold' : 'text-[#07CB6C] font-semibold'}`}>
+                          Recommended
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-neutral-500">
+                {routine.dailyMinutes === 30 && 'Great for building a light baseline habit.'}
+                {routine.dailyMinutes === 45 && 'A balanced sweet spot for steady progress.'}
+                {routine.dailyMinutes === 60 && 'Recommended — ideal depth for students and 9-to-5 workers.'}
+                {routine.dailyMinutes >= 90 && 'Intensive immersion — for faster sprints.'}
+              </p>
+            </div>
+
+            {/* Schedule Bounds */}
+            <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div>
+                <div className="mb-1">
+                  <label className="block text-neutral-400 font-medium">Wake time</label>
+                </div>
+                <input
+                  type="time"
+                  value={routine.wakeTime}
+                  onChange={(e) =>
+                    setRoutine((prev) => ({ ...prev, wakeTime: e.target.value }))
+                  }
+                  className="w-full px-2.5 py-1.5 bg-[#080d0b] border border-[#1a2824] rounded-md text-white focus:outline-none focus:border-[#07CB6C]"
+                />
+              </div>
+
+              <div>
+                <div className="mb-1">
+                  <label className="block text-neutral-400 font-medium">Sleep time</label>
+                </div>
+                <input
+                  type="time"
+                  value={routine.sleepTime}
+                  onChange={(e) =>
+                    setRoutine((prev) => ({ ...prev, sleepTime: e.target.value }))
+                  }
+                  className="w-full px-2.5 py-1.5 bg-[#080d0b] border border-[#1a2824] rounded-md text-white focus:outline-none focus:border-[#07CB6C]"
+                />
+              </div>
+
+              <div>
+                <div className="mb-1">
+                  <label className="block text-neutral-400 font-medium">Busy hours (work/classes)</label>
+                </div>
+                <input
+                  type="text"
+                  value={routine.busyHours}
+                  onChange={(e) =>
+                    setRoutine((prev) => ({ ...prev, busyHours: e.target.value }))
+                  }
+                  placeholder="e.g. 09:00 - 17:00"
+                  className="w-full px-2.5 py-1.5 bg-[#080d0b] border border-[#1a2824] rounded-md text-white focus:outline-none focus:border-[#07CB6C]"
+                />
+              </div>
+            </div>
+
+            {/* Other Daily Commitments (Gym, Classes, Commute, etc.) */}
+            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-4 shadow-sm">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-white font-semibold flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-[#07CB6C]" />
+                      <span>Recurring Commitments & Blocked Times</span>
+                    </label>
+                    {routine.commitments && routine.commitments.length > 0 && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#07CB6C]/15 text-[#07CB6C] font-mono font-semibold border border-[#07CB6C]/30 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                        {routine.commitments.length} protected
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
+                    Add your regular gym sessions, university classes, or commute. Achivii will guarantee your practice sessions never clash with them.
+                  </p>
+                </div>
+              </div>
+
+              {/* Popular Commitment Presets (Interactive Visual Tiles) */}
+              <div className="space-y-2">
+                <div className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">
+                  Popular recurring routines (tap to toggle):
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {PRESET_COMMITMENTS.map((preset) => {
+                    const Icon = preset.icon;
+                    const isAdded = routine.commitments?.some(
+                      (c) => c.title.toLowerCase() === preset.title.toLowerCase()
+                    );
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleTogglePresetCommitment(preset)}
+                        className={`p-3 rounded-md border text-left transition-all cursor-pointer flex items-start gap-3 group relative overflow-hidden ${
+                          isAdded
+                            ? 'bg-[#07CB6C]/10 border-[#07CB6C] shadow-sm shadow-[#07CB6C]/10'
+                            : 'bg-[#080d0b] hover:bg-[#121c17] border-[#1a2824] hover:border-neutral-700'
+                        }`}
+                      >
+                        <div
+                          className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                            isAdded
+                              ? 'bg-[#07CB6C] text-black font-bold'
+                              : `${preset.bgColor} ${preset.accentColor} border ${preset.borderColor}`
+                          }`}
+                        >
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className={`text-xs font-semibold truncate ${isAdded ? 'text-white' : 'text-neutral-200'}`}>
+                              {preset.title}
+                            </span>
+                            {isAdded ? (
+                              <span className="text-[9px] font-mono bg-[#07CB6C] text-black px-1.5 py-0.2 rounded font-bold shrink-0">
+                                ✓ Added
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-neutral-500 group-hover:text-[#07CB6C] transition-colors shrink-0">
+                                + Add
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-[10px] text-neutral-400 font-mono mt-0.5">
+                            <Clock className="w-2.5 h-2.5 text-neutral-500" />
+                            <span>{preset.defaultTime.split(',')[0]}</span>
+                          </div>
+                          <p className="text-[10px] text-neutral-500 truncate mt-0.5">
+                            {preset.subtitle}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Custom Commitment Toggle & Creator Drawer */}
+              <div className="pt-1">
+                {!isCustomDrawerOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomDrawerOpen(true)}
+                    className="w-full py-2.5 px-3 rounded-md bg-[#080d0b] hover:bg-[#121c17] border border-dashed border-[#1a2824] hover:border-[#07CB6C]/50 text-neutral-300 text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer group"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-[#07CB6C] group-hover:scale-110 transition-transform" />
+                    <span>Add Custom Commitment (Boxing, Yoga, Night Study, Side Gig...)</span>
+                  </button>
+                ) : (
+                  <div className="p-3.5 sm:p-4 rounded-md bg-[#080d0b] border border-[#1a2824] space-y-3.5 animate-fadeInUp">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-white">Add Custom Commitment</span>
+                        <span className="text-[10px] text-neutral-500 font-mono">Any recurring routine</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomDrawerOpen(false)}
+                        className="text-neutral-500 hover:text-white transition-colors text-xs flex items-center gap-1 p-1 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Cancel</span>
+                      </button>
+                    </div>
+
+                    {/* Category Selector */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">
+                        Select Category:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {CUSTOM_CATEGORIES.map((cat) => {
+                          const Icon = cat.icon;
+                          const isSelected = selectedCategory === cat.id;
+                          return (
+                            <button
+                              key={cat.id}
+                              type="button"
+                              onClick={() => setSelectedCategory(cat.id as any)}
+                              className={`px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
+                                isSelected
+                                  ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-[#07CB6C] font-semibold shadow-sm'
+                                  : 'bg-[#0c1210] border-[#1a2824] text-neutral-400 hover:text-neutral-200'
+                              }`}
+                            >
+                              <Icon className={`w-3 h-3 ${isSelected ? 'text-[#07CB6C]' : cat.color}`} />
+                              <span>{cat.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Quick Suggestions Chips */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">
+                        Quick Ideas (tap to auto-fill):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {QUICK_SUGGESTIONS.map((sug) => (
+                          <button
+                            key={sug.title}
+                            type="button"
+                            onClick={() => {
+                              setNewCommitmentTitle(sug.title);
+                              setSelectedCategory(sug.category);
+                              setNewCommitmentTime(sug.time);
+                            }}
+                            className="text-[11px] px-2.5 py-1 rounded bg-[#0c1210] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-neutral-300 transition-colors cursor-pointer flex items-center gap-1"
+                          >
+                            <Plus className="w-2.5 h-2.5 text-[#07CB6C]" />
+                            <span>{sug.title}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Input Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-neutral-400 font-medium">
+                          Commitment Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Boxing Club, Yoga, Night Study..."
+                          value={newCommitmentTitle}
+                          onChange={(e) => setNewCommitmentTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddCustomCommitment();
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-[#0c1210] border border-[#1a2824] rounded-md text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-neutral-400 font-medium">
+                          Time Window
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 18:00 - 19:30 or Evenings"
+                          value={newCommitmentTime}
+                          onChange={(e) => setNewCommitmentTime(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddCustomCommitment();
+                            }
+                          }}
+                          className="w-full px-3 py-2 bg-[#0c1210] border border-[#1a2824] rounded-md text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quick Time Presets */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-neutral-500 font-mono">Quick time shortcuts:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {QUICK_TIME_PRESETS.map((qt) => (
+                          <button
+                            key={qt.label}
+                            type="button"
+                            onClick={() => setNewCommitmentTime(qt.value)}
+                            className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0c1210] hover:bg-[#16221e] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                          >
+                            {qt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={handleAddCustomCommitment}
+                        disabled={!newCommitmentTitle.trim()}
+                        className="px-4 py-2 bg-[#07CB6C] hover:bg-[#06b560] disabled:bg-neutral-800 disabled:text-neutral-500 text-black font-semibold text-xs rounded-md flex items-center gap-1.5 transition-all cursor-pointer disabled:cursor-not-allowed shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add to Schedule</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Added Commitments Cards List */}
+              {routine.commitments && routine.commitments.length > 0 ? (
+                <div className="space-y-2 pt-2 border-t border-[#1a2824]/60">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">
+                      Protected Time Windows ({routine.commitments.length}):
+                    </span>
+                    <span className="text-[10px] text-[#07CB6C] font-mono flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3" />
+                      <span>Practice will not conflict</span>
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {routine.commitments.map((item) => {
+                      const cat = getCategoryDetails(item.category);
+                      const ItemIcon = cat.icon;
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center justify-between p-2.5 rounded-md bg-[#080d0b] border border-[#1a2824] hover:border-[#07CB6C]/40 transition-all group"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div
+                              className={`w-7 h-7 rounded-md ${cat.bg} ${cat.color} border ${cat.border} flex items-center justify-center shrink-0`}
+                            >
+                              <ItemIcon className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold text-white truncate">
+                                {item.title}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono">
+                                <Clock className="w-2.5 h-2.5 text-neutral-500" />
+                                <span>{item.time || 'Daily Block'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCommitment(item.id)}
+                            aria-label={`Remove ${item.title}`}
+                            className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-950/30 rounded transition-colors cursor-pointer shrink-0 ml-2"
+                            title="Remove commitment"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-md bg-[#080d0b]/70 border border-[#1a2824] text-neutral-400 text-xs flex items-center gap-2.5">
+                  <Sparkles className="w-4 h-4 text-[#07CB6C] shrink-0" />
+                  <span className="text-[11px] leading-relaxed">
+                    No extra commitments added yet. Tap any popular preset above or add a custom one if you have recurring sports, college classes, or evening activities.
+                  </span>
+                </div>
+              )}
+
+              {/* Visual 24-Hour Day Balance Map */}
+              {(() => {
+                const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
+                const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
+                const busyParts = routine.busyHours.split('-');
+                const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
+                const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
+                const practiceStartMins =
+                  routine.preferredSlot === 'morning' ? 450 : routine.preferredSlot === 'afternoon' ? 840 : 1170;
+
+                return (
+                  <div className="pt-2 border-t border-[#1a2824]/60 space-y-2.5">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
+                        <span className="text-xs font-semibold text-white">
+                          Your 24-Hour Day Balance Map
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2 py-0.5 rounded border border-[#07CB6C]/30">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
+                        <span>
+                          Practice Locked: {routine.preferredSlot === 'evening' ? 'Evening ~7:30 PM' : routine.preferredSlot === 'morning' ? 'Morning ~7:30 AM' : 'Afternoon ~2:00 PM'} ({routine.dailyMinutes}m)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 24-Hour Visual Bar */}
+                    <div className="space-y-1">
+                      <div className="h-7 w-full bg-[#050807] border border-[#1a2824] rounded-lg overflow-hidden relative flex items-center shadow-inner">
+                        {/* Hour ticks */}
+                        <div className="absolute inset-0 flex justify-between px-2 pointer-events-none opacity-20">
+                          <div className="w-px h-full bg-neutral-500" />
+                          <div className="w-px h-full bg-neutral-500" />
+                          <div className="w-px h-full bg-neutral-500" />
+                          <div className="w-px h-full bg-neutral-500" />
+                          <div className="w-px h-full bg-neutral-500" />
+                        </div>
+
+                        {/* Sleep Morning Block */}
+                        <div
+                          className="absolute top-1 bottom-1 bg-indigo-950/60 border border-indigo-800/40 rounded flex items-center justify-center text-[9px] text-indigo-300 font-mono overflow-hidden"
+                          style={{
+                            left: '0%',
+                            width: `${(wakeMins / 1440) * 100}%`
+                          }}
+                          title={`Sleep: 00:00 - ${routine.wakeTime}`}
+                        >
+                          <span className="truncate px-1 opacity-80">🌙 Sleep</span>
+                        </div>
+
+                        {/* Busy Hours Block */}
+                        <div
+                          className="absolute top-1 bottom-1 bg-neutral-800/80 border border-neutral-700/60 rounded flex items-center justify-center text-[9px] text-neutral-300 font-mono overflow-hidden"
+                          style={{
+                            left: `${(busyStartMins / 1440) * 100}%`,
+                            width: `${Math.max(5, ((busyEndMins - busyStartMins) / 1440) * 100)}%`
+                          }}
+                          title={`Work/Study: ${routine.busyHours}`}
+                        >
+                          <span className="truncate px-1 font-medium">💼 {routine.busyHours.split('-')[0].trim()} - {routine.busyHours.split('-')[1]?.trim()}</span>
+                        </div>
+
+                        {/* Commitment Blocks */}
+                        {routine.commitments?.map((c) => {
+                          const cat = getCategoryDetails(c.category);
+                          const cStart = parseTimeToMinutes(c.time?.split('-')[0] || '', 1080);
+                          const cEnd = parseTimeToMinutes(c.time?.split('-')[1] || '', cStart + 90);
+                          const leftPct = (cStart / 1440) * 100;
+                          const widthPct = Math.max(3.5, ((cEnd - cStart) / 1440) * 100);
+                          return (
+                            <div
+                              key={c.id}
+                              className={`absolute top-1 bottom-1 ${cat.bg} border ${cat.border} rounded flex items-center justify-center text-[9px] ${cat.color} font-mono overflow-hidden shadow-sm`}
+                              style={{
+                                left: `${leftPct}%`,
+                                width: `${widthPct}%`
+                              }}
+                              title={`${c.title}: ${c.time || 'Protected'}`}
+                            >
+                              <span className="truncate px-1 font-semibold">{c.title}</span>
+                            </div>
+                          );
+                        })}
+
+                        {/* Achivii Practice Session */}
+                        <div
+                          className="absolute top-0.5 bottom-0.5 bg-[#07CB6C] text-black font-bold text-[10px] rounded flex items-center justify-center shadow-lg shadow-[#07CB6C]/40 z-10 border border-white/40"
+                          style={{
+                            left: `${(practiceStartMins / 1440) * 100}%`,
+                            width: `${Math.max(5, (routine.dailyMinutes / 1440) * 100)}%`
+                          }}
+                          title={`Achivii Focus Session (${routine.dailyMinutes} mins)`}
+                        >
+                          <span className="truncate px-1">🎯 Practice</span>
+                        </div>
+
+                        {/* Sleep Night Block */}
+                        <div
+                          className="absolute top-1 bottom-1 bg-indigo-950/60 border border-indigo-800/40 rounded flex items-center justify-center text-[9px] text-indigo-300 font-mono overflow-hidden"
+                          style={{
+                            left: `${(sleepMins / 1440) * 100}%`,
+                            width: `${((1440 - sleepMins) / 1440) * 100}%`
+                          }}
+                          title={`Sleep: ${routine.sleepTime} - 24:00`}
+                        >
+                          <span className="truncate px-1 opacity-80">🌙 Sleep</span>
+                        </div>
+                      </div>
+
+                      {/* Time scale tick labels */}
+                      <div className="flex justify-between text-[10px] text-neutral-500 font-mono px-0.5">
+                        <span>12 AM</span>
+                        <span>6 AM</span>
+                        <span>12 PM</span>
+                        <span>6 PM</span>
+                        <span>12 AM</span>
+                      </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-400">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                          <span>Sleep</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-neutral-600" />
+                          <span>Work/Study</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-400" />
+                          <span>Commitments</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-medium text-white">
+                          <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
+                          <span className="text-[#07CB6C]">Practice Slot</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />
+                        <span>Zero scheduling overlap guaranteed</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
-          {/* Core Capabilities */}
-          {clarification.capabilities && clarification.capabilities.length > 0 && (
-            <div className="space-y-2.5">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                <Target className="w-3.5 h-3.5 text-[#07CB6C]" />
-                <span>Skills you'll build</span>
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {clarification.capabilities.map((cap, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-[#0c1210] border border-[#1a2824] text-neutral-200"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                    {cap}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Scientific Frameworks — collapsed by default */}
-          {clarification.scientificFrameworks && clarification.scientificFrameworks.length > 0 && (
-            <div className="space-y-2">
+          {/* Background Clarification Error (if any) */}
+          {clarificationError && (
+            <div className="p-3.5 rounded-md bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center justify-between gap-3">
+              <span>{clarificationError}</span>
               <button
                 type="button"
-                onClick={() => setShowMethodologies(!showMethodologies)}
-                className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+                onClick={() => startClarification(rawGoal)}
+                className="px-3 py-1 bg-red-800 hover:bg-red-700 text-white rounded font-medium text-xs cursor-pointer shrink-0"
               >
-                <span>{showMethodologies ? 'Hide' : 'View'} research-backed methods we'll use</span>
-                {showMethodologies ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                Retry Analysis
               </button>
-
-              {showMethodologies && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fadeIn">
-                  {clarification.scientificFrameworks.map((framework, i) => (
-                    <div
-                      key={i}
-                      className="p-3.5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-1.5 text-left"
-                    >
-                      <div className="font-medium text-xs text-[#07CB6C]">
-                        {framework.name}
-                      </div>
-                      <p className="text-xs text-neutral-300 leading-snug">
-                        {framework.description}
-                      </p>
-                      <p className="text-[11px] text-neutral-500 italic">
-                        ↳ {framework.application}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
@@ -429,11 +1266,21 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
             <button
               type="button"
-              onClick={() => setStep(3)}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-sm transition-all cursor-pointer"
+              disabled={isClarifying && isWaitingForClarification}
+              onClick={handleProceedFromSchedule}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] disabled:bg-[#07CB6C]/50 text-black font-semibold text-sm transition-all cursor-pointer"
             >
-              <span>Looks good</span>
-              <ArrowRight className="w-4 h-4" />
+              {isClarifying && isWaitingForClarification ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" />
+                  <span>Personalizing your path...</span>
+                </>
+              ) : (
+                <>
+                  <span>Next: Quick Questions</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -449,7 +1296,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
               A few quick questions
             </h2>
             <p className="text-xs sm:text-sm text-neutral-400">
-              So we can personalize your first week.
+              Calibrate your baseline, equipment, and focus so we can personalize your roadmap.
             </p>
           </div>
 
@@ -525,9 +1372,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
             <button
               type="button"
               onClick={() => setStep(4)}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-sm transition-all cursor-pointer"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-sm transition-all cursor-pointer shadow-sm"
             >
-              <span>Next</span>
+              <span>Next: What Success Looks Like</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -535,210 +1382,200 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       )}
 
       {/* ===================================================================== */}
-      {/* STEP 4: ROUTINE CAPTURE */}
+      {/* STEP 4: WHAT SUCCESS LOOKS LIKE / FINAL CONFIRMATION */}
       {/* ===================================================================== */}
-      {step === 4 && (
+      {step === 4 && clarification && (
         <div className="space-y-6 text-left animate-fadeInUp">
           <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-xs font-medium">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>{clarification.primaryDomain}</span>
+            </div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              When works best for you?
+              What success looks like in 90 days
             </h2>
             <p className="text-xs sm:text-sm text-neutral-400">
-              We'll schedule sessions around your life so they actually stick.
+              Review your target outcome, verification benchmark, and schedule before we build your blueprint.
             </p>
           </div>
 
-          <div className="space-y-4">
-            {/* Roadmap Plan Variant Selector */}
-            <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-neutral-400 font-medium">
-                  How many days per week?
-                </label>
-                <span className="text-xs text-[#07CB6C] font-medium">
-                  {routine.planVariant === 'minimal' && '4 days / week'}
-                  {(!routine.planVariant || routine.planVariant === 'steady') && '5 days / week'}
-                  {routine.planVariant === 'accelerated' && '6 days / week'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                {[
-                  {
-                    id: 'minimal',
-                    title: 'Light',
-                    days: '4 days / week',
-                    badge: 'Flexible',
-                    desc: '4 sessions with 3 rest days. Great if you have a busy schedule.'
-                  },
-                  {
-                    id: 'steady',
-                    title: 'Steady',
-                    days: '5 days / week',
-                    badge: 'Recommended',
-                    desc: '5 sessions with 2 rest days. The sweet spot for consistent progress.'
-                  },
-                  {
-                    id: 'accelerated',
-                    title: 'Intensive',
-                    days: '6 days / week',
-                    badge: 'Fast track',
-                    desc: '6 sessions with 1 rest day. For when you want to move fast.'
-                  }
-                ].map((variant) => {
-                  const isSelected = (routine.planVariant || 'steady') === variant.id;
-                  return (
-                    <button
-                      key={variant.id}
-                      type="button"
-                      onClick={() =>
-                        setRoutine((prev) => ({
-                          ...prev,
-                          planVariant: variant.id as any
-                        }))
-                      }
-                      className={`p-3.5 rounded-md border text-left transition-all cursor-pointer space-y-2 flex flex-col justify-between ${
-                        isSelected
-                          ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white'
-                          : 'bg-[#080d0b] border-[#1a2824] text-neutral-400 hover:border-neutral-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-white">{variant.title}</span>
-                        <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded-md ${
-                            isSelected
-                              ? 'bg-[#07CB6C] text-black font-semibold'
-                              : 'bg-[#16221e] text-neutral-400 border border-[#1a2824]'
-                          }`}
-                        >
-                          {variant.badge}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-neutral-300 font-mono">{variant.days}</div>
-                      <p className="text-[11px] text-neutral-500 leading-snug">{variant.desc}</p>
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Outcome Card */}
+          <div className="p-5 rounded-md bg-[#0c1210] border border-[#07CB6C]/30 space-y-3 relative overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium uppercase text-[#07CB6C] tracking-wider">
+                Clarified Target Outcome
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsEditingOutcome(!isEditingOutcome)}
+                className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>{isEditingOutcome ? 'Done' : 'Edit Outcome'}</span>
+              </button>
             </div>
 
-            {/* Preferred Focus Window */}
-            <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3">
-              <label className="text-xs text-neutral-400 font-medium">
-                When's your best focus time?
-              </label>
-              <div className="grid grid-cols-3 gap-2.5">
-                {[
-                  { id: 'morning', label: 'Morning', icon: Sun, time: '~7:30 AM' },
-                  { id: 'afternoon', label: 'Afternoon', icon: Sunset, time: '~2:00 PM' },
-                  { id: 'evening', label: 'Evening', icon: Moon, time: '~7:30 PM' }
-                ].map((slot) => {
-                  const Icon = slot.icon;
-                  const isSelected = routine.preferredSlot === slot.id;
-                  return (
-                    <button
-                      key={slot.id}
-                      type="button"
-                      onClick={() =>
-                        setRoutine((prev) => ({
-                          ...prev,
-                          preferredSlot: slot.id as any
-                        }))
-                      }
-                      className={`p-3 rounded-md border text-center transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white'
-                          : 'bg-[#080d0b] border-[#1a2824] text-neutral-400 hover:border-neutral-700'
-                      }`}
-                    >
-                      <Icon
-                        className={`w-5 h-5 mx-auto mb-1.5 ${
-                          isSelected ? 'text-[#07CB6C]' : 'text-neutral-400'
-                        }`}
-                      />
-                      <div className="text-xs font-medium">{slot.label}</div>
-                      <div className="text-[10px] text-neutral-500">{slot.time}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Daily Commitment Minutes */}
-            <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-neutral-400 font-medium">
-                  How much time per day?
-                </label>
-                <span className="text-xs text-[#07CB6C] font-medium">
-                  {routine.dailyMinutes} min / day
-                </span>
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {[30, 45, 60, 90].map((mins) => (
-                  <button
-                    key={mins}
-                    type="button"
-                    onClick={() =>
-                      setRoutine((prev) => ({ ...prev, dailyMinutes: mins }))
-                    }
-                    className={`py-2.5 px-3 rounded-md border text-xs font-medium transition-all cursor-pointer ${
-                      routine.dailyMinutes === mins
-                        ? 'bg-[#07CB6C] text-black font-semibold border-[#07CB6C]'
-                        : 'bg-[#080d0b] border-[#1a2824] text-neutral-300 hover:border-neutral-700'
-                    }`}
-                  >
-                    {mins} min
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-neutral-500">
-                {routine.dailyMinutes === 30 && 'Great for building a sustainable habit.'}
-                {routine.dailyMinutes === 45 && 'A balanced sweet spot for steady progress.'}
-                {routine.dailyMinutes >= 60 && 'Intensive — for faster results.'}
+            {isEditingOutcome ? (
+              <textarea
+                value={editedOutcome}
+                onChange={(e) => setEditedOutcome(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 bg-[#080d0b] border border-[#1a2824] rounded-md text-white text-sm focus:outline-none focus:border-[#07CB6C]"
+              />
+            ) : (
+              <p className="text-base sm:text-lg font-medium text-white leading-relaxed">
+                "{editedOutcome}"
               </p>
-            </div>
+            )}
 
-            {/* Schedule Bounds */}
-            <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div>
-                <label className="block text-neutral-400 mb-1">Wake time</label>
-                <input
-                  type="time"
-                  value={routine.wakeTime}
-                  onChange={(e) =>
-                    setRoutine((prev) => ({ ...prev, wakeTime: e.target.value }))
-                  }
-                  className="w-full px-2.5 py-1.5 bg-[#080d0b] border border-[#1a2824] rounded-md text-white focus:outline-none focus:border-[#07CB6C]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 mb-1">Sleep time</label>
-                <input
-                  type="time"
-                  value={routine.sleepTime}
-                  onChange={(e) =>
-                    setRoutine((prev) => ({ ...prev, sleepTime: e.target.value }))
-                  }
-                  className="w-full px-2.5 py-1.5 bg-[#080d0b] border border-[#1a2824] rounded-md text-white focus:outline-none focus:border-[#07CB6C]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 mb-1">Busy hours</label>
-                <input
-                  type="text"
-                  value={routine.busyHours}
-                  onChange={(e) =>
-                    setRoutine((prev) => ({ ...prev, busyHours: e.target.value }))
-                  }
-                  className="w-full px-2.5 py-1.5 bg-[#080d0b] border border-[#1a2824] rounded-md text-white focus:outline-none focus:border-[#07CB6C]"
-                />
-              </div>
+            <div className="pt-2 border-t border-[#1a2824] flex items-center gap-2 text-xs text-neutral-400">
+              <AwardIcon className="w-4 h-4 text-[#f59e0b] shrink-0" />
+              <span>
+                <strong className="text-neutral-200">Capstone Proof Benchmark:</strong> {clarification.verificationCriteria}
+              </span>
             </div>
           </div>
+
+          {/* Core Capabilities */}
+          {clarification.capabilities && clarification.capabilities.length > 0 && (
+            <div className="space-y-2.5">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
+                <Target className="w-3.5 h-3.5 text-[#07CB6C]" />
+                <span>Core Capabilities You'll Master</span>
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {clarification.capabilities.map((cap, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-[#0c1210] border border-[#1a2824] text-neutral-200"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                    {cap}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Personalized Schedule & Routine Confirmation Card */}
+          <div className="p-4 rounded-md bg-[#090e0c] border border-[#1a2824] space-y-2.5">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
+                <span>Your Personalized Practice Protocol</span>
+              </span>
+              <span className="text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2 py-0.5 rounded border border-[#07CB6C]/30">
+                100% Conflict Free
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="p-2 rounded bg-[#0c1210] border border-[#1a2824]">
+                <div className="text-[10px] text-neutral-500 font-mono">TRACK PACING</div>
+                <div className="text-white font-medium capitalize mt-0.5">
+                  {routine.planVariant === 'minimal' ? '4 days / wk' : routine.planVariant === 'accelerated' ? '6 days / wk' : '5 days / wk'}
+                </div>
+              </div>
+              <div className="p-2 rounded bg-[#0c1210] border border-[#1a2824]">
+                <div className="text-[10px] text-neutral-500 font-mono">FOCUS WINDOW</div>
+                <div className="text-[#07CB6C] font-medium capitalize mt-0.5">
+                  {routine.preferredSlot === 'evening' ? 'Evening (~7:30 PM)' : routine.preferredSlot === 'morning' ? 'Morning (~7:30 AM)' : 'Afternoon (~2:00 PM)'}
+                </div>
+              </div>
+              <div className="p-2 rounded bg-[#0c1210] border border-[#1a2824]">
+                <div className="text-[10px] text-neutral-500 font-mono">DAILY SESSION</div>
+                <div className="text-white font-medium mt-0.5">
+                  {routine.dailyMinutes} minutes
+                </div>
+              </div>
+              <div className="p-2 rounded bg-[#0c1210] border border-[#1a2824]">
+                <div className="text-[10px] text-neutral-500 font-mono">PROTECTED BLOCKS</div>
+                <div className="text-neutral-300 font-medium truncate mt-0.5">
+                  {routine.commitments && routine.commitments.length > 0
+                    ? `${routine.commitments.length} routines`
+                    : 'Work & Sleep'}
+                </div>
+              </div>
+            </div>
+            {routine.commitments && routine.commitments.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {routine.commitments.map((c) => (
+                  <span
+                    key={c.id}
+                    className="text-[10px] px-2 py-0.5 rounded bg-[#080d0b] border border-[#1a2824] text-neutral-300 font-mono flex items-center gap-1"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
+                    <span>{c.title}</span>
+                    {c.time && <span className="text-neutral-500">({c.time.split(',')[0]})</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Calibrated Diagnostics Summary */}
+          {clarification.followUpQuestions && clarification.followUpQuestions.length > 0 && (
+            <div className="p-4 rounded-md bg-[#090e0c] border border-[#1a2824] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[#07CB6C]" />
+                  <span>Calibrated For Your Profile</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="text-[11px] text-neutral-400 hover:text-[#07CB6C] transition-colors cursor-pointer"
+                >
+                  Edit Answers
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                {clarification.followUpQuestions.map((q) => {
+                  const selectedVal = customAnswers[q.id]?.trim() || answers[q.id] || q.options[0] || 'Default';
+                  return (
+                    <div key={q.id} className="p-2.5 rounded bg-[#0c1210] border border-[#1a2824] text-xs space-y-0.5">
+                      <div className="text-[10px] text-neutral-500 font-mono truncate">{q.question}</div>
+                      <div className="text-[#07CB6C] font-medium truncate">{selectedVal}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Scientific Frameworks — collapsed by default */}
+          {clarification.scientificFrameworks && clarification.scientificFrameworks.length > 0 && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setShowMethodologies(!showMethodologies)}
+                className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <span>{showMethodologies ? 'Hide' : 'View'} research-backed methods we'll use</span>
+                {showMethodologies ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+
+              {showMethodologies && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fadeIn">
+                  {clarification.scientificFrameworks.map((framework, i) => (
+                    <div
+                      key={i}
+                      className="p-3.5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-1.5 text-left"
+                    >
+                      <div className="font-medium text-xs text-[#07CB6C]">
+                        {framework.name}
+                      </div>
+                      <p className="text-xs text-neutral-300 leading-snug">
+                        {framework.description}
+                      </p>
+                      <p className="text-[11px] text-neutral-500 italic">
+                        ↳ {framework.application}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-between pt-4">
             <button
@@ -747,15 +1584,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
               className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back</span>
+              <span>Back to Questions</span>
             </button>
 
             <button
               type="button"
               onClick={handleGeneratePlan}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-sm transition-all cursor-pointer"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-sm transition-all cursor-pointer shadow-md shadow-[#07CB6C]/20 hover:scale-[1.01]"
             >
-              <span>Create My Plan</span>
+              <span>Generate 90-Day Blueprint</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -796,14 +1633,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
         </div>
       )}
 
-      {/* SaaS Builder Studio Modal */}
-      <SaaSBuilderModal
-        isOpen={isSaaSModalOpen}
-        onClose={() => setIsSaaSModalOpen(false)}
-        onLaunchGoal={(createdGoal) => {
-          onGoalCreated(createdGoal);
-        }}
-      />
     </div>
   );
 };

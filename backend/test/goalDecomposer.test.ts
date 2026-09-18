@@ -57,6 +57,17 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
         expect(plan.initialTasks[i + 1].isRestDay).toBe(false);
       }
     }
+
+    // Three Evidence Layers: verify every step in initial tasks has valid layer and reasoning
+    const validLayers = ['mechanism', 'adherence', 'safety'];
+    for (const task of plan.initialTasks) {
+      expect(task.detailedSteps.length).toBeGreaterThan(0);
+      for (const step of task.detailedSteps) {
+        expect(validLayers).toContain(step.layer);
+        expect(typeof step.layerReasoning).toBe('string');
+        expect(step.layerReasoning.trim().length).toBeGreaterThan(10);
+      }
+    }
   });
 
   it('generates Minimal Viable plan with 4 active and 3 rest days obeying the 2-day rule', async () => {
@@ -84,9 +95,19 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
         expect(plan.initialTasks[i + 1].isRestDay).toBe(false);
       }
     }
+
+    // Verify Three Evidence Layers on Minimal track
+    const validLayers = ['mechanism', 'adherence', 'safety'];
+    for (const task of plan.initialTasks) {
+      for (const step of task.detailedSteps) {
+        expect(validLayers).toContain(step.layer);
+        expect(typeof step.layerReasoning).toBe('string');
+        expect(step.layerReasoning.trim().length).toBeGreaterThan(10);
+      }
+    }
   });
 
-  it('adapts upcoming week tasks grounded in previous week audit and score', async () => {
+  it('adapts upcoming week tasks grounded in previous week audit and score with evidence layer tagging', async () => {
     const adaptedTasks = await adaptUpcomingWeekTasksWithAI(
       'Master acoustic guitar campfire songs',
       2,
@@ -130,5 +151,41 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
         expect(adaptedTasks[i + 1].isRestDay).toBe(false);
       }
     }
+
+    // Verify Three Evidence Layers on adapted tasks
+    const validLayers = ['mechanism', 'adherence', 'safety'];
+    for (const task of adaptedTasks) {
+      expect(task.detailedSteps.length).toBeGreaterThan(0);
+      for (const step of task.detailedSteps) {
+        expect(validLayers).toContain(step.layer);
+        expect(typeof step.layerReasoning).toBe('string');
+        expect(step.layerReasoning.trim().length).toBeGreaterThan(10);
+      }
+    }
+  });
+
+  it('supports custom commitments and defaults to 60m evening routine for busy students and professionals', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Learn full-stack web development',
+      'By Day 90, I will build and ship a full-stack SaaS application',
+      {},
+      {
+        commitments: [
+          { title: 'Gym Workout', time: '18:00 - 19:30' },
+          { title: 'University Classes', time: '09:00 - 14:00' }
+        ]
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    // Verified 60 min default plannedMinutes
+    expect(plan.weeks[0].plannedMinutes).toBe(60);
+    expect(plan.initialTasks.length).toBe(7);
+    const activeTasks = plan.initialTasks.filter(t => !t.isRestDay);
+    expect(activeTasks.length).toBe(5); // Default steady
+    expect(activeTasks[0].durationMinutes).toBe(60);
+    expect(activeTasks[0].slotTime).toBe('19:30'); // Default evening slot
   });
 });
+

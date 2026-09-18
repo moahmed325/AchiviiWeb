@@ -36,8 +36,8 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus: propApiStatus }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Determine home link destination based on user state
-  const homeLink = user ? (activeGoal ? '/dashboard' : '/onboarding') : '/';
+  // Home link destination: always root '/'
+  const homeLink = '/';
 
   const handleResetPlan = async () => {
     if (!window.confirm('Are you sure you want to reset your 90-day plan? All task progress will be cleared.')) {
@@ -58,6 +58,8 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus: propApiStatus }) => {
     navigate('/');
   };
 
+  const isTodayActive = location.pathname === '/' || location.pathname === '/dashboard';
+
   return (
     <header className="w-full border-b border-white/5 bg-[#050807]/90 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
@@ -77,9 +79,9 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus: propApiStatus }) => {
           {user && activeGoal && (
             <nav className="hidden sm:flex items-center gap-1.5" aria-label="Main Navigation">
               <Link
-                to="/dashboard"
+                to="/"
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
-                  location.pathname === '/dashboard'
+                  isTodayActive
                     ? 'bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/25 shadow-xs'
                     : 'text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent'
                 }`}
@@ -105,9 +107,9 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus: propApiStatus }) => {
         {user && activeGoal && (
           <div className="flex sm:hidden items-center gap-1">
             <Link
-              to="/dashboard"
+              to="/"
               className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                location.pathname === '/dashboard'
+                isTodayActive
                   ? 'bg-[#07CB6C]/15 text-[#07CB6C]'
                   : 'text-neutral-400 hover:text-white'
               }`}

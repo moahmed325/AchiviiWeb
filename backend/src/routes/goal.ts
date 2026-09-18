@@ -58,9 +58,10 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       wakeTime: routine?.wakeTime || '07:00',
       sleepTime: routine?.sleepTime || '23:00',
       busyHours: routine?.busyHours || '09:00 - 17:00',
-      preferredSlot: routine?.preferredSlot || 'morning',
-      dailyMinutes: routine?.dailyMinutes || 30,
-      planVariant: routine?.planVariant || 'steady'
+      preferredSlot: routine?.preferredSlot || 'evening',
+      dailyMinutes: routine?.dailyMinutes || 60,
+      planVariant: routine?.planVariant || 'steady',
+      commitments: routine?.commitments || []
     };
 
     // Generate 12-week roadmap and Week 1 detailed tasks with Gemini
