@@ -78,7 +78,7 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
     id: 'commute',
     category: 'commute',
     title: 'Daily Commute',
-    defaultTime: '08:00 - 09:00, 17:30 - 18:30',
+    defaultTime: '08:00 - 08:45',
     defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     subtitle: 'Transit, driving, or cycling',
     icon: Car,
@@ -712,40 +712,40 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
         commitments: (prev.commitments || []).filter((_, idx) => idx !== existingIndex)
       }));
     } else {
+      const newCommitment: CommitmentItem = {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+        title: preset.title,
+        time: preset.defaultTime,
+        category: preset.category,
+        days: preset.defaultDays || ['Mon', 'Wed', 'Fri']
+      };
       setRoutine((prev) => ({
         ...prev,
-        commitments: [
-          ...(prev.commitments || []),
-          {
-            id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
-            title: preset.title,
-            time: preset.defaultTime,
-            category: preset.category,
-            days: preset.defaultDays || ['Mon', 'Wed', 'Fri']
-          }
-        ]
+        commitments: [...(prev.commitments || []), newCommitment]
       }));
+      // Prompt the user to customize days and hours immediately
+      setEditingCommitment(newCommitment);
     }
   };
 
   const handleAddCustomCommitment = () => {
     if (!newCommitmentTitle.trim()) return;
+    const newCommitment: CommitmentItem = {
+      id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
+      title: newCommitmentTitle.trim(),
+      time: newCommitmentTime.trim() || undefined,
+      category: 'other',
+      days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+    };
     setRoutine((prev) => ({
       ...prev,
-      commitments: [
-        ...(prev.commitments || []),
-        {
-          id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
-          title: newCommitmentTitle.trim(),
-          time: newCommitmentTime.trim() || undefined,
-          category: 'other',
-          days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-        }
-      ]
+      commitments: [...(prev.commitments || []), newCommitment]
     }));
     setNewCommitmentTitle('');
     setNewCommitmentTime('');
     setIsCustomDrawerOpen(false);
+    // Prompt the user to customize days and hours immediately
+    setEditingCommitment(newCommitment);
   };
 
   const handleRemoveCommitment = (id: string) => {
@@ -1274,8 +1274,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                     >
                       <button
                         type="button"
-                        onClick={() => handleTogglePresetCommitment(preset)}
+                        onClick={() => {
+                          if (isAdded) {
+                            setEditingCommitment(activeC);
+                          } else {
+                            handleTogglePresetCommitment(preset);
+                          }
+                        }}
                         className="px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
+                        title={isAdded ? `Click to adjust days & times for ${preset.title}` : `Add ${preset.title}`}
                       >
                         <Icon className={`w-3.5 h-3.5 ${isAdded ? 'text-[#07CB6C]' : 'text-neutral-400'}`} />
                         <span>{preset.title}</span>
@@ -1293,17 +1300,30 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                         )}
                       </button>
                       {isAdded && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingCommitment(activeC);
-                          }}
-                          className="pr-2.5 pl-0.5 py-1.5 text-neutral-400 hover:text-[#07CB6C] cursor-pointer"
-                          title="Edit days and schedule"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center pr-1.5 gap-0.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingCommitment(activeC);
+                            }}
+                            className="p-1 text-neutral-400 hover:text-[#07CB6C] cursor-pointer transition-colors"
+                            title="Edit days and schedule"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveCommitment(activeC.id);
+                            }}
+                            className="p-1 text-neutral-400 hover:text-red-400 cursor-pointer transition-colors"
+                            title="Remove"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   );
@@ -2121,6 +2141,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                       className="w-full bg-transparent font-bold text-white text-base focus:outline-none focus:border-b focus:border-[#07CB6C] pb-0.5 placeholder-neutral-500"
                       placeholder="Commitment name..."
                     />
+                    <p className="text-[11px] text-neutral-400 mt-1">
+                      Set the days and hours for this routine so Achivii protects your goal time.
+                    </p>
                   </div>
                 </div>
 
