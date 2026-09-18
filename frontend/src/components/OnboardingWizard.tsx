@@ -562,9 +562,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     currentStartMins: number;
   }
 
+  interface EditingCommitmentSession {
+    item: CommitmentItem;
+    isNew: boolean;
+  }
+
   const [activePracticeDrag, setActivePracticeDrag] = useState<ActivePracticeDrag | null>(null);
   const [customPracticeStartMins, setCustomPracticeStartMins] = useState<number | null>(null);
-  const [editingCommitment, setEditingCommitment] = useState<CommitmentItem | null>(null);
+  const [editingCommitment, setEditingCommitment] = useState<EditingCommitmentSession | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   // Active practice start: use real-time drag hover if currently dragging practice, else custom
@@ -703,14 +708,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   const [newCommitmentTime, setNewCommitmentTime] = useState('');
 
   const handleTogglePresetCommitment = (preset: PresetCommitment) => {
-    const existingIndex = (routine.commitments || []).findIndex(
+    const existing = (routine.commitments || []).find(
       (c) => c.title.toLowerCase() === preset.title.toLowerCase()
     );
-    if (existingIndex >= 0) {
-      setRoutine((prev) => ({
-        ...prev,
-        commitments: (prev.commitments || []).filter((_, idx) => idx !== existingIndex)
-      }));
+    if (existing) {
+      setEditingCommitment({ item: { ...existing }, isNew: false });
     } else {
       const newCommitment: CommitmentItem = {
         id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
@@ -719,12 +721,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
         category: preset.category,
         days: preset.defaultDays || ['Mon', 'Wed', 'Fri']
       };
-      setRoutine((prev) => ({
-        ...prev,
-        commitments: [...(prev.commitments || []), newCommitment]
-      }));
-      // Prompt the user to customize days and hours immediately
-      setEditingCommitment(newCommitment);
+      // Prompt the user to decide when they do this routine; only added after clicking Done
+      setEditingCommitment({ item: newCommitment, isNew: true });
     }
   };
 
@@ -733,19 +731,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     const newCommitment: CommitmentItem = {
       id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
       title: newCommitmentTitle.trim(),
-      time: newCommitmentTime.trim() || undefined,
+      time: newCommitmentTime.trim() || '18:00 - 19:00',
       category: 'other',
       days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
     };
-    setRoutine((prev) => ({
-      ...prev,
-      commitments: [...(prev.commitments || []), newCommitment]
-    }));
     setNewCommitmentTitle('');
     setNewCommitmentTime('');
     setIsCustomDrawerOpen(false);
-    // Prompt the user to customize days and hours immediately
-    setEditingCommitment(newCommitment);
+    // Prompt the user to decide when they do this routine; only added after clicking Done
+    setEditingCommitment({ item: newCommitment, isNew: true });
   };
 
   const handleRemoveCommitment = (id: string) => {
@@ -1275,8 +1269,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                       <button
                         type="button"
                         onClick={() => {
-                          if (isAdded) {
-                            setEditingCommitment(activeC);
+                          if (isAdded && activeC) {
+                            setEditingCommitment({ item: { ...activeC }, isNew: false });
                           } else {
                             handleTogglePresetCommitment(preset);
                           }
@@ -1299,13 +1293,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                           <span className="text-neutral-500 text-[11px] ml-0.5">+</span>
                         )}
                       </button>
-                      {isAdded && (
+                      {isAdded && activeC && (
                         <div className="flex items-center pr-1.5 gap-0.5">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setEditingCommitment(activeC);
+                              setEditingCommitment({ item: { ...activeC }, isNew: false });
                             }}
                             className="p-1 text-neutral-400 hover:text-[#07CB6C] cursor-pointer transition-colors"
                             title="Edit days and schedule"
@@ -1346,7 +1340,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                       </span>
                       <button
                         type="button"
-                        onClick={() => setEditingCommitment(customC)}
+                        onClick={() => setEditingCommitment({ item: { ...customC }, isNew: false })}
                         className="hover:text-[#07CB6C] text-neutral-400 ml-0.5 cursor-pointer"
                         title="Edit details & days"
                       >
@@ -1500,7 +1494,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                           onClick={() => {
                             if (b.type === 'commitment') {
                               const found = (routine.commitments || []).find((c) => c.id === b.id);
-                              if (found) setEditingCommitment(found);
+                              if (found) setEditingCommitment({ item: { ...found }, isNew: false });
                             }
                           }}
                           className={`absolute top-0.5 bottom-0.5 ${
@@ -1996,21 +1990,26 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       {/* DETAILED COMMITMENT & RECURRENCE EDITOR MODAL */}
       {/* ===================================================================== */}
       {editingCommitment && (() => {
-        const activeEditingC =
-          (routine.commitments || []).find((c) => c.id === editingCommitment.id) || editingCommitment;
+        const activeEditingC = editingCommitment.item;
+        const isNew = editingCommitment.isNew;
         const catDetails = getCategoryDetails(activeEditingC.category);
         const CatIcon = catDetails.icon || Sparkles;
 
-        const placedInfo = daySchedule.placedCommitmentsMap[activeEditingC.id];
-        let startMins = placedInfo?.startMins ?? 1080;
-        let endMins = placedInfo?.endMins ?? 1140;
+        let startMins = 1080;
+        let endMins = 1140;
         if (activeEditingC.time && activeEditingC.time.includes('-')) {
           const parts = activeEditingC.time.split(',')[0].split('-');
-          const s = parseTimeToMinutes(parts[0]?.trim() || '', startMins);
-          const e = parseTimeToMinutes(parts[1]?.trim() || '', endMins);
+          const s = parseTimeToMinutes(parts[0]?.trim() || '', 1080);
+          const e = parseTimeToMinutes(parts[1]?.trim() || '', s + 60);
           if (e > s) {
             startMins = s;
             endMins = e;
+          }
+        } else if (!isNew) {
+          const placedInfo = daySchedule.placedCommitmentsMap[activeEditingC.id];
+          if (placedInfo) {
+            startMins = placedInfo.startMins;
+            endMins = placedInfo.endMins;
           }
         }
         const durationMins = endMins - startMins;
@@ -2039,12 +2038,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
         const isEveryday = activeDays.length === 7;
 
         const handleSetDays = (days: string[]) => {
-          setRoutine((prev) => ({
-            ...prev,
-            commitments: (prev.commitments || []).map((c) =>
-              c.id === activeEditingC.id ? { ...c, days } : c
-            )
-          }));
+          setEditingCommitment((prev) =>
+            prev ? { ...prev, item: { ...prev.item, days } } : null
+          );
         };
 
         const handleToggleSingleDay = (dayKey: string) => {
@@ -2065,45 +2061,57 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
         const handleAdjustStart = (delta: number) => {
           const newStart = Math.max(0, Math.min(endMins - 15, startMins + delta));
-          setRoutine((prev) => ({
-            ...prev,
-            commitments: (prev.commitments || []).map((c) =>
-              c.id === activeEditingC.id
-                ? {
-                    ...c,
-                    time: `${formatMinutesTo24h(newStart)} - ${formatMinutesTo24h(endMins)}`
-                  }
-                : c
-            )
-          }));
+          const newTime = `${formatMinutesTo24h(newStart)} - ${formatMinutesTo24h(endMins)}`;
+          setEditingCommitment((prev) =>
+            prev ? { ...prev, item: { ...prev.item, time: newTime } } : null
+          );
         };
 
         const handleAdjustEnd = (delta: number) => {
           const newEnd = Math.min(1440, Math.max(startMins + 15, endMins + delta));
-          setRoutine((prev) => ({
-            ...prev,
-            commitments: (prev.commitments || []).map((c) =>
-              c.id === activeEditingC.id
-                ? {
-                    ...c,
-                    time: `${formatMinutesTo24h(startMins)} - ${formatMinutesTo24h(newEnd)}`
-                  }
-                : c
-            )
-          }));
+          const newTime = `${formatMinutesTo24h(startMins)} - ${formatMinutesTo24h(newEnd)}`;
+          setEditingCommitment((prev) =>
+            prev ? { ...prev, item: { ...prev.item, time: newTime } } : null
+          );
         };
 
         const handleUpdateTitle = (newTitle: string) => {
-          setRoutine((prev) => ({
-            ...prev,
-            commitments: (prev.commitments || []).map((c) =>
-              c.id === activeEditingC.id ? { ...c, title: newTitle } : c
-            )
-          }));
+          setEditingCommitment((prev) =>
+            prev ? { ...prev, item: { ...prev.item, title: newTitle } } : null
+          );
         };
 
         const handleDelete = () => {
-          handleRemoveCommitment(activeEditingC.id);
+          if (!isNew) {
+            handleRemoveCommitment(activeEditingC.id);
+          }
+          setEditingCommitment(null);
+        };
+
+        const handleClose = () => {
+          // Closes without saving to routine.commitments (if new, discarded without adding to calendar)
+          setEditingCommitment(null);
+        };
+
+        const handleSave = () => {
+          const finalItem: CommitmentItem = {
+            ...activeEditingC,
+            time: `${formatMinutesTo24h(startMins)} - ${formatMinutesTo24h(endMins)}`,
+            days: activeDays
+          };
+          if (isNew) {
+            setRoutine((prev) => ({
+              ...prev,
+              commitments: [...(prev.commitments || []), finalItem]
+            }));
+          } else {
+            setRoutine((prev) => ({
+              ...prev,
+              commitments: (prev.commitments || []).map((c) =>
+                c.id === finalItem.id ? finalItem : c
+              )
+            }));
+          }
           setEditingCommitment(null);
         };
 
@@ -2118,7 +2126,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
         return (
           <div
             className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
-            onClick={() => setEditingCommitment(null)}
+            onClick={handleClose}
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -2132,7 +2140,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                   </div>
                   <div className="flex-1 min-w-0">
                     <label className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">
-                      Routine / Commitment Name
+                      {isNew ? 'New Routine / Commitment' : 'Routine / Commitment'}
                     </label>
                     <input
                       type="text"
@@ -2149,9 +2157,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
                 <button
                   type="button"
-                  onClick={() => setEditingCommitment(null)}
+                  onClick={handleClose}
                   className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition-colors cursor-pointer shrink-0"
-                  title="Close"
+                  title="Cancel and close"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2208,7 +2216,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                   </button>
                 </div>
 
-                {/* Individual 7 day toggle pills */}
+                {/* 7 Day of Week Circles */}
                 <div className="flex items-center justify-between gap-1.5 pt-1">
                   {ALL_DAYS.map((d) => {
                     const isSelected = activeDays.includes(d.key);
@@ -2217,36 +2225,33 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                         key={d.key}
                         type="button"
                         onClick={() => handleToggleSingleDay(d.key)}
-                        title={`${d.full}: click to toggle`}
-                        className={`flex-1 py-2 flex flex-col items-center justify-center rounded-xl border transition-all cursor-pointer ${
+                        title={d.full}
+                        className={`w-9 h-9 rounded-xl text-xs font-bold flex items-center justify-center transition-all cursor-pointer border ${
                           isSelected
-                            ? 'bg-[#07CB6C] border-[#07CB6C] text-black shadow-md shadow-[#07CB6C]/25'
-                            : 'bg-[#040706] border-[#1a2824] text-neutral-400 hover:border-neutral-600 hover:text-white'
+                            ? 'bg-[#07CB6C] text-black border-[#07CB6C] shadow-md shadow-[#07CB6C]/25 scale-105'
+                            : 'bg-[#040706] border-[#1a2824] text-neutral-400 hover:text-white hover:border-neutral-600'
                         }`}
                       >
-                        <span className="text-xs font-bold leading-none">{d.short}</span>
-                        <span className={`text-[9px] font-mono leading-tight mt-0.5 ${isSelected ? 'text-black/80 font-medium' : 'text-neutral-500'}`}>
-                          {d.key}
-                        </span>
+                        {d.short}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Time Window & Duration Steppers */}
+              {/* Time Window & Duration Stepper */}
               <div className="space-y-2.5 pt-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-[#07CB6C]" />
                     <span className="text-xs font-semibold text-white">Time Window & Duration</span>
                   </div>
-                  <span className="text-[11px] font-mono text-[#07CB6C] font-bold bg-[#07CB6C]/10 border border-[#07CB6C]/30 px-2 py-0.5 rounded-full">
-                    {formatDurLabel(durationMins)} ({durationMins}m)
+                  <span className="text-xs font-mono font-bold text-white bg-neutral-800 px-2 py-0.5 rounded">
+                    {formatDurLabel(durationMins)}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {/* Start Time Stepper */}
                   <div className="bg-[#040706] border border-[#1a2824] rounded-xl p-3 space-y-2">
                     <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">
@@ -2313,29 +2318,50 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                 </div>
 
                 <p className="text-[11px] text-neutral-400 pt-1 leading-relaxed">
-                  💡 You can drag this block across the 24-hour balance map to reposition its scheduled time.
+                  💡 Adjust start and end times here. Achivii automatically balances your day to protect your goal practice time.
                 </p>
               </div>
 
               {/* Footer Actions */}
               <div className="flex items-center justify-between pt-3 border-t border-[#1a2824] gap-2">
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="px-3.5 py-2 text-xs font-medium bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                  <span>Delete Commitment</span>
-                </button>
+                {!isNew ? (
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="px-3.5 py-2 text-xs font-medium bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                    <span>Delete Commitment</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleClose}
+                    className="px-3.5 py-2 text-xs font-medium text-neutral-400 hover:text-white rounded-xl cursor-pointer transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
 
-                <button
-                  type="button"
-                  onClick={() => setEditingCommitment(null)}
-                  className="px-5 py-2 text-xs font-bold bg-[#07CB6C] hover:bg-[#06b560] text-black rounded-xl flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all ml-auto"
-                >
-                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Done</span>
-                </button>
+                <div className="flex items-center gap-2 ml-auto">
+                  {!isNew && (
+                    <button
+                      type="button"
+                      onClick={handleClose}
+                      className="px-3.5 py-2 text-xs font-medium text-neutral-400 hover:text-white rounded-xl cursor-pointer transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="px-5 py-2 text-xs font-bold bg-[#07CB6C] hover:bg-[#06b560] text-black rounded-xl flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all"
+                  >
+                    <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Done</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
