@@ -20,11 +20,9 @@ import {
   Utensils,
   Flame,
   Heart,
-  Clock,
   ShieldCheck,
   Sparkles,
-  Calendar,
-  Trash2
+  Calendar
 } from 'lucide-react';
 import {
   GoalClarification,
@@ -115,31 +113,6 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
   }
 ];
 
-const CUSTOM_CATEGORIES = [
-  { id: 'fitness', label: 'Fitness', icon: Dumbbell, color: 'text-emerald-400' },
-  { id: 'education', label: 'Study', icon: GraduationCap, color: 'text-sky-400' },
-  { id: 'commute', label: 'Commute', icon: Car, color: 'text-amber-400' },
-  { id: 'family', label: 'Dinner', icon: Utensils, color: 'text-rose-400' },
-  { id: 'sports', label: 'Sports', icon: Flame, color: 'text-orange-400' },
-  { id: 'work', label: 'Work', icon: Briefcase, color: 'text-teal-400' },
-  { id: 'other', label: 'Personal', icon: Heart, color: 'text-pink-400' }
-] as const;
-
-const QUICK_SUGGESTIONS = [
-  { title: 'Boxing Club', category: 'sports' as const, time: '19:00 - 20:30' },
-  { title: 'Morning Yoga', category: 'fitness' as const, time: '06:30 - 07:30' },
-  { title: 'Night Study Session', category: 'education' as const, time: '21:00 - 22:30' },
-  { title: 'Side Project Sprint', category: 'work' as const, time: '18:00 - 19:30' },
-  { title: 'Evening Walk & Reset', category: 'other' as const, time: '20:30 - 21:30' }
-];
-
-const QUICK_TIME_PRESETS = [
-  { label: 'Morning (07:00 - 08:30)', value: '07:00 - 08:30' },
-  { label: 'Afternoon (12:30 - 14:00)', value: '12:30 - 14:00' },
-  { label: 'After Work (17:30 - 19:00)', value: '17:30 - 19:00' },
-  { label: 'Evening (19:00 - 20:30)', value: '19:00 - 20:30' },
-  { label: 'Night (21:00 - 22:30)', value: '21:00 - 22:30' }
-];
 
 const getCategoryDetails = (category?: string) => {
   switch (category) {
@@ -543,9 +516,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
   // Custom Commitment Input State
   const [isCustomDrawerOpen, setIsCustomDrawerOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<
-    'fitness' | 'education' | 'commute' | 'family' | 'sports' | 'work' | 'other'
-  >('fitness');
   const [newCommitmentTitle, setNewCommitmentTitle] = useState('');
   const [newCommitmentTime, setNewCommitmentTime] = useState('');
 
@@ -584,7 +554,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
           id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
           title: newCommitmentTitle.trim(),
           time: newCommitmentTime.trim() || undefined,
-          category: selectedCategory
+          category: 'other'
         }
       ]
     }));
@@ -1073,301 +1043,154 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
               </div>
             </div>
 
-            {/* Other Daily Commitments (Gym, Classes, Commute, etc.) */}
+            {/* Recurring Commitments & 24-Hour Day Balance */}
             <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-4 shadow-sm">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="text-sm text-white font-semibold flex items-center gap-1.5">
                       <Calendar className="w-4 h-4 text-[#07CB6C]" />
-                      <span>Recurring Commitments & Blocked Times</span>
+                      <span>Recurring Commitments</span>
                     </label>
-                    {routine.commitments && routine.commitments.length > 0 && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#07CB6C]/15 text-[#07CB6C] font-mono font-semibold border border-[#07CB6C]/30 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                        {routine.commitments.length} protected
-                      </span>
-                    )}
+                    <span className="text-[10px] text-neutral-500 font-mono">
+                      (Optional)
+                    </span>
                   </div>
                   <p className="text-xs text-neutral-400 mt-0.5 leading-relaxed">
-                    Add your regular gym sessions, university classes, or commute. Achivii will guarantee your practice sessions never clash with them.
+                    Protect your regular gym sessions, commute, or dinners. Practice automatically fits around them.
                   </p>
                 </div>
-              </div>
 
-              {/* Popular Commitment Presets (Interactive Visual Tiles) */}
-              <div className="space-y-2">
-                <div className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">
-                  Popular recurring routines (tap to toggle):
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                  {PRESET_COMMITMENTS.map((preset) => {
-                    const Icon = preset.icon;
-                    const isAdded = routine.commitments?.some(
-                      (c) => c.title.toLowerCase() === preset.title.toLowerCase()
-                    );
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleTogglePresetCommitment(preset)}
-                        className={`p-3 rounded-md border text-left transition-all cursor-pointer flex items-start gap-3 group relative overflow-hidden ${
-                          isAdded
-                            ? 'bg-[#07CB6C]/10 border-[#07CB6C] shadow-sm shadow-[#07CB6C]/10'
-                            : 'bg-[#080d0b] hover:bg-[#121c17] border-[#1a2824] hover:border-neutral-700'
-                        }`}
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 transition-colors ${
-                            isAdded
-                              ? 'bg-[#07CB6C] text-black font-bold'
-                              : `${preset.bgColor} ${preset.accentColor} border ${preset.borderColor}`
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className={`text-xs font-semibold truncate ${isAdded ? 'text-white' : 'text-neutral-200'}`}>
-                              {preset.title}
-                            </span>
-                            {isAdded ? (
-                              <span className="text-[9px] font-mono bg-[#07CB6C] text-black px-1.5 py-0.2 rounded font-bold shrink-0">
-                                ✓ Added
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-neutral-500 group-hover:text-[#07CB6C] transition-colors shrink-0">
-                                + Add
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 text-[10px] text-neutral-400 font-mono mt-0.5">
-                            <Clock className="w-2.5 h-2.5 text-neutral-500" />
-                            <span>{preset.defaultTime.split(',')[0]}</span>
-                          </div>
-                          <p className="text-[10px] text-neutral-500 truncate mt-0.5">
-                            {preset.subtitle}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Custom Commitment Toggle & Creator Drawer */}
-              <div className="pt-1">
-                {!isCustomDrawerOpen ? (
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomDrawerOpen(true)}
-                    className="w-full py-2.5 px-3 rounded-md bg-[#080d0b] hover:bg-[#121c17] border border-dashed border-[#1a2824] hover:border-[#07CB6C]/50 text-neutral-300 text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer group"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-[#07CB6C] group-hover:scale-110 transition-transform" />
-                    <span>Add Custom Commitment (Boxing, Yoga, Night Study, Side Gig...)</span>
-                  </button>
-                ) : (
-                  <div className="p-3.5 sm:p-4 rounded-md bg-[#080d0b] border border-[#1a2824] space-y-3.5 animate-fadeInUp">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-white">Add Custom Commitment</span>
-                        <span className="text-[10px] text-neutral-500 font-mono">Any recurring routine</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsCustomDrawerOpen(false)}
-                        className="text-neutral-500 hover:text-white transition-colors text-xs flex items-center gap-1 p-1 cursor-pointer"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        <span>Cancel</span>
-                      </button>
-                    </div>
-
-                    {/* Category Selector */}
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">
-                        Select Category:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {CUSTOM_CATEGORIES.map((cat) => {
-                          const Icon = cat.icon;
-                          const isSelected = selectedCategory === cat.id;
-                          return (
-                            <button
-                              key={cat.id}
-                              type="button"
-                              onClick={() => setSelectedCategory(cat.id as any)}
-                              className={`px-2.5 py-1 rounded-md text-xs flex items-center gap-1.5 transition-all cursor-pointer border ${
-                                isSelected
-                                  ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-[#07CB6C] font-semibold shadow-sm'
-                                  : 'bg-[#0c1210] border-[#1a2824] text-neutral-400 hover:text-neutral-200'
-                              }`}
-                            >
-                              <Icon className={`w-3 h-3 ${isSelected ? 'text-[#07CB6C]' : cat.color}`} />
-                              <span>{cat.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Quick Suggestions Chips */}
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">
-                        Quick Ideas (tap to auto-fill):
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {QUICK_SUGGESTIONS.map((sug) => (
-                          <button
-                            key={sug.title}
-                            type="button"
-                            onClick={() => {
-                              setNewCommitmentTitle(sug.title);
-                              setSelectedCategory(sug.category);
-                              setNewCommitmentTime(sug.time);
-                            }}
-                            className="text-[11px] px-2.5 py-1 rounded bg-[#0c1210] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-neutral-300 transition-colors cursor-pointer flex items-center gap-1"
-                          >
-                            <Plus className="w-2.5 h-2.5 text-[#07CB6C]" />
-                            <span>{sug.title}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Input Row */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      <div className="space-y-1">
-                        <label className="text-[11px] text-neutral-400 font-medium">
-                          Commitment Name
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. Boxing Club, Yoga, Night Study..."
-                          value={newCommitmentTitle}
-                          onChange={(e) => setNewCommitmentTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddCustomCommitment();
-                            }
-                          }}
-                          className="w-full px-3 py-2 bg-[#0c1210] border border-[#1a2824] rounded-md text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-[11px] text-neutral-400 font-medium">
-                          Time Window
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 18:00 - 19:30 or Evenings"
-                          value={newCommitmentTime}
-                          onChange={(e) => setNewCommitmentTime(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddCustomCommitment();
-                            }
-                          }}
-                          className="w-full px-3 py-2 bg-[#0c1210] border border-[#1a2824] rounded-md text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Quick Time Presets */}
-                    <div className="space-y-1">
-                      <span className="text-[10px] text-neutral-500 font-mono">Quick time shortcuts:</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {QUICK_TIME_PRESETS.map((qt) => (
-                          <button
-                            key={qt.label}
-                            type="button"
-                            onClick={() => setNewCommitmentTime(qt.value)}
-                            className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0c1210] hover:bg-[#16221e] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-                          >
-                            {qt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Submit Button */}
-                    <div className="flex justify-end pt-1">
-                      <button
-                        type="button"
-                        onClick={handleAddCustomCommitment}
-                        disabled={!newCommitmentTitle.trim()}
-                        className="px-4 py-2 bg-[#07CB6C] hover:bg-[#06b560] disabled:bg-neutral-800 disabled:text-neutral-500 text-black font-semibold text-xs rounded-md flex items-center gap-1.5 transition-all cursor-pointer disabled:cursor-not-allowed shadow-sm"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add to Schedule</span>
-                      </button>
-                    </div>
-                  </div>
+                {routine.commitments && routine.commitments.length > 0 && (
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-[#07CB6C]/15 text-[#07CB6C] font-mono font-semibold border border-[#07CB6C]/30 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" />
+                    <span>{routine.commitments.length} protected</span>
+                  </span>
                 )}
               </div>
 
-              {/* Added Commitments Cards List */}
-              {routine.commitments && routine.commitments.length > 0 ? (
-                <div className="space-y-2 pt-2 border-t border-[#1a2824]/60">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-neutral-500 font-mono uppercase tracking-wider">
-                      Protected Time Windows ({routine.commitments.length}):
+              {/* Quick Routine Toggle Pills */}
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                {PRESET_COMMITMENTS.map((preset) => {
+                  const Icon = preset.icon;
+                  const isAdded = routine.commitments?.some(
+                    (c) => c.title.toLowerCase() === preset.title.toLowerCase()
+                  );
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleTogglePresetCommitment(preset)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer border ${
+                        isAdded
+                          ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-white shadow-sm shadow-[#07CB6C]/20'
+                          : 'bg-[#080d0b] hover:bg-[#14201a] border-[#1a2824] hover:border-neutral-600 text-neutral-300'
+                      }`}
+                    >
+                      <Icon className={`w-3.5 h-3.5 ${isAdded ? 'text-[#07CB6C]' : 'text-neutral-400'}`} />
+                      <span>{preset.title}</span>
+                      {isAdded ? (
+                        <span className="w-3.5 h-3.5 rounded-full bg-[#07CB6C] text-black flex items-center justify-center text-[9px] font-bold ml-0.5">
+                          ✓
+                        </span>
+                      ) : (
+                        <span className="text-neutral-500 text-[11px] ml-0.5">+</span>
+                      )}
+                    </button>
+                  );
+                })}
+
+                {/* Custom User Added Commitments as Active Pills with Remove 'X' */}
+                {routine.commitments
+                  ?.filter(
+                    (c) => !PRESET_COMMITMENTS.some((p) => p.title.toLowerCase() === c.title.toLowerCase())
+                  )
+                  .map((customC) => (
+                    <span
+                      key={customC.id}
+                      className="px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 bg-[#07CB6C]/15 border border-[#07CB6C] text-white shadow-sm"
+                    >
+                      <Sparkles className="w-3 h-3 text-[#07CB6C]" />
+                      <span>{customC.title}</span>
+                      {customC.time && (
+                        <span className="text-[10px] text-neutral-400 font-mono">
+                          ({customC.time.split('-')[0].trim()})
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCommitment(customC.id)}
+                        className="hover:text-red-400 text-neutral-400 ml-1 cursor-pointer"
+                        title="Remove"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </span>
-                    <span className="text-[10px] text-[#07CB6C] font-mono flex items-center gap-1">
-                      <ShieldCheck className="w-3 h-3" />
-                      <span>Practice will not conflict</span>
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {routine.commitments.map((item) => {
-                      const cat = getCategoryDetails(item.category);
-                      const ItemIcon = cat.icon;
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center justify-between p-2.5 rounded-md bg-[#080d0b] border border-[#1a2824] hover:border-[#07CB6C]/40 transition-all group"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div
-                              className={`w-7 h-7 rounded-md ${cat.bg} ${cat.color} border ${cat.border} flex items-center justify-center shrink-0`}
-                            >
-                              <ItemIcon className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="text-xs font-semibold text-white truncate">
-                                {item.title}
-                              </div>
-                              <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono">
-                                <Clock className="w-2.5 h-2.5 text-neutral-500" />
-                                <span>
-                                  {daySchedule.placedCommitmentsMap[item.id]?.timeLabel || item.time || 'Daily Block'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCommitment(item.id)}
-                            aria-label={`Remove ${item.title}`}
-                            className="p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-950/30 rounded transition-colors cursor-pointer shrink-0 ml-2"
-                            title="Remove commitment"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="p-3 rounded-md bg-[#080d0b]/70 border border-[#1a2824] text-neutral-400 text-xs flex items-center gap-2.5">
-                  <Sparkles className="w-4 h-4 text-[#07CB6C] shrink-0" />
-                  <span className="text-[11px] leading-relaxed">
-                    No extra commitments added yet. Tap any popular preset above or add a custom one if you have recurring sports, college classes, or evening activities.
-                  </span>
+                  ))}
+
+                {/* Add Custom Button */}
+                {!isCustomDrawerOpen && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomDrawerOpen(true)}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1 border border-dashed border-[#1a2824] hover:border-[#07CB6C]/60 bg-[#080d0b] hover:bg-[#121c17] text-neutral-400 hover:text-white transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-[#07CB6C]" />
+                    <span>Add Other</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Simple Inline Custom Input (Appears only when "Add Other" is clicked) */}
+              {isCustomDrawerOpen && (
+                <div className="p-2.5 rounded-md bg-[#080d0b] border border-[#1a2824] flex flex-wrap items-center gap-2 animate-fadeIn">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Routine name (e.g. Boxing, Yoga, Study)..."
+                    value={newCommitmentTitle}
+                    onChange={(e) => setNewCommitmentTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomCommitment();
+                      }
+                    }}
+                    className="flex-1 min-w-[170px] px-3 py-1.5 bg-[#0c1210] border border-[#1a2824] rounded-md text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Time: e.g. 19:00 - 20:30 (optional)"
+                    value={newCommitmentTime}
+                    onChange={(e) => setNewCommitmentTime(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomCommitment();
+                      }
+                    }}
+                    className="w-44 px-3 py-1.5 bg-[#0c1210] border border-[#1a2824] rounded-md text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomCommitment}
+                    disabled={!newCommitmentTitle.trim()}
+                    className="px-3 py-1.5 bg-[#07CB6C] hover:bg-[#06b560] disabled:bg-neutral-800 disabled:text-neutral-500 text-black font-semibold text-xs rounded-md transition-all cursor-pointer disabled:cursor-not-allowed"
+                  >
+                    Add
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCustomDrawerOpen(false);
+                      setNewCommitmentTitle('');
+                      setNewCommitmentTime('');
+                    }}
+                    className="p-1 text-neutral-400 hover:text-white cursor-pointer"
+                    title="Cancel"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               )}
 
