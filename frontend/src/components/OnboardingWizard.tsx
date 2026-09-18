@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Target,
   ArrowRight,
@@ -22,7 +22,9 @@ import {
   Heart,
   ShieldCheck,
   Sparkles,
-  Calendar
+  Calendar,
+  GripVertical,
+  Hand
 } from 'lucide-react';
 import {
   GoalClarification,
@@ -219,7 +221,10 @@ export interface ScheduledDayBlock {
   isPractice?: boolean;
 }
 
-export const computeDaySchedule = (routine: RoutineSettings) => {
+export const computeDaySchedule = (
+  routine: RoutineSettings,
+  customPracticeStartMins?: number | null
+) => {
   const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
   const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
   const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
@@ -360,30 +365,48 @@ export const computeDaySchedule = (routine: RoutineSettings) => {
     });
   });
 
-  // Dynamically allocate practice session in the user's preferred slot without overlapping
+  // Dynamically allocate practice session (or respect user's dragged/tapped time) without overlapping
   const practiceDuration = routine.dailyMinutes || 60;
-  let practiceWinMin = busyEndMins;
-  let practiceWinMax = sleepMins;
-  let practiceTargetStart = 1170; // 19:30 default evening
+  let practiceSlot: { start: number; end: number };
 
-  if (routine.preferredSlot === 'morning') {
-    practiceWinMin = wakeMins;
-    practiceWinMax = busyStartMins;
-    practiceTargetStart = wakeMins + 15;
-  } else if (routine.preferredSlot === 'afternoon') {
-    practiceWinMin = busyStartMins;
-    practiceWinMax = busyEndMins;
-    practiceTargetStart = 840; // 14:00
-  }
+  if (typeof customPracticeStartMins === 'number') {
+    let target = Math.round(customPracticeStartMins / 15) * 15;
+    target = Math.max(wakeMins, Math.min(sleepMins - practiceDuration, target));
 
-  let practiceSlot = findSlot(practiceTargetStart, practiceDuration, practiceWinMin, practiceWinMax);
+    // Magnetic bumper around busy hours
+    if (target < busyEndMins && target + practiceDuration > busyStartMins) {
+      if (target + practiceDuration / 2 < (busyStartMins + busyEndMins) / 2) {
+        target = Math.max(wakeMins, busyStartMins - practiceDuration);
+      } else {
+        target = Math.min(sleepMins - practiceDuration, busyEndMins);
+      }
+    }
 
-  // If preferred window is completely full, gracefully seek an open slot in the other active window
-  if (practiceSlot.end - practiceSlot.start < Math.min(30, practiceDuration)) {
-    if (routine.preferredSlot === 'evening') {
-      practiceSlot = findSlot(wakeMins + 15, practiceDuration, wakeMins, busyStartMins);
-    } else {
-      practiceSlot = findSlot(1170, practiceDuration, busyEndMins, sleepMins);
+    practiceSlot = findSlot(target, practiceDuration, wakeMins, sleepMins);
+  } else {
+    let practiceWinMin = busyEndMins;
+    let practiceWinMax = sleepMins;
+    let practiceTargetStart = 1170; // 19:30 default evening
+
+    if (routine.preferredSlot === 'morning') {
+      practiceWinMin = wakeMins;
+      practiceWinMax = busyStartMins;
+      practiceTargetStart = wakeMins + 15;
+    } else if (routine.preferredSlot === 'afternoon') {
+      practiceWinMin = busyStartMins;
+      practiceWinMax = busyEndMins;
+      practiceTargetStart = 840; // 14:00
+    }
+
+    practiceSlot = findSlot(practiceTargetStart, practiceDuration, practiceWinMin, practiceWinMax);
+
+    // If preferred window is completely full, gracefully seek an open slot in the other active window
+    if (practiceSlot.end - practiceSlot.start < Math.min(30, practiceDuration)) {
+      if (routine.preferredSlot === 'evening') {
+        practiceSlot = findSlot(wakeMins + 15, practiceDuration, wakeMins, busyStartMins);
+      } else {
+        practiceSlot = findSlot(1170, practiceDuration, busyEndMins, sleepMins);
+      }
     }
   }
 
@@ -404,9 +427,9 @@ export const computeDaySchedule = (routine: RoutineSettings) => {
     isPractice: true
   };
 
-  const practiceTimeLabel = `${
-    routine.preferredSlot === 'morning' ? 'Morning' : routine.preferredSlot === 'afternoon' ? 'Afternoon' : 'Evening'
-  } ~${formatMinutesTo12h(practiceSlot.start)}`;
+  const slotPeriod =
+    practiceSlot.start < 720 ? 'Morning' : practiceSlot.start < 1020 ? 'Afternoon' : 'Evening';
+  const practiceTimeLabel = `${slotPeriod} ~${formatMinutesTo12h(practiceSlot.start)}`;
 
   // Assemble full 24-hour non-overlapping timeline
   const allBlocks: ScheduledDayBlock[] = [
@@ -511,8 +534,114 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     commitments: []
   });
 
+  // Draggable Practice Block & Interactive Timeline State
+  const [customPracticeStartMins, setCustomPracticeStartMins] = useState<number | null>(null);
+  const [isDraggingPractice, setIsDraggingPractice] = useState(false);
+  const [dragHoverMins, setDragHoverMins] = useState<number | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+
+  // Active practice start: use real-time drag hover if currently dragging, else stored custom
+  const activePracticeStart =
+    isDraggingPractice && dragHoverMins !== null ? dragHoverMins : customPracticeStartMins;
+
   // Dynamically computed non-overlapping day schedule layout
-  const daySchedule = useMemo(() => computeDaySchedule(routine), [routine]);
+  const daySchedule = useMemo(
+    () => computeDaySchedule(routine, activePracticeStart),
+    [routine, activePracticeStart]
+  );
+
+  const updatePracticeFromPointer = (clientX: number) => {
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const rawMins = ratio * 1440;
+    const practiceDuration = routine.dailyMinutes || 60;
+    let target = Math.round((rawMins - practiceDuration / 2) / 15) * 15;
+
+    const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
+    const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
+    const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
+    const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
+    const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
+
+    // Keep within wake and sleep bounds
+    target = Math.max(wakeMins, Math.min(sleepMins - practiceDuration, target));
+
+    // Magnetic collision bumpers against work/busy hours
+    if (target < busyEndMins && target + practiceDuration > busyStartMins) {
+      if (target + practiceDuration / 2 < (busyStartMins + busyEndMins) / 2) {
+        target = Math.max(wakeMins, busyStartMins - practiceDuration);
+      } else {
+        target = Math.min(sleepMins - practiceDuration, busyEndMins);
+      }
+    }
+
+    setDragHoverMins(target);
+  };
+
+  const handlePracticePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    setIsDraggingPractice(true);
+    updatePracticeFromPointer(e.clientX);
+  };
+
+  const handlePracticePointerMove = (e: React.PointerEvent) => {
+    if (!isDraggingPractice) return;
+    e.preventDefault();
+    updatePracticeFromPointer(e.clientX);
+  };
+
+  const handlePracticePointerUp = (e: React.PointerEvent) => {
+    if (!isDraggingPractice) return;
+    e.preventDefault();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore if pointer capture already released
+    }
+    setIsDraggingPractice(false);
+    if (dragHoverMins !== null) {
+      setCustomPracticeStartMins(dragHoverMins);
+      const finalSlot = dragHoverMins < 720 ? 'morning' : dragHoverMins < 1020 ? 'afternoon' : 'evening';
+      setRoutine((prev) => ({ ...prev, preferredSlot: finalSlot }));
+    }
+    setDragHoverMins(null);
+  };
+
+  const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isDraggingPractice) return;
+    if ((e.target as HTMLElement).closest('[data-no-track-jump]')) {
+      return;
+    }
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return;
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const rawMins = ratio * 1440;
+    const practiceDuration = routine.dailyMinutes || 60;
+    let target = Math.round((rawMins - practiceDuration / 2) / 15) * 15;
+
+    const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
+    const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
+    const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
+    const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
+    const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
+
+    target = Math.max(wakeMins, Math.min(sleepMins - practiceDuration, target));
+
+    if (target < busyEndMins && target + practiceDuration > busyStartMins) {
+      if (target + practiceDuration / 2 < (busyStartMins + busyEndMins) / 2) {
+        target = Math.max(wakeMins, busyStartMins - practiceDuration);
+      } else {
+        target = Math.min(sleepMins - practiceDuration, busyEndMins);
+      }
+    }
+
+    setCustomPracticeStartMins(target);
+    const finalSlot = target < 720 ? 'morning' : target < 1020 ? 'afternoon' : 'evening';
+    setRoutine((prev) => ({ ...prev, preferredSlot: finalSlot }));
+  };
 
   // Custom Commitment Input State
   const [isCustomDrawerOpen, setIsCustomDrawerOpen] = useState(false);
@@ -911,12 +1040,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                     <button
                       key={slot.id}
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        setCustomPracticeStartMins(null);
                         setRoutine((prev) => ({
                           ...prev,
                           preferredSlot: slot.id as any
-                        }))
-                      }
+                        }));
+                      }}
                       className={`p-3 rounded-md border text-center transition-all cursor-pointer flex flex-col justify-between ${
                         isSelected
                           ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white'
@@ -1213,9 +1343,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
                 {/* 24-Hour Visual Bar */}
                 <div className="space-y-1.5">
-                  <div className="h-9 sm:h-10 w-full bg-[#040706] border border-[#1a2824] rounded-lg overflow-hidden relative flex items-center shadow-inner">
+                  <div
+                    ref={timelineRef}
+                    onClick={handleTimelineClick}
+                    className="h-10 w-full bg-[#040706] border border-[#1a2824] rounded-lg relative flex items-center shadow-inner select-none cursor-pointer"
+                    title="Click anywhere on the timeline to place Practice session"
+                  >
                     {/* Hour ticks */}
-                    <div className="absolute inset-0 flex justify-between px-2 pointer-events-none opacity-20">
+                    <div className="absolute inset-0 flex justify-between px-2 pointer-events-none opacity-20 overflow-hidden rounded-lg">
                       <div className="w-px h-full bg-neutral-500" />
                       <div className="w-px h-full bg-neutral-500" />
                       <div className="w-px h-full bg-neutral-500" />
@@ -1233,14 +1368,36 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                         return (
                           <div
                             key={b.id}
-                            className="absolute top-0.5 bottom-0.5 bg-[#07CB6C] text-black font-bold text-[10px] rounded-md flex items-center justify-center shadow-lg shadow-[#07CB6C]/40 z-20 border border-white/40 ring-1 ring-[#040706] transition-all duration-500 ease-out cursor-pointer group"
+                            data-no-track-jump="true"
+                            onPointerDown={handlePracticePointerDown}
+                            onPointerMove={handlePracticePointerMove}
+                            onPointerUp={handlePracticePointerUp}
+                            onPointerCancel={handlePracticePointerUp}
+                            className={`absolute top-0.5 bottom-0.5 bg-[#07CB6C] text-black font-bold text-[10px] rounded-md flex items-center justify-center z-20 border border-white/60 ring-1 ring-[#040706] touch-none select-none cursor-grab active:cursor-grabbing ${
+                              isDraggingPractice
+                                ? 'shadow-2xl shadow-[#07CB6C]/70 scale-105 ring-2 ring-white z-30'
+                                : 'shadow-lg shadow-[#07CB6C]/40 hover:brightness-110'
+                            }`}
                             style={{
                               left: `${leftPct}%`,
-                              width: `${widthPct}%`
+                              width: `${widthPct}%`,
+                              transition: isDraggingPractice
+                                ? 'none'
+                                : 'left 0.4s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease'
                             }}
-                            title={`🎯 ${b.title} (${b.timeLabel} • ${b.durationMins}m) — Guaranteed Conflict-Free Focus Slot`}
+                            title={`🎯 Drag to reposition Practice session (${b.timeLabel} • ${b.durationMins}m)`}
                           >
-                            <div className="flex items-center gap-1 truncate px-1">
+                            {/* Floating Real-time Snapping Tooltip */}
+                            {isDraggingPractice && (
+                              <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-[#07CB6C] text-black font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-xl shadow-[#07CB6C]/60 border border-white whitespace-nowrap pointer-events-none z-40 flex items-center gap-1.5">
+                                <Target className="w-3 h-3 text-black" />
+                                <span>{formatMinutesTo12h(b.startMins)} – {formatMinutesTo12h(b.endMins)}</span>
+                                <span className="opacity-80 font-mono">({b.durationMins}m)</span>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-0.5 truncate px-1 pointer-events-none select-none">
+                              <GripVertical className="w-3 h-3 text-black/70 shrink-0" />
                               <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse shrink-0" />
                               <span className="truncate">Practice</span>
                             </div>
@@ -1251,14 +1408,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                       return (
                         <div
                           key={b.id}
-                          className={`absolute top-1 bottom-1 ${b.bg} border ${b.border} ring-1 ring-[#040706] rounded-md flex items-center justify-center text-[9px] ${b.color} font-mono overflow-hidden shadow-sm transition-all duration-500 ease-out cursor-pointer hover:brightness-125 z-10 group`}
+                          data-no-track-jump="true"
+                          className={`absolute top-1 bottom-1 ${b.bg} border ${b.border} ring-1 ring-[#040706] rounded-md flex items-center justify-center text-[9px] ${b.color} font-mono overflow-hidden shadow-sm transition-all duration-500 ease-out z-10 group`}
                           style={{
                             left: `${leftPct}%`,
                             width: `${widthPct}%`
                           }}
                           title={`${b.title} (${b.timeLabel} • ${b.durationMins}m)`}
                         >
-                          <div className="flex items-center gap-1 truncate px-1">
+                          <div className="flex items-center gap-1 truncate px-1 pointer-events-none select-none">
                             {BlockIcon && <BlockIcon className="w-2.5 h-2.5 shrink-0 opacity-85" />}
                             <span className="truncate font-medium">{b.title}</span>
                           </div>
@@ -1277,8 +1435,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                   </div>
                 </div>
 
-                {/* Legend */}
-                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-400">
+                {/* Legend & Interactive Reposition Hint */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-400 pt-0.5">
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-indigo-500" />
@@ -1298,9 +1456,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400">
-                    <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />
-                    <span>Zero scheduling overlap guaranteed</span>
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2 py-0.5 rounded border border-[#07CB6C]/20">
+                    <Hand className="w-3 h-3 text-[#07CB6C]" />
+                    <span>Drag Practice block or tap timeline to set time</span>
                   </div>
                 </div>
               </div>
