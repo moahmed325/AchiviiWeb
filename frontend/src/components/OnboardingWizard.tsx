@@ -519,8 +519,23 @@ const INSPIRATION_GOALS = [
   'Master handstand push-ups and bodyweight strength baseline'
 ];
 
+interface WizardStepItem {
+  id: 1 | 2 | 3 | 4;
+  title: string;
+  short: string;
+  subtitle: string;
+}
+
+const WIZARD_STEPS: WizardStepItem[] = [
+  { id: 1, title: 'Your Goal', short: 'Goal', subtitle: 'Target outcome' },
+  { id: 2, title: 'Schedule & Routine', short: 'Schedule', subtitle: '24h balance map' },
+  { id: 3, title: 'Diagnostic Quiz', short: 'Quiz', subtitle: 'Calibrate profile' },
+  { id: 4, title: 'Success Blueprint', short: 'Review', subtitle: 'Final pre-flight' }
+];
+
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoalCreated }) => {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [maxStepReached, setMaxStepReached] = useState<number>(1);
   const [rawGoal, setRawGoal] = useState(() => {
     const saved = localStorage.getItem('achivii_draft_goal');
     if (saved) {
@@ -545,6 +560,63 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(true);
+
+  // Centralized Navigation with browser history support
+  const goToStep = (targetStep: 1 | 2 | 3 | 4 | 5, pushHistory: boolean = true) => {
+    if (step === 5) return; // Locked during plan creation
+    if (targetStep === step) return;
+
+    if (pushHistory && typeof window !== 'undefined') {
+      window.history.pushState({ wizardStep: targetStep }, '', window.location.pathname);
+    }
+
+    if (targetStep > maxStepReached && targetStep <= 4) {
+      setMaxStepReached(targetStep);
+    }
+
+    if (targetStep === 3) {
+      setActiveQuestionIndex(0);
+      setIsQuestionModalOpen(true);
+    }
+
+    setStep(targetStep);
+  };
+
+  const canJumpToStep = (targetStep: number): boolean => {
+    if (step === 5) return false;
+    if (targetStep === 1) return true;
+    if (targetStep === 2) return rawGoal.trim().length > 0 || maxStepReached >= 2;
+    if (targetStep === 3) return Boolean(clarification) || maxStepReached >= 3;
+    if (targetStep === 4) return Boolean(clarification) || maxStepReached >= 4;
+    return false;
+  };
+
+  // Browser History Navigation (Back / Forward button support)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!window.history.state || typeof window.history.state.wizardStep !== 'number') {
+      window.history.replaceState({ wizardStep: step }, '', window.location.pathname);
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && typeof e.state.wizardStep === 'number') {
+        const target = e.state.wizardStep as 1 | 2 | 3 | 4 | 5;
+        if (target >= 1 && target <= 4) {
+          goToStep(target, false);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [step]);
+
+  useEffect(() => {
+    if (step > maxStepReached && step <= 4) {
+      setMaxStepReached(step);
+    }
+  }, [step, maxStepReached]);
 
   // Routine / Schedule State (Now Step 2!)
   const [routine, setRoutine] = useState<RoutineSettings>({
@@ -816,7 +888,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     setEditedOutcome(textToUse);
 
     // Instant 0ms jump to Schedule while AI starts in background
-    setStep(2);
+    goToStep(2);
     startClarification(textToUse);
   };
 
@@ -828,11 +900,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       // User finished schedule in <2s while AI is still finishing
       setIsWaitingForClarification(true);
     } else if (clarification) {
-      setActiveQuestionIndex(0);
-      setIsQuestionModalOpen(true);
-      setStep(3);
+      goToStep(3);
     } else if (clarificationError) {
       // If error occurred, retry analysis
+      startClarification(rawGoal);
+      setIsWaitingForClarification(true);
+    } else {
       startClarification(rawGoal);
       setIsWaitingForClarification(true);
     }
@@ -842,9 +915,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   useEffect(() => {
     if (isWaitingForClarification && !isClarifying && clarification) {
       setIsWaitingForClarification(false);
-      setActiveQuestionIndex(0);
-      setIsQuestionModalOpen(true);
-      setStep(3);
+      goToStep(3);
     }
   }, [isWaitingForClarification, isClarifying, clarification]);
 
@@ -897,22 +968,80 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
-      {/* Progress Stepper */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between text-xs text-neutral-400 mb-2">
-          <span>Step {step} of 5</span>
-          <span className="text-[#07CB6C] font-medium">
-            {step === 1 && 'Your goal'}
-            {step === 2 && 'Your schedule'}
-            {step === 3 && 'Quick questions'}
-            {step === 4 && 'What success looks like'}
-            {step === 5 && 'Building plan'}
-          </span>
+      {/* Interactive Step Navigator */}
+      <div className="mb-8 select-none">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-2.5">
+          {WIZARD_STEPS.map((s) => {
+            const isCurrent = step === s.id;
+            const isCompleted = step > s.id;
+            const isClickable = canJumpToStep(s.id) && step !== 5;
+
+            return (
+              <button
+                key={s.id}
+                type="button"
+                disabled={!isClickable}
+                onClick={() => isClickable && goToStep(s.id as 1 | 2 | 3 | 4)}
+                className={`group relative text-left p-2 sm:p-3 rounded-xl border transition-all ${
+                  isClickable ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'
+                } ${
+                  isCurrent
+                    ? 'bg-[#07CB6C]/10 border-[#07CB6C] shadow-lg shadow-[#07CB6C]/15 ring-1 ring-[#07CB6C]/50'
+                    : isCompleted
+                    ? 'bg-[#0a120e] border-[#1a2824] hover:border-[#07CB6C]/50 hover:bg-[#0e1a14]'
+                    : isClickable
+                    ? 'bg-[#080d0b] border-[#1a2824] hover:border-neutral-600 hover:bg-[#0d1511]'
+                    : 'bg-[#050807] border-[#121c18]'
+                }`}
+                title={isClickable ? `Jump to Step ${s.id}: ${s.title}` : `Complete previous steps to unlock Step ${s.id}`}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-6 h-6 rounded-full text-xs font-mono font-bold flex items-center justify-center shrink-0 transition-all ${
+                      isCurrent
+                        ? 'bg-[#07CB6C] text-black shadow-md shadow-[#07CB6C]/40'
+                        : isCompleted
+                        ? 'bg-[#07CB6C]/20 border border-[#07CB6C]/40 text-[#07CB6C]'
+                        : 'bg-[#121a17] text-neutral-500 border border-[#1a2824]'
+                    }`}
+                  >
+                    {isCompleted ? <Check className="w-3.5 h-3.5 stroke-[2.5]" /> : s.id}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={`text-xs font-semibold truncate transition-colors ${
+                          isCurrent
+                            ? 'text-white font-bold'
+                            : isCompleted
+                            ? 'text-neutral-200 group-hover:text-white'
+                            : 'text-neutral-400'
+                        }`}
+                      >
+                        <span className="hidden sm:inline">{s.title}</span>
+                        <span className="sm:hidden">{s.short}</span>
+                      </span>
+                      {isCompleted && (
+                        <span className="text-[9px] font-mono text-[#07CB6C] font-semibold hidden md:inline ml-1">
+                          EDIT
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-neutral-500 truncate block hidden md:block mt-0.5">
+                      {s.subtitle}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
+
+        {/* Dynamic Continuous Progress Fill Line */}
         <div className="w-full h-1.5 bg-[#111a17] rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#07CB6C] transition-all duration-500 ease-out"
-            style={{ width: `${(step / 5) * 100}%` }}
+            className="h-full bg-gradient-to-r from-[#07CB6C]/80 via-[#07CB6C] to-[#10b981] transition-all duration-500 ease-out"
+            style={{ width: `${Math.min(100, (step / 4) * 100)}%` }}
           />
         </div>
       </div>
@@ -1617,11 +1746,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
           <div className="flex items-center justify-between pt-4">
             <button
               type="button"
-              onClick={() => setStep(1)}
+              onClick={() => goToStep(1)}
               className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back</span>
+              <span>Back to Goal</span>
             </button>
 
             <button
@@ -1730,7 +1859,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
             <div className="flex items-center justify-between pt-4 border-t border-[#1a2824]">
               <button
                 type="button"
-                onClick={() => setStep(2)}
+                onClick={() => goToStep(2)}
                 className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
@@ -1739,7 +1868,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
               <button
                 type="button"
-                onClick={() => setStep(4)}
+                onClick={() => goToStep(4)}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-lg shadow-[#07CB6C]/25"
               >
                 <span>Next: What Success Looks Like</span>
@@ -1911,7 +2040,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                         type="button"
                         onClick={() => {
                           setIsQuestionModalOpen(false);
-                          setStep(2);
+                          goToStep(2);
                         }}
                         className="px-3.5 py-2 text-xs font-medium text-neutral-400 hover:text-white rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
@@ -1960,7 +2089,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                         type="button"
                         onClick={() => {
                           setIsQuestionModalOpen(false);
-                          setStep(4);
+                          goToStep(4);
                         }}
                         className="px-5 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all ml-auto"
                       >
@@ -2059,9 +2188,18 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                 <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
                 <span>Your Personalized Practice Protocol</span>
               </span>
-              <span className="text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2 py-0.5 rounded border border-[#07CB6C]/30">
-                100% Conflict Free
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2 py-0.5 rounded border border-[#07CB6C]/30">
+                  100% Conflict Free
+                </span>
+                <button
+                  type="button"
+                  onClick={() => goToStep(2)}
+                  className="text-[11px] text-neutral-400 hover:text-[#07CB6C] transition-colors cursor-pointer"
+                >
+                  Edit Schedule
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="p-2 rounded bg-[#0c1210] border border-[#1a2824]">
@@ -2117,11 +2255,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                 </span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveQuestionIndex(0);
-                    setIsQuestionModalOpen(true);
-                    setStep(3);
-                  }}
+                  onClick={() => goToStep(3)}
                   className="text-[11px] text-neutral-400 hover:text-[#07CB6C] transition-colors cursor-pointer"
                 >
                   Edit Answers
@@ -2179,7 +2313,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
           <div className="flex items-center justify-between pt-4">
             <button
               type="button"
-              onClick={() => setStep(3)}
+              onClick={() => goToStep(3)}
               className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
