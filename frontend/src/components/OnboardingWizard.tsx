@@ -556,12 +556,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     commitments: []
   });
 
-  // Universal Draggable & Edge-Resizable Timeline State
+  // Universal Draggable Timeline State
   interface ActiveBlockInteraction {
     blockId: string;
     blockType: 'practice' | 'commitment' | 'work' | 'sleep_morning' | 'sleep_night';
     blockTitle: string;
-    action: 'move' | 'resize-left' | 'resize-right';
     initialStartMins: number;
     initialEndMins: number;
     initialDurationMins: number;
@@ -597,8 +596,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
   const handleBlockPointerDown = (
     e: React.PointerEvent,
-    block: ScheduledDayBlock,
-    action: 'move' | 'resize-left' | 'resize-right'
+    block: ScheduledDayBlock
   ) => {
     e.preventDefault();
     e.stopPropagation();
@@ -613,7 +611,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       blockId: block.id,
       blockType: block.type,
       blockTitle: block.title,
-      action,
       initialStartMins: block.startMins,
       initialEndMins: block.endMins,
       initialDurationMins: block.durationMins,
@@ -634,73 +631,39 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     const deltaPixels = e.clientX - activeInteraction.startX;
     const deltaMins = Math.round(((deltaPixels / rect.width) * 1440) / 15) * 15;
 
-    if (activeInteraction.action === 'move') {
-      const dur = activeInteraction.initialDurationMins;
-      let proposedStart = activeInteraction.initialStartMins + deltaMins;
-      proposedStart = Math.max(0, Math.min(1440 - dur, proposedStart));
-      proposedStart = Math.round(proposedStart / 15) * 15;
+    const dur = activeInteraction.initialDurationMins;
+    let proposedStart = activeInteraction.initialStartMins + deltaMins;
+    proposedStart = Math.max(0, Math.min(1440 - dur, proposedStart));
+    proposedStart = Math.round(proposedStart / 15) * 15;
 
-      // Magnetic bumpers for practice block against sleep & work
-      if (activeInteraction.blockType === 'practice') {
-        const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
-        const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
-        const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
-        const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
-        const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
+    // Magnetic bumpers for practice block against sleep & work
+    if (activeInteraction.blockType === 'practice') {
+      const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
+      const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
+      const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
+      const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
+      const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
 
-        proposedStart = Math.max(wakeMins, Math.min(sleepMins - dur, proposedStart));
+      proposedStart = Math.max(wakeMins, Math.min(sleepMins - dur, proposedStart));
 
-        if (proposedStart < busyEndMins && proposedStart + dur > busyStartMins) {
-          if (proposedStart + dur / 2 < (busyStartMins + busyEndMins) / 2) {
-            proposedStart = Math.max(wakeMins, busyStartMins - dur);
-          } else {
-            proposedStart = Math.min(sleepMins - dur, busyEndMins);
-          }
+      if (proposedStart < busyEndMins && proposedStart + dur > busyStartMins) {
+        if (proposedStart + dur / 2 < (busyStartMins + busyEndMins) / 2) {
+          proposedStart = Math.max(wakeMins, busyStartMins - dur);
+        } else {
+          proposedStart = Math.min(sleepMins - dur, busyEndMins);
         }
       }
-
-      setActiveInteraction((prev) =>
-        prev
-          ? {
-              ...prev,
-              currentStartMins: proposedStart,
-              currentEndMins: proposedStart + dur
-            }
-          : null
-      );
-    } else if (activeInteraction.action === 'resize-left') {
-      // Squeezing / expanding from left edge
-      const end = activeInteraction.initialEndMins;
-      let proposedStart = activeInteraction.initialStartMins + deltaMins;
-      proposedStart = Math.max(0, Math.min(end - 15, proposedStart));
-      proposedStart = Math.round(proposedStart / 15) * 15;
-
-      setActiveInteraction((prev) =>
-        prev
-          ? {
-              ...prev,
-              currentStartMins: proposedStart,
-              currentEndMins: end
-            }
-          : null
-      );
-    } else if (activeInteraction.action === 'resize-right') {
-      // Squeezing / expanding from right edge
-      const start = activeInteraction.initialStartMins;
-      let proposedEnd = activeInteraction.initialEndMins + deltaMins;
-      proposedEnd = Math.min(1440, Math.max(start + 15, proposedEnd));
-      proposedEnd = Math.round(proposedEnd / 15) * 15;
-
-      setActiveInteraction((prev) =>
-        prev
-          ? {
-              ...prev,
-              currentStartMins: start,
-              currentEndMins: proposedEnd
-            }
-          : null
-      );
     }
+
+    setActiveInteraction((prev) =>
+      prev
+        ? {
+            ...prev,
+            currentStartMins: proposedStart,
+            currentEndMins: proposedStart + dur
+          }
+        : null
+    );
   };
 
   const handleBlockPointerUp = (e: React.PointerEvent) => {
@@ -728,7 +691,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       return;
     }
 
-    // Apply the drag or edge-squeeze changes
+    // Apply the drag move changes
     setSelectedBlockId(blockId);
 
     if (blockType === 'commitment') {
@@ -1650,17 +1613,20 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                       const leftPct = (startMins / 1440) * 100;
                       const widthPct = Math.max(2.6, (durationMins / 1440) * 100);
                       const BlockIcon = b.icon;
-                      const canResize = b.type === 'commitment' || b.type === 'work' || b.isPractice;
 
                       return (
                         <div
                           key={b.id}
                           data-no-track-jump="true"
+                          onPointerDown={(e) => handleBlockPointerDown(e, b)}
+                          onPointerMove={handleBlockPointerMove}
+                          onPointerUp={handleBlockPointerUp}
+                          onPointerCancel={handleBlockPointerUp}
                           className={`absolute top-0.5 bottom-0.5 ${
                             b.isPractice
                               ? 'bg-[#07CB6C] text-black font-bold z-20 border border-white/60 ring-1 ring-[#040706]'
                               : `${b.bg} border ${b.border} ring-1 ring-[#040706] text-[9px] ${b.color} font-mono z-10`
-                          } rounded-md flex items-center justify-between overflow-visible shadow-sm select-none group/block ${
+                          } rounded-md flex items-center justify-center overflow-visible shadow-sm select-none touch-none cursor-grab active:cursor-grabbing group/block ${
                             isInteracting
                               ? 'shadow-2xl shadow-[#07CB6C]/70 ring-2 ring-white z-40 scale-[1.02]'
                               : isSelected
@@ -1674,8 +1640,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                               ? 'none'
                               : 'left 0.35s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease'
                           }}
+                          title={`${b.title} (${timeLabel}) — Drag to shift time or click to edit`}
                         >
-                          {/* Floating Real-time Drag / Squeeze Tooltip */}
+                          {/* Floating Real-time Drag Tooltip */}
                           {isInteracting && (
                             <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-[#07CB6C] text-black font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-xl shadow-[#07CB6C]/60 border border-white whitespace-nowrap pointer-events-none z-50 flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-75">
                               {b.isPractice ? (
@@ -1690,61 +1657,20 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                             </div>
                           )}
 
-                          {/* Left Edge Squeeze / Expand Handle */}
-                          {canResize && (
-                            <div
-                              data-action="resize-left"
-                              onPointerDown={(e) => handleBlockPointerDown(e, b, 'resize-left')}
-                              onPointerMove={handleBlockPointerMove}
-                              onPointerUp={handleBlockPointerUp}
-                              onPointerCancel={handleBlockPointerUp}
-                              className="absolute left-0 top-0 bottom-0 w-3 z-30 cursor-ew-resize hover:bg-white/40 active:bg-white/70 rounded-l-md transition-colors flex items-center justify-center group/leftHandle touch-none select-none"
-                              title="Drag left/right to squeeze or expand start time"
-                            >
-                              <div className="w-0.5 h-3 bg-white/50 rounded-full group-hover/leftHandle:bg-white group-hover/leftHandle:h-4.5 transition-all" />
-                            </div>
-                          )}
-
-                          {/* Center Body for Drag Move & Tap */}
-                          <div
-                            data-action="move"
-                            onPointerDown={(e) => handleBlockPointerDown(e, b, 'move')}
-                            onPointerMove={handleBlockPointerMove}
-                            onPointerUp={handleBlockPointerUp}
-                            onPointerCancel={handleBlockPointerUp}
-                            className="flex-1 h-full flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing px-2.5 select-none touch-none"
-                            title={`${b.title} (${timeLabel}) — Drag to move or click to edit`}
-                          >
-                            <div className="flex items-center gap-1 truncate pointer-events-none select-none">
-                              {b.isPractice ? (
-                                <>
-                                  <GripVertical className="w-2.5 h-2.5 text-black/70 shrink-0" />
-                                  <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse shrink-0" />
-                                  <span className="truncate font-bold text-black text-[10px]">Practice</span>
-                                </>
-                              ) : (
-                                <>
-                                  {BlockIcon && <BlockIcon className="w-2.5 h-2.5 shrink-0 opacity-85" />}
-                                  <span className="truncate font-medium text-[9px]">{b.title}</span>
-                                </>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-1 truncate px-2 pointer-events-none select-none">
+                            {b.isPractice ? (
+                              <>
+                                <GripVertical className="w-2.5 h-2.5 text-black/70 shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse shrink-0" />
+                                <span className="truncate font-bold text-black text-[10px]">Practice</span>
+                              </>
+                            ) : (
+                              <>
+                                {BlockIcon && <BlockIcon className="w-2.5 h-2.5 shrink-0 opacity-85" />}
+                                <span className="truncate font-medium text-[9px]">{b.title}</span>
+                              </>
+                            )}
                           </div>
-
-                          {/* Right Edge Squeeze / Expand Handle */}
-                          {canResize && (
-                            <div
-                              data-action="resize-right"
-                              onPointerDown={(e) => handleBlockPointerDown(e, b, 'resize-right')}
-                              onPointerMove={handleBlockPointerMove}
-                              onPointerUp={handleBlockPointerUp}
-                              onPointerCancel={handleBlockPointerUp}
-                              className="absolute right-0 top-0 bottom-0 w-3 z-30 cursor-ew-resize hover:bg-white/40 active:bg-white/70 rounded-r-md transition-colors flex items-center justify-center group/rightHandle touch-none select-none"
-                              title="Drag left/right to squeeze or expand end time"
-                            >
-                              <div className="w-0.5 h-3 bg-white/50 rounded-full group-hover/rightHandle:bg-white group-hover/rightHandle:h-4.5 transition-all" />
-                            </div>
-                          )}
                         </div>
                       );
                     })}
@@ -2740,7 +2666,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                 </div>
 
                 <p className="text-[11px] text-neutral-400 pt-1 leading-relaxed">
-                  💡 You can also squeeze or expand this block by dragging its left or right edges directly on the 24-hour balance map!
+                  💡 You can drag this block across the 24-hour balance map to reposition its scheduled time.
                 </p>
               </div>
 
