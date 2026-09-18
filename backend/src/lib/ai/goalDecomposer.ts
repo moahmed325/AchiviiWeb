@@ -132,6 +132,7 @@ export interface CommitmentItem {
   title: string;
   time?: string;
   category?: string;
+  days?: string[];
 }
 
 export interface UserRoutineInput {

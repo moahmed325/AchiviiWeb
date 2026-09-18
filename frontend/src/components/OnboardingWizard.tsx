@@ -26,13 +26,15 @@ import {
   GripVertical,
   Hand,
   Trash2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Clock
 } from 'lucide-react';
 import {
   GoalClarification,
   RoutineSettings,
   CreateGoalResponse,
-  Goal
+  Goal,
+  CommitmentItem
 } from '../types';
 import { clarifyGoal, createGoalPlan } from '../lib/api';
 
@@ -41,6 +43,7 @@ interface PresetCommitment {
   category: 'fitness' | 'education' | 'commute' | 'family' | 'sports' | 'work' | 'other';
   title: string;
   defaultTime: string;
+  defaultDays: string[];
   subtitle: string;
   icon: React.ComponentType<{ className?: string }>;
   accentColor: string;
@@ -54,6 +57,7 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
     category: 'fitness',
     title: 'Gym & Fitness',
     defaultTime: '18:00 - 19:30',
+    defaultDays: ['Mon', 'Wed', 'Fri'],
     subtitle: 'Strength, cardio, or mobility',
     icon: Dumbbell,
     accentColor: 'text-emerald-400',
@@ -65,6 +69,7 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
     category: 'education',
     title: 'Classes & Study',
     defaultTime: '09:00 - 14:00',
+    defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     subtitle: 'University, lectures, or school',
     icon: GraduationCap,
     accentColor: 'text-sky-400',
@@ -76,6 +81,7 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
     category: 'commute',
     title: 'Daily Commute',
     defaultTime: '08:00 - 09:00, 17:30 - 18:30',
+    defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     subtitle: 'Transit, driving, or cycling',
     icon: Car,
     accentColor: 'text-amber-400',
@@ -87,6 +93,7 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
     category: 'family',
     title: 'Dinner & Family',
     defaultTime: '19:30 - 20:30',
+    defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     subtitle: 'Evenings, family, or meal prep',
     icon: Utensils,
     accentColor: 'text-rose-400',
@@ -98,6 +105,7 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
     category: 'sports',
     title: 'Sports & Martial Arts',
     defaultTime: '19:00 - 20:30',
+    defaultDays: ['Tue', 'Thu', 'Sat'],
     subtitle: 'Boxing, football, yoga, tennis',
     icon: Flame,
     accentColor: 'text-orange-400',
@@ -109,6 +117,7 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
     category: 'work',
     title: 'Part-Time Shift / Job',
     defaultTime: '16:00 - 21:00',
+    defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     subtitle: 'Evening shift, freelance, or gig',
     icon: Briefcase,
     accentColor: 'text-teal-400',
@@ -116,6 +125,15 @@ const PRESET_COMMITMENTS: PresetCommitment[] = [
     borderColor: 'border-teal-500/30'
   }
 ];
+
+export const formatDaysLabel = (days?: string[]): string => {
+  if (!days || days.length === 0 || days.length === 7) return 'Every day';
+  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const weekends = ['Sat', 'Sun'];
+  if (days.length === 5 && weekdays.every((d) => days.includes(d))) return 'Weekdays';
+  if (days.length === 2 && weekends.every((d) => days.includes(d))) return 'Weekends';
+  return days.join(', ');
+};
 
 
 const getCategoryDetails = (category?: string) => {
@@ -221,6 +239,7 @@ export interface ScheduledDayBlock {
   bg: string;
   border: string;
   isPractice?: boolean;
+  days?: string[];
 }
 
 export const computeDaySchedule = (
@@ -363,7 +382,8 @@ export const computeDaySchedule = (
       icon: cat.icon,
       color: cat.color,
       bg: cat.bg,
-      border: cat.border
+      border: cat.border,
+      days: c.days
     });
   });
 
@@ -536,18 +556,33 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     commitments: []
   });
 
-  // Draggable Practice Block & Interactive Timeline State
+  // Universal Draggable & Edge-Resizable Timeline State
+  interface ActiveBlockInteraction {
+    blockId: string;
+    blockType: 'practice' | 'commitment' | 'work' | 'sleep_morning' | 'sleep_night';
+    blockTitle: string;
+    action: 'move' | 'resize-left' | 'resize-right';
+    initialStartMins: number;
+    initialEndMins: number;
+    initialDurationMins: number;
+    startX: number;
+    currentStartMins: number;
+    currentEndMins: number;
+  }
+
+  const [activeInteraction, setActiveInteraction] = useState<ActiveBlockInteraction | null>(null);
   const [customPracticeStartMins, setCustomPracticeStartMins] = useState<number | null>(null);
-  const [isDraggingPractice, setIsDraggingPractice] = useState(false);
-  const [dragHoverMins, setDragHoverMins] = useState<number | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [editingCommitment, setEditingCommitment] = useState<CommitmentItem | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const dragDistanceRef = useRef(0);
   const dragStartPosRef = useRef(0);
 
-  // Active practice start: use real-time drag hover if currently dragging, else stored custom
+  // Active practice start: use real-time drag hover if currently dragging practice, else custom
   const activePracticeStart =
-    isDraggingPractice && dragHoverMins !== null ? dragHoverMins : customPracticeStartMins;
+    activeInteraction && activeInteraction.blockType === 'practice'
+      ? activeInteraction.currentStartMins
+      : customPracticeStartMins;
 
   // Dynamically computed non-overlapping day schedule layout
   const daySchedule = useMemo(
@@ -560,72 +595,183 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     return daySchedule.allBlocks.find((b) => b.id === selectedBlockId) || null;
   }, [selectedBlockId, daySchedule.allBlocks]);
 
-  const updatePracticeFromPointer = (clientX: number) => {
-    const rect = timelineRef.current?.getBoundingClientRect();
-    if (!rect || rect.width <= 0) return;
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const rawMins = ratio * 1440;
-    const practiceDuration = routine.dailyMinutes || 60;
-    let target = Math.round((rawMins - practiceDuration / 2) / 15) * 15;
-
-    const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
-    const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
-    const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
-    const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
-    const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
-
-    // Keep within wake and sleep bounds
-    target = Math.max(wakeMins, Math.min(sleepMins - practiceDuration, target));
-
-    // Magnetic collision bumpers against work/busy hours
-    if (target < busyEndMins && target + practiceDuration > busyStartMins) {
-      if (target + practiceDuration / 2 < (busyStartMins + busyEndMins) / 2) {
-        target = Math.max(wakeMins, busyStartMins - practiceDuration);
-      } else {
-        target = Math.min(sleepMins - practiceDuration, busyEndMins);
-      }
-    }
-
-    setDragHoverMins(target);
-  };
-
-  const handlePracticePointerDown = (e: React.PointerEvent) => {
+  const handleBlockPointerDown = (
+    e: React.PointerEvent,
+    block: ScheduledDayBlock,
+    action: 'move' | 'resize-left' | 'resize-right'
+  ) => {
     e.preventDefault();
     e.stopPropagation();
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+
     dragDistanceRef.current = 0;
     dragStartPosRef.current = e.clientX;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    setIsDraggingPractice(true);
-    updatePracticeFromPointer(e.clientX);
+
+    setActiveInteraction({
+      blockId: block.id,
+      blockType: block.type,
+      blockTitle: block.title,
+      action,
+      initialStartMins: block.startMins,
+      initialEndMins: block.endMins,
+      initialDurationMins: block.durationMins,
+      startX: e.clientX,
+      currentStartMins: block.startMins,
+      currentEndMins: block.endMins
+    });
   };
 
-  const handlePracticePointerMove = (e: React.PointerEvent) => {
-    if (!isDraggingPractice) return;
+  const handleBlockPointerMove = (e: React.PointerEvent) => {
+    if (!activeInteraction) return;
     e.preventDefault();
     dragDistanceRef.current = Math.abs(e.clientX - dragStartPosRef.current);
-    updatePracticeFromPointer(e.clientX);
+
+    const rect = timelineRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0) return;
+
+    const deltaPixels = e.clientX - activeInteraction.startX;
+    const deltaMins = Math.round(((deltaPixels / rect.width) * 1440) / 15) * 15;
+
+    if (activeInteraction.action === 'move') {
+      const dur = activeInteraction.initialDurationMins;
+      let proposedStart = activeInteraction.initialStartMins + deltaMins;
+      proposedStart = Math.max(0, Math.min(1440 - dur, proposedStart));
+      proposedStart = Math.round(proposedStart / 15) * 15;
+
+      // Magnetic bumpers for practice block against sleep & work
+      if (activeInteraction.blockType === 'practice') {
+        const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
+        const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
+        const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
+        const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
+        const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
+
+        proposedStart = Math.max(wakeMins, Math.min(sleepMins - dur, proposedStart));
+
+        if (proposedStart < busyEndMins && proposedStart + dur > busyStartMins) {
+          if (proposedStart + dur / 2 < (busyStartMins + busyEndMins) / 2) {
+            proposedStart = Math.max(wakeMins, busyStartMins - dur);
+          } else {
+            proposedStart = Math.min(sleepMins - dur, busyEndMins);
+          }
+        }
+      }
+
+      setActiveInteraction((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentStartMins: proposedStart,
+              currentEndMins: proposedStart + dur
+            }
+          : null
+      );
+    } else if (activeInteraction.action === 'resize-left') {
+      // Squeezing / expanding from left edge
+      const end = activeInteraction.initialEndMins;
+      let proposedStart = activeInteraction.initialStartMins + deltaMins;
+      proposedStart = Math.max(0, Math.min(end - 15, proposedStart));
+      proposedStart = Math.round(proposedStart / 15) * 15;
+
+      setActiveInteraction((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentStartMins: proposedStart,
+              currentEndMins: end
+            }
+          : null
+      );
+    } else if (activeInteraction.action === 'resize-right') {
+      // Squeezing / expanding from right edge
+      const start = activeInteraction.initialStartMins;
+      let proposedEnd = activeInteraction.initialEndMins + deltaMins;
+      proposedEnd = Math.min(1440, Math.max(start + 15, proposedEnd));
+      proposedEnd = Math.round(proposedEnd / 15) * 15;
+
+      setActiveInteraction((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentStartMins: start,
+              currentEndMins: proposedEnd
+            }
+          : null
+      );
+    }
   };
 
-  const handlePracticePointerUp = (e: React.PointerEvent) => {
-    if (!isDraggingPractice) return;
+  const handleBlockPointerUp = (e: React.PointerEvent) => {
+    if (!activeInteraction) return;
     e.preventDefault();
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {
-      // Ignore if pointer capture already released
+    } catch {}
+
+    const { blockId, blockType, currentStartMins, currentEndMins } = activeInteraction;
+    const isClick = dragDistanceRef.current < 5;
+
+    setActiveInteraction(null);
+
+    if (isClick) {
+      if (blockType === 'commitment') {
+        const found = (routine.commitments || []).find((c) => c.id === blockId);
+        if (found) {
+          setEditingCommitment(found);
+          setSelectedBlockId(blockId);
+          return;
+        }
+      }
+      setSelectedBlockId((prev) => (prev === blockId ? null : blockId));
+      return;
     }
-    setIsDraggingPractice(false);
-    if (dragHoverMins !== null) {
-      setCustomPracticeStartMins(dragHoverMins);
-      const finalSlot = dragHoverMins < 720 ? 'morning' : dragHoverMins < 1020 ? 'afternoon' : 'evening';
-      setRoutine((prev) => ({ ...prev, preferredSlot: finalSlot }));
+
+    // Apply the drag or edge-squeeze changes
+    setSelectedBlockId(blockId);
+
+    if (blockType === 'commitment') {
+      setRoutine((prev) => ({
+        ...prev,
+        commitments: (prev.commitments || []).map((c) => {
+          if (c.id !== blockId) return c;
+          return {
+            ...c,
+            time: `${formatMinutesTo24h(currentStartMins)} - ${formatMinutesTo24h(currentEndMins)}`
+          };
+        })
+      }));
+    } else if (blockType === 'practice') {
+      const newDur = currentEndMins - currentStartMins;
+      setCustomPracticeStartMins(currentStartMins);
+      const finalSlot =
+        currentStartMins < 720 ? 'morning' : currentStartMins < 1020 ? 'afternoon' : 'evening';
+      setRoutine((prev) => ({
+        ...prev,
+        dailyMinutes: newDur,
+        preferredSlot: finalSlot
+      }));
+    } else if (blockType === 'work') {
+      setRoutine((prev) => ({
+        ...prev,
+        busyHours: `${formatMinutesTo24h(currentStartMins)} - ${formatMinutesTo24h(currentEndMins)}`
+      }));
+    } else if (blockType === 'sleep_morning') {
+      setRoutine((prev) => ({
+        ...prev,
+        wakeTime: formatMinutesTo24h(currentEndMins)
+      }));
+    } else if (blockType === 'sleep_night') {
+      setRoutine((prev) => ({
+        ...prev,
+        sleepTime: formatMinutesTo24h(currentStartMins)
+      }));
     }
-    setDragHoverMins(null);
-    setSelectedBlockId('practice-session');
   };
 
   const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isDraggingPractice) return;
+    if (activeInteraction) return;
     if ((e.target as HTMLElement).closest('[data-no-track-jump]')) {
       return;
     }
@@ -768,7 +914,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
             id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
             title: preset.title,
             time: preset.defaultTime,
-            category: preset.category
+            category: preset.category,
+            days: preset.defaultDays || ['Mon', 'Wed', 'Fri']
           }
         ]
       }));
@@ -785,7 +932,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
           id: Date.now().toString() + Math.random().toString(36).substring(2, 5),
           title: newCommitmentTitle.trim(),
           time: newCommitmentTime.trim() || undefined,
-          category: 'other'
+          category: 'other',
+          days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
         }
       ]
     }));
@@ -1305,34 +1453,57 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
               <div className="flex flex-wrap items-center gap-2 pt-0.5">
                 {PRESET_COMMITMENTS.map((preset) => {
                   const Icon = preset.icon;
-                  const isAdded = routine.commitments?.some(
+                  const activeC = routine.commitments?.find(
                     (c) => c.title.toLowerCase() === preset.title.toLowerCase()
                   );
+                  const isAdded = !!activeC;
                   return (
-                    <button
+                    <div
                       key={preset.id}
-                      type="button"
-                      onClick={() => handleTogglePresetCommitment(preset)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer border ${
+                      className={`inline-flex items-center rounded-full text-xs font-medium transition-all border ${
                         isAdded
                           ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-white shadow-sm shadow-[#07CB6C]/20'
                           : 'bg-[#080d0b] hover:bg-[#14201a] border-[#1a2824] hover:border-neutral-600 text-neutral-300'
                       }`}
                     >
-                      <Icon className={`w-3.5 h-3.5 ${isAdded ? 'text-[#07CB6C]' : 'text-neutral-400'}`} />
-                      <span>{preset.title}</span>
-                      {isAdded ? (
-                        <span className="w-3.5 h-3.5 rounded-full bg-[#07CB6C] text-black flex items-center justify-center text-[9px] font-bold ml-0.5">
-                          ✓
-                        </span>
-                      ) : (
-                        <span className="text-neutral-500 text-[11px] ml-0.5">+</span>
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePresetCommitment(preset)}
+                        className="px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Icon className={`w-3.5 h-3.5 ${isAdded ? 'text-[#07CB6C]' : 'text-neutral-400'}`} />
+                        <span>{preset.title}</span>
+                        {isAdded ? (
+                          <>
+                            <span className="text-[10px] text-neutral-400 font-mono">
+                              ({formatDaysLabel(activeC.days)})
+                            </span>
+                            <span className="w-3.5 h-3.5 rounded-full bg-[#07CB6C] text-black flex items-center justify-center text-[9px] font-bold ml-0.5">
+                              ✓
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-neutral-500 text-[11px] ml-0.5">+</span>
+                        )}
+                      </button>
+                      {isAdded && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingCommitment(activeC);
+                          }}
+                          className="pr-2.5 pl-0.5 py-1.5 text-neutral-400 hover:text-[#07CB6C] cursor-pointer"
+                          title="Edit days and schedule"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
 
-                {/* Custom User Added Commitments as Active Pills with Remove 'X' */}
+                {/* Custom User Added Commitments as Active Pills with Edit and Remove 'X' */}
                 {routine.commitments
                   ?.filter(
                     (c) => !PRESET_COMMITMENTS.some((p) => p.title.toLowerCase() === c.title.toLowerCase())
@@ -1344,15 +1515,21 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                     >
                       <Sparkles className="w-3 h-3 text-[#07CB6C]" />
                       <span>{customC.title}</span>
-                      {customC.time && (
-                        <span className="text-[10px] text-neutral-400 font-mono">
-                          ({customC.time.split('-')[0].trim()})
-                        </span>
-                      )}
+                      <span className="text-[10px] text-neutral-400 font-mono">
+                        ({formatDaysLabel(customC.days)})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingCommitment(customC)}
+                        className="hover:text-[#07CB6C] text-neutral-400 ml-0.5 cursor-pointer"
+                        title="Edit details & days"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleRemoveCommitment(customC.id)}
-                        className="hover:text-red-400 text-neutral-400 ml-1 cursor-pointer"
+                        className="hover:text-red-400 text-neutral-400 ml-0.5 cursor-pointer"
                         title="Remove"
                       >
                         <X className="w-3 h-3" />
@@ -1462,75 +1639,112 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
                     {/* Non-overlapping blocks that dynamically make space for each other */}
                     {daySchedule.allBlocks.map((b) => {
-                      const leftPct = (b.startMins / 1440) * 100;
-                      const widthPct = Math.max(2.6, (b.durationMins / 1440) * 100);
-                      const BlockIcon = b.icon;
+                      const isInteracting = activeInteraction?.blockId === b.id;
                       const isSelected = selectedBlockId === b.id;
 
-                      if (b.isPractice) {
-                        return (
-                          <div
-                            key={b.id}
-                            data-no-track-jump="true"
-                            onPointerDown={handlePracticePointerDown}
-                            onPointerMove={handlePracticePointerMove}
-                            onPointerUp={handlePracticePointerUp}
-                            onPointerCancel={handlePracticePointerUp}
-                            className={`absolute top-0.5 bottom-0.5 bg-[#07CB6C] text-black font-bold text-[10px] rounded-md flex items-center justify-center z-20 border border-white/60 ring-1 ring-[#040706] touch-none select-none cursor-grab active:cursor-grabbing ${
-                              isDraggingPractice
-                                ? 'shadow-2xl shadow-[#07CB6C]/70 scale-105 ring-2 ring-white z-30'
-                                : isSelected
-                                ? 'ring-2 ring-white scale-105 shadow-xl shadow-[#07CB6C]/50 z-30'
-                                : 'shadow-lg shadow-[#07CB6C]/40 hover:brightness-110'
-                            }`}
-                            style={{
-                              left: `${leftPct}%`,
-                              width: `${widthPct}%`,
-                              transition: isDraggingPractice
-                                ? 'none'
-                                : 'left 0.4s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease'
-                            }}
-                            title={`🎯 Drag to reposition Practice session or click to inspect (${b.timeLabel} • ${b.durationMins}m)`}
-                          >
-                            {/* Floating Real-time Snapping Tooltip */}
-                            {isDraggingPractice && (
-                              <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-[#07CB6C] text-black font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-xl shadow-[#07CB6C]/60 border border-white whitespace-nowrap pointer-events-none z-40 flex items-center gap-1.5">
-                                <Target className="w-3 h-3 text-black" />
-                                <span>{formatMinutesTo12h(b.startMins)} – {formatMinutesTo12h(b.endMins)}</span>
-                                <span className="opacity-80 font-mono">({b.durationMins}m)</span>
-                              </div>
-                            )}
+                      const startMins = isInteracting ? activeInteraction.currentStartMins : b.startMins;
+                      const endMins = isInteracting ? activeInteraction.currentEndMins : b.endMins;
+                      const durationMins = endMins - startMins;
+                      const timeLabel = `${formatMinutesTo24h(startMins)} - ${formatMinutesTo24h(endMins)}`;
 
-                            <div className="flex items-center gap-0.5 truncate px-1 pointer-events-none select-none">
-                              <GripVertical className="w-3 h-3 text-black/70 shrink-0" />
-                              <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse shrink-0" />
-                              <span className="truncate">Practice</span>
-                            </div>
-                          </div>
-                        );
-                      }
+                      const leftPct = (startMins / 1440) * 100;
+                      const widthPct = Math.max(2.6, (durationMins / 1440) * 100);
+                      const BlockIcon = b.icon;
+                      const canResize = b.type === 'commitment' || b.type === 'work' || b.isPractice;
 
                       return (
                         <div
                           key={b.id}
                           data-no-track-jump="true"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedBlockId((prev) => (prev === b.id ? null : b.id));
-                          }}
-                          className={`absolute top-1 bottom-1 ${b.bg} border ${b.border} ring-1 ring-[#040706] rounded-md flex items-center justify-center text-[9px] ${b.color} font-mono overflow-hidden shadow-sm transition-all duration-300 ease-out cursor-pointer hover:brightness-125 z-10 group ${
-                            isSelected ? 'ring-2 ring-white scale-[1.03] brightness-125 z-25 shadow-md' : ''
+                          className={`absolute top-0.5 bottom-0.5 ${
+                            b.isPractice
+                              ? 'bg-[#07CB6C] text-black font-bold z-20 border border-white/60 ring-1 ring-[#040706]'
+                              : `${b.bg} border ${b.border} ring-1 ring-[#040706] text-[9px] ${b.color} font-mono z-10`
+                          } rounded-md flex items-center justify-between overflow-visible shadow-sm select-none group/block ${
+                            isInteracting
+                              ? 'shadow-2xl shadow-[#07CB6C]/70 ring-2 ring-white z-40 scale-[1.02]'
+                              : isSelected
+                              ? 'ring-2 ring-white scale-[1.02] shadow-xl z-30'
+                              : 'hover:brightness-110'
                           }`}
                           style={{
                             left: `${leftPct}%`,
-                            width: `${widthPct}%`
+                            width: `${widthPct}%`,
+                            transition: isInteracting
+                              ? 'none'
+                              : 'left 0.35s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease'
                           }}
-                          title={`Click to inspect & edit: ${b.title} (${b.timeLabel} • ${b.durationMins}m)`}
                         >
-                          <div className="flex items-center gap-1 truncate px-1 pointer-events-none select-none">
-                            {BlockIcon && <BlockIcon className="w-2.5 h-2.5 shrink-0 opacity-85" />}
-                            <span className="truncate font-medium">{b.title}</span>
+                          {/* Floating Real-time Drag / Squeeze Tooltip */}
+                          {isInteracting && (
+                            <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-[#07CB6C] text-black font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow-xl shadow-[#07CB6C]/60 border border-white whitespace-nowrap pointer-events-none z-50 flex items-center gap-1.5 animate-in fade-in zoom-in-95 duration-75">
+                              {b.isPractice ? (
+                                <Target className="w-3 h-3 text-black" />
+                              ) : (
+                                <Clock className="w-3 h-3 text-black" />
+                              )}
+                              <span>
+                                {b.title}: {formatMinutesTo12h(startMins)} – {formatMinutesTo12h(endMins)}
+                              </span>
+                              <span className="opacity-80 font-mono font-normal">({durationMins}m)</span>
+                            </div>
+                          )}
+
+                          {/* Left Edge Squeeze / Expand Handle */}
+                          {canResize && (
+                            <div
+                              data-action="resize-left"
+                              onPointerDown={(e) => handleBlockPointerDown(e, b, 'resize-left')}
+                              onPointerMove={handleBlockPointerMove}
+                              onPointerUp={handleBlockPointerUp}
+                              onPointerCancel={handleBlockPointerUp}
+                              className="absolute left-0 top-0 bottom-0 w-3 z-30 cursor-ew-resize hover:bg-white/40 active:bg-white/70 rounded-l-md transition-colors flex items-center justify-center group/leftHandle touch-none select-none"
+                              title="Drag left/right to squeeze or expand start time"
+                            >
+                              <div className="w-0.5 h-3 bg-white/50 rounded-full group-hover/leftHandle:bg-white group-hover/leftHandle:h-4.5 transition-all" />
+                            </div>
+                          )}
+
+                          {/* Center Body for Drag Move & Tap */}
+                          <div
+                            data-action="move"
+                            onPointerDown={(e) => handleBlockPointerDown(e, b, 'move')}
+                            onPointerMove={handleBlockPointerMove}
+                            onPointerUp={handleBlockPointerUp}
+                            onPointerCancel={handleBlockPointerUp}
+                            className="flex-1 h-full flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing px-2.5 select-none touch-none"
+                            title={`${b.title} (${timeLabel}) — Drag to move or click to edit`}
+                          >
+                            <div className="flex items-center gap-1 truncate pointer-events-none select-none">
+                              {b.isPractice ? (
+                                <>
+                                  <GripVertical className="w-2.5 h-2.5 text-black/70 shrink-0" />
+                                  <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse shrink-0" />
+                                  <span className="truncate font-bold text-black text-[10px]">Practice</span>
+                                </>
+                              ) : (
+                                <>
+                                  {BlockIcon && <BlockIcon className="w-2.5 h-2.5 shrink-0 opacity-85" />}
+                                  <span className="truncate font-medium text-[9px]">{b.title}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
+
+                          {/* Right Edge Squeeze / Expand Handle */}
+                          {canResize && (
+                            <div
+                              data-action="resize-right"
+                              onPointerDown={(e) => handleBlockPointerDown(e, b, 'resize-right')}
+                              onPointerMove={handleBlockPointerMove}
+                              onPointerUp={handleBlockPointerUp}
+                              onPointerCancel={handleBlockPointerUp}
+                              className="absolute right-0 top-0 bottom-0 w-3 z-30 cursor-ew-resize hover:bg-white/40 active:bg-white/70 rounded-r-md transition-colors flex items-center justify-center group/rightHandle touch-none select-none"
+                              title="Drag left/right to squeeze or expand end time"
+                            >
+                              <div className="w-0.5 h-3 bg-white/50 rounded-full group-hover/rightHandle:bg-white group-hover/rightHandle:h-4.5 transition-all" />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1615,6 +1829,18 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                             +15m ▶
                           </button>
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const found = (routine.commitments || []).find((c) => c.id === selectedBlock.id);
+                            if (found) setEditingCommitment(found);
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-semibold bg-[#07CB6C]/15 hover:bg-[#07CB6C]/25 border border-[#07CB6C]/40 text-[#07CB6C] rounded-md flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                          <span>Edit Days & Details</span>
+                        </button>
 
                         <button
                           type="button"
@@ -2192,6 +2418,356 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
           )}
         </div>
       )}
+
+      {/* ===================================================================== */}
+      {/* DETAILED COMMITMENT & RECURRENCE EDITOR MODAL */}
+      {/* ===================================================================== */}
+      {editingCommitment && (() => {
+        const activeEditingC =
+          (routine.commitments || []).find((c) => c.id === editingCommitment.id) || editingCommitment;
+        const catDetails = getCategoryDetails(activeEditingC.category);
+        const CatIcon = catDetails.icon || Sparkles;
+
+        const placedInfo = daySchedule.placedCommitmentsMap[activeEditingC.id];
+        let startMins = placedInfo?.startMins ?? 1080;
+        let endMins = placedInfo?.endMins ?? 1140;
+        if (activeEditingC.time && activeEditingC.time.includes('-')) {
+          const parts = activeEditingC.time.split(',')[0].split('-');
+          const s = parseTimeToMinutes(parts[0]?.trim() || '', startMins);
+          const e = parseTimeToMinutes(parts[1]?.trim() || '', endMins);
+          if (e > s) {
+            startMins = s;
+            endMins = e;
+          }
+        }
+        const durationMins = endMins - startMins;
+
+        const ALL_DAYS: Array<{ key: string; short: string; full: string }> = [
+          { key: 'Mon', short: 'M', full: 'Monday' },
+          { key: 'Tue', short: 'T', full: 'Tuesday' },
+          { key: 'Wed', short: 'W', full: 'Wednesday' },
+          { key: 'Thu', short: 'T', full: 'Thursday' },
+          { key: 'Fri', short: 'F', full: 'Friday' },
+          { key: 'Sat', short: 'S', full: 'Saturday' },
+          { key: 'Sun', short: 'S', full: 'Sunday' }
+        ];
+
+        const activeDays =
+          activeEditingC.days && activeEditingC.days.length > 0
+            ? activeEditingC.days
+            : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+        const isWeekdays =
+          activeDays.length === 5 &&
+          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].every((d) => activeDays.includes(d));
+        const isWeekends =
+          activeDays.length === 2 &&
+          ['Sat', 'Sun'].every((d) => activeDays.includes(d));
+        const isEveryday = activeDays.length === 7;
+
+        const handleSetDays = (days: string[]) => {
+          setRoutine((prev) => ({
+            ...prev,
+            commitments: (prev.commitments || []).map((c) =>
+              c.id === activeEditingC.id ? { ...c, days } : c
+            )
+          }));
+        };
+
+        const handleToggleSingleDay = (dayKey: string) => {
+          let updated: string[];
+          if (activeDays.includes(dayKey)) {
+            if (activeDays.length <= 1) return;
+            updated = activeDays.filter((d) => d !== dayKey);
+          } else {
+            updated = [...activeDays, dayKey];
+          }
+          updated.sort(
+            (a, b) =>
+              ALL_DAYS.findIndex((item) => item.key === a) -
+              ALL_DAYS.findIndex((item) => item.key === b)
+          );
+          handleSetDays(updated);
+        };
+
+        const handleAdjustStart = (delta: number) => {
+          const newStart = Math.max(0, Math.min(endMins - 15, startMins + delta));
+          setRoutine((prev) => ({
+            ...prev,
+            commitments: (prev.commitments || []).map((c) =>
+              c.id === activeEditingC.id
+                ? {
+                    ...c,
+                    time: `${formatMinutesTo24h(newStart)} - ${formatMinutesTo24h(endMins)}`
+                  }
+                : c
+            )
+          }));
+        };
+
+        const handleAdjustEnd = (delta: number) => {
+          const newEnd = Math.min(1440, Math.max(startMins + 15, endMins + delta));
+          setRoutine((prev) => ({
+            ...prev,
+            commitments: (prev.commitments || []).map((c) =>
+              c.id === activeEditingC.id
+                ? {
+                    ...c,
+                    time: `${formatMinutesTo24h(startMins)} - ${formatMinutesTo24h(newEnd)}`
+                  }
+                : c
+            )
+          }));
+        };
+
+        const handleUpdateTitle = (newTitle: string) => {
+          setRoutine((prev) => ({
+            ...prev,
+            commitments: (prev.commitments || []).map((c) =>
+              c.id === activeEditingC.id ? { ...c, title: newTitle } : c
+            )
+          }));
+        };
+
+        const handleDelete = () => {
+          handleRemoveCommitment(activeEditingC.id);
+          setEditingCommitment(null);
+          if (selectedBlockId === activeEditingC.id) {
+            setSelectedBlockId(null);
+          }
+        };
+
+        const formatDurLabel = (m: number) => {
+          const hrs = Math.floor(m / 60);
+          const mins = m % 60;
+          if (hrs === 0) return `${mins}m`;
+          if (mins === 0) return `${hrs}h`;
+          return `${hrs}h ${mins}m`;
+        };
+
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+            onClick={() => setEditingCommitment(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg bg-[#080d0b] border border-[#1a2824] rounded-2xl p-5 sm:p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+            >
+              {/* Modal Header */}
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#1a2824]">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${catDetails.bg} ${catDetails.border} border shrink-0`}>
+                    <CatIcon className={`w-5 h-5 ${catDetails.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">
+                      Routine / Commitment Name
+                    </label>
+                    <input
+                      type="text"
+                      value={activeEditingC.title}
+                      onChange={(e) => handleUpdateTitle(e.target.value)}
+                      className="w-full bg-transparent font-bold text-white text-base focus:outline-none focus:border-b focus:border-[#07CB6C] pb-0.5 placeholder-neutral-500"
+                      placeholder="Commitment name..."
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingCommitment(null)}
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition-colors cursor-pointer shrink-0"
+                  title="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Recurrence: Days of the Week */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#07CB6C]" />
+                    <span className="text-xs font-semibold text-white">Active Days</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#07CB6C] font-medium">
+                    {formatDaysLabel(activeDays)}
+                  </span>
+                </div>
+
+                {/* Preset shortcuts */}
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSetDays(['Mon', 'Tue', 'Wed', 'Thu', 'Fri'])}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-medium border transition-all cursor-pointer text-center ${
+                      isWeekdays
+                        ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-[#07CB6C] font-semibold shadow-sm'
+                        : 'bg-[#040706] border-[#1a2824] text-neutral-400 hover:text-white hover:border-neutral-600'
+                    }`}
+                  >
+                    Weekdays (M-F)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetDays(['Sat', 'Sun'])}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-medium border transition-all cursor-pointer text-center ${
+                      isWeekends
+                        ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-[#07CB6C] font-semibold shadow-sm'
+                        : 'bg-[#040706] border-[#1a2824] text-neutral-400 hover:text-white hover:border-neutral-600'
+                    }`}
+                  >
+                    Weekends (S-S)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSetDays(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-medium border transition-all cursor-pointer text-center ${
+                      isEveryday
+                        ? 'bg-[#07CB6C]/15 border-[#07CB6C] text-[#07CB6C] font-semibold shadow-sm'
+                        : 'bg-[#040706] border-[#1a2824] text-neutral-400 hover:text-white hover:border-neutral-600'
+                    }`}
+                  >
+                    Every day
+                  </button>
+                </div>
+
+                {/* Individual 7 day toggle pills */}
+                <div className="flex items-center justify-between gap-1.5 pt-1">
+                  {ALL_DAYS.map((d) => {
+                    const isSelected = activeDays.includes(d.key);
+                    return (
+                      <button
+                        key={d.key}
+                        type="button"
+                        onClick={() => handleToggleSingleDay(d.key)}
+                        title={`${d.full}: click to toggle`}
+                        className={`flex-1 py-2 flex flex-col items-center justify-center rounded-xl border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#07CB6C] border-[#07CB6C] text-black shadow-md shadow-[#07CB6C]/25'
+                            : 'bg-[#040706] border-[#1a2824] text-neutral-400 hover:border-neutral-600 hover:text-white'
+                        }`}
+                      >
+                        <span className="text-xs font-bold leading-none">{d.short}</span>
+                        <span className={`text-[9px] font-mono leading-tight mt-0.5 ${isSelected ? 'text-black/80 font-medium' : 'text-neutral-500'}`}>
+                          {d.key}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Time Window & Duration Steppers */}
+              <div className="space-y-2.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#07CB6C]" />
+                    <span className="text-xs font-semibold text-white">Time Window & Duration</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#07CB6C] font-bold bg-[#07CB6C]/10 border border-[#07CB6C]/30 px-2 py-0.5 rounded-full">
+                    {formatDurLabel(durationMins)} ({durationMins}m)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Start Time Stepper */}
+                  <div className="bg-[#040706] border border-[#1a2824] rounded-xl p-3 space-y-2">
+                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">
+                      Starts At
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold font-mono text-white">
+                        {formatMinutesTo12h(startMins)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleAdjustStart(-15)}
+                          disabled={startMins <= 0}
+                          className="px-2 py-1 text-[11px] font-mono bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 rounded-md text-white cursor-pointer transition-colors"
+                          title="15 minutes earlier"
+                        >
+                          -15m
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAdjustStart(15)}
+                          disabled={startMins >= endMins - 15}
+                          className="px-2 py-1 text-[11px] font-mono bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 rounded-md text-white cursor-pointer transition-colors"
+                          title="15 minutes later"
+                        >
+                          +15m
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* End Time Stepper */}
+                  <div className="bg-[#040706] border border-[#1a2824] rounded-xl p-3 space-y-2">
+                    <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider block">
+                      Ends At
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold font-mono text-white">
+                        {formatMinutesTo12h(endMins)}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleAdjustEnd(-15)}
+                          disabled={endMins <= startMins + 15}
+                          className="px-2 py-1 text-[11px] font-mono bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 rounded-md text-white cursor-pointer transition-colors"
+                          title="15 minutes earlier"
+                        >
+                          -15m
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAdjustEnd(15)}
+                          disabled={endMins >= 1440}
+                          className="px-2 py-1 text-[11px] font-mono bg-neutral-800 hover:bg-neutral-700 disabled:opacity-30 rounded-md text-white cursor-pointer transition-colors"
+                          title="15 minutes later"
+                        >
+                          +15m
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-neutral-400 pt-1 leading-relaxed">
+                  💡 You can also squeeze or expand this block by dragging its left or right edges directly on the 24-hour balance map!
+                </p>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-[#1a2824] gap-2">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  className="px-3.5 py-2 text-xs font-medium bg-red-950/40 hover:bg-red-900/60 border border-red-800/50 text-red-300 rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  <span>Delete Commitment</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEditingCommitment(null)}
+                  className="px-5 py-2 text-xs font-bold bg-[#07CB6C] hover:bg-[#06b560] text-black rounded-xl flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all ml-auto"
+                >
+                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Done</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

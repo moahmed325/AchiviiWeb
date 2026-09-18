@@ -39,6 +39,7 @@ export interface CommitmentItem {
   title: string;
   time?: string;
   category?: 'fitness' | 'education' | 'commute' | 'family' | 'sports' | 'work' | 'other';
+  days?: string[];
 }
 
 export interface RoutineSettings {
