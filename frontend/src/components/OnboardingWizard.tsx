@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Target,
   ArrowRight,
@@ -211,6 +211,284 @@ const parseTimeToMinutes = (timeStr: string, fallback: number): number => {
   return hours * 60 + minutes;
 };
 
+const formatMinutesTo12h = (mins: number): string => {
+  const normalized = ((mins % 1440) + 1440) % 1440;
+  const h24 = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  const ampm = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const mStr = m < 10 ? `0${m}` : `${m}`;
+  return `${h12}:${mStr} ${ampm}`;
+};
+
+const formatMinutesTo24h = (mins: number): string => {
+  const normalized = ((mins % 1440) + 1440) % 1440;
+  const h24 = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  const hStr = h24 < 10 ? `0${h24}` : `${h24}`;
+  const mStr = m < 10 ? `0${m}` : `${m}`;
+  return `${hStr}:${mStr}`;
+};
+
+export interface ScheduledDayBlock {
+  id: string;
+  type: 'sleep_morning' | 'work' | 'commitment' | 'practice' | 'sleep_night';
+  title: string;
+  category?: string;
+  startMins: number;
+  endMins: number;
+  durationMins: number;
+  timeLabel: string;
+  icon?: any;
+  color: string;
+  bg: string;
+  border: string;
+  isPractice?: boolean;
+}
+
+export const computeDaySchedule = (routine: RoutineSettings) => {
+  const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
+  const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
+  const busyParts = (routine.busyHours || '09:00 - 17:00').split('-');
+  const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
+  const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
+
+  // List of occupied intervals that blocks must not overlap with
+  const occupied: Array<{ start: number; end: number; id: string }> = [
+    { start: 0, end: wakeMins, id: 'sleep_morning' },
+    { start: busyStartMins, end: busyEndMins, id: 'work' },
+    { start: sleepMins, end: 1440, id: 'sleep_night' }
+  ];
+
+  const isFree = (s: number, e: number): boolean => {
+    return !occupied.some((o) => Math.max(s, o.start) < Math.min(e, o.end));
+  };
+
+  // Find the closest non-overlapping slot in [winMin, winMax]
+  const findSlot = (
+    targetStart: number,
+    duration: number,
+    winMin: number,
+    winMax: number
+  ): { start: number; end: number } => {
+    // 1. Direct placement if cleanly free
+    if (targetStart >= winMin && targetStart + duration <= winMax && isFree(targetStart, targetStart + duration)) {
+      return { start: targetStart, end: targetStart + duration };
+    }
+
+    // 2. Discover all contiguous free gaps within window
+    const sorted = [...occupied]
+      .filter((o) => o.end > winMin && o.start < winMax)
+      .sort((a, b) => a.start - b.start);
+
+    const gaps: Array<{ start: number; end: number; len: number }> = [];
+    let cur = winMin;
+    for (const o of sorted) {
+      const gStart = cur;
+      const gEnd = Math.min(o.start, winMax);
+      if (gEnd > gStart) {
+        gaps.push({ start: gStart, end: gEnd, len: gEnd - gStart });
+      }
+      cur = Math.max(cur, o.end);
+    }
+    if (cur < winMax) {
+      gaps.push({ start: cur, end: winMax, len: winMax - cur });
+    }
+
+    // Find gaps that fit the requested duration
+    const validGaps = gaps.filter((g) => g.len >= duration);
+    if (validGaps.length > 0) {
+      let bestGap = validGaps[0];
+      let bestDist = Math.abs(bestGap.start - targetStart);
+      for (const g of validGaps) {
+        const dist = Math.abs(g.start - targetStart);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestGap = g;
+        }
+      }
+      const s = Math.max(bestGap.start, Math.min(targetStart, bestGap.end - duration));
+      return { start: s, end: s + duration };
+    }
+
+    // Fallback to largest available gap if full duration cannot fit
+    if (gaps.length > 0) {
+      const largest = gaps.reduce((max, g) => (g.len > max.len ? g : max), gaps[0]);
+      return { start: largest.start, end: largest.end };
+    }
+
+    const fallbackEnd = Math.min(winMax, winMin + Math.max(15, duration));
+    return { start: winMin, end: fallbackEnd };
+  };
+
+  // Dynamically allocate non-overlapping slots for commitments
+  const placedCommitments: ScheduledDayBlock[] = [];
+  const placedCommitmentsMap: Record<string, { startMins: number; endMins: number; timeLabel: string }> = {};
+
+  (routine.commitments || []).forEach((c) => {
+    const cat = getCategoryDetails(c.category);
+    let preferredStart = 1080; // 18:00 default
+    let duration = 60;
+
+    if (c.time && c.time.includes('-')) {
+      const parts = c.time.split(',')[0].split('-');
+      const s = parseTimeToMinutes(parts[0]?.trim() || '', 1080);
+      const e = parseTimeToMinutes(parts[1]?.trim() || '', s + 60);
+      if (e > s) {
+        duration = e - s;
+        preferredStart = s;
+      }
+    } else {
+      if (c.category === 'fitness' || c.category === 'sports') {
+        duration = 90;
+        preferredStart = 1080; // 18:00
+      } else if (c.category === 'education') {
+        duration = 180;
+        preferredStart = 540; // 09:00
+      } else if (c.category === 'commute') {
+        duration = 45;
+        preferredStart = busyEndMins; // right after work
+      } else if (c.category === 'family') {
+        duration = 60;
+        preferredStart = 1170; // 19:30
+      } else {
+        duration = 60;
+        preferredStart = 1080;
+      }
+    }
+
+    const inMorning = preferredStart < busyStartMins;
+    const winMin = inMorning ? wakeMins : busyEndMins;
+    const winMax = inMorning ? busyStartMins : sleepMins;
+
+    const slot = findSlot(preferredStart, duration, winMin, winMax);
+    occupied.push({ start: slot.start, end: slot.end, id: c.id });
+
+    const timeLabel = `${formatMinutesTo24h(slot.start)} - ${formatMinutesTo24h(slot.end)}`;
+    placedCommitmentsMap[c.id] = {
+      startMins: slot.start,
+      endMins: slot.end,
+      timeLabel
+    };
+
+    placedCommitments.push({
+      id: c.id,
+      type: 'commitment',
+      title: c.title,
+      category: c.category,
+      startMins: slot.start,
+      endMins: slot.end,
+      durationMins: slot.end - slot.start,
+      timeLabel,
+      icon: cat.icon,
+      color: cat.color,
+      bg: cat.bg,
+      border: cat.border
+    });
+  });
+
+  // Dynamically allocate practice session in the user's preferred slot without overlapping
+  const practiceDuration = routine.dailyMinutes || 60;
+  let practiceWinMin = busyEndMins;
+  let practiceWinMax = sleepMins;
+  let practiceTargetStart = 1170; // 19:30 default evening
+
+  if (routine.preferredSlot === 'morning') {
+    practiceWinMin = wakeMins;
+    practiceWinMax = busyStartMins;
+    practiceTargetStart = wakeMins + 15;
+  } else if (routine.preferredSlot === 'afternoon') {
+    practiceWinMin = busyStartMins;
+    practiceWinMax = busyEndMins;
+    practiceTargetStart = 840; // 14:00
+  }
+
+  let practiceSlot = findSlot(practiceTargetStart, practiceDuration, practiceWinMin, practiceWinMax);
+
+  // If preferred window is completely full, gracefully seek an open slot in the other active window
+  if (practiceSlot.end - practiceSlot.start < Math.min(30, practiceDuration)) {
+    if (routine.preferredSlot === 'evening') {
+      practiceSlot = findSlot(wakeMins + 15, practiceDuration, wakeMins, busyStartMins);
+    } else {
+      practiceSlot = findSlot(1170, practiceDuration, busyEndMins, sleepMins);
+    }
+  }
+
+  occupied.push({ start: practiceSlot.start, end: practiceSlot.end, id: 'practice' });
+
+  const practiceBlock: ScheduledDayBlock = {
+    id: 'practice-session',
+    type: 'practice',
+    title: 'Achivii Practice',
+    startMins: practiceSlot.start,
+    endMins: practiceSlot.end,
+    durationMins: practiceSlot.end - practiceSlot.start,
+    timeLabel: `${formatMinutesTo24h(practiceSlot.start)} - ${formatMinutesTo24h(practiceSlot.end)}`,
+    icon: Target,
+    color: 'text-black',
+    bg: 'bg-[#07CB6C]',
+    border: 'border-white/40',
+    isPractice: true
+  };
+
+  const practiceTimeLabel = `${
+    routine.preferredSlot === 'morning' ? 'Morning' : routine.preferredSlot === 'afternoon' ? 'Afternoon' : 'Evening'
+  } ~${formatMinutesTo12h(practiceSlot.start)}`;
+
+  // Assemble full 24-hour non-overlapping timeline
+  const allBlocks: ScheduledDayBlock[] = [
+    {
+      id: 'sleep_morning',
+      type: 'sleep_morning' as const,
+      title: 'Sleep',
+      startMins: 0,
+      endMins: wakeMins,
+      durationMins: wakeMins,
+      timeLabel: `00:00 - ${formatMinutesTo24h(wakeMins)}`,
+      icon: Moon,
+      color: 'text-indigo-300',
+      bg: 'bg-indigo-950/60',
+      border: 'border-indigo-800/40'
+    },
+    {
+      id: 'work',
+      type: 'work' as const,
+      title: routine.busyHours ? 'Work / Study' : 'Work',
+      startMins: busyStartMins,
+      endMins: busyEndMins,
+      durationMins: busyEndMins - busyStartMins,
+      timeLabel: `${formatMinutesTo24h(busyStartMins)} - ${formatMinutesTo24h(busyEndMins)}`,
+      icon: Briefcase,
+      color: 'text-neutral-300',
+      bg: 'bg-neutral-800/80',
+      border: 'border-neutral-700/60'
+    },
+    ...placedCommitments,
+    practiceBlock,
+    {
+      id: 'sleep_night',
+      type: 'sleep_night' as const,
+      title: 'Sleep',
+      startMins: sleepMins,
+      endMins: 1440,
+      durationMins: 1440 - sleepMins,
+      timeLabel: `${formatMinutesTo24h(sleepMins)} - 24:00`,
+      icon: Moon,
+      color: 'text-indigo-300',
+      bg: 'bg-indigo-950/60',
+      border: 'border-indigo-800/40'
+    }
+  ].sort((a, b) => a.startMins - b.startMins);
+
+  return {
+    allBlocks,
+    practiceBlock,
+    practiceTimeLabel,
+    placedCommitments,
+    placedCommitmentsMap
+  };
+};
+
 interface OnboardingWizardProps {
   token: string;
   onGoalCreated: (goal: Goal) => void;
@@ -259,6 +537,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
     planVariant: 'steady',
     commitments: []
   });
+
+  // Dynamically computed non-overlapping day schedule layout
+  const daySchedule = useMemo(() => computeDaySchedule(routine), [routine]);
 
   // Custom Commitment Input State
   const [isCustomDrawerOpen, setIsCustomDrawerOpen] = useState(false);
@@ -1061,7 +1342,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                               </div>
                               <div className="flex items-center gap-1.5 text-[10px] text-neutral-400 font-mono">
                                 <Clock className="w-2.5 h-2.5 text-neutral-500" />
-                                <span>{item.time || 'Daily Block'}</span>
+                                <span>
+                                  {daySchedule.placedCommitmentsMap[item.id]?.timeLabel || item.time || 'Daily Block'}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -1089,154 +1372,115 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
               )}
 
               {/* Visual 24-Hour Day Balance Map */}
-              {(() => {
-                const wakeMins = parseTimeToMinutes(routine.wakeTime, 420);
-                const sleepMins = parseTimeToMinutes(routine.sleepTime, 1380);
-                const busyParts = routine.busyHours.split('-');
-                const busyStartMins = parseTimeToMinutes(busyParts[0]?.trim() || '', 540);
-                const busyEndMins = parseTimeToMinutes(busyParts[1]?.trim() || '', 1020);
-                const practiceStartMins =
-                  routine.preferredSlot === 'morning' ? 450 : routine.preferredSlot === 'afternoon' ? 840 : 1170;
+              <div className="pt-2 border-t border-[#1a2824]/60 space-y-2.5">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
+                    <span className="text-xs font-semibold text-white">
+                      Your 24-Hour Day Balance Map
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2.5 py-0.5 rounded border border-[#07CB6C]/30 shadow-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
+                    <span>
+                      Practice Locked: {daySchedule.practiceTimeLabel} ({routine.dailyMinutes}m)
+                    </span>
+                  </div>
+                </div>
 
-                return (
-                  <div className="pt-2 border-t border-[#1a2824]/60 space-y-2.5">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
-                        <span className="text-xs font-semibold text-white">
-                          Your 24-Hour Day Balance Map
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2 py-0.5 rounded border border-[#07CB6C]/30">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-                        <span>
-                          Practice Locked: {routine.preferredSlot === 'evening' ? 'Evening ~7:30 PM' : routine.preferredSlot === 'morning' ? 'Morning ~7:30 AM' : 'Afternoon ~2:00 PM'} ({routine.dailyMinutes}m)
-                        </span>
-                      </div>
+                {/* 24-Hour Visual Bar */}
+                <div className="space-y-1.5">
+                  <div className="h-9 sm:h-10 w-full bg-[#040706] border border-[#1a2824] rounded-lg overflow-hidden relative flex items-center shadow-inner">
+                    {/* Hour ticks */}
+                    <div className="absolute inset-0 flex justify-between px-2 pointer-events-none opacity-20">
+                      <div className="w-px h-full bg-neutral-500" />
+                      <div className="w-px h-full bg-neutral-500" />
+                      <div className="w-px h-full bg-neutral-500" />
+                      <div className="w-px h-full bg-neutral-500" />
+                      <div className="w-px h-full bg-neutral-500" />
                     </div>
 
-                    {/* 24-Hour Visual Bar */}
-                    <div className="space-y-1">
-                      <div className="h-7 w-full bg-[#050807] border border-[#1a2824] rounded-lg overflow-hidden relative flex items-center shadow-inner">
-                        {/* Hour ticks */}
-                        <div className="absolute inset-0 flex justify-between px-2 pointer-events-none opacity-20">
-                          <div className="w-px h-full bg-neutral-500" />
-                          <div className="w-px h-full bg-neutral-500" />
-                          <div className="w-px h-full bg-neutral-500" />
-                          <div className="w-px h-full bg-neutral-500" />
-                          <div className="w-px h-full bg-neutral-500" />
-                        </div>
+                    {/* Non-overlapping blocks that dynamically make space for each other */}
+                    {daySchedule.allBlocks.map((b) => {
+                      const leftPct = (b.startMins / 1440) * 100;
+                      const widthPct = Math.max(2.6, (b.durationMins / 1440) * 100);
+                      const BlockIcon = b.icon;
 
-                        {/* Sleep Morning Block */}
-                        <div
-                          className="absolute top-1 bottom-1 bg-indigo-950/60 border border-indigo-800/40 rounded flex items-center justify-center text-[9px] text-indigo-300 font-mono overflow-hidden"
-                          style={{
-                            left: '0%',
-                            width: `${(wakeMins / 1440) * 100}%`
-                          }}
-                          title={`Sleep: 00:00 - ${routine.wakeTime}`}
-                        >
-                          <span className="truncate px-1 opacity-80">🌙 Sleep</span>
-                        </div>
-
-                        {/* Busy Hours Block */}
-                        <div
-                          className="absolute top-1 bottom-1 bg-neutral-800/80 border border-neutral-700/60 rounded flex items-center justify-center text-[9px] text-neutral-300 font-mono overflow-hidden"
-                          style={{
-                            left: `${(busyStartMins / 1440) * 100}%`,
-                            width: `${Math.max(5, ((busyEndMins - busyStartMins) / 1440) * 100)}%`
-                          }}
-                          title={`Work/Study: ${routine.busyHours}`}
-                        >
-                          <span className="truncate px-1 font-medium">💼 {routine.busyHours.split('-')[0].trim()} - {routine.busyHours.split('-')[1]?.trim()}</span>
-                        </div>
-
-                        {/* Commitment Blocks */}
-                        {routine.commitments?.map((c) => {
-                          const cat = getCategoryDetails(c.category);
-                          const cStart = parseTimeToMinutes(c.time?.split('-')[0] || '', 1080);
-                          const cEnd = parseTimeToMinutes(c.time?.split('-')[1] || '', cStart + 90);
-                          const leftPct = (cStart / 1440) * 100;
-                          const widthPct = Math.max(3.5, ((cEnd - cStart) / 1440) * 100);
-                          return (
-                            <div
-                              key={c.id}
-                              className={`absolute top-1 bottom-1 ${cat.bg} border ${cat.border} rounded flex items-center justify-center text-[9px] ${cat.color} font-mono overflow-hidden shadow-sm`}
-                              style={{
-                                left: `${leftPct}%`,
-                                width: `${widthPct}%`
-                              }}
-                              title={`${c.title}: ${c.time || 'Protected'}`}
-                            >
-                              <span className="truncate px-1 font-semibold">{c.title}</span>
+                      if (b.isPractice) {
+                        return (
+                          <div
+                            key={b.id}
+                            className="absolute top-0.5 bottom-0.5 bg-[#07CB6C] text-black font-bold text-[10px] rounded-md flex items-center justify-center shadow-lg shadow-[#07CB6C]/40 z-20 border border-white/40 ring-1 ring-[#040706] transition-all duration-500 ease-out cursor-pointer group"
+                            style={{
+                              left: `${leftPct}%`,
+                              width: `${widthPct}%`
+                            }}
+                            title={`🎯 ${b.title} (${b.timeLabel} • ${b.durationMins}m) — Guaranteed Conflict-Free Focus Slot`}
+                          >
+                            <div className="flex items-center gap-1 truncate px-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-black animate-pulse shrink-0" />
+                              <span className="truncate">Practice</span>
                             </div>
-                          );
-                        })}
+                          </div>
+                        );
+                      }
 
-                        {/* Achivii Practice Session */}
+                      return (
                         <div
-                          className="absolute top-0.5 bottom-0.5 bg-[#07CB6C] text-black font-bold text-[10px] rounded flex items-center justify-center shadow-lg shadow-[#07CB6C]/40 z-10 border border-white/40"
+                          key={b.id}
+                          className={`absolute top-1 bottom-1 ${b.bg} border ${b.border} ring-1 ring-[#040706] rounded-md flex items-center justify-center text-[9px] ${b.color} font-mono overflow-hidden shadow-sm transition-all duration-500 ease-out cursor-pointer hover:brightness-125 z-10 group`}
                           style={{
-                            left: `${(practiceStartMins / 1440) * 100}%`,
-                            width: `${Math.max(5, (routine.dailyMinutes / 1440) * 100)}%`
+                            left: `${leftPct}%`,
+                            width: `${widthPct}%`
                           }}
-                          title={`Achivii Focus Session (${routine.dailyMinutes} mins)`}
+                          title={`${b.title} (${b.timeLabel} • ${b.durationMins}m)`}
                         >
-                          <span className="truncate px-1">🎯 Practice</span>
+                          <div className="flex items-center gap-1 truncate px-1">
+                            {BlockIcon && <BlockIcon className="w-2.5 h-2.5 shrink-0 opacity-85" />}
+                            <span className="truncate font-medium">{b.title}</span>
+                          </div>
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        {/* Sleep Night Block */}
-                        <div
-                          className="absolute top-1 bottom-1 bg-indigo-950/60 border border-indigo-800/40 rounded flex items-center justify-center text-[9px] text-indigo-300 font-mono overflow-hidden"
-                          style={{
-                            left: `${(sleepMins / 1440) * 100}%`,
-                            width: `${((1440 - sleepMins) / 1440) * 100}%`
-                          }}
-                          title={`Sleep: ${routine.sleepTime} - 24:00`}
-                        >
-                          <span className="truncate px-1 opacity-80">🌙 Sleep</span>
-                        </div>
-                      </div>
+                  {/* Time scale tick labels */}
+                  <div className="flex justify-between text-[10px] text-neutral-500 font-mono px-0.5">
+                    <span>12 AM</span>
+                    <span>6 AM</span>
+                    <span>12 PM</span>
+                    <span>6 PM</span>
+                    <span>12 AM</span>
+                  </div>
+                </div>
 
-                      {/* Time scale tick labels */}
-                      <div className="flex justify-between text-[10px] text-neutral-500 font-mono px-0.5">
-                        <span>12 AM</span>
-                        <span>6 AM</span>
-                        <span>12 PM</span>
-                        <span>6 PM</span>
-                        <span>12 AM</span>
-                      </div>
+                {/* Legend */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-400">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                      <span>Sleep</span>
                     </div>
-
-                    {/* Legend */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-neutral-400">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                          <span>Sleep</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-neutral-600" />
-                          <span>Work/Study</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-amber-400" />
-                          <span>Commitments</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 font-medium text-white">
-                          <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
-                          <span className="text-[#07CB6C]">Practice Slot</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400">
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />
-                        <span>Zero scheduling overlap guaranteed</span>
-                      </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-neutral-600" />
+                      <span>Work/Study</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      <span>Commitments</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 font-medium text-white">
+                      <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
+                      <span className="text-[#07CB6C]">Practice Slot</span>
                     </div>
                   </div>
-                );
-              })()}
+
+                  <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />
+                    <span>Zero scheduling overlap guaranteed</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1478,7 +1722,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
               <div className="p-2 rounded bg-[#0c1210] border border-[#1a2824]">
                 <div className="text-[10px] text-neutral-500 font-mono">FOCUS WINDOW</div>
                 <div className="text-[#07CB6C] font-medium capitalize mt-0.5">
-                  {routine.preferredSlot === 'evening' ? 'Evening (~7:30 PM)' : routine.preferredSlot === 'morning' ? 'Morning (~7:30 AM)' : 'Afternoon (~2:00 PM)'}
+                  {daySchedule.practiceTimeLabel}
                 </div>
               </div>
               <div className="p-2 rounded bg-[#0c1210] border border-[#1a2824]">
