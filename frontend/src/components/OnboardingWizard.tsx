@@ -25,7 +25,8 @@ import {
   Calendar,
   GripVertical,
   Trash2,
-  Clock
+  Clock,
+  HelpCircle
 } from 'lucide-react';
 import {
   GoalClarification,
@@ -542,6 +543,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   // Diagnostic Question Answers State
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(true);
 
   // Routine / Schedule State (Now Step 2!)
   const [routine, setRoutine] = useState<RoutineSettings>({
@@ -825,6 +828,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       // User finished schedule in <2s while AI is still finishing
       setIsWaitingForClarification(true);
     } else if (clarification) {
+      setActiveQuestionIndex(0);
+      setIsQuestionModalOpen(true);
       setStep(3);
     } else if (clarificationError) {
       // If error occurred, retry analysis
@@ -837,6 +842,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
   useEffect(() => {
     if (isWaitingForClarification && !isClarifying && clarification) {
       setIsWaitingForClarification(false);
+      setActiveQuestionIndex(0);
+      setIsQuestionModalOpen(true);
       setStep(3);
     }
   }, [isWaitingForClarification, isClarifying, clarification]);
@@ -1640,99 +1647,334 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       )}
 
       {/* ===================================================================== */}
-      {/* STEP 3: DOMAIN CLARIFYING QUESTIONS */}
+      {/* STEP 3: DOMAIN CLARIFYING QUESTIONS (DIAGNOSTIC QUIZ) */}
       {/* ===================================================================== */}
-      {step === 3 && clarification && (
-        <div className="space-y-6 text-left animate-fadeInUp">
-          <div className="space-y-1">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              A few quick questions
-            </h2>
-            <p className="text-xs sm:text-sm text-neutral-400">
-              Calibrate your baseline, equipment, and focus so we can personalize your roadmap.
-            </p>
-          </div>
+      {step === 3 && clarification && (() => {
+        const questions = clarification.followUpQuestions || [];
+        const totalQuestions = questions.length;
+        const safeIdx = Math.min(Math.max(0, activeQuestionIndex), totalQuestions - 1);
+        const currentQ = questions[safeIdx];
 
-          <div className="space-y-5 animate-stagger">
-            {clarification.followUpQuestions.map((q, idx) => (
-              <div
-                key={q.id}
-                className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3 animate-fadeInUp"
-              >
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-[#16221e] border border-[#07CB6C]/30 text-[#07CB6C] text-xs flex items-center justify-center font-mono">
-                      {idx + 1}
-                    </span>
-                    <h3 className="text-sm font-semibold text-white">{q.question}</h3>
-                  </div>
-                  {q.subtitle && (
-                    <p className="text-xs text-neutral-400 pl-7">{q.subtitle}</p>
-                  )}
+        return (
+          <div className="space-y-6 text-left animate-fadeInUp">
+            {/* Ambient Step 3 Page Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-xs font-semibold">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Step 3 • Diagnostic Calibration</span>
                 </div>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                  Personalizing your 90-day roadmap
+                </h2>
+                <p className="text-xs sm:text-sm text-neutral-400">
+                  Calibrate your starting baseline, gear, and focus so your daily sessions fit you perfectly.
+                </p>
+              </div>
 
-                <div className="space-y-2 pl-7">
-                  {q.options.map((opt, optIdx) => {
-                    const isSelected = answers[q.id] === opt && !customAnswers[q.id];
-                    return (
+              <button
+                type="button"
+                onClick={() => setIsQuestionModalOpen(true)}
+                className="self-start sm:self-center px-4 py-2 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs flex items-center gap-2 shadow-lg shadow-[#07CB6C]/20 transition-all cursor-pointer"
+              >
+                <HelpCircle className="w-4 h-4 stroke-[2.5]" />
+                <span>Open Question Quiz</span>
+              </button>
+            </div>
+
+            {/* 3 Question Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+              {questions.map((q, idx) => {
+                const isCurrent = idx === safeIdx;
+                const selectedVal = customAnswers[q.id]?.trim() || answers[q.id] || q.options[0] || 'Unset';
+                return (
+                  <div
+                    key={q.id}
+                    onClick={() => {
+                      setActiveQuestionIndex(idx);
+                      setIsQuestionModalOpen(true);
+                    }}
+                    className={`p-4 rounded-xl border transition-all cursor-pointer text-left space-y-2.5 group relative overflow-hidden ${
+                      isCurrent
+                        ? 'bg-[#07CB6C]/10 border-[#07CB6C] shadow-lg shadow-[#07CB6C]/10 scale-[1.01]'
+                        : 'bg-[#0c1210] border-[#1a2824] hover:border-neutral-600 hover:bg-[#111a17]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className={`w-6 h-6 rounded-lg text-xs font-mono font-bold flex items-center justify-center border ${
+                        isCurrent
+                          ? 'bg-[#07CB6C] text-black border-[#07CB6C]'
+                          : 'bg-[#16241f] border-[#07CB6C]/30 text-[#07CB6C]'
+                      }`}>
+                        {idx + 1}
+                      </span>
+                      <span className="text-[11px] font-mono text-neutral-400 group-hover:text-[#07CB6C] flex items-center gap-1 transition-colors">
+                        <span>Edit</span>
+                        <Edit3 className="w-3 h-3" />
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-semibold text-white line-clamp-2 leading-snug">
+                      {q.question}
+                    </div>
+
+                    <div className="text-xs text-[#07CB6C] font-medium bg-[#040706] p-2 rounded-lg border border-[#1a2824] truncate">
+                      ✓ {selectedVal}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Step 3 Base Actions */}
+            <div className="flex items-center justify-between pt-4 border-t border-[#1a2824]">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back to Schedule</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep(4)}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-lg shadow-[#07CB6C]/25"
+              >
+                <span>Next: What Success Looks Like</span>
+                <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </button>
+            </div>
+
+            {/* ================================================================= */}
+            {/* DEDICATED VISUALLY APPEALING QUESTION MODAL (QUIZ) */}
+            {/* ================================================================= */}
+            {isQuestionModalOpen && currentQ && (
+              <div
+                className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+                onClick={() => setIsQuestionModalOpen(false)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="relative w-full max-w-xl bg-[#080d0b] border border-[#1a2824] rounded-2xl sm:rounded-3xl p-6 sm:p-7 shadow-2xl shadow-black/95 space-y-5 animate-in zoom-in-95 duration-200 overflow-hidden"
+                >
+                  {/* Ambient Light Beam */}
+                  <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#07CB6C] to-transparent opacity-80" />
+                  <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-80 h-32 bg-[#07CB6C]/10 blur-3xl pointer-events-none rounded-full" />
+
+                  {/* Modal Header */}
+                  <div className="flex items-center justify-between gap-3 pb-3 border-b border-[#1a2824]">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#07CB6C]/15 border border-[#07CB6C]/30 text-[#07CB6C]">
+                        <Sparkles className="w-3 h-3 text-[#07CB6C]" />
+                        <span>{clarification.primaryDomain || 'Diagnostic Calibration'}</span>
+                      </span>
+                      <span className="text-xs font-mono text-neutral-400">
+                        Question <strong className="text-white">{safeIdx + 1}</strong> of {totalQuestions}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsQuestionModalOpen(false)}
+                      className="p-1.5 rounded-xl text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition-colors cursor-pointer"
+                      title="Close quiz view"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Segmented Glowing Progress Bar */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      {questions.map((_, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setActiveQuestionIndex(idx)}
+                          className={`h-2 flex-1 rounded-full transition-all cursor-pointer ${
+                            idx < safeIdx
+                              ? 'bg-[#07CB6C]'
+                              : idx === safeIdx
+                              ? 'bg-[#07CB6C] shadow-[0_0_12px_#07CB6C]'
+                              : 'bg-[#15221d] hover:bg-[#1e332b]'
+                          }`}
+                          title={`Go to Question ${idx + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Question Content (Single Question Focus) */}
+                  <div key={currentQ.id} className="space-y-4 pt-1 animate-in fade-in duration-200">
+                    <div className="space-y-1 text-left">
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-6 h-6 rounded-full bg-[#07CB6C]/20 border border-[#07CB6C]/40 text-[#07CB6C] text-xs font-mono font-bold flex items-center justify-center shrink-0 mt-0.5">
+                          {safeIdx + 1}
+                        </span>
+                        <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-snug">
+                          {currentQ.question}
+                        </h3>
+                      </div>
+                      {currentQ.subtitle && (
+                        <p className="text-xs sm:text-sm text-neutral-400 pl-8 leading-relaxed">
+                          {currentQ.subtitle}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Option Cards Stack */}
+                    <div className="space-y-2.5 pt-1">
+                      {currentQ.options.map((opt, optIdx) => {
+                        const letter = String.fromCharCode(65 + optIdx);
+                        const isSelected = answers[currentQ.id] === opt && !customAnswers[currentQ.id];
+                        return (
+                          <button
+                            key={optIdx}
+                            type="button"
+                            onClick={() => {
+                              setAnswers((prev) => ({ ...prev, [currentQ.id]: opt }));
+                              setCustomAnswers((prev) => ({ ...prev, [currentQ.id]: '' }));
+                            }}
+                            className={`w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all flex items-center justify-between cursor-pointer group ${
+                              isSelected
+                                ? 'bg-gradient-to-r from-[#07CB6C]/15 via-[#07CB6C]/5 to-transparent border-[#07CB6C] text-white shadow-lg shadow-[#07CB6C]/10 scale-[1.01]'
+                                : 'bg-[#040706] border-[#1a2824] text-neutral-300 hover:border-neutral-600 hover:bg-[#0c1411]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <span
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold transition-all shrink-0 ${
+                                  isSelected
+                                    ? 'bg-[#07CB6C] text-black font-extrabold shadow-sm shadow-[#07CB6C]/40'
+                                    : 'bg-[#0c1310] border border-[#1a2824] text-neutral-400 group-hover:text-white group-hover:border-neutral-500'
+                                }`}
+                              >
+                                {letter}
+                              </span>
+                              <span className="text-xs sm:text-sm font-medium leading-relaxed">{opt}</span>
+                            </div>
+                            {isSelected ? (
+                              <div className="w-5 h-5 rounded-full bg-[#07CB6C] flex items-center justify-center shrink-0 ml-2 shadow-sm shadow-[#07CB6C]/50 animate-in zoom-in-75">
+                                <Check className="w-3.5 h-3.5 text-black stroke-[3]" />
+                              </div>
+                            ) : (
+                              <div className="w-5 h-5 rounded-full border border-neutral-700 group-hover:border-neutral-500 shrink-0 ml-2" />
+                            )}
+                          </button>
+                        );
+                      })}
+
+                      {/* Custom Input */}
+                      {currentQ.allowCustom && (
+                        <div className="pt-1">
+                          <div
+                            className={`p-3 rounded-xl border transition-all ${
+                              customAnswers[currentQ.id]?.trim()
+                                ? 'border-[#07CB6C] bg-[#07CB6C]/5 shadow-sm shadow-[#07CB6C]/10'
+                                : 'border-[#1a2824] bg-[#040706]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1.5 text-[11px] font-semibold text-neutral-400">
+                              <Edit3 className={`w-3.5 h-3.5 ${customAnswers[currentQ.id]?.trim() ? 'text-[#07CB6C]' : 'text-neutral-500'}`} />
+                              <span>Or type your custom answer:</span>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Describe your specific situation..."
+                              value={customAnswers[currentQ.id] || ''}
+                              onChange={(e) => {
+                                setCustomAnswers((prev) => ({ ...prev, [currentQ.id]: e.target.value }));
+                              }}
+                              className="w-full px-3 py-2 text-xs sm:text-sm bg-[#080d0b] border border-[#1a2824] rounded-lg text-white placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C] focus:ring-1 focus:ring-[#07CB6C] transition-all"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Modal Footer Controls */}
+                  <div className="flex items-center justify-between pt-3 border-t border-[#1a2824] gap-2">
+                    {safeIdx > 0 ? (
                       <button
-                        key={optIdx}
+                        type="button"
+                        onClick={() => setActiveQuestionIndex((prev) => prev - 1)}
+                        className="px-3.5 py-2 text-xs font-medium text-neutral-400 hover:text-white rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Previous</span>
+                      </button>
+                    ) : (
+                      <button
                         type="button"
                         onClick={() => {
-                          setAnswers((prev) => ({ ...prev, [q.id]: opt }));
-                          setCustomAnswers((prev) => ({ ...prev, [q.id]: '' }));
+                          setIsQuestionModalOpen(false);
+                          setStep(2);
                         }}
-                        className={`w-full text-left p-3 rounded-md border text-xs sm:text-sm transition-all flex items-center justify-between cursor-pointer ${
-                          isSelected
-                            ? 'bg-[#07CB6C]/10 border-[#07CB6C] text-white'
-                            : 'bg-[#080d0b] border-[#1a2824] text-neutral-300 hover:border-neutral-700'
-                        }`}
+                        className="px-3.5 py-2 text-xs font-medium text-neutral-400 hover:text-white rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors"
                       >
-                        <span>{opt}</span>
-                        {isSelected && <Check className="w-4 h-4 text-[#07CB6C]" />}
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back to Schedule</span>
                       </button>
-                    );
-                  })}
+                    )}
 
-                  {q.allowCustom && (
-                    <div className="pt-1">
-                      <input
-                        type="text"
-                        placeholder="Or type your own..."
-                        value={customAnswers[q.id] || ''}
-                        onChange={(e) => {
-                          setCustomAnswers((prev) => ({ ...prev, [q.id]: e.target.value }));
-                        }}
-                        className="w-full px-3 py-2 text-xs bg-[#080d0b] border border-[#1a2824] rounded-md text-white placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
-                      />
+                    {/* Stepper Dots */}
+                    <div className="flex items-center gap-1.5">
+                      {questions.map((qItem, idx) => {
+                        const isCurrent = idx === safeIdx;
+                        const hasAnswer = Boolean(customAnswers[qItem.id]?.trim() || answers[qItem.id]);
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setActiveQuestionIndex(idx)}
+                            className={`w-7 h-7 rounded-full text-[11px] font-mono font-bold flex items-center justify-center transition-all cursor-pointer border ${
+                              isCurrent
+                                ? 'bg-[#07CB6C] text-black border-[#07CB6C] shadow-md shadow-[#07CB6C]/30 scale-110'
+                                : hasAnswer
+                                ? 'bg-[#07CB6C]/15 border-[#07CB6C]/40 text-[#07CB6C] hover:bg-[#07CB6C]/25'
+                                : 'bg-[#040706] border-[#1a2824] text-neutral-500 hover:text-neutral-300'
+                            }`}
+                            title={`Question ${idx + 1}`}
+                          >
+                            {idx + 1}
+                          </button>
+                        );
+                      })}
                     </div>
-                  )}
+
+                    {/* Next / Finish Button */}
+                    {safeIdx < totalQuestions - 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveQuestionIndex((prev) => prev + 1)}
+                        className="px-5 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all ml-auto"
+                      >
+                        <span>Next Question</span>
+                        <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsQuestionModalOpen(false);
+                          setStep(4);
+                        }}
+                        className="px-5 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all ml-auto"
+                      >
+                        <span>See Success Plan</span>
+                        <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
-            ))}
+            )}
           </div>
-
-          <div className="flex items-center justify-between pt-4">
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Back</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setStep(4)}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-sm transition-all cursor-pointer shadow-sm"
-            >
-              <span>Next: What Success Looks Like</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ===================================================================== */}
       {/* STEP 4: WHAT SUCCESS LOOKS LIKE / FINAL CONFIRMATION */}
@@ -1875,7 +2117,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
                 </span>
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => {
+                    setActiveQuestionIndex(0);
+                    setIsQuestionModalOpen(true);
+                    setStep(3);
+                  }}
                   className="text-[11px] text-neutral-400 hover:text-[#07CB6C] transition-colors cursor-pointer"
                 >
                   Edit Answers
