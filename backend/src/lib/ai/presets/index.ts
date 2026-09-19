@@ -1,4 +1,4 @@
-import { CertifiedPresetBlueprint, VDOTPacingEntry, BPMPacingEntry, SaaSVelocityEntry, LanguageVelocityEntry, RecompPacingEntry, YouTubeVelocityEntry, WritingVelocityEntry, DeepWorkVelocityEntry } from './types.js';
+import { CertifiedPresetBlueprint, VDOTPacingEntry, BPMPacingEntry, SaaSVelocityEntry, LanguageVelocityEntry, RecompPacingEntry, YouTubeVelocityEntry, WritingVelocityEntry, DeepWorkVelocityEntry, ChessVelocityEntry } from './types.js';
 import { run10kPreset } from './run10k.js';
 import { guitarPreset } from './guitar.js';
 import { saasPreset } from './saas.js';
@@ -7,9 +7,10 @@ import { recompPreset } from './recomp.js';
 import { youtubePreset } from './youtube.js';
 import { bookPreset } from './book.js';
 import { deepWorkPreset } from './deepwork.js';
+import { chessPreset } from './chess.js';
 
 export * from './types.js';
-export { run10kPreset, guitarPreset, saasPreset, spanishPreset, recompPreset, youtubePreset, bookPreset, deepWorkPreset };
+export { run10kPreset, guitarPreset, saasPreset, spanishPreset, recompPreset, youtubePreset, bookPreset, deepWorkPreset, chessPreset };
 
 export const CERTIFIED_PRESETS: CertifiedPresetBlueprint[] = [
   run10kPreset,
@@ -19,7 +20,8 @@ export const CERTIFIED_PRESETS: CertifiedPresetBlueprint[] = [
   recompPreset,
   youtubePreset,
   bookPreset,
-  deepWorkPreset
+  deepWorkPreset,
+  chessPreset
 ];
 
 /**
@@ -260,5 +262,32 @@ export function getDeepWorkVelocityEntry(
   }
 
   return blueprint.deepWorkVelocityTable[0];
+}
+
+/**
+ * Helper to look up the Chess velocity entry for a user given their baseline diagnostic answer.
+ */
+export function getChessVelocityEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): ChessVelocityEntry | undefined {
+  if (!blueprint.chessVelocityTable || !blueprint.chessVelocityTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.chessVelocityTable[0]; // default to under_600
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('<600') || lower.includes('under 600') || lower.includes('beginner') || lower.includes('unrated')) {
+    return blueprint.chessVelocityTable.find(c => c.baselineKey === 'under_600') || blueprint.chessVelocityTable[0];
+  }
+  if (lower.includes('600') || lower.includes('novice') || lower.includes('700') || lower.includes('800')) {
+    return blueprint.chessVelocityTable.find(c => c.baselineKey === '600_800') || blueprint.chessVelocityTable[1];
+  }
+  if (lower.includes('club') || lower.includes('aspirant') || lower.includes('900') || lower.includes('1000')) {
+    return blueprint.chessVelocityTable.find(c => c.baselineKey === '800_1000') || blueprint.chessVelocityTable[2];
+  }
+  if (lower.includes('advanced') || lower.includes('1100') || lower.includes('1200')) {
+    return blueprint.chessVelocityTable.find(c => c.baselineKey === '1000_1200') || blueprint.chessVelocityTable[3];
+  }
+
+  return blueprint.chessVelocityTable[0];
 }
 

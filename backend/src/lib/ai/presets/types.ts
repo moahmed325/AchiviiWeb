@@ -92,6 +92,16 @@ export interface DeepWorkVelocityEntry {
   guidance: string;
 }
 
+export interface ChessVelocityEntry {
+  baselineKey: string; // e.g. 'under_600', '600_800', '800_1000', '1000_1200'
+  label: string;
+  dailyTacticsCount: number; // e.g. 15, 20, 25, 30
+  puzzleAccuracyTarget: string; // e.g. '75%+', '80%+', '82%+', '85%+'
+  weeklyRapidGames: number; // e.g. 6, 8, 8, 10 (15+10 format)
+  openingSystem: string; // e.g. 'London / Italian & Solid e5/Caro-Kann'
+  guidance: string;
+}
+
 export interface BlueprintPhase {
   phaseNumber: 1 | 2 | 3;
   phaseName: 'Foundation' | 'Acceleration' | 'Mastery';
@@ -177,6 +187,7 @@ export interface CertifiedPresetBlueprint {
   youtubeVelocityTable?: YouTubeVelocityEntry[];
   writingVelocityTable?: WritingVelocityEntry[];
   deepWorkVelocityTable?: DeepWorkVelocityEntry[];
+  chessVelocityTable?: ChessVelocityEntry[];
   phases: BlueprintPhase[];
   weeks: BlueprintWeekSchedule[];
   expertPromptContext: string;

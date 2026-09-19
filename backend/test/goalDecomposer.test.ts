@@ -115,6 +115,47 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     expect(activeTasks[1].detailedSteps[1].resourceTitle).toContain('Huberman');
   });
 
+  it('correctly matches and clarifies chessPreset for chess rating goals', async () => {
+    const clarification = await clarifyGoalWithAI('Climb from beginner to a 1200 chess rating');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Chess Mastery');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(6);
+    expect(clarification.clarifiedOutcome).toContain('1200+');
+  });
+
+  it('generates a full 12-week Chess plan with Woodpecker tactical loops and rating milestone gates', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Climb from beginner to a 1200 chess rating',
+      'Climb from beginner/unrated to a verified 1200+ Chess.com (or 1500+ Lichess) Rapid rating through deliberate tactical pattern recognition, blunder elimination, and fundamental endgame mechanics',
+      { baseline: 'Absolute Beginner (<600 Chess.com / Unrated)' },
+      {
+        dailyMinutes: 45,
+        preferredSlot: 'evening',
+        planVariant: 'steady'
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    expect(plan.weeks[3].keyMilestone).toContain('800+ Rapid rating');
+    expect(plan.weeks[7].keyMilestone).toContain('1000+ Rapid rating');
+    expect(plan.weeks[11].keyMilestone).toContain('1200+ Rapid Rating');
+    expect(plan.initialTasks.length).toBe(7);
+
+    // Verify tactical repetition challenges and Woodpecker resources
+    const activeTasks = plan.initialTasks.filter(t => !t.isRestDay);
+    expect(activeTasks.length).toBe(5);
+    expect(activeTasks[0].detailedSteps[0].challenge.type).toBe('repetitions');
+    expect(activeTasks[0].detailedSteps[0].resourceTitle).toContain('Woodpecker');
+
+    // Verify active recovery master study on rest days
+    const restTasks = plan.initialTasks.filter(t => t.isRestDay);
+    expect(restTasks.length).toBe(2);
+    expect(restTasks[0].detailedSteps[0].challenge.type).toBe('checklist');
+  });
+
   it('generates a full 12-week Body Recomposition plan with mechanical tension and refeed gates', async () => {
     const plan = await generate12WeekPlanWithAI(
       'Drop 5% body fat and build lean muscle',

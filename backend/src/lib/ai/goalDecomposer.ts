@@ -9,6 +9,7 @@ import {
   getYouTubeVelocityEntry,
   getWritingVelocityEntry,
   getDeepWorkVelocityEntry,
+  getChessVelocityEntry,
   CertifiedPresetBlueprint,
   EvidenceTriad
 } from './presets/index.js';
@@ -408,6 +409,19 @@ CERTIFIED DEEP WORK & COGNITIVE VELOCITY MATRIX (Calculated for user's baseline:
 - Weekly Output Target Multiplier: ${dwEntry.weeklyOutputMultiplier}
 - Deep Work Guidance: ${dwEntry.guidance}
 MANDATORY: You MUST integrate these exact focus block lengths (${dwEntry.blockLengthMins}m), zero-interruption airplane mode rules, the physical distraction notepad, and the vocalized daily shutdown ritual into the daily task instructions, focus cues, and deliverable checklists!`;
+      }
+    } else if (preset.chessVelocityTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current chess rating or playing experience?'] || Object.values(answers)[0];
+      const chessEntry = getChessVelocityEntry(baselineVal, preset);
+      if (chessEntry) {
+        pacingSection = `
+CERTIFIED CHESS VELOCITY & RATING PROGRESSION MATRIX (Calculated for user's baseline: "${chessEntry.label}"):
+- Daily Tactical Puzzles Target: ${chessEntry.dailyTacticsCount} puzzles/day (Woodpecker spaced repetition loops)
+- Target Puzzle Accuracy: ${chessEntry.puzzleAccuracyTarget} (enforce deep calculation, zero guessing)
+- Weekly Rated Rapid Matches: ${chessEntry.weeklyRapidGames} games (strictly 15+10 time control)
+- Recommended Repertoire: ${chessEntry.openingSystem}
+- Coach Strategy: ${chessEntry.guidance}
+MANDATORY: You MUST integrate these exact daily puzzle counts (${chessEntry.dailyTacticsCount}), 15+10 time controls, mandatory 3-second CCT pauses, and Silman LPDO scans into the daily task instructions, focus cues, and deliverable checklists!`;
       }
     }
 
@@ -939,6 +953,7 @@ function getDeterministicPresetTasks(
   const isYouTube = preset.id === 'youtube_12_videos' || preset.primaryDomain.toLowerCase().includes('video') || preset.primaryDomain.toLowerCase().includes('youtube');
   const isBook = preset.id === 'book_30k_words' || preset.primaryDomain.toLowerCase().includes('writing') || preset.primaryDomain.toLowerCase().includes('author') || preset.primaryDomain.toLowerCase().includes('book');
   const isDeepWork = preset.id === 'deep_work_focus' || preset.primaryDomain.toLowerCase().includes('deep work') || preset.primaryDomain.toLowerCase().includes('cognitive') || preset.primaryDomain.toLowerCase().includes('focus');
+  const isChess = preset.id === 'chess_1200_rating' || preset.primaryDomain.toLowerCase().includes('chess');
 
   const activeArchetypes = archetypes.filter(a => !a.isRestDay);
   const restArchetypes = archetypes.filter(a => a.isRestDay);
@@ -959,7 +974,16 @@ function getDeterministicPresetTasks(
     const detailedSteps = arch.drillStepsTemplate.map((step) => {
       const stepMins = Math.max(3, Math.round(durMins * step.durationRatio));
       const challenge: StepChallenge = isRestDay
-        ? isDeepWork
+        ? isChess
+          ? {
+              type: 'checklist',
+              items: [
+                { id: 'c1', label: 'Walk through 1 classical Paul Morphy / Capablanca master game' },
+                { id: 'c2', label: 'Verify zero blitz/bullet games played during active recovery' },
+                { id: 'c3', label: 'Write 1 key strategic takeaway in your chess journal' }
+              ]
+            }
+          : isDeepWork
           ? {
               type: 'checklist',
               items: [
@@ -1005,6 +1029,14 @@ function getDeterministicPresetTasks(
                 ? 'Shipping early to production and gathering feedback beats premature optimization.'
                 : 'Consistency and callus formation compound with deliberate daily practice.'
             }
+        : isChess
+        ? {
+            type: 'repetitions',
+            drillName: step.title,
+            targetCount: 15,
+            totalSets: 1,
+            unit: 'tactical puzzles solved (≥80% accuracy)'
+          }
         : isDeepWork
         ? {
             type: 'repetitions',
@@ -1048,9 +1080,9 @@ function getDeterministicPresetTasks(
         : {
             type: 'repetitions',
             drillName: step.title,
-            targetCount: isRecomp ? 10 : isGuitar ? 30 : 3,
+            targetCount: isRecomp ? 10 : isGuitar ? 30 : isChess ? 15 : 3,
             totalSets: 3,
-            unit: isRecomp ? 'controlled reps (3s eccentric)' : isGuitar ? 'clean switches' : 'reps'
+            unit: isRecomp ? 'controlled reps (3s eccentric)' : isGuitar ? 'clean switches' : isChess ? 'puzzles/drills' : 'reps'
           };
 
       return {
@@ -1063,7 +1095,9 @@ function getDeterministicPresetTasks(
         layer: step.layer,
         layerReasoning: step.layerReasoning,
         challenge,
-        resourceTitle: isDeepWork
+        resourceTitle: isChess
+          ? 'Axel Smith Woodpecker Method & Jeremy Silman Imbalance Guide'
+          : isDeepWork
           ? 'Cal Newport Deep Work & Andrew Huberman Focus Guide'
           : isBook
           ? 'Steven Pressfield War of Art & William Zinsser Writing Guide'
@@ -1078,7 +1112,9 @@ function getDeterministicPresetTasks(
           : isGuitar
           ? 'JustinGuitar Beginner Grade 1 Course & Practice Routine'
           : 'Jack Daniels Running Formula — Cadence & VDOT Principles',
-        resourceUrl: isDeepWork
+        resourceUrl: isChess
+          ? 'https://www.chess.com/article/view/the-woodpecker-method'
+          : isDeepWork
           ? 'https://calnewport.com/books/deep-work/'
           : isBook
           ? 'https://stevenpressfield.com/books/the-war-of-art/'
@@ -1094,7 +1130,9 @@ function getDeterministicPresetTasks(
           ? 'https://www.justinguitar.com/classes/beginner-guitar-course-grade-1'
           : 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
         resourceType: 'guide' as const,
-        resourceWhy: isDeepWork
+        resourceWhy: isChess
+          ? 'Follow proven spaced repetition tactics, blunder check protocols, and LPDO piece safety.'
+          : isDeepWork
           ? 'Follow foundational attention residue reduction, ultradian rhythms, and dopamine protocols.'
           : isBook
           ? 'Follow professional mindset principles to defeat resistance and maintain uninterrupted daily output.'
@@ -1114,6 +1152,8 @@ function getDeterministicPresetTasks(
 
     const whereLocation = isRestDay
       ? 'Quiet space / chair'
+      : isChess
+      ? 'Chessboard desk / quiet study station with digital clock & lichess/chess.com'
       : isDeepWork
       ? 'Ergonomic focus desk in airplane mode with physical distraction notepad'
       : isBook
@@ -1138,7 +1178,9 @@ function getDeterministicPresetTasks(
       durationMinutes: durMins,
       slotTime,
       implementationIntention: `When: ${slotTime} | Where: ${whereLocation} | Action: ${arch.title} (${durMins}m)`,
-      resourceTitle: isDeepWork
+      resourceTitle: isChess
+        ? 'Dan Heisman Real Chess & John Nunn Endgame Principles'
+        : isDeepWork
         ? 'Mihaly Csikszentmihalyi Flow & Cal Newport Time-Blocking Masterclass'
         : isBook
         ? 'Stephen King On Writing & Donald Miller StoryBrand Blueprint'
@@ -1151,7 +1193,9 @@ function getDeterministicPresetTasks(
         : isGuitar
         ? 'JustinGuitar Grade 1 Core Curriculum & Song Repertoire'
         : 'Jack Daniels Running Formula & 80/20 Pacing Guide',
-      resourceUrl: isDeepWork
+      resourceUrl: isChess
+        ? 'https://www.chess.com/article/view/essential-chess-endgames'
+        : isDeepWork
         ? 'https://www.calnewport.com/blog/category/time-management/'
         : isBook
         ? 'https://storybrand.com/'
@@ -1165,7 +1209,9 @@ function getDeterministicPresetTasks(
         ? 'https://www.justinguitar.com/classes/beginner-guitar-course-grade-1'
         : 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
       resourceType: 'guide',
-      resourceWhy: isDeepWork
+      resourceWhy: isChess
+        ? 'Master CCT blunder checks, candidate move calculation, and opposition endgame mechanics.'
+        : isDeepWork
         ? 'Gold-standard cognitive performance systems for high-leverage knowledge work.'
         : isBook
         ? 'Premier methodology for reader transformation arcs, chapter beat outlines, and concise prose.'
