@@ -32,7 +32,7 @@ import { formatGoalTitle } from '../lib/formatters';
 import { FullDayVisualizer } from './FullDayVisualizer';
 import { FocusSessionModal } from './FocusSessionModal';
 import { StepChallengeWidget } from './StepChallengeWidget';
-import { CERTIFIED_PATHWAYS } from '../lib/certifiedPresets';
+import { CERTIFIED_PATHWAYS, getGoalImage } from '../lib/certifiedPresets';
 import { PathwaysExplorerModal } from './PathwaysExplorerModal';
 
 interface EvidenceLayerConfig {
@@ -391,54 +391,77 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
     return { when, where, action };
   }, [selectedTask?.implementationIntention]);
 
+  const activeGoalImage = getGoalImage(goal.clarifiedOutcome || goal.rawGoal);
+
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-6 space-y-5 text-left animate-fadeInUp">
       {/* ===================================================================== */}
       {/* 1. COMPACT HEADER */}
       {/* ===================================================================== */}
-      <div className="p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
-            {/* Minimal meta badges */}
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-                <span>Day {dayNumberCurrent} of 90</span>
+      <div className="relative overflow-hidden p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-4">
+        {/* Ambient goal background glow */}
+        {activeGoalImage && (
+          <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full overflow-hidden pointer-events-none opacity-20 blur-2xl">
+            <img src={activeGoalImage} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5 max-w-2xl min-w-0">
+            {/* Visual Goal Badge */}
+            {activeGoalImage && (
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border border-[#07CB6C]/40 shrink-0 relative shadow-md shadow-black/60 bg-[#050807] mt-0.5">
+                <img
+                  src={activeGoalImage}
+                  alt={formatGoalTitle(goal.clarifiedOutcome, goal.rawGoal)}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+              </div>
+            )}
+
+            <div className="space-y-1.5 flex-1 min-w-0">
+              {/* Minimal meta badges */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
+                  <span>Day {dayNumberCurrent} of 90</span>
+                </div>
+
+                <span className="px-2.5 py-0.5 rounded-md bg-[#111a17] border border-[#1a2824] text-neutral-300 font-medium text-xs">
+                  {currentRoadmapWeek?.phase || 'Foundation'} · Week {currentWeekNum}
+                </span>
               </div>
 
-              <span className="px-2.5 py-0.5 rounded-md bg-[#111a17] border border-[#1a2824] text-neutral-300 font-medium text-xs">
-                {currentRoadmapWeek?.phase || 'Foundation'} · Week {currentWeekNum}
-              </span>
-            </div>
+              {/* Title */}
+              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-snug">
+                {formatGoalTitle(goal.clarifiedOutcome, goal.rawGoal)}
+              </h1>
 
-            {/* Title */}
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight leading-snug">
-              {formatGoalTitle(goal.clarifiedOutcome, goal.rawGoal)}
-            </h1>
+              {/* Progressive Disclosure: Toggle full goal details */}
+              <div className="pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setShowFullOutcome(!showFullOutcome)}
+                  className="inline-flex items-center gap-1 text-xs text-[#07CB6C] hover:text-[#06b560] cursor-pointer transition-colors"
+                >
+                  <span>{showFullOutcome ? 'Hide details' : 'View full goal'}</span>
+                  {showFullOutcome ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
 
-            {/* Progressive Disclosure: Toggle full goal details */}
-            <div className="pt-0.5">
-              <button
-                type="button"
-                onClick={() => setShowFullOutcome(!showFullOutcome)}
-                className="inline-flex items-center gap-1 text-xs text-[#07CB6C] hover:text-[#06b560] cursor-pointer transition-colors"
-              >
-                <span>{showFullOutcome ? 'Hide details' : 'View full goal'}</span>
-                {showFullOutcome ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-
-              {showFullOutcome && (
-                <div className="mt-2.5 p-3.5 rounded-md bg-[#080d0b] border border-[#07CB6C]/25 text-xs space-y-2 animate-fadeIn">
-                  <p className="text-neutral-200 leading-relaxed">
-                    <strong className="text-white font-semibold">Target:</strong> {goal.clarifiedOutcome}
-                  </p>
-                  {goal.methodologyNotes && (
-                    <p className="text-[11px] text-neutral-400">
-                      {goal.methodologyNotes}
+                {showFullOutcome && (
+                  <div className="mt-2.5 p-3.5 rounded-md bg-[#080d0b] border border-[#07CB6C]/25 text-xs space-y-2 animate-fadeIn">
+                    <p className="text-neutral-200 leading-relaxed">
+                      <strong className="text-white font-semibold">Target:</strong> {goal.clarifiedOutcome}
                     </p>
-                  )}
-                </div>
-              )}
+                    {goal.methodologyNotes && (
+                      <p className="text-[11px] text-neutral-400">
+                        {goal.methodologyNotes}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1135,53 +1158,58 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
             return (
               <div
                 key={pathway.id}
-                className={`relative rounded-md overflow-hidden border p-3.5 bg-[#080d0b] transition-all flex flex-col justify-between group min-h-[140px] ${
-                  isActive ? 'border-[#07CB6C] ring-1 ring-[#07CB6C]/40' : 'border-[#1a2824] hover:border-[#07CB6C]/60'
+                className={`rounded-lg overflow-hidden border transition-all flex flex-col justify-between group bg-[#080d0b] ${
+                  isActive ? 'border-[#07CB6C] ring-1 ring-[#07CB6C]/40 shadow-lg shadow-[#07CB6C]/5' : 'border-[#1a2824] hover:border-[#07CB6C]/60'
                 }`}
               >
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {/* Dedicated Top Image Banner */}
+                <div className="relative w-full h-28 sm:h-32 overflow-hidden bg-[#0c1210]">
                   <img
                     src={pathway.image}
                     alt={pathway.title}
-                    className="w-full h-full object-cover opacity-20 group-hover:opacity-35 transition-all duration-300"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#080d0b] via-[#080d0b]/80 to-[#080d0b]/50" />
-                </div>
-
-                <div className="relative z-10 space-y-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[9px] font-mono font-bold tracking-wider text-[#07CB6C]">
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#080d0b] via-transparent to-black/30" />
+                  <div className="absolute top-2 left-2 z-10">
+                    <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider bg-black/75 backdrop-blur-md text-[#07CB6C] border border-[#07CB6C]/40">
                       {pathway.tag}
                     </span>
-                    <span className="text-[10px] font-mono text-neutral-400">
+                  </div>
+                  <div className="absolute top-2 right-2 z-10">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-black/75 backdrop-blur-md text-neutral-300 border border-white/10">
                       {pathway.dailyMinutes}m/day
                     </span>
                   </div>
-                  <h3 className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors line-clamp-1">
-                    {pathway.title}
-                  </h3>
-                  <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
-                    {pathway.desc}
-                  </p>
                 </div>
 
-                <div className="relative z-10 pt-2 border-t border-white/5 flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-neutral-500">
-                    {isActive ? 'Current Plan' : '12 Milestones'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      localStorage.setItem('achivii_draft_goal', pathway.title);
-                      navigate('/onboarding', {
-                        state: { presetGoal: pathway.title, isPreset: true, switchGoal: true }
-                      });
-                    }}
-                    className="text-[11px] font-semibold text-[#07CB6C] hover:text-[#06b560] flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    <span>{isActive ? 'Restart' : 'Switch'}</span>
-                    <ArrowRight className="w-2.5 h-2.5" />
-                  </button>
+                <div className="p-3.5 space-y-1 flex-1 flex flex-col justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors line-clamp-1">
+                      {pathway.title}
+                    </h3>
+                    <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
+                      {pathway.desc}
+                    </p>
+                  </div>
+
+                  <div className="pt-2 mt-2 border-t border-[#1a2824] flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-neutral-500">
+                      {isActive ? 'Current Plan' : '12 Milestones'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        localStorage.setItem('achivii_draft_goal', pathway.title);
+                        navigate('/onboarding', {
+                          state: { presetGoal: pathway.title, isPreset: true, switchGoal: true }
+                        });
+                      }}
+                      className="text-[11px] font-semibold text-[#07CB6C] hover:text-[#06b560] flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <span>{isActive ? 'Restart' : 'Switch'}</span>
+                      <ArrowRight className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );

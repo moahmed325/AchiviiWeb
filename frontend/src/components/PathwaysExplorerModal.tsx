@@ -129,58 +129,56 @@ export const PathwaysExplorerModal: React.FC<PathwaysExplorerModalProps> = ({
               return (
                 <div
                   key={pathway.id}
-                  className={`relative rounded-md overflow-hidden border text-left transition-all flex flex-col justify-between p-4 bg-[#0c1210] group min-h-[170px] ${
+                  className={`rounded-lg overflow-hidden border text-left transition-all flex flex-col justify-between bg-[#0c1210] group ${
                     isActive ? 'border-[#07CB6C] ring-1 ring-[#07CB6C]/40' : 'border-[#1a2824] hover:border-[#07CB6C]/60'
                   }`}
                 >
-                  {/* Background Image with Dark Gradient Overlay */}
-                  <div className="absolute inset-0 overflow-hidden">
+                  {/* Dedicated Visual Image Banner with Full Clarity */}
+                  <div className="relative w-full h-36 sm:h-40 overflow-hidden bg-[#050807]">
                     <img
                       src={pathway.image}
                       alt={pathway.title}
-                      className="w-full h-full object-cover opacity-25 group-hover:opacity-40 group-hover:scale-105 transition-all duration-300"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#050807] via-[#050807]/85 to-[#050807]/50" />
-                  </div>
-
-                  {/* Top Badges */}
-                  <div className="relative z-10 flex items-start justify-between gap-2">
-                    <span className="text-[10px] font-mono font-bold tracking-wider text-[#07CB6C]">
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0c1210] via-transparent to-black/30" />
+                    <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold tracking-wider text-[#07CB6C]">
                       {pathway.tag}
                     </span>
-                    <div className="flex items-center gap-1.5 text-[11px] font-mono text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-white/5">
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[10px] font-mono text-neutral-300 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded border border-white/10">
                       <Clock className="w-3 h-3 text-[#07CB6C]" />
                       <span>{pathway.dailyMinutes}m/day</span>
                     </div>
                   </div>
 
-                  {/* Title & Desc */}
-                  <div className="relative z-10 my-2 space-y-1">
-                    <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-[#07CB6C] transition-colors leading-snug">
-                      {pathway.title}
-                    </h3>
-                    <p className="text-xs text-neutral-300 line-clamp-2 leading-relaxed">
-                      {pathway.desc}
-                    </p>
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 pt-0.5">
-                      <Award className="w-3 h-3 text-amber-400 shrink-0" />
-                      <span className="truncate">{pathway.badge}</span>
+                  {/* Body Content */}
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div className="space-y-1.5">
+                      <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-[#07CB6C] transition-colors leading-snug">
+                        {pathway.title}
+                      </h3>
+                      <p className="text-xs text-neutral-300 line-clamp-2 leading-relaxed">
+                        {pathway.desc}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 pt-0.5">
+                        <Award className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span className="truncate">{pathway.badge}</span>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Action Button */}
-                  <div className="relative z-10 pt-2 border-t border-white/5 flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-neutral-500">
-                      12 Invariant Milestones
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectPathway(pathway)}
-                      className="px-3 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.98] text-black font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                    >
-                      <span>{isActive ? 'Restart Pathway' : 'Select Pathway'}</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
+                    {/* Action Button */}
+                    <div className="pt-3 border-t border-[#1a2824] flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-neutral-500">
+                        12 Milestones
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPathway(pathway)}
+                        className="px-3.5 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.98] text-black font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <span>{isActive ? 'Restart Pathway' : 'Select Pathway'}</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

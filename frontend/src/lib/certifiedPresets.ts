@@ -244,3 +244,26 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
 ];
 
+export function getGoalImage(goalTitleOrOutcome?: string): string {
+  if (!goalTitleOrOutcome) return '/images/goals/saas.jpg';
+  const query = goalTitleOrOutcome.toLowerCase();
+  const matched = CERTIFIED_PATHWAYS.find((p) => {
+    const idMatch = query.includes(p.id);
+    const labelMatch = query.includes(p.label.toLowerCase());
+    const titleMatch = p.title.toLowerCase().includes(query) || query.includes(p.title.toLowerCase());
+    const keywordMatch =
+      (p.id === 'saas' && (query.includes('saas') || query.includes('web app') || query.includes('software'))) ||
+      (p.id === 'run10k' && (query.includes('10k') || query.includes('run') || query.includes('marathon'))) ||
+      (p.id === 'guitar' && (query.includes('guitar') || query.includes('acoustic') || query.includes('song'))) ||
+      (p.id === 'spanish' && (query.includes('spanish') || query.includes('language') || query.includes('hablar'))) ||
+      (p.id === 'recomp' && (query.includes('recomp') || query.includes('fat') || query.includes('muscle') || query.includes('physique') || query.includes('body'))) ||
+      (p.id === 'youtube' && (query.includes('youtube') || query.includes('channel') || query.includes('subscribers') || query.includes('video'))) ||
+      (p.id === 'book' && (query.includes('book') || query.includes('write') || query.includes('author') || query.includes('words'))) ||
+      (p.id === 'deepwork' && (query.includes('deep work') || query.includes('focus') || query.includes('attention') || query.includes('concentrat'))) ||
+      (p.id === 'chess' && (query.includes('chess') || query.includes('elo') || query.includes('rating') || query.includes('grandmaster'))) ||
+      (p.id === 'speech' && (query.includes('speech') || query.includes('speaking') || query.includes('oratory') || query.includes('presentation') || query.includes('talk')));
+    return idMatch || labelMatch || titleMatch || keywordMatch;
+  });
+  return matched?.image || '/images/goals/saas.jpg';
+}
+

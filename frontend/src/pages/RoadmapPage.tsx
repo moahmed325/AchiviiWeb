@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { formatGoalTitle } from '../lib/formatters';
 import { RoutineSettings } from '../types';
+import { getGoalImage } from '../lib/certifiedPresets';
 
 export const RoadmapPage: React.FC = () => {
   const { activeGoal } = useGoal();
@@ -91,6 +92,7 @@ export const RoadmapPage: React.FC = () => {
 
   // Clean, AI-rewritten title for the goal
   const displayGoalTitle = formatGoalTitle(activeGoal.clarifiedOutcome, activeGoal.rawGoal);
+  const activeGoalImage = getGoalImage(activeGoal.clarifiedOutcome || activeGoal.rawGoal);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 animate-fadeIn">
@@ -112,27 +114,48 @@ export const RoadmapPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Minimal Header */}
-        <div className="border-b border-[#1a2824] pb-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
-              Roadmap
-            </span>
-            <span className="text-xs text-neutral-500 font-mono">
-              Week {currentWeekNum} of 12
-            </span>
-          </div>
+        {/* Minimal Header with Goal Visual */}
+        <div className="relative overflow-hidden border border-[#1a2824] rounded-lg p-5 bg-[#0c1210] space-y-3">
+          {activeGoalImage && (
+            <div className="absolute -top-12 -right-12 w-64 h-64 rounded-full overflow-hidden pointer-events-none opacity-20 blur-2xl">
+              <img src={activeGoalImage} alt="" className="w-full h-full object-cover" />
+            </div>
+          )}
 
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1.5">
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              {displayGoalTitle}
-            </h1>
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+              {activeGoalImage && (
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border border-[#07CB6C]/40 shrink-0 relative shadow-md shadow-black/60 bg-[#050807]">
+                  <img
+                    src={activeGoalImage}
+                    alt={displayGoalTitle}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                </div>
+              )}
+
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
+                    Roadmap
+                  </span>
+                  <span className="text-xs text-neutral-500 font-mono">
+                    Week {currentWeekNum} of 12
+                  </span>
+                </div>
+
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight truncate">
+                  {displayGoalTitle}
+                </h1>
+              </div>
+            </div>
 
             {activeGoal.clarifiedOutcome && activeGoal.clarifiedOutcome !== activeGoal.rawGoal && (
               <button
                 type="button"
                 onClick={() => setShowFullGoal(!showFullGoal)}
-                className="inline-flex items-center gap-1 text-xs text-[#07CB6C] hover:text-[#06b560] self-start sm:self-auto cursor-pointer transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-[#07CB6C] hover:text-[#06b560] self-start sm:self-auto cursor-pointer transition-colors shrink-0"
               >
                 <span>{showFullGoal ? 'Hide details' : 'Goal details'}</span>
                 {showFullGoal ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -141,7 +164,7 @@ export const RoadmapPage: React.FC = () => {
           </div>
 
           {showFullGoal && activeGoal.clarifiedOutcome && (
-            <div className="mt-2.5 p-3 rounded-md bg-[#080d0b] border border-[#07CB6C]/20 text-xs text-neutral-300 leading-relaxed animate-fadeIn">
+            <div className="relative z-10 mt-2.5 p-3 rounded-md bg-[#080d0b] border border-[#07CB6C]/20 text-xs text-neutral-300 leading-relaxed animate-fadeIn">
               {activeGoal.clarifiedOutcome}
             </div>
           )}

@@ -1102,7 +1102,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-80 overflow-y-auto pr-1">
                 {CERTIFIED_PATHWAYS.map((p) => (
                   <button
                     key={p.id}
@@ -1111,22 +1111,32 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                       setRawGoal(p.title);
                       handleStartGoal(p.title);
                     }}
-                    className="p-3 rounded-lg bg-[#0a120e] hover:bg-[#101e17] border border-[#1a2824] hover:border-[#07CB6C]/60 text-left transition-all cursor-pointer group space-y-1"
+                    className="p-2.5 rounded-lg bg-[#0a120e] hover:bg-[#101e17] border border-[#1a2824] hover:border-[#07CB6C]/60 text-left transition-all cursor-pointer group flex items-center gap-3"
                   >
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[9px] font-mono font-bold text-[#07CB6C] tracking-wider">
-                        {p.tag}
-                      </span>
-                      <span className="text-[10px] font-mono text-neutral-500">
-                        {p.dailyMinutes}m/day
-                      </span>
+                    <div className="w-14 h-14 rounded-md overflow-hidden shrink-0 border border-[#1a2824] group-hover:border-[#07CB6C]/40 relative bg-[#050807]">
+                      <img
+                        src={p.image}
+                        alt={p.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
                     </div>
-                    <p className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors leading-snug">
-                      {p.title}
-                    </p>
-                    <p className="text-[11px] text-neutral-400 line-clamp-1">
-                      {p.desc}
-                    </p>
+                    <div className="flex-1 min-w-0 space-y-0.5">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[9px] font-mono font-bold text-[#07CB6C] tracking-wider">
+                          {p.tag}
+                        </span>
+                        <span className="text-[10px] font-mono text-neutral-500">
+                          {p.dailyMinutes}m/day
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors leading-snug truncate">
+                        {p.title}
+                      </p>
+                      <p className="text-[11px] text-neutral-400 line-clamp-1 leading-relaxed">
+                        {p.desc}
+                      </p>
+                    </div>
                   </button>
                 ))}
               </div>

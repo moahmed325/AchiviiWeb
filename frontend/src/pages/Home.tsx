@@ -22,7 +22,7 @@ import { formatGoalTitle } from '../lib/formatters';
 import { updateDailyTask } from '../lib/api';
 import { DailyTask, DetailedStep } from '../types';
 import { FocusSessionModal } from '../components/FocusSessionModal';
-import { CERTIFIED_PATHWAYS } from '../lib/certifiedPresets';
+import { CERTIFIED_PATHWAYS, getGoalImage } from '../lib/certifiedPresets';
 import { PathwaysExplorerModal } from '../components/PathwaysExplorerModal';
 
 // All 10 Certified Master Trajectories
@@ -242,66 +242,64 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
-            {/* Pathways Grid (All 10 Pathways Available!) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {/* Pathways Grid (All 10 Pathways Available with Prominent Visual Banners) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredCatalogPathways.map((item) => (
                 <div
                   key={item.id}
-                  className="relative rounded-md overflow-hidden border border-[#1a2824] hover:border-[#07CB6C]/60 text-left transition-all p-4 bg-[#0c1210] group flex flex-col justify-between min-h-[190px]"
+                  className="rounded-lg overflow-hidden border border-[#1a2824] hover:border-[#07CB6C]/60 text-left transition-all bg-[#0c1210] group flex flex-col justify-between"
                 >
-                  {/* Background Image with Dark Gradient Overlay */}
-                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {/* Dedicated Visual Image Banner with 100% Clarity */}
+                  <div className="relative w-full h-36 sm:h-40 overflow-hidden bg-[#050807]">
                     <img
                       src={item.image}
                       alt={item.title}
-                      className="w-full h-full object-cover opacity-20 group-hover:opacity-35 group-hover:scale-105 transition-all duration-300"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#050807] via-[#050807]/85 to-[#050807]/50" />
-                  </div>
-
-                  {/* Top Meta */}
-                  <div className="relative z-10 flex items-start justify-between gap-2">
-                    <span className="text-[10px] font-mono font-bold tracking-wider text-[#07CB6C]">
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0c1210] via-transparent to-black/30" />
+                    <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold tracking-wider text-[#07CB6C]">
                       {item.tag}
                     </span>
-                    <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-400 bg-black/40 px-2 py-0.5 rounded border border-white/5">
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[10px] font-mono text-neutral-300 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded border border-white/10">
                       <Clock className="w-3 h-3 text-[#07CB6C]" />
                       <span>{item.dailyMinutes}m/day</span>
                     </div>
                   </div>
 
                   {/* Body Content */}
-                  <div className="relative z-10 my-2 space-y-1">
-                    <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-[#07CB6C] transition-colors leading-snug">
-                      {item.title}
-                    </h3>
-                    <p className="text-xs text-neutral-300 line-clamp-2 leading-relaxed">
-                      {item.desc}
-                    </p>
-                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 pt-0.5">
-                      <Award className="w-3 h-3 text-amber-400 shrink-0" />
-                      <span className="truncate">{item.badge}</span>
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div className="space-y-1.5">
+                      <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-[#07CB6C] transition-colors leading-snug">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
+                        {item.desc}
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 pt-0.5">
+                        <Award className="w-3 h-3 text-amber-400 shrink-0" />
+                        <span className="truncate">{item.badge}</span>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Footer Launch Button */}
-                  <div className="relative z-10 pt-2 border-t border-white/5 flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-neutral-500">
-                      12 Milestones
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        localStorage.setItem('achivii_draft_goal', item.title);
-                        navigate('/onboarding', {
-                          state: { presetGoal: item.title, isPreset: true, switchGoal: true }
-                        });
-                      }}
-                      className="px-3 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.98] text-black font-semibold text-xs transition-all flex items-center gap-1 cursor-pointer shadow-xs"
-                    >
-                      <span>Select Pathway</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
+                    {/* Footer Launch Button */}
+                    <div className="pt-3 border-t border-[#1a2824] flex items-center justify-between">
+                      <span className="text-[11px] font-mono text-neutral-500">
+                        12 Milestones
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.setItem('achivii_draft_goal', item.title);
+                          navigate('/onboarding', {
+                            state: { presetGoal: item.title, isPreset: true, switchGoal: true }
+                          });
+                        }}
+                        className="px-3.5 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.98] text-black font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                      >
+                        <span>Select Pathway</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -351,35 +349,58 @@ export const Home: React.FC = () => {
 
     // User HAS an active goal -> Render the Zen Executive Command Center
     const displayTitle = formatGoalTitle(activeGoal.clarifiedOutcome, activeGoal.rawGoal);
+    const activeGoalImage = getGoalImage(activeGoal.rawGoal);
 
     return (
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6 animate-fadeIn text-left">
         {/* =================================================================== */}
-        {/* TOP STATUS & 90-DAY PROGRESS */}
+        {/* TOP STATUS & 90-DAY PROGRESS (WITH PROMINENT GOAL IMAGE) */}
         {/* =================================================================== */}
-        <div className="p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] font-mono font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-                  <span>Day {dayNumberCurrent} of 90</span>
-                </div>
-                <span className="px-2.5 py-0.5 rounded-md bg-[#111a17] border border-[#1a2824] text-neutral-300 font-medium text-xs">
-                  {currentRoadmapWeek?.phase || 'Foundation'} · Week {currentWeekNum}
-                </span>
-                <span className="text-neutral-500 font-mono text-xs hidden sm:inline">
-                  {progressPercent}% Complete
-                </span>
+        <div className="p-5 sm:p-6 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-4 relative overflow-hidden">
+          {/* Subtle Ambient Goal Image Backdrop */}
+          <div className="absolute right-0 top-0 bottom-0 w-1/3 pointer-events-none overflow-hidden opacity-25 hidden md:block">
+            <img
+              src={activeGoalImage}
+              alt="Active Goal Backdrop"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0c1210] via-[#0c1210]/70 to-transparent" />
+          </div>
+
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+              {/* Active Goal Visual Image Badge */}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border border-[#07CB6C]/40 shrink-0 relative shadow-md shadow-black/60 bg-[#050807]">
+                <img
+                  src={activeGoalImage}
+                  alt={displayTitle}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               </div>
 
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight truncate">
-                {displayTitle}
-              </h1>
+              <div className="space-y-1 min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[#07CB6C] font-mono font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
+                    <span>Day {dayNumberCurrent} of 90</span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-md bg-[#111a17] border border-[#1a2824] text-neutral-300 font-medium text-xs">
+                    {currentRoadmapWeek?.phase || 'Foundation'} · Week {currentWeekNum}
+                  </span>
+                  <span className="text-neutral-500 font-mono text-xs hidden sm:inline">
+                    {progressPercent}% Complete
+                  </span>
+                </div>
+
+                <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight truncate">
+                  {displayTitle}
+                </h1>
+              </div>
             </div>
 
             {/* Quick Actions: Explore Goals (10) & View Full 90-Day Roadmap */}
-            <div className="shrink-0 flex items-center gap-2">
+            <div className="shrink-0 flex items-center gap-2 self-start sm:self-center">
               <button
                 type="button"
                 onClick={() => setIsPathwaysModalOpen(true)}
@@ -695,53 +716,54 @@ export const Home: React.FC = () => {
               return (
                 <div
                   key={pathway.id}
-                  className={`relative rounded-md overflow-hidden border p-3.5 bg-[#080d0b] transition-all flex flex-col justify-between group min-h-[140px] ${
+                  className={`rounded-lg overflow-hidden border bg-[#080d0b] transition-all flex flex-col justify-between group ${
                     isActive ? 'border-[#07CB6C] ring-1 ring-[#07CB6C]/40' : 'border-[#1a2824] hover:border-[#07CB6C]/60'
                   }`}
                 >
-                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {/* Dedicated Visual Image Banner */}
+                  <div className="relative w-full h-28 sm:h-32 overflow-hidden bg-[#050807]">
                     <img
                       src={pathway.image}
                       alt={pathway.title}
-                      className="w-full h-full object-cover opacity-20 group-hover:opacity-35 transition-all duration-300"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#080d0b] via-[#080d0b]/80 to-[#080d0b]/50" />
-                  </div>
-
-                  <div className="relative z-10 space-y-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-[9px] font-mono font-bold tracking-wider text-[#07CB6C]">
-                        {pathway.tag}
-                      </span>
-                      <span className="text-[10px] font-mono text-neutral-400">
-                        {pathway.dailyMinutes}m/day
-                      </span>
-                    </div>
-                    <h3 className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors line-clamp-1">
-                      {pathway.title}
-                    </h3>
-                    <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
-                      {pathway.desc}
-                    </p>
-                  </div>
-
-                  <div className="relative z-10 pt-2 border-t border-white/5 flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-neutral-500">
-                      {isActive ? 'Current Plan' : '12 Milestones'}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#080d0b] via-transparent to-black/30" />
+                    <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-md border border-white/10 text-[9px] font-mono font-bold tracking-wider text-[#07CB6C]">
+                      {pathway.tag}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        localStorage.setItem('achivii_draft_goal', pathway.title);
-                        navigate('/onboarding', {
-                          state: { presetGoal: pathway.title, isPreset: true, switchGoal: true }
-                        });
-                      }}
-                      className="text-[11px] font-semibold text-[#07CB6C] hover:text-[#06b560] flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <span>{isActive ? 'Restart' : 'Switch'}</span>
-                      <ArrowRight className="w-2.5 h-2.5" />
-                    </button>
+                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-md border border-white/10 text-[9px] font-mono text-neutral-300">
+                      {pathway.dailyMinutes}m/day
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
+                    <div className="space-y-1">
+                      <h3 className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors line-clamp-1">
+                        {pathway.title}
+                      </h3>
+                      <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
+                        {pathway.desc}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-neutral-500">
+                        {isActive ? 'Current Plan' : '12 Milestones'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.setItem('achivii_draft_goal', pathway.title);
+                          navigate('/onboarding', {
+                            state: { presetGoal: pathway.title, isPreset: true, switchGoal: true }
+                          });
+                        }}
+                        className="text-[11px] font-semibold text-[#07CB6C] hover:text-[#06b560] flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <span>{isActive ? 'Restart' : 'Switch'}</span>
+                        <ArrowRight className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
