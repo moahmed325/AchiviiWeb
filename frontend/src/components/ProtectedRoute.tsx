@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
 
@@ -14,6 +14,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const { user, token, loading: authLoading, openAuthModal } = useAuth();
   const { activeGoal, loadingGoal } = useGoal();
+  const location = useLocation();
 
   // If user is not authenticated, trigger the signin modal and redirect to /
   useEffect(() => {
@@ -42,8 +43,24 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Route is onboarding, but user already has an active goal -> redirect to dashboard
-  if (!requireGoal && activeGoal) {
+  // Route is onboarding, but user already has an active goal -> redirect to dashboard only if NOT explicitly starting/switching to a goal
+  const navState = location.state as {
+    presetGoal?: string;
+    draftGoal?: string;
+    isPreset?: boolean;
+    switchGoal?: boolean;
+    customGoal?: boolean;
+  } | null;
+
+  const isExplicitGoalSelection = Boolean(
+    navState?.presetGoal ||
+    navState?.draftGoal ||
+    navState?.switchGoal ||
+    navState?.customGoal ||
+    navState?.isPreset !== undefined
+  );
+
+  if (!requireGoal && activeGoal && !isExplicitGoalSelection) {
     return <Navigate to="/dashboard" replace />;
   }
 

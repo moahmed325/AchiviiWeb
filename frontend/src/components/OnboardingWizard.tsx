@@ -36,6 +36,7 @@ import {
   CommitmentItem
 } from '../types';
 import { clarifyGoal, createGoalPlan } from '../lib/api';
+import { CERTIFIED_PATHWAYS } from '../lib/certifiedPresets';
 
 interface PresetCommitment {
   id: string;
@@ -512,14 +513,6 @@ interface OnboardingWizardProps {
   initialGoal?: string;
   isPreset?: boolean;
 }
-
-const INSPIRATION_GOALS = [
-  'Play acoustic guitar well enough to play 5 songs from memory at campfires',
-  'Run a 10K under 50 minutes without stopping',
-  'Build and ship a full-stack SaaS web app to first paying user',
-  'Hold a 15-minute conversational dialogue in Spanish fluently',
-  'Master handstand push-ups and bodyweight strength baseline'
-];
 
 interface WizardStepItem {
   id: 1 | 2 | 3 | 4;
@@ -1097,23 +1090,43 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               className="w-full p-4 rounded-md bg-[#0c1210] border border-[#1a2824] text-white placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C] transition-all resize-none text-sm leading-relaxed"
             />
 
-            {/* Inspiration Chips */}
-            <div className="space-y-2 pt-2">
-              <p className="text-xs text-neutral-500">
-                Or try one of these:
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {INSPIRATION_GOALS.map((insp, i) => (
+            {/* 10 Certified Blueprints Quick-Select */}
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-mono text-[#07CB6C] font-semibold flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Certified 90-Day Master Pathways (10 Available)</span>
+                </span>
+                <span className="text-[11px] text-neutral-500 font-mono">
+                  1-Click Select
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-72 overflow-y-auto pr-1">
+                {CERTIFIED_PATHWAYS.map((p) => (
                   <button
-                    key={i}
+                    key={p.id}
                     type="button"
                     onClick={() => {
-                      setRawGoal(insp);
-                      handleStartGoal(insp);
+                      setRawGoal(p.title);
+                      handleStartGoal(p.title);
                     }}
-                    className="text-xs text-neutral-300 bg-[#0c1210] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 px-3 py-1.5 rounded-md text-left transition-colors cursor-pointer"
+                    className="p-3 rounded-lg bg-[#0a120e] hover:bg-[#101e17] border border-[#1a2824] hover:border-[#07CB6C]/60 text-left transition-all cursor-pointer group space-y-1"
                   >
-                    {insp}
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[9px] font-mono font-bold text-[#07CB6C] tracking-wider">
+                        {p.tag}
+                      </span>
+                      <span className="text-[10px] font-mono text-neutral-500">
+                        {p.dailyMinutes}m/day
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors leading-snug">
+                      {p.title}
+                    </p>
+                    <p className="text-[11px] text-neutral-400 line-clamp-1">
+                      {p.desc}
+                    </p>
                   </button>
                 ))}
               </div>

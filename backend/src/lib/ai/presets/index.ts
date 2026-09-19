@@ -319,5 +319,3 @@ export function getSpeechVelocityEntry(
 
   return blueprint.speechVelocityTable[0];
 }
-
-
