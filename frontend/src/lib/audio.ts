@@ -91,3 +91,4 @@ export function playSessionComplete(isMuted = false): void {
     console.debug('Audio play failed:', err);
   }
 }
+
