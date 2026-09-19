@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "migrate:backfill": "tsx scripts/backfill-phase1-sessions.ts",
     "use:postgres": "node scripts/switch-db.js postgres && prisma generate",
-    "use:sqlite": "node scripts/switch-db.js sqlite && prisma generate"
+    "use:sqlite": "node scripts/switch-db.js sqlite && prisma generate",
+    "test:tavily": "tsx scripts/test-tavily.ts"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

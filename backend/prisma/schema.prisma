@@ -34,6 +34,14 @@ model Goal {
   created_at       DateTime       @default(now())
   updated_at       DateTime       @updatedAt
 
+  isGoldenRail        Boolean   @default(false)
+  canonicalMethodName String?
+  canonicalAuthority  String?
+  canonicalSourceUrl  String?
+  methodConfidence    String?   // "high_consensus" | "medium_consensus" | "first_principles"
+  velocityTable       Json?     // Week 1 -> Week 12 metric matrix, derived from research
+  canonicalKey        String?   // hierarchical domain key, e.g. "lang.japanese.jlpt_n3"
+
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   roadmapWeeks     RoadmapWeek[]
   dailyTasks       DailyTask[]
@@ -106,4 +114,19 @@ model WeeklyReview {
 
   @@unique([goalId, weekNumber])
   @@map("weekly_reviews")
+}
+
+model ResearchCache {
+  id                String   @id @default(uuid())
+  canonicalKey      String   @unique          // e.g. "lang.japanese.jlpt_n3"
+  outcomeEmbedding  String                    // JSON-stringified 768-dim float vector
+  canonicalMethod   Json                      // { methodName, authority, sourceUrl, confidence, velocityTable, rawFindings }
+  hitCount          Int      @default(1)
+  userFeedbackScore Float?                   // populated once a feedback mechanism exists; nullable until then
+  readyForPromotion Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastUsedAt        DateTime @default(now())
+
+  @@map("research_cache")
 }
