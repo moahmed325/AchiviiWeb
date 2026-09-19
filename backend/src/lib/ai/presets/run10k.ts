@@ -12,6 +12,13 @@ export const run10kPreset: CertifiedPresetBlueprint = {
   primaryDomain: 'Endurance Running & Aerobic Conditioning',
   clarifiedOutcome: 'Run a 10K in under 50 minutes with aerobic efficiency and continuous pacing',
   badge: 'Certified Endurance Science · Jack Daniels VDOT & 80/20 Polarized Base',
+  capabilities: [
+    'Zone 2 Aerobic Base Volume & Mitochondrial Biogenesis',
+    '170-180 SPM Cadence & Midfoot Impact Mechanics',
+    'Lactate Threshold Pacing & Cruise Intervals',
+    'VO2 Max Interval Economy (800m Repeats)',
+    'Race Pacing Simulation & Carbohydrate/Hydration Strategy'
+  ],
   scientificFrameworks: [
     {
       name: "Jack Daniels' VDOT Pacing Formula",

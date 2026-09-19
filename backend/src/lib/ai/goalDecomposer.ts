@@ -1,5 +1,16 @@
 import { generateStructuredContent } from './gemini.js';
-import { findPresetForGoal, getVDOTPacingEntry, CertifiedPresetBlueprint, EvidenceTriad } from './presets/index.js';
+import {
+  findPresetForGoal,
+  getVDOTPacingEntry,
+  getBPMPacingEntry,
+  getSaaSVelocityEntry,
+  getLanguageVelocityEntry,
+  getRecompPacingEntry,
+  getYouTubeVelocityEntry,
+  getWritingVelocityEntry,
+  CertifiedPresetBlueprint,
+  EvidenceTriad
+} from './presets/index.js';
 
 export interface GoalClarification {
   clarifiedOutcome: string;
@@ -158,13 +169,15 @@ export async function clarifyGoalWithAI(rawGoal: string): Promise<GoalClarificat
     return {
       clarifiedOutcome: preset.clarifiedOutcome,
       primaryDomain: preset.primaryDomain,
-      capabilities: [
-        'Zone 2 Aerobic Base Volume & Mitochondrial Biogenesis',
-        '170-180 SPM Cadence & Midfoot Impact Mechanics',
-        'Lactate Threshold Pacing & Cruise Intervals',
-        'VO2 Max Interval Economy (800m Repeats)',
-        'Race Pacing Simulation & Carbohydrate/Hydration Strategy'
-      ],
+      capabilities: preset.capabilities && preset.capabilities.length > 0
+        ? preset.capabilities
+        : [
+            'Foundational Mechanics & Posture',
+            'Deliberate Practice Micro-Drills',
+            'Tempo & Rhythm Automation',
+            'Error Auditing & Friction Recovery',
+            'Capstone Repertoire Integration'
+          ],
       scientificFrameworks: preset.scientificFrameworks,
       verificationCriteria: preset.verificationCriteria,
       followUpQuestions: preset.diagnosticQuestions,
@@ -291,12 +304,12 @@ CONFLICT RULE: When the scientifically optimal approach and the most commonly-su
   const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
   let presetEnforcementPrompt = '';
   if (preset) {
-    let vdotSection = '';
+    let pacingSection = '';
     if (preset.vdotPacingTable) {
       const baselineVal = answers['baseline5k'] || answers['What is your current comfortable 5K running baseline?'] || Object.values(answers)[0];
       const vdot = getVDOTPacingEntry(baselineVal, preset);
       if (vdot) {
-        vdotSection = `
+        pacingSection = `
 CERTIFIED VDOT PACING MATRIX (Calculated for user's baseline: "${vdot.label}"):
 - Easy (Zone 2) Pace: ${vdot.easyPace}
 - Marathon Pace: ${vdot.marathonPace}
@@ -306,6 +319,82 @@ CERTIFIED VDOT PACING MATRIX (Calculated for user's baseline: "${vdot.label}"):
 - Target Heart Rate: ${vdot.targetHeartRateRange}
 MANDATORY: You MUST integrate these exact calculated pace splits and heart rate targets into the task instructions, focus cues, and challenge drill targets!`;
       }
+    } else if (preset.bpmPacingTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current comfortable acoustic guitar playing baseline?'] || Object.values(answers)[0];
+      const bpmEntry = getBPMPacingEntry(baselineVal, preset);
+      if (bpmEntry) {
+        pacingSection = `
+CERTIFIED METRONOME & TRANSITION PACING MATRIX (Calculated for user's baseline: "${bpmEntry.label}"):
+- Starting Practice Tempo: ${bpmEntry.startingPracticeBPM} BPM (steady 4/4 downbeats)
+- 1-Minute Chord Change Target: ${bpmEntry.switchesTargetPerMin} clean switches per minute
+- Song Performance Target Tempo: ${bpmEntry.songTargetBPM} BPM
+- Calibrated Metronome Target: ${bpmEntry.targetMetronomeRange}
+MANDATORY: You MUST integrate these exact BPM tempos, transition switches/min, and metronome targets into the daily instructions, focus cues, and repetition challenges!`;
+      }
+    } else if (preset.saasVelocityTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current technical engineering baseline?'] || Object.values(answers)[0];
+      const saasEntry = getSaaSVelocityEntry(baselineVal, preset);
+      if (saasEntry) {
+        pacingSection = `
+CERTIFIED SAAS VELOCITY & ARCHITECTURE MATRIX (Calculated for user's baseline: "${saasEntry.label}"):
+- Recommended Tech Stack: ${saasEntry.recommendedStack}
+- Core Loop Scope: ${saasEntry.coreLoopScope}
+- Target Launch Milestone: Week ${saasEntry.targetLaunchWeek}
+- Founder Guidance: ${saasEntry.guidance}
+MANDATORY: You MUST integrate this recommended stack, core-loop scoping, and rapid deployment guidance into the daily task instructions, focus cues, and deliverable checklists!`;
+      }
+    } else if (preset.languageVelocityTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current spoken Spanish baseline?'] || Object.values(answers)[0];
+      const langEntry = getLanguageVelocityEntry(baselineVal, preset);
+      if (langEntry) {
+        pacingSection = `
+CERTIFIED LANGUAGE VELOCITY & CEFR PACING MATRIX (Calculated for user's baseline: "${langEntry.label}"):
+- Active Functional Vocabulary Target: ${langEntry.activeVocabTarget} words
+- Spoken Output Rate: ${langEntry.speechRateWPM} words per minute
+- Curricular Focus: ${langEntry.coreFocus}
+- Daily Recommended Immersion: ${langEntry.targetDailyMinutes} minutes
+MANDATORY: Every daily task MUST mandate verbal spoken vocalization (speaking aloud, shadowing, or voice note recording). Banish silent reading drills. Embed active vocabulary targets and speech rate targets directly into daily instructions!`;
+      }
+    } else if (preset.recompPacingTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current training experience and body composition baseline?'] || Object.values(answers)[0];
+      const recompEntry = getRecompPacingEntry(baselineVal, preset);
+      if (recompEntry) {
+        pacingSection = `
+CERTIFIED PHYSIQUE RECOMPOSITION & NUTRITION MATRIX (Calculated for user's baseline: "${recompEntry.label}"):
+- Daily Calorie Deficit: ${recompEntry.dailyCalorieDeficit} kcal (maintain consistent energy balance)
+- Daily Protein Target: ${recompEntry.proteinTargetGPerKg} g/kg of bodyweight (distributed across 3–4 meals with ≥3g leucine each)
+- Weekly Hypertrophy Volume: ${recompEntry.weeklySetsPerMuscle} (1–3 RIR with strict 3-second eccentric control)
+- Daily NEAT Target: ${recompEntry.neatStepTarget.toLocaleString()} steps per day (Zone 1/2 expenditure, no hard cardio burnout)
+- Refeed Protocol: ${recompEntry.refeedFrequency}
+- Coach Strategy: ${recompEntry.guidance}
+MANDATORY: You MUST integrate these exact caloric deficit targets, protein targets (g/kg), 3-second eccentric tempos, RIR guidance, and 8,000–10,000 NEAT step targets into the daily workout instructions, focus cues, and repetition challenges!`;
+      }
+    } else if (preset.youtubeVelocityTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current YouTube production and on-camera experience?'] || Object.values(answers)[0];
+      const ytEntry = getYouTubeVelocityEntry(baselineVal, preset);
+      if (ytEntry) {
+        pacingSection = `
+CERTIFIED CREATOR VELOCITY & PACKAGING MATRIX (Calculated for user's baseline: "${ytEntry.label}"):
+- Target Video Runtime: ${ytEntry.targetRuntimeMins}
+- First-30-Second Retention Benchmark: ≥${ytEntry.first30sRetentionTarget}%
+- Minimum CTR Benchmark: ≥${ytEntry.ctrTarget}%
+- Weekly Production Hours Budget: ${ytEntry.weeklyProductionHours} hours (4-hour maximum lean edit constraint)
+- Creator Guidance: ${ytEntry.guidance}
+MANDATORY: You MUST integrate these exact runtime targets, 30-second hook principles, 4-hour editing limits, and Title/Thumbnail packaging standards into the daily task instructions, focus cues, and deliverable checklists!`;
+      }
+    } else if (preset.writingVelocityTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current writing experience and daily habit baseline?'] || Object.values(answers)[0];
+      const bookEntry = getWritingVelocityEntry(baselineVal, preset);
+      if (bookEntry) {
+        pacingSection = `
+CERTIFIED AUTHOR VELOCITY & DRAFTING MATRIX (Calculated for user's baseline: "${bookEntry.label}"):
+- Daily Word Quota: ${bookEntry.dailyTargetWords} words per drafting session
+- Weekly Target Volume: ${bookEntry.weeklyWordQuota} words per week
+- Target Chapter Count: ${bookEntry.targetChapterCount} chapters (~3,000 words each)
+- Recommended Drafting Block: ${bookEntry.recommendedSessionWindow} (Enforce Closed-Door Drafting, zero editing)
+- Author Guidance: ${bookEntry.guidance}
+MANDATORY: You MUST integrate these exact daily word quotas (350–750 words), 3-beat chapter structures, [TK] placeholder conventions, and closed-door drafting rules into the daily task instructions, focus cues, and repetition challenges!`;
+      }
     }
 
     presetEnforcementPrompt = `
@@ -313,13 +402,13 @@ MANDATORY: You MUST integrate these exact calculated pace splits and heart rate 
 CERTIFIED MASTER BLUEPRINT ENFORCEMENT: ${preset.badge}
 ================================================================================
 ${preset.expertPromptContext}
-${vdotSection}
+${pacingSection}
 
 INVARIANT 12-WEEK PERIODIZATION SKELETON:
 ${preset.weeks.map(w => `- Week ${w.weekNumber} [${w.phase}] (Intensity ${w.targetIntensity}%): "${w.theme}" | Objective: "${w.objective}" | Milestone: "${w.keyMilestone}"`).join('\n')}
 
 For the "weeks" array in your JSON output, you MUST follow the 12 invariant themes, objectives, and milestones above!
-For "initialTasks" (Week 1), generate 7 daily tasks based on the verified workout progression (Aerobic Base, Cadence Strides, Rest/Mobility, Aerobic Efficiency, Runner Core, Long Run, Weekly Audit).
+For "initialTasks" (Week 1), generate 7 daily tasks based on the verified workout progression from the blueprint's Week 1 schedule.
 ================================================================================
 `;
   }
@@ -829,18 +918,109 @@ function getDeterministicPresetTasks(
 
   const restDayIndices = planVariant === 'minimal' ? [2, 4, 6] : planVariant === 'accelerated' ? [6] : [3, 6];
 
+  const isGuitar = preset.id === 'guitar5songs' || preset.primaryDomain.toLowerCase().includes('guitar');
+  const isSaaS = preset.id === 'saas_first_customer' || preset.primaryDomain.toLowerCase().includes('software') || preset.primaryDomain.toLowerCase().includes('saas');
+  const isSpanish = preset.id === 'spanish_conversation' || preset.primaryDomain.toLowerCase().includes('spanish') || preset.primaryDomain.toLowerCase().includes('language');
+  const isRecomp = preset.id === 'body_recomposition_90day' || preset.primaryDomain.toLowerCase().includes('physique') || preset.primaryDomain.toLowerCase().includes('recomp');
+  const isYouTube = preset.id === 'youtube_12_videos' || preset.primaryDomain.toLowerCase().includes('video') || preset.primaryDomain.toLowerCase().includes('youtube');
+  const isBook = preset.id === 'book_30k_words' || preset.primaryDomain.toLowerCase().includes('writing') || preset.primaryDomain.toLowerCase().includes('author') || preset.primaryDomain.toLowerCase().includes('book');
+
+  const activeArchetypes = archetypes.filter(a => !a.isRestDay);
+  const restArchetypes = archetypes.filter(a => a.isRestDay);
+  let activeIdx = 0;
+  let restIdx = 0;
+
   for (let d = 0; d < 7; d++) {
     const currentDate = new Date(startDate);
     currentDate.setDate(currentDate.getDate() + d);
     const dayOfWeek = dayNames[currentDate.getDay()];
-    const isRest = restDayIndices.includes(d);
+    const isRestDay = restDayIndices.includes(d);
 
-    const arch = archetypes[d] || archetypes[0];
-    const isRestDay = isRest || arch.isRestDay;
+    const arch = isRestDay
+      ? (restArchetypes[restIdx++ % Math.max(1, restArchetypes.length)] || archetypes[0])
+      : (activeArchetypes[activeIdx++ % Math.max(1, activeArchetypes.length)] || archetypes[0]);
     const durMins = isRestDay ? 15 : dailyMins;
 
     const detailedSteps = arch.drillStepsTemplate.map((step) => {
       const stepMins = Math.max(3, Math.round(durMins * step.durationRatio));
+      const challenge: StepChallenge = isRestDay
+        ? isBook
+          ? {
+              type: 'active_recall',
+              question: 'What core lesson in narrative pacing, sentence rhythm, or authorial voice did you take from today\'s reading?',
+              keyTakeaway: 'Reading masterworks internalizes the music and rhythm of great prose, refilling the creative well for tomorrow\'s draft.'
+            }
+          : isYouTube
+          ? {
+              type: 'checklist',
+              items: [
+                { id: 'c1', label: 'Verify video is public and tags/description are complete' },
+                { id: 'c2', label: 'Verify custom thumbnail renders clearly on mobile screen' },
+                { id: 'c3', label: 'Lock in next week topic on 10-idea spreadsheet' }
+              ]
+            }
+          : isRecomp
+          ? {
+              type: 'checklist',
+              items: [
+                { id: 'c1', label: 'Hit 8,000–10,000 NEAT steps before evening' },
+                { id: 'c2', label: 'Hit 2.0g/kg protein target across 3–4 meals' },
+                { id: 'c3', label: 'Log morning weigh-in and update 7-day rolling average' }
+              ]
+            }
+          : {
+              type: 'active_recall',
+              question: isSpanish
+                ? 'What were the 3 most useful Spanish sentence frames or anchor verbs you vocalized this week?'
+                : isSaaS
+                ? 'What was your primary technical breakthrough or user friction point this week?'
+                : 'What was your primary technical breakthrough or friction point this week?',
+              keyTakeaway: isSpanish
+                ? 'High-frequency verb anchors (quiero, puedo, tengo que, voy a) connect 70% of spoken thoughts without translation lag.'
+                : isSaaS
+                ? 'Shipping early to production and gathering feedback beats premature optimization.'
+                : 'Consistency and callus formation compound with deliberate daily practice.'
+            }
+        : isBook
+        ? {
+            type: 'repetitions',
+            drillName: step.title,
+            targetCount: 500,
+            totalSets: 1,
+            unit: 'net drafted words (no editing)'
+          }
+        : isYouTube
+        ? {
+            type: 'checklist',
+            items: [
+              { id: 'c1', label: `Execute ${step.title}` },
+              { id: 'c2', label: 'Enforce pattern interrupt or visual B-roll cue' },
+              { id: 'c3', label: 'Export / save work with clean file naming' }
+            ]
+          }
+        : isSpanish
+        ? {
+            type: 'active_recall',
+            question: 'Vocalize the target sentence or anchor frame aloud within 3 seconds of hearing the prompt. Did you speak without pausing in English?',
+            keyTakeaway: 'Speech fluency is motor reflex; producing syllables aloud creates direct neural pathways that silent study cannot build.'
+          }
+        : isSaaS
+        ? {
+            type: 'checklist',
+            items: [
+              { id: 'c1', label: `Execute ${step.title}` },
+              { id: 'c2', label: 'Verify clean TypeScript compilation & zero console errors' },
+              { id: 'c3', label: 'Commit working changes to git' }
+            ]
+          }
+        : {
+            type: 'repetitions',
+            drillName: step.title,
+            targetCount: isRecomp ? 10 : isGuitar ? 30 : 3,
+            totalSets: 3,
+            unit: isRecomp ? 'controlled reps (3s eccentric)' : isGuitar ? 'clean switches' : 'reps'
+          };
+
       return {
         stepNumber: step.stepNumber,
         title: step.title,
@@ -850,19 +1030,65 @@ function getDeterministicPresetTasks(
         pitfallToAvoid: step.pitfallToAvoid,
         layer: step.layer,
         layerReasoning: step.layerReasoning,
-        challenge: {
-          type: 'repetitions' as const,
-          drillName: step.title,
-          targetCount: isRestDay ? 1 : 3,
-          totalSets: isRestDay ? 1 : 3,
-          unit: isRestDay ? 'routine' : 'reps'
-        },
-        resourceTitle: 'Jack Daniels Running Formula — Cadence & VDOT Principles',
-        resourceUrl: 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
+        challenge,
+        resourceTitle: isBook
+          ? 'Steven Pressfield War of Art & William Zinsser Writing Guide'
+          : isYouTube
+          ? 'Paddy Galloway & MrBeast Retention Formula Guide'
+          : isRecomp
+          ? 'Mechanisms of Hypertrophy & Eric Helms Nutrition Pyramid'
+          : isSpanish
+          ? 'Notes in Spanish / Coffee Break Spanish Audio Practice'
+          : isSaaS
+          ? 'Vertical Slice Architecture & Lean SaaS Delivery Guide'
+          : isGuitar
+          ? 'JustinGuitar Beginner Grade 1 Course & Practice Routine'
+          : 'Jack Daniels Running Formula — Cadence & VDOT Principles',
+        resourceUrl: isBook
+          ? 'https://stevenpressfield.com/books/the-war-of-art/'
+          : isYouTube
+          ? 'https://www.creatorhooks.com/'
+          : isRecomp
+          ? 'https://www.strongerbyscience.com/hypertrophy-handbook-review/'
+          : isSpanish
+          ? 'https://www.notesinspanish.com/'
+          : isSaaS
+          ? 'https://www.jimmybogard.com/vertical-slice-architecture/'
+          : isGuitar
+          ? 'https://www.justinguitar.com/classes/beginner-guitar-course-grade-1'
+          : 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
         resourceType: 'guide' as const,
-        resourceWhy: 'Follow this proven framework to calibrate heart rate zones and avoid overreaching.'
+        resourceWhy: isBook
+          ? 'Follow professional mindset principles to defeat resistance and maintain uninterrupted daily output.'
+          : isYouTube
+          ? 'Follow proven thumbnail curiosity frameworks, retention pacing, and visual storytelling.'
+          : isRecomp
+          ? 'Follow research-proven mechanical tension, RIR boundaries, and protein distribution guidelines.'
+          : isSpanish
+          ? 'Listen to natural, authentic native dialogues and vocalize responses aloud in real-time.'
+          : isSaaS
+          ? 'Follow vertical slice principles to deliver complete end-to-end user features rather than isolated tiers.'
+          : isGuitar
+          ? 'Follow this structured curriculum for correct finger placement and time-boxed transition drills.'
+          : 'Follow this proven framework to calibrate heart rate zones and avoid overreaching.'
       };
     });
+
+    const whereLocation = isRestDay
+      ? 'Quiet space / chair'
+      : isBook
+      ? 'Distraction-free writing desk / offline laptop in fullscreen mode'
+      : isYouTube
+      ? 'Dedicated recording desk / studio corner with camera, key light & lapel mic'
+      : isRecomp
+      ? 'Weight training gym / home rack with dumbbells & barbells'
+      : isSpanish
+      ? 'Quiet room / commute with voice recorder & headphones'
+      : isGuitar
+      ? 'Dedicated practice chair with guitar stand & metronome'
+      : isSaaS
+      ? 'Development workstation with IDE, terminal & browser'
+      : 'Running route / treadmill';
 
     tasks.push({
       dayNumber: d + 1,
@@ -871,11 +1097,41 @@ function getDeterministicPresetTasks(
       isRestDay,
       durationMinutes: durMins,
       slotTime,
-      implementationIntention: `When: ${slotTime} | Where: ${isRestDay ? 'Quiet room / floor mat' : 'Running route / treadmill'} | Action: ${arch.title} (${durMins}m)`,
-      resourceTitle: 'Jack Daniels Running Formula & 80/20 Pacing Guide',
-      resourceUrl: 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
+      implementationIntention: `When: ${slotTime} | Where: ${whereLocation} | Action: ${arch.title} (${durMins}m)`,
+      resourceTitle: isBook
+        ? 'Stephen King On Writing & Donald Miller StoryBrand Blueprint'
+        : isYouTube
+        ? 'Ali Abdaal Creator Engine & Colin and Samir Storytelling Guide'
+        : isRecomp
+        ? 'Renaissance Periodization & Dr. Brad Schoenfeld Hypertrophy Guide'
+        : isSaaS
+        ? 'The Lean Startup & Y Combinator MVP Guide'
+        : isGuitar
+        ? 'JustinGuitar Grade 1 Core Curriculum & Song Repertoire'
+        : 'Jack Daniels Running Formula & 80/20 Pacing Guide',
+      resourceUrl: isBook
+        ? 'https://storybrand.com/'
+        : isYouTube
+        ? 'https://aliabdaal.com/newsletter/how-to-start-a-youtube-channel/'
+        : isRecomp
+        ? 'https://renaissanceperiodization.com/expert-advice/hypertrophy-training-guide'
+        : isSaaS
+        ? 'https://www.ycombinator.com/library/4D-how-to-build-an-mvp'
+        : isGuitar
+        ? 'https://www.justinguitar.com/classes/beginner-guitar-course-grade-1'
+        : 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
       resourceType: 'guide',
-      resourceWhy: 'Authoritative endurance reference for pacing and biomechanics.',
+      resourceWhy: isBook
+        ? 'Premier methodology for reader transformation arcs, chapter beat outlines, and concise prose.'
+        : isYouTube
+        ? 'Authoritative framework for weekly batch production, title packaging, and YouTube retention dynamics.'
+        : isRecomp
+        ? 'Authoritative biomechanical and nutritional framework for fat loss with muscle retention.'
+        : isSaaS
+        ? 'Gold standard methodology for launching fast and acquiring your first paying customers.'
+        : isGuitar
+        ? 'Premier structured reference for acoustic guitar mechanics and chord fluency.'
+        : 'Authoritative endurance reference for pacing and biomechanics.',
       detailedSteps
     });
   }

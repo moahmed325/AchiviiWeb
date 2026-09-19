@@ -7,7 +7,7 @@ import {
 
 describe('Goal Decomposer & 12-Week Architecture', () => {
   it('clarifies goal with 5-8 capabilities, scientific frameworks, and capstone criteria', async () => {
-    const clarification = await clarifyGoalWithAI('Master acoustic guitar campfire songs');
+    const clarification = await clarifyGoalWithAI('Master watercolor landscape painting');
 
     expect(clarification).toBeDefined();
     expect(clarification.clarifiedOutcome).toContain('90');
@@ -17,6 +17,190 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     expect(clarification.scientificFrameworks.length).toBeGreaterThanOrEqual(2);
     expect(clarification.verificationCriteria).toBeDefined();
     expect(clarification.followUpQuestions.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('correctly matches and clarifies guitarPreset for acoustic guitar goals', async () => {
+    const clarification = await clarifyGoalWithAI('Play 5 iconic guitar songs from memory');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Acoustic Guitar');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(5);
+    expect(clarification.clarifiedOutcome).toContain('guitar songs');
+  });
+
+  it('correctly matches and clarifies saasPreset for full-stack SaaS goals', async () => {
+    const clarification = await clarifyGoalWithAI('Build and ship a SaaS to first paying user');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Software Engineering');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(5);
+    expect(clarification.clarifiedOutcome).toContain('SaaS');
+  });
+
+  it('correctly matches and clarifies spanishPreset for Spanish conversational goals', async () => {
+    const clarification = await clarifyGoalWithAI('Hold a 15-minute conversational dialogue in Spanish');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Language Acquisition');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(5);
+    expect(clarification.clarifiedOutcome).toContain('dialogue in Spanish');
+  });
+
+  it('correctly matches and clarifies recompPreset for body recomposition and fat loss goals', async () => {
+    const clarification = await clarifyGoalWithAI('Drop 5% body fat and build lean muscle');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Physique Transformation');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(5);
+    expect(clarification.clarifiedOutcome).toContain('body fat');
+  });
+
+  it('correctly matches and clarifies youtubePreset for content creation and YouTube goals', async () => {
+    const clarification = await clarifyGoalWithAI('Launch a YouTube channel and publish 12 videos');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Audience Building');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(5);
+    expect(clarification.clarifiedOutcome).toContain('YouTube');
+  });
+
+  it('correctly matches and clarifies bookPreset for writing and publishing goals', async () => {
+    const clarification = await clarifyGoalWithAI('Write and publish a 30,000-word book');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Creative Writing');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(5);
+    expect(clarification.clarifiedOutcome).toContain('manuscript');
+  });
+
+  it('generates a full 12-week Body Recomposition plan with mechanical tension and refeed gates', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Drop 5% body fat and build lean muscle',
+      'Drop 5% body fat while preserving and building lean skeletal muscle mass through progressive overload and caloric deficit calibration',
+      { baseline: 'Beginner / Untrained' },
+      {
+        dailyMinutes: 60,
+        preferredSlot: 'morning',
+        planVariant: 'steady'
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    expect(plan.weeks[3].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[7].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[11].keyMilestone).toContain('Capstone');
+    expect(plan.initialTasks.length).toBe(7);
+
+    // Verify resistance repetitions and hypertrophy resources
+    const activeTasks = plan.initialTasks.filter(t => !t.isRestDay);
+    expect(activeTasks.length).toBe(5);
+    expect(activeTasks[0].detailedSteps[1].challenge.type).toBe('repetitions');
+    expect(activeTasks[0].detailedSteps[1].resourceTitle).toContain('Hypertrophy');
+  });
+
+  it('generates a full 12-week Book writing plan with closed-door drafting and editing gates', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Write and publish a 30,000-word book',
+      'Write, developmental-edit, and format a complete, polished 30,000-word non-fiction book manuscript ready for publishing',
+      { baseline: 'First-Time Aspiring Author' },
+      {
+        dailyMinutes: 60,
+        preferredSlot: 'morning',
+        planVariant: 'steady'
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    expect(plan.weeks[3].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[7].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[11].keyMilestone).toContain('Capstone');
+    expect(plan.initialTasks.length).toBe(7);
+
+    // Verify drafting word quota repetition challenges
+    const activeTasks = plan.initialTasks.filter(t => !t.isRestDay);
+    expect(activeTasks.length).toBe(5);
+    expect(activeTasks[2].detailedSteps[1].challenge.type).toBe('repetitions');
+    expect(activeTasks[2].detailedSteps[1].resourceTitle).toContain('Pressfield');
+  });
+
+  it('generates a full 12-week YouTube plan with batching and 4-hour editing gates', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Launch a YouTube channel and publish 12 videos',
+      'Launch an active YouTube channel, establish a weekly production pipeline, and publish 12 high-retention videos with custom packaging',
+      { baseline: 'Camera-Shy Beginner' },
+      {
+        dailyMinutes: 60,
+        preferredSlot: 'afternoon',
+        planVariant: 'steady'
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    expect(plan.weeks[3].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[7].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[11].keyMilestone).toContain('Capstone');
+    expect(plan.initialTasks.length).toBe(7);
+
+    // Verify creator checklist challenges and packaging resources
+    const activeTasks = plan.initialTasks.filter(t => !t.isRestDay);
+    expect(activeTasks.length).toBe(5);
+    expect(activeTasks[0].detailedSteps[0].challenge.type).toBe('checklist');
+    expect(activeTasks[0].detailedSteps[0].resourceTitle).toContain('Retention');
+  });
+
+  it('generates a full 12-week SaaS plan with vertical slice and monetization gates', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Build and ship a SaaS to first paying user',
+      'Build, deploy, and launch a full-stack SaaS web application to production and acquire your first paying customer',
+      { baseline: 'Full-stack developer' },
+      {
+        dailyMinutes: 45,
+        preferredSlot: 'morning',
+        planVariant: 'steady'
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    expect(plan.weeks[3].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[7].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[11].keyMilestone).toContain('Capstone');
+    expect(plan.initialTasks.length).toBe(7);
+  });
+
+  it('generates a full 12-week Spanish conversational plan with comprehensible input and verbal gates', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Hold a 15-minute conversational dialogue in Spanish',
+      'Hold an unscripted 15-minute fluid conversational dialogue in Spanish with a native speaker without translation hesitation',
+      { baseline: 'Complete beginner (A0)' },
+      {
+        dailyMinutes: 30,
+        preferredSlot: 'evening',
+        planVariant: 'steady'
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    expect(plan.weeks[3].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[7].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[11].keyMilestone).toContain('Capstone');
+    expect(plan.initialTasks.length).toBe(7);
+
+    // Verify verbal challenges and resources
+    const activeTasks = plan.initialTasks.filter(t => !t.isRestDay);
+    expect(activeTasks.length).toBe(5);
+    expect(activeTasks[0].detailedSteps[0].challenge.type).toBe('active_recall');
+    expect(activeTasks[0].detailedSteps[0].resourceTitle).toContain('Notes in Spanish');
   });
 
   it('generates 12 weeks with progressive overload and milestone gates at weeks 4, 8, and 12', async () => {

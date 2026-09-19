@@ -1,11 +1,23 @@
-import { CertifiedPresetBlueprint, VDOTPacingEntry } from './types.js';
+import { CertifiedPresetBlueprint, VDOTPacingEntry, BPMPacingEntry, SaaSVelocityEntry, LanguageVelocityEntry, RecompPacingEntry, YouTubeVelocityEntry, WritingVelocityEntry } from './types.js';
 import { run10kPreset } from './run10k.js';
+import { guitarPreset } from './guitar.js';
+import { saasPreset } from './saas.js';
+import { spanishPreset } from './spanish.js';
+import { recompPreset } from './recomp.js';
+import { youtubePreset } from './youtube.js';
+import { bookPreset } from './book.js';
 
 export * from './types.js';
-export { run10kPreset };
+export { run10kPreset, guitarPreset, saasPreset, spanishPreset, recompPreset, youtubePreset, bookPreset };
 
 export const CERTIFIED_PRESETS: CertifiedPresetBlueprint[] = [
-  run10kPreset
+  run10kPreset,
+  guitarPreset,
+  saasPreset,
+  spanishPreset,
+  recompPreset,
+  youtubePreset,
+  bookPreset
 ];
 
 /**
@@ -58,3 +70,166 @@ export function getVDOTPacingEntry(
 
   return blueprint.vdotPacingTable[1];
 }
+
+/**
+ * Helper to look up the BPM metronome pacing entry for a user given their baseline diagnostic answer.
+ */
+export function getBPMPacingEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): BPMPacingEntry | undefined {
+  if (!blueprint.bpmPacingTable || !blueprint.bpmPacingTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.bpmPacingTable[0]; // default to complete_beginner
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('complete') || lower.includes('never') || lower.includes('zero') || lower.includes('first chords')) {
+    return blueprint.bpmPacingTable.find(b => b.baselineKey === 'complete_beginner') || blueprint.bpmPacingTable[0];
+  }
+  if (lower.includes('early') || lower.includes('2-3') || lower.includes('pause') || lower.includes('switch')) {
+    return blueprint.bpmPacingTable.find(b => b.baselineKey === 'early_beginner') || blueprint.bpmPacingTable[1];
+  }
+  if (lower.includes('novice') || lower.includes('plateau') || lower.includes('barre') || lower.includes('singing')) {
+    return blueprint.bpmPacingTable.find(b => b.baselineKey === 'novice_plateau') || blueprint.bpmPacingTable[2];
+  }
+  if (lower.includes('rusty') || lower.includes('return') || lower.includes('past') || lower.includes('rebuilding')) {
+    return blueprint.bpmPacingTable.find(b => b.baselineKey === 'rusty_returner') || blueprint.bpmPacingTable[3];
+  }
+
+  return blueprint.bpmPacingTable[0];
+}
+
+/**
+ * Helper to look up the SaaS velocity entry for a user given their baseline diagnostic answer.
+ */
+export function getSaaSVelocityEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): SaaSVelocityEntry | undefined {
+  if (!blueprint.saasVelocityTable || !blueprint.saasVelocityTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.saasVelocityTable[0]; // default to first_time
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('first') || lower.includes('beginner') || lower.includes('learning')) {
+    return blueprint.saasVelocityTable.find(s => s.baselineKey === 'first_time') || blueprint.saasVelocityTable[0];
+  }
+  if (lower.includes('frontend') || lower.includes('react') || lower.includes('ui')) {
+    return blueprint.saasVelocityTable.find(s => s.baselineKey === 'frontend_spec') || blueprint.saasVelocityTable[1];
+  }
+  if (lower.includes('backend') || lower.includes('systems') || lower.includes('sql') || lower.includes('api')) {
+    return blueprint.saasVelocityTable.find(s => s.baselineKey === 'backend_spec') || blueprint.saasVelocityTable[2];
+  }
+  if (lower.includes('full') || lower.includes('experienced') || lower.includes('stack')) {
+    return blueprint.saasVelocityTable.find(s => s.baselineKey === 'full_stack') || blueprint.saasVelocityTable[3];
+  }
+
+  return blueprint.saasVelocityTable[0];
+}
+
+/**
+ * Helper to look up the Language velocity entry for a user given their baseline diagnostic answer.
+ */
+export function getLanguageVelocityEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): LanguageVelocityEntry | undefined {
+  if (!blueprint.languageVelocityTable || !blueprint.languageVelocityTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.languageVelocityTable[0]; // default to complete_beginner
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('complete') || lower.includes('a0') || lower.includes('scratch') || lower.includes('never')) {
+    return blueprint.languageVelocityTable.find(l => l.baselineKey === 'complete_beginner') || blueprint.languageVelocityTable[0];
+  }
+  if (lower.includes('false') || lower.includes('a1') || lower.includes('scattered') || lower.includes('app')) {
+    return blueprint.languageVelocityTable.find(l => l.baselineKey === 'false_beginner') || blueprint.languageVelocityTable[1];
+  }
+  if (lower.includes('intermediate') || lower.includes('a2') || lower.includes('plateau') || lower.includes('freeze')) {
+    return blueprint.languageVelocityTable.find(l => l.baselineKey === 'intermediate_plateau') || blueprint.languageVelocityTable[2];
+  }
+  if (lower.includes('rusty') || lower.includes('b1') || lower.includes('used to') || lower.includes('refresher')) {
+    return blueprint.languageVelocityTable.find(l => l.baselineKey === 'rusty_refresher') || blueprint.languageVelocityTable[3];
+  }
+
+  return blueprint.languageVelocityTable[0];
+}
+
+/**
+ * Helper to look up the Recomp pacing entry for a user given their baseline diagnostic answer.
+ */
+export function getRecompPacingEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): RecompPacingEntry | undefined {
+  if (!blueprint.recompPacingTable || !blueprint.recompPacingTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.recompPacingTable[0]; // default to true_beginner
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('beginner') || lower.includes('untrained') || lower.includes('never') || lower.includes('little to no')) {
+    return blueprint.recompPacingTable.find(r => r.baselineKey === 'true_beginner') || blueprint.recompPacingTable[0];
+  }
+  if (lower.includes('skinny') || lower.includes('sedentary') || lower.includes('normal bmi') || lower.includes('abdominal')) {
+    return blueprint.recompPacingTable.find(r => r.baselineKey === 'skinny_fat') || blueprint.recompPacingTable[1];
+  }
+  if (lower.includes('overfat') || lower.includes('intermediate') || lower.includes('20%') || lower.includes('1+')) {
+    return blueprint.recompPacingTable.find(r => r.baselineKey === 'overfat_intermediate') || blueprint.recompPacingTable[2];
+  }
+  if (lower.includes('athletic') || lower.includes('advanced') || lower.includes('single-digit') || lower.includes('cut')) {
+    return blueprint.recompPacingTable.find(r => r.baselineKey === 'athletic_cut') || blueprint.recompPacingTable[3];
+  }
+
+  return blueprint.recompPacingTable[0];
+}
+
+/**
+ * Helper to look up the YouTube velocity entry for a user given their baseline diagnostic answer.
+ */
+export function getYouTubeVelocityEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): YouTubeVelocityEntry | undefined {
+  if (!blueprint.youtubeVelocityTable || !blueprint.youtubeVelocityTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.youtubeVelocityTable[0]; // default to camera_shy_beginner
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('shy') || lower.includes('beginner') || lower.includes('never recorded') || lower.includes('presence')) {
+    return blueprint.youtubeVelocityTable.find(y => y.baselineKey === 'camera_shy_beginner') || blueprint.youtubeVelocityTable[0];
+  }
+  if (lower.includes('expert') || lower.includes('educator') || lower.includes('knowledge') || lower.includes('deep')) {
+    return blueprint.youtubeVelocityTable.find(y => y.baselineKey === 'domain_expert') || blueprint.youtubeVelocityTable[1];
+  }
+  if (lower.includes('casual') || lower.includes('hobbyist') || lower.includes('basic editing') || lower.includes('struggle')) {
+    return blueprint.youtubeVelocityTable.find(y => y.baselineKey === 'casual_hobbyist') || blueprint.youtubeVelocityTable[2];
+  }
+  if (lower.includes('fast') || lower.includes('marketer') || lower.includes('growth') || lower.includes('comfortable')) {
+    return blueprint.youtubeVelocityTable.find(y => y.baselineKey === 'fast_track') || blueprint.youtubeVelocityTable[3];
+  }
+
+  return blueprint.youtubeVelocityTable[0];
+}
+
+/**
+ * Helper to look up the Writing velocity entry for a user given their baseline diagnostic answer.
+ */
+export function getWritingVelocityEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): WritingVelocityEntry | undefined {
+  if (!blueprint.writingVelocityTable || !blueprint.writingVelocityTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.writingVelocityTable[0]; // default to first_time_author
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('first') || lower.includes('aspiring') || lower.includes('never written') || lower.includes('momentum')) {
+    return blueprint.writingVelocityTable.find(w => w.baselineKey === 'first_time_author') || blueprint.writingVelocityTable[0];
+  }
+  if (lower.includes('expert') || lower.includes('professional') || lower.includes('deep domain') || lower.includes('articles')) {
+    return blueprint.writingVelocityTable.find(w => w.baselineKey === 'subject_matter_expert') || blueprint.writingVelocityTable[1];
+  }
+  if (lower.includes('fiction') || lower.includes('story') || lower.includes('novella') || lower.includes('narrative')) {
+    return blueprint.writingVelocityTable.find(w => w.baselineKey === 'fiction_novella') || blueprint.writingVelocityTable[2];
+  }
+  if (lower.includes('prolific') || lower.includes('fast') || lower.includes('1,000') || lower.includes('blogger')) {
+    return blueprint.writingVelocityTable.find(w => w.baselineKey === 'prolific_drafter') || blueprint.writingVelocityTable[3];
+  }
+
+  return blueprint.writingVelocityTable[0];
+}
+
