@@ -82,6 +82,16 @@ export interface WritingVelocityEntry {
   guidance: string;
 }
 
+export interface DeepWorkVelocityEntry {
+  baselineKey: string; // e.g. 'scattered_multitasker', 'novice_deep_worker', 'structured_professional', 'advanced_focus'
+  label: string;
+  dailyDeepWorkHours: number; // e.g. 2.0, 2.5, 3.5, 4.0
+  blockLengthMins: number; // e.g. 45, 60, 90
+  screenTimeReductionTarget: number; // e.g. 30, 40, 50 (%)
+  weeklyOutputMultiplier: string; // e.g. '1.5x output', '2x output'
+  guidance: string;
+}
+
 export interface BlueprintPhase {
   phaseNumber: 1 | 2 | 3;
   phaseName: 'Foundation' | 'Acceleration' | 'Mastery';
@@ -166,6 +176,7 @@ export interface CertifiedPresetBlueprint {
   recompPacingTable?: RecompPacingEntry[];
   youtubeVelocityTable?: YouTubeVelocityEntry[];
   writingVelocityTable?: WritingVelocityEntry[];
+  deepWorkVelocityTable?: DeepWorkVelocityEntry[];
   phases: BlueprintPhase[];
   weeks: BlueprintWeekSchedule[];
   expertPromptContext: string;

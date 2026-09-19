@@ -1,4 +1,4 @@
-import { CertifiedPresetBlueprint, VDOTPacingEntry, BPMPacingEntry, SaaSVelocityEntry, LanguageVelocityEntry, RecompPacingEntry, YouTubeVelocityEntry, WritingVelocityEntry } from './types.js';
+import { CertifiedPresetBlueprint, VDOTPacingEntry, BPMPacingEntry, SaaSVelocityEntry, LanguageVelocityEntry, RecompPacingEntry, YouTubeVelocityEntry, WritingVelocityEntry, DeepWorkVelocityEntry } from './types.js';
 import { run10kPreset } from './run10k.js';
 import { guitarPreset } from './guitar.js';
 import { saasPreset } from './saas.js';
@@ -6,9 +6,10 @@ import { spanishPreset } from './spanish.js';
 import { recompPreset } from './recomp.js';
 import { youtubePreset } from './youtube.js';
 import { bookPreset } from './book.js';
+import { deepWorkPreset } from './deepwork.js';
 
 export * from './types.js';
-export { run10kPreset, guitarPreset, saasPreset, spanishPreset, recompPreset, youtubePreset, bookPreset };
+export { run10kPreset, guitarPreset, saasPreset, spanishPreset, recompPreset, youtubePreset, bookPreset, deepWorkPreset };
 
 export const CERTIFIED_PRESETS: CertifiedPresetBlueprint[] = [
   run10kPreset,
@@ -17,7 +18,8 @@ export const CERTIFIED_PRESETS: CertifiedPresetBlueprint[] = [
   spanishPreset,
   recompPreset,
   youtubePreset,
-  bookPreset
+  bookPreset,
+  deepWorkPreset
 ];
 
 /**
@@ -231,5 +233,32 @@ export function getWritingVelocityEntry(
   }
 
   return blueprint.writingVelocityTable[0];
+}
+
+/**
+ * Helper to look up the Deep Work velocity entry for a user given their baseline diagnostic answer.
+ */
+export function getDeepWorkVelocityEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): DeepWorkVelocityEntry | undefined {
+  if (!blueprint.deepWorkVelocityTable || !blueprint.deepWorkVelocityTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.deepWorkVelocityTable[0]; // default to scattered_multitasker
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('scattered') || lower.includes('multitasker') || lower.includes('30') || lower.includes('struggle')) {
+    return blueprint.deepWorkVelocityTable.find(d => d.baselineKey === 'scattered_multitasker') || blueprint.deepWorkVelocityTable[0];
+  }
+  if (lower.includes('novice') || lower.includes('60') || lower.includes('interrupted') || lower.includes('notifications')) {
+    return blueprint.deepWorkVelocityTable.find(d => d.baselineKey === 'novice_deep_worker') || blueprint.deepWorkVelocityTable[1];
+  }
+  if (lower.includes('structured') || lower.includes('professional') || lower.includes('2-hour') || lower.includes('meeting')) {
+    return blueprint.deepWorkVelocityTable.find(d => d.baselineKey === 'structured_professional') || blueprint.deepWorkVelocityTable[2];
+  }
+  if (lower.includes('advanced') || lower.includes('elite') || lower.includes('4-hour') || lower.includes('ceiling')) {
+    return blueprint.deepWorkVelocityTable.find(d => d.baselineKey === 'advanced_focus') || blueprint.deepWorkVelocityTable[3];
+  }
+
+  return blueprint.deepWorkVelocityTable[0];
 }
 

@@ -79,6 +79,42 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     expect(clarification.clarifiedOutcome).toContain('manuscript');
   });
 
+  it('correctly matches and clarifies deepWorkPreset for focus and productivity goals', async () => {
+    const clarification = await clarifyGoalWithAI('Master deep work and double daily cognitive output');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Cognitive Performance');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(5);
+    expect(clarification.clarifiedOutcome).toContain('deep work');
+  });
+
+  it('generates a full 12-week Deep Work plan with ultradian focus blocks and shutdown ritual gates', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Master deep work and double daily cognitive output',
+      'Eliminate digital distractions, master 4 hours of daily unbroken deep work, and double high-leverage cognitive output',
+      { baseline: 'Scattered Multitasker' },
+      {
+        dailyMinutes: 60,
+        preferredSlot: 'morning',
+        planVariant: 'steady'
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    expect(plan.weeks[3].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[7].keyMilestone).toContain('Milestone Gate');
+    expect(plan.weeks[11].keyMilestone).toContain('Capstone');
+    expect(plan.initialTasks.length).toBe(7);
+
+    // Verify deep focus repetition challenges and Newport/Huberman resources
+    const activeTasks = plan.initialTasks.filter(t => !t.isRestDay);
+    expect(activeTasks.length).toBe(5);
+    expect(activeTasks[1].detailedSteps[1].challenge.type).toBe('repetitions');
+    expect(activeTasks[1].detailedSteps[1].resourceTitle).toContain('Huberman');
+  });
+
   it('generates a full 12-week Body Recomposition plan with mechanical tension and refeed gates', async () => {
     const plan = await generate12WeekPlanWithAI(
       'Drop 5% body fat and build lean muscle',

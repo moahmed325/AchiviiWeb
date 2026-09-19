@@ -8,6 +8,7 @@ import {
   getRecompPacingEntry,
   getYouTubeVelocityEntry,
   getWritingVelocityEntry,
+  getDeepWorkVelocityEntry,
   CertifiedPresetBlueprint,
   EvidenceTriad
 } from './presets/index.js';
@@ -394,6 +395,19 @@ CERTIFIED AUTHOR VELOCITY & DRAFTING MATRIX (Calculated for user's baseline: "${
 - Recommended Drafting Block: ${bookEntry.recommendedSessionWindow} (Enforce Closed-Door Drafting, zero editing)
 - Author Guidance: ${bookEntry.guidance}
 MANDATORY: You MUST integrate these exact daily word quotas (350–750 words), 3-beat chapter structures, [TK] placeholder conventions, and closed-door drafting rules into the daily task instructions, focus cues, and repetition challenges!`;
+      }
+    } else if (preset.deepWorkVelocityTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current daily unbroken focus baseline?'] || Object.values(answers)[0];
+      const dwEntry = getDeepWorkVelocityEntry(baselineVal, preset);
+      if (dwEntry) {
+        pacingSection = `
+CERTIFIED DEEP WORK & COGNITIVE VELOCITY MATRIX (Calculated for user's baseline: "${dwEntry.label}"):
+- Daily Deep Work Target: ${dwEntry.dailyDeepWorkHours} hours per day (biologically capped at 4.0h ceiling)
+- Recommended Focus Block Duration: ${dwEntry.blockLengthMins} minutes (unbroken airplane mode)
+- Target Screen Time Reduction: -${dwEntry.screenTimeReductionTarget}% from baseline
+- Weekly Output Target Multiplier: ${dwEntry.weeklyOutputMultiplier}
+- Deep Work Guidance: ${dwEntry.guidance}
+MANDATORY: You MUST integrate these exact focus block lengths (${dwEntry.blockLengthMins}m), zero-interruption airplane mode rules, the physical distraction notepad, and the vocalized daily shutdown ritual into the daily task instructions, focus cues, and deliverable checklists!`;
       }
     }
 
@@ -924,6 +938,7 @@ function getDeterministicPresetTasks(
   const isRecomp = preset.id === 'body_recomposition_90day' || preset.primaryDomain.toLowerCase().includes('physique') || preset.primaryDomain.toLowerCase().includes('recomp');
   const isYouTube = preset.id === 'youtube_12_videos' || preset.primaryDomain.toLowerCase().includes('video') || preset.primaryDomain.toLowerCase().includes('youtube');
   const isBook = preset.id === 'book_30k_words' || preset.primaryDomain.toLowerCase().includes('writing') || preset.primaryDomain.toLowerCase().includes('author') || preset.primaryDomain.toLowerCase().includes('book');
+  const isDeepWork = preset.id === 'deep_work_focus' || preset.primaryDomain.toLowerCase().includes('deep work') || preset.primaryDomain.toLowerCase().includes('cognitive') || preset.primaryDomain.toLowerCase().includes('focus');
 
   const activeArchetypes = archetypes.filter(a => !a.isRestDay);
   const restArchetypes = archetypes.filter(a => a.isRestDay);
@@ -944,7 +959,16 @@ function getDeterministicPresetTasks(
     const detailedSteps = arch.drillStepsTemplate.map((step) => {
       const stepMins = Math.max(3, Math.round(durMins * step.durationRatio));
       const challenge: StepChallenge = isRestDay
-        ? isBook
+        ? isDeepWork
+          ? {
+              type: 'checklist',
+              items: [
+                { id: 'c1', label: 'Verify zero work screen usage and full digital sabbath rest' },
+                { id: 'c2', label: 'Engage in 45m physical movement or nature walk' },
+                { id: 'c3', label: 'Confirm phone screen time remained under 90 minutes' }
+              ]
+            }
+          : isBook
           ? {
               type: 'active_recall',
               question: 'What core lesson in narrative pacing, sentence rhythm, or authorial voice did you take from today\'s reading?',
@@ -981,6 +1005,14 @@ function getDeterministicPresetTasks(
                 ? 'Shipping early to production and gathering feedback beats premature optimization.'
                 : 'Consistency and callus formation compound with deliberate daily practice.'
             }
+        : isDeepWork
+        ? {
+            type: 'repetitions',
+            drillName: step.title,
+            targetCount: 60,
+            totalSets: 1,
+            unit: 'minutes uninterrupted focus (0 tab switches)'
+          }
         : isBook
         ? {
             type: 'repetitions',
@@ -1031,7 +1063,9 @@ function getDeterministicPresetTasks(
         layer: step.layer,
         layerReasoning: step.layerReasoning,
         challenge,
-        resourceTitle: isBook
+        resourceTitle: isDeepWork
+          ? 'Cal Newport Deep Work & Andrew Huberman Focus Guide'
+          : isBook
           ? 'Steven Pressfield War of Art & William Zinsser Writing Guide'
           : isYouTube
           ? 'Paddy Galloway & MrBeast Retention Formula Guide'
@@ -1044,7 +1078,9 @@ function getDeterministicPresetTasks(
           : isGuitar
           ? 'JustinGuitar Beginner Grade 1 Course & Practice Routine'
           : 'Jack Daniels Running Formula — Cadence & VDOT Principles',
-        resourceUrl: isBook
+        resourceUrl: isDeepWork
+          ? 'https://calnewport.com/books/deep-work/'
+          : isBook
           ? 'https://stevenpressfield.com/books/the-war-of-art/'
           : isYouTube
           ? 'https://www.creatorhooks.com/'
@@ -1058,7 +1094,9 @@ function getDeterministicPresetTasks(
           ? 'https://www.justinguitar.com/classes/beginner-guitar-course-grade-1'
           : 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
         resourceType: 'guide' as const,
-        resourceWhy: isBook
+        resourceWhy: isDeepWork
+          ? 'Follow foundational attention residue reduction, ultradian rhythms, and dopamine protocols.'
+          : isBook
           ? 'Follow professional mindset principles to defeat resistance and maintain uninterrupted daily output.'
           : isYouTube
           ? 'Follow proven thumbnail curiosity frameworks, retention pacing, and visual storytelling.'
@@ -1076,6 +1114,8 @@ function getDeterministicPresetTasks(
 
     const whereLocation = isRestDay
       ? 'Quiet space / chair'
+      : isDeepWork
+      ? 'Ergonomic focus desk in airplane mode with physical distraction notepad'
       : isBook
       ? 'Distraction-free writing desk / offline laptop in fullscreen mode'
       : isYouTube
@@ -1098,7 +1138,9 @@ function getDeterministicPresetTasks(
       durationMinutes: durMins,
       slotTime,
       implementationIntention: `When: ${slotTime} | Where: ${whereLocation} | Action: ${arch.title} (${durMins}m)`,
-      resourceTitle: isBook
+      resourceTitle: isDeepWork
+        ? 'Mihaly Csikszentmihalyi Flow & Cal Newport Time-Blocking Masterclass'
+        : isBook
         ? 'Stephen King On Writing & Donald Miller StoryBrand Blueprint'
         : isYouTube
         ? 'Ali Abdaal Creator Engine & Colin and Samir Storytelling Guide'
@@ -1109,7 +1151,9 @@ function getDeterministicPresetTasks(
         : isGuitar
         ? 'JustinGuitar Grade 1 Core Curriculum & Song Repertoire'
         : 'Jack Daniels Running Formula & 80/20 Pacing Guide',
-      resourceUrl: isBook
+      resourceUrl: isDeepWork
+        ? 'https://www.calnewport.com/blog/category/time-management/'
+        : isBook
         ? 'https://storybrand.com/'
         : isYouTube
         ? 'https://aliabdaal.com/newsletter/how-to-start-a-youtube-channel/'
@@ -1121,7 +1165,9 @@ function getDeterministicPresetTasks(
         ? 'https://www.justinguitar.com/classes/beginner-guitar-course-grade-1'
         : 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
       resourceType: 'guide',
-      resourceWhy: isBook
+      resourceWhy: isDeepWork
+        ? 'Gold-standard cognitive performance systems for high-leverage knowledge work.'
+        : isBook
         ? 'Premier methodology for reader transformation arcs, chapter beat outlines, and concise prose.'
         : isYouTube
         ? 'Authoritative framework for weekly batch production, title packaging, and YouTube retention dynamics.'
