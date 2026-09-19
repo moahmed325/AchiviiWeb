@@ -3,19 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
 import {
-  Target,
   ArrowRight,
   CheckCircle2,
   Circle,
   Zap,
   Clock,
   Calendar,
-  Award,
   ChevronDown,
   ChevronUp,
   FileText,
   Layers,
   ShieldCheck,
+  Sparkles,
 } from 'lucide-react';
 import { formatGoalTitle } from '../lib/formatters';
 import { updateDailyTask } from '../lib/api';
@@ -293,7 +292,7 @@ export const Home: React.FC = () => {
                   type="button"
                   onClick={() => {
                     localStorage.setItem('achivii_draft_goal', item.title);
-                    navigate('/onboarding');
+                    navigate('/onboarding', { state: { presetGoal: item.title, isPreset: true } });
                   }}
                   className="relative rounded-md overflow-hidden border border-[#1a2824] hover:border-[#07CB6C]/60 text-left transition-all cursor-pointer group flex flex-col justify-end min-h-[140px] sm:min-h-[160px] p-4 bg-[#0c1210]"
                 >
@@ -328,7 +327,10 @@ export const Home: React.FC = () => {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => navigate('/onboarding')}
+              onClick={() => {
+                localStorage.removeItem('achivii_draft_goal');
+                navigate('/onboarding', { state: { isPreset: false } });
+              }}
               className="w-full sm:w-auto px-6 py-3 rounded-md bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.98] text-black font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Define Custom 90-Day Goal</span>
@@ -802,42 +804,114 @@ export const Home: React.FC = () => {
                   Focus cue: {selectedTrajectory.sampleDay.focus}
                 </p>
               </div>
+
+              <div className="pt-2 border-t border-[#1a2824]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-[11px] font-mono text-neutral-400 truncate max-w-sm">
+                  Target: {selectedTrajectory.outcome}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.setItem('achivii_draft_goal', selectedTrajectory.outcome);
+                    if (user && token) {
+                      navigate('/onboarding', { state: { presetGoal: selectedTrajectory.outcome, isPreset: true } });
+                    } else {
+                      openAuthModal('signup');
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <span>Select This Preset</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* =================================================================== */}
-        {/* 3 CORE ZEN PRINCIPLES (MINIMALIST, NO MARKETING FLUFF) */}
+        {/* THE ACHIVII TRIAD: WHY GENERIC ROADMAPS FAIL & WHY ACHIVII WORKS */}
         {/* =================================================================== */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
-          <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-2">
-            <div className="w-7 h-7 rounded-md bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-[#07CB6C]">
-              <Target className="w-3.5 h-3.5" />
+        <div className="space-y-4">
+          <div className="text-left space-y-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-[10px] font-mono uppercase font-semibold">
+              <Sparkles className="w-3 h-3" />
+              <span>The Achivii Triad</span>
             </div>
-            <h3 className="text-sm font-bold text-white">Single Daily Directive</h3>
-            <p className="text-xs text-neutral-400 leading-relaxed">
-              Never waste willpower deciding what to do. Exactly one high-leverage session scheduled every day.
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white">
+              Why 92% of generic roadmaps fail — and why this works.
+            </h2>
+            <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl leading-relaxed">
+              Most plans are either rigid academic theories that break the moment life gets busy, or random habit checklists without true biological stimulus. Achivii balances three non-negotiable filters.
             </p>
           </div>
 
-          <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-2">
-            <div className="w-7 h-7 rounded-md bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-[#07CB6C]">
-              <ShieldCheck className="w-3.5 h-3.5" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+            {/* Pillar 1: Laboratory Science */}
+            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] hover:border-[#07CB6C]/40 transition-colors space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
+                  PEER-REVIEWED SCIENCE
+                </span>
+                <div className="w-6 h-6 rounded bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-[#07CB6C]">
+                  <Sparkles className="w-3 h-3" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">1. Laboratory Science</h3>
+                <div className="text-[11px] text-neutral-400 font-mono mt-0.5">Mechanism & Adaptation</div>
+              </div>
+              <p className="text-xs text-neutral-400 leading-relaxed">
+                Rooted in verified protocols like Daniels VDOT, Seiler's 80/20 polarized distribution, and Deliberate Practice. Every session has a precise biological stimulus.
+              </p>
+              <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400 italic">
+                ↳ Rule: The adaptation must be physiologically sound.
+              </div>
             </div>
-            <h3 className="text-sm font-bold text-white">Silent Buffer Recovery</h3>
-            <p className="text-xs text-neutral-400 leading-relaxed">
-              Miss a session? Our algorithm automatically reallocates it to open buffer slots without broken streaks or guilt.
-            </p>
-          </div>
 
-          <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-2">
-            <div className="w-7 h-7 rounded-md bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-[#07CB6C]">
-              <Award className="w-3.5 h-3.5" />
+            {/* Pillar 2: Social Adherence */}
+            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] hover:border-sky-500/40 transition-colors space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  REAL-WORLD ADHERENCE
+                </span>
+                <div className="w-6 h-6 rounded bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-sky-400">
+                  <Clock className="w-3 h-3" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">2. Social Reality</h3>
+                <div className="text-[11px] text-neutral-400 font-mono mt-0.5">9-to-5 Sustainable Design</div>
+              </div>
+              <p className="text-xs text-neutral-400 leading-relaxed">
+                Lab plans fail when life happens. We cap weekday sessions at 35–45 min, enforce the 2-day recovery rule, and silently absorb missed sessions into open buffer slots.
+              </p>
+              <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400 italic">
+                ↳ Rule: When science fights a busy schedule, adherence wins.
+              </div>
             </div>
-            <h3 className="text-sm font-bold text-white">Weekly Checkpoints</h3>
-            <p className="text-xs text-neutral-400 leading-relaxed">
-              Quick 5-minute Sunday milestone reviews to calibrate pacing and unlock next week's calibrated exercises.
-            </p>
+
+            {/* Pillar 3: Professional Coaching */}
+            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] hover:border-amber-500/40 transition-colors space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  PRO COACH CRAFT
+                </span>
+                <div className="w-6 h-6 rounded bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-amber-400">
+                  <ShieldCheck className="w-3 h-3" />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white">3. Professional Coaching</h3>
+                <div className="text-[11px] text-neutral-400 font-mono mt-0.5">Safety & Veteran Heuristics</div>
+              </div>
+              <p className="text-xs text-neutral-400 leading-relaxed">
+                Watches and algorithms can be reckless. We enforce internal effort cues ("The Talk Test") and mandatory joint pre-hab so tendons and connective tissue adapt uninjured.
+              </p>
+              <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400 italic">
+                ↳ Rule: Injury prevention strictly overrides raw speed.
+              </div>
+            </div>
           </div>
         </div>
 

@@ -509,6 +509,8 @@ export const computeDaySchedule = (
 interface OnboardingWizardProps {
   token: string;
   onGoalCreated: (goal: Goal) => void;
+  initialGoal?: string;
+  isPreset?: boolean;
 }
 
 const INSPIRATION_GOALS = [
@@ -533,17 +535,35 @@ const WIZARD_STEPS: WizardStepItem[] = [
   { id: 4, title: 'Success Blueprint', short: 'Review', subtitle: 'Final pre-flight' }
 ];
 
-export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoalCreated }) => {
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [maxStepReached, setMaxStepReached] = useState<number>(1);
-  const [rawGoal, setRawGoal] = useState(() => {
+export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
+  token,
+  onGoalCreated,
+  initialGoal: propInitialGoal,
+  isPreset: propIsPreset
+}) => {
+  // Determine if a preset or draft goal was provided
+  const [initialDraft] = useState(() => {
+    if (propInitialGoal && propInitialGoal.trim()) {
+      return propInitialGoal.trim();
+    }
     const saved = localStorage.getItem('achivii_draft_goal');
-    if (saved) {
+    if (saved && saved.trim()) {
       localStorage.removeItem('achivii_draft_goal');
-      return saved;
+      return saved.trim();
     }
     return '';
   });
+
+  const isPresetGoal = Boolean(propIsPreset || initialDraft);
+
+  // If a preset goal was selected, skip Step 1 ("What goal do you want to achieve?") and start directly on Step 2 ("Schedule")
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(() => {
+    return isPresetGoal && initialDraft ? 2 : 1;
+  });
+  const [maxStepReached, setMaxStepReached] = useState<number>(() => {
+    return isPresetGoal && initialDraft ? 2 : 1;
+  });
+  const [rawGoal, setRawGoal] = useState(initialDraft);
 
   const [isClarifying, setIsClarifying] = useState(false);
   const [clarificationError, setClarificationError] = useState<string | null>(null);
@@ -552,7 +572,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
 
   // Clarification AI Output State
   const [clarification, setClarification] = useState<GoalClarification | null>(null);
-  const [editedOutcome, setEditedOutcome] = useState('');
+  const [editedOutcome, setEditedOutcome] = useState(initialDraft);
   const [isEditingOutcome, setIsEditingOutcome] = useState(false);
 
   // Diagnostic Question Answers State
@@ -877,6 +897,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       });
   };
 
+  // Automatically trigger AI clarification in the background if a preset goal was selected
+  useEffect(() => {
+    if (initialDraft) {
+      startClarification(initialDraft);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // --------------------------------------------------------------------------
   // Step 1: Submit Goal -> Instant 0ms transition to Step 2 (Schedule)
   // --------------------------------------------------------------------------
@@ -1111,13 +1139,40 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       {/* ===================================================================== */}
       {step === 2 && (
         <div className="space-y-6 text-left animate-fadeInUp">
-          <div className="space-y-1">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              When works best for you?
-            </h2>
-            <p className="text-xs sm:text-sm text-neutral-400">
-              We'll schedule deliberate practice sessions around your life so they actually stick.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#1a2824]/60">
+            <div className="space-y-1">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                When works best for you?
+              </h2>
+              <p className="text-xs sm:text-sm text-neutral-400">
+                We'll schedule deliberate practice sessions around your life so they actually stick.
+              </p>
+            </div>
+
+            {rawGoal && (
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center flex-wrap">
+                {isPresetGoal && (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[10px] font-mono font-semibold text-[#07CB6C]">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C]" />
+                    <span>Certified Blueprint</span>
+                  </div>
+                )}
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0c1410] border border-[#1a2824]">
+                  <Target className="w-3.5 h-3.5 text-[#07CB6C]" />
+                  <span className="text-xs font-semibold text-white truncate max-w-[180px] sm:max-w-xs">
+                    {rawGoal}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => goToStep(1)}
+                    className="text-[11px] font-mono text-[#07CB6C] hover:underline cursor-pointer pl-1"
+                    title="Change goal"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -2111,11 +2166,19 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
       {step === 4 && clarification && (
         <div className="space-y-6 text-left animate-fadeInUp">
           <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-xs font-medium">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{clarification.primaryDomain}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              {isPresetGoal && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-[#07CB6C]/15 border border-[#07CB6C]/30 text-[#07CB6C] text-[11px] font-mono font-semibold">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Certified Master Blueprint</span>
+                </div>
+              )}
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-xs font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{clarification.primaryDomain}</span>
+              </div>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white pt-1">
               What success looks like in 90 days
             </h2>
             <p className="text-xs sm:text-sm text-neutral-400">
@@ -2274,6 +2337,138 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ token, onGoa
               </div>
             </div>
           )}
+
+          {/* =================================================================== */}
+          {/* THE ACHIVII TRIAD: CERTIFIED GROUNDING (SCIENCE x ADHERENCE x SAFETY) */}
+          {/* =================================================================== */}
+          {(() => {
+            const activeTriad = clarification.evidenceTriad || {
+              science: {
+                title: 'Laboratory Science (Mechanism)',
+                subtitle: 'Cardiorespiratory & Biomechanical Stimulus',
+                tag: 'PEER-REVIEWED MECHANISM',
+                coreRule: '80% of volume strictly under aerobic threshold (Zone 2) to build mitochondrial capillary beds without autonomic strain.',
+                realWorldApplication: 'Weeks 1–4 lock in cardiac stroke volume and tendon density before quality speedwork is permitted.'
+              },
+              socialAdherence: {
+                title: 'Social Reality (Adherence)',
+                subtitle: '9-to-5 Sustainable Friction Reduction',
+                tag: 'REAL-WORLD ADHERENCE',
+                coreRule: 'When lab volume conflicts with a busy schedule, adherence wins. Sessions capped at 35–45m with mandatory 2-day recovery spacing.',
+                realWorldApplication: 'Never run high intensity two days in a row. Silent weekend buffer slots absorb delays so a late workday never kills your streak.'
+              },
+              proCoaching: {
+                title: 'Professional Coaching (Safety & Craft)',
+                subtitle: 'Veteran Heuristics & Joint Pre-hab',
+                tag: 'PRO FIELD WISDOM',
+                coreRule: 'Internal effort cues over GPS watch obedience. Connective tissue adapts 3x slower than cardiorespiratory fitness.',
+                realWorldApplication: 'The Talk Test strictly governs base runs. Targeted eccentric calf drops and hip mobility protect knees and shins.'
+              }
+            };
+
+            return (
+              <div className="p-4 sm:p-5 rounded-md bg-[#090e0c] border border-[#1a2824] space-y-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1a2824]/70 pb-3">
+                  <div className="space-y-0.5 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-[#07CB6C] bg-[#07CB6C]/10 border border-[#07CB6C]/25 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        The Achivii Triad
+                      </span>
+                      <span className="text-[11px] text-neutral-400 font-medium">3-Pillar Balanced Engine</span>
+                    </div>
+                    <h3 className="text-sm sm:text-base font-bold text-white pt-0.5">
+                      Built for Real Lives, Not Academic Lab Rats
+                    </h3>
+                    <p className="text-xs text-neutral-400">
+                      Why generic roadmaps fail: they push lab theory until busy schedules break or injuries strike. Achivii balances all three filters.
+                    </p>
+                  </div>
+                  <div className="text-[10px] text-neutral-500 font-mono shrink-0 sm:text-right">
+                    Mechanism × Adherence × Craft
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
+                  {/* Pillar 1: Laboratory Science */}
+                  <div className="p-3.5 rounded bg-[#0c1210] border border-[#1a2824] hover:border-[#07CB6C]/40 transition-colors space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-mono tracking-wider uppercase px-2 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20 font-semibold">
+                        {activeTriad.science.tag || 'LAB SCIENCE'}
+                      </span>
+                      <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white leading-tight">{activeTriad.science.title}</h4>
+                      <div className="text-[10px] text-neutral-400 font-mono mt-0.5 truncate">{activeTriad.science.subtitle}</div>
+                    </div>
+                    <p className="text-xs text-neutral-300 leading-relaxed">
+                      {activeTriad.science.coreRule}
+                    </p>
+                    <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400">
+                      <span className="text-[#07CB6C] font-mono text-[9px] uppercase tracking-wider block mb-0.5 font-semibold">
+                        In Your Roadmap
+                      </span>
+                      <span className="text-neutral-300">{activeTriad.science.realWorldApplication}</span>
+                    </div>
+                  </div>
+
+                  {/* Pillar 2: Social Reality (Adherence) */}
+                  <div className="p-3.5 rounded bg-[#0c1210] border border-[#1a2824] hover:border-sky-500/40 transition-colors space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-mono tracking-wider uppercase px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 font-semibold">
+                        {activeTriad.socialAdherence.tag || 'REAL-WORLD ADHERENCE'}
+                      </span>
+                      <Clock className="w-3.5 h-3.5 text-sky-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white leading-tight">{activeTriad.socialAdherence.title}</h4>
+                      <div className="text-[10px] text-neutral-400 font-mono mt-0.5 truncate">{activeTriad.socialAdherence.subtitle}</div>
+                    </div>
+                    <p className="text-xs text-neutral-300 leading-relaxed">
+                      {activeTriad.socialAdherence.coreRule}
+                    </p>
+                    <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400">
+                      <span className="text-sky-400 font-mono text-[9px] uppercase tracking-wider block mb-0.5 font-semibold">
+                        In Your Roadmap
+                      </span>
+                      <span className="text-neutral-300">{activeTriad.socialAdherence.realWorldApplication}</span>
+                    </div>
+                  </div>
+
+                  {/* Pillar 3: Professional Coaching (Safety & Craft) */}
+                  <div className="p-3.5 rounded bg-[#0c1210] border border-[#1a2824] hover:border-amber-500/40 transition-colors space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-mono tracking-wider uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-semibold">
+                        {activeTriad.proCoaching.tag || 'PRO COACH CRAFT'}
+                      </span>
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white leading-tight">{activeTriad.proCoaching.title}</h4>
+                      <div className="text-[10px] text-neutral-400 font-mono mt-0.5 truncate">{activeTriad.proCoaching.subtitle}</div>
+                    </div>
+                    <p className="text-xs text-neutral-300 leading-relaxed">
+                      {activeTriad.proCoaching.coreRule}
+                    </p>
+                    <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400">
+                      <span className="text-amber-400 font-mono text-[9px] uppercase tracking-wider block mb-0.5 font-semibold">
+                        In Your Roadmap
+                      </span>
+                      <span className="text-neutral-300">{activeTriad.proCoaching.realWorldApplication}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-2.5 rounded bg-[#0c1210] border border-[#1a2824] flex items-start sm:items-center gap-2 text-[11px] text-neutral-400 text-left">
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] shrink-0 mt-1 sm:mt-0" />
+                  <p>
+                    <strong className="text-neutral-200 font-semibold">Conflict Resolution Protocol:</strong> When lab volume fights your schedule, adherence wins (35–45m max sessions). Professional safety strictly overrides both at all times.
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Scientific Frameworks — collapsed by default */}
           {clarification.scientificFrameworks && clarification.scientificFrameworks.length > 0 && (
