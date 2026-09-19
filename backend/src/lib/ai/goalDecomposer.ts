@@ -1,4 +1,5 @@
 import { generateStructuredContent } from './gemini.js';
+import { findPresetForGoal, getVDOTPacingEntry, CertifiedPresetBlueprint, EvidenceTriad } from './presets/index.js';
 
 export interface GoalClarification {
   clarifiedOutcome: string;
@@ -17,6 +18,7 @@ export interface GoalClarification {
     options: string[];
     allowCustom: boolean;
   }>;
+  evidenceTriad?: EvidenceTriad;
 }
 
 export interface RoadmapWeekPlan {
@@ -151,6 +153,25 @@ export interface UserRoutineInput {
  * applies scientific frameworks, and generates 3-4 domain-specific clarifying questions.
  */
 export async function clarifyGoalWithAI(rawGoal: string): Promise<GoalClarification> {
+  const preset = findPresetForGoal(rawGoal);
+  if (preset) {
+    return {
+      clarifiedOutcome: preset.clarifiedOutcome,
+      primaryDomain: preset.primaryDomain,
+      capabilities: [
+        'Zone 2 Aerobic Base Volume & Mitochondrial Biogenesis',
+        '170-180 SPM Cadence & Midfoot Impact Mechanics',
+        'Lactate Threshold Pacing & Cruise Intervals',
+        'VO2 Max Interval Economy (800m Repeats)',
+        'Race Pacing Simulation & Carbohydrate/Hydration Strategy'
+      ],
+      scientificFrameworks: preset.scientificFrameworks,
+      verificationCriteria: preset.verificationCriteria,
+      followUpQuestions: preset.diagnosticQuestions,
+      evidenceTriad: preset.evidenceTriad
+    };
+  }
+
   const systemInstruction = `You are the Master Goal Architect and Cognitive Performance Scientist at Achivii.
 Your mission is to take any raw goal provided by a user and transform it into a scientifically and socially proven 90-day execution blueprint.
 You apply:
@@ -212,6 +233,9 @@ JSON schema:
         'Capstone Fluency Integration'
       ];
     }
+    if (!result.data.evidenceTriad) {
+      result.data.evidenceTriad = getDefaultEvidenceTriad(result.data.primaryDomain);
+    }
     return result.data;
   }
 
@@ -264,7 +288,43 @@ CONFLICT RULE: When the scientifically optimal approach and the most commonly-su
     .map(([q, a]) => `- ${q}: ${a}`)
     .join('\n');
 
-  const prompt = `Goal: "${rawGoal}"
+  const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
+  let presetEnforcementPrompt = '';
+  if (preset) {
+    let vdotSection = '';
+    if (preset.vdotPacingTable) {
+      const baselineVal = answers['baseline5k'] || answers['What is your current comfortable 5K running baseline?'] || Object.values(answers)[0];
+      const vdot = getVDOTPacingEntry(baselineVal, preset);
+      if (vdot) {
+        vdotSection = `
+CERTIFIED VDOT PACING MATRIX (Calculated for user's baseline: "${vdot.label}"):
+- Easy (Zone 2) Pace: ${vdot.easyPace}
+- Marathon Pace: ${vdot.marathonPace}
+- Lactate Threshold Pace: ${vdot.thresholdPace}
+- Interval (VO2 Max) Pace: ${vdot.intervalPace}
+- Repetition Pace: ${vdot.repetitionPace}
+- Target Heart Rate: ${vdot.targetHeartRateRange}
+MANDATORY: You MUST integrate these exact calculated pace splits and heart rate targets into the task instructions, focus cues, and challenge drill targets!`;
+      }
+    }
+
+    presetEnforcementPrompt = `
+================================================================================
+CERTIFIED MASTER BLUEPRINT ENFORCEMENT: ${preset.badge}
+================================================================================
+${preset.expertPromptContext}
+${vdotSection}
+
+INVARIANT 12-WEEK PERIODIZATION SKELETON:
+${preset.weeks.map(w => `- Week ${w.weekNumber} [${w.phase}] (Intensity ${w.targetIntensity}%): "${w.theme}" | Objective: "${w.objective}" | Milestone: "${w.keyMilestone}"`).join('\n')}
+
+For the "weeks" array in your JSON output, you MUST follow the 12 invariant themes, objectives, and milestones above!
+For "initialTasks" (Week 1), generate 7 daily tasks based on the verified workout progression (Aerobic Base, Cadence Strides, Rest/Mobility, Aerobic Efficiency, Runner Core, Long Run, Weekly Audit).
+================================================================================
+`;
+  }
+
+  const prompt = `${presetEnforcementPrompt}Goal: "${rawGoal}"
 Refined Outcome: "${clarifiedOutcome}"
 User Diagnostic Answers:
 ${answersFormatted || 'None provided'}
@@ -557,6 +617,59 @@ JSON Schema:
 // Resilient Deterministic Fallbacks
 // ---------------------------------------------------------------------------
 
+export function getDefaultEvidenceTriad(domain?: string): EvidenceTriad {
+  const clean = (domain || '').toLowerCase();
+  if (clean.includes('run') || clean.includes('marathon') || clean.includes('fitness') || clean.includes('endurance')) {
+    return {
+      science: {
+        title: 'Laboratory Science (Mechanism)',
+        subtitle: 'Cardiorespiratory & Biomechanical Stimulus',
+        tag: 'PEER-REVIEWED MECHANISM',
+        coreRule: '80% of volume strictly under aerobic threshold (Zone 2) to build mitochondrial capillary beds without autonomic strain.',
+        realWorldApplication: 'Weeks 1–4 lock in cardiac stroke volume and tendon density before quality speedwork is permitted.'
+      },
+      socialAdherence: {
+        title: 'Social Reality (Adherence)',
+        subtitle: '9-to-5 Sustainable Friction Reduction',
+        tag: 'REAL-WORLD ADHERENCE',
+        coreRule: 'When lab volume conflicts with a busy schedule, adherence wins. Sessions capped at 35–45m with mandatory 2-day recovery spacing.',
+        realWorldApplication: 'Never run high intensity two days in a row. Silent weekend buffer slots absorb delays so a late workday never kills your streak.'
+      },
+      proCoaching: {
+        title: 'Professional Coaching (Safety & Craft)',
+        subtitle: 'Veteran Heuristics & Joint Pre-hab',
+        tag: 'PRO FIELD WISDOM',
+        coreRule: 'Internal effort cues over GPS watch obedience. Connective tissue adapts 3x slower than cardiorespiratory fitness.',
+        realWorldApplication: 'The Talk Test strictly governs base runs. Targeted eccentric calf drops and hip mobility protect knees and shins.'
+      }
+    };
+  }
+
+  return {
+    science: {
+      title: 'Laboratory Science (Mechanism)',
+      subtitle: 'Cognitive & Neuromuscular Adaptations',
+      tag: 'PEER-REVIEWED MECHANISM',
+      coreRule: 'Deliberate practice with immediate error feedback loops to trigger neuroplastic myelination without cognitive overwhelm.',
+      realWorldApplication: 'Targeted single-subskill drills with progressive load curves to anchor muscle memory before complex synthesis.'
+    },
+    socialAdherence: {
+      title: 'Social Reality (Adherence)',
+      subtitle: '9-to-5 Sustainable Friction Reduction',
+      tag: 'REAL-WORLD ADHERENCE',
+      coreRule: 'When theoretical volume conflicts with a busy life, adherence wins. Sustainable 30–45 min sessions with zero-guilt buffer reallocation.',
+      realWorldApplication: 'Structured around existing work and sleep commitments. Missed sessions automatically reallocate to buffer windows.'
+    },
+    proCoaching: {
+      title: 'Professional Coaching (Safety & Craft)',
+      subtitle: 'Veteran Heuristics & Form Integrity',
+      tag: 'PRO FIELD WISDOM',
+      coreRule: 'Form integrity and baseline energy strictly override raw volume. Consistency compounds 10x more effectively than sporadic heroics.',
+      realWorldApplication: 'Focus on qualitative execution cues and sustainable pacing. Protects against early burnout, injury, or drop-off.'
+    }
+  };
+}
+
 function getDeterministicClarification(rawGoal: string): GoalClarification {
   const cleanGoal = rawGoal.trim();
   const baseTitle = cleanGoal.length > 0
@@ -627,7 +740,8 @@ function getDeterministicClarification(rawGoal: string): GoalClarification {
         ],
         allowCustom: true
       }
-    ]
+    ],
+    evidenceTriad: getDefaultEvidenceTriad(cleanGoal)
   };
 }
 
@@ -641,6 +755,28 @@ function getDeterministic12WeekPlan(
   const preferredSlot = routine.preferredSlot || 'evening';
   const defaultSlotTime = preferredSlot === 'morning' ? '07:30' : preferredSlot === 'afternoon' ? '14:00' : '19:30';
   const planVariant = routine.planVariant || 'steady';
+
+  const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
+  if (preset) {
+    const weeks: RoadmapWeekPlan[] = preset.weeks.map(w => ({
+      weekNumber: w.weekNumber,
+      phase: w.phase,
+      theme: w.theme,
+      objective: w.objective,
+      keyMilestone: w.keyMilestone,
+      targetIntensity: w.targetIntensity,
+      plannedMinutes: dailyMins
+    }));
+
+    const initialTasks = getDeterministicPresetTasks(preset, dailyMins, defaultSlotTime, startDate, planVariant);
+
+    return {
+      clarifiedOutcome: preset.clarifiedOutcome,
+      methodologyNotes: `Certified Master Curriculum: ${preset.badge}. Grounded in ${preset.scientificFrameworks.map(f => f.name).join(', ')}.`,
+      weeks,
+      initialTasks
+    };
+  }
 
   const phases: Array<{ name: 'Foundation' | 'Acceleration' | 'Mastery'; weeks: number[]; intensity: number }> = [
     { name: 'Foundation', weeks: [1, 2, 3, 4], intensity: 60 },
@@ -678,6 +814,73 @@ function getDeterministic12WeekPlan(
     weeks,
     initialTasks
   };
+}
+
+function getDeterministicPresetTasks(
+  preset: CertifiedPresetBlueprint,
+  dailyMins: number,
+  slotTime: string,
+  startDate: Date,
+  planVariant: 'minimal' | 'steady' | 'accelerated' = 'steady'
+): DailyTaskPlan[] {
+  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const tasks: DailyTaskPlan[] = [];
+  const archetypes = preset.weeks[0]?.workoutArchetypes || [];
+
+  const restDayIndices = planVariant === 'minimal' ? [2, 4, 6] : planVariant === 'accelerated' ? [6] : [3, 6];
+
+  for (let d = 0; d < 7; d++) {
+    const currentDate = new Date(startDate);
+    currentDate.setDate(currentDate.getDate() + d);
+    const dayOfWeek = dayNames[currentDate.getDay()];
+    const isRest = restDayIndices.includes(d);
+
+    const arch = archetypes[d] || archetypes[0];
+    const isRestDay = isRest || arch.isRestDay;
+    const durMins = isRestDay ? 15 : dailyMins;
+
+    const detailedSteps = arch.drillStepsTemplate.map((step) => {
+      const stepMins = Math.max(3, Math.round(durMins * step.durationRatio));
+      return {
+        stepNumber: step.stepNumber,
+        title: step.title,
+        durationMinutes: stepMins,
+        instructions: step.instructions,
+        focusCue: step.focusCue,
+        pitfallToAvoid: step.pitfallToAvoid,
+        layer: step.layer,
+        layerReasoning: step.layerReasoning,
+        challenge: {
+          type: 'repetitions' as const,
+          drillName: step.title,
+          targetCount: isRestDay ? 1 : 3,
+          totalSets: isRestDay ? 1 : 3,
+          unit: isRestDay ? 'routine' : 'reps'
+        },
+        resourceTitle: 'Jack Daniels Running Formula — Cadence & VDOT Principles',
+        resourceUrl: 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
+        resourceType: 'guide' as const,
+        resourceWhy: 'Follow this proven framework to calibrate heart rate zones and avoid overreaching.'
+      };
+    });
+
+    tasks.push({
+      dayNumber: d + 1,
+      dayOfWeek,
+      title: arch.title,
+      isRestDay,
+      durationMinutes: durMins,
+      slotTime,
+      implementationIntention: `When: ${slotTime} | Where: ${isRestDay ? 'Quiet room / floor mat' : 'Running route / treadmill'} | Action: ${arch.title} (${durMins}m)`,
+      resourceTitle: 'Jack Daniels Running Formula & 80/20 Pacing Guide',
+      resourceUrl: 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
+      resourceType: 'guide',
+      resourceWhy: 'Authoritative endurance reference for pacing and biomechanics.',
+      detailedSteps
+    });
+  }
+
+  return tasks;
 }
 
 function getDeterministicWeeklyTasks(

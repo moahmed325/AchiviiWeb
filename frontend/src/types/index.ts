@@ -25,6 +25,20 @@ export interface FollowUpQuestion {
   allowCustom: boolean;
 }
 
+export interface EvidencePillar {
+  title: string;
+  subtitle: string;
+  tag: string;
+  coreRule: string;
+  realWorldApplication: string;
+}
+
+export interface EvidenceTriad {
+  science: EvidencePillar;
+  socialAdherence: EvidencePillar;
+  proCoaching: EvidencePillar;
+}
+
 export interface GoalClarification {
   clarifiedOutcome: string;
   primaryDomain: string;
@@ -32,6 +46,7 @@ export interface GoalClarification {
   scientificFrameworks: ScientificFramework[];
   verificationCriteria: string;
   followUpQuestions: FollowUpQuestion[];
+  evidenceTriad?: EvidenceTriad;
 }
 
 export interface CommitmentItem {
