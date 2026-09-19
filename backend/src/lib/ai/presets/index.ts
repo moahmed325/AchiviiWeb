@@ -1,4 +1,4 @@
-import { CertifiedPresetBlueprint, VDOTPacingEntry, BPMPacingEntry, SaaSVelocityEntry, LanguageVelocityEntry, RecompPacingEntry, YouTubeVelocityEntry, WritingVelocityEntry, DeepWorkVelocityEntry, ChessVelocityEntry } from './types.js';
+import { CertifiedPresetBlueprint, VDOTPacingEntry, BPMPacingEntry, SaaSVelocityEntry, LanguageVelocityEntry, RecompPacingEntry, YouTubeVelocityEntry, WritingVelocityEntry, DeepWorkVelocityEntry, ChessVelocityEntry, SpeechVelocityEntry } from './types.js';
 import { run10kPreset } from './run10k.js';
 import { guitarPreset } from './guitar.js';
 import { saasPreset } from './saas.js';
@@ -8,9 +8,10 @@ import { youtubePreset } from './youtube.js';
 import { bookPreset } from './book.js';
 import { deepWorkPreset } from './deepwork.js';
 import { chessPreset } from './chess.js';
+import { speechPreset } from './speech.js';
 
 export * from './types.js';
-export { run10kPreset, guitarPreset, saasPreset, spanishPreset, recompPreset, youtubePreset, bookPreset, deepWorkPreset, chessPreset };
+export { run10kPreset, guitarPreset, saasPreset, spanishPreset, recompPreset, youtubePreset, bookPreset, deepWorkPreset, chessPreset, speechPreset };
 
 export const CERTIFIED_PRESETS: CertifiedPresetBlueprint[] = [
   run10kPreset,
@@ -21,7 +22,8 @@ export const CERTIFIED_PRESETS: CertifiedPresetBlueprint[] = [
   youtubePreset,
   bookPreset,
   deepWorkPreset,
-  chessPreset
+  chessPreset,
+  speechPreset
 ];
 
 /**
@@ -290,4 +292,32 @@ export function getChessVelocityEntry(
 
   return blueprint.chessVelocityTable[0];
 }
+
+/**
+ * Helper to look up the Speech velocity entry for a user given their baseline diagnostic answer.
+ */
+export function getSpeechVelocityEntry(
+  baselineAnswer: string | undefined,
+  blueprint: CertifiedPresetBlueprint
+): SpeechVelocityEntry | undefined {
+  if (!blueprint.speechVelocityTable || !blueprint.speechVelocityTable.length) return undefined;
+  if (!baselineAnswer) return blueprint.speechVelocityTable[0]; // default to stage_fright_novice
+
+  const lower = baselineAnswer.toLowerCase();
+  if (lower.includes('fright') || lower.includes('anxiety') || lower.includes('novice') || lower.includes('avoid')) {
+    return blueprint.speechVelocityTable.find(s => s.baselineKey === 'stage_fright_novice') || blueprint.speechVelocityTable[0];
+  }
+  if (lower.includes('technical') || lower.includes('slides') || lower.includes('meetings') || lower.includes('robotic')) {
+    return blueprint.speechVelocityTable.find(s => s.baselineKey === 'technical_presenter') || blueprint.speechVelocityTable[1];
+  }
+  if (lower.includes('experienced') || lower.includes('regularly') || lower.includes('groups') || lower.includes('elevate')) {
+    return blueprint.speechVelocityTable.find(s => s.baselineKey === 'experienced_speaker') || blueprint.speechVelocityTable[2];
+  }
+  if (lower.includes('keynote') || lower.includes('tedx') || lower.includes('conference') || lower.includes('all-hands')) {
+    return blueprint.speechVelocityTable.find(s => s.baselineKey === 'keynote_aspirant') || blueprint.speechVelocityTable[3];
+  }
+
+  return blueprint.speechVelocityTable[0];
+}
+
 

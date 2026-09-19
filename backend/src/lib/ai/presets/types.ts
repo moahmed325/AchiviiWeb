@@ -102,6 +102,16 @@ export interface ChessVelocityEntry {
   guidance: string;
 }
 
+export interface SpeechVelocityEntry {
+  baselineKey: string; // e.g. 'stage_fright_novice', 'technical_presenter', 'experienced_speaker', 'keynote_aspirant'
+  label: string;
+  speechLengthMins: number; // e.g. 10, 12, 15, 15
+  fillerWordsPerMinTarget: string; // e.g. '< 3 / min', '< 2 / min', '< 1 / min', 'Zero audible fillers'
+  weeklyVocalDrillsMinutes: number; // e.g. 45, 60, 75, 90
+  targetWPM: string; // e.g. '130–150 WPM (dynamic conversational pacing)'
+  guidance: string;
+}
+
 export interface BlueprintPhase {
   phaseNumber: 1 | 2 | 3;
   phaseName: 'Foundation' | 'Acceleration' | 'Mastery';
@@ -188,6 +198,7 @@ export interface CertifiedPresetBlueprint {
   writingVelocityTable?: WritingVelocityEntry[];
   deepWorkVelocityTable?: DeepWorkVelocityEntry[];
   chessVelocityTable?: ChessVelocityEntry[];
+  speechVelocityTable?: SpeechVelocityEntry[];
   phases: BlueprintPhase[];
   weeks: BlueprintWeekSchedule[];
   expertPromptContext: string;

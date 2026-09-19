@@ -10,6 +10,7 @@ import {
   getWritingVelocityEntry,
   getDeepWorkVelocityEntry,
   getChessVelocityEntry,
+  getSpeechVelocityEntry,
   CertifiedPresetBlueprint,
   EvidenceTriad
 } from './presets/index.js';
@@ -422,6 +423,19 @@ CERTIFIED CHESS VELOCITY & RATING PROGRESSION MATRIX (Calculated for user's base
 - Recommended Repertoire: ${chessEntry.openingSystem}
 - Coach Strategy: ${chessEntry.guidance}
 MANDATORY: You MUST integrate these exact daily puzzle counts (${chessEntry.dailyTacticsCount}), 15+10 time controls, mandatory 3-second CCT pauses, and Silman LPDO scans into the daily task instructions, focus cues, and deliverable checklists!`;
+      }
+    } else if (preset.speechVelocityTable) {
+      const baselineVal = answers['baseline'] || answers['What is your current public speaking and presentation experience?'] || Object.values(answers)[0];
+      const speechEntry = getSpeechVelocityEntry(baselineVal, preset);
+      if (speechEntry) {
+        pacingSection = `
+CERTIFIED RHETORICAL & PUBLIC SPEAKING MATRIX (Calculated for user's baseline: "${speechEntry.label}"):
+- Speech Length Target: ${speechEntry.speechLengthMins} minutes (unbroken from memory)
+- Audible Filler Word Target: ${speechEntry.fillerWordsPerMinTarget} (mandatory 2-second silent breath substitution)
+- Weekly Vocal Dynamics Drills: ${speechEntry.weeklyVocalDrillsMinutes} minutes (belly breathing & pitch/tempo variation)
+- Target Delivery Pace: ${speechEntry.targetWPM}
+- Coach Strategy: ${speechEntry.guidance}
+MANDATORY: You MUST integrate the 15-word throughline constraint, 130–150 WPM pacing, Duarte sparkline contrast ("What Is" vs "What Could Be"), and silent pause technique into the daily task instructions, focus cues, and deliverable checklists!`;
       }
     }
 
@@ -954,6 +968,7 @@ function getDeterministicPresetTasks(
   const isBook = preset.id === 'book_30k_words' || preset.primaryDomain.toLowerCase().includes('writing') || preset.primaryDomain.toLowerCase().includes('author') || preset.primaryDomain.toLowerCase().includes('book');
   const isDeepWork = preset.id === 'deep_work_focus' || preset.primaryDomain.toLowerCase().includes('deep work') || preset.primaryDomain.toLowerCase().includes('cognitive') || preset.primaryDomain.toLowerCase().includes('focus');
   const isChess = preset.id === 'chess_1200_rating' || preset.primaryDomain.toLowerCase().includes('chess');
+  const isSpeech = preset.id === 'ted_speech_15min' || preset.primaryDomain.toLowerCase().includes('speaking') || preset.primaryDomain.toLowerCase().includes('speech') || preset.primaryDomain.toLowerCase().includes('ted');
 
   const activeArchetypes = archetypes.filter(a => !a.isRestDay);
   const restArchetypes = archetypes.filter(a => a.isRestDay);
@@ -974,7 +989,13 @@ function getDeterministicPresetTasks(
     const detailedSteps = arch.drillStepsTemplate.map((step) => {
       const stepMins = Math.max(3, Math.round(durMins * step.durationRatio));
       const challenge: StepChallenge = isRestDay
-        ? isChess
+        ? isSpeech
+          ? {
+              type: 'active_recall',
+              question: 'What core lesson in vocal pacing, dramatic pauses, or emotional vulnerability did you observe in today\'s master talk?',
+              keyTakeaway: 'Master orators command rooms through intentional silence and authenticity; complete vocal rest preserves diaphragmatic stamina.'
+            }
+          : isChess
           ? {
               type: 'checklist',
               items: [
@@ -1029,6 +1050,14 @@ function getDeterministicPresetTasks(
                 ? 'Shipping early to production and gathering feedback beats premature optimization.'
                 : 'Consistency and callus formation compound with deliberate daily practice.'
             }
+        : isSpeech
+        ? {
+            type: 'repetitions',
+            drillName: step.title,
+            targetCount: 3,
+            totalSets: 1,
+            unit: 'unbroken delivery runs (recorded on video)'
+          }
         : isChess
         ? {
             type: 'repetitions',
@@ -1080,9 +1109,9 @@ function getDeterministicPresetTasks(
         : {
             type: 'repetitions',
             drillName: step.title,
-            targetCount: isRecomp ? 10 : isGuitar ? 30 : isChess ? 15 : 3,
+            targetCount: isRecomp ? 10 : isGuitar ? 30 : isChess ? 15 : isSpeech ? 3 : 3,
             totalSets: 3,
-            unit: isRecomp ? 'controlled reps (3s eccentric)' : isGuitar ? 'clean switches' : isChess ? 'puzzles/drills' : 'reps'
+            unit: isRecomp ? 'controlled reps (3s eccentric)' : isGuitar ? 'clean switches' : isChess ? 'puzzles/drills' : isSpeech ? 'rehearsal runs' : 'reps'
           };
 
       return {
@@ -1095,7 +1124,9 @@ function getDeterministicPresetTasks(
         layer: step.layer,
         layerReasoning: step.layerReasoning,
         challenge,
-        resourceTitle: isChess
+        resourceTitle: isSpeech
+          ? 'Carmine Gallo Talk Like TED & Toastmasters Public Speaking Guide'
+          : isChess
           ? 'Axel Smith Woodpecker Method & Jeremy Silman Imbalance Guide'
           : isDeepWork
           ? 'Cal Newport Deep Work & Andrew Huberman Focus Guide'
@@ -1112,7 +1143,9 @@ function getDeterministicPresetTasks(
           : isGuitar
           ? 'JustinGuitar Beginner Grade 1 Course & Practice Routine'
           : 'Jack Daniels Running Formula — Cadence & VDOT Principles',
-        resourceUrl: isChess
+        resourceUrl: isSpeech
+          ? 'https://www.toastmasters.org/resources/public-speaking-tips'
+          : isChess
           ? 'https://www.chess.com/article/view/the-woodpecker-method'
           : isDeepWork
           ? 'https://calnewport.com/books/deep-work/'
@@ -1130,7 +1163,9 @@ function getDeterministicPresetTasks(
           ? 'https://www.justinguitar.com/classes/beginner-guitar-course-grade-1'
           : 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
         resourceType: 'guide' as const,
-        resourceWhy: isChess
+        resourceWhy: isSpeech
+          ? 'Follow proven throughline framing, diaphragmatic breathing, and filler word elimination.'
+          : isChess
           ? 'Follow proven spaced repetition tactics, blunder check protocols, and LPDO piece safety.'
           : isDeepWork
           ? 'Follow foundational attention residue reduction, ultradian rhythms, and dopamine protocols.'
@@ -1152,6 +1187,8 @@ function getDeterministicPresetTasks(
 
     const whereLocation = isRestDay
       ? 'Quiet space / chair'
+      : isSpeech
+      ? 'Open room / standing stage space with camera tripod & speech notes'
       : isChess
       ? 'Chessboard desk / quiet study station with digital clock & lichess/chess.com'
       : isDeepWork
@@ -1178,7 +1215,9 @@ function getDeterministicPresetTasks(
       durationMinutes: durMins,
       slotTime,
       implementationIntention: `When: ${slotTime} | Where: ${whereLocation} | Action: ${arch.title} (${durMins}m)`,
-      resourceTitle: isChess
+      resourceTitle: isSpeech
+        ? 'Nancy Duarte Resonate & TED Official Guide to Public Speaking'
+        : isChess
         ? 'Dan Heisman Real Chess & John Nunn Endgame Principles'
         : isDeepWork
         ? 'Mihaly Csikszentmihalyi Flow & Cal Newport Time-Blocking Masterclass'
@@ -1193,7 +1232,9 @@ function getDeterministicPresetTasks(
         : isGuitar
         ? 'JustinGuitar Grade 1 Core Curriculum & Song Repertoire'
         : 'Jack Daniels Running Formula & 80/20 Pacing Guide',
-      resourceUrl: isChess
+      resourceUrl: isSpeech
+        ? 'https://www.duarte.com/resonate/'
+        : isChess
         ? 'https://www.chess.com/article/view/essential-chess-endgames'
         : isDeepWork
         ? 'https://www.calnewport.com/blog/category/time-management/'
@@ -1209,7 +1250,9 @@ function getDeterministicPresetTasks(
         ? 'https://www.justinguitar.com/classes/beginner-guitar-course-grade-1'
         : 'https://runnersworld.com/training/a20801358/jack-daniels-running-formula-vdot/',
       resourceType: 'guide',
-      resourceWhy: isChess
+      resourceWhy: isSpeech
+        ? 'Master dramatic sparkline contrast, stage choreography, and audience transformation arcs.'
+        : isChess
         ? 'Master CCT blunder checks, candidate move calculation, and opposition endgame mechanics.'
         : isDeepWork
         ? 'Gold-standard cognitive performance systems for high-leverage knowledge work.'

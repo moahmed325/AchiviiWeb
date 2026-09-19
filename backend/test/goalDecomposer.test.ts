@@ -156,6 +156,47 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     expect(restTasks[0].detailedSteps[0].challenge.type).toBe('checklist');
   });
 
+  it('correctly matches and clarifies speechPreset for public speaking goals', async () => {
+    const clarification = await clarifyGoalWithAI('Deliver an unforgettable 15-minute TED-style speech');
+    expect(clarification).toBeDefined();
+    expect(clarification.primaryDomain).toContain('Public Speaking');
+    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.length).toBe(3);
+    expect(clarification.capabilities.length).toBe(6);
+    expect(clarification.clarifiedOutcome).toContain('15-minute');
+  });
+
+  it('generates a full 12-week TED-style Speech plan with throughline framing and live keynote gates', async () => {
+    const plan = await generate12WeekPlanWithAI(
+      'Deliver an unforgettable 15-minute TED-style speech',
+      'Deliver an unforgettable 15-minute TED-style keynote speech from memory without slide crutches, captivating a live audience through a single throughline, emotional story beats, and authoritative stage presence',
+      { baseline: 'Stage Fright Novice' },
+      {
+        dailyMinutes: 45,
+        preferredSlot: 'evening',
+        planVariant: 'steady'
+      },
+      new Date('2026-10-01')
+    );
+
+    expect(plan.weeks.length).toBe(12);
+    expect(plan.weeks[3].keyMilestone).toContain('Phase 1 Hard-Gate');
+    expect(plan.weeks[7].keyMilestone).toContain('Phase 2 Hard-Gate');
+    expect(plan.weeks[11].keyMilestone).toContain('15-Minute TED-Style Speech Delivered');
+    expect(plan.initialTasks.length).toBe(7);
+
+    // Verify video rehearsal repetition challenges and Toastmasters resources
+    const activeTasks = plan.initialTasks.filter(t => !t.isRestDay);
+    expect(activeTasks.length).toBe(5);
+    expect(activeTasks[0].detailedSteps[0].challenge.type).toBe('repetitions');
+    expect(activeTasks[0].detailedSteps[0].resourceTitle).toContain('Toastmasters');
+
+    // Verify active recall recovery on rest days
+    const restTasks = plan.initialTasks.filter(t => t.isRestDay);
+    expect(restTasks.length).toBe(2);
+    expect(restTasks[0].detailedSteps[0].challenge.type).toBe('active_recall');
+  });
+
   it('generates a full 12-week Body Recomposition plan with mechanical tension and refeed gates', async () => {
     const plan = await generate12WeekPlanWithAI(
       'Drop 5% body fat and build lean muscle',
