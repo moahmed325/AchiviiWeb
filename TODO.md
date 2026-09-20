@@ -35,6 +35,7 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blo
 ## Phase 3 — Research Core
 **Goal:** on a cache miss, the system actually researches and derives a grounded velocity table.
 
+- [x] Simplify deterministic fallback: custom goals fail honestly with retry state when dual AI providers fail (no silent degraded generation; keyword generator removed). Certified presets unaffected.
 - [ ] Stage 2: generate 2-3 distinct search queries from clarified outcome
 - [ ] Stage 2: run queries against Tavily in parallel, extract top results
 - [ ] Stage 2: blacklist filter on queries/domains (unsafe category list — starting list, not final)

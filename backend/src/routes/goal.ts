@@ -27,7 +27,7 @@ goalRouter.post('/clarify', async (req: Request, res: Response): Promise<void> =
     res.json(clarification);
   } catch (err: any) {
     console.error('[GoalRouter] Clarification error:', err);
-    res.status(500).json({ error: 'Failed to analyze goal.' });
+    res.status(503).json({ error: err.message || "Couldn't generate your plan right now. AI services are temporarily unavailable. Please retry." });
   }
 });
 
@@ -160,7 +160,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
     });
   } catch (err: any) {
     console.error('[GoalRouter] Create goal error:', err);
-    res.status(500).json({ error: err.message || 'Failed to create 90-day plan.' });
+    res.status(503).json({ error: err.message || "Couldn't generate your plan right now. Please try again." });
   }
 });
 

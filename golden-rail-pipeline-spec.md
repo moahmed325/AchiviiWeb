@@ -71,6 +71,9 @@ Examples: "fitness.running.10k", "lang.japanese.jlpt_n3", "music.guitar.acoustic
 
 Add `canonicalKey: string` to the Stage 1 JSON schema.
 
+> [!NOTE]
+> **Deterministic Fallback Simplification**: Custom goals no longer have a silent deterministic content-generation fallback (elaborate keyword-matching plan generators and generic placeholders have been eliminated). If both Groq and Gemini fail for a custom goal, the pipeline does NOT fabricate a degraded plan — it returns an honest failure/retry state (`HTTP 503`) to the frontend. The 10 certified presets retain their hand-crafted, pre-validated deterministic seed fallback schedules unchanged.
+
 ### Stage 1.5 — Cache Resolution (NEW)
 
 Before doing any research, check if this goal has already been researched:

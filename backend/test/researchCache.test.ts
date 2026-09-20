@@ -70,21 +70,22 @@ describe('Phase 2 — ResearchCache & Cosine Similarity Layer', () => {
       expect(presetClarification.canonicalKey).toBe('fitness.running.10k');
     });
 
-    it('derives hierarchical canonicalKey for custom goals in fallback', () => {
+    it('derives distinct slug canonicalKey for custom goals without keyword-domain guessing', () => {
       const key1 = deriveDeterministicCanonicalKey('Train for marathon distance race');
-      expect(key1).toBe('fitness.running.marathon');
+      expect(key1).toBe('custom.goal.train_for_marathon_distance_ra');
 
       const key2 = deriveDeterministicCanonicalKey('Learn conversational Japanese');
-      expect(key2).toBe('lang.japanese.conversational');
+      expect(key2).toBe('custom.goal.learn_conversational_japanese');
 
       const key3 = deriveDeterministicCanonicalKey('Master acoustic guitar fingerpicking');
-      expect(key3).toBe('music.guitar.skills');
+      expect(key3).toBe('custom.goal.master_acoustic_guitar_fingerp');
     });
 
     it('sanitizes canonicalKey to lowercase dot-separated format', () => {
       expect(sanitizeCanonicalKey('Fitness.Running.10K', 'run 10k')).toBe('fitness.running.10k');
-      expect(sanitizeCanonicalKey('invalidkeyformat', 'run 10k')).toBe('fitness.running.10k');
-      expect(sanitizeCanonicalKey(undefined, 'Learn Spanish')).toBe('lang.spanish.conversational');
+      expect(sanitizeCanonicalKey('fitness.running.marathon')).toBe('fitness.running.marathon');
+      expect(sanitizeCanonicalKey(undefined, 'Learn Spanish', 'Language Acquisition', 'Conversational Spanish in 90 Days')).toBe('language_acquisition.conversational_spanish_in_90_d');
+      expect(sanitizeCanonicalKey(undefined, 'Learn Spanish')).toBe('custom.goal.learn_spanish');
     });
   });
 

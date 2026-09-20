@@ -6,17 +6,20 @@ import {
 } from '../src/lib/ai/goalDecomposer.js';
 
 describe('Goal Decomposer & 12-Week Architecture', () => {
-  it('clarifies goal with 5-8 capabilities, scientific frameworks, and capstone criteria', async () => {
-    const clarification = await clarifyGoalWithAI('Master watercolor landscape painting');
+  it('honestly rejects custom goals when AI providers are unavailable without fabricating generic degraded content', async () => {
+    await expect(clarifyGoalWithAI('Master watercolor landscape painting')).rejects.toThrow(
+      'Unable to analyze your goal right now'
+    );
 
-    expect(clarification).toBeDefined();
-    expect(clarification.clarifiedOutcome).toBeTruthy();
-    expect(clarification.primaryDomain).toBeDefined();
-    expect(clarification.capabilities).toBeDefined();
-    expect(clarification.capabilities.length).toBeGreaterThanOrEqual(5);
-    expect(clarification.scientificFrameworks.length).toBeGreaterThanOrEqual(2);
-    expect(clarification.verificationCriteria).toBeDefined();
-    expect(clarification.followUpQuestions.length).toBeGreaterThanOrEqual(3);
+    await expect(
+      generate12WeekPlanWithAI(
+        'Master watercolor landscape painting',
+        'Paint 10 plein air watercolor landscapes in 90 days',
+        {},
+        { dailyMinutes: 45, preferredSlot: 'morning', planVariant: 'steady' },
+        new Date('2026-10-01')
+      )
+    ).rejects.toThrow('Unable to generate your 12-week plan right now');
   });
 
   it('correctly matches and clarifies guitarPreset for acoustic guitar goals', async () => {

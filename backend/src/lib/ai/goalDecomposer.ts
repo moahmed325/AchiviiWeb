@@ -269,9 +269,6 @@ JSON schema:
         'Capstone Fluency Integration'
       ];
     }
-    if (!result.data.evidenceTriad) {
-      result.data.evidenceTriad = getDefaultEvidenceTriad(result.data.primaryDomain);
-    }
     result.data.canonicalKey = sanitizeCanonicalKey(
       result.data.canonicalKey,
       rawGoal,
@@ -281,8 +278,8 @@ JSON schema:
     return result.data;
   }
 
-  // Fallback if AI is offline
-  return getDeterministicClarification(rawGoal);
+  // Fallback: If both AI providers fail for a custom goal, do NOT fabricate a degraded plan.
+  throw new Error('Unable to analyze your goal right now. AI services are temporarily unavailable. Please retry.');
 }
 
 /**
@@ -606,7 +603,13 @@ Respond with JSON matching schema:
     return result.data;
   }
 
-  return getDeterministic12WeekPlan(rawGoal, clarifiedOutcome, routine, startDate);
+  // Fallback: If it's a certified preset, return the pre-validated deterministic blueprint.
+  // For custom goals, do NOT fabricate a degraded plan — fail honestly and prompt user to retry.
+  if (preset) {
+    return getDeterministicPresetPlan(preset, dailyMins, defaultSlotTime, startDate, planVariant);
+  }
+
+  throw new Error('Unable to generate your 12-week plan right now. AI services are temporarily unavailable. Please retry.');
 }
 
 export interface PreviousWeekTaskSummary {
@@ -767,65 +770,17 @@ JSON Schema:
     return result.data.tasks;
   }
 
-  return getDeterministicWeeklyTasks(targetWeekNumber, targetWeekTheme, targetWeekObjective, dailyMins, defaultSlotTime, weekStartDate, planVariant);
+  const preset = findPresetForGoal(goalTitle);
+  if (preset) {
+    return getDeterministicPresetTasks(preset, dailyMins, defaultSlotTime, weekStartDate, planVariant);
+  }
+
+  throw new Error('Unable to adapt upcoming week tasks right now. AI services are temporarily unavailable. Please retry.');
 }
 
 // ---------------------------------------------------------------------------
 // Resilient Deterministic Fallbacks
 // ---------------------------------------------------------------------------
-
-export function getDefaultEvidenceTriad(domain?: string): EvidenceTriad {
-  const clean = (domain || '').toLowerCase();
-  if (clean.includes('run') || clean.includes('marathon') || clean.includes('fitness') || clean.includes('endurance')) {
-    return {
-      science: {
-        title: 'Laboratory Science (Mechanism)',
-        subtitle: 'Cardiorespiratory & Biomechanical Stimulus',
-        tag: 'PEER-REVIEWED MECHANISM',
-        coreRule: '80% of volume strictly under aerobic threshold (Zone 2) to build mitochondrial capillary beds without autonomic strain.',
-        realWorldApplication: 'Weeks 1–4 lock in cardiac stroke volume and tendon density before quality speedwork is permitted.'
-      },
-      socialAdherence: {
-        title: 'Social Reality (Adherence)',
-        subtitle: '9-to-5 Sustainable Friction Reduction',
-        tag: 'REAL-WORLD ADHERENCE',
-        coreRule: 'When lab volume conflicts with a busy schedule, adherence wins. Sessions capped at 35–45m with mandatory 2-day recovery spacing.',
-        realWorldApplication: 'Never run high intensity two days in a row. Silent weekend buffer slots absorb delays so a late workday never kills your streak.'
-      },
-      proCoaching: {
-        title: 'Professional Coaching (Safety & Craft)',
-        subtitle: 'Veteran Heuristics & Joint Pre-hab',
-        tag: 'PRO FIELD WISDOM',
-        coreRule: 'Internal effort cues over GPS watch obedience. Connective tissue adapts 3x slower than cardiorespiratory fitness.',
-        realWorldApplication: 'The Talk Test strictly governs base runs. Targeted eccentric calf drops and hip mobility protect knees and shins.'
-      }
-    };
-  }
-
-  return {
-    science: {
-      title: 'Laboratory Science (Mechanism)',
-      subtitle: 'Cognitive & Neuromuscular Adaptations',
-      tag: 'PEER-REVIEWED MECHANISM',
-      coreRule: 'Deliberate practice with immediate error feedback loops to trigger neuroplastic myelination without cognitive overwhelm.',
-      realWorldApplication: 'Targeted single-subskill drills with progressive load curves to anchor muscle memory before complex synthesis.'
-    },
-    socialAdherence: {
-      title: 'Social Reality (Adherence)',
-      subtitle: '9-to-5 Sustainable Friction Reduction',
-      tag: 'REAL-WORLD ADHERENCE',
-      coreRule: 'When theoretical volume conflicts with a busy life, adherence wins. Sustainable 30–45 min sessions with zero-guilt buffer reallocation.',
-      realWorldApplication: 'Structured around existing work and sleep commitments. Missed sessions automatically reallocate to buffer windows.'
-    },
-    proCoaching: {
-      title: 'Professional Coaching (Safety & Craft)',
-      subtitle: 'Veteran Heuristics & Form Integrity',
-      tag: 'PRO FIELD WISDOM',
-      coreRule: 'Form integrity and baseline energy strictly override raw volume. Consistency compounds 10x more effectively than sporadic heroics.',
-      realWorldApplication: 'Focus on qualitative execution cues and sustainable pacing. Protects against early burnout, injury, or drop-off.'
-    }
-  };
-}
 
 export function getPresetCanonicalKey(presetId: string): string {
   const map: Record<string, string> = {
@@ -857,171 +812,9 @@ export function getPresetCanonicalKey(presetId: string): string {
 }
 
 export function deriveDeterministicCanonicalKey(rawGoal: string): string {
-  const clean = rawGoal.trim().toLowerCase();
-  if (!clean) return 'general.skill.custom_goal';
-
-  // 1. Culinary / Baking / Cooking (takes precedence over nationality words like French, Italian)
-  if (
-    clean.includes('bread') ||
-    clean.includes('bake') ||
-    clean.includes('baking') ||
-    clean.includes('sourdough') ||
-    clean.includes('cook') ||
-    clean.includes('cooking') ||
-    clean.includes('culinary') ||
-    clean.includes('pastry') ||
-    clean.includes('recipe') ||
-    clean.includes('pasta') ||
-    clean.includes('sauce') ||
-    clean.includes('food') ||
-    clean.includes('dish') ||
-    clean.includes('kitchen')
-  ) {
-    const item = clean.includes('sourdough')
-      ? 'sourdough'
-      : clean.includes('bread')
-      ? 'bread'
-      : clean.includes('pastry')
-      ? 'pastry'
-      : clean.includes('pasta')
-      ? 'pasta'
-      : 'cooking';
-    return `culinary.baking.${item}`;
-  }
-
-  // 2. Physical Fitness, Athletics & Endurance
-  if (
-    clean.includes('run') ||
-    clean.includes('running') ||
-    clean.includes('marathon') ||
-    clean.includes('10k') ||
-    clean.includes('5k')
-  ) {
-    const dist = clean.includes('10k')
-      ? '10k'
-      : clean.includes('5k')
-      ? '5k'
-      : clean.includes('marathon')
-      ? 'marathon'
-      : 'running';
-    return `fitness.running.${dist}`;
-  }
-
-  if (
-    clean.includes('triathlon') ||
-    clean.includes('swim') ||
-    clean.includes('swimming') ||
-    clean.includes('cycle') ||
-    clean.includes('cycling') ||
-    clean.includes('gym') ||
-    clean.includes('workout') ||
-    clean.includes('lift') ||
-    clean.includes('lifting')
-  ) {
-    const spec = clean.includes('triathlon')
-      ? 'triathlon'
-      : clean.includes('swim')
-      ? 'swimming'
-      : clean.includes('cycle')
-      ? 'cycling'
-      : 'training';
-    return `fitness.athletics.${spec}`;
-  }
-
-  // 3. Music & Audio
-  if (
-    clean.includes('guitar') ||
-    clean.includes('piano') ||
-    clean.includes('music') ||
-    clean.includes('violin') ||
-    clean.includes('drums') ||
-    clean.includes('dj') ||
-    clean.includes('beatmatch')
-  ) {
-    const inst = clean.includes('guitar')
-      ? 'guitar'
-      : clean.includes('piano')
-      ? 'piano'
-      : clean.includes('dj') || clean.includes('beatmatch')
-      ? 'dj'
-      : 'instrument';
-    return `music.${inst}.skills`;
-  }
-
-  // 4. Visual & Fine Arts / Photography
-  if (
-    clean.includes('paint') ||
-    clean.includes('draw') ||
-    clean.includes('sketch') ||
-    clean.includes('watercolor') ||
-    clean.includes('portrait') ||
-    clean.includes('photo') ||
-    clean.includes('photography')
-  ) {
-    return 'art.creative.technique';
-  }
-
-  // 5. Tech, Software, Containerization & Robotics
-  if (
-    clean.includes('saas') ||
-    clean.includes('app') ||
-    clean.includes('software') ||
-    clean.includes('code') ||
-    clean.includes('coding') ||
-    clean.includes('docker') ||
-    clean.includes('kubernetes') ||
-    clean.includes('container') ||
-    clean.includes('microservice') ||
-    clean.includes('robot') ||
-    clean.includes('robotics') ||
-    clean.includes('arduino') ||
-    clean.includes('cloud') ||
-    clean.includes('aws') ||
-    /\bros\b|\bros2\b/.test(clean)
-  ) {
-    const sub = clean.includes('docker') || clean.includes('kubernetes') || clean.includes('container')
-      ? 'containerization'
-      : clean.includes('robot') || clean.includes('arduino') || /\bros\b|\bros2\b/.test(clean)
-      ? 'robotics'
-      : clean.includes('cloud') || clean.includes('aws')
-      ? 'cloud'
-      : 'software';
-    return `tech.${sub}.${clean.includes('docker') || clean.includes('kubernetes') ? 'docker_kubernetes' : 'development'}`;
-  }
-
-  // 6. Languages (strictly when language/speech intent is present)
-  if (
-    clean.includes('spanish') ||
-    clean.includes('japanese') ||
-    clean.includes('french') ||
-    clean.includes('german') ||
-    clean.includes('italian') ||
-    clean.includes('portuguese') ||
-    clean.includes('chinese') ||
-    clean.includes('mandarin') ||
-    clean.includes('russian') ||
-    clean.includes('language') ||
-    clean.includes('conversational') ||
-    clean.includes('fluent')
-  ) {
-    const lang = clean.includes('spanish')
-      ? 'spanish'
-      : clean.includes('japanese')
-      ? 'japanese'
-      : clean.includes('french')
-      ? 'french'
-      : clean.includes('german')
-      ? 'german'
-      : clean.includes('portuguese')
-      ? 'portuguese'
-      : clean.includes('italian')
-      ? 'italian'
-      : 'foreign';
-    return `lang.${lang}.conversational`;
-  }
-
+  const clean = (rawGoal || '').trim().toLowerCase();
   const slug = clean.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30) || 'goal';
-  return `general.skill.${slug}`;
+  return `custom.goal.${slug}`;
 }
 
 export function sanitizeCanonicalKey(
@@ -1033,19 +826,6 @@ export function sanitizeCanonicalKey(
   if (key && typeof key === 'string') {
     const cleaned = key.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '').replace(/_+/g, '_');
     if (cleaned.includes('.') && cleaned.split('.').length >= 2) {
-      const broadDomain = cleaned.split('.')[0];
-      const domainStr = (fallbackDomain || '').toLowerCase();
-      const outcomeStr = (fallbackOutcome || '').toLowerCase();
-
-      // Guard against domain false misroutes (e.g. key labeled as "lang" when domain is Baking/Cooking)
-      if (
-        broadDomain === 'lang' &&
-        (domainStr.includes('baking') || domainStr.includes('cook') || domainStr.includes('culinary') || outcomeStr.includes('sourdough') || outcomeStr.includes('bread'))
-      ) {
-        const leaf = cleaned.split('.').slice(1).join('_').replace(/^(french|italian|spanish)_/, '');
-        return `culinary.baking.${leaf || 'sourdough'}`;
-      }
-
       return cleaned;
     }
   }
@@ -1156,148 +936,28 @@ export async function resolveStage1WithCache(
   };
 }
 
-function getDeterministicClarification(rawGoal: string): GoalClarification {
-  const cleanGoal = rawGoal.trim();
-  const baseTitle = cleanGoal.length > 0
-    ? cleanGoal.charAt(0).toUpperCase() + cleanGoal.slice(1)
-    : 'Master Your Goal';
-  return {
-    canonicalKey: deriveDeterministicCanonicalKey(cleanGoal),
-    clarifiedOutcome: baseTitle.toLowerCase().includes('90') ? baseTitle : `${baseTitle} in 90 Days`,
-    primaryDomain: 'High Performance Skill Acquisition',
-    capabilities: [
-      'Foundational Mechanics & Technique Precision',
-      'Deliberate Practice Micro-Drills with Focus Cues',
-      'Progressive Overload Tempo & Endurance',
-      'Error Auditing & Friction Recovery Protocols',
-      'Capstone Benchmark Execution & Fluency'
-    ],
-    scientificFrameworks: [
-      {
-        name: 'The 12 Week Year (Moran)',
-        description: 'Compresses a full year cycle into 12 weeks to maintain maximum urgency and focus.',
-        application: 'Structured into 3 progressive 4-week phases with weekly execution scoring target ≥85%.'
-      },
-      {
-        name: 'Deliberate Practice (Ericsson)',
-        description: 'Targeted drills beyond comfort zone with immediate corrective feedback.',
-        application: 'Daily sessions target specific sub-skills with clear focus cues rather than mindless repetition.'
-      },
-      {
-        name: 'Implementation Intentions (Gollwitzer)',
-        description: 'Pre-committing to exact time, place, and protocol increases follow-through by 2-3x.',
-        application: 'Every daily task is explicitly scheduled into your daily routine.'
-      }
-    ],
-    verificationCriteria: `Complete a verifiable benchmark performance or capstone presentation demonstrating full fluency.`,
-    followUpQuestions: [
-      {
-        id: 'baseline',
-        question: 'What is your current starting point or experience level with this goal?',
-        subtitle: 'Helps us calibrate Week 1 starting intensity and mechanical difficulty.',
-        options: [
-          'Complete beginner (starting from zero)',
-          'Novice with scattered past attempts',
-          'Intermediate looking to break through a plateau',
-          'Experienced practitioner restarting after a hiatus'
-        ],
-        allowCustom: true
-      },
-      {
-        id: 'resources',
-        question: 'What tools, gear, or environment do you have access to right now?',
-        subtitle: 'Ensures all daily tasks are 100% executable with your current setup.',
-        options: [
-          'All necessary equipment ready at home',
-          'Basic tools available, may need occasional digital resources',
-          'Need to acquire equipment during Week 1',
-          'Shared or gym/studio workspace'
-        ],
-        allowCustom: true
-      },
-      {
-        id: 'friction',
-        question: 'What has been your biggest obstacle when trying to stick to similar goals?',
-        subtitle: 'We will design recovery guardrails to protect your streak against this.',
-        options: [
-          'Loss of consistency after week 2 or 3',
-          'Unclear daily practice plan / decision fatigue',
-          'Time crunch with unexpected work demands',
-          'Perfectionism and discouragement after missing a day'
-        ],
-        allowCustom: true
-      }
-    ],
-    evidenceTriad: getDefaultEvidenceTriad(cleanGoal)
-  };
-}
-
-function getDeterministic12WeekPlan(
-  rawGoal: string,
-  clarifiedOutcome: string,
-  routine: UserRoutineInput,
-  startDate: Date
+function getDeterministicPresetPlan(
+  preset: CertifiedPresetBlueprint,
+  dailyMins: number,
+  defaultSlotTime: string,
+  startDate: Date,
+  planVariant: 'minimal' | 'steady' | 'accelerated' = 'steady'
 ): PlanGenerationResult {
-  const dailyMins = routine.dailyMinutes || 60;
-  const preferredSlot = routine.preferredSlot || 'evening';
-  const defaultSlotTime = preferredSlot === 'morning' ? '07:30' : preferredSlot === 'afternoon' ? '14:00' : '19:30';
-  const planVariant = routine.planVariant || 'steady';
+  const weeks: RoadmapWeekPlan[] = preset.weeks.map(w => ({
+    weekNumber: w.weekNumber,
+    phase: w.phase,
+    theme: w.theme,
+    objective: w.objective,
+    keyMilestone: w.keyMilestone,
+    targetIntensity: w.targetIntensity,
+    plannedMinutes: dailyMins
+  }));
 
-  const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
-  if (preset) {
-    const weeks: RoadmapWeekPlan[] = preset.weeks.map(w => ({
-      weekNumber: w.weekNumber,
-      phase: w.phase,
-      theme: w.theme,
-      objective: w.objective,
-      keyMilestone: w.keyMilestone,
-      targetIntensity: w.targetIntensity,
-      plannedMinutes: dailyMins
-    }));
-
-    const initialTasks = getDeterministicPresetTasks(preset, dailyMins, defaultSlotTime, startDate, planVariant);
-
-    return {
-      clarifiedOutcome: preset.clarifiedOutcome,
-      methodologyNotes: `Certified Master Curriculum: ${preset.badge}. Grounded in ${preset.scientificFrameworks.map(f => f.name).join(', ')}.`,
-      weeks,
-      initialTasks
-    };
-  }
-
-  const phases: Array<{ name: 'Foundation' | 'Acceleration' | 'Mastery'; weeks: number[]; intensity: number }> = [
-    { name: 'Foundation', weeks: [1, 2, 3, 4], intensity: 60 },
-    { name: 'Acceleration', weeks: [5, 6, 7, 8], intensity: 80 },
-    { name: 'Mastery', weeks: [9, 10, 11, 12], intensity: 95 }
-  ];
-
-  const weeks: RoadmapWeekPlan[] = [];
-  for (let w = 1; w <= 12; w++) {
-    const currentPhase = phases.find(p => p.weeks.includes(w)) || phases[0];
-    const keyMilestone = w === 12
-      ? 'Phase 3 Mastery Capstone Verification & Final Proof of Achievement'
-      : w === 8
-      ? 'Phase 2 Acceleration Milestone Gate: Tempo & Fluency Benchmark'
-      : w === 4
-      ? 'Phase 1 Foundation Milestone Gate: Mechanics & Posture Diagnostic'
-      : `Week ${w} diagnostic test completed with ≥85% score.`;
-
-    weeks.push({
-      weekNumber: w,
-      phase: currentPhase.name,
-      theme: `Week ${w}: ${w <= 4 ? 'Mechanics & Foundation Setup' : w <= 8 ? 'Deliberate Skill Expansion' : w === 12 ? 'Capstone Benchmark Execution' : 'Fluent Integration & Pressure Testing'}`,
-      objective: `Master the key sub-components of ${rawGoal.slice(0, 30)} with consistent daily execution.`,
-      keyMilestone,
-      targetIntensity: Math.min(100, currentPhase.intensity + (w % 4) * 5),
-      plannedMinutes: dailyMins
-    });
-  }
-
-  const initialTasks = getDeterministicWeeklyTasks(1, weeks[0].theme, weeks[0].objective, dailyMins, defaultSlotTime, startDate, planVariant);
+  const initialTasks = getDeterministicPresetTasks(preset, dailyMins, defaultSlotTime, startDate, planVariant);
 
   return {
-    clarifiedOutcome,
-    methodologyNotes: 'Built upon The 12 Week Year, Ericsson Deliberate Practice, and Progressive Overload.',
+    clarifiedOutcome: preset.clarifiedOutcome,
+    methodologyNotes: `Certified Master Curriculum: ${preset.badge}. Grounded in ${preset.scientificFrameworks.map(f => f.name).join(', ')}.`,
     weeks,
     initialTasks
   };
@@ -1630,160 +1290,3 @@ function getDeterministicPresetTasks(
   return tasks;
 }
 
-function getDeterministicWeeklyTasks(
-  weekNum: number,
-  theme: string,
-  objective: string,
-  dailyMins: number,
-  slotTime: string,
-  startDate: Date,
-  planVariant: 'minimal' | 'steady' | 'accelerated' = 'steady'
-): DailyTaskPlan[] {
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const tasks: DailyTaskPlan[] = [];
-
-  // Rest day indices (0..6) respecting the 2-day rule:
-  // 'minimal' (4 active, 3 rest): days 2, 4, 6 (Day 3, 5, 7) -> no consecutive rest days
-  // 'steady' (5 active, 2 rest): days 3, 6 (Day 4, 7) -> no consecutive rest days
-  // 'accelerated' (6 active, 1 rest): day 6 (Day 7)
-  const restDayIndices = planVariant === 'minimal' ? [2, 4, 6] : planVariant === 'accelerated' ? [6] : [3, 6];
-
-  for (let d = 0; d < 7; d++) {
-    const currentDate = new Date(startDate);
-    currentDate.setDate(currentDate.getDate() + d);
-    const dayOfWeek = dayNames[currentDate.getDay()];
-    const isRestDay = restDayIndices.includes(d);
-
-    if (isRestDay) {
-      tasks.push({
-        dayNumber: d + 1,
-        dayOfWeek,
-        title: 'Active Recovery & Weekly Reflection',
-        isRestDay: true,
-        durationMinutes: 15,
-        slotTime,
-        implementationIntention: `When: ${slotTime} | Where: Quiet workspace | Action: 15-min weekly review and mental rehearsal`,
-        resourceTitle: 'Mindset & Weekly Review Protocol (Farnam Street)',
-        resourceUrl: 'https://fs.blog/weekly-review/',
-        resourceType: 'guide',
-        resourceWhy: 'Follow this reflective checklist to review progress without self-judgment and calibrate next week.',
-        detailedSteps: [
-          {
-            stepNumber: 1,
-            title: 'Audit Weekly Wins & Friction',
-            durationMinutes: 5,
-            instructions: 'Review completed sessions from this week. Identify which drills felt easiest and which had friction.',
-            focusCue: 'Be honest and objective; friction reveals where skill is growing.',
-            pitfallToAvoid: 'Skipping the reflection or feeling guilty about imperfect execution.',
-            layer: 'mechanism',
-            layerReasoning: 'Metacognitive self-auditing consolidates memory traces and identifies micro-errors before they habituate.',
-            resourceTitle: 'Harvard Business Review: The Power of Meaningful Reflection',
-            resourceUrl: 'https://hbr.org/2014/03/why-you-should-make-time-for-self-reflection-even-if-youre-too-busy',
-            resourceType: 'guide',
-            resourceWhy: 'Follow this 3-question audit format to distill weekly learning into actionable tweaks.'
-          },
-          {
-            stepNumber: 2,
-            title: 'Pre-flight Upcoming Week & Habit Environment',
-            durationMinutes: 10,
-            instructions: 'Confirm your practice space and calendar blocks for the upcoming 6 practice days.',
-            focusCue: 'Clear physical environment beforehand so friction to start is near zero.',
-            pitfallToAvoid: 'Leaving scheduling to chance on busy mornings.',
-            layer: 'adherence',
-            layerReasoning: 'Pre-committing time blocks and removing friction mirrors the primary environmental trigger pattern of long-term performers.',
-            resourceTitle: 'James Clear: Habit Triggers and Environment Architecture',
-            resourceUrl: 'https://jamesclear.com/environment-design-habits',
-            resourceType: 'scientific_study',
-            resourceWhy: 'Understand how visual environment cues govern automatic behavior execution.'
-          }
-        ]
-      });
-    } else {
-      const step1Min = Math.round(dailyMins * 0.2);
-      const step2Min = Math.round(dailyMins * 0.5);
-      const step3Min = dailyMins - step1Min - step2Min;
-
-      tasks.push({
-        dayNumber: d + 1,
-        dayOfWeek,
-        title: `Day ${d + 1}: ${d === 0 ? 'Diagnostic & Setup Drill' : d === 4 ? 'Paced Speed Drill' : 'Deliberate Sub-skill Practice'}`,
-        isRestDay: false,
-        durationMinutes: dailyMins,
-        slotTime,
-        implementationIntention: `When: ${slotTime} | Where: Dedicated practice area | Action: ${dailyMins}-min structured deliberate practice`,
-        resourceTitle: `Curated Domain Master Guide (${theme})`,
-        resourceUrl: 'https://en.wikipedia.org/wiki/Deliberate_practice',
-        resourceType: 'guide',
-        resourceWhy: 'Ground yourself in the foundational mechanics and principles for this sub-skill before beginning reps.',
-        detailedSteps: [
-          {
-            stepNumber: 1,
-            title: 'Mechanical Warm-up & Calibration',
-            durationMinutes: step1Min,
-            instructions: 'Begin at 60% speed. Focus on flawless form, posture, and zero unnecessary physical tension.',
-            focusCue: 'Smooth and slow is faster than rushed and sloppy.',
-            pitfallToAvoid: 'Speeding up before the motion is clean.',
-            layer: 'safety',
-            layerReasoning: 'Practitioner coaching standard: calibrate posture and ergonomics at slow tempo to prevent tendonitis and early fatigue.',
-            challenge: {
-              type: 'repetitions',
-              drillName: 'Clean Form Calibration',
-              targetCount: 10,
-              totalSets: 3,
-              unit: 'slow reps'
-            },
-            resourceTitle: 'Biomechanics & Kinetic Alignment Walkthrough',
-            resourceUrl: 'https://www.youtube.com/results?search_query=biomechanics+proper+posture+and+ergonomics+tutorial',
-            resourceType: 'youtube_video',
-            resourceWhy: 'Watch the kinetic breakdown from 01:00 to 03:30 to eliminate wrist strain and posture slump.'
-          },
-          {
-            stepNumber: 2,
-            title: 'Core Deliberate Practice Drill',
-            durationMinutes: step2Min,
-            instructions: `Execute targeted repetitions of the central technique for ${theme}. Take 10-second pauses between micro-sets.`,
-            focusCue: 'Pay intense attention to the precise contact point and timing.',
-            pitfallToAvoid: 'Allowing your mind to wander; treat this as an active mental workout.',
-            layer: 'mechanism',
-            layerReasoning: 'Anders Ericsson deliberate practice protocol: targeted sub-skill repetition at edge of current ability with immediate error detection.',
-            challenge: {
-              type: 'repetitions',
-              drillName: 'Paced Execution Drill',
-              targetCount: 8,
-              totalSets: 4,
-              unit: 'focused sets'
-            },
-            resourceTitle: 'Interactive Practice Engine & Paced Rep Metronome',
-            resourceUrl: 'https://www.flutetunes.com/metronome/',
-            resourceType: 'interactive_tool',
-            resourceWhy: 'Dial this interactive metronome to 60 BPM and increase by 2 BPM only after 5 flawless consecutive sets.'
-          },
-          {
-            stepNumber: 3,
-            title: 'Fluency Integration & Mental Blueprint',
-            durationMinutes: step3Min,
-            instructions: 'Integrate the technique into a continuous sequence or musical phrase. Log any points of resistance.',
-            focusCue: 'Focus on rhythm and seamless flow across transitions.',
-            pitfallToAvoid: 'Ending abruptly without reviewing what went well.',
-            layer: 'adherence',
-            layerReasoning: 'Connects isolated mechanics to a recognizable musical or practical deliverable to provide immediate intrinsic reward and prevent drop-off.',
-            challenge: {
-              type: 'checklist',
-              items: [
-                { id: 'c1', label: 'Perform 1 unbroken fluency sequence' },
-                { id: 'c2', label: 'Self-diagnose any friction points' },
-                { id: 'c3', label: 'Complete 60-second mental replay' }
-              ]
-            },
-            resourceTitle: 'Dr. Pascual-Leone: Mental Practice & Motor Cortex Reorganization Study',
-            resourceUrl: 'https://pubmed.ncbi.nlm.nih.gov/7500130/',
-            resourceType: 'scientific_study',
-            resourceWhy: 'Review findings showing mental rehearsal activates the exact same neural pathways as physical execution.'
-          }
-        ]
-      });
-    }
-  }
-
-  return tasks;
-}

@@ -26,7 +26,8 @@ import {
   GripVertical,
   Trash2,
   Clock,
-  HelpCircle
+  HelpCircle,
+  AlertCircle
 } from 'lucide-react';
 import {
   GoalClarification,
@@ -855,11 +856,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   // --------------------------------------------------------------------------
   // Background AI Clarification Runner
   // --------------------------------------------------------------------------
-  const startClarification = (goalText: string) => {
+  const startClarification = (goalText: string, force: boolean = false) => {
     const textToUse = (goalText || rawGoal).trim();
     if (!textToUse) return;
 
-    if (clarification && lastClarifiedGoal === textToUse) {
+    if (!force && clarification && lastClarifiedGoal === textToUse) {
       return;
     }
 
@@ -883,7 +884,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       })
       .catch((err: any) => {
         console.error('[OnboardingWizard] Clarification error:', err);
-        setClarificationError(err.message || 'Something went wrong while analyzing your goal.');
+        setClarification(null);
+        setClarificationError(err.message || "Couldn't generate your plan right now. AI services are temporarily unavailable. Please retry.");
+        setIsWaitingForClarification(false);
       })
       .finally(() => {
         setIsClarifying(false);
@@ -924,10 +927,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       goToStep(3);
     } else if (clarificationError) {
       // If error occurred, retry analysis
-      startClarification(rawGoal);
+      startClarification(rawGoal, true);
       setIsWaitingForClarification(true);
     } else {
-      startClarification(rawGoal);
+      startClarification(rawGoal, true);
       setIsWaitingForClarification(true);
     }
   };
@@ -1809,12 +1812,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
           {/* Background Clarification Error (if any) */}
           {clarificationError && (
-            <div className="p-3.5 rounded-md bg-red-950/40 border border-red-800 text-red-300 text-xs flex items-center justify-between gap-3">
-              <span>{clarificationError}</span>
+            <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/80 text-red-200 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg shadow-red-950/20 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                <span className="font-medium">{clarificationError}</span>
+              </div>
               <button
                 type="button"
-                onClick={() => startClarification(rawGoal)}
-                className="px-3 py-1 bg-red-800 hover:bg-red-700 text-white rounded font-medium text-xs cursor-pointer shrink-0"
+                onClick={() => startClarification(rawGoal, true)}
+                className="px-3.5 py-1.5 bg-red-800 hover:bg-red-700 text-white rounded-lg font-semibold text-xs cursor-pointer shrink-0 transition-colors shadow"
               >
                 Retry Analysis
               </button>
@@ -2364,30 +2370,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           {/* =================================================================== */}
           {/* THE ACHIVII TRIAD: CERTIFIED GROUNDING (SCIENCE x ADHERENCE x SAFETY) */}
           {/* =================================================================== */}
-          {(() => {
-            const activeTriad = clarification.evidenceTriad || {
-              science: {
-                title: 'Laboratory Science (Mechanism)',
-                subtitle: 'Cardiorespiratory & Biomechanical Stimulus',
-                tag: 'PEER-REVIEWED MECHANISM',
-                coreRule: '80% of volume strictly under aerobic threshold (Zone 2) to build mitochondrial capillary beds without autonomic strain.',
-                realWorldApplication: 'Weeks 1–4 lock in cardiac stroke volume and tendon density before quality speedwork is permitted.'
-              },
-              socialAdherence: {
-                title: 'Social Reality (Adherence)',
-                subtitle: '9-to-5 Sustainable Friction Reduction',
-                tag: 'REAL-WORLD ADHERENCE',
-                coreRule: 'When lab volume conflicts with a busy schedule, adherence wins. Sessions capped at 35–45m with mandatory 2-day recovery spacing.',
-                realWorldApplication: 'Never run high intensity two days in a row. Silent weekend buffer slots absorb delays so a late workday never kills your streak.'
-              },
-              proCoaching: {
-                title: 'Professional Coaching (Safety & Craft)',
-                subtitle: 'Veteran Heuristics & Joint Pre-hab',
-                tag: 'PRO FIELD WISDOM',
-                coreRule: 'Internal effort cues over GPS watch obedience. Connective tissue adapts 3x slower than cardiorespiratory fitness.',
-                realWorldApplication: 'The Talk Test strictly governs base runs. Targeted eccentric calf drops and hip mobility protect knees and shins.'
-              }
-            };
+          {clarification.evidenceTriad && (() => {
+            const activeTriad = clarification.evidenceTriad;
 
             return (
               <div className="p-4 sm:p-5 rounded-md bg-[#090e0c] border border-[#1a2824] space-y-3.5">
@@ -2555,31 +2539,58 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       {/* ===================================================================== */}
       {step === 5 && (
         <div className="py-16 text-center space-y-6 animate-fadeInUp">
-          <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-2 border-[#07CB6C]/20 border-t-[#07CB6C] animate-spin" />
-            <Target className="w-8 h-8 text-[#07CB6C] animate-pulse" />
-          </div>
+          {generationError ? (
+            <div className="max-w-md mx-auto space-y-6 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-red-950/50 border border-red-800 flex items-center justify-center text-red-400 shadow-xl shadow-red-950/30">
+                <AlertCircle className="w-8 h-8 text-red-400 stroke-[2]" />
+              </div>
 
-          <div className="space-y-2">
-            <h2 className="text-xl sm:text-2xl font-bold text-white">
-              Building your plan...
-            </h2>
-            <p className="text-sm text-[#07CB6C] transition-all duration-300">
-              {generationStages[generationStage]}
-            </p>
-          </div>
+              <div className="space-y-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">
+                  Couldn't generate your plan right now
+                </h2>
+                <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed">
+                  Both AI providers were temporarily unavailable to assemble your custom blueprint. No degraded or generic plan was created.
+                </p>
+              </div>
 
-          {generationError && (
-            <div className="max-w-md mx-auto p-4 rounded-md bg-red-950/40 border border-red-800 text-red-300 text-xs space-y-3">
-              <p>{generationError}</p>
-              <button
-                type="button"
-                onClick={handleGeneratePlan}
-                className="px-4 py-1.5 bg-red-800 hover:bg-red-700 text-white rounded-md text-xs font-semibold cursor-pointer"
-              >
-                Try Again
-              </button>
+              <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-800/60 text-red-300 text-xs text-left font-mono">
+                {generationError}
+              </div>
+
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setStep(4)}
+                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
+                >
+                  Review Inputs
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGeneratePlan}
+                  className="px-5 py-2 bg-[#07CB6C] hover:bg-[#06b560] text-black rounded-xl text-xs font-bold cursor-pointer transition-all shadow-lg shadow-[#07CB6C]/20"
+                >
+                  Try Again
+                </button>
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+                <div className="absolute inset-0 rounded-full border-2 border-[#07CB6C]/20 border-t-[#07CB6C] animate-spin" />
+                <Target className="w-8 h-8 text-[#07CB6C] animate-pulse" />
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">
+                  Building your plan...
+                </h2>
+                <p className="text-sm text-[#07CB6C] transition-all duration-300">
+                  {generationStages[generationStage]}
+                </p>
+              </div>
+            </>
           )}
         </div>
       )}
