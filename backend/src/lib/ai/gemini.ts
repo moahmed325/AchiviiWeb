@@ -1,4 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
+import {
+  generateGroqStructuredContent,
+  generateGroqTextContent,
+  getGroqApiKey,
+} from './groq.js';
 
 export interface GenerationUsage {
   promptTokens?: number;
@@ -13,6 +18,7 @@ export interface GenerationResult<T = string> {
   usage?: GenerationUsage;
   error?: string;
   isFallback: boolean;
+  provider?: 'groq' | 'gemini' | 'deterministic';
 }
 
 /**
@@ -32,17 +38,56 @@ export function getGeminiClient(): GoogleGenAI | null {
   return clientInstance;
 }
 
-export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+
+let llmCallCounter = 0;
+let embeddingCallCounter = 0;
+
+export function getLlmCallCount(): number {
+  return llmCallCounter;
+}
+
+export function resetLlmCallCount(): void {
+  llmCallCounter = 0;
+}
+
+export function getEmbeddingCallCount(): number {
+  return embeddingCallCounter;
+}
+
+export function resetEmbeddingCallCount(): void {
+  embeddingCallCounter = 0;
+}
 
 /**
- * Generates structured JSON using Gemini with responseMimeType: "application/json".
- * If the API key is not configured or an error occurs, returns null so the caller can use its deterministic fallback.
+ * Generates structured JSON using the tiered provider cascade:
+ * 1. Primary: Groq (llama-3.3-70b-versatile) with native JSON mode. Free, no card required, high throughput.
+ * 2. Secondary Fallback: Gemini (gemini-2.5-flash-lite) with application/json.
+ * 3. Final Safety Net: Deterministic parser / template in caller.
  */
 export async function generateStructuredContent<T>(
   prompt: string,
   systemInstruction?: string,
   modelName: string = DEFAULT_GEMINI_MODEL
 ): Promise<GenerationResult<T>> {
+  llmCallCounter++;
+
+  // 1. Primary Provider: Groq
+  if (getGroqApiKey()) {
+    const groqResult = await generateGroqStructuredContent<T>(prompt, systemInstruction);
+    if (groqResult.success && groqResult.data) {
+      return {
+        success: true,
+        data: groqResult.data,
+        usage: groqResult.usage,
+        isFallback: false,
+        provider: 'groq',
+      };
+    }
+    console.warn('[LLM:Cascade] Groq call failed or returned null, falling back to Gemini:', groqResult.error);
+  }
+
+  // 2. Secondary Fallback: Gemini
   const client = getGeminiClient();
   const startTime = Date.now();
 
@@ -51,13 +96,16 @@ export async function generateStructuredContent<T>(
       success: false,
       data: null,
       isFallback: true,
-      error: 'GEMINI_API_KEY is not configured',
+      provider: 'deterministic',
+      error: 'Neither GROQ_API_KEY nor GEMINI_API_KEY is configured',
     };
   }
 
   try {
     const config: any = {
       responseMimeType: 'application/json',
+      temperature: 0.0,
+      seed: 42,
     };
     if (systemInstruction) {
       config.systemInstruction = systemInstruction;
@@ -85,6 +133,7 @@ export async function generateStructuredContent<T>(
       data: parsed,
       usage,
       isFallback: false,
+      provider: 'gemini',
     };
   } catch (err: any) {
     const durationMs = Date.now() - startTime;
@@ -95,18 +144,37 @@ export async function generateStructuredContent<T>(
       error: err.message,
       usage: { durationMs },
       isFallback: true,
+      provider: 'deterministic',
     };
   }
 }
 
 /**
- * Generates natural language text using Gemini (solely for the Coach role).
+ * Generates natural language text using the provider cascade (Groq -> Gemini -> Fallback).
  */
 export async function generateTextContent(
   prompt: string,
   systemInstruction?: string,
   modelName: string = DEFAULT_GEMINI_MODEL
 ): Promise<GenerationResult<string>> {
+  llmCallCounter++;
+
+  // 1. Primary Provider: Groq
+  if (getGroqApiKey()) {
+    const groqResult = await generateGroqTextContent(prompt, systemInstruction);
+    if (groqResult.success && groqResult.data) {
+      return {
+        success: true,
+        data: groqResult.data,
+        usage: groqResult.usage,
+        isFallback: false,
+        provider: 'groq',
+      };
+    }
+    console.warn('[LLM:Cascade] Groq text generation failed, falling back to Gemini:', groqResult.error);
+  }
+
+  // 2. Secondary Fallback: Gemini
   const client = getGeminiClient();
   const startTime = Date.now();
 
@@ -115,7 +183,8 @@ export async function generateTextContent(
       success: false,
       data: null,
       isFallback: true,
-      error: 'GEMINI_API_KEY is not configured',
+      provider: 'deterministic',
+      error: 'Neither GROQ_API_KEY nor GEMINI_API_KEY is configured',
     };
   }
 
@@ -158,4 +227,36 @@ export async function generateTextContent(
       isFallback: true,
     };
   }
+}
+
+export const DEFAULT_EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
+
+/**
+ * Generates a 768-dimensional embedding vector for text using Gemini.
+ * Uses gemini-embedding-001 with outputDimensionality: 768 (active supported model in @google/genai).
+ */
+export async function generateEmbedding(
+  text: string,
+  modelName: string = DEFAULT_EMBEDDING_MODEL
+): Promise<number[]> {
+  embeddingCallCounter++;
+  const client = getGeminiClient();
+  if (!client) {
+    throw new Error('GEMINI_API_KEY is not configured');
+  }
+
+  const response = await client.models.embedContent({
+    model: modelName,
+    contents: text,
+    config: {
+      outputDimensionality: 768,
+    },
+  });
+
+  const values = (response as any).embedding?.values || (response as any).embeddings?.[0]?.values;
+  if (!values || !Array.isArray(values)) {
+    throw new Error('No embedding values returned from Gemini embedding API');
+  }
+
+  return values;
 }

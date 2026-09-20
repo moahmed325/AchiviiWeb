@@ -1,6 +1,3 @@
--- CreateExtension
-CREATE EXTENSION IF NOT EXISTS "vector";
-
 -- AlterTable
 ALTER TABLE "goals" ADD COLUMN     "canonicalAuthority" TEXT,
 ADD COLUMN     "canonicalKey" TEXT,
@@ -11,10 +8,10 @@ ADD COLUMN     "methodConfidence" TEXT,
 ADD COLUMN     "velocityTable" JSONB;
 
 -- CreateTable
-CREATE TABLE "ResearchCache" (
+CREATE TABLE "research_cache" (
     "id" TEXT NOT NULL,
     "canonicalKey" TEXT NOT NULL,
-    "outcomeEmbedding" vector(768) NOT NULL,
+    "outcomeEmbedding" TEXT NOT NULL,
     "canonicalMethod" JSONB NOT NULL,
     "hitCount" INTEGER NOT NULL DEFAULT 1,
     "userFeedbackScore" DOUBLE PRECISION,
@@ -23,8 +20,8 @@ CREATE TABLE "ResearchCache" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "lastUsedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "ResearchCache_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "research_cache_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ResearchCache_canonicalKey_key" ON "ResearchCache"("canonicalKey");
+CREATE UNIQUE INDEX "research_cache_canonicalKey_key" ON "research_cache"("canonicalKey");

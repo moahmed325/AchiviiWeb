@@ -5,6 +5,7 @@ export default defineConfig({
     environment: 'node',
     env: {
       GEMINI_API_KEY: '',
+      GROQ_API_KEY: '',
     },
     testTimeout: 10000,
   },

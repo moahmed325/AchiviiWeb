@@ -23,10 +23,10 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blo
 ## Phase 2 — Cache Layer
 **Goal:** goal requests can be matched against prior research.
 
-- [ ] Update Stage 1 (`clarifyGoalWithAI`) prompt to emit `canonicalKey`
-- [ ] Build Stage 1.5 cache resolution: Tier 1 exact key match, Tier 2 pgvector similarity (threshold 0.88)
-- [ ] Wire embedding generation for `clarifiedOutcome` (text-embedding-004 or equivalent)
-- [ ] On cache hit: increment `hitCount`, update `lastUsedAt`, return cached `canonicalMethod`
+- [x] Update Stage 1 (`clarifyGoalWithAI`) prompt to emit `canonicalKey`
+- [x] Build Stage 1.5 cache resolution: Tier 1 exact key match, Tier 2 cosine similarity fallback (threshold 0.88)
+- [x] Wire embedding generation for `clarifiedOutcome` (gemini-embedding-001 with 768 dims)
+- [x] On cache hit: increment `hitCount`, update `lastUsedAt`, return cached `canonicalMethod`
 
 **Acceptance:** submitting a goal twice (or two close phrasings of the same goal) results in a cache hit on the second submission, verified by checking `hitCount` incremented and no new Tavily calls were made.
 

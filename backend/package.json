@@ -18,7 +18,9 @@
     "migrate:backfill": "tsx scripts/backfill-phase1-sessions.ts",
     "use:postgres": "node scripts/switch-db.js postgres && prisma generate",
     "use:sqlite": "node scripts/switch-db.js sqlite && prisma generate",
-    "test:tavily": "tsx scripts/test-tavily.ts"
+    "test:tavily": "tsx scripts/test-tavily.ts",
+    "test:groq": "tsx scripts/test-groq-stage1.ts",
+    "demo:cache": "tsx scripts/demo-phase2-cache.ts"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

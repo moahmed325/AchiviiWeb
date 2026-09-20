@@ -74,6 +74,7 @@ export class TavilyClient {
     }
 
     const endpoint = `${this.baseUrl}/search`;
+    tavilyCallCounter++;
     const timeoutMs = options.timeoutMs ?? 20000;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -141,6 +142,7 @@ export class TavilyClient {
     }
 
     const endpoint = `${this.baseUrl}/extract`;
+    tavilyCallCounter++;
     const timeoutMs = options.timeoutMs ?? 30000;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -184,6 +186,16 @@ export class TavilyClient {
       clearTimeout(timeoutId);
     }
   }
+}
+
+let tavilyCallCounter = 0;
+
+export function getTavilyCallCount(): number {
+  return tavilyCallCounter;
+}
+
+export function resetTavilyCallCount(): void {
+  tavilyCallCounter = 0;
 }
 
 /**

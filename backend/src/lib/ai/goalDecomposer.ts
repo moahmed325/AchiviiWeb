@@ -14,8 +14,14 @@ import {
   CertifiedPresetBlueprint,
   EvidenceTriad
 } from './presets/index.js';
+import {
+  resolveResearchCache,
+  saveResearchCacheEntry,
+  CacheResolutionResult
+} from '../cache/researchCache.js';
 
 export interface GoalClarification {
+  canonicalKey: string;
   clarifiedOutcome: string;
   primaryDomain: string;
   capabilities: string[];
@@ -170,6 +176,7 @@ export async function clarifyGoalWithAI(rawGoal: string): Promise<GoalClarificat
   const preset = findPresetForGoal(rawGoal);
   if (preset) {
     return {
+      canonicalKey: getPresetCanonicalKey(preset.id),
       clarifiedOutcome: preset.clarifiedOutcome,
       primaryDomain: preset.primaryDomain,
       capabilities: preset.capabilities && preset.capabilities.length > 0
@@ -215,10 +222,22 @@ Always respond with clean, valid JSON matching the requested schema.`;
    - Specific equipment / environment available
    - Primary style, sub-focus, or target aspiration
    - Biggest historical obstacle or friction point
-For each question, provide 3-4 realistic multiple-choice options plus allowCustom: true.
+7. Additionally, output a \`canonicalKey\`: a lowercase, dot-separated hierarchical
+domain key that uniquely identifies this goal's category, general enough that
+close variants of the same goal (different phrasing, same underlying ambition)
+would map to the SAME key. Format: <broad_domain>.<sub_domain>.<specific_goal>.
+Examples: "fitness.running.10k", "culinary.baking.sourdough", "music.guitar.acoustic_songs", "tech.cloud.aws_architect", "lang.spanish.conversational".
+CRITICAL DOMAIN ROUTING RULE: <broad_domain> MUST categorize the primary action/skill being practiced, NOT adjectives or national origins mentioned in the title.
+- Culinary/cooking/baking goals (even with nationalities like "French sourdough" or "Italian pasta") MUST belong to "culinary", NEVER "lang".
+- Language learning goals ("learn French", "speak conversational Spanish") MUST belong to "lang".
+- Physical training/athletics belong to "fitness".
+- Software/IT/engineering belong to "tech" or "engineering".
+- Visual/fine arts belong to "art".
+- Music/audio belong to "music".
 
 JSON schema:
 {
+  "canonicalKey": string,
   "clarifiedOutcome": string,
   "primaryDomain": string,
   "capabilities": string[],
@@ -235,7 +254,8 @@ JSON schema:
       "allowCustom": boolean
     }
   ]
-}`;
+}
+`;
 
   const result = await generateStructuredContent<GoalClarification>(prompt, systemInstruction);
 
@@ -252,6 +272,12 @@ JSON schema:
     if (!result.data.evidenceTriad) {
       result.data.evidenceTriad = getDefaultEvidenceTriad(result.data.primaryDomain);
     }
+    result.data.canonicalKey = sanitizeCanonicalKey(
+      result.data.canonicalKey,
+      rawGoal,
+      result.data.primaryDomain,
+      result.data.clarifiedOutcome
+    );
     return result.data;
   }
 
@@ -801,12 +827,342 @@ export function getDefaultEvidenceTriad(domain?: string): EvidenceTriad {
   };
 }
 
+export function getPresetCanonicalKey(presetId: string): string {
+  const map: Record<string, string> = {
+    run10k: 'fitness.running.10k',
+    run10k_sub50: 'fitness.running.10k',
+    guitar: 'music.guitar.acoustic_songs',
+    guitar5songs: 'music.guitar.acoustic_songs',
+    guitar_wonderwall_mastery: 'music.guitar.acoustic_songs',
+    saas: 'tech.software.saas',
+    saas_first_customer: 'tech.software.saas',
+    saas_mvp_launch: 'tech.software.saas',
+    spanish: 'lang.spanish.conversational',
+    spanish_conversation: 'lang.spanish.conversational',
+    recomp: 'fitness.bodybuilding.recomposition',
+    body_recomposition_90day: 'fitness.bodybuilding.recomposition',
+    youtube: 'media.youtube.channel_launch',
+    youtube_12_videos: 'media.youtube.channel_launch',
+    book: 'writing.publishing.nonfiction_book',
+    book_30k_words: 'writing.publishing.nonfiction_book',
+    book_first_draft: 'writing.publishing.nonfiction_book',
+    deepwork: 'productivity.focus.deep_work',
+    deep_work_focus: 'productivity.focus.deep_work',
+    chess: 'gaming.chess.rating_1200',
+    chess_1200_rating: 'gaming.chess.rating_1200',
+    speech: 'communication.speaking.ted_talk',
+    ted_speech_15min: 'communication.speaking.ted_talk',
+  };
+  return map[presetId] || `general.${presetId.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
+}
+
+export function deriveDeterministicCanonicalKey(rawGoal: string): string {
+  const clean = rawGoal.trim().toLowerCase();
+  if (!clean) return 'general.skill.custom_goal';
+
+  // 1. Culinary / Baking / Cooking (takes precedence over nationality words like French, Italian)
+  if (
+    clean.includes('bread') ||
+    clean.includes('bake') ||
+    clean.includes('baking') ||
+    clean.includes('sourdough') ||
+    clean.includes('cook') ||
+    clean.includes('cooking') ||
+    clean.includes('culinary') ||
+    clean.includes('pastry') ||
+    clean.includes('recipe') ||
+    clean.includes('pasta') ||
+    clean.includes('sauce') ||
+    clean.includes('food') ||
+    clean.includes('dish') ||
+    clean.includes('kitchen')
+  ) {
+    const item = clean.includes('sourdough')
+      ? 'sourdough'
+      : clean.includes('bread')
+      ? 'bread'
+      : clean.includes('pastry')
+      ? 'pastry'
+      : clean.includes('pasta')
+      ? 'pasta'
+      : 'cooking';
+    return `culinary.baking.${item}`;
+  }
+
+  // 2. Physical Fitness, Athletics & Endurance
+  if (
+    clean.includes('run') ||
+    clean.includes('running') ||
+    clean.includes('marathon') ||
+    clean.includes('10k') ||
+    clean.includes('5k')
+  ) {
+    const dist = clean.includes('10k')
+      ? '10k'
+      : clean.includes('5k')
+      ? '5k'
+      : clean.includes('marathon')
+      ? 'marathon'
+      : 'running';
+    return `fitness.running.${dist}`;
+  }
+
+  if (
+    clean.includes('triathlon') ||
+    clean.includes('swim') ||
+    clean.includes('swimming') ||
+    clean.includes('cycle') ||
+    clean.includes('cycling') ||
+    clean.includes('gym') ||
+    clean.includes('workout') ||
+    clean.includes('lift') ||
+    clean.includes('lifting')
+  ) {
+    const spec = clean.includes('triathlon')
+      ? 'triathlon'
+      : clean.includes('swim')
+      ? 'swimming'
+      : clean.includes('cycle')
+      ? 'cycling'
+      : 'training';
+    return `fitness.athletics.${spec}`;
+  }
+
+  // 3. Music & Audio
+  if (
+    clean.includes('guitar') ||
+    clean.includes('piano') ||
+    clean.includes('music') ||
+    clean.includes('violin') ||
+    clean.includes('drums') ||
+    clean.includes('dj') ||
+    clean.includes('beatmatch')
+  ) {
+    const inst = clean.includes('guitar')
+      ? 'guitar'
+      : clean.includes('piano')
+      ? 'piano'
+      : clean.includes('dj') || clean.includes('beatmatch')
+      ? 'dj'
+      : 'instrument';
+    return `music.${inst}.skills`;
+  }
+
+  // 4. Visual & Fine Arts / Photography
+  if (
+    clean.includes('paint') ||
+    clean.includes('draw') ||
+    clean.includes('sketch') ||
+    clean.includes('watercolor') ||
+    clean.includes('portrait') ||
+    clean.includes('photo') ||
+    clean.includes('photography')
+  ) {
+    return 'art.creative.technique';
+  }
+
+  // 5. Tech, Software, Containerization & Robotics
+  if (
+    clean.includes('saas') ||
+    clean.includes('app') ||
+    clean.includes('software') ||
+    clean.includes('code') ||
+    clean.includes('coding') ||
+    clean.includes('docker') ||
+    clean.includes('kubernetes') ||
+    clean.includes('container') ||
+    clean.includes('microservice') ||
+    clean.includes('robot') ||
+    clean.includes('robotics') ||
+    clean.includes('arduino') ||
+    clean.includes('cloud') ||
+    clean.includes('aws') ||
+    /\bros\b|\bros2\b/.test(clean)
+  ) {
+    const sub = clean.includes('docker') || clean.includes('kubernetes') || clean.includes('container')
+      ? 'containerization'
+      : clean.includes('robot') || clean.includes('arduino') || /\bros\b|\bros2\b/.test(clean)
+      ? 'robotics'
+      : clean.includes('cloud') || clean.includes('aws')
+      ? 'cloud'
+      : 'software';
+    return `tech.${sub}.${clean.includes('docker') || clean.includes('kubernetes') ? 'docker_kubernetes' : 'development'}`;
+  }
+
+  // 6. Languages (strictly when language/speech intent is present)
+  if (
+    clean.includes('spanish') ||
+    clean.includes('japanese') ||
+    clean.includes('french') ||
+    clean.includes('german') ||
+    clean.includes('italian') ||
+    clean.includes('portuguese') ||
+    clean.includes('chinese') ||
+    clean.includes('mandarin') ||
+    clean.includes('russian') ||
+    clean.includes('language') ||
+    clean.includes('conversational') ||
+    clean.includes('fluent')
+  ) {
+    const lang = clean.includes('spanish')
+      ? 'spanish'
+      : clean.includes('japanese')
+      ? 'japanese'
+      : clean.includes('french')
+      ? 'french'
+      : clean.includes('german')
+      ? 'german'
+      : clean.includes('portuguese')
+      ? 'portuguese'
+      : clean.includes('italian')
+      ? 'italian'
+      : 'foreign';
+    return `lang.${lang}.conversational`;
+  }
+
+  const slug = clean.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30) || 'goal';
+  return `general.skill.${slug}`;
+}
+
+export function sanitizeCanonicalKey(
+  key?: string,
+  fallbackGoal: string = '',
+  fallbackDomain?: string,
+  fallbackOutcome?: string
+): string {
+  if (key && typeof key === 'string') {
+    const cleaned = key.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '').replace(/_+/g, '_');
+    if (cleaned.includes('.') && cleaned.split('.').length >= 2) {
+      const broadDomain = cleaned.split('.')[0];
+      const domainStr = (fallbackDomain || '').toLowerCase();
+      const outcomeStr = (fallbackOutcome || '').toLowerCase();
+
+      // Guard against domain false misroutes (e.g. key labeled as "lang" when domain is Baking/Cooking)
+      if (
+        broadDomain === 'lang' &&
+        (domainStr.includes('baking') || domainStr.includes('cook') || domainStr.includes('culinary') || outcomeStr.includes('sourdough') || outcomeStr.includes('bread'))
+      ) {
+        const leaf = cleaned.split('.').slice(1).join('_').replace(/^(french|italian|spanish)_/, '');
+        return `culinary.baking.${leaf || 'sourdough'}`;
+      }
+
+      return cleaned;
+    }
+  }
+  if (fallbackDomain && fallbackOutcome) {
+    const domainPart = fallbackDomain.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const outcomePart = fallbackOutcome.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
+    if (domainPart && outcomePart) {
+      return `${domainPart}.${outcomePart}`;
+    }
+  }
+  return deriveDeterministicCanonicalKey(fallbackGoal);
+}
+
+export interface Stage1PipelineResult {
+  clarification: GoalClarification;
+  cacheHit: boolean;
+  cacheTier?: 'tier0_raw_exact' | 'tier1_exact' | 'tier2_vector';
+  similarity?: number;
+  canonicalMethod?: any;
+  cacheEntry?: any;
+}
+
+export interface ResolveStage1Options {
+  autoPopulateStubOnMiss?: boolean;
+  skipPartB?: boolean;
+}
+
+/**
+ * Executes Stage 1 (Clarification) and Stage 1.5 (Cache Resolution).
+ * Checks if the goal has been researched before:
+ * - Part B (Tier 0): If skipPartB is not set, checks raw input match first. On hit, bypasses LLM & embeddings entirely.
+ * - Stage 1 LLM: If raw check misses, runs clarifyGoalWithAI.
+ * - Part A (Tier 1): Checks exact normalized canonicalKey match (with alias expansion & leaf token sorting).
+ * - Tier 2: In-memory cosine similarity fallback (threshold 0.88) on outcomeEmbedding.
+ * For Phase 2, if autoPopulateStubOnMiss is true, a stub cache entry is stored on miss.
+ */
+export async function resolveStage1WithCache(
+  rawGoal: string,
+  options?: ResolveStage1Options
+): Promise<Stage1PipelineResult> {
+  // --------------------------------------------------------------------------
+  // Part B: Pre-LLM Raw Input Match (Tier 0 Fast Path)
+  // --------------------------------------------------------------------------
+  if (!options?.skipPartB && rawGoal && rawGoal.trim()) {
+    const preCheck = await resolveResearchCache('', '', { rawGoal });
+    if (preCheck.hit && preCheck.entry) {
+      const canonicalMethod = typeof preCheck.entry.canonicalMethod === 'string'
+        ? JSON.parse(preCheck.entry.canonicalMethod)
+        : preCheck.entry.canonicalMethod;
+
+      if (canonicalMethod?.cachedClarification) {
+        return {
+          clarification: canonicalMethod.cachedClarification,
+          cacheHit: true,
+          cacheTier: 'tier0_raw_exact',
+          similarity: 1.0,
+          canonicalMethod,
+          cacheEntry: preCheck.entry,
+        };
+      }
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // Stage 1 AI Clarification
+  // --------------------------------------------------------------------------
+  const clarification = await clarifyGoalWithAI(rawGoal);
+  const cacheResult = await resolveResearchCache(
+    clarification.canonicalKey,
+    clarification.clarifiedOutcome,
+    { rawGoal, skipTier0: options?.skipPartB }
+  );
+
+  if (cacheResult.hit) {
+    return {
+      clarification,
+      cacheHit: true,
+      cacheTier: cacheResult.tier,
+      similarity: cacheResult.similarity,
+      canonicalMethod: cacheResult.entry?.canonicalMethod,
+      cacheEntry: cacheResult.entry,
+    };
+  }
+
+  if (options?.autoPopulateStubOnMiss) {
+    const stubMethod = {
+      methodName: `Canonical Method for ${clarification.primaryDomain}`,
+      authority: 'Grounded Practitioner Consensus',
+      sourceUrl: 'https://example.com/canonical-method',
+      confidence: 'medium_consensus',
+      velocityTable: null,
+      rawFindings: { note: 'Stub cache entry for Phase 2 testing' },
+      cachedClarification: clarification,
+    };
+    await saveResearchCacheEntry({
+      canonicalKey: clarification.canonicalKey,
+      clarifiedOutcome: clarification.clarifiedOutcome,
+      canonicalMethod: stubMethod,
+      rawGoal,
+      cachedClarification: clarification,
+    });
+  }
+
+  return {
+    clarification,
+    cacheHit: false,
+    canonicalMethod: null,
+  };
+}
+
 function getDeterministicClarification(rawGoal: string): GoalClarification {
   const cleanGoal = rawGoal.trim();
   const baseTitle = cleanGoal.length > 0
     ? cleanGoal.charAt(0).toUpperCase() + cleanGoal.slice(1)
     : 'Master Your Goal';
   return {
+    canonicalKey: deriveDeterministicCanonicalKey(cleanGoal),
     clarifiedOutcome: baseTitle.toLowerCase().includes('90') ? baseTitle : `${baseTitle} in 90 Days`,
     primaryDomain: 'High Performance Skill Acquisition',
     capabilities: [
