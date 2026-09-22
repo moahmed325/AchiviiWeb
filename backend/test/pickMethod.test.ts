@@ -6,7 +6,7 @@ vi.mock('../src/lib/ai/gemini.js', () => ({
 
 import { pickMethod, type MethodPickResponse } from '../src/lib/method/pickMethod.js';
 import { formatBasisBadge, formatMethodologyNotes } from '../src/lib/research/planGrounding.js';
-import type { Drill } from '../src/lib/method/drills.js';
+import type { WorkBlock } from '../src/lib/method/blocks.js';
 
 const input = {
   rawGoal: 'Learn touch typing to 40 words per minute',
@@ -18,24 +18,34 @@ const input = {
 
 const scores = (safety = 5, fitToUser = 4) => ({ adherence: 4, safety, fitToUser, evidence: 4, measurability: 5 });
 
-const drill = (name: string, stage: Drill['stage'], impact: number): Drill => ({
+const block = (
+  name: string,
+  stage: WorkBlock['stage'],
+  impact: number,
+  kind: WorkBlock['kind'] = 'motor_skill',
+  realThing = false
+): WorkBlock => ({
   name,
-  moves: 'accuracy without looking',
-  impact,
+  kind,
+  action: 'Type the drill text on screen with your hands covered by a towel.',
+  output: 'A speed and accuracy score',
+  doneWhen: '95% accuracy on every round',
+  realThing,
   stage,
-  dose: '3 rounds of 1 minute',
-  passMark: '95% accuracy on every round',
+  impact,
   cue: 'Eyes on the screen.',
   pitfall: 'Peeking at the keys.',
 });
 
-const DRILLS: Drill[] = [
-  drill('Home-row letter drills', 'foundation', 4),
-  drill('Covered-hands word drills', 'foundation', 5),
-  drill('Weak-key isolation', 'foundation', 3),
-  drill('Common-word bursts', 'build', 4),
-  drill('Sentence accuracy sprints', 'build', 3),
-  drill('Paragraph speed pushes', 'peak', 4),
+const BLOCKS: WorkBlock[] = [
+  block('Home-row letter runs', 'foundation', 4),
+  block('Covered-hands word runs', 'foundation', 5),
+  block('Weak-key isolation', 'foundation', 3),
+  block('Type one real email blind', 'foundation', 4, 'perform', true),
+  block('Common-word bursts', 'build', 4),
+  block('Sentence accuracy sprints', 'build', 3),
+  block('Timed 1-minute test', 'build', 4, 'perform', true),
+  block('Paragraph speed pushes', 'peak', 4),
 ];
 
 function response(overrides: Partial<MethodPickResponse> = {}): MethodPickResponse {
@@ -55,7 +65,8 @@ function response(overrides: Partial<MethodPickResponse> = {}): MethodPickRespon
       'Drill the weakest keys for 5 minutes each session.',
       'Take one 1-minute test at the end to log speed.',
     ],
-    drills: DRILLS,
+    workKinds: ['motor_skill', 'perform'],
+    blocks: BLOCKS,
     assumptions: 'An adult at about 20 WPM who looks at the keys.',
     hasNumericDimension: true,
     week1Targets: [{ metric: 'typing speed', value: 20, unit: 'words per minute', direction: 'higher_is_harder' }],
@@ -130,16 +141,17 @@ describe('pickMethod', () => {
     expect(generate).toHaveBeenCalledTimes(2);
   });
 
-  it('ranks the drill library and retries when it is too thin', async () => {
-    const thin = response({ drills: DRILLS.slice(0, 2) });
-    const generate = vi.fn().mockResolvedValueOnce(thin).mockResolvedValueOnce(response());
+  it('ranks the work blocks and retries when there is no real thing to do', async () => {
+    const onlyPrep = response({ blocks: BLOCKS.map((item) => ({ ...item, realThing: false })) });
+    const generate = vi.fn().mockResolvedValueOnce(onlyPrep).mockResolvedValueOnce(response());
     const result = await pickMethod(input, generate);
 
     expect(generate).toHaveBeenCalledTimes(2);
-    expect(generate.mock.calls[1][0]).toMatch(/at least 6 drills/);
+    expect(generate.mock.calls[1][0]).toMatch(/realThing/);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.grounding.drills?.[0].name).toBe('Covered-hands word drills');
+    expect(result.grounding.blocks?.[0].name).toBe('Covered-hands word runs');
+    expect(result.grounding.workKinds).toEqual(['motor_skill', 'perform']);
   });
 
   it('allows goals with nothing to count', async () => {

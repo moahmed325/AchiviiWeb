@@ -16,7 +16,7 @@ import { generate12WeekPlanWithAI } from '../src/lib/ai/goalDecomposer.js';
 import { repairWeekSchedule } from '../src/lib/ai/scheduleRepair.js';
 import { taskQualityFailures } from '../src/lib/ai/taskRules.js';
 import { findPresetForGoal } from '../src/lib/ai/presets/index.js';
-import { MIN_DRILLS, offLibrarySteps } from '../src/lib/method/drills.js';
+import { blockWeekFailures, MIN_BLOCKS } from '../src/lib/method/blocks.js';
 import { extractStatedTargets, week12MeetsTarget } from '../src/lib/research/statedTarget.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -137,8 +137,8 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
     stated.length === 0 ||
     (Boolean(grounding.velocityTable) && stated.every((item) => week12MeetsTarget(grounding.velocityTable!, item)));
   const dull = taskQualityFailures(plan.initialTasks);
-  const drills = grounding.drills ?? [];
-  const offLibrary = offLibrarySteps(plan.initialTasks, drills);
+  const blocks = grounding.blocks ?? [];
+  const weekFailures = blockWeekFailures(plan.initialTasks, blocks);
   const badgeHonest = Boolean(badge) && badge!.anchored === false && !/anchored|certified/i.test(badge!.label);
 
   const checks = [
@@ -152,9 +152,9 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
     { name: 'schedule rules hold', pass: schedule.failures.length === 0 },
     { name: 'tasks are actionable', pass: dull.length === 0, detail: dull.join(' | ') || undefined },
     {
-      name: 'steps are library drills',
-      pass: drills.length >= MIN_DRILLS && offLibrary.length === 0,
-      detail: drills.length < MIN_DRILLS ? `only ${drills.length} drills` : offLibrary.join(' | ') || undefined,
+      name: 'steps are varied work blocks',
+      pass: blocks.length >= MIN_BLOCKS && weekFailures.length === 0,
+      detail: blocks.length < MIN_BLOCKS ? `only ${blocks.length} blocks` : weekFailures.join(' | ') || undefined,
     },
     { name: 'stays custom', pass: true },
   ];
@@ -169,7 +169,11 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
     whyChosen: grounding.whyChosen,
     runnerUp: grounding.runnerUp ?? null,
     teachings: grounding.teachings,
-    drills: drills.map((drill) => `[${drill.stage} ${drill.impact}/5] ${drill.name}: ${drill.dose}`),
+    workKinds: grounding.workKinds ?? [],
+    blocks: blocks.map(
+      (block) =>
+        `[${block.stage} ${block.kind}${block.realThing ? ' REAL' : ''} ${block.impact}/5] ${block.name} -> ${block.output}`
+    ),
     assumptions: grounding.assumptions ?? null,
     velocity: grounding.velocityTable,
     week1: plan.initialTasks.map((task) => ({
@@ -180,7 +184,9 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
         title: step.title,
         minutes: step.durationMinutes,
         instructions: step.instructions,
+        output: step.output ?? null,
         passMark: step.passMark ?? null,
+        timing: step.timing ?? null,
       })),
     })),
     checks,

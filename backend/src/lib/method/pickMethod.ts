@@ -4,7 +4,16 @@ import { screenQuery } from '../research/safetyFilter.js';
 import { extractStatedTargets, statedTargetFailures } from '../research/statedTarget.js';
 import type { VelocityTable, VelocityTarget } from '../research/types.js';
 import { forceUserTargets, validateVelocityTable } from '../research/velocityTable.js';
-import { cleanDrills, DRILL_SCHEMA, drillLibraryFailures, type Drill } from './drills.js';
+import {
+  blockLibraryFailures,
+  cleanBlocks,
+  cleanWorkKinds,
+  WORK_BLOCK_SCHEMA,
+  WORK_KIND_LABELS,
+  WORK_KINDS,
+  type WorkBlock,
+  type WorkKind,
+} from './blocks.js';
 
 export const FACTORS = ['adherence', 'safety', 'fitToUser', 'evidence', 'measurability'] as const;
 type Factor = (typeof FACTORS)[number];
@@ -28,7 +37,8 @@ export interface MethodPickResponse {
   runnerUpIndex: number;
   whyNotRunnerUp: string;
   teachings: string[];
-  drills: Drill[];
+  workKinds: WorkKind[];
+  blocks: WorkBlock[];
   assumptions: string;
   hasNumericDimension: boolean;
   week1Targets: VelocityTarget[];
@@ -65,21 +75,29 @@ Work in this order:
    already do the activity, and never give an advanced program to a complete beginner.
 4. Explain the choice in one or two sentences that cite the person's own answers.
 5. Name the runner-up and why it lost, in one sentence.
-6. Write 5 to 8 teachings: concrete drills, rules, or steps from the chosen method that a week of practice can follow. No motivation lines.
-7. Build the drill library: the 8 to 12 best drills of the chosen method for getting THIS person to the goal as fast
-   as possible. For each:
-   - "name": the exercise as a short action, 2 to 6 words ("Two-ball exchange", "Wall push-up negatives").
-   - "moves": which part of the goal it improves.
-   - "impact": 1 to 5, how much progress toward the week-12 target it buys per minute spent. Be strict: only the
-     drills the method's best coaches build everything around get a 5.
-   - "stage": "foundation" (weeks 1-4), "build" (weeks 5-8), or "peak" (weeks 9-12). At least 3 foundation drills,
-     and foundation drills must be doable at this person's current level.
-   - "dose": the first-week dose with numbers (sets, reps, seconds, words, pages, or minutes).
-   - "passMark": the measurable standard that counts it as done.
+6. Write 5 to 8 teachings: the concrete rules and principles of the chosen method that every week must respect. No motivation lines.
+7. Name the kinds of work this goal really involves, 1 to 3 of: ${WORK_KINDS.map((kind) => `"${kind}" (${WORK_KIND_LABELS[kind]})`).join(', ')}.
+   Not every goal is repetition: baking is making and comparing, streaming is producing and shipping,
+   vocabulary is learning and using, a song is sections and full run-throughs.
+8. Build the work blocks: the 10 to 14 best pieces of work in the chosen method for getting THIS person to the goal
+   as fast as possible, covering the kinds you named. For each:
+   - "name": the action as a short title, 2 to 7 words ("Film 3 side-view attempts", "Bake one test loaf",
+     "Write tonight's stream outline").
+   - "kind": which kind of work it is.
+   - "action": exactly what to do, in one or two sentences a beginner could follow without asking.
+   - "output": what the user ends up with (a count, a recording, a photo, a finished piece, a recalled list,
+     a published video).
+   - "doneWhen": the proof the output is good enough ("18 of 20 recalled without looking", "crumb has no dense streak").
+   - "realThing": true when it IS the goal itself end to end at this level (a full cascade attempt, a whole song,
+     a real stream, a full loaf), false when it is practice for part of it. At least 2, one of them foundation.
+   - "stage": "foundation" (weeks 1-4), "build" (weeks 5-8), "peak" (weeks 9-12). At least 3 foundation blocks,
+     doable at this person's current level.
+   - "impact": 1 to 5, progress toward the goal per minute spent. Be strict: only what the method's best coaches
+     build everything around gets a 5.
    - "cue": the one thing to get right. "pitfall": the most common mistake at this level.
-   No warm-ups, reading, videos, journaling, or app setup: every drill is practice that moves the goal.
-8. State the starting point you assumed for this person.
-9. Give week 1 and week 12 numbers if the goal can be measured.
+   No warm-ups, reading about it, watching videos, journaling, or app setup: every block moves the goal.
+9. State the starting point you assumed for this person.
+10. Give week 1 and week 12 numbers if the goal can be measured.
 
 NAMES:
 - You may name a program or its creator only if it is well known and you are sure it exists (e.g. "Couch to 5K").
@@ -132,7 +150,8 @@ export const METHOD_PICK_SCHEMA = {
     runnerUpIndex: { type: 'integer' },
     whyNotRunnerUp: { type: 'string' },
     teachings: { type: 'array', items: { type: 'string' } },
-    drills: { type: 'array', items: DRILL_SCHEMA },
+    workKinds: { type: 'array', items: { type: 'string', enum: [...WORK_KINDS] } },
+    blocks: { type: 'array', items: WORK_BLOCK_SCHEMA },
     assumptions: { type: 'string' },
     hasNumericDimension: { type: 'boolean' },
     week1Targets: { type: 'array', items: targetSchema },
@@ -146,7 +165,8 @@ export const METHOD_PICK_SCHEMA = {
     'runnerUpIndex',
     'whyNotRunnerUp',
     'teachings',
-    'drills',
+    'workKinds',
+    'blocks',
     'assumptions',
     'hasNumericDimension',
     'week1Targets',
@@ -226,7 +246,7 @@ export function checkMethodPick(response: MethodPickResponse, goalText: string):
   if (cleanTeachings(response.teachings).length < MIN_TEACHINGS) {
     methodFailures.push(`Give at least ${MIN_TEACHINGS} concrete teachings.`);
   }
-  methodFailures.push(...drillLibraryFailures(cleanDrills(response.drills)));
+  methodFailures.push(...blockLibraryFailures(cleanBlocks(response.blocks), cleanWorkKinds(response.workKinds)));
 
   const targets = extractStatedTargets(goalText);
   const table = tableFrom(response);
@@ -252,7 +272,8 @@ export function groundingFromPick(response: MethodPickResponse, table: VelocityT
     methodName: cleanText(chosen?.name),
     authority: cleanText(chosen?.creator) || undefined,
     teachings: cleanTeachings(response.teachings),
-    drills: cleanDrills(response.drills),
+    workKinds: cleanWorkKinds(response.workKinds),
+    blocks: cleanBlocks(response.blocks),
     assumptions: cleanText(response.assumptions) || undefined,
     allowedUrls: [],
     velocityTable: table,

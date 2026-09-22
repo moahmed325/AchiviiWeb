@@ -25,6 +25,8 @@ import {
   Sparkles,
   Users,
   ShieldCheck,
+  PackageCheck,
+  Hourglass,
 } from 'lucide-react';
 import { Goal, DailyTask, DetailedStep, RoutineSettings, TaskLayerType } from '../types';
 import { updateDailyTask, submitWeeklyReview, fetchActiveGoal } from '../lib/api';
@@ -809,9 +811,36 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                       );
                     })()}
 
+                    {step.timing && (
+                      <div className="ml-8 flex items-center gap-1.5 text-[11px] font-medium text-amber-300">
+                        <Hourglass className="w-3 h-3 shrink-0" />
+                        {step.timing}
+                      </div>
+                    )}
+
                     <p className="text-xs sm:text-sm text-neutral-300 pl-8 leading-relaxed">
                       {step.instructions}
                     </p>
+
+                    {step.output && (
+                      <div className="ml-8 flex items-start gap-2 text-xs text-neutral-300">
+                        <PackageCheck className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+                        <span>
+                          <span className="font-semibold text-sky-400">You'll have: </span>
+                          {step.output}
+                        </span>
+                      </div>
+                    )}
+
+                    {step.passMark && (
+                      <div className="ml-8 flex items-start gap-2 rounded-md border border-[#07CB6C]/30 bg-[#07CB6C]/10 px-2.5 py-1.5 text-xs">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C] shrink-0 mt-0.5" />
+                        <span className="text-neutral-200">
+                          <span className="font-semibold text-[#07CB6C]">Done when: </span>
+                          {step.passMark}
+                        </span>
+                      </div>
+                    )}
 
                     {/* Interactive Challenge Widget */}
                     <div className="pl-8 pt-1">

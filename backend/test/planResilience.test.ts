@@ -49,11 +49,11 @@ function validPlan() {
     stepNumber: 1,
     title: 'Feed starter',
     durationMinutes: 30,
-    instructions: 'Feed it.',
+    instructions: 'Feed 50 g flour and 50 g water, then test the rise after 4 hours.',
     focusCue: 'Watch the rise.',
     pitfallToAvoid: 'Cold kitchen.',
-    layer: 'adherence',
-    layerReasoning: 'Home bakers do this.',
+    passMark: 'Starter doubles within 8 hours.',
+    output: 'A marked jar showing how far the starter rose',
   };
   return {
     clarifiedOutcome: GOAL,
@@ -70,7 +70,7 @@ function validPlan() {
     initialTasks: Array.from({ length: 7 }, (_, i) => ({
       dayNumber: i + 1,
       dayOfWeek: 'Monday',
-      title: 'Day',
+      title: 'Feed starter: double in 8 hours',
       isRestDay: false,
       durationMinutes: 30,
       slotTime: '19:30',
@@ -132,6 +132,8 @@ describe('Plan writer never leaves the user with nothing', () => {
     expect(plan.weeks[11].objective).toMatch(/loaves baked 12 loaves/);
     expect(plan.initialTasks).toHaveLength(7);
 
+    for (const task of plan.initialTasks) expect(task.title).not.toMatch(/Reflection/);
+
     const rest = plan.initialTasks.map((task) => task.isRestDay);
     expect(rest.filter(Boolean)).toHaveLength(2);
     for (let i = 1; i < rest.length; i++) expect(rest[i] && rest[i - 1]).toBe(false);
@@ -140,7 +142,8 @@ describe('Plan writer never leaves the user with nothing', () => {
     for (const task of active) {
       expect(task.detailedSteps.reduce((sum, step) => sum + step.durationMinutes, 0)).toBe(30);
       for (const step of task.detailedSteps) {
-        expect(grounding.teachings.some((teaching) => step.instructions.startsWith(teaching))).toBe(true);
+        expect(grounding.teachings.some((teaching) => step.instructions.includes(teaching))).toBe(true);
+        expect(step.passMark).toBeTruthy();
         if (step.resourceUrl) expect(grounding.allowedUrls).toContain(step.resourceUrl);
       }
     }

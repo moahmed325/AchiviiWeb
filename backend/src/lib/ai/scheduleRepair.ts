@@ -1,4 +1,5 @@
 import type { DailyTaskPlan, DetailedStep } from './goalDecomposer.js';
+import { restMinutesFor } from './taskRules.js';
 
 export interface ScheduleRepairResult {
   tasks: DailyTaskPlan[];
@@ -74,11 +75,11 @@ function asPractice(tasks: DailyTaskPlan[], index: number, dailyMins: number): D
           stepNumber: 1,
           title: onto.title || 'Practice',
           durationMinutes: dailyMins,
-          instructions: onto.title || 'Repeat the current drill.',
+          instructions: `Repeat the current drill for ${dailyMins} minutes.`,
           focusCue: 'Same standard as the earlier session.',
           pitfallToAvoid: 'Do not add extra volume.',
-          layer: 'adherence' as const,
-          layerReasoning: 'Repeated from an earlier session so a missing practice day still follows the plan.',
+          passMark: 'Match your best result from the earlier session.',
+          output: 'Your result for today, next to the earlier one.',
         },
       ];
   return {
@@ -91,23 +92,25 @@ function asPractice(tasks: DailyTaskPlan[], index: number, dailyMins: number): D
   };
 }
 
+/** A rest day is a short, easy pass at the day's main drill, not a blank or a journaling prompt. */
 function asRest(task: DailyTaskPlan, dailyMins: number): DailyTaskPlan {
-  const minutes = dailyMins < 15 ? 10 : 15;
+  const minutes = restMinutesFor(dailyMins);
+  const drill = task.detailedSteps?.[0]?.title || task.title || 'the main drill';
   return {
     ...task,
-    title: 'Active Recovery & Reflection',
+    title: `Light practice: ${drill}`,
     isRestDay: true,
     durationMinutes: minutes,
     detailedSteps: [
       {
         stepNumber: 1,
-        title: "Review this week's instructions",
+        title: `Easy ${drill}`,
         durationMinutes: minutes,
-        instructions: 'Read back over the instructions you practised. Write one line on what felt hardest.',
-        focusCue: 'Recall first, then check.',
-        pitfallToAvoid: 'Do not turn a rest day into an extra practice session.',
-        layer: 'safety',
-        layerReasoning: 'Rest days keep the weekly load inside the plan track.',
+        instructions: `${minutes} minutes of ${drill} at half your usual effort and volume.`,
+        focusCue: 'Slow and clean. This is practice, not a test.',
+        pitfallToAvoid: 'Do not turn a rest day into a full session.',
+        passMark: 'Every rep feels easy and correct. Stop before any strain.',
+        output: 'One easy, clean round.',
       },
     ],
   };

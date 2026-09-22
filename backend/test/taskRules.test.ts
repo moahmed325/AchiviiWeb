@@ -9,6 +9,7 @@ function step(overrides: Partial<DetailedStep> = {}): DetailedStep {
     title: 'Two-ball exchange',
     durationMinutes: 30,
     instructions: '5 sets of 20 throws, 30 seconds rest between sets.',
+    output: 'Your best count of clean exchanges',
     focusCue: 'Throw to eye height.',
     pitfallToAvoid: 'Chasing the ball forward.',
     passMark: '15 of 20 land without moving your feet.',
@@ -36,13 +37,13 @@ function goodWeek(): DailyTaskPlan[] {
       isRestDay: true,
       title: 'Light practice: one-ball arcs',
       durationMinutes: 15,
-      detailedSteps: [step({ title: 'Easy one-ball arcs', durationMinutes: 15, instructions: '15 minutes of slow arcs.' })],
+      detailedSteps: [step({ title: 'Easy one-ball arcs', durationMinutes: 15, instructions: '15 minutes of slow arcs at eye height.' })],
     });
   return [day(1), day(2), rest(3), day(4), day(5), rest(6), day(7)];
 }
 
 describe('taskQualityFailures', () => {
-  it('passes a week of real drills', () => {
+  it('passes a week of real work', () => {
     expect(taskQualityFailures(goodWeek())).toEqual([]);
   });
 
@@ -55,24 +56,40 @@ describe('taskQualityFailures', () => {
     expect(failures).toMatch(/Day 3 title/);
   });
 
-  it('rejects steps with no dose or no pass mark', () => {
+  it('accepts actions without a number, like baking or streaming', () => {
     const week = goodWeek();
-    week[3] = day(4, { detailedSteps: [step({ instructions: 'Practice the flash.', passMark: '' })] });
+    week[1] = day(2, {
+      title: 'Bake a test loaf and compare the crumb',
+      detailedSteps: [
+        step({
+          title: 'Shape and bake one loaf',
+          instructions: 'Pre-shape, rest, then final shape and bake in a covered pot.',
+          output: 'One baked loaf, cut in half',
+          passMark: 'The crumb has no dense streak along the bottom.',
+          timing: '4 hours after mixing',
+        }),
+      ],
+    });
+    expect(taskQualityFailures(week)).toEqual([]);
+  });
+
+  it('rejects steps with no clear action, no output, or no pass mark', () => {
+    const week = goodWeek();
+    week[3] = day(4, { detailedSteps: [step({ instructions: 'Practice.', output: '', passMark: '' })] });
     const failures = taskQualityFailures(week).join(' ');
-    expect(failures).toMatch(/no dose/);
+    expect(failures).toMatch(/does not say exactly what to do/);
+    expect(failures).toMatch(/no output/);
     expect(failures).toMatch(/no passMark/);
   });
 
   it('requires a baseline test on the first and last practice day', () => {
-    const week = goodWeek().map((task) =>
-      task.isRestDay ? task : { ...task, detailedSteps: [step()] }
-    );
+    const week = goodWeek().map((task) => (task.isRestDay ? task : { ...task, detailedSteps: [step()] }));
     const failures = taskQualityFailures(week).join(' ');
     expect(failures).toMatch(/Day 1 .* baseline/);
     expect(failures).toMatch(/Day 7 .* repeat/);
   });
 
-  it('keeps counted flashcard review and body-position setup as real practice', () => {
+  it('keeps counted flashcard review and body-position setup as real work', () => {
     const week = goodWeek();
     week[1] = day(2, {
       title: 'Review 40 Italian words: 90% recall',
@@ -89,15 +106,14 @@ describe('taskQualityFailures', () => {
 });
 
 describe('polishWeekTasks', () => {
-  it('fixes the small misses in code so no retry is needed', () => {
-    const plain = (n: number, overrides: Partial<DailyTaskPlan> = {}) =>
+  it('adds the baseline and retest and fixes category titles without the model', () => {
+    const plain = (n: number) =>
       day(n, {
-        title: 'Graphite layering',
+        title: 'Graphite work',
         detailedSteps: [
-          step({ title: 'Warm-up arcs', durationMinutes: 10, instructions: 'Loose arcs across the page.', passMark: '' }),
-          step({ title: 'Layer a 5-step value scale', stepNumber: 2, durationMinutes: 20, instructions: '3 scales, light to dark.' }),
+          step({ title: 'Warm-up arcs', durationMinutes: 5, instructions: 'Loose arcs across the page with a relaxed wrist.', passMark: '' }),
+          step({ title: 'Layer a 5-step value scale', stepNumber: 2, durationMinutes: 25, instructions: '3 scales, light to dark, pencil held far back.' }),
         ],
-        ...overrides,
       });
     const week = goodWeek().map((task) => (task.isRestDay ? task : plain(task.dayNumber)));
     week[2] = { ...week[2], title: 'Rest & Posture Review' };
@@ -115,7 +131,7 @@ describe('polishWeekTasks', () => {
 });
 
 describe('schedule repair rest days', () => {
-  it('turns an extra practice day into a light version of that drill', () => {
+  it('turns an extra practice day into a light version of that work', () => {
     const week = [day(1), day(2), day(3), day(4), day(5), day(6), day(7)];
     const { tasks } = repairWeekSchedule(week, 30, 5);
     const rest = tasks.filter((task) => task.isRestDay);
@@ -123,6 +139,7 @@ describe('schedule repair rest days', () => {
     for (const task of rest) {
       expect(task.title).toMatch(/^Light practice:/);
       expect(task.detailedSteps[0].passMark).toBeTruthy();
+      expect(task.detailedSteps[0].output).toBeTruthy();
     }
   });
 });

@@ -119,6 +119,12 @@ export interface DetailedStep {
   instructions: string;
   focusCue: string;
   pitfallToAvoid: string;
+  /** The measurable standard that counts the step as done. */
+  passMark?: string;
+  /** What the user ends up with: a count, a recording, a finished piece. */
+  output?: string;
+  /** Only when the step can't follow the previous one straight away, e.g. "4 hours after mixing". */
+  timing?: string;
   layer?: TaskLayerType;
   layerReasoning?: string;
   challenge?: StepChallenge;

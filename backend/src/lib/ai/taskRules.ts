@@ -1,5 +1,5 @@
 import type { DailyTaskPlan, DetailedStep } from './goalDecomposer.js';
-import { enforceDrills, type Drill } from '../method/drills.js';
+import { enforceBlocks, type WorkBlock } from '../method/blocks.js';
 
 export function restMinutesFor(dailyMins: number): number {
   return dailyMins < 15 ? 10 : 15;
@@ -8,8 +8,8 @@ export function restMinutesFor(dailyMins: number): number {
 /** Always filler, whatever numbers are attached. */
 const FILLER = /\b(reflect\w*|journal\w*|recap|overview|mindset|resum\w*|getting started)\b|recovery & reflection/i;
 
-/** Filler only when nothing concrete comes with it. Flashcard review with a count is real practice. */
-const VAGUE = /\b(review|consolidat\w*|introduc\w*|intro to)\b/i;
+/** Filler only when nothing concrete comes with it. Flashcard review with a count is real work. */
+const VAGUE = /\b(review|consolidat\w*|introduc\w*|intro to|practice session|work on)\b/i;
 
 /** Preparing a tool, not a body position ("posture setup" is practice). */
 const SETUP = /\b(install|download|sign up|create an account|buy|order)\b|\bset ?up (an? |the |your )?(app|account|software|profile|tool)\b/i;
@@ -18,52 +18,54 @@ const MEASURE =
   /\b(test|retest|baseline|measure|time yourself|timed|max\w*|count|record|log|assess\w*|benchmark|score|best of|film|photo\w*)\b/i;
 
 const MAX_FAILURES = 8;
+const TEST_MINUTES = 5;
+const MIN_INSTRUCTIONS = 25;
 
 export function taskRulesBlock(dailyMins: number): string {
   const restMins = restMinutesFor(dailyMins);
   return `
 WHAT EVERY DAY MUST LOOK LIKE (checked in code; a dull week is rejected):
 Practice days:
-- "title" is the action plus today's target, with a number. Good: "Two-ball exchange: 10 clean in a row".
-  Bad: "Two-Ball Mechanics", "Review", "Consolidation", "Introduction to...", "Resuming practice".
-- 3-4 steps whose minutes add up to ${dailyMins}. Every step has:
-  - "title": the drill itself.
-  - "instructions": exactly what to do, with a dose: sets, reps, seconds, words, pages, or minutes.
-    Good: "5 sets of 20 throws, 30 seconds rest between sets."
-  - "passMark": the measurable standard that counts as done. Good: "15 of 20 land without moving your feet."
-  - "focusCue": one cue for doing it right. "pitfallToAvoid": the most common mistake at this level.
+- "title" says what the user will get done today. Good: "Bake a test loaf and compare the crumb",
+  "Recall all 26 letters in under 60 seconds". Bad: "Review", "Consolidation", "Introduction to...", "Practice session".
+- 3-4 steps whose minutes add up to ${dailyMins}. Each step is a different piece of work, not the same thing repeated.
+  Every step has:
+  - "title": the action.
+  - "instructions": exactly what to do, so a beginner could start without asking a question. Say how much or how
+    far when it matters (count, length, difficulty), but the step is defined by the action, not by a number.
+  - "output": what the user ends up with: a count, a recording, a photo, a finished piece, a written list,
+    a published video.
+  - "passMark": the proof the output is good enough. Good: "15 of 20 caught without moving your feet",
+    "the crumb has no dense streak", "you recalled 18 of 20 without looking".
+  - "focusCue": the one thing to get right. "pitfallToAvoid": the most common mistake at this level.
+  - "timing" (optional): only when the step can't happen straight after the previous one, e.g. "4 hours after
+    mixing", "before bed", "at your stream time". Leave it out otherwise. "durationMinutes" counts hands-on time only.
+- No two practice days have the same steps. Mix the kinds of work across the week.
+- Most practice days include doing the real thing at today's level: a full attempt, a whole piece, a run-through,
+  a real stream, not only prep for it.
 - Warm-up only if the activity needs one, at most 5 minutes. No steps for journaling, reflecting, or reading
   about the method. Setting up a tool is allowed only on the first practice day, at most 5 minutes.
-- The first practice day's first step is titled "Baseline test: ..." and measures the user's real current level
-  (e.g. max clean catches in 5 tries, max push-ups with good form). The last practice day's final step is titled
-  "Retest: ..." and repeats exactly the same test, so the user sees progress within the week.
-- Targets climb: each practice day asks for a little more than the one before, starting from this week's numbers.
-- Use the user's answers: fit drills to their level, equipment, injuries and obstacles.
+- The first practice day's first step is titled "Baseline test: ..." and captures the user's real current level
+  (a count, a timed attempt, a first photo or recording). The last practice day's final step is titled
+  "Retest: ..." and repeats it exactly, so the user sees progress within the week.
+- Each practice day asks a little more than the one before.
+- Use the user's answers: fit the work to their level, equipment, injuries and obstacles.
 Rest days:
-- ${restMins} minutes, one step: a light task that still moves the goal. Examples: a 5-minute flashcard pass,
-  mobility for the muscles trained, copying one detail from a demonstration slowly, a slow dry run of the grip.
-- The title names that task. Never "Active Recovery & Reflection". Same instructions and passMark rules apply.
+- ${restMins} minutes, one step: a light task that still moves the goal. Examples: a 5-minute recall pass,
+  mobility for the muscles trained, a slow dry run, planning tomorrow's piece.
+- The title names that task. Never "Active Recovery & Reflection". Same output and passMark rules apply.
 `;
-}
-
-function hasNumber(text: string | undefined): boolean {
-  return /\d/.test(text ?? '');
 }
 
 function stepText(step: DetailedStep): string {
   return `${step.title} ${step.instructions}`;
 }
 
-const TEST_MINUTES = 5;
-
 /** Take minutes from the longest step so the day's total stays the same. Null when no step can spare them. */
 function takeMinutes(steps: DetailedStep[], wanted: number): number | null {
   const longest = steps.reduce<DetailedStep | null>((best, step) => (!best || step.durationMinutes > best.durationMinutes ? step : best), null);
   if (!longest || longest.durationMinutes < wanted + 3) return null;
   longest.durationMinutes -= wanted;
-  if (/^\d+ minutes: /.test(longest.instructions)) {
-    longest.instructions = longest.instructions.replace(/^\d+ minutes: /, `${longest.durationMinutes} minutes: `);
-  }
   return wanted;
 }
 
@@ -71,32 +73,33 @@ function renumber(steps: DetailedStep[]): DetailedStep[] {
   return steps.map((step, index) => ({ ...step, stepNumber: index + 1 }));
 }
 
+function isVagueTitle(title: string): boolean {
+  return FILLER.test(title) || (VAGUE.test(title) && !/\d/.test(title));
+}
+
 /**
- * Fix the misses that don't need the model: a title without a number, a step without a dose or pass mark,
- * a missing baseline or retest. What's left after this (filler drills, setup on later days) goes back to the model.
+ * Fix what doesn't need the model: steps off the work-block library, a day that repeats another,
+ * a missing output or pass mark, a category title, a missing baseline or retest.
+ * What's left after this (filler steps, setup on later days) goes back to the model.
  */
-export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { drills?: Drill[]; week: number }): DailyTaskPlan[] {
-  const onLibrary = library?.drills?.length ? enforceDrills(tasks, library.drills, library.week) : tasks;
+export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { blocks?: WorkBlock[]; week: number }): DailyTaskPlan[] {
+  const onLibrary = library?.blocks?.length ? enforceBlocks(tasks, library.blocks, library.week) : tasks;
   const out = onLibrary.map((task) => ({ ...task, detailedSteps: (task.detailedSteps ?? []).map((step) => ({ ...step })) }));
 
   for (const task of out) {
     const steps = task.detailedSteps;
     for (const step of steps) {
-      if (!hasNumber(step.instructions)) step.instructions = `${step.durationMinutes} minutes: ${step.instructions}`;
       if (!step.passMark || step.passMark.trim().length < 8) {
-        step.passMark = `All ${step.durationMinutes} minutes done, every repetition matching the instructions.`;
+        step.passMark = 'Every part of the instructions done, checked against the cue.';
+      }
+      if (!step.output?.trim() && /^(baseline test|retest):/i.test(step.title)) {
+        step.output = 'Your result, written down.';
       }
     }
 
-    const vagueTitle = FILLER.test(task.title) || (VAGUE.test(task.title) && !hasNumber(task.title));
-    const lead = steps.find((step) => !FILLER.test(step.title));
-    if (vagueTitle && lead) task.title = task.isRestDay ? `Light practice: ${lead.title}` : lead.title;
-    if (task.isRestDay && VAGUE.test(task.title) && !hasNumber(task.title)) {
-      task.title = `${task.title} (${task.durationMinutes} min)`;
-    }
-    if (!task.isRestDay && !hasNumber(task.title)) {
-      const target = steps.map((step) => step.passMark).find((mark) => hasNumber(mark) && mark!.length <= 60);
-      task.title = target ? `${task.title}: ${target.replace(/\.$/, '')}` : `${task.title} (${task.durationMinutes} min)`;
+    const lead = steps.find((step) => !FILLER.test(step.title) && !/^(baseline test|retest|warm)/i.test(step.title)) ?? steps[0];
+    if (isVagueTitle(task.title) && lead && !isVagueTitle(lead.title)) {
+      task.title = task.isRestDay ? `Light practice: ${lead.title}` : lead.title;
     }
   }
 
@@ -112,15 +115,16 @@ export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { drills?: Dri
       measured.title = `Baseline test: ${measured.title}`;
       baseline = measured;
     } else if (takeMinutes(first.detailedSteps, TEST_MINUTES)) {
-      const drill = (first.detailedSteps.find((step) => !/warm[- ]?up/i.test(step.title)) ?? first.detailedSteps[0]).title;
+      const work = (first.detailedSteps.find((step) => !/warm[- ]?up/i.test(step.title)) ?? first.detailedSteps[0]).title;
       baseline = {
         stepNumber: 0,
-        title: `Baseline test: ${drill}`,
+        title: `Baseline test: ${work}`,
         durationMinutes: TEST_MINUTES,
-        instructions: `${TEST_MINUTES} minutes: do ${drill} at your best and write down how many clean repetitions you got.`,
-        focusCue: 'Honest effort, clean form. This number is your starting point.',
-        pitfallToAvoid: 'Do not warm up for so long that the test is rushed.',
-        passMark: 'Your best count is written down.',
+        instructions: `Do "${work}" once at your honest best, with no warm-up tricks, and write down or save the result.`,
+        output: 'Your starting result, written down or saved.',
+        focusCue: 'Honest effort. This is your starting point, not a performance.',
+        pitfallToAvoid: 'Skipping it because you expect a low result.',
+        passMark: 'The result is written down or saved where you can find it on the last practice day.',
       };
       first.detailedSteps = renumber([baseline, ...first.detailedSteps]);
     }
@@ -136,7 +140,8 @@ export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { drills?: Dri
           ...baseline,
           title: `Retest: ${test}`,
           durationMinutes: minutes,
-          instructions: `${minutes} minutes: repeat Day ${first.dayNumber}'s baseline test exactly the same way and compare the numbers.`,
+          instructions: `Repeat Day ${first.dayNumber}'s baseline test exactly the same way and put the two results side by side.`,
+          output: 'Both results side by side.',
           passMark: `You beat or match your Day ${first.dayNumber} result.`,
         },
       ]);
@@ -146,7 +151,7 @@ export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { drills?: Dri
   return out;
 }
 
-/** Everything that makes a day filler rather than practice. Empty when the week is actionable. */
+/** Everything that makes a day filler rather than real work. Empty when the week is actionable. */
 export function taskQualityFailures(tasks: DailyTaskPlan[]): string[] {
   const failures: string[] = [];
   const practice = tasks.filter((task) => !task.isRestDay);
@@ -156,18 +161,16 @@ export function taskQualityFailures(tasks: DailyTaskPlan[]): string[] {
     const day = `Day ${task.dayNumber}`;
     const steps = task.detailedSteps ?? [];
 
-    if (FILLER.test(task.title) || (VAGUE.test(task.title) && !hasNumber(task.title))) {
-      failures.push(`${day} title "${task.title}" names a category, not an action.`);
-    }
-    if (!task.isRestDay && !hasNumber(task.title)) failures.push(`${day} title "${task.title}" has no target number.`);
+    if (isVagueTitle(task.title)) failures.push(`${day} title "${task.title}" names a category, not an action.`);
     if (task.isRestDay && (task.durationMinutes > 20 || steps.length > 2)) {
       failures.push(`${day} is a rest day and should be one short task, not a full session.`);
     }
 
     for (const step of steps) {
       const label = `${day} step "${step.title}"`;
-      if (FILLER.test(step.title)) failures.push(`${label} is filler. Replace it with a drill.`);
-      if (!hasNumber(step.instructions)) failures.push(`${label} has no dose (sets, reps, seconds, or minutes).`);
+      if (FILLER.test(step.title)) failures.push(`${label} is filler. Replace it with real work.`);
+      if ((step.instructions ?? '').trim().length < MIN_INSTRUCTIONS) failures.push(`${label} does not say exactly what to do.`);
+      if (!step.output || step.output.trim().length < 4) failures.push(`${label} has no output.`);
       if (!step.passMark || step.passMark.trim().length < 8) failures.push(`${label} has no passMark.`);
       if (task !== firstPractice && SETUP.test(stepText(step))) {
         failures.push(`${label} is setup work. Setup belongs on the first practice day only.`);

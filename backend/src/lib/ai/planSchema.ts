@@ -40,8 +40,9 @@ const stepSchema = {
     instructions: { type: 'string' },
     focusCue: { type: 'string' },
     pitfallToAvoid: { type: 'string' },
-    layer: { type: 'string', enum: ['mechanism', 'adherence', 'safety'] },
-    layerReasoning: { type: 'string' },
+    passMark: { type: 'string' },
+    output: { type: 'string' },
+    timing: { type: 'string' },
     challenge: challengeSchema,
     resourceTitle: { type: 'string' },
     resourceUrl: { type: 'string' },
@@ -58,8 +59,8 @@ const stepSchema = {
     'instructions',
     'focusCue',
     'pitfallToAvoid',
-    'layer',
-    'layerReasoning',
+    'passMark',
+    'output',
   ],
 };
 

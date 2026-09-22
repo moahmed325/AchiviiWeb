@@ -6,7 +6,8 @@ import type {
 } from './goalDecomposer.js';
 import { formatMethodologyNotes, type PlanGrounding } from '../research/planGrounding.js';
 import type { VelocityTable } from '../research/types.js';
-import { drillsForWeek } from '../method/drills.js';
+import { asBlockStep, blocksForWeek, type WorkBlock } from '../method/blocks.js';
+import { polishWeekTasks } from './taskRules.js';
 
 type PlanVariant = 'minimal' | 'steady' | 'accelerated';
 
@@ -92,6 +93,82 @@ export interface SpineWeekTasksInput {
   weekNumber?: number;
 }
 
+function blankStep(stepNumber: number, durationMinutes: number): DetailedStep {
+  return { stepNumber, title: '', durationMinutes, instructions: '', focusCue: '', pitfallToAvoid: '' };
+}
+
+/**
+ * A varied week from the work blocks: the two top practice blocks alternate as the lead, the middle step
+ * rotates through the rest, and a real-thing block closes each day.
+ */
+function buildBlockWeek(input: SpineWeekTasksInput, weekNumber: number): DailyTaskPlan[] {
+  const { grounding, dailyMins, slotTime, weekStartDate, planVariant } = input;
+  const ranked = blocksForWeek(grounding.blocks!, weekNumber);
+  const real = ranked.filter((block) => block.realThing);
+  const practice = ranked.filter((block) => !block.realThing);
+  const restDays = spineRestDayIndices(planVariant);
+  const restMins = dailyMins < 15 ? 10 : 15;
+  const wantSteps = dailyMins >= 20 ? 3 : 2;
+  const tasks: DailyTaskPlan[] = [];
+  let active = 0;
+
+  for (let d = 0; d < 7; d++) {
+    const date = new Date(weekStartDate);
+    date.setDate(date.getDate() + d);
+    const dayOfWeek = DAY_NAMES[date.getDay()];
+    const dayNumber = (weekNumber - 1) * 7 + d + 1;
+
+    if (restDays.includes(d)) {
+      const block = practice[active % Math.max(1, practice.length)] ?? ranked[0];
+      tasks.push({
+        dayNumber,
+        dayOfWeek,
+        title: `Light practice: ${block.name}`,
+        isRestDay: true,
+        durationMinutes: restMins,
+        slotTime,
+        implementationIntention: `When: ${slotTime} | Where: your usual spot | Action: an easy round of ${block.name}`,
+        detailedSteps: [
+          {
+            ...asBlockStep(blankStep(1, restMins), block),
+            title: `Easy ${block.name}`,
+            instructions: `Slowly and at half effort: ${block.action}`,
+            passMark: 'Done slowly without a single mistake.',
+          },
+        ],
+      });
+      continue;
+    }
+
+    const picks: WorkBlock[] = [];
+    const lead = practice.length ? practice[active % Math.min(2, practice.length)] : ranked[0];
+    picks.push(lead);
+    if (wantSteps === 3) {
+      const middle =
+        practice.length > 2 ? practice[2 + (active % (practice.length - 2))] : ranked.find((block) => !picks.includes(block));
+      if (middle && !picks.includes(middle)) picks.push(middle);
+    }
+    const closer = real.length ? real[active % real.length] : ranked.find((block) => !picks.includes(block));
+    if (closer && !picks.includes(closer)) picks.push(closer);
+
+    const minutes = splitMinutes(dailyMins, picks.length);
+    const steps = picks.map((block, i) => asBlockStep(blankStep(i + 1, minutes[i]), block));
+    tasks.push({
+      dayNumber,
+      dayOfWeek,
+      title: closer && closer !== lead ? `${lead.name}, then ${closer.name}` : lead.name,
+      isRestDay: false,
+      durationMinutes: dailyMins,
+      slotTime,
+      implementationIntention: `When: ${slotTime} | Where: your usual spot | Action: ${lead.name}`,
+      detailedSteps: steps,
+    });
+    active++;
+  }
+
+  return tasks;
+}
+
 /**
  * A week of tasks built only from the researched teachings. Used when every model call failed,
  * so the user still gets a sourced week instead of an error.
@@ -99,9 +176,10 @@ export interface SpineWeekTasksInput {
 export function buildSpineWeekTasks(input: SpineWeekTasksInput): DailyTaskPlan[] {
   const { grounding, dailyMins, slotTime, weekStartDate, planVariant } = input;
   const weekNumber = input.weekNumber ?? 1;
-  // Only the top drills of the stage: the week's time goes to what moves the goal most.
-  const drills = grounding.drills?.length ? drillsForWeek(grounding.drills, weekNumber).slice(0, 4) : [];
-  const teachings = drills.length ? drills.map((drill) => `${drill.name}. ${drill.dose}.`) : grounding.teachings;
+  if (grounding.blocks?.length) {
+    return polishWeekTasks(buildBlockWeek(input, weekNumber), { blocks: grounding.blocks, week: weekNumber });
+  }
+  const teachings = grounding.teachings;
   const restDays = spineRestDayIndices(planVariant);
   const activePerWeek = 7 - restDays.length;
   const stepsPerDay = Math.max(1, Math.min(3, teachings.length));
@@ -138,6 +216,7 @@ export function buildSpineWeekTasks(input: SpineWeekTasksInput): DailyTaskPlan[]
             title: `Easy ${drill}`,
             durationMinutes: restMins,
             instructions: `${restMins} minutes, slowly and at half effort: ${teaching}`,
+            output: 'One slow, clean practice round.',
             focusCue: 'Slow and clean. This is practice, not a test.',
             pitfallToAvoid: 'Do not turn a rest day into a full session.',
             passMark: 'You can do it slowly without a single mistake.',
@@ -150,22 +229,18 @@ export function buildSpineWeekTasks(input: SpineWeekTasksInput): DailyTaskPlan[]
     const minutes = splitMinutes(dailyMins, stepsPerDay);
     const testDay = d === firstActiveDay || d === lastActiveDay;
     const steps: DetailedStep[] = minutes.map((stepMins, s) => {
-      const index = (activeIndex * stepsPerDay + s) % teachings.length;
-      const teaching = teachings[index];
-      const drill = drills[index];
+      const teaching = teachings[(activeIndex * stepsPerDay + s) % teachings.length];
       const withTarget = s === 0 && targets ? `${teaching} This week's target: ${targets}.` : teaching;
       const test = s === 0 && testDay ? ' Start with a 2-minute test of your current level and log the result.' : '';
       const step: DetailedStep = {
         stepNumber: s + 1,
-        title: drill?.name ?? shortTitle(teaching),
+        title: shortTitle(teaching),
         durationMinutes: stepMins,
         instructions: `${stepMins} minutes: ${withTarget}${test}`,
-        focusCue: drill?.cue ?? 'Follow the instruction as written. Slow and correct beats fast.',
-        pitfallToAvoid: drill?.pitfall ?? 'Do not add extra volume or skip ahead of this week.',
-        passMark:
-          targets && s === 0
-            ? `Reach this week's target: ${targets}.`
-            : drill?.passMark ?? 'Every repetition matches the instruction exactly.',
+        output: s === 0 && testDay ? 'Your test result, written down.' : 'The steps above done as written.',
+        focusCue: 'Follow the instruction as written. Slow and correct beats fast.',
+        pitfallToAvoid: 'Do not add extra volume or skip ahead of this week.',
+        passMark: targets && s === 0 ? `Reach this week's target: ${targets}.` : 'Every repetition matches the instruction exactly.',
         challenge: {
           type: 'checklist',
           items: [{ id: 'c1', label: shortTitle(teaching) }],

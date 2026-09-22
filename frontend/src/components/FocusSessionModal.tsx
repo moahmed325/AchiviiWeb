@@ -18,6 +18,8 @@ import {
   Lightbulb,
   Users,
   ShieldCheck,
+  PackageCheck,
+  Hourglass,
 } from 'lucide-react';
 import { DailyTask, DetailedStep } from '../types';
 import { playSessionStart, playStepTransition, playSessionComplete } from '../lib/audio';
@@ -430,9 +432,36 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
                       );
                     })()}
 
+                    {currentStep.timing && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-300">
+                        <Hourglass className="w-3 h-3 shrink-0" />
+                        {currentStep.timing}
+                      </div>
+                    )}
+
                     <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-h-20 overflow-y-auto pr-1">
                       {currentStep.instructions}
                     </p>
+
+                    {currentStep.output && (
+                      <div className="flex items-start gap-2 text-xs text-neutral-300">
+                        <PackageCheck className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+                        <span>
+                          <span className="font-semibold text-sky-400">You'll have: </span>
+                          {currentStep.output}
+                        </span>
+                      </div>
+                    )}
+
+                    {currentStep.passMark && (
+                      <div className="flex items-start gap-2 rounded-md border border-[#07CB6C]/30 bg-[#07CB6C]/10 px-2.5 py-1.5 text-xs">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C] shrink-0 mt-0.5" />
+                        <span className="text-neutral-200">
+                          <span className="font-semibold text-[#07CB6C]">Done when: </span>
+                          {currentStep.passMark}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Interactive Challenge Widget */}

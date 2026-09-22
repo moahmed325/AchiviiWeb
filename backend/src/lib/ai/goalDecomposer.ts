@@ -140,6 +140,10 @@ export interface DetailedStep {
   pitfallToAvoid: string;
   /** The measurable standard that counts the step as done. */
   passMark?: string;
+  /** What the user ends up with: a count, a recording, a finished piece. */
+  output?: string;
+  /** Only when the step can't follow the previous one straight away, e.g. "4 hours after mixing". */
+  timing?: string;
   layer?: TaskLayerType;
   layerReasoning?: string;
   challenge?: StepChallenge;
@@ -342,7 +346,7 @@ You follow:
 - Milestone Gates: Week 4, Week 8, and Week 12 are hard-gate milestone checkpoints.
 - Plan Variant Pacing: Obey the selected track (${planVariant}: ${activeDaysTarget} active days, ${restDaysTarget} rest days).
 - The 2-Day Rule: User MUST NEVER have 2 consecutive rest days.
-- Every task is real practice that moves the user toward the goal: a drill with a dose and a pass mark. No filler.
+- Every step is real work that moves the user toward the goal: a clear action, what they end up with, and the proof it is good enough. No filler.
 
 When the most effective version of a drill and the version people stick with differ, use the one people stick with in Weeks 1-8 and the more demanding one from Week 9. Safety always wins: never write a step a coach in this domain would call unsafe or badly sequenced.`;
 
@@ -594,6 +598,8 @@ Respond with JSON matching schema:
           "focusCue": string,
           "pitfallToAvoid": string,
           "passMark": string,
+          "output": string,
+          "timing"?: string,
           "challenge": {
             "type": "repetitions" | "active_recall" | "checklist" | "exercise",
             "drillName"?: string,
@@ -632,7 +638,7 @@ Respond with JSON matching schema:
       }
       const schedule = repairWeekSchedule(plan.initialTasks, dailyMins, activeDaysTarget);
       if (schedule.failures.length > 0) return { reason: schedule.failures.join(' ') };
-      plan.initialTasks = polishWeekTasks(schedule.tasks, { drills: options?.grounding?.drills, week: 1 });
+      plan.initialTasks = polishWeekTasks(schedule.tasks, { blocks: options?.grounding?.blocks, week: 1 });
       const dull = taskQualityFailures(plan.initialTasks);
       if (dull.length > 0) {
         if (!lastAttempt) return { reason: dull.join(' ') };
@@ -726,7 +732,7 @@ STRICT GROUNDING & ANTI-HALLUCINATION RULES:
    - For documentation or scientific studies, use canonical verified base domains (e.g., wikipedia.org, pubmed.ncbi.nlm.nih.gov, developer.mozilla.org, etc.).`
    }
 6. STAY ON THE METHOD: if a plan spine is provided, de-load or advance inside that method and its numbers. Do not switch to a different program or generic advice.
-7. Every task is real practice that moves the user toward the goal: a drill with a dose and a pass mark. No filler.
+7. Every step is real work that moves the user toward the goal: a clear action, what they end up with, and the proof it is good enough. No filler.
 
 When the most effective version of a drill and the version people stick with differ, use the one people stick with in Weeks 1-8 and the more demanding one from Week 9. Safety always wins: never write a step a coach in this domain would call unsafe or badly sequenced.`;
 
@@ -793,6 +799,8 @@ JSON Schema:
           "focusCue": string,
           "pitfallToAvoid": string,
           "passMark": string,
+          "output": string,
+          "timing"?: string,
           "challenge": {
             "type": "repetitions" | "active_recall" | "checklist" | "exercise",
             "drillName"?: string,
@@ -830,7 +838,7 @@ JSON Schema:
       }
       const schedule = repairWeekSchedule(tasks, dailyMins, activeDaysTarget);
       if (schedule.failures.length > 0) return { reason: schedule.failures.join(' ') };
-      const polished = polishWeekTasks(schedule.tasks, { drills: grounding?.drills, week: targetWeekNumber });
+      const polished = polishWeekTasks(schedule.tasks, { blocks: grounding?.blocks, week: targetWeekNumber });
       const dull = taskQualityFailures(polished);
       if (dull.length > 0) {
         if (!lastAttempt) return { reason: dull.join(' ') };
