@@ -99,18 +99,20 @@ Do these in order. Each phase has a user-facing test. Do not start the next phas
 
 **Goal:** research never returns “nothing.” It returns the best method we found, plus the facts the plan will use.
 
-The spine must include:
+- [x] `methodKind`: `named_program` | `shared_pattern` | `technique` | `single_source`
+- [x] `methodName` only if a real name appears on the pages (else a plain label)
+- [x] `authority` only if a real person/body appears (else empty)
+- [x] `sourceUrl` / `allowedUrls`: only URLs we retrieved
+- [x] `teachings`: concrete steps from the pages
+- [x] `velocityTable` when numbers pass the sanity check (never a world record as week 12)
+- [x] `assumptions`: who the advice was written for
+- [x] Badge stays honest: only a corroborated named program can earn high/medium
 
-- `methodKind`: `named_program` | `shared_pattern` | `technique` | `single_source`
-- `methodName` only if a real name appears on the pages (else a plain label like “stone skipping technique”)
-- `authority` only if a real person/body appears (else empty)
-- `sourceUrls`: only URLs we retrieved
-- `teachings`: the actual steps / rules the sources agree on (e.g. “flat stone, spin, ~20° entry”)
-- `velocityTable` when numbers exist and pass the sanity check
-- `assumptions`: who this advice was written for
-- `confidence`: honest level, matching the table above
+**Test (replay of Phase 1 fixtures, 2026-09-22):**
 
-**Test:** the same three goals each produce a spine a plan-writer could follow. Stone skipping must have teachings. 10K must have a pattern and numbers we can source. Meditation must keep the named program.
+1. Meditation — `shared_pattern`, 5 teachings (sit, breath, 5–15 min). These particular pages did not agree on the MBSR brand, so we did not stamp MBSR. Still a usable spine.
+2. 10K under 50 — `shared_pattern`, 5 teachings (easy / long run / speed), numbers: long run 45 → 55 min, sourced.
+3. Stone skipping — `technique`, 6 teachings (flat stone, spin, ~20°). No invented coach.
 
 ---
 

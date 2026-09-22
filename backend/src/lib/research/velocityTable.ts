@@ -50,6 +50,8 @@ Rules:
 - NEVER use the goal's own fixed target as a metric. A goal race pace, target finish time
   or desired final score is constant by definition and cannot progress. Use the training
   quantities that build toward it instead.
+- NEVER use a world record, championship mark, or elite endpoint as week 12. Those are
+  not training targets. If the pages only state a record, set hasNumericDimension false.
 - "metric" names must match exactly between week1Targets and week12Targets so they can be
   paired. Use the same "unit" for a given metric in both.
 - "direction" describes which way is HARDER. Weekly mileage is "higher_is_harder".

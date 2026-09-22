@@ -32,10 +32,38 @@ function routeLlm(handlers: {
     if (systemInstruction?.includes('You plan web research')) {
       return { success: true, data: handlers.queries?.() ?? { queries: ['q one', 'q two', 'q three'] } };
     }
-    if (systemInstruction?.includes('You analyse research sources')) {
-      return handlers.synthesis
-        ? { success: true, data: handlers.synthesis() }
-        : { success: false, data: null };
+    if (
+      systemInstruction?.includes('You analyse research sources') ||
+      systemInstruction?.includes('write the spine')
+    ) {
+      if (!handlers.synthesis) return { success: false, data: null };
+      const data = handlers.synthesis();
+      if (data && data.methodFound !== undefined && !data.teachings) {
+        return {
+          success: true,
+          data: {
+            methodKind: data.methodFound ? 'named_program' : 'technique',
+            methodName: data.methodName,
+            authority: data.authority,
+            sourceUrl: data.sourceUrl,
+            agreeingSourceUrls: data.agreeingSourceUrls ?? [],
+            teachings: data.methodFound
+              ? [
+                  'Follow the named method described in the sources.',
+                  'Practise the main drill several times each week.',
+                  'Increase difficulty a little each week.',
+                ]
+              : [
+                  'Practise the core skill in short sessions.',
+                  'Repeat the technique the pages describe.',
+                  'Add a little more practice each week.',
+                ],
+            assumptions: 'As described by the retrieved sources.',
+            reasoning: data.reasoning,
+          },
+        };
+      }
+      return { success: true, data };
     }
     if (systemInstruction?.includes('You extract concrete numeric targets')) {
       return handlers.velocity
@@ -162,13 +190,16 @@ describe('Phase 3 — Stage 2 consensus enforcement', () => {
   });
 
   it('still downloads a single on-topic page so a niche goal is not empty-handed', async () => {
-    let synthesisCalled = false;
     routeLlm({
       queries: () => ({ queries: ['a method', 'b timeline', 'c authority'] }),
-      synthesis: () => {
-        synthesisCalled = true;
-        return { methodFound: true, methodName: 'Invented', authority: 'X', sourceUrl: '', agreeingSourceUrls: [], reasoning: '' };
-      },
+      synthesis: () => ({
+        methodFound: true,
+        methodName: 'Invented',
+        authority: 'X',
+        sourceUrl: '',
+        agreeingSourceUrls: [],
+        reasoning: '',
+      }),
     });
 
     const tavily = fakeTavily([
@@ -185,10 +216,10 @@ describe('Phase 3 — Stage 2 consensus enforcement', () => {
 
     expect(tavily.extractCalls).toHaveLength(1);
     expect(result.budget.extractCalls).toBe(1);
-    expect(synthesisCalled).toBe(false);
+    expect(result.methodKind).toBe('single_source');
     expect(result.methodConfidence).toBe('first_principles');
+    expect(result.teachings.length).toBeGreaterThanOrEqual(3);
     expect(result.sources[0].url).toContain('wikipedia.org');
-    expect(result.reasoning).toMatch(/Pages were downloaded/);
   });
 
   it('downgrades when only one independent host actually names the method', async () => {
@@ -219,7 +250,7 @@ describe('Phase 3 — Stage 2 consensus enforcement', () => {
     // Per-host capping keeps nih.gov to 2 pages, but they are still ONE host. acsm.org is
     // fetched too, so the method would need to appear there as well to corroborate.
     expect(result.methodConfidence).toBe('high_consensus');
-    expect(result.reasoning).toMatch(/nih\.gov/);
+    expect(result.methodKind).toBe('named_program');
   });
 
   it('rejects a method the model claims but no page text mentions', async () => {
@@ -244,7 +275,8 @@ describe('Phase 3 — Stage 2 consensus enforcement', () => {
     const result = await runCanonResearch('Run a 10K road race', { tavily: tavily.client });
 
     expect(result.methodConfidence).toBe('first_principles');
-    expect(result.reasoning).toMatch(/appears in the retrieved text of only 0/);
+    expect(result.methodKind).not.toBe('named_program');
+    expect(result.teachings.length).toBeGreaterThanOrEqual(3);
   });
 
   it('rejects a sourceUrl that was never retrieved this run', async () => {
@@ -467,9 +499,12 @@ describe('Phase 3 — Stage 3 velocity sanity check', () => {
     );
     const result = await researchGoal('Run a 10K road race', { tavily: tavily.client });
 
-    expect(result.methodConfidence).toBe('first_principles');
+    // Numbers failed. The method and teachings stay — a plan can still follow them.
+    expect(result.methodKind).toBe('named_program');
+    expect(result.methodName).toBe('Daniels VDOT');
     expect(result.velocityTable).toBeNull();
     expect(result.flaggedForReview).toBeTruthy();
+    expect(result.teachings.length).toBeGreaterThanOrEqual(3);
   });
 
   it('keeps the method when the goal simply has no numeric dimension', async () => {
@@ -495,8 +530,9 @@ describe('Phase 3 — Stage 3 velocity sanity check', () => {
     });
 
     expect(result.methodConfidence).toBe('high_consensus');
+    expect(result.methodKind).toBe('named_program');
     expect(result.velocityTable).toBeNull();
-    expect(result.reasoning).toMatch(/no natural numeric dimension/);
+    expect(result.teachings.length).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -618,6 +654,88 @@ describe('Phase 3 — relevance outranks trust (regression: live 10K run)', () =
 
   it('rewards a page that several angles surfaced', () => {
     expect(scoreCandidate(0.7, 'MEDIUM', 3)).toBeGreaterThan(scoreCandidate(0.7, 'MEDIUM', 1));
+  });
+});
+
+describe('Best roadmap — plan spine', () => {
+  it('keeps a named program only when two hosts actually name it', async () => {
+    routeLlm({
+      queries: () => ({ queries: ['a method', 'b timeline', 'c authority'] }),
+      synthesis: () => ({
+        methodKind: 'named_program',
+        methodName: 'Mindfulness-Based Stress Reduction',
+        authority: 'Jon Kabat-Zinn',
+        sourceUrl: 'https://nih.gov/a',
+        agreeingSourceUrls: ['https://nih.gov/a', 'https://acsm.org/b'],
+        teachings: [
+          'Sit for a timed session each day.',
+          'Use breath as the anchor.',
+          'Attend a weekly group class for eight weeks.',
+        ],
+        assumptions: 'Adults reducing everyday stress.',
+        reasoning: 'Both pages describe MBSR.',
+      }),
+    });
+
+    const tavily = fakeTavily(
+      [
+        searchResult('https://nih.gov/a', 'Mindfulness meditation MBSR overview'),
+        searchResult('https://acsm.org/b', 'Mindfulness meditation stress program'),
+      ],
+      'Mindfulness-Based Stress Reduction (MBSR) by Jon Kabat-Zinn is an eight-week program.'
+    );
+
+    const result = await runCanonResearch('Build a mindfulness meditation practice to reduce stress', {
+      tavily: tavily.client,
+    });
+
+    expect(result.methodKind).toBe('named_program');
+    expect(result.methodName).toMatch(/MBSR|Mindfulness-Based Stress Reduction/);
+    expect(result.teachings.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('falls back to a technique spine when no program name is corroborated', async () => {
+    routeLlm({
+      queries: () => ({ queries: ['a method', 'b timeline', 'c authority'] }),
+      synthesis: () => ({
+        methodKind: 'named_program',
+        methodName: 'Invented Protocol',
+        authority: 'Nobody',
+        sourceUrl: 'https://en.wikipedia.org/wiki/Stone_skipping',
+        agreeingSourceUrls: ['https://en.wikipedia.org/wiki/Stone_skipping'],
+        teachings: [
+          'Choose a flat stone no bigger than about three inches.',
+          'Throw sidearm with as much spin as you can.',
+          'Aim to hit the water at about 20 degrees.',
+        ],
+        assumptions: 'A beginner at a lake or quarry.',
+        reasoning: 'Pages teach the throw, not a named program.',
+      }),
+    });
+
+    const tavily = fakeTavily(
+      [
+        searchResult(
+          'https://en.wikipedia.org/wiki/Stone_skipping',
+          'Stone skipping',
+          'Flat stone, sidearm, spin, about 20 degrees.'
+        ),
+        searchResult(
+          'https://www.outsideonline.com/stone-skipping-kurt-steiner',
+          'Stone skipping with Kurt Steiner',
+          'Wrist rotation and attacking the water.'
+        ),
+      ],
+      'Use a flat stone. Throw sidearm with spin. Hit the water at about 20 degrees.'
+    );
+
+    const result = await runCanonResearch('Get good at competitive stone skipping', {
+      tavily: tavily.client,
+    });
+
+    expect(result.methodKind).not.toBe('named_program');
+    expect(result.methodConfidence).toBe('first_principles');
+    expect(result.teachings.some((t) => /20|spin|flat|sidearm/i.test(t))).toBe(true);
   });
 });
 

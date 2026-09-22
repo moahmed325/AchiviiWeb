@@ -100,9 +100,15 @@ function report(goal: string, result: any) {
   console.log(`GOAL: ${goal}`);
   console.log('================================================================');
   console.log(`Confidence:   ${result.methodConfidence}`);
+  console.log(`Kind:         ${result.methodKind ?? '(none)'}`);
   console.log(`Method:       ${result.methodName ?? '(none)'}`);
   console.log(`Authority:    ${result.authority ?? '(none)'}`);
   console.log(`Source URL:   ${result.sourceUrl ?? '(none)'}`);
+  if (result.assumptions) console.log(`Assumes:      ${result.assumptions}`);
+  if (result.teachings?.length) {
+    console.log(`\nTeachings (${result.teachings.length}):`);
+    result.teachings.forEach((t: string) => console.log(`  - ${t}`));
+  }
   console.log(`\nReasoning:    ${result.reasoning}`);
   if (result.flaggedForReview) console.log(`Flagged:      ${result.flaggedForReview}`);
 

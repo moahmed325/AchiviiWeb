@@ -1,21 +1,17 @@
-import { generateStructuredContent } from '../ai/gemini.js';
 import { getTavilyClient, TavilyClient, TavilySearchResult } from '../tavily.js';
 import { screenResults } from './safetyFilter.js';
 import {
   rankSourcesByTrust,
-  countIndependentTrustedSources,
-  authorityOwnsDomain,
   isInstructionalVideoHost,
   isNeverExtractHost,
   TrustTier,
   RankedSource,
 } from './trustTier.js';
-import { corroborateMethod } from './corroboration.js';
 import { distillContent } from './distill.js';
 import { planSearchQueries, resultKeepsSkill } from './queryPlanner.js';
+import { buildPlanSpine, emptySpineFields } from './spine.js';
 import type {
   CanonResearchResult,
-  MethodConfidence,
   ResearchSource,
   RejectedSource,
 } from './types.js';
@@ -40,13 +36,6 @@ export const MAX_EXTRACT_URLS = 6;
 const MAX_PER_HOST = 2;
 
 /**
- * Minimum independent, non-LOW hosts required before a consensus claim is even possible.
- * Below this the synthesis call is skipped entirely — there is nothing to cross-check,
- * and asking anyway invites the model to manufacture an authority.
- */
-const MIN_INDEPENDENT_SOURCES_FOR_CONSENSUS = 2;
-
-/**
  * Tavily relevance below which a result is not worth downloading whatever its domain.
  * Calibrated against live data: on-topic 10K plans scored 0.76-0.88, while generic
  * "ACSM Official Statements" scored 0.34.
@@ -66,37 +55,10 @@ const TRUST_BONUS: Record<TrustTier, number> = { HIGH: 0.1, MEDIUM: 0, LOW: -1 }
 /** Bonus per additional query angle that surfaced the same page, capped. */
 const MULTI_ANGLE_BONUS = 0.03;
 
-const SYNTHESIS_SYSTEM_INSTRUCTION = `You analyse research sources to identify whether a
-single established methodology genuinely exists for a goal.
-
-Return JSON:
-{
-  "methodFound": boolean,
-  "methodName": string | null,
-  "authority": string | null,
-  "sourceUrl": string | null,
-  "agreeingSourceUrls": string[],
-  "reasoning": string
-}
-
-Rules:
-- "methodFound" is true ONLY if at least two DIFFERENT sources describe the same named
-  method, system, or programme. Two articles restating one author is not agreement.
-- "authority" is the person, book, governing body, or institution behind the method.
-- "sourceUrl" and every "agreeingSourceUrls" entry MUST be copied exactly from the
-  supplied source list. Never write a URL that is not in that list. Never guess one.
-- If sources disagree, or only describe generic advice, set "methodFound" to false and
-  explain why in "reasoning". A truthful "no established method" is the correct answer
-  for many goals and is strongly preferred over naming something weak.
-- "reasoning" is 1-3 sentences, plain language.`;
-
-interface SynthesisResponse {
-  methodFound: boolean;
-  methodName: string | null;
-  authority: string | null;
-  sourceUrl: string | null;
-  agreeingSourceUrls: string[];
-  reasoning: string;
+function emptyResearch(
+  partial: Omit<CanonResearchResult, 'teachings' | 'velocityTable'>
+): CanonResearchResult {
+  return { ...partial, ...emptySpineFields(), velocityTable: null };
 }
 
 export interface CanonResearchOptions {
@@ -111,14 +73,6 @@ export interface CanonResearchOptions {
    * makes a recorded run genuinely repeatable.
    */
   presetQueries?: string[];
-}
-
-function hostOf(url: string): string {
-  try {
-    return new URL(url).hostname.toLowerCase().replace(/^www\./, '');
-  } catch {
-    return '';
-  }
 }
 
 interface MergedResult {
@@ -233,9 +187,8 @@ export async function runCanonResearch(
     : await planSearchQueries(clarifiedOutcome, options.primaryDomain);
 
   if (plan.queries.length === 0) {
-    return {
+    return emptyResearch({
       methodConfidence: 'first_principles',
-      velocityTable: null,
       sources: [],
       allowedUrls: [],
       queries: [],
@@ -244,7 +197,7 @@ export async function runCanonResearch(
       reasoning:
         'Every generated search query was blocked by the safety filter, so no research was performed.',
       budget,
-    };
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -283,9 +236,8 @@ export async function runCanonResearch(
   }
 
   if (byUrl.size === 0) {
-    return {
+    return emptyResearch({
       methodConfidence: 'first_principles',
-      velocityTable: null,
       sources: [],
       allowedUrls: [],
       queries: plan.queries,
@@ -293,7 +245,7 @@ export async function runCanonResearch(
       rejectedSources,
       reasoning: 'No search results were returned for any query angle.',
       budget,
-    };
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -306,9 +258,8 @@ export async function runCanonResearch(
   }
 
   if (screened.kept.length === 0) {
-    return {
+    return emptyResearch({
       methodConfidence: 'first_principles',
-      velocityTable: null,
       sources: [],
       allowedUrls: [],
       queries: plan.queries,
@@ -316,16 +267,15 @@ export async function runCanonResearch(
       rejectedSources,
       reasoning: 'Every search result was rejected by the safety filter.',
       budget,
-    };
+    });
   }
 
   const ranked = rankSourcesByTrust(screened.kept);
   const shortlist = selectShortlist(ranked, byUrl, extractLimit, clarifiedOutcome);
 
   if (shortlist.length === 0) {
-    return {
+    return emptyResearch({
       methodConfidence: 'first_principles',
-      velocityTable: null,
       sources: [],
       allowedUrls: [],
       queries: plan.queries,
@@ -333,7 +283,7 @@ export async function runCanonResearch(
       rejectedSources,
       reasoning: 'No on-topic readable pages survived filtering, so no pages were downloaded.',
       budget,
-    };
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -372,150 +322,23 @@ export async function runCanonResearch(
   }));
 
   const allowedUrls = sources.map((source) => source.url);
-
-  // A named-method claim still needs two independent non-LOW hosts. We download anyway
-  // so a single good article or video can become the plan spine later. We do not ask
-  // the model to name a method from one voice — that is how fake gurus get invented.
-  const independentTrusted = countIndependentTrustedSources(shortlist);
-  if (independentTrusted < MIN_INDEPENDENT_SOURCES_FOR_CONSENSUS) {
-    return {
-      methodConfidence: 'first_principles',
-      velocityTable: null,
-      sources,
-      allowedUrls,
-      queries: plan.queries,
-      rejectedQueries: plan.rejectedQueries,
-      rejectedSources,
-      reasoning: `Pages were downloaded, but only ${independentTrusted} independent non-LOW source(s) are available. A named method is not claimed. The retrieved text is kept as the spine for the plan.`,
-      budget,
-    };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Synthesis.
-  // ---------------------------------------------------------------------------
-  const sourceBlock = sources
-    .map(
-      (source, index) =>
-        `[${index + 1}] TRUST=${source.tier} URL=${source.url}\nTITLE: ${source.title}\nCONTENT: ${source.content.slice(0, 2500)}`
-    )
-    .join('\n\n---\n\n');
-
-  const synthesisPrompt = `Goal: "${clarifiedOutcome}"
-
-Sources (already trust-ranked; TRUST=HIGH is most reliable):
-
-${sourceBlock}`;
-
-  let synthesis: SynthesisResponse | null = null;
-  try {
-    const result = await generateStructuredContent<SynthesisResponse>(
-      synthesisPrompt,
-      SYNTHESIS_SYSTEM_INSTRUCTION
-    );
-    if (result.success && result.data) synthesis = result.data;
-  } catch (err: any) {
-    console.warn(`[Stage2] Synthesis call failed: ${err.message}`);
-  }
-
-  if (!synthesis || !synthesis.methodFound) {
-    return {
-      methodConfidence: 'first_principles',
-      velocityTable: null,
-      sources,
-      allowedUrls,
-      queries: plan.queries,
-      rejectedQueries: plan.rejectedQueries,
-      rejectedSources,
-      reasoning:
-        synthesis?.reasoning ||
-        'Synthesis did not identify a single established method agreed on by multiple sources.',
-      budget,
-    };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Verify the model's claim against the real sources. The spec forbids letting
-  // high_consensus be asserted without this check actually passing, so agreement is
-  // recounted here rather than taken on the model's word.
-  // ---------------------------------------------------------------------------
-  const allowed = new Set(allowedUrls);
-  const claimedUrls = (synthesis.agreeingSourceUrls ?? []).filter((url) => allowed.has(url));
-
-  // Corroboration is recounted from the retrieved page text rather than taken from the
-  // model's own list of agreeing URLs, which can name pages that never mention the method.
-  const corroboration = corroborateMethod(
-    sources,
-    synthesis.methodName ?? undefined,
-    synthesis.authority ?? undefined
-  );
-  const agreeingHosts = new Set(corroboration.hosts);
-
-  if (agreeingHosts.size < MIN_INDEPENDENT_SOURCES_FOR_CONSENSUS) {
-    return {
-      methodConfidence: 'first_principles',
-      velocityTable: null,
-      sources,
-      allowedUrls,
-      queries: plan.queries,
-      rejectedQueries: plan.rejectedQueries,
-      rejectedSources,
-      reasoning: `A method ("${synthesis.methodName ?? 'unnamed'}") was proposed, but its name appears in the retrieved text of only ${agreeingHosts.size} independent non-LOW source(s). Downgraded rather than overstating the evidence.`,
-      budget,
-    };
-  }
-
-  // A HIGH-tier corroborating source, or the authority's own domain among them, is what
-  // separates high_consensus from medium_consensus. The domain check is allowlist-free:
-  // publishing authorities overwhelmingly own the domain bearing their name.
-  let hasHighTierAgreement = false;
-  for (const source of sources) {
-    if (!agreeingHosts.has(hostOf(source.url))) continue;
-    if (source.tier === 'HIGH') hasHighTierAgreement = true;
-    if (synthesis.authority && authorityOwnsDomain(synthesis.authority, hostOf(source.url))) {
-      hasHighTierAgreement = true;
-    }
-  }
-
-  // The model may only cite a URL this run genuinely retrieved. Falling back to a
-  // corroborated URL keeps the citation tied to a page that actually names the method.
-  const corroboratedUrl = sources.find((source) => agreeingHosts.has(hostOf(source.url)))?.url;
-  const sourceUrl =
-    synthesis.sourceUrl && allowed.has(synthesis.sourceUrl)
-      ? synthesis.sourceUrl
-      : claimedUrls[0] ?? corroboratedUrl;
-
-  if (!sourceUrl) {
-    return {
-      methodConfidence: 'first_principles',
-      velocityTable: null,
-      sources,
-      allowedUrls,
-      queries: plan.queries,
-      rejectedQueries: plan.rejectedQueries,
-      rejectedSources,
-      reasoning:
-        'The proposed method could not be tied to any URL actually retrieved this run, so it was rejected rather than cited to an invented link.',
-      budget,
-    };
-  }
-
-  const methodConfidence: MethodConfidence = hasHighTierAgreement
-    ? 'high_consensus'
-    : 'medium_consensus';
+  const spine = await buildPlanSpine(clarifiedOutcome, sources);
 
   return {
-    methodConfidence,
-    methodName: synthesis.methodName ?? undefined,
-    authority: synthesis.authority ?? undefined,
-    sourceUrl,
+    methodConfidence: spine.methodConfidence,
+    methodKind: spine.methodKind,
+    methodName: spine.methodName,
+    authority: spine.authority,
+    sourceUrl: spine.sourceUrl,
+    teachings: spine.teachings,
+    assumptions: spine.assumptions,
     velocityTable: null,
     sources,
     allowedUrls,
     queries: plan.queries,
     rejectedQueries: plan.rejectedQueries,
     rejectedSources,
-    reasoning: `${synthesis.reasoning} Verified in code: the method is named in the retrieved text of ${agreeingHosts.size} independent host(s) (${[...agreeingHosts].join(', ')})${hasHighTierAgreement ? ', including a HIGH-trust or authority-owned domain' : ', none of them HIGH-trust or authority-owned'}.`,
+    reasoning: spine.reasoning,
     budget,
   };
 }

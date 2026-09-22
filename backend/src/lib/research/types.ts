@@ -4,6 +4,13 @@ import type { UnsafeCategory } from './safetyFilter.js';
 export type MethodConfidence = 'high_consensus' | 'medium_consensus' | 'first_principles';
 
 /**
+ * What kind of spine we actually found. This is what the plan-writer follows.
+ * `methodConfidence` is only the badge: a named program can earn high/medium;
+ * everything else stays first_principles so we never show a gold badge we did not earn.
+ */
+export type MethodKind = 'named_program' | 'shared_pattern' | 'technique' | 'single_source';
+
+/**
  * Whether a larger or smaller number represents the harder target.
  *
  * Without this, a sanity check cannot tell progress from regression: weekly mileage should
@@ -64,9 +71,18 @@ export interface ResearchBudget {
 
 export interface CanonResearchResult {
   methodConfidence: MethodConfidence;
+  /**
+   * How we will build the plan. Always set when any on-topic page was retrieved.
+   * Missing only when search returned nothing usable.
+   */
+  methodKind?: MethodKind;
   methodName?: string;
   authority?: string;
   sourceUrl?: string;
+  /** Concrete steps or rules taken from the pages. Empty only when search found nothing. */
+  teachings: string[];
+  /** Who the advice was written for, in the sources' own terms. */
+  assumptions?: string;
   velocityTable: VelocityTable | null;
 
   /** Everything that survived filtering, best-trust-first. */
