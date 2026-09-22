@@ -34,7 +34,7 @@ These rules stay. They are how we stay honest.
 
 ## Where we are right now
 
-**What a real user gets today:** certified presets unchanged. A custom goal now researches a spine, writes the 12-week plan from that spine, and strips any link we did not retrieve. Cache **write** is still Phase 5.
+**What a real user gets today:** certified presets unchanged. A custom goal researches a spine, writes the 12-week plan from it, caps unsafe numbers, and shows an honest basis line. Later weeks stay on that method. Cache **write** is still Phase 5.
 
 **What already works:**
 
@@ -45,7 +45,6 @@ These rules stay. They are how we stay honest.
 
 **Still not done:**
 
-- Safety caps and the honest badge on the goal screen (Phase 4)
 - Cache write + live stepper (Phase 5)
 
 ---
@@ -135,11 +134,17 @@ Closest API path: `backend/scripts/plan-from-research.ts` (same research → `ge
 
 **Goal:** the best roadmap is still a safe one, and the user knows what it is based on.
 
-- Hard caps in code (running jump per week, calorie deficit range, no max-lift heroics in weeks 1–3). Run on fresh research **and** cache hits.
-- Show the basis on the goal: named program / common practice / technique / thin evidence. Never a gold badge on thin evidence.
-- Weekly updates stay inside the same method and numbers.
+- [x] Hard caps in code (running jump per week, calorie deficit range, no max-lift heroics in weeks 1–3). Run on fresh research **and** cache hits.
+- [x] Show the basis on the goal: named program / common practice / technique / thin evidence. Never a gold badge on thin evidence.
+- [x] Weekly updates stay inside the same method and numbers.
 
-**Test:** feed an unsafe number — it is capped, not passed through. A stone-skipping goal never shows “Anchored to a certified method.” An MBSR goal may.
+**Test (2026-09-22):** `test/safetyClamps.test.ts`
+
+1. Weekly mileage 10 → 80 miles is clamped to about 28.5 (10% per week). A 10K finish time is left alone.
+2. Calorie deficit 100 / 1200 becomes 250 / 600. A cached 1500 kcal deficit is clamped on read.
+3. Week-1 squat at 100% 1RM becomes 80%. Week-1 bench at 0 RIR becomes 3 RIR.
+4. Stone skipping (`technique`) badge: “No official program. Built from these sources.” It does not say anchored or certified. MBSR with high consensus: “Anchored to MBSR (Jon Kabat-Zinn).”
+5. Week 2 of stone skipping is prompted with the same 20° teaching, and an invented link is stripped.
 
 ---
 

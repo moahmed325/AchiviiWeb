@@ -11,13 +11,67 @@ import {
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
 import { researchGoal } from '../lib/research/index.js';
 import {
+  formatBasisBadge,
   formatMethodologyNotes,
   hasUsableSpine,
   researchToGrounding,
   type PlanGrounding,
 } from '../lib/research/planGrounding.js';
+import { applySafetyClamps } from '../lib/research/safetyClamps.js';
+import type { VelocityTable } from '../lib/research/types.js';
 
 export const goalRouter = Router();
+
+function asStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+function clampedTable(value: unknown, goalId?: string): VelocityTable | null {
+  if (!value || typeof value !== 'object') return null;
+  return applySafetyClamps(value as VelocityTable, { source: 'goal', goalId }).table;
+}
+
+function presentGoal<T extends Record<string, unknown>>(goal: T): T & { basis: ReturnType<typeof formatBasisBadge> } {
+  const velocityTable = goal.velocityTable
+    ? clampedTable(goal.velocityTable, typeof goal.id === 'string' ? goal.id : undefined)
+    : goal.velocityTable;
+  return {
+    ...goal,
+    velocityTable,
+    basis: formatBasisBadge({
+      methodKind: goal.methodKind as string | null | undefined,
+      methodConfidence: goal.methodConfidence as string | null | undefined,
+      methodName: (goal.canonicalMethodName as string | null | undefined) ?? null,
+      authority: (goal.canonicalAuthority as string | null | undefined) ?? null,
+    }),
+  };
+}
+
+function groundingFromGoal(goal: {
+  id: string;
+  methodKind?: string | null;
+  methodConfidence?: string | null;
+  canonicalMethodName?: string | null;
+  canonicalAuthority?: string | null;
+  canonicalSourceUrl?: string | null;
+  teachings?: unknown;
+  allowedUrls?: unknown;
+  velocityTable?: unknown;
+}): PlanGrounding | undefined {
+  if (!goal.methodKind && !goal.methodConfidence) return undefined;
+  return {
+    methodKind: goal.methodKind ?? undefined,
+    methodConfidence: goal.methodConfidence ?? 'first_principles',
+    methodName: goal.canonicalMethodName ?? undefined,
+    authority: goal.canonicalAuthority ?? undefined,
+    sourceUrl: goal.canonicalSourceUrl ?? undefined,
+    teachings: asStringList(goal.teachings),
+    assumptions: undefined,
+    allowedUrls: asStringList(goal.allowedUrls),
+    velocityTable: clampedTable(goal.velocityTable, goal.id),
+  };
+}
 
 /**
  * POST /api/goal/clarify
@@ -78,6 +132,12 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
     if (!preset) {
       const research = await researchGoal(clarifiedOutcome);
       grounding = researchToGrounding(research);
+      if (grounding.velocityTable) {
+        grounding = {
+          ...grounding,
+          velocityTable: applySafetyClamps(grounding.velocityTable, { source: 'fresh' }).table,
+        };
+      }
       if (!hasUsableSpine(grounding)) {
         res.status(503).json({
           error:
@@ -122,6 +182,9 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         canonicalAuthority: grounding?.authority ?? null,
         canonicalSourceUrl: grounding?.sourceUrl ?? null,
         methodConfidence: grounding?.methodConfidence ?? null,
+        methodKind: grounding?.methodKind ?? null,
+        teachings: grounding?.teachings?.length ? JSON.parse(JSON.stringify(grounding.teachings)) : undefined,
+        allowedUrls: grounding?.allowedUrls?.length ? JSON.parse(JSON.stringify(grounding.allowedUrls)) : undefined,
         velocityTable: grounding?.velocityTable
           ? JSON.parse(JSON.stringify(grounding.velocityTable))
           : undefined,
@@ -186,8 +249,9 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       }
     });
 
+    const saved = fullGoal || createdGoal;
     res.status(201).json({
-      goal: fullGoal || createdGoal,
+      goal: presentGoal(saved as unknown as Record<string, unknown>),
       roadmapWeeks: roadmapRecords,
       dailyTasks: taskRecords
     });
@@ -229,7 +293,7 @@ goalRouter.get('/active', async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    res.json({ activeGoal });
+    res.json({ activeGoal: presentGoal(activeGoal as unknown as Record<string, unknown>) });
   } catch (err: any) {
     console.error('[GoalRouter] Fetch active goal error:', err);
     res.status(500).json({ error: 'Failed to fetch active goal.' });
@@ -402,7 +466,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
         reflection || '',
         parsedRoutine,
         nextWeekStart,
-        previousTasksAudit
+        previousTasksAudit,
+        groundingFromGoal(goal)
       );
 
       // Remove any existing placeholder tasks for next week

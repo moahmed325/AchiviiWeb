@@ -5,7 +5,7 @@ vi.mock('../src/lib/ai/gemini.js', () => ({
 }));
 
 import { generateStructuredContent } from '../src/lib/ai/gemini.js';
-import { generate12WeekPlanWithAI, fillMissingStepLayers } from '../src/lib/ai/goalDecomposer.js';
+import { generate12WeekPlanWithAI, fillMissingStepLayers, adaptUpcomingWeekTasksWithAI } from '../src/lib/ai/goalDecomposer.js';
 import {
   formatSpineBlock,
   formatMethodologyNotes,
@@ -165,5 +165,30 @@ describe('Phase 3 — plan grounding', () => {
     ]);
     expect(task.detailedSteps[0].layer).toBe('adherence');
     expect(task.detailedSteps[0].layerReasoning).toMatch(/researched sources/);
+  });
+
+  it('keeps a later week on the same teachings and drops a new link', async () => {
+    mockLlm.mockImplementation(async (prompt: string) => {
+      expect(prompt).toMatch(/20 degrees/);
+      expect(prompt).toMatch(/Do not switch programs/);
+      return { success: true, data: { tasks: dummyPlan('https://invented.example/fake').initialTasks } };
+    });
+
+    const tasks = await adaptUpcomingWeekTasksWithAI(
+      'Get good at competitive stone skipping',
+      2,
+      'Spin and angle',
+      'Repeat the same throw',
+      90,
+      '',
+      { dailyMinutes: 30, preferredSlot: 'evening', planVariant: 'steady' },
+      new Date('2026-10-12'),
+      [],
+      grounding
+    );
+
+    expect(tasks[0].title).toMatch(/stone/i);
+    expect(tasks[1].resourceUrl).toBeUndefined();
+    expect(tasks[0].resourceUrl).toBe('https://en.wikipedia.org/wiki/Stone_skipping');
   });
 });

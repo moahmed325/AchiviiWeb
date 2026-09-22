@@ -1,5 +1,6 @@
 import { runCanonResearch, CanonResearchOptions } from './canonResearch.js';
 import { deriveVelocityTable } from './velocityTable.js';
+import { applySafetyClamps } from './safetyClamps.js';
 import type { CanonResearchResult } from './types.js';
 
 export * from './types.js';
@@ -27,14 +28,16 @@ export {
 export { corroborateMethod, mentionsPhrase, mentionsAuthority } from './corroboration.js';
 
 export { buildPlanSpine } from './spine.js';
+export { applySafetyClamps, clampVelocityOnCacheHit } from './safetyClamps.js';
 export {
   researchToGrounding,
   hasUsableSpine,
   formatSpineBlock,
   formatMethodologyNotes,
+  formatBasisBadge,
   stripUnallowedUrls,
 } from './planGrounding.js';
-export type { PlanGrounding } from './planGrounding.js';
+export type { PlanGrounding, BasisBadge } from './planGrounding.js';
 
 /**
  * Research plus numbers. The spine from Stage 2 is never thrown away because numbers
@@ -61,7 +64,8 @@ export async function researchGoal(
   );
 
   if (velocity.table && !velocity.skipped && !velocity.failureReason) {
-    return { ...research, velocityTable: velocity.table };
+    const clamped = applySafetyClamps(velocity.table, { source: 'fresh' });
+    return { ...research, velocityTable: clamped.table };
   }
 
   if (velocity.failureReason) {

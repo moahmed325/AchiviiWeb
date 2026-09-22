@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../prisma.js';
 import { generateEmbedding } from '../ai/gemini.js';
+import { clampVelocityOnCacheHit } from '../research/safetyClamps.js';
 
 export const COSINE_SIMILARITY_THRESHOLD = 0.88;
 
@@ -180,6 +181,15 @@ export interface CachedEntry {
   readyForPromotion: boolean;
 }
 
+/** Clamp stored numbers on the way out. The row on disk is left as written. */
+function withClampedVelocity(entry: CachedEntry): CachedEntry {
+  if (!entry.canonicalMethod || typeof entry.canonicalMethod !== 'object') return entry;
+  return {
+    ...entry,
+    canonicalMethod: clampVelocityOnCacheHit(entry.canonicalMethod, entry.id),
+  };
+}
+
 /** Columns safe to select through Prisma Client — deliberately excludes the vector column. */
 const ENTRY_SELECT = {
   id: true,
@@ -303,7 +313,7 @@ export async function resolveResearchCache(
         hit: true,
         tier: 'tier0_raw_exact',
         similarity: 1.0,
-        entry: updated,
+        entry: withClampedVelocity(updated),
       };
     }
   }
@@ -333,7 +343,7 @@ export async function resolveResearchCache(
         hit: true,
         tier: 'tier1_exact',
         similarity: 1.0,
-        entry: entryWithInput,
+        entry: withClampedVelocity(entryWithInput),
       };
     }
 
@@ -429,7 +439,7 @@ export async function resolveResearchCache(
       hit: true,
       tier: 'tier2_vector',
       similarity: Number(bestMatch.similarity),
-      entry: entryWithInput,
+      entry: withClampedVelocity(entryWithInput),
       crossDomain: matchedCrossDomain,
     };
   }

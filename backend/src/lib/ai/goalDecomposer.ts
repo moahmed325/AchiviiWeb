@@ -671,7 +671,8 @@ export async function adaptUpcomingWeekTasksWithAI(
   reflection: string,
   routine: UserRoutineInput,
   weekStartDate: Date,
-  previousWeekTasks: PreviousWeekTaskSummary[] = []
+  previousWeekTasks: PreviousWeekTaskSummary[] = [],
+  grounding?: PlanGrounding
 ): Promise<DailyTaskPlan[]> {
   const dailyMins = routine.dailyMinutes || 60;
   const preferredSlot = routine.preferredSlot || 'evening';
@@ -702,8 +703,13 @@ STRICT GROUNDING & ANTI-HALLUCINATION RULES:
    - Schedule exactly ${activeDaysTarget} active deliberate practice days and ${restDaysTarget} rest/recovery days for the "${planVariant}" track.
    - User MUST NEVER have 2 consecutive rest days.
 5. RESOURCE GROUNDING (ZERO DEAD LINKS):
-   - For "youtube_video", use high-precision search query URL format (e.g. https://www.youtube.com/results?search_query=[topic+drill+tutorial]) to guarantee 100% working links without broken video IDs.
-   - For documentation or scientific studies, use canonical verified base domains (e.g., wikipedia.org, pubmed.ncbi.nlm.nih.gov, developer.mozilla.org, etc.).
+   ${
+     grounding
+       ? '- resourceUrl may be copied only from the allowed URL list in the researched spine. If none fits, omit resourceUrl. Do not invent a link or a YouTube search URL.'
+       : `- For "youtube_video", use high-precision search query URL format (e.g. https://www.youtube.com/results?search_query=[topic+drill+tutorial]) to guarantee 100% working links without broken video IDs.
+   - For documentation or scientific studies, use canonical verified base domains (e.g., wikipedia.org, pubmed.ncbi.nlm.nih.gov, developer.mozilla.org, etc.).`
+   }
+6. STAY ON THE METHOD: if a researched spine is provided, de-load or advance inside that method and its numbers. Do not switch to a different program or generic advice.
 
 THREE EVIDENCE LAYERS & CONFLICT RULE:
 For every single step you generate, you must classify it under exactly one evidence layer:
@@ -722,7 +728,9 @@ CONFLICT RULE: When the scientifically optimal approach and the most commonly-su
       }).join('\n')
     : 'No granular task logs found for previous week.';
 
-  const prompt = `Goal: "${goalTitle}"
+  const spineBlock = grounding ? formatSpineBlock(grounding) : '';
+
+  const prompt = `${spineBlock}Goal: "${goalTitle}"
 Milestone Transition: Week ${targetWeekNumber - 1} -> Week ${targetWeekNumber}
 Target Theme: "${targetWeekTheme}"
 Target Objective: "${targetWeekObjective}"
@@ -747,7 +755,12 @@ Ensure seamless continuity from the execution audit above. Explicitly bridge any
 Active days must have 3-4 detailedSteps with exact stepNumber, title, durationMinutes (summing to ${dailyMins}), instructions, focusCue, pitfallToAvoid, layer, layerReasoning, challenge, and curated resources.
 For 'layerReasoning', be specific — name the actual research finding, real-world pattern, or professional practice. Never write a generic filler reasoning like 'this is proven to help.'
 
-MANDATORY: For EVERY single step in detailedSteps, provide the single BEST resource in the ideal format: "youtube_video", "documentation", "scientific_study", "interactive_tool", or "guide". For YouTube videos, use high-precision search URLs (https://www.youtube.com/results?search_query=...).
+MANDATORY: For EVERY single step in detailedSteps, provide resourceTitle, resourceType, and resourceWhy.
+${
+  grounding
+    ? 'Set resourceUrl only when it is copied from the allowed URL list. Otherwise omit resourceUrl.'
+    : 'For YouTube videos, use high-precision search URLs (https://www.youtube.com/results?search_query=...).'
+}
 
 JSON Schema:
 {
@@ -797,13 +810,13 @@ JSON Schema:
 
   const result = await generateStructuredContent<{ tasks: DailyTaskPlan[] }>(prompt, systemInstruction);
 
-  if (
-    result.success &&
-    result.data &&
-    result.data.tasks?.length === 7 &&
-    validateStepLayers(result.data.tasks)
-  ) {
-    return result.data.tasks;
+  if (result.success && result.data && result.data.tasks?.length === 7) {
+    let tasks = result.data.tasks;
+    if (grounding) {
+      tasks = fillMissingStepLayers(tasks);
+      tasks = stripUnallowedUrls({ initialTasks: tasks }, grounding.allowedUrls).initialTasks ?? tasks;
+    }
+    if (validateStepLayers(tasks)) return tasks;
   }
 
   const preset = findPresetForGoal(goalTitle);

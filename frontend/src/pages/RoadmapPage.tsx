@@ -12,6 +12,7 @@ import {
 import { formatGoalTitle } from '../lib/formatters';
 import { RoutineSettings } from '../types';
 import { getGoalImage } from '../lib/certifiedPresets';
+import BasisBadge from '../components/BasisBadge';
 
 export const RoadmapPage: React.FC = () => {
   const { activeGoal } = useGoal();
@@ -136,13 +137,14 @@ export const RoadmapPage: React.FC = () => {
               )}
 
               <div className="space-y-1 min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
                     Roadmap
                   </span>
                   <span className="text-xs text-neutral-500 font-mono">
                     Week {currentWeekNum} of 12
                   </span>
+                  <BasisBadge basis={activeGoal.basis} />
                 </div>
 
                 <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight truncate">

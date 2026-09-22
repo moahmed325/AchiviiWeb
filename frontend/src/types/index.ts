@@ -185,6 +185,11 @@ export interface Goal {
   rawGoal: string;
   clarifiedOutcome: string;
   methodologyNotes: string;
+  methodKind?: string | null;
+  methodConfidence?: string | null;
+  canonicalMethodName?: string | null;
+  canonicalAuthority?: string | null;
+  basis?: { label: string; anchored: boolean } | null;
   status: 'active' | 'completed' | 'paused' | 'archived';
   startDate: string;
   targetDate: string;

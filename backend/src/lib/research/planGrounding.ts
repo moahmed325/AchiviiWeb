@@ -43,8 +43,51 @@ export function hasUsableSpine(grounding?: PlanGrounding | null): boolean {
   return Boolean(grounding && grounding.teachings.length > 0);
 }
 
+export interface BasisBadge {
+  label: string;
+  /** True only for a corroborated named program. Never true for thin evidence. */
+  anchored: boolean;
+}
+
+/**
+ * What we tell the user the plan is based on.
+ * A gold / "anchored" line is only for a named program that independent sources agreed on.
+ */
+export function formatBasisBadge(input: {
+  methodKind?: string | null;
+  methodConfidence?: string | null;
+  methodName?: string | null;
+  authority?: string | null;
+}): BasisBadge | null {
+  if (!input.methodKind && !input.methodConfidence) return null;
+
+  const corroborated =
+    input.methodKind === 'named_program' &&
+    (input.methodConfidence === 'high_consensus' || input.methodConfidence === 'medium_consensus') &&
+    Boolean(input.methodName?.trim());
+
+  if (corroborated) {
+    const who = input.authority?.trim() ? ` (${input.authority.trim()})` : '';
+    return { label: `Anchored to ${input.methodName!.trim()}${who}`, anchored: true };
+  }
+
+  if (input.methodKind === 'shared_pattern') {
+    return { label: 'Built from common practice — no single official method', anchored: false };
+  }
+  if (input.methodKind === 'technique') {
+    return { label: 'No official program. Built from these sources', anchored: false };
+  }
+  if (input.methodKind === 'single_source') {
+    return { label: 'Based on this source — thin evidence', anchored: false };
+  }
+
+  return { label: 'No single agreed method. Built from what the sources teach', anchored: false };
+}
+
 export function formatSpineBlock(grounding: PlanGrounding): string {
-  const teachings = grounding.teachings.map((item, index) => `  ${index + 1}. ${item}`).join('\n');
+  const teachings = grounding.teachings.length
+    ? grounding.teachings.map((item, index) => `  ${index + 1}. ${item}`).join('\n')
+    : '  (none stored — keep this method; do not invent a new one)';
   const numbers = grounding.velocityTable
     ? [
         `Assumes: ${grounding.velocityTable.assumptions}`,
@@ -79,8 +122,14 @@ ${numbers}
 Allowed resourceUrl values (copy exactly or omit the field):
 ${allowed}
 
+SAFETY CAPS (already applied to the numbers — do not write a task that exceeds them):
+- Running or weekly distance: at most 10% above the previous week.
+- Calorie deficit: between 250 and 600 kcal/day.
+- Weeks 1–3: no compound lift at 100% of 1RM, and no set at 0 reps in reserve.
+
 RULES:
 - Week 1 active days must drill these teachings. Do not replace them with vague motivation.
+- Later weeks stay on this same method and these numbers. Do not switch programs.
 - methodologyNotes must state the kind and the basis in one or two sentences.
 - Never name a coach, program, or URL that is not listed above.
 - If a step has no allowed URL, omit resourceUrl. Keep resourceTitle / resourceWhy as text.
@@ -89,17 +138,10 @@ RULES:
 }
 
 export function formatMethodologyNotes(grounding: PlanGrounding): string {
-  const kindLabel =
-    grounding.methodKind === 'named_program'
-      ? `Anchored to ${grounding.methodName ?? 'a named program'}${grounding.authority ? ` (${grounding.authority})` : ''}.`
-      : grounding.methodKind === 'shared_pattern'
-        ? 'Built from common practice — no single official method.'
-        : grounding.methodKind === 'single_source'
-          ? 'Based on one source — thin evidence.'
-          : 'No official program. Built from the technique these sources teach.';
-
+  const basis = formatBasisBadge(grounding);
   const teachingLine = grounding.teachings.slice(0, 3).join(' ');
-  return `${kindLabel} ${grounding.assumptions ? `Assumes ${grounding.assumptions}` : ''} ${teachingLine}`.trim();
+  const assumes = grounding.assumptions ? `Assumes ${grounding.assumptions}` : '';
+  return [basis?.label, assumes, teachingLine].filter(Boolean).join('. ').replace(/\.\./g, '.').trim();
 }
 
 function isAllowedUrl(url: string | undefined, allowed: Set<string>): boolean {

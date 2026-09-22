@@ -34,6 +34,7 @@ import { FocusSessionModal } from './FocusSessionModal';
 import { StepChallengeWidget } from './StepChallengeWidget';
 import { CERTIFIED_PATHWAYS, getGoalImage } from '../lib/certifiedPresets';
 import { PathwaysExplorerModal } from './PathwaysExplorerModal';
+import BasisBadge from './BasisBadge';
 
 interface EvidenceLayerConfig {
   label: string;
@@ -431,6 +432,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                 <span className="px-2.5 py-0.5 rounded-md bg-[#111a17] border border-[#1a2824] text-neutral-300 font-medium text-xs">
                   {currentRoadmapWeek?.phase || 'Foundation'} · Week {currentWeekNum}
                 </span>
+                <BasisBadge basis={goal.basis} />
               </div>
 
               {/* Title */}
