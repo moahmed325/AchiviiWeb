@@ -5,7 +5,9 @@ services:
     plan: free
     region: oregon
     rootDir: backend
-    buildCommand: npm install --include=dev && npm run use:postgres && npx prisma db push && npm run build
+    # migrate deploy (not db push) — db push skips the migrations folder entirely, which
+    # would silently omit CREATE EXTENSION vector and the pgvector indexes in production.
+    buildCommand: npm install --include=dev && npx prisma migrate deploy && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:

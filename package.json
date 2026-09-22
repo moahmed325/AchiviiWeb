@@ -8,8 +8,6 @@
   "scripts": {
     "frontend": "npm run dev --workspace=frontend",
     "backend": "npm run dev --workspace=backend",
-    "build": "npm run build --workspaces",
-    "sqlite": "npm run sqlite --workspace=backend",
-    "postgres": "npm run postgres --workspace=backend"
+    "build": "npm run build --workspaces"
   }
 }

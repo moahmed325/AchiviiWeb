@@ -67,7 +67,7 @@ AchiviiWeb/
 │   │   │   ├── timezone.ts           # IANA timezone conversion helpers (zero naive UTC splitting)
 │   │   │   └── prisma.ts             # Prisma ORM client singleton
 │   │   └── index.ts              # Express API server entry point
-│   ├── scripts/                  # Diagnostic utilities & database switcher (use:sqlite / use:postgres)
+│   ├── scripts/                  # Diagnostic utilities (Tavily probe, pgvector verifier, cache demo)
 │   ├── test/                     # 49 unit tests covering Tavily, timezone, decomposer, and vector cache
 │   └── .env.example              # Backend environment configuration template
 ├── docs/                         # In-depth technical specifications:
@@ -86,9 +86,7 @@ Achivii runs cleanly across modern JavaScript runtimes without proprietary lock-
 - **Node.js**: `v18.0.0+` or `v20.0.0+` (LTS recommended)
 - **npm**: `v9.0.0+`
 - **Optional**: [Bun](https://bun.sh) (`v1.2+`) is supported for ultra-fast local script execution and test runs.
-- **Database**:
-  - **Supabase / PostgreSQL**: Recommended for production and team staging.
-  - **SQLite (Zero-Config)**: Built-in local file database mode (`file:./dev.db`) requiring no Docker or external database services.
+- **Database**: **PostgreSQL with the `pgvector` extension**, in every environment including local development. The Golden Rail research cache matches goals using a `vector(768)` similarity search, which SQLite cannot represent — so there is no SQLite mode. [Supabase](https://supabase.com) is recommended, as pgvector ships ready to enable on the free tier.
 
 ---
 
@@ -124,12 +122,10 @@ Configure your `backend/.env` file:
 PORT=5000
 CLIENT_ORIGIN="http://localhost:5173"
 
-# --- Database Selection ---
-# Option A: Zero-Config Local SQLite (Default for rapid local development)
-DATABASE_URL="file:./dev.db"
-
-# Option B: Supabase / PostgreSQL (Production & Staging)
-# DATABASE_URL="postgresql://postgres:[PASSWORD]@[HOST]:[PORT]/postgres?schema=public"
+# --- Database: PostgreSQL + pgvector (required in all environments) ---
+# Use Supabase's SESSION POOLER string, not "Direct connection" — the direct host
+# (db.[project-ref].supabase.co) is IPv6-only and unreachable from IPv4-only networks.
+DATABASE_URL="postgresql://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres"
 
 # --- Primary LLM Engine: Groq (Recommended for lightning-fast structured generation) ---
 GROQ_API_KEY="gsk_..."
@@ -145,18 +141,18 @@ GEMINI_MODEL="gemini-1.5-flash"
 
 #### Database Synchronization:
 
-- **Local SQLite Mode (Instant setup, no Docker required)**:
-  ```bash
-  npm run use:sqlite
-  npm run db:push
-  npm run db:seed
-  ```
-- **Supabase PostgreSQL Mode**:
-  ```bash
-  npm run use:postgres
-  npm run db:push
-  npm run db:seed
-  ```
+```bash
+# Applies the schema AND enables the pgvector extension.
+# Use migrate deploy rather than db push — db push ignores the migrations folder,
+# which would skip CREATE EXTENSION vector and leave cache matching broken.
+npx prisma migrate deploy
+
+# Confirms the extension, the vector(768) column and both indexes are live,
+# and that the Tier 2 lookup actually hits the vector index.
+npm run verify:pgvector
+
+npm run db:seed
+```
 
 ---
 
@@ -199,7 +195,7 @@ npm run frontend
 | :--- | :--- | :---: | :--- |
 | `PORT` | Backend | Optional | Port for the Express server (defaults to `5000`). |
 | `CLIENT_ORIGIN` | Backend | Optional | CORS allowed origin (defaults to `http://localhost:5173`). |
-| `DATABASE_URL` | Backend | **Yes** | Connection string for PostgreSQL or SQLite (`file:./dev.db`). |
+| `DATABASE_URL` | Backend | **Yes** | PostgreSQL connection string. Must be a database with `pgvector` available. Use Supabase's session pooler URL. |
 | `GROQ_API_KEY` | Backend | Recommended | Fast structured JSON output via `llama-3.3-70b-versatile`. |
 | `GROQ_MODEL` | Backend | Optional | Target Groq model (defaults to `llama-3.3-70b-versatile`). |
 | `TAVILY_API_KEY` | Backend | Recommended | Live web research engine for custom goal verification and canon synthesis. |

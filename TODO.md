@@ -11,12 +11,16 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blo
 **Goal:** infra pieces exist and work standalone, nothing wired into the pipeline yet.
 
 - [x] Add `TAVILY_API_KEY` env var + Tavily client wrapper (search + extract endpoints)
-- [x] Enable `pgvector` extension on Postgres
+- [x] Enable `pgvector` extension on Postgres — done in `20260922120000_enable_pgvector_and_convert_outcome_embedding`. (The earlier `20260919000000_enable_pgvector_...` folder is misnamed: despite the name its SQL never ran `CREATE EXTENSION`. Left renamed-in-place to avoid breaking Prisma's applied-migration history.)
 - [x] Prisma migration: add fields to `Goal` model (isGoldenRail, canonicalMethodName, canonicalAuthority, canonicalSourceUrl, methodConfidence, velocityTable, canonicalKey)
-- [x] Prisma migration: create `ResearchCache` model (with vector column)
+- [x] Prisma migration: create `ResearchCache` model with a real `vector(768)` column, an HNSW cosine index, and a GIN index for Tier 0 raw-input lookups
+- [x] Drop SQLite entirely — Postgres everywhere so local matches production
 - [x] Standalone test script: call Tavily search + extract for a sample query, confirm raw JSON shape
+- [x] Tavily client: retry with exponential backoff on 429/5xx/network faults, no retry on auth or timeout
 
 **Acceptance:** can run a search against Tavily from the backend and get back real, structured results. DB has the new tables/fields. Nothing in `goalDecomposer.ts` touched yet.
+
+**Verified:** live Tavily search + extract confirmed returning real `{title, url, content, score}` results and full page text. Note Tavily is geo-blocked in Ethiopia — local runs need the VPN on; this is a dev-environment constraint only, not a production one. Tavily also deprecated the in-body `api_key` field; the wrapper now authenticates via the `Authorization: Bearer` header only, asserted in `test/tavily.test.ts`.
 
 ---
 
@@ -27,6 +31,17 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blo
 - [x] Build Stage 1.5 cache resolution: Tier 1 exact key match, Tier 2 cosine similarity fallback (threshold 0.88)
 - [x] Wire embedding generation for `clarifiedOutcome` (gemini-embedding-001 with 768 dims)
 - [x] On cache hit: increment `hitCount`, update `lastUsedAt`, return cached `canonicalMethod`
+- [x] Flag `readyForPromotion` at `hitCount >= 10` (flagging only, not gated on `userFeedbackScore`)
+- [x] Fix hitCount double-counting: a Tier 0 hit whose entry had no stored `cachedClarification` fell through and re-ran cache resolution, counting one request as three hits. Regression test: "counts exactly one hit per request when the cached entry has no stored clarification".
+- [x] Fix canonicalKey collisions: slugs were truncated to 30 chars, so two different goals sharing a prefix ("...web application with React" / "...with Vue") produced an identical key — an exact Tier 1 hit serving one goal another's research. Over-length slugs now carry a short digest of the full string.
+- [x] Fix Tier 0 index bypass: `prisma.findFirst` with `array_contains` compiles to `("canonicalMethod" #> ARRAY[...])::jsonb @> $1`, which cannot use an index built on the `->` expression — every lookup seq-scanned. Tier 0 now uses raw SQL matching the index expression. `npm run verify:pgvector` asserts both indexes remain usable.
+- [x] Cap `rawInputs` at 50 phrasings per entry — it lives inside the `canonicalMethod` JSON and previously grew without bound, inflating every row read.
+- [x] Tier 2 cross-domain guard: a shared broad domain keeps the 0.88 threshold; crossing a domain boundary requires 0.93 (`CROSS_DOMAIN_SIMILARITY_THRESHOLD`). Graduated rather than a hard filter, because a legitimate reason Tier 1 missed is Stage 1 filing one goal under two domains. Tier 2 now also inspects the 5 nearest rows instead of 1, so a rejected top candidate no longer hides a valid same-domain match behind it. Rejections are logged and accepted cross-domain hits set `crossDomain: true`.
+- [x] Embedding outages are no longer silent: `resolveResearchCache` returns `{ degraded: true, degradedReason }` instead of a bare miss, increments `getEmbeddingFailureCount()`, and logs at error level. `resolveStage1WithCache` propagates it and refuses to write a cache entry on a degraded miss, since "unknown" is not "confirmed absent" and writing would duplicate research under a second key.
+
+**⚠️ Not yet wired into the app.** `routes/goal.ts` calls `clarifyGoalWithAI` directly, not `resolveStage1WithCache`, so the cache layer never runs for a real goal submission — it is currently exercised only by tests and `scripts/demo-phase2-cache.ts`. Harmless today (nothing writes cache entries in production yet, so every lookup would miss anyway), but Stage 7's cache write in Phase 5 is meaningless until this call site is switched over. Do it as part of Phase 5.
+
+**⚠️ Remove the stub before Phase 3 ships.** `resolveStage1WithCache`'s `autoPopulateStubOnMiss` option writes a fabricated `methodName`/`authority` with `sourceUrl: "https://example.com/canonical-method"` and `confidence: "medium_consensus"`. It is demo-only scaffolding and currently unreachable from the app, but it writes exactly the kind of fake authority the spec's guardrails forbid. Phase 3 replaces it with real Stage 2/3 output — delete the stub then rather than leaving it behind.
 
 **Acceptance:** submitting a goal twice (or two close phrasings of the same goal) results in a cache hit on the second submission, verified by checking `hitCount` incremented and no new Tavily calls were made.
 
@@ -97,3 +112,7 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blo
 - User feedback collection mechanism (needed before `userFeedbackScore` can gate promotion)
 - Expansion process for the safety clamp list over time
 - Auto-promotion of `readyForPromotion` cache entries into full certified presets (flagging only, for now — no auto-export yet)
+- ~~pgvector / Tier 2 similarity search at scale~~ — **resolved.** Tier 2 now runs as a pgvector nearest-neighbour query (`<=>` cosine distance) returning a single row, and Tier 0 uses an indexed JSONB containment lookup; neither reads the full table any more. Verified against the live database with `npm run verify:pgvector`, including an `EXPLAIN` confirming the planner uses `research_cache_outcome_embedding_idx` rather than a sequential scan.
+- **Same-goal / different-target sharing — spec-level question for Phase 3.** Stage 1 is instructed to map close variants onto the same `canonicalKey`, so "Run a 10K under 50 minutes" and "Run a 10K under 60 minutes" intentionally share a cache entry, and Tier 2's embedding of `clarifiedOutcome` treats them as near-identical too. That is correct for the *method* (VDOT is VDOT), but both users then inherit the same stored `velocityTable`. Whether a velocity table is method-level or target-level is genuinely undecided in the spec, and it affects Tier 1 exactly as much as Tier 2 — so it was deliberately not "fixed" at the Tier 2 layer alone. Decide it in Phase 3, when velocity numbers first become real.
+- **pgvector recall tuning at scale.** HNSW is an *approximate* index, so at large row counts a Tier 2 lookup can in principle miss a borderline match near the 0.88 threshold. Not a concern at current volume, but if cache hit rate ever looks lower than expected, tune `hnsw.ef_search` before suspecting the threshold.
+- **Prisma cannot read or write `Unsupported("vector(768)")` columns.** All access to `outcomeEmbedding` goes through raw SQL in `lib/cache/researchCache.ts`. Any future code touching that column must do the same — Prisma Client will silently omit it, not error.

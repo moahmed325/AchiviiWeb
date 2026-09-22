@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { generateStructuredContent } from './gemini.js';
 import {
   findPresetForGoal,
@@ -811,10 +812,30 @@ export function getPresetCanonicalKey(presetId: string): string {
   return map[presetId] || `general.${presetId.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`;
 }
 
+/**
+ * Truncating a slug to a fixed width makes distinct goals collide on a shared prefix
+ * (e.g. "...web application with React" vs "...with Vue" both cut to the same 30 chars),
+ * and a collided key is an exact Tier 1 hit — one goal would be served another's research.
+ * A short digest of the full string keeps keys readable while making collisions vanishing.
+ */
+function slugWithDigest(source: string, maxSlugLength: number): string {
+  const slug = source
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  const truncated = slug.slice(0, maxSlugLength) || 'goal';
+  if (slug.length <= maxSlugLength) {
+    return truncated;
+  }
+
+  const digest = createHash('sha1').update(slug).digest('hex').slice(0, 6);
+  return `${truncated.replace(/_+$/, '')}_${digest}`;
+}
+
 export function deriveDeterministicCanonicalKey(rawGoal: string): string {
-  const clean = (rawGoal || '').trim().toLowerCase();
-  const slug = clean.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30) || 'goal';
-  return `custom.goal.${slug}`;
+  return `custom.goal.${slugWithDigest(rawGoal || '', 30)}`;
 }
 
 export function sanitizeCanonicalKey(
@@ -831,7 +852,7 @@ export function sanitizeCanonicalKey(
   }
   if (fallbackDomain && fallbackOutcome) {
     const domainPart = fallbackDomain.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    const outcomePart = fallbackOutcome.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
+    const outcomePart = slugWithDigest(fallbackOutcome, 30);
     if (domainPart && outcomePart) {
       return `${domainPart}.${outcomePart}`;
     }
@@ -846,6 +867,15 @@ export interface Stage1PipelineResult {
   similarity?: number;
   canonicalMethod?: any;
   cacheEntry?: any;
+  /**
+   * A miss reported while the embedding provider was unavailable, so Tier 2 never ran.
+   * Callers should treat this as "unknown", not "confirmed absent" — notably, writing a
+   * fresh cache entry on a degraded miss risks duplicating research that already exists.
+   */
+  degraded?: boolean;
+  degradedReason?: string;
+  /** Tier 2 accepted a match from a different broad domain than the query key. */
+  crossDomain?: boolean;
 }
 
 export interface ResolveStage1Options {
@@ -869,6 +899,10 @@ export async function resolveStage1WithCache(
   // --------------------------------------------------------------------------
   // Part B: Pre-LLM Raw Input Match (Tier 0 Fast Path)
   // --------------------------------------------------------------------------
+  // A Tier 0 hit has already incremented hitCount, so it must not be resolved a second
+  // time further down — one user request counts as exactly one cache hit.
+  let tier0Entry: CacheResolutionResult['entry'] | null = null;
+
   if (!options?.skipPartB && rawGoal && rawGoal.trim()) {
     const preCheck = await resolveResearchCache('', '', { rawGoal });
     if (preCheck.hit && preCheck.entry) {
@@ -886,6 +920,10 @@ export async function resolveStage1WithCache(
           cacheEntry: preCheck.entry,
         };
       }
+
+      // Entry exists but predates cachedClarification being stored (or Stage 7 omitted it).
+      // Still a genuine hit — only the clarification needs regenerating.
+      tier0Entry = preCheck.entry;
     }
   }
 
@@ -893,10 +931,26 @@ export async function resolveStage1WithCache(
   // Stage 1 AI Clarification
   // --------------------------------------------------------------------------
   const clarification = await clarifyGoalWithAI(rawGoal);
+
+  if (tier0Entry) {
+    const canonicalMethod = typeof tier0Entry.canonicalMethod === 'string'
+      ? JSON.parse(tier0Entry.canonicalMethod)
+      : tier0Entry.canonicalMethod;
+
+    return {
+      clarification,
+      cacheHit: true,
+      cacheTier: 'tier0_raw_exact',
+      similarity: 1.0,
+      canonicalMethod,
+      cacheEntry: tier0Entry,
+    };
+  }
+
   const cacheResult = await resolveResearchCache(
     clarification.canonicalKey,
     clarification.clarifiedOutcome,
-    { rawGoal, skipTier0: options?.skipPartB }
+    { rawGoal, skipTier0: true }
   );
 
   if (cacheResult.hit) {
@@ -907,10 +961,13 @@ export async function resolveStage1WithCache(
       similarity: cacheResult.similarity,
       canonicalMethod: cacheResult.entry?.canonicalMethod,
       cacheEntry: cacheResult.entry,
+      crossDomain: cacheResult.crossDomain,
     };
   }
 
-  if (options?.autoPopulateStubOnMiss) {
+  // A degraded miss is not evidence that the goal is unresearched, so writing a new entry
+  // would risk duplicating an existing one under a second key.
+  if (options?.autoPopulateStubOnMiss && !cacheResult.degraded) {
     const stubMethod = {
       methodName: `Canonical Method for ${clarification.primaryDomain}`,
       authority: 'Grounded Practitioner Consensus',
@@ -933,6 +990,8 @@ export async function resolveStage1WithCache(
     clarification,
     cacheHit: false,
     canonicalMethod: null,
+    degraded: cacheResult.degraded,
+    degradedReason: cacheResult.degradedReason,
   };
 }
 

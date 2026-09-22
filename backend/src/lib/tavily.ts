@@ -13,6 +13,7 @@ export interface TavilySearchOptions {
   includeDomains?: string[];
   excludeDomains?: string[];
   timeoutMs?: number;
+  maxRetries?: number;
 }
 
 export interface TavilySearchResult {
@@ -22,6 +23,7 @@ export interface TavilySearchResult {
   score: number;
   raw_content?: string | null;
   published_date?: string;
+  id?: string;
 }
 
 export interface TavilySearchResponse {
@@ -50,6 +52,44 @@ export interface TavilyExtractResponse {
   [key: string]: any;
 }
 
+/** Transient failures worth another attempt. Auth/quota/validation errors are not retried. */
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
+
+const DEFAULT_MAX_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 500;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseTavilyError(rawText: string): string {
+  try {
+    const errJson = JSON.parse(rawText);
+    return (
+      errJson.detail?.error ||
+      errJson.error ||
+      (typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson))
+    );
+  } catch {
+    return rawText;
+  }
+}
+
+/**
+ * Exponential backoff with jitter, capped at 8s. A server-sent Retry-After wins
+ * over our own schedule when present.
+ */
+function computeBackoffMs(attempt: number, retryAfterHeader?: string | null): number {
+  if (retryAfterHeader) {
+    const seconds = Number(retryAfterHeader);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return Math.min(seconds * 1000, 30000);
+    }
+  }
+  const exponential = BASE_RETRY_DELAY_MS * 2 ** attempt;
+  return Math.min(exponential, 8000) + Math.random() * 250;
+}
+
 export class TavilyClient {
   private apiKey: string;
   private baseUrl: string;
@@ -66,6 +106,72 @@ export class TavilyClient {
   }
 
   /**
+   * Issues a POST and retries transient failures. Timeouts are not retried so a
+   * stalled request can't multiply the caller's latency budget — Stage 2 fans out
+   * several of these in parallel and needs a bounded worst case.
+   */
+  private async post<T>(
+    path: 'search' | 'extract',
+    payload: Record<string, any>,
+    timeoutMs: number,
+    maxRetries: number,
+    timeoutMessage: string
+  ): Promise<T> {
+    const endpoint = `${this.baseUrl}/${path}`;
+
+    for (let attempt = 0; ; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        if (response.ok) {
+          return (await response.json()) as T;
+        }
+
+        const rawText = await response.text();
+        const failure = new Error(
+          `Tavily ${path} failed (${response.status} ${response.statusText}): ${parseTavilyError(rawText)}`
+        );
+
+        if (attempt >= maxRetries || !RETRYABLE_STATUS_CODES.has(response.status)) {
+          throw failure;
+        }
+
+        const retryAfter = response.headers?.get?.('retry-after');
+        console.warn(
+          `[Tavily] ${path} attempt ${attempt + 1}/${maxRetries + 1} got ${response.status}; retrying.`
+        );
+        await sleep(computeBackoffMs(attempt, retryAfter));
+      } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          throw new Error(timeoutMessage);
+        }
+        // Network-level faults (DNS, reset connections) are transient; API errors already threw above.
+        const isNetworkFault = err instanceof TypeError;
+        if (!isNetworkFault || attempt >= maxRetries) {
+          throw err;
+        }
+        console.warn(
+          `[Tavily] ${path} attempt ${attempt + 1}/${maxRetries + 1} network error: ${err.message}; retrying.`
+        );
+        await sleep(computeBackoffMs(attempt));
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  /**
    * Search endpoint: executes real-time web search and returns ranked raw results.
    */
   async search(query: string, options: TavilySearchOptions = {}): Promise<TavilySearchResponse> {
@@ -73,14 +179,10 @@ export class TavilyClient {
       throw new Error('Tavily search query must not be empty.');
     }
 
-    const endpoint = `${this.baseUrl}/search`;
     tavilyCallCounter++;
     const timeoutMs = options.timeoutMs ?? 20000;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const payload: Record<string, any> = {
-      api_key: this.apiKey,
       query: query.trim(),
       search_depth: options.searchDepth ?? 'basic',
       topic: options.topic ?? 'general',
@@ -97,94 +199,37 @@ export class TavilyClient {
       payload.exclude_domains = options.excludeDomains;
     }
 
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const rawText = await response.text();
-        let errorDetails = rawText;
-        try {
-          const errJson = JSON.parse(rawText);
-          errorDetails = errJson.detail?.error || errJson.error || (typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson));
-        } catch {
-          // fallback to rawText
-        }
-        throw new Error(`Tavily search failed (${response.status} ${response.statusText}): ${errorDetails}`);
-      }
-
-      const data = (await response.json()) as TavilySearchResponse;
-      return data;
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        throw new Error(`Tavily search timed out after ${timeoutMs}ms for query: "${query}"`);
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    return this.post<TavilySearchResponse>(
+      'search',
+      payload,
+      timeoutMs,
+      options.maxRetries ?? DEFAULT_MAX_RETRIES,
+      `Tavily search timed out after ${timeoutMs}ms for query: "${query}"`
+    );
   }
 
   /**
    * Extract endpoint: retrieves full parsed page content for given URLs.
    */
-  async extract(urls: string | string[], options: { timeoutMs?: number } = {}): Promise<TavilyExtractResponse> {
+  async extract(
+    urls: string | string[],
+    options: { timeoutMs?: number; maxRetries?: number } = {}
+  ): Promise<TavilyExtractResponse> {
     const urlList = (Array.isArray(urls) ? urls : [urls]).filter((u) => typeof u === 'string' && u.trim().length > 0);
     if (urlList.length === 0) {
       throw new Error('Tavily extract requires at least one valid URL.');
     }
 
-    const endpoint = `${this.baseUrl}/extract`;
     tavilyCallCounter++;
     const timeoutMs = options.timeoutMs ?? 30000;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const payload = {
-      api_key: this.apiKey,
-      urls: urlList,
-    };
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const rawText = await response.text();
-        let errorDetails = rawText;
-        try {
-          const errJson = JSON.parse(rawText);
-          errorDetails = errJson.detail?.error || errJson.error || (typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson));
-        } catch {
-          // fallback to rawText
-        }
-        throw new Error(`Tavily extract failed (${response.status} ${response.statusText}): ${errorDetails}`);
-      }
-
-      const data = (await response.json()) as TavilyExtractResponse;
-      return data;
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        throw new Error(`Tavily extract timed out after ${timeoutMs}ms for ${urlList.length} URLs`);
-      }
-      throw err;
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    return this.post<TavilyExtractResponse>(
+      'extract',
+      { urls: urlList },
+      timeoutMs,
+      options.maxRetries ?? DEFAULT_MAX_RETRIES,
+      `Tavily extract timed out after ${timeoutMs}ms for ${urlList.length} URLs`
+    );
   }
 }
 
