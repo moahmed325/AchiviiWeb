@@ -3,8 +3,9 @@ import {
   generateGroqStructuredContent,
   generateGroqTextContent,
   getGroqApiKey,
-  isGroqUnavailable,
+  groqModelsToTry,
 } from './groq.js';
+import { parseModelJson } from './modelJson.js';
 
 export interface GenerationUsage {
   promptTokens?: number;
@@ -60,37 +61,52 @@ export function resetEmbeddingCallCount(): void {
   embeddingCallCounter = 0;
 }
 
+export interface StructuredOptions {
+  /** JSON Schema that Gemini is held to. Groq only gets the prompt text. */
+  responseSchema?: Record<string, unknown>;
+  temperature?: number;
+}
+
 /**
  * Generates structured JSON using the tiered provider cascade:
  * 1. Primary: Gemini (gemini-3.5-flash-lite) — 1M context, ~500 free RPD, enough for 12-week JSON.
- * 2. Fallback: Groq (openai/gpt-oss-120b) — fast, but free TPD is 200K and burns in a few plans.
- * 3. Caller handles a total miss (no invented plan).
+ * 2. Fallback: Groq openai/gpt-oss-120b, then openai/gpt-oss-20b (separate daily budgets).
+ * 3. Caller handles a total miss.
  */
 export async function generateStructuredContent<T>(
   prompt: string,
   systemInstruction?: string,
-  modelName: string = DEFAULT_GEMINI_MODEL
+  modelName: string = DEFAULT_GEMINI_MODEL,
+  options: StructuredOptions = {}
 ): Promise<GenerationResult<T>> {
   llmCallCounter++;
 
-  const gemini = await tryGeminiStructured<T>(prompt, systemInstruction, modelName);
+  const gemini = await tryGeminiStructured<T>(prompt, systemInstruction, modelName, options);
   if (gemini.success && gemini.data) return gemini;
   if (gemini.error) {
     console.warn('[LLM:Cascade] Gemini failed, falling back to Groq:', gemini.error);
   }
 
-  if (getGroqApiKey() && !isGroqUnavailable()) {
-    const groqResult = await generateGroqStructuredContent<T>(prompt, systemInstruction);
-    if (groqResult.success && groqResult.data) {
-      return {
-        success: true,
-        data: groqResult.data,
-        usage: groqResult.usage,
-        isFallback: true,
-        provider: 'groq',
-      };
+  if (getGroqApiKey()) {
+    for (const groqModel of groqModelsToTry()) {
+      const groqResult = await generateGroqStructuredContent<T>(
+        prompt,
+        systemInstruction,
+        groqModel,
+        0,
+        options.temperature ?? 0
+      );
+      if (groqResult.success && groqResult.data) {
+        return {
+          success: true,
+          data: groqResult.data,
+          usage: groqResult.usage,
+          isFallback: true,
+          provider: 'groq',
+        };
+      }
+      console.warn(`[LLM:Cascade] Groq ${groqModel} failed:`, groqResult.error);
     }
-    console.warn('[LLM:Cascade] Groq fallback failed:', groqResult.error);
   }
 
   return {
@@ -102,10 +118,16 @@ export async function generateStructuredContent<T>(
   };
 }
 
+/** Gemini's schema rejections are a bare 400 INVALID_ARGUMENT with no mention of the schema. */
+function isSchemaRejection(message: string): boolean {
+  return /INVALID_ARGUMENT|"code":400/.test(message);
+}
+
 async function tryGeminiStructured<T>(
   prompt: string,
   systemInstruction: string | undefined,
-  modelName: string
+  modelName: string,
+  options: StructuredOptions = {}
 ): Promise<GenerationResult<T>> {
   const client = getGeminiClient();
   const startTime = Date.now();
@@ -123,18 +145,29 @@ async function tryGeminiStructured<T>(
   try {
     const config: any = {
       responseMimeType: 'application/json',
-      temperature: 0.0,
+      temperature: options.temperature ?? 0.0,
       seed: 42,
     };
     if (systemInstruction) {
       config.systemInstruction = systemInstruction;
     }
+    if (options.responseSchema) {
+      config.responseJsonSchema = options.responseSchema;
+    }
 
-    const response = await generateGeminiWithRetry(client, modelName, prompt, config);
+    let response: { text?: string; usageMetadata?: unknown };
+    try {
+      response = await generateGeminiWithRetry(client, modelName, prompt, config);
+    } catch (err: any) {
+      if (!config.responseJsonSchema || !isSchemaRejection(String(err?.message || err))) throw err;
+      console.warn('[Gemini] Schema rejected by the API, retrying without it:', err?.message);
+      delete config.responseJsonSchema;
+      response = await generateGeminiWithRetry(client, modelName, prompt, config);
+    }
 
     const durationMs = Date.now() - startTime;
-    const text = response.text || '';
-    const parsed = JSON.parse(text) as T;
+    const { data: parsed, repaired } = parseModelJson<T>(response.text || '');
+    if (repaired) console.warn(`[Gemini] Repaired malformed JSON from ${modelName}`);
 
     return {
       success: true,
@@ -205,16 +238,18 @@ export async function generateTextContent(
     console.warn('[LLM:Cascade] Gemini text failed, falling back to Groq:', gemini.error);
   }
 
-  if (getGroqApiKey() && !isGroqUnavailable()) {
-    const groqResult = await generateGroqTextContent(prompt, systemInstruction);
-    if (groqResult.success && groqResult.data) {
-      return {
-        success: true,
-        data: groqResult.data,
-        usage: groqResult.usage,
-        isFallback: true,
-        provider: 'groq',
-      };
+  if (getGroqApiKey()) {
+    for (const groqModel of groqModelsToTry()) {
+      const groqResult = await generateGroqTextContent(prompt, systemInstruction, groqModel);
+      if (groqResult.success && groqResult.data) {
+        return {
+          success: true,
+          data: groqResult.data,
+          usage: groqResult.usage,
+          isFallback: true,
+          provider: 'groq',
+        };
+      }
     }
   }
 

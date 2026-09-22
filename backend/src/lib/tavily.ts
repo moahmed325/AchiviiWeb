@@ -139,6 +139,10 @@ export class TavilyClient {
         }
 
         const rawText = await response.text();
+        if (response.status === 403 && /<html/i.test(rawText)) {
+          throw new Error('Search is blocked from this network (403). Connect a VPN and retry.');
+        }
+
         const failure = new Error(
           `Tavily ${path} failed (${response.status} ${response.statusText}): ${parseTavilyError(rawText)}`
         );

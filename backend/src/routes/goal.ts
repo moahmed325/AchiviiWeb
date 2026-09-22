@@ -9,18 +9,32 @@ import {
   PreviousWeekTaskSummary
 } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
-import { researchGoal } from '../lib/research/index.js';
+import { pickMethod } from '../lib/method/pickMethod.js';
 import {
   formatBasisBadge,
   formatMethodologyNotes,
   hasUsableSpine,
-  researchToGrounding,
   type PlanGrounding,
 } from '../lib/research/planGrounding.js';
 import { applySafetyClamps } from '../lib/research/safetyClamps.js';
 import type { VelocityTable } from '../lib/research/types.js';
 
-export const goalRouter = Router();
+function wantsPlanStream(req: Request): boolean {
+  return (req.headers.accept || '').includes('text/event-stream');
+}
+
+function openPlanStream(res: Response, startedAt: number) {
+  res.status(200);
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  return (payload: Record<string, unknown>) => {
+    const elapsedMs = Date.now() - startedAt;
+    res.write(`data: ${JSON.stringify({ ...payload, elapsedMs, slow: elapsedMs > 20_000 })}\n\n`);
+  };
+}
 
 function asStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -72,6 +86,8 @@ function groundingFromGoal(goal: {
     velocityTable: clampedTable(goal.velocityTable, goal.id),
   };
 }
+
+export const goalRouter = Router();
 
 /**
  * POST /api/goal/clarify
@@ -126,26 +142,56 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       commitments: routine?.commitments || []
     };
 
-    // Certified presets are already grounded. Custom goals research a spine first.
+    const startedAt = Date.now();
+    const stream = wantsPlanStream(req);
+    const send = stream ? openPlanStream(res, startedAt) : null;
+    const fail = (status: number, error: string) => {
+      if (send) {
+        send({ type: 'error', error });
+        res.end();
+        return;
+      }
+      res.status(status).json({ error });
+    };
+
+    // Certified presets are already grounded. Custom goals get a method chosen for this person.
     let grounding: PlanGrounding | undefined;
     const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
+    send?.({
+      type: 'step',
+      id: 'search',
+      label: preset ? 'Using a certified plan' : 'Comparing methods for your answers',
+    });
     if (!preset) {
-      const research = await researchGoal(clarifiedOutcome);
-      grounding = researchToGrounding(research);
+      const planVariant = routineInput.planVariant;
+      const picked = await pickMethod({
+        rawGoal,
+        clarifiedOutcome,
+        answers: answers || {},
+        dailyMinutes: routineInput.dailyMinutes || 60,
+        activeDaysPerWeek: planVariant === 'minimal' ? 4 : planVariant === 'accelerated' ? 6 : 5,
+      });
+      if (!picked.ok) {
+        fail(503, picked.reason);
+        return;
+      }
+      grounding = picked.grounding;
       if (grounding.velocityTable) {
         grounding = {
           ...grounding,
           velocityTable: applySafetyClamps(grounding.velocityTable, { source: 'fresh' }).table,
         };
       }
-      if (!hasUsableSpine(grounding)) {
-        res.status(503).json({
-          error:
-            'Could not find enough real sources to build this plan. Please retry in a moment.',
-        });
-        return;
-      }
     }
+
+    const basis = grounding ? formatBasisBadge(grounding) : null;
+    send?.({
+      type: 'step',
+      id: 'method',
+      label: preset ? preset.badge : basis?.label || 'Method chosen',
+      detail: preset ? 'Certified plan' : grounding?.whyChosen,
+    });
+    send?.({ type: 'step', id: 'plan', label: 'Writing your first week' });
 
     const planResult = await generate12WeekPlanWithAI(
       rawGoal,
@@ -250,14 +296,26 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
     });
 
     const saved = fullGoal || createdGoal;
-    res.status(201).json({
+    const body = {
       goal: presentGoal(saved as unknown as Record<string, unknown>),
       roadmapWeeks: roadmapRecords,
-      dailyTasks: taskRecords
-    });
+      dailyTasks: taskRecords,
+    };
+    if (send) {
+      send({ type: 'done', ...body });
+      res.end();
+      return;
+    }
+    res.status(201).json(body);
   } catch (err: any) {
     console.error('[GoalRouter] Create goal error:', err);
-    res.status(503).json({ error: err.message || "Couldn't generate your plan right now. Please try again." });
+    const error = err.message || "Couldn't generate your plan right now. Please try again.";
+    if (res.headersSent) {
+      res.write(`data: ${JSON.stringify({ type: 'error', error })}\n\n`);
+      res.end();
+      return;
+    }
+    res.status(503).json({ error });
   }
 });
 

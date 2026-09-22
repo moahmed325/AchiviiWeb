@@ -3,10 +3,9 @@ import { CertifiedPresetBlueprint } from './types.js';
 export const run10kPreset: CertifiedPresetBlueprint = {
   id: 'run10k',
   matchingPatterns: [
-    /10k/i,
-    /sub[-\s]?50/i,
-    /run.*10.*(k|km|kilometer)/i,
-    /10.*(k|km).*under/i
+    /\b10\s*k\b/i,
+    /\brun\b.*\b10\s*(k|km|kilometers?)\b/i,
+    /\b10\s*(k|km|kilometers?)\b.*\b(under|sub)[-\s]?50\b/i,
   ],
   title: 'Run a 10K Under 50 Minutes',
   primaryDomain: 'Endurance Running & Aerobic Conditioning',

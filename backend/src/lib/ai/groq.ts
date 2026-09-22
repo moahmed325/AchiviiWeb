@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { parseModelJson } from './modelJson.js';
 
 dotenv.config();
 
@@ -18,9 +19,11 @@ export interface GroqResult<T = string> {
 }
 
 export const DEFAULT_GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
+/** Separate daily token budget from the 120b model, so it can still answer after 120b is spent. */
+export const GROQ_BACKUP_MODEL = process.env.GROQ_BACKUP_MODEL || 'openai/gpt-oss-20b';
 
 let groqCallCounter = 0;
-let groqUnavailableUntil = 0;
+const groqUnavailableUntil = new Map<string, number>();
 
 export function getGroqCallCount(): number {
   return groqCallCounter;
@@ -34,16 +37,21 @@ export function isGroqDailyLimitError(error?: string): boolean {
   return Boolean(error && /tokens per day|\bTPD\b/i.test(error));
 }
 
-export function isGroqUnavailable(): boolean {
-  return Date.now() < groqUnavailableUntil;
+/** Daily limits are per model on Groq. */
+export function isGroqUnavailable(modelName: string = DEFAULT_GROQ_MODEL): boolean {
+  return Date.now() < (groqUnavailableUntil.get(modelName) ?? 0);
 }
 
-export function markGroqUnavailable(ms = 30 * 60 * 1000): void {
-  groqUnavailableUntil = Date.now() + ms;
+export function markGroqUnavailable(ms = 30 * 60 * 1000, modelName: string = DEFAULT_GROQ_MODEL): void {
+  groqUnavailableUntil.set(modelName, Date.now() + ms);
 }
 
 export function resetGroqAvailability(): void {
-  groqUnavailableUntil = 0;
+  groqUnavailableUntil.clear();
+}
+
+export function groqModelsToTry(): string[] {
+  return [...new Set([DEFAULT_GROQ_MODEL, GROQ_BACKUP_MODEL])].filter((model) => !isGroqUnavailable(model));
 }
 
 export function getGroqApiKey(): string | null {
@@ -61,7 +69,8 @@ export async function generateGroqStructuredContent<T>(
   prompt: string,
   systemInstruction?: string,
   modelName: string = DEFAULT_GROQ_MODEL,
-  retryCount: number = 0
+  retryCount: number = 0,
+  temperature: number = 0.0
 ): Promise<GroqResult<T>> {
   const apiKey = getGroqApiKey();
   const startTime = Date.now();
@@ -75,12 +84,12 @@ export async function generateGroqStructuredContent<T>(
     };
   }
 
-  if (isGroqUnavailable()) {
+  if (isGroqUnavailable(modelName)) {
     return {
       success: false,
       data: null,
       isFallback: true,
-      error: 'Groq daily token limit reached — skipped until cooldown ends',
+      error: `Groq daily token limit reached for ${modelName} — skipped until cooldown ends`,
     };
   }
 
@@ -106,7 +115,7 @@ export async function generateGroqStructuredContent<T>(
         model: modelName,
         messages,
         response_format: { type: 'json_object' },
-        temperature: 0.0,
+        temperature,
       }),
       signal: controller.signal,
     });
@@ -116,13 +125,24 @@ export async function generateGroqStructuredContent<T>(
     if (!response.ok) {
       const errorText = await response.text();
       let errorMsg = errorText;
+      let failedGeneration: string | undefined;
       try {
         const parsed = JSON.parse(errorText);
         errorMsg = parsed.error?.message || errorText;
+        failedGeneration = parsed.error?.failed_generation;
       } catch {}
 
+      // json_object mode rejects near-valid JSON; the raw text is often repairable.
+      if (response.status === 400 && failedGeneration) {
+        try {
+          const { data } = parseModelJson<T>(failedGeneration);
+          console.warn(`[Groq] Repaired JSON that ${modelName} failed to validate`);
+          return { success: true, data, usage: { durationMs }, isFallback: false };
+        } catch {}
+      }
+
       if (response.status === 429 && isGroqDailyLimitError(errorMsg)) {
-        markGroqUnavailable();
+        markGroqUnavailable(undefined, modelName);
         return {
           success: false,
           data: null,
@@ -138,7 +158,7 @@ export async function generateGroqStructuredContent<T>(
         const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 250 : 1500;
         console.warn(`[Groq:RateLimit] 429 received. Waiting ${waitMs}ms before automatic retry (${retryCount + 1}/2)...`);
         await new Promise((r) => setTimeout(r, waitMs));
-        return generateGroqStructuredContent<T>(prompt, systemInstruction, modelName, retryCount + 1);
+        return generateGroqStructuredContent<T>(prompt, systemInstruction, modelName, retryCount + 1, temperature);
       }
 
       return {
@@ -152,7 +172,8 @@ export async function generateGroqStructuredContent<T>(
 
     const json = (await response.json()) as any;
     const contentText = json.choices?.[0]?.message?.content || '';
-    const parsedData = JSON.parse(contentText) as T;
+    const { data: parsedData, repaired } = parseModelJson<T>(contentText);
+    if (repaired) console.warn(`[Groq] Repaired malformed JSON from ${modelName}`);
 
     return {
       success: true,

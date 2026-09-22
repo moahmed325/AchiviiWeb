@@ -609,6 +609,809 @@ If the answer is no:
 
 **investigate further.**
 
+
+# PROMPT -1 — AUDIT & OPTIMIZE THE AGENT OPERATING SYSTEM
+
+## Command
+
+`Run prompt -1`
+
+---
+
+# OBJECTIVE
+
+Before performing any project takeover, audit and improve the project's agent operating system.
+
+The agent operating system consists primarily of:
+
+* `phases.md`
+* `prompts.md`
+
+These documents define how the AI agent is expected to investigate, understand, implement, test, verify, document, and maintain the project.
+
+Your job in this prompt is to determine whether these documents are:
+
+* logically consistent
+* complete
+* non-duplicative
+* practical
+* sufficiently rigorous
+* correctly ordered
+* internally consistent
+* compatible with each other
+* capable of guiding another AI agent reliably
+* resistant to scope creep
+* resistant to fake completion
+* appropriate for long-term project development
+
+If they are not, **fix them before proceeding**.
+
+Do not assume the existing documents are correct merely because they already exist.
+
+---
+
+# IMPORTANT: THIS IS A META-AUDIT
+
+You are not primarily auditing the application yet.
+
+You are auditing the **instructions that will control future agents**.
+
+Think of yourself as reviewing an internal engineering playbook before giving it to a large development team.
+
+Your question is:
+
+> "If a highly capable coding agent followed these documents literally for months, where could the system fail?"
+
+Find those failure modes and fix them.
+
+---
+
+# STEP 1 — READ THE ENTIRE OPERATING SYSTEM
+
+Read completely:
+
+```text id="s9p2o4"
+phases.md
+prompts.md
+```
+
+Do not skim them.
+
+Understand:
+
+* every phase
+* every prompt
+* dependencies between phases
+* expected outputs
+* checkpoint requirements
+* verification requirements
+* documentation requirements
+* scope boundaries
+* quality gates
+
+Also inspect whether the project already contains:
+
+```text id="5x8x6j"
+PROJECT.md
+REQUIREMENTS.md
+ARCHITECTURE.md
+DECISIONS.md
+DEFINITION_OF_DONE.md
+KNOWN_ISSUES.md
+PROJECT_AUDIT.md
+FEATURE_MATRIX.md
+IMPLEMENTATION_PLAN.md
+VERIFICATION_REPORT.md
+CHANGELOG.md
+```
+
+If they exist, understand how they relate to `phases.md` and `prompts.md`.
+
+---
+
+# STEP 2 — CHECK FOR CONTRADICTIONS
+
+Look for contradictions between:
+
+`phases.md`
+
+and:
+
+`prompts.md`
+
+Examples:
+
+* One says to commit after every phase while another says only after major work.
+* One says to fix issues immediately while another says to defer them.
+* One says requirements are authoritative while another assumes existing implementation is authoritative.
+* One requires tests while another does not account for projects without tests.
+* One requires a document that another never creates.
+* One assumes a tool or technology that may not exist.
+* One phase depends on information that is not established earlier.
+* Two prompts perform the same work unnecessarily.
+* A later prompt reverses a decision made by an earlier prompt.
+
+Resolve contradictions.
+
+---
+
+# STEP 3 — CHECK THE PHASE ORDER
+
+Determine whether the phases are in the correct dependency order.
+
+The general lifecycle should resemble:
+
+```text id="b4nq3m"
+Understand
+    ↓
+Establish project knowledge
+    ↓
+Audit
+    ↓
+Inventory requirements/features
+    ↓
+Verify current behavior
+    ↓
+Identify improvements
+    ↓
+Plan
+    ↓
+Implement
+    ↓
+Test
+    ↓
+Verify
+    ↓
+Re-audit
+    ↓
+Final verification
+    ↓
+Handoff
+```
+
+This is a guideline, not a requirement to force the exact structure.
+
+If the existing phases have a better structure, preserve it.
+
+If they do not, improve them.
+
+---
+
+# STEP 4 — CHECK PROMPT COVERAGE
+
+Every important phase should have a corresponding executable prompt.
+
+Determine:
+
+* Does every phase have a way to execute it?
+* Are there prompts that have no meaningful phase?
+* Are important activities missing?
+* Are there redundant prompts?
+* Are prompts too broad?
+* Are prompts too narrow?
+* Are prompts likely to cause unnecessary work?
+* Are there gaps between audit → implementation → verification?
+
+Identify missing capabilities.
+
+---
+
+# STEP 5 — CHECK THE AGENT'S DECISION AUTHORITY
+
+This is extremely important.
+
+Determine whether the documents clearly explain:
+
+### What the agent may decide independently
+
+For example:
+
+* implementation details
+* test structure
+* small refactors
+* appropriate file organization
+* routine bug fixes
+
+### What requires stronger evidence
+
+For example:
+
+* architectural changes
+* database changes
+* API contract changes
+* security changes
+* dependency changes
+
+### What should require user clarification
+
+For example:
+
+* ambiguous product requirements
+* conflicting business rules
+* destructive migrations
+* major product behavior changes
+* irreversible decisions
+* unclear acceptance criteria
+
+If this distinction is missing, add it.
+
+The goal is to prevent both:
+
+> "The agent asks the user about every tiny decision."
+
+and:
+
+> "The agent makes major product decisions without asking."
+
+---
+
+# STEP 6 — CHECK REQUIREMENT DISCIPLINE
+
+The operating system must clearly distinguish:
+
+```text id="7g7m19"
+Requirement
+    ↓
+Expected behavior
+    ↓
+Implementation
+    ↓
+Verification
+```
+
+The agent should never assume:
+
+> "The code already does this, therefore this must be the requirement."
+
+Ensure the documents explicitly distinguish:
+
+* confirmed requirements
+* inferred requirements
+* existing behavior
+* technical decisions
+* assumptions
+* unknowns
+
+---
+
+# STEP 7 — CHECK "DONE" CRITERIA
+
+Determine whether the current system provides a strong definition of completion.
+
+A feature should not become:
+
+`COMPLETE`
+
+simply because:
+
+* code exists
+* the page renders
+* the endpoint responds
+* the build passes
+* one happy-path test passes
+
+Ensure the system considers, where applicable:
+
+* functionality
+* integration
+* persistence
+* validation
+* authorization
+* error handling
+* loading states
+* empty states
+* edge cases
+* tests
+* regression safety
+* security
+* performance
+* accessibility
+* documentation
+* verification
+
+If this is better handled by `DEFINITION_OF_DONE.md`, ensure `phases.md` and `prompts.md` explicitly defer to that document rather than duplicating it.
+
+---
+
+# STEP 8 — CHECK FAILURE HANDLING
+
+Ask:
+
+> What happens when the agent cannot complete something?
+
+The operating system must tell the agent not to:
+
+* hide failures
+* fabricate results
+* weaken tests
+* disable validation
+* silently skip requirements
+* claim something is verified when it isn't
+* create fake implementations
+
+It should instead:
+
+1. document the failure
+2. explain the reason
+3. distinguish verified from unverified
+4. identify blockers
+5. continue only where safe
+
+Strengthen the instructions if necessary.
+
+---
+
+# STEP 9 — CHECK SCOPE CONTROL
+
+The system should prevent two opposite problems.
+
+### Problem A — Under-engineering
+
+The agent does the minimum possible work and declares success.
+
+### Problem B — Scope explosion
+
+The agent discovers 50 issues and starts rewriting the entire application.
+
+The instructions should establish:
+
+> Complete the requested task properly, including necessary supporting work, but do not pursue unrelated improvements unless explicitly authorized or required for correctness.
+
+If this principle is missing or unclear, add it.
+
+---
+
+# STEP 10 — CHECK DISCOVERED-ISSUE MANAGEMENT
+
+Ensure there is a clear mechanism for issues discovered outside the current task.
+
+The agent should:
+
+```text id="3a6ym5"
+Discover issue
+     ↓
+Classify it
+     ↓
+Document it
+     ↓
+Associate it with relevant requirement/phase
+     ↓
+Continue current task
+```
+
+unless the issue blocks safe completion.
+
+This prevents both:
+
+* forgetting discovered problems
+* abandoning the current task every time something interesting is found
+
+---
+
+# STEP 11 — CHECK GIT / CHECKPOINT LOGIC
+
+Review all Git instructions.
+
+Ensure they clearly distinguish:
+
+### Before work
+
+* inspect working tree
+* inspect branch
+* preserve existing changes
+
+### During work
+
+* make coherent changes
+* avoid unrelated modifications
+
+### Before commit
+
+* inspect diff
+* run relevant verification
+* check secrets
+* confirm scope
+
+### After commit
+
+* report hash
+* document meaningful changes
+
+Ensure the system does not encourage:
+
+* meaningless commits
+* committing broken code
+* committing secrets
+* overwriting user changes
+* destructive resets
+
+---
+
+# STEP 12 — CHECK DOCUMENTATION ARCHITECTURE
+
+Make sure the documents have clearly separated responsibilities.
+
+The intended relationship should approximately be:
+
+```text id="ez2yfn"
+PROJECT.md
+    What is this?
+
+REQUIREMENTS.md
+    What should it do?
+
+ARCHITECTURE.md
+    How is it structured?
+
+DECISIONS.md
+    Why are important decisions the way they are?
+
+DEFINITION_OF_DONE.md
+    When is something complete?
+
+phases.md
+    How should the project be approached?
+
+prompts.md
+    What should the agent execute?
+
+PROJECT_AUDIT.md
+    What is the current technical state?
+
+FEATURE_MATRIX.md
+    What functionality exists and what is its status?
+
+IMPLEMENTATION_PLAN.md
+    What should be worked on next?
+
+KNOWN_ISSUES.md
+    What known problems remain?
+
+VERIFICATION_REPORT.md
+    What has actually been verified?
+
+CHANGELOG.md
+    What has changed over time?
+```
+
+If `phases.md` or `prompts.md` duplicates too much of these documents, simplify them.
+
+Do not create multiple competing sources of truth.
+
+---
+
+# STEP 13 — CHECK FOR REDUNDANCY
+
+Identify instructions repeated unnecessarily across:
+
+* `phases.md`
+* `prompts.md`
+* `DEFINITION_OF_DONE.md`
+* other project documents
+
+Duplication is dangerous because the copies can drift apart.
+
+Prefer:
+
+> One authoritative rule + references to it.
+
+For example:
+
+Instead of defining the complete Definition of Done in three places:
+
+```text id="p7z3mg"
+prompts.md
+phases.md
+DEFINITION_OF_DONE.md
+```
+
+make:
+
+`DEFINITION_OF_DONE.md`
+
+the authority and have the other documents reference it.
+
+---
+
+# STEP 14 — CHECK FOR AMBIGUITY
+
+Find vague instructions such as:
+
+* "test thoroughly"
+* "make it better"
+* "ensure quality"
+* "fix issues"
+* "review the code"
+* "optimize where necessary"
+
+Where useful, turn vague instructions into observable behavior.
+
+For example:
+
+Instead of:
+
+> Test thoroughly.
+
+Use:
+
+> Run the relevant automated tests, type checks, linting, build verification, and manual/end-to-end verification appropriate to the feature.
+
+Do not over-specify trivial implementation details.
+
+The goal is clear intent, not bureaucratic instructions.
+
+---
+
+# STEP 15 — CHECK FOR REAL-WORLD PROJECT VARIABILITY
+
+The system should work across different projects.
+
+Make sure instructions account for projects that may not have:
+
+* frontend
+* backend
+* database
+* automated tests
+* type checking
+* linting
+* CI/CD
+* Git
+* end-to-end testing
+
+The agent should apply applicable checks rather than pretending every project has every technology.
+
+---
+
+# STEP 16 — CHECK SECURITY AND DATA SAFETY
+
+Ensure the operating system protects against:
+
+* secrets being committed
+* destructive commands
+* destructive migrations
+* accidental data deletion
+* unsafe production changes
+* weakening authorization
+* exposing sensitive data
+* modifying unrelated user work
+
+Where a potentially destructive action is necessary, require appropriate verification and caution.
+
+---
+
+# STEP 17 — CHECK FOR AGENT FAILURE MODES
+
+Think adversarially.
+
+Ask:
+
+> How could a mediocre agent technically follow these instructions while still producing a bad result?
+
+Examples:
+
+* It marks features complete because tests only cover the happy path.
+* It creates tests that merely reproduce the implementation.
+* It rewrites code unnecessarily.
+* It documents assumptions as facts.
+* It ignores requirements because the code already behaves differently.
+* It fixes symptoms instead of root causes.
+* It commits unrelated changes.
+* It endlessly refactors instead of delivering functionality.
+* It claims manual verification without actually performing it.
+* It repeatedly rediscovers the same issues.
+* It optimizes code without evidence.
+* It introduces dependencies unnecessarily.
+* It treats passing CI as proof the product works.
+
+Strengthen the operating system against these failure modes.
+
+---
+
+# STEP 18 — IMPROVE THE FILES
+
+After completing the audit, modify:
+
+```text id="v4p5u2"
+phases.md
+prompts.md
+```
+
+where necessary.
+
+You have explicit permission to:
+
+* rewrite sections
+* reorder sections
+* merge redundant instructions
+* remove contradictory instructions
+* add missing safeguards
+* improve prompt wording
+* improve phase boundaries
+* add missing prompts
+* rename prompts where necessary
+* change checkpoint rules where justified
+
+However:
+
+**Do not change the underlying project methodology merely for stylistic reasons.**
+
+Every meaningful change should solve a real problem.
+
+---
+
+# STEP 19 — PRESERVE INTENT
+
+Do not "optimize" the system by making it weaker.
+
+The improved system should remain:
+
+* rigorous
+* evidence-based
+* practical
+* maintainable
+* autonomous where appropriate
+* cautious where appropriate
+* resistant to scope creep
+* resistant to fake completion
+* easy for another agent to follow
+
+---
+
+# STEP 20 — SELF-REVIEW THE REVISED SYSTEM
+
+After editing the files, read the revised versions again from beginning to end.
+
+Do not assume the edits are correct.
+
+Verify:
+
+* phases are logically ordered
+* prompts map to phases
+* prompts do not contradict one another
+* documentation responsibilities are clear
+* quality gates are clear
+* Git rules are clear
+* failure handling is clear
+* scope boundaries are clear
+* user-clarification boundaries are clear
+* requirements are authoritative
+* verification is evidence-based
+* no important safeguards were accidentally removed
+
+---
+
+# STEP 21 — CREATE A CHANGE REPORT
+
+Create or update:
+
+`AGENT_SYSTEM_AUDIT.md`
+
+Document:
+
+## Initial Assessment
+
+What was wrong or missing.
+
+## Changes Made
+
+What changed in `phases.md`.
+
+What changed in `prompts.md`.
+
+## Important Improvements
+
+Why the changes matter.
+
+## Remaining Concerns
+
+Anything that could not be resolved.
+
+## Recommended Workflow
+
+Explain the final intended sequence.
+
+For example:
+
+```text id="c3b0cw"
+Prompt -1
+    ↓
+Prompt 0
+    ↓
+Prompt 1
+    ↓
+Prompt 2
+    ↓
+Prompt 3
+    ↓
+Prompt 4
+    ↓
+Prompt 5
+    ↓
+Prompts 6–12
+    ↓
+Prompt 13
+    ↓
+Prompt 14
+    ↓
+Prompt 15
+    ↓
+Prompt 16
+    ↓
+Prompt 17
+    ↓
+Prompt 18
+```
+
+Adjust this to match the actual revised system.
+
+---
+
+# STEP 22 — CHECKPOINT
+
+After the revised `phases.md`, `prompts.md`, and `AGENT_SYSTEM_AUDIT.md` have been reviewed:
+
+Inspect the Git diff.
+
+Confirm that:
+
+* only intended files changed
+* no secrets were introduced
+* no unrelated project code was changed
+* the documents are internally consistent
+
+Then create a checkpoint.
+
+Suggested commit:
+
+```text id="1i8lkm"
+docs: audit and improve agent operating system
+```
+
+Report the commit hash.
+
+---
+
+# FINAL COMPLETION CRITERIA
+
+Prompt -1 is complete only when:
+
+* [ ] `phases.md` was read completely
+* [ ] `prompts.md` was read completely
+* [ ] Their relationship was audited
+* [ ] Phase ordering was reviewed
+* [ ] Prompt coverage was reviewed
+* [ ] Requirements discipline was reviewed
+* [ ] Definition of Done was reviewed
+* [ ] Failure handling was reviewed
+* [ ] Scope control was reviewed
+* [ ] Issue tracking was reviewed
+* [ ] Git/checkpoint rules were reviewed
+* [ ] Documentation responsibilities were reviewed
+* [ ] Redundancy was reviewed
+* [ ] Ambiguity was reviewed
+* [ ] Project variability was considered
+* [ ] Security/data safety was reviewed
+* [ ] Agent failure modes were considered
+* [ ] Necessary improvements were made
+* [ ] Revised files were read again
+* [ ] `AGENT_SYSTEM_AUDIT.md` was created/updated
+* [ ] Changes were verified
+* [ ] A checkpoint was created
+
+---
+
+# IMPORTANT
+
+Do **not** start Prompt 0 automatically after completing this prompt.
+
+Prompt -1 ends after the agent operating system has been audited, improved, verified, and checkpointed.
+
+The next action should be explicitly triggered with:
+
+`Run prompt 0`
+
+
+
 # PROMPT 0 — INITIAL TAKEOVER & PROJECT KNOWLEDGE SETUP
 
 ## Command

@@ -209,11 +209,12 @@ export async function runCanonResearch(
   budget.searchCalls = plan.queries.length;
 
   const byUrl = new Map<string, MergedResult>();
+  const searchFailures: string[] = [];
   for (const [index, settled] of searches.entries()) {
     if (settled.status === 'rejected') {
-      console.warn(
-        `[Stage2] Search failed for "${plan.queries[index]}": ${settled.reason?.message ?? settled.reason}`
-      );
+      const message = String(settled.reason?.message ?? settled.reason);
+      searchFailures.push(message);
+      console.warn(`[Stage2] Search failed for "${plan.queries[index]}": ${message}`);
       continue;
     }
     for (const [position, result] of (settled.value.results ?? []).entries()) {
@@ -236,6 +237,7 @@ export async function runCanonResearch(
   }
 
   if (byUrl.size === 0) {
+    const blocked = searchFailures.find((message) => /blocked from this network/i.test(message));
     return emptyResearch({
       methodConfidence: 'first_principles',
       sources: [],
@@ -243,7 +245,7 @@ export async function runCanonResearch(
       queries: plan.queries,
       rejectedQueries: plan.rejectedQueries,
       rejectedSources,
-      reasoning: 'No search results were returned for any query angle.',
+      reasoning: blocked || (searchFailures[0] ? `Search failed: ${searchFailures[0]}` : 'No search results were returned for any query angle.'),
       budget,
     });
   }

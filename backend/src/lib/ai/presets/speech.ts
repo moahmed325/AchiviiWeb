@@ -3,17 +3,10 @@ import { CertifiedPresetBlueprint } from './types.js';
 export const speechPreset: CertifiedPresetBlueprint = {
   id: 'ted_speech_15min',
   matchingPatterns: [
-    /speech/i,
-    /ted.*talk/i,
-    /public.*speaking/i,
-    /presentation/i,
-    /toastmasters/i,
-    /keynote/i,
-    /stage.*fright/i,
-    /vocal.*variety/i,
-    /pitch/i,
-    /storybrand/i,
-    /orator/i
+    /\b(public speaking|ted talk|toastmasters|keynote|stage fright|orator)\b/i,
+    /\bgive a (speech|talk)\b/i,
+    /\b(speech|presentation)\s+(skills|practice|delivery|coach)\b/i,
+    /\bvocal\s+variety\b/i,
   ],
   title: 'Deliver an Unforgettable 15-Minute TED-Style Speech',
   primaryDomain: 'Public Speaking & TED-Style Storytelling',

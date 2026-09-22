@@ -104,25 +104,67 @@ export async function clarifyGoal(rawGoal: string): Promise<import('../types').G
   return data;
 }
 
+export interface PlanProgressEvent {
+  type: 'step';
+  id: 'search' | 'method' | 'plan';
+  label: string;
+  detail?: string;
+  elapsedMs: number;
+  slow: boolean;
+}
+
 export async function createGoalPlan(
   payload: import('../types').CreateGoalPayload,
-  token: string
+  token: string,
+  onStep?: (event: PlanProgressEvent) => void
 ): Promise<import('../types').CreateGoalResponse> {
   const response = await fetch(`${API_BASE_URL}/api/goal/create`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      Accept: 'text/event-stream',
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to generate 90-day plan');
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('text/event-stream')) {
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Failed to generate 90-day plan');
+    return data;
   }
 
-  return data;
+  if (!response.body) throw new Error('Plan stream did not start.');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: import('../types').CreateGoalResponse | null = null;
+
+  const take = (block: string) => {
+    const line = block.split('\n').find((entry) => entry.startsWith('data: '));
+    if (!line) return;
+    const event = JSON.parse(line.slice(6));
+    if (event.type === 'step') onStep?.(event as PlanProgressEvent);
+    if (event.type === 'error') throw new Error(event.error || 'Failed to generate 90-day plan');
+    if (event.type === 'done') {
+      result = { goal: event.goal, roadmapWeeks: event.roadmapWeeks, dailyTasks: event.dailyTasks };
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split('\n\n');
+    buffer = blocks.pop() ?? '';
+    for (const block of blocks) take(block);
+  }
+  if (buffer.trim()) take(buffer);
+
+  if (!result) throw new Error('Plan stream ended before a plan was ready.');
+  return result;
 }
 
 export async function fetchActiveGoal(token: string): Promise<import('../types').Goal | null> {

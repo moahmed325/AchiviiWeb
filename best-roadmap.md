@@ -34,18 +34,18 @@ These rules stay. They are how we stay honest.
 
 ## Where we are right now
 
-**What a real user gets today:** certified presets unchanged. A custom goal researches a spine, writes the 12-week plan from it, caps unsafe numbers, and shows an honest basis line. Later weeks stay on that method. Cache **write** is still Phase 5.
+**What a real user gets today:** certified presets unchanged. A custom goal reuses a cached spine when the same goal was researched before, otherwise researches one, writes the 12-week plan from it, caps unsafe numbers, and shows an honest basis line. A number the user named (40 words per minute, under 50 minutes, 3 balls) has to show up in week 12. Practice-day count, consecutive rest days, and step minutes are corrected in code after the model writes the week. Later weeks stay on that method.
 
 **What already works:**
 
 - Tavily search + page download + replay fixtures
 - Spine kinds: named program / shared pattern / technique / single source
-- Goal create route: `researchGoal` → plan writer → golden-rail fields
-- Gemini is the primary LLM (`gemini-3.5-flash-lite`). Groq is fallback only; a daily-limit 429 skips Groq instead of blocking the request.
+- Goal create route: cache read → research on miss → cache write → plan writer
+- Gemini is the primary LLM (`gemini-3.5-flash-lite`). Groq is fallback only; a daily-limit 429 skips that Groq model.
 
 **Still not done:**
 
-- Cache write + live stepper (Phase 5)
+- Live stepper while the first research runs (the rest of Phase 5)
 
 ---
 

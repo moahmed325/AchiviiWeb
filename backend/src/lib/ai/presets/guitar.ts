@@ -3,16 +3,9 @@ import { CertifiedPresetBlueprint } from './types.js';
 export const guitarPreset: CertifiedPresetBlueprint = {
   id: 'guitar5songs',
   matchingPatterns: [
-    /guitar/i,
-    /play.*5.*(song|classic)/i,
-    /5.*(song|classic).*guitar/i,
-    /popular.*guitar/i,
-    /campfire.*guitar/i,
-    /acoustic.*guitar/i,
-    /learn.*guitar/i,
-    /acoustic/i,
-    /chords/i,
-    /fingerpicking/i
+    /\bguitar\b/i,
+    /\bfingerpicking\b/i,
+    /\bbarre\s+chords?\b/i,
   ],
   title: 'Play 5 Iconic Guitar Songs from Memory',
   primaryDomain: 'Acoustic Guitar & Neuromuscular Motor Chunking',

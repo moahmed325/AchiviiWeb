@@ -121,7 +121,7 @@ describe('Phase 3 — plan grounding', () => {
   it('injects the spine into the plan prompt and strips bad URLs from the result', async () => {
     mockLlm.mockImplementation(async (prompt: string) => {
       expect(prompt).toMatch(/20 degrees/);
-      expect(prompt).toMatch(/RESEARCHED PLAN SPINE/);
+      expect(prompt).toMatch(/PLAN SPINE — mandatory grounding/);
       return { success: true, data: dummyPlan('https://invented.example/fake') };
     });
 

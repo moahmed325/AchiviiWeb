@@ -13,7 +13,7 @@ export const recompPreset: CertifiedPresetBlueprint = {
     /fat.*loss.*muscle/i,
     /physique.*transformation/i,
     /build.*muscle.*burn.*fat/i,
-    /shred/i
+    /\b(get\s+)?shredded\b/i
   ],
   title: 'Drop 5% Body Fat & Build Lean Muscle',
   primaryDomain: 'Physique Transformation & Nutritional Biomechanics',

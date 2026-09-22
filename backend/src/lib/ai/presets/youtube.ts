@@ -5,8 +5,8 @@ export const youtubePreset: CertifiedPresetBlueprint = {
   matchingPatterns: [
     /youtube/i,
     /launch.*youtube/i,
-    /12.*video/i,
-    /publish.*video/i,
+    /\bpublish\s+12\b/i,
+    /\b12\b.*\byoutube\b|\byoutube\b.*\b12\b.*\bvideos?\b/i,
     /youtube.*channel/i,
     /content.*creator/i,
     /high.*retention.*video/i,

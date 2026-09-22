@@ -8,7 +8,7 @@ export type MethodConfidence = 'high_consensus' | 'medium_consensus' | 'first_pr
  * `methodConfidence` is only the badge: a named program can earn high/medium;
  * everything else stays first_principles so we never show a gold badge we did not earn.
  */
-export type MethodKind = 'named_program' | 'shared_pattern' | 'technique' | 'single_source';
+export type MethodKind = 'named_program' | 'shared_pattern' | 'technique' | 'single_source' | 'model_recommended';
 
 /**
  * Whether a larger or smaller number represents the harder target.

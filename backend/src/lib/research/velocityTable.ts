@@ -1,5 +1,11 @@
 import { generateStructuredContent } from '../ai/gemini.js';
 import { distillContent } from './distill.js';
+import {
+  enforceStatedTargets,
+  extractStatedTargets,
+  statedTargetFailures,
+  type StatedTarget,
+} from './statedTarget.js';
 import type { ResearchSource, VelocityTable, VelocityTarget } from './types.js';
 
 /**
@@ -47,9 +53,10 @@ Rules:
   metric, omit that metric — but do not abandon the whole table because one is missing.
 - Extract 1-3 metrics. Choose ones that CHANGE as the programme advances: weekly volume,
   long-session distance, session duration, sessions per week, reps, or vocabulary learned.
-- NEVER use the goal's own fixed target as a metric. A goal race pace, target finish time
-  or desired final score is constant by definition and cannot progress. Use the training
-  quantities that build toward it instead.
+- If the goal names a result ("40 words per minute", "under 50 minutes", "3 balls"), week 12
+  MUST include that number and unit. Session length may be a second metric. It must not be
+  the only metric when the goal names a result. Week 1 for that result is an easier start
+  taken from the sources, not the same number repeated.
 - NEVER use a world record, championship mark, or elite endpoint as week 12. Those are
   not training targets. If the pages only state a record, set hasNumericDimension false.
 - "metric" names must match exactly between week1Targets and week12Targets so they can be
@@ -210,7 +217,16 @@ export async function deriveVelocityTable(
     })
     .join('\n\n---\n\n');
 
+  const statedTargets = extractStatedTargets(clarifiedOutcome);
+  const targetBlock =
+    statedTargets.length > 0
+      ? `\nThe user named these results. Week 12 must include each one:\n${statedTargets
+          .map((item) => `- ${item.phrase}`)
+          .join('\n')}\n`
+      : '';
+
   let previousFailures: string[] = [];
+  let lastTable: VelocityTable | null = null;
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     const correction =
@@ -227,7 +243,7 @@ usable numbers, set "hasNumericDimension" to false instead of guessing.`
 
     const prompt = `Goal: "${clarifiedOutcome}"
 ${header}
-
+${targetBlock}
 Sources:
 
 ${sourceBlock}${correction}`;
@@ -249,21 +265,32 @@ ${sourceBlock}${correction}`;
     }
 
     if (response.hasNumericDimension === false) {
-      // Not every goal has numbers. Milestone ordering from Stage 2 carries the plan instead.
-      return { table: null, skipped: true, attempts: attempt };
+      if (statedTargets.length === 0) {
+        // Not every goal has numbers. Milestone ordering from Stage 2 carries the plan instead.
+        return { table: null, skipped: true, attempts: attempt };
+      }
+      previousFailures = statedTargetFailures(emptyTable(), statedTargets);
+      continue;
     }
 
     const table = toTable(response);
+    lastTable = table;
     const validation = validateVelocityTable(table);
+    const targetFailures = statedTargetFailures(table, statedTargets);
+    const failures = [...validation.failures, ...targetFailures];
 
-    if (validation.valid) {
+    if (failures.length === 0) {
       return { table, skipped: false, attempts: attempt };
     }
 
-    console.warn(
-      `[Stage3] Sanity check failed on attempt ${attempt}: ${validation.failures.join(' | ')}`
-    );
-    previousFailures = validation.failures;
+    console.warn(`[Stage3] Sanity check failed on attempt ${attempt}: ${failures.join(' | ')}`);
+    previousFailures = failures;
+  }
+
+  const forced = statedTargets.length > 0 ? forceUserTargets(lastTable, statedTargets) : null;
+  if (forced && validateVelocityTable(forced).valid && statedTargetFailures(forced, statedTargets).length === 0) {
+    console.warn('[Stage3] Research missed the user\'s target. Week 12 was set from the goal text.');
+    return { table: forced, skipped: false, attempts: 2 };
   }
 
   return {
@@ -272,4 +299,41 @@ ${sourceBlock}${correction}`;
     attempts: 2,
     failureReason: `Velocity table failed the sanity check twice (${previousFailures.join(' | ')}). Confidence downgraded to first_principles rather than serving unsound numbers.`,
   };
+}
+
+function emptyTable(): VelocityTable {
+  return {
+    week1Targets: [],
+    week12Targets: [],
+    progressionFormula: '',
+    assumptions: '',
+  };
+}
+
+/** Drops researched rows that do not progress, then writes the user's number into week 12. */
+export function forceUserTargets(table: VelocityTable | null, targets: StatedTarget[]): VelocityTable {
+  const source = table ?? {
+    ...emptyTable(),
+    assumptions: 'Sources did not state week-by-week numbers.',
+  };
+  const kept = source.week1Targets.flatMap((start) => {
+    const end = source.week12Targets.find((row) => row.metric === start.metric);
+    if (!end) return [];
+    const pair: VelocityTable = {
+      week1Targets: [start],
+      week12Targets: [end],
+      progressionFormula: 'Ramp.',
+      assumptions: 'A starting point.',
+    };
+    return validateVelocityTable(pair).valid ? [start] : [];
+  });
+  const keptMetrics = new Set(kept.map((row) => row.metric));
+  return enforceStatedTargets(
+    {
+      ...source,
+      week1Targets: kept,
+      week12Targets: source.week12Targets.filter((row) => keptMetrics.has(row.metric)),
+    },
+    targets
+  );
 }

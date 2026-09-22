@@ -6,6 +6,7 @@ import type { CanonResearchResult } from './types.js';
 export * from './types.js';
 export { runCanonResearch, MAX_EXTRACT_URLS, selectShortlist, scoreCandidate } from './canonResearch.js';
 export { deriveVelocityTable, validateVelocityTable } from './velocityTable.js';
+export { extractStatedTargets, enforceStatedTargets, statedTargetFailures } from './statedTarget.js';
 export {
   planSearchQueries,
   dropNearDuplicates,

@@ -8,7 +8,7 @@ export const chessPreset: CertifiedPresetBlueprint = {
     /chess\.com/i,
     /lichess/i,
     /rapid.*rating/i,
-    /elo/i,
+    /\belo\b/i,
     /tactics.*puzzle/i,
     /grandmaster/i,
     /blunder.*check/i,

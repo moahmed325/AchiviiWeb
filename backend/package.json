@@ -24,6 +24,7 @@
     "research:replay": "tsx scripts/research-fixture.ts replay",
     "research:velocity": "tsx scripts/research-fixture.ts velocity",
     "plan:from-research": "tsx scripts/plan-from-research.ts",
+    "eval:goals": "tsx scripts/eval-goals.ts",
     "ping:llm": "tsx scripts/ping-llm.ts"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "jsonrepair": "3.15.0",
     "prisma": "^6.4.1",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"

@@ -25,6 +25,39 @@ import {
   stripUnallowedUrls,
   type PlanGrounding,
 } from '../research/planGrounding.js';
+import { PLAN_RESPONSE_SCHEMA, WEEK_TASKS_RESPONSE_SCHEMA } from './planSchema.js';
+import { buildSpineFallbackPlan, buildSpineWeekTasks } from './spineFallbackPlan.js';
+import { repairWeekSchedule } from './scheduleRepair.js';
+
+/** Second attempt tells the model why the first answer was thrown out, and loosens temperature. */
+async function generateWithOneRetry<T, R>(
+  prompt: string,
+  systemInstruction: string,
+  responseSchema: Record<string, unknown>,
+  accept: (data: T) => { value: R } | { reason: string },
+  label: string
+): Promise<R | null> {
+  let rejection = '';
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const attemptPrompt = attempt === 0
+      ? prompt
+      : `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${rejection}\nReturn the complete JSON again with that problem fixed.`;
+    const result = await generateStructuredContent<T>(attemptPrompt, systemInstruction, undefined, {
+      responseSchema,
+      temperature: attempt === 0 ? 0 : 0.4,
+    });
+    if (!result.success || !result.data) {
+      rejection = result.error || 'no answer';
+      console.warn(`[GoalDecomposer] ${label} attempt ${attempt + 1} failed: ${rejection}`);
+      continue;
+    }
+    const verdict = accept(result.data);
+    if ('value' in verdict) return verdict.value;
+    rejection = verdict.reason;
+    console.warn(`[GoalDecomposer] ${label} attempt ${attempt + 1} rejected: ${rejection}`);
+  }
+  return null;
+}
 
 export interface GoalClarification {
   canonicalKey: string;
@@ -168,6 +201,8 @@ export interface PlanGenerationResult {
   methodologyNotes: string;
   weeks: RoadmapWeekPlan[];
   initialTasks: DailyTaskPlan[];
+  /** Set when the plan did not come from a model answer. */
+  planSource?: 'ai' | 'spine_fallback' | 'preset_fallback';
 }
 
 export interface CommitmentItem {
@@ -624,25 +659,45 @@ Respond with JSON matching schema:
 }
 `;
 
-  const result = await generateStructuredContent<PlanGenerationResult>(prompt, systemInstruction);
+  const grounded = hasUsableSpine(options?.grounding);
 
-  if (result.success && result.data && result.data.weeks?.length === 12 && result.data.initialTasks?.length === 7) {
-    const plan = result.data;
-    if (hasUsableSpine(options?.grounding)) {
-      plan.initialTasks = fillMissingStepLayers(plan.initialTasks);
-    }
-    if (validateStepLayers(plan.initialTasks)) {
-      if (hasUsableSpine(options?.grounding)) {
-        return stripUnallowedUrls(plan, options!.grounding!.allowedUrls);
+  const aiPlan = await generateWithOneRetry<PlanGenerationResult, PlanGenerationResult>(
+    prompt,
+    systemInstruction,
+    PLAN_RESPONSE_SCHEMA,
+    (plan) => {
+      if (plan.weeks?.length !== 12) return { reason: `"weeks" must have exactly 12 entries, got ${plan.weeks?.length ?? 0}.` };
+      if (plan.initialTasks?.length !== 7) {
+        return { reason: `"initialTasks" must have exactly 7 entries, got ${plan.initialTasks?.length ?? 0}.` };
       }
-      return plan;
-    }
+      if (grounded) plan.initialTasks = fillMissingStepLayers(plan.initialTasks);
+      if (!validateStepLayers(plan.initialTasks)) {
+        return { reason: 'Every step needs "layer" (mechanism | adherence | safety) and a non-empty "layerReasoning".' };
+      }
+      const schedule = repairWeekSchedule(plan.initialTasks, dailyMins, activeDaysTarget);
+      plan.initialTasks = schedule.tasks;
+      if (schedule.failures.length > 0) return { reason: schedule.failures.join(' ') };
+      return { value: grounded ? stripUnallowedUrls(plan, options!.grounding!.allowedUrls) : plan };
+    },
+    'Plan'
+  );
+  if (aiPlan) return { ...aiPlan, planSource: 'ai' };
+
+  if (preset) {
+    return { ...getDeterministicPresetPlan(preset, dailyMins, defaultSlotTime, startDate, planVariant), planSource: 'preset_fallback' };
   }
 
-  // Fallback: If it's a certified preset, return the pre-validated deterministic blueprint.
-  // For custom goals, do NOT fabricate a degraded plan — fail honestly and prompt user to retry.
-  if (preset) {
-    return getDeterministicPresetPlan(preset, dailyMins, defaultSlotTime, startDate, planVariant);
+  // Custom goal with sourced teachings: build the week from those, never from model memory.
+  if (grounded) {
+    console.warn('[GoalDecomposer] Plan writer failed twice; building plan from the researched spine.');
+    return buildSpineFallbackPlan({
+      grounding: options!.grounding!,
+      clarifiedOutcome,
+      dailyMins,
+      slotTime: defaultSlotTime,
+      startDate,
+      planVariant,
+    });
   }
 
   throw new Error('Unable to generate your 12-week plan right now. AI services are temporarily unavailable. Please retry.');
@@ -808,20 +863,43 @@ JSON Schema:
 }
 `;
 
-  const result = await generateStructuredContent<{ tasks: DailyTaskPlan[] }>(prompt, systemInstruction);
-
-  if (result.success && result.data && result.data.tasks?.length === 7) {
-    let tasks = result.data.tasks;
-    if (grounding) {
-      tasks = fillMissingStepLayers(tasks);
-      tasks = stripUnallowedUrls({ initialTasks: tasks }, grounding.allowedUrls).initialTasks ?? tasks;
-    }
-    if (validateStepLayers(tasks)) return tasks;
-  }
+  const aiTasks = await generateWithOneRetry<{ tasks: DailyTaskPlan[] }, DailyTaskPlan[]>(
+    prompt,
+    systemInstruction,
+    WEEK_TASKS_RESPONSE_SCHEMA,
+    (data) => {
+      if (data.tasks?.length !== 7) return { reason: `"tasks" must have exactly 7 entries, got ${data.tasks?.length ?? 0}.` };
+      let tasks = data.tasks;
+      if (grounding) {
+        tasks = fillMissingStepLayers(tasks);
+        tasks = stripUnallowedUrls({ initialTasks: tasks }, grounding.allowedUrls).initialTasks ?? tasks;
+      }
+      if (!validateStepLayers(tasks)) {
+        return { reason: 'Every step needs "layer" (mechanism | adherence | safety) and a non-empty "layerReasoning".' };
+      }
+      const schedule = repairWeekSchedule(tasks, dailyMins, activeDaysTarget);
+      if (schedule.failures.length > 0) return { reason: schedule.failures.join(' ') };
+      return { value: schedule.tasks };
+    },
+    `Week ${targetWeekNumber}`
+  );
+  if (aiTasks) return aiTasks;
 
   const preset = findPresetForGoal(goalTitle);
   if (preset) {
     return getDeterministicPresetTasks(preset, dailyMins, defaultSlotTime, weekStartDate, planVariant);
+  }
+
+  if (hasUsableSpine(grounding)) {
+    console.warn(`[GoalDecomposer] Week ${targetWeekNumber} writer failed twice; building it from the researched spine.`);
+    return buildSpineWeekTasks({
+      grounding: grounding!,
+      dailyMins,
+      slotTime: defaultSlotTime,
+      weekStartDate,
+      planVariant,
+      weekNumber: targetWeekNumber,
+    });
   }
 
   throw new Error('Unable to adapt upcoming week tasks right now. AI services are temporarily unavailable. Please retry.');

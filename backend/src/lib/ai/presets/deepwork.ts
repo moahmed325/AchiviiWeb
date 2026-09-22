@@ -3,16 +3,13 @@ import { CertifiedPresetBlueprint } from './types.js';
 export const deepWorkPreset: CertifiedPresetBlueprint = {
   id: 'deep_work_focus',
   matchingPatterns: [
-    /deep.*work/i,
-    /focus/i,
-    /productivity/i,
-    /double.*output/i,
-    /concentration/i,
-    /attention/i,
-    /distraction.*free/i,
-    /flow.*state/i,
-    /cognitive.*output/i,
-    /screen.*time/i
+    /\bdeep\s*work\b/i,
+    /\b(unbroken|daily)\s+focus\b/i,
+    /\bdouble\s+(my\s+|daily\s+)?output\b/i,
+    /\bdistraction[-\s]?free\b/i,
+    /\bflow\s+state\b/i,
+    /\bcognitive\s+output\b/i,
+    /\bscreen\s*time\b/i,
   ],
   title: 'Master Deep Work & Double Daily Cognitive Output',
   primaryDomain: 'Cognitive Performance & Deep Work Mastery',

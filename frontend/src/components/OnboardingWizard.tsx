@@ -36,7 +36,7 @@ import {
   Goal,
   CommitmentItem
 } from '../types';
-import { clarifyGoal, createGoalPlan } from '../lib/api';
+import { clarifyGoal, createGoalPlan, type PlanProgressEvent } from '../lib/api';
 import { CERTIFIED_PATHWAYS } from '../lib/certifiedPresets';
 
 interface PresetCommitment {
@@ -839,18 +839,16 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   };
 
   // Step 5 State (Plan Generation)
-  const [generationStage, setGenerationStage] = useState(0);
+  const [planSteps, setPlanSteps] = useState<PlanProgressEvent[]>([]);
   const [generationError, setGenerationError] = useState<string | null>(null);
 
   // Methodologies disclosure in Refine step
   const [showMethodologies, setShowMethodologies] = useState(false);
 
-  const generationStages = [
-    'Breaking your goal into 3 progressive phases...',
-    'Designing your weekly milestones...',
-    'Writing your first week of daily sessions...',
-    'Personalizing exercises for your level...',
-    'Finalizing your schedule...'
+  const PLAN_STEPS: Array<{ id: PlanProgressEvent['id']; pending: string }> = [
+    { id: 'search', pending: 'Search sources' },
+    { id: 'method', pending: 'Choose the method' },
+    { id: 'plan', pending: 'Write the first week' },
   ];
 
   // --------------------------------------------------------------------------
@@ -949,11 +947,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const handleGeneratePlan = async () => {
     setStep(5);
     setGenerationError(null);
-
-    // Progress animation
-    const interval = setInterval(() => {
-      setGenerationStage((prev) => (prev + 1) % generationStages.length);
-    }, 1800);
+    setPlanSteps([]);
 
     try {
       // Merge custom answers
@@ -973,10 +967,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           answers: finalizedAnswers,
           routine
         },
-        token
+        token,
+        (event) => {
+          setPlanSteps((prev) => [...prev.filter((step) => step.id !== event.id), event]);
+        }
       );
 
-      clearInterval(interval);
       const fullGoal: Goal = {
         ...response.goal,
         roadmapWeeks: response.roadmapWeeks || response.goal.roadmapWeeks || [],
@@ -984,7 +980,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       };
       onGoalCreated(fullGoal);
     } catch (err: any) {
-      clearInterval(interval);
       console.error(err);
       setGenerationError(err.message || 'Plan generation failed. Please try again.');
     }
@@ -2586,9 +2581,44 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <h2 className="text-xl sm:text-2xl font-bold text-white">
                   Building your plan...
                 </h2>
-                <p className="text-sm text-[#07CB6C] transition-all duration-300">
-                  {generationStages[generationStage]}
-                </p>
+                <ol className="max-w-md mx-auto text-left space-y-2 pt-2">
+                  {PLAN_STEPS.map((item, index) => {
+                    const seen = planSteps.find((step) => step.id === item.id);
+                    const active = planSteps[planSteps.length - 1]?.id === item.id;
+                    const done = Boolean(seen) && !active;
+                    return (
+                      <li
+                        key={item.id}
+                        className={`flex items-start gap-3 rounded-xl border px-3 py-2 ${
+                          active
+                            ? 'border-[#07CB6C]/50 bg-[#07CB6C]/10'
+                            : done
+                            ? 'border-[#1a2824] bg-[#0a120e]'
+                            : 'border-[#121c18] bg-[#050807] opacity-60'
+                        }`}
+                      >
+                        <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                          done || active ? 'bg-[#07CB6C] text-black' : 'bg-[#121a17] text-neutral-500'
+                        }`}>
+                          {done ? <Check className="h-3 w-3" /> : index + 1}
+                        </span>
+                        <span className="min-w-0">
+                          <span className={`block text-sm ${active ? 'text-white' : 'text-neutral-300'}`}>
+                            {seen?.label || item.pending}
+                          </span>
+                          {seen?.detail && (
+                            <span className="block text-[11px] text-neutral-500">{seen.detail}</span>
+                          )}
+                          {active && seen?.slow && (
+                            <span className="block text-[11px] text-amber-300">
+                              This is taking longer than usual. Still working ({Math.round(seen.elapsedMs / 1000)}s).
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
               </div>
             </>
           )}

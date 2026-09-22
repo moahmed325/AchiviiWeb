@@ -23,6 +23,9 @@ export interface PlanGrounding {
   assumptions?: string;
   allowedUrls: string[];
   velocityTable: VelocityTable | null;
+  /** Set when the model chose the method for this person. */
+  whyChosen?: string;
+  runnerUp?: { name: string; whyNot: string };
 }
 
 export function researchToGrounding(research: CanonResearchResult): PlanGrounding {
@@ -71,6 +74,11 @@ export function formatBasisBadge(input: {
     return { label: `Anchored to ${input.methodName!.trim()}${who}`, anchored: true };
   }
 
+  if (input.methodKind === 'model_recommended') {
+    const name = input.methodName?.trim();
+    const who = input.authority?.trim() ? ` (${input.authority.trim()})` : '';
+    return { label: name ? `Recommended method: ${name}${who}` : 'Recommended method for your answers', anchored: false };
+  }
   if (input.methodKind === 'shared_pattern') {
     return { label: 'Built from common practice — no single official method', anchored: false };
   }
@@ -102,9 +110,11 @@ export function formatSpineBlock(grounding: PlanGrounding): string {
       ? grounding.allowedUrls.map((url) => `- ${url}`).join('\n')
       : '(none — omit every resourceUrl)';
 
+  const why = grounding.whyChosen ? `Why this method for this user: ${grounding.whyChosen}\n` : '';
+
   return `
 ================================================================================
-RESEARCHED PLAN SPINE — mandatory grounding. Do not invent a different method.
+PLAN SPINE — mandatory grounding. Do not invent a different method.
 ================================================================================
 Kind: ${grounding.methodKind ?? 'technique'}
 Badge: ${grounding.methodConfidence}
@@ -112,7 +122,7 @@ Method label: ${grounding.methodName ?? '(none)'}
 Authority: ${grounding.authority ?? '(none — do not invent one)'}
 Primary source: ${grounding.sourceUrl ?? '(none)'}
 Who this was written for: ${grounding.assumptions ?? 'not stated — say so in methodologyNotes'}
-
+${why}
 Teachings the week-1 tasks MUST practise (use this wording, not generic advice):
 ${teachings}
 
@@ -141,7 +151,12 @@ export function formatMethodologyNotes(grounding: PlanGrounding): string {
   const basis = formatBasisBadge(grounding);
   const teachingLine = grounding.teachings.slice(0, 3).join(' ');
   const assumes = grounding.assumptions ? `Assumes ${grounding.assumptions}` : '';
-  return [basis?.label, assumes, teachingLine].filter(Boolean).join('. ').replace(/\.\./g, '.').trim();
+  const why = grounding.whyChosen ? `Why: ${grounding.whyChosen}` : '';
+  const runnerUp = grounding.runnerUp
+    ? `Runner-up: ${grounding.runnerUp.name}${grounding.runnerUp.whyNot ? `, ${grounding.runnerUp.whyNot}` : ''}`
+    : '';
+  const lines = grounding.whyChosen ? [basis?.label, why, runnerUp, assumes] : [basis?.label, assumes, teachingLine];
+  return lines.filter(Boolean).join('. ').replace(/\.\./g, '.').trim();
 }
 
 function isAllowedUrl(url: string | undefined, allowed: Set<string>): boolean {

@@ -3,15 +3,11 @@ import { CertifiedPresetBlueprint } from './types.js';
 export const bookPreset: CertifiedPresetBlueprint = {
   id: 'book_30k_words',
   matchingPatterns: [
-    /book/i,
-    /write.*book/i,
-    /30,?000.*word/i,
-    /novella/i,
-    /publish.*book/i,
-    /author/i,
-    /manuscript/i,
-    /non-?fiction/i,
-    /finish.*book/i
+    /\b(write|writing|publish|finish|draft)(ing|ed)?\s+(a\s+|my\s+)?(\w+\s+){0,3}book\b/i,
+    /\bnon-?fiction(\s+book)?\b/i,
+    /\b30,?000[\s-]*words?\b/i,
+    /\bnovella\b/i,
+    /\bmanuscript\b/i,
   ],
   title: 'Write and Polish a 30,000-Word Non-Fiction Book',
   primaryDomain: 'Creative Writing & Long-Form Authorship',

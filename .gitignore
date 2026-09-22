@@ -54,6 +54,8 @@ Thumbs.db
 # Testing & Coverage
 coverage/
 backend/test/fixtures/research/*.grounding.json
+backend/test/fixtures/research/eval-five.json
+backend/test/fixtures/eval-goals.json
 .nyc_output/
 
 # Python / Virtualenv (if applicable)
