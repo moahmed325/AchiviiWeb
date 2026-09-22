@@ -1,4 +1,5 @@
 import type { DailyTaskPlan, DetailedStep } from './goalDecomposer.js';
+import { enforceDrills, type Drill } from '../method/drills.js';
 
 export function restMinutesFor(dailyMins: number): number {
   return dailyMins < 15 ? 10 : 15;
@@ -74,8 +75,9 @@ function renumber(steps: DetailedStep[]): DetailedStep[] {
  * Fix the misses that don't need the model: a title without a number, a step without a dose or pass mark,
  * a missing baseline or retest. What's left after this (filler drills, setup on later days) goes back to the model.
  */
-export function polishWeekTasks(tasks: DailyTaskPlan[]): DailyTaskPlan[] {
-  const out = tasks.map((task) => ({ ...task, detailedSteps: (task.detailedSteps ?? []).map((step) => ({ ...step })) }));
+export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { drills?: Drill[]; week: number }): DailyTaskPlan[] {
+  const onLibrary = library?.drills?.length ? enforceDrills(tasks, library.drills, library.week) : tasks;
+  const out = onLibrary.map((task) => ({ ...task, detailedSteps: (task.detailedSteps ?? []).map((step) => ({ ...step })) }));
 
   for (const task of out) {
     const steps = task.detailedSteps;
@@ -89,6 +91,9 @@ export function polishWeekTasks(tasks: DailyTaskPlan[]): DailyTaskPlan[] {
     const vagueTitle = FILLER.test(task.title) || (VAGUE.test(task.title) && !hasNumber(task.title));
     const lead = steps.find((step) => !FILLER.test(step.title));
     if (vagueTitle && lead) task.title = task.isRestDay ? `Light practice: ${lead.title}` : lead.title;
+    if (task.isRestDay && VAGUE.test(task.title) && !hasNumber(task.title)) {
+      task.title = `${task.title} (${task.durationMinutes} min)`;
+    }
     if (!task.isRestDay && !hasNumber(task.title)) {
       const target = steps.map((step) => step.passMark).find((mark) => hasNumber(mark) && mark!.length <= 60);
       task.title = target ? `${task.title}: ${target.replace(/\.$/, '')}` : `${task.title} (${task.durationMinutes} min)`;
@@ -107,7 +112,7 @@ export function polishWeekTasks(tasks: DailyTaskPlan[]): DailyTaskPlan[] {
       measured.title = `Baseline test: ${measured.title}`;
       baseline = measured;
     } else if (takeMinutes(first.detailedSteps, TEST_MINUTES)) {
-      const drill = first.detailedSteps[0].title;
+      const drill = (first.detailedSteps.find((step) => !/warm[- ]?up/i.test(step.title)) ?? first.detailedSteps[0]).title;
       baseline = {
         stepNumber: 0,
         title: `Baseline test: ${drill}`,

@@ -41,6 +41,7 @@ model Goal {
   methodConfidence    String?   // "high_consensus" | "medium_consensus" | "first_principles"
   methodKind          String?   // "named_program" | "shared_pattern" | "technique" | "single_source"
   teachings           Json?     // concrete steps the weekly updater must stay on
+  drills              Json?     // ranked drill library every practice step is built from
   allowedUrls         Json?     // retrieved URLs; later weeks may not invent links
   velocityTable       Json?     // Week 1 -> Week 12 metric matrix, derived from research
   canonicalKey        String?   // hierarchical domain key, e.g. "lang.japanese.jlpt_n3"

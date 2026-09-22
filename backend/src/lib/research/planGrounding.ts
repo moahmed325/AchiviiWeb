@@ -1,4 +1,5 @@
 import type { CanonResearchResult, VelocityTable } from './types.js';
+import { formatDrillLibrary, type Drill } from '../method/drills.js';
 
 interface UrlBearingStep {
   resourceUrl?: string;
@@ -26,6 +27,8 @@ export interface PlanGrounding {
   /** Set when the model chose the method for this person. */
   whyChosen?: string;
   runnerUp?: { name: string; whyNot: string };
+  /** The method's best drills for this person, highest impact first. */
+  drills?: Drill[];
 }
 
 export function researchToGrounding(research: CanonResearchResult): PlanGrounding {
@@ -125,7 +128,7 @@ Who this was written for: ${grounding.assumptions ?? 'not stated — say so in m
 ${why}
 Teachings the week-1 tasks MUST practise (use this wording, not generic advice):
 ${teachings}
-
+${formatDrillLibrary(grounding.drills ?? [])}
 Numeric trajectory:
 ${numbers}
 

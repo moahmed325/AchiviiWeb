@@ -6,6 +6,7 @@ vi.mock('../src/lib/ai/gemini.js', () => ({
 
 import { pickMethod, type MethodPickResponse } from '../src/lib/method/pickMethod.js';
 import { formatBasisBadge, formatMethodologyNotes } from '../src/lib/research/planGrounding.js';
+import type { Drill } from '../src/lib/method/drills.js';
 
 const input = {
   rawGoal: 'Learn touch typing to 40 words per minute',
@@ -16,6 +17,26 @@ const input = {
 };
 
 const scores = (safety = 5, fitToUser = 4) => ({ adherence: 4, safety, fitToUser, evidence: 4, measurability: 5 });
+
+const drill = (name: string, stage: Drill['stage'], impact: number): Drill => ({
+  name,
+  moves: 'accuracy without looking',
+  impact,
+  stage,
+  dose: '3 rounds of 1 minute',
+  passMark: '95% accuracy on every round',
+  cue: 'Eyes on the screen.',
+  pitfall: 'Peeking at the keys.',
+});
+
+const DRILLS: Drill[] = [
+  drill('Home-row letter drills', 'foundation', 4),
+  drill('Covered-hands word drills', 'foundation', 5),
+  drill('Weak-key isolation', 'foundation', 3),
+  drill('Common-word bursts', 'build', 4),
+  drill('Sentence accuracy sprints', 'build', 3),
+  drill('Paragraph speed pushes', 'peak', 4),
+];
 
 function response(overrides: Partial<MethodPickResponse> = {}): MethodPickResponse {
   return {
@@ -34,6 +55,7 @@ function response(overrides: Partial<MethodPickResponse> = {}): MethodPickRespon
       'Drill the weakest keys for 5 minutes each session.',
       'Take one 1-minute test at the end to log speed.',
     ],
+    drills: DRILLS,
     assumptions: 'An adult at about 20 WPM who looks at the keys.',
     hasNumericDimension: true,
     week1Targets: [{ metric: 'typing speed', value: 20, unit: 'words per minute', direction: 'higher_is_harder' }],
@@ -106,6 +128,18 @@ describe('pickMethod', () => {
     const result = await pickMethod(input, generate);
     expect(result.ok).toBe(false);
     expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it('ranks the drill library and retries when it is too thin', async () => {
+    const thin = response({ drills: DRILLS.slice(0, 2) });
+    const generate = vi.fn().mockResolvedValueOnce(thin).mockResolvedValueOnce(response());
+    const result = await pickMethod(input, generate);
+
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(generate.mock.calls[1][0]).toMatch(/at least 6 drills/);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.grounding.drills?.[0].name).toBe('Covered-hands word drills');
   });
 
   it('allows goals with nothing to count', async () => {

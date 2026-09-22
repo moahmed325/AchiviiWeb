@@ -632,7 +632,7 @@ Respond with JSON matching schema:
       }
       const schedule = repairWeekSchedule(plan.initialTasks, dailyMins, activeDaysTarget);
       if (schedule.failures.length > 0) return { reason: schedule.failures.join(' ') };
-      plan.initialTasks = polishWeekTasks(schedule.tasks);
+      plan.initialTasks = polishWeekTasks(schedule.tasks, { drills: options?.grounding?.drills, week: 1 });
       const dull = taskQualityFailures(plan.initialTasks);
       if (dull.length > 0) {
         if (!lastAttempt) return { reason: dull.join(' ') };
@@ -830,7 +830,7 @@ JSON Schema:
       }
       const schedule = repairWeekSchedule(tasks, dailyMins, activeDaysTarget);
       if (schedule.failures.length > 0) return { reason: schedule.failures.join(' ') };
-      const polished = polishWeekTasks(schedule.tasks);
+      const polished = polishWeekTasks(schedule.tasks, { drills: grounding?.drills, week: targetWeekNumber });
       const dull = taskQualityFailures(polished);
       if (dull.length > 0) {
         if (!lastAttempt) return { reason: dull.join(' ') };

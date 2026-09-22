@@ -70,7 +70,8 @@ export async function generateGroqStructuredContent<T>(
   systemInstruction?: string,
   modelName: string = DEFAULT_GROQ_MODEL,
   retryCount: number = 0,
-  temperature: number = 0.0
+  temperature: number = 0.0,
+  responseSchema?: Record<string, unknown>
 ): Promise<GroqResult<T>> {
   const apiKey = getGroqApiKey();
   const startTime = Date.now();
@@ -98,11 +99,14 @@ export async function generateGroqStructuredContent<T>(
   // 12-week plans are large JSON; 25s aborted after Groq 429 waits.
   const timeoutId = setTimeout(() => controller.abort(), 90000);
 
-  const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
-  if (systemInstruction) {
-    messages.push({ role: 'system', content: systemInstruction });
-  }
-  messages.push({ role: 'user', content: prompt });
+  // Groq has no schema parameter for json_object mode, and rejects the request unless "json" appears in the messages.
+  const shape = responseSchema
+    ? `\n\nRespond with one JSON object that matches this JSON schema exactly:\n${JSON.stringify(responseSchema)}`
+    : '\n\nRespond with one JSON object.';
+  const messages: Array<{ role: 'system' | 'user'; content: string }> = [
+    { role: 'system', content: `${systemInstruction ?? ''}${shape}`.trim() },
+    { role: 'user', content: prompt },
+  ];
 
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -158,7 +162,7 @@ export async function generateGroqStructuredContent<T>(
         const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 250 : 1500;
         console.warn(`[Groq:RateLimit] 429 received. Waiting ${waitMs}ms before automatic retry (${retryCount + 1}/2)...`);
         await new Promise((r) => setTimeout(r, waitMs));
-        return generateGroqStructuredContent<T>(prompt, systemInstruction, modelName, retryCount + 1, temperature);
+        return generateGroqStructuredContent<T>(prompt, systemInstruction, modelName, retryCount + 1, temperature, responseSchema);
       }
 
       return {

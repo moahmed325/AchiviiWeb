@@ -16,6 +16,7 @@ import { generate12WeekPlanWithAI } from '../src/lib/ai/goalDecomposer.js';
 import { repairWeekSchedule } from '../src/lib/ai/scheduleRepair.js';
 import { taskQualityFailures } from '../src/lib/ai/taskRules.js';
 import { findPresetForGoal } from '../src/lib/ai/presets/index.js';
+import { MIN_DRILLS, offLibrarySteps } from '../src/lib/method/drills.js';
 import { extractStatedTargets, week12MeetsTarget } from '../src/lib/research/statedTarget.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,7 +26,7 @@ const OUT = path.resolve(__dirname, '../test/fixtures/eval-goals.json');
 const DAILY_MINUTES = 30;
 const ACTIVE_DAYS = 5;
 /** Goals run side by side. Raise with EVAL_CONCURRENCY if the Gemini quota allows. */
-const CONCURRENCY = Number(process.env.EVAL_CONCURRENCY) || 5;
+const CONCURRENCY = Number(process.env.EVAL_CONCURRENCY) || 3;
 
 const DEFAULT_ANSWERS = {
   'What is your current level?': 'Complete beginner, never tried it',
@@ -136,6 +137,8 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
     stated.length === 0 ||
     (Boolean(grounding.velocityTable) && stated.every((item) => week12MeetsTarget(grounding.velocityTable!, item)));
   const dull = taskQualityFailures(plan.initialTasks);
+  const drills = grounding.drills ?? [];
+  const offLibrary = offLibrarySteps(plan.initialTasks, drills);
   const badgeHonest = Boolean(badge) && badge!.anchored === false && !/anchored|certified/i.test(badge!.label);
 
   const checks = [
@@ -148,6 +151,11 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
     { name: 'target is in the numbers', pass: targetOk },
     { name: 'schedule rules hold', pass: schedule.failures.length === 0 },
     { name: 'tasks are actionable', pass: dull.length === 0, detail: dull.join(' | ') || undefined },
+    {
+      name: 'steps are library drills',
+      pass: drills.length >= MIN_DRILLS && offLibrary.length === 0,
+      detail: drills.length < MIN_DRILLS ? `only ${drills.length} drills` : offLibrary.join(' | ') || undefined,
+    },
     { name: 'stays custom', pass: true },
   ];
 
@@ -161,6 +169,7 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
     whyChosen: grounding.whyChosen,
     runnerUp: grounding.runnerUp ?? null,
     teachings: grounding.teachings,
+    drills: drills.map((drill) => `[${drill.stage} ${drill.impact}/5] ${drill.name}: ${drill.dose}`),
     assumptions: grounding.assumptions ?? null,
     velocity: grounding.velocityTable,
     week1: plan.initialTasks.map((task) => ({

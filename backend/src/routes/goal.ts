@@ -10,6 +10,7 @@ import {
 } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
 import { pickMethod } from '../lib/method/pickMethod.js';
+import { cleanDrills } from '../lib/method/drills.js';
 import {
   formatBasisBadge,
   formatMethodologyNotes,
@@ -70,6 +71,7 @@ function groundingFromGoal(goal: {
   canonicalAuthority?: string | null;
   canonicalSourceUrl?: string | null;
   teachings?: unknown;
+  drills?: unknown;
   allowedUrls?: unknown;
   velocityTable?: unknown;
 }): PlanGrounding | undefined {
@@ -81,6 +83,7 @@ function groundingFromGoal(goal: {
     authority: goal.canonicalAuthority ?? undefined,
     sourceUrl: goal.canonicalSourceUrl ?? undefined,
     teachings: asStringList(goal.teachings),
+    drills: cleanDrills(goal.drills),
     assumptions: undefined,
     allowedUrls: asStringList(goal.allowedUrls),
     velocityTable: clampedTable(goal.velocityTable, goal.id),
@@ -230,6 +233,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         methodConfidence: grounding?.methodConfidence ?? null,
         methodKind: grounding?.methodKind ?? null,
         teachings: grounding?.teachings?.length ? JSON.parse(JSON.stringify(grounding.teachings)) : undefined,
+        drills: grounding?.drills?.length ? JSON.parse(JSON.stringify(grounding.drills)) : undefined,
         allowedUrls: grounding?.allowedUrls?.length ? JSON.parse(JSON.stringify(grounding.allowedUrls)) : undefined,
         velocityTable: grounding?.velocityTable
           ? JSON.parse(JSON.stringify(grounding.velocityTable))

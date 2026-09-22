@@ -4,6 +4,7 @@ import { screenQuery } from '../research/safetyFilter.js';
 import { extractStatedTargets, statedTargetFailures } from '../research/statedTarget.js';
 import type { VelocityTable, VelocityTarget } from '../research/types.js';
 import { forceUserTargets, validateVelocityTable } from '../research/velocityTable.js';
+import { cleanDrills, DRILL_SCHEMA, drillLibraryFailures, type Drill } from './drills.js';
 
 export const FACTORS = ['adherence', 'safety', 'fitToUser', 'evidence', 'measurability'] as const;
 type Factor = (typeof FACTORS)[number];
@@ -27,6 +28,7 @@ export interface MethodPickResponse {
   runnerUpIndex: number;
   whyNotRunnerUp: string;
   teachings: string[];
+  drills: Drill[];
   assumptions: string;
   hasNumericDimension: boolean;
   week1Targets: VelocityTarget[];
@@ -64,8 +66,20 @@ Work in this order:
 4. Explain the choice in one or two sentences that cite the person's own answers.
 5. Name the runner-up and why it lost, in one sentence.
 6. Write 5 to 8 teachings: concrete drills, rules, or steps from the chosen method that a week of practice can follow. No motivation lines.
-7. State the starting point you assumed for this person.
-8. Give week 1 and week 12 numbers if the goal can be measured.
+7. Build the drill library: the 8 to 12 best drills of the chosen method for getting THIS person to the goal as fast
+   as possible. For each:
+   - "name": the exercise as a short action, 2 to 6 words ("Two-ball exchange", "Wall push-up negatives").
+   - "moves": which part of the goal it improves.
+   - "impact": 1 to 5, how much progress toward the week-12 target it buys per minute spent. Be strict: only the
+     drills the method's best coaches build everything around get a 5.
+   - "stage": "foundation" (weeks 1-4), "build" (weeks 5-8), or "peak" (weeks 9-12). At least 3 foundation drills,
+     and foundation drills must be doable at this person's current level.
+   - "dose": the first-week dose with numbers (sets, reps, seconds, words, pages, or minutes).
+   - "passMark": the measurable standard that counts it as done.
+   - "cue": the one thing to get right. "pitfall": the most common mistake at this level.
+   No warm-ups, reading, videos, journaling, or app setup: every drill is practice that moves the goal.
+8. State the starting point you assumed for this person.
+9. Give week 1 and week 12 numbers if the goal can be measured.
 
 NAMES:
 - You may name a program or its creator only if it is well known and you are sure it exists (e.g. "Couch to 5K").
@@ -118,6 +132,7 @@ export const METHOD_PICK_SCHEMA = {
     runnerUpIndex: { type: 'integer' },
     whyNotRunnerUp: { type: 'string' },
     teachings: { type: 'array', items: { type: 'string' } },
+    drills: { type: 'array', items: DRILL_SCHEMA },
     assumptions: { type: 'string' },
     hasNumericDimension: { type: 'boolean' },
     week1Targets: { type: 'array', items: targetSchema },
@@ -131,6 +146,7 @@ export const METHOD_PICK_SCHEMA = {
     'runnerUpIndex',
     'whyNotRunnerUp',
     'teachings',
+    'drills',
     'assumptions',
     'hasNumericDimension',
     'week1Targets',
@@ -210,6 +226,7 @@ export function checkMethodPick(response: MethodPickResponse, goalText: string):
   if (cleanTeachings(response.teachings).length < MIN_TEACHINGS) {
     methodFailures.push(`Give at least ${MIN_TEACHINGS} concrete teachings.`);
   }
+  methodFailures.push(...drillLibraryFailures(cleanDrills(response.drills)));
 
   const targets = extractStatedTargets(goalText);
   const table = tableFrom(response);
@@ -235,6 +252,7 @@ export function groundingFromPick(response: MethodPickResponse, table: VelocityT
     methodName: cleanText(chosen?.name),
     authority: cleanText(chosen?.creator) || undefined,
     teachings: cleanTeachings(response.teachings),
+    drills: cleanDrills(response.drills),
     assumptions: cleanText(response.assumptions) || undefined,
     allowedUrls: [],
     velocityTable: table,

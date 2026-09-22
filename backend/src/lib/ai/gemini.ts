@@ -94,7 +94,8 @@ export async function generateStructuredContent<T>(
         systemInstruction,
         groqModel,
         0,
-        options.temperature ?? 0
+        options.temperature ?? 0,
+        options.responseSchema
       );
       if (groqResult.success && groqResult.data) {
         return {
