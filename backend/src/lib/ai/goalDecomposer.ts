@@ -28,13 +28,15 @@ import {
 import { PLAN_RESPONSE_SCHEMA, WEEK_TASKS_RESPONSE_SCHEMA } from './planSchema.js';
 import { buildSpineFallbackPlan, buildSpineWeekTasks } from './spineFallbackPlan.js';
 import { repairWeekSchedule } from './scheduleRepair.js';
+import { polishWeekTasks, taskQualityFailures, taskRulesBlock } from './taskRules.js';
 
 /** Second attempt tells the model why the first answer was thrown out, and loosens temperature. */
 async function generateWithOneRetry<T, R>(
   prompt: string,
   systemInstruction: string,
   responseSchema: Record<string, unknown>,
-  accept: (data: T) => { value: R } | { reason: string },
+  /** `lastAttempt` lets soft checks (task quality) give way so the user still gets a plan. */
+  accept: (data: T, lastAttempt: boolean) => { value: R } | { reason: string },
   label: string
 ): Promise<R | null> {
   let rejection = '';
@@ -51,7 +53,7 @@ async function generateWithOneRetry<T, R>(
       console.warn(`[GoalDecomposer] ${label} attempt ${attempt + 1} failed: ${rejection}`);
       continue;
     }
-    const verdict = accept(result.data);
+    const verdict = accept(result.data, attempt === 1);
     if ('value' in verdict) return verdict.value;
     rejection = verdict.reason;
     console.warn(`[GoalDecomposer] ${label} attempt ${attempt + 1} rejected: ${rejection}`);
@@ -136,49 +138,15 @@ export interface DetailedStep {
   instructions: string;
   focusCue: string;
   pitfallToAvoid: string;
-  layer: TaskLayerType;
-  layerReasoning: string;
+  /** The measurable standard that counts the step as done. */
+  passMark?: string;
+  layer?: TaskLayerType;
+  layerReasoning?: string;
   challenge?: StepChallenge;
   resourceTitle?: string;
   resourceUrl?: string;
   resourceType?: 'youtube_video' | 'documentation' | 'scientific_study' | 'interactive_tool' | 'guide';
   resourceWhy?: string;
-}
-
-/** Fills layer metadata the model sometimes omits so a researched plan is not thrown away. */
-export function fillMissingStepLayers(tasks: DailyTaskPlan[]): DailyTaskPlan[] {
-  return tasks.map((task) => ({
-    ...task,
-    detailedSteps: (task.detailedSteps ?? []).map((step) => ({
-      ...step,
-      layer: VALID_TASK_LAYERS.includes(step.layer) ? step.layer : 'adherence',
-      layerReasoning:
-        step.layerReasoning && step.layerReasoning.trim()
-          ? step.layerReasoning
-          : 'How this skill is practised, taken from the researched sources.',
-    })),
-  }));
-}
-
-export function validateStepLayers(tasks: DailyTaskPlan[]): boolean {
-  for (const task of tasks) {
-    if (!task.detailedSteps || !Array.isArray(task.detailedSteps)) continue;
-    for (const step of task.detailedSteps) {
-      if (!step.layer || !VALID_TASK_LAYERS.includes(step.layer)) {
-        console.error(
-          `[GoalDecomposer] Validation Error: Missing or invalid layer '${(step as any).layer}' on Day ${task.dayNumber} step ${step.stepNumber} ("${step.title}")`
-        );
-        return false;
-      }
-      if (!step.layerReasoning || typeof step.layerReasoning !== 'string' || !step.layerReasoning.trim()) {
-        console.error(
-          `[GoalDecomposer] Validation Error: Missing or empty layerReasoning on Day ${task.dayNumber} step ${step.stepNumber} ("${step.title}")`
-        );
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 export interface DailyTaskPlan {
@@ -374,15 +342,9 @@ You follow:
 - Milestone Gates: Week 4, Week 8, and Week 12 are hard-gate milestone checkpoints.
 - Plan Variant Pacing: Obey the selected track (${planVariant}: ${activeDaysTarget} active days, ${restDaysTarget} rest days).
 - The 2-Day Rule: User MUST NEVER have 2 consecutive rest days.
-- Wonderwall-level Task Precision: Every single day's task must have an implementation intention, explicit micro-drills with timing, focus cues, failure pitfalls, and curated learning resources.
+- Every task is real practice that moves the user toward the goal: a drill with a dose and a pass mark. No filler.
 
-THREE EVIDENCE LAYERS & CONFLICT RULE:
-For every single step you generate, you must classify it under exactly one evidence layer:
-- 'mechanism': grounded in established science/research for this domain
-- 'adherence': grounded in what real people who succeeded at similar goals actually did in practice, even if it's not the theoretically optimal approach
-- 'safety': grounded in how professionals/practitioners in this domain sequence things to prevent injury, burnout, or wasted effort
-
-CONFLICT RULE: When the scientifically optimal approach and the most commonly-succeeded-with real-world approach differ for a given step, default to the adherence-favoring version during Weeks 1-8 (Foundation and Acceleration phases). Introduce the more optimal/science-favoring version starting Week 9 (Mastery phase), once the habit is established. Safety/professional guidance always overrides both other layers with no exceptions — never generate a step a professional in this domain would consider unsafe or poorly sequenced, even if it's scientifically optimal or socially popular.`;
+When the most effective version of a drill and the version people stick with differ, use the one people stick with in Weeks 1-8 and the more demanding one from Week 9. Safety always wins: never write a step a coach in this domain would call unsafe or badly sequenced.`;
 
   const answersFormatted = Object.entries(answers)
     .map(([q, a]) => `- ${q}: ${a}`)
@@ -563,19 +525,18 @@ Required Output:
 1. "methodologyNotes": Concise 2-sentence summary of the scientific curriculum strategy.
 2. "weeks": Exactly 12 weeks:
    - Weeks 1 to 4: phase = "Foundation" (targetIntensity: 60-70)
-     * Week 4 keyMilestone MUST be: "Phase 1 Foundation Milestone Gate: Mechanics & Posture Diagnostic"
+     * Week 4 keyMilestone starts "Phase 1 Foundation Milestone Gate: " then the exact test and number to hit.
    - Weeks 5 to 8: phase = "Acceleration" (targetIntensity: 75-85)
-     * Week 8 keyMilestone MUST be: "Phase 2 Acceleration Milestone Gate: Tempo & Fluency Benchmark"
+     * Week 8 keyMilestone starts "Phase 2 Acceleration Milestone Gate: " then the exact test and number to hit.
    - Weeks 9 to 12: phase = "Mastery" (targetIntensity: 90-100)
-     * Week 12 keyMilestone MUST be: "Phase 3 Mastery Capstone Verification & Final Proof of Achievement"
+     * Week 12 keyMilestone starts "Phase 3 Mastery Capstone: " then the final test, which proves the goal itself.
    Each week must have: weekNumber (1-12), phase, theme, objective, keyMilestone, targetIntensity, plannedMinutes (${dailyMins}).
+   "theme" names what gets practised that week. "objective" states the number to reach by the end of it.
 3. "initialTasks": Exactly 7 daily tasks for Week 1 (Days 1 to 7).
    - Day 1 is ${startDate.toLocaleDateString('en-US', { weekday: 'long' })}.
    - Design exactly ${activeDaysTarget} active deliberate practice days, and ${restDaysTarget} rest days (conforming to the ${planVariant} track).
    - STRICT CONSTRAINT: Never schedule 2 rest days consecutively (The 2-Day Rule).
-    - If isRestDay is true, title should be "Active Recovery & Reflection", durationMinutes should be 10 or 15, and detailedSteps should guide low-friction mental review.
-    - Active days must have 3-4 detailedSteps with exact stepNumber, title, durationMinutes (summing to ${dailyMins}), instructions, focusCue, pitfallToAvoid, layer, layerReasoning, and challenge.
-    - For 'layerReasoning', be specific — name the actual research finding, real-world pattern, or professional practice (e.g. 'Based on spaced retrieval research for motor memory consolidation' or 'Mirrors how most self-taught players stay motivated by playing a recognizable riff early' or 'Trainers front-load this to prevent wrist strain before increasing tempo'). Never write a generic filler reasoning like 'this is proven to help.'
+${taskRulesBlock(dailyMins)}
     - "implementationIntention": formatted as "When: [TIME] | Where: [ENVIRONMENT] | Action: [EXACT ACTION]"
     - MANDATORY REQUIREMENT — DYNAMIC INTERACTIVE CHALLENGE SPECIFIC TO THE ACTIVITY DOMAIN:
       For EVERY step, generate an appropriate "challenge" object based on the domain nature of the task:
@@ -587,8 +548,8 @@ Required Output:
         "challenge": { "type": "checklist", "items": [{ "id": "c1", "label": "..." }, { "id": "c2", "label": "..." }] }
       * For creative or problem-solving exercises:
         "challenge": { "type": "exercise", "prompt": "...", "targetDeliverable": "...", "evaluationCriteria": "..." }
-    - MANDATORY REQUIREMENT — BEST RESOURCE SPECIFIC TO EVERY INDIVIDUAL SUB-TASK / STEP:
-      For EVERY single step in detailedSteps, provide resourceTitle, resourceType, resourceWhy.
+    - RESOURCES: add resourceTitle, resourceType, resourceWhy only when one specific, well-known video, book, or tool
+      genuinely helps that step. Otherwise leave them out.
       ${
         hasUsableSpine(options?.grounding)
           ? 'resourceUrl may be set ONLY if it appears in the allowed URL list in the researched spine. If none fits, omit resourceUrl.'
@@ -632,8 +593,7 @@ Respond with JSON matching schema:
           "instructions": string,
           "focusCue": string,
           "pitfallToAvoid": string,
-          "layer": "mechanism" | "adherence" | "safety",
-          "layerReasoning": string,
+          "passMark": string,
           "challenge": {
             "type": "repetitions" | "active_recall" | "checklist" | "exercise",
             "drillName"?: string,
@@ -648,10 +608,10 @@ Respond with JSON matching schema:
             "targetDeliverable"?: string,
             "evaluationCriteria"?: string
           },
-          "resourceTitle": string,
-          "resourceUrl": string,
-          "resourceType": "youtube_video" | "documentation" | "scientific_study" | "interactive_tool" | "guide",
-          "resourceWhy": string
+          "resourceTitle"?: string,
+          "resourceUrl"?: string,
+          "resourceType"?: "youtube_video" | "documentation" | "scientific_study" | "interactive_tool" | "guide",
+          "resourceWhy"?: string
         }
       ]
     }
@@ -665,18 +625,19 @@ Respond with JSON matching schema:
     prompt,
     systemInstruction,
     PLAN_RESPONSE_SCHEMA,
-    (plan) => {
+    (plan, lastAttempt) => {
       if (plan.weeks?.length !== 12) return { reason: `"weeks" must have exactly 12 entries, got ${plan.weeks?.length ?? 0}.` };
       if (plan.initialTasks?.length !== 7) {
         return { reason: `"initialTasks" must have exactly 7 entries, got ${plan.initialTasks?.length ?? 0}.` };
       }
-      if (grounded) plan.initialTasks = fillMissingStepLayers(plan.initialTasks);
-      if (!validateStepLayers(plan.initialTasks)) {
-        return { reason: 'Every step needs "layer" (mechanism | adherence | safety) and a non-empty "layerReasoning".' };
-      }
       const schedule = repairWeekSchedule(plan.initialTasks, dailyMins, activeDaysTarget);
-      plan.initialTasks = schedule.tasks;
       if (schedule.failures.length > 0) return { reason: schedule.failures.join(' ') };
+      plan.initialTasks = polishWeekTasks(schedule.tasks);
+      const dull = taskQualityFailures(plan.initialTasks);
+      if (dull.length > 0) {
+        if (!lastAttempt) return { reason: dull.join(' ') };
+        console.warn(`[GoalDecomposer] Plan kept with weak tasks: ${dull.join(' | ')}`);
+      }
       return { value: grounded ? stripUnallowedUrls(plan, options!.grounding!.allowedUrls) : plan };
     },
     'Plan'
@@ -764,15 +725,10 @@ STRICT GROUNDING & ANTI-HALLUCINATION RULES:
        : `- For "youtube_video", use high-precision search query URL format (e.g. https://www.youtube.com/results?search_query=[topic+drill+tutorial]) to guarantee 100% working links without broken video IDs.
    - For documentation or scientific studies, use canonical verified base domains (e.g., wikipedia.org, pubmed.ncbi.nlm.nih.gov, developer.mozilla.org, etc.).`
    }
-6. STAY ON THE METHOD: if a researched spine is provided, de-load or advance inside that method and its numbers. Do not switch to a different program or generic advice.
+6. STAY ON THE METHOD: if a plan spine is provided, de-load or advance inside that method and its numbers. Do not switch to a different program or generic advice.
+7. Every task is real practice that moves the user toward the goal: a drill with a dose and a pass mark. No filler.
 
-THREE EVIDENCE LAYERS & CONFLICT RULE:
-For every single step you generate, you must classify it under exactly one evidence layer:
-- 'mechanism': grounded in established science/research for this domain
-- 'adherence': grounded in what real people who succeeded at similar goals actually did in practice, even if it's not the theoretically optimal approach
-- 'safety': grounded in how professionals/practitioners in this domain sequence things to prevent injury, burnout, or wasted effort
-
-CONFLICT RULE: When the scientifically optimal approach and the most commonly-succeeded-with real-world approach differ for a given step, default to the adherence-favoring version during Weeks 1-8 (Foundation and Acceleration phases). Introduce the more optimal/science-favoring version starting Week 9 (Mastery phase), once the habit is established. Safety/professional guidance always overrides both other layers with no exceptions — never generate a step a professional in this domain would consider unsafe or poorly sequenced, even if it's scientifically optimal or socially popular.`;
+When the most effective version of a drill and the version people stick with differ, use the one people stick with in Weeks 1-8 and the more demanding one from Week 9. Safety always wins: never write a step a coach in this domain would call unsafe or badly sequenced.`;
 
   const previousTasksFormatted = previousWeekTasks.length > 0
     ? previousWeekTasks.map(t => {
@@ -807,10 +763,10 @@ Generate exactly 7 daily tasks for Week ${targetWeekNumber} (Days ${(targetWeekN
 Ensure exactly ${activeDaysTarget} active deliberate practice days and ${restDaysTarget} rest days conforming to "${planVariant}" and the 2-Day Rule.
 Ensure seamless continuity from the execution audit above. Explicitly bridge any unmastered skills or user notes into the first 2 active days before escalating difficulty.
 
-Active days must have 3-4 detailedSteps with exact stepNumber, title, durationMinutes (summing to ${dailyMins}), instructions, focusCue, pitfallToAvoid, layer, layerReasoning, challenge, and curated resources.
-For 'layerReasoning', be specific — name the actual research finding, real-world pattern, or professional practice. Never write a generic filler reasoning like 'this is proven to help.'
+${taskRulesBlock(dailyMins)}
+The baseline test on the first practice day re-measures where last week ended; set this week's targets from it.
 
-MANDATORY: For EVERY single step in detailedSteps, provide resourceTitle, resourceType, and resourceWhy.
+RESOURCES: add resourceTitle, resourceType, resourceWhy only when one specific, well-known video, book, or tool genuinely helps that step.
 ${
   grounding
     ? 'Set resourceUrl only when it is copied from the allowed URL list. Otherwise omit resourceUrl.'
@@ -836,8 +792,7 @@ JSON Schema:
           "instructions": string,
           "focusCue": string,
           "pitfallToAvoid": string,
-          "layer": "mechanism" | "adherence" | "safety",
-          "layerReasoning": string,
+          "passMark": string,
           "challenge": {
             "type": "repetitions" | "active_recall" | "checklist" | "exercise",
             "drillName"?: string,
@@ -852,10 +807,10 @@ JSON Schema:
             "targetDeliverable"?: string,
             "evaluationCriteria"?: string
           },
-          "resourceTitle": string,
-          "resourceUrl": string,
-          "resourceType": "youtube_video" | "documentation" | "scientific_study" | "interactive_tool" | "guide",
-          "resourceWhy": string
+          "resourceTitle"?: string,
+          "resourceUrl"?: string,
+          "resourceType"?: "youtube_video" | "documentation" | "scientific_study" | "interactive_tool" | "guide",
+          "resourceWhy"?: string
         }
       ]
     }
@@ -867,19 +822,21 @@ JSON Schema:
     prompt,
     systemInstruction,
     WEEK_TASKS_RESPONSE_SCHEMA,
-    (data) => {
+    (data, lastAttempt) => {
       if (data.tasks?.length !== 7) return { reason: `"tasks" must have exactly 7 entries, got ${data.tasks?.length ?? 0}.` };
       let tasks = data.tasks;
       if (grounding) {
-        tasks = fillMissingStepLayers(tasks);
         tasks = stripUnallowedUrls({ initialTasks: tasks }, grounding.allowedUrls).initialTasks ?? tasks;
-      }
-      if (!validateStepLayers(tasks)) {
-        return { reason: 'Every step needs "layer" (mechanism | adherence | safety) and a non-empty "layerReasoning".' };
       }
       const schedule = repairWeekSchedule(tasks, dailyMins, activeDaysTarget);
       if (schedule.failures.length > 0) return { reason: schedule.failures.join(' ') };
-      return { value: schedule.tasks };
+      const polished = polishWeekTasks(schedule.tasks);
+      const dull = taskQualityFailures(polished);
+      if (dull.length > 0) {
+        if (!lastAttempt) return { reason: dull.join(' ') };
+        console.warn(`[GoalDecomposer] Week ${targetWeekNumber} kept with weak tasks: ${dull.join(' | ')}`);
+      }
+      return { value: polished };
     },
     `Week ${targetWeekNumber}`
   );

@@ -14,6 +14,7 @@ import { formatBasisBadge } from '../src/lib/research/planGrounding.js';
 import { applySafetyClamps } from '../src/lib/research/safetyClamps.js';
 import { generate12WeekPlanWithAI } from '../src/lib/ai/goalDecomposer.js';
 import { repairWeekSchedule } from '../src/lib/ai/scheduleRepair.js';
+import { taskQualityFailures } from '../src/lib/ai/taskRules.js';
 import { findPresetForGoal } from '../src/lib/ai/presets/index.js';
 import { extractStatedTargets, week12MeetsTarget } from '../src/lib/research/statedTarget.js';
 
@@ -23,6 +24,8 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 const OUT = path.resolve(__dirname, '../test/fixtures/eval-goals.json');
 const DAILY_MINUTES = 30;
 const ACTIVE_DAYS = 5;
+/** Goals run side by side. Raise with EVAL_CONCURRENCY if the Gemini quota allows. */
+const CONCURRENCY = Number(process.env.EVAL_CONCURRENCY) || 5;
 
 const DEFAULT_ANSWERS = {
   'What is your current level?': 'Complete beginner, never tried it',
@@ -132,6 +135,7 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
   const targetOk =
     stated.length === 0 ||
     (Boolean(grounding.velocityTable) && stated.every((item) => week12MeetsTarget(grounding.velocityTable!, item)));
+  const dull = taskQualityFailures(plan.initialTasks);
   const badgeHonest = Boolean(badge) && badge!.anchored === false && !/anchored|certified/i.test(badge!.label);
 
   const checks = [
@@ -143,6 +147,7 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
     { name: 'reason cites the user', pass: reasonIsPersonal(grounding.whyChosen, answers) },
     { name: 'target is in the numbers', pass: targetOk },
     { name: 'schedule rules hold', pass: schedule.failures.length === 0 },
+    { name: 'tasks are actionable', pass: dull.length === 0, detail: dull.join(' | ') || undefined },
     { name: 'stays custom', pass: true },
   ];
 
@@ -158,7 +163,17 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
     teachings: grounding.teachings,
     assumptions: grounding.assumptions ?? null,
     velocity: grounding.velocityTable,
-    week1: plan.initialTasks.map((task) => ({ day: task.dayNumber, rest: task.isRestDay, title: task.title })),
+    week1: plan.initialTasks.map((task) => ({
+      day: task.dayNumber,
+      rest: task.isRestDay,
+      title: task.title,
+      steps: (task.detailedSteps ?? []).map((step) => ({
+        title: step.title,
+        minutes: step.durationMinutes,
+        instructions: step.instructions,
+        passMark: step.passMark ?? null,
+      })),
+    })),
     checks,
     pass: checks.every((check) => check.pass),
   };
@@ -166,21 +181,30 @@ async function runOne(goal: string, expect: RegExp, mustStayCustom = false, answ
 
 async function main() {
   const filter = process.argv[2]?.toLowerCase();
-  const reports = [];
-  for (const item of GOALS.filter((entry) => !filter || entry.goal.toLowerCase().includes(filter))) {
-    console.log(`\n[eval] START ${item.goal}`);
-    try {
-      const report = await runOne(item.goal, item.expect, item.mustStayCustom, item.answers);
-      reports.push(report);
-      const failed = report.checks.filter((check) => !check.pass).map((check) => check.name);
-      console.log(
-        `[eval] DONE ${item.goal} pass=${report.pass} method=${(report as any).methodName ?? '?'} source=${(report as any).planSource ?? '?'} failed=${failed.join(', ') || 'none'}`
-      );
-    } catch (err: any) {
-      reports.push({ goal: item.goal, error: err?.message || String(err) });
-      console.error(`[eval] FAIL ${item.goal}: ${err?.message || err}`);
+  const items = GOALS.filter((entry) => !filter || entry.goal.toLowerCase().includes(filter));
+  const reports: any[] = new Array(items.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < items.length) {
+      const index = next++;
+      const item = items[index];
+      console.log(`[eval] START ${item.goal}`);
+      try {
+        const report = await runOne(item.goal, item.expect, item.mustStayCustom, item.answers);
+        reports[index] = report;
+        const failed = report.checks.filter((check) => !check.pass).map((check) => check.name);
+        console.log(
+          `[eval] DONE ${item.goal} pass=${report.pass} method=${(report as any).methodName ?? '?'} source=${(report as any).planSource ?? '?'} failed=${failed.join(', ') || 'none'}`
+        );
+      } catch (err: any) {
+        reports[index] = { goal: item.goal, error: err?.message || String(err) };
+        console.error(`[eval] FAIL ${item.goal}: ${err?.message || err}`);
+      }
     }
   }
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker));
 
   await fs.writeFile(OUT, JSON.stringify(reports, null, 2));
   console.log(`\n[eval] WROTE ${OUT}`);
