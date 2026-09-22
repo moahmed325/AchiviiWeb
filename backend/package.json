@@ -19,7 +19,10 @@
     "verify:pgvector": "tsx scripts/verify-pgvector.ts",
     "test:tavily": "tsx scripts/test-tavily.ts",
     "test:groq": "tsx scripts/test-groq-stage1.ts",
-    "demo:cache": "tsx scripts/demo-phase2-cache.ts"
+    "demo:cache": "tsx scripts/demo-phase2-cache.ts",
+    "research:capture": "tsx scripts/research-fixture.ts capture",
+    "research:replay": "tsx scripts/research-fixture.ts replay",
+    "research:velocity": "tsx scripts/research-fixture.ts velocity"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

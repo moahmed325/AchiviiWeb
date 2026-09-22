@@ -17,7 +17,6 @@ import {
 } from './presets/index.js';
 import {
   resolveResearchCache,
-  saveResearchCacheEntry,
   CacheResolutionResult
 } from '../cache/researchCache.js';
 
@@ -879,7 +878,6 @@ export interface Stage1PipelineResult {
 }
 
 export interface ResolveStage1Options {
-  autoPopulateStubOnMiss?: boolean;
   skipPartB?: boolean;
 }
 
@@ -889,8 +887,10 @@ export interface ResolveStage1Options {
  * - Part B (Tier 0): If skipPartB is not set, checks raw input match first. On hit, bypasses LLM & embeddings entirely.
  * - Stage 1 LLM: If raw check misses, runs clarifyGoalWithAI.
  * - Part A (Tier 1): Checks exact normalized canonicalKey match (with alias expansion & leaf token sorting).
- * - Tier 2: In-memory cosine similarity fallback (threshold 0.88) on outcomeEmbedding.
- * For Phase 2, if autoPopulateStubOnMiss is true, a stub cache entry is stored on miss.
+ * - Tier 2: pgvector cosine similarity fallback (threshold 0.88) on outcomeEmbedding.
+ *
+ * A miss returns no canonicalMethod. Writing one is Stage 7's job (Phase 5), and only
+ * after Stage 2/3 have produced real researched grounding.
  */
 export async function resolveStage1WithCache(
   rawGoal: string,
@@ -963,27 +963,6 @@ export async function resolveStage1WithCache(
       cacheEntry: cacheResult.entry,
       crossDomain: cacheResult.crossDomain,
     };
-  }
-
-  // A degraded miss is not evidence that the goal is unresearched, so writing a new entry
-  // would risk duplicating an existing one under a second key.
-  if (options?.autoPopulateStubOnMiss && !cacheResult.degraded) {
-    const stubMethod = {
-      methodName: `Canonical Method for ${clarification.primaryDomain}`,
-      authority: 'Grounded Practitioner Consensus',
-      sourceUrl: 'https://example.com/canonical-method',
-      confidence: 'medium_consensus',
-      velocityTable: null,
-      rawFindings: { note: 'Stub cache entry for Phase 2 testing' },
-      cachedClarification: clarification,
-    };
-    await saveResearchCacheEntry({
-      canonicalKey: clarification.canonicalKey,
-      clarifiedOutcome: clarification.clarifiedOutcome,
-      canonicalMethod: stubMethod,
-      rawGoal,
-      cachedClarification: clarification,
-    });
   }
 
   return {

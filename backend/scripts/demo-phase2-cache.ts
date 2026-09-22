@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prisma } from '../src/lib/prisma.js';
 import { resolveStage1WithCache } from '../src/lib/ai/goalDecomposer.js';
-import { normalizeCanonicalKey } from '../src/lib/cache/researchCache.js';
+import { normalizeCanonicalKey, saveResearchCacheEntry } from '../src/lib/cache/researchCache.js';
 import { getTavilyCallCount, resetTavilyCallCount } from '../src/lib/tavily.js';
 import {
   getLlmCallCount,
@@ -52,7 +52,22 @@ async function runDemo() {
   console.log(`   Goal: "${customGoal1}"`);
   console.log('----------------------------------------------------------------');
 
-  const sub1 = await resolveStage1WithCache(customGoal1, { autoPopulateStubOnMiss: true });
+  const sub1 = await resolveStage1WithCache(customGoal1);
+
+  // This demo exercises the cache layer in isolation, before Stage 2/3 exist to fill it.
+  // The seed is written here, in the demo, rather than by the library: a miss must never
+  // cause production code to invent a methodName or authority it did not research.
+  await saveResearchCacheEntry({
+    canonicalKey: sub1.clarification.canonicalKey,
+    clarifiedOutcome: sub1.clarification.clarifiedOutcome,
+    canonicalMethod: {
+      demoSeed: true,
+      note: 'Demo-only seed. Stage 7 writes the real researched entry from Phase 5 onward.',
+      velocityTable: null,
+    },
+    rawGoal: customGoal1,
+    cachedClarification: sub1.clarification,
+  });
 
   console.log(`✅ Clarified Outcome: "${sub1.clarification.clarifiedOutcome}"`);
   console.log(`🏷️ Canonical Key:      "${sub1.clarification.canonicalKey}"`);

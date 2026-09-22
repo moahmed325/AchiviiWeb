@@ -1,0 +1,181 @@
+# Best Possible Roadmap
+
+**Mission:** for any custom goal, find the best method we can honestly back, then build the user’s 12-week roadmap from that method.
+
+This file is the working plan from here on. `golden-rail-pipeline-spec.md` is still useful for *rules we must not break*. `phase-prompts.md` and the old Phase 1–7 list in `TODO.md` are history. Do not follow them as the build order.
+
+---
+
+## The one belief
+
+For almost any goal, someone has already written it down — an article, a book, a course, a Wikipedia page, a YouTube video, a champion interview. Our job is to **find the best of that**, and **turn it into a plan**.
+
+We do not invent a guru.  
+We do not give the user nothing.  
+We do not call something “the official method” unless the pages actually support that.
+
+“Best method we found” means: the strongest path that real sources support **in this search**. It is not a human coach. It is much better than a plan invented from the model’s memory.
+
+---
+
+## What we keep from Golden Rail
+
+These rules stay. They are how we stay honest.
+
+1. **Search for real pages.** Do not let the model invent a method from memory.
+2. **Never invent a name, a coach, or a link.** Every name and URL must come from a page we actually retrieved.
+3. **Check agreement in code**, not by trusting the model’s word.
+4. **Unsafe advice gets cut or capped** (crash diets, fake “guaranteed returns”, dangerous training loads). Safety beats “the source said so.”
+5. **Tell the user the basis.** If we found a named program, say so. If we built from a shared technique, say that. Never show a gold badge we did not earn.
+6. **Remember research** so the same goal is not researched from scratch every time.
+7. **Stay on that method** when the weekly plan updates. Do not drift back to generic advice.
+
+---
+
+## Where we are right now
+
+**What a real user gets today:** the old one-shot plan. Research is not plugged into `routes/goal.ts`. Creating a custom goal does not use any of this yet.
+
+**What already works (in code, not in the app):**
+
+- Tavily search + page download
+- Cache tables and similarity matching (not wired)
+- A research engine that can find a named method when one is famous (example: MBSR / Jon Kabat-Zinn)
+- Number extraction from real page text, after we strip menus
+- Tests and a replay tool so we can tune without spending search credits every time
+
+**What is wrong with that engine for this mission:**
+
+- Search wording is weak. It invents organisations (“World Stone Skipping Association”) and uses words like “weekly milestones” that match the wrong topic (kids learning to hop).
+- If it cannot name a famous method, it often **stops**. That is the opposite of this mission.
+- YouTube and similar were treated as junk. For many goals, a good video *is* the best source. We should **read** it. We should not give it a fake “certified expert” badge by itself.
+- 10K numbers came from **one article**, then we either treated them as “the method” or threw the whole plan away. Neither is right.
+- The 12-week writer still invents days. Research never reaches the tasks.
+
+Until those are fixed, we cannot claim we give the best roadmap.
+
+---
+
+## How we pick “the best method we found”
+
+After search, we always choose **one spine** for the plan. We never leave empty-handed if we retrieved any on-topic page.
+
+| What the pages show | Spine we use | What we tell the user |
+|---|---|---|
+| Several independent sites name the same program | That program (e.g. MBSR) | “Anchored to MBSR (Jon Kabat-Zinn)” |
+| Many plans, same shape, no single name | The shared pattern (e.g. 4 runs / week, easy + speed + long run) | “Built from common practice — no single official method” |
+| A technique, no curriculum | That technique + a practice ladder | “No official program. Built from these sources” |
+| Only one decent page or video | That source, used carefully | “Based on this source — thin evidence” |
+
+**Numbers rule:** prefer a figure that **more than one page** supports. A number from one page may be used only if we say which page it came from. Never present one article’s schedule as “what all experts agree.”
+
+**Source rule:** articles, institution pages, books, and videos all count as evidence. Open-publishing junk (random social posts, SEO listicles that sell a crash diet) still does not. A video can teach the method. It cannot, alone, earn the high “anchored to” badge.
+
+---
+
+## New phases
+
+Do these in order. Each phase has a user-facing test. Do not start the next phase until that test passes.
+
+### Phase 1 — Search so we actually find the method
+
+**Goal:** for any goal, the searches return the real pages and videos about *that* skill.
+
+- [x] Query 1: the goal in plain words. No person, no club, no invented body.
+- [x] Query 2: how people get better (technique / training / how-to).
+- [x] Query 3: a plan or timeline, but **keep the skill words** in the query so “skipping” cannot mean hopscotch.
+- [x] Never search for an organisation the model just invented.
+- [x] Still download useful pages even if we do not yet have two “official” sites. Wikipedia, a how-to, a champion interview, a strong video — read them.
+
+**Test (live, 2026-09-22):**
+
+1. Meditation — on-topic: Harvard, Johns Hopkins, mindful.org, Washington. Queries named no invented club. (These pages talk mindfulness, not always the MBSR brand — that is a Phase 2 spine job.)
+2. 10K under 50 — real 10K plans only (Run Motion, Marathon Handbook, Active, Still I Run). No ACSM gym-generic pages.
+3. Stone skipping — Wikipedia, Kurt Steiner / Outside, stoneskipping.com, physics write-up. No child-development “learn to skip.” Pages were downloaded (was 0 extracts before).
+
+---
+
+### Phase 2 — Always leave research with a spine
+
+**Goal:** research never returns “nothing.” It returns the best method we found, plus the facts the plan will use.
+
+The spine must include:
+
+- `methodKind`: `named_program` | `shared_pattern` | `technique` | `single_source`
+- `methodName` only if a real name appears on the pages (else a plain label like “stone skipping technique”)
+- `authority` only if a real person/body appears (else empty)
+- `sourceUrls`: only URLs we retrieved
+- `teachings`: the actual steps / rules the sources agree on (e.g. “flat stone, spin, ~20° entry”)
+- `velocityTable` when numbers exist and pass the sanity check
+- `assumptions`: who this advice was written for
+- `confidence`: honest level, matching the table above
+
+**Test:** the same three goals each produce a spine a plan-writer could follow. Stone skipping must have teachings. 10K must have a pattern and numbers we can source. Meditation must keep the named program.
+
+---
+
+### Phase 3 — Write the 12-week roadmap from the spine
+
+**Goal:** this is the mission. The user sees a plan built from the method, not from memory.
+
+- Plug research + cache into the real goal route.
+- The 12-week writer **must** use the spine: terminology, teachings, numbers, milestone order.
+- Links on tasks may only be URLs we retrieved. No invented links.
+- If the user’s starting point is known, scale the spine. If not, use `assumptions` and say so.
+- Certified presets stay as they are (already hand-grounded). This path is for custom goals.
+
+**Test:** create three custom goals in the app (or the closest real API path). Open the week-1 tasks.
+
+1. Meditation tasks talk about MBSR / 8-week structure / daily sit — not generic “be mindful.”
+2. 10K tasks follow the shared running pattern and sourced numbers — not a random invented mileage.
+3. Stone skipping tasks practice the real technique (stone choice, spin, angle) — not “go outside and have fun.”
+4. Every link on those tasks opens a page we actually found.
+
+Until this phase passes, we have not delivered the mission.
+
+---
+
+### Phase 4 — Keep the plan safe and honest
+
+**Goal:** the best roadmap is still a safe one, and the user knows what it is based on.
+
+- Hard caps in code (running jump per week, calorie deficit range, no max-lift heroics in weeks 1–3). Run on fresh research **and** cache hits.
+- Show the basis on the goal: named program / common practice / technique / thin evidence. Never a gold badge on thin evidence.
+- Weekly updates stay inside the same method and numbers.
+
+**Test:** feed an unsafe number — it is capped, not passed through. A stone-skipping goal never shows “Anchored to a certified method.” An MBSR goal may.
+
+---
+
+### Phase 5 — Remember, stay fast enough, then improve
+
+**Goal:** the second user with the same goal gets the same researched spine quickly. The first user can watch progress instead of a dead spinner.
+
+- Write the spine to the research cache after a successful miss.
+- Cache hits still pass safety caps (rules can change after the row was written).
+- Show search → method → plan as live steps.
+- Measure real time. If it is slow, say so in the UI. Fix Groq waiting if it blocks the mission.
+
+**Test:** same goal twice → second time uses cache, no new Tavily spend, plan still matches the spine. First-time wait has a live stepper. Write down the real times.
+
+---
+
+## What “done” means
+
+A stranger can type any custom goal and get:
+
+1. A 12-week roadmap they can follow this week.
+2. A method we can point to in real sources (program, pattern, technique, or one careful source).
+3. An honest sentence about how sure we are.
+4. No fake coach. No fake link. No dangerous number.
+
+That is the product. Everything else is support.
+
+---
+
+## How to work this file
+
+- One phase at a time.
+- Live search is required for Phase 1 and 2 tests (VPN on). Use `research:capture` / `research:replay` so we do not burn credits while tuning.
+- If a phase test fails, fix that phase. Do not “make up for it” in a later prompt.
+- When a phase is done, tick it in this file and say what the three test goals produced.
