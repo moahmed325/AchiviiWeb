@@ -27,6 +27,14 @@ export {
 export { corroborateMethod, mentionsPhrase, mentionsAuthority } from './corroboration.js';
 
 export { buildPlanSpine } from './spine.js';
+export {
+  researchToGrounding,
+  hasUsableSpine,
+  formatSpineBlock,
+  formatMethodologyNotes,
+  stripUnallowedUrls,
+} from './planGrounding.js';
+export type { PlanGrounding } from './planGrounding.js';
 
 /**
  * Research plus numbers. The spine from Stage 2 is never thrown away because numbers

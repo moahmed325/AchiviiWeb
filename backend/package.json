@@ -22,7 +22,9 @@
     "demo:cache": "tsx scripts/demo-phase2-cache.ts",
     "research:capture": "tsx scripts/research-fixture.ts capture",
     "research:replay": "tsx scripts/research-fixture.ts replay",
-    "research:velocity": "tsx scripts/research-fixture.ts velocity"
+    "research:velocity": "tsx scripts/research-fixture.ts velocity",
+    "plan:from-research": "tsx scripts/plan-from-research.ts",
+    "ping:llm": "tsx scripts/ping-llm.ts"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

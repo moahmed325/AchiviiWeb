@@ -8,6 +8,14 @@ import {
   UserRoutineInput,
   PreviousWeekTaskSummary
 } from '../lib/ai/goalDecomposer.js';
+import { findPresetForGoal } from '../lib/ai/presets/index.js';
+import { researchGoal } from '../lib/research/index.js';
+import {
+  formatMethodologyNotes,
+  hasUsableSpine,
+  researchToGrounding,
+  type PlanGrounding,
+} from '../lib/research/planGrounding.js';
 
 export const goalRouter = Router();
 
@@ -64,13 +72,28 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       commitments: routine?.commitments || []
     };
 
-    // Generate 12-week roadmap and Week 1 detailed tasks with Gemini
+    // Certified presets are already grounded. Custom goals research a spine first.
+    let grounding: PlanGrounding | undefined;
+    const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
+    if (!preset) {
+      const research = await researchGoal(clarifiedOutcome);
+      grounding = researchToGrounding(research);
+      if (!hasUsableSpine(grounding)) {
+        res.status(503).json({
+          error:
+            'Could not find enough real sources to build this plan. Please retry in a moment.',
+        });
+        return;
+      }
+    }
+
     const planResult = await generate12WeekPlanWithAI(
       rawGoal,
       clarifiedOutcome,
       answers || {},
       routineInput,
-      start
+      start,
+      { grounding }
     );
 
     // Archive any currently active goals for this user
@@ -85,13 +108,23 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         userId: user.id,
         rawGoal,
         clarifiedOutcome: planResult.clarifiedOutcome || clarifiedOutcome,
-        methodologyNotes: planResult.methodologyNotes || '',
+        methodologyNotes: hasUsableSpine(grounding)
+          ? formatMethodologyNotes(grounding!)
+          : planResult.methodologyNotes || '',
         status: 'active',
         startDate: start,
         targetDate,
         currentWeek: 1,
         answers: JSON.stringify(answers || {}),
         routine: JSON.stringify(routineInput),
+        isGoldenRail: hasUsableSpine(grounding),
+        canonicalMethodName: grounding?.methodName ?? null,
+        canonicalAuthority: grounding?.authority ?? null,
+        canonicalSourceUrl: grounding?.sourceUrl ?? null,
+        methodConfidence: grounding?.methodConfidence ?? null,
+        velocityTable: grounding?.velocityTable
+          ? JSON.parse(JSON.stringify(grounding.velocityTable))
+          : undefined,
       }
     });
 

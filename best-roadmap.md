@@ -34,25 +34,19 @@ These rules stay. They are how we stay honest.
 
 ## Where we are right now
 
-**What a real user gets today:** the old one-shot plan. Research is not plugged into `routes/goal.ts`. Creating a custom goal does not use any of this yet.
+**What a real user gets today:** certified presets unchanged. A custom goal now researches a spine, writes the 12-week plan from that spine, and strips any link we did not retrieve. Cache **write** is still Phase 5.
 
-**What already works (in code, not in the app):**
+**What already works:**
 
-- Tavily search + page download
-- Cache tables and similarity matching (not wired)
-- A research engine that can find a named method when one is famous (example: MBSR / Jon Kabat-Zinn)
-- Number extraction from real page text, after we strip menus
-- Tests and a replay tool so we can tune without spending search credits every time
+- Tavily search + page download + replay fixtures
+- Spine kinds: named program / shared pattern / technique / single source
+- Goal create route: `researchGoal` → plan writer → golden-rail fields
+- Gemini is the primary LLM (`gemini-3.5-flash-lite`). Groq is fallback only; a daily-limit 429 skips Groq instead of blocking the request.
 
-**What is wrong with that engine for this mission:**
+**Still not done:**
 
-- Search wording is weak. It invents organisations (“World Stone Skipping Association”) and uses words like “weekly milestones” that match the wrong topic (kids learning to hop).
-- If it cannot name a famous method, it often **stops**. That is the opposite of this mission.
-- YouTube and similar were treated as junk. For many goals, a good video *is* the best source. We should **read** it. We should not give it a fake “certified expert” badge by itself.
-- 10K numbers came from **one article**, then we either treated them as “the method” or threw the whole plan away. Neither is right.
-- The 12-week writer still invents days. Research never reaches the tasks.
-
-Until those are fixed, we cannot claim we give the best roadmap.
+- Safety caps and the honest badge on the goal screen (Phase 4)
+- Cache write + live stepper (Phase 5)
 
 ---
 
@@ -120,20 +114,20 @@ Do these in order. Each phase has a user-facing test. Do not start the next phas
 
 **Goal:** this is the mission. The user sees a plan built from the method, not from memory.
 
-- Plug research + cache into the real goal route.
-- The 12-week writer **must** use the spine: terminology, teachings, numbers, milestone order.
-- Links on tasks may only be URLs we retrieved. No invented links.
-- If the user’s starting point is known, scale the spine. If not, use `assumptions` and say so.
-- Certified presets stay as they are (already hand-grounded). This path is for custom goals.
+- [x] Plug research into the real goal route (`POST /api/goal/create`). Cache write stays Phase 5.
+- [x] The 12-week writer must use the spine: terminology, teachings, numbers, milestone order.
+- [x] Links on tasks may only be URLs we retrieved. No invented links.
+- [x] If the user’s starting point is known, scale the spine. If not, use `assumptions` and say so.
+- [x] Certified presets stay as they are (already hand-grounded). This path is for custom goals.
 
-**Test:** create three custom goals in the app (or the closest real API path). Open the week-1 tasks.
+**Test (replay fixtures + live plan writer, 2026-09-22):** `npm run plan:from-research -- "<goal>"`
 
-1. Meditation tasks talk about MBSR / 8-week structure / daily sit — not generic “be mindful.”
-2. 10K tasks follow the shared running pattern and sourced numbers — not a random invented mileage.
-3. Stone skipping tasks practice the real technique (stone choice, spin, angle) — not “go outside and have fun.”
-4. Every link on those tasks opens a page we actually found.
+1. Meditation — sit / breath / no-judgment / 15–30 min daily. These pages still do not agree on the MBSR brand, so week 1 does not stamp MBSR. 22 links, 0 illegal.
+2. 10K under 50 — that phrasing matches the certified VDOT preset (unchanged). Forced research path: 4 days/week, easy + long run, 12-week build, 5:00/km. 0 illegal links.
+3. Stone skipping — stone 3–5", grip, spin, ~20° entry. 19 links, 0 illegal.
+4. Every link was on the retrieved allowlist.
 
-Until this phase passes, we have not delivered the mission.
+Closest API path: `backend/scripts/plan-from-research.ts` (same research → `generate12WeekPlanWithAI` as the create route).
 
 ---
 

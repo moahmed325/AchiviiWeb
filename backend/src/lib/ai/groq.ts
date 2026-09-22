@@ -20,6 +20,7 @@ export interface GroqResult<T = string> {
 export const DEFAULT_GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
 let groqCallCounter = 0;
+let groqUnavailableUntil = 0;
 
 export function getGroqCallCount(): number {
   return groqCallCounter;
@@ -27,6 +28,22 @@ export function getGroqCallCount(): number {
 
 export function resetGroqCallCount(): void {
   groqCallCounter = 0;
+}
+
+export function isGroqDailyLimitError(error?: string): boolean {
+  return Boolean(error && /tokens per day|\bTPD\b/i.test(error));
+}
+
+export function isGroqUnavailable(): boolean {
+  return Date.now() < groqUnavailableUntil;
+}
+
+export function markGroqUnavailable(ms = 30 * 60 * 1000): void {
+  groqUnavailableUntil = Date.now() + ms;
+}
+
+export function resetGroqAvailability(): void {
+  groqUnavailableUntil = 0;
 }
 
 export function getGroqApiKey(): string | null {
@@ -38,7 +55,7 @@ export function getGroqApiKey(): string | null {
 }
 
 /**
- * Generates structured JSON from Groq using llama-3.3-70b-versatile with response_format: { type: "json_object" }.
+ * Generates structured JSON from Groq using openai/gpt-oss-120b with response_format: { type: "json_object" }.
  */
 export async function generateGroqStructuredContent<T>(
   prompt: string,
@@ -58,9 +75,19 @@ export async function generateGroqStructuredContent<T>(
     };
   }
 
+  if (isGroqUnavailable()) {
+    return {
+      success: false,
+      data: null,
+      isFallback: true,
+      error: 'Groq daily token limit reached — skipped until cooldown ends',
+    };
+  }
+
   groqCallCounter++;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  // 12-week plans are large JSON; 25s aborted after Groq 429 waits.
+  const timeoutId = setTimeout(() => controller.abort(), 90000);
 
   const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
   if (systemInstruction) {
@@ -94,7 +121,18 @@ export async function generateGroqStructuredContent<T>(
         errorMsg = parsed.error?.message || errorText;
       } catch {}
 
-      // Handle transient TPM 429 rate limits with automatic retry
+      if (response.status === 429 && isGroqDailyLimitError(errorMsg)) {
+        markGroqUnavailable();
+        return {
+          success: false,
+          data: null,
+          error: `Groq API error (${response.status}): ${errorMsg}`,
+          usage: { durationMs },
+          isFallback: true,
+        };
+      }
+
+      // Retry only short TPM waits.
       if (response.status === 429 && retryCount < 2) {
         const waitMatch = errorMsg.match(/try again in ([0-9.]+)s/);
         const waitMs = waitMatch ? Math.ceil(parseFloat(waitMatch[1]) * 1000) + 250 : 1500;
@@ -132,7 +170,7 @@ export async function generateGroqStructuredContent<T>(
     return {
       success: false,
       data: null,
-      error: err.name === 'AbortError' ? 'Groq request timed out after 25s' : err.message,
+      error: err.name === 'AbortError' ? 'Groq request timed out after 90s' : err.message,
       usage: { durationMs },
       isFallback: true,
     };
@@ -142,7 +180,7 @@ export async function generateGroqStructuredContent<T>(
 }
 
 /**
- * Generates natural language text from Groq using llama-3.3-70b-versatile.
+ * Generates natural language text from Groq using openai/gpt-oss-120b.
  */
 export async function generateGroqTextContent(
   prompt: string,

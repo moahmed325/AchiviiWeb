@@ -19,6 +19,12 @@ import {
   resolveResearchCache,
   CacheResolutionResult
 } from '../cache/researchCache.js';
+import {
+  formatSpineBlock,
+  hasUsableSpine,
+  stripUnallowedUrls,
+  type PlanGrounding,
+} from '../research/planGrounding.js';
 
 export interface GoalClarification {
   canonicalKey: string;
@@ -104,6 +110,21 @@ export interface DetailedStep {
   resourceUrl?: string;
   resourceType?: 'youtube_video' | 'documentation' | 'scientific_study' | 'interactive_tool' | 'guide';
   resourceWhy?: string;
+}
+
+/** Fills layer metadata the model sometimes omits so a researched plan is not thrown away. */
+export function fillMissingStepLayers(tasks: DailyTaskPlan[]): DailyTaskPlan[] {
+  return tasks.map((task) => ({
+    ...task,
+    detailedSteps: (task.detailedSteps ?? []).map((step) => ({
+      ...step,
+      layer: VALID_TASK_LAYERS.includes(step.layer) ? step.layer : 'adherence',
+      layerReasoning:
+        step.layerReasoning && step.layerReasoning.trim()
+          ? step.layerReasoning
+          : 'How this skill is practised, taken from the researched sources.',
+    })),
+  }));
 }
 
 export function validateStepLayers(tasks: DailyTaskPlan[]): boolean {
@@ -286,12 +307,17 @@ JSON schema:
  * Step 2: Generate the 12-week strategic roadmap and Week 1 daily tasks.
  * Scheduled around the user's routine with "Wonderwall-level" precision.
  */
+export interface GeneratePlanOptions {
+  grounding?: PlanGrounding;
+}
+
 export async function generate12WeekPlanWithAI(
   rawGoal: string,
   clarifiedOutcome: string,
   answers: Record<string, string>,
   routine: UserRoutineInput,
-  startDate: Date = new Date()
+  startDate: Date = new Date(),
+  options?: GeneratePlanOptions
 ): Promise<PlanGenerationResult> {
   const dailyMins = routine.dailyMinutes || 60;
   const preferredSlot = routine.preferredSlot || 'evening';
@@ -478,7 +504,10 @@ For "initialTasks" (Week 1), generate 7 daily tasks based on the verified workou
 `;
   }
 
-  const prompt = `${presetEnforcementPrompt}Goal: "${rawGoal}"
+  const spineBlock =
+    !preset && hasUsableSpine(options?.grounding) ? formatSpineBlock(options!.grounding!) : '';
+
+  const prompt = `${presetEnforcementPrompt}${spineBlock}Goal: "${rawGoal}"
 Refined Outcome: "${clarifiedOutcome}"
 User Diagnostic Answers:
 ${answersFormatted || 'None provided'}
@@ -524,13 +553,17 @@ Required Output:
       * For creative or problem-solving exercises:
         "challenge": { "type": "exercise", "prompt": "...", "targetDeliverable": "...", "evaluationCriteria": "..." }
     - MANDATORY REQUIREMENT — BEST RESOURCE SPECIFIC TO EVERY INDIVIDUAL SUB-TASK / STEP:
-      For EVERY single step in detailedSteps, you MUST provide the single best, most effective resource format:
+      For EVERY single step in detailedSteps, provide resourceTitle, resourceType, resourceWhy.
+      ${
+        hasUsableSpine(options?.grounding)
+          ? 'resourceUrl may be set ONLY if it appears in the allowed URL list in the researched spine. If none fits, omit resourceUrl.'
+          : `Include a resourceUrl. Preferred formats:
       * "youtube_video" for visual/motor/audio demonstrations
       * "documentation" for official technical documentation or installation guides
       * "scientific_study" for deliberate practice research or physiology studies
       * "interactive_tool" for online sandboxes, metronomes, or simulators
-      * "guide" for comprehensive step-by-step guides
-      Each step must include: resourceTitle, resourceUrl, resourceType, resourceWhy.
+      * "guide" for comprehensive step-by-step guides`
+      }
 
 Respond with JSON matching schema:
 {
@@ -593,14 +626,17 @@ Respond with JSON matching schema:
 
   const result = await generateStructuredContent<PlanGenerationResult>(prompt, systemInstruction);
 
-  if (
-    result.success &&
-    result.data &&
-    result.data.weeks?.length === 12 &&
-    result.data.initialTasks?.length === 7 &&
-    validateStepLayers(result.data.initialTasks)
-  ) {
-    return result.data;
+  if (result.success && result.data && result.data.weeks?.length === 12 && result.data.initialTasks?.length === 7) {
+    const plan = result.data;
+    if (hasUsableSpine(options?.grounding)) {
+      plan.initialTasks = fillMissingStepLayers(plan.initialTasks);
+    }
+    if (validateStepLayers(plan.initialTasks)) {
+      if (hasUsableSpine(options?.grounding)) {
+        return stripUnallowedUrls(plan, options!.grounding!.allowedUrls);
+      }
+      return plan;
+    }
   }
 
   // Fallback: If it's a certified preset, return the pre-validated deterministic blueprint.
