@@ -13,6 +13,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    // The workspace has more than one React install; libraries must share the app's copy or hooks break.
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     port: 5173,

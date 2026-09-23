@@ -1,32 +1,131 @@
 @import "tailwindcss";
 
 @theme {
-  /* ZeBeyond Engineering Platform Tokens */
-  --color-canvas: #050807;
-  --color-canvas-subtle: #080d0b;
-  --color-surface: #0c1210;
-  --color-surface-elevated: #111a17;
-  --color-surface-hover: #16221e;
-  
-  --color-border-subtle: #1a2824;
-  --color-border-hairline: rgba(7, 203, 108, 0.15);
-  
-  --color-accent-mint: #07CB6C;
-  --color-accent-mint-hover: #06b560;
-  --color-accent-mint-subtle: rgba(7, 203, 108, 0.08);
-  --color-accent-mint-border: rgba(7, 203, 108, 0.25);
-  
-  --color-warning-amber: #f59e0b;
-  --color-warning-amber-subtle: rgba(245, 158, 11, 0.08);
-  --color-warning-amber-border: rgba(245, 158, 11, 0.25);
+  /* ------------------------------------------------------------
+     Achivii role tokens (docs/visual-design-system.md, Design.md).
+     Named by role, never by colour: a rebrand changes only this block.
+     ------------------------------------------------------------ */
+  --color-background: #0B0B0A;
+  --color-surface: #141413;
+  --color-surface-elevated: #1C1C1A;
+  --color-surface-inverse: #F1EFE8;
+  --color-scrim: rgba(6, 6, 5, 0.72);
 
+  --color-text: #F5F3EC;
+  --color-text-secondary: #A7A59E;
+  /* 3.8:1 on background: large text, placeholders and decoration only, never micro text */
+  --color-text-muted: #6F6D67;
+  --color-text-on-inverse: #0B0B0A;
+
+  --color-accent: #7FA58B;
+  --color-accent-hover: #A8C8A9;
+  /* Accent for text, icons and focus rings on surface-inverse; 5.3:1 */
+  --color-accent-on-inverse: #3F6B4E;
+  --color-achievement: #C8A96B;
+  --color-caution: #D9A05B;
+  --color-danger: #E0897A;
+
+  --color-border: rgba(245, 243, 236, 0.08);
+  --color-border-strong: rgba(245, 243, 236, 0.16);
+  /* Boundaries that identify a control (inputs, checkboxes, radios): at least 3:1 on every dark surface */
+  --color-border-control: rgba(245, 243, 236, 0.38);
+
+  --font-ui: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-ui-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Type scale (VDS §5). Each step carries its own line height, tracking and weight. */
+  --text-display: clamp(3rem, 7.4vw, 6.25rem);
+  --text-display--line-height: 0.95;
+  --text-display--letter-spacing: -0.045em;
+  --text-display--font-weight: 600;
+  --text-h1: clamp(2.25rem, 1.6rem + 2.4vw, 4rem);
+  --text-h1--line-height: 1.02;
+  --text-h1--letter-spacing: -0.04em;
+  --text-h1--font-weight: 600;
+  --text-h2: clamp(1.75rem, 1.4rem + 1.2vw, 2.75rem);
+  --text-h2--line-height: 1.08;
+  --text-h2--letter-spacing: -0.03em;
+  --text-h2--font-weight: 600;
+  --text-h3: clamp(1.25rem, 1.1rem + 0.5vw, 1.625rem);
+  --text-h3--line-height: 1.2;
+  --text-h3--letter-spacing: -0.02em;
+  --text-h3--font-weight: 500;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.6;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.5;
+  --text-micro: 0.75rem;
+  --text-micro--line-height: 1.35;
+  --text-micro--letter-spacing: 0.16em;
+  /* Large numbers as visual objects: 27 / 90, 73% */
+  --text-numeral: clamp(4rem, 2rem + 8vw, 9rem);
+  --text-numeral--line-height: 0.82;
+  --text-numeral--letter-spacing: -0.06em;
+  --text-numeral--font-weight: 600;
+
+  --spacing-gutter: clamp(1.25rem, 0.75rem + 2.5vw, 3rem);
+  --spacing-section: clamp(6rem, 3rem + 9vw, 11rem);
+
+  /* VDS §23: block = architectural cards, control = inputs, card = app cards, panel = marketing panels and dialogs */
+  --radius-block: 4px;
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-panel: 14px;
+
+  --shadow-raised: inset 0 1px 0 0 rgba(245, 243, 236, 0.04), 0 18px 40px -24px rgba(0, 0, 0, 0.7);
+  --shadow-overlay: inset 0 1px 0 0 rgba(245, 243, 236, 0.05), 0 40px 90px -30px rgba(0, 0, 0, 0.85);
+
+  --ease-ascend: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-settle: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --animate-overlay-in: overlay-in 240ms var(--ease-settle) both;
+  --animate-overlay-out: overlay-out 180ms ease-in both;
+  --animate-dialog-in: dialog-in 320ms var(--ease-ascend) both;
+  --animate-dialog-out: dialog-out 160ms ease-in both;
+  --animate-sheet-in: sheet-in 420ms var(--ease-settle) both;
+  --animate-sheet-out: sheet-out 240ms ease-in both;
+
+  @keyframes overlay-in {
+    from { opacity: 0; }
+  }
+  @keyframes overlay-out {
+    to { opacity: 0; }
+  }
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.985); }
+  }
+  @keyframes dialog-out {
+    to { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.99); }
+  }
+  @keyframes sheet-in {
+    from { transform: translate3d(0, 100%, 0); }
+  }
+  @keyframes sheet-out {
+    to { transform: translate3d(0, 100%, 0); }
+  }
+
+  /* ------------------------------------------------------------
+     Legacy, still read by unmigrated screens (ND-1). Removed as
+     those screens migrate, and finally in Phase 12.
+     ------------------------------------------------------------ */
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Strict anti-slop radii cap: maximum rounded-md (0.375rem) */
+  /* Caps rounded-xl/2xl/3xl at 0.375rem for OnboardingWizard and FocusSessionModal. New code uses the named radii above. */
   --radius-xl: 0.375rem;
   --radius-2xl: 0.375rem;
   --radius-3xl: 0.375rem;
+}
+
+@layer base {
+  :root {
+    --duration-quick: 160ms;
+    --duration-base: 280ms;
+    --duration-slow: 700ms;
+    --duration-reveal: 1100ms;
+  }
 }
 
 @layer base {
@@ -90,39 +189,6 @@
   }
 }
 
-/* Structured Surface Panel - solid obsidian, no glassmorphism */
-.glass-panel,
-.surface-panel {
-  background-color: #0c1210;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: 1px solid #1a2824;
-  border-radius: 0.375rem; /* rounded-md */
-  box-shadow: none;
-}
-
-/* Clean accent text */
-.gradient-text {
-  color: #07CB6C;
-  background: none;
-  -webkit-background-clip: unset;
-  -webkit-text-fill-color: unset;
-  font-weight: 800;
-}
-
-/* Hairline border utilities */
-.border-hairline {
-  border-color: #1a2824;
-}
-
-.border-hairline-mint {
-  border-color: rgba(7, 203, 108, 0.25);
-}
-
-.border-hairline-amber {
-  border-color: rgba(245, 158, 11, 0.25);
-}
-
 /* Entrance animations */
 @keyframes fadeInUp {
   from {
@@ -157,8 +223,133 @@
 .animate-stagger > *:nth-child(6) { animation-delay: 300ms; }
 .animate-stagger > *:nth-child(7) { animation-delay: 360ms; }
 
-/* Global focus-visible for accessibility */
+/* Legacy global focus ring for unmigrated screens */
 *:focus-visible {
   outline: 2px solid rgba(7, 203, 108, 0.5);
   outline-offset: 2px;
+}
+
+/* Focus ring for components/ui primitives. Unlayered so it beats the legacy rule above. */
+:root {
+  --focus-ring-color: var(--color-accent-hover);
+}
+
+.on-inverse {
+  --focus-ring-color: var(--color-accent-on-inverse);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+/* Root of every screen migrated to the design system, and of portalled dialogs. */
+.ui-root {
+  font-family: var(--font-ui);
+  font-feature-settings: 'ss01' on;
+  color: var(--color-text);
+}
+
+.ui-root ::selection {
+  background: var(--color-accent);
+  color: var(--color-background);
+}
+
+/* ============================================================
+   Marketing site (Achivii visual system v1)
+   ============================================================ */
+html:has(.marketing) {
+  scroll-behavior: smooth;
+  background-color: var(--color-background);
+}
+
+.marketing {
+  font-family: var(--font-ui);
+  font-feature-settings: 'ss01' on;
+}
+
+.marketing ::selection {
+  background: var(--color-accent);
+  color: var(--color-background);
+}
+
+.marketing :focus-visible {
+  outline: 2px solid var(--color-accent-hover);
+  outline-offset: 3px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Static film grain. No blend mode, so it costs nothing while scrolling.
+   Sits above the marketing nav (z-40) but below the auth modal (z-50). */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 45;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Scroll reveal: slow, upward, once */
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0);
+  transition:
+    opacity 1.1s var(--ease-ascend),
+    transform 1.1s var(--ease-ascend);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Staircase: steps rise into place from the bottom flight to the top.
+   The scene is SVG, so px here are scene units (one riser is 0.55). */
+@keyframes stair-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.2px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes portal-open {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.stair-piece {
+  animation: stair-rise 1s var(--ease-ascend) both;
+  animation-delay: var(--stair-delay, 0ms);
+}
+
+.portal-light {
+  animation: portal-open 2.4s ease-out both;
+  animation-delay: var(--stair-delay, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .stair-piece,
+  .portal-light {
+    animation: none;
+  }
 }

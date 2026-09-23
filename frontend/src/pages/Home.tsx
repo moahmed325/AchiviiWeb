@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
@@ -13,7 +13,6 @@ import {
   ChevronUp,
   FileText,
   Layers,
-  ShieldCheck,
   Sparkles,
   Search,
   Award,
@@ -24,18 +23,16 @@ import { DailyTask, DetailedStep } from '../types';
 import { FocusSessionModal } from '../components/FocusSessionModal';
 import { CERTIFIED_PATHWAYS, getGoalImage } from '../lib/certifiedPresets';
 import { PathwaysExplorerModal } from '../components/PathwaysExplorerModal';
-
-// All 10 Certified Master Trajectories
-const SAMPLE_TRAJECTORIES = CERTIFIED_PATHWAYS;
+import { LandingPage } from '../components/marketing/LandingPage';
 
 export const Home: React.FC = () => {
   const { user, token, loading: authLoading, openAuthModal } = useAuth();
-  const { activeGoal, loadingGoal, updateActiveGoal } = useGoal();
+  const { activeGoal, loadingGoal, apiStatus, updateActiveGoal } = useGoal();
   const navigate = useNavigate();
 
-  // Landing Page Interactive State
-  const [selectedTrajectoryId, setSelectedTrajectoryId] = useState('saas');
-  const [visitorGoalInput, setVisitorGoalInput] = useState('');
+  // A pathway picked while signed out, resumed after signup
+  const [pendingPathway, setPendingPathway] = useState<string | null>(null);
+  const goalFetchSeen = useRef(false);
 
   // Signed-in Dashboard State
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -49,10 +46,6 @@ export const Home: React.FC = () => {
   const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
   const [isNoteSaved, setIsNoteSaved] = useState(false);
 
-  const selectedTrajectory = useMemo(() => {
-    return SAMPLE_TRAJECTORIES.find((t) => t.id === selectedTrajectoryId) || SAMPLE_TRAJECTORIES[0];
-  }, [selectedTrajectoryId]);
-
   const filteredCatalogPathways = useMemo(() => {
     return CERTIFIED_PATHWAYS.filter((p) => {
       const matchesCat = pathwayCategory === 'All' || p.category === pathwayCategory;
@@ -65,12 +58,37 @@ export const Home: React.FC = () => {
     });
   }, [pathwayCategory, pathwaySearch]);
 
-  // Handle Starting Goal from Visitor Input
-  const handleStartFromLanding = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (visitorGoalInput.trim()) {
-      localStorage.setItem('achivii_draft_goal', visitorGoalInput.trim());
+  // The token lands one render before GoalContext starts fetching, so wait until that fetch
+  // has been seen to start and finish; otherwise a returning user looks goal-less for a frame.
+  useEffect(() => {
+    if (!pendingPathway || !token) return;
+    if (loadingGoal) {
+      goalFetchSeen.current = true;
+      return;
     }
+    if (!goalFetchSeen.current || !user) return;
+
+    const title = pendingPathway;
+    goalFetchSeen.current = false;
+    setPendingPathway(null);
+    if (activeGoal) return;
+    localStorage.setItem('achivii_draft_goal', title);
+    navigate('/onboarding', { state: { presetGoal: title, isPreset: true, switchGoal: true } });
+  }, [pendingPathway, token, user, loadingGoal, activeGoal, navigate]);
+
+  const handleStartJourney = () => {
+    setPendingPathway(null);
+    openAuthModal('signup');
+  };
+
+  const handleSignIn = () => {
+    setPendingPathway(null);
+    openAuthModal('signin');
+  };
+
+  const handleChoosePathway = (title: string) => {
+    goalFetchSeen.current = false;
+    setPendingPathway(title);
     openAuthModal('signup');
   };
 
@@ -175,7 +193,7 @@ export const Home: React.FC = () => {
   }, [activeTask?.detailedSteps]);
 
   // Loading State
-  if (authLoading || (token && loadingGoal)) {
+  if (token && (authLoading || loadingGoal)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-28 space-y-4 animate-fadeIn">
         <div className="w-8 h-8 border-2 border-[#07CB6C]/30 border-t-[#07CB6C] rounded-full animate-spin" />
@@ -793,295 +811,15 @@ export const Home: React.FC = () => {
   }
 
   // ===========================================================================
-  // 2. UNAUTHENTICATED VISITOR LANDING EXPERIENCE (HIGH CRAFT, ZERO NOISE)
+  // 2. SIGNED-OUT MARKETING LANDING
   // ===========================================================================
   return (
-    <main className="flex-1 flex flex-col justify-start py-10 sm:py-16 animate-fadeIn text-left">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 w-full space-y-12 sm:space-y-16">
-        {/* =================================================================== */}
-        {/* HERO SECTION */}
-        {/* =================================================================== */}
-        <div className="text-center space-y-5 max-w-2xl mx-auto">
-          {/* Subtle Monospace Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#0c1410] border border-[#07CB6C]/30 text-xs font-mono text-[#07CB6C]">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
-            <span>90-Day Mastery Engine</span>
-          </div>
-
-          {/* Heading */}
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
-            Master any ambition in <span className="text-[#07CB6C]">90 days</span>.
-          </h1>
-
-          {/* Minimal, punchy subhead */}
-          <p className="text-sm sm:text-base text-neutral-400 max-w-lg mx-auto leading-relaxed">
-            One deliberate daily session. Zero-guilt adaptive recovery. Built to eliminate cognitive overload.
-          </p>
-
-          {/* Quick Start Goal Input Form */}
-          <form
-            onSubmit={handleStartFromLanding}
-            className="pt-2 flex flex-col sm:flex-row items-stretch justify-center gap-2 max-w-md mx-auto"
-          >
-            <input
-              type="text"
-              value={visitorGoalInput}
-              onChange={(e) => setVisitorGoalInput(e.target.value)}
-              placeholder="e.g. Run a 10K, Ship a SaaS, Learn Guitar"
-              className="flex-1 min-h-[44px] px-3.5 py-2 rounded-md bg-[#0c1210] border border-[#1a2824] focus:border-[#07CB6C] text-sm text-white placeholder-neutral-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="min-h-[44px] px-5 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.98] text-black font-semibold text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <span>Start Free</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-
-          {/* Secondary Quick Action */}
-          <div className="flex items-center justify-center gap-4 text-xs text-neutral-500">
-            <span>Already have an active plan?</span>
-            <button
-              type="button"
-              onClick={() => openAuthModal('signin')}
-              className="text-[#07CB6C] hover:underline cursor-pointer font-medium"
-            >
-              Sign In →
-            </button>
-          </div>
-        </div>
-
-        {/* =================================================================== */}
-        {/* INTERACTIVE 90-DAY TRAJECTORY PREVIEW (LOW NOISE, HIGH ENGAGEMENT) */}
-        {/* =================================================================== */}
-        <div className="p-5 sm:p-7 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1a2824] pb-4">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-mono text-neutral-500 uppercase tracking-wider">
-                Interactive Plan Architecture
-              </span>
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                How a 90-Day Trajectory Unfolds
-              </h2>
-            </div>
-
-            {/* Ambition Picker Pills */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              {SAMPLE_TRAJECTORIES.map((traj) => (
-                <button
-                  key={traj.id}
-                  type="button"
-                  onClick={() => setSelectedTrajectoryId(traj.id)}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                    selectedTrajectoryId === traj.id
-                      ? 'bg-[#07CB6C] text-black font-semibold shadow-xs'
-                      : 'bg-[#111a17] text-neutral-400 hover:text-white border border-[#1a2824]'
-                  }`}
-                >
-                  {traj.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 3 Phases Progression Preview */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {[
-              { phase: 'Phase 1', weeks: 'Weeks 1–4', ...selectedTrajectory.p1 },
-              { phase: 'Phase 2', weeks: 'Weeks 5–8', ...selectedTrajectory.p2 },
-              { phase: 'Phase 3', weeks: 'Weeks 9–12', ...selectedTrajectory.p3 },
-            ].map((p, idx) => (
-              <div
-                key={idx}
-                className="p-3.5 rounded-md bg-[#080d0b] border border-[#1a2824] space-y-1.5"
-              >
-                <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500">
-                  <span>{p.phase}</span>
-                  <span>{p.weeks}</span>
-                </div>
-                <h3 className="text-xs font-bold text-white tracking-tight">{p.name}</h3>
-                <p className="text-xs text-neutral-400 leading-relaxed">{p.focus}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Sample Daily Micro-Session Card */}
-          <div className="relative rounded-md overflow-hidden border border-[#07CB6C]/30 p-4 sm:p-5 space-y-3 bg-[#080d0b]">
-            {/* Ambient Background Image */}
-            {selectedTrajectory.image && (
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <img
-                  src={selectedTrajectory.image}
-                  alt={selectedTrajectory.label}
-                  className="w-full h-full object-cover opacity-20"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#080d0b] via-[#080d0b]/85 to-[#080d0b]/90" />
-              </div>
-            )}
-
-            <div className="relative z-10 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
-                  <span className="font-mono text-[#07CB6C] font-semibold">
-                    Sample Day Directive ({selectedTrajectory.sampleDay.duration})
-                  </span>
-                </div>
-                <span className="font-mono text-neutral-400 text-[11px]">
-                  {selectedTrajectory.sampleDay.slot}
-                </span>
-              </div>
-
-              <div className="space-y-1">
-                <p className="text-sm sm:text-base font-semibold text-white">
-                  {selectedTrajectory.sampleDay.title}
-                </p>
-                <p className="text-xs text-neutral-300">
-                  Focus cue: {selectedTrajectory.sampleDay.focus}
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-[#1a2824]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="text-[11px] font-mono text-neutral-400 truncate max-w-sm">
-                  Target: {selectedTrajectory.outcome}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    localStorage.setItem('achivii_draft_goal', selectedTrajectory.outcome);
-                    if (user && token) {
-                      navigate('/onboarding', { state: { presetGoal: selectedTrajectory.outcome, isPreset: true } });
-                    } else {
-                      openAuthModal('signup');
-                    }
-                  }}
-                  className="px-3 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-semibold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <span>Select This Preset</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* =================================================================== */}
-        {/* THE ACHIVII TRIAD: WHY GENERIC ROADMAPS FAIL & WHY ACHIVII WORKS */}
-        {/* =================================================================== */}
-        <div className="space-y-4">
-          <div className="text-left space-y-1">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#07CB6C]/10 border border-[#07CB6C]/25 text-[#07CB6C] text-[10px] font-mono uppercase font-semibold">
-              <Sparkles className="w-3 h-3" />
-              <span>The Achivii Triad</span>
-            </div>
-            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white">
-              Why 92% of generic roadmaps fail — and why this works.
-            </h2>
-            <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl leading-relaxed">
-              Most plans are either rigid academic theories that break the moment life gets busy, or random habit checklists without true biological stimulus. Achivii balances three non-negotiable filters.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
-            {/* Pillar 1: Laboratory Science */}
-            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] hover:border-[#07CB6C]/40 transition-colors space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/20">
-                  PEER-REVIEWED SCIENCE
-                </span>
-                <div className="w-6 h-6 rounded bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-[#07CB6C]">
-                  <Sparkles className="w-3 h-3" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white">1. Laboratory Science</h3>
-                <div className="text-[11px] text-neutral-400 font-mono mt-0.5">Mechanism & Adaptation</div>
-              </div>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                Rooted in verified protocols like Daniels VDOT, Seiler's 80/20 polarized distribution, and Deliberate Practice. Every session has a precise biological stimulus.
-              </p>
-              <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400 italic">
-                ↳ Rule: The adaptation must be physiologically sound.
-              </div>
-            </div>
-
-            {/* Pillar 2: Social Adherence */}
-            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] hover:border-sky-500/40 transition-colors space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                  REAL-WORLD ADHERENCE
-                </span>
-                <div className="w-6 h-6 rounded bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-sky-400">
-                  <Clock className="w-3 h-3" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white">2. Social Reality</h3>
-                <div className="text-[11px] text-neutral-400 font-mono mt-0.5">9-to-5 Sustainable Design</div>
-              </div>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                Lab plans fail when life happens. We cap weekday sessions at 35–45 min, enforce the 2-day recovery rule, and silently absorb missed sessions into open buffer slots.
-              </p>
-              <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400 italic">
-                ↳ Rule: When science fights a busy schedule, adherence wins.
-              </div>
-            </div>
-
-            {/* Pillar 3: Professional Coaching */}
-            <div className="p-4 sm:p-5 rounded-md bg-[#0c1210] border border-[#1a2824] hover:border-amber-500/40 transition-colors space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] font-mono font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  PRO COACH CRAFT
-                </span>
-                <div className="w-6 h-6 rounded bg-[#111a17] border border-[#1a2824] flex items-center justify-center text-amber-400">
-                  <ShieldCheck className="w-3 h-3" />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white">3. Professional Coaching</h3>
-                <div className="text-[11px] text-neutral-400 font-mono mt-0.5">Safety & Veteran Heuristics</div>
-              </div>
-              <p className="text-xs text-neutral-400 leading-relaxed">
-                Watches and algorithms can be reckless. We enforce internal effort cues ("The Talk Test") and mandatory joint pre-hab so tendons and connective tissue adapt uninjured.
-              </p>
-              <div className="pt-2 border-t border-[#1a2824]/60 text-[11px] text-neutral-400 italic">
-                ↳ Rule: Injury prevention strictly overrides raw speed.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* =================================================================== */}
-        {/* BOTTOM CALL TO ACTION */}
-        {/* =================================================================== */}
-        <div className="p-6 sm:p-8 rounded-md bg-[#0c1210] border border-[#1a2824] text-center space-y-4">
-          <h3 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
-            Start your 90-day trajectory today.
-          </h3>
-          <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto">
-            Free to use. Powered by deliberate practice science and adaptive schedule materialization.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
-            <button
-              type="button"
-              onClick={() => openAuthModal('signup')}
-              className="w-full sm:w-auto px-6 py-3 rounded-md bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.98] text-black font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>Get Started — Free</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => openAuthModal('signin')}
-              className="w-full sm:w-auto px-5 py-3 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] text-neutral-300 font-medium text-xs sm:text-sm transition-colors cursor-pointer"
-            >
-              Sign In
-            </button>
-          </div>
-        </div>
-      </div>
-    </main>
+    <LandingPage
+      onStartJourney={handleStartJourney}
+      onSignIn={handleSignIn}
+      onChoosePathway={handleChoosePathway}
+      apiOffline={apiStatus === 'offline'}
+    />
   );
 };
 
