@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-23 · Current position: **Phases 0 and 1 complete; Phase 2 kickoff plan awaiting Mo's review** (OD-4 and ND-4 Decided).
+Last updated: 2026-09-23 · Current position: **Phases 0 and 1 complete; Phase 2 in progress** (OD-4, ND-4 and ND-12 Decided; kickoff plan approved).
 
 ---
 
@@ -68,7 +68,7 @@ Every phase in section 4 uses the same fields:
 |---|---|---|---|---|---|
 | 0 | Global design foundation | `COMPLETE` | — | — | None |
 | 1 | Marketing homepage | `COMPLETE` | 0 (marketing scope) | — | None |
-| 2 | Authentication | `IN PROGRESS` (kickoff plan awaiting review) | 0 | — (OD-4, ND-4 Decided) | None |
+| 2 | Authentication | `IN PROGRESS` | 0 | — (OD-4, ND-4, ND-12 Decided) | None |
 | 3 | Onboarding | `NOT STARTED` | 0, 2 | OD-11, ND-5, ND-6 | None |
 | 4 | Journey generation | `NOT STARTED` | 3 | OD-8 | Stream labels only, if approved |
 | 5 | Today | `NOT STARTED` | 0, 4 | OD-3, OD-9, ND-7 | None |
@@ -518,7 +518,7 @@ Primitives meet 44px targets. Sheet behaviour verified at 390px. Inputs don't tr
 
 ## PHASE 2 — AUTHENTICATION
 
-**Status:** `IN PROGRESS`. OD-4 and ND-4 were decided on 2026-09-23; the kickoff plan (W2) awaits Mo's review before implementation.
+**Status:** `IN PROGRESS`. OD-4 and ND-4 were decided on 2026-09-23, and Mo approved the kickoff plan the same day, with the ND-12 scope additions (`lib/api.ts` error status, `GoalContext` `goalLoadFailed`).
 
 **Source:** BP §13, §41–42, §47, §49 (Phase 2), OD-4 · VDS §10–12, §16, §26, §29
 
@@ -1601,6 +1601,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ND-9 | Payments: in scope or not; provider; billing model | 10 |
 | ND-10 | Custom-goal gating: timing, server-side entitlement, grandfathering existing goals | 10 |
 | ND-11 | Coach scope: architecture-only or a real chat build | 10 |
+| ND-12 | Phase 2 frontend scope additions — **Decided (A):** `api.ts` attaches HTTP status to errors; `GoalContext` exposes `goalLoadFailed` | 2 |
 
 ---
 
@@ -1681,3 +1682,4 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-23 | Phase 0 review fixes applied (accessibility, light surface, states, evidence, copy). Evidence updated (41 tests, signed-in spot-check, browser keyboard checks). Unselected review items added as carry-overs. Phase 1's token-rename carry-over marked done. Status still awaits Mo's review. |
 | 2026-09-23 | Phase 0 accepted by Mo: `COMPLETE`. |
 | 2026-09-23 | Phase 0's review carry-overs added to section 6. OD-4 and ND-4 Decided (both A); Phase 2 `IN PROGRESS` pending its kickoff plan. |
+| 2026-09-23 | Phase 2 kickoff plan approved; ND-12 Decided (A) and added to the register. |

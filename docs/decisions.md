@@ -137,6 +137,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-9 | Payments in scope or not | Product | Proposed | 10 |
 | ND-10 | Custom-goal gating | Product | Proposed | 10 |
 | ND-11 | Coach scope | Product | Proposed | 10 |
+| ND-12 | Phase 2 frontend scope additions (`api.ts` status, `GoalContext` failure flag) | Architecture | Decided (A) | 2 |
 
 **What blocks the next phase:** Phase 2 needs OD-4 and ND-4.
 
@@ -1146,7 +1147,7 @@ The feared name collision is therefore theoretical: no screen reads the legacy `
 * an active goal → Today, with a quiet note if a pathway was chosen, and the existing goal is left alone;
 * `?next=` is honoured only for internal paths (a single leading `/`, never `//` or a scheme).
 
-The parameter is cleared once consumed. Slugs are added to the frontend pathway data only; preset matching (`findPresetForGoal`) is unchanged.
+The parameter is cleared once consumed. The slugs are the existing pathway `id`s in `certifiedPresets.ts` (confirmed by Mo at the Phase 2 kickoff, ND-12); preset matching (`findPresetForGoal`) is unchanged.
 
 **Consequences.** Phase 2 milestone M2.4 is defined by this entry. Phase 3's pathway library uses the same slugs.
 
@@ -1382,6 +1383,30 @@ The parameter is cleared once consumed. Slugs are added to the frontend pathway 
 
 ---
 
+### ND-12 — Phase 2 frontend scope additions
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Architecture |
+| Needed by | 2 |
+| Raised | 2026-09-23 — Phase 2 kickoff (W2) |
+| Decided | 2026-09-23 — Mo, at the kickoff review |
+
+**Context.** The kickoff found two frontend files outside Phase 2's list that the auth screens depend on:
+* `lib/api.ts` throws only the server's message, so the auth screens could tell duplicate email, wrong credentials, offline and server errors apart only by matching backend text.
+* `GoalContext` treats a failed goal fetch as "no goal". A returning user with a goal whose fetch fails after sign-in would be sent to onboarding with `switchGoal`, which can replace their goal (R-15).
+
+**Options.**
+- **A — Allow both small frontend changes.** `api.ts` attaches the HTTP status to the errors it throws (the messages are unchanged). `GoalContext` exposes `goalLoadFailed`, and the post-auth redirect lands on Today instead of onboarding when it is set.
+- **B — Keep both read-only.** Match error text, and log the failed-fetch risk as a carry-over.
+
+**Decision.** **A.** No backend change, no change to request bodies, token logic or the `GoalContext` fetch itself. In the same review, Mo approved reusing the existing pathway `id`s (`run10k`, `saas`, …) as the ND-4 slugs, and adding `@playwright/test` (with Chromium) and `@axe-core/playwright` as Phase 2 dev dependencies (ND-3).
+
+**Related.** ND-3, ND-4, R-1, R-15, R-16.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 None yet.
@@ -1397,3 +1422,4 @@ None yet.
 | 2026-09-23 | Phase 0 delivered. Implementation notes added to D-6, ND-1, ND-2 and ND-3. Packages added in Phase 0 logged under D-8. |
 | 2026-09-23 | Phase 0 review fixes: `border-control` and `--focus-ring-color` noted under ND-1, `TextLink` under ND-2, test count updated under ND-3. |
 | 2026-09-23 | OD-4 Decided (A, routes only; modal retired) and ND-4 Decided (A, URL parameter with slugs; redirect rules) at the Phase 2 gate. |
+| 2026-09-23 | ND-12 Decided (A) at the Phase 2 kickoff review: `api.ts` error status, `GoalContext` `goalLoadFailed`, pathway ids as slugs, Playwright and axe. ND-4 wording updated for the slugs. |
