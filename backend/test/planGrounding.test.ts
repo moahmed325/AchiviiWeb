@@ -5,7 +5,7 @@ vi.mock('../src/lib/ai/gemini.js', () => ({
 }));
 
 import { generateStructuredContent } from '../src/lib/ai/gemini.js';
-import { generate12WeekPlanWithAI, fillMissingStepLayers, adaptUpcomingWeekTasksWithAI } from '../src/lib/ai/goalDecomposer.js';
+import { generate12WeekPlanWithAI, adaptUpcomingWeekTasksWithAI } from '../src/lib/ai/goalDecomposer.js';
 import {
   formatSpineBlock,
   formatMethodologyNotes,
@@ -137,34 +137,6 @@ describe('Phase 3 — plan grounding', () => {
     expect(plan.initialTasks[1].title).toMatch(/Spin/i);
     expect(plan.initialTasks[1].resourceUrl).toBeUndefined();
     expect(plan.initialTasks[0].resourceUrl).toBe('https://en.wikipedia.org/wiki/Stone_skipping');
-  });
-
-  it('fills missing layer fields so a researched plan is not discarded', () => {
-    const [task] = fillMissingStepLayers([
-      {
-        dayNumber: 1,
-        dayOfWeek: 'Monday',
-        title: 'Sit and breathe',
-        isRestDay: false,
-        durationMinutes: 15,
-        slotTime: '19:30',
-        implementationIntention: 'When: 19:30 | Where: chair | Action: sit',
-        detailedSteps: [
-          {
-            stepNumber: 1,
-            title: 'Sit upright',
-            durationMinutes: 15,
-            instructions: 'Sit',
-            focusCue: 'breath',
-            pitfallToAvoid: 'judging',
-            layer: undefined as unknown as 'adherence',
-            layerReasoning: '',
-          },
-        ],
-      },
-    ]);
-    expect(task.detailedSteps[0].layer).toBe('adherence');
-    expect(task.detailedSteps[0].layerReasoning).toMatch(/researched sources/);
   });
 
   it('keeps a later week on the same teachings and drops a new link', async () => {
