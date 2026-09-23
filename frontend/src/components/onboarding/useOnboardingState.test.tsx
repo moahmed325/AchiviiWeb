@@ -6,7 +6,7 @@ import { clarifyGoal, createGoalPlan, fetchActiveGoal } from '../../lib/api';
 import presetFixture from '../../../e2e/fixtures/onboarding/clarify-run10k.json';
 import customFixture from '../../../e2e/fixtures/onboarding/clarify-custom-sourdough.json';
 import { DRAFT_GOAL_KEY } from './payload';
-import { useOnboardingState, type OnboardingStateOptions } from './useOnboardingState';
+import { resetPlanCreateGuardForTests, useOnboardingState, type OnboardingStateOptions } from './useOnboardingState';
 
 vi.mock('../../lib/api', () => ({ clarifyGoal: vi.fn(), createGoalPlan: vi.fn(), fetchActiveGoal: vi.fn() }));
 
@@ -61,6 +61,7 @@ async function readyPathway(options: Partial<OnboardingStateOptions> = {}) {
 beforeEach(() => {
   vi.resetAllMocks();
   localStorage.clear();
+  resetPlanCreateGuardForTests();
   window.history.replaceState(null, '', '/onboarding');
 });
 
@@ -209,7 +210,8 @@ describe('creating the plan', () => {
       message: "Couldn't design your roadmap right now. Please try again.",
     });
     expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBe(PRESET);
-    expect(activeGoal).not.toHaveBeenCalled();
+    expect(activeGoal).toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(1);
 
     await act(() => result.current.handleGeneratePlan());
     expect(create).toHaveBeenCalledTimes(2);
@@ -246,13 +248,13 @@ describe('creating the plan', () => {
     expect(result.current.generationError).toBeNull();
     expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBe(PRESET);
     expect(result.current.routine.planVariant).toBe('steady');
-    expect(activeGoal).not.toHaveBeenCalled();
+    expect(activeGoal).toHaveBeenCalled();
   });
 
   it('sends one create for a double click', async () => {
     create.mockReturnValue(new Promise(() => {}));
     const { result } = await readyPathway();
-    act(() => {
+    await act(async () => {
       void result.current.handleGeneratePlan();
       void result.current.handleGeneratePlan();
     });
@@ -262,7 +264,7 @@ describe('creating the plan', () => {
   it('after a lost connection, finds the plan the server finished instead of creating it twice', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     create.mockRejectedValueOnce(OFFLINE());
-    activeGoal.mockResolvedValueOnce(goal('new'));
+    activeGoal.mockResolvedValueOnce(goal('old')).mockResolvedValueOnce(goal('new'));
     const { result, onGoalCreated } = await readyPathway({ currentGoalId: 'old' });
 
     await act(() => result.current.handleGeneratePlan());
@@ -274,7 +276,7 @@ describe('creating the plan', () => {
   it('after a lost connection with nothing finished, asks to try again, and the retry checks first', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     create.mockRejectedValueOnce(OFFLINE());
-    activeGoal.mockResolvedValueOnce(goal('old')).mockResolvedValueOnce(goal('new'));
+    activeGoal.mockResolvedValueOnce(goal('old')).mockResolvedValueOnce(goal('old')).mockResolvedValueOnce(goal('new'));
     const { result, onGoalCreated } = await readyPathway({ currentGoalId: 'old' });
 
     await act(() => result.current.handleGeneratePlan());
@@ -286,6 +288,109 @@ describe('creating the plan', () => {
     await act(() => result.current.handleGeneratePlan());
     expect(onGoalCreated).toHaveBeenCalledWith(goal('new'));
     expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks for a finished plan before the first Build, and uses it instead of creating', async () => {
+    activeGoal.mockResolvedValueOnce(goal('new', PRESET));
+    const { result, onGoalCreated } = await readyPathway({ currentGoalId: undefined });
+
+    await act(() => result.current.handleGeneratePlan());
+    expect(create).not.toHaveBeenCalled();
+    expect(onGoalCreated).toHaveBeenCalledWith(goal('new', PRESET));
+    expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBeNull();
+  });
+
+  it('still creates when nothing matching has been saved', async () => {
+    activeGoal.mockResolvedValueOnce(null);
+    create.mockResolvedValueOnce({
+      goal: goal('new'),
+      roadmapWeeks: [{ weekNumber: 1 }],
+      dailyTasks: [{ id: 'task-1' }],
+    } as never);
+    const { result, onGoalCreated } = await readyPathway({ currentGoalId: undefined });
+
+    await act(() => result.current.handleGeneratePlan());
+    expect(activeGoal).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(onGoalCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'new', roadmapWeeks: [{ weekNumber: 1 }], dailyTasks: [{ id: 'task-1' }] }),
+    );
+  });
+
+  it('does not treat the goal that was already active as the new plan', async () => {
+    activeGoal.mockResolvedValue(goal('old'));
+    create.mockResolvedValueOnce({ goal: goal('new'), roadmapWeeks: [], dailyTasks: [] });
+    const { result, onGoalCreated } = await readyPathway({ currentGoalId: 'old' });
+
+    await act(() => result.current.handleGeneratePlan());
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(onGoalCreated).toHaveBeenCalledWith(expect.objectContaining({ id: 'new' }));
+  });
+
+  it('a server retry uses a plan saved without a done event and does not post again', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    create.mockRejectedValueOnce(new Error("Couldn't design your roadmap right now. Please try again."));
+    activeGoal.mockResolvedValueOnce(null).mockResolvedValueOnce(goal('new'));
+    const { result, onGoalCreated } = await readyPathway({ currentGoalId: undefined });
+
+    await act(() => result.current.handleGeneratePlan());
+    expect(onGoalCreated).toHaveBeenCalledWith(goal('new'));
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBeNull();
+  });
+
+  it('a reload keeps the draft and the next Build checks before creating', async () => {
+    create.mockReturnValueOnce(new Promise(() => {}));
+    activeGoal.mockResolvedValue(null);
+    const first = await readyPathway({ currentGoalId: undefined });
+    await act(async () => {
+      void first.result.current.handleGeneratePlan();
+    });
+    expect(first.result.current.step).toBe('generation');
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBe(PRESET);
+    first.unmount();
+    resetPlanCreateGuardForTests({ keepPrior: true });
+
+    activeGoal.mockReset();
+    activeGoal.mockResolvedValueOnce(goal('saved'));
+    const second = await readyPathway({ currentGoalId: 'saved' });
+    expect(second.result.current.step).not.toBe('generation');
+    expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBe(PRESET);
+
+    await act(() => second.result.current.handleGeneratePlan());
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(second.onGoalCreated).toHaveBeenCalledWith(goal('saved'));
+    expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBeNull();
+  });
+
+  it('a second mount does not send while the first create is still running', async () => {
+    create.mockReturnValue(new Promise(() => {}));
+    activeGoal.mockResolvedValue(null);
+    const first = await readyPathway({ currentGoalId: undefined });
+    await act(async () => {
+      void first.result.current.handleGeneratePlan();
+    });
+    expect(create).toHaveBeenCalledTimes(1);
+
+    const second = await readyPathway({ currentGoalId: undefined });
+    await act(async () => {
+      void second.result.current.handleGeneratePlan();
+    });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(second.result.current.step).not.toBe('generation');
+  });
+
+  it('browser Back during generation stays on generation', async () => {
+    create.mockReturnValue(new Promise(() => {}));
+    activeGoal.mockResolvedValue(null);
+    const { result } = await readyPathway({ currentGoalId: undefined });
+    await act(async () => {
+      void result.current.handleGeneratePlan();
+    });
+    expect(result.current.step).toBe('generation');
+    act(() => result.current.goToStep('review'));
+    expect(result.current.step).toBe('generation');
   });
 
   it('never guesses when the current goal is unknown', async () => {

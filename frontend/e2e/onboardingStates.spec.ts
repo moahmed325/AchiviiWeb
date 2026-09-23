@@ -242,6 +242,38 @@ test.describe('generation handoff', () => {
     expect(await draftGoal(page)).toBeNull();
   });
 
+  test('a reload during generation keeps the draft, and the next Build uses the plan the server saved [dashboard errors expected]', async ({
+    page,
+  }) => {
+    const saved = {
+      ...CREATED_GOAL,
+      roadmapWeeks: [{ id: 'w1', weekNumber: 1, theme: 'Week 1', status: 'pending' }],
+      dailyTasks: [{ id: 'task-1', description: 'Day 1', status: 'pending' }],
+    };
+    const calls = await mockApi(page, { clarify: baseline.presetClarify, goalAfterCreate: saved });
+    await signIn(page);
+    await launchPathwayFromHome(page);
+    await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
+    await chooseSchedule(page, 'review');
+    await generate(page);
+    await expect(page.getByRole('heading', { name: 'Building your path' })).toBeVisible();
+    expect(await draftGoal(page)).toBe(PRESET_GOAL);
+    expect(calls.create).toHaveLength(1);
+    expect(calls.active).toBeGreaterThan(0);
+
+    await page.reload();
+    await expectStep(page, 'starting');
+    await expect(page.getByRole('heading', { name: 'Building your path' })).toHaveCount(0);
+    expect(await draftGoal(page)).toBe(PRESET_GOAL);
+
+    await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
+    await chooseSchedule(page, 'review');
+    await generate(page);
+    await expect(page).toHaveURL('/dashboard');
+    expect(calls.create).toHaveLength(1);
+    expect(await draftGoal(page)).toBeNull();
+  });
+
   test('a connection lost while building with nothing finished is explained honestly [network errors expected]', async ({ page }) => {
     const calls = await mockApi(page, { clarify: baseline.presetClarify, createFailures: ['offline'] });
     await signIn(page);

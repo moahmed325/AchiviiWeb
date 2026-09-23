@@ -68,6 +68,8 @@ export interface MockCalls {
   create: CreateRequest[];
   /** Every clarify request, including failed ones. */
   clarifyAttempts: number;
+  /** GET /api/goal/active, including the check before a create. */
+  active: number;
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -77,7 +79,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend auth rules (backend/src/routes/auth.ts) without touching the dev database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0 };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0 };
   const {
     goal = null,
     signupStatus = 201,
@@ -158,6 +160,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
 
     if (path === '/api/auth/me') return json(route, 200, { user: USER });
     if (path === '/api/goal/active') {
+      calls.active += 1;
       return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : goal });
     }
 

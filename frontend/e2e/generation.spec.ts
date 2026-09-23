@@ -118,6 +118,19 @@ test('an error after search still explains the failure and keeps the answers [er
   await expect(page.getByRole('heading', { name: 'Before we build your path' })).toBeVisible();
 });
 
+test('browser Back during generation stays on the generation screen', async ({ page }) => {
+  await mockApi(page, { clarify: baseline.presetClarify, createStream: searchOnly });
+  await signIn(page);
+  await reachReview(page);
+  await generate(page);
+  await expect(page.getByRole('heading', { name: 'Building your path' })).toBeVisible();
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/onboarding/);
+  await expect(page.getByRole('heading', { name: 'Building your path' })).toBeVisible();
+  await expect(page.getByText('Search sources')).toHaveCount(0);
+});
+
 test('reduced motion keeps every visible stage readable', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await mockApi(page, { clarify: baseline.presetClarify, createStream: holdAtPlan });
@@ -125,7 +138,7 @@ test('reduced motion keeps every visible stage readable', async ({ page }) => {
   await reachReview(page);
   await generate(page);
 
-  await expect(page.getByText('Understanding your goal')).toBeVisible();
+  await expect(page.getByText('Understanding your goal', { exact: true })).toBeVisible();
   await expect(stage(page, 'Choosing your method').getByText('Now')).toBeVisible();
   const opacities = await page.locator('main li').evaluateAll((items) => items.map((item) => getComputedStyle(item).opacity));
   expect(opacities.length).toBeGreaterThan(0);
@@ -154,6 +167,7 @@ test('the generating screen does not overflow at 360px', async ({ page }, testIn
   const overflow = await page.locator('#main').evaluate((main) => main.scrollWidth - main.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   await expect(page.getByText('Search sources')).toHaveCount(0);
+  await expectNoAxeViolations(page);
 });
 
 const searchOnly: GenerationStreamStep[] = [
@@ -284,4 +298,5 @@ test('the error screen does not overflow at 360px [errors expected]', async ({ p
   await expect(page.getByRole('alert')).toBeVisible();
   const overflow = await page.locator('#main').evaluate((main) => main.scrollWidth - main.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
+  await expectNoAxeViolations(page);
 });

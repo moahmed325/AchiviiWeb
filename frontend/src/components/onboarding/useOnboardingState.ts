@@ -11,14 +11,31 @@ export type { OnboardingError } from './requestErrors';
 /** What the last onboarding request learned about the connection to Achivii. */
 export type Connection = 'unknown' | 'online' | 'offline';
 
+/**
+ * The goal that was active when this tab first tried to build, so a reload that has already
+ * loaded the finished plan is not treated as "the goal we started with".
+ * Not a draft: answers stay in `achivii_draft_goal`, and this is cleared only when that draft is.
+ */
+const PRIOR_GOAL_KEY = 'achivii_generation_prior_goal';
+
+/** Same tab, this page load only. A reload starts clear and checks GET /api/goal/active again. */
+let planCreateStarted = false;
+
+/** Vitest resets the in-flight guard between cases. A hanging create must not block the next test. */
+export function resetPlanCreateGuardForTests(options?: { keepPrior?: boolean }) {
+  planCreateStarted = false;
+  if (!options?.keepPrior) sessionStorage.removeItem(PRIOR_GOAL_KEY);
+}
+
 export interface OnboardingStateOptions {
   token: string;
   onGoalCreated: (goal: Goal) => void;
   initialGoal?: string;
   isPreset?: boolean;
   /**
-   * The goal active when onboarding opened (undefined: none; null: unknown because it failed to load). Lets a retry
-   * after a lost connection recognise a plan the server finished, instead of creating it twice.
+   * The goal active when onboarding opened (undefined: none; null: unknown because it failed to load).
+   * A recovered plan must be a different id. `null` skips the check (Phase 5); this tab remembers the id from the
+   * first Build so a reload does not mistake a just-saved plan for the one that was already active.
    */
   currentGoalId?: string | null;
 }
@@ -270,22 +287,38 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
 
   const finishWithGoal = (goal: Goal) => {
     localStorage.removeItem(DRAFT_GOAL_KEY);
+    sessionStorage.removeItem(PRIOR_GOAL_KEY);
     onGoalCreated(goal);
   };
 
-  /** After a lost connection: the plan the server may have finished anyway, told apart from the goal already active. */
-  const findCreatedGoal = async (): Promise<Goal | null> => {
+  /**
+   * The id to tell a finished plan apart from the goal that was already active.
+   * Remembered on the first check in this tab. `null` (goal failed to load) is not remembered and not guessed.
+   */
+  const priorGoalId = (): string | null | undefined => {
     if (currentGoalId === null) return null;
+    const stored = sessionStorage.getItem(PRIOR_GOAL_KEY);
+    if (stored === null) {
+      sessionStorage.setItem(PRIOR_GOAL_KEY, currentGoalId ?? '');
+      return currentGoalId;
+    }
+    return stored === '' ? undefined : stored;
+  };
+
+  /** A plan the server already saved for this goal, told apart from the goal that was active when Build started. */
+  const findCreatedGoal = async (): Promise<Goal | null> => {
+    const prior = priorGoalId();
+    if (prior === null) return null;
     try {
       const active = await fetchActiveGoal(token);
-      return active && active.id !== currentGoalId && active.rawGoal.trim() === rawGoal.trim() ? active : null;
+      return active && active.id !== prior && active.rawGoal.trim() === rawGoal.trim() ? active : null;
     } catch {
       return null;
     }
   };
 
   const handleGeneratePlan = async () => {
-    if (isCreating.current) return;
+    if (isCreating.current || planCreateStarted) return;
     if (!scheduleChosen) {
       goToStep('schedule');
       return;
@@ -295,47 +328,47 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
       return;
     }
     isCreating.current = true;
-    const lostConnectionLastTime = generationError?.kind === 'offline';
+    planCreateStarted = true;
     setStep('generation');
     setGenerationError(null);
     setPlanSteps([]);
 
-    if (lostConnectionLastTime) {
-      const created = await findCreatedGoal();
-      if (created) {
-        finishWithGoal(created);
+    try {
+      const already = await findCreatedGoal();
+      if (already) {
+        finishWithGoal(already);
         return;
       }
-    }
 
-    try {
-      const response: CreateGoalResponse = await createGoalPlan(
-        buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, answers, customAnswers }),
-        token,
-        (event) => {
-          setPlanSteps((prev) => [...prev.filter((s) => s.id !== event.id), event]);
-        }
-      );
+      try {
+        const response: CreateGoalResponse = await createGoalPlan(
+          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, answers, customAnswers }),
+          token,
+          (event) => {
+            setPlanSteps((prev) => [...prev.filter((s) => s.id !== event.id), event]);
+          }
+        );
 
-      const fullGoal: Goal = {
-        ...response.goal,
-        roadmapWeeks: response.roadmapWeeks || response.goal.roadmapWeeks || [],
-        dailyTasks: response.dailyTasks || response.goal.dailyTasks || [],
-      };
-      finishWithGoal(fullGoal);
-    } catch (err: unknown) {
-      console.error(err);
-      const error = describeOnboardingError(err, 'create');
-      if (error.kind === 'offline') {
+        const fullGoal: Goal = {
+          ...response.goal,
+          roadmapWeeks: response.roadmapWeeks || response.goal.roadmapWeeks || [],
+          dailyTasks: response.dailyTasks || response.goal.dailyTasks || [],
+        };
+        finishWithGoal(fullGoal);
+      } catch (err: unknown) {
+        console.error(err);
+        const error = describeOnboardingError(err, 'create');
         const created = await findCreatedGoal();
         if (created) {
           finishWithGoal(created);
           return;
         }
+        isCreating.current = false;
+        setConnection(error.kind === 'offline' ? 'offline' : 'online');
+        setGenerationError(error);
       }
-      isCreating.current = false;
-      setConnection(error.kind === 'offline' ? 'offline' : 'online');
-      setGenerationError(error);
+    } finally {
+      planCreateStarted = false;
     }
   };
 

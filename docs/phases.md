@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-23 · Current position: **Phases 0, 1, 2 and 3 complete. Phase 4 (journey generation) is `IN PROGRESS`: M4.1, M4.2 and M4.3 done, awaiting M4.4.** M4.4 has not started.
+Last updated: 2026-09-23 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) kickoff under way.** No Phase 5 implementation has started.
 
 ---
 
@@ -70,7 +70,7 @@ Every phase in section 4 uses the same fields:
 | 1 | Marketing homepage | `COMPLETE` | 0 (marketing scope) | — | None |
 | 2 | Authentication | `COMPLETE` | 0 | — (OD-4, ND-4, ND-12 Decided) | None |
 | 3 | Onboarding | `COMPLETE` | 0, 2 | — (OD-11, ND-5, ND-6, ND-13–16 Decided) | None |
-| 4 | Journey generation | `IN PROGRESS` | 3 | — (OD-8, ND-17 Decided) | None remaining. ND-17 matching shipped in M4.2. Stream labels unused |
+| 4 | Journey generation | `COMPLETE` | 3 | — (OD-8, ND-17 Decided) | None remaining. ND-17 matching shipped in M4.2. Stream labels unused |
 | 5 | Today | `NOT STARTED` | 0, 4 | OD-3, OD-9, ND-7 | None |
 | 6 | Journey | `NOT STARTED` | 5 | OD-2, OD-7 | None |
 | 7 | Weekly review + adaptation | `NOT STARTED` | 5 | OD-1 (test results) | Named: weekly test result storage |
@@ -1397,7 +1397,7 @@ ACHIVII REDESIGN — PHASE 3 REPORT
 
 ## PHASE 4 — JOURNEY GENERATION
 
-**Status:** `IN PROGRESS` (M4.1, M4.2 and M4.3 done). M4.4 has not started.
+**Status:** `COMPLETE` (2026-09-23; Mo accepted the phase report). "Current state" describes the code at the end of the phase; "What shipped", "Verification evidence", "Carry-overs" and "Review outcomes" record the result; the sections from "Decisions required" down are the kickoff plan and the milestone reports, kept as written.
 
 **Source:** BP §30, §41, §47, §49 (Phase 4), OD-8, ND-17 · VDS §7, §19–21
 
@@ -1407,7 +1407,7 @@ ACHIVII REDESIGN — PHASE 3 REPORT
 
 ### Current state
 
-The stream facts below are from the Phase 4 kickoff (2026-09-23). M4.2 replaced the in-flight screen. M4.3 added the silence wait and kept failures on that same screen. M4.4 has not started.
+The code at the end of Phase 4 (M4.5, 2026-09-23). The stream facts below include the kickoff. M4.2 replaced the in-flight screen. M4.3 added the silence wait and kept failures on that same screen. M4.4 checks for a finished plan before every create.
 
 * **Screen (M4.2):** `frontend/src/components/onboarding/StepGeneration.tsx`, rendered by `OnboardingWizard.tsx` outside the M3.5 `OnboardingShell` (no progress rail, its own `main`) when the step is `generation`. The OD-8 stages come from `generationStages.ts`. "Understanding your goal" is already complete. "Choosing your method" is active from `search` and completes on `method`, or on `plan` when `method` never arrives. "Building your 90-day journey" appears only with the `method` event, and shows that event's name and whyChosen. On the v1 path it is omitted. "Designing your first steps" is active from `plan` until `done`, which still navigates to `/dashboard`. "Search sources" is gone. There is no spinning progress ring. Failure copy, "Review your answers" and "Try again" are the M3.7 words, on Phase 0 buttons. If a stream event had already arrived, the stages stay visible and the error sits beneath them. Designing your first steps is not marked done unless `plan` arrived. No method name is invented. If nothing arrived, the error screen stands alone.
 * **Request:** `handleGeneratePlan` in `components/onboarding/useOnboardingState.ts` builds the body with `buildCreatePayload` (`payload.ts`, R-4) and calls `createGoalPlan` in `lib/api.ts`. `createGoalPlan` sends `Accept: text/event-stream` and reads the stream. There is no `AbortController`. Unmount does not cancel the fetch, and `POST /api/goal/create` does not abort when the client disconnects. An `isCreating` ref makes a double click send one request in this mount only. Each `step` replaces any earlier step with the same `id` in `planSteps`. On `done`, `finishWithGoal` removes `achivii_draft_goal` (R-16) and calls `onGoalCreated`; `OnboardingPage` sets the active goal and navigates to `/dashboard`.
@@ -1428,9 +1428,45 @@ The stream facts below are from the Phase 4 kickoff (2026-09-23). M4.2 replaced 
 * **Archive:** the previous active goal is archived only inside a successful `saveV2Goal` or `saveV1PresetGoal`, after generation succeeds. A failed create leaves the current goal untouched.
 * **Unsafe:** rejected on create by `screenQuery`, not during clarify. The message is already user-facing ("This goal is outside what Achivii can plan safely." or the low-safety sentence). The UI title stays "We couldn't build your plan".
 * **Failure copy:** `describeOnboardingError(err, 'create')` (`requestErrors.ts`) sorts a failure into `offline` ("We lost the connection…") or `server` ("We couldn't build your plan", with Achivii's own message). Answers, schedule and the draft key are kept. "Review your answers" uses `setStep('review')`, which bypasses the generation history lock. "Try again" calls `handleGeneratePlan` again.
-* **Duplicate-safe retry (M3.7):** after an `offline` failure, `findCreatedGoal` calls `GET /api/goal/active` and takes a goal whose id is not `currentGoalId` and whose `rawGoal` matches. It runs right after the failure and again before a retry sends. It does not run before the first send. It is skipped when the current goal failed to load (`currentGoalId === null`). That hole stays a Phase 5 carry-over.
+* **Duplicate-safe create (M4.4):** before every `POST /api/goal/create`, and again after any failed create, `findCreatedGoal` calls `GET /api/goal/active`. It accepts a goal whose id is not the one active when this tab first pressed Build, and whose `rawGoal` matches. That id is kept in `sessionStorage` (`achivii_generation_prior_goal`) so a reload that has already loaded the finished plan is not treated as the goal onboarding opened with. It is not a second draft. The draft key is still cleared only in `finishWithGoal`, which also clears the prior id. A same-tab module flag blocks a second mount from sending while the first create is still in flight; a reload clears that flag. The check is skipped when `currentGoalId === null`. That hole stays a Phase 5 carry-over. There is still no `AbortController` and no backend abort.
 * **Browser history (R-18):** while the step is `generation` (building, or showing its error), `goToStep`, `canJumpToStep` and the `popstate` handler ignore step changes, and entering generation pushes no entry.
 * **TED (ND-17, M4.2):** a speech `matchingPattern` now matches the frontend title "Deliver a 15-Minute TED-Style Speech" to `ted_speech_15min`. The backend title still matches by equality. Frontend titles, ids and slugs are unchanged. The other seven drifted titles were not touched. A new clarify for that title returns `baseline`, `primary_fear` and `speech_context`, not the custom four. The existing dev-database goal with the frontend title was not rewritten (`isGoldenRail: false`, `planVersion: 2`). M3.1 fixtures stay 10K and sourdough.
+
+### What shipped
+
+* **Decisions (M4.1):** OD-8 Decided (A amended) and ND-17 Decided (A). Stream labels unused. The id `search` stays, and it still names no search.
+* **Generation screen (M4.2):** "Building your path" outside `OnboardingShell`, with its own `main`. Stages come from `generationStages.ts`. Understanding is already complete. Choosing follows `search`. Building appears only with the streamed method name and whyChosen, and is omitted on v1. Designing is active from `plan` and is not marked done unless `plan` arrived. No invented method name. "Search sources" is gone. No spinning progress ring. `done` still opens `/dashboard`. SSE fixtures and a timed mock stream cover v2, v1 and a custom error. ND-17 is one speech matching pattern.
+* **Slow, error, unsafe, retry (M4.3):** after 20 seconds of silence the active stage says "This is taking longer than usual. Still working (Ns)." N is whole seconds since this attempt started. An event that already has `slow: true` uses that event's seconds, so the line is not shown twice. Failures stay on the same screen, with the M3.7 titles and the two actions. Finished stages stay; the error sits beneath them. If nothing arrived, the error stands alone.
+* **No duplicate goals (M4.4):** every Build calls `GET /api/goal/active` before `POST /api/goal/create`, and again after any failed create. A matching plan already saved for this goal is opened. The id that was active when this tab first pressed Build is remembered in `sessionStorage` (`achivii_generation_prior_goal`) and cleared only in `finishWithGoal`, with the draft. It is not a second draft. A same-tab module flag blocks a second mount while the first create is in flight. A reload clears that flag and does not resume the request. `currentGoalId === null` still skips the check. There is no `AbortController` and no backend abort.
+* **M4.5:** the regression matrix and this report. The two 360 px generation checks now also run axe on `#main`. No generation-only dead code was found, so nothing was removed. The payload, stages, slow line, error actions and the check before create are unchanged.
+
+### Verification evidence
+
+* Frontend type-check is part of the production build, which passes. Main JS 568.24 KB (167.73 KB gzipped), CSS 101.30 KB (17.71 KB gzipped). The chunk warning remains. Since the end of Phase 3 the JS chunk grew by 2.39 KB (gzipped +0.74 KB) and the CSS chunk shrank from 102.48 KB.
+* ESLint on the generation files is clean. `api.ts` keeps its five pre-existing `any` errors. Full frontend lint is still 30 errors and 4 warnings (3.11).
+* Frontend Vitest: 180 passed / 23 files. Backend Vitest: 229 passed / 20 files. No backend file was changed in M4.5; ND-17 shipped in M4.2.
+* Playwright, mocked, both projects (`generation.spec.ts`, `onboardingStates.spec.ts`, `onboarding.spec.ts`): 83 passed, 3 skipped, 0 failed. `generation.spec.ts --repeat-each=3`: 72 passed, 6 skipped (the 360 px checks on the mobile project), 0 failed, 0 flaky.
+* Live AI generate was not run in M4.5. The kickoff observations stand: TED title, v2 custom, completed; 10K, v1 fallback, completed; sourdough, custom error, no goal saved. A quota-forced v1 path is not a UI bug. No new accounts.
+* Details: the M4.5 regression matrix and the Phase 4 report below.
+
+### Carry-overs (owned by later phases)
+
+| Item | Owner |
+|---|---|
+| `currentGoalId === null` still skips the active-goal check, so a Build then can create a second goal | Phase 5 (goal-load error state) |
+| Two creates already in flight before either save finishes. A second mount in the same page load is blocked. A reload, a second tab, or a killed tab can send again if `GET /api/goal/active` does not yet see the new goal. No second lock was added | Accepted residual (Mo, 2026-09-23). A fix would need server-side create idempotency under a new backend allowance; not planned. |
+| Phone lock and wake, from the code, not from a device. No visibility listener. No `AbortController`. A tab that stays in memory continues the request; a killed tab leaves the draft, and the next Build checks first | Phase 11 |
+| `done` still opens the legacy `/dashboard` | Phase 5 (OD-3) |
+| Catalogue expert fields are not shown as the method | Phase 12 |
+| Kickoff accounts in the local database (`phase4-kickoff-*`). M4.5 added none | Housekeeping |
+| Main JS chunk 568.24 KB, above Vite's 500 KB warning | Phase 12 |
+| Navbar targets, `/dashboard` and `/roadmap` axe and overflow findings | Phase 5 (navbar, `/dashboard`); Phase 6 (`/roadmap`) |
+
+### Review outcomes (Mo, 2026-09-23)
+
+* **Overlapping creates:** accepted as a residual risk (carry-over above).
+* **Live evidence:** the new generation screen was not observed against a real stream during Phase 4. All live generation evidence is from the kickoff, on the old screen. The Phase 5 kickoff builds its goal through the real UI on the new screen and records the result below as post-close Phase 4 evidence. A defect found there is reported, not fixed in the kickoff.
+* **`search` id:** it names no search. Accepted under OD-8. The labels are unchanged.
 
 ### Decisions required before starting
 
@@ -1486,9 +1522,9 @@ Both are Decided. Neither blocks M4.2.
 |---|---|
 | M4.1 | **Done** (2026-09-23). OD-8 and ND-17 logged. No generation UI. |
 | M4.2 | **Done** (2026-09-23). OD-8 generation screen, SSE fixtures and mock stream, ND-17 matching. |
-| M4.3 | **Done** (2026-09-23). Silence slow copy, error and unsafe on the same screen, retry kept. No GET-before-create. |
-| M4.4 | Mid-generation navigation verified; `GET /api/goal/active` before every create send; no duplicate goals. No backend abort. |
-| M4.5 | Regression and phase report |
+| M4.3 | **Done** (2026-09-23). Silence slow copy, error and unsafe on the same screen, retry kept. |
+| M4.4 | **Done** (2026-09-23). `GET /api/goal/active` before every create. A finished plan is not built again. No backend abort. |
+| M4.5 | **Done** (2026-09-23). Regression matrix and the Phase 4 report. Accepted by Mo with three review outcomes (below "Carry-overs"). |
 
 ### Regression checks
 
@@ -1767,6 +1803,261 @@ R-2, R-5, R-6, R-7, R-15.
    Phase 5 — Today has NOT started.
 ```
 
+### M4.4 report — No duplicate goals (2026-09-23)
+
+```text
+1. Outcome
+   Every Build asks GET /api/goal/active before it sends POST /api/goal/create.
+   A plan the server already saved for this goal is opened instead of being built again.
+   The goal that was active when this tab first pressed Build is never treated as that new plan.
+   The request is still not cancelled. The server still runs to completion.
+   M4.5 has NOT started.
+   Phase 5 — Today has NOT started.
+
+2. What changed
+   findCreatedGoal runs before every send, and again after any failed create, not only after a lost connection.
+   The id it compares against is remembered in sessionStorage for this tab (achivii_generation_prior_goal).
+   It is cleared in finishWithGoal, together with the draft. It does not store answers.
+   A module flag in this page load stops a second mount from sending while the first create is still running.
+   A reload clears that flag and checks GET again.
+   currentGoalId === null still skips the check.
+   The stages, the slow line, and the error layout were not redesigned.
+
+3. Files changed / created / removed
+   Changed:
+   - frontend/src/components/onboarding/useOnboardingState.ts
+   - frontend/src/components/onboarding/useOnboardingState.test.tsx
+   - frontend/e2e/mockApi.ts (counts GET /api/goal/active)
+   - frontend/e2e/generation.spec.ts
+   - frontend/e2e/onboardingStates.spec.ts
+   - docs/phases.md
+   Created: none.
+   Removed: none.
+   No backend file changed. payload.ts was not changed. No new live accounts.
+
+4. Functionality preserved
+   R-2: when GET finds nothing new, one create still runs and done still opens /dashboard.
+   R-4: the onboarding payload specs still match the M3.1 bodies.
+   R-5 / R-7: a create response's weeks and week-1 task are still what onGoalCreated receives. The reload recovery uses the active-goal payload the mock returned.
+   R-6: the v2, v1, silence, and error specs still pass.
+   R-15: a GET that returns the goal already active does not skip create, and no DELETE was added. Archive timing is unchanged because the backend was not touched.
+   R-16: the draft is still cleared only in finishWithGoal, including when the plan is recovered instead of created.
+   R-18: Back during generation still stays on the generation screen.
+   M4.2 / M4.3: no "Search sources", no invented method name, v1 omits the method stage, the 20-second silence line remains, failures stay on the generation screen.
+
+5. Decisions applied
+   OD-8 and ND-17 were not reopened. ND-16 is unchanged: a pathway chosen inside onboarding still does not write the draft, and the prior-goal id is not a draft. D-11: no backend change.
+
+6. Validation evidence
+   Frontend type-check: clean, including the production build.
+   ESLint on the changed files: clean.
+   Frontend Vitest: 180 passed / 23 files (was 173).
+   Frontend build: main JS 568.24 KB (167.73 KB gzipped), CSS 101.30 KB (17.71 KB gzipped). The chunk warning remains.
+   Playwright, both projects: generation.spec.ts, onboardingStates.spec.ts, and onboarding.spec.ts. 81 passed and 3 skipped, then the reduced-motion assertion was narrowed to the visible stage title (it had also matched the live region) and that test passed on desktop and mobile. Includes the reload recovery, Back during generation, v2, v1, silence, error, retry, and the M3.1 payload specs.
+   No live AI generate. No backend tests: no backend change.
+
+7. Carry-overs
+   Phase 5: currentGoalId === null still skips the check. The hook does not guess.
+   Phase 11: phone lock and wake, from the code, not from a device. The page does not listen for visibility changes, and create has no AbortController. If the tab stays in memory, the request continues. If the OS kills the tab, the reload finds the draft, and the next Build checks GET first.
+   Residual: two creates already in flight before either save finishes. A second mount in the same page load is blocked. A reload, a second tab, or a killed tab starts a new page load, so the flag is gone. If GET does not yet see the new goal, the next Build can send again. No second lock was added.
+
+8. Issues and risks
+   The prior-goal id lives in sessionStorage for the tab. It is cleared when a plan is created or recovered. It is not cleared when the user simply leaves onboarding, so a later Build in that tab still knows which goal was already active.
+   done still lands on the legacy /dashboard until Phase 5.
+
+9. Not started
+   Leave-mid-generation:
+
+   | Situation | Request | Draft | Previous goal | Next Build |
+   | Double click, same mount | one POST | kept until save | untouched until save | blocked by isCreating |
+   | Try again after server error, save did not happen | second POST | kept | untouched | GET first, then POST |
+   | Try again after server or offline, save did happen | no second POST; finishWithGoal | cleared | archived by that save | recovered |
+   | Reload during generation | browser aborts the fetch; server continues | kept if it existed | unchanged until save | GET first; a finished save is used |
+   | Browser Back during generation | continues | kept | untouched until save | stays on the generation screen |
+   | Navigate away (unmount), same tab | fetch continues | kept until finishWithGoal | untouched until save | a second mount does not send while the first is in flight |
+   | Close tab or kill tab | browser abort; server continues | kept | untouched until save | GET first on the next Build |
+   | Switch-goal Build | one POST; archive only on save | kept until save | the old id is not treated as the new plan | GET first, then POST |
+   | currentGoalId === null | check skipped | kept until save | unknown | create may still be sent |
+
+   M4.5 has NOT started.
+   Phase 5 — Today has NOT started.
+```
+
+### M4.5 regression matrix (2026-09-23)
+
+Every row was run in this milestone, or is cited from a test that still passes. Mocked Playwright is both projects (desktop 1440 and mobile 390): `generation.spec.ts`, `onboardingStates.spec.ts` and `onboarding.spec.ts`, 83 passed, 3 skipped, 0 failed. `generation.spec.ts --repeat-each=3`: 72 passed, 6 skipped (the 360 px checks on the mobile project), 0 failed, 0 flaky. Frontend Vitest is 180 passed / 23 files. Live AI generate was not run. The kickoff observations are reused where a live path is named: TED v2 custom completed, 10K took the v1 fallback and completed, sourdough ended in a custom error and saved no goal. A quota-forced v1 path is not a UI bug. No new accounts.
+
+| Check | Result | Evidence |
+|---|---|---|
+| R-2 preset create completes and lands on `/dashboard` | Pass | `generation.spec.ts` v2 stream opens `/dashboard`; `onboarding.spec.ts` landing pathway sends one create. Kickoff 10K create completed (v1) and was not re-run |
+| R-2 custom create completes, or fails honestly | Pass | `onboarding.spec.ts` custom body matches `create-custom-sourdough.json` and sends one create. Kickoff: TED custom completed on v2; sourdough failed after `search` and saved no goal. Not re-run |
+| R-4 mocked preset payload | Pass | `onboarding.spec.ts` landing and in-onboarding bodies match `create-run10k.json` |
+| R-4 mocked custom payload, including `"Skipped"` | Pass | `onboarding.spec.ts` matches `create-custom-sourdough.json` |
+| R-4 retried create, when GET finds nothing new, sends one body | Pass | `onboardingStates.spec.ts` failed build: two creates, the second body equals the first. Hook: server failure then retry calls active-goal, then one more create |
+| R-5 / R-7 done hands weeks and week-1 tasks to `onGoalCreated` | Pass | Hook: a create response's `roadmapWeeks` and `dailyTasks` are what `onGoalCreated` receives. The reload recovery uses the active-goal payload the mock returned |
+| R-6 v2: search, then method and plan, then done | Pass | `generation.spec.ts` v2: Choosing is Now before the method name; Building and whyChosen appear together; then `/dashboard` |
+| R-6 v1: search, then plan, then done | Pass | `generation.spec.ts` v1: no "Building your 90-day journey", Choosing becomes Done when plan arrives, then `/dashboard` |
+| R-6 custom error: search, then error | Pass | `generation.spec.ts` error after search stays on `/onboarding` with "We couldn't build your plan" |
+| OD-8 Understanding complete on entry | Pass | `StepGeneration.test.tsx`; `generation.spec.ts` reduced motion shows Understanding before the method |
+| OD-8 Choosing your method from search | Pass | `generation.spec.ts` v2 and the silence spec: Choosing is Now after search |
+| OD-8 Building only on method; omitted on v1; no invented name | Pass | `generation.spec.ts` v2 shows the fixture name and whyChosen; v1 and the error spec have a count of 0 for that stage and for the method name |
+| OD-8 Designing from plan; not marked done without plan | Pass | `generation.spec.ts` v2 Designing is Now after plan; the error spec Designing is not Done |
+| No "Search sources". No fake percentage. No timed fake stages | Pass | `generation.spec.ts` v2, v1, silence and error: "Search sources" count 0; silence asserts no "about N seconds left" |
+| Reduced motion: stages change without animation; labels stay visible | Pass | `generation.spec.ts` reduced motion: every stage opacity is 1; Understanding stays visible |
+| 20-second silence copy; N is seconds since this attempt | Pass | `generation.spec.ts` clock fast-forward 21s: the line is on Choosing, seconds ≥ 20, Designing does not contain it. `StepGeneration.test.tsx` reaches 20 then 23 |
+| An event with `slow: true` replaces the silence line | Pass | `StepGeneration.test.tsx`: one line, the event's seconds, on Designing; the status does not repeat "Still working". v1 fixture shows "Still working (88s)." once |
+| Server error and unsafe stay on the generation screen | Pass | `generation.spec.ts`: both use "We couldn't build your plan", Review your answers and Try again. Unsafe shows Achivii's sentence. No "Failed to fetch" |
+| Finished stages remain; the error sits beneath them | Pass | `generation.spec.ts` server error: Understanding is Done, Designing is not Done, the alert is present, Building is absent |
+| Try again: GET first, then one create, stages cleared | Pass | `generation.spec.ts` retry: the alert is gone, the method name is absent, Choosing is Now, then the method appears, `__achiviiCreates` is 2. Hook: a saved plan on the second GET sends no second POST |
+| Review your answers: review, draft kept | Pass | `generation.spec.ts` returns to "Before we build your path". `onboardingStates.spec.ts`: draft still set on the error, answers and schedule still on review, then one more create |
+| GET `/api/goal/active` before every create send | Pass | Hook: first Build with nothing saved calls active-goal once, then one create. Server-error and offline retries call it before the next send |
+| Matching already-saved plan: `finishWithGoal`, no POST | Pass | Hook: first Build with a new matching goal does not call create, clears the draft, and fires `onGoalCreated`. `onboardingStates.spec.ts` offline recovery: one create, then `/dashboard` |
+| The goal active when this tab first pressed Build is not the new plan | Pass | Hook: `currentGoalId` `'old'` and GET returning that id still sends create |
+| Double click, same mount: one POST | Pass | Hook. `onboarding.spec.ts` double click creates one goal |
+| Second mount, same page load, first still in flight: no second POST | Pass | Hook: a hanging create, then a second mount, does not send and does not enter generation |
+| Reload: request not resumed; next Build checks GET first | Pass | `onboardingStates.spec.ts` reload: heading "Building your path" is gone, draft kept, the next Build does not send a second create and opens `/dashboard`. Hook simulates the same with the prior id kept |
+| `currentGoalId === null` still skips the check | Pass | Hook: active-goal is not called; create may still be sent. Not changed |
+| R-16 draft kept until `finishWithGoal`; prior-goal id cleared with it | Pass | Hook: draft remains after a server error and is cleared on create and on recover. `finishWithGoal` removes `achivii_generation_prior_goal` with `achivii_draft_goal` |
+| R-18 Back during generation stays on the generation screen | Pass | `generation.spec.ts` `goBack`: URL stays `/onboarding`, heading stays "Building your path". Hook: `goToStep('review')` during generation stays on generation |
+| R-15 switch-goal: no DELETE; old id is not the new plan | Pass | `onboarding.spec.ts` switch opens onboarding without a create (desktop; mobile skip is the known project skip). Hook: the old id does not skip create. Archive timing is unchanged because the backend was not edited. No DELETE was added |
+| Leave mid-generation matches the M4.4 matrix | Pass, with the residual named there | Same-mount double click, Try again, recover-after-save, reload, Back, second mount, switch-goal and the `null` skip are the rows above. Close or kill tab is the reload case: the browser aborts the fetch, the server is not given an abort, the draft stays, the next Build checks GET. No `AbortController` was added |
+| ND-17 frontend TED title matches `ted_speech_15min` | Pass | `backend/test/presetMatch.test.ts`. Stored goals were not rewritten. Frontend titles, ids and slugs were not edited |
+| Readable at 1440, 390 and 360 | Pass | Projects are 1440 and 390. `generation.spec.ts` generating and error screens at 360: overflow ≤ 1 px. Stages and the error title stay on screen |
+| Phone lock | Documented from the code. Not an on-device check | No visibility listener. No `AbortController`. A tab that stays in memory continues the request. A killed tab is the reload row. Phase 11 owns the device |
+| Generation screen: heading, own `main`, live region, reduced motion, keyboard to the two actions | Pass | The screen's `h1` is "Building your path"; with stages showing, the error title is an `h2`. `main#main` is the axe root. The status region is polite. Reduced-motion and Tab through Review your answers and Try again are in `generation.spec.ts` |
+| axe on the generation screen at 1440, 390 and 360 | Pass | `generation.spec.ts` generating and error screens: axe on `#main` at 1440 and 390, and on the same screens after the viewport is set to 360. WCAG 2.2 AA tags. 0 violations |
+| Navbar, `/dashboard` and `/roadmap` findings | Not fixed | Left for Phase 5 and Phase 6 |
+
+### M4.5 report — Regression and phase report (2026-09-23)
+
+```text
+1. Outcome
+   The generation screen was proved against the Phase 4 checks and written up.
+   No generation feature was added.
+   Phase 4 milestones have been delivered and are awaiting Mo's review.
+   Phase 4 is NOT marked COMPLETE.
+   Phase 5 — Today has NOT started.
+
+2. What changed
+   The two 360 px generation checks now also run axe on #main.
+   No production code changed. No dead generation code was removed.
+   docs/phases.md gained this matrix, the close-out sections and the Phase 4 report.
+   docs/decisions.md index line now says Phase 4 is awaiting Mo and Phase 5 is blocked by OD-3, OD-9 and ND-7.
+   OD-8 and ND-17 stay Decided. Those three Phase 5 decisions stay Open.
+
+3. Files changed / created / removed
+   Changed:
+   - frontend/e2e/generation.spec.ts
+   - docs/phases.md
+   - docs/decisions.md
+   Created: none.
+   Removed: none.
+   No backend file changed. payload.ts was not changed.
+
+4. Functionality preserved
+   R-2, R-4, R-5, R-6, R-7, R-15, R-16 and R-18 pass in the matrix above.
+   OD-8 and ND-17 still hold.
+   GET /api/goal/active still runs before every create.
+   The overlapping in-flight case is still only documented.
+
+5. Decisions applied
+   OD-8 A amended and ND-17 A, already shipped. No decision changed status.
+   OD-3, OD-9 and ND-7 were not decided.
+
+6. Validation evidence
+   Frontend production build (includes tsc): exit 0. JS 568.24 KB (167.73 KB gzipped), CSS 101.30 KB (17.71 KB gzipped).
+   ESLint on the generation files: clean. api.ts keeps five pre-existing any errors. Full lint: 30 errors, 4 warnings.
+   Frontend Vitest: 180 / 23. Backend Vitest: 229 / 20.
+   Playwright: 83 passed, 3 skipped. `generation.spec.ts --repeat-each=3`: 72 passed, 6 skipped (the 360 px checks on the mobile project), 0 failed, 0 flaky.
+   No live generate. No new accounts.
+
+7. Carry-overs
+   See "Carry-overs (owned by later phases)" above.
+   currentGoalId === null → Phase 5.
+   Overlapping in-flight creates → residual, no second lock.
+   Phone lock on a device → Phase 11.
+   done → /dashboard → Phase 5 / OD-3.
+   Catalogue fields as the method → Phase 12.
+
+8. Issues and risks
+   The bundle is still over Vite's 500 KB warning.
+   A second Build from a new page load, before the first save is visible to GET, can still create a second goal.
+   done still drops onto the legacy dashboard.
+
+9. Not started
+   Phase 5 — Today has NOT started.
+   OD-3, OD-9 and ND-7 are still Open.
+   Nothing was committed.
+```
+
+### Phase 4 report (2026-09-23)
+
+```text
+ACHIVII REDESIGN — PHASE 4 REPORT
+
+1. Outcome
+   Building a path now shows only stages the system is really doing: understanding
+   is already done, a method appears only when one was chosen, and the first steps
+   wait for the plan. If it takes more than 20 seconds, the screen says so. If it
+   fails, the same screen says so, and the answers are still there. Pressing Build
+   again does not create a second goal when the server already saved one.
+   done still opens the existing dashboard. Today was not opened.
+   Phase 4 milestones have been delivered and are awaiting Mo's review.
+   Phase 4 is NOT marked COMPLETE.
+
+2. What changed
+   StepGeneration, outside the onboarding shell, lists the OD-8 stages from
+   generationStages.ts. The method name and whyChosen come only from the method
+   event. v1 omits that stage. Silence uses the same 20-second rule as the server,
+   on the client clock, with no new event and no percentage. Errors, including an
+   unsafe goal, stay on that screen. Every Build checks the active goal first.
+   The speech preset now matches the frontend TED title.
+
+3. Files changed / created / removed
+   Across M4.1–M4.5. Created: frontend/src/components/onboarding/generationStages.ts,
+   StepGeneration.test.tsx, frontend/e2e/fixtures/generation/ (v2-success, v1-fallback,
+   custom-error). Changed: StepGeneration.tsx, useOnboardingState.ts and its test,
+   OnboardingWizard.tsx (generation branch), generation.spec.ts, onboardingStates.spec.ts,
+   mockApi.ts, backend/src/lib/ai/presets/speech.ts (one matching pattern, M4.2),
+   backend/test/presetMatch.test.ts, Design.md, docs/decisions.md, docs/phases.md.
+   payload.ts was not changed. No route, schema, or save function was changed.
+
+4. Functionality preserved
+   R-2 preset and custom create still complete, or fail with Achivii's own sentence.
+   R-4 bodies still match the M3.1 fixtures, including a retry.
+   R-5 / R-7 the created goal still carries weeks and week-1 tasks into onGoalCreated.
+   R-6 the three orders still render: v2, v1, and search then error.
+   R-15 a switch does not delete the current goal, and that goal is not treated as the new plan.
+   R-16 the draft is cleared only when a plan is created or recovered.
+   R-18 Back during generation stays on the generation screen.
+   Verified in the M4.5 matrix.
+
+5. Decisions applied
+   OD-8 A amended, logged at M4.1, built in M4.2 and M4.3. Stream labels unused.
+   ND-17 A, logged at M4.1, implemented in M4.2. ND-16 unchanged: the prior-goal id
+   is not a draft. D-11: the only backend change in the phase is the speech pattern.
+   OD-3, OD-9 and ND-7 stay Open and block Phase 5.
+
+6. Validation evidence
+   See "Verification evidence" above and the M4.5 matrix.
+   Type-check and production build pass. Frontend Vitest 180 / 23. Backend Vitest 229 / 20.
+   Mocked Playwright 83 passed, 3 skipped. `generation.spec.ts --repeat-each=3`: 72 passed, 6 skipped (the 360 px checks on the mobile project), 0 failed, 0 flaky.
+   Live generate was not repeated. Kickoff: TED v2 custom, 10K v1, sourdough error.
+   axe on the generation screen at 1440, 390 and 360. Phone lock is from the code.
+
+7. Carry-overs
+   See "Carry-overs (owned by later phases)" above.
+
+8. Issues and risks found
+   The id search still names no search. That is accepted (OD-8); the label was not changed.
+   A reload or a second tab before the save is visible can still send a second create.
+   done still lands on /dashboard. That drop is real.
+
+9. Not started
+   Phase 5 — Today has NOT started.
+   Phase 4 is NOT marked COMPLETE.
+```
+
 ---
 
 ## PHASE 5 — TODAY
@@ -1781,26 +2072,27 @@ R-2, R-5, R-6, R-7, R-15.
 
 ### Current state
 
-* **Two dashboards:**
-  * `/` signed-in: the simplified dashboard inside `Home.tsx` (768 lines in total, including the landing wiring).
-  * `/dashboard`: `DashboardPage.tsx` → `ExecutionDashboard.tsx` (1,209 lines).
-  * The Navbar's "Today" points to `/` (OD-3).
+* **Generation handoff (from Phase 4):** on `done`, `OnboardingPage` `handleGoalCreated` calls `setActiveGoal(goal)` then `navigate('/dashboard')`. `ProtectedRoute` also sends a signed-in user who has an active goal from `/onboarding` to `<Navigate to="/dashboard" replace />`, unless the router state is an explicit goal selection (`presetGoal`, `draftGoal`, `switchGoal`, `customGoal` or `isPreset`). Every Build checks `GET /api/goal/active` before create. `OnboardingPage` passes `currentGoalId={goalLoadFailed ? null : activeGoal?.id}`; `null` skips that check (the goal-load error state is this phase's). There is no Today screen, and generation does not pretend to land on one. Post-auth (`resolvePostAuthDestination`, ND-4) lands an active goal on `/`, not `/dashboard`.
+* **Two dashboards (line counts at the Phase 5 kickoff, 2026-09-23):**
+  * `/` signed-in: the simplified dashboard inside `Home.tsx` (586 lines, including the signed-out landing branch).
+  * `/dashboard`: `DashboardPage.tsx` (26 lines) → `ExecutionDashboard.tsx` (1,228 lines).
+  * The Navbar's "Today" points to `/` and is highlighted on both `/` and `/dashboard` (OD-3).
+* **"Today" is a UTC date** (`new Date().toISOString().split('T')[0]`) in both dashboards. `lib/dateUtils.ts` is unused by either. Tasks come from `currentWeek` only. Selection is the chosen id, else that UTC date, else the first pending task, else the first task. The day counter is calendar days until `targetDate`, clamped at 1–90.
+* **What each dashboard shows.** `Home` shows the goal title, the day counter, the session title and duration, steps (number, title, duration, instructions, focus cue), notes, focus, the pathway strip, and links to `/roadmap` and `/dashboard`. It does not show `isKeySession`, `isTestDay`, `whyToday`, pass mark, pitfall, output, `minimumVersion`, resources or `BasisBadge`, and it has no weekly review. `ExecutionDashboard` shows those fields when the task has them, `BasisBadge` when `goal.basis.label` is set, `PlanV2Panel` when `planVersion === 2` and `roadmap` is set, the routine visualiser, focus, the challenge widget, the pathway strip and Week Review. `onResetGoal` is accepted and never called.
 * **Supporting components:**
-  * `FocusSessionModal.tsx` (593 lines, the focus timer)
-  * `StepChallengeWidget.tsx` (386 lines; its progress is **not persisted**, BP §43)
-  * `DayRoutineTimeline.tsx`, `FullDayVisualizer.tsx`
-  * `BasisBadge.tsx`
-  * `PlanV2Panel.tsx`
-  * `SaaSBuilderModal.tsx` (715 lines; purpose and reachability to be confirmed)
-* **App navigation:** `Navbar.tsx` (245 lines) plus a simple footer, rendered in `App.tsx` for every non-landing screen.
-* **Task data (`DailyTask`):**
-  * `title`, `detailedSteps` (JSON string of steps: instructions, output, doneWhen/passMark, focusCue, pitfall, timing, resource fields)
-  * `implementationIntention`, `durationMinutes`, `slotTime`, `whyToday`
-  * `minimumVersion` (the 10-minute step)
-  * `isRestDay`, `isKeySession`, `isTestDay`
-  * `status`, `completedAt`, `notes`
-  * `resourceTitle`, `resourceUrl`, `resourceType`, `resourceWhy`
-* **Writes:** `PATCH /api/goal/tasks/:taskId` (status, notes).
+  * `FocusSessionModal.tsx` (648 lines). The timer lives in component state. The task is written only on "Save & Return to Dashboard".
+  * `StepChallengeWidget.tsx` (429 lines). Progress is component state and is **not persisted** (BP §43). `inferStepChallenge` invents a challenge when none is stored.
+  * `FullDayVisualizer.tsx` (245 lines). The header nests a Focus button inside a button.
+  * `DayRoutineTimeline.tsx` (154 lines). Imported by nobody.
+  * `BasisBadge.tsx` (25 lines). Rendered only from `ExecutionDashboard`, and only when `basis.label` is set.
+  * `PlanV2Panel.tsx` (157 lines). Rendered only from `ExecutionDashboard` for a v2 goal that has a roadmap.
+  * `SaaSBuilderModal.tsx` (758 lines). Imported by nobody. Phase 12 owns it (section 6).
+* **App navigation:** `Navbar.tsx` (270 lines) plus a footer that is only the copyright line, rendered in `App.tsx` for every screen that is not chromeless (sign-in and sign-up are chromeless).
+* **Task data (`DailyTask`):** matches the Prisma model. `title`, `detailedSteps` (JSON string of steps: instructions, output, doneWhen/passMark, focusCue, pitfall, timing, resource fields), `implementationIntention`, `durationMinutes`, `slotTime`, `whyToday`, `minimumVersion` (the 10-minute step), `isRestDay`, `isKeySession`, `isTestDay`, `status` (`pending`, `completed`, `skipped`; no UI sets `skipped`), `completedAt`, `notes`, `resourceTitle`, `resourceUrl`, `resourceType`, `resourceWhy`.
+* **Writes:** `PATCH /api/goal/tasks/:taskId` accepts `status`, `notes` and `slotTime`. Both dashboards send only `status` and/or `notes`. The server sets `completedAt` when status becomes `completed` and clears it when status returns to `pending`. `Home`'s `handleSaveNotes` does not update the in-memory goal, so a later completion from `ExecutionDashboard` can send `notes: null` and clear a note that was saved on `/`.
+* **Goal load:** a failed fetch sets `activeGoal` to null and `goalLoadFailed` to true. `refreshGoal` is never called. `Home` does not read `goalLoadFailed`, so a failed fetch looks like no goal. `ProtectedRoute` with `requireGoal` sends any missing goal to `/onboarding` and does not check `goalLoadFailed`.
+* **Weekly review:** only the Week Review button on `/dashboard`, and it is always available. `POST /api/goal/weeks/:weekNumber/review`. On a v2 plan, a failed next-week write returns 503 ("Couldn't write next week right now. This week is unchanged; please try again.") before any write.
+* **Reset and switch:** Navbar "Reset 90-Day Plan" calls `DELETE /api/goal/active` (a real delete) and then opens `/onboarding`. "Switch to this pathway" in the explorer does not delete; the current goal is archived only inside a successful save.
 
 ### Decisions required before starting
 
@@ -2546,7 +2838,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | `RoadmapPage.tsx` calls hooks after an early return (`rules-of-hooks`) | Phase 0 lint | Phase 6 |
 | Lint baseline: 30 errors, 4 warnings in 11 files (was 48 and 6 in 14; see 3.11). `OnboardingWizard` is clean | Phase 0 lint | Each file's migrating phase |
 | Four font families loaded | Phase 1 | Phase 12 |
-| The stream step id `search` describes no search | OD-8 | Phase 4 |
+| ~~The stream step id `search` describes no search~~ | OD-8 | Accepted under OD-8 at the Phase 4 close (Mo, 2026-09-23); the id and labels stay |
 | `StepChallengeWidget` progress isn't persisted | BP §43 | Phase 5 |
 | Two dashboards (`/` and `/dashboard`) | OD-3 | Phase 5 |
 | No completed-goal state on the server | OD-1 | Phase 9 |
@@ -2554,14 +2846,17 @@ This register is here so every phase can see what blocks it. The decisions thems
 | Custom goals are free and ungated on the server | BP §22 | Phase 10 (ND-10) |
 | Low-resolution brand images; per-pathway photos off-style | VDS note 8 | Phase 12 |
 | ~~No Playwright smoke tests yet~~ (added in Phase 2); ~~no onboarding payload test yet~~ (added in M3.1) | ND-3 | Done in Phase 3 |
-| Test accounts in the local development database. Phase 1: one. Phase 2: `phase2-w6-{a,b,c}-1790142962485@example.com`. Phase 3 live suite: every `LIVE_API=1` run adds two `phase3-live-*@example.com` (create is held open, so they have no goal; three M3.8 runs added six). M3.8 manual runs: `phase3-m38-preset-1790165635864@example.com` (Run a 10K archived, Master Deep Work active), `phase3-m38-custom-1790165778826@example.com` (one active goal), `phase3-m38-offline-1790165967256@example.com` (one active goal, after a failed then retried create), `phase3-m38-offline-1790165886259@example.com` (no goal; the aborted first stop). Phase 4 kickoff: `phase4-kickoff-custom-1790170753203@example.com` (no goal), `phase4-kickoff-ted-1790170753203@example.com` (v2 custom TED), `phase4-kickoff-preset-1790171135241@example.com` (v1 10K) | Phase 1–4 validation | Housekeeping |
+| Test accounts in the local development database. Phase 1: one. Phase 2: `phase2-w6-{a,b,c}-1790142962485@example.com`. Phase 3 live suite: every `LIVE_API=1` run adds two `phase3-live-*@example.com` (create is held open, so they have no goal; three M3.8 runs added six). M3.8 manual runs: `phase3-m38-preset-1790165635864@example.com` (Run a 10K archived, Master Deep Work active), `phase3-m38-custom-1790165778826@example.com` (one active goal), `phase3-m38-offline-1790165967256@example.com` (one active goal, after a failed then retried create), `phase3-m38-offline-1790165886259@example.com` (no goal; the aborted first stop). Phase 4 kickoff: `phase4-kickoff-custom-1790170753203@example.com` (no goal), `phase4-kickoff-ted-1790170753203@example.com` (v2 custom TED), `phase4-kickoff-preset-1790171135241@example.com` (v1 10K). M4.5 added none. Phase 5 kickoff: `phase5-kickoff-1790182044713@example.com` (v2 10K, one active goal; Wednesday completed and its note cleared; Thursday completed with a saved note). Do not delete that goal | Phase 1–5 validation | Housekeeping |
 | Forced sign-out when the backend is unreachable: `getAuthUser` answers 401 when its database lookup throws, and `AuthContext` drops the token on any `/me` failure. M3.8 confirmed it is deterministic on a reload with the backend stopped (the three live-suite runs did not hit it). Seen twice during the Phase 3 kickoff, then put down to brief pooler outages | Phase 3 kickoff; M3.8 | Unassigned (backend and `AuthContext`) |
 | React warns of a `<button>` nested in a `<button>` in `FullDayVisualizer` (dashboard task row) | Phase 3 kickoff | Phase 5 |
 | ~~Onboarding quiz modal at 390 and 360 px: the footer's "Next Question" button runs past the right edge of the dialog (clipped by the fixed overlay; the page doesn't scroll). Present before M3.4~~ | M3.4 | Done in M3.5 (modal replaced by inline question screens; Playwright checks 360 and 390) |
 | ~~`react-hooks/set-state-in-effect` in `useOnboardingState.ts`: one of three removed in M3.5 (`maxStepReached` is gone; reachability is derived from the answers). Two remain on purpose: the mount effect that starts clarify for a preset or draft, and the effect that leaves the schedule once a pending clarify returns. Moving either into an event changes when clarify starts or when the step changes, which R-4 and R-18 depend on~~ | M3.4 | Done in M3.7 (mount state initialised, the schedule transition moved into the clarify callback; hook timing tests first; no disables) |
 | ~~The in-flight generation screen was replaced in M4.2 (OD-8 stages). Slow-during-silence and the error / unsafe visual pass were still open~~ | M3.7; M4.2 | Done in M4.3 |
 | ~~A pathway chosen inside onboarding doesn't write the draft key, so a reload returns to the goal step; custom answers live only on the page~~ | M3.7 | Done (confirmed behaviour, ND-16) |
-| Create recovery after a lost connection is skipped when the current goal failed to load, so a retry then could create a second goal (the first archived) | M3.7 | Phase 5 (goal-load error state) |
+| `currentGoalId === null` still skips `findCreatedGoal` before every create and after a failure, so a Build then can create a second goal | M3.7; M4.4 | Phase 5 (goal-load error state) |
+| Two creates already in flight before either save finishes. A second mount in the same page load is blocked. A reload, a second tab, or a killed tab can send again if GET does not yet see the new goal. No second lock | M4.4 | Accepted residual (Mo, 2026-09-23). A fix would need server-side create idempotency under a new backend allowance; not planned. |
+| Phone lock and wake were not checked on a device. The page does not listen for visibility changes, and create has no AbortController | M4.3 | Phase 11 |
+| `done` still opens the legacy `/dashboard` | M4.2 | Phase 5 (OD-3) |
 | Soft-keyboard states can't be emulated in Playwright (the onboarding footer is sticky, not fixed) | M3.7 | Phase 11 (on-device check) |
 | ~~Landing `marketing/sections/Pathways.tsx` still hard-codes its six groups; onboarding now reads `direction` and `summary` from `certifiedPresets.ts` (OD-11, ND-5)~~ | M3.5 | Done in M3.6 (reads `PATHWAY_GROUPS`) |
 | Onboarding has no skip link; the legacy navbar (and the offline indicator, R-17) sits above it. Navbar targets under 44 px ("Achivii" 87×28, account button 62×34) | M3.5; M3.8 audit | Phase 5 (app shell) |
@@ -2569,7 +2864,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | `/roadmap` overflows by 17 px at 390 and 47 px at 360 with an empty roadmap; `/roadmap` and `/dashboard` have no `main` landmark | M3.8 audit | Phase 6 (`/roadmap`); Phase 5 (`/dashboard`) |
 | The onboarding UI Back button pushes a history entry (as at M3.1), so browser Back straight after it returns to the step just left | M3.8 | Phase 11 (touches R-18) |
 | The pathway strip still sits inside the legacy Today (`Home`) and `ExecutionDashboard` | M3.6 | Phase 5 |
-| Main JS chunk 565.85 KB (166.99 KB gzipped) at the end of Phase 3; 560.90 KB at M3.5. Above Vite's 500 KB warning since before Phase 0 | M3.5 build; M3.8 | Phase 12 (code splitting) |
+| Main JS chunk 568.24 KB (167.73 KB gzipped) at the end of Phase 4; 565.85 KB (166.99 KB gzipped) at the end of Phase 3. Above Vite's 500 KB warning since before Phase 0 | M3.5 build; M4.5 | Phase 12 (code splitting) |
 | Failed goal fetch lands on a goal-less Today; "Explore Goals" vs "Pathways" naming; legacy palette on the Today notice | Phase 2 | Phase 5 |
 | Offline status is a one-time health check; the signed-in redirect has no timeout | Phase 2 | Phase 12 |
 | ~~No real-backend Playwright specs (`e2e/live/` is empty)~~ | Phase 2 | Done in Phase 3 (M3.1) |
@@ -2577,7 +2872,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ~~Focus rings can be clipped by `overflow` on tab lists and dialog edges (the auth screens use neither, so Phase 2 didn't reach it). The first Dialog in the app (M3.5's commitment editor) keeps its controls inside the body's padding; tab lists are unreached~~ | Phase 0 review | Done in M3.6 (`TabsTrigger` uses `.focus-ring-inset`; the strip pads its scroll track; the explorer keeps its controls inside the body's padding) |
 | The navbar's goal links (Today, Roadmap, Goals and the account button) overflow by 7 px at 360 px when a goal is active; present before M3.6 (`Navbar.tsx` untouched) | M3.6 | Phase 5 (app shell) |
 | Pathway counts are hard-coded: "Explore Goals (10)" (`Home`, `ExecutionDashboard`), "Pathways (10)" and "Explore 10 Pathways" (`Navbar`), "Ten journeys, ready to begin." (landing) | M3.6 | Phase 5 (naming); landing Phase 12 |
-| `certifiedPresets.ts` keeps expert fields no screen shows (`outcome`, `desc`, `coach`, `p1`–`p3`, `sampleDay`); Phase 4 does not show them as the generated method. `SaaSBuilderModal.tsx` is unused | M3.6 | Phase 12 |
+| `certifiedPresets.ts` keeps expert fields no screen shows (`outcome`, `desc`, `coach`, `p1`–`p3`, `sampleDay`). Phase 4 did not show them as the generated method. `SaaSBuilderModal.tsx` is unused | M3.6; M4.5 | Phase 12 |
 | ~~M3.6 review items: search and the four-category filter left the Home gallery (direction navigation replaces them); a strip tile opens the explorer instead of switching at once~~ | M3.6 | Done (accepted at the M3.6 review) |
 | ~~A `Dialog` opened from state (no `DialogTrigger`) didn't return focus on close~~ | M3.5 | Done in M3.5 (`DialogContent` returns focus to the element focused when it opened; unit test added) |
 | ~~No automated accessibility check~~ | Phase 0 review | Done in Phase 2 (axe in Playwright) |
@@ -2650,3 +2945,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-23 | Phase 4 M4.1 done. Kickoff plan accepted. OD-8 Decided (A amended) and ND-17 Decided (A) in the register. Phase 4 is `IN PROGRESS` (not blocked, not complete): current state rewritten from the kickoff (v1 skips `method`; slow has no heartbeat; archive only on successful save; `currentGoalId === null` hole; TED unmatched until ND-17 is implemented). In scope adds the v1 path, client 20s slow during silence, the active-goal check before every create, and SSE fixtures in M4.2. Stream labels unused. Backend allowance is matching-only for the TED speech title. Catalogue-as-method moves to Phase 12. Kickoff throwaway accounts added to section 6. M4.2 has not started. No generation UI. |
 | 2026-09-23 | Phase 4 M4.2 done. OD-8 generation screen, timed SSE fixtures (v2, v1, error) and ND-17 matching (speech pattern only). `done` still opens `/dashboard`. M4.3 and M4.4 have not started. |
 | 2026-09-23 | Phase 4 M4.3 done. The client shows the existing still-working line after 20 seconds of silence, on the active stage. Failures stay on that screen. Retry behaviour is unchanged. No backend change. M4.4 has not started. |
+| 2026-09-23 | Phase 4 M4.4 done. GET /api/goal/active runs before every create, and a plan the server already saved is opened instead of being built again. No abort, and no second draft. M4.5 has not started. |
+| 2026-09-23 | Phase 4 M4.5 done: regression matrix, "What shipped", verification evidence, carry-overs and the Phase 4 report. R-2, R-4, R-5, R-6, R-7, R-15, R-16 and R-18 pass mocked. Section 6: the `search` id accepted under OD-8; `currentGoalId === null`, the overlapping in-flight residual, phone lock, `done` → `/dashboard`, catalogue fields and the bundle size updated. Status stays `IN PROGRESS` awaiting Mo's review. Phase 4 is not marked complete. Phase 5 has not started. |
+| 2026-09-23 | Phase 4 accepted by Mo: `COMPLETE` (section 1, the Phase 4 status line, current position). "What shipped", "Verification evidence" and "Carry-overs" kept as drafted at M4.5. Review outcomes recorded: the overlapping in-flight create is an accepted residual (server-side create idempotency would need a new backend allowance; not planned), the new generation screen is observed live at the Phase 5 kickoff as post-close evidence, and the `search` id is accepted under OD-8. Section 6 rows match. Phase 5 "Current state" names the `OnboardingPage` and `ProtectedRoute` handoff to `/dashboard`. `Design.md`: N in the still-working line is whole seconds since this attempt started. Phase 5 kickoff under way; no Phase 5 implementation has started. |
+| 2026-09-23 | Phase 5 kickoff corrections to "Current state" (status stays `NOT STARTED`): line counts, UTC "today", which dashboard shows which fields, unreachable `DayRoutineTimeline` and `SaaSBuilderModal`, PATCH writers, the goal-load hole, weekly review only on `/dashboard`. The generation handoff to `/dashboard` is unchanged. Section 6 records the kickoff account. No Phase 5 implementation. |

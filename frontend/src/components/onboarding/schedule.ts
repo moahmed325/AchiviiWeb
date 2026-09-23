@@ -12,9 +12,6 @@ export interface PresetCommitment {
   defaultDays: string[];
   subtitle: string;
   icon: IconComponent;
-  accentColor: string;
-  bgColor: string;
-  borderColor: string;
 }
 
 export const PRESET_COMMITMENTS: PresetCommitment[] = [
@@ -25,10 +22,7 @@ export const PRESET_COMMITMENTS: PresetCommitment[] = [
     defaultTime: '18:00 - 19:30',
     defaultDays: ['Mon', 'Wed', 'Fri'],
     subtitle: 'Strength, cardio, or mobility',
-    icon: Dumbbell,
-    accentColor: 'text-emerald-400',
-    bgColor: 'bg-emerald-500/10',
-    borderColor: 'border-emerald-500/30'
+    icon: Dumbbell
   },
   {
     id: 'university',
@@ -37,10 +31,7 @@ export const PRESET_COMMITMENTS: PresetCommitment[] = [
     defaultTime: '09:00 - 14:00',
     defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     subtitle: 'University, lectures, or school',
-    icon: GraduationCap,
-    accentColor: 'text-sky-400',
-    bgColor: 'bg-sky-500/10',
-    borderColor: 'border-sky-500/30'
+    icon: GraduationCap
   },
   {
     id: 'commute',
@@ -49,10 +40,7 @@ export const PRESET_COMMITMENTS: PresetCommitment[] = [
     defaultTime: '08:00 - 08:45',
     defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     subtitle: 'Transit, driving, or cycling',
-    icon: Car,
-    accentColor: 'text-amber-400',
-    bgColor: 'bg-amber-500/10',
-    borderColor: 'border-amber-500/30'
+    icon: Car
   },
   {
     id: 'dinner',
@@ -61,10 +49,7 @@ export const PRESET_COMMITMENTS: PresetCommitment[] = [
     defaultTime: '19:30 - 20:30',
     defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
     subtitle: 'Evenings, family, or meal prep',
-    icon: Utensils,
-    accentColor: 'text-rose-400',
-    bgColor: 'bg-rose-500/10',
-    borderColor: 'border-rose-500/30'
+    icon: Utensils
   },
   {
     id: 'sports',
@@ -73,10 +58,7 @@ export const PRESET_COMMITMENTS: PresetCommitment[] = [
     defaultTime: '19:00 - 20:30',
     defaultDays: ['Tue', 'Thu', 'Sat'],
     subtitle: 'Boxing, football, yoga, tennis',
-    icon: Flame,
-    accentColor: 'text-orange-400',
-    bgColor: 'bg-orange-500/10',
-    borderColor: 'border-orange-500/30'
+    icon: Flame
   },
   {
     id: 'work_shift',
@@ -85,10 +67,7 @@ export const PRESET_COMMITMENTS: PresetCommitment[] = [
     defaultTime: '16:00 - 21:00',
     defaultDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
     subtitle: 'Evening shift, freelance, or gig',
-    icon: Briefcase,
-    accentColor: 'text-teal-400',
-    bgColor: 'bg-teal-500/10',
-    borderColor: 'border-teal-500/30'
+    icon: Briefcase
   }
 ];
 
@@ -106,61 +85,19 @@ export const formatDaysLabel = (days?: string[]): string => {
 export const getCategoryDetails = (category?: string) => {
   switch (category) {
     case 'fitness':
-      return {
-        icon: Dumbbell,
-        label: 'Fitness',
-        color: 'text-emerald-400',
-        bg: 'bg-emerald-500/10',
-        border: 'border-emerald-500/30'
-      };
+      return { icon: Dumbbell, label: 'Fitness' };
     case 'education':
-      return {
-        icon: GraduationCap,
-        label: 'Study',
-        color: 'text-sky-400',
-        bg: 'bg-sky-500/10',
-        border: 'border-sky-500/30'
-      };
+      return { icon: GraduationCap, label: 'Study' };
     case 'commute':
-      return {
-        icon: Car,
-        label: 'Commute',
-        color: 'text-amber-400',
-        bg: 'bg-amber-500/10',
-        border: 'border-amber-500/30'
-      };
+      return { icon: Car, label: 'Commute' };
     case 'family':
-      return {
-        icon: Utensils,
-        label: 'Dinner',
-        color: 'text-rose-400',
-        bg: 'bg-rose-500/10',
-        border: 'border-rose-500/30'
-      };
+      return { icon: Utensils, label: 'Dinner' };
     case 'sports':
-      return {
-        icon: Flame,
-        label: 'Sports',
-        color: 'text-orange-400',
-        bg: 'bg-orange-500/10',
-        border: 'border-orange-500/30'
-      };
+      return { icon: Flame, label: 'Sports' };
     case 'work':
-      return {
-        icon: Briefcase,
-        label: 'Work Shift',
-        color: 'text-teal-400',
-        bg: 'bg-teal-500/10',
-        border: 'border-teal-500/30'
-      };
+      return { icon: Briefcase, label: 'Work Shift' };
     default:
-      return {
-        icon: Heart,
-        label: 'Personal',
-        color: 'text-pink-400',
-        bg: 'bg-pink-500/10',
-        border: 'border-pink-500/30'
-      };
+      return { icon: Heart, label: 'Personal' };
   }
 };
 
@@ -211,9 +148,6 @@ export interface ScheduledDayBlock {
   durationMins: number;
   timeLabel: string;
   icon?: IconComponent;
-  color: string;
-  bg: string;
-  border: string;
   isPractice?: boolean;
   days?: string[];
 }
@@ -372,9 +306,6 @@ export const computeDaySchedule = (
       durationMins: slot.end - slot.start,
       timeLabel,
       icon: cat.icon,
-      color: cat.color,
-      bg: cat.bg,
-      border: cat.border,
       days: c.days
     });
   });
@@ -435,9 +366,6 @@ export const computeDaySchedule = (
     durationMins: practiceSlot.end - practiceSlot.start,
     timeLabel: `${formatMinutesTo24h(practiceSlot.start)} - ${formatMinutesTo24h(practiceSlot.end)}`,
     icon: Target,
-    color: 'text-black',
-    bg: 'bg-[#07CB6C]',
-    border: 'border-white/40',
     isPractice: true
   };
 
@@ -455,10 +383,7 @@ export const computeDaySchedule = (
       endMins: wakeMins,
       durationMins: wakeMins,
       timeLabel: `00:00 - ${formatMinutesTo24h(wakeMins)}`,
-      icon: Moon,
-      color: 'text-indigo-300',
-      bg: 'bg-indigo-950/60',
-      border: 'border-indigo-800/40'
+      icon: Moon
     },
     {
       id: 'work',
@@ -468,10 +393,7 @@ export const computeDaySchedule = (
       endMins: busyEndMins,
       durationMins: busyEndMins - busyStartMins,
       timeLabel: `${formatMinutesTo24h(busyStartMins)} - ${formatMinutesTo24h(busyEndMins)}`,
-      icon: Briefcase,
-      color: 'text-neutral-300',
-      bg: 'bg-neutral-800/80',
-      border: 'border-neutral-700/60'
+      icon: Briefcase
     },
     ...placedCommitments,
     practiceBlock,
@@ -483,10 +405,7 @@ export const computeDaySchedule = (
       endMins: 1440,
       durationMins: 1440 - sleepMins,
       timeLabel: `${formatMinutesTo24h(sleepMins)} - 24:00`,
-      icon: Moon,
-      color: 'text-indigo-300',
-      bg: 'bg-indigo-950/60',
-      border: 'border-indigo-800/40'
+      icon: Moon
     }
   ].sort((a, b) => a.startMins - b.startMins);
 

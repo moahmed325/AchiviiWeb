@@ -144,7 +144,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-16 | Pre-existing onboarding bugs fixed in Phase 3 | Architecture | Decided (A) | 3 |
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 
-**What blocks the next phase:** Phase 3 is complete (accepted by Mo, 2026-09-23). Phase 4 is no longer blocked. M4.1 is done: OD-8 is Decided (A amended) and ND-17 is Decided (A). M4.2 may start when Mo sends it. Phase 4 is not complete.
+**What blocks the next phase:** Phase 4 is complete (accepted by Mo, 2026-09-23). OD-8 (A amended) and ND-17 (A) are Decided and shipped. Phase 5 is blocked by OD-3, OD-9 and ND-7, which are Proposed and not decided. The Phase 5 kickoff raised no new decision.
 
 ---
 
@@ -861,6 +861,8 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 **Decision.** **A amended.** The stage table above is binding. Every in-flight stage maps onto a real event. No "searching", "researching" or "Search sources". No fake percentages, no timed fake stages, no invented durations. The optional stream-label backend allowance is not used. The `search`, `method` and `plan` ids do not change.
 
 **Consequences.** No stream-label backend change. Frontend labels only. The v1 fallback must not show a pending method stage, and must not invent a method name. If later work adds real research to the live route, a genuine "researching" stage can be added then.
+
+**Implemented** 2026-09-23 (Phase 4 M4.2 and M4.3). `generationStages.ts` maps the events onto the four stages above; `StepGeneration.tsx` renders them, adds the 20-second still-working line during silence, and keeps failures on the same screen. No backend label changed. The `search` id still names no search; accepted at the Phase 4 close.
 
 **Related.** D-11, ND-17, BP §30, VDS §7, §19.
 
@@ -1596,3 +1598,6 @@ None yet.
 | 2026-09-23 | Phase 3 closed (Mo accepted the phase report). OD-11, ND-5, ND-6, ND-13, ND-14, ND-15 and ND-16 confirmed Decided (all A). The index line now says Phase 3 is complete and Phase 4 is blocked by OD-8 and by any decision raised at the Phase 4 kickoff. No entry changed status. |
 | 2026-09-23 | Phase 4 M4.1. OD-8 → A amended (four honest stages; v1 fallback has no pending method stage; stream labels unused) and ND-17 → A (matching-only so the frontend TED title hits `ted_speech_15min`), both Decided by Mo. D-11 consequences updated for that allowance. The index line now says Phase 4 is no longer blocked; M4.2 may start when Mo sends it. No other entry changed status. |
 | 2026-09-23 | Phase 4 M4.2. ND-17 implemented: a speech matching pattern, recorded under that entry. No other decision changed status. |
+| 2026-09-23 | Phase 4 M4.5. The index line now says the Phase 4 milestones are delivered and awaiting Mo, and that Phase 5 is blocked by OD-3, OD-9 and ND-7. No entry changed status. |
+| 2026-09-23 | Phase 4 closed (Mo accepted the phase report). OD-8 (A amended) and ND-17 (A) confirmed Decided and shipped. The `search` step id is accepted under OD-8. The overlapping in-flight create is an accepted residual (a fix would need server-side create idempotency under a new backend allowance; not planned). The index line now says Phase 4 is complete and Phase 5 is blocked by OD-3, OD-9 and ND-7. No entry changed status. |
+| 2026-09-23 | Phase 5 kickoff. The index line now says the kickoff raised no new decision. OD-3, OD-9 and ND-7 stay Proposed. No entry changed status. |
