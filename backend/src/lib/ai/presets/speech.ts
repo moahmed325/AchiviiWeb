@@ -7,6 +7,8 @@ export const speechPreset: CertifiedPresetBlueprint = {
     /\bgive a (speech|talk)\b/i,
     /\b(speech|presentation)\s+(skills|practice|delivery|coach)\b/i,
     /\bvocal\s+variety\b/i,
+    // Frontend catalogue title (ND-17). The backend title still matches by equality.
+    /\bdeliver a 15-minute ted-style speech\b/i,
   ],
   title: 'Deliver an Unforgettable 15-Minute TED-Style Speech',
   primaryDomain: 'Public Speaking & TED-Style Storytelling',

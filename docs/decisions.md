@@ -121,7 +121,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | OD-5 | Mobile in every phase | Process | Decided (see D-12) | All |
 | OD-6 | Rewrite `Design.md` | Design | Decided (see D-6) | 0 |
 | OD-7 | The Journey supports 2–4 method-named phases | Design | Decided | 6 |
-| OD-8 | Honest generation stages | Product | Proposed | 4 |
+| OD-8 | Honest generation stages | Product | Decided (A amended) | 4 |
 | OD-9 | Every Today state | Product | Proposed | 5 |
 | OD-10 | Meaning of "dark/light contrast" | Design | Decided (see D-3) | — |
 | OD-11 | Onboarding categories vs free presets | Product | Decided (A) | 3 |
@@ -142,8 +142,9 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Decided (A) | 3 |
 | ND-15 | Scope of the single pathway library | Architecture | Decided (A) | 3 |
 | ND-16 | Pre-existing onboarding bugs fixed in Phase 3 | Architecture | Decided (A) | 3 |
+| ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 
-**What blocks the next phase:** Phase 2 needs OD-4 and ND-4.
+**What blocks the next phase:** Phase 3 is complete (accepted by Mo, 2026-09-23). Phase 4 is no longer blocked. M4.1 is done: OD-8 is Decided (A amended) and ND-17 is Decided (A). M4.2 may start when Mo sends it. Phase 4 is not complete.
 
 ---
 
@@ -394,7 +395,7 @@ One phase at a time. Each ends with a report and Mo's review.
 
 **Decision.** Backend, schema, API client, auth and goal contexts, and onboarding/dashboard business logic are off-limits by default. A phase may change the backend only where its "Backend allowance" names the exact change **and** a Decided entry here approves it. Frontend-only substitutes for missing backend capabilities are forbidden.
 
-**Consequences.** Phases 7, 9 and 10 each need an approval (OD-1a, OD-1b, OD-1c). Phase 4 has one optional, label-only allowance (OD-8).
+**Consequences.** Phases 7, 9 and 10 each need an approval (OD-1a, OD-1b, OD-1c). Phase 4's optional stream-label allowance is not used (OD-8 A). Phase 4 also has one named matching-only allowance: `findPresetForGoal` / the speech preset's `matchingPatterns`, so the frontend TED title matches `ted_speech_15min` (ND-17 A). Nothing else.
 
 ---
 
@@ -817,48 +818,51 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided (A amended) |
 | Category | Product |
 | Needed by | 4 |
 | Raised | BP §30 and Open Decision 8 |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at Phase 4 M4.1 |
 
-**Context.**
-* The stream on `POST /api/goal/create` emits three steps, then `done` or `error`:
-  * `search` — labelled "Using a proven method for this goal" or "Comparing methods for your answers";
-  * `method` — the method name, with why it was chosen;
-  * `plan` — "Writing your first week".
-* The live route runs no web research, so `search` is only an id.
-* By the time `method` arrives, the whole roadmap (phases and weeks) has already been generated.
-* Goal understanding happened earlier, in onboarding, through `/clarify`.
+**Context.** Confirmed at the Phase 4 kickoff (2026-09-23) against `backend/src/routes/goal.ts` and three live creates.
+* `POST /api/goal/create` emits at most three `step` ids, then `done` or `error`. The ids stay `search`, `method` and `plan`.
+* `search` is labelled "Using a proven method for this goal" or "Comparing methods for your answers". The live route (`generateRoadmap`) runs no web research, so `search` is only an id.
+* `method` carries the method name and why it was chosen. It is sent only after `generateRoadmap` returns ok. On that path the roadmap (phases and weeks) already exists. On v2 success, `method` and `plan` are sent in the same tick; the wait after that is `generateWeekPlan`.
+* **v1 fallback skips `method`.** A preset whose roadmap fails, and is not unsafe, goes `search` → `plan` → `done`. Live 10K on 2026-09-23 took this path (`planVersion: 1`, `canonicalMethodName: null`). There is no streamed method name.
+* Custom failure is `search` → `error`. No v1 fallback.
+* `slow` is a flag on an event, stamped at send time when `elapsedMs` exceeds 20 seconds. There is no heartbeat. A long silence does not produce `slow: true` until the next event.
+* Goal understanding happened earlier, in onboarding, through `/clarify`. It is not a create-stream event.
+* The current screen's pending label "Search sources" describes nothing the system does.
 
 **Question.** Which stages does the user see, and what are they called?
 
 **Options.**
-- **A — Four stages mapped onto real events.**
+- **A amended — Four stages mapped onto real events, including the v1 fallback.**
 
   | Stage | When it shows |
   |---|---|
-  | **Understanding your goal** | Already complete on entry (`/clarify` ran during onboarding) |
-  | **Choosing your method** | From the `search` event until `method` |
-  | **Building your 90-day journey** | Completes on `method`; the chosen method and reason are revealed |
+  | **Understanding your goal** | Already complete on entry (`/clarify` ran during onboarding). Not a create-stream event. |
+  | **Choosing your method** | From the `search` event until `method`, or until `plan` if `method` never arrives (v1 fallback) |
+  | **Building your 90-day journey** | Completes on `method` when that event exists; reveal the streamed method name and whyChosen. If `method` never arrives, do not invent a method name and do not leave this stage pending. |
   | **Designing your first steps** | From `plan` until `done` |
 
-  * Every label describes real work.
-  * No backend change; the frontend uses its own labels.
+  * Every in-flight stage maps onto a real event.
+  * No "searching", "researching" or "Search sources".
+  * No fake percentages, no timed fake stages, no invented durations.
+  * The frontend uses its own labels. The optional stream-label backend allowance is not used. The `search` / `method` / `plan` ids do not change.
 - **B — Mirror the backend labels exactly** (three stages).
   * Pros: no interpretation.
-  * Cons: flatter; "Using a proven method" reads oddly as a progress stage.
+  * Cons: flatter; "Using a proven method" reads oddly as a progress stage. A missing `method` still has to be handled.
 - **C — The BP §30 list verbatim**, including "Mapping your starting point".
   * Cons: no event corresponds to that stage, so it would be fake.
 
-**Recommendation.** **A.** It is the closest honest match to BP §30. The optional label-only backend allowance is not needed.
+**Recommendation.** **A amended.** It is the closest honest match to BP §30, and the v1 path observed live is designed rather than left as a pending method row.
 
-**Decision.** —
+**Decision.** **A amended.** The stage table above is binding. Every in-flight stage maps onto a real event. No "searching", "researching" or "Search sources". No fake percentages, no timed fake stages, no invented durations. The optional stream-label backend allowance is not used. The `search`, `method` and `plan` ids do not change.
 
-**Consequences.** If A: Phase 4 needs no backend change. If later work adds real research to the live route, a genuine "researching" stage can be added then.
+**Consequences.** No stream-label backend change. Frontend labels only. The v1 fallback must not show a pending method stage, and must not invent a method name. If later work adds real research to the live route, a genuine "researching" stage can be added then.
 
-**Related.** D-11, BP §30.
+**Related.** D-11, ND-17, BP §30, VDS §7, §19.
 
 ---
 
@@ -1525,7 +1529,45 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Implemented** 2026-09-23 (Phase 3, M3.3) in `frontend/src/components/onboarding/useOnboardingState.ts`. History writes spread `window.history.state` before adding `wizardStep`. The `popstate` handler walks down to the furthest step `canJumpToStep` allows and rewrites the entry. Mount rewrites the current entry to the step shown. The draft key is removed after a successful create, and never on read. The `popstate` listener is subscribed once and calls the latest logic through `useEffectEvent` (React 19.2): React Router re-renders synchronously inside the same `popstate` dispatch, so a listener re-subscribed on every render was skipped by the browser (found by a new preset back/forward test). With each fix reverted, its test fails.
 
+**Reviewed** 2026-09-23 (M3.7 review, confirmed in M3.8). A pathway chosen inside onboarding does not write `achivii_draft_goal`. A reload there returns to the goal step, and custom answers live only on the page. That is the intended reading of this decision: the draft key belongs to launches from outside onboarding (landing, Home, the strips, the explorer, signup). It is confirmed behaviour, not a defect.
+
 **Related.** R-15, R-16, R-18, M3.1 baseline.
+
+---
+
+### ND-17 — TED-style speech pathway matching
+
+| Field | Value |
+|---|---|
+| Status | Decided (A) |
+| Category | Product |
+| Needed by | 4 |
+| Raised | 2026-09-23 — Phase 4 kickoff (carried from M3.8) |
+| Decided | 2026-09-23 — Mo, at Phase 4 M4.1 |
+
+**Context.** Confirmed at the Phase 4 kickoff.
+* `findPresetForGoal` (`backend/src/lib/ai/presets/index.ts`) matches id, exact title, then each preset's `matchingPatterns`.
+* The frontend title is "Deliver a 15-Minute TED-Style Speech". The backend title on `ted_speech_15min` (`presets/speech.ts`) is "Deliver an Unforgettable 15-Minute TED-Style Speech". The speech patterns (`ted talk`, `give a speech`, and the rest) do not match `TED-Style`.
+* Clarify therefore returns the custom four questions. Create uses the custom search label. The live create on 2026-09-23 saved a **v2 custom** goal (`isGoldenRail: false`, `planVersion: 2`) on `phase4-kickoff-ted-1790170753203@example.com`. v1 fallback cannot run for an unmatched goal.
+* The dev database has one goal whose `rawGoal` is the frontend title, `isGoldenRail: false`, `planVersion: 2`. Zero goals use the backend title.
+* The other seven frontend titles that differ from the backend title already match by pattern. M3.1 fixtures are 10K and sourdough, not TED. ND-5 keeps frontend titles, ids and slugs unchanged.
+
+**Question.** Should this pathway match the backend preset, and how, without breaking ND-5?
+
+**Options.**
+- **A — Named backend matching allowance, matching only.** Add whatever is required in `findPresetForGoal` / the speech preset's `matchingPatterns` (or an alias) so the frontend title matches `ted_speech_15min`. No route, schema, API response or stream-shape change. ND-5 titles stay frozen. Existing goals are not rewritten. New TED runs get preset questions and can use the v1 fallback. Touches R-3 and R-5 for new TED creates (preset question ids, not the four custom ids). The M3.1 10K / sourdough fixtures stay as they are.
+- **B — Change the frontend title to the backend title.** That supersedes ND-5 ("titles stay unchanged"). The existing TED goal would lose "Current pathway", because `findPathwayByTitle` is an exact frontend-title match.
+- **C — Leave it.** Generation stays custom for this listed pathway.
+
+**Recommendation.** **A.** It fixes matching without rewriting ND-5 identity or the stored goal.
+
+**Decision.** **A — matching only.** The frontend title "Deliver a 15-Minute TED-Style Speech" must match `ted_speech_15min`. Frontend titles, ids and slugs stay as ND-5 left them. The other seven title-drift pathways are not changed.
+
+**Consequences.** Phase 4's backend allowance expands from "stream labels only, if OD-8 needs it" to also this matching-only change in `findPresetForGoal` / the speech `matchingPatterns`. Nothing else: no routes, schemas, responses, ids or payload shape. Existing TED goals are not rewritten. M3.1 fixtures stay 10K / sourdough. ND-5 remains Decided (A).
+
+**Implemented** 2026-09-23 (M4.2) in `backend/src/lib/ai/presets/speech.ts`. One pattern matches "Deliver a 15-Minute TED-Style Speech". `findPresetForGoal` itself was not edited. The backend title still matches by equality. No database rewrite.
+
+**Related.** ND-5, OD-8, D-11, R-3, R-5.
 
 ---
 
@@ -1550,3 +1592,7 @@ None yet.
 | 2026-09-23 | Phase 3 M3.1: implementation note added to ND-3 (payload test and first live specs). |
 | 2026-09-23 | ND-13 to ND-16 raised at the Phase 3 kickoff and Decided (all A) by Mo: custom goals do Schedule before the questions; "success" = clarified outcome plus the `success` question; one `PathwayLibrary` for all five in-app galleries; blank-step and switch-goal reload fixed in M3.3, draft key cleared after create. |
 | 2026-09-23 | Phase 3 M3.3: implementation note added to ND-16. |
+| 2026-09-23 | M3.7 review, recorded at M3.8. ND-16: a pathway chosen inside onboarding does not write the draft key (reviewed note above). The compact question header at 360 px is accepted. The Home gallery search box and four-category filter stay removed, and a strip tile opens the explorer on that pathway. OD-11, ND-5, ND-6 and ND-13 to ND-16 (all A) confirmed against what shipped. The index line now says Phase 4 is blocked by OD-8. OD-8 itself is not decided. |
+| 2026-09-23 | Phase 3 closed (Mo accepted the phase report). OD-11, ND-5, ND-6, ND-13, ND-14, ND-15 and ND-16 confirmed Decided (all A). The index line now says Phase 3 is complete and Phase 4 is blocked by OD-8 and by any decision raised at the Phase 4 kickoff. No entry changed status. |
+| 2026-09-23 | Phase 4 M4.1. OD-8 → A amended (four honest stages; v1 fallback has no pending method stage; stream labels unused) and ND-17 → A (matching-only so the frontend TED title hits `ted_speech_15min`), both Decided by Mo. D-11 consequences updated for that allowance. The index line now says Phase 4 is no longer blocked; M4.2 may start when Mo sends it. No other entry changed status. |
+| 2026-09-23 | Phase 4 M4.2. ND-17 implemented: a speech matching pattern, recorded under that entry. No other decision changed status. |

@@ -217,6 +217,38 @@ describe('creating the plan', () => {
     expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBeNull();
   });
 
+  it('a retry clears the stages from the failed attempt before sending again', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    create.mockImplementationOnce(async (_payload, _token, onStep) => {
+      onStep?.({
+        type: 'step',
+        id: 'search',
+        label: 'Comparing methods for your answers',
+        elapsedMs: 0,
+        slow: false,
+      });
+      throw new Error("Couldn't design your roadmap right now. Please try again.");
+    });
+    create.mockReturnValueOnce(new Promise(() => {}));
+    const { result } = await readyPathway();
+
+    await act(() => result.current.handleGeneratePlan());
+    expect(result.current.planSteps.map((step) => step.id)).toEqual(['search']);
+    expect(result.current.generationError?.kind).toBe('server');
+    expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBe(PRESET);
+    expect(result.current.routine.planVariant).toBe('steady');
+
+    await act(async () => {
+      void result.current.handleGeneratePlan();
+    });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(result.current.planSteps).toEqual([]);
+    expect(result.current.generationError).toBeNull();
+    expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBe(PRESET);
+    expect(result.current.routine.planVariant).toBe('steady');
+    expect(activeGoal).not.toHaveBeenCalled();
+  });
+
   it('sends one create for a double click', async () => {
     create.mockReturnValue(new Promise(() => {}));
     const { result } = await readyPathway();

@@ -1,0 +1,24 @@
+{
+  "source": "Phase 4 kickoff, 2026-09-23, live sourdough create. search, then error. No save and no v1 fallback. Playback delay is shortened. elapsedMs and slow are the observed stamps.",
+  "events": [
+    {
+      "delayMs": 0,
+      "event": {
+        "type": "step",
+        "id": "search",
+        "label": "Comparing methods for your answers",
+        "elapsedMs": 0,
+        "slow": false
+      }
+    },
+    {
+      "delayMs": 800,
+      "event": {
+        "type": "error",
+        "error": "Couldn't design your roadmap right now. Please try again.",
+        "elapsedMs": 54252,
+        "slow": true
+      }
+    }
+  ]
+}

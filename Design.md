@@ -195,6 +195,8 @@ These stay only until their screens migrate (decision ND-1). **Don't use them in
 - **`on-inverse`.** Put it on any container with `surface-inverse` (`Surface tone="inverse"` does this for you). It switches the focus ring and `TextLink` to `accent-on-inverse`. **Only plain text and `TextLink` go inside it for now.** `Button`, `Badge`, `StepMarker`, fields and choice controls have no inverse variant yet; add one to the primitive (and to `/__ui`) before using it on a light surface.
 - **`tabular`.** Tabular figures for any changing number.
 - **Pathways.** Pathway data lives only in `lib/certifiedPresets.ts`, grouped by `PATHWAY_GROUPS`. Every in-app pathway gallery is `PathwayLibrary` (or its compact `PathwayStrip`, which opens `PathwaysExplorerModal`) from `components/pathways`, and every launch goes through `usePathwayLaunch`. Don't build another gallery or copy the launch state.
+- **Compact step header.** When a progress bar already names the step, pass `compact` to `StepHeader`: below 640px the eyebrow is hidden and the description is left to screen readers. Onboarding does this on its two question steps, so the first answer sits above the footer at 360px. Tablet and desktop keep the full header.
+- **Connection notice.** When Achivii can't be reached, say so in a `role="status"` notice that pairs a colour mark with text: what failed, what still works, and that nothing is saved until the plan is created. Onboarding's `ConnectionNotice` is the pattern. A step whose own alert already says the same thing doesn't also show the notice.
 - **Class merging.** Use `cx()` from `components/ui/cx` to join conditional classes. Primitives accept `className` for layout (margins, width, grid placement). Don't use it to restyle colours or type; if a variant is missing, add it to the primitive.
 - **`className` goes on the outermost element.** When a primitive wraps its control (`Checkbox`, `Select`, `Input` with `trailing`), your `className` lands on the wrapper, so layout classes behave the same everywhere.
 
@@ -331,7 +333,7 @@ Built on Radix: focus trap, Escape to close, scroll lock, inert background and f
 | `footer` | Actions in desktop order: secondary first, primary last. They are right-aligned on desktop and stack full-width on mobile, with the primary on top. |
 | `hideClose`, `closeLabel` | The ✕ button (44px). Only hide it if the footer has a clear way out. |
 
-The body scrolls inside the dialog (`overscroll-contain`), never the page behind it. The sheet respects the bottom safe area.
+The body scrolls inside the dialog (`overscroll-contain`), never the page behind it. The sheet respects the bottom safe area. A dialog opened from state, with no `DialogTrigger`, returns focus to the element that was focused when it opened.
 
 ### Tabs
 
@@ -359,6 +361,8 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 - **`ProgressBar`** props: `value`, `max` (default 100), `label` (required; the accessible name, shown unless `hideLabel`), `showValue`, `valueText` (replaces the percentage and is announced), and `tone` (`accent` or `achievement`). Values outside the range are clamped.
 - **`StepMarker`** draws the progression grammar. `state` is `upcoming` ○, `active` ●, `completed` ✓, `milestone` ◆ or `destination` ✦; `size` is `sm`, `md` or `lg`. Each state has a distinct shape. It is decorative unless you pass `label`; pass one whenever the marker is the only thing showing the state.
+
+**Generation stages** (Phase 4, OD-8). The screen shows four stages: "Understanding your goal" (already complete on entry), "Choosing your method" (`search` until `method`, or until `plan` if `method` never arrives), "Building your 90-day journey" (completes on `method`, revealing the streamed name and why it was chosen; if `method` never arrives, do not invent a name and do not leave the stage pending), "Designing your first steps" (`plan` until `done`). Every in-flight stage maps onto a real event. No fake percentages, no timed fake stages, no invented durations. After 20 seconds with no new stream event, the active stage says "This is taking longer than usual. Still working (Ns)." N is seconds since generation started. A failure keeps that screen: finished stages stay, and the error sits beneath them. Under `prefers-reduced-motion: reduce`, stages change without animation and every label stays visible.
 
 ### EmptyState, LoadingState, Skeleton, ErrorState
 

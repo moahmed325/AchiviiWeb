@@ -1,0 +1,61 @@
+{
+  "source": "Phase 4 kickoff, 2026-09-23, live TED create (v2 custom, before ND-17): search, then method and plan in the same tick, then done. The method label is the one observed. The kickoff logged that detail was present and did not quote it, so the detail string here is a fixture stand-in. Playback delays are shortened. elapsedMs and slow are the observed stamps. The plan body is a stub.",
+  "events": [
+    {
+      "delayMs": 0,
+      "event": {
+        "type": "step",
+        "id": "search",
+        "label": "Comparing methods for your answers",
+        "elapsedMs": 0,
+        "slow": false
+      }
+    },
+    {
+      "delayMs": 2500,
+      "event": {
+        "type": "step",
+        "id": "method",
+        "label": "The TED Masterclass Framework",
+        "detail": "A single throughline, three acts, and a rehearsed close fit a 15-minute talk.",
+        "elapsedMs": 19634,
+        "slow": false
+      }
+    },
+    {
+      "delayMs": 0,
+      "event": {
+        "type": "step",
+        "id": "plan",
+        "label": "Writing your first week",
+        "elapsedMs": 19634,
+        "slow": false
+      }
+    },
+    {
+      "delayMs": 2500,
+      "event": {
+        "type": "done",
+        "elapsedMs": 43276,
+        "slow": true,
+        "goal": {
+          "id": "g-v2",
+          "userId": "u-e2e",
+          "rawGoal": "Bake sourdough bread at home",
+          "clarifiedOutcome": "Bake sourdough bread at home",
+          "status": "active",
+          "startDate": "2026-09-23T00:00:00.000Z",
+          "targetDate": "2026-12-22T00:00:00.000Z",
+          "currentWeek": 1,
+          "planVersion": 2,
+          "isGoldenRail": false,
+          "canonicalMethodName": "The TED Masterclass Framework",
+          "roadmapWeeks": [],
+          "dailyTasks": []
+        },
+        "roadmapWeeks": [{ "weekNumber": 1 }],
+        "dailyTasks": [{ "id": "task-1" }]
+      }
+    }
+  ]
+}

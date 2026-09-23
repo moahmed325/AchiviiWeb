@@ -166,16 +166,18 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     setEditingCommitment(null);
   };
 
-  // Phase 4 redesigns generation; until then it keeps its original screen.
+  // Generation is not a wizard step: no progress rail, and history stays locked (R-18).
   if (step === 'generation') {
     return (
-      <div className="w-full max-w-3xl mx-auto px-4 py-8">
-        <StepGeneration
-          planSteps={planSteps}
-          generationError={generationError}
-          onReviewInputs={() => setStep('review')}
-          onRetry={handleGeneratePlan}
-        />
+      <div className="ui-root flex w-full flex-1 flex-col bg-background text-text">
+        <main id="main" className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-gutter py-10 sm:py-16">
+          <StepGeneration
+            planSteps={planSteps}
+            generationError={generationError}
+            onReviewInputs={() => setStep('review')}
+            onRetry={handleGeneratePlan}
+          />
+        </main>
       </div>
     );
   }

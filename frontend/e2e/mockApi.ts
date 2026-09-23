@@ -35,8 +35,25 @@ export interface MockOptions {
    * sent as the stream's `error` event. Later requests behave as `createResult` says.
    */
   createFailures?: Array<'offline' | string>;
+  /**
+   * With `clarify`: play this SSE sequence with `delayMs` between events. The page's fetch returns a timed stream, so
+   * stages can render between events. A sequence with no `done` or `error` stays open. A step whose event type is
+   * `end` closes the stream without a `done` or `error` (mock only; the server never sends it). Defaults
+   * (`createResult`, `createFailures`, held-open create) are unchanged when this is omitted.
+   */
+  createStream?: GenerationStreamStep[];
+  /**
+   * With `createStream`: later create attempts, in order. The last sequence repeats. Omitted: every attempt replays
+   * `createStream`.
+   */
+  createStreamNext?: GenerationStreamStep[][];
   /** Returned by `/api/goal/active` once a create request has been made (a plan the server finished). */
   goalAfterCreate?: Record<string, unknown>;
+}
+
+export interface GenerationStreamStep {
+  delayMs: number;
+  event: Record<string, unknown>;
 }
 
 export interface CreateRequest {
@@ -76,7 +93,42 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     healthDown = false,
     createFailures = [],
     goalAfterCreate,
+    createStream,
+    createStreamNext = [],
   } = options;
+
+  if (createStream) {
+    await page.addInitScript((sequences: GenerationStreamStep[][]) => {
+      let attempt = 0;
+      const original = window.fetch.bind(window);
+      window.fetch = async (input, init) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        const method = (init?.method ?? (input instanceof Request ? input.method : 'GET')).toUpperCase();
+        if (method === 'POST' && url.includes('/api/goal/create')) {
+          const events = sequences[Math.min(attempt, sequences.length - 1)];
+          attempt += 1;
+          (window as Window & { __achiviiCreates?: number }).__achiviiCreates = attempt;
+          const stream = new ReadableStream({
+            async start(controller) {
+              const encoder = new TextEncoder();
+              for (const step of events) {
+                if (step.delayMs > 0) await new Promise((resolve) => setTimeout(resolve, step.delayMs));
+                if (step.event.type === 'end') {
+                  controller.close();
+                  return;
+                }
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(step.event)}\n\n`));
+              }
+              const terminal = events.some((step) => step.event.type === 'done' || step.event.type === 'error');
+              if (terminal) controller.close();
+            },
+          });
+          return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+        }
+        return original(input, init as RequestInit);
+      };
+    }, [createStream, ...createStreamNext]);
+  }
 
   await page.route(`${API}/api/**`, async (route) => {
     if (offline) return route.abort('connectionrefused');

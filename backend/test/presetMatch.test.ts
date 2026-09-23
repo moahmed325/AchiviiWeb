@@ -28,6 +28,30 @@ describe('certified preset matching', () => {
     }
   });
 
+  it('matches the frontend TED title to the speech preset and leaves custom goals alone (ND-17)', () => {
+    const ted = findPresetForGoal('Deliver a 15-Minute TED-Style Speech');
+    expect(ted?.id).toBe('ted_speech_15min');
+    expect(ted?.diagnosticQuestions.map((q) => q.id)).toEqual(['baseline', 'primary_fear', 'speech_context']);
+    expect(findPresetForGoal('Deliver an Unforgettable 15-Minute TED-Style Speech')?.id).toBe('ted_speech_15min');
+    expect(findPresetForGoal('Bake sourdough bread at home')).toBeNull();
+
+    const pathways: Array<[string, string]> = [
+      ['Run a 10K Under 50 Minutes', 'run10k'],
+      ['Drop 5% Body Fat & Build Lean Muscle', 'body_recomposition_90day'],
+      ['Build & Ship a SaaS Web App', 'saas_first_customer'],
+      ['Play 5 Songs on Acoustic Guitar', 'guitar5songs'],
+      ['Speak Conversational Spanish', 'spanish_conversation'],
+      ['Launch a YouTube Channel (12 Videos)', 'youtube_12_videos'],
+      ['Write & Polish a 30,000-Word Book', 'book_30k_words'],
+      ['Master Deep Work & Double Daily Output', 'deep_work_focus'],
+      ['Climb to a 1200 Rapid Chess Rating', 'chess_1200_rating'],
+      ['Deliver a 15-Minute TED-Style Speech', 'ted_speech_15min'],
+    ];
+    for (const [title, id] of pathways) {
+      expect(findPresetForGoal(title)?.id, title).toBe(id);
+    }
+  });
+
   it('still catches the goals the presets were written for', () => {
     expect(findPresetForGoal('Run a 10K in under 50 minutes')?.id).toBe('run10k');
     expect(findPresetForGoal('Learn acoustic guitar fingerpicking')?.id).toBe('guitar5songs');

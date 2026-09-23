@@ -1,13 +1,17 @@
-import React from 'react';
-import { AlertCircle, Check, Target } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Button } from '../ui';
+import { StepMarker } from '../ui/Progress';
 import type { PlanProgressEvent } from '../../lib/api';
 import type { OnboardingError } from './requestErrors';
-
-const PLAN_STEPS: Array<{ id: PlanProgressEvent['id']; pending: string }> = [
-  { id: 'search', pending: 'Search sources' },
-  { id: 'method', pending: 'Choose the method' },
-  { id: 'plan', pending: 'Write the first week' },
-];
+import { STEP_HEADING_ID } from './StepLayout';
+import {
+  SLOW_AFTER_MS,
+  generationAnnouncement,
+  generationStages,
+  slowCopy,
+  type GenerationStage,
+  type GenerationStageState,
+} from './generationStages';
 
 interface StepGenerationProps {
   planSteps: PlanProgressEvent[];
@@ -16,93 +20,183 @@ interface StepGenerationProps {
   onRetry: () => void;
 }
 
-/* Phase 4 redesigns this screen; M3.7 only made its failure copy honest and announced. */
-export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, generationError, onReviewInputs, onRetry }) => (
-  <div className="py-16 text-center space-y-6 animate-fadeInUp">
-    {generationError ? (
-      <div role="alert" className="max-w-md mx-auto space-y-6 animate-in zoom-in-95 duration-200">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-red-950/50 border border-red-800 flex items-center justify-center text-red-400 shadow-xl shadow-red-950/30">
-          <AlertCircle aria-hidden="true" className="w-8 h-8 text-red-400 stroke-[2]" />
-        </div>
+const STATUS: Record<GenerationStageState, string> = {
+  complete: 'Done',
+  active: 'Now',
+  upcoming: 'Not started',
+};
 
-        <div className="space-y-2">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">{generationError.title}</h2>
-          <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed">{generationError.message}</p>
-          {generationError.kind === 'server' && (
-            <p className="text-xs sm:text-sm text-neutral-400 leading-relaxed">
-              No plan was made, and your current journey, if you have one, is unchanged.
-            </p>
-          )}
-        </div>
+const markerState: Record<GenerationStageState, 'completed' | 'active' | 'upcoming'> = {
+  complete: 'completed',
+  active: 'active',
+  upcoming: 'upcoming',
+};
 
-        <div className="flex items-center justify-center gap-3 pt-2">
-          <button
-            type="button"
-            onClick={onReviewInputs}
-            className="min-h-11 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-xs font-semibold cursor-pointer transition-colors"
-          >
-            Review your answers
-          </button>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="min-h-11 px-5 py-2 bg-[#07CB6C] hover:bg-[#06b560] text-black rounded-xl text-xs font-bold cursor-pointer transition-all shadow-lg shadow-[#07CB6C]/20"
-          >
-            Try again
-          </button>
-        </div>
+/** Stage story without the ticking seconds, so a live region does not speak again every second. */
+const stageStory = (stages: GenerationStage[]) =>
+  stages
+    .map((stage) =>
+      [stage.id, stage.state, stage.methodName ?? '', stage.whyChosen ?? '', stage.slowSeconds !== undefined ? 'slow' : ''].join(':'),
+    )
+    .join('|');
+
+const SLOW_SENTENCE = 'This is taking longer than usual. Still working.';
+
+/**
+ * One polite sentence. The slow fact is added the first time it becomes true, and is not repeated
+ * when a later event is also slow or when only the seconds change.
+ */
+const nextAnnouncement = (stages: GenerationStage[], previous: string) => {
+  const slowOn = stages.some((stage) => stage.slowSeconds !== undefined);
+  const already = previous.includes(SLOW_SENTENCE);
+  if (slowOn && already) {
+    const base = generationAnnouncement(stages);
+    const previousBase = previous.replace(` ${SLOW_SENTENCE}`, '');
+    return previousBase === base ? previous : base;
+  }
+  return generationAnnouncement(stages, { mentionSlow: slowOn });
+};
+
+/**
+ * The generation moment (OD-8), including a long wait and a failure.
+ * Seconds in the slow line are since this attempt started. During silence that is the client clock,
+ * begun at the last event (or at entry, if none has arrived). A stream event with `slow: true` uses
+ * its own `elapsedMs` instead, so the same fact is not shown twice.
+ */
+export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, generationError, onReviewInputs, onRetry }) => {
+  const [clock, setClock] = useState(() => {
+    const t = Date.now();
+    return { startedAt: t, now: t };
+  });
+  const [silence, setSilence] = useState(false);
+
+  const waitingKey =
+    planSteps.length === 0 ? 'start' : planSteps.map((step) => `${step.id}:${step.elapsedMs}:${step.slow}`).join('|');
+  const [seenKey, setSeenKey] = useState(waitingKey);
+  if (waitingKey !== seenKey) {
+    setSeenKey(waitingKey);
+    setSilence(false);
+  }
+
+  const fresh = planSteps.length === 0 && !generationError;
+
+  useEffect(() => {
+    if (generationError) return;
+    const timeout = window.setTimeout(() => {
+      setClock((prev) => ({ ...prev, now: Date.now() }));
+      setSilence(true);
+    }, SLOW_AFTER_MS);
+    return () => window.clearTimeout(timeout);
+  }, [waitingKey, generationError]);
+
+  useEffect(() => {
+    if (!silence || generationError) return;
+    const interval = window.setInterval(() => {
+      setClock((prev) => ({ ...prev, now: Date.now() }));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [silence, generationError]);
+
+  useEffect(() => {
+    if (!fresh) return;
+    const timeout = window.setTimeout(() => {
+      const t = Date.now();
+      setClock({ startedAt: t, now: t });
+      setSilence(false);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [fresh]);
+
+  useEffect(() => {
+    if (!generationError) return;
+    document.getElementById(STEP_HEADING_ID)?.focus({ preventScroll: true });
+  }, [generationError]);
+
+  const silenceSeconds =
+    silence && !generationError ? Math.max(0, Math.round((clock.now - clock.startedAt) / 1000)) : undefined;
+  const stages = generationStages(planSteps, silenceSeconds).map((stage) =>
+    generationError ? { ...stage, slowSeconds: undefined } : stage,
+  );
+  const story = stageStory(stages);
+  const [live, setLive] = useState({ key: '', text: '' });
+  if (!generationError && story !== live.key) {
+    setLive({ key: story, text: nextAnnouncement(stages, live.text) });
+  }
+
+  const stageList = (
+    <ol aria-label="Building your path" className={generationError ? 'mt-8 flex flex-col' : 'mt-10 flex flex-col'}>
+      {stages.map((stage, index) => (
+        <li key={stage.id} aria-current={stage.state === 'active' ? 'step' : undefined} className="flex min-w-0 gap-4">
+          <div className="flex flex-col items-center">
+            <StepMarker state={markerState[stage.state]} />
+            {index < stages.length - 1 && <span aria-hidden="true" className="my-1 w-px flex-1 bg-border" />}
+          </div>
+          <div className={`min-w-0 flex-1 ${index < stages.length - 1 ? 'pb-8' : ''}`}>
+            <p className="text-body text-text">{stage.title}</p>
+            <p className="mt-1 text-small text-text-secondary">{STATUS[stage.state]}</p>
+            {stage.methodName && <p className="mt-3 break-words text-h3 text-text">{stage.methodName}</p>}
+            {stage.whyChosen && <p className="mt-2 break-words text-small text-text-secondary">{stage.whyChosen}</p>}
+            {stage.slowSeconds !== undefined && (
+              <p className="mt-2 text-small text-text-secondary">{slowCopy(stage.slowSeconds)}</p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+
+  const errorPanel = generationError && (
+    <div role="alert" className={`flex max-w-xl flex-col gap-4 ${planSteps.length > 0 ? 'mt-10 border-t border-border pt-8' : ''}`}>
+      {planSteps.length > 0 ? (
+        <h2 id={STEP_HEADING_ID} tabIndex={-1} className="text-h2 text-text outline-none">
+          {generationError.title}
+        </h2>
+      ) : (
+        <h1 id={STEP_HEADING_ID} tabIndex={-1} className="text-h1 text-text outline-none">
+          {generationError.title}
+        </h1>
+      )}
+      <p className="text-body text-text-secondary">{generationError.message}</p>
+      {generationError.kind === 'server' && (
+        <p className="text-body text-text-secondary">
+          No plan was made, and your current journey, if you have one, is unchanged.
+        </p>
+      )}
+      <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+        <Button variant="secondary" fullWidth className="sm:w-auto" onClick={onReviewInputs}>
+          Review your answers
+        </Button>
+        <Button variant="primary" fullWidth className="sm:w-auto" onClick={onRetry}>
+          Try again
+        </Button>
       </div>
-    ) : (
-      <>
-        <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
-          <div className="absolute inset-0 rounded-full border-2 border-[#07CB6C]/20 border-t-[#07CB6C] animate-spin" />
-          <Target className="w-8 h-8 text-[#07CB6C] animate-pulse" />
-        </div>
+    </div>
+  );
 
-        <div className="space-y-2">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">
-            Building your plan...
-          </h2>
-          <ol className="max-w-md mx-auto text-left space-y-2 pt-2">
-            {PLAN_STEPS.map((item, index) => {
-              const seen = planSteps.find((step) => step.id === item.id);
-              const active = planSteps[planSteps.length - 1]?.id === item.id;
-              const done = Boolean(seen) && !active;
-              return (
-                <li
-                  key={item.id}
-                  className={`flex items-start gap-3 rounded-xl border px-3 py-2 ${
-                    active
-                      ? 'border-[#07CB6C]/50 bg-[#07CB6C]/10'
-                      : done
-                      ? 'border-[#1a2824] bg-[#0a120e]'
-                      : 'border-[#121c18] bg-[#050807] opacity-60'
-                  }`}
-                >
-                  <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                    done || active ? 'bg-[#07CB6C] text-black' : 'bg-[#121a17] text-neutral-500'
-                  }`}>
-                    {done ? <Check className="h-3 w-3" /> : index + 1}
-                  </span>
-                  <span className="min-w-0">
-                    <span className={`block text-sm ${active ? 'text-white' : 'text-neutral-300'}`}>
-                      {seen?.label || item.pending}
-                    </span>
-                    {seen?.detail && (
-                      <span className="block text-[11px] text-neutral-500">{seen.detail}</span>
-                    )}
-                    {active && seen?.slow && (
-                      <span className="block text-[11px] text-amber-300">
-                        This is taking longer than usual. Still working ({Math.round(seen.elapsedMs / 1000)}s).
-                      </span>
-                    )}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      </>
-    )}
-  </div>
-);
+  if (generationError && planSteps.length === 0) {
+    return errorPanel;
+  }
+
+  return (
+    <div className="flex max-w-xl flex-col">
+      <p className="font-ui-mono text-micro uppercase text-text-secondary">90 days</p>
+      <h1
+        id={generationError ? undefined : STEP_HEADING_ID}
+        tabIndex={-1}
+        className="mt-3 text-h1 text-text outline-none"
+      >
+        Building your path
+      </h1>
+      {!generationError && (
+        <p className="mt-3 text-body text-text-secondary">Achivii is writing the journey from what you told us.</p>
+      )}
+      {!generationError && (
+        <p className="sr-only" role="status" aria-live="polite">
+          {live.text}
+        </p>
+      )}
+      {stageList}
+      {errorPanel}
+    </div>
+  );
+};
