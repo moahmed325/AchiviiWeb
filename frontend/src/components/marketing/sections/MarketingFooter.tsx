@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Wordmark } from '../Wordmark';
 
 const LINKS = [
@@ -8,7 +9,7 @@ const LINKS = [
   { href: '#premium', label: 'Coach' },
 ];
 
-export const MarketingFooter: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => (
+export const MarketingFooter: React.FC = () => (
   <footer className="border-t border-border px-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-14 sm:px-10 lg:px-16">
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-10 md:flex-row md:items-start md:justify-between">
       <div>
@@ -27,13 +28,12 @@ export const MarketingFooter: React.FC<{ onSignIn: () => void }> = ({ onSignIn }
             </li>
           ))}
           <li>
-            <button
-              type="button"
-              onClick={onSignIn}
+            <Link
+              to="/login"
               className="inline-flex min-h-11 cursor-pointer items-center text-sm text-text-secondary transition-colors hover:text-text sm:px-3"
             >
               Sign in
-            </button>
+            </Link>
           </li>
         </ul>
       </nav>

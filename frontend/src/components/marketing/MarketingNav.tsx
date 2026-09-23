@@ -9,13 +9,7 @@ const LINKS = [
   { href: '#premium', label: 'Coach' },
 ];
 
-interface MarketingNavProps {
-  onStartJourney: () => void;
-  onSignIn: () => void;
-  apiOffline: boolean;
-}
-
-export const MarketingNav: React.FC<MarketingNavProps> = ({ onStartJourney, onSignIn, apiOffline }) => {
+export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) => {
   const scrolled = useScrolledPast(24);
 
   return (
@@ -53,10 +47,10 @@ export const MarketingNav: React.FC<MarketingNavProps> = ({ onStartJourney, onSi
               Offline
             </span>
           )}
-          <Button variant="quiet" onClick={onSignIn} className="px-3 sm:px-4">
+          <Button variant="quiet" to="/login" className="px-3 sm:px-4">
             Sign in
           </Button>
-          <Button variant="primary" onClick={onStartJourney} className="px-4 sm:px-5">
+          <Button variant="primary" to="/signup" className="px-4 sm:px-5">
             <span className="sm:hidden">Start</span>
             <span className="hidden sm:inline">Start your journey</span>
           </Button>

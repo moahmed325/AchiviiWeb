@@ -20,4 +20,11 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    // A context file exports its provider and its hook together; that file just loses fast refresh.
+    files: ['src/context/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': ['error', { allowExportNames: ['useAuth', 'useGoal'] }],
+    },
+  },
 ]);

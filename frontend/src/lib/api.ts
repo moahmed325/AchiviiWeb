@@ -24,6 +24,17 @@ export function resolveApiBaseUrl(): string {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
+/** An error response from the API. `status` lets screens tell apart, say, a duplicate email (409) from a server fault. */
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 export interface HealthResponse {
   status: string;
   timestamp: string;
@@ -52,7 +63,7 @@ export async function signupUser(email: string, password: string, timezone?: str
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || 'Registration failed');
+    throw new ApiError(data.error || 'Registration failed', response.status);
   }
 
   return data;
@@ -67,7 +78,7 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || 'Login failed');
+    throw new ApiError(data.error || 'Login failed', response.status);
   }
 
   return data;

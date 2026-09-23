@@ -17,7 +17,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ apiStatus: propApiStatus }) => {
-  const { user, logout, openAuthModal } = useAuth();
+  const { user, logout } = useAuth();
   const { activeGoal, resetGoal, apiStatus: contextApiStatus } = useGoal();
   const location = useLocation();
   const navigate = useNavigate();
@@ -57,8 +57,12 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus: propApiStatus }) => {
 
   const handleLogout = () => {
     setIsMenuOpen(false);
-    logout();
-    navigate('/');
+    // The router applies navigation as a transition. Clearing the session in the same transition means no render sees
+    // a protected page without a user, which would redirect to /login instead of the landing page.
+    React.startTransition(() => {
+      logout();
+      navigate('/');
+    });
   };
 
   const isTodayActive = location.pathname === '/' || location.pathname === '/dashboard';
@@ -234,20 +238,20 @@ export const Navbar: React.FC<NavbarProps> = ({ apiStatus: propApiStatus }) => {
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button
+              <Link
                 id="btn-signin-nav"
-                onClick={() => openAuthModal('signin')}
-                className="min-h-[36px] px-3 py-1.5 text-xs font-medium text-neutral-400 hover:text-white transition-colors rounded-md cursor-pointer"
+                to="/login"
+                className="min-h-[36px] inline-flex items-center px-3 py-1.5 text-xs font-medium text-neutral-400 hover:text-white transition-colors rounded-md cursor-pointer"
               >
                 Sign In
-              </button>
-              <button
+              </Link>
+              <Link
                 id="btn-getstarted-nav"
-                onClick={() => openAuthModal('signup')}
-                className="min-h-[36px] px-4 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-xs font-semibold transition-all cursor-pointer"
+                to="/signup"
+                className="min-h-[36px] inline-flex items-center px-4 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#07CB6C]/90 text-black text-xs font-semibold transition-all cursor-pointer"
               >
                 Get Started
-              </button>
+              </Link>
             </div>
           )}
         </div>

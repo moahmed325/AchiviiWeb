@@ -3,22 +3,26 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GoalProvider } from './context/GoalContext';
 import { Navbar } from './components/Navbar';
-import { AuthModal } from './components/AuthModal';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Home } from './pages/Home';
 import { DashboardPage } from './pages/DashboardPage';
 import { RoadmapPage } from './pages/RoadmapPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { SignupPage } from './pages/auth/SignupPage';
+import { LoginPage } from './pages/auth/LoginPage';
 
 /* Development-only primitives preview; the branch is dropped from production builds. */
 const UiPreviewPage = import.meta.env.DEV ? React.lazy(() => import('./pages/dev/UiPreviewPage')) : null;
 
-/** The signed-out landing page brings its own navigation and footer. */
+const AUTH_ROUTES = ['/signup', '/login'];
+
+/** The signed-out landing page and the auth screens bring their own navigation. */
 const AppShell: React.FC = () => {
   const { pathname } = useLocation();
   const { token } = useAuth();
   const isMarketing = pathname === '/' && !token;
-  const isChromeless = isMarketing || (UiPreviewPage !== null && pathname === '/__ui');
+  const isChromeless =
+    isMarketing || AUTH_ROUTES.includes(pathname) || (UiPreviewPage !== null && pathname === '/__ui');
 
   return (
     <div
@@ -29,12 +33,14 @@ const AppShell: React.FC = () => {
       }`}
     >
       {!isChromeless && <Navbar />}
-      <AuthModal />
 
       <div className="flex-1 flex flex-col">
         <Routes>
           {/* Public Landing Page */}
           <Route path="/" element={<Home />} />
+
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/login" element={<LoginPage />} />
 
           {/* Onboarding / Plan Creation (Protected, only for users without active plan) */}
           <Route

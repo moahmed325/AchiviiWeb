@@ -3,11 +3,7 @@ import { Button } from '../Button';
 import { Eyebrow } from '../Section';
 import { StaircaseScene } from '../StaircaseScene';
 
-interface HeroProps {
-  onStartJourney: () => void;
-}
-
-export const Hero: React.FC<HeroProps> = ({ onStartJourney }) => (
+export const Hero: React.FC = () => (
   <section
     id="top"
     aria-labelledby="hero-title"
@@ -29,7 +25,7 @@ export const Hero: React.FC<HeroProps> = ({ onStartJourney }) => (
           fitted around the hours you actually have.
         </p>
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button size="lg" withArrow onClick={onStartJourney}>
+          <Button size="lg" withArrow to="/signup">
             Start your journey
           </Button>
           <Button size="lg" variant="secondary" href="#method">

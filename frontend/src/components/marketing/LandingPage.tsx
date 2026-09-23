@@ -12,14 +12,7 @@ import { Achievement } from './sections/Achievement';
 import { FinalCta } from './sections/FinalCta';
 import { MarketingFooter } from './sections/MarketingFooter';
 
-interface LandingPageProps {
-  onStartJourney: () => void;
-  onSignIn: () => void;
-  onChoosePathway: (title: string) => void;
-  apiOffline: boolean;
-}
-
-export const LandingPage: React.FC<LandingPageProps> = ({ onStartJourney, onSignIn, onChoosePathway, apiOffline }) => (
+export const LandingPage: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) => (
   <div className="marketing relative min-h-[100dvh] w-full bg-background text-left text-text antialiased">
     <a
       href="#main"
@@ -27,20 +20,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStartJourney, onSign
     >
       Skip to content
     </a>
-    <MarketingNav onStartJourney={onStartJourney} onSignIn={onSignIn} apiOffline={apiOffline} />
+    <MarketingNav apiOffline={apiOffline} />
     <main id="main">
-      <Hero onStartJourney={onStartJourney} />
+      <Hero />
       <Problem />
       <Method />
       <Journey />
       <Today />
       <Adaptive />
-      <Pathways onChoosePathway={onChoosePathway} />
+      <Pathways />
       <Premium />
       <Achievement />
-      <FinalCta onStartJourney={onStartJourney} onSignIn={onSignIn} />
+      <FinalCta />
     </main>
-    <MarketingFooter onSignIn={onSignIn} />
+    <MarketingFooter />
     <div aria-hidden="true" className="grain-overlay" />
   </div>
 );

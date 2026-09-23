@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
@@ -12,16 +12,9 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireGoal = true,
 }) => {
-  const { user, token, loading: authLoading, openAuthModal } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const { activeGoal, loadingGoal } = useGoal();
   const location = useLocation();
-
-  // If user is not authenticated, trigger the signin modal and redirect to /
-  useEffect(() => {
-    if (!authLoading && (!user || !token)) {
-      openAuthModal('signin');
-    }
-  }, [authLoading, user, token, openAuthModal]);
 
   // While either auth or goal is resolving, show a calm minimal loading state
   if (authLoading || (token && loadingGoal)) {
@@ -33,9 +26,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Not logged in -> send to landing page
+  // Not logged in -> sign in, then come back here
   if (!user || !token) {
-    return <Navigate to="/" replace />;
+    const next = encodeURIComponent(`${location.pathname}${location.search}`);
+    return <Navigate to={`/login?next=${next}`} replace />;
   }
 
   // Route requires an active goal, but user has none -> redirect to onboarding

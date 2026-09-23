@@ -244,6 +244,12 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
 ];
 
+/** Looks up a pathway by the slug used in `/signup?pathway=<slug>`; the slug is the pathway's `id`. */
+export function findPathwayBySlug(slug: string | null | undefined): CertifiedPathway | undefined {
+  if (!slug) return undefined;
+  return CERTIFIED_PATHWAYS.find((p) => p.id === slug);
+}
+
 export function getGoalImage(goalTitleOrOutcome?: string): string {
   if (!goalTitleOrOutcome) return '/images/goals/saas.jpg';
   const query = goalTitleOrOutcome.toLowerCase();

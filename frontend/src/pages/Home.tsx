@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
 import {
@@ -16,6 +16,7 @@ import {
   Sparkles,
   Search,
   Award,
+  X,
 } from 'lucide-react';
 import { formatGoalTitle } from '../lib/formatters';
 import { updateDailyTask } from '../lib/api';
@@ -26,13 +27,14 @@ import { PathwaysExplorerModal } from '../components/PathwaysExplorerModal';
 import { LandingPage } from '../components/marketing/LandingPage';
 
 export const Home: React.FC = () => {
-  const { user, token, loading: authLoading, openAuthModal } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const { activeGoal, loadingGoal, apiStatus, updateActiveGoal } = useGoal();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // A pathway picked while signed out, resumed after signup
-  const [pendingPathway, setPendingPathway] = useState<string | null>(null);
-  const goalFetchSeen = useRef(false);
+  // Set by the auth screens when a pathway was chosen but the user already has a goal (ND-4)
+  const pathwayNotice = (location.state as { pathwayNotice?: string } | null)?.pathwayNotice;
+  const dismissPathwayNotice = () => navigate(location.pathname, { replace: true, state: null });
 
   // Signed-in Dashboard State
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
@@ -57,40 +59,6 @@ export const Home: React.FC = () => {
       return matchesCat && matchesSearch;
     });
   }, [pathwayCategory, pathwaySearch]);
-
-  // The token lands one render before GoalContext starts fetching, so wait until that fetch
-  // has been seen to start and finish; otherwise a returning user looks goal-less for a frame.
-  useEffect(() => {
-    if (!pendingPathway || !token) return;
-    if (loadingGoal) {
-      goalFetchSeen.current = true;
-      return;
-    }
-    if (!goalFetchSeen.current || !user) return;
-
-    const title = pendingPathway;
-    goalFetchSeen.current = false;
-    setPendingPathway(null);
-    if (activeGoal) return;
-    localStorage.setItem('achivii_draft_goal', title);
-    navigate('/onboarding', { state: { presetGoal: title, isPreset: true, switchGoal: true } });
-  }, [pendingPathway, token, user, loadingGoal, activeGoal, navigate]);
-
-  const handleStartJourney = () => {
-    setPendingPathway(null);
-    openAuthModal('signup');
-  };
-
-  const handleSignIn = () => {
-    setPendingPathway(null);
-    openAuthModal('signin');
-  };
-
-  const handleChoosePathway = (title: string) => {
-    goalFetchSeen.current = false;
-    setPendingPathway(title);
-    openAuthModal('signup');
-  };
 
   // --------------------------------------------------------------------------
   // Signed-in Data Derivations
@@ -371,6 +339,23 @@ export const Home: React.FC = () => {
 
     return (
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6 animate-fadeIn text-left">
+        {pathwayNotice && (
+          <div role="status" className="flex items-start justify-between gap-3 p-4 rounded-md bg-[#0c1210] border border-[#1a2824]">
+            <p className="text-xs leading-relaxed text-neutral-300">
+              You already have a journey in progress, so we kept it. You can switch to{' '}
+              <span className="font-semibold text-white">{pathwayNotice}</span> from Explore Goals whenever you're ready.
+            </p>
+            <button
+              type="button"
+              onClick={dismissPathwayNotice}
+              aria-label="Dismiss"
+              className="-m-2 p-2 shrink-0 rounded-md text-neutral-500 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* =================================================================== */}
         {/* TOP STATUS & 90-DAY PROGRESS (WITH PROMINENT GOAL IMAGE) */}
         {/* =================================================================== */}
@@ -814,12 +799,7 @@ export const Home: React.FC = () => {
   // 2. SIGNED-OUT MARKETING LANDING
   // ===========================================================================
   return (
-    <LandingPage
-      onStartJourney={handleStartJourney}
-      onSignIn={handleSignIn}
-      onChoosePathway={handleChoosePathway}
-      apiOffline={apiStatus === 'offline'}
-    />
+    <LandingPage apiOffline={apiStatus === 'offline'} />
   );
 };
 

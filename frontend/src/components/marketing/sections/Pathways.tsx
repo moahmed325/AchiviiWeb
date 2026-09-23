@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { CERTIFIED_PATHWAYS, type CertifiedPathway } from '../../../lib/certifiedPresets';
 import { Section, Eyebrow } from '../Section';
@@ -15,15 +16,10 @@ const GROUPS: { name: string; ids: string[] }[] = [
 
 const byId = new Map(CERTIFIED_PATHWAYS.map((p) => [p.id, p]));
 
-interface PathwaysProps {
-  onChoosePathway: (title: string) => void;
-}
-
-const PathwayRow: React.FC<{ pathway: CertifiedPathway; onChoose: () => void }> = ({ pathway, onChoose }) => (
+const PathwayRow: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
   <li>
-    <button
-      type="button"
-      onClick={onChoose}
+    <Link
+      to={`/signup?pathway=${encodeURIComponent(pathway.id)}`}
       className="group flex min-h-11 w-full items-start justify-between gap-4 border-t border-border py-5 text-left transition-colors hover:border-border-strong"
     >
       <span>
@@ -40,11 +36,11 @@ const PathwayRow: React.FC<{ pathway: CertifiedPathway; onChoose: () => void }> 
         strokeWidth={1.5}
         className="mt-0.5 h-5 w-5 shrink-0 text-text-muted transition-[color,transform] duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-text"
       />
-    </button>
+    </Link>
   </li>
 );
 
-export const Pathways: React.FC<PathwaysProps> = ({ onChoosePathway }) => (
+export const Pathways: React.FC = () => (
   <Section id="pathways" labelledBy="pathways-title" className="py-28 sm:py-40">
     <div className="grid gap-10 lg:grid-cols-12">
       <div className="lg:col-span-7">
@@ -69,7 +65,7 @@ export const Pathways: React.FC<PathwaysProps> = ({ onChoosePathway }) => (
             {group.ids.map((id) => {
               const pathway = byId.get(id);
               if (!pathway) return null;
-              return <PathwayRow key={id} pathway={pathway} onChoose={() => onChoosePathway(pathway.title)} />;
+              return <PathwayRow key={id} pathway={pathway} />;
             })}
           </ul>
         </Reveal>

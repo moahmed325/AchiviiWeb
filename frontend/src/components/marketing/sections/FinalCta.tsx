@@ -8,12 +8,7 @@ const FIRST_STEPS = [
   { title: 'Get your first week', body: 'Your journey, its phases, and tomorrow’s first step.' },
 ];
 
-interface FinalCtaProps {
-  onStartJourney: () => void;
-  onSignIn: () => void;
-}
-
-export const FinalCta: React.FC<FinalCtaProps> = ({ onStartJourney, onSignIn }) => (
+export const FinalCta: React.FC = () => (
   <section aria-labelledby="final-cta-title" className="relative px-6 pb-28 pt-12 sm:px-10 sm:pb-40 lg:px-16">
     <div className="relative mx-auto w-full max-w-[1280px] overflow-hidden rounded-[20px] border border-border bg-surface px-6 py-20 sm:px-14 sm:py-28">
       <div aria-hidden="true" className="pointer-events-none absolute bottom-0 right-0 hidden h-full w-[46%] md:block">
@@ -47,10 +42,10 @@ export const FinalCta: React.FC<FinalCtaProps> = ({ onStartJourney, onSignIn }) 
         </ol>
 
         <Reveal delayMs={300} className="mt-14 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button size="lg" withArrow onClick={onStartJourney}>
+          <Button size="lg" withArrow to="/signup">
             Start your journey
           </Button>
-          <Button size="lg" variant="quiet" onClick={onSignIn}>
+          <Button size="lg" variant="quiet" to="/login">
             I already have an account
           </Button>
         </Reveal>

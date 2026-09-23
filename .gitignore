@@ -57,6 +57,8 @@ backend/test/fixtures/research/*.grounding.json
 backend/test/fixtures/research/eval-five.json
 backend/test/fixtures/eval-goals.json
 .nyc_output/
+test-results/
+playwright-report/
 
 # Python / Virtualenv (if applicable)
 venv/

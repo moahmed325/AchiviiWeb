@@ -6,6 +6,8 @@ import { useAuth } from './AuthContext';
 interface GoalContextType {
   activeGoal: Goal | null;
   loadingGoal: boolean;
+  /** The last goal fetch failed, so a null `activeGoal` does not mean the user has no goal. */
+  goalLoadFailed: boolean;
   apiStatus: 'online' | 'offline' | 'checking';
   refreshGoal: () => Promise<void>;
   setActiveGoal: (goal: Goal | null) => void;
@@ -19,6 +21,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { token } = useAuth();
   const [activeGoal, setActiveGoal] = useState<Goal | null>(null);
   const [loadingGoal, setLoadingGoal] = useState<boolean>(true);
+  const [goalLoadFailed, setGoalLoadFailed] = useState(false);
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
 
   // Health check on initial mount
@@ -40,6 +43,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadGoal = useCallback(async () => {
     if (!token) {
       setActiveGoal(null);
+      setGoalLoadFailed(false);
       setLoadingGoal(false);
       return;
     }
@@ -48,9 +52,11 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const goal = await fetchActiveGoal(token);
       setActiveGoal(goal);
+      setGoalLoadFailed(false);
     } catch (err) {
       console.warn('Failed to load active goal:', err);
       setActiveGoal(null);
+      setGoalLoadFailed(true);
     } finally {
       setLoadingGoal(false);
     }
@@ -71,6 +77,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const goal = await fetchActiveGoal(token);
       setActiveGoal(goal);
+      setGoalLoadFailed(false);
     } catch (err) {
       console.warn('Failed to refresh active goal:', err);
     }
@@ -94,6 +101,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         activeGoal,
         loadingGoal,
+        goalLoadFailed,
         apiStatus,
         refreshGoal,
         setActiveGoal,

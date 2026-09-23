@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
 type Variant = 'primary' | 'secondary' | 'quiet';
@@ -28,10 +29,12 @@ interface CommonProps {
   children: React.ReactNode;
 }
 
-type ButtonProps = CommonProps & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'> & { href?: undefined };
-type AnchorProps = CommonProps & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'className' | 'children'> & { href: string };
+type ButtonProps = CommonProps & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'> & { href?: undefined; to?: undefined };
+type AnchorProps = CommonProps & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'className' | 'children'> & { href: string; to?: undefined };
+/** An in-app route, navigated client-side. */
+type RouteProps = CommonProps & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'className' | 'children' | 'href'> & { to: string; href?: undefined };
 
-export const Button: React.FC<ButtonProps | AnchorProps> = ({
+export const Button: React.FC<ButtonProps | AnchorProps | RouteProps> = ({
   variant = 'primary',
   size = 'md',
   withArrow = false,
@@ -53,6 +56,14 @@ export const Button: React.FC<ButtonProps | AnchorProps> = ({
     </>
   );
 
+  if (typeof rest.to === 'string') {
+    const { to, ...anchor } = rest as Omit<RouteProps, keyof CommonProps>;
+    return (
+      <Link to={to} className={classes} {...anchor}>
+        {content}
+      </Link>
+    );
+  }
   if (typeof rest.href === 'string') {
     return (
       <a className={classes} {...(rest as React.AnchorHTMLAttributes<HTMLAnchorElement>)}>
