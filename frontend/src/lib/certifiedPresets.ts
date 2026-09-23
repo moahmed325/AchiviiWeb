@@ -1,14 +1,31 @@
+/*
+ * The one frontend catalogue of certified pathways (ND-15). Every pathway screen, in the app and on the landing
+ * page, reads it; nothing else may hold its own list of pathways or categories.
+ *
+ * `id` and `title` are identity, not copy: the id is the `/signup?pathway=<id>` slug, and the title is sent as the
+ * goal text, which the backend's `findPresetForGoal` matches to pick the preset. Never change either (ND-5).
+ */
+
+/** The six directions a pathway belongs to (OD-11), in display order. */
+export const PATHWAY_DIRECTIONS = ['Career', 'Fitness', 'Learning', 'Creative', 'Business', 'Personal'] as const;
+export type PathwayDirection = (typeof PATHWAY_DIRECTIONS)[number];
+
 export interface CertifiedPathway {
   id: string;
+  /** Matched by the backend to pick the preset: never reword it (ND-5). */
   title: string;
-  label: string;
-  outcome: string;
-  tag: string;
-  category: 'Tech & Career' | 'Fitness & Health' | 'Creative & Media' | 'Mastery & Mind';
-  desc: string;
-  dailyMinutes: number;
+  direction: PathwayDirection;
+  /** Plain-language description for display (ND-5). The method names stay in `badge`. */
+  summary: string;
+  /** Method names, shown as a secondary "Built on …" line (ND-5). */
   badge: string;
+  dailyMinutes: number;
+  /** Used by `getGoalImage` only. */
+  label: string;
   image: string;
+  /* Expert detail from the original gallery, not displayed today. */
+  outcome: string;
+  desc: string;
   coach: string;
   p1: { name: string; focus: string };
   p2: { name: string; focus: string };
@@ -24,11 +41,11 @@ export interface CertifiedPathway {
 export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   {
     id: 'saas',
+    direction: 'Business',
+    summary: 'Build a web app people will pay for, from the first screen to your first paying customer.',
     title: 'Build & Ship a SaaS Web App',
     label: 'Ship a SaaS',
     outcome: 'Build, deploy, and launch a full-stack SaaS to first paying user',
-    tag: 'TECH & STARTUP',
-    category: 'Tech & Career',
     desc: 'From clean relational schema to Stripe billing & first paying user',
     dailyMinutes: 45,
     badge: 'Eric Ries Lean Startup & Vertical Slice Architecture',
@@ -46,11 +63,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'run10k',
+    direction: 'Fitness',
+    summary: 'Build your running base week by week, working toward 10 km in under 50 minutes.',
     title: 'Run a 10K Under 50 Minutes',
     label: 'Run a 10K',
     outcome: 'Run a 10K under 50 minutes continuously with aerobic efficiency',
-    tag: 'FITNESS & ENDURANCE',
-    category: 'Fitness & Health',
     desc: 'Progressive aerobic base, 170+ SPM cadence & threshold pacing',
     dailyMinutes: 35,
     badge: 'Jack Daniels VDOT & 80/20 Polarized Base',
@@ -68,11 +85,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'guitar',
+    direction: 'Creative',
+    summary: 'Learn the chords, strumming and picking you need to play five full songs.',
     title: 'Play 5 Songs on Acoustic Guitar',
     label: 'Acoustic Guitar',
     outcome: 'Play 5 complete songs from memory with clean fingerpicking at campfires',
-    tag: 'MUSIC & MASTERY',
-    category: 'Creative & Media',
     desc: 'Fingerstyle mechanics, metronome switches & memory playthrough',
     dailyMinutes: 30,
     badge: 'JustinGuitar Grade 1 & Berklee Ergonomics',
@@ -90,11 +107,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'spanish',
+    direction: 'Learning',
+    summary: 'Learn the words and habits you need to hold a real conversation in Spanish.',
     title: 'Speak Conversational Spanish',
     label: 'Conversational Spanish',
     outcome: 'Hold 15-minute fluid conversational dialogues in Spanish without hesitation',
-    tag: 'LANGUAGE & IMMERSION',
-    category: 'Mastery & Mind',
     desc: '500 core verbs, high-frequency frames & spoken vocalization drills',
     dailyMinutes: 30,
     badge: 'Stephen Krashen Input & Michel Thomas Verbal Production',
@@ -112,11 +129,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'recomp',
+    direction: 'Fitness',
+    summary: 'Train and eat to lose body fat while you keep and build muscle.',
     title: 'Drop 5% Body Fat & Build Lean Muscle',
     label: 'Physique Recomp',
     outcome: 'Drop 5% body fat while preserving lean muscle via caloric deficit calibration',
-    tag: 'PHYSIQUE & NUTRITION',
-    category: 'Fitness & Health',
     desc: 'Helms nutrition deficit, 2.0g/kg protein, RIR hypertrophy & 48-hr refeeds',
     dailyMinutes: 60,
     badge: 'Eric Helms Nutrition Pyramid & Schoenfeld Hypertrophy',
@@ -134,11 +151,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'youtube',
+    direction: 'Creative',
+    summary: 'Plan, film and publish twelve videos, and learn what keeps people watching.',
     title: 'Launch a YouTube Channel (12 Videos)',
     label: 'YouTube Engine',
     outcome: 'Publish 12 high-retention videos with 50%+ 30s retention and 7%+ CTR',
-    tag: 'MEDIA & AUDIENCE',
-    category: 'Creative & Media',
     desc: 'MrBeast retention curves, Ali Abdaal batching & 4-hour lean edits',
     dailyMinutes: 60,
     badge: 'MrBeast 50% Retention & Ali Abdaal Creator Engine',
@@ -156,11 +173,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'book',
+    direction: 'Creative',
+    summary: 'Draft a 30,000-word book, then edit it into a finished manuscript.',
     title: 'Write & Polish a 30,000-Word Book',
     label: 'Write a Book',
     outcome: 'Write, edit, and polish a complete 30,000-word non-fiction manuscript',
-    tag: 'AUTHORSHIP & LITERATURE',
-    category: 'Creative & Media',
     desc: 'Stephen King closed-door quotas, Pressfield War of Art & Zinsser pruning',
     dailyMinutes: 60,
     badge: 'Steven Pressfield War of Art & William Zinsser On Writing Well',
@@ -178,11 +195,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'deepwork',
+    direction: 'Personal',
+    summary: 'Train your attention so you can do long stretches of focused work each day.',
     title: 'Master Deep Work & Double Daily Output',
     label: 'Deep Work Focus',
     outcome: 'Master 4 hours of daily unbroken deep work and double cognitive output',
-    tag: 'COGNITIVE MASTERY',
-    category: 'Mastery & Mind',
     desc: 'Cal Newport attention residue, Huberman 90m ultradian cycles & shutdown ritual',
     dailyMinutes: 60,
     badge: 'Cal Newport Deep Work & Andrew Huberman Focus Protocols',
@@ -200,11 +217,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'chess',
+    direction: 'Learning',
+    summary: 'Study tactics and endgames, and play rated games, working toward a 1200 rating.',
     title: 'Climb to a 1200 Rapid Chess Rating',
     label: '1200 Chess Rating',
     outcome: 'Climb from beginner/unrated to 1200+ Chess.com Rapid rating via tactics',
-    tag: 'CHESS & STRATEGY',
-    category: 'Mastery & Mind',
     desc: 'Woodpecker spaced repetition puzzles, Silman LPDO scans & CCT pause',
     dailyMinutes: 45,
     badge: 'Axel Smith Woodpecker Method & Jeremy Silman Imbalance Architecture',
@@ -222,11 +239,11 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
   {
     id: 'speech',
+    direction: 'Career',
+    summary: 'Write, rehearse and deliver a 15-minute talk that people remember.',
     title: 'Deliver a 15-Minute TED-Style Speech',
     label: 'TED-Style Keynote',
     outcome: 'Deliver an unforgettable 15-minute keynote from memory without slide crutches',
-    tag: 'PUBLIC SPEAKING',
-    category: 'Tech & Career',
     desc: 'Carmine Gallo 15-word throughline, Toastmasters silence pauses & Duarte sparklines',
     dailyMinutes: 45,
     badge: 'Carmine Gallo Talk Like TED & Toastmasters International',
@@ -244,10 +261,40 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
   },
 ];
 
+export function pathwaysInDirection(direction: PathwayDirection | undefined): CertifiedPathway[] {
+  return direction ? CERTIFIED_PATHWAYS.filter((p) => p.direction === direction) : [];
+}
+
+export interface PathwayGroup {
+  direction: PathwayDirection;
+  pathways: CertifiedPathway[];
+}
+
+/** Groups pathways by direction in display order, leaving out any direction with no pathway (OD-11). */
+export function groupPathways(pathways: CertifiedPathway[]): PathwayGroup[] {
+  return PATHWAY_DIRECTIONS.map((direction) => ({
+    direction,
+    pathways: pathways.filter((p) => p.direction === direction),
+  })).filter((group) => group.pathways.length > 0);
+}
+
+/** The directions that hold at least one pathway, in display order. An empty direction is never shown. */
+export const PATHWAY_GROUPS: PathwayGroup[] = groupPathways(CERTIFIED_PATHWAYS);
+
 /** Looks up a pathway by the slug used in `/signup?pathway=<slug>`; the slug is the pathway's `id`. */
 export function findPathwayBySlug(slug: string | null | undefined): CertifiedPathway | undefined {
   if (!slug) return undefined;
   return CERTIFIED_PATHWAYS.find((p) => p.id === slug);
+}
+
+/**
+ * The pathway a goal was started from. A pathway goal's text is exactly its title (the backend matches the title the
+ * same way), so a custom goal that merely mentions a pathway's subject is not mistaken for it.
+ */
+export function findPathwayByTitle(goalText: string | null | undefined): CertifiedPathway | undefined {
+  const normalized = goalText?.trim().toLowerCase();
+  if (!normalized) return undefined;
+  return CERTIFIED_PATHWAYS.find((p) => p.title.toLowerCase() === normalized);
 }
 
 export function getGoalImage(goalTitleOrOutcome?: string): string {

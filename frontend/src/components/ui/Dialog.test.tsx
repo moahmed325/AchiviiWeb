@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -39,6 +40,29 @@ describe('Dialog', () => {
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(trigger).toHaveFocus();
+  });
+
+  it('opened from state, without a trigger, returns focus to the element that opened it', async () => {
+    const Controlled = () => {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <Button onClick={() => setOpen(true)}>Edit gym</Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogContent title="Edit commitment">
+              <p>Body</p>
+            </DialogContent>
+          </Dialog>
+        </>
+      );
+    };
+    render(<Controlled />);
+    const opener = screen.getByRole('button', { name: 'Edit gym' });
+    await userEvent.click(opener);
+    await screen.findByRole('dialog');
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 
   it('closes from the close button', async () => {

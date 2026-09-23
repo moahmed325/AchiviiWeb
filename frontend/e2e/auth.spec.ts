@@ -111,7 +111,7 @@ test.describe('after authentication', () => {
     await page.getByLabel('Password', { exact: true }).press('Enter');
     await expect(page).toHaveURL('/onboarding');
     expect(await page.evaluate(() => localStorage.getItem('achivii_draft_goal'))).toBe('Run a 10K Under 50 Minutes');
-    await expect(page.getByText('Run a 10K Under 50 Minutes').first()).toBeVisible();
+    await expect(page.getByText('Run a 10K Under 50 Minutes').locator('visible=true').first()).toBeVisible();
   });
 
   test('sign-in with a goal goes to Today, and a chosen pathway does not replace it', async ({ page }) => {
@@ -124,6 +124,8 @@ test.describe('after authentication', () => {
       'Run a 10K Under 50 Minutes',
     );
     expect(await page.evaluate(() => localStorage.getItem('achivii_draft_goal'))).toBeNull();
+    const dismiss = await page.getByRole('button', { name: 'Dismiss' }).boundingBox();
+    expect(Math.min(dismiss!.width, dismiss!.height)).toBeGreaterThanOrEqual(44);
     await page.getByRole('button', { name: 'Dismiss' }).click();
     await expect(page.getByText('You already have a journey in progress')).toHaveCount(0);
   });

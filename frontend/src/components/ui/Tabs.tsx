@@ -15,7 +15,7 @@ export const TabsList: React.FC<React.ComponentProps<typeof TabsPrimitive.List>>
 export const TabsTrigger: React.FC<React.ComponentProps<typeof TabsPrimitive.Trigger>> = ({ className, ...props }) => (
   <TabsPrimitive.Trigger
     className={cx(
-      'focus-ring relative -mb-px inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 border-b-2 border-transparent px-3 text-small font-medium text-text-secondary',
+      'focus-ring-inset relative -mb-px inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-2 border-b-2 border-transparent px-3 text-small font-medium text-text-secondary',
       'transition-colors duration-(--duration-quick) hover:text-text',
       'data-[state=active]:border-accent data-[state=active]:text-text',
       'disabled:cursor-not-allowed disabled:opacity-45',

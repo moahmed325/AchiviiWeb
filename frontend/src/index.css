@@ -86,7 +86,11 @@
   --animate-dialog-out: dialog-out 160ms ease-in both;
   --animate-sheet-in: sheet-in 420ms var(--ease-settle) both;
   --animate-sheet-out: sheet-out 240ms ease-in both;
+  --animate-rise-in: rise-in 520ms var(--ease-ascend) both;
 
+  @keyframes rise-in {
+    from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  }
   @keyframes overlay-in {
     from { opacity: 0; }
   }
@@ -241,6 +245,12 @@
 .focus-ring:focus-visible {
   outline: 2px solid var(--focus-ring-color);
   outline-offset: 2px;
+}
+
+/* For controls inside a scrolling track, such as a tab list, which would clip a ring drawn outside them. */
+.focus-ring-inset:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
 }
 
 /* Root of every screen migrated to the design system, and of portalled dialogs. */

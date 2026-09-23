@@ -1,0 +1,43 @@
+{
+  "headers": {
+    "content-type": "application/json",
+    "accept": "text/event-stream",
+    "authorization": "Bearer <token>"
+  },
+  "body": {
+    "rawGoal": "Run a 10K Under 50 Minutes",
+    "clarifiedOutcome": "Run a 10K in under 50 minutes with aerobic efficiency and continuous pacing",
+    "answers": {
+      "What is your current comfortable 5K running baseline?": "Sub-24 min (Current 5K < 24:00, aiming for 10K pacing endurance)",
+      "What running surface and gear will you primarily use?": "Outdoor asphalt roads & flat pavement with GPS watch",
+      "What has been your biggest historical physical or consistency bottleneck?": "Shin splints, calf tightness, or Achilles tenderness when volume increases"
+    },
+    "answerList": [
+      {
+        "id": "baseline5k",
+        "question": "What is your current comfortable 5K running baseline?",
+        "answer": "Sub-24 min (Current 5K < 24:00, aiming for 10K pacing endurance)"
+      },
+      {
+        "id": "environment",
+        "question": "What running surface and gear will you primarily use?",
+        "answer": "Outdoor asphalt roads & flat pavement with GPS watch"
+      },
+      {
+        "id": "injury_history",
+        "question": "What has been your biggest historical physical or consistency bottleneck?",
+        "answer": "Shin splints, calf tightness, or Achilles tenderness when volume increases"
+      }
+    ],
+    "domain": "Endurance Running & Aerobic Conditioning",
+    "routine": {
+      "wakeTime": "07:00",
+      "sleepTime": "23:00",
+      "busyHours": "09:00 - 17:00",
+      "preferredSlot": "evening",
+      "dailyMinutes": 45,
+      "planVariant": "steady",
+      "commitments": []
+    }
+  }
+}

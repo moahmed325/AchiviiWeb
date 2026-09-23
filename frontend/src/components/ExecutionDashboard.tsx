@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Target,
   CheckCircle2,
@@ -34,8 +33,9 @@ import { formatGoalTitle } from '../lib/formatters';
 import { FullDayVisualizer } from './FullDayVisualizer';
 import { FocusSessionModal } from './FocusSessionModal';
 import { StepChallengeWidget } from './StepChallengeWidget';
-import { CERTIFIED_PATHWAYS, getGoalImage } from '../lib/certifiedPresets';
+import { findPathwayByTitle, getGoalImage } from '../lib/certifiedPresets';
 import { PathwaysExplorerModal } from './PathwaysExplorerModal';
+import { PathwayStrip } from './pathways';
 import BasisBadge from './BasisBadge';
 import { PlanV2Panel } from './PlanV2Panel';
 
@@ -194,7 +194,11 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
   const [activeVideoStep, setActiveVideoStep] = useState<string | null>(null);
   const [isFocusModalOpen, setIsFocusModalOpen] = useState(false);
   const [isPathwaysModalOpen, setIsPathwaysModalOpen] = useState(false);
-  const navigate = useNavigate();
+  const [explorePathwayId, setExplorePathwayId] = useState<string | undefined>();
+  const openPathways = (pathwayId?: string) => {
+    setExplorePathwayId(pathwayId);
+    setIsPathwaysModalOpen(true);
+  };
   const [milestoneGateModal, setMilestoneGateModal] = useState<{
     completedPhase: string;
     nextPhase: string;
@@ -478,7 +482,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
           <div className="flex items-center gap-2 self-start md:self-center shrink-0">
             <button
               type="button"
-              onClick={() => setIsPathwaysModalOpen(true)}
+              onClick={() => openPathways()}
               className="px-3.5 py-2 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-semibold text-neutral-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
@@ -1204,108 +1208,17 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
         />
       )}
 
-      {/* ===================================================================== */}
-      {/* 6. CERTIFIED 90-DAY PATHWAYS GALLERY (DISCOVERY & SWITCHING) */}
-      {/* ===================================================================== */}
-      <div className="p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1a2824] pb-3">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
-              <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                Certified 90-Day Pathways Library
-              </h2>
-              <span className="text-[10px] font-mono font-bold bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 px-1.5 py-0.5 rounded">
-                10 Curricula
-              </span>
-            </div>
-            <p className="text-xs text-neutral-400">
-              Explore other gold-standard curricula engineered with scientific progression frameworks or switch pathways.
-            </p>
-          </div>
+      <PathwayStrip
+        currentId={findPathwayByTitle(goal.rawGoal)?.id}
+        onOpen={(pathway) => openPathways(pathway.id)}
+        onExploreAll={() => openPathways()}
+      />
 
-          <button
-            type="button"
-            onClick={() => setIsPathwaysModalOpen(true)}
-            className="self-start sm:self-auto px-3 py-1.5 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-medium text-neutral-200 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <span>Explore All (10)</span>
-            <ArrowRight className="w-3 h-3 text-[#07CB6C]" />
-          </button>
-        </div>
-
-        {/* Quick Previews of Pathways */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {CERTIFIED_PATHWAYS.slice(0, 6).map((pathway) => {
-            const isActive = goal.rawGoal.toLowerCase().includes(pathway.label?.toLowerCase() || pathway.id);
-
-            return (
-              <div
-                key={pathway.id}
-                className={`rounded-lg overflow-hidden border transition-all flex flex-col justify-between group bg-[#080d0b] ${
-                  isActive ? 'border-[#07CB6C] ring-1 ring-[#07CB6C]/40 shadow-lg shadow-[#07CB6C]/5' : 'border-[#1a2824] hover:border-[#07CB6C]/60'
-                }`}
-              >
-                {/* Dedicated Top Image Banner */}
-                <div className="relative w-full h-28 sm:h-32 overflow-hidden bg-[#0c1210]">
-                  <img
-                    src={pathway.image}
-                    alt={pathway.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#080d0b] via-transparent to-black/30" />
-                  <div className="absolute top-2 left-2 z-10">
-                    <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider bg-black/75 backdrop-blur-md text-[#07CB6C] border border-[#07CB6C]/40">
-                      {pathway.tag}
-                    </span>
-                  </div>
-                  <div className="absolute top-2 right-2 z-10">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-black/75 backdrop-blur-md text-neutral-300 border border-white/10">
-                      {pathway.dailyMinutes}m/day
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-3.5 space-y-1 flex-1 flex flex-col justify-between">
-                  <div className="space-y-1">
-                    <h3 className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors line-clamp-1">
-                      {pathway.title}
-                    </h3>
-                    <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
-                      {pathway.desc}
-                    </p>
-                  </div>
-
-                  <div className="pt-2 mt-2 border-t border-[#1a2824] flex items-center justify-between">
-                    <span className="text-[10px] font-mono text-neutral-500">
-                      {isActive ? 'Current Plan' : '12 Milestones'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        localStorage.setItem('achivii_draft_goal', pathway.title);
-                        navigate('/onboarding', {
-                          state: { presetGoal: pathway.title, isPreset: true, switchGoal: true }
-                        });
-                      }}
-                      className="text-[11px] font-semibold text-[#07CB6C] hover:text-[#06b560] flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <span>{isActive ? 'Restart' : 'Switch'}</span>
-                      <ArrowRight className="w-2.5 h-2.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Pathways Explorer Modal */}
       <PathwaysExplorerModal
         isOpen={isPathwaysModalOpen}
         onClose={() => setIsPathwaysModalOpen(false)}
         activeGoalTitle={goal.rawGoal}
+        initialPathwayId={explorePathwayId}
       />
     </div>
   );

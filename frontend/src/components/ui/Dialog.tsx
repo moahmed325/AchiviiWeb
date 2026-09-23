@@ -54,41 +54,61 @@ export const DialogContent: React.FC<DialogContentProps> = ({
   closeLabel = 'Close',
   className,
   children,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...rest
-}) => (
-  <DialogPrimitive.Portal>
-    <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
-    <DialogPrimitive.Content
-      {...rest}
-      {...(description ? {} : { 'aria-describedby': rest['aria-describedby'] })}
-      className={cx(
-        'ui-root fixed z-50 flex flex-col border border-border-strong bg-surface-elevated text-text shadow-overlay outline-none',
-        mobileSheet,
-        layout === 'auto' ? desktopDialog : desktopSheet,
-        sizes[size],
-        className,
-      )}
-    >
-      <div className="flex items-start gap-4 px-6 pb-4 pt-6 md:px-7 md:pt-7">
-        <div className="min-w-0 flex-1">
-          <DialogPrimitive.Title className={hideTitle ? 'sr-only' : 'text-h3 text-text'}>{title}</DialogPrimitive.Title>
-          {description && (
-            <DialogPrimitive.Description className="mt-2 text-small text-text-secondary">{description}</DialogPrimitive.Description>
+}) => {
+  // Radix returns focus to a DialogTrigger. A dialog opened from state has none, so return focus to whatever
+  // was focused when it opened, if that element still exists.
+  const returnFocus = React.useRef<HTMLElement | null>(null);
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-scrim data-[state=open]:animate-overlay-in data-[state=closed]:animate-overlay-out" />
+      <DialogPrimitive.Content
+        {...rest}
+        onOpenAutoFocus={(event) => {
+          returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          onOpenAutoFocus?.(event);
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          if (event.defaultPrevented) return;
+          const target = returnFocus.current;
+          if (target?.isConnected) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
+        {...(description ? {} : { 'aria-describedby': rest['aria-describedby'] })}
+        className={cx(
+          'ui-root fixed z-50 flex flex-col border border-border-strong bg-surface-elevated text-text shadow-overlay outline-none',
+          mobileSheet,
+          layout === 'auto' ? desktopDialog : desktopSheet,
+          sizes[size],
+          className,
+        )}
+      >
+        <div className="flex items-start gap-4 px-6 pb-4 pt-6 md:px-7 md:pt-7">
+          <div className="min-w-0 flex-1">
+            <DialogPrimitive.Title className={hideTitle ? 'sr-only' : 'text-h3 text-text'}>{title}</DialogPrimitive.Title>
+            {description && (
+              <DialogPrimitive.Description className="mt-2 text-small text-text-secondary">{description}</DialogPrimitive.Description>
+            )}
+          </div>
+          {!hideClose && (
+            <DialogPrimitive.Close asChild>
+              <IconButton label={closeLabel} icon={<X aria-hidden="true" strokeWidth={1.5} className="size-5" />} className="-mr-2 -mt-2" />
+            </DialogPrimitive.Close>
           )}
         </div>
-        {!hideClose && (
-          <DialogPrimitive.Close asChild>
-            <IconButton label={closeLabel} icon={<X aria-hidden="true" strokeWidth={1.5} className="size-5" />} className="-mr-2 -mt-2" />
-          </DialogPrimitive.Close>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6 md:px-7 md:pb-7">{children}</div>
+        {footer && (
+          <div className="flex flex-col-reverse gap-3 border-t border-border px-6 py-4 md:flex-row md:justify-end md:px-7">{footer}</div>
         )}
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6 md:px-7 md:pb-7">{children}</div>
-      {footer && (
-        <div className="flex flex-col-reverse gap-3 border-t border-border px-6 py-4 md:flex-row md:justify-end md:px-7">{footer}</div>
-      )}
-    </DialogPrimitive.Content>
-  </DialogPrimitive.Portal>
-);
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
+  );
+};
 
 /** A bottom sheet at every size. Same API as DialogContent. */
 export const SheetContent: React.FC<Omit<DialogContentProps, 'layout'>> = (props) => <DialogContent {...props} layout="sheet" />;

@@ -1,20 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
-import { CERTIFIED_PATHWAYS, type CertifiedPathway } from '../../../lib/certifiedPresets';
+import { PATHWAY_GROUPS, type CertifiedPathway } from '../../../lib/certifiedPresets';
 import { Section, Eyebrow } from '../Section';
 import { Reveal } from '../Reveal';
 
-const GROUPS: { name: string; ids: string[] }[] = [
-  { name: 'Creative', ids: ['guitar', 'youtube', 'book'] },
-  { name: 'Fitness', ids: ['run10k', 'recomp'] },
-  { name: 'Learning', ids: ['spanish', 'chess'] },
-  { name: 'Business', ids: ['saas'] },
-  { name: 'Career', ids: ['speech'] },
-  { name: 'Personal', ids: ['deepwork'] },
-];
-
-const byId = new Map(CERTIFIED_PATHWAYS.map((p) => [p.id, p]));
+/** The shared groups (OD-11), largest first so the three-column grid stays balanced. */
+const GROUPS = [...PATHWAY_GROUPS].sort((a, b) => b.pathways.length - a.pathways.length);
 
 const PathwayRow: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
   <li>
@@ -26,7 +18,7 @@ const PathwayRow: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
         <span className="block text-[17px] font-medium leading-snug tracking-[-0.015em] text-text transition-colors group-hover:text-accent-hover">
           {pathway.title}
         </span>
-        <span className="mt-1.5 block text-sm leading-relaxed text-text-secondary">{pathway.desc}</span>
+        <span className="mt-1.5 block text-sm leading-relaxed text-text-secondary">{pathway.summary}</span>
         <span className="tabular mt-3 block font-ui-mono text-[11px] uppercase tracking-[0.16em] text-text-secondary/80">
           {pathway.dailyMinutes} min a day
         </span>
@@ -59,14 +51,12 @@ export const Pathways: React.FC = () => (
 
     <div className="mt-20 grid gap-x-10 gap-y-16 md:grid-cols-2 lg:grid-cols-3">
       {GROUPS.map((group, groupIndex) => (
-        <Reveal key={group.name} delayMs={(groupIndex % 3) * 100}>
-          <h3 className="mb-2 font-ui-mono text-xs uppercase tracking-[0.2em] text-text-secondary">{group.name}</h3>
+        <Reveal key={group.direction} delayMs={(groupIndex % 3) * 100}>
+          <h3 className="mb-2 font-ui-mono text-xs uppercase tracking-[0.2em] text-text-secondary">{group.direction}</h3>
           <ul>
-            {group.ids.map((id) => {
-              const pathway = byId.get(id);
-              if (!pathway) return null;
-              return <PathwayRow key={id} pathway={pathway} />;
-            })}
+            {group.pathways.map((pathway) => (
+              <PathwayRow key={pathway.id} pathway={pathway} />
+            ))}
           </ul>
         </Reveal>
       ))}

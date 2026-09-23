@@ -241,7 +241,7 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
           <label
             key={option.value}
             className={cx(
-              'relative flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-full px-4 text-center text-small font-medium text-text-secondary',
+              'relative flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-full px-3 text-center text-small font-medium text-text-secondary sm:px-4',
               'transition-colors duration-(--duration-quick) hover:text-text',
               'has-checked:bg-text has-checked:text-text-on-inverse',
               focusWithin,

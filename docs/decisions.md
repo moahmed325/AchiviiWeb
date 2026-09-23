@@ -124,20 +124,24 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | OD-8 | Honest generation stages | Product | Proposed | 4 |
 | OD-9 | Every Today state | Product | Proposed | 5 |
 | OD-10 | Meaning of "dark/light contrast" | Design | Decided (see D-3) | — |
-| OD-11 | Onboarding categories vs free presets | Product | Proposed | 3 |
+| OD-11 | Onboarding categories vs free presets | Product | Decided (A) | 3 |
 | OD-12 | Semantic token names | Design | Decided (see D-5) | 0 |
 | ND-1 | Token migration strategy | Architecture | Decided | 0 |
 | ND-2 | Primitive strategy | Technology | Decided | 0 |
 | ND-3 | Frontend verification tooling | Technology | Decided | 0, 2, 3 |
 | ND-4 | Pathway handoff and redirects with auth routes | Architecture | Decided (A) | 2 |
-| ND-5 | Pathway display copy | Product | Proposed | 3 |
-| ND-6 | Free custom-goal entry before Phase 10 | Product | Proposed | 3 |
+| ND-5 | Pathway display copy | Product | Decided (A) | 3 |
+| ND-6 | Free custom-goal entry before Phase 10 | Product | Decided (A) | 3 |
 | ND-7 | Application shell and navigation | Design | Proposed | 5 |
 | ND-8 | Progress: separate page or Journey layer | Design | Proposed | 8 |
 | ND-9 | Payments in scope or not | Product | Proposed | 10 |
 | ND-10 | Custom-goal gating | Product | Proposed | 10 |
 | ND-11 | Coach scope | Product | Proposed | 10 |
 | ND-12 | Phase 2 frontend scope additions (`api.ts` status, `GoalContext` failure flag) | Architecture | Decided (A) | 2 |
+| ND-13 | Onboarding step order around the clarify wait | Design | Decided (A) | 3 |
+| ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Decided (A) | 3 |
+| ND-15 | Scope of the single pathway library | Architecture | Decided (A) | 3 |
+| ND-16 | Pre-existing onboarding bugs fixed in Phase 3 | Architecture | Decided (A) | 3 |
 
 **What blocks the next phase:** Phase 2 needs OD-4 and ND-4.
 
@@ -323,6 +327,8 @@ Phase 1 also introduced a darker accent, `#3F6B4E` (`accent-deep`), for use on l
 | 0 | `@radix-ui/react-slot` | runtime | `Button asChild`, so router links get button styling without nesting. |
 | 0 | `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals` | dev | Linting (ND-3). |
 | 0 | `vitest`, `jsdom`, `@testing-library/react`, `@testing-library/dom`, `@testing-library/jest-dom`, `@testing-library/user-event` | dev | Component tests (ND-3). |
+| 2 | `@playwright/test` (with Chromium) | dev | Browser tests for the auth routes and redirects at desktop and mobile widths (ND-3, approved in ND-12). |
+| 2 | `@axe-core/playwright` | dev | Automated WCAG checks inside the Playwright suite (approved in ND-12). |
 
 No Radix Select or Tooltip was added: `Select` is native, and no phase up to 5 needs a tooltip yet.
 
@@ -770,6 +776,8 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 **Consequences.** If A: Phase 2 updates `App.tsx` routes, `ProtectedRoute`, and every `openAuthModal` call site (landing CTAs, pathway rows, Navbar). R-1, R-3 and R-16 are regression-checked.
 
+**Implemented** 2026-09-23 (Phase 2). `/signup` and `/login` are live (`frontend/src/pages/auth/`); `AuthModal.tsx` and `openAuthModal` are gone. `ProtectedRoute` sends signed-out visitors to `/login?next=<path>`. R-1, R-3 and R-16 were verified against the real backend (`docs/phases.md` Phase 2).
+
 **Related.** ND-4, D-19.
 
 ---
@@ -912,11 +920,11 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided |
 | Category | Product |
 | Needed by | 3 |
 | Raised | BP §28 and Open Decision 11 |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at the Phase 3 gate |
 
 **Context.** BP §28 lists Career, Fitness, Learning, Creative, Business and Personal. There are 10 free presets. Phase 1's pathway section already groups them:
 
@@ -930,6 +938,8 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 | Personal | Deep work |
 
 Every category has at least one preset, but Business, Career and Personal have only one each.
+
+A second category system exists in the code (found at the Phase 3 gate): each preset in `frontend/src/lib/certifiedPresets.ts` has a `category` field with four values — Tech & Career (SaaS, speech), Fitness & Health (10K, recomposition), Creative & Media (guitar, YouTube, book), Mastery & Mind (Spanish, deep work, chess). The in-app galleries (`Home.tsx`, `PathwaysExplorerModal.tsx`) use these four; the landing page hard-codes the six above in `marketing/sections/Pathways.tsx`.
 
 **Question.** How does the onboarding category step map onto the presets?
 
@@ -946,9 +956,9 @@ Every category has at least one preset, but Business, Career and Personal have o
 
 **Recommendation.** **A**, with one refinement: if a category has a single pathway, choosing the category shows that pathway directly (plus the custom option, per ND-6). Revisit when the preset library grows.
 
-**Decision.** —
+**Decision.** **A — the six categories, using the Phase 1 grouping**, with the refinement: a category with a single pathway shows that pathway directly, alongside the custom option (ND-6). The four-value `category` field is superseded by the six.
 
-**Consequences.** The category mapping lives in one shared data source, used by the landing page and onboarding (Phase 3 milestone M3.6).
+**Consequences.** The category mapping lives in one shared data source, used by the landing page and onboarding (Phase 3 milestone M3.6). The landing page's hard-coded groups and the in-app galleries both read it, so the in-app galleries move from four categories to six. No landing copy changes. Preset ids and titles, and so preset matching, are unaffected.
 
 **Related.** ND-5, ND-6, D-18.
 
@@ -1104,7 +1114,11 @@ The feared name collision is therefore theoretical: no screen reads the legacy `
 
 **Consequences.** The validation baseline in `docs/phases.md` §3.11 and the system prompt gain the new commands once they exist.
 
-**Implemented** 2026-09-23 (Phase 0). ESLint and Vitest are set up, and 41 component tests pass (22 at first delivery, 41 after the review fixes). The first full lint run found a baseline of 48 errors and 6 warnings in 14 pre-Phase-0 files, recorded in `docs/phases.md` §3.11. It includes a real `rules-of-hooks` violation in `RoadmapPage.tsx`, carried over to Phase 6. The Phase 2 and Phase 3 parts are still to come.
+**Implemented** 2026-09-23 (Phase 0). ESLint and Vitest are set up, and 41 component tests pass (22 at first delivery, 41 after the review fixes). The first full lint run found a baseline of 48 errors and 6 warnings in 14 pre-Phase-0 files, recorded in `docs/phases.md` §3.11. It includes a real `rules-of-hooks` violation in `RoadmapPage.tsx`, carried over to Phase 6. The Phase 3 part is still to come.
+
+**Implemented** 2026-09-23 (Phase 2). Playwright with axe-core: `frontend/e2e/auth.spec.ts`, desktop 1440 and mobile 390 projects. Unlike the option text, the suite mocks the API (`e2e/mockApi.ts`, mirroring `backend/src/routes/auth.ts`) so it runs without a database; `e2e/live/` is reserved for real-backend specs run with `LIVE_API=1`, and is still empty (a Phase 3 carry-over).
+
+**Implemented** 2026-09-23 (Phase 3, M3.1). Onboarding payload test: `frontend/e2e/onboarding.spec.ts` replays recorded clarify responses (`e2e/fixtures/onboarding/`) through `mockApi` and compares every `/api/goal/create` body and header with the recorded baseline, commitment ids normalised; a one-field change fails with a diff. `e2e/live/onboarding.live.spec.ts` runs the preset flow (exact match) and a custom flow (shape match, since AI questions vary) against the real backend with create held open. No package added.
 
 **Related.** D-8, ND-2.
 
@@ -1151,6 +1165,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Consequences.** Phase 2 milestone M2.4 is defined by this entry. Phase 3's pathway library uses the same slugs.
 
+**Implemented** 2026-09-23 (Phase 2). `usePostAuthRedirect` and `resolvePostAuthDestination` (`frontend/src/lib/authFlow.ts`) apply the rules above; the in-memory handoff in `Home.tsx` is removed. A chosen pathway wins over `?next=`, and `?next=` pointing at an auth screen is ignored. The parameter is "cleared" by the `replace` navigation away from the auth screen.
+
 **Related.** OD-4, D-19, ND-5.
 
 ---
@@ -1159,11 +1175,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided |
 | Category | Product |
 | Needed by | 3 |
 | Raised | 2026-09-23 — Phase 1 report |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at the Phase 3 gate |
 
 **Context.**
 * Preset descriptions are dense with method jargon, such as "Helms nutrition deficit, 2.0g/kg protein, RIR hypertrophy & 48-hr refeeds" and "Woodpecker spaced repetition puzzles, Silman LPDO scans & CCT pause".
@@ -1187,7 +1203,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A.** Titles may be lightly polished only if the matching keys are preserved; otherwise leave them.
 
-**Decision.** —
+**Decision.** **A — separate display fields in the frontend presets data.** Plain-language display fields go into `frontend/src/lib/certifiedPresets.ts`; the method names become a secondary "Built on …" line. Titles stay unchanged: `findPresetForGoal` (`backend/src/lib/ai/presets/index.ts`) matches on id, title and regex patterns, and onboarding sends the title as `presetGoal`. No backend allowance.
 
 **Consequences.** Phase 3 includes the copy pass. The landing page reads the same fields, so the Phase 1 jargon carry-over is resolved.
 
@@ -1199,11 +1215,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided |
 | Category | Product |
 | Needed by | 3 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 3 |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at the Phase 3 gate |
 
 **Context.** Custom goals are free and work today. The landing page presents Custom Journeys as future Premium (D-18) and says everything available today is free. Locking custom goals before server-side gating exists is forbidden (D-11), and would break R-2.
 
@@ -1222,7 +1238,9 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A.**
 
-**Decision.** —
+**Decision.** **A — free and visible, but secondary.** Pathways come first; a quieter "Something else in mind?" path leads to the existing custom flow, with no premium badge or lock.
+
+**Consequences.** Phase 3 keeps the custom flow and its payload intact (R-2, R-4) and only changes where it sits in the flow. Gating waits for Phase 10's server-side entitlement (ND-10), including how goals created free are treated.
 
 **Related.** D-18, ND-10, OD-11.
 
@@ -1403,7 +1421,111 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Decision.** **A.** No backend change, no change to request bodies, token logic or the `GoalContext` fetch itself. In the same review, Mo approved reusing the existing pathway `id`s (`run10k`, `saas`, …) as the ND-4 slugs, and adding `@playwright/test` (with Chromium) and `@axe-core/playwright` as Phase 2 dev dependencies (ND-3).
 
+**Implemented** 2026-09-23 (Phase 2). `ApiError` (message plus `status`) in `lib/api.ts`, thrown by `signupUser` and `loginUser`; `goalLoadFailed` in `GoalContext`. A failed goal fetch after auth lands on Today. Today itself doesn't yet explain the failure; that error state is a Phase 5 carry-over.
+
 **Related.** ND-3, ND-4, R-1, R-15, R-16.
+
+---
+
+### ND-13 — Onboarding step order around the clarify wait
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Design |
+| Needed by | 3 (M3.5) |
+| Raised | 2026-09-23 — Phase 3 kickoff (W2) |
+| Decided | 2026-09-23 — Mo, after the M3.1 report |
+
+**Context.** BP §28 asks for the questions before Schedule. The questions come from `/clarify`: instant for a preset (preset data), about 17 s of AI for a custom goal (measured in M3.1). Today the Schedule step covers that wait because clarify runs in the background while the user fills it in.
+
+**Options.**
+- **A — Spec order for presets; Schedule first for custom goals.** Custom goals do Schedule while clarify runs, then the questions. One step list in the progress indicator; custom only moves Schedule earlier.
+- **B — Spec order for everyone,** with an honest loading screen of about 17 s before a custom goal's questions.
+- **C — Today's order for everyone** (goal, schedule, questions, review).
+
+**Decision.** **A.**
+
+**Consequences.** M3.5 builds two orders from the same step components: preset = direction → category → pathway → starting point → success → schedule → review; custom = direction → custom goal → schedule → starting point → success → review. Browser history follows whichever order is active. If clarify is still running when a custom user finishes Schedule, the existing wait-then-advance behaviour applies, with the M3.7 loading state. The payload is unchanged.
+
+**Related.** ND-14, R-4, R-18, BP §28.
+
+---
+
+### ND-14 — Grouping the clarify questions into "starting point" and "success"
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Design |
+| Needed by | 3 (M3.5) |
+| Raised | 2026-09-23 — Phase 3 kickoff (W2) |
+| Decided | 2026-09-23 — Mo, after the M3.1 report |
+
+**Context.** Custom goals always get `current_level`, `success`, `equipment`, `obstacle`. Presets get their own ids and count (10K: `baseline5k`, `environment`, `injury_history`), with no `success` question. The editable clarified outcome is already sent as `clarifiedOutcome`.
+
+**Options.**
+- **A — "Success" = the editable clarified outcome, plus the `success` question when there is one; every other question goes under "starting point".**
+- **B — Split by position** (first half / second half).
+- **C — One combined group,** dropping the separate "success" step.
+
+**Decision.** **A.**
+
+**Consequences.** Grouping is by question id, not position, so an unknown preset id always lands under "starting point". Every question is still asked once and in `/clarify` order within its group; `answers` and `answerList` keep the `/clarify` order, so the payload is unchanged (verified by the M3.1 test). The outcome edit moves from Review to the "success" step; Review still shows it.
+
+**Related.** ND-13, R-4, BP §28–29.
+
+---
+
+### ND-15 — Scope of the single pathway library
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Architecture |
+| Needed by | 3 (M3.6) |
+| Raised | 2026-09-23 — Phase 3 kickoff (W2) |
+| Decided | 2026-09-23 — Mo, after the M3.1 report |
+
+**Context.** Phase 3's in-scope list says "one pathway library component used by onboarding"; its exit criterion says "only one pathway gallery implementation is used inside the app". There are five in-app galleries: the wizard's step-1 grid, the `Home` no-goal gallery, the `Home` six-card strip, the `ExecutionDashboard` six-card strip and `PathwaysExplorerModal`.
+
+**Options.**
+- **A — All five use one `PathwayLibrary`** (full and compact variants); the modal becomes a Dialog around it.
+- **B — Onboarding and the modal only;** the strips wait for Phase 5 and the exit criterion is amended.
+- **C — Onboarding only;** the exit criterion is amended.
+
+**Decision.** **A.** The exit criterion stands as written.
+
+**Consequences.** M3.6 touches `Home.tsx` and `ExecutionDashboard.tsx` (gallery markup only) in addition to the listed files. The modal uses the Phase 0 `Dialog` primitive, so the focus-ring clipping carry-over (first phase using Dialog) lands in M3.6. Every entry keeps its current launch state (`presetGoal`, `isPreset`, `switchGoal`, the draft key) so R-3, R-15 and R-16 are unchanged. The landing page keeps its own presentation and reads the same data (OD-11).
+
+**Related.** OD-11, ND-5, R-3, R-15, R-16, BP §24, §39.
+
+---
+
+### ND-16 — Pre-existing onboarding bugs fixed in Phase 3
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Architecture |
+| Needed by | 3 (M3.3) |
+| Raised | 2026-09-23 — Phase 3 kickoff (W2); recorded in the M3.1 baseline |
+| Decided | 2026-09-23 — Mo, after the M3.1 report |
+
+**Context.** The M3.1 baseline recorded three defects: (a) forward into step 3 or 4 after a reload renders a blank page (`popstate` skips `canJumpToStep`, and the clarify result is gone); (b) `achivii_draft_goal` is never cleared after a preset launch; (c) a reload during switch goal redirects to `/dashboard`, because the wizard's `replaceState` drops React Router's `usr` state.
+
+**Options.**
+- **A — Fix (a) and (c) in M3.3; clear the draft key (b) only after a goal is created.**
+- **B — Fix all three, clearing the draft key as soon as onboarding reads it.**
+- **C — Fix none; log them for W9.**
+
+**Decision.** **A.**
+
+**Consequences.** M3.3 is "no visual change, payload identical" except for these recorded fixes: a history step that can't be shown falls back to the furthest reachable step, and the wizard's history entries keep the router's state so `ProtectedRoute` still admits a switch-goal reload. The draft key is removed after `/api/goal/create` succeeds, so a reload on a preset still stays on the preset. The M3.1 spec gains tests for all three, and the Phase 3 baseline table is updated as each fix lands.
+
+**Implemented** 2026-09-23 (Phase 3, M3.3) in `frontend/src/components/onboarding/useOnboardingState.ts`. History writes spread `window.history.state` before adding `wizardStep`. The `popstate` handler walks down to the furthest step `canJumpToStep` allows and rewrites the entry. Mount rewrites the current entry to the step shown. The draft key is removed after a successful create, and never on read. The `popstate` listener is subscribed once and calls the latest logic through `useEffectEvent` (React 19.2): React Router re-renders synchronously inside the same `popstate` dispatch, so a listener re-subscribed on every render was skipped by the browser (found by a new preset back/forward test). With each fix reverted, its test fails.
+
+**Related.** R-15, R-16, R-18, M3.1 baseline.
 
 ---
 
@@ -1423,3 +1545,8 @@ None yet.
 | 2026-09-23 | Phase 0 review fixes: `border-control` and `--focus-ring-color` noted under ND-1, `TextLink` under ND-2, test count updated under ND-3. |
 | 2026-09-23 | OD-4 Decided (A, routes only; modal retired) and ND-4 Decided (A, URL parameter with slugs; redirect rules) at the Phase 2 gate. |
 | 2026-09-23 | ND-12 Decided (A) at the Phase 2 kickoff review: `api.ts` error status, `GoalContext` `goalLoadFailed`, pathway ids as slugs, Playwright and axe. ND-4 wording updated for the slugs. |
+| 2026-09-23 | Phase 2 closed. Implementation notes added to OD-4, ND-3, ND-4 and ND-12; Phase 2 packages logged under D-8. |
+| 2026-09-23 | OD-11 → A (six categories, one shared source; the four-value `category` field superseded, context updated), ND-5 → A (frontend display fields, titles unchanged) and ND-6 → A (free, secondary custom entry), all Decided by Mo at the Phase 3 gate. |
+| 2026-09-23 | Phase 3 M3.1: implementation note added to ND-3 (payload test and first live specs). |
+| 2026-09-23 | ND-13 to ND-16 raised at the Phase 3 kickoff and Decided (all A) by Mo: custom goals do Schedule before the questions; "success" = clarified outcome plus the `success` question; one `PathwayLibrary` for all five in-app galleries; blank-step and switch-goal reload fixed in M3.3, draft key cleared after create. |
+| 2026-09-23 | Phase 3 M3.3: implementation note added to ND-16. |

@@ -172,6 +172,7 @@ Buttons, badges and segmented controls are pills (`rounded-full`). Use Tailwind'
 | `animate-overlay-in` / `-out` | 240ms / 180ms | Dialog scrim |
 | `animate-dialog-in` / `-out` | 320ms / 160ms | Centred dialog |
 | `animate-sheet-in` / `-out` | 420ms / 240ms | Bottom sheet |
+| `animate-rise-in` | 520ms | A step or question arriving (onboarding) |
 
 Write durations as `duration-(--duration-base)`. Under `prefers-reduced-motion: reduce`, the global base rule reduces every animation and transition to near-instant, so primitives need no extra work. Custom scroll-driven or JavaScript motion must check the preference itself.
 
@@ -189,9 +190,11 @@ These stay only until their screens migrate (decision ND-1). **Don't use them in
 
 - **`ui-root`.** Put it on the outermost element of every migrated screen. It sets Geist, the text colour and the selection colour, overriding the legacy body font. `DialogContent` adds it to itself, because dialogs render in a portal outside the screen.
 - **`focus-ring`.** Every focusable element in a primitive has it. It draws a 2px outline in `var(--focus-ring-color)` with a 2px offset on `:focus-visible` only, overriding the legacy mint rule. Add it to any custom focusable element you build. Never remove an outline without replacing it.
+- **`focus-ring-inset`.** The same ring drawn 2px inside the element, for controls in a scrolling track that would clip an outer ring (`TabsTrigger` uses it). Prefer `focus-ring`, or padding on the track, wherever the ring fits.
 - **`--focus-ring-color`.** The one source for the ring colour: `accent-hover` by default, `accent-on-inverse` inside `.on-inverse`. Controls whose ring is drawn on a wrapper (choice cards, segmented tracks, the checkbox box) use `outline-(--focus-ring-color)`, so they adapt too. Never hard-code the ring colour.
 - **`on-inverse`.** Put it on any container with `surface-inverse` (`Surface tone="inverse"` does this for you). It switches the focus ring and `TextLink` to `accent-on-inverse`. **Only plain text and `TextLink` go inside it for now.** `Button`, `Badge`, `StepMarker`, fields and choice controls have no inverse variant yet; add one to the primitive (and to `/__ui`) before using it on a light surface.
 - **`tabular`.** Tabular figures for any changing number.
+- **Pathways.** Pathway data lives only in `lib/certifiedPresets.ts`, grouped by `PATHWAY_GROUPS`. Every in-app pathway gallery is `PathwayLibrary` (or its compact `PathwayStrip`, which opens `PathwaysExplorerModal`) from `components/pathways`, and every launch goes through `usePathwayLaunch`. Don't build another gallery or copy the launch state.
 - **Class merging.** Use `cx()` from `components/ui/cx` to join conditional classes. Primitives accept `className` for layout (margins, width, grid placement). Don't use it to restyle colours or type; if a variant is missing, add it to the primitive.
 - **`className` goes on the outermost element.** When a primitive wraps its control (`Checkbox`, `Select`, `Input` with `trailing`), your `className` lands on the wrapper, so layout classes behave the same everywhere.
 
@@ -345,7 +348,7 @@ Built on Radix: arrow-key navigation, roving focus and the tab/tabpanel wiring.
 </Tabs>
 ```
 
-The list scrolls horizontally on narrow screens instead of wrapping. Give `TabsList` an `aria-label`.
+The list scrolls horizontally on narrow screens instead of wrapping, so triggers draw `focus-ring-inset`. Give `TabsList` an `aria-label`.
 
 ### ProgressBar, StepMarker
 

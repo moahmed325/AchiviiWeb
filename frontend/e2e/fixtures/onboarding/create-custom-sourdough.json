@@ -1,0 +1,49 @@
+{
+  "headers": {
+    "content-type": "application/json",
+    "accept": "text/event-stream",
+    "authorization": "Bearer <token>"
+  },
+  "body": {
+    "rawGoal": "Bake sourdough bread at home",
+    "clarifiedOutcome": "Bake sourdough bread at home",
+    "answers": {
+      "What sourdough baking experience do you have right now?": "Never tried sourdough",
+      "In 90 days, which result would tell you this worked?": "Bake a loaf with an open crumb every weekend",
+      "What baking tools and space do you have for sourdough?": "Skipped",
+      "What’s the biggest thing that could stop you from baking sourdough?": "Starter keeps dying or weakening"
+    },
+    "answerList": [
+      {
+        "id": "current_level",
+        "question": "What sourdough baking experience do you have right now?",
+        "answer": "Never tried sourdough"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, which result would tell you this worked?",
+        "answer": "Bake a loaf with an open crumb every weekend"
+      },
+      {
+        "id": "equipment",
+        "question": "What baking tools and space do you have for sourdough?",
+        "answer": "Skipped"
+      },
+      {
+        "id": "obstacle",
+        "question": "What’s the biggest thing that could stop you from baking sourdough?",
+        "answer": "Starter keeps dying or weakening"
+      }
+    ],
+    "domain": "Bread baking",
+    "routine": {
+      "wakeTime": "07:00",
+      "sleepTime": "23:00",
+      "busyHours": "09:00 - 17:00",
+      "preferredSlot": "evening",
+      "dailyMinutes": 45,
+      "planVariant": "steady",
+      "commitments": []
+    }
+  }
+}

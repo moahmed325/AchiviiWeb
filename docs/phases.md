@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-23 · Current position: **Phases 0 and 1 complete; Phase 2 in progress** (OD-4, ND-4 and ND-12 Decided; kickoff plan approved).
+Last updated: 2026-09-23 · Current position: **Phases 0, 1 and 2 complete; Phase 3 in progress** (kickoff approved; M3.1 baseline, M3.3 state extraction, M3.4 step components, M3.5 new visual flow, M3.6 pathway library and M3.7 states and hardening done; awaiting Mo's review of M3.7 before M3.8).
 
 ---
 
@@ -68,8 +68,8 @@ Every phase in section 4 uses the same fields:
 |---|---|---|---|---|---|
 | 0 | Global design foundation | `COMPLETE` | — | — | None |
 | 1 | Marketing homepage | `COMPLETE` | 0 (marketing scope) | — | None |
-| 2 | Authentication | `IN PROGRESS` | 0 | — (OD-4, ND-4, ND-12 Decided) | None |
-| 3 | Onboarding | `NOT STARTED` | 0, 2 | OD-11, ND-5, ND-6 | None |
+| 2 | Authentication | `COMPLETE` | 0 | — (OD-4, ND-4, ND-12 Decided) | None |
+| 3 | Onboarding | `IN PROGRESS` | 0, 2 | — (OD-11, ND-5, ND-6, ND-13–16 Decided) | None |
 | 4 | Journey generation | `NOT STARTED` | 3 | OD-8 | Stream labels only, if approved |
 | 5 | Today | `NOT STARTED` | 0, 4 | OD-3, OD-9, ND-7 | None |
 | 6 | Journey | `NOT STARTED` | 5 | OD-2, OD-7 | None |
@@ -263,6 +263,7 @@ Run whichever apply:
 | Frontend type-check | In `frontend/`: `node node_modules/typescript/bin/tsc --noEmit -p .` |
 | Frontend lint | In `frontend/`: `npx eslint <changed paths>` must be clean. `npm run lint` (everything) is informational until the pre-Phase-0 baseline is fixed (6) |
 | Frontend tests | In `frontend/`: `npm test` (Vitest with Testing Library, jsdom) |
+| Browser tests | In `frontend/`: `npx playwright test` (desktop 1440 and mobile 390 projects; the API is mocked in `e2e/mockApi.ts`, axe runs on the auth screens; `e2e/onboarding.spec.ts` compares the onboarding request bodies with the M3.1 baseline in `e2e/fixtures/onboarding/`). Specs under `e2e/live/` use the real backend and run only with `LIVE_API=1` (`$env:LIVE_API='1'; npx playwright test e2e/live --project=desktop`) |
 | Frontend build | `npm run build --workspace=frontend` |
 | Backend tests (if the backend was touched) | `npm test --workspace=backend` (Vitest) |
 | Backend build (if the backend was touched) | `npm run build --workspace=backend` |
@@ -270,7 +271,7 @@ Run whichever apply:
 | Browser verification | Desktop 1440px and mobile 390px; console free of errors and warnings; reduced motion emulated |
 | Regression | Every R-n the phase touches (3.3) |
 
-Phase 0 added ESLint and Vitest with Testing Library (ND-3). Playwright smoke tests arrive at the start of Phase 2 and the onboarding payload test at the start of Phase 3. Browser verification remains required evidence for every screen.
+Phase 0 added ESLint and Vitest with Testing Library (ND-3). Phase 2 added Playwright with axe-core. Phase 3 (M3.1) added the onboarding payload test and the first real-backend specs. Browser verification remains required evidence for every screen.
 
 **Lint baseline (2026-09-23):** 48 errors and 6 warnings in 14 files that predate Phase 0: `AuthModal`, `ExecutionDashboard`, `FocusSessionModal`, `OnboardingWizard`, `PlanV2Panel`, `SaaSBuilderModal`, `StepChallengeWidget`, `marketing/StaircaseScene`, `marketing/hooks`, `AuthContext`, `GoalContext`, `lib/api`, `Home`, `RoadmapPage`. By rule: `no-explicit-any` 15, `set-state-in-effect` 8, `preserve-manual-memoization` 7, `only-export-components` 7, `exhaustive-deps` 6, `rules-of-hooks` 4, `no-unused-vars` 2, `no-empty` 2, `purity` 2, `use-memo` 1. A phase that migrates one of these files leaves it lint-clean.
 
@@ -518,7 +519,7 @@ Primitives meet 44px targets. Sheet behaviour verified at 390px. Inputs don't tr
 
 ## PHASE 2 — AUTHENTICATION
 
-**Status:** `IN PROGRESS`. OD-4 and ND-4 were decided on 2026-09-23, and Mo approved the kickoff plan the same day, with the ND-12 scope additions (`lib/api.ts` error status, `GoalContext` `goalLoadFailed`).
+**Status:** `COMPLETE` (2026-09-23; Mo accepted the phase report after the review fixes). The sections from "Decisions required" down are the kickoff plan; "What shipped" records the result.
 
 **Source:** BP §13, §41–42, §47, §49 (Phase 2), OD-4 · VDS §10–12, §16, §26, §29
 
@@ -526,17 +527,53 @@ Primitives meet 44px targets. Sheet behaviour verified at 390px. Inputs don't tr
 
 **Narrative line:** the threshold between *"You have somewhere to go"* and *"Tell us where."*
 
-### Current state
+### What shipped
 
-* **UI:** `AuthModal.tsx` (151 lines), opened through `useAuth().openAuthModal('signup' | 'signin')` from anywhere.
-* **Session:** `AuthContext.tsx` (99 lines) keeps the token in `localStorage['achivii_auth_token']` and loads the user from `GET /api/auth/me`.
-* **Backend:** `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me`. The password minimum is 6 characters.
-* **What doesn't exist:** password reset, email verification, OAuth, rate-limit feedback.
-* **Pathway handoff (R-16):**
-  * `Home.tsx` holds `pendingPathway` and a `goalFetchSeen` ref in component state.
-  * After login it waits for the goal fetch; if there's no active goal, it writes `localStorage['achivii_draft_goal']` and navigates to `/onboarding` with `{ presetGoal, isPreset: true, switchGoal: true }`.
-  * **This in-memory state would not survive a route change to a `/signup` page.**
-* **Routing:** `ProtectedRoute.tsx` guards `/onboarding`, `/dashboard` and `/roadmap`. `*` redirects to `/`.
+* **Routes (OD-4 A):** `/signup` and `/login` replace `AuthModal`, which is deleted along with `openAuthModal` and the modal state in `AuthContext`. The token logic is unchanged.
+* **Auth screens** (`frontend/src/pages/auth/`):
+  * `AuthLayout`: staircase image beside the form on desktop, a faint image band on mobile; names the chosen journey when a pathway is in the URL, otherwise "You have somewhere to go."
+  * `AuthScreen`: Phase 0 `Field`, `Input`, `IconButton`, `Button`, `LoadingState`; `autocomplete` `email` / `new-password` / `current-password`; show/hide password; validation matching the backend (email needs "@", sign-up password at least 6); loading state and double-submit guard; Enter submits.
+  * Errors: duplicate email (with "Sign in instead", email and pathway kept), wrong credentials, offline, server error, plus an up-front notice when the health check fails.
+* **Handoff and redirects (ND-4 A):** pathway CTAs link to `/signup?pathway=<id>`. `usePostAuthRedirect` and `lib/authFlow.ts` decide the destination once the goal state is known:
+  * pathway and no goal → `/onboarding` with `{ presetGoal, isPreset, switchGoal }` and `achivii_draft_goal`;
+  * pathway and a goal → Today with a "journey in progress" notice; the goal is untouched;
+  * goal fetch failed → Today, never onboarding (ND-12);
+  * otherwise an internal, non-auth `?next=`, else Today (goal) or onboarding (no goal).
+  * A signed-in visitor to an auth route is moved on.
+* **`ProtectedRoute`:** a signed-out visitor goes to `/login?next=<path>`.
+* **CTAs:** every landing CTA, the pathway rows and the app `Navbar`'s signed-out buttons are route links. Copy unchanged. Sign-out returns to the landing page.
+* **ND-12 changes:** `ApiError` with the HTTP status in `lib/api.ts`; `goalLoadFailed` in `GoalContext`.
+* **Tooling (ND-3):** Playwright and axe-core; `e2e/auth.spec.ts` against a mocked API (`e2e/mockApi.ts`), desktop 1440 and mobile 390.
+* **Removed from `Home.tsx`:** the in-memory pathway handoff (`pendingPathway`, `goalFetchSeen`).
+
+### Verification evidence
+
+* Type-check and build pass (main JS chunk 531.54 KB, +14.8 KB since Phase 0; CSS 114.29 KB). Vitest 73 of 73. Playwright 40 of 40 (2 intentional viewport skips).
+* Lint: changed files add no errors; the remaining errors in `api.ts`, `GoalContext.tsx` and `Home.tsx` are the pre-Phase-0 baseline. Full lint 44 errors and 6 warnings in 12 files (from 48 and 6 in 14): `AuthModal` removed, `AuthContext` now clean.
+* All 11 validation steps pass against the real backend (throwaway Playwright script, three test accounts):
+  * fresh sign-up → `/onboarding`; pathway sign-up → onboarding at Schedule with "Run a 10K Under 50 Minutes" preselected and `achivii_draft_goal` set;
+  * sign-in with a goal → Today; with a goal after choosing a pathway → Today with the notice, same goal id before and after, no draft written;
+  * wrong password and duplicate email show the right messages and keep the email;
+  * a double click sends one sign-up request;
+  * back returns to the landing page; reload keeps the screen and pathway; `/login` and `/signup` while signed in redirect to Today (a full load with a token, so this also covers reload while signed in).
+* Backend stopped: simulated by blocking :5000 in the test browser; the notice and the submit error appear and nothing crashes. The real backend was not stopped.
+* 390px: no horizontal overflow on `/signup`, `/login`, `/signup?pathway=run10k`. At 390×664 with the password focused, the 56px submit button stays on screen.
+* axe (WCAG 2.2 AA tags): no violations on the three auth URLs at both widths. Keyboard order checked: skip link, home, email, password, show/hide, submit, switch.
+* Reduced motion: no running animations and nothing hidden. Console: only Chromium's resource lines for the expected 409, 401 and refused responses.
+* Sign-out to the landing page is verified in the mocked Playwright suite only.
+* Review fix: the Today notice's dismiss button is 44×44 (asserted in Playwright).
+
+### Carry-overs (owned by later phases)
+
+| Item | Owner |
+|---|---|
+| A failed goal fetch lands on Today, which then shows the goal-less pathway gallery; it needs an error state driven by `goalLoadFailed` | Phase 5 |
+| The notice says "Explore Goals" while the app nav says "Pathways (10)" | Phase 5 |
+| The Today notice uses `Home.tsx`'s legacy hex palette until Today is migrated | Phase 5 |
+| The offline status is one health check on mount, so it can be stale in either direction (R-17) | Phase 12 |
+| The signed-in redirect has no timeout if the goal fetch never resolves | Phase 12 |
+| ~~`e2e/live/` is empty; the real-backend checks were not kept as specs~~ Done in M3.1 (`e2e/live/onboarding.live.spec.ts`) | Phase 3 (with the payload test) |
+| Test accounts `phase2-w6-{a,b,c}-1790142962485@example.com` (account a has a goal) | Housekeeping |
 
 ### Decisions required before starting
 
@@ -636,7 +673,7 @@ R-1, R-3, R-16, R-17. Also the Phase 1 CTAs (every CTA reaches the correct auth 
 
 ## PHASE 3 — ONBOARDING
 
-**Status:** `NOT STARTED`
+**Status:** `IN PROGRESS` (kickoff approved 2026-09-23; M3.1 to M3.7 done)
 
 **Source:** BP §16, §24, §28–29, §41, §47, §49 (Phase 3), OD-11 · VDS §4–5, §22, §26, §28
 
@@ -646,21 +683,49 @@ R-1, R-3, R-16, R-17. Also the Phase 1 CTAs (every CTA reaches the correct auth 
 
 ### Current state
 
-* **Size:** `OnboardingWizard.tsx` is 2,826 lines (the largest file in the app). `OnboardingPage.tsx` wraps it.
-* **Steps observed:** Goal → Schedule → Quiz → Review. A preset launch lands on Schedule, with a "Certified Blueprint" card and a "Change" action.
-* **Answers collected (BP §29):** schedule, days per week (Light / Steady / … variants), daily time, wake and sleep times, busy hours, commitments, current level, definition of success, equipment and resources, main obstacle.
-* **Clarify endpoint:** `POST /api/goal/clarify` returns `workingTitle`, `domain` and generated `questions`.
-* **Presets:** 10 certified presets in `frontend/src/lib/certifiedPresets.ts` (266 lines).
-* **Duplicated galleries:** `PathwaysExplorerModal.tsx` (193 lines) is one of several pathway galleries (BP §24, §39).
-* **Launch state:** `{ presetGoal, isPreset, switchGoal }` through router state, and `localStorage['achivii_draft_goal']`.
-* **Browser history:** onboarding manages browser history per step (R-18).
+* **Size:** `OnboardingWizard.tsx` was 3,038 lines (the largest file in the app); since M3.4 it is a 233-line coordinator over `components/onboarding/`. `OnboardingPage.tsx` wraps it.
+* **Steps:** 1 Goal → 2 Schedule → 3 Questions → 4 Review → 5 Generation (Phase 4). A preset launch lands on Schedule, with a "Certified Blueprint" card and a "Change" action. `goToStep` refuses to leave step 5. **Since M3.5:** named steps in the ND-13 order (pathway: direction → starting point → success → schedule → review; custom: direction → schedule → starting point → success → review), then generation (unchanged). A preset launch lands on the starting point. The questions are inline, one per screen; the quiz modal is gone.
+* **Answers collected (BP §29):** plan variant (Light / Steady / Intensive = `minimal` / `steady` / `accelerated`), daily minutes, wake and sleep times, busy hours and preferred slot (defaults `07:00`, `23:00`, `09:00 - 17:00`, `evening`), commitments, then the clarify questions. There is no days-per-week field.
+* **Clarify endpoint:** `POST /api/goal/clarify` with `{ rawGoal }` returns `clarifiedOutcome`, `primaryDomain` and `followUpQuestions` (presets also return `evidenceTriad`). A custom goal gets four AI questions with fixed ids `current_level`, `success`, `equipment`, `obstacle` (about 17 s). A preset gets its own questions instantly from preset data, with its own ids and count (10K: `baseline5k`, `environment`, `injury_history`; no `success` question). The wizard re-runs clarify on every mount of a preset (six identical calls in one dev session with a reload).
+* **Offline and failure:** the wizard does not read `apiStatus`. A clarify failure keeps the user on Schedule and shows the raw browser message ("Failed to fetch"). **Since M3.7:** failures are classified (`components/onboarding/requestErrors.ts`): Achivii unreachable, clarify failed, or create failed, each with plain copy and a retry; the app's health check and every request result drive an honest connection notice; a create retry after a lost connection first checks whether the plan was finished.
+* **Presets:** 10 certified presets in `frontend/src/lib/certifiedPresets.ts`, with `findPathwayBySlug` (Phase 2). Each has a `category` field with four values (Tech & Career, Fitness & Health, Creative & Media, Mastery & Mind) used by the in-app galleries, while the landing page hard-codes six groups in `marketing/sections/Pathways.tsx`. OD-11 settles on the six. **Since M3.6:** `category` and `tag` are gone; `direction` is the only grouping, `PATHWAY_GROUPS` holds the non-empty directions, and the landing page reads them too.
+* **Duplicated galleries:** five inside the app (BP §24, §39): the wizard's step-1 grid, the `Home` no-goal gallery, a six-card strip in `Home`, a six-card strip in `ExecutionDashboard`, and `PathwaysExplorerModal.tsx` (193 lines; opened from `Home`, `Navbar` and `ExecutionDashboard`). **Since M3.6:** all five are `components/pathways/` (`PathwayLibrary`, its compact `PathwayStrip`, and the modal as an 84-line Dialog around the library), and every launch goes through `usePathwayLaunch`.
+* **Launch state:** `{ presetGoal, isPreset, switchGoal }` through router state, and `localStorage['achivii_draft_goal']`. Since Phase 2, a landing pathway reaches onboarding through `/signup?pathway=<id>` and `usePostAuthRedirect` (`frontend/src/pages/auth/`), which sets both.
+* **Browser history:** onboarding manages browser history per step (R-18): `goToStep` pushes `{ wizardStep }`, a `popstate` handler calls `goToStep(target, false)`, and mount calls `replaceState`, which also drops React Router's `usr` state.
 * **Custom goals:** free and ungated (`POST /api/goal/create` doesn't check entitlement).
+
+### Baseline (M3.1, 2026-09-23)
+
+Captured on the live dev stack with Playwright (clarify passed through to the backend, create recorded and not answered), then committed as fixtures in `frontend/e2e/fixtures/onboarding/`. `e2e/onboarding.spec.ts` replays them with the API mocked; `e2e/live/onboarding.live.spec.ts` repeats both flows against the real backend.
+
+* **Preset flow** (`/signup?pathway=run10k` → sign up → Steady, 45 min → first option of each question): `create-run10k.json`.
+* **Custom flow** ("Bake sourdough bread at home" → Steady, 45 min → option, typed answer, skipped twice, option): `create-custom-sourdough.json`. A skipped question is sent as `"Skipped"`; `clarifiedOutcome` equals `rawGoal`.
+* **Both:** headers `Content-Type: application/json`, `Accept: text/event-stream`, `Authorization: Bearer`. Commitment ids come from `Date.now()` and are normalised before comparing.
+
+Step and history behaviour recorded (the redesign must be no worse):
+
+| Situation | Behaviour today |
+|---|---|
+| Back and forward through steps 1–4 | Works; the goal text and every answer are kept |
+| Back from step 1 | Leaves onboarding (previous page, or out of the app) |
+| Back while the generation error shows | The history entry changes; the error screen stays (step 5 is locked) |
+| Reload on a preset at step 2 | Stays on step 2 with the preset. The draft key was read without router state once and then removed, so a second reload lost the preset |
+| Reload on a custom goal at step 2–4 | Returns to step 1 with an empty goal; later history entries remain |
+| Forward into step 3 or 4 after that reload | **Blank page**: `popstate` skips `canJumpToStep` and the clarify result is gone |
+| Reload during switch goal (user with a goal) | Redirects to `/dashboard`; the `switchGoal` router state was dropped by `replaceState`. The current goal is untouched |
+| Clarify unreachable | Stays on Schedule with "Failed to fetch"; nothing crashes |
+
+**Changed by M3.3 (ND-16):** forward into a step that can't be shown now lands on the furthest reachable step (and the entry is rewritten to match); a reload during switch goal stays in onboarding with the pathway, because history entries keep React Router's state; the draft key is kept until `/api/goal/create` succeeds, so every reload on a preset keeps it. A reload also rewrites the current entry to the step actually shown. Everything else in the table is unchanged.
 
 ### Decisions required before starting
 
 * **OD-11: category step.** Career, Fitness, Learning, Creative, Business and Personal cover the 10 presets unevenly (Career and Personal are thin). The category step must map onto real presets; an empty category must never be shown.
 * **ND-5: pathway copy.** Should titles and descriptions be rewritten in plain language (the Phase 1 carry-over)? Where does display copy live — the frontend `certifiedPresets.ts`, the backend presets, or a shared source? Rewriting display copy must not change the preset *matching* keys (`findPresetForGoal` matches on titles).
 * **ND-6: custom goals before Phase 10.** Keep the free custom-goal entry exactly as today (the current behaviour, no regression), or de-emphasise it? It must not be locked until Phase 10 delivers a real server-side entitlement.
+
+**Decided 2026-09-23 (M3.2):** OD-11 **A** (the six landing categories, in one shared data source; a one-pathway category goes straight to that pathway), ND-5 **A** (plain-language display fields in `certifiedPresets.ts`; titles and matching keys unchanged) and ND-6 **A** (custom goals free and visible, secondary to pathways, no lock or badge). See `docs/decisions.md`.
+
+**Decided 2026-09-23 (after M3.1):** ND-13 **A** (custom goals do Schedule while clarify runs, then the questions; presets follow the spec order), ND-14 **A** ("success" = the editable clarified outcome plus the `success` question when present; all other questions are "starting point"), ND-15 **A** (one `PathwayLibrary` for all five in-app galleries) and ND-16 **A** (M3.3 fixes the blank step after a reload and the switch-goal reload; the draft key is cleared after a goal is created).
 
 ### In scope
 
@@ -673,7 +738,9 @@ R-1, R-3, R-16, R-17. Also the Phase 1 CTAs (every CTA reaches the correct auth 
   6. Review.
   7. "We'll build your 90-day path."
 * **Progressive disclosure.** Keep every question that feeds the payload; group, sequence and default them so the flow feels short (BP §29 — "make complex intelligence feel simple").
-* **One pathway library component** (BP §24) used by onboarding. It replaces the duplicated galleries where they appear in onboarding. The landing page keeps its own presentation, but uses the same data source.
+* **One pathway library component** (BP §24). Per ND-15 it replaces all five in-app galleries (the wizard grid, the `Home` gallery and strip, the `ExecutionDashboard` strip, and `PathwaysExplorerModal`, which becomes a Dialog around it). The landing page keeps its own presentation, but uses the same data source.
+* **Step order** per ND-13 (custom goals: Schedule before the questions) and **question grouping** per ND-14.
+* **Recorded bug fixes** per ND-16: the blank step after a reload, the switch-goal reload, and clearing the draft key after create.
 * **Decomposing the wizard.** Split it into step components plus one state hook or reducer. **The payload stays identical** (R-4): capture baseline request bodies for a preset flow and a custom flow before refactoring, and compare after.
 * **Browser history per step** preserved (R-18).
 * **States:** clarify loading, clarify failure (with a fallback path that already exists or a retry), API offline, and a pre-filled review when arriving from a pathway.
@@ -695,19 +762,21 @@ None. If ND-5 moves display copy to the backend presets, that is a **named** all
 * `frontend/src/pages/OnboardingPage.tsx`
 * `frontend/src/lib/certifiedPresets.ts`
 * `frontend/src/components/PathwaysExplorerModal.tsx`
+* `frontend/src/pages/Home.tsx` and `frontend/src/components/ExecutionDashboard.tsx` (gallery markup only, ND-15)
+* `frontend/src/components/marketing/sections/Pathways.tsx` (data source only, OD-11)
 * `frontend/src/types/index.ts` (types only)
 
 ### Milestones
 
 | ID | Milestone |
 |---|---|
-| M3.1 | Baseline captured: request bodies for preset and custom flows; step and history behaviour recorded |
-| M3.2 | OD-11, ND-5 and ND-6 decided |
-| M3.3 | Wizard state extracted into a hook or reducer with no visual change; payload identical |
-| M3.4 | Step components split out with no visual change; payload identical |
-| M3.5 | New visual flow: direction → category → pathway → starting point → success → schedule → review |
-| M3.6 | Pathway library component; duplicates in onboarding removed |
-| M3.7 | Every state (loading, clarify failure, offline, preset pre-fill) |
+| M3.1 | Baseline captured: request bodies for preset and custom flows; step and history behaviour recorded (done 2026-09-23) |
+| M3.2 | OD-11, ND-5 and ND-6 decided (done 2026-09-23) |
+| M3.3 | Wizard state extracted into a hook or reducer with no visual change; payload identical; the ND-16 fixes (done 2026-09-23: `components/onboarding/useOnboardingState.ts` and `payload.ts`; wizard 3,038 → 2,814 lines) |
+| M3.4 | Step components split out with no visual change; payload identical (done 2026-09-23: `OnboardingWizard.tsx` is now a 233-line coordinator (was 2,814) over `components/onboarding/` step components plus `schedule.ts` and `questionFlow.ts`; rendered DOM identical at 1440 and 390 in 38 states; CSS bundle byte-identical) |
+| M3.5 | New visual flow: direction → category → pathway → starting point → success → schedule → review (custom: Schedule before the questions, ND-13; grouping per ND-14) (done 2026-09-23: onboarding shell with a staircase progress rail on desktop and a progress bar on mobile; six directions with their pathways and the custom goal as a secondary path on one step; inline one-question screens replace the modal; a success step with the editable outcome; schedule, timeline (now keyboard-operable) and a commitment Dialog/sheet on the Phase 0 primitives; a review that ends in "Build my 90-day path". Payload identical to the M3.1 baseline, mocked and live. Generation screen unchanged) |
+| M3.6 | Pathway library component; all five in-app galleries use it (ND-15) (done 2026-09-23: `components/pathways/` with `PathwayLibrary` (direction cards or tabs, then pathways as radios, then one action), `PathwayStrip`, `PathwayCustomGoal`, `usePathwaySelection` and `usePathwayLaunch`; onboarding, `Home` (no goal and strip), `ExecutionDashboard` and `PathwaysExplorerModal` use it; the landing page reads `PATHWAY_GROUPS`. Launch state and payload unchanged. See the M3.6 report below) |
+| M3.7 | Every state (loading, clarify failure, offline, preset pre-fill) (done 2026-09-23: state matrix in the M3.7 report; classified clarify/create failures with plain copy and retry; connection notice; stale clarify answers ignored and a changed goal's questions dropped at once; leaving the schedule cancels a pending wait; a create retry after a lost connection can't build the plan twice; blank outcome falls back; commitment names required; 360 px question screens fixed; both `set-state-in-effect` errors fixed. Payload identical, mocked and live) |
 | M3.8 | Regression and phase report |
 
 ### Regression checks
@@ -743,6 +812,328 @@ R-2, R-3, R-4, R-15 (the switch-goal entry into onboarding), R-16, R-17, R-18.
 
 * Silent payload drift during decomposition. Mitigate with the M3.1 baseline and step-by-step refactors (M3.3 and M3.4 change no visuals).
 * Browser-history regressions (R-18).
+
+### M3.6 report — Pathway Library (2026-09-23)
+
+```text
+ACHIVII REDESIGN — PHASE 3 — M3.6 REPORT
+
+1. Outcome
+   There is one pathway catalogue, one pathway library and one way to choose. Wherever a
+   pathway is offered in the app (onboarding, Today without a goal, the Today and dashboard
+   strips, and the explorer opened from the navbar, Today and the dashboard), the user picks
+   a direction, then a pathway (a radio card), then confirms with a single action. A direction
+   with one pathway selects it straight away. A goal of the user's own stays free and visible
+   beneath the pathways. The landing page keeps its layout but reads the same groups and
+   plain-language summaries. Pathway ids, titles, slugs, the launch state and the onboarding
+   payload are unchanged.
+
+2. What changed
+   Catalogue (lib/certifiedPresets.ts)
+   - The only pathway data. `direction` is the only grouping: the four-value `category` and
+     the `tag` field are removed, and `PATHWAY_GROUPS` (via `groupPathways`) lists the six
+     OD-11 directions that hold at least one pathway, so an empty one can't render.
+   - New helpers: `pathwaysInDirection`, `findPathwayByTitle` (exact title, trimmed and
+     case-insensitive). The old "current pathway" test, `rawGoal.includes(label)`, missed 6 of
+     10 pathways and could match custom goals; it is replaced everywhere.
+   - The interface is documented: `id` and `title` are frozen identity (slug and backend
+     matching key, ND-5); `summary`, `badge`, `dailyMinutes` and `direction` are display.
+   Shared module (components/pathways/)
+   - `PathwayLibrary`: `navigation="cards"` (direction ChoiceCards, then that direction's
+     pathways, then the action; the M3.5 onboarding interaction) or `navigation="tabs"`
+     (Radix Tabs, one panel per direction, for dialogs). Pathways are ChoiceCards showing the
+     title, summary, "Built on …", minutes a day, and "Current pathway" as a Badge. Props:
+     `defaultSelectedId`, `selection` (lift selection to a parent), `currentId`, `action`,
+     `customGoal`.
+   - `usePathwaySelection` / `selectionForDirection`: direction plus selected id; changing
+     direction clears the choice unless the direction has one pathway.
+   - `PathwayStrip`: the compact form for screens with a goal. Every pathway in a swipeable
+     row of single buttons (no nested controls), with the direction, summary, minutes and a
+     "Current" badge; scroll buttons (44 px, disabled at the ends) and "Explore all". A tile
+     opens the explorer with that pathway selected, so switching always ends at the same
+     confirm step.
+   - `PathwayCustomGoal`: the "Something else in mind?" section (ND-6).
+   - `usePathwayLaunch` / `pathwayLaunch` / `CUSTOM_GOAL_LAUNCH`: the one launch. It writes
+     or clears `achivii_draft_goal` and navigates with exactly the state the four copies sent.
+   Screens
+   - Onboarding `StepGoal`: composes `PathwayLibrary` and `PathwayCustomGoal` (same copy,
+     roles and keyboard order as M3.5). `StepReview` uses `findPathwayByTitle`.
+   - `Home`, no goal: the library replaces the legacy searchable gallery, in a `ui-root`
+     screen ("Choose a pathway"), with "Describe my own goal" as the custom route.
+   - `Home` and `ExecutionDashboard`, with a goal: `PathwayStrip` replaces the six-card
+     strips and their "Switch" buttons. "Explore Goals (10)" opens the explorer.
+   - `PathwaysExplorerModal`: a Dialog (a bottom sheet under 768 px) around the tabbed
+     library, with Cancel and one primary action: "Start this pathway" (no goal), "Switch to
+     this pathway", or "Restart this pathway" (current one selected). With a goal, it says the
+     current journey stays as it is until a new one is set up. Each opening starts fresh from
+     the pathway it was opened on. Same props for `Navbar` plus `initialPathwayId`.
+   - Landing `Pathways.tsx`: the hard-coded groups are gone; it renders `PATHWAY_GROUPS`
+     (largest first, for the three-column grid) with `summary` instead of the jargon `desc`.
+     Links are still `/signup?pathway=<id>`.
+   - Tabs: `TabsTrigger` draws the new `.focus-ring-inset`, so the scrolling list no longer
+     clips the ring (Design.md §3 and Tabs updated).
+
+3. Files changed / created / removed
+   Created: frontend/src/components/pathways/{PathwayLibrary.tsx, PathwayStrip.tsx,
+     PathwayCustomGoal.tsx, usePathwaySelection.ts, launch.ts, index.ts}
+   Created (tests): src/lib/certifiedPresets.test.ts, src/lib/pathwayCatalogue.guard.test.ts,
+     src/components/pathways/{PathwayLibrary,PathwayStrip}.test.tsx,
+     src/components/pathways/launch.test.tsx, src/components/PathwaysExplorerModal.test.tsx,
+     src/components/onboarding/StepGoal.test.tsx,
+     src/components/marketing/sections/Pathways.test.tsx, e2e/pathways.spec.ts
+   Changed: src/lib/certifiedPresets.ts (275 → 322 lines; data values unchanged apart from
+     the removed category/tag), src/components/PathwaysExplorerModal.tsx (208 → 84),
+     src/pages/Home.tsx (806 → 586), src/components/ExecutionDashboard.tsx (1,315 → 1,228),
+     src/components/onboarding/StepGoal.tsx, src/components/onboarding/StepReview.tsx,
+     src/components/marketing/sections/Pathways.tsx, src/components/ui/Tabs.tsx,
+     src/index.css (.focus-ring-inset), src/test/setup.ts (jsdom stubs for matchMedia and
+     scrollIntoView), e2e/onboarding.spec.ts (switch-goal test uses the new explorer),
+     Design.md, docs/phases.md
+   Removed: nothing. Backend: no files touched.
+
+4. Functionality preserved
+   R-2  Goal creation: "a pathway chosen inside onboarding" and "a custom goal" mocked specs
+        replay the M3.1 baseline bodies; both live specs pass against the real backend.
+   R-3  Preset launch: every entry sends { presetGoal: title, isPreset: true, switchGoal:
+        true } and writes the draft key, the same as the four removed copies (unit test on
+        pathwayLaunch; Home, Today strip, explorer and dashboard e2e land on "Where are you
+        starting?" with the pathway and a clarify body of { rawGoal: title }).
+   R-15 Switch goal: from the explorer and from a strip tile, onboarding opens with the new
+        pathway, no DELETE is sent and nothing is created; back returns to Today with the
+        current goal still marked; a reload stays in onboarding (existing test, now stricter:
+        it switches to a different pathway and checks the exact draft). Archive-on-create is
+        backend behaviour and unchanged; not re-run live in M3.6.
+   R-16 Signup handoff: unit test asserts resolvePostAuthDestination(pathway) equals
+        pathwayLaunch(pathway); auth.spec landing → /signup?pathway=run10k → onboarding and
+        the live landing-pathway spec pass.
+   R-4, R-18 (touched through StepGoal): all onboarding payload and history specs pass
+        unchanged, including back/forward and reload.
+   Also: current-goal protection (signed-in /login?pathway keeps the goal), browser history
+   (back/forward from Home and Today into onboarding), modal open/close with Escape and
+   Cancel and focus return.
+
+5. Decisions applied (docs/decisions.md)
+   OD-11 A (§ OD-11): six directions from one source; a one-pathway direction selects its
+     pathway; an empty direction never renders (groupPathways; unit tested with a reduced list).
+   ND-5 A (§ ND-5): plain-language `summary` shown everywhere, including the landing page;
+     ids, titles, slugs and backend matching untouched (identity snapshot test).
+   ND-6 A (§ ND-6): custom goal visible on onboarding and Home, secondary to the pathways,
+     never locked; tests assert no lock, price or premium text.
+   ND-15 A (§ ND-15): one library for all five in-app galleries; the modal is a Dialog
+     around it; a source-scan test fails if pathway titles, id lists or the old categories
+     appear outside the catalogue.
+
+6. Validation evidence
+   - Type-check (tsc --noEmit): clean. Build (tsc && vite build): passes; only the existing
+     500 KB chunk warning.
+   - Lint: every new and changed pathway file is clean. Home.tsx and ExecutionDashboard.tsx
+     show the same 7 errors and 2 warnings as at HEAD (same rules, unrelated code).
+   - Vitest: 133 passed in 19 files (43 new), no warnings.
+   - Playwright, mocked: 93 passed, 3 skipped (the existing project-specific skips), desktop
+     1440 and mobile 390. e2e/pathways.spec.ts adds 10 tests per project: Home selection and
+     start, one-pathway direction, custom goal, Home at 390 and 360 (no overflow, 44 px
+     targets, axe), reduced motion, strip → explorer → switch with back/forward, "Explore
+     all" and Cancel with focus return, strip and sheet at 390 and 360 (44 px targets, axe),
+     navbar entry (desktop "Pathways (10)", mobile "Goals"), dashboard strip.
+   - Playwright, live (LIVE_API=1, desktop): 2 passed.
+   - Browser screenshots at 1440, 390 and 360: Home library, Today strip, explorer dialog
+     and sheet; keyboard focus visible on tabs and panels; no console errors (every spec
+     asserts this).
+
+7. Carry-overs
+   - Navbar goal links overflow by 7 px at 360 px with an active goal (pre-existing;
+     Navbar untouched) → Phase 5 (app shell).
+   - Hard-coded "10" in "Explore Goals (10)", "Pathways (10)", "Explore 10 Pathways" and the
+     landing "Ten journeys" → Phase 5 naming pass (landing: Phase 12).
+   - Undisplayed expert fields in the catalogue (`outcome`, `desc`, `coach`, `p1`–`p3`,
+     `sampleDay`) → Phase 4 decides whether generation shows the method; else Phase 12.
+   - `SaaSBuilderModal.tsx` is unused (its own SaaS starter list, not pathways) → Phase 12.
+   - The strip sits inside the legacy Today and dashboard layouts → Phase 5.
+
+8. Issues and risks found
+   - For Mo's review: the Home gallery's search box and the four-category filter are gone;
+     with 10 pathways in six directions (at most 3 each), direction navigation replaces them.
+   - For Mo's review: a strip tile used to switch immediately; it now opens the explorer on
+     that pathway, so switching takes one more, deliberate, click and always shows the
+     reassurance copy.
+   - Landing group order is now largest first (Creative, Fitness, Learning, Career,
+     Business, Personal); Business and Career swapped places.
+   - The explorer doesn't offer a custom goal (as before); onboarding and Home do.
+
+9. Not started
+   M3.7 has NOT started.
+   Phase 4 — Journey Generation has NOT started.
+```
+
+### M3.7 state matrix (2026-09-23)
+
+Built from `useOnboardingState.ts` and the step components after M3.7. "Kept" means held in memory on this page; nothing in onboarding is saved on the server until the plan is created, except the draft goal in `localStorage`.
+
+| State | Trigger | What the user sees | Available action | Data preserved | Recovery |
+|---|---|---|---|---|---|
+| Normal entry | `/onboarding` without launch state | "Where are you going?": directions, pathways, custom goal (ND-6) | Start a pathway, or continue with own goal | — | Back leaves onboarding (R-18) |
+| Preset pre-fill | Launch state `{ presetGoal, isPreset, switchGoal }` or the draft key | Starting point with the pathway in "Your goal"; questions loading, then the first | Answer; Change goal; Back | Draft key | Reload returns here with the pathway |
+| Custom entry | Own goal submitted | Schedule while clarify runs (ND-13) | Fill the schedule; Change goal | Goal text | Change returns to the goal step with the text |
+| Clarify loading | Request in flight | "Preparing your questions" skeleton (`role="status"`); on the schedule, a busy Continue and "Preparing your questions. Your schedule is kept while you wait." | Back, Change goal, keep editing the schedule | Everything entered | Continue can't pass until the questions are back |
+| Clarify success | Response for the current goal | First question, focused | Answer, type, skip | — | — |
+| Clarify failed (Achivii) | 4xx/5xx | Alert "We couldn't prepare your questions" with Achivii's message (schedule: "Your schedule is kept.") | Try again; custom: Continue also retries; Back; Change goal | Goal, schedule, commitments, draft | Retry sends the same goal once |
+| Achivii unreachable | Network failure, or the health check failed at load | Alert "We can't reach Achivii right now" on the step that needs it; elsewhere a notice: "You can keep going, and your answers stay on this page, but your questions and your plan need a connection." | Try again; keep filling in | As above | Notice clears once any request succeeds |
+| Retry | Try again, or Continue after a failure | Loading again | — | Everything | Only the latest response is applied; no second request while one is in flight |
+| Changed goal mid-flight | Change goal while clarify runs | The old goal's questions and answers are dropped at once | — | New goal text | A late answer for the old goal is ignored |
+| Waiting, then Back | Back or browser back from the schedule while waiting | The step the user chose | — | Schedule | The questions arriving later don't pull the user forward |
+| Skipped question | Skip this, then Skip anyway | Reworded question, then "You skipped this one" | Answer anyway | `"Skipped"` in the payload (unchanged) | — |
+| Editable outcome | Edit outcome | Focused textarea; Done | Edit | Kept across Back/Forward and to review and payload | A blank edit falls back to clarify's outcome |
+| Schedule | Days and minutes not chosen | Continue disabled, with the reason as a status | Choose | — | — |
+| Commitment editor | Add or Edit | Dialog, a bottom sheet under 768 px | Done, Cancel, Escape, Delete | Cancel and Escape discard edits | A blank name is caught; focus returns to the opener (or the heading when it's gone) |
+| Review | Every step complete | Summary with an Edit per section | Build my 90-day path | — | Edit returns to that step |
+| Generation handoff | Build | Generation screen (unchanged, Phase 4) | — | One request (double click guarded) | — |
+| Generation failed (Achivii) | Error event or 4xx/5xx | "We couldn't build your plan", Achivii's message (including safety refusals), "No plan was made, and your current journey, if you have one, is unchanged." | Try again; Review your answers | Answers, schedule, draft | Try again sends once more |
+| Connection lost while building | Network failure | "We lost the connection. Your plan wasn't confirmed… We'll check whether it was created before building it again." | Try again; Review your answers | As above | Before re-sending, the active goal is checked; a plan the server finished is used, not built twice |
+| Reload | Browser reload | Pathway: its first question step; custom: the goal step (M3.3) | — | Draft key | — |
+| Reachable-step recovery | Forward into a step whose data is gone | The furthest reachable step; the entry is rewritten | — | — | No blank step |
+| Switch-goal entry | Launch from the app with an active goal | Onboarding, admitted by `switchGoal` | — | Current goal untouched: no DELETE, no create until Build | Reload stays in onboarding |
+| Draft goal | Launch or signup handoff | — | — | Kept through reloads, signup and every failure | Cleared only after a plan is created or recovered |
+
+### M3.7 report — Onboarding states and hardening (2026-09-23)
+
+```text
+ACHIVII REDESIGN — PHASE 3 — M3.7 REPORT
+
+1. Outcome
+   Every onboarding state now has a deliberate, honest treatment (see the state matrix above).
+   The user can tell "Achivii can't be reached" from "Achivii couldn't prepare your
+   questions" and from "we couldn't build your plan", never sees a raw browser error, and
+   always has a way on: retry, go back, change the goal, or review answers. Retries keep
+   every answer, send one request, and can't build the plan twice after a lost connection.
+   The first answer on a question step now starts above the footer at 360 px. The flow,
+   questions, payload and history are otherwise as M3.5 left them.
+
+2. What changed
+   State (components/onboarding/useOnboardingState.ts)
+   - Stale-response guard: only the latest clarify request may change state.
+   - A new goal drops the previous goal's questions and answers immediately. Before, a
+     failed clarify after a goal change could leave the review step blank.
+   - The same goal is never sent twice while it is still being prepared; clarify on mount
+     runs once, even under StrictMode's double effects.
+   - Leaving the schedule cancels a pending wait. Before, the questions arriving later could
+     pull a user who had gone Back forward to the starting point.
+   - Errors are objects ({ kind, title, message }) from requestErrors.ts, and a `connection`
+     value ('unknown' | 'online' | 'offline') is kept from request results.
+   - Create: after a lost connection, the active goal is checked (GET /api/goal/active,
+     existing endpoint) before offering or sending a retry; a goal that is not the one active
+     when onboarding opened, with the same goal text, is taken as the plan the server
+     finished. Skipped when the current goal is unknown (its load failed).
+   - A blank edited outcome falls back to clarify's when the step is left.
+   - Lint: both `react-hooks/set-state-in-effect` errors fixed without disables. The mount
+     effect now only sends the request (the "clarifying" state is initialised); the effect
+     that left the schedule became part of the clarify callback, reading the current step
+     through a ref refreshed after every render. Timing test first: the hook tests below.
+   Copy and UI
+   - requestErrors.ts: network failures → offline copy; Achivii's own messages (written for
+     users, including safety refusals) shown; parsing and programming errors → plain copy.
+   - ConnectionNotice (StepLayout): shown when the health check failed or the last request
+     couldn't reach Achivii, except where the step's own alert already says so.
+   - StepQuestions, StepSchedule: classified error titles and messages; the waiting copy no
+     longer promises "a few seconds".
+   - StepGeneration (legacy, Phase 4): only the failure copy changed. It no longer claims
+     "Both AI providers were temporarily unavailable" for every failure or prints the raw
+     error. It is announced (role="alert"), buttons are 44 px ("Review your answers",
+     "Try again").
+   - CommitmentEditor: Done with a blank name shows a field error and focuses the name.
+   - 360 px: StepHeader `compact` (starting point and success only): below 640 px the
+     eyebrow (already named by the progress bar) is hidden and the description is left to
+     screen readers; the gap above the question is 32 px instead of 48. Tablet and desktop
+     unchanged. Measured at 360×740: the first answer's top moved from 702 px (under the
+     footer at 626 px) to about 580 px.
+   - OnboardingPage passes `currentGoalId` and `apiOffline` from GoalContext (read only).
+
+3. Files changed / created / removed
+   Created: src/components/onboarding/requestErrors.ts; tests:
+     src/components/onboarding/{requestErrors.test.ts, useOnboardingState.test.tsx,
+     CommitmentEditor.test.tsx}, e2e/onboardingStates.spec.ts
+   Changed: src/components/onboarding/{useOnboardingState.ts, StepLayout.tsx,
+     StepQuestions.tsx, StepSuccess.tsx, StepSchedule.tsx, StepGeneration.tsx,
+     CommitmentEditor.tsx}, src/components/OnboardingWizard.tsx, src/pages/OnboardingPage.tsx,
+     e2e/mockApi.ts (new failure options; existing ones unchanged), e2e/onboarding.spec.ts,
+     docs/phases.md
+   Removed: nothing. Backend, API client, GoalContext, AuthContext and the M3.1 fixtures:
+     untouched.
+   Test changes: two assertions in e2e/onboarding.spec.ts ("a clarify failure keeps the user
+     on the schedule step", "a pathway whose clarify fails offers a retry") expected "We
+     couldn't prepare your questions" for a refused connection; that copy is now reserved for
+     failures on Achivii's side, so they expect "We can't reach Achivii right now" and also
+     assert that "Failed to fetch" never appears. Their behavioural assertions are unchanged.
+
+4. Functionality preserved
+   R-2  Preset and custom onboarding complete; the plan is created (mocked, and live up to
+        the recorded create request).
+   R-3  Pathway launch from landing (signup), Home and Today lands on the starting point
+        with the preset; clarify body { rawGoal: title }.
+   R-4  Both M3.1 baseline payload specs pass unchanged (mocked and live); a retried create
+        sends the identical body; "Skipped" unchanged.
+   R-15 Switch goal: no DELETE and no create until Build; reload stays in onboarding.
+   R-16 Draft through signup, reloads, clarify failure and create failure; cleared after a
+        created or recovered plan (unit and e2e).
+   R-17 Navbar indicator unchanged; onboarding adds its own notice.
+   R-18 All history specs pass; Back/Forward keep answers and the edited outcome; a pending
+        wait no longer overrides Back.
+
+5. Decisions applied (docs/decisions.md)
+   ND-13 (order unchanged; custom schedule stays usable while clarify fails), ND-14
+   (grouping unchanged), ND-16 (draft kept until create; reachable-step recovery), ND-6
+   (custom goal untouched and free), OD-11 / ND-5 / ND-15 (pathway entry from M3.6
+   unchanged). No new decisions.
+
+6. Validation evidence
+   - Type-check: clean. Build: passes (existing 500 KB chunk warning only).
+   - ESLint: src/components/onboarding, OnboardingWizard, OnboardingPage and the changed
+     e2e files are clean (the onboarding folder had 2 errors before M3.7).
+   - Vitest: 156 passed in 22 files (23 new: hook timing and state tests under StrictMode,
+     error classification, commitment editor).
+   - Playwright, mocked: 117 passed, 3 skipped (existing project skips), desktop 1440 and
+     mobile 390. onboardingStates.spec.ts adds 12 per project: custom clarify offline →
+     recovery (2 requests, schedule kept, Back/Forward), pathway clarify failure → reload
+     (draft kept) → retry after recovery, Achivii error message, wait cancelled by Back,
+     offline notice (axe) clearing after a success, create failure → review → retry (2
+     identical bodies, draft cleared), lost connection → finished plan recovered (1 create),
+     lost connection with nothing finished (honest copy, draft kept), edited outcome through
+     Back/Forward into the payload, blank outcome, commitment sheet (blank name, Cancel,
+     Escape, focus return, no scroll lock left), 360 px first answer above the footer.
+   - Playwright, live (LIVE_API=1, desktop): 2 passed. The preset test failed once at the
+     redirect straight after the real sign-up (before onboarding code runs) and passed on
+     the re-run; consistent with the recorded intermittent forced sign-out.
+   - Browser screenshots at 1440, 390 and 360: offline notice, pathway clarify offline,
+     question step, schedule clarify error. Consoles clean (asserted by every spec).
+
+7. Carry-overs
+   - The generation screen keeps its legacy look; only its failure copy changed → Phase 4.
+   - Choosing a pathway inside onboarding doesn't write the draft key, so a reload returns
+     to the goal step (M3.3 behaviour, unchanged); custom answers live only on the page → M3.8
+     to confirm, or a decision for Mo.
+   - Recovery after a lost connection is skipped when the current goal failed to load; a
+     retry then could create a second goal (the first archived) → Phase 5 (goal-load error
+     state) removes the case.
+   - Soft-keyboard states can't be emulated in Playwright; the footer is sticky, not fixed
+     → Phase 11 on-device check.
+   - The navbar's Offline chip is a one-time check and stays after recovery (existing
+     Phase 12 row).
+
+8. Issues and risks found
+   - Fixed (found by reading the flow, then covered by tests): blank review after a goal
+     change and a failed clarify; the pending wait pulling
+     a user forward after Back; a late clarify answer for an old goal overwriting the new
+     one; duplicate clarify on mount in development; commitments with blank names; the
+     generation failure claiming AI providers were down for a network error.
+   - The 360 px compaction hides the step description visually on phones for the two
+     question steps (kept for screen readers); judged a net gain, but it is a small visual
+     change to M3.5.
+   - The schedule's clarify alert sits below the long schedule on phones. It is announced
+     immediately and Continue retries, so it was left in place.
+
+9. Not started
+   M3.8 has NOT started.
+   Phase 4 — Journey Generation has NOT started.
+```
 
 ---
 
@@ -1583,7 +1974,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | OD-8 | Honest generation stages | Open | 4 |
 | OD-9 | Every Today state defined | Open | 5 |
 | OD-10 | Dark/light meaning | **Resolved** (VDS §27: dark only; light surfaces are compositional) | — |
-| OD-11 | Onboarding categories vs free presets | Open | 3 |
+| OD-11 | Onboarding categories vs free presets | **Decided (A):** the six landing categories from one shared source; a one-pathway category shows that pathway directly | 3 |
 | OD-12 | Semantic token names | Done in Phase 0 (role tokens, ND-1) | 0 |
 
 ## New decisions raised by this roadmap
@@ -1594,14 +1985,18 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ND-2 | Primitive strategy — **Decided (B):** Radix headless for the stateful parts, hand-built for the rest | 0 |
 | ND-3 | Frontend tooling — **Decided (A, gradual):** ESLint + Vitest in Phase 0, Playwright in Phase 2, payload test in Phase 3 | 0, 2, 3 |
 | ND-4 | How a chosen pathway survives navigation to auth routes; modal retained or retired; post-auth redirect rules — **Decided (A):** `/signup?pathway=<slug>`, cleared once used; no goal → onboarding, active goal → Today, internal `?next=` only | 2 |
-| ND-5 | Pathway display copy: plain-language rewrite and where display copy lives, without changing preset matching | 3 |
-| ND-6 | The free custom-goal entry in onboarding before Phase 10 | 3 |
+| ND-5 | Pathway display copy — **Decided (A):** plain-language display fields in `certifiedPresets.ts`; titles and matching keys unchanged | 3 |
+| ND-6 | The free custom-goal entry before Phase 10 — **Decided (A):** free and visible, secondary to pathways, no lock or badge | 3 |
 | ND-7 | Application shell: desktop navigation form, mobile navigation form, and which entries appear before their pages exist | 5 |
 | ND-8 | Progress as its own page or as a Journey layer | 8 |
 | ND-9 | Payments: in scope or not; provider; billing model | 10 |
 | ND-10 | Custom-goal gating: timing, server-side entitlement, grandfathering existing goals | 10 |
 | ND-11 | Coach scope: architecture-only or a real chat build | 10 |
 | ND-12 | Phase 2 frontend scope additions — **Decided (A):** `api.ts` attaches HTTP status to errors; `GoalContext` exposes `goalLoadFailed` | 2 |
+| ND-13 | Onboarding step order — **Decided (A):** spec order for presets; custom goals do Schedule while clarify runs, then the questions | 3 |
+| ND-14 | Question grouping — **Decided (A):** "success" = editable clarified outcome plus the `success` question; everything else is "starting point" | 3 |
+| ND-15 | Pathway library scope — **Decided (A):** one `PathwayLibrary` for all five in-app galleries; the modal becomes a Dialog around it | 3 |
+| ND-16 | Pre-existing onboarding bugs — **Decided (A):** fix the blank step after reload and the switch-goal reload in M3.3; clear the draft key after create | 3 |
 
 ---
 
@@ -1609,9 +2004,9 @@ This register is here so every phase can see what blocks it. The decisions thems
 
 | Issue | Source | Owner |
 |---|---|---|
-| AuthModal uses the old style; its close button overlaps the tabs | Phase 1 validation | Phase 2 |
-| Pathway descriptions are jargon-heavy | Phase 1 review | Phase 3 (ND-5) |
-| Returning user with a goal choosing a pathway, then signing in, is unverified live | Phase 1 validation | Phase 2 (R-16) |
+| ~~AuthModal uses the old style; its close button overlaps the tabs~~ | Phase 1 validation | Done in Phase 2 (modal retired) |
+| ~~Pathway descriptions are jargon-heavy (onboarding uses the plain `summary` since M3.5; the landing page and in-app galleries don't yet)~~ | Phase 1 review | Done in M3.6 (every gallery and the landing page show `summary`) |
+| ~~Returning user with a goal choosing a pathway, then signing in, is unverified live~~ | Phase 1 validation | Done in Phase 2 (verified live) |
 | Legacy fonts, base body styles, mint focus rule and the radius override remain for unmigrated screens (role tokens are canonical since Phase 0) | Phase 0 | Phase 12 |
 | `RoadmapPage.tsx` calls hooks after an early return (`rules-of-hooks`) | Phase 0 lint | Phase 6 |
 | Lint baseline: 48 errors, 6 warnings in 14 pre-Phase-0 files | Phase 0 lint | Each file's migrating phase |
@@ -1623,13 +2018,32 @@ This register is here so every phase can see what blocks it. The decisions thems
 | Weekly test results aren't stored | OD-1 | Phase 7 |
 | Custom goals are free and ungated on the server | BP §22 | Phase 10 (ND-10) |
 | Low-resolution brand images; per-pathway photos off-style | VDS note 8 | Phase 12 |
-| No Playwright smoke tests yet; no onboarding payload test yet | ND-3 | Phase 2, Phase 3 |
-| Test account in the local development database | Phase 1 validation | Housekeeping |
+| ~~No Playwright smoke tests yet~~ (added in Phase 2); ~~no onboarding payload test yet~~ (added in M3.1) | ND-3 | Done in Phase 3 |
+| Test accounts in the local development database (Phase 1: one; Phase 2: `phase2-w6-{a,b,c}-1790142962485@example.com`; Phase 3: every `LIVE_API=1` run adds two `phase3-live-*@example.com`) | Phase 1–3 validation | Housekeeping |
+| Intermittent forced sign-out: `getAuthUser` answers 401 when its database lookup throws, and `AuthContext` drops the token on any `/me` failure (seen twice during the Phase 3 kickoff; likely brief Supabase pooler outages) | Phase 3 kickoff | Unassigned (backend; W9) |
+| React warns of a `<button>` nested in a `<button>` in `FullDayVisualizer` (dashboard task row) | Phase 3 kickoff | Phase 5 |
+| ~~Onboarding quiz modal at 390 and 360 px: the footer's "Next Question" button runs past the right edge of the dialog (clipped by the fixed overlay; the page doesn't scroll). Present before M3.4~~ | M3.4 | Done in M3.5 (modal replaced by inline question screens; Playwright checks 360 and 390) |
+| ~~`react-hooks/set-state-in-effect` in `useOnboardingState.ts`: one of three removed in M3.5 (`maxStepReached` is gone; reachability is derived from the answers). Two remain on purpose: the mount effect that starts clarify for a preset or draft, and the effect that leaves the schedule once a pending clarify returns. Moving either into an event changes when clarify starts or when the step changes, which R-4 and R-18 depend on~~ | M3.4 | Done in M3.7 (mount state initialised, the schedule transition moved into the clarify callback; hook timing tests first; no disables) |
+| The generation screen keeps its legacy look; M3.7 only made its failure copy honest and announced | M3.7 | Phase 4 |
+| A pathway chosen inside onboarding doesn't write the draft key, so a reload returns to the goal step (M3.3 behaviour); custom answers live only on the page | M3.7 | M3.8 (confirm) or Mo's decision |
+| Create recovery after a lost connection is skipped when the current goal failed to load, so a retry then could create a second goal (the first archived) | M3.7 | Phase 5 (goal-load error state) |
+| Soft-keyboard states can't be emulated in Playwright (the onboarding footer is sticky, not fixed) | M3.7 | Phase 11 (on-device check) |
+| ~~Landing `marketing/sections/Pathways.tsx` still hard-codes its six groups; onboarding now reads `direction` and `summary` from `certifiedPresets.ts` (OD-11, ND-5)~~ | M3.5 | Done in M3.6 (reads `PATHWAY_GROUPS`) |
+| Onboarding has no skip link; the legacy navbar (and the offline indicator, R-17) sits above it | M3.5 | Phase 5 (app shell) |
+| Main JS chunk 560.90 KB (163.32 KB gzipped), above Vite's 500 KB warning since before Phase 0 | M3.5 build | Phase 12 (code splitting) |
+| Failed goal fetch lands on a goal-less Today; "Explore Goals" vs "Pathways" naming; legacy palette on the Today notice | Phase 2 | Phase 5 |
+| Offline status is a one-time health check; the signed-in redirect has no timeout | Phase 2 | Phase 12 |
+| ~~No real-backend Playwright specs (`e2e/live/` is empty)~~ | Phase 2 | Done in Phase 3 (M3.1) |
 | No inverse variants for `Button`, `Badge`, `StepMarker`, fields or choice controls; light surfaces hold text and `TextLink` only | Phase 0 review | First phase needing a control on a light surface |
-| Focus rings can be clipped by `overflow` on tab lists and dialog edges | Phase 0 review | Phase 2 |
-| No automated accessibility check (for example `vitest-axe`) | Phase 0 review | Phase 2 |
+| ~~Focus rings can be clipped by `overflow` on tab lists and dialog edges (the auth screens use neither, so Phase 2 didn't reach it). The first Dialog in the app (M3.5's commitment editor) keeps its controls inside the body's padding; tab lists are unreached~~ | Phase 0 review | Done in M3.6 (`TabsTrigger` uses `.focus-ring-inset`; the strip pads its scroll track; the explorer keeps its controls inside the body's padding) |
+| The navbar's goal links (Today, Roadmap, Goals and the account button) overflow by 7 px at 360 px when a goal is active; present before M3.6 (`Navbar.tsx` untouched) | M3.6 | Phase 5 (app shell) |
+| Pathway counts are hard-coded: "Explore Goals (10)" (`Home`, `ExecutionDashboard`), "Pathways (10)" and "Explore 10 Pathways" (`Navbar`), "Ten journeys, ready to begin." (landing) | M3.6 | Phase 5 (naming); landing Phase 12 |
+| `certifiedPresets.ts` keeps expert fields no screen shows (`outcome`, `desc`, `coach`, `p1`–`p3`, `sampleDay`); `SaaSBuilderModal.tsx` is unused | M3.6 | Phase 4 (whether generation shows the method), else Phase 12 |
+| M3.6 review items: search and the four-category filter left the `Home` gallery (direction navigation replaces them); a strip tile now opens the explorer instead of switching at once | M3.6 | Mo's review of M3.6 |
+| ~~A `Dialog` opened from state (no `DialogTrigger`) didn't return focus on close~~ | M3.5 | Done in M3.5 (`DialogContent` returns focus to the element focused when it opened; unit test added) |
+| ~~No automated accessibility check~~ | Phase 0 review | Done in Phase 2 (axe in Playwright) |
 | `Design.md` gaps (dialog initial focus, `Spinner`, `ChoiceGroup` columns, milestone colour, navigation rule vs ND-7, logs/table/code rules without primitives) | Phase 0 review | Next `Design.md` pass |
-| Type-scale minimums below some VDS ranges; micro tracking baked in | Phase 0 review | Phase 2 review |
+| Type-scale minimums below some VDS ranges; micro tracking baked in (not taken up in the Phase 2 review) | Phase 0 review | Next `Design.md` pass |
 | `--duration-reveal` unused; glass has no mobile blur guard | Phase 0 review | Phase 12; first phase using glass |
 | `StaircaseScene` literal hex and `hover:bg-white`; `marketing/Button` duplicates `ui/Button`; `vite` `dedupe` masks a broken install | Phase 0 review | Phase 12; housekeeping |
 
@@ -1683,3 +2097,12 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-23 | Phase 0 accepted by Mo: `COMPLETE`. |
 | 2026-09-23 | Phase 0's review carry-overs added to section 6. OD-4 and ND-4 Decided (both A); Phase 2 `IN PROGRESS` pending its kickoff plan. |
 | 2026-09-23 | Phase 2 kickoff plan approved; ND-12 Decided (A) and added to the register. |
+| 2026-09-23 | Phase 2 accepted by Mo: `COMPLETE`. "Current state" replaced by "What shipped", verification evidence and carry-overs. Playwright added to 3.11. Section 6 updated (AuthModal, R-16 and automated accessibility done; new Phase 2 carry-overs; two Phase 0 items reassigned). Phase 3 "Current state" updated for the Phase 2 handoff and the two category systems. |
+| 2026-09-23 | OD-11, ND-5 and ND-6 Decided (all A); Phase 3 M3.2 done and its gate cleared. |
+| 2026-09-23 | Phase 3 kickoff approved: `IN PROGRESS`. "Current state" corrected (size, five steps, clarify shape, preset questions, schedule fields, five galleries, offline and failure). M3.1 done: baseline section with the recorded step and history behaviour; payload and live specs added to 3.11. Section 6: payload test and `e2e/live` done; forced sign-out and nested-button findings added. |
+| 2026-09-23 | ND-13 to ND-16 Decided (all A) and added to the register. Phase 3 scope, files and milestones updated: custom step order, question grouping, the library for all five in-app galleries (`Home`, `ExecutionDashboard` and `Pathways.tsx` added to the files), and the recorded bug fixes in M3.3. |
+| 2026-09-23 | Phase 3 M3.3 done: state hook and pure payload builder extracted, ND-16 fixes applied; the baseline table notes what changed. |
+| 2026-09-23 | Phase 3 M3.4 done: wizard split into step components with no behaviour or visual change; payload identical to the M3.1 baseline. Section 6: modal footer clipping on narrow screens and the `useOnboardingState` lint errors added. |
+| 2026-09-23 | Phase 3 M3.5 done: the new onboarding flow (ND-13 order, ND-14 grouping, OD-11/ND-5/ND-6 applied) on the Phase 0 primitives; payload identical to the M3.1 baseline, mocked and live. "Current state" notes the new steps. Section 6: modal clipping and the Dialog focus bug done; one onboarding lint error removed, two kept for M3.7; landing groups, skip link and bundle size added. Awaiting Mo's review. |
+| 2026-09-23 | Phase 3 M3.6 done: one pathway catalogue (`direction` only; `category` and `tag` removed) and `components/pathways/` used by all five in-app galleries and the explorer Dialog; the landing page reads the same groups; launch state and payload unchanged. M3.6 report added under Phase 3; "Current state" notes the change. Section 6: jargon copy, landing groups and tab focus-ring clipping done; navbar overflow at 360 px, hard-coded counts, unused catalogue fields and the review items added. M3.7 and Phase 4 not started. Awaiting Mo's review. |
+| 2026-09-23 | Phase 3 M3.7 done: onboarding state matrix and M3.7 report added under Phase 3; classified clarify/create failures, connection notice, stale-response and wait fixes, duplicate-safe create retry, 360 px question screens, commitment name validation; payload identical, mocked and live. "Current state" notes the new failure handling. Section 6: the onboarding lint errors done; generation look, in-onboarding draft, recovery edge and soft-keyboard checks added. M3.8 and Phase 4 not started. Awaiting Mo's review. |

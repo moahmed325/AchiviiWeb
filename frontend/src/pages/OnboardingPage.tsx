@@ -7,7 +7,7 @@ import { Goal } from '../types';
 
 export const OnboardingPage: React.FC = () => {
   const { token } = useAuth();
-  const { setActiveGoal } = useGoal();
+  const { activeGoal, goalLoadFailed, apiStatus, setActiveGoal } = useGoal();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -25,12 +25,14 @@ export const OnboardingPage: React.FC = () => {
   const isPreset = Boolean(navState?.isPreset || navState?.presetGoal);
 
   return (
-    <div className="w-full flex-1 flex flex-col justify-start py-4 sm:py-6 animate-fadeIn">
+    <div className="flex w-full flex-1 flex-col">
       <OnboardingWizard
         token={token}
         onGoalCreated={handleGoalCreated}
         initialGoal={initialGoal}
         isPreset={isPreset}
+        currentGoalId={goalLoadFailed ? null : activeGoal?.id}
+        apiOffline={apiStatus === 'offline'}
       />
     </div>
   );

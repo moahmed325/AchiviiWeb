@@ -13,11 +13,44 @@ export interface MockOptions {
   offline?: boolean;
   /** Milliseconds before auth responses arrive, to observe the loading state. */
   authDelayMs?: number;
+  /**
+   * A recorded `/api/goal/clarify` response (`e2e/fixtures/onboarding`). When set, clarify answers with it and
+   * `/api/goal/create` is recorded, then held open so generation never starts.
+   */
+  clarify?: unknown;
+  /** With `clarify`: answer `/api/goal/create` with this JSON body (`{ goal, roadmapWeeks, dailyTasks }`) instead of holding it. */
+  createResult?: unknown;
+  /** `/api/goal/clarify` fails at the network level while the rest of the API stays up. */
+  clarifyOffline?: boolean;
+  /** With `clarify`: the first N clarify requests fail at the network level, then the backend "recovers". */
+  clarifyFailures?: number;
+  /** With `clarify`: the first clarify request answers with this status and `{ error }`, as the backend does on failure. */
+  clarifyError?: { status: number; error: string };
+  /** With `clarify`: milliseconds before each clarify response. */
+  clarifyDelayMs?: number;
+  /** `/api/health` answers 503, so the app starts believing Achivii is offline. */
+  healthDown?: boolean;
+  /**
+   * With `clarify`: how the first create requests fail, in order. `offline` aborts at the network level; a string is
+   * sent as the stream's `error` event. Later requests behave as `createResult` says.
+   */
+  createFailures?: Array<'offline' | string>;
+  /** Returned by `/api/goal/active` once a create request has been made (a plan the server finished). */
+  goalAfterCreate?: Record<string, unknown>;
+}
+
+export interface CreateRequest {
+  headers: { 'content-type'?: string; accept?: string; authorization?: string };
+  body: unknown;
 }
 
 export interface MockCalls {
   signup: number;
   login: number;
+  clarify: unknown[];
+  create: CreateRequest[];
+  /** Every clarify request, including failed ones. */
+  clarifyAttempts: number;
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -27,15 +60,33 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend auth rules (backend/src/routes/auth.ts) without touching the dev database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0 };
-  const { goal = null, signupStatus = 201, loginStatus = 200, offline = false, authDelayMs = 0 } = options;
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0 };
+  const {
+    goal = null,
+    signupStatus = 201,
+    loginStatus = 200,
+    offline = false,
+    authDelayMs = 0,
+    clarify,
+    createResult,
+    clarifyOffline = false,
+    clarifyFailures = 0,
+    clarifyError,
+    clarifyDelayMs = 0,
+    healthDown = false,
+    createFailures = [],
+    goalAfterCreate,
+  } = options;
 
   await page.route(`${API}/api/**`, async (route) => {
     if (offline) return route.abort('connectionrefused');
     const url = new URL(route.request().url());
     const path = url.pathname;
 
-    if (path === '/api/health') return json(route, 200, { status: 'ok', timestamp: '', service: 'achivii-api' });
+    if (path === '/api/health') {
+      if (healthDown) return json(route, 503, { error: 'Service unavailable' });
+      return json(route, 200, { status: 'ok', timestamp: '', service: 'achivii-api' });
+    }
 
     if (path === '/api/auth/signup') {
       calls.signup += 1;
@@ -54,9 +105,44 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     }
 
     if (path === '/api/auth/me') return json(route, 200, { user: USER });
-    if (path === '/api/goal/active') return json(route, 200, { activeGoal: goal });
+    if (path === '/api/goal/active') {
+      return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : goal });
+    }
 
-    // Onboarding's AI calls are out of scope here: hold them open so the screen stays in its loading state.
+    if (path === '/api/goal/clarify' && clarifyOffline) return route.abort('connectionrefused');
+    if (path === '/api/goal/clarify' && clarify !== undefined) {
+      calls.clarifyAttempts += 1;
+      await wait(clarifyDelayMs);
+      if (calls.clarifyAttempts <= clarifyFailures) return route.abort('connectionrefused');
+      if (clarifyError && calls.clarifyAttempts === 1) return json(route, clarifyError.status, { error: clarifyError.error });
+      calls.clarify.push(route.request().postDataJSON());
+      return json(route, 200, clarify);
+    }
+    if (path === '/api/goal/create' && clarify !== undefined) {
+      const failure = createFailures[calls.create.length];
+      const request = route.request();
+      const headers = request.headers();
+      calls.create.push({
+        headers: {
+          'content-type': headers['content-type'],
+          accept: headers['accept'],
+          authorization: headers['authorization']?.replace(/^Bearer .+$/, 'Bearer <token>'),
+        },
+        body: request.postDataJSON(),
+      });
+      if (failure === 'offline') return route.abort('connectionrefused');
+      if (failure !== undefined) {
+        return route.fulfill({
+          status: 200,
+          contentType: 'text/event-stream',
+          body: `data: ${JSON.stringify({ type: 'error', error: failure })}\n\n`,
+        });
+      }
+      if (createResult !== undefined) return json(route, 200, createResult);
+      return new Promise<void>(() => {});
+    }
+
+    // Otherwise onboarding's AI calls are held open so the screen stays in its loading state.
     if (path.startsWith('/api/goal/')) return new Promise<void>(() => {});
 
     return json(route, 404, { error: 'Not mocked' });

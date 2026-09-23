@@ -1,0 +1,77 @@
+{
+  "clarifiedOutcome": "Run a 10K in under 50 minutes with aerobic efficiency and continuous pacing",
+  "primaryDomain": "Endurance Running & Aerobic Conditioning",
+  "followUpQuestions": [
+    {
+      "id": "baseline5k",
+      "question": "What is your current comfortable 5K running baseline?",
+      "subtitle": "Calibrates your exact Jack Daniels VDOT training paces and interval splits.",
+      "options": [
+        "Sub-24 min (Current 5K < 24:00, aiming for 10K pacing endurance)",
+        "24 to 27 min (Current 5K ~25:00-26:30, aiming for 5:00/km lock-in)",
+        "27 to 30 min (Can complete 5K in ~28 min, need threshold expansion)",
+        "Over 30 min or untimed (Can run 3-5 km continuously, building base)"
+      ],
+      "allowCustom": true,
+      "retry": {
+        "question": "What is your current comfortable 5K running baseline?",
+        "subtitle": "A rough guess is fine. It helps us size your first week."
+      }
+    },
+    {
+      "id": "environment",
+      "question": "What running surface and gear will you primarily use?",
+      "subtitle": "Tailors warmup drills, elevation adjustments, and cadence mechanics.",
+      "options": [
+        "Outdoor asphalt roads & flat pavement with GPS watch",
+        "Gym or home motorized treadmill with incline control",
+        "Outdoor standard 400m track and mixed park trails",
+        "Hilly outdoor terrain with variable elevation"
+      ],
+      "allowCustom": true,
+      "retry": {
+        "question": "What running surface and gear will you primarily use?",
+        "subtitle": "A rough guess is fine. It helps us size your first week."
+      }
+    },
+    {
+      "id": "injury_history",
+      "question": "What has been your biggest historical physical or consistency bottleneck?",
+      "subtitle": "Injects targeted pre-run activation and recovery guardrails into every session.",
+      "options": [
+        "Shin splints, calf tightness, or Achilles tenderness when volume increases",
+        "Runner's knee (patellar tendon) or IT band friction",
+        "Aerobic burnout (starting too fast and gasping by kilometer 3)",
+        "Schedule friction & difficulty maintaining consistency after Week 3"
+      ],
+      "allowCustom": true,
+      "retry": {
+        "question": "What has been your biggest historical physical or consistency bottleneck?",
+        "subtitle": "A rough guess is fine. It helps us size your first week."
+      }
+    }
+  ],
+  "evidenceTriad": {
+    "science": {
+      "title": "Laboratory Aerobic Science",
+      "subtitle": "Mitochondrial Biogenesis & VDOT Kinetics",
+      "tag": "THEORY & BIOLOGY",
+      "coreRule": "Jack Daniels VDOT + Stephen Seiler's 80/20 Polarized Distribution.",
+      "realWorldApplication": "80% of training remains strictly in conversational Zone 2 to stimulate capillary beds and spare glycogen, while 20% targets the lactate inflection point."
+    },
+    "socialAdherence": {
+      "title": "Busy Human Adherence Engine",
+      "subtitle": "Designed for 40-Hour Workweeks & Real Friction",
+      "tag": "REAL-LIFE PSYCHOLOGY",
+      "coreRule": "High-Density 35-45m Sessions + 2-Day Rule + Zero-Guilt Buffers.",
+      "realWorldApplication": "Sessions fit around work, commute, and family. Missed Tuesday? It shifts automatically into an open weekend buffer. Never two rest days in a row."
+    },
+    "proCoaching": {
+      "title": "Elite Coach Ground Truth",
+      "subtitle": "Injury Shielding & Practical Craft",
+      "tag": "PRACTITIONER CRAFT",
+      "coreRule": "Effort over dogmatic GPS watch obedience + The \"Talk Test\" + Joint Pre-Hab.",
+      "realWorldApplication": "Coaches know tendons adapt 3x slower than heart and lungs. We mandate 174-180 SPM cadence, soft midfoot landings, and effort-based pacing on hot/stressful days."
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "clarifiedOutcome": "Bake sourdough bread at home",
+  "primaryDomain": "Bread baking",
+  "followUpQuestions": [
+    {
+      "id": "current_level",
+      "question": "What sourdough baking experience do you have right now?",
+      "subtitle": "Helps us know where you’re starting from",
+      "options": [
+        "Never tried sourdough",
+        "Made a starter but never baked a loaf",
+        "Baked a sourdough loaf before",
+        "Bake sourdough regularly"
+      ],
+      "allowCustom": true,
+      "retry": {
+        "question": "What sourdough baking have you done so far?",
+        "subtitle": "A quick snapshot of your current skill"
+      }
+    },
+    {
+      "id": "success",
+      "question": "In 90 days, which result would tell you this worked?",
+      "subtitle": "Pick a concrete, checkable outcome",
+      "options": [
+        "Bake a sourdough loaf that rises well",
+        "Consistently bake a sourdough loaf each week",
+        "Achieve a crusty, open‑crumb loaf",
+        "Master a recipe and share it with friends"
+      ],
+      "allowCustom": true,
+      "retry": {
+        "question": "What specific result would make you say the goal succeeded?",
+        "subtitle": "Choose a clear, measurable outcome"
+      }
+    },
+    {
+      "id": "equipment",
+      "question": "What baking tools and space do you have for sourdough?",
+      "subtitle": "Your setup determines the steps you’ll need",
+      "options": [
+        "Basic kitchen (bowl, spoon, oven)",
+        "Digital kitchen scale",
+        "Bread proofing basket or banneton",
+        "Dutch oven or baking stone",
+        "Thermometer for oven temperature"
+      ],
+      "allowCustom": true,
+      "retry": {
+        "question": "Which equipment and kitchen space are available to you?",
+        "subtitle": "Knowing your gear helps plan the process"
+      }
+    },
+    {
+      "id": "obstacle",
+      "question": "What’s the biggest thing that could stop you from baking sourdough?",
+      "subtitle": "Identify the main challenge you may face",
+      "options": [
+        "Starter keeps dying or weakening",
+        "Dough turns too dense or sticky",
+        "Finding time for long fermentation",
+        "Oven temperature control issues",
+        "Difficulty shaping the loaf"
+      ],
+      "allowCustom": true,
+      "retry": {
+        "question": "What is the most likely obstacle to your sourdough baking?",
+        "subtitle": "Spotting the key hurdle early helps overcome it"
+      }
+    }
+  ]
+}

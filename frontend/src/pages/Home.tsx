@@ -14,16 +14,16 @@ import {
   FileText,
   Layers,
   Sparkles,
-  Search,
-  Award,
   X,
 } from 'lucide-react';
 import { formatGoalTitle } from '../lib/formatters';
 import { updateDailyTask } from '../lib/api';
 import { DailyTask, DetailedStep } from '../types';
 import { FocusSessionModal } from '../components/FocusSessionModal';
-import { CERTIFIED_PATHWAYS, getGoalImage } from '../lib/certifiedPresets';
+import { findPathwayByTitle, getGoalImage } from '../lib/certifiedPresets';
 import { PathwaysExplorerModal } from '../components/PathwaysExplorerModal';
+import { PathwayCustomGoal, PathwayLibrary, PathwayStrip, usePathwayLaunch } from '../components/pathways';
+import { Button } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 
 export const Home: React.FC = () => {
@@ -40,25 +40,18 @@ export const Home: React.FC = () => {
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [isFocusModalOpen, setIsFocusModalOpen] = useState(false);
   const [isPathwaysModalOpen, setIsPathwaysModalOpen] = useState(false);
-  const [pathwayCategory, setPathwayCategory] = useState<string>('All');
-  const [pathwaySearch, setPathwaySearch] = useState<string>('');
+  const [explorePathwayId, setExplorePathwayId] = useState<string | undefined>();
   const [isUpdatingTask, setIsUpdatingTask] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [taskNotes, setTaskNotes] = useState<Record<string, string>>({});
   const [isNoteSaved, setIsNoteSaved] = useState(false);
+  const { startPathway, startCustomGoal } = usePathwayLaunch();
 
-  const filteredCatalogPathways = useMemo(() => {
-    return CERTIFIED_PATHWAYS.filter((p) => {
-      const matchesCat = pathwayCategory === 'All' || p.category === pathwayCategory;
-      const matchesSearch =
-        !pathwaySearch.trim() ||
-        p.title.toLowerCase().includes(pathwaySearch.toLowerCase()) ||
-        p.desc.toLowerCase().includes(pathwaySearch.toLowerCase()) ||
-        p.tag.toLowerCase().includes(pathwaySearch.toLowerCase());
-      return matchesCat && matchesSearch;
-    });
-  }, [pathwayCategory, pathwaySearch]);
+  const openPathways = (pathwayId?: string) => {
+    setExplorePathwayId(pathwayId);
+    setIsPathwaysModalOpen(true);
+  };
 
   // --------------------------------------------------------------------------
   // Signed-in Data Derivations
@@ -174,161 +167,34 @@ export const Home: React.FC = () => {
   // 1. SIGNED-IN ZEN COMMAND CENTER
   // ===========================================================================
   if (user && token) {
-    // If no active goal exists yet, display a peaceful goal creation portal with all 10 certified pathways
+    // No goal yet: the pathway library, with a goal of the user's own as the quieter route (ND-6).
     if (!activeGoal) {
-      const categories = ['All', 'Tech & Career', 'Fitness & Health', 'Creative & Media', 'Mastery & Mind'];
-
       return (
-        <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8 sm:py-12 space-y-8 animate-fadeIn text-left">
-          {/* Header */}
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-xs font-mono text-[#07CB6C]">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Workspace Ready • 10 Certified Master Pathways</span>
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-white">
-              Choose Your 90-Day Trajectory
-            </h1>
-            <p className="text-sm text-neutral-400 max-w-2xl leading-relaxed">
-              Achivii breaks any goal into a calibrated 3-phase trajectory with daily micro-sessions and automated recovery. Choose a certified master blueprint below, or define your own custom ambition.
+        <main className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-12 text-left sm:py-16">
+          <header className="flex flex-col gap-4">
+            <p className="font-ui-mono text-micro uppercase text-accent-hover">Start your journey</p>
+            <h1 className="max-w-[20ch] text-h1 text-text">Choose a pathway</h1>
+            <p className="max-w-xl text-body-lg text-text-secondary">
+              Pick a direction, then a pathway. Each one is a guided 90-day journey, planned around your life.
             </p>
-          </div>
+          </header>
 
-          {/* Action Bar: Category Tabs & Search & Custom Goal */}
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-[#1a2824] pb-4">
-              {/* Category Filter Tabs */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-                {categories.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setPathwayCategory(cat)}
-                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                      pathwayCategory === cat
-                        ? 'bg-[#07CB6C] text-black font-semibold shadow-xs'
-                        : 'bg-[#111a17] hover:bg-[#16221e] text-neutral-300 border border-[#1a2824]'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-
-              {/* Live Search */}
-              <div className="relative min-w-[240px]">
-                <Search className="w-3.5 h-3.5 text-neutral-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search 10 master pathways..."
-                  value={pathwaySearch}
-                  onChange={(e) => setPathwaySearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-[#0c1210] border border-[#1a2824] focus:border-[#07CB6C]/60 rounded-md text-white placeholder-neutral-500 outline-none transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Pathways Grid (All 10 Pathways Available with Prominent Visual Banners) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCatalogPathways.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-lg overflow-hidden border border-[#1a2824] hover:border-[#07CB6C]/60 text-left transition-all bg-[#0c1210] group flex flex-col justify-between"
+          <PathwayLibrary
+            className="mt-12"
+            action={{ label: 'Start this pathway', onChoose: startPathway }}
+            customGoal={
+              <PathwayCustomGoal className="mt-16">
+                <Button
+                  variant="secondary"
+                  onClick={startCustomGoal}
+                  className="w-full sm:w-auto"
+                  trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
                 >
-                  {/* Dedicated Visual Image Banner with 100% Clarity */}
-                  <div className="relative w-full h-36 sm:h-40 overflow-hidden bg-[#050807]">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0c1210] via-transparent to-black/30" />
-                    <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold tracking-wider text-[#07CB6C]">
-                      {item.tag}
-                    </span>
-                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 text-[10px] font-mono text-neutral-300 bg-black/75 backdrop-blur-md px-2 py-0.5 rounded border border-white/10">
-                      <Clock className="w-3 h-3 text-[#07CB6C]" />
-                      <span>{item.dailyMinutes}m/day</span>
-                    </div>
-                  </div>
-
-                  {/* Body Content */}
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                    <div className="space-y-1.5">
-                      <h3 className="text-sm sm:text-base font-bold text-white group-hover:text-[#07CB6C] transition-colors leading-snug">
-                        {item.title}
-                      </h3>
-                      <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
-                        {item.desc}
-                      </p>
-                      <div className="flex items-center gap-1.5 text-[10px] font-mono text-neutral-400 pt-0.5">
-                        <Award className="w-3 h-3 text-amber-400 shrink-0" />
-                        <span className="truncate">{item.badge}</span>
-                      </div>
-                    </div>
-
-                    {/* Footer Launch Button */}
-                    <div className="pt-3 border-t border-[#1a2824] flex items-center justify-between">
-                      <span className="text-[11px] font-mono text-neutral-500">
-                        12 Milestones
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          localStorage.setItem('achivii_draft_goal', item.title);
-                          navigate('/onboarding', {
-                            state: { presetGoal: item.title, isPreset: true, switchGoal: true }
-                          });
-                        }}
-                        className="px-3.5 py-1.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] active:scale-[0.98] text-black font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                      >
-                        <span>Select Pathway</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {filteredCatalogPathways.length === 0 && (
-              <div className="py-12 text-center space-y-2 border border-dashed border-[#1a2824] rounded-md p-6">
-                <Layers className="w-8 h-8 text-neutral-600 mx-auto" />
-                <p className="text-sm font-medium text-neutral-400">No pathways match your search</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPathwaySearch('');
-                    setPathwayCategory('All');
-                  }}
-                  className="text-xs text-[#07CB6C] hover:underline cursor-pointer"
-                >
-                  Clear filters
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Custom Input Option Banner */}
-          <div className="p-5 rounded-md bg-[#0c1210] border border-[#1a2824] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white">Have a unique personal or professional ambition?</h3>
-              <p className="text-xs text-neutral-400">
-                Our AI engine will clarify your target, calibrate diagnostic milestones, and assemble a bespoke 90-day plan.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.removeItem('achivii_draft_goal');
-                navigate('/onboarding', { state: { isPreset: false, customGoal: true } });
-              }}
-              className="px-5 py-2.5 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-semibold text-neutral-200 hover:text-white transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
-            >
-              <span>Define Custom Goal</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#07CB6C]" />
-            </button>
-          </div>
+                  Describe my own goal
+                </Button>
+              </PathwayCustomGoal>
+            }
+          />
         </main>
       );
     }
@@ -349,9 +215,9 @@ export const Home: React.FC = () => {
               type="button"
               onClick={dismissPathwayNotice}
               aria-label="Dismiss"
-              className="-m-2 p-2 shrink-0 rounded-md text-neutral-500 hover:text-white transition-colors cursor-pointer"
+              className="-my-3 -mr-3 inline-flex size-11 shrink-0 items-center justify-center rounded-md text-neutral-500 hover:text-white transition-colors cursor-pointer"
             >
-              <X className="w-4 h-4" />
+              <X aria-hidden="true" className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -406,7 +272,7 @@ export const Home: React.FC = () => {
             <div className="shrink-0 flex items-center gap-2 self-start sm:self-center">
               <button
                 type="button"
-                onClick={() => setIsPathwaysModalOpen(true)}
+                onClick={() => openPathways()}
                 className="px-3.5 py-2 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-semibold text-neutral-200 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
@@ -681,98 +547,11 @@ export const Home: React.FC = () => {
           </div>
         )}
 
-        {/* =================================================================== */}
-        {/* CERTIFIED 90-DAY PATHWAYS GALLERY (DIRECT IN-DASHBOARD ACCESS) */}
-        {/* =================================================================== */}
-        <div className="p-5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#1a2824] pb-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-[#07CB6C]" />
-                <h2 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                  Certified 90-Day Pathways Library
-                </h2>
-                <span className="text-[10px] font-mono font-bold bg-[#07CB6C]/10 text-[#07CB6C] border border-[#07CB6C]/30 px-1.5 py-0.5 rounded">
-                  10 Curricula
-                </span>
-              </div>
-              <p className="text-xs text-neutral-400">
-                Browse our complete suite of 10 gold-standard pathways or switch to another ambition anytime.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsPathwaysModalOpen(true)}
-              className="self-start sm:self-auto px-3 py-1.5 rounded-md bg-[#111a17] hover:bg-[#16221e] border border-[#1a2824] hover:border-[#07CB6C]/40 text-xs font-medium text-neutral-200 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <span>Explore All (10)</span>
-              <ArrowRight className="w-3 h-3 text-[#07CB6C]" />
-            </button>
-          </div>
-
-          {/* Quick Previews of Pathways */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {CERTIFIED_PATHWAYS.slice(0, 6).map((pathway) => {
-              const isActive = activeGoal && activeGoal.rawGoal.toLowerCase().includes(pathway.label?.toLowerCase() || pathway.id);
-
-              return (
-                <div
-                  key={pathway.id}
-                  className={`rounded-lg overflow-hidden border bg-[#080d0b] transition-all flex flex-col justify-between group ${
-                    isActive ? 'border-[#07CB6C] ring-1 ring-[#07CB6C]/40' : 'border-[#1a2824] hover:border-[#07CB6C]/60'
-                  }`}
-                >
-                  {/* Dedicated Visual Image Banner */}
-                  <div className="relative w-full h-28 sm:h-32 overflow-hidden bg-[#050807]">
-                    <img
-                      src={pathway.image}
-                      alt={pathway.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#080d0b] via-transparent to-black/30" />
-                    <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-md border border-white/10 text-[9px] font-mono font-bold tracking-wider text-[#07CB6C]">
-                      {pathway.tag}
-                    </span>
-                    <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/75 backdrop-blur-md border border-white/10 text-[9px] font-mono text-neutral-300">
-                      {pathway.dailyMinutes}m/day
-                    </span>
-                  </div>
-
-                  <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
-                    <div className="space-y-1">
-                      <h3 className="text-xs font-bold text-white group-hover:text-[#07CB6C] transition-colors line-clamp-1">
-                        {pathway.title}
-                      </h3>
-                      <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
-                        {pathway.desc}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-[10px] font-mono text-neutral-500">
-                        {isActive ? 'Current Plan' : '12 Milestones'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          localStorage.setItem('achivii_draft_goal', pathway.title);
-                          navigate('/onboarding', {
-                            state: { presetGoal: pathway.title, isPreset: true, switchGoal: true }
-                          });
-                        }}
-                        className="text-[11px] font-semibold text-[#07CB6C] hover:text-[#06b560] flex items-center gap-1 cursor-pointer transition-colors"
-                      >
-                        <span>{isActive ? 'Restart' : 'Switch'}</span>
-                        <ArrowRight className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <PathwayStrip
+          currentId={findPathwayByTitle(activeGoal.rawGoal)?.id}
+          onOpen={(pathway) => openPathways(pathway.id)}
+          onExploreAll={() => openPathways()}
+        />
 
         {/* Focus Timer Modal */}
         {activeTask && (
@@ -790,6 +569,7 @@ export const Home: React.FC = () => {
           isOpen={isPathwaysModalOpen}
           onClose={() => setIsPathwaysModalOpen(false)}
           activeGoalTitle={activeGoal?.rawGoal}
+          initialPathwayId={explorePathwayId}
         />
       </main>
     );
