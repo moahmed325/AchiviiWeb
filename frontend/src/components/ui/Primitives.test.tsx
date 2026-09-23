@@ -87,6 +87,22 @@ describe('SkipLink and VisuallyHidden', () => {
     expect(link).toHaveAttribute('href', '#main');
   });
 
+  it('moves focus to the main landmark without changing the URL', async () => {
+    render(
+      <>
+        <SkipLink />
+        <button type="button">Menu</button>
+        <main id="main">Content</main>
+      </>,
+    );
+    const before = window.location.href;
+    await userEvent.tab();
+    await userEvent.keyboard('{Enter}');
+    expect(screen.getByRole('main')).toHaveFocus();
+    expect(screen.getByRole('main')).toHaveAttribute('tabindex', '-1');
+    expect(window.location.href).toBe(before);
+  });
+
   it('keeps hidden text available to assistive tech', () => {
     render(
       <button type="button">

@@ -49,6 +49,10 @@ export interface MockOptions {
   createStreamNext?: GenerationStreamStep[][];
   /** Returned by `/api/goal/active` once a create request has been made (a plan the server finished). */
   goalAfterCreate?: Record<string, unknown>;
+  /** `GET /api/goal/active` answers with this status and `{ error }`, so the goal load fails (`goalLoadFailed`). */
+  activeStatus?: number;
+  /** `DELETE /api/goal/active` (Reset 90-Day Plan) answers with this status. 200 by default. */
+  resetStatus?: number;
 }
 
 export interface GenerationStreamStep {
@@ -70,6 +74,8 @@ export interface MockCalls {
   clarifyAttempts: number;
   /** GET /api/goal/active, including the check before a create. */
   active: number;
+  /** DELETE /api/goal/active. */
+  resets: number;
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -79,7 +85,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend auth rules (backend/src/routes/auth.ts) without touching the dev database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0 };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0 };
   const {
     goal = null,
     signupStatus = 201,
@@ -97,6 +103,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     goalAfterCreate,
     createStream,
     createStreamNext = [],
+    activeStatus,
+    resetStatus = 200,
   } = options;
 
   if (createStream) {
@@ -159,8 +167,14 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     }
 
     if (path === '/api/auth/me') return json(route, 200, { user: USER });
+    if (path === '/api/goal/active' && route.request().method() === 'DELETE') {
+      calls.resets += 1;
+      if (resetStatus >= 400) return json(route, resetStatus, { error: 'Failed to reset goal' });
+      return json(route, 200, { success: true });
+    }
     if (path === '/api/goal/active') {
       calls.active += 1;
+      if (activeStatus) return json(route, activeStatus, { error: 'Failed to fetch active goal' });
       return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : goal });
     }
 

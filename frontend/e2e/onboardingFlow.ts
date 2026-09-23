@@ -47,9 +47,15 @@ export async function expectStep(page: Page, step: Step, timeout?: number) {
   await expect(page.getByRole('heading', { level: 1, name: STEP_HEADING[step] })).toBeVisible({ timeout });
 }
 
-/** Answers, plans and day lengths are native radios inside their labels (ChoiceCard, SegmentedControl). */
+/**
+ * Answers, plans and day lengths are native radios inside their labels (ChoiceCard, SegmentedControl).
+ * Scroll to the centre first: on a phone the sticky step footer covers a control that `click` has only
+ * scrolled to the bottom edge, and the click never lands.
+ */
 export async function chooseOption(page: Page, option: string) {
-  await page.locator('label').filter({ has: page.getByRole('radio', { name: option, exact: true }) }).click();
+  const label = page.locator('label').filter({ has: page.getByRole('radio', { name: option, exact: true }) });
+  await label.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await label.click();
 }
 
 const nextOrContinue = (page: Page) => page.getByRole('button', { name: /^(Next question|Continue)$/ });

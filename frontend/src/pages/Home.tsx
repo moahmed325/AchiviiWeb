@@ -170,7 +170,7 @@ export const Home: React.FC = () => {
     // No goal yet: the pathway library, with a goal of the user's own as the quieter route (ND-6).
     if (!activeGoal) {
       return (
-        <main className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-12 text-left sm:py-16">
+        <main id="main" className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-12 text-left sm:py-16">
           <header className="flex flex-col gap-4">
             <p className="font-ui-mono text-micro uppercase text-accent-hover">Start your journey</p>
             <h1 className="max-w-[20ch] text-h1 text-text">Choose a pathway</h1>
@@ -204,7 +204,7 @@ export const Home: React.FC = () => {
     const activeGoalImage = getGoalImage(activeGoal.rawGoal);
 
     return (
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6 animate-fadeIn text-left">
+      <main id="main" className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 space-y-6 animate-fadeIn text-left">
         {pathwayNotice && (
           <div role="status" className="flex items-start justify-between gap-3 p-4 rounded-md bg-[#0c1210] border border-[#1a2824]">
             <p className="text-xs leading-relaxed text-neutral-300">

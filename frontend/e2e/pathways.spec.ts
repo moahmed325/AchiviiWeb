@@ -232,9 +232,11 @@ test.describe('pathway library with a goal', () => {
     await expect(strip(page)).toBeVisible();
     for (const width of [390, 360]) {
       await page.setViewportSize({ width, height: 800 });
-      // The document is not checked: the navbar's goal links overflow at 360 px (a carry-over outside M3.6).
       await expectWithin(strip(page), width);
       await expect.poll(() => page.locator('main').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+      await expect
+        .poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
+        .toBeLessThanOrEqual(0);
       await expectTapTarget(strip(page).getByRole('button', { name: 'Scroll pathways forward' }));
       await expectTapTarget(strip(page).getByRole('button', { name: 'Explore all' }));
     }
@@ -254,11 +256,11 @@ test.describe('pathway library with a goal', () => {
     await expectNoAxeViolations(page, dialog);
   });
 
-  test('the navbar opens the same explorer', async ({ page, isMobile }) => {
+  test('the app navigation opens the same explorer', async ({ page }) => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/roadmap');
-    const opener = page.getByRole('banner').getByRole('button', { name: isMobile ? 'Goals' : 'Pathways (10)' });
+    const opener = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Pathways' });
     await opener.click();
     const dialog = explorer(page);
     await expect(dialog.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');

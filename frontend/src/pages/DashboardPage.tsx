@@ -12,14 +12,14 @@ export const DashboardPage: React.FC = () => {
   }
 
   return (
-    <div className="w-full animate-fadeIn">
+    <main id="main" className="w-full animate-fadeIn">
       <ExecutionDashboard
         goal={activeGoal}
         token={token}
         onGoalUpdated={updateActiveGoal}
         onResetGoal={resetGoal}
       />
-    </div>
+    </main>
   );
 };
 

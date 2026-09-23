@@ -86,20 +86,31 @@ test('v2 stream shows the method name and reason only after method, then opens t
 });
 
 test('v1 stream completes choosing without a method stage or an invented name [dashboard errors expected]', async ({ page }) => {
+  await page.clock.install();
   await mockApi(page, { clarify: baseline.presetClarify, createStream: v1 });
   await signIn(page);
+  await page.clock.resume();
   await reachReview(page);
+  // The page clock is running, so a Node Date.now() can already be behind it.
+  const pauseAt = await page.evaluate(() => Date.now() + 1_000);
+  await page.clock.pauseAt(pauseAt);
   await generate(page);
 
-  await expect(stage(page, 'Choosing your method').getByText('Now')).toBeVisible();
-  await expect(page.getByText('Building your 90-day journey')).toHaveCount(0);
-
+  await expect(page.getByRole('heading', { name: 'Building your path' })).toBeVisible();
+  await page.clock.fastForward(2_500);
   await expect(stage(page, 'Choosing your method').getByText('Done')).toBeVisible();
   await expect(stage(page, 'Designing your first steps').getByText('Now')).toBeVisible();
   await expect(page.getByText('Building your 90-day journey')).toHaveCount(0);
   await expect(methodName(page)).toHaveCount(0);
   await expect(page.getByText('This is taking longer than usual. Still working (88s).')).toBeVisible();
+  await expect(page.getByText(/Still working \(\d+s\)/)).toHaveCount(1);
   await expect(page.getByText('Search sources')).toHaveCount(0);
+
+  await page.clock.fastForward(2_000);
+  await expect(page.getByText('This is taking longer than usual. Still working (90s).')).toBeVisible();
+  await expect(page.getByText(/Still working \(\d+s\)/)).toHaveCount(1);
+
+  await page.clock.fastForward(1_000);
   await expect(page).toHaveURL('/dashboard');
 });
 

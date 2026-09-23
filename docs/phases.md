@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-23 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) kickoff under way.** No Phase 5 implementation has started.
+Last updated: 2026-09-23 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1 and M5.2 done.** M5.3 has not started. The ND-7 shell is in place; no Today UI has been implemented and `/dashboard` is not redirected.
 
 ---
 
@@ -71,7 +71,7 @@ Every phase in section 4 uses the same fields:
 | 2 | Authentication | `COMPLETE` | 0 | — (OD-4, ND-4, ND-12 Decided) | None |
 | 3 | Onboarding | `COMPLETE` | 0, 2 | — (OD-11, ND-5, ND-6, ND-13–16 Decided) | None |
 | 4 | Journey generation | `COMPLETE` | 3 | — (OD-8, ND-17 Decided) | None remaining. ND-17 matching shipped in M4.2. Stream labels unused |
-| 5 | Today | `NOT STARTED` | 0, 4 | OD-3, OD-9, ND-7 | None |
+| 5 | Today | `IN PROGRESS` | 0, 4 | — (OD-3, OD-9, ND-7, ND-18 Decided) | None |
 | 6 | Journey | `NOT STARTED` | 5 | OD-2, OD-7 | None |
 | 7 | Weekly review + adaptation | `NOT STARTED` | 5 | OD-1 (test results) | Named: weekly test result storage |
 | 8 | Progress | `NOT STARTED` | 6, 7 | ND-8 | None beyond Phase 7 |
@@ -173,7 +173,7 @@ Every phase lists which of these it touches. Every touched item is re-verified b
 | R-14 | Roadmap | `RoadmapPage.tsx`, `PlanV2Panel.tsx` | v1 and v2 goals both render their roadmap |
 | R-15 | Reset / switch goal | `DELETE /api/goal/active`; `switchGoal` state; create archives the previous active goal | Switch goals; the old one is archived and the new one is active |
 | R-16 | Draft goal carried through signup | `localStorage['achivii_draft_goal']`; `pendingPathway` handoff in `Home.tsx` | Pick a pathway signed out → sign up → onboarding has it preselected |
-| R-17 | Offline indicator | `GoalContext` `apiStatus`; marketing nav chip; app `Navbar` | Stop the backend; the offline state is shown and nothing crashes |
+| R-17 | Offline indicator | `GoalContext` `apiStatus`; marketing nav chip; the app shell's chip (`components/app`, the `Navbar` until M5.2) | Stop the backend; the offline state is shown and nothing crashes |
 | R-18 | Browser history in onboarding | `OnboardingWizard.tsx` | Back and forward move between steps without losing answers |
 
 ## 3.4 Do not pretend (BP §43)
@@ -1423,7 +1423,7 @@ The code at the end of Phase 4 (M4.5, 2026-09-23). The stream facts below includ
   * **v2 success:** `search` → `method` and `plan` in the same tick → `generateWeekPlan` → `saveV2Goal` → `done`. `planVersion: 2`. `isGoldenRail` is true only when a preset matched. The live TED create took this path as a custom goal (below).
   * **v1 fallback** (preset, roadmap failed, not unsafe): `search` → no `method` → `plan` → `saveV1PresetGoal` → `done`. `planVersion: 1`, `isGoldenRail: true`, `canonicalMethodName: null`. The live 10K create took this path: `search` at 0 ms (`slow: false`), `plan` at 87702 ms (`slow: true`), `done` at 90345 ms. The screen completes "Choosing your method" when `plan` arrives and does not show a method stage.
   * **Custom failure:** `search` ("Comparing methods for your answers") → `error`. No v1 fallback. The live sourdough create ended this way (`error` at 54252 ms, `slow: true`). No goal was saved.
-* **Slow (M4.3):** `elapsedMs` and `slow` (true after 20 seconds) are still computed in `openPlanStream` at send time. There is no heartbeat and no new SSE event. The client uses the same 20 seconds during silence, counted from the last event, or from entering generation if none has arrived. The line is "This is taking longer than usual. Still working (Ns)." N is whole seconds since this generation attempt started. During silence that is the client clock. An event that already has `slow: true` uses `Math.round(elapsedMs / 1000)` instead, so the line is not shown twice. It sits on the active stage (`search` → Choosing your method, `plan` → Designing your first steps). A later event with `slow: false` clears it and the 20 seconds start again. The number keeps moving until the next event or an error. No percentage and no estimated time remaining.
+* **Slow (M4.3, corrected in M5.1 B2):** `elapsedMs` and `slow` (true after 20 seconds) are still computed in `openPlanStream` at send time. There is no heartbeat and no new SSE event. The client uses the same 20 seconds during silence, counted from the last event, or from entering generation if none has arrived. The line is "This is taking longer than usual. Still working (Ns)." N is whole seconds since this generation attempt started. During silence that is the client clock. An event that already has `slow: true` starts from `Math.round(elapsedMs / 1000)` and then keeps counting whole client seconds since that event arrived, still one line, so the line is not shown twice. It sits on the active stage (`search` → Choosing your method, `plan` → Designing your first steps). A later event with `slow: false` clears it and the 20 seconds start again. The number keeps moving until the next event or an error. No percentage and no estimated time remaining.
 * **Research:** `generateRoadmap` in `backend/src/lib/ai/roadmap.ts` does not perform web research. It screens the query, matches a preset, extracts stated targets, then calls the model. The id `search` is a misnomer (OD-8).
 * **Archive:** the previous active goal is archived only inside a successful `saveV2Goal` or `saveV1PresetGoal`, after generation succeeds. A failed create leaves the current goal untouched.
 * **Unsafe:** rejected on create by `screenQuery`, not during clarify. The message is already user-facing ("This goal is outside what Achivii can plan safely." or the low-safety sentence). The UI title stays "We couldn't build your plan".
@@ -1467,6 +1467,10 @@ The code at the end of Phase 4 (M4.5, 2026-09-23). The stream facts below includ
 * **Overlapping creates:** accepted as a residual risk (carry-over above).
 * **Live evidence:** the new generation screen was not observed against a real stream during Phase 4. All live generation evidence is from the kickoff, on the old screen. The Phase 5 kickoff builds its goal through the real UI on the new screen and records the result below as post-close Phase 4 evidence. A defect found there is reported, not fixed in the kickoff.
 * **`search` id:** it names no search. Accepted under OD-8. The labels are unchanged.
+
+### Post-close follow-up (M5.1 B2)
+
+The still-working number froze on a slow event. The Phase 5 kickoff's live run showed "Still working (132s)" unchanged until done at about 181 seconds. M5.1 keeps counting from that event's seconds, in `generationStages.ts` and `StepGeneration.tsx`. This is not a reopened Phase 4 milestone.
 
 ### Decisions required before starting
 
@@ -2062,9 +2066,9 @@ ACHIVII REDESIGN — PHASE 4 REPORT
 
 ## PHASE 5 — TODAY
 
-**Status:** `NOT STARTED`
+**Status:** `IN PROGRESS` (M5.1 and M5.2 done, 2026-09-23). M5.3 has not started.
 
-**Source:** BP §08–09, §15–18, §23, §26–27, §31–32, §41, §43–46, §48, OD-3, OD-9 · VDS §9, §14, §20, §24–26, §28
+**Source:** BP §08–09, §15–18, §23, §26–27, §31–32, §41, §43–46, §48, OD-3, OD-9, ND-7, ND-18 · VDS §9, §14, §20, §24–26, §28
 
 **Objective:** build the central execution experience. On opening Achivii, the user knows what to do today within seconds.
 
@@ -2076,7 +2080,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
 * **Two dashboards (line counts at the Phase 5 kickoff, 2026-09-23):**
   * `/` signed-in: the simplified dashboard inside `Home.tsx` (586 lines, including the signed-out landing branch).
   * `/dashboard`: `DashboardPage.tsx` (26 lines) → `ExecutionDashboard.tsx` (1,228 lines).
-  * The Navbar's "Today" points to `/` and is highlighted on both `/` and `/dashboard` (OD-3).
+  * The shell's "Today" points to `/` and is marked current on both `/` and `/dashboard` (OD-3; the Navbar did the same until M5.2).
 * **"Today" is a UTC date** (`new Date().toISOString().split('T')[0]`) in both dashboards. `lib/dateUtils.ts` is unused by either. Tasks come from `currentWeek` only. Selection is the chosen id, else that UTC date, else the first pending task, else the first task. The day counter is calendar days until `targetDate`, clamped at 1–90.
 * **What each dashboard shows.** `Home` shows the goal title, the day counter, the session title and duration, steps (number, title, duration, instructions, focus cue), notes, focus, the pathway strip, and links to `/roadmap` and `/dashboard`. It does not show `isKeySession`, `isTestDay`, `whyToday`, pass mark, pitfall, output, `minimumVersion`, resources or `BasisBadge`, and it has no weekly review. `ExecutionDashboard` shows those fields when the task has them, `BasisBadge` when `goal.basis.label` is set, `PlanV2Panel` when `planVersion === 2` and `roadmap` is set, the routine visualiser, focus, the challenge widget, the pathway strip and Week Review. `onResetGoal` is accepted and never called.
 * **Supporting components:**
@@ -2087,33 +2091,39 @@ ACHIVII REDESIGN — PHASE 4 REPORT
   * `BasisBadge.tsx` (25 lines). Rendered only from `ExecutionDashboard`, and only when `basis.label` is set.
   * `PlanV2Panel.tsx` (157 lines). Rendered only from `ExecutionDashboard` for a v2 goal that has a roadmap.
   * `SaaSBuilderModal.tsx` (758 lines). Imported by nobody. Phase 12 owns it (section 6).
-* **App navigation:** `Navbar.tsx` (270 lines) plus a footer that is only the copyright line, rendered in `App.tsx` for every screen that is not chromeless (sign-in and sign-up are chromeless).
+* **App navigation:** at the kickoff, `Navbar.tsx` (270 lines) plus a footer that was only the copyright line, rendered in `App.tsx` for every screen that is not chromeless. **Since M5.2:** `components/app/AppShell.tsx` (ND-7). The rail (lg and up) or the bottom bar (below lg) on signed-in screens; a minimal top bar on onboarding and generation; nothing on the landing, auth and `/__ui` screens. `Navbar.tsx` and the footer are removed.
 * **Task data (`DailyTask`):** matches the Prisma model. `title`, `detailedSteps` (JSON string of steps: instructions, output, doneWhen/passMark, focusCue, pitfall, timing, resource fields), `implementationIntention`, `durationMinutes`, `slotTime`, `whyToday`, `minimumVersion` (the 10-minute step), `isRestDay`, `isKeySession`, `isTestDay`, `status` (`pending`, `completed`, `skipped`; no UI sets `skipped`), `completedAt`, `notes`, `resourceTitle`, `resourceUrl`, `resourceType`, `resourceWhy`.
 * **Writes:** `PATCH /api/goal/tasks/:taskId` accepts `status`, `notes` and `slotTime`. Both dashboards send only `status` and/or `notes`. The server sets `completedAt` when status becomes `completed` and clears it when status returns to `pending`. `Home`'s `handleSaveNotes` does not update the in-memory goal, so a later completion from `ExecutionDashboard` can send `notes: null` and clear a note that was saved on `/`.
 * **Goal load:** a failed fetch sets `activeGoal` to null and `goalLoadFailed` to true. `refreshGoal` is never called. `Home` does not read `goalLoadFailed`, so a failed fetch looks like no goal. `ProtectedRoute` with `requireGoal` sends any missing goal to `/onboarding` and does not check `goalLoadFailed`.
 * **Weekly review:** only the Week Review button on `/dashboard`, and it is always available. `POST /api/goal/weeks/:weekNumber/review`. On a v2 plan, a failed next-week write returns 503 ("Couldn't write next week right now. This week is unchanged; please try again.") before any write.
-* **Reset and switch:** Navbar "Reset 90-Day Plan" calls `DELETE /api/goal/active` (a real delete) and then opens `/onboarding`. "Switch to this pathway" in the explorer does not delete; the current goal is archived only inside a successful save.
+* **Reset and switch:** "Reset 90-Day Plan" (the Navbar until M5.2; the shell's Account menu since, with a Dialog confirm instead of `window.confirm`) calls `DELETE /api/goal/active` (a real delete) and then opens `/onboarding`. "Switch to this pathway" in the explorer does not delete; the current goal is archived only inside a successful save.
 
-### Decisions required before starting
+### Decisions (Mo, 2026-09-23, M5.1)
 
-* **OD-3: which dashboard becomes Today.** Decide the route, what happens to the other dashboard, and the `ProtectedRoute` redirects.
-* **OD-9: every Today state.** Define:
-  * a normal practice day
-  * a key session
-  * a test day
-  * a rest day
-  * the minimum-version day
-  * a completed day
-  * week complete / review due
-  * a review that failed (503, week unchanged)
-  * after week 12
-  * no active goal
-  * API offline
-  * loading and error
-* **ND-7: the application shell.**
-  * Desktop: persistent restrained navigation (VDS §14; BP §45 sidebar not yet committed).
-  * Mobile: bottom navigation or equivalent.
-  * Which items appear before their pages exist. BP §23 says no empty pages, so a Journey, Progress or Coach entry is shown only when that page exists, or Coach ✦ appears as an honest "coming" entry. Decide which.
+* **OD-3 — Decided (A).** Today lives at `/` for signed-in users, built from `ExecutionDashboard`'s capabilities, in the BP §09 hierarchy. The signed-out landing stays at `/`. `/dashboard` redirects to `/`, keeping query and hash. These change together in M5.8, not before: `OnboardingPage` `navigate('/dashboard')`, `ProtectedRoute`'s `<Navigate to="/dashboard">`, Home "Open Full Day View", Roadmap "Back to Today", and every Playwright assertion that lands on `/dashboard`. `safeNext('/dashboard?…#…')` keeps working through the redirect. Until M5.8, `/dashboard` keeps working exactly as today.
+* **OD-9 — Decided (A amended).** Every row in the state matrix below. No Phase 5 backend change. Rows that wait on OD-1a, OD-1b or OD-2 say so in the matrix.
+* **ND-7 — Decided (A, narrowed).** Desktop: a restrained left rail. Mobile: a bottom bar. At Phase 5 ship: Today (`/`), Roadmap (the existing `/roadmap`, named "Roadmap", not "Journey"), Pathways (the existing explorer, no hard-coded count), Account (a menu: email, Reset 90-Day Plan with its confirm, Sign out). Progress is omitted until Phase 8. Coach ✦ is omitted until Phase 10. No empty page and no "coming soon" page. The offline indicator lives in the shell. The signed-in footer is removed. Onboarding and generation keep a minimal top bar (wordmark and the Account menu with Sign out), not the rail or the bottom bar. Switch goal stays in the explorer (R-15). Skip link, 44 px targets and no 360 px overflow are part of the shell.
+* **ND-18 — Decided (A).** Today's heading is `rawGoal`. The stored `clarifiedOutcome` is shown beneath it, exactly as stored. The frontend does not hide or rewrite it. `saveV2Goal` overwriting `clarifiedOutcome` with `roadmap.finalGoal` is a backend issue in section 6.
+
+### State matrix
+
+| State | Trigger in code | Treatment (intent) | Data used | Waits on | How it is produced for validation (no DB writes) | Milestone |
+|---|---|---|---|---|---|---|
+| Loading | `GoalContext` `loadingGoal` while `GET /api/goal/active` is in flight | Calm skeleton in the Today layout | None yet | — | Playwright delays `/api/goal/active` | M5.3 |
+| No active goal | Fetch succeeded, `activeGoal` null, `goalLoadFailed` false | Invite the user to choose a pathway | — | — | Mock `activeGoal: null`, or the existing no-goal kickoff account | M5.3 |
+| Goal-load error | `goalLoadFailed` true and `activeGoal` null | Its own state, with retry (`refreshGoal`). Not the empty gallery. `ProtectedRoute` does not send it to onboarding. While the load failed, Build does not send a create: show the error and retry first. This closes the `currentGoalId === null` hole | The failed fetch | — | Playwright answers `GET /api/goal/active` with an error. A real account is not required | M5.7 |
+| Practice day | Pending task for today's UTC date in `currentWeek` | BP §09 hierarchy, with Start. Heading is `rawGoal` (ND-18); `clarifiedOutcome` sits beneath, as stored | `DailyTask` title, duration, steps; `rawGoal`; `clarifiedOutcome` | — | Mock a week whose task date is today, or the Phase 5 kickoff goal on a pending day | M5.3 |
+| Key session | That task's `isKeySession` | The same hierarchy, marked as the week's key session | `isKeySession` | — | Mock today's task with `isKeySession: true`. The kickoff week already has a key day; waiting until that date also reaches it | M5.7 |
+| Test day | That task's `isTestDay` | Show the week's test and `passIf`. No result field and no stored score | `isTestDay`, `RoadmapWeek.test` | OD-1a (Phase 7) for a result | Mock today's task as `isTestDay` with a week test. No score is written | M5.7 |
+| Rest day | That task's `isRestDay` | Rest as part of the plan, and a glance at the next step | `isRestDay`, the next task | — | Mock today's task as a rest day | M5.7 |
+| Short on time | The task has `minimumVersion` | A clearly offered reveal on the step ("the 10-minute version"). Not hidden and not forced. The data is unchanged | `minimumVersion` | — | Mock or the kickoff v2 tasks, which already carry `minimumVersion`. Open the reveal in the test | M5.4 |
+| Done for today | Task `status` is `completed` | Quiet confirmation, the step lit, the next step previewed. No XP | `status`, `completedAt`, the next task | — | Complete through the UI on a throwaway account (a real PATCH), then reload. Mock can show the completed payload without a write | M5.6 |
+| Not completed yesterday | The previous day's task in this week is still `pending` | "Here's how we can recover." Never "missed". No rescheduling and no new data | The previous task's `status` | — | Mock yesterday's task `pending` and today's task `pending` | M5.7 |
+| Review due | The Week Review entry (R-12), emphasised once every task date in the week is before today | Reachable every day, as it is now. Emphasised after the week's days have passed. Phase 7 owns the screen | Task dates, `currentWeek` | — | The entry is asserted on an ordinary mocked week. The emphasis uses a mocked week whose dates are all in the past. Do not call the model | M5.7 |
+| Review failed | `POST /api/goal/weeks/:weekNumber/review` returns 503 | The server's sentence ("Couldn't write next week right now. This week is unchanged; please try again."), with retry. No second write | The 503 body | — | Playwright mocks that 503. Do not submit a real review | M5.7 |
+| After week 12 / days 85–90 | `currentWeek` is 12 and the calendar is past the planned days; the day counter clamps at 90 | No invented tasks and no final-stretch content. Copy does not say the goal is complete | `currentWeek`, the day counter, the week-12 tasks | OD-2 | Mock `currentWeek: 12` and task dates in the past. A real account cannot reach this without waiting or a database write; the mock covers it | M5.7 |
+| Completed goal | `Goal.status` `completed` is in the type. The server only uses `active` and `archived` | No screen in Phase 5 | — | OD-1b (Phase 9) | Not produced. There is nothing honest to show until the server can mark a goal complete | — |
+| API offline | `apiStatus === 'offline'` from the load-time health check, or a write fails because the backend is down | Say so. A failed write never looks successful. The one-time health check and the forced sign-out on reload stay as they are (section 6) | `apiStatus`; the failed PATCH | — | Playwright `healthDown`, or stop the backend on a loaded page and attempt a write. No database write | M5.7 |
 
 ### In scope
 
@@ -2124,7 +2134,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
   * *Why:* `whyToday`.
   * *How:* the steps, with their instructions.
   * *Done when:* `doneWhen` / `passMark`.
-  * *Focus cue*, *pitfall*, the resource with its reason, and the 10-minute version.
+  * *Focus cue*, *pitfall*, the resource with its reason, and the 10-minute version (`minimumVersion` is a reveal the user opens, not a step that is forced and not a step that is hidden).
   * **None of this content is removed; it is revealed on demand.**
 * **Focus mode** (BP §32): the existing timer, fully functional, in a focused visual state.
 * **Completion interaction:** the step lights up, then the next step appears (VDS §20). Subtle; no XP explosion.
@@ -2163,14 +2173,14 @@ None.
 
 | ID | Milestone |
 |---|---|
-| M5.1 | OD-3, OD-9 and ND-7 decided; state matrix written |
-| M5.2 | Application shell and navigation (desktop and mobile) |
-| M5.3 | Today hierarchy for the normal practice day |
-| M5.4 | Daily session with progressive reveal (every field preserved) |
-| M5.5 | Focus mode redesigned; timer behaviour identical |
-| M5.6 | Completion interaction and notes |
-| M5.7 | Every remaining OD-9 state |
-| M5.8 | The unused dashboard retired or redirected per OD-3; `ExecutionDashboard` decomposed |
+| M5.1 | **Done** (2026-09-23). OD-3, OD-9, ND-7 and ND-18 decided. State matrix written. The mobile generation-reload spec waits on the create request. The slow line keeps counting after a slow event |
+| M5.2 | **Done** (2026-09-23). Application shell and navigation (ND-7): the rail on desktop, the bottom bar on mobile, the onboarding top bar, Account with the Reset confirm, the offline chip, the skip link and one `main#main` per screen. `Navbar.tsx` and the footer removed |
+| M5.3 | Today hierarchy for the normal practice day, built from `ExecutionDashboard`'s task data. Heading is `rawGoal` (ND-18). From here, every Today write puts the server's result back into `GoalContext` |
+| M5.4 | Daily session with progressive reveal (every field preserved). The 10-minute version is a reveal the user opens. The extra period after `passIf` is fixed |
+| M5.5 | Focus mode redesigned; timer behaviour identical. The reflection is included in the completion write |
+| M5.6 | Completion interaction and notes. The Home note wipe is closed here |
+| M5.7 | Every remaining OD-9 state, including goal-load error and a failed offline write that is visible |
+| M5.8 | `/dashboard` redirects to `/`, keeping query and hash. `done` and `ProtectedRoute` change in this same milestone. What M5.3–M5.6 did not already extract is removed |
 | M5.9 | Regression and phase report |
 
 ### Regression checks
@@ -2207,6 +2217,288 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
 * Losing session content in the name of minimalism (BP §31 warns against this).
 * Dashboard decomposition breaking completion or notes.
 * OD-3 redirect changes breaking deep links.
+
+### M5.1 report — Decisions, state matrix, two Phase 4 follow-ups (2026-09-23)
+
+```text
+1. Outcome
+   OD-3, OD-9, ND-7 and ND-18 are Decided and match this section.
+   The Phase 5 state matrix is written. Each row says how it will be produced.
+   The milestone table carries the amendments.
+   The mobile generation-reload spec is green. The still-working line keeps
+   counting after a slow event, still as one line.
+   M5.2 has NOT started.
+   No Today UI, shell or redirect was implemented.
+
+2. What changed
+   Part A is documentation. The four decisions, the state matrix, the amended
+   milestones and the section 6 rows are recorded. Nothing on screen changed
+   for Today.
+   Part B is two follow-ups on the generation handoff, and nothing else in
+   generation.
+   B1. The heading "Building your path" is shown when the step becomes
+   generation, and that happens before GET /api/goal/active returns and before
+   POST /api/goal/create is sent. The spec read calls.create at that moment.
+   On mobile the POST had not been recorded yet, so the length was 0. Desktop
+   was fast enough that the same assertion passed. Separately, the helper's
+   click scrolled the "45 min" label only to the bottom edge, where the sticky
+   step footer covers the hit target. Other mobile runs reach that control, so
+   the user can still scroll to it. The spec now waits until the create request
+   and the active-goal GET are recorded, and the helper scrolls the label to
+   the centre before the click. No production code was changed.
+   B2. Before: a slow event fixed the seconds at Math.round(elapsedMs / 1000)
+   and later client time was not added, so "Still working (132s)" stayed at
+   132 until done at about 181 seconds. After: the line continues from that
+   event's seconds plus whole client seconds since the event arrived, still
+   one line on the active stage. A later event with slow: false clears it and
+   the 20 seconds start again. Silence before any slow event is unchanged.
+   The polite status sentence is still said once, not on every tick.
+
+3. Files changed / created / removed
+   Changed:
+   - docs/decisions.md
+   - docs/phases.md
+   - Design.md (one sentence on the still-working line)
+   - frontend/src/components/onboarding/generationStages.ts
+   - frontend/src/components/onboarding/StepGeneration.tsx
+   - frontend/src/components/onboarding/StepGeneration.test.tsx
+   - frontend/e2e/generation.spec.ts
+   - frontend/e2e/onboardingFlow.ts
+   - frontend/e2e/onboardingStates.spec.ts
+   Created: none.
+   Removed: none.
+   No backend file changed. payload.ts was not changed. Home, ExecutionDashboard
+   and FocusSessionModal were not changed. Nothing was committed.
+
+4. Functionality preserved
+   The stages, the stream ids, the error layout, GET-before-create, the
+   sessionStorage prior-goal key and the M3.1 create bodies are unchanged.
+   Silence before a slow event still waits 20 seconds and counts from the
+   start of the attempt. A slow: false event still clears the line. The live
+   region still omits the ticking number. done still opens /dashboard.
+   Until M5.8, /dashboard keeps working exactly as today.
+
+5. Decisions applied
+   OD-3 Decided (A). OD-9 Decided (A amended). ND-7 Decided (A narrowed).
+   ND-18 Decided (A): the heading will be rawGoal, and clarifiedOutcome is
+   shown beneath it as stored. They are logged here. They are not built.
+   The saveV2Goal overwrite (goal.ts line 145, clarifiedOutcome: roadmap.finalGoal)
+   is a section 6 backend issue, owner unassigned.
+
+6. Validation evidence
+   Frontend tsc --noEmit: clean (the production build runs it first).
+   ESLint on the changed frontend files: clean.
+   Frontend Vitest: 181 passed / 23 files.
+   Frontend build: main JS 568.52 KB (167.77 KB gzipped), CSS 101.30 KB
+   (17.71 KB gzipped). The chunk warning remains.
+   B1: onboardingStates.spec.ts:245 --repeat-each=5, both projects: 10 passed,
+   0 failed (2.9m). Retries are not configured, so nothing was marked flaky.
+   B2: StepGeneration.test.tsx shows 132, then 135 after 3 seconds, one line,
+   and a slow: false event clears it. The v1 Playwright fixture, clock
+   controlled, shows "Still working (88s)." then "(90s)." then /dashboard,
+   one line, on desktop and mobile.
+   Full mocked Playwright, both projects: 143 passed, 5 skipped, 0 failed
+   (12.2m). The five skips are the same checks as before: the 390 px keyboard
+   check is desktop-skipped, the keyboard-order check is mobile-skipped, the
+   two 360 px generation checks run only on desktop, and the in-app switch-goal
+   check runs only on desktop.
+   Backend: not touched, not rerun.
+
+7. Carry-overs
+   M5.4: the extra period after passIf.
+   M5.5: the focus reflection must be in the completion write.
+   M5.6: the Home note wipe. From M5.3, every Today write puts the server's
+   result back into GoalContext.
+   M5.7: a failed write while the backend is down must be visible, plus the
+   remaining OD-9 states.
+   M5.8: the /dashboard redirect, done, and ProtectedRoute, together.
+   The clarifiedOutcome overwrite stays unassigned until a backend allowance.
+
+8. Issues and risks
+   The mobile failure was the spec, not production behaviour. B1 did not change
+   production code.
+   The frozen counter was production behaviour against the Phase 4 contract.
+   It is fixed in the two generation files. Phase 4 was not reopened.
+   Today will show a stored outcome that may be the model's finalGoal,
+   including a value such as 49.98. That is the ND-18 choice. The frontend
+   does not rewrite it.
+
+9. Not started
+   M5.2 has NOT started.
+   No Today UI, shell or redirect was implemented.
+   Nothing was committed.
+```
+
+### M5.2 report — Application shell and navigation (2026-09-23)
+
+```text
+1. Outcome
+   Signed-in screens now share one navigation (ND-7): a left rail from 1024 px,
+   a bottom bar below it. The entries are Today, Roadmap (only with a goal),
+   Pathways and Account. Every entry opens a real page or an existing dialog.
+   Onboarding and generation show only a minimal top bar: the wordmark, the
+   offline chip, and Account with Sign out. The old Navbar and the signed-in
+   footer are gone. Every signed-in screen starts with the skip link and has
+   exactly one main#main. The legacy Home, dashboard and roadmap screens look
+   and behave as before inside the shell.
+   M5.3 has NOT started.
+   No Today UI was implemented. /dashboard was not redirected.
+
+2. What changed
+   - components/app: AppShell picks the frame from the path and the session.
+     The landing, auth and /__ui screens get none. A signed-out protected path
+     gets a bare frame while ProtectedRoute sends it to sign-in. Onboarding
+     gets the top bar. Every other signed-in screen gets the rail or the bar.
+   - Rail: the wordmark, Today, Roadmap, Pathways, a divider, then the offline
+     chip and Account. Bottom bar: Today, Roadmap, Pathways, Account, with the
+     offline chip in a line above them. The bar is sticky, 64 px targets, and
+     sits above the bottom safe area and under every dialog. Today is current
+     on / and /dashboard (until M5.8).
+   - Account: on desktop, a disclosure (aria-expanded, a panel of buttons, not
+     role="menu"). Escape and an outside click close it and return focus;
+     tabbing out closes it. Below 1024 px, the existing Dialog (a sheet under
+     768 px). It shows the email and, with a goal, "Your goal · Week N" and
+     rawGoal (ND-18). Reset 90-Day Plan opens a Dialog confirm: "This deletes
+     your current plan and all of its task progress. It can't be undone."
+     Same resetGoal() and navigate('/onboarding'). A failed reset says "We
+     couldn't reset your plan. Please try again." and stays. Sign out keeps
+     logout and navigate('/') inside React.startTransition. No Reset on
+     onboarding.
+   - Pathways opens the existing PathwaysExplorerModal with the current goal.
+     Switch goal still happens only there (R-15).
+   - Landmarks: main#main on Home (both signed-in branches), DashboardPage and
+     RoadmapPage (landmark only). SkipLink now moves focus to its target
+     itself, without a history entry, so onboarding's history lock (R-18)
+     never sees it.
+   - index.css: animate-fadeIn and animate-fadeInUp fill backwards instead of
+     both. The end state is the element's own style, so nothing looks
+     different. A finished entrance no longer leaves a stacking context, and
+     focus mode and the dashboard's full-screen dialogs cover the shell again.
+     Before this, the bottom bar was painted over focus mode.
+   - The content column scrolls sideways when a page is too wide, instead of
+     widening the document. A wider document grew the layout viewport past the
+     screen, and the bar and taps on it drifted off the bottom edge.
+   - Below 1024 px, html gets scroll-padding-bottom while the bar is on
+     screen, so a focused control is not hidden under it.
+   - Page background: the shell uses the token background. The legacy screens
+     read correctly on it (screenshots at 1440, 1024, 768, 390 and 360).
+
+3. Files changed / created / removed
+   Created:
+   - frontend/src/components/app/AppShell.tsx, AppNavigation.tsx,
+     AccountMenu.tsx, ResetPlanDialog.tsx, OfflineChip.tsx, shellEntries.ts
+   - frontend/src/components/app/AppShell.test.tsx
+   - frontend/e2e/shell.spec.ts, frontend/e2e/shellFixtures.ts
+   Changed:
+   - frontend/src/App.tsx (AppShell instead of Navbar and the footer)
+   - frontend/src/pages/Home.tsx, DashboardPage.tsx, RoadmapPage.tsx
+     (main#main only)
+   - frontend/src/components/ui/A11y.tsx (SkipLink focus) and
+     Primitives.test.tsx
+   - frontend/src/index.css (fade fill mode; bottom-bar scroll padding)
+   - frontend/e2e/mockApi.ts (activeStatus, resetStatus, calls.resets)
+   - frontend/e2e/auth.spec.ts: Sign out is reached through the Account
+     button in the Primary navigation, labelled "Sign out" (was
+     aria-haspopup="true" and "Sign Out")
+   - frontend/e2e/pathways.spec.ts: the explorer opener is "Pathways" in the
+     Primary navigation (was "Pathways (10)" / "Goals" in the banner). The
+     360 px strip test now also checks the document, because the navbar
+     overflow it skipped is gone
+   - Design.md (§5 Application shell; SkipLink; breakpoints; legacy fades),
+     docs/decisions.md (ND-7 implemented), docs/phases.md
+   Removed:
+   - frontend/src/components/Navbar.tsx
+   No backend file changed. ProtectedRoute, GoalContext and AuthContext were
+   not changed. No new dependency. M3.1 fixtures unchanged.
+
+4. Functionality preserved
+   R-1: sign out lands on the landing page with no /login flash; sign-in with
+   a goal lands on /. R-3: the explorer opens from the shell on desktop and
+   mobile, and a pathway chosen there starts switch goal with no create and
+   no DELETE (shell.spec.ts, both projects). R-15: Reset asks first; cancel sends nothing; confirm sends one
+   DELETE and opens onboarding; a failed reset stays. R-17: the offline chip
+   still comes from the load-time check, in the shell and in the onboarding
+   top bar; when it appears is unchanged. R-18: onboarding history and the
+   generation lock are unchanged, and the skip link adds no history entry.
+   done still opens /dashboard. The legacy screens, Home's own "Explore Goals
+   (10)", FocusSessionModal and the dashboard are unchanged apart from their
+   main landmark.
+
+5. Decisions applied
+   ND-7 (A, narrowed): exactly Today, Roadmap, Pathways and Account; no
+   Journey, Progress, Coach or "coming soon"; Roadmap named "Roadmap"; the
+   offline chip in the shell; the footer removed; the onboarding top bar.
+   ND-18: the Account goal line is rawGoal, never clarifiedOutcome.
+   OD-3: /dashboard is untouched and Today stays current on it until M5.8.
+   ND-2: Radix Dialog for the sheet and the confirm; the disclosure is
+   hand-built; no dropdown-menu package.
+
+6. Validation evidence
+   Frontend tsc --noEmit: clean.
+   ESLint on the changed and new files: clean, apart from the errors Home.tsx
+   and RoadmapPage.tsx already had (5 errors, 2 warnings, the same before
+   M5.2). Full lint: 30 errors / 4 warnings, unchanged (the Navbar had none).
+   Frontend Vitest: 193 passed / 24 files (was 181 / 23).
+   Build: main JS 572.62 KB (169.03 KB gzipped), CSS 100.20 KB (17.60 KB
+   gzipped), against 568.52 / 101.30 KB. The chunk warning remains.
+   Full mocked Playwright, both projects: 199 passed, 9 skipped, 0 failed
+   (14.9 min, final run). The skips are the five known ones and four
+   layout-only ones in shell.spec.ts: the two bottom-bar checks on desktop,
+   and the outside click and the rail's Tab order on mobile.
+   An earlier full run had 2 failures: mobile taps on the bottom bar on an
+   empty /roadmap, whose main is 407 px wide. That grew the layout viewport
+   past the screen. The content column now contains it; a test holds it.
+   axe (WCAG 2.2 AA tags), before and after, on / with and without a goal,
+   /dashboard, /roadmap and /onboarding at 1440, 390 and 360 (1024 and 375 in
+   the spec): the only violation is the known nested-interactive on
+   /dashboard (FullDayVisualizer), before and after. With a shorter 800 px
+   window, raw axe also reports target-size on one or two legacy controls
+   that sit partly under the bottom bar at that scroll position. The spec
+   re-checks each one scrolled to the middle, where it passes.
+   Overflow at 360, 375 and 390: 0 px on every screen, document and content
+   column (the navbar's 7 px is gone). Every shell control is at least
+   44 x 44 px; bottom-bar items are 64 px. Focus mode on / and /dashboard
+   covers the rail and the bar.
+   Browser (real backend, the Phase 5 kickoff account, no writes): rail at
+   1440 and 1024, bar at 768, 390 and 360, with the kickoff plan. Account
+   shows "Run a 10K Under 50 Minutes", not 49.98. Reset opened and was
+   cancelled; the goal was still active afterwards. Pathways from the bar;
+   Roadmap current on /roadmap; Today current on /dashboard. Reduced motion:
+   the longest shell transition was 0.01 ms. Console clean apart from the
+   dashboard's known nested-button warning. Sign out landed on the landing
+   page. This webview does not move focus on Tab without OS focus, so the
+   keyboard pass is from Playwright (skip link, wordmark, Today, Roadmap,
+   Pathways, Account, into the panel, and out).
+   Backend: not touched, not rerun.
+
+7. Carry-overs
+   M5.3: Today at / (rawGoal heading, stored outcome beneath). Home's
+   "Explore Goals (10)" and its legacy notice go with it.
+   M5.7: the goal-load error state (the shell already hides Roadmap then),
+   and a failed write while offline. The chip is still a one-time check.
+   M5.8: the /dashboard redirect, done and ProtectedRoute together; Today is
+   current on /dashboard until then.
+   Phase 6: /roadmap with an empty roadmap is still 407 px wide; it now
+   scrolls inside the content column. Journey replaces the Roadmap entry.
+   Phases 8 and 10: Progress and Coach add their entries.
+
+8. Issues and risks
+   The fade fill change is global. Nothing uses those utilities with an
+   opacity or transform of its own, and the end state is identical.
+   The content column hides nothing, but it turns page overflow into a
+   sideways scroll inside the page. The specs measure the column as well as
+   the document, so new overflow still fails a test.
+   Home's loading state and ProtectedRoute's spinner have no main while they
+   show. The skip link has no target for that moment.
+   A signed-out visitor on a protected path briefly sees no navigation before
+   the redirect to sign-in. The old navbar's Sign In and Get Started buttons
+   are gone with it; the landing and auth screens have their own.
+
+9. Not started
+   M5.3 has NOT started.
+   No Today UI was implemented. /dashboard was not redirected.
+   Nothing was committed.
+```
 
 ---
 
@@ -2792,13 +3084,13 @@ This register is here so every phase can see what blocks it. The decisions thems
 |---|---|---|---|
 | OD-1 | Backend scope per phase. Proposed rule: only named, approved allowances (adopted as rule 3.2; D-11 in `decisions.md`). The allowances are split into OD-1a weekly test results, OD-1b goal completion and OD-1c custom-journey entitlement. | Rule adopted; the allowances are open | 7, 9, 10 |
 | OD-2 | 90 vs 84 days: what fills days 85–90 | Open | 6 (also 5 copy, 9) |
-| OD-3 | Which dashboard becomes Today | Open | 5 |
+| OD-3 | Which dashboard becomes Today | **Decided (A):** Today at `/`; `/dashboard` redirects in M5.8, query and hash kept | 5 |
 | OD-4 | Phase 2 route changes (`/login`, `/signup`) | **Decided (A):** routes only, modal retired | 2 |
 | OD-5 | Mobile in every phase | Adopted (3.7) | All |
 | OD-6 | Rewrite `Design.md` | Done in Phase 0 (M0.10) | 0 |
 | OD-7 | The Journey handles 2–4 method-named phases | Constraint adopted; design open | 6 |
 | OD-8 | Honest generation stages | **Decided (A amended):** four stages on real events; v1 fallback (no `method`) must not leave a method stage pending or invent a method name; stream labels unused | 4 |
-| OD-9 | Every Today state defined | Open | 5 |
+| OD-9 | Every Today state defined | **Decided (A amended):** the Phase 5 state matrix. Test results wait on OD-1a, completion on OD-1b, days 85–90 on OD-2 | 5 |
 | OD-10 | Dark/light meaning | **Resolved** (VDS §27: dark only; light surfaces are compositional) | — |
 | OD-11 | Onboarding categories vs free presets | **Decided (A):** the six landing categories from one shared source; a one-pathway category shows that pathway directly | 3 |
 | OD-12 | Semantic token names | Done in Phase 0 (role tokens, ND-1) | 0 |
@@ -2813,7 +3105,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ND-4 | How a chosen pathway survives navigation to auth routes; modal retained or retired; post-auth redirect rules — **Decided (A):** `/signup?pathway=<slug>`, cleared once used; no goal → onboarding, active goal → Today, internal `?next=` only | 2 |
 | ND-5 | Pathway display copy — **Decided (A):** plain-language display fields in `certifiedPresets.ts`; titles and matching keys unchanged | 3 |
 | ND-6 | The free custom-goal entry before Phase 10 — **Decided (A):** free and visible, secondary to pathways, no lock or badge | 3 |
-| ND-7 | Application shell: desktop navigation form, mobile navigation form, and which entries appear before their pages exist | 5 |
+| ND-7 | Application shell — **Decided (A, narrowed):** left rail and mobile bottom bar; Today, Roadmap, Pathways, Account. No Journey, Progress or Coach until those phases. No signed-in footer | 5 |
 | ND-8 | Progress as its own page or as a Journey layer | 8 |
 | ND-9 | Payments: in scope or not; provider; billing model | 10 |
 | ND-10 | Custom-goal gating: timing, server-side entitlement, grandfathering existing goals | 10 |
@@ -2824,6 +3116,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ND-15 | Pathway library scope — **Decided (A):** one `PathwayLibrary` for all five in-app galleries; the modal becomes a Dialog around it | 3 |
 | ND-16 | Pre-existing onboarding bugs — **Decided (A):** fix the blank step after reload and the switch-goal reload in M3.3; clear the draft key after create | 3 |
 | ND-17 | TED-style speech pathway matching — **Decided (A):** matching only, so the frontend title "Deliver a 15-Minute TED-Style Speech" hits `ted_speech_15min`; titles, ids and slugs stay (ND-5); implement with the generation work | 4 |
+| ND-18 | What Today shows as "your goal" — **Decided (A):** the heading is `rawGoal`; `clarifiedOutcome` is shown beneath it, as stored. The frontend does not rewrite it | 5 |
 
 ---
 
@@ -2859,27 +3152,38 @@ This register is here so every phase can see what blocks it. The decisions thems
 | `done` still opens the legacy `/dashboard` | M4.2 | Phase 5 (OD-3) |
 | Soft-keyboard states can't be emulated in Playwright (the onboarding footer is sticky, not fixed) | M3.7 | Phase 11 (on-device check) |
 | ~~Landing `marketing/sections/Pathways.tsx` still hard-codes its six groups; onboarding now reads `direction` and `summary` from `certifiedPresets.ts` (OD-11, ND-5)~~ | M3.5 | Done in M3.6 (reads `PATHWAY_GROUPS`) |
-| Onboarding has no skip link; the legacy navbar (and the offline indicator, R-17) sits above it. Navbar targets under 44 px ("Achivii" 87×28, account button 62×34) | M3.5; M3.8 audit | Phase 5 (app shell) |
+| ~~Onboarding has no skip link; the legacy navbar (and the offline indicator, R-17) sits above it. Navbar targets under 44 px ("Achivii" 87×28, account button 62×34)~~ | M3.5; M3.8 audit | Done in M5.2 (the shell renders the skip link on every signed-in screen and on onboarding; every shell control is at least 44 px; the offline chip sits in the onboarding top bar) |
 | ~~The TED-style speech pathway wasn't matched by the backend~~ | M3.8; ND-17 | Done in M4.2 (matching pattern only). Existing goals were not rewritten |
-| `/roadmap` overflows by 17 px at 390 and 47 px at 360 with an empty roadmap; `/roadmap` and `/dashboard` have no `main` landmark | M3.8 audit | Phase 6 (`/roadmap`); Phase 5 (`/dashboard`) |
+| `/roadmap` overflows by 17 px at 390 and 47 px at 360 with an empty roadmap (`main` is 407 px when the stored title is long). Since M5.2 it scrolls sideways inside the shell's content column instead of widening the document | M3.8 audit; M5.2 | Phase 6 (`/roadmap`) |
+| ~~`/roadmap` and `/dashboard` have no `main` landmark~~ | M3.8 audit | Done in M5.2 (`main#main` at each page wrapper; landmark only) |
 | The onboarding UI Back button pushes a history entry (as at M3.1), so browser Back straight after it returns to the step just left | M3.8 | Phase 11 (touches R-18) |
 | The pathway strip still sits inside the legacy Today (`Home`) and `ExecutionDashboard` | M3.6 | Phase 5 |
 | Main JS chunk 568.24 KB (167.73 KB gzipped) at the end of Phase 4; 565.85 KB (166.99 KB gzipped) at the end of Phase 3. Above Vite's 500 KB warning since before Phase 0 | M3.5 build; M4.5 | Phase 12 (code splitting) |
-| Failed goal fetch lands on a goal-less Today; "Explore Goals" vs "Pathways" naming; legacy palette on the Today notice | Phase 2 | Phase 5 |
+| Failed goal fetch lands on a goal-less Today; legacy palette on the Today notice | Phase 2 | Phase 5 (goal-load error M5.7; the notice goes with the legacy Today, M5.3) |
+| "Explore Goals" vs "Pathways" naming. The shell says "Pathways" (M5.2); `Home` and `ExecutionDashboard` still say "Explore Goals (10)" | Phase 2 | Phase 5 (M5.3–M5.8, as those screens are replaced) |
 | Offline status is a one-time health check; the signed-in redirect has no timeout | Phase 2 | Phase 12 |
 | ~~No real-backend Playwright specs (`e2e/live/` is empty)~~ | Phase 2 | Done in Phase 3 (M3.1) |
 | No inverse variants for `Button`, `Badge`, `StepMarker`, fields or choice controls; light surfaces hold text and `TextLink` only | Phase 0 review | First phase needing a control on a light surface |
 | ~~Focus rings can be clipped by `overflow` on tab lists and dialog edges (the auth screens use neither, so Phase 2 didn't reach it). The first Dialog in the app (M3.5's commitment editor) keeps its controls inside the body's padding; tab lists are unreached~~ | Phase 0 review | Done in M3.6 (`TabsTrigger` uses `.focus-ring-inset`; the strip pads its scroll track; the explorer keeps its controls inside the body's padding) |
-| The navbar's goal links (Today, Roadmap, Goals and the account button) overflow by 7 px at 360 px when a goal is active; present before M3.6 (`Navbar.tsx` untouched) | M3.6 | Phase 5 (app shell) |
-| Pathway counts are hard-coded: "Explore Goals (10)" (`Home`, `ExecutionDashboard`), "Pathways (10)" and "Explore 10 Pathways" (`Navbar`), "Ten journeys, ready to begin." (landing) | M3.6 | Phase 5 (naming); landing Phase 12 |
+| ~~The navbar's goal links (Today, Roadmap, Goals and the account button) overflow by 7 px at 360 px when a goal is active; present before M3.6 (`Navbar.tsx` untouched)~~ | M3.6 | Done in M5.2 (`Navbar.tsx` removed; 0 px at 360, 375 and 390 on `/`, `/dashboard`, `/roadmap` and onboarding) |
+| ~~The shell's hard-coded counts: "Pathways (10)" and "Explore 10 Pathways" (`Navbar`)~~ | M3.6 | Done in M5.2 (the shell entry is "Pathways", with no count) |
+| Pathway counts still hard-coded: "Explore Goals (10)" (`Home`, `ExecutionDashboard`), "Ten journeys, ready to begin." (landing) | M3.6 | Phase 5 (M5.3–M5.8, as those screens are replaced); landing Phase 12 |
 | `certifiedPresets.ts` keeps expert fields no screen shows (`outcome`, `desc`, `coach`, `p1`–`p3`, `sampleDay`). Phase 4 did not show them as the generated method. `SaaSBuilderModal.tsx` is unused | M3.6; M4.5 | Phase 12 |
 | ~~M3.6 review items: search and the four-category filter left the Home gallery (direction navigation replaces them); a strip tile opens the explorer instead of switching at once~~ | M3.6 | Done (accepted at the M3.6 review) |
 | ~~A `Dialog` opened from state (no `DialogTrigger`) didn't return focus on close~~ | M3.5 | Done in M3.5 (`DialogContent` returns focus to the element focused when it opened; unit test added) |
 | ~~No automated accessibility check~~ | Phase 0 review | Done in Phase 2 (axe in Playwright) |
-| `Design.md` gaps (dialog initial focus, `Spinner`, `ChoiceGroup` columns, milestone colour, navigation rule vs ND-7, logs/table/code rules without primitives) | Phase 0 review | Next `Design.md` pass |
-| Type-scale minimums below some VDS ranges; micro tracking baked in (not taken up in the Phase 2 review) | Phase 0 review | Next `Design.md` pass |
+| `Design.md` gaps (dialog initial focus, `Spinner`, `ChoiceGroup` columns, milestone colour, logs/table/code rules without primitives) | Phase 0 review | Next `Design.md` pass |
+| ~~`Design.md` navigation rule pre-empts ND-7~~ | Phase 0 review | Done in M5.2 (`Design.md` "Application shell") |
+| The legacy entrance utilities (`animate-fadeIn`, `animate-fadeInUp`) filled `both`, so a finished entrance kept each page wrapper a stacking context (and, for `fadeInUp`, the containing block of its fixed children). Focus mode and the dashboard's full-screen dialogs sat under the shell | M5.2 | Done in M5.2 (`index.css` fills `backwards`; the end state is the element's own style, so nothing looks different) || Type-scale minimums below some VDS ranges; micro tracking baked in (not taken up in the Phase 2 review) | Phase 0 review | Next `Design.md` pass |
 | `--duration-reveal` unused; glass has no mobile blur guard | Phase 0 review | Phase 12; first phase using glass |
 | `StaircaseScene` literal hex and `hover:bg-white`; `marketing/Button` duplicates `ui/Button`; `vite` `dedupe` masks a broken install | Phase 0 review | Phase 12; housekeeping |
+| `saveV2Goal` sets `clarifiedOutcome` to `roadmap.finalGoal` (`backend/src/routes/goal.ts`, the create data). The user's edited outcome is overwritten. The Phase 5 kickoff goal's title rendered as `49.98` because that was `finalGoal`. Today shows `rawGoal` as the heading and the stored outcome beneath it (ND-18); the frontend does not rewrite the stored value | Phase 5 kickoff; ND-18 | Unassigned (a fix needs a backend allowance; Phase 5 has none) |
+| Saving a note on `/` does not update `GoalContext`. A later completion from `/dashboard` can PATCH `notes: null` and clear it. Seen on the Phase 5 kickoff goal (Wednesday) | Phase 5 kickoff | Phase 5 (M5.6). From M5.3, every new Today write puts the server's result back into the in-memory goal |
+| A focus reflection can be missing from the completion write: Enter starts "Save & Return" before the typed text is in the request. The Phase 5 kickoff reflection was not stored | Phase 5 kickoff | Phase 5 (M5.5) |
+| Stopping the backend on an open page does not show the Offline chip, and a failed task write only reaches `console.error`. The button re-enables and the screen still looks saved | Phase 5 kickoff | Phase 5 (M5.7) |
+| `PlanV2Panel` renders `Pass if {passIf}.`, so a `passIf` that already ends with a period shows two | Phase 5 kickoff | Phase 5 (M5.4) |
+| ~~Mobile `onboardingStates` "reload during generation" asserted `calls.create` while "Building your path" was already visible, which is before `POST /api/goal/create` (GET runs first). A phone click on "45 min" could also land under the sticky step footer~~ | M5.1 B1 | Done in M5.1 (the spec waits for the create request; the option is scrolled to the centre before the click). Not a production change |
+| ~~After a `slow: true` event the still-working seconds froze at `Math.round(elapsedMs / 1000)` until the next event~~ | M5.1 B2 | Done in M5.1 (`generationStages.ts`, `StepGeneration.tsx`). The line keeps counting from that event's seconds. One line |
 
 ---
 
@@ -2949,3 +3253,5 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-23 | Phase 4 M4.5 done: regression matrix, "What shipped", verification evidence, carry-overs and the Phase 4 report. R-2, R-4, R-5, R-6, R-7, R-15, R-16 and R-18 pass mocked. Section 6: the `search` id accepted under OD-8; `currentGoalId === null`, the overlapping in-flight residual, phone lock, `done` → `/dashboard`, catalogue fields and the bundle size updated. Status stays `IN PROGRESS` awaiting Mo's review. Phase 4 is not marked complete. Phase 5 has not started. |
 | 2026-09-23 | Phase 4 accepted by Mo: `COMPLETE` (section 1, the Phase 4 status line, current position). "What shipped", "Verification evidence" and "Carry-overs" kept as drafted at M4.5. Review outcomes recorded: the overlapping in-flight create is an accepted residual (server-side create idempotency would need a new backend allowance; not planned), the new generation screen is observed live at the Phase 5 kickoff as post-close evidence, and the `search` id is accepted under OD-8. Section 6 rows match. Phase 5 "Current state" names the `OnboardingPage` and `ProtectedRoute` handoff to `/dashboard`. `Design.md`: N in the still-working line is whole seconds since this attempt started. Phase 5 kickoff under way; no Phase 5 implementation has started. |
 | 2026-09-23 | Phase 5 kickoff corrections to "Current state" (status stays `NOT STARTED`): line counts, UTC "today", which dashboard shows which fields, unreachable `DayRoutineTimeline` and `SaaSBuilderModal`, PATCH writers, the goal-load hole, weekly review only on `/dashboard`. The generation handoff to `/dashboard` is unchanged. Section 6 records the kickoff account. No Phase 5 implementation. |
+| 2026-09-23 | Phase 5 M5.1. Status `IN PROGRESS`. OD-3, OD-9, ND-7 and ND-18 Decided (Mo). State matrix, amended milestone table and the M5.1 report are in the Phase 5 section. Section 6 records the outcome overwrite, the note wipe, the lost focus reflection, the silent offline write and the `passIf` period. The mobile generation-reload spec waits for the create request (10 passed under repeat, both projects). The still-working line keeps counting after a slow event (post-close follow-up, not a reopened Phase 4 milestone). Mocked Playwright: 143 passed, 5 skipped, 0 failed. M5.2 has not started. No Today UI, shell or redirect. |
+| 2026-09-23 | Phase 5 M5.2 done: the ND-7 shell (`components/app`). A rail from 1024 px, a bottom bar below it, and the onboarding top bar. Entries are Today, Roadmap (with a goal), Pathways and Account (a disclosure on desktop, the Dialog below; the goal line is `rawGoal`; Reset with a Dialog confirm). The offline chip, the skip link and one `main#main` on every signed-in screen. `Navbar.tsx` and the footer removed. The legacy fades fill `backwards`, so full-screen overlays cover the shell. The content column contains a page that is too wide. Section 6: skip link, navbar targets, the 7 px overflow, the missing `main`, the shell's counts and the `Design.md` navigation gap closed; the fade row added; the naming, counts and `/roadmap` rows split and re-owned. `Design.md` §5 Application shell. Mocked Playwright: 199 passed, 9 skipped, 0 failed. M5.3 has not started. No Today UI; `/dashboard` not redirected. |

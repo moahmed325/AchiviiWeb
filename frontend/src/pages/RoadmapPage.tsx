@@ -89,7 +89,7 @@ export const RoadmapPage: React.FC = () => {
   const activeGoalImage = getGoalImage(activeGoal.clarifiedOutcome || activeGoal.rawGoal);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 animate-fadeIn">
+    <main id="main" className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 animate-fadeIn">
       {/* Top Header / Breadcrumb */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -315,7 +315,7 @@ export const RoadmapPage: React.FC = () => {
           );
         })}
       </div>
-    </div>
+    </main>
   );
 };
 

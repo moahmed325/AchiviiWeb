@@ -70,6 +70,10 @@ describe('generationStages', () => {
     expect(stamped.find((stage) => stage.id === 'design')?.slowSeconds).toBe(88);
     expect(stamped.filter((stage) => stage.slowSeconds !== undefined)).toHaveLength(1);
     expect(generationAnnouncement(stamped, { mentionSlow: true }).match(/Still working/g)).toHaveLength(1);
+
+    const ticking = generationStages([step('search'), step('plan', { elapsedMs: 132_281, slow: true })], 200, 3);
+    expect(ticking.find((stage) => stage.id === 'design')?.slowSeconds).toBe(135);
+    expect(ticking.filter((stage) => stage.slowSeconds !== undefined)).toHaveLength(1);
   });
 });
 
@@ -184,6 +188,28 @@ describe('slow during silence', () => {
     expect(listItem('Choosing your method')).not.toHaveTextContent('Still working');
     expect(screen.queryByText('Building your 90-day journey')).not.toBeInTheDocument();
     expect(screen.getByRole('status').textContent ?? '').not.toContain('Still working');
+  });
+
+  it('keeps counting from a slow event, still as one line, and says it once', async () => {
+    vi.useFakeTimers();
+    render(
+      <StepGeneration
+        planSteps={[step('search'), step('plan', { elapsedMs: 132_000, slow: true })]}
+        generationError={null}
+        onReviewInputs={() => {}}
+        onRetry={() => {}}
+      />,
+    );
+    expect(screen.getByText(slowCopy(132))).toBeInTheDocument();
+    expect(screen.getAllByText(/Still working \(\d+s\)/)).toHaveLength(1);
+    expect(screen.getByRole('status').textContent?.match(/Still working/g)).toHaveLength(1);
+
+    await act(() => vi.advanceTimersByTimeAsync(3_000));
+    expect(screen.getByText(slowCopy(135))).toBeInTheDocument();
+    expect(screen.getAllByText(/Still working \(\d+s\)/)).toHaveLength(1);
+    expect(listItem('Designing your first steps')).toHaveTextContent(slowCopy(135));
+    expect(listItem('Choosing your method')).not.toHaveTextContent('Still working');
+    expect(screen.getByRole('status').textContent?.match(/Still working/g)).toHaveLength(1);
   });
 
   it('clears the silence line when the next event is not slow, then waits again', async () => {

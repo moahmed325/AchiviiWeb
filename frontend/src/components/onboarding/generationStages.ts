@@ -14,9 +14,9 @@ export interface GenerationStage {
   /** Streamed whyChosen (`detail`). Present only after a `method` event. */
   whyChosen?: string;
   /**
-   * Whole seconds since generation started.
-   * From the latest event when it already has `slow: true` (`elapsedMs`).
-   * Otherwise from the client, after 20 seconds with no new event.
+   * Whole seconds on the still-working line.
+   * Silence: the client clock, after 20 seconds with no new event.
+   * A `slow: true` event: that event's seconds, plus whole client seconds since it arrived.
    */
   slowSeconds?: number;
 }
@@ -38,17 +38,23 @@ const TITLES: Record<GenerationStageId, string> = {
  *
  * `silenceSeconds` is whole seconds since this generation attempt started, counted on the client.
  * It is shown only while the latest event did not already arrive with `slow: true`, so the
- * "still working" line is never drawn twice. An event with `slow: true` uses
- * `Math.round(elapsedMs / 1000)` — the server's seconds since the stream started.
- * Both numbers are seconds since generation started.
+ * "still working" line is never drawn twice. An event with `slow: true` starts from
+ * `Math.round(elapsedMs / 1000)` and then keeps moving: `sinceSlowEventSeconds` is whole
+ * client seconds since that event arrived. A later event clears it.
  */
-export function generationStages(planSteps: PlanProgressEvent[], silenceSeconds?: number): GenerationStage[] {
+export function generationStages(
+  planSteps: PlanProgressEvent[],
+  silenceSeconds?: number,
+  sinceSlowEventSeconds?: number,
+): GenerationStage[] {
   const search = planSteps.find((step) => step.id === 'search');
   const method = planSteps.find((step) => step.id === 'method');
   const plan = planSteps.find((step) => step.id === 'plan');
   const v1 = Boolean(plan) && !method;
   const last = planSteps[planSteps.length - 1];
-  const eventSlow = last?.slow ? Math.round(last.elapsedMs / 1000) : undefined;
+  const eventSlow = last?.slow
+    ? Math.round(last.elapsedMs / 1000) + Math.max(0, sinceSlowEventSeconds ?? 0)
+    : undefined;
   const slowOn = (id: PlanProgressEvent['id']) => (last?.id === id ? eventSlow : undefined);
 
   const choose: GenerationStageState = method || v1 ? 'complete' : search ? 'active' : 'upcoming';
@@ -72,7 +78,7 @@ export function generationStages(planSteps: PlanProgressEvent[], silenceSeconds?
 
   stages.push({ id: 'design', title: TITLES.design, state: design, slowSeconds: slowOn('plan') });
 
-  if (silenceSeconds !== undefined && eventSlow === undefined) {
+  if (silenceSeconds !== undefined && !last?.slow) {
     const waiting = stages.find((stage) => stage.state === 'active') ?? stages.find((stage) => stage.state === 'upcoming');
     if (waiting) waiting.slowSeconds = silenceSeconds;
   }

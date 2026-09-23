@@ -59,9 +59,9 @@ const nextAnnouncement = (stages: GenerationStage[], previous: string) => {
 
 /**
  * The generation moment (OD-8), including a long wait and a failure.
- * Seconds in the slow line are since this attempt started. During silence that is the client clock,
- * begun at the last event (or at entry, if none has arrived). A stream event with `slow: true` uses
- * its own `elapsedMs` instead, so the same fact is not shown twice.
+ * During silence the seconds are the client clock since this attempt started.
+ * A stream event with `slow: true` starts from that event's seconds and keeps counting
+ * whole client seconds since the event arrived, still as one line on the active stage.
  */
 export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, generationError, onReviewInputs, onRetry }) => {
   const [clock, setClock] = useState(() => {
@@ -72,10 +72,13 @@ export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, gener
 
   const waitingKey =
     planSteps.length === 0 ? 'start' : planSteps.map((step) => `${step.id}:${step.elapsedMs}:${step.slow}`).join('|');
+  const latestIsSlow = planSteps.length > 0 && planSteps[planSteps.length - 1].slow;
   const [seenKey, setSeenKey] = useState(waitingKey);
+  const [sinceSlow, setSinceSlow] = useState(0);
   if (waitingKey !== seenKey) {
     setSeenKey(waitingKey);
     setSilence(false);
+    setSinceSlow(0);
   }
 
   const fresh = planSteps.length === 0 && !generationError;
@@ -98,6 +101,15 @@ export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, gener
   }, [silence, generationError]);
 
   useEffect(() => {
+    if (!latestIsSlow || generationError) return;
+    const arrivedAt = Date.now();
+    const interval = window.setInterval(() => {
+      setSinceSlow(Math.max(0, Math.round((Date.now() - arrivedAt) / 1000)));
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [latestIsSlow, generationError, waitingKey]);
+
+  useEffect(() => {
     if (!fresh) return;
     const timeout = window.setTimeout(() => {
       const t = Date.now();
@@ -114,7 +126,8 @@ export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, gener
 
   const silenceSeconds =
     silence && !generationError ? Math.max(0, Math.round((clock.now - clock.startedAt) / 1000)) : undefined;
-  const stages = generationStages(planSteps, silenceSeconds).map((stage) =>
+  const sinceSlowEventSeconds = latestIsSlow && !generationError ? sinceSlow : undefined;
+  const stages = generationStages(planSteps, silenceSeconds, sinceSlowEventSeconds).map((stage) =>
     generationError ? { ...stage, slowSeconds: undefined } : stage,
   );
   const story = stageStory(stages);

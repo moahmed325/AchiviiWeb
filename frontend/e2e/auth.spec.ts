@@ -152,8 +152,8 @@ test.describe('after authentication', () => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/roadmap');
-    await page.locator('button[aria-haspopup="true"]').click();
-    await page.getByRole('button', { name: 'Sign Out' }).click();
+    await page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: /^Account/ }).click();
+    await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your ambition deserves a path.');
   });

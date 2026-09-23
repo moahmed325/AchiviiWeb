@@ -183,6 +183,7 @@ These stay only until their screens migrate (decision ND-1). **Don't use them in
 - `font-sans` (Plus Jakarta Sans) and `font-mono` (JetBrains Mono), plus the base `body` colours in `index.css`.
 - The `--radius-xl/2xl/3xl` override that forces those radii to 0.375rem. `OnboardingWizard` and `FocusSessionModal` depend on it.
 - The legacy mint `*:focus-visible` outline and the dark-green scrollbar colours.
+- `animate-fadeIn` and `animate-fadeInUp`. They fill `backwards`, not `both`, so a finished entrance leaves no stacking context behind and full-screen overlays inside the page still cover the app shell.
 
 ---
 
@@ -362,7 +363,7 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 - **`ProgressBar`** props: `value`, `max` (default 100), `label` (required; the accessible name, shown unless `hideLabel`), `showValue`, `valueText` (replaces the percentage and is announced), and `tone` (`accent` or `achievement`). Values outside the range are clamped.
 - **`StepMarker`** draws the progression grammar. `state` is `upcoming` ○, `active` ●, `completed` ✓, `milestone` ◆ or `destination` ✦; `size` is `sm`, `md` or `lg`. Each state has a distinct shape. It is decorative unless you pass `label`; pass one whenever the marker is the only thing showing the state.
 
-**Generation stages** (Phase 4, OD-8). The screen shows four stages: "Understanding your goal" (already complete on entry), "Choosing your method" (`search` until `method`, or until `plan` if `method` never arrives), "Building your 90-day journey" (completes on `method`, revealing the streamed name and why it was chosen; if `method` never arrives, do not invent a name and do not leave the stage pending), "Designing your first steps" (`plan` until `done`). Every in-flight stage maps onto a real event. No fake percentages, no timed fake stages, no invented durations. After 20 seconds with no new stream event, the active stage says "This is taking longer than usual. Still working (Ns)." N is whole seconds since this attempt started. A failure keeps that screen: finished stages stay, and the error sits beneath them. Under `prefers-reduced-motion: reduce`, stages change without animation and every label stays visible.
+**Generation stages** (Phase 4, OD-8). The screen shows four stages: "Understanding your goal" (already complete on entry), "Choosing your method" (`search` until `method`, or until `plan` if `method` never arrives), "Building your 90-day journey" (completes on `method`, revealing the streamed name and why it was chosen; if `method` never arrives, do not invent a name and do not leave the stage pending), "Designing your first steps" (`plan` until `done`). Every in-flight stage maps onto a real event. No fake percentages, no timed fake stages, no invented durations. After 20 seconds with no new stream event, the active stage says "This is taking longer than usual. Still working (Ns)." N is whole seconds since this attempt started. After a slow event, N continues from that event's seconds until the next event. A failure keeps that screen: finished stages stay, and the error sits beneath them. Under `prefers-reduced-motion: reduce`, stages change without animation and every label stays visible.
 
 ### EmptyState, LoadingState, Skeleton, ErrorState
 
@@ -378,11 +379,29 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 ### VisuallyHidden, SkipLink
 
-`<SkipLink />` is the first element of every page. It links to `#main` by default (`targetId`), so give the main landmark `id="main"`. `<VisuallyHidden>` is text for screen readers only.
+`<SkipLink />` is the first element of every page. It links to `#main` by default (`targetId`), so give the main landmark `id="main"`. Activating it moves focus to that element itself (adding `tabindex="-1"` if needed) without adding a history entry. `<VisuallyHidden>` is text for screen readers only.
 
 ---
 
-## 5. Mobile-first responsiveness and touch
+## 5. Application shell
+
+`components/app/AppShell.tsx` frames every route (ND-7). The signed-out landing, `/signup`, `/login` and `/__ui` bring their own frame and get none.
+
+- **Desktop (`lg`, 1024px+): a restrained left rail**, `w-56`, solid `background` with a `border` hairline. The wordmark links to `/`. Then Today, Roadmap and Pathways; a divider; the offline chip and Account at the bottom.
+- **Below `lg`: a bottom bar** with Today, Roadmap, Pathways and Account. It is `sticky`, not `fixed`: it takes its own height at the end of the page, so it never covers content, and it sits above `env(safe-area-inset-bottom)`. It is `z-40`, under every dialog, sheet and full-screen overlay (`z-50`). While it is on screen, `html` gets a matching `scroll-padding-bottom`, so a focused control is never hidden under it.
+- **Onboarding and generation: a minimal top bar** (`h-14`, sticky): the wordmark, the offline chip, and Account with the email and Sign out only. No rail, no bottom bar, no Reset.
+- **An entry appears only when its page exists.** Roadmap needs an active goal (without one it would bounce to onboarding). Journey, Progress and Coach ✦ are added by the phases that build them (6, 8 and 10), never as "coming soon". The labels are **Today**, **Roadmap** (not "Journey" until Phase 6 replaces it), **Pathways** (opens `PathwaysExplorerModal`, no count) and **Account**.
+- **Account** on desktop is a disclosure (a button with `aria-expanded` and a panel of buttons, not `role="menu"`). Escape and an outside click close it and return focus to the button. Below `lg` it is the `Dialog` (a bottom sheet under 768px). The goal line is `rawGoal` (ND-18). Reset 90-Day Plan opens a `Dialog` confirm that says the plan and its progress are deleted.
+- **The active entry** has `aria-current="page"` and a shape as well as a colour: a filled row in the rail, a top mark in the bar. Today stays current on `/dashboard` until M5.8 redirects it.
+- **Every shell control is at least 44×44px**, with no horizontal overflow at 360, 375 and 390px.
+- **The offline chip** (`Badge tone="caution"`, `role="status"`, the word "Offline") sits in the rail, in a line above the bottom-bar entries, and in the onboarding top bar. It comes from the load-time health check.
+- **One `main#main` per screen.** Routed pages render it; the shell renders the `SkipLink` first and never wraps the page in a second `main`.
+- **The content column contains a page that is too wide.** It scrolls sideways (`overflow-x-auto`) instead of widening the document, because a wider document grows the layout viewport past the screen and the bottom bar drifts off the bottom edge. This is a guard, not a fix: a page that overflows is still a bug, and tests measure the column as well as the document.
+- **Reduced motion:** the shell has no animated transitions (the global rule makes colour changes instant).
+
+---
+
+## 6. Mobile-first responsiveness and touch
 
 ### Hard constraints
 
@@ -397,12 +416,12 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 ### Breakpoints
 
 - **Mobile (< 768px):** a single column. Dialogs become bottom sheets (`DialogContent` does this). Prioritise Today → Start → Complete → Progress, and hide complexity rather than shrinking desktop.
-- **Tablet (`md`, 768–1023px):** at most two columns. Persistent navigation collapses into an overlay or compact bar.
-- **Desktop (`lg`, 1024px+):** multi-pane layouts, persistent navigation and more environmental depth.
+- **Tablet (`md`, 768–1023px):** at most two columns. Navigation is the compact bottom bar (§5).
+- **Desktop (`lg`, 1024px+):** multi-pane layouts, the persistent rail (§5) and more environmental depth.
 
 ---
 
-## 6. Scroll and overflow
+## 7. Scroll and overflow
 
 ### Mechanics
 
@@ -424,7 +443,7 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 ---
 
-## 7. Accessibility checklist
+## 8. Accessibility checklist
 
 Premium never means inaccessible (VDS §29). Before a screen ships:
 
@@ -444,7 +463,7 @@ Premium never means inaccessible (VDS §29). Before a screen ships:
 
 ---
 
-## 8. Tooling
+## 9. Tooling
 
 Run from `frontend/`:
 

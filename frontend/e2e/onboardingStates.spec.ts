@@ -258,8 +258,9 @@ test.describe('generation handoff', () => {
     await generate(page);
     await expect(page.getByRole('heading', { name: 'Building your path' })).toBeVisible();
     expect(await draftGoal(page)).toBe(PRESET_GOAL);
-    expect(calls.create).toHaveLength(1);
-    expect(calls.active).toBeGreaterThan(0);
+    // The heading is shown before POST: GET /api/goal/active runs first. Wait for that request.
+    await expect.poll(() => calls.create.length).toBe(1);
+    await expect.poll(() => calls.active).toBeGreaterThan(0);
 
     await page.reload();
     await expectStep(page, 'starting');

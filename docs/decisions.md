@@ -116,13 +116,13 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | OD-1b | Goal completion transition | Architecture | Open | 9 |
 | OD-1c | Server-side entitlement for Custom Journeys | Architecture | Open | 10 |
 | OD-2 | 90 vs 84 days | Product | Proposed | 5, 6, 9 |
-| OD-3 | Which dashboard becomes Today | Architecture | Proposed | 5 |
+| OD-3 | Which dashboard becomes Today | Architecture | Decided (A) | 5 |
 | OD-4 | Dedicated `/login` and `/signup` routes | Architecture | Decided (A) | 2 |
 | OD-5 | Mobile in every phase | Process | Decided (see D-12) | All |
 | OD-6 | Rewrite `Design.md` | Design | Decided (see D-6) | 0 |
 | OD-7 | The Journey supports 2–4 method-named phases | Design | Decided | 6 |
 | OD-8 | Honest generation stages | Product | Decided (A amended) | 4 |
-| OD-9 | Every Today state | Product | Proposed | 5 |
+| OD-9 | Every Today state | Product | Decided (A amended) | 5 |
 | OD-10 | Meaning of "dark/light contrast" | Design | Decided (see D-3) | — |
 | OD-11 | Onboarding categories vs free presets | Product | Decided (A) | 3 |
 | OD-12 | Semantic token names | Design | Decided (see D-5) | 0 |
@@ -132,7 +132,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-4 | Pathway handoff and redirects with auth routes | Architecture | Decided (A) | 2 |
 | ND-5 | Pathway display copy | Product | Decided (A) | 3 |
 | ND-6 | Free custom-goal entry before Phase 10 | Product | Decided (A) | 3 |
-| ND-7 | Application shell and navigation | Design | Proposed | 5 |
+| ND-7 | Application shell and navigation | Design | Decided (A narrowed) | 5 |
 | ND-8 | Progress: separate page or Journey layer | Design | Proposed | 8 |
 | ND-9 | Payments in scope or not | Product | Proposed | 10 |
 | ND-10 | Custom-goal gating | Product | Proposed | 10 |
@@ -143,8 +143,9 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-15 | Scope of the single pathway library | Architecture | Decided (A) | 3 |
 | ND-16 | Pre-existing onboarding bugs fixed in Phase 3 | Architecture | Decided (A) | 3 |
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
+| ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phase 4 is complete (accepted by Mo, 2026-09-23). OD-8 (A amended) and ND-17 (A) are Decided and shipped. Phase 5 is blocked by OD-3, OD-9 and ND-7, which are Proposed and not decided. The Phase 5 kickoff raised no new decision.
+**What blocks the next phase:** Phase 5 is in progress. OD-3 (A), OD-9 (A amended), ND-7 (A narrowed) and ND-18 (A) are Decided. M5.1 and M5.2 are done; the ND-7 shell is in place. M5.3 may start when Mo sends it. Phase 5 is not blocked. No Today UI has been implemented and `/dashboard` is not redirected.
 
 ---
 
@@ -708,11 +709,11 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided |
 | Category | Architecture |
 | Needed by | 5 |
 | Raised | BP Open Decision 3 |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at M5.1 |
 
 **Context.**
 * `/` (signed in) renders a simplified dashboard inside `pages/Home.tsx`.
@@ -737,9 +738,16 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 **Recommendation.** **A.** `/` is already where "Today" points and where users land. The session depth from `ExecutionDashboard` is kept but revealed progressively (BP §31), not left on a separate route.
 
-**Decision.** —
+**Decision.** **A — Today at `/`.** Signed-in Today is built from `ExecutionDashboard`'s capabilities, in the BP §09 hierarchy. The signed-out landing stays at `/`. `/dashboard` redirects to `/`, keeping query and hash.
 
-**Consequences.** If A: Phase 5 milestone M5.8 retires `/dashboard` with a redirect. `ProtectedRoute` and Navbar links are updated. The landing page's signed-out branch at `/` is untouched.
+**Consequences.** These change together in M5.8, not before:
+* `OnboardingPage` `navigate('/dashboard')` → `/`
+* `ProtectedRoute` `<Navigate to="/dashboard">` → `/`
+* Home "Open Full Day View" and Roadmap "Back to Today" → `/`
+* `safeNext('/dashboard?…#…')` keeps working through the redirect
+* every Playwright assertion that lands on `/dashboard` moves in the same change
+
+Until M5.8, `/dashboard` keeps working exactly as today. The landing page's signed-out branch at `/` is untouched.
 
 **Related.** ND-7, OD-9.
 
@@ -872,11 +880,11 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided (A amended) |
 | Category | Product |
 | Needed by | 5 |
 | Raised | BP Open Decision 9 |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at M5.1 |
 
 **Context.** The redesign must not design only the normal practice day. `DailyTask` has `isRestDay`, `isKeySession`, `isTestDay`, `minimumVersion` and `status`. The weekly review can fail with a 503. Behaviour after the last week is undefined.
 
@@ -888,29 +896,29 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 | State | Trigger | Intent |
 |---|---|---|
 | Loading | Goal fetch in flight | Calm skeleton in the Today layout |
-| No active goal | Signed in, no goal | Invite the user to choose a pathway (onboarding) |
+| No active goal | Fetch succeeded, no goal | Invite the user to choose a pathway |
 | Practice day | Pending task | The BP §09 hierarchy, with Start |
 | Key session | `isKeySession` | Same, marked as the week's key session |
 | Test day | `isTestDay` | Show the week's test (`RoadmapWeek.test`); result entry only if OD-1a approves |
-| Rest day | `isRestDay` | Rest as part of the plan; a glance at tomorrow |
-| Short on time | User opts in | `minimumVersion`, the 10-minute step |
-| Done for today | Task completed | Quiet confirmation; the step lit; tomorrow previewed |
-| Not completed yesterday | Previous task still pending | "Here's how we can recover", never "missed" |
-| Review due | The week's days have passed | Lead into the weekly review |
-| Review failed | Review returned 503 | "Your week wasn't changed", with retry |
-| Final stretch | Days 85–90 (per OD-2) | Final test and approach to the destination |
-| Completed goal | Per OD-1b | Hand off to Achievement |
-| API offline | `apiStatus === 'offline'` | Clear status; nothing crashes; no writes attempted |
-| Error | A request failed | ErrorState with retry |
+| Rest day | `isRestDay` | Rest as part of the plan; a glance at the next step |
+| Short on time | The task has `minimumVersion` | A clearly offered reveal ("the 10-minute version"). Not hidden and not forced. The data is unchanged |
+| Done for today | Task completed | Quiet confirmation; the step lit; the next step previewed. No XP |
+| Not completed yesterday | The previous task is still pending | "Here's how we can recover", never "missed". No rescheduling and no new data |
+| Review due | Reachable every day; emphasised once the week's days have passed | Lead into the weekly review. Phase 7 owns the screen |
+| Review failed | Review returned 503 | The server's sentence, week unchanged, with retry. No second write |
+| After week 12 / days 85–90 | `currentWeek` stays 12 and the counter clamps at 90 | No invented tasks and no final-stretch content until OD-2. Copy does not say the goal is complete |
+| Completed goal | Per OD-1b | No screen until OD-1b (Phase 9) |
+| API offline | `apiStatus === 'offline'`, or a write fails because the backend is down | Say so. A failed write never looks successful. The one-time health check and the forced sign-out on reload stay |
+| Goal-load error | `goalLoadFailed` | Its own state with retry (`refreshGoal`). Not the empty gallery. `ProtectedRoute` does not send it to onboarding. Build does not send a create until the load succeeds |
 
 - **B — A smaller set now** (loading, practice, rest, done, offline, error), with the rest added later.
   * Cons: leaves real states undesigned. The blueprint raised this decision specifically to prevent that.
 
 **Recommendation.** **A.** Rows that depend on other decisions (test result entry, final stretch, completed goal) follow those decisions.
 
-**Decision.** —
+**Decision.** **A amended.** The table above is binding, including the goal-load row and the amended short-on-time, review, offline and after-week-12 rows. Test day shows the week's test and `passIf` and stores no score until OD-1a. Days 85–90 invent nothing until OD-2. There is no completed-goal screen until OD-1b.
 
-**Consequences.** Phase 5 milestone M5.7 covers every row. Validation documents how each state was produced.
+**Consequences.** Phase 5 has no backend allowance. M5.7 covers every row that M5.3–M5.6 do not. Validation uses the "how it is produced" column of the Phase 5 state matrix. No direct database writes.
 
 **Related.** OD-1a, OD-1b, OD-2, OD-3.
 
@@ -1256,11 +1264,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided (A narrowed) |
 | Category | Design |
 | Needed by | 5 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 5 |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at M5.1 |
 
 **Context.**
 * BP §27 and VDS §14 sketch Today, Journey, Progress, Coach ✦ and Account. BP §45 does not commit to a sidebar yet.
@@ -1285,11 +1293,13 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A.** Show Coach ✦ only as an honest "Coming soon" item, or leave it out entirely until Phase 10. Mo's call.
 
-**Decision.** —
+**Decision.** **A, narrowed.** Desktop is a restrained left rail. Mobile is a bottom bar. At Phase 5 ship the entries are Today (`/`), Roadmap (the existing `/roadmap`, named "Roadmap", not "Journey"), Pathways (the existing explorer, no hard-coded count) and Account (a menu: email, Reset 90-Day Plan with its confirm, Sign out). Progress is omitted until Phase 8. Coach ✦ is omitted until Phase 10. No empty page and no "coming soon" page. The offline indicator lives in the shell. The signed-in footer is removed. Onboarding and generation do not show the rail or the bottom bar; they keep a minimal top bar (wordmark and the Account menu with Sign out). Switch goal stays in the explorer and keeps the current goal until the new one saves (R-15). Skip link, 44 px targets and no 360 px overflow are part of the shell.
 
-**Consequences.** Phase 5 milestone M5.2. Phases 6, 8 and 10 each add their entry.
+**Consequences.** Phase 5 milestone M5.2. Phases 6, 8 and 10 each add their entry. Coach is left out until Phase 10.
 
-**Related.** OD-3, ND-8, ND-11.
+**Implemented** 2026-09-23 (Phase 5, M5.2) in `frontend/src/components/app/`. The rail from `lg` (1024px), the bottom bar below it, and the onboarding top bar. Entries are Today, Roadmap (only with a goal), Pathways and Account. The desktop Account is a hand-built disclosure, not a menu: there is no dropdown-menu primitive, and ND-2 keeps Radix for dialogs, sheets, selects, tabs and tooltips. No package was added. Below `lg`, Account is the existing Radix Dialog. Reset keeps a confirm, now a Dialog. `Navbar.tsx` and the signed-in footer are removed. `Design.md` §5 describes the shell.
+
+**Related.** OD-3, ND-2, ND-8, ND-11.
 
 ---
 
@@ -1573,6 +1583,34 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-18 — What Today shows as "your goal"
+
+| Field | Value |
+|---|---|
+| Status | Decided (A) |
+| Category | Product |
+| Needed by | 5 |
+| Raised | 2026-09-23 — Phase 5 M5.1 (the kickoff goal's title was `49.98`) |
+| Decided | 2026-09-23 — Mo, at M5.1 |
+
+**Context.** `saveV2Goal` writes the model's final goal over the outcome the user edited. `backend/src/routes/goal.ts` line 145 is `clarifiedOutcome: roadmap.finalGoal`. Both dashboards then show that field as the title, through `formatGoalTitle(clarifiedOutcome, rawGoal)` in `Home.tsx` and `ExecutionDashboard.tsx`. The Phase 5 kickoff goal's `roadmap.finalGoal` is the string `49.98`, so the heading was `49.98`. The top of the Today hierarchy is "your goal" (BP §09), so the source field has to be chosen. Phase 5 has no backend allowance (D-11).
+
+**Question.** What does Today show as the user's goal?
+
+**Options.**
+- **A — `rawGoal` as the heading, the stored outcome underneath.** The heading is the goal the user chose (`rawGoal`). `clarifiedOutcome` is shown beneath it, exactly as stored. The frontend does not hide, guess at, or rewrite it. No backend change. The overwrite is a known backend issue.
+- **B — Keep `clarifiedOutcome` as the heading.** What the dashboards do today. On a v2 goal that can be the model's `finalGoal`, including a value like `49.98`, rather than the goal the user chose.
+
+**Recommendation.** **A.** The heading should be the goal the user chose. The stored plan is shown as it is stored.
+
+**Decision.** **A.** Today's heading is `rawGoal`. The stored `clarifiedOutcome` is shown beneath it, exactly as stored. The frontend does not hide, guess at, or rewrite it.
+
+**Consequences.** No backend change in Phase 5. M5.3 uses `rawGoal` for the heading and shows `clarifiedOutcome` beneath it without passing it through `formatGoalTitle`. Section 6 records the `saveV2Goal` overwrite, owner unassigned, because a fix needs a backend allowance.
+
+**Related.** OD-3, D-11, BP §09.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 None yet.
@@ -1601,3 +1639,5 @@ None yet.
 | 2026-09-23 | Phase 4 M4.5. The index line now says the Phase 4 milestones are delivered and awaiting Mo, and that Phase 5 is blocked by OD-3, OD-9 and ND-7. No entry changed status. |
 | 2026-09-23 | Phase 4 closed (Mo accepted the phase report). OD-8 (A amended) and ND-17 (A) confirmed Decided and shipped. The `search` step id is accepted under OD-8. The overlapping in-flight create is an accepted residual (a fix would need server-side create idempotency under a new backend allowance; not planned). The index line now says Phase 4 is complete and Phase 5 is blocked by OD-3, OD-9 and ND-7. No entry changed status. |
 | 2026-09-23 | Phase 5 kickoff. The index line now says the kickoff raised no new decision. OD-3, OD-9 and ND-7 stay Proposed. No entry changed status. |
+| 2026-09-23 | Phase 5 M5.1. OD-3 → A, OD-9 → A amended, ND-7 → A narrowed, and ND-18 → A (heading is `rawGoal`; the stored outcome is shown as stored), all Decided by Mo. The `saveV2Goal` overwrite of `clarifiedOutcome` is a backend issue, not a Phase 5 change. The index line now says Phase 5 is not blocked and M5.2 may start when Mo sends it. |
+| 2026-09-23 | Phase 5 M5.2. ND-7 implemented (note under ND-7). The Account goal line uses `rawGoal` (ND-18). No entry changed status. |
