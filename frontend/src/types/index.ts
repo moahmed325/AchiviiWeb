@@ -147,14 +147,30 @@ export interface DailyTask {
   resourceUrl?: string;
   resourceType?: ResourceType;
   resourceWhy?: string;
+  /** v2 goals only. */
+  isKeySession?: boolean;
+  isTestDay?: boolean;
+  whyToday?: string | null;
+  minimumVersion?: DetailedStep | null;
   created_at: string;
+}
+
+export type WeekTarget =
+  | { kind: 'number'; metric: string; value: number; unit: string; direction: 'higher_is_better' | 'lower_is_better' }
+  | { kind: 'deliverable'; description: string };
+
+export interface WeekTest {
+  type: 'typing_test' | 'quiz' | 'timer' | 'count' | 'photo' | 'video';
+  instructions: string;
+  passIf: string;
 }
 
 export interface RoadmapWeek {
   id: string;
   goalId: string;
   weekNumber: number;
-  phase: 'Foundation' | 'Acceleration' | 'Mastery';
+  /** v1 goals: Foundation / Acceleration / Mastery. v2 goals: the method's own phase names. */
+  phase: string;
   theme: string;
   objective: string;
   keyMilestone: string;
@@ -163,7 +179,38 @@ export interface RoadmapWeek {
   status: 'active' | 'pending' | 'completed' | 'adapted';
   executionScore?: number;
   reviewNotes?: string;
+  target?: WeekTarget | null;
+  test?: WeekTest | null;
   created_at: string;
+}
+
+export interface RoadmapPhase {
+  name: string;
+  startWeek: number;
+  endWeek: number;
+  purpose: string;
+}
+
+export interface GoalRoadmap {
+  finalGoal: string;
+  finalTest: string;
+  startingPoint: { value: number | null; description: string };
+  method: {
+    name: string;
+    creator: string;
+    summary: string;
+    whyChosen: string;
+    runnerUp: { name: string; whyLost: string } | null;
+    safety: number;
+    rules: string[];
+  };
+  phases: RoadmapPhase[];
+}
+
+export interface PlanAnswer {
+  id: string;
+  question: string;
+  answer: string;
 }
 
 export interface WeeklyReview {
@@ -195,6 +242,8 @@ export interface Goal {
   currentWeek: number;
   answers: string; // JSON string
   routine: string; // JSON string
+  planVersion?: number;
+  roadmap?: GoalRoadmap | null;
   created_at: string;
   updated_at: string;
   roadmapWeeks?: RoadmapWeek[];
@@ -206,6 +255,9 @@ export interface CreateGoalPayload {
   rawGoal: string;
   clarifiedOutcome: string;
   answers: Record<string, string>;
+  /** Answers by question id, so the roadmap prompt knows which is which. */
+  answerList?: PlanAnswer[];
+  domain?: string;
   routine: RoutineSettings;
   startDate?: string;
 }

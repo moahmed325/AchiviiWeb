@@ -40,6 +40,10 @@ Old goals (made before v2) keep working on the old code. New goals are flagged `
 - The dashboard shows the current week's target and the final goal, with a progress bar. A "full plan" view shows
   all weeks but is not the default.
 - Replaces: the old method call, the velocity table, the 12-week half of the old plan writer, the block menu.
+- `startingPoint` (today's level in the targets' metric) anchors week 1 and the progress bar.
+- Safety < 3 twice: custom goals get "try a smaller goal"; presets fall back to their fixed plan (v1). Only a goal
+  blocked by the safety screen gets no plan at all.
+- A number target of 0 is rejected: weeks with nothing countable yet mean deliverables for all 12 weeks.
 
 ### Week call
 - Once per week, including week 1. The goal, method and target are fixed inputs.
@@ -49,6 +53,11 @@ Old goals (made before v2) keep working on the old code. New goals are flagged `
 - Each step has a unique `priority` (1 = most important that day).
 - Rest days: optionally one light step of 15 minutes at most.
 - The user can swap today with another day in the week, or mark today missed. They cannot edit numbers.
+- Code, not the model, decides which days are practice, rest and test (from the days-a-week choice), fits step
+  minutes, ranks priorities, and picks key sessions when the model marks none or too many.
+- The test day may be shorter than the daily time; it is never padded. Break steps are dropped (breaks belong in a
+  step's instructions). A rest day the model leaves out is filled in by code.
+- If the week call fails twice, nothing is saved and the user is asked to retry.
 
 ### Weekly update
 - A separate model call. The model sets the status and the targets for the weeks left.

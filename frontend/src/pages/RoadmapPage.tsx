@@ -8,8 +8,10 @@ import {
   ChevronUp,
   Clock,
   Check,
+  Target,
 } from 'lucide-react';
 import { formatGoalTitle } from '../lib/formatters';
+import { formatTarget } from '../components/PlanV2Panel';
 import { RoutineSettings } from '../types';
 import { getGoalImage } from '../lib/certifiedPresets';
 import BasisBadge from '../components/BasisBadge';
@@ -23,46 +25,37 @@ export const RoadmapPage: React.FC = () => {
   const currentWeekNum = activeGoal.currentWeek || 1;
   const roadmapWeeks = activeGoal.roadmapWeeks || [];
 
-  // Group weeks by Phase
+  const isV2 = activeGoal.planVersion === 2 && Boolean(activeGoal.roadmap);
+
+  // v2 goals use the method's own phases; older goals keep the fixed three.
   const phases = useMemo(() => {
-    const p1 = roadmapWeeks.filter((w) => w.weekNumber <= 4);
-    const p2 = roadmapWeeks.filter((w) => w.weekNumber > 4 && w.weekNumber <= 8);
-    const p3 = roadmapWeeks.filter((w) => w.weekNumber > 8);
-    return [
-      {
-        id: 'p1',
-        name: 'Phase 1: Foundation',
-        weeksLabel: 'Weeks 1–4',
-        weeks: p1,
-      },
-      {
-        id: 'p2',
-        name: 'Phase 2: Acceleration',
-        weeksLabel: 'Weeks 5–8',
-        weeks: p2,
-      },
-      {
-        id: 'p3',
-        name: 'Phase 3: Mastery',
-        weeksLabel: 'Weeks 9–12',
-        weeks: p3,
-      },
-    ];
-  }, [roadmapWeeks]);
+    const ranges = isV2
+      ? activeGoal.roadmap!.phases.map((p) => ({ name: p.name, startWeek: p.startWeek, endWeek: p.endWeek, purpose: p.purpose }))
+      : [
+          { name: 'Foundation', startWeek: 1, endWeek: 4, purpose: '' },
+          { name: 'Acceleration', startWeek: 5, endWeek: 8, purpose: '' },
+          { name: 'Mastery', startWeek: 9, endWeek: 12, purpose: '' },
+        ];
+    return ranges.map((range, index) => ({
+      id: `p${index + 1}`,
+      name: `Phase ${index + 1}: ${range.name}`,
+      weeksLabel: range.startWeek === range.endWeek ? `Week ${range.startWeek}` : `Weeks ${range.startWeek}–${range.endWeek}`,
+      startWeek: range.startWeek,
+      endWeek: range.endWeek,
+      purpose: range.purpose,
+      weeks: roadmapWeeks.filter((w) => w.weekNumber >= range.startWeek && w.weekNumber <= range.endWeek),
+    }));
+  }, [roadmapWeeks, isV2, activeGoal.roadmap]);
 
   // Determine which phase is currently active
-  const currentPhaseId = useMemo(() => {
-    if (currentWeekNum <= 4) return 'p1';
-    if (currentWeekNum <= 8) return 'p2';
-    return 'p3';
-  }, [currentWeekNum]);
+  const currentPhaseId = useMemo(
+    () => phases.find((p) => currentWeekNum >= p.startWeek && currentWeekNum <= p.endWeek)?.id ?? phases[phases.length - 1]?.id,
+    [phases, currentWeekNum]
+  );
 
   // Collapsible phases — active phase defaults to open, others collapsed for calm progressive disclosure
   const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({
     [currentPhaseId]: true,
-    p1: currentPhaseId === 'p1',
-    p2: currentPhaseId === 'p2',
-    p3: currentPhaseId === 'p3',
   });
 
   const togglePhase = (phaseId: string) => {
@@ -193,8 +186,7 @@ export const RoadmapPage: React.FC = () => {
       <div className="border-l border-[#1a2824] ml-3 sm:ml-4 pl-4 sm:pl-7 space-y-8 relative pt-2">
         {phases.map((phase) => {
           const isCurrentPhase = phase.id === currentPhaseId;
-          const isPhaseCompleted =
-            phase.id === 'p1' ? currentWeekNum > 4 : phase.id === 'p2' ? currentWeekNum > 8 : false;
+          const isPhaseCompleted = currentWeekNum > phase.endWeek;
           const isExpanded = !!expandedPhases[phase.id];
 
           return (
@@ -241,13 +233,15 @@ export const RoadmapPage: React.FC = () => {
                 </span>
               </div>
 
+              {phase.purpose && <p className="text-xs text-neutral-400 -mt-2">{phase.purpose}</p>}
+
               {/* Collapsible Weeks */}
               {isExpanded && (
                 <div className="space-y-2 pt-1 animate-fadeIn">
                   {phase.weeks.map((week) => {
                     const isCurrent = week.weekNumber === currentWeekNum;
                     const isCompleted = week.status === 'completed' || week.weekNumber < currentWeekNum;
-                    const isGate = week.weekNumber === 4 || week.weekNumber === 8 || week.weekNumber === 12;
+                    const isGate = isV2 ? week.weekNumber === 12 : week.weekNumber === 4 || week.weekNumber === 8 || week.weekNumber === 12;
 
                     return (
                       <div
@@ -267,7 +261,7 @@ export const RoadmapPage: React.FC = () => {
                             </span>
                             {isGate && (
                               <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-medium uppercase tracking-wider bg-amber-400/10 text-amber-400/90 border border-amber-400/20">
-                                {week.weekNumber === 12 ? 'Capstone' : 'Milestone Gate'}
+                                {week.weekNumber === 12 ? (isV2 ? 'Final test' : 'Capstone') : 'Milestone Gate'}
                               </span>
                             )}
                             {isCurrent && (
@@ -281,9 +275,18 @@ export const RoadmapPage: React.FC = () => {
                             {week.theme}
                           </h3>
 
+                          {week.target && (
+                            <div className="flex items-center gap-1.5 text-xs text-neutral-200">
+                              <Target className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />
+                              <span>{formatTarget(week.target)}</span>
+                            </div>
+                          )}
+
                           <div className="flex items-center gap-1.5 text-xs text-neutral-400">
                             <Award className="w-3.5 h-3.5 text-[#07CB6C] shrink-0" />
-                            <span className="line-clamp-1">{week.keyMilestone}</span>
+                            <span className="line-clamp-1">
+                              {week.test ? `Test: ${week.test.instructions}` : week.keyMilestone}
+                            </span>
                           </div>
                         </div>
 

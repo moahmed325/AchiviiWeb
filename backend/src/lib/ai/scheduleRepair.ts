@@ -6,7 +6,7 @@ export interface ScheduleRepairResult {
   failures: string[];
 }
 
-function fitStepMinutes(steps: DetailedStep[], total: number): DetailedStep[] {
+export function fitStepMinutes(steps: DetailedStep[], total: number): DetailedStep[] {
   if (steps.length === 0 || total <= 0) return steps.map((step) => ({ ...step }));
   const next = steps.map((step) => ({ ...step, durationMinutes: Math.max(0, step.durationMinutes || 0) }));
   const sum = next.reduce((totalMinutes, step) => totalMinutes + step.durationMinutes, 0);

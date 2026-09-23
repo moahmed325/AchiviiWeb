@@ -45,6 +45,8 @@ model Goal {
   allowedUrls         Json?     // retrieved URLs; later weeks may not invent links
   velocityTable       Json?     // Week 1 -> Week 12 metric matrix, derived from research
   canonicalKey        String?   // hierarchical domain key, e.g. "lang.japanese.jlpt_n3"
+  planVersion         Int       @default(1) // 2 = roadmap + one week at a time (plan-v2-spec.md)
+  roadmap             Json?     // v2: { finalGoal, finalTest, startingPoint, method, phases }
 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   roadmapWeeks     RoadmapWeek[]
@@ -67,6 +69,8 @@ model RoadmapWeek {
   status          String   @default("pending")
   executionScore  Float?
   reviewNotes     String?
+  target          Json?    // v2: { kind: "number", metric, value, unit, direction } | { kind: "deliverable", description }
+  test            Json?    // v2: { type, instructions, passIf }
   created_at      DateTime @default(now())
 
   goal            Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
@@ -95,6 +99,10 @@ model DailyTask {
   resourceUrl             String?
   resourceType            String?
   resourceWhy             String?
+  isKeySession            Boolean   @default(false)
+  isTestDay               Boolean   @default(false)
+  whyToday                String?
+  minimumVersion          Json?     // v2: the 10-minute step for days the full session won't happen
   created_at              DateTime  @default(now())
 
   goal                    Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)

@@ -971,12 +971,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       questionList.forEach((q) => {
         finalizedAnswers[q.question] = answerFor(q) || 'Skipped';
       });
+      const answerList = questionList.map((q) => ({ id: q.id, question: q.question, answer: answerFor(q) || 'Skipped' }));
 
       const response: CreateGoalResponse = await createGoalPlan(
         {
           rawGoal,
           clarifiedOutcome: editedOutcome || clarification?.clarifiedOutcome || rawGoal,
           answers: finalizedAnswers,
+          answerList,
+          domain: clarification?.primaryDomain,
           routine
         },
         token,
@@ -1355,9 +1358,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             {/* Daily Commitment Minutes */}
             <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <label className="text-xs text-neutral-400 font-medium">
-                  How much time per day?
-                </label>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-neutral-400 font-medium">
+                    How much time per day?
+                  </label>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] font-semibold border border-[#07CB6C]/30">
+                    Recommended: 60 min
+                  </span>
+                </div>
                 <span className="text-xs text-[#07CB6C] font-medium">
                   {routine.dailyMinutes > 0
                     ? `${routine.dailyMinutes} min / day`
@@ -1367,6 +1375,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <div className="grid grid-cols-4 gap-2">
                 {[30, 45, 60, 90].map((mins) => {
                   const isSelected = routine.dailyMinutes === mins;
+                  const isRec = mins === 60;
                   return (
                     <button
                       key={mins}
@@ -1381,6 +1390,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                       }`}
                     >
                       <span className="text-xs">{mins} min</span>
+                      {isRec && (
+                        <span className={`text-[9px] font-mono ${isSelected ? 'text-black/80 font-bold' : 'text-[#07CB6C] font-semibold'}`}>
+                          Recommended
+                        </span>
+                      )}
                     </button>
                   );
                 })}

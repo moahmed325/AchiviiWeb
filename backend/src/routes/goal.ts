@@ -3,22 +3,29 @@ import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import {
   clarifyGoalWithAI,
-  generate12WeekPlanWithAI,
   adaptUpcomingWeekTasksWithAI,
+  presetFixedPlan,
   UserRoutineInput,
-  PreviousWeekTaskSummary
+  PreviousWeekTaskSummary,
+  type PlanGenerationResult,
 } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
-import { pickMethod } from '../lib/method/pickMethod.js';
 import { cleanBlocks, cleanWorkKinds } from '../lib/method/blocks.js';
-import {
-  formatBasisBadge,
-  formatMethodologyNotes,
-  hasUsableSpine,
-  type PlanGrounding,
-} from '../lib/research/planGrounding.js';
+import { formatBasisBadge, type PlanGrounding } from '../lib/research/planGrounding.js';
 import { applySafetyClamps } from '../lib/research/safetyClamps.js';
 import type { VelocityTable } from '../lib/research/types.js';
+import { generateRoadmap, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../lib/ai/roadmap.js';
+import { activeDaysFor, generateWeekPlan, slotTimeFor, type PlanVariant, type WeekDayPlan } from '../lib/ai/weekPlan.js';
+import {
+  dailyTaskRows,
+  phaseGate,
+  readRoutine,
+  readStoredRoadmap,
+  roadmapWeekRows,
+  saveWeekTasks,
+  storedRoadmap,
+  writeNextWeek,
+} from '../lib/planV2.js';
 
 function wantsPlanStream(req: Request): boolean {
   return (req.headers.accept || '').includes('text/event-stream');
@@ -91,6 +98,139 @@ function groundingFromGoal(goal: {
   };
 }
 
+/** Answers by question id from the wizard; older clients send only `{ question: answer }`. */
+function planAnswerList(list: unknown, byQuestion: unknown): PlanAnswer[] {
+  if (Array.isArray(list)) {
+    const cleaned = list
+      .map((item) => ({
+        id: typeof item?.id === 'string' ? item.id : '',
+        question: typeof item?.question === 'string' ? item.question : '',
+        answer: typeof item?.answer === 'string' ? item.answer : '',
+      }))
+      .filter((item) => item.question || item.id);
+    if (cleaned.length > 0) return cleaned;
+  }
+  if (byQuestion && typeof byQuestion === 'object') {
+    return Object.entries(byQuestion as Record<string, unknown>).map(([question, answer]) => ({
+      id: '',
+      question,
+      answer: typeof answer === 'string' ? answer : '',
+    }));
+  }
+  return [];
+}
+
+async function archiveActiveGoals(userId: string) {
+  await prisma.goal.updateMany({ where: { userId, status: 'active' }, data: { status: 'archived' } });
+}
+
+async function saveV2Goal(input: {
+  userId: string;
+  rawGoal: string;
+  roadmap: Roadmap;
+  week1: WeekDayPlan[];
+  answers: Record<string, string>;
+  answerList: PlanAnswer[];
+  routine: UserRoutineInput;
+  start: Date;
+  targetDate: Date;
+  isPreset: boolean;
+}): Promise<string> {
+  const { roadmap } = input;
+  await archiveActiveGoals(input.userId);
+  const goal = await prisma.goal.create({
+    data: {
+      userId: input.userId,
+      rawGoal: input.rawGoal,
+      clarifiedOutcome: roadmap.finalGoal,
+      methodologyNotes: `${roadmap.method.name}: ${roadmap.method.summary}`,
+      status: 'active',
+      startDate: input.start,
+      targetDate: input.targetDate,
+      currentWeek: 1,
+      answers: JSON.stringify(input.answers),
+      routine: JSON.stringify(input.routine),
+      isGoldenRail: input.isPreset,
+      canonicalMethodName: roadmap.method.name,
+      canonicalAuthority: roadmap.method.creator || null,
+      planVersion: 2,
+      roadmap: JSON.parse(JSON.stringify(storedRoadmap(roadmap, input.answerList))),
+    },
+  });
+  await prisma.roadmapWeek.createMany({
+    data: roadmapWeekRows(goal.id, roadmap, input.routine.dailyMinutes!, input.routine.planVariant as PlanVariant),
+  });
+  await prisma.dailyTask.createMany({ data: dailyTaskRows(goal.id, 1, input.week1) });
+  return goal.id;
+}
+
+async function saveV1PresetGoal(input: {
+  userId: string;
+  rawGoal: string;
+  clarifiedOutcome: string;
+  plan: PlanGenerationResult;
+  answers: Record<string, string>;
+  routine: UserRoutineInput;
+  start: Date;
+  targetDate: Date;
+}): Promise<string> {
+  const { plan } = input;
+  await archiveActiveGoals(input.userId);
+  const goal = await prisma.goal.create({
+    data: {
+      userId: input.userId,
+      rawGoal: input.rawGoal,
+      clarifiedOutcome: plan.clarifiedOutcome || input.clarifiedOutcome,
+      methodologyNotes: plan.methodologyNotes || '',
+      status: 'active',
+      startDate: input.start,
+      targetDate: input.targetDate,
+      currentWeek: 1,
+      answers: JSON.stringify(input.answers),
+      routine: JSON.stringify(input.routine),
+      isGoldenRail: true,
+    },
+  });
+  await prisma.roadmapWeek.createMany({
+    data: plan.weeks.map((w) => ({
+      goalId: goal.id,
+      weekNumber: w.weekNumber,
+      phase: w.phase,
+      theme: w.theme,
+      objective: w.objective,
+      keyMilestone: w.keyMilestone,
+      targetIntensity: w.targetIntensity,
+      plannedMinutes: w.plannedMinutes,
+      status: w.weekNumber === 1 ? 'active' : 'pending',
+    })),
+  });
+  await prisma.dailyTask.createMany({
+    data: plan.initialTasks.map((t, idx) => {
+      const taskDate = new Date(input.start);
+      taskDate.setDate(taskDate.getDate() + idx);
+      return {
+        goalId: goal.id,
+        weekNumber: 1,
+        dayNumber: idx + 1,
+        date: taskDate.toISOString().split('T')[0],
+        dayOfWeek: t.dayOfWeek,
+        title: t.title,
+        isRestDay: t.isRestDay,
+        durationMinutes: t.durationMinutes,
+        slotTime: t.slotTime,
+        implementationIntention: t.implementationIntention,
+        detailedSteps: JSON.stringify(t.detailedSteps),
+        resourceTitle: t.resourceTitle || null,
+        resourceUrl: t.resourceUrl || null,
+        resourceType: t.resourceType || 'guide',
+        resourceWhy: t.resourceWhy || null,
+        status: 'pending',
+      };
+    }),
+  });
+  return goal.id;
+}
+
 export const goalRouter = Router();
 
 /**
@@ -125,7 +265,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const { rawGoal, clarifiedOutcome, answers, routine, startDate } = req.body;
+    const { rawGoal, clarifiedOutcome, answers, routine, startDate, domain } = req.body;
 
     if (!rawGoal || !clarifiedOutcome) {
       res.status(400).json({ error: 'Goal and clarified outcome are required.' });
@@ -167,155 +307,92 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       res.status(status).json({ error });
     };
 
-    // Certified presets are already grounded. Custom goals get a method chosen for this person.
-    let grounding: PlanGrounding | undefined;
+    const planVariant = routineInput.planVariant as PlanVariant;
+    const answerList = planAnswerList(req.body.answerList, answers);
     const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
     send?.({
       type: 'step',
       id: 'search',
-      label: preset ? 'Using a certified plan' : 'Comparing methods for your answers',
+      label: preset ? 'Using a proven method for this goal' : 'Comparing methods for your answers',
     });
-    if (!preset) {
-      const planVariant = routineInput.planVariant;
-      const picked = await pickMethod({
-        rawGoal,
-        clarifiedOutcome,
-        answers: answers || {},
+
+    const roadmapResult = await generateRoadmap({
+      workingTitle: clarifiedOutcome,
+      domain: typeof domain === 'string' && domain.trim() ? domain.trim() : preset?.primaryDomain || clarifiedOutcome,
+      rawGoal,
+      dailyMinutes,
+      activeDays: activeDaysFor(planVariant),
+      answers: answerList,
+    });
+
+    let week1: WeekDayPlan[] | null = null;
+    if (roadmapResult.ok) {
+      const { roadmap } = roadmapResult;
+      send?.({ type: 'step', id: 'method', label: roadmap.method.name, detail: roadmap.method.whyChosen });
+      send?.({ type: 'step', id: 'plan', label: 'Writing your first week' });
+      const first = roadmap.weeks[0];
+      week1 = await generateWeekPlan({
+        finalGoal: roadmap.finalGoal,
+        answers: answerList,
         dailyMinutes,
-        activeDaysPerWeek: planVariant === 'minimal' ? 4 : planVariant === 'accelerated' ? 6 : 5,
+        planVariant,
+        slotTime: slotTimeFor(routineInput.preferredSlot),
+        method: roadmap.method,
+        weekNumber: 1,
+        totalWeeks: TOTAL_WEEKS,
+        phase: roadmap.phases[0],
+        focus: first.focus,
+        target: first.target,
+        test: first.test,
+        weekStart: start,
       });
-      if (!picked.ok) {
-        fail(503, picked.reason);
-        return;
-      }
-      grounding = picked.grounding;
-      if (grounding.velocityTable) {
-        grounding = {
-          ...grounding,
-          velocityTable: applySafetyClamps(grounding.velocityTable, { source: 'fresh' }).table,
-        };
-      }
     }
 
-    const basis = grounding ? formatBasisBadge(grounding) : null;
-    send?.({
-      type: 'step',
-      id: 'method',
-      label: preset ? preset.badge : basis?.label || 'Method chosen',
-      detail: preset ? 'Certified plan' : grounding?.whyChosen,
-    });
-    send?.({ type: 'step', id: 'plan', label: 'Writing your first week' });
-
-    const planResult = await generate12WeekPlanWithAI(
-      rawGoal,
-      clarifiedOutcome,
-      answers || {},
-      routineInput,
-      start,
-      { grounding }
-    );
-
-    // Archive any currently active goals for this user
-    await prisma.goal.updateMany({
-      where: { userId: user.id, status: 'active' },
-      data: { status: 'archived' }
-    });
-
-    // Create the new Goal record
-    const createdGoal = await prisma.goal.create({
-      data: {
+    let createdGoalId: string;
+    if (roadmapResult.ok && week1) {
+      createdGoalId = await saveV2Goal({
         userId: user.id,
         rawGoal,
-        clarifiedOutcome: planResult.clarifiedOutcome || clarifiedOutcome,
-        methodologyNotes: hasUsableSpine(grounding)
-          ? formatMethodologyNotes(grounding!)
-          : planResult.methodologyNotes || '',
-        status: 'active',
-        startDate: start,
+        roadmap: roadmapResult.roadmap,
+        week1,
+        answers: answers || {},
+        answerList,
+        routine: routineInput,
+        start,
         targetDate,
-        currentWeek: 1,
-        answers: JSON.stringify(answers || {}),
-        routine: JSON.stringify(routineInput),
-        isGoldenRail: hasUsableSpine(grounding),
-        canonicalMethodName: grounding?.methodName ?? null,
-        canonicalAuthority: grounding?.authority ?? null,
-        canonicalSourceUrl: grounding?.sourceUrl ?? null,
-        methodConfidence: grounding?.methodConfidence ?? null,
-        methodKind: grounding?.methodKind ?? null,
-        teachings: grounding?.teachings?.length ? JSON.parse(JSON.stringify(grounding.teachings)) : undefined,
-        workBlocks: grounding?.blocks?.length
-          ? JSON.parse(JSON.stringify({ kinds: grounding.workKinds ?? [], blocks: grounding.blocks }))
-          : undefined,
-        allowedUrls: grounding?.allowedUrls?.length ? JSON.parse(JSON.stringify(grounding.allowedUrls)) : undefined,
-        velocityTable: grounding?.velocityTable
-          ? JSON.parse(JSON.stringify(grounding.velocityTable))
-          : undefined,
-      }
-    });
+        isPreset: Boolean(preset),
+      });
+    } else if (preset && (roadmapResult.ok || !roadmapResult.unsafe)) {
+      console.warn('[GoalRouter] v2 plan failed for a preset; using its fixed plan.');
+      send?.({ type: 'step', id: 'plan', label: 'Writing your first week' });
+      createdGoalId = await saveV1PresetGoal({
+        userId: user.id,
+        rawGoal,
+        clarifiedOutcome,
+        plan: presetFixedPlan(preset, routineInput, start),
+        answers: answers || {},
+        routine: routineInput,
+        start,
+        targetDate,
+      });
+    } else {
+      if (!roadmapResult.ok) fail(roadmapResult.unsafe || roadmapResult.lowSafety ? 422 : 503, roadmapResult.reason);
+      else fail(503, "Couldn't write your first week right now. Please try again.");
+      return;
+    }
 
-    // Create the 12 Roadmap Weeks
-    const roadmapRecords = await Promise.all(
-      planResult.weeks.map(w =>
-        prisma.roadmapWeek.create({
-          data: {
-            goalId: createdGoal.id,
-            weekNumber: w.weekNumber,
-            phase: w.phase,
-            theme: w.theme,
-            objective: w.objective,
-            keyMilestone: w.keyMilestone,
-            targetIntensity: w.targetIntensity,
-            plannedMinutes: w.plannedMinutes,
-            status: w.weekNumber === 1 ? 'active' : 'pending'
-          }
-        })
-      )
-    );
-
-    // Create Week 1 Daily Tasks
-    const taskRecords = await Promise.all(
-      planResult.initialTasks.map((t, idx) => {
-        const taskDate = new Date(start);
-        taskDate.setDate(taskDate.getDate() + idx);
-        const dateStr = taskDate.toISOString().split('T')[0];
-
-        return prisma.dailyTask.create({
-          data: {
-            goalId: createdGoal.id,
-            weekNumber: 1,
-            dayNumber: idx + 1,
-            date: dateStr,
-            dayOfWeek: t.dayOfWeek,
-            title: t.title,
-            isRestDay: t.isRestDay,
-            durationMinutes: t.durationMinutes,
-            slotTime: t.slotTime,
-            implementationIntention: t.implementationIntention,
-            detailedSteps: JSON.stringify(t.detailedSteps),
-            resourceTitle: t.resourceTitle || null,
-            resourceUrl: t.resourceUrl || null,
-            resourceType: t.resourceType || 'guide',
-            resourceWhy: t.resourceWhy || null,
-            status: 'pending'
-          }
-        });
-      })
-    );
-
-    const fullGoal = await prisma.goal.findUnique({
-      where: { id: createdGoal.id },
+    const saved = await prisma.goal.findUniqueOrThrow({
+      where: { id: createdGoalId },
       include: {
         roadmapWeeks: { orderBy: { weekNumber: 'asc' } },
         dailyTasks: { orderBy: { dayNumber: 'asc' } },
         weeklyReviews: { orderBy: { weekNumber: 'asc' } }
       }
     });
-
-    const saved = fullGoal || createdGoal;
     const body = {
       goal: presentGoal(saved as unknown as Record<string, unknown>),
-      roadmapWeeks: roadmapRecords,
-      dailyTasks: taskRecords,
+      roadmapWeeks: saved.roadmapWeeks,
+      dailyTasks: saved.dailyTasks,
     };
     if (send) {
       send({ type: 'done', ...body });
@@ -442,6 +519,63 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
 
     if (!goal) {
       res.status(404).json({ error: 'Active goal not found.' });
+      return;
+    }
+
+    if (goal.planVersion === 2) {
+      const stored = readStoredRoadmap(goal);
+      const practice = goal.dailyTasks.filter((t) => !t.isRestDay);
+      const planned = practice.length || 1;
+      const completed = practice.filter((t) => t.status === 'completed').length;
+      const score = Math.round((completed / planned) * 100);
+      const nextWeek = weekNum + 1;
+
+      let nextTasks: Awaited<ReturnType<typeof saveWeekTasks>> = [];
+      let written: WeekDayPlan[] | null = null;
+      if (nextWeek <= TOTAL_WEEKS) {
+        written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot));
+        if (!written) {
+          res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
+          return;
+        }
+      }
+
+      const insight = `${completed} of ${practice.length} sessions done.`;
+      const review = await prisma.weeklyReview.upsert({
+        where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
+        update: { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score, reflection: reflection || '', aiAdaptationInsight: insight },
+        create: {
+          goalId: goal.id,
+          weekNumber: weekNum,
+          tasksPlanned: planned,
+          tasksCompleted: completed,
+          scorePercentage: score,
+          reflection: reflection || '',
+          aiAdaptationInsight: insight,
+        },
+      });
+      await prisma.roadmapWeek.update({
+        where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
+        data: { status: 'completed', executionScore: score, reviewNotes: reflection || '' },
+      });
+      if (written) {
+        nextTasks = await saveWeekTasks(goal.id, nextWeek, written);
+        await prisma.roadmapWeek.update({
+          where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } },
+          data: { status: 'active' },
+        });
+        await prisma.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek } });
+      }
+
+      const gate = stored ? phaseGate(stored, weekNum, score) : null;
+      res.json({
+        review,
+        scorePercentage: score,
+        nextWeekNumber: nextWeek <= TOTAL_WEEKS ? nextWeek : null,
+        nextWeekTasks: nextTasks,
+        isMilestoneCheckpoint: Boolean(gate),
+        milestoneGateTransition: gate,
+      });
       return;
     }
 

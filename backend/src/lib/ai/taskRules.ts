@@ -84,7 +84,13 @@ function isVagueTitle(title: string): boolean {
  */
 export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { blocks?: WorkBlock[]; week: number }): DailyTaskPlan[] {
   const onLibrary = library?.blocks?.length ? enforceBlocks(tasks, library.blocks, library.week) : tasks;
-  const out = onLibrary.map((task) => ({ ...task, detailedSteps: (task.detailedSteps ?? []).map((step) => ({ ...step })) }));
+  const out = polishDays(onLibrary);
+  return addBaselineAndRetest(out);
+}
+
+/** A missing pass mark and a category title, fixed day by day without touching the week's shape. */
+export function polishDays<T extends DailyTaskPlan>(tasks: T[]): T[] {
+  const out = tasks.map((task) => ({ ...task, detailedSteps: (task.detailedSteps ?? []).map((step) => ({ ...step })) }));
 
   for (const task of out) {
     const steps = task.detailedSteps;
@@ -102,7 +108,10 @@ export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { blocks?: Wor
       task.title = task.isRestDay ? `Light practice: ${lead.title}` : lead.title;
     }
   }
+  return out;
+}
 
+function addBaselineAndRetest(out: DailyTaskPlan[]): DailyTaskPlan[] {
   const practice = out.filter((task) => !task.isRestDay && task.detailedSteps.length > 0);
   const first = practice[0];
   const last = practice[practice.length - 1];
@@ -153,9 +162,25 @@ export function polishWeekTasks(tasks: DailyTaskPlan[], library?: { blocks?: Wor
 
 /** Everything that makes a day filler rather than real work. Empty when the week is actionable. */
 export function taskQualityFailures(tasks: DailyTaskPlan[]): string[] {
-  const failures: string[] = [];
+  const failures = dayQualityFailures(tasks);
   const practice = tasks.filter((task) => !task.isRestDay);
   const firstPractice = practice[0];
+
+  const last = practice[practice.length - 1];
+  if (firstPractice && !(firstPractice.detailedSteps ?? []).some((step) => MEASURE.test(stepText(step)))) {
+    failures.push(`Day ${firstPractice.dayNumber} (first practice day) needs a baseline test.`);
+  }
+  if (last && last !== firstPractice && !(last.detailedSteps ?? []).some((step) => MEASURE.test(stepText(step)))) {
+    failures.push(`Day ${last.dayNumber} (last practice day) needs to repeat the baseline test.`);
+  }
+
+  return [...new Set(failures)].slice(0, MAX_FAILURES);
+}
+
+/** Vague titles, filler steps, missing instructions/output/pass mark, and setup after the first practice day. */
+export function dayQualityFailures(tasks: DailyTaskPlan[]): string[] {
+  const failures: string[] = [];
+  const firstPractice = tasks.find((task) => !task.isRestDay);
 
   for (const task of tasks) {
     const day = `Day ${task.dayNumber}`;
@@ -176,14 +201,6 @@ export function taskQualityFailures(tasks: DailyTaskPlan[]): string[] {
         failures.push(`${label} is setup work. Setup belongs on the first practice day only.`);
       }
     }
-  }
-
-  const last = practice[practice.length - 1];
-  if (firstPractice && !(firstPractice.detailedSteps ?? []).some((step) => MEASURE.test(stepText(step)))) {
-    failures.push(`Day ${firstPractice.dayNumber} (first practice day) needs a baseline test.`);
-  }
-  if (last && last !== firstPractice && !(last.detailedSteps ?? []).some((step) => MEASURE.test(stepText(step)))) {
-    failures.push(`Day ${last.dayNumber} (last practice day) needs to repeat the baseline test.`);
   }
 
   return [...new Set(failures)].slice(0, MAX_FAILURES);

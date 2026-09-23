@@ -94,6 +94,8 @@ export interface DetailedStep {
   output?: string;
   /** Only when the step can't follow the previous one straight away, e.g. "4 hours after mixing". */
   timing?: string;
+  /** v2: 1 = most important step that day, unique within the day. */
+  priority?: number;
   layer?: TaskLayerType;
   layerReasoning?: string;
   challenge?: StepChallenge;
@@ -905,6 +907,19 @@ export async function resolveStage1WithCache(
     canonicalMethod: null,
     degraded: cacheResult.degraded,
     degradedReason: cacheResult.degradedReason,
+  };
+}
+
+/** The preset's own fixed plan, with no model call. Used when the v2 roadmap can't be written. */
+export function presetFixedPlan(
+  preset: CertifiedPresetBlueprint,
+  routine: UserRoutineInput,
+  startDate: Date
+): PlanGenerationResult {
+  const slot = routine.preferredSlot === 'morning' ? '07:30' : routine.preferredSlot === 'afternoon' ? '14:00' : '19:30';
+  return {
+    ...getDeterministicPresetPlan(preset, routine.dailyMinutes || 60, slot, startDate, routine.planVariant || 'steady'),
+    planSource: 'preset_fallback',
   };
 }
 

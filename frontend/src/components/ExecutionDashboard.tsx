@@ -37,6 +37,7 @@ import { StepChallengeWidget } from './StepChallengeWidget';
 import { CERTIFIED_PATHWAYS, getGoalImage } from '../lib/certifiedPresets';
 import { PathwaysExplorerModal } from './PathwaysExplorerModal';
 import BasisBadge from './BasisBadge';
+import { PlanV2Panel } from './PlanV2Panel';
 
 interface EvidenceLayerConfig {
   label: string;
@@ -189,6 +190,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
   const [isNoteSaved, setIsNoteSaved] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewReflection, setReviewReflection] = useState('');
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [activeVideoStep, setActiveVideoStep] = useState<string | null>(null);
   const [isFocusModalOpen, setIsFocusModalOpen] = useState(false);
   const [isPathwaysModalOpen, setIsPathwaysModalOpen] = useState(false);
@@ -234,6 +236,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
 
   // Current Roadmap Week data
   const currentRoadmapWeek = roadmapWeeks.find((w) => w.weekNumber === currentWeekNum) || roadmapWeeks[0];
+  const isV2 = goal.planVersion === 2;
 
   // Execution score for current week
   const activeDaysThisWeek = currentWeekTasks.filter((t) => !t.isRestDay);
@@ -319,6 +322,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
   // --------------------------------------------------------------------------
   const handleSubmitReview = async () => {
     setIsSubmittingReview(true);
+    setReviewError(null);
     try {
       const response = await submitWeeklyReview(currentWeekNum, reviewReflection, token);
 
@@ -352,6 +356,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
       setReviewReflection('');
     } catch (err) {
       console.error('Review failed:', err);
+      setReviewError(err instanceof Error ? err.message : 'Could not submit the review. Please try again.');
     } finally {
       setIsSubmittingReview(false);
     }
@@ -491,6 +496,10 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
         </div>
       </div>
 
+      {isV2 && goal.roadmap && (
+        <PlanV2Panel roadmap={goal.roadmap} weeks={roadmapWeeks} currentWeek={currentWeekNum} weekTasks={currentWeekTasks} />
+      )}
+
       {/* ===================================================================== */}
       {/* 2. 7-DAY SCHEDULE STRIP (Sleek Zen Pill Bar) */}
       {/* ===================================================================== */}
@@ -559,6 +568,16 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                   </span>
                 </div>
 
+                {(t.isTestDay || t.isKeySession) && (
+                  <span
+                    className={`text-[8px] font-mono font-bold uppercase tracking-wider leading-none ${
+                      t.isTestDay ? 'text-amber-400' : 'text-[#07CB6C]'
+                    }`}
+                  >
+                    {t.isTestDay ? 'Test' : 'Key'}
+                  </span>
+                )}
+
                 {/* Status Dot */}
                 <div className="flex items-center justify-center h-2">
                   {isDone ? (
@@ -594,11 +613,22 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
           {/* Action Header when expanded */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1a2824] pb-5">
             <div className="space-y-1">
+              {(selectedTask.isTestDay || selectedTask.isKeySession) && (
+                <span
+                  className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider border ${
+                    selectedTask.isTestDay
+                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                      : 'bg-[#07CB6C]/10 text-[#07CB6C] border-[#07CB6C]/30'
+                  }`}
+                >
+                  {selectedTask.isTestDay ? 'Test day' : 'Key session'}
+                </span>
+              )}
               <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
                 {selectedTask.title}
               </h3>
               <p className="text-xs text-neutral-400">
-                Follow the deliberate practice steps below or enter distraction-free focus mode.
+                {selectedTask.whyToday || 'Follow the deliberate practice steps below or enter distraction-free focus mode.'}
               </p>
             </div>
 
@@ -640,7 +670,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
           </div>
 
           {/* Session Plan (When/Where/Action) */}
-          {parsedIntention && (
+          {parsedIntention && !isV2 && (
             <div className="space-y-2 text-xs">
               {'raw' in parsedIntention ? (
                 <p className="text-neutral-200 p-3 rounded-md bg-[#080d0b] border border-[#1a2824]">{parsedIntention.raw}</p>
@@ -939,11 +969,30 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                 ))
               ) : (
                 <div className="p-4 rounded-md bg-[#080d0b] border border-[#1a2824] text-xs text-neutral-300">
-                  {selectedTask.detailedSteps}
+                  {selectedTask.isRestDay ? 'Rest day. Nothing planned today.' : selectedTask.detailedSteps}
                 </div>
               )}
             </div>
           </div>
+
+          {selectedTask.minimumVersion && (
+            <div className="p-3.5 rounded-md bg-[#080d0b] border border-dashed border-[#1a2824] space-y-1.5 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-neutral-200 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-[#07CB6C]" />
+                  Short on time? Do the {selectedTask.minimumVersion.durationMinutes}-minute version
+                </span>
+              </div>
+              <p className="text-neutral-200 font-medium">{selectedTask.minimumVersion.title}</p>
+              <p className="text-neutral-400 leading-relaxed">{selectedTask.minimumVersion.instructions}</p>
+              {selectedTask.minimumVersion.passMark && (
+                <p className="text-neutral-400">
+                  <span className="font-semibold text-[#07CB6C]">Done when: </span>
+                  {selectedTask.minimumVersion.passMark}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Expandable Session Notes */}
           <div className="pt-2 border-t border-[#1a2824]/60">
@@ -1056,6 +1105,10 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                 className="w-full px-3 py-2 text-xs bg-[#080d0b] border border-[#1a2824] rounded-md text-white placeholder-neutral-500 focus:outline-none focus:border-[#07CB6C]"
               />
             </div>
+
+            {reviewError && (
+              <p className="text-xs text-amber-400 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/25">{reviewError}</p>
+            )}
 
             {/* Actions */}
             <div className="flex items-center justify-end gap-3 pt-2">
