@@ -11,18 +11,14 @@ export interface AuthResponse {
   user: User;
 }
 
-export interface ScientificFramework {
-  name: string;
-  description: string;
-  application: string;
-}
-
 export interface FollowUpQuestion {
   id: string;
   question: string;
   subtitle: string;
   options: string[];
   allowCustom: boolean;
+  /** Shown once if the user skips the question the first time. */
+  retry?: { question: string; subtitle: string };
 }
 
 export interface EvidencePillar {
@@ -42,9 +38,6 @@ export interface EvidenceTriad {
 export interface GoalClarification {
   clarifiedOutcome: string;
   primaryDomain: string;
-  capabilities?: string[];
-  scientificFrameworks: ScientificFramework[];
-  verificationCriteria: string;
   followUpQuestions: FollowUpQuestion[];
   evidenceTriad?: EvidenceTriad;
 }

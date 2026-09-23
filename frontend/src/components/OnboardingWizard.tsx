@@ -8,8 +8,6 @@ import {
   Moon,
   CheckCircle2,
   Edit3,
-  ChevronDown,
-  ChevronUp,
   Check,
   Plus,
   X,
@@ -30,6 +28,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import {
+  FollowUpQuestion,
   GoalClarification,
   RoutineSettings,
   CreateGoalResponse,
@@ -572,8 +571,24 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   // Diagnostic Question Answers State
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [customAnswers, setCustomAnswers] = useState<Record<string, string>>({});
+  // 1 = skipped once (the question is shown again, reworded), 2 = skipped for good.
+  const [skipCounts, setSkipCounts] = useState<Record<string, number>>({});
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(true);
+
+  const questionList = clarification?.followUpQuestions || [];
+
+  /** A typed answer only counts once it says something; otherwise the picked option (if any) stands. */
+  const answerFor = (q: FollowUpQuestion): string | undefined => {
+    const typed = customAnswers[q.id]?.trim();
+    if (typed) return typed.length >= 2 ? typed : undefined;
+    return answers[q.id] || undefined;
+  };
+  const isSkipped = (q: FollowUpQuestion) => !answerFor(q) && (skipCounts[q.id] || 0) >= 2;
+  const isResolved = (q: FollowUpQuestion) => Boolean(answerFor(q)) || isSkipped(q);
+  const allQuestionsResolved = questionList.length > 0 && questionList.every(isResolved);
+  const shownQuestion = (q: FollowUpQuestion) =>
+    (skipCounts[q.id] || 0) >= 1 && q.retry ? q.retry : { question: q.question, subtitle: q.subtitle };
 
   // Centralized Navigation with browser history support
   const goToStep = (targetStep: 1 | 2 | 3 | 4 | 5, pushHistory: boolean = true) => {
@@ -600,8 +615,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     if (step === 5) return false;
     if (targetStep === 1) return true;
     if (targetStep === 2) return rawGoal.trim().length > 0 || maxStepReached >= 2;
-    if (targetStep === 3) return Boolean(clarification) || maxStepReached >= 3;
-    if (targetStep === 4) return Boolean(clarification) || maxStepReached >= 4;
+    if (targetStep === 3) return Boolean(clarification) && scheduleChosen;
+    if (targetStep === 4) return Boolean(clarification) && scheduleChosen && allQuestionsResolved;
     return false;
   };
 
@@ -638,10 +653,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     sleepTime: '23:00',
     busyHours: '09:00 - 17:00',
     preferredSlot: 'evening',
-    dailyMinutes: 60,
-    planVariant: 'steady',
+    dailyMinutes: 0,
+    planVariant: undefined,
     commitments: []
   });
+  const scheduleChosen = routine.dailyMinutes > 0 && Boolean(routine.planVariant);
 
   // Practice Drag & 24-Hour Day Balance State
   interface ActivePracticeDrag {
@@ -842,9 +858,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const [planSteps, setPlanSteps] = useState<PlanProgressEvent[]>([]);
   const [generationError, setGenerationError] = useState<string | null>(null);
 
-  // Methodologies disclosure in Refine step
-  const [showMethodologies, setShowMethodologies] = useState(false);
-
   const PLAN_STEPS: Array<{ id: PlanProgressEvent['id']; pending: string }> = [
     { id: 'search', pending: 'Search sources' },
     { id: 'method', pending: 'Choose the method' },
@@ -870,15 +883,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       .then((result) => {
         setClarification(result);
         setEditedOutcome(result.clarifiedOutcome);
-
-        // Pre-seed default answers for questions
-        const initialAnswers: Record<string, string> = {};
-        result.followUpQuestions.forEach((q) => {
-          if (q.options?.length > 0) {
-            initialAnswers[q.id] = q.options[0];
-          }
-        });
-        setAnswers(initialAnswers);
+        setAnswers({});
+        setCustomAnswers({});
+        setSkipCounts({});
       })
       .catch((err: any) => {
         console.error('[OnboardingWizard] Clarification error:', err);
@@ -918,6 +925,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   // Step 2: From Schedule -> Advance to Step 3 (Refine Outcome)
   // --------------------------------------------------------------------------
   const handleProceedFromSchedule = () => {
+    if (!scheduleChosen) return;
     if (isClarifying) {
       // User finished schedule in <2s while AI is still finishing
       setIsWaitingForClarification(true);
@@ -945,6 +953,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   // Step 4: Final Generation Trigger
   // --------------------------------------------------------------------------
   const handleGeneratePlan = async () => {
+    if (!scheduleChosen) {
+      goToStep(2);
+      return;
+    }
+    if (!allQuestionsResolved) {
+      goToStep(3);
+      return;
+    }
     setStep(5);
     setGenerationError(null);
     setPlanSteps([]);
@@ -952,12 +968,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     try {
       // Merge custom answers
       const finalizedAnswers: Record<string, string> = {};
-      clarification?.followUpQuestions.forEach((q) => {
-        if (customAnswers[q.id]?.trim()) {
-          finalizedAnswers[q.question] = customAnswers[q.id].trim();
-        } else {
-          finalizedAnswers[q.question] = answers[q.id] || q.options[0] || '';
-        }
+      questionList.forEach((q) => {
+        finalizedAnswers[q.question] = answerFor(q) || 'Skipped';
       });
 
       const response: CreateGoalResponse = await createGoalPlan(
@@ -1209,8 +1221,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   </span>
                 </div>
                 <span className="text-xs text-[#07CB6C] font-medium">
+                  {!routine.planVariant && <span className="text-neutral-500">Choose one</span>}
                   {routine.planVariant === 'minimal' && '4 days / week'}
-                  {(!routine.planVariant || routine.planVariant === 'steady') && '5 days / week'}
+                  {routine.planVariant === 'steady' && '5 days / week'}
                   {routine.planVariant === 'accelerated' && '6 days / week'}
                 </span>
               </div>
@@ -1239,7 +1252,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     desc: '6 sessions with 1 rest day. For when you want to move fast.'
                   }
                 ].map((variant) => {
-                  const isSelected = (routine.planVariant || 'steady') === variant.id;
+                  const isSelected = routine.planVariant === variant.id;
                   const isRec = variant.id === 'steady';
                   return (
                     <button
@@ -1342,21 +1355,17 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             {/* Daily Commitment Minutes */}
             <div className="p-4 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-neutral-400 font-medium">
-                    How much time per day?
-                  </label>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#07CB6C]/10 text-[#07CB6C] font-semibold border border-[#07CB6C]/30">
-                    Recommended: 60 min
-                  </span>
-                </div>
+                <label className="text-xs text-neutral-400 font-medium">
+                  How much time per day?
+                </label>
                 <span className="text-xs text-[#07CB6C] font-medium">
-                  {routine.dailyMinutes} min / day
+                  {routine.dailyMinutes > 0
+                    ? `${routine.dailyMinutes} min / day`
+                    : <span className="text-neutral-500">Choose one</span>}
                 </span>
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {[30, 45, 60, 90].map((mins) => {
-                  const isRec = mins === 60;
                   const isSelected = routine.dailyMinutes === mins;
                   return (
                     <button
@@ -1372,11 +1381,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                       }`}
                     >
                       <span className="text-xs">{mins} min</span>
-                      {isRec && (
-                        <span className={`text-[9px] font-mono ${isSelected ? 'text-black/80 font-bold' : 'text-[#07CB6C] font-semibold'}`}>
-                          Recommended
-                        </span>
-                      )}
                     </button>
                   );
                 })}
@@ -1384,7 +1388,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <p className="text-[11px] text-neutral-500">
                 {routine.dailyMinutes === 30 && 'Great for building a light baseline habit.'}
                 {routine.dailyMinutes === 45 && 'A balanced sweet spot for steady progress.'}
-                {routine.dailyMinutes === 60 && 'Recommended — ideal depth for students and 9-to-5 workers.'}
+                {routine.dailyMinutes === 60 && 'Enough depth for a full session on a busy workday.'}
                 {routine.dailyMinutes >= 90 && 'Intensive immersion — for faster sprints.'}
               </p>
             </div>
@@ -1648,7 +1652,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     <div className="flex items-center gap-1.5 text-[10px] font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2.5 py-0.5 rounded-full border border-[#07CB6C]/30 shadow-sm">
                       <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C] animate-pulse" />
                       <span>
-                        Practice: {daySchedule.practiceTimeLabel} ({routine.dailyMinutes}m)
+                        {routine.dailyMinutes > 0
+                          ? `Practice: ${daySchedule.practiceTimeLabel} (${routine.dailyMinutes}m)`
+                          : 'Practice: choose your time per day'}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400/90 bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-800/40 shadow-sm">
@@ -1680,6 +1686,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     {/* Non-overlapping blocks that dynamically make space for each other */}
                     {daySchedule.allBlocks.map((b) => {
                       const isPractice = b.isPractice;
+                      if (isPractice && !routine.dailyMinutes) return null;
                       const isDraggingPractice = isPractice && !!activePracticeDrag;
 
                       const startMins = isDraggingPractice
@@ -1832,24 +1839,31 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <span>Back to Goal</span>
             </button>
 
-            <button
-              type="button"
-              disabled={isClarifying && isWaitingForClarification}
-              onClick={handleProceedFromSchedule}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] disabled:bg-[#07CB6C]/50 text-black font-semibold text-sm transition-all cursor-pointer"
-            >
-              {isClarifying && isWaitingForClarification ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" />
-                  <span>Personalizing your path...</span>
-                </>
-              ) : (
-                <>
-                  <span>Next: Quick Questions</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
+            <div className="flex items-center gap-3">
+              {!scheduleChosen && (
+                <span className="text-[11px] text-neutral-500">
+                  Choose your days per week and time per day
+                </span>
               )}
-            </button>
+              <button
+                type="button"
+                disabled={!scheduleChosen || (isClarifying && isWaitingForClarification)}
+                onClick={handleProceedFromSchedule}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] disabled:bg-[#07CB6C]/50 disabled:cursor-not-allowed text-black font-semibold text-sm transition-all cursor-pointer"
+              >
+                {isClarifying && isWaitingForClarification ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" />
+                    <span>Personalizing your path...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Next: Quick Questions</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1858,10 +1872,55 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       {/* STEP 3: DOMAIN CLARIFYING QUESTIONS (DIAGNOSTIC QUIZ) */}
       {/* ===================================================================== */}
       {step === 3 && clarification && (() => {
-        const questions = clarification.followUpQuestions || [];
+        const questions = questionList;
         const totalQuestions = questions.length;
         const safeIdx = Math.min(Math.max(0, activeQuestionIndex), totalQuestions - 1);
         const currentQ = questions[safeIdx];
+        const currentShown = currentQ ? shownQuestion(currentQ) : null;
+        const currentSkips = currentQ ? skipCounts[currentQ.id] || 0 : 0;
+
+        const firstUnresolved = (exceptId?: string) =>
+          questions.findIndex((q) => q.id !== exceptId && !isResolved(q));
+
+        const moveOn = (fromIdx: number, justResolvedId?: string) => {
+          if (fromIdx < totalQuestions - 1) {
+            setActiveQuestionIndex(fromIdx + 1);
+            return;
+          }
+          const pending = firstUnresolved(justResolvedId);
+          if (pending >= 0) {
+            setActiveQuestionIndex(pending);
+            return;
+          }
+          setIsQuestionModalOpen(false);
+          goToStep(4);
+        };
+
+        const skipCurrent = () => {
+          if (!currentQ) return;
+          setAnswers((prev) => {
+            const next = { ...prev };
+            delete next[currentQ.id];
+            return next;
+          });
+          setCustomAnswers((prev) => ({ ...prev, [currentQ.id]: '' }));
+          if (currentSkips === 0) {
+            setSkipCounts((prev) => ({ ...prev, [currentQ.id]: 1 }));
+            return;
+          }
+          setSkipCounts((prev) => ({ ...prev, [currentQ.id]: 2 }));
+          moveOn(safeIdx, currentQ.id);
+        };
+
+        const goToSummary = () => {
+          const pending = firstUnresolved();
+          if (pending >= 0) {
+            setActiveQuestionIndex(pending);
+            setIsQuestionModalOpen(true);
+            return;
+          }
+          goToStep(4);
+        };
 
         return (
           <div className="space-y-6 text-left animate-fadeInUp">
@@ -1890,11 +1949,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               </button>
             </div>
 
-            {/* 3 Question Overview Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+            {/* Question Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
               {questions.map((q, idx) => {
                 const isCurrent = idx === safeIdx;
-                const selectedVal = customAnswers[q.id]?.trim() || answers[q.id] || q.options[0] || 'Unset';
+                const answer = answerFor(q);
                 return (
                   <div
                     key={q.id}
@@ -1923,11 +1982,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     </div>
 
                     <div className="text-xs font-semibold text-white line-clamp-2 leading-snug">
-                      {q.question}
+                      {shownQuestion(q).question}
                     </div>
 
-                    <div className="text-xs text-[#07CB6C] font-medium bg-[#040706] p-2 rounded-lg border border-[#1a2824] truncate">
-                      ✓ {selectedVal}
+                    <div
+                      className={`text-xs font-medium bg-[#040706] p-2 rounded-lg border border-[#1a2824] truncate ${
+                        answer ? 'text-[#07CB6C]' : 'text-neutral-500'
+                      }`}
+                    >
+                      {answer ? `✓ ${answer}` : isSkipped(q) ? 'Skipped' : 'Not answered yet'}
                     </div>
                   </div>
                 );
@@ -1947,10 +2010,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
               <button
                 type="button"
-                onClick={() => goToStep(4)}
+                onClick={goToSummary}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs sm:text-sm transition-all cursor-pointer shadow-lg shadow-[#07CB6C]/25"
               >
-                <span>Next: What Success Looks Like</span>
+                <span>{allQuestionsResolved ? 'Next: Review Your Plan' : 'Answer the Remaining Questions'}</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
               </button>
             </div>
@@ -2022,12 +2085,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                           {safeIdx + 1}
                         </span>
                         <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight leading-snug">
-                          {currentQ.question}
+                          {currentShown?.question}
                         </h3>
                       </div>
-                      {currentQ.subtitle && (
+                      {currentShown?.subtitle && (
                         <p className="text-xs sm:text-sm text-neutral-400 pl-8 leading-relaxed">
-                          {currentQ.subtitle}
+                          {currentShown.subtitle}
                         </p>
                       )}
                     </div>
@@ -2100,6 +2163,23 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                           </div>
                         </div>
                       )}
+
+                      <div className="flex items-center justify-between gap-3 pt-1">
+                        <span className="text-[11px] text-neutral-500">
+                          {isSkipped(currentQ)
+                            ? "Skipped. We'll plan from a safe starting point."
+                            : ''}
+                        </span>
+                        {!answerFor(currentQ) && !isSkipped(currentQ) && (
+                          <button
+                            type="button"
+                            onClick={skipCurrent}
+                            className="text-xs text-neutral-400 hover:text-white underline underline-offset-2 cursor-pointer transition-colors"
+                          >
+                            {currentSkips === 0 ? 'Skip this' : 'Skip anyway'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -2132,7 +2212,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     <div className="flex items-center gap-1.5">
                       {questions.map((qItem, idx) => {
                         const isCurrent = idx === safeIdx;
-                        const hasAnswer = Boolean(customAnswers[qItem.id]?.trim() || answers[qItem.id]);
+                        const hasAnswer = isResolved(qItem);
                         return (
                           <button
                             key={idx}
@@ -2154,28 +2234,19 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     </div>
 
                     {/* Next / Finish Button */}
-                    {safeIdx < totalQuestions - 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => setActiveQuestionIndex((prev) => prev + 1)}
-                        className="px-5 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all ml-auto"
-                      >
-                        <span>Next Question</span>
-                        <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsQuestionModalOpen(false);
-                          goToStep(4);
-                        }}
-                        className="px-5 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all ml-auto"
-                      >
-                        <span>See Success Plan</span>
-                        <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      disabled={!isResolved(currentQ)}
+                      onClick={() => moveOn(safeIdx)}
+                      className="px-5 py-2.5 rounded-xl bg-[#07CB6C] hover:bg-[#06b560] disabled:bg-[#07CB6C]/40 disabled:cursor-not-allowed text-black font-bold text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#07CB6C]/20 transition-all ml-auto"
+                    >
+                      <span>
+                        {safeIdx < totalQuestions - 1 || firstUnresolved(currentQ.id) >= 0
+                          ? 'Next Question'
+                          : 'Review Your Plan'}
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -2206,7 +2277,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               What success looks like in 90 days
             </h2>
             <p className="text-xs sm:text-sm text-neutral-400">
-              Review your target outcome, verification benchmark, and schedule before we build your blueprint.
+              Review your goal, answers, and schedule before we build your plan.
             </p>
           </div>
 
@@ -2238,35 +2309,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 "{editedOutcome}"
               </p>
             )}
-
-            <div className="pt-2 border-t border-[#1a2824] flex items-center gap-2 text-xs text-neutral-400">
-              <AwardIcon className="w-4 h-4 text-[#f59e0b] shrink-0" />
-              <span>
-                <strong className="text-neutral-200">Capstone Proof Benchmark:</strong> {clarification.verificationCriteria}
-              </span>
-            </div>
           </div>
-
-          {/* Core Capabilities */}
-          {clarification.capabilities && clarification.capabilities.length > 0 && (
-            <div className="space-y-2.5">
-              <h3 className="text-xs font-medium uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
-                <Target className="w-3.5 h-3.5 text-[#07CB6C]" />
-                <span>Core Capabilities You'll Master</span>
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                {clarification.capabilities.map((cap, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md bg-[#0c1210] border border-[#1a2824] text-neutral-200"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#07CB6C]" />
-                    {cap}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Personalized Schedule & Routine Confirmation Card */}
           <div className="p-4 rounded-md bg-[#090e0c] border border-[#1a2824] space-y-2.5">
@@ -2349,12 +2392,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-                {clarification.followUpQuestions.map((q) => {
-                  const selectedVal = customAnswers[q.id]?.trim() || answers[q.id] || q.options[0] || 'Default';
+                {questionList.map((q) => {
+                  const answer = answerFor(q);
                   return (
                     <div key={q.id} className="p-2.5 rounded bg-[#0c1210] border border-[#1a2824] text-xs space-y-0.5">
                       <div className="text-[10px] text-neutral-500 font-mono truncate">{q.question}</div>
-                      <div className="text-[#07CB6C] font-medium truncate">{selectedVal}</div>
+                      <div className={`font-medium truncate ${answer ? 'text-[#07CB6C]' : 'text-neutral-500'}`}>
+                        {answer || 'Skipped'}
+                      </div>
                     </div>
                   );
                 })}
@@ -2471,41 +2516,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               </div>
             );
           })()}
-
-          {/* Scientific Frameworks — collapsed by default */}
-          {clarification.scientificFrameworks && clarification.scientificFrameworks.length > 0 && (
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setShowMethodologies(!showMethodologies)}
-                className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
-              >
-                <span>{showMethodologies ? 'Hide' : 'View'} research-backed methods we'll use</span>
-                {showMethodologies ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-
-              {showMethodologies && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fadeIn">
-                  {clarification.scientificFrameworks.map((framework, i) => (
-                    <div
-                      key={i}
-                      className="p-3.5 rounded-md bg-[#0c1210] border border-[#1a2824] space-y-1.5 text-left"
-                    >
-                      <div className="font-medium text-xs text-[#07CB6C]">
-                        {framework.name}
-                      </div>
-                      <p className="text-xs text-neutral-300 leading-snug">
-                        {framework.description}
-                      </p>
-                      <p className="text-[11px] text-neutral-500 italic">
-                        ↳ {framework.application}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="flex items-center justify-between pt-4">
             <button
@@ -3010,20 +3020,5 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     </div>
   );
 };
-
-function AwardIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      strokeWidth={2}
-    >
-      <circle cx="12" cy="8" r="6" />
-      <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11" />
-    </svg>
-  );
-}
 
 export default OnboardingWizard;

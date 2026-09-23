@@ -131,6 +131,15 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       res.status(400).json({ error: 'Goal and clarified outcome are required.' });
       return;
     }
+    const dailyMinutes = Number(routine?.dailyMinutes);
+    if (!Number.isFinite(dailyMinutes) || dailyMinutes < 10 || dailyMinutes > 480) {
+      res.status(400).json({ error: 'Choose how many minutes a day you can practise.' });
+      return;
+    }
+    if (!['steady', 'accelerated', 'minimal'].includes(routine?.planVariant)) {
+      res.status(400).json({ error: 'Choose how many days a week you can practise.' });
+      return;
+    }
 
     const start = startDate ? new Date(startDate) : new Date();
     const targetDate = new Date(start);
@@ -141,8 +150,8 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       sleepTime: routine?.sleepTime || '23:00',
       busyHours: routine?.busyHours || '09:00 - 17:00',
       preferredSlot: routine?.preferredSlot || 'evening',
-      dailyMinutes: routine?.dailyMinutes || 60,
-      planVariant: routine?.planVariant || 'steady',
+      dailyMinutes,
+      planVariant: routine.planVariant,
       commitments: routine?.commitments || []
     };
 
@@ -172,7 +181,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         rawGoal,
         clarifiedOutcome,
         answers: answers || {},
-        dailyMinutes: routineInput.dailyMinutes || 60,
+        dailyMinutes,
         activeDaysPerWeek: planVariant === 'minimal' ? 4 : planVariant === 'accelerated' ? 6 : 5,
       });
       if (!picked.ok) {

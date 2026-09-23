@@ -26,9 +26,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Play 5 iconic guitar songs from memory');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Acoustic Guitar');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(5);
     expect(clarification.clarifiedOutcome).toContain('guitar songs');
   });
 
@@ -36,9 +35,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Build and ship a SaaS to first paying user');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Software Engineering');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(5);
     expect(clarification.clarifiedOutcome).toContain('SaaS');
   });
 
@@ -46,9 +44,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Hold a 15-minute conversational dialogue in Spanish');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Language Acquisition');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(5);
     expect(clarification.clarifiedOutcome).toContain('dialogue in Spanish');
   });
 
@@ -56,9 +53,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Drop 5% body fat and build lean muscle');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Physique Transformation');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(5);
     expect(clarification.clarifiedOutcome).toContain('body fat');
   });
 
@@ -66,9 +62,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Launch a YouTube channel and publish 12 videos');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Audience Building');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(5);
     expect(clarification.clarifiedOutcome).toContain('YouTube');
   });
 
@@ -76,9 +71,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Write and publish a 30,000-word book');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Creative Writing');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(5);
     expect(clarification.clarifiedOutcome).toContain('manuscript');
   });
 
@@ -86,9 +80,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Master deep work and double daily cognitive output');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Cognitive Performance');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(5);
     expect(clarification.clarifiedOutcome).toContain('deep work');
   });
 
@@ -122,9 +115,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Climb from beginner to a 1200 chess rating');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Chess Mastery');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(6);
     expect(clarification.clarifiedOutcome).toContain('1200+');
   });
 
@@ -163,9 +155,8 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
     const clarification = await clarifyGoalWithAI('Deliver an unforgettable 15-minute TED-style speech');
     expect(clarification).toBeDefined();
     expect(clarification.primaryDomain).toContain('Public Speaking');
-    expect(clarification.scientificFrameworks.length).toBe(3);
+    expect(clarification.followUpQuestions.every(q => q.retry.question.length > 0)).toBe(true);
     expect(clarification.followUpQuestions.length).toBe(3);
-    expect(clarification.capabilities.length).toBe(6);
     expect(clarification.clarifiedOutcome).toContain('15-minute');
   });
 

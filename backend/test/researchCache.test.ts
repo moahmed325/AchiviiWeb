@@ -17,6 +17,7 @@ import {
   clarifyGoalWithAI,
   resolveStage1WithCache,
   getPresetCanonicalKey,
+  canonicalKeyForGoal,
   deriveDeterministicCanonicalKey,
   sanitizeCanonicalKey,
 } from '../src/lib/ai/goalDecomposer.js';
@@ -73,7 +74,7 @@ describe('Phase 2 — ResearchCache & Cosine Similarity Layer', () => {
       expect(getPresetCanonicalKey('recomp')).toBe('fitness.bodybuilding.recomposition');
 
       const presetClarification = await clarifyGoalWithAI('Run a 10k in under 50 minutes');
-      expect(presetClarification.canonicalKey).toBe('fitness.running.10k');
+      expect(canonicalKeyForGoal('Run a 10k in under 50 minutes', presetClarification)).toBe('fitness.running.10k');
     });
 
     it('derives distinct slug canonicalKey for custom goals without keyword-domain guessing', () => {

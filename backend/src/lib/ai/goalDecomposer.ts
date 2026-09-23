@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { generateStructuredContent } from './gemini.js';
 import {
   findPresetForGoal,
   getVDOTPacingEntry,
@@ -12,8 +11,7 @@ import {
   getDeepWorkVelocityEntry,
   getChessVelocityEntry,
   getSpeechVelocityEntry,
-  CertifiedPresetBlueprint,
-  EvidenceTriad
+  CertifiedPresetBlueprint
 } from './presets/index.js';
 import {
   resolveResearchCache,
@@ -29,58 +27,10 @@ import { PLAN_RESPONSE_SCHEMA, WEEK_TASKS_RESPONSE_SCHEMA } from './planSchema.j
 import { buildSpineFallbackPlan, buildSpineWeekTasks } from './spineFallbackPlan.js';
 import { repairWeekSchedule } from './scheduleRepair.js';
 import { polishWeekTasks, taskQualityFailures, taskRulesBlock } from './taskRules.js';
+import { generateWithOneRetry } from './retry.js';
+import { clarifyGoalWithAI, type GoalClarification } from './clarify.js';
 
-/** Second attempt tells the model why the first answer was thrown out, and loosens temperature. */
-async function generateWithOneRetry<T, R>(
-  prompt: string,
-  systemInstruction: string,
-  responseSchema: Record<string, unknown>,
-  /** `lastAttempt` lets soft checks (task quality) give way so the user still gets a plan. */
-  accept: (data: T, lastAttempt: boolean) => { value: R } | { reason: string },
-  label: string
-): Promise<R | null> {
-  let rejection = '';
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const attemptPrompt = attempt === 0
-      ? prompt
-      : `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${rejection}\nReturn the complete JSON again with that problem fixed.`;
-    const result = await generateStructuredContent<T>(attemptPrompt, systemInstruction, undefined, {
-      responseSchema,
-      temperature: attempt === 0 ? 0 : 0.4,
-    });
-    if (!result.success || !result.data) {
-      rejection = result.error || 'no answer';
-      console.warn(`[GoalDecomposer] ${label} attempt ${attempt + 1} failed: ${rejection}`);
-      continue;
-    }
-    const verdict = accept(result.data, attempt === 1);
-    if ('value' in verdict) return verdict.value;
-    rejection = verdict.reason;
-    console.warn(`[GoalDecomposer] ${label} attempt ${attempt + 1} rejected: ${rejection}`);
-  }
-  return null;
-}
-
-export interface GoalClarification {
-  canonicalKey: string;
-  clarifiedOutcome: string;
-  primaryDomain: string;
-  capabilities: string[];
-  scientificFrameworks: Array<{
-    name: string;
-    description: string;
-    application: string;
-  }>;
-  verificationCriteria: string;
-  followUpQuestions: Array<{
-    id: string;
-    question: string;
-    subtitle: string;
-    options: string[];
-    allowCustom: boolean;
-  }>;
-  evidenceTriad?: EvidenceTriad;
-}
+export { clarifyGoalWithAI, type GoalClarification };
 
 export interface RoadmapWeekPlan {
   weekNumber: number;
@@ -193,121 +143,6 @@ export interface UserRoutineInput {
   dailyMinutes?: number; // e.g. 30, 45, 60, 90
   planVariant?: 'steady' | 'accelerated' | 'minimal';
   commitments?: Array<CommitmentItem | string>;
-}
-
-/**
- * Step 1: Clarify a raw user goal using Gemini.
- * Identifies domain, 5-8 sub-skills/capabilities, clarifies the 90-day outcome,
- * applies scientific frameworks, and generates 3-4 domain-specific clarifying questions.
- */
-export async function clarifyGoalWithAI(rawGoal: string): Promise<GoalClarification> {
-  const preset = findPresetForGoal(rawGoal);
-  if (preset) {
-    return {
-      canonicalKey: getPresetCanonicalKey(preset.id),
-      clarifiedOutcome: preset.clarifiedOutcome,
-      primaryDomain: preset.primaryDomain,
-      capabilities: preset.capabilities && preset.capabilities.length > 0
-        ? preset.capabilities
-        : [
-            'Foundational Mechanics & Posture',
-            'Deliberate Practice Micro-Drills',
-            'Tempo & Rhythm Automation',
-            'Error Auditing & Friction Recovery',
-            'Capstone Repertoire Integration'
-          ],
-      scientificFrameworks: preset.scientificFrameworks,
-      verificationCriteria: preset.verificationCriteria,
-      followUpQuestions: preset.diagnosticQuestions,
-      evidenceTriad: preset.evidenceTriad
-    };
-  }
-
-  const systemInstruction = `You are the Master Goal Architect and Cognitive Performance Scientist at Achivii.
-Your mission is to take any raw goal provided by a user and transform it into a scientifically and socially proven 90-day execution blueprint.
-You apply:
-1. The 12 Week Year (12 weeks = 1 full year, outcome clarity, high urgency)
-2. Deliberate Practice & Spaced Repetition (Anders Ericsson)
-3. Implementation Intentions (Peter Gollwitzer)
-4. Progressive Overload & Ultradian Rhythms
-
-Always respond with clean, valid JSON matching the requested schema.`;
-
-  const prompt = `Analyze this user's custom goal:
-"${rawGoal}"
-
-1. Refine the user's goal into a clean, simple, action-oriented 90-day outcome title (maximum 6-12 words).
-   - Keep it inspiring, clear, and punchy.
-   - Use active voice (e.g. "Build and deploy a full-stack Django web application" or "Run a 10K under 50 minutes without stopping").
-   - NEVER use formulaic prefixes like "By Day 90, I will have successfully..." or "By Day 90, achieve full mastery of...".
-   - DO NOT include run-on specification clauses like ", complete with user authentication...".
-2. Identify the primary domain (e.g. "Acoustic Guitar", "Full-Stack Web Development", "Endurance Running", "Conversational Spanish", "Product Management").
-3. Identify exactly 5 to 8 specific capabilities / sub-skills required to master this goal by Day 90.
-4. Cite 2-3 proven scientific or professional methodologies relevant to this domain and explain how they will be applied.
-5. State the single capstone verification test that proves the goal was achieved by Day 90.
-6. Create exactly 3-4 domain-specific follow-up questions to diagnose:
-   - Current baseline / prior experience
-   - Specific equipment / environment available
-   - Primary style, sub-focus, or target aspiration
-   - Biggest historical obstacle or friction point
-7. Additionally, output a \`canonicalKey\`: a lowercase, dot-separated hierarchical
-domain key that uniquely identifies this goal's category, general enough that
-close variants of the same goal (different phrasing, same underlying ambition)
-would map to the SAME key. Format: <broad_domain>.<sub_domain>.<specific_goal>.
-Examples: "fitness.running.10k", "culinary.baking.sourdough", "music.guitar.acoustic_songs", "tech.cloud.aws_architect", "lang.spanish.conversational".
-CRITICAL DOMAIN ROUTING RULE: <broad_domain> MUST categorize the primary action/skill being practiced, NOT adjectives or national origins mentioned in the title.
-- Culinary/cooking/baking goals (even with nationalities like "French sourdough" or "Italian pasta") MUST belong to "culinary", NEVER "lang".
-- Language learning goals ("learn French", "speak conversational Spanish") MUST belong to "lang".
-- Physical training/athletics belong to "fitness".
-- Software/IT/engineering belong to "tech" or "engineering".
-- Visual/fine arts belong to "art".
-- Music/audio belong to "music".
-
-JSON schema:
-{
-  "canonicalKey": string,
-  "clarifiedOutcome": string,
-  "primaryDomain": string,
-  "capabilities": string[],
-  "scientificFrameworks": [
-    { "name": string, "description": string, "application": string }
-  ],
-  "verificationCriteria": string,
-  "followUpQuestions": [
-    {
-      "id": string,
-      "question": string,
-      "subtitle": string,
-      "options": string[],
-      "allowCustom": boolean
-    }
-  ]
-}
-`;
-
-  const result = await generateStructuredContent<GoalClarification>(prompt, systemInstruction);
-
-  if (result.success && result.data && result.data.clarifiedOutcome && result.data.followUpQuestions?.length) {
-    if (!result.data.capabilities || !result.data.capabilities.length) {
-      result.data.capabilities = [
-        'Foundational Mechanics',
-        'Deliberate Practice Reps',
-        'Tempo & Speed Fluency',
-        'Error Diagnostic Auditing',
-        'Capstone Fluency Integration'
-      ];
-    }
-    result.data.canonicalKey = sanitizeCanonicalKey(
-      result.data.canonicalKey,
-      rawGoal,
-      result.data.primaryDomain,
-      result.data.clarifiedOutcome
-    );
-    return result.data;
-  }
-
-  // Fallback: If both AI providers fail for a custom goal, do NOT fabricate a degraded plan.
-  throw new Error('Unable to analyze your goal right now. AI services are temporarily unavailable. Please retry.');
 }
 
 /**
@@ -951,6 +786,13 @@ export function sanitizeCanonicalKey(
   return deriveDeterministicCanonicalKey(fallbackGoal);
 }
 
+/** Research-cache key. Clarify no longer returns one, so it is derived here. */
+export function canonicalKeyForGoal(rawGoal: string, clarification: GoalClarification): string {
+  const preset = findPresetForGoal(rawGoal);
+  if (preset) return getPresetCanonicalKey(preset.id);
+  return sanitizeCanonicalKey(undefined, rawGoal, clarification.primaryDomain, clarification.clarifiedOutcome);
+}
+
 export interface Stage1PipelineResult {
   clarification: GoalClarification;
   cacheHit: boolean;
@@ -1040,7 +882,7 @@ export async function resolveStage1WithCache(
   }
 
   const cacheResult = await resolveResearchCache(
-    clarification.canonicalKey,
+    canonicalKeyForGoal(rawGoal, clarification),
     clarification.clarifiedOutcome,
     { rawGoal, skipTier0: true }
   );
