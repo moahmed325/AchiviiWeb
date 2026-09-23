@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-23 · Current position: **Phases 0 and 1 complete; Phase 2 not started** (it needs OD-4 and ND-4).
+Last updated: 2026-09-23 · Current position: **Phases 0 and 1 complete; Phase 2 kickoff plan awaiting Mo's review** (OD-4 and ND-4 Decided).
 
 ---
 
@@ -68,7 +68,7 @@ Every phase in section 4 uses the same fields:
 |---|---|---|---|---|---|
 | 0 | Global design foundation | `COMPLETE` | — | — | None |
 | 1 | Marketing homepage | `COMPLETE` | 0 (marketing scope) | — | None |
-| 2 | Authentication | `NOT STARTED` | 0 | OD-4, ND-4 | None |
+| 2 | Authentication | `IN PROGRESS` (kickoff plan awaiting review) | 0 | — (OD-4, ND-4 Decided) | None |
 | 3 | Onboarding | `NOT STARTED` | 0, 2 | OD-11, ND-5, ND-6 | None |
 | 4 | Journey generation | `NOT STARTED` | 3 | OD-8 | Stream labels only, if approved |
 | 5 | Today | `NOT STARTED` | 0, 4 | OD-3, OD-9, ND-7 | None |
@@ -518,7 +518,7 @@ Primitives meet 44px targets. Sheet behaviour verified at 390px. Inputs don't tr
 
 ## PHASE 2 — AUTHENTICATION
 
-**Status:** `NOT STARTED`
+**Status:** `IN PROGRESS`. OD-4 and ND-4 were decided on 2026-09-23; the kickoff plan (W2) awaits Mo's review before implementation.
 
 **Source:** BP §13, §41–42, §47, §49 (Phase 2), OD-4 · VDS §10–12, §16, §26, §29
 
@@ -544,6 +544,8 @@ Primitives meet 44px targets. Sheet behaviour verified at 390px. Inputs don't tr
 * **ND-4: how a chosen pathway survives navigation to an auth route.** Options include a URL parameter (for example `/signup?pathway=<id>`), the existing `achivii_draft_goal` localStorage key, or both. The decision also covers:
   * whether the modal stays for in-context moments (for example clicking a pathway);
   * the redirect rules after auth: no goal → onboarding; active goal → Today; an explicit `?next=` path honoured only if it's internal.
+
+**Decided 2026-09-23:** OD-4 **A** (routes only; the modal is retired) and ND-4 **A** (`/signup?pathway=<slug>`, cleared once consumed; the redirect rules above). See `docs/decisions.md`.
 
 ### In scope
 
@@ -1574,7 +1576,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | OD-1 | Backend scope per phase. Proposed rule: only named, approved allowances (adopted as rule 3.2; D-11 in `decisions.md`). The allowances are split into OD-1a weekly test results, OD-1b goal completion and OD-1c custom-journey entitlement. | Rule adopted; the allowances are open | 7, 9, 10 |
 | OD-2 | 90 vs 84 days: what fills days 85–90 | Open | 6 (also 5 copy, 9) |
 | OD-3 | Which dashboard becomes Today | Open | 5 |
-| OD-4 | Phase 2 route changes (`/login`, `/signup`) | Open | 2 |
+| OD-4 | Phase 2 route changes (`/login`, `/signup`) | **Decided (A):** routes only, modal retired | 2 |
 | OD-5 | Mobile in every phase | Adopted (3.7) | All |
 | OD-6 | Rewrite `Design.md` | Done in Phase 0 (M0.10) | 0 |
 | OD-7 | The Journey handles 2–4 method-named phases | Constraint adopted; design open | 6 |
@@ -1591,7 +1593,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ND-1 | Token migration strategy — **Decided (A):** role names canonical, unused legacy tokens deleted, marketing renamed | 0 |
 | ND-2 | Primitive strategy — **Decided (B):** Radix headless for the stateful parts, hand-built for the rest | 0 |
 | ND-3 | Frontend tooling — **Decided (A, gradual):** ESLint + Vitest in Phase 0, Playwright in Phase 2, payload test in Phase 3 | 0, 2, 3 |
-| ND-4 | How a chosen pathway survives navigation to auth routes; modal retained or retired; post-auth redirect rules | 2 |
+| ND-4 | How a chosen pathway survives navigation to auth routes; modal retained or retired; post-auth redirect rules — **Decided (A):** `/signup?pathway=<slug>`, cleared once used; no goal → onboarding, active goal → Today, internal `?next=` only | 2 |
 | ND-5 | Pathway display copy: plain-language rewrite and where display copy lives, without changing preset matching | 3 |
 | ND-6 | The free custom-goal entry in onboarding before Phase 10 | 3 |
 | ND-7 | Application shell: desktop navigation form, mobile navigation form, and which entries appear before their pages exist | 5 |
@@ -1622,6 +1624,13 @@ This register is here so every phase can see what blocks it. The decisions thems
 | Low-resolution brand images; per-pathway photos off-style | VDS note 8 | Phase 12 |
 | No Playwright smoke tests yet; no onboarding payload test yet | ND-3 | Phase 2, Phase 3 |
 | Test account in the local development database | Phase 1 validation | Housekeeping |
+| No inverse variants for `Button`, `Badge`, `StepMarker`, fields or choice controls; light surfaces hold text and `TextLink` only | Phase 0 review | First phase needing a control on a light surface |
+| Focus rings can be clipped by `overflow` on tab lists and dialog edges | Phase 0 review | Phase 2 |
+| No automated accessibility check (for example `vitest-axe`) | Phase 0 review | Phase 2 |
+| `Design.md` gaps (dialog initial focus, `Spinner`, `ChoiceGroup` columns, milestone colour, navigation rule vs ND-7, logs/table/code rules without primitives) | Phase 0 review | Next `Design.md` pass |
+| Type-scale minimums below some VDS ranges; micro tracking baked in | Phase 0 review | Phase 2 review |
+| `--duration-reveal` unused; glass has no mobile blur guard | Phase 0 review | Phase 12; first phase using glass |
+| `StaircaseScene` literal hex and `hover:bg-white`; `marketing/Button` duplicates `ui/Button`; `vite` `dedupe` masks a broken install | Phase 0 review | Phase 12; housekeeping |
 
 ---
 
@@ -1671,3 +1680,4 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-23 | Phase 0 milestones M0.2–M0.11 delivered; status awaits Mo's review. OD-6 and OD-12 done. Lint and test commands added to 3.11, with the lint baseline. "What shipped", evidence and carry-overs drafted. |
 | 2026-09-23 | Phase 0 review fixes applied (accessibility, light surface, states, evidence, copy). Evidence updated (41 tests, signed-in spot-check, browser keyboard checks). Unselected review items added as carry-overs. Phase 1's token-rename carry-over marked done. Status still awaits Mo's review. |
 | 2026-09-23 | Phase 0 accepted by Mo: `COMPLETE`. |
+| 2026-09-23 | Phase 0's review carry-overs added to section 6. OD-4 and ND-4 Decided (both A); Phase 2 `IN PROGRESS` pending its kickoff plan. |

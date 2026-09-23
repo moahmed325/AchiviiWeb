@@ -117,7 +117,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | OD-1c | Server-side entitlement for Custom Journeys | Architecture | Open | 10 |
 | OD-2 | 90 vs 84 days | Product | Proposed | 5, 6, 9 |
 | OD-3 | Which dashboard becomes Today | Architecture | Proposed | 5 |
-| OD-4 | Dedicated `/login` and `/signup` routes | Architecture | Proposed | 2 |
+| OD-4 | Dedicated `/login` and `/signup` routes | Architecture | Decided (A) | 2 |
 | OD-5 | Mobile in every phase | Process | Decided (see D-12) | All |
 | OD-6 | Rewrite `Design.md` | Design | Decided (see D-6) | 0 |
 | OD-7 | The Journey supports 2–4 method-named phases | Design | Decided | 6 |
@@ -129,7 +129,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-1 | Token migration strategy | Architecture | Decided | 0 |
 | ND-2 | Primitive strategy | Technology | Decided | 0 |
 | ND-3 | Frontend verification tooling | Technology | Decided | 0, 2, 3 |
-| ND-4 | Pathway handoff and redirects with auth routes | Architecture | Proposed | 2 |
+| ND-4 | Pathway handoff and redirects with auth routes | Architecture | Decided (A) | 2 |
 | ND-5 | Pathway display copy | Product | Proposed | 3 |
 | ND-6 | Free custom-goal entry before Phase 10 | Product | Proposed | 3 |
 | ND-7 | Application shell and navigation | Design | Proposed | 5 |
@@ -741,11 +741,11 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided |
 | Category | Architecture |
 | Needed by | 2 |
 | Raised | BP §49 (Phase 2) and Open Decision 4 |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at the Phase 2 gate |
 
 **Context.** Auth is a globally mounted modal (`AuthModal.tsx`) opened with `openAuthModal`. BP §49 says to move away from modal-dependent architecture "where appropriate". Routes affect `ProtectedRoute` and the pathway handoff (R-16, D-19).
 
@@ -765,7 +765,7 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 **Recommendation.** **A.** It is the cleanest architecture, and the handoff is solved properly by ND-4 rather than by keeping state in memory.
 
-**Decision.** —
+**Decision.** **A — routes only.** Sign-up and sign-in move to `/signup` and `/login`, and `AuthModal` is retired. Every `openAuthModal` call site becomes a link to the matching route.
 
 **Consequences.** If A: Phase 2 updates `App.tsx` routes, `ProtectedRoute`, and every `openAuthModal` call site (landing CTAs, pathway rows, Navbar). R-1, R-3 and R-16 are regression-checked.
 
@@ -1113,11 +1113,11 @@ The feared name collision is therefore theoretical: no screen reads the legacy `
 
 | Field | Value |
 |---|---|
-| Status | Proposed — depends on OD-4 |
+| Status | Decided |
 | Category | Architecture |
 | Needed by | 2 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 2 |
-| Decided | — |
+| Decided | 2026-09-23 — Mo, at the Phase 2 gate |
 
 **Context.** D-19's handoff lives in `Home.tsx` component state and would be lost when navigating to `/signup`. `localStorage['achivii_draft_goal']` already exists for carrying a draft into onboarding.
 
@@ -1141,7 +1141,12 @@ The feared name collision is therefore theoretical: no screen reads the legacy `
 
 **Recommendation.** **A.** Retire the modal (OD-4 option A). Add preset slugs to the shared pathway data. Clear the parameter once it's consumed.
 
-**Decision.** —
+**Decision.** **A — URL parameter, persisted on success.** Pathway CTAs link to `/signup?pathway=<slug>`, and the auth screen names the chosen pathway. The modal is retired (OD-4 A), so there is no in-context modal. After auth:
+* no active goal → `/onboarding` with the preset, as D-19 does today;
+* an active goal → Today, with a quiet note if a pathway was chosen, and the existing goal is left alone;
+* `?next=` is honoured only for internal paths (a single leading `/`, never `//` or a scheme).
+
+The parameter is cleared once consumed. Slugs are added to the frontend pathway data only; preset matching (`findPresetForGoal`) is unchanged.
 
 **Consequences.** Phase 2 milestone M2.4 is defined by this entry. Phase 3's pathway library uses the same slugs.
 
@@ -1391,3 +1396,4 @@ None yet.
 | 2026-09-23 | Phase 0 gate: ND-1 → A, ND-2 → B, ND-3 → A (gradual), all Decided by Mo. D-7 (Geist) confirmed for the whole app. ND-1 context updated with the kickoff measurement. |
 | 2026-09-23 | Phase 0 delivered. Implementation notes added to D-6, ND-1, ND-2 and ND-3. Packages added in Phase 0 logged under D-8. |
 | 2026-09-23 | Phase 0 review fixes: `border-control` and `--focus-ring-color` noted under ND-1, `TextLink` under ND-2, test count updated under ND-3. |
+| 2026-09-23 | OD-4 Decided (A, routes only; modal retired) and ND-4 Decided (A, URL parameter with slugs; redirect rules) at the Phase 2 gate. |
