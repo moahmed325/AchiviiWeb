@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-23 · Current position: **Phase 1 complete; Phase 0 delivered and awaiting review; Phase 2 not started** (it needs OD-4 and ND-4).
+Last updated: 2026-09-23 · Current position: **Phases 0 and 1 complete; Phase 2 not started** (it needs OD-4 and ND-4).
 
 ---
 
@@ -66,7 +66,7 @@ Every phase in section 4 uses the same fields:
 
 | # | Phase | Status | Depends on | Decisions blocking start | Backend allowance |
 |---|---|---|---|---|---|
-| 0 | Global design foundation | `IN PROGRESS` (all milestones delivered; awaiting Mo's review) | — | — | None |
+| 0 | Global design foundation | `COMPLETE` | — | — | None |
 | 1 | Marketing homepage | `COMPLETE` | 0 (marketing scope) | — | None |
 | 2 | Authentication | `NOT STARTED` | 0 | OD-4, ND-4 | None |
 | 3 | Onboarding | `NOT STARTED` | 0, 2 | OD-11, ND-5, ND-6 | None |
@@ -282,7 +282,7 @@ Phase 0 added ESLint and Vitest with Testing Library (ND-3). Playwright smoke te
 
 ## PHASE 0 — GLOBAL DESIGN FOUNDATION
 
-**Status:** `IN PROGRESS`. All milestones were delivered on 2026-09-23; it becomes `COMPLETE` when Mo accepts the phase report (W12). The marketing-scoped slice shipped with Phase 1. "Current state" below is the kickoff snapshot; "What shipped" records the result.
+**Status:** `COMPLETE` (2026-09-23; Mo accepted the phase report after the review fixes). The marketing-scoped slice shipped with Phase 1. "Current state" below is the kickoff snapshot; "What shipped" records the result.
 
 **Source:** BP §35, §38, §39, §49 (Phase 0), OD-6, OD-10, OD-12 · VDS §2–5, §10–12, §19, §23–25, §29, notes 1–6, 9–11
 
@@ -1670,3 +1670,4 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-23 | Phase 0 gate cleared: ND-1, ND-2 and ND-3 Decided (M0.2). |
 | 2026-09-23 | Phase 0 milestones M0.2–M0.11 delivered; status awaits Mo's review. OD-6 and OD-12 done. Lint and test commands added to 3.11, with the lint baseline. "What shipped", evidence and carry-overs drafted. |
 | 2026-09-23 | Phase 0 review fixes applied (accessibility, light surface, states, evidence, copy). Evidence updated (41 tests, signed-in spot-check, browser keyboard checks). Unselected review items added as carry-overs. Phase 1's token-rename carry-over marked done. Status still awaits Mo's review. |
+| 2026-09-23 | Phase 0 accepted by Mo: `COMPLETE`. |
