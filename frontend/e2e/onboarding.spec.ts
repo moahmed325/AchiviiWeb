@@ -280,7 +280,8 @@ test.describe('onboarding entry and failure', () => {
     });
     await signIn(page);
     await page.goto('/');
-    await page.getByRole('button', { name: /Explore Goals/ }).locator('visible=true').first().click();
+    // M5.3: Today no longer has "Explore Goals (10)"; the shell's Pathways entry opens the same explorer.
+    await page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Pathways' }).locator('visible=true').first().click();
     const explorer = page.getByRole('dialog', { name: 'Explore pathways' });
     await explorer.getByRole('tab', { name: 'Fitness' }).click();
     await chooseOption(page, PRESET_GOAL);

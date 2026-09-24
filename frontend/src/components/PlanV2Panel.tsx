@@ -2,20 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Flag, Map as MapIcon, Target } from 'lucide-react';
 import type { DailyTask, GoalRoadmap, RoadmapWeek, WeekTarget } from '../types';
-
-function metricRepeatsUnit(metric: string, unit: string): boolean {
-  const m = metric.toLowerCase().trim();
-  const u = unit.toLowerCase().trim();
-  const initials = m.split(/\s+/).map((word) => word[0]).join('');
-  return !m || m === u || m.includes(u) || u.includes(m) || initials === u.replace(/[^a-z]/g, '');
-}
-
-export function formatTarget(target: WeekTarget): string {
-  if (target.kind === 'deliverable') return target.description;
-  const amount = `${Math.round(target.value * 100) / 100} ${target.unit}`;
-  const suffix = target.direction === 'lower_is_better' ? ' or less' : '';
-  return metricRepeatsUnit(target.metric, target.unit) ? `${amount}${suffix}` : `${target.metric}: ${amount}${suffix}`;
-}
+import { formatPassIf, formatTarget } from '../lib/formatters';
 
 function amount(target: WeekTarget | null | undefined, value: number | null): string {
   if (!target || target.kind !== 'number' || value === null) return '';
@@ -62,7 +49,7 @@ export const PlanV2Panel: React.FC<PlanV2PanelProps> = ({ roadmap, weeks, curren
           {week?.test && (
             <p className="text-xs text-neutral-400 leading-relaxed">
               <span className="text-neutral-200 font-medium">Test{testDay ? ` on ${testDay.dayOfWeek}` : ''}:</span>{' '}
-              {week.test.instructions} <span className="text-neutral-500">Pass if {week.test.passIf}.</span>
+              {week.test.instructions} <span className="text-neutral-500">{formatPassIf(week.test.passIf)}</span>
             </p>
           )}
         </div>

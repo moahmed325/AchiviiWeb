@@ -24,6 +24,7 @@ const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('ac
 const draftGoal = (page: Page) => page.evaluate(() => localStorage.getItem('achivii_draft_goal'));
 const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
 const strip = (page: Page) => page.getByRole('region', { name: 'Pathways', exact: true });
+const shellPathways = (page: Page) => page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Pathways' });
 
 let consoleErrors: string[] = [];
 
@@ -166,7 +167,8 @@ test.describe('pathway library without a goal', () => {
 });
 
 test.describe('pathway library with a goal', () => {
-  test('a pathway on Today opens the explorer on it, and switching keeps the current goal until setup finishes', async ({ page }) => {
+  // M5.3: the strip left Today; the shell's Pathways entry is how Today reaches the explorer. The strip stays on /dashboard.
+  test('Pathways from Today opens the explorer, and switching keeps the current goal until setup finishes', async ({ page }) => {
     const calls = await mockApi(page, { goal: GOAL, clarify: baseline.presetClarify });
     const deletes: string[] = [];
     page.on('request', (request) => {
@@ -175,21 +177,23 @@ test.describe('pathway library with a goal', () => {
     await signIn(page);
     await page.goto('/');
 
-    await expect(strip(page).getByRole('button', { name: CURRENT })).toHaveAccessibleDescription(/^Current /);
-    const tile = strip(page).getByRole('button', { name: PRESET_GOAL });
-    await expect(tile).not.toHaveAccessibleDescription(/Current/);
-    await tile.click();
+    await expect(strip(page)).toHaveCount(0);
+    const opener = shellPathways(page);
+    await opener.click();
 
     const dialog = explorer(page);
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('tab', { name: 'Fitness' })).toHaveAttribute('aria-selected', 'true');
+    await dialog.getByRole('tab', { name: 'Fitness' }).click();
+    await chooseOption(page, PRESET_GOAL);
     await expect(dialog.getByRole('radio', { name: PRESET_GOAL })).toBeChecked();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
-    await expect(tile).toBeFocused();
+    await expect(opener).toBeFocused();
     expect(await draftGoal(page)).toBeNull();
 
-    await tile.click();
+    await opener.click();
+    await dialog.getByRole('tab', { name: 'Fitness' }).click();
+    await chooseOption(page, PRESET_GOAL);
     await dialog.getByRole('button', { name: /Switch to this pathway/ }).click();
     await expect(page).toHaveURL('/onboarding');
     await expectStep(page, 'starting');
@@ -201,17 +205,17 @@ test.describe('pathway library with a goal', () => {
 
     await page.goBack();
     await expect(page).toHaveURL('/');
-    await expect(strip(page).getByRole('button', { name: CURRENT })).toHaveAccessibleDescription(/^Current /);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(CURRENT);
     await page.goForward();
     await expect(page).toHaveURL('/onboarding');
     await expectStep(page, 'starting');
   });
 
-  test('"Explore all" opens on the current pathway, where the action restarts it', async ({ page }) => {
+  test('Pathways from Today opens on the current pathway, where the action restarts it', async ({ page }) => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/');
-    const exploreAll = strip(page).getByRole('button', { name: 'Explore all' });
+    const exploreAll = shellPathways(page);
     await exploreAll.click();
     const dialog = explorer(page);
     await expect(dialog.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
@@ -225,10 +229,12 @@ test.describe('pathway library with a goal', () => {
     await expect(page).toHaveURL('/');
   });
 
-  test('the strip and the explorer fit small screens, work by touch and pass axe', async ({ page }) => {
+  test('the strip (on the full day view) and the explorer fit small screens, work by touch and pass axe [dashboard errors expected]', async ({
+    page,
+  }) => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
-    await page.goto('/');
+    await page.goto('/dashboard');
     await expect(strip(page)).toBeVisible();
     for (const width of [390, 360]) {
       await page.setViewportSize({ width, height: 800 });

@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-23 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1 and M5.2 done.** M5.3 has not started. The ND-7 shell is in place; no Today UI has been implemented and `/dashboard` is not redirected.
+Last updated: 2026-09-24 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3 and M5.4 done.** M5.5 has not started. Today is live at `/` with progressive reveal; `/dashboard` is not redirected.
 
 ---
 
@@ -2066,7 +2066,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
 
 ## PHASE 5 — TODAY
 
-**Status:** `IN PROGRESS` (M5.1 and M5.2 done, 2026-09-23). M5.3 has not started.
+**Status:** `IN PROGRESS` (M5.1 and M5.2 done 2026-09-23; M5.3 and M5.4 done 2026-09-24). M5.5 has not started.
 
 **Source:** BP §08–09, §15–18, §23, §26–27, §31–32, §41, §43–46, §48, OD-3, OD-9, ND-7, ND-18 · VDS §9, §14, §20, §24–26, §28
 
@@ -2078,7 +2078,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
 
 * **Generation handoff (from Phase 4):** on `done`, `OnboardingPage` `handleGoalCreated` calls `setActiveGoal(goal)` then `navigate('/dashboard')`. `ProtectedRoute` also sends a signed-in user who has an active goal from `/onboarding` to `<Navigate to="/dashboard" replace />`, unless the router state is an explicit goal selection (`presetGoal`, `draftGoal`, `switchGoal`, `customGoal` or `isPreset`). Every Build checks `GET /api/goal/active` before create. `OnboardingPage` passes `currentGoalId={goalLoadFailed ? null : activeGoal?.id}`; `null` skips that check (the goal-load error state is this phase's). There is no Today screen, and generation does not pretend to land on one. Post-auth (`resolvePostAuthDestination`, ND-4) lands an active goal on `/`, not `/dashboard`.
 * **Two dashboards (line counts at the Phase 5 kickoff, 2026-09-23):**
-  * `/` signed-in: the simplified dashboard inside `Home.tsx` (586 lines, including the signed-out landing branch).
+  * `/` signed-in: the simplified dashboard inside `Home.tsx` (586 lines, including the signed-out landing branch). **Since M5.3:** `components/today/Today.tsx` for a signed-in user with a goal, from `lib/today.ts` and `useTaskActions`; `Home.tsx` keeps the landing, the no-goal pathway invitation and the loading skeleton.
   * `/dashboard`: `DashboardPage.tsx` (26 lines) → `ExecutionDashboard.tsx` (1,228 lines).
   * The shell's "Today" points to `/` and is marked current on both `/` and `/dashboard` (OD-3; the Navbar did the same until M5.2).
 * **"Today" is a UTC date** (`new Date().toISOString().split('T')[0]`) in both dashboards. `lib/dateUtils.ts` is unused by either. Tasks come from `currentWeek` only. Selection is the chosen id, else that UTC date, else the first pending task, else the first task. The day counter is calendar days until `targetDate`, clamped at 1–90.
@@ -2093,7 +2093,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
   * `SaaSBuilderModal.tsx` (758 lines). Imported by nobody. Phase 12 owns it (section 6).
 * **App navigation:** at the kickoff, `Navbar.tsx` (270 lines) plus a footer that was only the copyright line, rendered in `App.tsx` for every screen that is not chromeless. **Since M5.2:** `components/app/AppShell.tsx` (ND-7). The rail (lg and up) or the bottom bar (below lg) on signed-in screens; a minimal top bar on onboarding and generation; nothing on the landing, auth and `/__ui` screens. `Navbar.tsx` and the footer are removed.
 * **Task data (`DailyTask`):** matches the Prisma model. `title`, `detailedSteps` (JSON string of steps: instructions, output, doneWhen/passMark, focusCue, pitfall, timing, resource fields), `implementationIntention`, `durationMinutes`, `slotTime`, `whyToday`, `minimumVersion` (the 10-minute step), `isRestDay`, `isKeySession`, `isTestDay`, `status` (`pending`, `completed`, `skipped`; no UI sets `skipped`), `completedAt`, `notes`, `resourceTitle`, `resourceUrl`, `resourceType`, `resourceWhy`.
-* **Writes:** `PATCH /api/goal/tasks/:taskId` accepts `status`, `notes` and `slotTime`. Both dashboards send only `status` and/or `notes`. The server sets `completedAt` when status becomes `completed` and clears it when status returns to `pending`. `Home`'s `handleSaveNotes` does not update the in-memory goal, so a later completion from `ExecutionDashboard` can send `notes: null` and clear a note that was saved on `/`.
+* **Writes:** `PATCH /api/goal/tasks/:taskId` accepts `status`, `notes` and `slotTime`. Both dashboards send only `status` and/or `notes`. The server sets `completedAt` when status becomes `completed` and clears it when status returns to `pending`. `Home`'s `handleSaveNotes` did not update the in-memory goal, so a later completion from `ExecutionDashboard` could send `notes: null` and clear a note saved on `/`. Since M5.3, every Today write puts the server's task into `GoalContext`; the dashboard's own note save still does not (section 6).
 * **Goal load:** a failed fetch sets `activeGoal` to null and `goalLoadFailed` to true. `refreshGoal` is never called. `Home` does not read `goalLoadFailed`, so a failed fetch looks like no goal. `ProtectedRoute` with `requireGoal` sends any missing goal to `/onboarding` and does not check `goalLoadFailed`.
 * **Weekly review:** only the Week Review button on `/dashboard`, and it is always available. `POST /api/goal/weeks/:weekNumber/review`. On a v2 plan, a failed next-week write returns 503 ("Couldn't write next week right now. This week is unchanged; please try again.") before any write.
 * **Reset and switch:** "Reset 90-Day Plan" (the Navbar until M5.2; the shell's Account menu since, with a Dialog confirm instead of `window.confirm`) calls `DELETE /api/goal/active` (a real delete) and then opens `/onboarding`. "Switch to this pathway" in the explorer does not delete; the current goal is archived only inside a successful save.
@@ -2175,10 +2175,10 @@ None.
 |---|---|
 | M5.1 | **Done** (2026-09-23). OD-3, OD-9, ND-7 and ND-18 decided. State matrix written. The mobile generation-reload spec waits on the create request. The slow line keeps counting after a slow event |
 | M5.2 | **Done** (2026-09-23). Application shell and navigation (ND-7): the rail on desktop, the bottom bar on mobile, the onboarding top bar, Account with the Reset confirm, the offline chip, the skip link and one `main#main` per screen. `Navbar.tsx` and the footer removed |
-| M5.3 | Today hierarchy for the normal practice day, built from `ExecutionDashboard`'s task data. Heading is `rawGoal` (ND-18). From here, every Today write puts the server's result back into `GoalContext` |
-| M5.4 | Daily session with progressive reveal (every field preserved). The 10-minute version is a reveal the user opens. The extra period after `passIf` is fixed |
+| M5.3 | **Done** (2026-09-24). Today at `/` for the normal practice day, from `lib/today.ts` (task choice, day counter, UTC date rule) and one write path (`useTaskActions`) that puts the server's task into `GoalContext`. Heading is `rawGoal` (ND-18). The note wipe from `/` is closed. "Explore Goals (10)" and the strip left Today |
+| M5.4 | **Done** (2026-09-24). Daily session with progressive reveal (every field preserved). The 10-minute version is a reveal the user opens. The extra period after `passIf` is fixed |
 | M5.5 | Focus mode redesigned; timer behaviour identical. The reflection is included in the completion write |
-| M5.6 | Completion interaction and notes. The Home note wipe is closed here |
+| M5.6 | Completion interaction and notes. The wipe from `/` is already closed in M5.3; this milestone designs how completion and notes look |
 | M5.7 | Every remaining OD-9 state, including goal-load error and a failed offline write that is visible |
 | M5.8 | `/dashboard` redirects to `/`, keeping query and hash. `done` and `ProtectedRoute` change in this same milestone. What M5.3–M5.6 did not already extract is removed |
 | M5.9 | Regression and phase report |
@@ -2497,6 +2497,336 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
 9. Not started
    M5.3 has NOT started.
    No Today UI was implemented. /dashboard was not redirected.
+   Nothing was committed.
+```
+
+### M5.2 review outcomes (Mo, 2026-09-24)
+
+* M5.2 accepted.
+* Account stays in the desktop rail and in the mobile bottom bar.
+* On onboarding and generation, Account shows only the email and Sign out: no goal line and no Reset.
+
+### M5.3 report — Today for the practice day (2026-09-24)
+
+```text
+1. Outcome
+   A signed-in user with a goal opens / and sees one Today, in this order:
+   the goal they chose, Day N / 90, today's step, its duration, Start, a
+   glance at the week, then Roadmap and the full day view. The heading is
+   rawGoal. The stored outcome sits beneath it exactly as stored.
+
+2. What changed
+   Home's signed-in branch with a goal is Today. Loading is TodaySkeleton.
+   No goal is still the pathway invitation. Signed-out is still the landing.
+   The step shows its real title, "N min" and "· at {slotTime}" when the task
+   has one, Start (opens the existing FocusSessionModal) and Mark complete /
+   Mark not done. The steps (number, title, duration, instructions, focus
+   cue) and the notes (blur and an explicit Save) sit behind plain reveals.
+   The week glance is the seven real tasks: done, rest, today, not done.
+   Choosing a day shows that day's step. The count is practice days only.
+   A failed write says "That didn't save. Try again." and leaves the step.
+   Every write sends updateDailyTask and, on success, puts the server's task
+   into GoalContext.
+
+   Date rule, unchanged. DailyTask.date is a UTC calendar date:
+   toISOString().split('T')[0] in backend/src/routes/goal.ts:215 (v1 save)
+   and :691 (the week-review writer), and backend/src/lib/ai/weekPlan.ts:52.
+   dayOfWeek uses the server's local clock (weekPlan.ts:53,
+   goalDecomposer.ts:984). user.timezone is saved at signup and read by no
+   date writer. Today compares UTC dates, the calendar the dates are written
+   in. Nothing in the backend changed. The mismatch is a section 6 row,
+   owner unassigned.
+
+   What every non-practice OD-9 state shows now:
+   - Loading: TodaySkeleton. No main while it shows (the same gap the shell
+     already had for the spinner).
+   - No active goal: the pathway invitation, unchanged.
+   - Goal-load error: still that invitation, because Home only checks that
+     there is no goal. The distinct error and retry are M5.7.
+   - Rest day: the real title, the duration, Start, and a "Rest day" badge.
+     The week's cell says "Rest". No rest sentence and no next-step callout.
+   - Key session: the same hierarchy plus a "Key session" badge.
+   - Test day: the same hierarchy plus a "Test day" badge. No pass mark and
+     no score.
+   - Short on time: the same as a practice day. minimumVersion is not
+     offered (M5.4).
+   - Done: a "Done" badge and "Mark not done". No lighting and no next-step
+     preview (M5.6).
+   - Not completed yesterday: the same as a practice day. No recovery
+     sentence (M5.7).
+   - Review due: no emphasis on Today. The caption points at the full day
+     view, which still holds the week review (M5.7).
+   - After week 12: the day number stays at 90. A week with no task says
+     "No step is planned for this week yet." No final-stretch copy.
+   - Completed goal: no branch. The server only uses active and archived, so
+     there is nothing distinct to show.
+   - Offline: the chip is still the one-time health check. A failed write
+     shows the sentence above and changes nothing. The rest of the offline
+     treatment is M5.7.
+
+   Removed from Today, and where each remains:
+   - "Explore Goals (10)": the shell's Pathways entry opens the same
+     explorer. onboarding.spec.ts and pathways.spec.ts open it from there.
+   - The pathway strip: gone from Today. ExecutionDashboard on /dashboard
+     still has it. The small-screen strip test now opens /dashboard.
+   Kept on Today: the steps reveal, notes, the week glance, Start (focus
+   mode), complete, slot time, the pathway notice ("from Pathways", tokens),
+   Roadmap → /roadmap, and "Open full day view" → /dashboard.
+
+3. Files changed / created / removed
+   Created:
+   - frontend/src/lib/today.ts, today.test.ts
+   - frontend/src/components/today/Today.tsx, Today.test.tsx,
+     useTaskActions.ts, useTaskActions.test.tsx
+   - frontend/e2e/today.spec.ts
+   Changed:
+   - frontend/src/pages/Home.tsx (signed-in with a goal renders Today)
+   - frontend/e2e/mockApi.ts (task writes mutate the saved goal, so a reload
+     sees them; taskUpdateStatus)
+   - frontend/e2e/shell.spec.ts (Start is the exact name "Start")
+   - frontend/e2e/onboarding.spec.ts (the explorer opens from the shell)
+   - frontend/e2e/pathways.spec.ts (three tests: the explorer from the shell;
+     the strip test on /dashboard)
+   - Design.md (§6 Today; later sections renumbered), docs/decisions.md
+     (ND-18 implemented), docs/phases.md
+   Removed: nothing.
+   ExecutionDashboard, FocusSessionModal, GoalContext, the shell, the
+   backend and the M3.1 fixtures were not changed. No new dependency.
+
+4. Functionality preserved
+   R-8: Start opens focus mode for this step (today.spec.ts). The modal was
+   not changed; the reflection-on-Enter bug stays with M5.5. A failed focus
+   completion is recorded on Today and does not throw, because the modal
+   swallows a throw and would otherwise look saved.
+   R-9: Mark complete writes status and the current note, shows the server
+   task, and is still done after a reload. Mark not done returns it to
+   pending. Both projects.
+   R-10: a note saved on Today is in the completion PATCH and is still in
+   the field after a reload. A note saved on Today is still in the PATCH
+   when the completion happens on /dashboard (the kickoff wipe). The
+   dashboard's own note save still does not update GoalContext (section 6).
+   R-11: the week glance shows the week's real statuses and selecting a day
+   shows that step.
+   R-12: the week review stays on /dashboard, reached by "Open full day view".
+   R-15 and R-17: the shell is unchanged.
+   done still opens /dashboard. /dashboard was not redirected.
+
+5. Decisions applied
+   OD-3: Today is at / for a signed-in user with a goal. /dashboard is
+   untouched and Today stays current on it until M5.8.
+   OD-9: the practice day is the hierarchy above. Every other row renders
+   the real title and the real status, or the existing loading and no-goal
+   screens, and does not invent copy. The rows that wait are named in
+   point 2.
+   ND-18: the h1 is rawGoal. "90-day outcome:" plus clarifiedOutcome, as
+   stored, never through formatGoalTitle. Logged as implemented in
+   docs/decisions.md.
+
+6. Validation evidence
+   Frontend tsc --noEmit: clean.
+   ESLint on the changed and new files: clean. Full lint: 29 errors /
+   3 warnings (was 30 / 4). Home's signed-in branch took its errors with it.
+   RoadmapPage's pre-existing hook errors are unchanged.
+   Frontend Vitest: 215 passed / 27 files (was 193 / 24).
+   Build: main JS 569.38 KB (169.01 KB gzipped), CSS 99.83 KB (17.57 KB
+   gzipped), against 572.62 / 100.20 KB. The chunk warning remains.
+   Full mocked Playwright, both projects: 225 passed, 9 skipped, 0 failed
+   (14.7 min). The skips are the same nine as M5.2.
+   today.spec.ts, both projects: hierarchy order, the rawGoal heading, Day
+   N / 90, Start opens focus, complete survives a reload, a note survives
+   complete and a reload, the cross-screen wipe, a failed write, the steps
+   reveal, the week glance, Roadmap and the full day view, the empty week.
+   Layout: 1440, 390 and 360, overflow at most 1 px, every visible control
+   in main at least 44 px, axe (WCAG 2.2 AA) empty, Start above the bottom
+   bar at 390×844, keyboard from the skip link to Start to focus mode,
+   reduced motion with no visible animation.
+   Browser on the kickoff account
+   (phase5-kickoff-1790182044713@example.com, no task writes): `/` is the
+   new Today. One h1: "Run a 10K Under 50 Minutes". Beneath it, as stored:
+   "90-day outcome: 49.98". Day 1 of 90. Week 1 with the stored phase and
+   theme. Today's step is already Done from the kickoff (Wednesday,
+   "Establish easy base pace on outdoor asphalt", 30 min · at 19:30,
+   "Mark not done"). The week glance: 2 of 5 practice days done; Saturday
+   and Tuesday are Rest. Choosing Friday shows "Friday's step" and that
+   day's title; choosing Saturday shows "Rest day" and a Rest day badge;
+   choosing Wednesday again restores today. No "Explore Goals (10)", no
+   strip. Rail at 1440 and 1024; bottom bar at 390×844 and 360×740. Overflow
+   0 px. Start is in the first screen and above the bar at 390 and 360
+   (height 48 px). No visible control in main is under 44 px. Console: no
+   Vite overlay; `/api/health`, `/api/auth/me` and `/api/goal/active` all
+   200. This webview does not move focus on Tab without OS focus, so the
+   keyboard pass is from Playwright (skip link, Start, focus mode). No
+   complete, un-complete or note was saved on this account.
+   Backend: not touched.
+
+7. Carry-overs
+   M5.4: the progressive reveal (why, done when, pitfall, resource, the
+   10-minute version) and the extra period after passIf.
+   M5.5: focus mode's look, and the reflection included in the write.
+   M5.6: completion lighting and the notes design. The wipe from / is
+   already closed.
+   M5.7: the remaining OD-9 states in point 2, including the goal-load
+   error and a failed write while offline.
+   M5.8: the /dashboard redirect, and the dashboard's own note save.
+   The UTC date mismatch (section 6) needs a backend allowance. Unassigned.
+
+8. Issues and risks
+   Near UTC midnight a user far from UTC sees the neighbouring day's task,
+   and a plan created then can label a date with the wrong weekday. Today
+   follows the dates as written.
+   A focus completion that fails is visible only after the modal closes,
+   because the modal does not surface the error.
+   Loading still has no main, so the skip link has no target for that moment.
+
+9. Not started
+   M5.4 has NOT started.
+   /dashboard was not redirected.
+   Nothing was committed.
+```
+
+### M5.4 report — Daily session with progressive reveal (2026-09-24)
+
+```text
+1. Outcome
+   Every session field from BP §31 that exists in the stored task is now
+   reachable on Today (/), revealed on demand rather than dumped into a wall
+   of copy. Nothing is removed; empty fields add zero chrome. whyToday appears
+   directly under the session title/duration without pushing Start below the
+   first screen at 390 × 844. Steps progressively reveal instructions, focus
+   cue, timing, output, passMark ("Done when: ..."), and step-level resources
+   (with external links and reasons, without YouTube embeds). Task-level
+   resource, implementation intention (when / where / action or raw), and the
+   10-minute version (OD-9 short on time) are distinct, closed-by-default
+   reveals. PlanV2Panel no longer duplicates terminal periods. Onward copy
+   accurately reflects what still lives only on /dashboard.
+
+2. What changed
+   - Today (frontend/src/components/today/Today.tsx):
+     - whyToday: rendered under duration when present; never uses fallback
+       copy; omitted if null or empty.
+     - How (the steps): "Show the N steps" expands each step card to show
+       instructions, focus cue, timing ("Timing: "), output ("Output: "),
+       passMark ("Done when: "), and step-level resource (title, link if valid
+       HTTP(S) URL, reason). Empty fields omit their labels completely.
+     - The 10-minute version: offered as a quiet reveal ("The 10-minute
+       version"), closed by default, rendered only when minimumVersion is
+       present. Reveals stored title, duration, instructions, and passMark.
+       No second Start button.
+     - Implementation intention: parsed using parseIntention; rendered only
+       when non-empty. Shows structured when/where/action grid or raw string.
+     - Resource: task-level reveal showing title, external link if valid URL,
+       badge type, and why reason. No YouTube iframes on Today (level 1 calm).
+     - Onward copy: updated from "The full day view shows why today matters,
+       pass marks, resources..." to "The full day view shows the week review,
+       plan panel and routine visualiser when your plan has them."
+   - PlanV2Panel (frontend/src/components/PlanV2Panel.tsx & lib/formatters.ts):
+     - Extracted and exported formatPassIf helper to test terminal
+       punctuation ([.!?]$) before appending a period.
+     - Unit tests added in PlanV2Panel.test.tsx.
+   - Tests:
+     - Today.test.tsx: 11 tests covering full session fixture, empty fixture,
+       raw implementation intention, and updated onward copy.
+     - today.spec.ts: 30 tests covering whyToday present/absent, detailed step
+       fields on demand, 10-minute version closed by default, layout at 1440,
+       390, 360 with whyToday set (Start above bar at 390×844), targets ≥ 44px,
+       and reduced motion.
+
+   Field availability on Today:
+
+| Field | On Today | How it is reached | Omitted when empty? |
+|---|---|---|---|
+| rawGoal | Yes | Page h1 (ND-18) | No (required) |
+| clarifiedOutcome | Yes | Under h1 as stored | Yes (omitted if empty) |
+| dayNumber | Yes | "Day N / 90" numeral | No (clamped 1–90) |
+| currentWeek / phase / theme | Yes | Beside day number | Yes (omits missing phase/theme) |
+| title | Yes | Step h2 | No |
+| durationMinutes / slotTime | Yes | Step duration line | Yes (slotTime omitted if empty) |
+| whyToday | Yes | Below duration | Yes (omitted if empty; no fallback) |
+| Start / Complete | Yes | Action buttons | No |
+| detailedSteps | Yes | "Show the N steps" reveal | Yes (hidden if 0 steps) |
+| step.instructions | Yes | Inside step card | Yes |
+| step.focusCue | Yes | Inside step card ("Focus: ") | Yes |
+| step.timing | Yes | Inside step card ("Timing: ") | Yes |
+| step.output | Yes | Inside step card ("Output: ") | Yes |
+| step.pitfallToAvoid | Yes | Inside step card ("Pitfall: ") | Yes |
+| step.passMark | Yes | Inside step card ("Done when: ") | Yes (no duplicate period) |
+| step.resourceTitle / Url / Why | Yes | Inside step card ("Resource: ") | Yes (no iframe embed) |
+| minimumVersion | Yes | "The 10-minute version" reveal | Yes (omitted if null) |
+| implementationIntention | Yes | "Implementation intention" reveal | Yes (omitted if empty) |
+| task.resourceTitle / Url / Type / Why | Yes | "Resource" reveal | Yes (omitted if empty) |
+| notes | Yes | "Notes" reveal | No |
+| weekGlance | Yes | 7-day row | Yes (omitted if 0 tasks) |
+| Roadmap link | Yes | Onward nav | No |
+| Full day view link | Yes | Onward nav | No |
+
+3. Files changed / created / removed
+   Created:
+   - frontend/src/components/PlanV2Panel.test.tsx
+   Changed:
+   - frontend/src/components/PlanV2Panel.tsx
+   - frontend/src/lib/formatters.ts
+   - frontend/src/pages/RoadmapPage.tsx (import formatTarget from lib/formatters)
+   - frontend/src/components/today/Today.tsx
+   - frontend/src/components/today/Today.test.tsx
+   - frontend/e2e/today.spec.ts
+   - Design.md (§6 Today)
+   - docs/phases.md (M5.4 report, milestone table, Section 6, change log)
+   Removed: nothing.
+   Backend and M3.1 fixtures were not changed. No new dependencies.
+
+4. Functionality preserved
+   R-8: Start remains primary action; focus session opens directly from Today.
+   R-9: Mark complete and Mark not done continue to write through useTaskActions
+   and update GoalContext.
+   R-10: Note saves and survives completion and reload.
+   R-11: Week glance displays 7 days; selecting a day displays that day's step
+   and its progressive reveals.
+   R-12: Full day view link opens /dashboard with updated explanatory copy.
+   R-15, R-17: Shell and navigation unchanged.
+   /dashboard was NOT redirected.
+
+5. Decisions applied
+   OD-3: Today remains at /; /dashboard remains untouched and unredirected.
+   OD-9: Short on time is an opt-in reveal ("The 10-minute version"), closed by
+   default, not forced, and not hidden. Shows stored minimumVersion data.
+   ND-18: Heading is rawGoal; outcome is clarifiedOutcome as stored.
+
+6. Validation evidence
+   Frontend tsc --noEmit: clean (0 errors).
+   ESLint on changed files: clean (0 errors, 0 warnings).
+   Full lint: 28 errors / 3 warnings (improved from 29 / 3 baseline by
+   resolving PlanV2Panel fast-refresh violation).
+   Frontend Vitest: 224 passed / 28 files (was 215 / 27).
+   Build: main JS 574.95 KB (170.28 KB gzipped), CSS 99.83 KB (17.57 KB
+   gzipped).
+   Full mocked Playwright: 229 passed, 9 skipped, 0 failed across desktop
+   and mobile (17.6 min).
+   today.spec.ts: 30 passed across desktop and mobile (54.6s).
+   Live browser test on kickoff account (phase5-kickoff-1790182044713@example.com,
+   no writes):
+   - whyToday visible on screen ("Locks in the 174-180 SPM cadence target...").
+   - 10-minute version offered closed by default ("The 10-minute version").
+   - Click opens to stored copy: "Short cadence jog", 10 min, instructions
+     and passMark ("Done when: Cadence target maintained for the full duration").
+   - Steps reveal expands to instructions and passMark.
+   - Start is above the bottom bar at 390 × 844.
+   - No writes performed (read-only).
+
+7. Carry-overs
+   M5.5: focus mode redesign (Enter-saves-before-text, reflection included
+   in completion write).
+   M5.6: completion lighting and notes redesign.
+   M5.7: remaining OD-9 states (rest day, test day, review due, goal-load error,
+   offline write failure).
+   M5.8: /dashboard redirect to /.
+
+8. Issues and risks
+   None new. Playwright driver download requires local cache; verified and
+   cleanly executed.
+
+9. Not started
+   M5.5 has NOT started.
+   /dashboard was not redirected.
    Nothing was committed.
 ```
 
@@ -3157,17 +3487,19 @@ This register is here so every phase can see what blocks it. The decisions thems
 | `/roadmap` overflows by 17 px at 390 and 47 px at 360 with an empty roadmap (`main` is 407 px when the stored title is long). Since M5.2 it scrolls sideways inside the shell's content column instead of widening the document | M3.8 audit; M5.2 | Phase 6 (`/roadmap`) |
 | ~~`/roadmap` and `/dashboard` have no `main` landmark~~ | M3.8 audit | Done in M5.2 (`main#main` at each page wrapper; landmark only) |
 | The onboarding UI Back button pushes a history entry (as at M3.1), so browser Back straight after it returns to the step just left | M3.8 | Phase 11 (touches R-18) |
-| The pathway strip still sits inside the legacy Today (`Home`) and `ExecutionDashboard` | M3.6 | Phase 5 |
+| ~~The pathway strip still sits inside the legacy Today (`Home`)~~ | M3.6 | Done in M5.3 (Today has no strip; the shell's Pathways entry opens the same explorer) |
+| The pathway strip still sits inside `ExecutionDashboard` | M3.6 | Phase 5 (M5.8) |
 | Main JS chunk 568.24 KB (167.73 KB gzipped) at the end of Phase 4; 565.85 KB (166.99 KB gzipped) at the end of Phase 3. Above Vite's 500 KB warning since before Phase 0 | M3.5 build; M4.5 | Phase 12 (code splitting) |
-| Failed goal fetch lands on a goal-less Today; legacy palette on the Today notice | Phase 2 | Phase 5 (goal-load error M5.7; the notice goes with the legacy Today, M5.3) |
-| "Explore Goals" vs "Pathways" naming. The shell says "Pathways" (M5.2); `Home` and `ExecutionDashboard` still say "Explore Goals (10)" | Phase 2 | Phase 5 (M5.3–M5.8, as those screens are replaced) |
+| Failed goal fetch lands on a goal-less Today | Phase 2 | Phase 5 (goal-load error, M5.7) |
+| ~~Legacy palette on the Today notice~~ | Phase 2 | Done in M5.3 (Today's pathway notice uses the tokens and says "from Pathways") |
+| "Explore Goals" vs "Pathways" naming. The shell and Today say "Pathways"; `ExecutionDashboard` still says "Explore Goals (10)" | Phase 2 | Phase 5 (M5.8) |
 | Offline status is a one-time health check; the signed-in redirect has no timeout | Phase 2 | Phase 12 |
 | ~~No real-backend Playwright specs (`e2e/live/` is empty)~~ | Phase 2 | Done in Phase 3 (M3.1) |
 | No inverse variants for `Button`, `Badge`, `StepMarker`, fields or choice controls; light surfaces hold text and `TextLink` only | Phase 0 review | First phase needing a control on a light surface |
 | ~~Focus rings can be clipped by `overflow` on tab lists and dialog edges (the auth screens use neither, so Phase 2 didn't reach it). The first Dialog in the app (M3.5's commitment editor) keeps its controls inside the body's padding; tab lists are unreached~~ | Phase 0 review | Done in M3.6 (`TabsTrigger` uses `.focus-ring-inset`; the strip pads its scroll track; the explorer keeps its controls inside the body's padding) |
 | ~~The navbar's goal links (Today, Roadmap, Goals and the account button) overflow by 7 px at 360 px when a goal is active; present before M3.6 (`Navbar.tsx` untouched)~~ | M3.6 | Done in M5.2 (`Navbar.tsx` removed; 0 px at 360, 375 and 390 on `/`, `/dashboard`, `/roadmap` and onboarding) |
 | ~~The shell's hard-coded counts: "Pathways (10)" and "Explore 10 Pathways" (`Navbar`)~~ | M3.6 | Done in M5.2 (the shell entry is "Pathways", with no count) |
-| Pathway counts still hard-coded: "Explore Goals (10)" (`Home`, `ExecutionDashboard`), "Ten journeys, ready to begin." (landing) | M3.6 | Phase 5 (M5.3–M5.8, as those screens are replaced); landing Phase 12 |
+| Pathway counts still hard-coded: "Explore Goals (10)" (`ExecutionDashboard`; gone from Today in M5.3), "Ten journeys, ready to begin." (landing) | M3.6 | Phase 5 (M5.8); landing Phase 12 |
 | `certifiedPresets.ts` keeps expert fields no screen shows (`outcome`, `desc`, `coach`, `p1`–`p3`, `sampleDay`). Phase 4 did not show them as the generated method. `SaaSBuilderModal.tsx` is unused | M3.6; M4.5 | Phase 12 |
 | ~~M3.6 review items: search and the four-category filter left the Home gallery (direction navigation replaces them); a strip tile opens the explorer instead of switching at once~~ | M3.6 | Done (accepted at the M3.6 review) |
 | ~~A `Dialog` opened from state (no `DialogTrigger`) didn't return focus on close~~ | M3.5 | Done in M3.5 (`DialogContent` returns focus to the element focused when it opened; unit test added) |
@@ -3178,10 +3510,12 @@ This register is here so every phase can see what blocks it. The decisions thems
 | `--duration-reveal` unused; glass has no mobile blur guard | Phase 0 review | Phase 12; first phase using glass |
 | `StaircaseScene` literal hex and `hover:bg-white`; `marketing/Button` duplicates `ui/Button`; `vite` `dedupe` masks a broken install | Phase 0 review | Phase 12; housekeeping |
 | `saveV2Goal` sets `clarifiedOutcome` to `roadmap.finalGoal` (`backend/src/routes/goal.ts`, the create data). The user's edited outcome is overwritten. The Phase 5 kickoff goal's title rendered as `49.98` because that was `finalGoal`. Today shows `rawGoal` as the heading and the stored outcome beneath it (ND-18); the frontend does not rewrite the stored value | Phase 5 kickoff; ND-18 | Unassigned (a fix needs a backend allowance; Phase 5 has none) |
-| Saving a note on `/` does not update `GoalContext`. A later completion from `/dashboard` can PATCH `notes: null` and clear it. Seen on the Phase 5 kickoff goal (Wednesday) | Phase 5 kickoff | Phase 5 (M5.6). From M5.3, every new Today write puts the server's result back into the in-memory goal |
+| ~~Saving a note on `/` does not update `GoalContext`. A later completion from `/dashboard` can PATCH `notes: null` and clear it. Seen on the Phase 5 kickoff goal (Wednesday)~~ | Phase 5 kickoff | Done in M5.3 (Today writes through `useTaskActions`, which puts the server's task into `GoalContext`; `today.spec.ts` saves a note on Today, completes on `/dashboard` and checks the note is in the PATCH). M5.6 designs notes |
+| `/dashboard`'s own note save still does not update `GoalContext`. A completion on Today in the same session, after a note saved on `/dashboard`, sends the older note | M5.3 | Phase 5 (M5.6 notes; M5.8 removes the dashboard's own writes) |
+| `DailyTask.date` is a UTC calendar date (`routes/goal.ts:215`, `:691`; `lib/ai/weekPlan.ts:52`), but `dayOfWeek` comes from the server's local clock (`weekPlan.ts:53`, `goalDecomposer.ts:984`), and `user.timezone` (saved at signup) is read by no date writer. Near UTC midnight a user far from UTC sees the neighbouring day's task as today, and a plan created then can label a date with the wrong weekday. Today compares UTC dates, the calendar the dates are written in | M5.3 | Unassigned (a fix writes dates in the user's timezone; needs a backend allowance) |
 | A focus reflection can be missing from the completion write: Enter starts "Save & Return" before the typed text is in the request. The Phase 5 kickoff reflection was not stored | Phase 5 kickoff | Phase 5 (M5.5) |
 | Stopping the backend on an open page does not show the Offline chip, and a failed task write only reaches `console.error`. The button re-enables and the screen still looks saved | Phase 5 kickoff | Phase 5 (M5.7) |
-| `PlanV2Panel` renders `Pass if {passIf}.`, so a `passIf` that already ends with a period shows two | Phase 5 kickoff | Phase 5 (M5.4) |
+| ~~PlanV2Panel renders `Pass if {passIf}.`, so a `passIf` that already ends with a period shows two~~ | Phase 5 kickoff | Done in M5.4 (`formatPassIf` helper in `formatters.ts` tests terminal punctuation before adding a period; unit tests added) |
 | ~~Mobile `onboardingStates` "reload during generation" asserted `calls.create` while "Building your path" was already visible, which is before `POST /api/goal/create` (GET runs first). A phone click on "45 min" could also land under the sticky step footer~~ | M5.1 B1 | Done in M5.1 (the spec waits for the create request; the option is scrolled to the centre before the click). Not a production change |
 | ~~After a `slow: true` event the still-working seconds froze at `Math.round(elapsedMs / 1000)` until the next event~~ | M5.1 B2 | Done in M5.1 (`generationStages.ts`, `StepGeneration.tsx`). The line keeps counting from that event's seconds. One line |
 
@@ -3255,3 +3589,6 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-23 | Phase 5 kickoff corrections to "Current state" (status stays `NOT STARTED`): line counts, UTC "today", which dashboard shows which fields, unreachable `DayRoutineTimeline` and `SaaSBuilderModal`, PATCH writers, the goal-load hole, weekly review only on `/dashboard`. The generation handoff to `/dashboard` is unchanged. Section 6 records the kickoff account. No Phase 5 implementation. |
 | 2026-09-23 | Phase 5 M5.1. Status `IN PROGRESS`. OD-3, OD-9, ND-7 and ND-18 Decided (Mo). State matrix, amended milestone table and the M5.1 report are in the Phase 5 section. Section 6 records the outcome overwrite, the note wipe, the lost focus reflection, the silent offline write and the `passIf` period. The mobile generation-reload spec waits for the create request (10 passed under repeat, both projects). The still-working line keeps counting after a slow event (post-close follow-up, not a reopened Phase 4 milestone). Mocked Playwright: 143 passed, 5 skipped, 0 failed. M5.2 has not started. No Today UI, shell or redirect. |
 | 2026-09-23 | Phase 5 M5.2 done: the ND-7 shell (`components/app`). A rail from 1024 px, a bottom bar below it, and the onboarding top bar. Entries are Today, Roadmap (with a goal), Pathways and Account (a disclosure on desktop, the Dialog below; the goal line is `rawGoal`; Reset with a Dialog confirm). The offline chip, the skip link and one `main#main` on every signed-in screen. `Navbar.tsx` and the footer removed. The legacy fades fill `backwards`, so full-screen overlays cover the shell. The content column contains a page that is too wide. Section 6: skip link, navbar targets, the 7 px overflow, the missing `main`, the shell's counts and the `Design.md` navigation gap closed; the fade row added; the naming, counts and `/roadmap` rows split and re-owned. `Design.md` §5 Application shell. Mocked Playwright: 199 passed, 9 skipped, 0 failed. M5.3 has not started. No Today UI; `/dashboard` not redirected. |
+| 2026-09-24 | Phase 5 M5.3 done: Today at `/` for the practice day (`components/today`, `lib/today.ts`). Heading is `rawGoal` (ND-18); the stored outcome sits beneath, as stored. One write path puts the server's task into `GoalContext`, so the note wipe from `/` is closed. "Explore Goals (10)" and the strip left Today; the strip remains on `/dashboard`. Task dates stay UTC (`goal.ts:215`, `:691`; `weekPlan.ts:52`). `Design.md` §6 Today. M5.4 has not started. `/dashboard` was not redirected. |
+| 2026-09-24 | Phase 5 M5.4 done: progressive reveal on Today (whyToday on screen, steps with timing/output/pitfall/passMark/resource, 10-minute version, implementation intention, task resource). Start remains in first viewport at 390×844. PlanV2Panel double period fixed and unit tested. Full day view copy updated. Design.md §6 updated. M5.5 not started. /dashboard not redirected. |
+

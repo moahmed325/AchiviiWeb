@@ -60,3 +60,30 @@ export function formatGoalTitle(outcome?: string, rawGoal?: string): string {
 
   return text || rawGoal?.trim() || 'Your 90-Day Plan';
 }
+
+/** Formats passIf standard, avoiding duplicate terminal punctuation. */
+export function formatPassIf(passIf?: string | null): string {
+  if (!passIf) return '';
+  const trimmed = passIf.trim();
+  if (!trimmed) return '';
+  if (/[.!?]$/.test(trimmed)) return `Pass if ${trimmed}`;
+  return `Pass if ${trimmed}.`;
+}
+
+function metricRepeatsUnit(metric: string, unit: string): boolean {
+  const m = metric.toLowerCase().trim();
+  const u = unit.toLowerCase().trim();
+  const initials = m.split(/\s+/).map((word) => word[0]).join('');
+  return !m || m === u || m.includes(u) || u.includes(m) || initials === u.replace(/[^a-z]/g, '');
+}
+
+export function formatTarget(target: { kind: string; metric?: string; value?: number; unit?: string; direction?: string; description?: string }): string {
+  if (target.kind === 'deliverable') return target.description || '';
+  const value = target.value ?? 0;
+  const unit = target.unit || '';
+  const amount = `${Math.round(value * 100) / 100} ${unit}`;
+  const suffix = target.direction === 'lower_is_better' ? ' or less' : '';
+  const metric = target.metric || '';
+  return metricRepeatsUnit(metric, unit) ? `${amount}${suffix}` : `${metric}: ${amount}${suffix}`;
+}
+

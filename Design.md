@@ -401,7 +401,32 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 ---
 
-## 6. Mobile-first responsiveness and touch
+## 6. Today
+
+`components/today/Today.tsx` is `/` for a signed-in user with a goal (OD-3, M5.3, M5.4). Visual level 1: minimal and immediate, one solid surface for the step, no dashboard of cards and no charts.
+
+- **Order (BP §09, §31):** your goal → Day N / 90 → today's step → duration → whyToday (when stored) → Start and Complete → progressive reveals → a glance at the week → the way onward (Roadmap, and the full day view until M5.8).
+- **The heading is the goal the user chose** (`rawGoal`, the page's one `h1`, ND-18). The stored 90-day outcome (`clarifiedOutcome`) sits beneath it in `text-small`, exactly as stored: never hidden, guessed at, rewritten or passed through `formatGoalTitle`.
+- **Day N / 90** is `text-numeral` with `tabular` figures, "/ 90" beside it, and "Week N · phase · theme" as stored. The number comes from `dayNumber()` in `lib/today.ts` (calendar days to `targetDate`, clamped to 1–90).
+- **The step:** the title as `h2`, "N min · at HH:MM", and `whyToday` when present (no fallback copy; omitted when empty). Then **Start** (the one primary button) and the complete toggle (secondary).
+- **Progressive reveal (BP §31):** session details are revealed on demand below the action buttons rather than dumped into a wall of copy:
+  - *How (the steps):* "Show the N steps" expands to show step number, title, duration, instructions, focus cue, timing ("Timing: "), output ("Output: "), pass mark ("Done when: ", never printing duplicate punctuation), and step-level resources (title, why reason, and link when a valid HTTP(S) URL is present). Empty fields omit their labels completely.
+  - *The 10-minute version (OD-9 short on time):* an opt-in reveal ("The 10-minute version"), closed by default, rendered only when `minimumVersion` is set. Shows title, duration, instructions and pass mark as stored. It is not the default path and not a second Start.
+  - *Implementation intention:* a quiet reveal rendered only when non-empty. Uses `parseIntention` to display a structured when / where / action grid or raw text.
+  - *Task resource:* a quiet reveal for `resourceTitle`, link, reason, and type badge. No YouTube iframes on Today (level 1 stays calm).
+  - *Notes:* blur and explicit Save, with status feedback.
+  - *Empty sections:* omitted entirely; no placeholder reveals.
+  - *Reduced motion:* reveals change state without animation; every opened label stays visible.
+- **Start stays in the first screen** at 390 × 844 with a normal-length title and `whyToday` present, above the bottom bar.
+- **The week glance** is seven equal cells in one bordered row: a `StepMarker` (completed, active for today, upcoming), or "Rest" on a rest day. The count says practice days only ("2 of 6 practice days done").
+- **Which day and which task** come from `lib/today.ts`, never from inline date code. Task dates are UTC calendar dates, because that is how the backend writes them.
+- **Every task write goes through `useTaskActions`**, which puts the server's task back into `GoalContext`. A failed write shows "That didn't save. Try again." beside the control and changes nothing.
+- **PlanV2Panel:** `formatPassIf` in `lib/formatters.ts` tests for terminal punctuation (`[.!?]$`) to prevent duplicate periods on `/dashboard`.
+
+
+---
+
+## 7. Mobile-first responsiveness and touch
 
 ### Hard constraints
 
@@ -421,7 +446,7 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 ---
 
-## 7. Scroll and overflow
+## 8. Scroll and overflow
 
 ### Mechanics
 
@@ -443,7 +468,7 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 ---
 
-## 8. Accessibility checklist
+## 9. Accessibility checklist
 
 Premium never means inaccessible (VDS §29). Before a screen ships:
 
@@ -463,7 +488,7 @@ Premium never means inaccessible (VDS §29). Before a screen ships:
 
 ---
 
-## 9. Tooling
+## 10. Tooling
 
 Run from `frontend/`:
 

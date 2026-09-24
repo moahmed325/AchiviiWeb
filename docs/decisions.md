@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phase 5 is in progress. OD-3 (A), OD-9 (A amended), ND-7 (A narrowed) and ND-18 (A) are Decided. M5.1 and M5.2 are done; the ND-7 shell is in place. M5.3 may start when Mo sends it. Phase 5 is not blocked. No Today UI has been implemented and `/dashboard` is not redirected.
+**What blocks the next phase:** Phase 5 is in progress. OD-3 (A), OD-9 (A amended), ND-7 (A narrowed) and ND-18 (A) are Decided. M5.1, M5.2, M5.3 and M5.4 are done: the ND-7 shell is in place and Today is live at `/` for the practice day with progressive reveal of all session fields (BP §31). M5.5 may start when Mo sends it. Phase 5 is not blocked. `/dashboard` is not redirected.
 
 ---
 
@@ -1607,6 +1607,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Consequences.** No backend change in Phase 5. M5.3 uses `rawGoal` for the heading and shows `clarifiedOutcome` beneath it without passing it through `formatGoalTitle`. Section 6 records the `saveV2Goal` overwrite, owner unassigned, because a fix needs a backend allowance.
 
+**Implemented** 2026-09-24 (Phase 5, M5.3) in `frontend/src/components/today/Today.tsx`: the `h1` is `rawGoal`, and "90-day outcome:" with `clarifiedOutcome` as stored sits beneath it. The kickoff goal reads "Run a 10K Under 50 Minutes" with "49.98" beneath. `/dashboard` and `/roadmap` still show `formatGoalTitle(clarifiedOutcome, rawGoal)` until M5.8 and Phase 6.
+
 **Related.** OD-3, D-11, BP §09.
 
 ---
@@ -1641,3 +1643,6 @@ None yet.
 | 2026-09-23 | Phase 5 kickoff. The index line now says the kickoff raised no new decision. OD-3, OD-9 and ND-7 stay Proposed. No entry changed status. |
 | 2026-09-23 | Phase 5 M5.1. OD-3 → A, OD-9 → A amended, ND-7 → A narrowed, and ND-18 → A (heading is `rawGoal`; the stored outcome is shown as stored), all Decided by Mo. The `saveV2Goal` overwrite of `clarifiedOutcome` is a backend issue, not a Phase 5 change. The index line now says Phase 5 is not blocked and M5.2 may start when Mo sends it. |
 | 2026-09-23 | Phase 5 M5.2. ND-7 implemented (note under ND-7). The Account goal line uses `rawGoal` (ND-18). No entry changed status. |
+| 2026-09-24 | Phase 5 M5.2 accepted by Mo (Account stays in the rail and the bar; on onboarding it shows only the email and Sign out). M5.3: ND-18 implemented on Today (note under ND-18). No entry changed status. |
+| 2026-09-24 | Phase 5 M5.4 done: progressive reveal on Today (BP §31) with closed disclosures for 10-minute version, implementation intention, and task resource; `formatPassIf` double-period fix. No entry changed status. |
+

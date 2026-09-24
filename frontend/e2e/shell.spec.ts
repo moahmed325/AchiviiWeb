@@ -220,7 +220,7 @@ test.describe('layout and accessibility', () => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/');
-    await page.getByRole('button', { name: /Start Focus Session/ }).click();
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
     await expectShellCovered(page, isMobile ? 'bottom-bar' : 'rail');
   });
 

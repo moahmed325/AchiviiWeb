@@ -53,6 +53,16 @@ export interface MockOptions {
   activeStatus?: number;
   /** `DELETE /api/goal/active` (Reset 90-Day Plan) answers with this status. 200 by default. */
   resetStatus?: number;
+  /**
+   * `PATCH /api/goal/tasks/:id` answers with this status and `{ error }` instead of saving. When it saves, the task in
+   * the mocked goal changes as the backend changes it, so a reload returns what was saved.
+   */
+  taskUpdateStatus?: number;
+}
+
+export interface TaskUpdate {
+  taskId: string;
+  body: { status?: string; notes?: string | null; slotTime?: string };
 }
 
 export interface GenerationStreamStep {
@@ -76,6 +86,8 @@ export interface MockCalls {
   active: number;
   /** DELETE /api/goal/active. */
   resets: number;
+  /** Every PATCH /api/goal/tasks/:id body, including failed ones. */
+  taskUpdates: TaskUpdate[];
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -85,7 +97,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend auth rules (backend/src/routes/auth.ts) without touching the dev database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0 };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [] };
   const {
     goal = null,
     signupStatus = 201,
@@ -105,7 +117,10 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     createStreamNext = [],
     activeStatus,
     resetStatus = 200,
+    taskUpdateStatus,
   } = options;
+  // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
+  const saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
 
   if (createStream) {
     await page.addInitScript((sequences: GenerationStreamStep[][]) => {
@@ -175,7 +190,24 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/goal/active') {
       calls.active += 1;
       if (activeStatus) return json(route, activeStatus, { error: 'Failed to fetch active goal' });
-      return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : goal });
+      return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : saved });
+    }
+
+    const taskMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)$/);
+    if (taskMatch && route.request().method() === 'PATCH') {
+      const body = route.request().postDataJSON() as TaskUpdate['body'];
+      calls.taskUpdates.push({ taskId: taskMatch[1], body });
+      if (taskUpdateStatus) return json(route, taskUpdateStatus, { error: 'Failed to update task.' });
+      const tasks = (saved?.dailyTasks ?? []) as Array<Record<string, unknown>>;
+      const task = tasks.find((t) => t.id === taskMatch[1]);
+      if (!task) return json(route, 404, { error: 'Task not found.' });
+      // As backend/src/routes/goal.ts PATCH /tasks/:taskId: status when given, completedAt with it, notes when present.
+      if (body.status) task.status = body.status;
+      if (body.status === 'completed') task.completedAt = new Date().toISOString();
+      if (body.status === 'pending') task.completedAt = null;
+      if (body.notes !== undefined) task.notes = body.notes;
+      if (body.slotTime !== undefined) task.slotTime = body.slotTime;
+      return json(route, 200, { task });
     }
 
     if (path === '/api/goal/clarify' && clarifyOffline) return route.abort('connectionrefused');

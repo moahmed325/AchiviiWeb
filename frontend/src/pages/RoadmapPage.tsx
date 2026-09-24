@@ -11,7 +11,7 @@ import {
   Target,
 } from 'lucide-react';
 import { formatGoalTitle } from '../lib/formatters';
-import { formatTarget } from '../components/PlanV2Panel';
+import { formatTarget } from '../lib/formatters';
 import { RoutineSettings } from '../types';
 import { getGoalImage } from '../lib/certifiedPresets';
 import BasisBadge from '../components/BasisBadge';
