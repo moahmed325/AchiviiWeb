@@ -156,8 +156,10 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     const reviewSection = page.locator('section[aria-labelledby="review-due-heading"]');
     await expect(reviewSection).toBeVisible();
     await expect(reviewSection.getByText('Review due')).toBeVisible();
-    await expect(reviewSection.getByRole('heading', { level: 2, name: 'Week 1 is ready for review' })).toBeVisible();
-    await expect(reviewSection.getByRole('link', { name: 'Start weekly review' })).toHaveAttribute('href', '/dashboard');
+    await expect(reviewSection.getByRole('button', { name: 'Start weekly review' })).toBeVisible();
+    await reviewSection.getByRole('button', { name: 'Start weekly review' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
   });
 
   test('clamped day 90 / after week 12: shows honest 90-day completion without fabricating tasks', async ({ page }) => {

@@ -229,37 +229,11 @@ test.describe('pathway library with a goal', () => {
     await expect(page).toHaveURL('/');
   });
 
-  test('the strip (on the full day view) and the explorer fit small screens, work by touch and pass axe [dashboard errors expected]', async ({
-    page,
-  }) => {
+  test('navigating to /dashboard redirects to / (dashboard strip retired)', async ({ page }) => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/dashboard');
-    await expect(strip(page)).toBeVisible();
-    for (const width of [390, 360]) {
-      await page.setViewportSize({ width, height: 800 });
-      await expectWithin(strip(page), width);
-      await expect.poll(() => page.locator('main').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
-      await expect
-        .poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth))
-        .toBeLessThanOrEqual(0);
-      await expectTapTarget(strip(page).getByRole('button', { name: 'Scroll pathways forward' }));
-      await expectTapTarget(strip(page).getByRole('button', { name: 'Explore all' }));
-    }
-    await expectNoAxeViolations(page, strip(page));
-
-    await page.setViewportSize({ width: 390, height: 800 });
-    await strip(page).getByRole('button', { name: 'Speak Conversational Spanish' }).click();
-    const dialog = explorer(page);
-    await expect(dialog.getByRole('radio', { name: 'Speak Conversational Spanish' })).toBeChecked();
-    await settled(dialog);
-    await expectWithin(dialog, 390);
-    expect(await dialog.evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
-    await expectTapTarget(dialog.getByRole('tab', { name: 'Career' }));
-    await expectTapTarget(dialog.getByRole('button', { name: /Switch to this pathway/ }));
-    await dialog.getByRole('tab', { name: 'Personal' }).click();
-    await expect(dialog.getByRole('radio', { name: 'Master Deep Work & Double Daily Output' })).toBeChecked();
-    await expectNoAxeViolations(page, dialog);
+    await expect(page).toHaveURL('/');
   });
 
   test('the app navigation opens the same explorer', async ({ page }) => {
@@ -275,13 +249,17 @@ test.describe('pathway library with a goal', () => {
     await expect(opener).toBeFocused();
   });
 
-  test('the dashboard shows the same strip and explorer [dashboard errors expected]', async ({ page }) => {
+  test('the app navigation on Today (/) opens the explorer, fits small screens and passes axe', async ({ page }) => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
-    await page.goto('/dashboard');
-    await expect(strip(page).getByRole('button', { name: CURRENT })).toHaveAccessibleDescription(/^Current /);
-    await strip(page).getByRole('button', { name: 'Climb to a 1200 Rapid Chess Rating' }).click();
-    await expect(explorer(page).getByRole('radio', { name: 'Climb to a 1200 Rapid Chess Rating' })).toBeChecked();
-    await expect(explorer(page).getByRole('button', { name: /Switch to this pathway/ })).toBeEnabled();
+    await page.goto('/');
+    const opener = page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: 'Pathways' });
+    await opener.click();
+    const dialog = explorer(page);
+    await expect(dialog.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
+    await expectNoAxeViolations(page, dialog);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
   });
 });

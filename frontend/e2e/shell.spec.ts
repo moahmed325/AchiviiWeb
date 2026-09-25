@@ -10,8 +10,6 @@ const primary = (page: Page) => page.getByRole('navigation', { name: 'Primary' }
 const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
 const accountButton = (page: Page) => primary(page).getByRole('button', { name: /^Account/ });
 
-/** The one known violation on /dashboard: FullDayVisualizer nests a Focus button in a button (M5.3 / M5.8). */
-const KNOWN_DASHBOARD = /^nested-interactive: /;
 
 let consoleErrors: string[] = [];
 
@@ -95,10 +93,11 @@ test.describe('entries', () => {
     await expect(primary(page).getByRole('link', { name: 'Roadmap' })).toHaveCount(0);
   });
 
-  test('Today is active on /dashboard; Roadmap on /roadmap [dashboard errors expected]', async ({ page }) => {
+  test('Today is active on /; navigating to /dashboard redirects to /', async ({ page }) => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/dashboard');
+    await expect(page).toHaveURL('/');
     await expect(primary(page).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
     await primary(page).getByRole('link', { name: 'Roadmap' }).click();
     await expect(page).toHaveURL('/roadmap');
@@ -165,7 +164,7 @@ test.describe('layout and accessibility', () => {
         if (screen.url !== '/onboarding') expect(await contentOverflow(page), `content overflow at ${width}`).toBeLessThanOrEqual(1);
         const shell = screen.url === '/onboarding' ? page.getByRole('banner') : primary(page);
         await expectTapTargets(shell.locator('a, button').filter({ visible: true }));
-        const violations = (await axeViolations(page)).filter((v) => !(screen.url === '/dashboard' && KNOWN_DASHBOARD.test(v)));
+        const violations = await axeViolations(page);
         expect(violations, `axe at ${width}`).toEqual([]);
       }
     });
@@ -224,12 +223,11 @@ test.describe('layout and accessibility', () => {
     await expectShellCovered(page, isMobile ? 'bottom-bar' : 'rail');
   });
 
-  test('focus mode on /dashboard covers the shell [dashboard errors expected]', async ({ page, isMobile }) => {
+  test('navigating to /dashboard with search and hash redirects to / preserving both', async ({ page }) => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
-    await page.goto('/dashboard');
-    await page.getByRole('button', { name: /^Focus/ }).first().click();
-    await expectShellCovered(page, isMobile ? 'bottom-bar' : 'rail');
+    await page.goto('/dashboard?tab=overview#section');
+    await expect(page).toHaveURL('/?tab=overview#section');
   });
 
   test('with reduced motion, the shell has no running animation', async ({ page }) => {

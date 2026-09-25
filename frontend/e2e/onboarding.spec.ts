@@ -264,7 +264,7 @@ test.describe('onboarding history and reload (R-18)', () => {
     await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
     await chooseSchedule(page, 'review');
     await generate(page);
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL('/');
     expect(calls.create).toHaveLength(1);
     expect(await page.evaluate(() => localStorage.getItem('achivii_draft_goal'))).toBeNull();
   });

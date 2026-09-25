@@ -25,10 +25,10 @@ export interface ShellEntries {
   showRoadmap: boolean;
 }
 
-/** Today stays active on `/dashboard` until M5.8 redirects it to `/` (OD-3). */
+/** Today is active on `/` (OD-3). */
 export function shellEntries(pathname: string, hasGoal: boolean): ShellEntries {
   return {
-    todayActive: pathname === '/' || pathname === '/dashboard',
+    todayActive: pathname === '/',
     roadmapActive: pathname === '/roadmap',
     showRoadmap: hasGoal,
   };

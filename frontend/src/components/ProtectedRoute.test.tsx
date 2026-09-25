@@ -91,4 +91,37 @@ describe('ProtectedRoute (R1 — OD-9 / ND-12 Route Protection)', () => {
     expect(await screen.findByText('Onboarding Page')).toBeInTheDocument();
     expect(screen.queryByText('Home Root Page')).not.toBeInTheDocument();
   });
+
+  it('redirects signed-in user with an active goal from /onboarding to / instead of /dashboard', async () => {
+    mocked.fetchActiveGoal.mockResolvedValueOnce({
+      id: 'g1',
+      userId: 'u1',
+      rawGoal: 'Run a marathon',
+      status: 'active',
+      planVersion: 2,
+    } as unknown as import('../types').Goal);
+
+    render(
+      <AuthProvider>
+        <GoalProvider>
+          <MemoryRouter initialEntries={['/onboarding']}>
+            <Routes>
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute requireGoal={false}>
+                    <div>Onboarding Content</div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<div>Home Root Page</div>} />
+            </Routes>
+          </MemoryRouter>
+        </GoalProvider>
+      </AuthProvider>
+    );
+
+    expect(await screen.findByText('Home Root Page')).toBeInTheDocument();
+    expect(screen.queryByText('Onboarding Content')).not.toBeInTheDocument();
+  });
 });

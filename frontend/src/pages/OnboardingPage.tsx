@@ -47,7 +47,7 @@ export const OnboardingPage: React.FC = () => {
 
   const handleGoalCreated = (goal: Goal) => {
     setActiveGoal(goal);
-    navigate('/dashboard');
+    navigate('/');
   };
 
   const navState = location.state as { presetGoal?: string; draftGoal?: string; isPreset?: boolean } | null;

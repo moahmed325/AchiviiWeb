@@ -94,7 +94,7 @@ export const RoadmapPage: React.FC = () => {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <Link
-            to="/dashboard"
+            to="/"
             className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer group"
           >
             <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />

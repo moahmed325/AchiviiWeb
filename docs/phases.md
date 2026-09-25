@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-25 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3, M5.4, M5.5, M5.6 and M5.7 done.** M5.8 has not started. All OD-9 states, error resilience, and route protection are live on Today; `/dashboard` is not redirected.
+Last updated: 2026-09-25 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3, M5.4, M5.5, M5.6, M5.7 and M5.8 done.** All OD-9 states, error resilience, route consolidation, and /dashboard redirect are live on Today. Legacy dashboard is retired.
 
 ---
 
@@ -2180,7 +2180,7 @@ None.
 | M5.5 | **Done** (2026-09-25). Focus mode redesigned; timer behaviour identical. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget restyled. Reflection reliably captured into notes; write errors surfaced with retry; Space/Esc shortcuts and 0 axe violations |
 | M5.6 | **Done** (2026-09-25). Completion interaction, step lighting, next step preview, and notes redesign. Completed step illuminated with calm botanical highlight (VDS §20, OD-9); next step preview card with day/duration/snippet; structured focus wins presentation alongside free-form practice notes; auto-save on blur and draft persistence across WeekGlance day switches |
 | M5.7 | **Done** (2026-09-25). Every remaining OD-9 state, including goal-load error on `/` with retry (`refreshGoal()`), route protection in `ProtectedRoute` and onboarding, rest day with adaptation explanation and next step preview glance, key session callout, test day benchmark card with `formatPassIf` and no fake inputs, non-punitive yesterday recovery card, review due card, review 503 error handling, clamped Day 90 / after week 12, offline banner and visible failed writes |
-| M5.8 | `/dashboard` redirects to `/`, keeping query and hash. `done` and `ProtectedRoute` change in this same milestone. What M5.3–M5.6 did not already extract is removed |
+| M5.8 | **Done** (2026-09-25). `/dashboard` redirects to `/`, keeping query and hash (OD-3). Onboarding `done` and `ProtectedRoute` point to `/`. Roadmap "Back to Today" points to `/`. Today embeds restyled `BasisBadge`, retires full day view link, and triggers `WeeklyReviewModal` directly (R-12). Redundant legacy dashboard components removed |
 | M5.9 | Regression and phase report |
 
 ### Regression checks

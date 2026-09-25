@@ -193,17 +193,13 @@ test.describe('the practice day', () => {
     await expect(stepRegion(page).getByLabel('Notes for this step')).toHaveValue('Brief drafted, pricing still open');
   });
 
-  test('a note saved on Today survives a completion on the full day view (the kickoff wipe) [dashboard errors expected]', async ({ page }) => {
+  test('a note saved on Today is preserved when marked complete', async ({ page }) => {
     const calls = await openToday(page);
     await stepRegion(page).getByRole('button', { name: 'Notes' }).click();
     await stepRegion(page).getByLabel('Notes for this step').fill('Kept across screens');
     await stepRegion(page).getByLabel('Notes for this step').blur();
     await expect(stepRegion(page).getByRole('status')).toHaveText('Saved');
-    await main(page).getByRole('link', { name: 'Open full day view' }).click();
-    await expect(page).toHaveURL('/dashboard');
-    // The full day view shows its Mark Complete once the day's row is opened.
-    await page.getByRole('button', { name: /Details$/ }).click();
-    await page.getByRole('button', { name: 'Mark Complete', exact: true }).click();
+    await stepRegion(page).getByRole('button', { name: 'Mark complete' }).click();
     await expect.poll(() => calls.taskUpdates.length).toBe(2);
     expect(calls.taskUpdates[1]).toEqual({ taskId: 't3', body: { status: 'completed', notes: 'Kept across screens' } });
   });
@@ -291,13 +287,24 @@ test.describe('the practice day', () => {
     await expect(stepRegion(page, 'Session 7').getByText('Rest day')).toBeVisible();
   });
 
-  test('the way onward: Roadmap and the full day view [dashboard errors expected]', async ({ page }) => {
+  test('the way onward: Roadmap and retirement of full day view link', async ({ page }) => {
     await openToday(page);
     await main(page).getByRole('link', { name: 'Roadmap' }).click();
     await expect(page).toHaveURL('/roadmap');
     await page.goBack();
-    await main(page).getByRole('link', { name: 'Open full day view' }).click();
-    await expect(page).toHaveURL('/dashboard');
+    await expect(main(page).getByRole('link', { name: 'Open full day view' })).toHaveCount(0);
+  });
+
+  test('navigating to /dashboard directly redirects to /', async ({ page }) => {
+    await openToday(page);
+    await page.goto('/dashboard');
+    await expect(page).toHaveURL('/');
+  });
+
+  test('navigating to /dashboard?week=2#focus redirects to /?week=2#focus', async ({ page }) => {
+    await openToday(page);
+    await page.goto('/dashboard?week=2#focus');
+    await expect(page).toHaveURL('/?week=2#focus');
   });
 
   test('a goal with no tasks this week says so plainly', async ({ page }) => {

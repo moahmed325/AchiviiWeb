@@ -1,11 +1,10 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { GoalProvider } from './context/GoalContext';
 import { AppShell } from './components/app/AppShell';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Home } from './pages/Home';
-import { DashboardPage } from './pages/DashboardPage';
 import { RoadmapPage } from './pages/RoadmapPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { SignupPage } from './pages/auth/SignupPage';
@@ -13,6 +12,11 @@ import { LoginPage } from './pages/auth/LoginPage';
 
 /* Development-only primitives preview; the branch is dropped from production builds. */
 const UiPreviewPage = import.meta.env.DEV ? React.lazy(() => import('./pages/dev/UiPreviewPage')) : null;
+
+export const DashboardRedirect: React.FC = () => {
+  const location = useLocation();
+  return <Navigate to={{ pathname: '/', search: location.search, hash: location.hash }} replace />;
+};
 
 export const App: React.FC = () => {
   return (
@@ -37,15 +41,8 @@ export const App: React.FC = () => {
                 }
               />
 
-              {/* Daily Execution Dashboard (Protected, requires active plan) */}
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute requireGoal={true}>
-                    <DashboardPage />
-                  </ProtectedRoute>
-                }
-              />
+              {/* Legacy dashboard route redirects to / preserving query and hash (OD-3) */}
+              <Route path="/dashboard" element={<DashboardRedirect />} />
 
               {/* Dedicated 90-Day Roadmap (Protected, requires active plan) */}
               <Route

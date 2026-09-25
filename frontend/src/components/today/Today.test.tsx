@@ -10,7 +10,14 @@ import { Today } from './Today';
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
-  return { ...actual, fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), updateDailyTask: vi.fn() };
+  return {
+    ...actual,
+    fetchHealthCheck: vi.fn(),
+    fetchCurrentUser: vi.fn(),
+    fetchActiveGoal: vi.fn(),
+    updateDailyTask: vi.fn(),
+    submitWeeklyReview: vi.fn(),
+  };
 });
 
 const mocked = vi.mocked(api);
@@ -294,11 +301,11 @@ describe('Today', () => {
     expect(screen.queryByText('When')).not.toBeInTheDocument();
   });
 
-  it('displays updated onward copy naming only what remains exclusively on /dashboard', async () => {
+  it('displays onward navigation to Roadmap and retires the full day view link (OD-3)', async () => {
     await renderToday();
-    const onwardText = screen.getByText('The full day view shows the week review, plan panel and routine visualiser when your plan has them.');
-    expect(onwardText).toBeInTheDocument();
-    expect(screen.queryByText(/why today matters/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Roadmap' })).toHaveAttribute('href', '/roadmap');
+    expect(screen.queryByRole('link', { name: 'Open full day view' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/The full day view shows/i)).not.toBeInTheDocument();
   });
 
   it('lights up completed step with quiet confirmation, shows next step preview, and reverts cleanly', async () => {
@@ -349,8 +356,8 @@ describe('Today', () => {
 
     // Bridge appears pointing to week review
     expect(screen.getByText('Week 1 practice complete.')).toBeVisible();
-    expect(screen.getByText('Weekly review ready in the full day view.')).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Open week review' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByText('Weekly review ready.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Start weekly review' })).toBeVisible();
   });
 
   it('displays focus wins separately from freeform notes and preserves both on save', async () => {
@@ -499,7 +506,78 @@ describe('Today', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: 'Week 1 is ready for review' })).toBeVisible();
     expect(screen.getByText('Review due')).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Start weekly review' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByRole('button', { name: 'Start weekly review' })).toBeVisible();
+  });
+
+  it('renders restyled BasisBadge in header / metadata when goal.basis.label is present', async () => {
+    const goalWithBasis = {
+      ...GOAL,
+      basis: { label: 'Ultralearning', anchored: true },
+    } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithBasis);
+    await renderToday();
+    expect(screen.getByText('Ultralearning')).toBeVisible();
+  });
+
+  it('opens weekly review modal from review due button and submits reflection', async () => {
+    const user = userEvent.setup();
+    const pastTasks = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 10) }));
+    const goalWithPastTasks = { ...GOAL, dailyTasks: pastTasks } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithPastTasks);
+    mocked.submitWeeklyReview.mockResolvedValueOnce({
+      review: {
+        id: 'rev-1',
+        goalId: 'g1',
+        weekNumber: 1,
+        tasksPlanned: 6,
+        tasksCompleted: 6,
+        scorePercentage: 100,
+        reflection: '',
+        aiAdaptationInsight: '',
+        created_at: '',
+      },
+      scorePercentage: 100,
+      nextWeekNumber: 2,
+      nextWeekTasks: [],
+    });
+
+    await renderToday();
+    await user.click(screen.getByRole('button', { name: 'Start weekly review' }));
+
+    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
+
+    const textarea = screen.getByPlaceholderText(/Morning sessions went well/i);
+    await user.type(textarea, 'Great consistency all week');
+
+    await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+    expect(mocked.submitWeeklyReview).toHaveBeenCalledWith(1, 'Great consistency all week', 't');
+  });
+
+  it('handles 503 error on weekly review submission gracefully and allows retry', async () => {
+    const user = userEvent.setup();
+    const pastTasks = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 10) }));
+    const goalWithPastTasks = { ...GOAL, dailyTasks: pastTasks } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithPastTasks);
+    mocked.submitWeeklyReview.mockRejectedValueOnce(
+      new Error("Couldn't write next week right now. This week is unchanged; please try again.")
+    );
+
+    await renderToday();
+    await user.click(screen.getByRole('button', { name: 'Start weekly review' }));
+
+    const textarea = screen.getByPlaceholderText(/Morning sessions went well/i);
+    await user.type(textarea, 'Tough week but pushed through');
+
+    await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      "Couldn't write next week right now. This week is unchanged; please try again."
+    );
+    // Reflection is kept intact
+    expect(textarea).toHaveValue('Tough week but pushed through');
+    // Button offers retry
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
   });
 
   it('renders 90-day journey complete state when at day 90 / after week 12 with no remaining tasks', async () => {

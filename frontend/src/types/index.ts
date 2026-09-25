@@ -273,4 +273,11 @@ export interface WeeklyReviewResponse {
   scorePercentage: number;
   nextWeekNumber: number | null;
   nextWeekTasks: DailyTask[];
+  isMilestoneCheckpoint?: boolean;
+  milestoneGateTransition?: {
+    title: string;
+    completedPhase: string;
+    nextPhase: string;
+    benchmarkMet: boolean;
+  } | null;
 }

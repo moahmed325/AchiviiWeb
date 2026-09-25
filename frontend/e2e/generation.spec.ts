@@ -82,7 +82,7 @@ test('v2 stream shows the method name and reason only after method, then opens t
   await expect(stage(page, 'Building your 90-day journey').getByText('Done')).toBeVisible();
   await expect(stage(page, 'Designing your first steps').getByText('Now')).toBeVisible();
   await expect(page.getByText('Search sources')).toHaveCount(0);
-  await expect(page).toHaveURL('/dashboard');
+  await expect(page).toHaveURL('/');
 });
 
 test('v1 stream completes choosing without a method stage or an invented name [dashboard errors expected]', async ({ page }) => {
@@ -111,7 +111,7 @@ test('v1 stream completes choosing without a method stage or an invented name [d
   await expect(page.getByText(/Still working \(\d+s\)/)).toHaveCount(1);
 
   await page.clock.fastForward(1_000);
-  await expect(page).toHaveURL('/dashboard');
+  await expect(page).toHaveURL('/');
 });
 
 test('an error after search still explains the failure and keeps the answers [errors expected]', async ({ page }) => {
@@ -247,7 +247,7 @@ test('a server error keeps finished stages, and retry builds again [dashboard er
   await expect(methodName(page)).toHaveCount(0);
   await expect(stage(page, 'Choosing your method').getByText('Now')).toBeVisible();
   await expect(methodName(page)).toBeVisible();
-  await expect(page).toHaveURL('/dashboard');
+  await expect(page).toHaveURL('/');
   expect(await page.evaluate(() => (window as Window & { __achiviiCreates?: number }).__achiviiCreates)).toBe(2);
 });
 

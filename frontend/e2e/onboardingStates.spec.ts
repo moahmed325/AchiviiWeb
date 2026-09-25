@@ -222,7 +222,7 @@ test.describe('generation handoff', () => {
     await expect(page.getByText('Steady: 5 days a week')).toBeVisible();
 
     await generate(page);
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL('/');
     expect(calls.create).toHaveLength(2);
     expect(calls.create[1].body).toEqual(calls.create[0].body);
     expect(await draftGoal(page)).toBeNull();
@@ -237,7 +237,7 @@ test.describe('generation handoff', () => {
     await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
     await chooseSchedule(page, 'review');
     await generate(page);
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL('/');
     expect(calls.create).toHaveLength(1);
     expect(await draftGoal(page)).toBeNull();
   });
@@ -270,7 +270,7 @@ test.describe('generation handoff', () => {
     await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
     await chooseSchedule(page, 'review');
     await generate(page);
-    await expect(page).toHaveURL('/dashboard');
+    await expect(page).toHaveURL('/');
     expect(calls.create).toHaveLength(1);
     expect(await draftGoal(page)).toBeNull();
   });

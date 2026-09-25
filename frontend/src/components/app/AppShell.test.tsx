@@ -69,10 +69,11 @@ describe('shellMode and shellEntries', () => {
     expect(shellMode('/dashboard', true)).toBe('app');
   });
 
-  it('shows Roadmap only with a goal, and keeps Today active on /dashboard', () => {
+  it('shows Roadmap only with a goal, and marks Today active on /', () => {
     expect(shellEntries('/', false).showRoadmap).toBe(false);
     expect(shellEntries('/', true).showRoadmap).toBe(true);
-    expect(shellEntries('/dashboard', true).todayActive).toBe(true);
+    expect(shellEntries('/', true).todayActive).toBe(true);
+    expect(shellEntries('/dashboard', true).todayActive).toBe(false);
     expect(shellEntries('/roadmap', true)).toEqual({ todayActive: false, roadmapActive: true, showRoadmap: true });
   });
 });
@@ -105,13 +106,13 @@ describe('entries', () => {
     expect(rail().getByRole('button', { name: 'Pathways' })).toBeInTheDocument();
   });
 
-  it('marks Roadmap as the current page on /roadmap, and Today on /dashboard', async () => {
+  it('marks Roadmap as the current page on /roadmap, and Today on /', async () => {
     signedIn(GOAL);
     const { unmount } = renderAt('/roadmap');
     expect(await rail().findByRole('link', { name: 'Roadmap' })).toHaveAttribute('aria-current', 'page');
     expect(rail().getByRole('link', { name: 'Today' })).not.toHaveAttribute('aria-current');
     unmount();
-    renderAt('/dashboard');
+    renderAt('/');
     expect(await bottomBar().findByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
   });
 

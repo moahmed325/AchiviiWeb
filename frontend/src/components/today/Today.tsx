@@ -21,6 +21,10 @@ import {
 } from '../../lib/today';
 import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
 import { FocusSessionModal } from '../FocusSessionModal';
+import { BasisBadge } from '../BasisBadge';
+import { WeeklyReviewModal } from './WeeklyReviewModal';
+import { MilestoneGateModal, MilestoneGateTransition } from './MilestoneGateModal';
+import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
@@ -136,11 +140,14 @@ interface TodayProps {
  * recovery guidance, review due prompts, and honest clamped 90-day completion.
  */
 export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) => {
+  const { token } = useAuth();
   const goalContext = useGoal();
   const apiStatus = propApiStatus ?? goalContext.apiStatus;
   const [now] = useState(() => new Date());
   const [selectedId, setSelectedId] = useState<string>();
   const [focusOpen, setFocusOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [milestoneGate, setMilestoneGate] = useState<MilestoneGateTransition | null>(null);
   const [showSteps, setShowSteps] = useState(false);
   const [showMinimum, setShowMinimum] = useState(false);
   const [showIntention, setShowIntention] = useState(false);
@@ -241,16 +248,17 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         )}
       </header>
 
-      <div className="mt-8 flex flex-wrap items-end gap-x-6 gap-y-2">
+      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
         <p aria-label={`Day ${day} of 90`} className="flex items-baseline gap-2">
           <span className="tabular text-numeral text-text">{day}</span>
           <span className="tabular text-h3 text-text-secondary">/ 90</span>
         </p>
-        <p className="pb-2 text-small text-text-secondary">
+        <p className="text-small text-text-secondary">
           <span className="tabular">Week {goal.currentWeek || 1}</span>
           {week?.phase && <> · {week.phase}</>}
           {week?.theme && <> · {week.theme}</>}
         </p>
+        {goal.basis?.label && <BasisBadge basis={goal.basis} />}
       </div>
 
       {reviewDue && (
@@ -265,8 +273,13 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path.
               </p>
             </div>
-            <Button asChild variant="primary" className="shrink-0 sm:min-w-44">
-              <Link to="/dashboard">Start weekly review</Link>
+            <Button
+              type="button"
+              variant="primary"
+              className="shrink-0 sm:min-w-44"
+              onClick={() => setReviewOpen(true)}
+            >
+              Start weekly review
             </Button>
           </div>
         </section>
@@ -418,11 +431,16 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                         Week {goal.currentWeek || 1} practice complete.
                       </p>
                       <p className="mt-0.5 text-small text-text-secondary">
-                        Weekly review ready in the full day view.
+                        Weekly review ready.
                       </p>
                     </div>
-                    <Button asChild variant="secondary" size="sm">
-                      <Link to="/dashboard">Open week review</Link>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setReviewOpen(true)}
+                    >
+                      Start weekly review
                     </Button>
                   </div>
                 )}
@@ -711,13 +729,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         <Button asChild variant="secondary" trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}>
           <Link to="/roadmap">Roadmap</Link>
         </Button>
-        <Button asChild variant="quiet">
-          <Link to="/dashboard">Open full day view</Link>
-        </Button>
       </nav>
-      <p className="mt-3 text-small text-text-secondary">
-        The full day view shows the week review, plan panel and routine visualiser when your plan has them.
-      </p>
 
       {task && (
         <FocusSessionModal
@@ -728,6 +740,20 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           onCompleteSession={onFinishFocus}
         />
       )}
+
+      <WeeklyReviewModal
+        isOpen={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        goal={goal}
+        token={token || ''}
+        onGoalUpdated={goalContext.updateActiveGoal}
+        onMilestoneGate={setMilestoneGate}
+      />
+
+      <MilestoneGateModal
+        gate={milestoneGate}
+        onClose={() => setMilestoneGate(null)}
+      />
     </main>
   );
 };

@@ -58,7 +58,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   );
 
   if (!requireGoal && activeGoal && !isExplicitGoalSelection) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Render protected content with a smooth fade-in
