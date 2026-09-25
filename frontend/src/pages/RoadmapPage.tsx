@@ -4,6 +4,7 @@ import { Compass } from 'lucide-react';
 import { useJourneyData } from '../hooks/useJourneyData';
 import { JourneyHeader } from '../components/journey/JourneyHeader';
 import { DesktopStaircase } from '../components/journey/DesktopStaircase';
+import { MobileVerticalJourney } from '../components/journey/MobileVerticalJourney';
 import { StrategicRoadmap } from '../components/journey/StrategicRoadmap';
 
 export const RoadmapPage: React.FC = () => {
@@ -38,8 +39,13 @@ export const RoadmapPage: React.FC = () => {
           {/* Layer 1 — Quick Numerical Progress Header */}
           <JourneyHeader journey={journey} />
 
-          {/* Layer 2 — The Emotional Staircase */}
-          <DesktopStaircase journey={journey} />
+          {/* Layer 2 — The Emotional Staircase (Desktop) vs Vertical Journey (Mobile) */}
+          <div className="hidden md:block">
+            <DesktopStaircase journey={journey} />
+          </div>
+          <div className="block md:hidden">
+            <MobileVerticalJourney journey={journey} />
+          </div>
 
           {/* Layer 3 — The Strategic Roadmap */}
           <StrategicRoadmap journey={journey} />

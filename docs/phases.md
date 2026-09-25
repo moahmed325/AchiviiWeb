@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-25 · Current position: **Phases 0–5 complete. Phase 6 (Journey) is IN PROGRESS: M6.1, M6.2, and M6.3 done.**
+Last updated: 2026-09-25 · Current position: **Phases 0–5 complete. Phase 6 (Journey) is IN PROGRESS: M6.1, M6.2, M6.3, and M6.4 done.**
 
 ---
 
@@ -3612,7 +3612,7 @@ None.
 | M6.1 | OD-2 and OD-7 decided; the day/week/phase mapping written down | `Done` (2026-09-25) |
 | M6.2 | Journey data adapter: one shape for v1 and v2 goals | `Done` (2026-09-25) |
 | M6.3 | Desktop journey composition | `Done` (2026-09-25) |
-| M6.4 | Mobile vertical journey | `NOT STARTED` |
+| M6.4 | Mobile vertical journey | `Done` (2026-09-25) |
 | M6.5 | Progress motion and reduced-motion path | `NOT STARTED` |
 | M6.6 | Regression and phase report | `NOT STARTED` |
 
@@ -3729,6 +3729,44 @@ None.
    - ESLint: 0 errors, 0 warnings across all journey components and test files.
    - Vitest: 35 test files passed, 301 tests passed (100%).
    - Playwright: 10/10 roadmap tests passed in `e2e/shell.spec.ts` (0 axe violations at 1440px and 1024px, 44px tap targets, 0 overflow across desktop and mobile viewports).
+   - Zero backend changes.
+
+### M6.4 report — Mobile vertical journey (2026-09-25)
+
+1. **Dedicated Mobile Vertical Spine (`frontend/src/components/journey/MobileVerticalJourney.tsx`)**
+   - Implemented vertical ascending spine and stepper tailored for mobile screens (VDS §28):
+     - Single continuous vertical connecting track (`border-l-2 border-border`) with node glyphs (○ upcoming, ● active, ✓ completed, ◆ week milestone, ✦ summit destination per VDS §25).
+     - Clean, compact phase landing separators indicating phase boundary, name, purpose, and completion status.
+     - Responsive accordion toggling on phase landings: active phase defaults to expanded; completed and upcoming phases are collapsed by default to minimize cognitive load and visual noise on mobile.
+     - Full-width touch cards with hit targets ≥ 44×44px (`min-h-[44px]` on all interactive elements).
+   - Dedicated Days 85–90 approach section leading into the destination summit node.
+
+2. **"You Are Here" Auto-Positioning on Load (R2)**
+   - Renders high-visibility active position badge at top: `● You are here · Day N`.
+   - Active day step card on the vertical flight is equipped with `activeStepRef`.
+   - `useEffect` automatically scrolls the active step into view (`scrollIntoView({ behavior: 'smooth', block: 'center' })`) on mount when no URL hash is present.
+
+3. **Strict Future Honesty (BP §43)**
+   - Active week expands to display the 7 daily practice sessions along the vertical spine.
+   - Future weeks present strategic focus, targets (`formatTarget`), and milestones with the calm indicator: *"Daily sessions designed after Week N review"*. Zero fabricated daily task items.
+
+4. **Responsive Switching in `RoadmapPage.tsx`**
+   - Seamlessly serves `MobileVerticalJourney` for viewports `< 768px` (`block md:hidden`).
+   - Serves `DesktopStaircase` for viewports `≥ 768px` (`hidden md:block`).
+   - Shared `JourneyHeader` and `StrategicRoadmap` maintained.
+   - `main#main` landmark and skip-link functionality preserved.
+
+5. **Unit & E2E Verification**
+   - **Unit Tests (`frontend/src/components/journey/MobileVerticalJourney.test.tsx`):** 7 tests covering vertical spine progression, 2/3/4-phase v2 goals, 3-phase v1 goals, "You Are Here" active step badge/node, ≥ 44px tap targets, accordion toggling with `aria-expanded`, and future honesty (100% green).
+   - **Playwright Mobile Spec (`frontend/e2e/journeyMobile.spec.ts`):** 8 tests at viewports **390×844** (iPhone) and **360×800** (compact Android):
+     - 0 horizontal overflow (`scrollWidth <= innerWidth`, `documentOverflow <= 1`, `contentOverflow <= 1`).
+     - 0 axe accessibility violations.
+     - "You Are Here" badge visible on load.
+     - All button bounding boxes meet ≥ 44×44px hit target requirements.
+     - Phase accordion interaction and future honesty verified.
+   - **Regression Checks:**
+     - R-8: Today page (`e2e/today.spec.ts`, 36 tests) 100% green.
+     - R-14: Roadmap shell navigation & desktop layout (`e2e/shell.spec.ts`, 10 tests) 100% green.
    - Zero backend changes.
 
 ### Regression checks
@@ -4428,6 +4466,8 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-25 | Phase 6 M6.1 done: OD-2 decided as Option A (closing stretch on days 85–90, 12 planned weeks on days 1–84, clamp 1–90); OD-7 constraint confirmed (2–4 method phases for v2, 3 fixed phases for v1); definitive Day/Week/Phase mapping and VDS §9 three-layer model added to Phase 6; canonical Journey contracts created in `frontend/src/types/journey.ts`; React rules-of-hooks / compiler memoization ordering fixed in `RoadmapPage.tsx`. Phase 6 status is IN PROGRESS. |
 | 2026-09-25 | Phase 6 M6.2 done: pure data adapter `toJourneyData` and hook `useJourneyData` implemented (`frontend/src/lib/journeyAdapter.ts`, `frontend/src/hooks/useJourneyData.ts`); normalizes v1 (3 fixed phases) and v2 (2-4 method phases) into canonical JourneyData; enforces future honesty (days: [] on unwritten future weeks); maps days 85-90 closing stretch; 21 unit tests added in `journeyAdapter.test.ts` (100% pass). |
 | 2026-09-25 | Phase 6 M6.3 done: Desktop journey composition delivered (`frontend/src/components/journey/JourneyHeader.tsx`, `DesktopStaircase.tsx`, `StrategicRoadmap.tsx`, `index.ts`, `RoadmapPage.tsx`). Implements all 3 VDS §9 progress layers: Layer 1 quick numerical header (`Day N / 90`, tabular figures, method badge, Back to Today), Layer 2 emotional staircase (VDS §25 symbols, 2–4 phase landings, active week daily step runner, Days 85–90 closing stretch, summit destination), and Layer 3 strategic roadmap (collapsible method phases, week milestone breakdown, strict future honesty BP §43 with zero fabricated tasks). 9 unit & integration tests added in `DesktopJourney.test.tsx` (100% pass). 0 axe violations at 1440px and 1024px. M6.4 ready. |
+| 2026-09-25 | Phase 6 M6.4 done: Mobile vertical journey delivered (`frontend/src/components/journey/MobileVerticalJourney.tsx`, `MobileVerticalJourney.test.tsx`, `frontend/e2e/journeyMobile.spec.ts`). Replaces the wide desktop staircase with a vertical ascending spine for viewports `< 768px` (VDS §28). Implements compact phase landing separators, active phase default expansion with collapsed upcoming phases, vertical active daily flight, "You are here" badge and auto-scroll ref positioning (R2), 44px minimum tap targets, days 85–90 approach section, and summit destination. 7 unit tests and 8 Playwright mobile tests pass (0 axe violations at 390px and 360px viewports, 0 overflow). R-8 and R-14 verified. M6.5 ready. |
+
 
 
 
