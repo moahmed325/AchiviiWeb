@@ -527,3 +527,20 @@ When today's deliberate practice step is completed:
 - **Reversibility:** Completion remains fully reversible via "Mark not done", cleanly restoring the active state and removing the next step preview while preserving all notes.
 - **Structured Notes & Focus Wins (R-10):** Notes disclosure cleanly delineates captured session reflections (`• Focus win: ...`) as structured cards with botanical sparkles from free-form practice notes in the textarea. Auto-saves on blur and explicit button, preserves drafts across day selection in `WeekGlance`, and serialization guarantees focus wins are never wiped when editing freeform notes.
 
+---
+
+## 13. OD-9 State Matrix & Error Resilience (BP §18, OD-9, ND-12)
+
+The application handles every state of the OD-9 matrix honestly, calmly, and without gamified shaming:
+
+- **Goal-Load Error & Route Protection (OD-9, ND-12):** When goal loading fails (`goalLoadFailed`), `/` renders an accessible error alert (`role="alert"`) with a primary `"Try again"` button calling `refreshGoal()`. The pathway library is suppressed. `ProtectedRoute` does not push the user to `/onboarding`. Onboarding Build guards against `POST /api/goal/create` while goal load failed, closing the `currentGoalId === null` duplicate create vulnerability.
+- **Rest Day State (OD-9):** Rest is presented as an intentional, designed part of the deliberate practice path: `<Badge>Rest day</Badge>`, purposeful copy (*"Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity."*), suppression of the Start (focus timer) button with a quiet "Log recovery complete" action, next practice step preview glance, and preserved completion lighting.
+- **Key Session State (OD-9):** Pivotal sessions are marked with `<Badge tone="accent">Key session</Badge>` and a dedicated guidance callout (*"This is your pivotal session for Week N. Focus on execution quality and adherence."*).
+- **Test Day State (OD-9):** Pulls test specifications from `currentRoadmapWeek(goal)?.test`: displays `<Badge tone="accent">Test day</Badge>`, test instructions, and benchmark criteria formatted via `formatPassIf`. Weekly benchmark scoring is strictly Phase 7; no fake score inputs, sliders, or pass/fail submit forms exist (OD-1a honesty rule).
+- **Recovery State (Yesterday Uncompleted) (OD-9, BP §18):** When yesterday's task was uncompleted, Today renders an encouraging recovery card (*"Yesterday's step wasn't completed. Here's how we can recover. Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward."*). Strictly NO red warning text, "missed", "failed", "behind", or streak-loss shaming.
+- **Review Due State (OD-9, R-12):** When all task dates in the current week have elapsed, Today renders a prominent review-due card (*"Week N is ready for review"*) linking to the review entry on `/dashboard`.
+- **Review Failed (503) State (OD-9):** Displays the exact server error message (*"Couldn't write next week right now. This week is unchanged; please try again."*), keeps reflection notes intact, provides a "Try again" button, and marks the error with `role="alert"`.
+- **Clamped Day 90 / After Week 12 State (OD-9, OD-2):** Day counter clamps at `90 / 90` with tabular figures. When no further tasks exist, renders an honest completion card (*"90-Day Journey Complete"*) linking to `/roadmap`, without inventing fake week 13 tasks or pretending Phase 9 goal completion exists (OD-1b).
+- **API Offline & Visible Failed Writes (OD-9, R-17):** Non-intrusive banner appears when `apiStatus === 'offline'` (*"Achivii is offline. You can view your plan, but changes cannot be saved until you reconnect."*). Any failed task write immediately renders a visible error alert (`role="alert"`: *"That didn't save. Please check your connection and try again."*). A failed write never leaves the UI in a fake completed or fake saved state.
+
+

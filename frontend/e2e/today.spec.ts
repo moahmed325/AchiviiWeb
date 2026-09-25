@@ -211,7 +211,7 @@ test.describe('the practice day', () => {
   test('a failed write says so and leaves the step as it was [network errors expected]', async ({ page }) => {
     await openToday(page, { taskUpdateStatus: 500 });
     await stepRegion(page).getByRole('button', { name: 'Mark complete' }).click();
-    await expect(stepRegion(page).getByRole('alert')).toHaveText("That didn't save. Try again.");
+    await expect(stepRegion(page).getByRole('alert')).toHaveText("That didn't save. Please check your connection and try again.");
     await expect(stepRegion(page).getByRole('button', { name: 'Mark complete' })).toBeVisible();
     await expect(stepRegion(page).getByText('Done', { exact: true })).toHaveCount(0);
   });

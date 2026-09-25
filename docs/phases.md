@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-25 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3, M5.4, M5.5 and M5.6 done.** M5.7 has not started. Step completion lighting, next step preview, and structured focus wins are live on Today; `/dashboard` is not redirected.
+Last updated: 2026-09-25 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3, M5.4, M5.5, M5.6 and M5.7 done.** M5.8 has not started. All OD-9 states, error resilience, and route protection are live on Today; `/dashboard` is not redirected.
 
 ---
 
@@ -2066,7 +2066,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
 
 ## PHASE 5 — TODAY
 
-**Status:** `IN PROGRESS` (M5.1 and M5.2 done 2026-09-23; M5.3 and M5.4 done 2026-09-24; M5.5 and M5.6 done 2026-09-25). M5.7 has not started.
+**Status:** `IN PROGRESS` (M5.1 and M5.2 done 2026-09-23; M5.3 and M5.4 done 2026-09-24; M5.5, M5.6 and M5.7 done 2026-09-25). M5.8 has not started.
 
 **Source:** BP §08–09, §15–18, §23, §26–27, §31–32, §41, §43–46, §48, OD-3, OD-9, ND-7, ND-18 · VDS §9, §14, §20, §24–26, §28
 
@@ -2179,7 +2179,7 @@ None.
 | M5.4 | **Done** (2026-09-24). Daily session with progressive reveal (every field preserved). The 10-minute version is a reveal the user opens. The extra period after `passIf` is fixed |
 | M5.5 | **Done** (2026-09-25). Focus mode redesigned; timer behaviour identical. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget restyled. Reflection reliably captured into notes; write errors surfaced with retry; Space/Esc shortcuts and 0 axe violations |
 | M5.6 | **Done** (2026-09-25). Completion interaction, step lighting, next step preview, and notes redesign. Completed step illuminated with calm botanical highlight (VDS §20, OD-9); next step preview card with day/duration/snippet; structured focus wins presentation alongside free-form practice notes; auto-save on blur and draft persistence across WeekGlance day switches |
-| M5.7 | Every remaining OD-9 state, including goal-load error and a failed offline write that is visible |
+| M5.7 | **Done** (2026-09-25). Every remaining OD-9 state, including goal-load error on `/` with retry (`refreshGoal()`), route protection in `ProtectedRoute` and onboarding, rest day with adaptation explanation and next step preview glance, key session callout, test day benchmark card with `formatPassIf` and no fake inputs, non-punitive yesterday recovery card, review due card, review 503 error handling, clamped Day 90 / after week 12, offline banner and visible failed writes |
 | M5.8 | `/dashboard` redirects to `/`, keeping query and hash. `done` and `ProtectedRoute` change in this same milestone. What M5.3–M5.6 did not already extract is removed |
 | M5.9 | Regression and phase report |
 
@@ -3057,6 +3057,147 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    Nothing was committed.
 ```
 
+### M5.7 report — Remaining OD-9 states & error resilience (2026-09-25)
+
+```text
+1. Outcome
+   All remaining states from the OD-9 state matrix (docs/phases.md §4) are implemented
+   and verified across Home.tsx, ProtectedRoute.tsx, OnboardingPage.tsx, Today.tsx,
+   and ExecutionDashboard.tsx:
+   - Goal-Load Error State & Route Protection (R1, OD-9, ND-12): when goal fetch fails
+     (goalLoadFailed === true), / renders an accessible error alert (role="alert")
+     with heading "We couldn't load your goal", reassuring copy, and working "Try again"
+     (refreshGoal()) button; pathway library is suppressed; ProtectedRoute does NOT redirect
+     to /onboarding; Onboarding Build disables create while goal load failed, permanently
+     closing the currentGoalId === null duplicate-create vulnerability.
+   - Rest Day State (R2, OD-9): intentional rest presentation with "Today's rest" /
+     "{Day}'s rest", Badge "Rest day", adaptation copy ("Rest is where adaptation happens..."),
+     next practice step preview glance, Start button suppressed, and quiet "Log recovery complete"
+     action. Step completion lighting is preserved.
+   - Key Session State (R3, OD-9): pivotal sessions are highlighted with Badge tone="accent"
+     "Key session" and guidance callout ("This is your pivotal session for Week N. Focus on
+     execution quality and adherence."). Start focus mode, duration, and reveals remain intact.
+   - Test Day State (R4, OD-9): pulls test specification from current roadmap week
+     (currentRoadmapWeek(goal)?.test), rendering a dedicated benchmark card with test type,
+     instructions, and pass mark formatted via formatPassIf. Zero fake score inputs, sliders,
+     or pass/fail submit forms exist (OD-1a honesty rule).
+   - Recovery State (R5, OD-9, BP §18): when yesterday's task was uncompleted, Today renders
+     an encouraging recovery card ("Yesterday's step wasn't completed. Here's how we can recover.
+     Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward.").
+     Strictly NO punitive language ("missed", "failed", "behind") or streak-loss shaming.
+   - Review Due State (R6, OD-9, R-12): when all task dates in the current week have passed,
+     Today prominently renders a "Review due" card ("Week N is ready for review") linking
+     directly to /dashboard.
+   - Review Failed (503) State (R7, OD-9): on review submission 503 failure, ExecutionDashboard
+     renders the server's exact sentence ("Couldn't write next week right now. This week is unchanged;
+     please try again.") with role="alert", keeps reflection text intact, and provides "Try again".
+   - Clamped Day 90 / After Week 12 (R8, OD-9, OD-2): day counter clamps at 90 / 90 with tabular
+     figures; when past planned tasks, renders an honest completion card ("90-Day Journey Complete")
+     linking to /roadmap without inventing fake week 13 tasks or pretending Phase 9 completion exists.
+   - API Offline & Visible Failed Writes (R9, OD-9, R-17): dedicated offline notice banner appears
+     on Today when apiStatus === 'offline'; failed task writes immediately display visible error
+     alert (role="alert": "That didn't save. Please check your connection and try again.") and
+     never look saved.
+
+2. What changed
+   - State Detection Helpers (frontend/src/lib/today.ts & today.test.ts):
+     - Added findYesterdayTask to find yesterday's calendar task in the week.
+     - Added isYesterdayPending to check if yesterday was an uncompleted practice day.
+     - Added isWeekReviewDue to check if all tasks in the week have elapsed.
+     - 22 unit tests passing in today.test.ts.
+   - Goal Context (frontend/src/context/GoalContext.tsx):
+     - Sets goalLoadFailed = true when refreshGoal encounters an error.
+   - Goal-Load Error & Route Protection (Home.tsx, ProtectedRoute.tsx, OnboardingPage.tsx):
+     - Home.tsx renders dedicated error state with role="alert", "Try again" button calling
+       refreshGoal(), and suppresses pathway library when goalLoadFailed && !activeGoal.
+     - ProtectedRoute.tsx redirects to / instead of /onboarding when requireGoal && !activeGoal
+       and goalLoadFailed is true.
+     - OnboardingPage.tsx renders error alert with retry button when goalLoadFailed is true,
+       preventing duplicate plan creation during build.
+   - Execution Dashboard Review Error (frontend/src/components/ExecutionDashboard.tsx):
+     - role="alert" added to reviewError display; review submit button toggles to "Try again".
+   - Today Component (frontend/src/components/today/Today.tsx):
+     - Offline banner when apiStatus === 'offline'.
+     - NOT_SAVED error message updated to "That didn't save. Please check your connection and try again.".
+     - Rest day state: adaptation explanation, suppressed Start, recovery toggle, and next step preview.
+     - Key session state: accent badge and pivotal session guidance callout.
+     - Test day state: benchmark card with instructions, formatPassIf pass mark, zero fake inputs.
+     - Yesterday recovery card: non-punitive guidance when yesterday's step was uncompleted.
+     - Review due card: rendered when isWeekReviewDue(currentWeekTasks, now) is true.
+     - Clamped Day 90 card: rendered when goal.currentWeek >= 12 and no planned tasks remain.
+   - Tests:
+     - Home.test.tsx: 2 unit tests covering goal load failure and retry.
+     - ProtectedRoute.test.tsx: 2 unit tests verifying route protection under goalLoadFailed.
+     - Today.test.tsx: 8 new unit tests covering all OD-9 states (22 tests total).
+     - today.spec.ts: updated write error expectation (32 tests total).
+     - todayStates.spec.ts: 16 Playwright E2E tests covering every OD-9 state across desktop and mobile.
+
+3. Files changed / created / removed
+   Created:
+   - frontend/e2e/todayStates.spec.ts
+   - frontend/src/components/ProtectedRoute.test.tsx
+   - frontend/src/pages/Home.test.tsx
+   Changed:
+   - frontend/src/lib/today.ts
+   - frontend/src/lib/today.test.ts
+   - frontend/src/context/GoalContext.tsx
+   - frontend/src/pages/Home.tsx
+   - frontend/src/pages/OnboardingPage.tsx
+   - frontend/src/components/ProtectedRoute.tsx
+   - frontend/src/components/ExecutionDashboard.tsx
+   - frontend/src/components/today/Today.tsx
+   - frontend/src/components/today/Today.test.tsx
+   - frontend/e2e/today.spec.ts
+   - Design.md (§13 OD-9 State Matrix & Error Resilience)
+   - docs/phases.md (M5.7 report, milestone table, position header, change log)
+   Removed: nothing.
+   Backend was not changed. Zero backend changes permitted.
+
+4. Functionality preserved
+   R-1: Post-auth redirect to / unaffected; error state renders safely.
+   R-8: Daily task retrieval intact for all practice, key, test, and rest days.
+   R-9: Daily task completion toggle works across all state types; failed writes never look saved.
+   R-10: Task notes load and save correctly; focus wins preserved.
+   R-11: Focus session runner functional for practice and key session days.
+   R-12: Weekly review entry reachable from review-due state; 503 handled gracefully.
+   R-15, R-17: Reset goal unaffected; offline status indicated honestly.
+   /dashboard was NOT redirected.
+
+5. Decisions applied
+   OD-9: Every row in the state matrix implemented (goal load error, rest day, key session,
+   test day, recovery, review due, review 503, clamped day 90, offline banner & failed write).
+   BP §18: Calm, non-punitive tone; no red warning text, "missed", "failed", "behind", or streak shaming.
+   BP §43 & OD-1a: Test Day benchmark instructions and pass mark without fake score inputs or sliders.
+   OD-2: Day 90 / 90 clamped with honest completion message; zero fake week 13 tasks.
+   ND-12: Route protection keeps user on / with error alert instead of redirecting to onboarding.
+
+6. Validation evidence
+   Frontend tsc --noEmit: clean (0 errors).
+   ESLint on all changed/created files: clean (0 errors, 0 warnings).
+   Frontend Vitest: 263 passed / 31 files (was 245 / 29).
+   Build: main JS 585.44 KB (172.88 KB gzipped), CSS 100.47 KB (17.59 KB gzipped).
+   Playwright e2e/todayStates.spec.ts: 16 passed across desktop and mobile (18.0s).
+   Playwright e2e/today.spec.ts: 32 passed across desktop and mobile (37.9s).
+   Playwright e2e/focus.spec.ts: 14 passed across desktop and mobile (21.4s).
+   Total Playwright suites for Phase 5: 62 passed, 0 failed across desktop and mobile.
+   Axe-core scan: 0 violations across all OD-9 states at 1440px and 390px viewports.
+   Responsive check: 0 horizontal overflow and touch targets ≥ 44px at 1440px, 390px, and 360px widths.
+
+7. Carry-overs
+   M5.8: /dashboard redirect to / (keeping query and hash), update OnboardingPage navigate('/dashboard')
+   and ProtectedRoute <Navigate to="/dashboard"> to /, and remove duplicate legacy dashboard code.
+   M5.9: Phase 5 regression matrix and final Phase 5 report.
+
+8. Issues and risks
+   None. Route protection permanently eliminates the duplicate-create vulnerability when
+   goal load fails during onboarding build.
+
+9. Not started
+   M5.8 has NOT started.
+   /dashboard was not redirected.
+   Nothing was committed.
+```
+
 ---
 
 ## PHASE 6 — JOURNEY
@@ -3820,4 +3961,5 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-24 | Phase 5 M5.4 done: progressive reveal on Today (whyToday on screen, steps with timing/output/pitfall/passMark/resource, 10-minute version, implementation intention, task resource). Start remains in first viewport at 390×844. PlanV2Panel double period fixed and unit tested. Full day view copy updated. Design.md §6 updated. M5.5 not started. /dashboard not redirected. |
 | 2026-09-25 | Phase 5 M5.5 done: Focus mode redesigned on Phase 0 tokens and primitives (`components/focus/`, `FocusSessionModal.tsx`, `StepChallengeWidget.tsx`, `lib/stepChallenge.ts`). Countdown timer, pause/resume, reset, spacebar toggle, audio effects and mute toggle preserved identically. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget. Reliable reflection capture into task notes; failed network/server writes surface inline error alert (`role="alert"`), preserve reflection text, and allow safe retry. 0 axe violations. `Design.md` §11. M5.6 not started. `/dashboard` was not redirected. |
 | 2026-09-25 | Phase 5 M5.6 done: Completion interaction, step lighting, next step preview & notes redesign on Today (`components/today/Today.tsx`, `lib/today.ts`). Active step card illuminated with calm botanical highlight (`border-accent/40 bg-surface/95 ring-1 ring-accent/20 shadow-sm`), `StepMarker` completed, and quiet non-punitive confirmation. Next step preview card with upcoming practice day, title, duration, snippet, and inspection link; week completion bridge linking to review. Reversible via "Mark not done". Notes redesign parses and displays structured focus wins alongside free-form notes, auto-saves on blur, and preserves drafts across `WeekGlance` switches. 0 axe violations. `Design.md` §12. M5.7 not started. `/dashboard` was not redirected. |
+| 2026-09-25 | Phase 5 M5.7 done: Remaining OD-9 states & error resilience on Today (`components/today/Today.tsx`, `lib/today.ts`, `Home.tsx`, `ProtectedRoute.tsx`, `OnboardingPage.tsx`, `ExecutionDashboard.tsx`). Goal-load error alert on `/` with retry (`refreshGoal()`), route protection in `ProtectedRoute` and onboarding (closing duplicate create hole); rest day intentional adaptation copy, suppressed Start, and next step preview; key session callout; test day benchmark card with instructions and `formatPassIf` pass mark (zero fake score inputs); non-punitive yesterday recovery card; review due card; review 503 error handling; clamped Day 90 / after week 12; offline banner and visible write failure alert. 0 axe violations. `Design.md` §13. M5.8 not started. `/dashboard` was not redirected. |
 

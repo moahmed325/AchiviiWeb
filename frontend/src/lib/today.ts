@@ -134,3 +134,29 @@ export function findNextTask(tasks: DailyTask[], currentTaskId: string): DailyTa
   return subsequent.find((t) => !t.isRestDay) ?? null;
 }
 
+/** Finds the task scheduled for yesterday (1 calendar day before now in UTC). */
+export function findYesterdayTask(tasks: DailyTask[], now: Date): DailyTask | null {
+  const yesterday = new Date(now.getTime() - DAY_MS);
+  const yesterdayKey = todayKey(yesterday);
+  return tasks.find((t) => t.date === yesterdayKey) ?? null;
+}
+
+/**
+ * Checks whether yesterday's scheduled practice task was left uncompleted (status === 'pending').
+ * Rest days are not considered uncompleted practice.
+ */
+export function isYesterdayPending(tasks: DailyTask[], now: Date): boolean {
+  const yesterday = findYesterdayTask(tasks, now);
+  return Boolean(yesterday && !yesterday.isRestDay && yesterday.status === 'pending');
+}
+
+/**
+ * Checks if all tasks in the current week have dates strictly before today's UTC date.
+ * When true, all scheduled days have passed and the weekly review is due.
+ */
+export function isWeekReviewDue(tasks: DailyTask[], now: Date): boolean {
+  if (tasks.length === 0) return false;
+  const today = todayKey(now);
+  return tasks.every((t) => t.date < today);
+}
+

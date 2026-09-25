@@ -13,7 +13,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireGoal = true,
 }) => {
   const { user, token, loading: authLoading } = useAuth();
-  const { activeGoal, loadingGoal } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed } = useGoal();
   const location = useLocation();
 
   // While either auth or goal is resolving, show a calm minimal loading state
@@ -32,8 +32,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to={`/login?next=${next}`} replace />;
   }
 
-  // Route requires an active goal, but user has none -> redirect to onboarding
+  // Route requires an active goal, but user has none -> redirect to onboarding unless goal load failed (OD-9, ND-12)
   if (requireGoal && !activeGoal) {
+    if (goalLoadFailed) {
+      return <Navigate to="/" replace />;
+    }
     return <Navigate to="/onboarding" replace />;
   }
 

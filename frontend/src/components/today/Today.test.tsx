@@ -117,7 +117,7 @@ describe('Today', () => {
 
     mocked.updateDailyTask.mockRejectedValueOnce(new Error('Failed to fetch'));
     await user.click(screen.getByRole('button', { name: 'Mark not done' }));
-    expect(await screen.findByText("That didn't save. Try again.")).toBeInTheDocument();
+    expect(await screen.findByText("That didn't save. Please check your connection and try again.")).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mark not done' })).toBeInTheDocument();
   });
 
@@ -389,6 +389,166 @@ describe('Today', () => {
         't',
       ),
     );
+  });
+
+  it('renders rest day state with intentional adaptation copy, suppressed start button, recovery toggle, and next step preview', async () => {
+    const user = userEvent.setup();
+    await renderToday();
+
+    // Select Sunday (rest day)
+    const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
+    const sunday = days.find((b) => b.getAttribute('aria-label')?.startsWith('Sun'))!;
+    await user.click(sunday);
+
+    // Eyebrow and badge
+    expect(screen.getByText("Sunday's rest")).toBeVisible();
+    expect(screen.getByText('Rest day')).toBeVisible();
+
+    // Intentional adaptation explanation
+    expect(
+      screen.getByText('Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity.')
+    ).toBeVisible();
+
+    // Start (focus mode) button is suppressed on rest days
+    expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
+
+    // Recovery action button
+    const recoveryBtn = screen.getByRole('button', { name: 'Log recovery complete' });
+    expect(recoveryBtn).toBeVisible();
+
+    // Toggle recovery complete
+    await user.click(recoveryBtn);
+    expect(screen.getByText('Rest logged. Deliberate recovery recorded for today.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Mark not done' })).toBeVisible();
+  });
+
+  it('renders key session state with accent badge and pivotal session callout', async () => {
+    const keyTask: DailyTask = { ...tasks[2], isKeySession: true };
+    const goalWithKey = { ...GOAL, dailyTasks: tasks.map((t) => (t.id === 't3' ? keyTask : t)) } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithKey);
+    await renderToday();
+
+    expect(screen.getByText('Key session')).toBeVisible();
+    expect(
+      screen.getByText('This is your pivotal session for Week 1. Focus on execution quality and adherence.')
+    ).toBeVisible();
+    // Start button still available
+    expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
+  });
+
+  it('renders test day benchmark card with instructions and pass mark without fake score inputs', async () => {
+    const testTask: DailyTask = { ...tasks[2], isTestDay: true };
+    const goalWithTest = {
+      ...GOAL,
+      roadmapWeeks: [
+        {
+          weekNumber: 1,
+          phase: 'Aerobic base',
+          theme: 'Easy miles',
+          test: {
+            type: '5K',
+            instructions: 'Run 5K at maximum sustainable effort on a flat course.',
+            passIf: 'finish in under 25:00',
+          },
+        },
+      ],
+      dailyTasks: tasks.map((t) => (t.id === 't3' ? testTask : t)),
+    } as unknown as Goal;
+
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithTest);
+    await renderToday();
+
+    expect(screen.getByText('Test day')).toBeVisible();
+    expect(screen.getByText('5K Benchmark')).toBeVisible();
+    expect(screen.getByText('Run 5K at maximum sustainable effort on a flat course.')).toBeVisible();
+    expect(screen.getByText('Pass mark:')).toBeVisible();
+    expect(screen.getByText('Pass if finish in under 25:00.')).toBeVisible();
+
+    // Honesty rule (OD-1a): No score inputs, sliders, or pass/fail submit forms
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/score/i)).not.toBeInTheDocument();
+  });
+
+  it('renders reassuring non-punitive recovery card when yesterday task was uncompleted', async () => {
+    // Yesterday (t2) is pending
+    const tasksWithYesterdayPending = tasks.map((t) => (t.id === 't2' ? { ...t, status: 'pending' as const } : t));
+    const goalWithPendingYesterday = { ...GOAL, dailyTasks: tasksWithYesterdayPending } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithPendingYesterday);
+    await renderToday();
+
+    // Reassuring recovery card is displayed
+    expect(screen.getByText("Yesterday's step wasn't completed")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Here's how we can recover. Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward."
+      )
+    ).toBeVisible();
+
+    // Strictly NO punitive copy
+    expect(screen.queryByText(/missed/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/behind/i)).not.toBeInTheDocument();
+  });
+
+  it('renders review due banner when all tasks of the week have passed', async () => {
+    // All tasks in the week occurred in the past (e.g. days -10 to -4)
+    const pastTasks = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 10) }));
+    const goalWithPastTasks = { ...GOAL, dailyTasks: pastTasks } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithPastTasks);
+    await renderToday();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Week 1 is ready for review' })).toBeVisible();
+    expect(screen.getByText('Review due')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Start weekly review' })).toHaveAttribute('href', '/dashboard');
+  });
+
+  it('renders 90-day journey complete state when at day 90 / after week 12 with no remaining tasks', async () => {
+    const goalComplete = {
+      ...GOAL,
+      currentWeek: 12,
+      targetDate: isoDay(-5),
+      dailyTasks: [],
+    } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalComplete);
+    await renderToday();
+
+    expect(screen.getByText('90-Day Journey')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: '90-Day Journey Complete' })).toBeVisible();
+    expect(
+      screen.getByText('You have completed the 90-day deliberate practice path for this goal.')
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Review 90-day roadmap' })).toHaveAttribute('href', '/roadmap');
+  });
+
+  it('renders offline notice banner when apiStatus is offline', async () => {
+    render(
+      <AuthProvider>
+        <GoalProvider>
+          <MemoryRouter>
+            <Today goal={GOAL} apiStatus="offline" />
+          </MemoryRouter>
+        </GoalProvider>
+      </AuthProvider>
+    );
+
+    expect(
+      await screen.findByText('Achivii is offline. You can view your plan, but changes cannot be saved until you reconnect.')
+    ).toBeVisible();
+  });
+
+  it('surfaces visible accessible error alert when task completion write fails', async () => {
+    const user = userEvent.setup();
+    mocked.updateDailyTask.mockRejectedValueOnce(new Error('Network error'));
+    await renderToday();
+
+    const markBtn = screen.getByRole('button', { name: 'Mark complete' });
+    await user.click(markBtn);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent("That didn't save. Please check your connection and try again.");
+    // Failed write did not leave step in fake completed state
+    expect(screen.getByRole('button', { name: 'Mark complete' })).toBeVisible();
+    expect(screen.queryByText('Step completed. Deliberate practice logged for today.')).not.toBeInTheDocument();
   });
 });
 

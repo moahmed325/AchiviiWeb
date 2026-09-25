@@ -2,12 +2,16 @@ import React, { useId, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, ChevronDown, ExternalLink, Play, Sparkles, X } from 'lucide-react';
 import type { DailyTask, Goal } from '../../types';
+import { useGoal } from '../../context/GoalContext';
+import { formatPassIf } from '../../lib/formatters';
 import {
   currentRoadmapWeek,
   currentWeekTasks,
   dayNumber,
   findNextTask,
   isToday,
+  isWeekReviewDue,
+  isYesterdayPending,
   parseIntention,
   parseSteps,
   parseTaskNotes,
@@ -19,7 +23,7 @@ import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, T
 import { FocusSessionModal } from '../FocusSessionModal';
 import { useTaskActions } from './useTaskActions';
 
-const NOT_SAVED = "That didn't save. Try again.";
+const NOT_SAVED = "That didn't save. Please check your connection and try again.";
 
 const isHttpUrl = (url?: string | null): boolean => Boolean(url && /^https?:\/\//i.test(url.trim()));
 
@@ -123,13 +127,17 @@ const WeekGlance: React.FC<{ tasks: DailyTask[]; selectedId?: string; now: Date;
 
 interface TodayProps {
   goal: Goal;
+  apiStatus?: 'online' | 'offline' | 'checking';
 }
 
 /**
- * Today for the normal practice day (BP §09): the goal, Day N / 90, today's step, its duration, Start, a glance at
- * the week, the way to the Roadmap. Other OD-9 states render plainly until M5.7 designs them.
+ * Today for the normal practice day and all OD-9 states (BP §09, BP §18, OD-9):
+ * the goal, Day N / 90, today's step or rest day, test day benchmarks, key sessions,
+ * recovery guidance, review due prompts, and honest clamped 90-day completion.
  */
-export const Today: React.FC<TodayProps> = ({ goal }) => {
+export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) => {
+  const goalContext = useGoal();
+  const apiStatus = propApiStatus ?? goalContext.apiStatus;
   const [now] = useState(() => new Date());
   const [selectedId, setSelectedId] = useState<string>();
   const [focusOpen, setFocusOpen] = useState(false);
@@ -163,6 +171,8 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
   const focusWins = parsedNotes.focusWins;
   const draft = task ? drafts[task.id] : undefined;
   const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
+  const reviewDue = isWeekReviewDue(tasks, now);
+  const yesterdayUncompleted = isYesterdayPending(tasks, now) && Boolean(task && isToday(task, now) && task.status === 'pending');
 
   const selectDay = (id: string) => {
     setSelectedId(id);
@@ -210,6 +220,16 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
     <main id="main" className="ui-root mx-auto w-full max-w-3xl flex-1 px-gutter py-10 text-left sm:py-14">
       <PathwayNotice />
 
+      {apiStatus === 'offline' && (
+        <div
+          role="status"
+          className="mb-8 flex items-center gap-3 rounded-card border border-border bg-surface p-4 text-small text-text-secondary"
+        >
+          <span className="size-2 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
+          <span>Achivii is offline. You can view your plan, but changes cannot be saved until you reconnect.</span>
+        </div>
+      )}
+
       <header>
         <Eyebrow>Your goal</Eyebrow>
         <h1 className="mt-3 break-words text-h2 text-text">{goal.rawGoal}</h1>
@@ -233,6 +253,25 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
         </p>
       </div>
 
+      {reviewDue && (
+        <section aria-labelledby="review-due-heading" className="mt-8 rounded-panel border border-accent/40 bg-surface p-5 sm:p-7 shadow-sm ring-1 ring-accent/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <Badge tone="accent">Review due</Badge>
+              <h2 id="review-due-heading" className="mt-2 text-h3 text-text">
+                Week {goal.currentWeek || 1} is ready for review
+              </h2>
+              <p className="mt-1 text-small text-text-secondary">
+                You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path.
+              </p>
+            </div>
+            <Button asChild variant="primary" className="shrink-0 sm:min-w-44">
+              <Link to="/dashboard">Start weekly review</Link>
+            </Button>
+          </div>
+        </section>
+      )}
+
       <section
         aria-labelledby="step-heading"
         className={cx(
@@ -245,54 +284,103 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
         {task ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <Eyebrow>{isToday(task, now) ? "Today's step" : `${task.dayOfWeek}'s step`}</Eyebrow>
+              <Eyebrow>
+                {task.isRestDay
+                  ? isToday(task, now)
+                    ? "Today's rest"
+                    : `${task.dayOfWeek}'s rest`
+                  : isToday(task, now)
+                    ? "Today's step"
+                    : `${task.dayOfWeek}'s step`}
+              </Eyebrow>
               {done && <StepMarker state="completed" size="sm" />}
-              {done && <Badge tone="accent">Done</Badge>}
-              {task.isRestDay && <Badge>Rest day</Badge>}
-              {task.isKeySession && <Badge>Key session</Badge>}
-              {task.isTestDay && <Badge>Test day</Badge>}
+              {done && <Badge tone="accent">{task.isRestDay ? 'Rest logged' : 'Done'}</Badge>}
+              {task.isRestDay && !done && <Badge>Rest day</Badge>}
+              {task.isKeySession && <Badge tone="accent">Key session</Badge>}
+              {task.isTestDay && <Badge tone="accent">Test day</Badge>}
             </div>
+
+            {yesterdayUncompleted && (
+              <div className="mt-4 rounded-card border border-border bg-background/50 p-4">
+                <h3 className="text-small font-medium text-text">Yesterday's step wasn't completed</h3>
+                <p className="mt-1 text-small text-text-secondary">
+                  Here's how we can recover. Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward.
+                </p>
+              </div>
+            )}
+
+            {task.isKeySession && (
+              <div className="mt-3 flex items-start gap-2.5 rounded-card border border-accent/30 bg-accent/5 p-3 text-small text-text">
+                <Sparkles aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0 text-accent mt-0.5" />
+                <span>This is your pivotal session for Week {goal.currentWeek || 1}. Focus on execution quality and adherence.</span>
+              </div>
+            )}
+
             <h2 id="step-heading" className="mt-3 break-words text-h3 text-text">
               {task.title}
             </h2>
             <p className="tabular mt-2 text-small text-text-secondary">
               {task.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
             </p>
+            {task.isRestDay && (
+              <p className="mt-2 text-small text-text-secondary">
+                Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity.
+              </p>
+            )}
             {task.whyToday?.trim() ? (
               <p className="mt-2 text-small text-text-secondary">
                 {task.whyToday}
               </p>
             ) : null}
 
+            {task.isTestDay && (
+              <div className="mt-4 rounded-card border border-border bg-background/50 p-4 sm:p-5">
+                <h3 className="text-small font-medium text-text">
+                  {week?.test?.type ? `${week.test.type} Benchmark` : 'Weekly Benchmark'}
+                </h3>
+                {week?.test?.instructions && (
+                  <p className="mt-2 text-small text-text-secondary">{week.test.instructions}</p>
+                )}
+                {week?.test?.passIf && (
+                  <p className="mt-2 text-small text-text">
+                    <span className="font-medium">Pass mark: </span>
+                    <span className="text-text-secondary">{formatPassIf(week.test.passIf)}</span>
+                  </p>
+                )}
+              </div>
+            )}
+
             {done && (
               <div className="mt-3 flex items-center gap-2 text-small font-medium text-accent">
                 <Check aria-hidden="true" strokeWidth={2} className="size-4 shrink-0" />
-                <span>Step completed. Deliberate practice logged for today.</span>
+                <span>{task.isRestDay ? 'Rest logged. Deliberate recovery recorded for today.' : 'Step completed. Deliberate practice logged for today.'}</span>
               </div>
             )}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button
-                onClick={() => setFocusOpen(true)}
-                leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
-                className="sm:min-w-44"
-              >
-                Start
-              </Button>
+              {!task.isRestDay && (
+                <Button
+                  onClick={() => setFocusOpen(true)}
+                  leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                  className="sm:min-w-44"
+                >
+                  Start
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 loading={busy}
                 onClick={onToggle}
                 leadingIcon={done ? <Check aria-hidden="true" strokeWidth={1.5} className="size-4" /> : undefined}
               >
-                {done ? 'Mark not done' : 'Mark complete'}
+                {done ? 'Mark not done' : task.isRestDay ? 'Log recovery complete' : 'Mark complete'}
               </Button>
             </div>
             <p role="alert" className="mt-3 text-small text-danger empty:hidden">
               {actionError ?? ''}
             </p>
 
-            {done && (
+            {(done || task.isRestDay) && (
               <div className="mt-6 rounded-card border border-border bg-background/50 p-4 sm:p-5">
                 {nextTask ? (
                   <div>
@@ -590,6 +678,21 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
                   </Button>
                 </div>
               </div>
+            </div>
+          </>
+        ) : (goal.currentWeek && goal.currentWeek >= 12) || day >= 90 ? (
+          <>
+            <Eyebrow>90-Day Journey</Eyebrow>
+            <h2 id="step-heading" className="mt-3 text-h3 text-text">
+              90-Day Journey Complete
+            </h2>
+            <p className="mt-2 text-small text-text-secondary">
+              You have completed the 90-day deliberate practice path for this goal.
+            </p>
+            <div className="mt-6">
+              <Button asChild variant="secondary" trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}>
+                <Link to="/roadmap">Review 90-day roadmap</Link>
+              </Button>
             </div>
           </>
         ) : (

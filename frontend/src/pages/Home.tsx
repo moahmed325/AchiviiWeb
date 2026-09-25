@@ -1,22 +1,51 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
 import { PathwayCustomGoal, PathwayLibrary, usePathwayLaunch } from '../components/pathways';
-import { Button } from '../components/ui';
+import { Button, Surface } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 import { Today, TodaySkeleton } from '../components/today/Today';
 
 export const Home: React.FC = () => {
   const { user, token, loading: authLoading } = useAuth();
-  const { activeGoal, loadingGoal, apiStatus } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus } = useGoal();
   const { startPathway, startCustomGoal } = usePathwayLaunch();
+  const [retrying, setRetrying] = useState(false);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      await refreshGoal();
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   if (token && (authLoading || loadingGoal)) {
     return <TodaySkeleton />;
   }
 
   if (user && token) {
+    // Goal fetch failed: render dedicated error state rather than pathway library (OD-9, ND-12)
+    if (goalLoadFailed && !activeGoal) {
+      return (
+        <main id="main" className="ui-root mx-auto w-full max-w-xl flex-1 px-gutter py-16 text-center">
+          <Surface role="alert" tone="base" padding="lg" radius="card" className="flex flex-col items-center gap-4 text-center">
+            <h1 className="text-h2 text-text">
+              We couldn't load your goal
+            </h1>
+            <p className="max-w-md text-body text-text-secondary">
+              Your plan is safe, but we had trouble reaching Achivii. Check your connection or try again.
+            </p>
+            <Button variant="primary" loading={retrying} onClick={handleRetry} className="mt-2">
+              Try again
+            </Button>
+          </Surface>
+        </main>
+      );
+    }
+
     // No goal yet: the pathway library, with a goal of the user's own as the quieter route (ND-6).
     if (!activeGoal) {
       return (

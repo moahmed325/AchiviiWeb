@@ -1112,7 +1112,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
             </div>
 
             {reviewError && (
-              <p className="text-xs text-amber-400 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/25">{reviewError}</p>
+              <p role="alert" className="text-xs text-amber-400 p-2.5 rounded-md bg-amber-500/10 border border-amber-500/25">{reviewError}</p>
             )}
 
             {/* Actions */}
@@ -1138,7 +1138,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
                   </>
                 ) : (
                   <>
-                    <span>Start Week {currentWeekNum + 1}</span>
+                    <span>{reviewError ? 'Try again' : `Start Week ${currentWeekNum + 1}`}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </>
                 )}

@@ -80,6 +80,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setGoalLoadFailed(false);
     } catch (err) {
       console.warn('Failed to refresh active goal:', err);
+      setGoalLoadFailed(true);
     }
   }, [token]);
 

@@ -5,7 +5,10 @@ import {
   currentWeekTasks,
   dayNumber,
   findNextTask,
+  findYesterdayTask,
   isToday,
+  isWeekReviewDue,
+  isYesterdayPending,
   parseIntention,
   parseSteps,
   parseTaskNotes,
@@ -174,6 +177,67 @@ describe('findNextTask', () => {
     expect(findNextTask(week, 'thu')).toBeNull();
     // invalid id
     expect(findNextTask(week, 'nonexistent')).toBeNull();
+  });
+});
+
+describe('findYesterdayTask and isYesterdayPending', () => {
+  // week: mon (completed, 2026-09-21), tue (completed, 2026-09-22), wed (pending, 2026-09-23), thu (pending, 2026-09-24)
+  it('finds yesterday task based on UTC calendar date', () => {
+    const wednesday = new Date('2026-09-23T12:00:00Z');
+    expect(findYesterdayTask(week, wednesday)?.id).toBe('tue');
+
+    const tuesday = new Date('2026-09-22T12:00:00Z');
+    expect(findYesterdayTask(week, tuesday)?.id).toBe('mon');
+
+    const monday = new Date('2026-09-21T12:00:00Z');
+    // Sunday is 2026-09-27 in week, so 2026-09-20 is not in week
+    expect(findYesterdayTask(week, monday)).toBeNull();
+  });
+
+  it('detects uncompleted yesterday practice task', () => {
+    const thursday = new Date('2026-09-24T12:00:00Z');
+    // Yesterday was wed (2026-09-23), which is pending and not rest
+    expect(isYesterdayPending(week, thursday)).toBe(true);
+
+    const wednesday = new Date('2026-09-23T12:00:00Z');
+    // Yesterday was tue (2026-09-22), which is completed
+    expect(isYesterdayPending(week, wednesday)).toBe(false);
+  });
+
+  it('does not treat rest day as an uncompleted practice task', () => {
+    const testTasks = [
+      task({ id: 'sat', date: '2026-09-26', isRestDay: true, status: 'pending' }),
+      task({ id: 'sun', date: '2026-09-27', isRestDay: false, status: 'pending' }),
+    ];
+    const sunday = new Date('2026-09-27T12:00:00Z');
+    // Yesterday was saturday, which was a rest day
+    expect(isYesterdayPending(testTasks, sunday)).toBe(false);
+  });
+});
+
+describe('isWeekReviewDue', () => {
+  it('returns true when all task dates in the current week have passed', () => {
+    const pastTasks = [
+      task({ id: 't1', date: '2026-09-21' }),
+      task({ id: 't2', date: '2026-09-22' }),
+      task({ id: 't3', date: '2026-09-23' }),
+    ];
+    const friday = new Date('2026-09-25T12:00:00Z');
+    expect(isWeekReviewDue(pastTasks, friday)).toBe(true);
+  });
+
+  it('returns false when at least one task date is today or in the future', () => {
+    const currentTasks = [
+      task({ id: 't1', date: '2026-09-21' }),
+      task({ id: 't2', date: '2026-09-23' }),
+      task({ id: 't3', date: '2026-09-24' }),
+    ];
+    const wednesday = new Date('2026-09-23T12:00:00Z');
+    expect(isWeekReviewDue(currentTasks, wednesday)).toBe(false);
+  });
+
+  it('returns false when there are no tasks', () => {
+    expect(isWeekReviewDue([], new Date())).toBe(false);
   });
 });
 
