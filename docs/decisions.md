@@ -115,7 +115,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | OD-1a | Store weekly test results | Architecture | Open | 7 |
 | OD-1b | Goal completion transition | Architecture | Open | 9 |
 | OD-1c | Server-side entitlement for Custom Journeys | Architecture | Open | 10 |
-| OD-2 | 90 vs 84 days | Product | Proposed | 5, 6, 9 |
+| OD-2 | 90 vs 84 days | Product | Decided (A) | 5, 6, 9 |
 | OD-3 | Which dashboard becomes Today | Architecture | Decided (A) | 5 |
 | OD-4 | Dedicated `/login` and `/signup` routes | Architecture | Decided (A) | 2 |
 | OD-5 | Mobile in every phase | Process | Decided (see D-12) | All |
@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phase 5 is in progress. OD-3 (A), OD-9 (A amended), ND-7 (A narrowed) and ND-18 (A) are Decided. M5.1, M5.2, M5.3 and M5.4 are done: the ND-7 shell is in place and Today is live at `/` for the practice day with progressive reveal of all session fields (BP §31). M5.5 may start when Mo sends it. Phase 5 is not blocked. `/dashboard` is not redirected.
+**What blocks the next phase:** Phase 5 is complete. OD-3 (A), OD-9 (A amended), ND-7 (A narrowed) and ND-18 (A) are Decided and fully implemented. M5.1–M5.9 are done: Today lives at `/` as the single execution surface, `/dashboard` permanently redirects to `/` preserving query and hash, all OD-9 states and error resilience are delivered, and Phase 5 exit criteria are met. Phase 5 is `COMPLETE` (awaiting Mo's review). Phase 6 (Journey) is next and blocked by OD-2 and OD-7.
 
 ---
 
@@ -665,11 +665,11 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided (A) |
 | Category | Product |
 | Needed by | 5 (copy), 6 (Journey), 9 (completion) |
 | Raised | BP §06 and Open Decision 2 |
-| Decided | — |
+| Decided | 2026-09-25 — Mo, at M6.1 |
 
 **Context.** Plans are 12 weeks (84 days; `TOTAL_WEEKS` in `backend/src/lib/ai/roadmap.ts`). The UI calculates a 90-day target date and shows "Day N of 90". The product language is 90 days (D-2). v2 roadmaps already contain a `finalTest`.
 
@@ -693,15 +693,24 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 **Recommendation.** **A.** It keeps "90 days" true without changing plan generation. Day N counts calendar days from the start date. Days 1–84 are the planned weeks; 85–90 are the closing stretch.
 
-**Decision.** —
+**Decision.** **A — A closing stretch: days 85–90.**
+* Days 1–84 correspond to the 12 planned weeks (7 days each).
+* Days 85–90 form the designed closing stretch (final review, taking `roadmap.finalTest`, reflection, and goal arrival).
+* No fake daily tasks are generated for days 85–90.
+* `targetDate` equals start date + 90 days. Day counter clamps at 1–90.
 
-**Consequences.** If A:
-* Phase 5 defines the final-stretch state (part of OD-9).
-* Phase 6 draws a 90-day journey with the last six days as the approach to the destination.
-* Phase 9 uses OD-1b option B.
-* `targetDate` must equal start + 90 days everywhere.
+**Consequences.**
+* Days 1–84 are the 12 planned weeks (organized into 2–4 method phases for v2, or 3 fixed phases for v1).
+* Days 85–90 are the designed closing stretch: dedicated to taking `roadmap.finalTest`, reflection, and goal arrival (transition to Phase 9: Achievement).
+* No fake daily tasks are generated for days 85–90; the UI displays the closing stretch approach to the final milestone.
+* `targetDate` is start date + 90 days. The day counter clamps at 1–90.
+* Phase 5 Today displays the closing stretch state as defined in OD-9.
+* Phase 6 Journey renders the 90-day journey with the staircase culminating in the closing stretch and the final goal arrival landing.
+* Phase 9 uses OD-1b option B for explicit goal arrival completion.
 
-**Related.** D-2, OD-1b, OD-9.
+**Implemented** 2026-09-25 (Phase 6, M6.1): Decided and formalized in `docs/decisions.md` and `docs/phases.md`. Canonical TypeScript contracts created in `frontend/src/types/journey.ts` incorporating `JourneyClosingStretch`.
+
+**Related.** D-2, OD-1b, OD-7, OD-9, BP §06, BP §34, VDS §09, VDS §17–18.
 
 ---
 
@@ -748,6 +757,8 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 * every Playwright assertion that lands on `/dashboard` moves in the same change
 
 Until M5.8, `/dashboard` keeps working exactly as today. The landing page's signed-out branch at `/` is untouched.
+
+**Implemented** 2026-09-25 (Phase 5, M5.8): Today lives at `/` for signed-in users with a goal. `/dashboard` permanently redirects to `/` preserving query parameters and hash fragments (`DashboardRedirect.tsx`). `OnboardingPage` and `ProtectedRoute` navigate to `/`. `RoadmapPage` links back to `/`. `ExecutionDashboard.tsx` (1,229 lines) and related legacy visualizers (`FullDayVisualizer.tsx`, `DayRoutineTimeline.tsx`, `DashboardPage.tsx`) are retired.
 
 **Related.** ND-7, OD-9.
 
@@ -919,6 +930,8 @@ Until M5.8, `/dashboard` keeps working exactly as today. The landing page's sign
 **Decision.** **A amended.** The table above is binding, including the goal-load row and the amended short-on-time, review, offline and after-week-12 rows. Test day shows the week's test and `passIf` and stores no score until OD-1a. Days 85–90 invent nothing until OD-2. There is no completed-goal screen until OD-1b.
 
 **Consequences.** Phase 5 has no backend allowance. M5.7 covers every row that M5.3–M5.6 do not. Validation uses the "how it is produced" column of the Phase 5 state matrix. No direct database writes.
+
+**Implemented** 2026-09-25 (Phase 5, M5.3–M5.7): All 14 states from the OD-9 state matrix are implemented and verified across `Today.tsx`, `Home.tsx`, `ProtectedRoute.tsx`, `OnboardingPage.tsx`, and supporting components. Covers loading skeleton, goal-less library invitation, goal-load error with retry (`refreshGoal()`), practice day, key session callout, test day benchmark instructions with `formatPassIf` (no fake inputs), serene rest day with suppressed start, closed 10-minute version disclosure, botanical step completion lighting with quiet confirmation and next step preview, non-punitive yesterday recovery, review due card, review 503 retry handling, clamped Day 90 / 90 journey completion, and honest offline banner & write error alerts (`role="alert"`). 0 axe violations.
 
 **Related.** OD-1a, OD-1b, OD-2, OD-3.
 
@@ -1645,4 +1658,8 @@ None yet.
 | 2026-09-23 | Phase 5 M5.2. ND-7 implemented (note under ND-7). The Account goal line uses `rawGoal` (ND-18). No entry changed status. |
 | 2026-09-24 | Phase 5 M5.2 accepted by Mo (Account stays in the rail and the bar; on onboarding it shows only the email and Sign out). M5.3: ND-18 implemented on Today (note under ND-18). No entry changed status. |
 | 2026-09-24 | Phase 5 M5.4 done: progressive reveal on Today (BP §31) with closed disclosures for 10-minute version, implementation intention, and task resource; `formatPassIf` double-period fix. No entry changed status. |
+| 2026-09-25 | Phase 5 M5.5–M5.7 done: Focus mode redesign (M5.5); completion lighting, next step preview & notes redesign (M5.6); all remaining OD-9 states & error resilience (M5.7). |
+| 2026-09-25 | Phase 5 M5.8 & M5.9 complete: `/dashboard` permanently redirects to `/` preserving query and hash (OD-3 implemented); legacy dashboard code retired; OD-9 implementation note added. Phase 5 exit criteria met and regression pass complete. Phase 5 marked `COMPLETE` (awaiting Mo's review); Phase 6 (Journey) is next and blocked by OD-2 and OD-7. |
+| 2026-09-25 | Phase 6 M6.1: OD-2 decided as Option A (closing stretch on days 85–90, 12 planned weeks on days 1–84, clamp 1–90); OD-7 constraint confirmed (2–4 method phases for v2, 3 fixed phases for v1); canonical Journey types created in `frontend/src/types/journey.ts`; React compiler/rules-of-hooks ordering fixed in `RoadmapPage.tsx`. |
+
 

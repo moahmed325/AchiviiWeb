@@ -74,13 +74,6 @@ const expectNoAxeViolations = async (page: Page, target: Locator) => {
   await target.evaluate((el) => el.removeAttribute('data-axe-target'));  expect(results.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([]);
 };
 
-const expectWithin = async (target: Locator, width: number) => {
-  const box = await target.boundingBox();
-  expect(box).not.toBeNull();
-  expect(box!.x).toBeGreaterThanOrEqual(0);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(width);
-};
-
 const expectTapTarget = async (target: Locator) => {
   const box = await target.boundingBox();
   expect(box).not.toBeNull();

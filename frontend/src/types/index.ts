@@ -281,3 +281,6 @@ export interface WeeklyReviewResponse {
     benchmarkMet: boolean;
   } | null;
 }
+
+export * from './journey';
+

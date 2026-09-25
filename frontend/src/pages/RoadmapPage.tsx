@@ -19,16 +19,15 @@ import BasisBadge from '../components/BasisBadge';
 export const RoadmapPage: React.FC = () => {
   const { activeGoal } = useGoal();
   const [showFullGoal, setShowFullGoal] = useState(false);
+  const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({});
 
-  if (!activeGoal) return null;
-
-  const currentWeekNum = activeGoal.currentWeek || 1;
-  const roadmapWeeks = activeGoal.roadmapWeeks || [];
-
-  const isV2 = activeGoal.planVersion === 2 && Boolean(activeGoal.roadmap);
+  const currentWeekNum = activeGoal?.currentWeek || 1;
+  const isV2 = Boolean(activeGoal?.planVersion === 2 && activeGoal?.roadmap);
 
   // v2 goals use the method's own phases; older goals keep the fixed three.
   const phases = useMemo(() => {
+    if (!activeGoal) return [];
+    const roadmapWeeks = activeGoal.roadmapWeeks || [];
     const ranges = isV2
       ? activeGoal.roadmap!.phases.map((p) => ({ name: p.name, startWeek: p.startWeek, endWeek: p.endWeek, purpose: p.purpose }))
       : [
@@ -45,25 +44,35 @@ export const RoadmapPage: React.FC = () => {
       purpose: range.purpose,
       weeks: roadmapWeeks.filter((w) => w.weekNumber >= range.startWeek && w.weekNumber <= range.endWeek),
     }));
-  }, [roadmapWeeks, isV2, activeGoal.roadmap]);
+  }, [activeGoal, isV2]);
 
   // Determine which phase is currently active
   const currentPhaseId = useMemo(
-    () => phases.find((p) => currentWeekNum >= p.startWeek && currentWeekNum <= p.endWeek)?.id ?? phases[phases.length - 1]?.id,
+    () => phases.find((p) => currentWeekNum >= p.startWeek && currentWeekNum <= p.endWeek)?.id ?? phases[phases.length - 1]?.id ?? 'p1',
     [phases, currentWeekNum]
   );
-
-  // Collapsible phases — active phase defaults to open, others collapsed for calm progressive disclosure
-  const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>({
-    [currentPhaseId]: true,
-  });
 
   const togglePhase = (phaseId: string) => {
     setExpandedPhases((prev) => ({
       ...prev,
-      [phaseId]: !prev[phaseId],
+      [phaseId]: !(prev[phaseId] ?? (phaseId === currentPhaseId)),
     }));
   };
+
+  // Parse routine configuration
+  const rawRoutine = activeGoal?.routine;
+  const routine: RoutineSettings | null = useMemo(() => {
+    if (!rawRoutine) return null;
+    try {
+      return typeof rawRoutine === 'string'
+        ? JSON.parse(rawRoutine)
+        : rawRoutine;
+    } catch {
+      return null;
+    }
+  }, [rawRoutine]);
+
+  if (!activeGoal) return null;
 
   // 90-day countdown
   const targetDate = new Date(activeGoal.targetDate);
@@ -71,18 +80,6 @@ export const RoadmapPage: React.FC = () => {
   const diffTime = targetDate.getTime() - today.getTime();
   const daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
   const dayNumberCurrent = Math.min(90, Math.max(1, 91 - daysRemaining));
-
-  // Parse routine configuration
-  const routine: RoutineSettings | null = useMemo(() => {
-    if (!activeGoal.routine) return null;
-    try {
-      return typeof activeGoal.routine === 'string'
-        ? JSON.parse(activeGoal.routine)
-        : activeGoal.routine;
-    } catch {
-      return null;
-    }
-  }, [activeGoal.routine]);
 
   // Clean, AI-rewritten title for the goal
   const displayGoalTitle = formatGoalTitle(activeGoal.clarifiedOutcome, activeGoal.rawGoal);
@@ -187,7 +184,7 @@ export const RoadmapPage: React.FC = () => {
         {phases.map((phase) => {
           const isCurrentPhase = phase.id === currentPhaseId;
           const isPhaseCompleted = currentWeekNum > phase.endWeek;
-          const isExpanded = !!expandedPhases[phase.id];
+          const isExpanded = expandedPhases[phase.id] ?? isCurrentPhase;
 
           return (
             <div key={phase.id} className="relative space-y-4">
