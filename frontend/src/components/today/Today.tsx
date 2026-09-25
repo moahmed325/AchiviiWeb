@@ -1,8 +1,20 @@
 import React, { useId, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, ChevronDown, ExternalLink, Play, X } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, ExternalLink, Play, Sparkles, X } from 'lucide-react';
 import type { DailyTask, Goal } from '../../types';
-import { currentRoadmapWeek, currentWeekTasks, dayNumber, isToday, parseIntention, parseSteps, selectTodayTask, weekProgress } from '../../lib/today';
+import {
+  currentRoadmapWeek,
+  currentWeekTasks,
+  dayNumber,
+  findNextTask,
+  isToday,
+  parseIntention,
+  parseSteps,
+  parseTaskNotes,
+  selectTodayTask,
+  serializeTaskNotes,
+  weekProgress,
+} from '../../lib/today';
 import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
 import { FocusSessionModal } from '../FocusSessionModal';
 import { useTaskActions } from './useTaskActions';
@@ -146,8 +158,11 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now);
   const done = task?.status === 'completed';
+  const nextTask = task ? findNextTask(tasks, task.id) : null;
+  const parsedNotes = parseTaskNotes(task?.notes);
+  const focusWins = parsedNotes.focusWins;
   const draft = task ? drafts[task.id] : undefined;
-  const noteValue = task ? (draft ?? task.notes ?? '') : '';
+  const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
 
   const selectDay = (id: string) => {
     setSelectedId(id);
@@ -159,7 +174,8 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
     if (!task || busy) return;
     setBusy(true);
     setActionError(null);
-    const result = await toggleComplete(task, draft);
+    const serializedDraft = draft !== undefined ? serializeTaskNotes(draft, focusWins) : undefined;
+    const result = await toggleComplete(task, serializedDraft);
     setBusy(false);
     if (!result.ok) setActionError(NOT_SAVED);
   };
@@ -168,7 +184,8 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
     if (!task || draft === undefined || savingNote) return;
     setSavingNote(true);
     setNoteError(null);
-    const result = await saveNote(task, draft);
+    const serialized = serializeTaskNotes(draft, focusWins);
+    const result = await saveNote(task, serialized);
     setSavingNote(false);
     if (!result) return;
     if (!result.ok) {
@@ -216,11 +233,20 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
         </p>
       </div>
 
-      <section aria-labelledby="step-heading" className="mt-10 rounded-panel border border-border bg-surface p-5 sm:p-7">
+      <section
+        aria-labelledby="step-heading"
+        className={cx(
+          'mt-10 rounded-panel border p-5 sm:p-7 transition-all duration-(--duration-normal)',
+          done
+            ? 'border-accent/40 bg-surface/95 shadow-sm ring-1 ring-accent/20'
+            : 'border-border bg-surface',
+        )}
+      >
         {task ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
               <Eyebrow>{isToday(task, now) ? "Today's step" : `${task.dayOfWeek}'s step`}</Eyebrow>
+              {done && <StepMarker state="completed" size="sm" />}
               {done && <Badge tone="accent">Done</Badge>}
               {task.isRestDay && <Badge>Rest day</Badge>}
               {task.isKeySession && <Badge>Key session</Badge>}
@@ -237,6 +263,13 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
                 {task.whyToday}
               </p>
             ) : null}
+
+            {done && (
+              <div className="mt-3 flex items-center gap-2 text-small font-medium text-accent">
+                <Check aria-hidden="true" strokeWidth={2} className="size-4 shrink-0" />
+                <span>Step completed. Deliberate practice logged for today.</span>
+              </div>
+            )}
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Button
@@ -258,6 +291,55 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
             <p role="alert" className="mt-3 text-small text-danger empty:hidden">
               {actionError ?? ''}
             </p>
+
+            {done && (
+              <div className="mt-6 rounded-card border border-border bg-background/50 p-4 sm:p-5">
+                {nextTask ? (
+                  <div>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-ui-mono text-micro uppercase text-text-secondary">
+                        {nextTask.dayNumber === task.dayNumber + 1 ? `Tomorrow · ${nextTask.dayOfWeek}` : `Next practice · ${nextTask.dayOfWeek}`}
+                      </span>
+                      <span className="tabular font-ui-mono text-micro text-text-secondary">
+                        {nextTask.durationMinutes || 30} min
+                      </span>
+                    </div>
+                    <h3 className="mt-1.5 text-small font-medium text-text">
+                      {nextTask.title}
+                    </h3>
+                    {nextTask.whyToday ? (
+                      <p className="mt-1 text-small text-text-secondary line-clamp-2">
+                        {nextTask.whyToday}
+                      </p>
+                    ) : null}
+                    <div className="mt-3 flex items-center justify-end">
+                      <Button
+                        variant="quiet"
+                        size="sm"
+                        onClick={() => selectDay(nextTask.id)}
+                        trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-3.5" />}
+                      >
+                        View {nextTask.dayOfWeek}'s step
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <p className="text-small font-medium text-text">
+                        Week {goal.currentWeek || 1} practice complete.
+                      </p>
+                      <p className="mt-0.5 text-small text-text-secondary">
+                        Weekly review ready in the full day view.
+                      </p>
+                    </div>
+                    <Button asChild variant="secondary" size="sm">
+                      <Link to="/dashboard">Open week review</Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {steps.length > 0 && (
               <div className="mt-6 border-t border-border pt-4">
@@ -475,10 +557,28 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
                 </p>
               </div>
               <div id={notesId} hidden={!showNotes} className="mt-3">
+                {focusWins.length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    <span className="font-ui-mono text-micro uppercase text-text-secondary block">
+                      Focus wins logged
+                    </span>
+                    <ul className="space-y-2">
+                      {focusWins.map((win, idx) => (
+                        <li
+                          key={idx}
+                          className="flex items-start gap-2.5 rounded-card border border-border bg-background p-3 text-small text-text"
+                        >
+                          <Sparkles aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0 text-accent mt-0.5" />
+                          <span>{win}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <Field label="Notes for this step" error={noteError ?? undefined}>
                   <Textarea
                     rows={3}
-                    value={noteValue}
+                    value={freeformValue}
                     placeholder="Reps, times, what felt hard, what clicked."
                     onChange={(event) => setDrafts((prev) => ({ ...prev, [task.id]: event.target.value }))}
                     onBlur={onSaveNote}

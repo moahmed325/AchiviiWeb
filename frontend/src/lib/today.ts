@@ -77,3 +77,60 @@ export function weekProgress(tasks: DailyTask[]): { practiceDays: number; practi
   const practice = tasks.filter((t) => !t.isRestDay);
   return { practiceDays: practice.length, practiceDone: practice.filter((t) => t.status === 'completed').length };
 }
+
+export interface ParsedTaskNotes {
+  freeformNotes: string;
+  focusWins: string[];
+}
+
+/** Parses stored task notes, separating structured focus wins ("• Focus win: ...") from free-form practice notes. */
+export function parseTaskNotes(notes?: string | null): ParsedTaskNotes {
+  if (!notes || !notes.trim()) {
+    return { freeformNotes: '', focusWins: [] };
+  }
+  const lines = notes.split('\n');
+  const focusWins: string[] = [];
+  const freeformLines: string[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/^\s*•\s*Focus win:\s*(.*)$/i);
+    if (match) {
+      const win = match[1].trim();
+      if (win) {
+        focusWins.push(win);
+      }
+    } else {
+      freeformLines.push(line);
+    }
+  }
+
+  return {
+    freeformNotes: freeformLines.join('\n').trim(),
+    focusWins,
+  };
+}
+
+/** Recombines free-form notes and focus wins into a canonical stored notes string. */
+export function serializeTaskNotes(freeformNotes: string, focusWins: string[]): string {
+  const parts: string[] = [];
+  const trimmedFreeform = freeformNotes.trim();
+  if (trimmedFreeform) {
+    parts.push(trimmedFreeform);
+  }
+  for (const win of focusWins) {
+    const trimmedWin = win.trim();
+    if (trimmedWin) {
+      parts.push(`• Focus win: ${trimmedWin}`);
+    }
+  }
+  return parts.join('\n');
+}
+
+/** Finds the next chronological practice task in the week after currentTaskId, or null if this is the last practice task. */
+export function findNextTask(tasks: DailyTask[], currentTaskId: string): DailyTask | null {
+  const currentIndex = tasks.findIndex((t) => t.id === currentTaskId);
+  if (currentIndex === -1) return null;
+  const subsequent = tasks.slice(currentIndex + 1);
+  return subsequent.find((t) => !t.isRestDay) ?? null;
+}
+

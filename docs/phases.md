@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-25 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3, M5.4 and M5.5 done.** M5.6 has not started. Focus mode is redesigned with Phase 0 tokens and reliable reflection capture; `/dashboard` is not redirected.
+Last updated: 2026-09-25 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3, M5.4, M5.5 and M5.6 done.** M5.7 has not started. Step completion lighting, next step preview, and structured focus wins are live on Today; `/dashboard` is not redirected.
 
 ---
 
@@ -2066,7 +2066,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
 
 ## PHASE 5 — TODAY
 
-**Status:** `IN PROGRESS` (M5.1 and M5.2 done 2026-09-23; M5.3 and M5.4 done 2026-09-24; M5.5 done 2026-09-25). M5.6 has not started.
+**Status:** `IN PROGRESS` (M5.1 and M5.2 done 2026-09-23; M5.3 and M5.4 done 2026-09-24; M5.5 and M5.6 done 2026-09-25). M5.7 has not started.
 
 **Source:** BP §08–09, §15–18, §23, §26–27, §31–32, §41, §43–46, §48, OD-3, OD-9, ND-7, ND-18 · VDS §9, §14, §20, §24–26, §28
 
@@ -2178,7 +2178,7 @@ None.
 | M5.3 | **Done** (2026-09-24). Today at `/` for the normal practice day, from `lib/today.ts` (task choice, day counter, UTC date rule) and one write path (`useTaskActions`) that puts the server's task into `GoalContext`. Heading is `rawGoal` (ND-18). The note wipe from `/` is closed. "Explore Goals (10)" and the strip left Today |
 | M5.4 | **Done** (2026-09-24). Daily session with progressive reveal (every field preserved). The 10-minute version is a reveal the user opens. The extra period after `passIf` is fixed |
 | M5.5 | **Done** (2026-09-25). Focus mode redesigned; timer behaviour identical. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget restyled. Reflection reliably captured into notes; write errors surfaced with retry; Space/Esc shortcuts and 0 axe violations |
-| M5.6 | Completion interaction and notes. The wipe from `/` is already closed in M5.3; this milestone designs how completion and notes look |
+| M5.6 | **Done** (2026-09-25). Completion interaction, step lighting, next step preview, and notes redesign. Completed step illuminated with calm botanical highlight (VDS §20, OD-9); next step preview card with day/duration/snippet; structured focus wins presentation alongside free-form practice notes; auto-save on blur and draft persistence across WeekGlance day switches |
 | M5.7 | Every remaining OD-9 state, including goal-load error and a failed offline write that is visible |
 | M5.8 | `/dashboard` redirects to `/`, keeping query and hash. `done` and `ProtectedRoute` change in this same milestone. What M5.3–M5.6 did not already extract is removed |
 | M5.9 | Regression and phase report |
@@ -2955,6 +2955,108 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    Nothing was committed.
 ```
 
+### M5.6 report — Completion interaction, step lighting, next step preview & notes redesign (2026-09-25)
+
+```text
+1. Outcome
+   Completion interaction and notes redesign (BP §31, VDS §20, OD-9 "Done for today")
+   are delivered on Today (/):
+   - Completed Step Lighting: when task.status === 'completed', the active step card
+     enters an illuminated state with subtle botanical accent highlight (border-accent/40
+     bg-surface/95 ring-1 ring-accent/20 shadow-sm), StepMarker completed, Done badge,
+     and a calm, non-punitive confirmation ("Step completed. Deliberate practice logged
+     for today."). Strictly zero gamified XP explosions, confetti, or streak popups.
+   - Next Step Preview: when today's step is complete, an upcoming practice task preview
+     card shows the next chronological practice day (e.g. "Tomorrow · Thursday"), title,
+     duration, whyToday snippet, and an action to inspect that day's step. If completing
+     the last practice day of the week, renders a bridge ("Week N practice complete.
+     Weekly review ready in the full day view.") linking to /dashboard.
+   - Reversibility: completion remains instant and reversible via "Mark not done", cleanly
+     restoring the active state and removing the preview while preserving all notes.
+   - Notes Redesign: parses stored task notes into structured Focus Wins (rendered as
+     distinct highlight cards with botanical sparkles) and free-form practice notes in
+     the textarea. Recombines and serializes both on save, ensuring focus wins are never
+     wiped when editing freeform notes. Preserves uncommitted drafts across WeekGlance
+     day switches and includes typed drafts in completion writes.
+
+2. What changed
+   - Helpers (frontend/src/lib/today.ts & today.test.ts):
+     - Added parseTaskNotes to cleanly separate "• Focus win: ..." lines from free-form text.
+     - Added serializeTaskNotes to recombine free-form text and focus reflections.
+     - Added findNextTask to retrieve the next chronological non-rest practice day in the week.
+     - Added comprehensive unit tests in today.test.ts (16 tests total).
+   - Today Component (frontend/src/components/today/Today.tsx):
+     - Illuminated step card styling when done (border-accent/40 bg-surface/95 ring-1 ring-accent/20).
+     - StepMarker state="completed" and quiet confirmation line beside eyebrow.
+     - Next step preview card with upcoming day label, title, duration, snippet, and view button.
+     - Week completion bridge when the final practice day of the week is completed.
+     - Redesigned notes section displaying structured focus wins logged, textarea with
+       auto-save on blur, explicit save button with loading state, and draft persistence.
+     - onToggle and onSaveNote preserve serialized focus wins and user notes seamlessly.
+   - Tests:
+     - Today.test.tsx: expanded to 14 tests covering step lighting, quiet confirmation,
+       next step preview navigation, week completion bridge, focus wins display, and notes saving.
+     - today.spec.ts: expanded to 32 tests covering completion interaction, step lighting,
+       next step preview, focus wins display, notes persistence, and zero axe violations.
+     - focus.spec.ts: 14 tests re-verified for regression safety.
+   - Design System Documentation (Design.md):
+     - Added Section 12 documenting step lighting, quiet confirmation, next step preview,
+       and notes serialization conventions.
+
+3. Files changed / created / removed
+   Changed:
+   - frontend/src/lib/today.ts
+   - frontend/src/lib/today.test.ts
+   - frontend/src/components/today/Today.tsx
+   - frontend/src/components/today/Today.test.tsx
+   - frontend/e2e/today.spec.ts
+   - Design.md (§12 Step Lighting, Next Step Preview & Notes)
+   - docs/phases.md (M5.6 report, milestone table, Section 6, change log)
+   Created / Removed: none.
+   Backend was not changed. Zero backend changes permitted.
+
+4. Functionality preserved
+   R-8: Today loads active day's task and duration.
+   R-9: Completing task marks completed and updates GoalContext; fully reversible.
+   R-10: Notes and focus wins are never wiped across / and /dashboard; draft notes
+   persist across day switching and completions.
+   R-11: Focus session completes and lands on the new illuminated completion state.
+   R-12: Full day view and review entry points remain intact.
+   R-15, R-17: Shell, account reset, and offline status indicators unaffected.
+   /dashboard was NOT redirected.
+
+5. Decisions applied
+   BP §18: Calm, non-punitive tone; no gamification explosions, XP or confetti.
+   BP §31: All session fields reachable on demand.
+   VDS §20: Calm botanical step illumination (border-accent/40 ring-1 ring-accent/20).
+   OD-9: "Done for today" state with quiet confirmation and next step preview.
+   R-10: Structured focus wins presentation and reliable notes serialization.
+
+6. Validation evidence
+   Frontend tsc --noEmit: clean (0 errors).
+   ESLint on changed files: clean (0 errors, 0 warnings).
+   Frontend Vitest: 245 passed / 29 files (was 235 / 29).
+   Build: main JS 579.85 KB (171.59 KB gzipped), CSS 100.24 kB (17.57 KB gzipped).
+   Playwright e2e/today.spec.ts: 32 passed across desktop and mobile (45.8s).
+   Playwright e2e/focus.spec.ts: 14 passed across desktop and mobile (25.7s).
+   Axe-core scan: 0 violations on pending and completed Today screens across 1440px and 390px.
+   Responsive check: 0 horizontal overflow and touch targets ≥ 44px at 1440px, 390px, and 360px widths.
+
+7. Carry-overs
+   M5.7: remaining OD-9 states (rest day, test day, review due, goal-load error,
+   offline write failure).
+   M5.8: /dashboard redirect to /.
+
+8. Issues and risks
+   None. Notes serialization guarantees that user notes and automated focus reflections
+   co-exist cleanly without risk of accidental data overwrite.
+
+9. Not started
+   M5.7 has NOT started.
+   /dashboard was not redirected.
+   Nothing was committed.
+```
+
 ---
 
 ## PHASE 6 — JOURNEY
@@ -3717,4 +3819,5 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-24 | Phase 5 M5.3 done: Today at `/` for the practice day (`components/today`, `lib/today.ts`). Heading is `rawGoal` (ND-18); the stored outcome sits beneath, as stored. One write path puts the server's task into `GoalContext`, so the note wipe from `/` is closed. "Explore Goals (10)" and the strip left Today; the strip remains on `/dashboard`. Task dates stay UTC (`goal.ts:215`, `:691`; `weekPlan.ts:52`). `Design.md` §6 Today. M5.4 has not started. `/dashboard` was not redirected. |
 | 2026-09-24 | Phase 5 M5.4 done: progressive reveal on Today (whyToday on screen, steps with timing/output/pitfall/passMark/resource, 10-minute version, implementation intention, task resource). Start remains in first viewport at 390×844. PlanV2Panel double period fixed and unit tested. Full day view copy updated. Design.md §6 updated. M5.5 not started. /dashboard not redirected. |
 | 2026-09-25 | Phase 5 M5.5 done: Focus mode redesigned on Phase 0 tokens and primitives (`components/focus/`, `FocusSessionModal.tsx`, `StepChallengeWidget.tsx`, `lib/stepChallenge.ts`). Countdown timer, pause/resume, reset, spacebar toggle, audio effects and mute toggle preserved identically. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget. Reliable reflection capture into task notes; failed network/server writes surface inline error alert (`role="alert"`), preserve reflection text, and allow safe retry. 0 axe violations. `Design.md` §11. M5.6 not started. `/dashboard` was not redirected. |
+| 2026-09-25 | Phase 5 M5.6 done: Completion interaction, step lighting, next step preview & notes redesign on Today (`components/today/Today.tsx`, `lib/today.ts`). Active step card illuminated with calm botanical highlight (`border-accent/40 bg-surface/95 ring-1 ring-accent/20 shadow-sm`), `StepMarker` completed, and quiet non-punitive confirmation. Next step preview card with upcoming practice day, title, duration, snippet, and inspection link; week completion bridge linking to review. Reversible via "Mark not done". Notes redesign parses and displays structured focus wins alongside free-form notes, auto-saves on blur, and preserves drafts across `WeekGlance` switches. 0 axe violations. `Design.md` §12. M5.7 not started. `/dashboard` was not redirected. |
 

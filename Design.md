@@ -514,3 +514,16 @@ Focus mode is a distraction-free, Level 1 execution surface designed for calm, i
 - **Session-Only Step Challenges (BP §43):** Step challenges are ephemeral tools to aid practice; they do not write to backend storage or persist past the session.
 - **Error-Resilient Reflection & Completion (R5, R6):** Reflection input utilizes `Field` and `Textarea` with multi-line safety (`Ctrl+Enter` or explicit button). If task write fails (`500` or network drop), the modal stays open, reflection text is preserved, an inline `role="alert"` announces the error, and the button becomes "Try again" for seamless recovery.
 - **Keyboard Shortcuts:** `Space` toggles pause/resume (strictly suppressed when typing in inputs/textareas); `Escape` exits focus mode. Focus trap is enforced while open and returned to the trigger on exit.
+
+---
+
+## 12. Completion Interaction, Step Lighting, Next Step Preview & Notes (BP §31, VDS §20, OD-9)
+
+When today's deliberate practice step is completed:
+
+- **Calm Step Illumination (VDS §20):** Active step card enters an illuminated state (`border-accent/40 bg-surface/95 shadow-sm ring-1 ring-accent/20`) using botanical accent tokens. Accompanied by `<StepMarker state="completed" />` and `<Badge tone="accent">Done</Badge>`.
+- **Quiet Confirmation:** Reassuring, non-punitive confirmation (*"Step completed. Deliberate practice logged for today."*). Strictly NO XP popups, leveling bars, confetti animations, or streak fire emojis (BP §18).
+- **Next Step Preview (OD-9 "Done for today"):** A quiet glance at the next upcoming practice task in the week (day label e.g. *Tomorrow · Friday*, title, duration, whyToday snippet) with option to view that day's step. If completing the final practice day of the week, renders a bridge (*"Week N practice complete. Weekly review ready in the full day view."*) linking to `/dashboard`.
+- **Reversibility:** Completion remains fully reversible via "Mark not done", cleanly restoring the active state and removing the next step preview while preserving all notes.
+- **Structured Notes & Focus Wins (R-10):** Notes disclosure cleanly delineates captured session reflections (`• Focus win: ...`) as structured cards with botanical sparkles from free-form practice notes in the textarea. Auto-saves on blur and explicit button, preserves drafts across day selection in `WeekGlance`, and serialization guarantees focus wins are never wiped when editing freeform notes.
+

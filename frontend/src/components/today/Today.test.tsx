@@ -300,5 +300,96 @@ describe('Today', () => {
     expect(onwardText).toBeInTheDocument();
     expect(screen.queryByText(/why today matters/i)).not.toBeInTheDocument();
   });
+
+  it('lights up completed step with quiet confirmation, shows next step preview, and reverts cleanly', async () => {
+    const user = userEvent.setup();
+    await renderToday();
+
+    // Initially pending: no completion confirmation, no next step preview
+    expect(screen.queryByText('Step completed. Deliberate practice logged for today.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tomorrow · Thursday')).not.toBeInTheDocument();
+
+    // Mark complete
+    await user.click(screen.getByRole('button', { name: 'Mark complete' }));
+
+    // 1. Completed step lighting & quiet confirmation
+    expect(screen.getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Mark not done' })).toBeVisible();
+
+    // 2. Next step preview card appears
+    expect(screen.getByText('Tomorrow · Thursday')).toBeVisible();
+    expect(screen.getByText('Session 4')).toBeVisible();
+
+    // 3. Click "View Thursday's step" navigates to Thursday
+    await user.click(screen.getByRole('button', { name: "View Thursday's step" }));
+    expect(screen.getByRole('region', { name: 'Session 4' })).toBeInTheDocument();
+
+    // Switch back to Wednesday
+    const wedBtn = screen.getAllByRole('button', { pressed: false }).find((b) => b.getAttribute('aria-label')?.startsWith('Wed'))!;
+    await user.click(wedBtn);
+
+    // Revert completion
+    await user.click(screen.getByRole('button', { name: 'Mark not done' }));
+    expect(screen.queryByText('Step completed. Deliberate practice logged for today.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tomorrow · Thursday')).not.toBeInTheDocument();
+  });
+
+  it('displays week completion bridge when the final practice task of the week is completed', async () => {
+    const user = userEvent.setup();
+    await renderToday();
+
+    // Select Saturday (last practice day of the week, task t6)
+    const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
+    const saturday = days.find((b) => b.getAttribute('aria-label')?.startsWith('Sat'))!;
+    await user.click(saturday);
+    expect(screen.getByRole('region', { name: 'Session 6' })).toBeInTheDocument();
+
+    // Mark Saturday complete
+    await user.click(screen.getByRole('button', { name: 'Mark complete' }));
+
+    // Bridge appears pointing to week review
+    expect(screen.getByText('Week 1 practice complete.')).toBeVisible();
+    expect(screen.getByText('Weekly review ready in the full day view.')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Open week review' })).toHaveAttribute('href', '/dashboard');
+  });
+
+  it('displays focus wins separately from freeform notes and preserves both on save', async () => {
+    const user = userEvent.setup();
+    const taskWithWins: DailyTask = {
+      ...tasks[2],
+      notes: 'Felt tired in legs\n• Focus win: Kept cadence at 180 spm',
+    };
+    const goalWithWins = {
+      ...GOAL,
+      dailyTasks: tasks.map((t) => (t.id === 't3' ? taskWithWins : t)),
+    } as unknown as Goal;
+
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithWins);
+    await renderToday();
+
+    // Open Notes
+    await user.click(screen.getByRole('button', { name: 'Notes' }));
+
+    // Focus win is displayed as structured item
+    expect(screen.getByText('Focus wins logged')).toBeVisible();
+    expect(screen.getByText('Kept cadence at 180 spm')).toBeVisible();
+
+    // Freeform notes textarea only has freeform text
+    const textarea = screen.getByLabelText('Notes for this step');
+    expect(textarea).toHaveValue('Felt tired in legs');
+
+    // Add text and save
+    await user.type(textarea, ' and hydrated');
+    await user.click(screen.getByRole('button', { name: 'Save note' }));
+
+    await waitFor(() =>
+      expect(mocked.updateDailyTask).toHaveBeenCalledWith(
+        't3',
+        { notes: 'Felt tired in legs and hydrated\n• Focus win: Kept cadence at 180 spm' },
+        't',
+      ),
+    );
+  });
 });
+
 

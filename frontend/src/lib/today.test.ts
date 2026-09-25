@@ -4,10 +4,13 @@ import {
   currentRoadmapWeek,
   currentWeekTasks,
   dayNumber,
+  findNextTask,
   isToday,
   parseIntention,
   parseSteps,
+  parseTaskNotes,
   selectTodayTask,
+  serializeTaskNotes,
   todayKey,
   weekProgress,
 } from './today';
@@ -118,3 +121,59 @@ describe('currentRoadmapWeek and weekProgress', () => {
     expect(weekProgress(week)).toEqual({ practiceDays: 4, practiceDone: 2 });
   });
 });
+
+describe('parseTaskNotes and serializeTaskNotes', () => {
+  it('parses empty or whitespace notes cleanly', () => {
+    expect(parseTaskNotes(undefined)).toEqual({ freeformNotes: '', focusWins: [] });
+    expect(parseTaskNotes(null)).toEqual({ freeformNotes: '', focusWins: [] });
+    expect(parseTaskNotes('   ')).toEqual({ freeformNotes: '', focusWins: [] });
+  });
+
+  it('parses freeform-only notes', () => {
+    expect(parseTaskNotes('Felt strong on the intervals')).toEqual({
+      freeformNotes: 'Felt strong on the intervals',
+      focusWins: [],
+    });
+  });
+
+  it('parses focus wins only', () => {
+    const raw = '• Focus win: Hit 180 spm cadence\n• Focus win: Kept heart rate in Zone 2';
+    expect(parseTaskNotes(raw)).toEqual({
+      freeformNotes: '',
+      focusWins: ['Hit 180 spm cadence', 'Kept heart rate in Zone 2'],
+    });
+  });
+
+  it('separates freeform notes and multiple focus wins', () => {
+    const raw = 'Legs were fatigued early on.\nTook water at 15 min.\n• Focus win: Pushed through the final set\n• Focus win: Breathing was calm';
+    expect(parseTaskNotes(raw)).toEqual({
+      freeformNotes: 'Legs were fatigued early on.\nTook water at 15 min.',
+      focusWins: ['Pushed through the final set', 'Breathing was calm'],
+    });
+  });
+
+  it('serializes freeform and focus wins preserving structure', () => {
+    expect(serializeTaskNotes('Reps 4x10', ['Hit target tempo', 'Good form'])).toBe(
+      'Reps 4x10\n• Focus win: Hit target tempo\n• Focus win: Good form',
+    );
+    expect(serializeTaskNotes('', ['Solo win'])).toBe('• Focus win: Solo win');
+    expect(serializeTaskNotes('Only freeform', [])).toBe('Only freeform');
+    expect(serializeTaskNotes('', [])).toBe('');
+  });
+});
+
+describe('findNextTask', () => {
+  it('finds the next chronological practice task in the week', () => {
+    expect(findNextTask(week, 'mon')?.id).toBe('tue');
+    expect(findNextTask(week, 'tue')?.id).toBe('wed');
+    expect(findNextTask(week, 'wed')?.id).toBe('thu');
+  });
+
+  it('skips rest days and returns null if no further practice tasks remain', () => {
+    // thu (day 4) is followed by sun (day 7, rest day). There are no further practice days.
+    expect(findNextTask(week, 'thu')).toBeNull();
+    // invalid id
+    expect(findNextTask(week, 'nonexistent')).toBeNull();
+  });
+});
+

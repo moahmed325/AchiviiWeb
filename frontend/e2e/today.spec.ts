@@ -129,14 +129,50 @@ test.describe('the practice day', () => {
     await stepRegion(page).getByRole('button', { name: 'Mark complete' }).click();
     await expect(stepRegion(page).getByRole('button', { name: 'Mark not done' })).toBeVisible();
     await expect(stepRegion(page).getByText('Done', { exact: true })).toBeVisible();
+    await expect(stepRegion(page).getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+    await expect(stepRegion(page).getByText('Tomorrow · Thursday')).toBeVisible();
     expect(calls.taskUpdates).toEqual([{ taskId: 't3', body: { status: 'completed' } }]);
     await expect(main(page).getByText('3 of 6 practice days done')).toBeVisible();
 
     await page.reload();
     await expect(stepRegion(page).getByRole('button', { name: 'Mark not done' })).toBeVisible();
+    await expect(stepRegion(page).getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+    await expect(stepRegion(page).getByText('Tomorrow · Thursday')).toBeVisible();
     await stepRegion(page).getByRole('button', { name: 'Mark not done' }).click();
     await expect(stepRegion(page).getByRole('button', { name: 'Mark complete' })).toBeVisible();
+    await expect(stepRegion(page).getByText('Step completed. Deliberate practice logged for today.')).toHaveCount(0);
+    await expect(stepRegion(page).getByText('Tomorrow · Thursday')).toHaveCount(0);
     expect(calls.taskUpdates.at(-1)).toEqual({ taskId: 't3', body: { status: 'pending' } });
+  });
+
+  test('focus wins and practice notes: displayed cleanly, preserved on save, with next step preview navigation (R1-R4)', async ({ page }) => {
+    const goal = shellGoal();
+    goal.dailyTasks[2].notes = 'Legs felt stiff\n• Focus win: Hit 180 spm cadence\n• Focus win: Kept steady breathing';
+    await openToday(page, { goal });
+
+    // Open Notes disclosure
+    await stepRegion(page).getByRole('button', { name: 'Notes' }).click();
+
+    // Verify structured focus wins
+    await expect(stepRegion(page).getByText('Focus wins logged')).toBeVisible();
+    await expect(stepRegion(page).getByText('Hit 180 spm cadence')).toBeVisible();
+    await expect(stepRegion(page).getByText('Kept steady breathing')).toBeVisible();
+
+    // Verify freeform textarea
+    const note = stepRegion(page).getByLabel('Notes for this step');
+    await expect(note).toHaveValue('Legs felt stiff');
+
+    // Complete the step
+    await stepRegion(page).getByRole('button', { name: 'Mark complete' }).click();
+    await expect(stepRegion(page).getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+
+    // Next step preview shows Tomorrow · Thursday and allows clicking to view
+    await expect(stepRegion(page).getByText('Tomorrow · Thursday')).toBeVisible();
+    await stepRegion(page).getByRole('button', { name: "View Thursday's step" }).click();
+    await expect(page.getByRole('region', { name: 'Session 4' })).toBeVisible();
+
+    // Axe scan passes on completed screen
+    expect(await axeViolations(page)).toEqual([]);
   });
 
   test('a saved note goes with the completion and is still there after a reload (R-10)', async ({ page }) => {
