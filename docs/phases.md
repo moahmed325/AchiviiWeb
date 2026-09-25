@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-25 · Current position: **Phases 0–5 complete. Phase 6 (Journey) is IN PROGRESS: M6.1 done.**
+Last updated: 2026-09-25 · Current position: **Phases 0–5 complete. Phase 6 (Journey) is IN PROGRESS: M6.1, M6.2, and M6.3 done.**
 
 ---
 
@@ -3610,8 +3610,8 @@ None.
 | ID | Milestone | Status |
 |---|---|---|
 | M6.1 | OD-2 and OD-7 decided; the day/week/phase mapping written down | `Done` (2026-09-25) |
-| M6.2 | Journey data adapter: one shape for v1 and v2 goals | `NOT STARTED` |
-| M6.3 | Desktop journey composition | `NOT STARTED` |
+| M6.2 | Journey data adapter: one shape for v1 and v2 goals | `Done` (2026-09-25) |
+| M6.3 | Desktop journey composition | `Done` (2026-09-25) |
 | M6.4 | Mobile vertical journey | `NOT STARTED` |
 | M6.5 | Progress motion and reduced-motion path | `NOT STARTED` |
 | M6.6 | Regression and phase report | `NOT STARTED` |
@@ -3646,6 +3646,89 @@ None.
    - ESLint: 0 errors, 0 warnings on `RoadmapPage.tsx` (`npx eslint src/pages/RoadmapPage.tsx`).
    - Vitest: 33 test files passed, 271 tests passed (100%).
    - Playwright: Existing roadmap and shell navigation specs green.
+   - Zero backend changes.
+
+### M6.2 report — Journey data adapter: one shape for v1 and v2 goals (2026-09-25)
+
+1. **Pure Data Adapter Implemented (`frontend/src/lib/journeyAdapter.ts`)**
+   - Implemented `toJourneyData(goal, todayDate?)` pure function that normalizes any goal (v1 or v2) into the canonical `JourneyData` model.
+   - Unified schema ensures downstream UI components (M6.3/M6.4) never branch on `planVersion`.
+   - Exported `useJourneyData(todayDate?)` custom React hook (and re-exported via `frontend/src/hooks/useJourneyData.ts`) consuming `useGoal()` with memoization.
+
+2. **Phase Count Flexibility (OD-7)**
+   - Seamlessly handles 2, 3, or 4 method-named phases for v2 goals (`Goal.roadmap.phases`).
+   - Automatically provides 3 fixed phases (Foundation, Acceleration, Mastery) for v1 goals or goals missing custom roadmap phases (`V1_DEFAULT_PHASES`).
+
+3. **Future Honesty (BP §43)**
+   - For v2 goals, daily tasks are attached *only* for `currentWeek`.
+   - All unwritten future weeks strictly carry `days: []` and `hasWrittenTasks: false`. Zero synthetic or fabricated daily tasks are generated.
+
+4. **90-Day Alignment & Closing Stretch (OD-2 Option A)**
+   - Days 1–84 map to the 12 planned weeks (7 days each).
+   - Days 85–90 map to `JourneyClosingStretch` (`startDay: 85`, `endDay: 90`, `finalTest`, `finalGoal`).
+   - Closing stretch becomes `active` when `currentDay >= 85` (and marks preceding phases and weeks as completed).
+   - Day calculation clamps strictly between 1 and 90 (`Math.min(90, Math.max(1, dayNumber))`).
+
+5. **Progress Metrics (VDS §9 Layer 1)**
+   - Accurately computes `currentDay`, `totalDays` (90), `currentWeek`, `totalWeeks` (12), `currentPhaseIndex` (1-based active phase), `totalPhases`, `completedTasksCount`, and `percentComplete` (clamped 0–100%).
+
+6. **Comprehensive Test Suite (`frontend/src/lib/journeyAdapter.test.ts`)**
+   - 21 unit tests covering null handling, v2 goals with 2, 3, and 4 phases, v1 legacy goals, future honesty verification, day calculation & clamping, task-to-step mapping, week status progression, and `useJourneyData` React hook behavior.
+   - 100% green test suite.
+
+7. **Verification Evidence**
+   - TypeScript: 0 errors (`node node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - ESLint: 0 errors, 0 warnings across all adapter files (`src/lib/journeyAdapter.ts`, `src/lib/journeyAdapter.test.ts`, `src/hooks/useJourneyData.ts`).
+   - Vitest: 34 test files passed, 292 tests passed (100%).
+   - Playwright: 10/10 roadmap tests passed in `e2e/shell.spec.ts` (0 axe violations, 44px tap targets, 0 overflow); 36/36 Today tests passed in `e2e/today.spec.ts` (R-8 verified).
+   - Zero backend changes.
+
+### M6.3 report — Desktop journey composition (2026-09-25)
+
+1. **Three-Layer Progress Model Implemented (VDS §9)**
+   - **Layer 1 — Quick Numerical Orientation (`frontend/src/components/journey/JourneyHeader.tsx`):**
+     - Renders formatted goal title (`formatGoalTitle`) with optional method author credit (`methodName`, `methodAuthor`).
+     - Renders `Day N / 90` with tabular figures (`font-variant-numeric: tabular-nums`, VDS note 6).
+     - Renders macro-position badges: `Week W of 12` and `Phase P of Total` with phase name.
+     - Displays subtle, accessible progress bar (`role="progressbar"`, `aria-valuenow`).
+     - Provides clear "Back to Today" link (`/`).
+   - **Layer 2 — The Emotional Staircase (`frontend/src/components/journey/DesktopStaircase.tsx`):**
+     - Abstracted geometric ascending visualization with VDS §25 symbols (`✓` completed, `●` active, `○` upcoming, `◆` week milestone, `✦` summit destination).
+     - Flexible 2–4 phase landings (or 3 fixed phases for v1 goals) with phase names, purpose, and weekly milestone chips.
+     - Active week daily step runner showing practice sessions from `week.days` with "You are here" marker and rest/key/test badges.
+     - Designed approach threshold for Days 85–90 displaying `roadmap.finalTest`.
+     - Summit destination node marked with `✦` and `roadmap.finalGoal`.
+     - High-contrast architectural surfaces with zero WCAG AA contrast violations (`sr-only` summary provided for screen readers, VDS §29).
+   - **Layer 3 — The Strategic Roadmap (`frontend/src/components/journey/StrategicRoadmap.tsx`):**
+     - Collapsible architectural phase cards (active phase defaults to open, others collapsible via keyboard-accessible button with `aria-expanded`).
+     - Week cards with theme/focus, targets (`formatTarget`), milestones, and weekly tests (`formatPassIf`).
+     - **Strict Future Honesty (BP §43):** Active week reveals real daily practice sessions; future weeks present strategic targets and calm indication that daily tasks will be unlocked after the preceding weekly review, with zero fabricated tasks.
+     - Dedicated closing stretch culmination card displaying horizon review and destination summit.
+
+2. **Roadmap Page Refactored (`frontend/src/pages/RoadmapPage.tsx`)**
+   - Completely refactored to consume `useJourneyData()` hook.
+   - Clean, unconditional React hook ordering satisfying React compiler rules.
+   - Single `<main id="main" tabIndex={-1}>` landmark preserved for accessibility skip-link targets.
+   - Fully responsive across desktop (1440px, 1024px) down to mobile (390px, 375px, 360px) with zero horizontal overflow.
+
+3. **Component Barrel Export (`frontend/src/components/journey/index.ts`)**
+   - Re-exports `JourneyHeader`, `DesktopStaircase`, and `StrategicRoadmap`.
+
+4. **Component Unit & Integration Tests (`frontend/src/components/journey/DesktopJourney.test.tsx`)**
+   - 9 comprehensive tests verifying:
+     - Layer 1 header elements, tabular figures, and Back to Today link.
+     - Layer 2 staircase with 3 phase landings, daily step flight, closing stretch, and summit destination.
+     - Flexible phase rendering for 2-phase (6+6) and 4-phase (3+3+3+3) v2 goals.
+     - Foundation, Acceleration, and Mastery phases for v1 goals.
+     - Future honesty enforcement (unwritten weeks reveal strategic targets with zero daily task items).
+     - Accordion keyboard and button toggling with `aria-expanded`.
+     - Integrated `RoadmapPage` landmark rendering and empty-state fallback.
+
+5. **Verification Evidence**
+   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - ESLint: 0 errors, 0 warnings across all journey components and test files.
+   - Vitest: 35 test files passed, 301 tests passed (100%).
+   - Playwright: 10/10 roadmap tests passed in `e2e/shell.spec.ts` (0 axe violations at 1440px and 1024px, 44px tap targets, 0 overflow across desktop and mobile viewports).
    - Zero backend changes.
 
 ### Regression checks
@@ -4343,5 +4426,9 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-25 | Phase 5 M5.8 done: `/dashboard` permanently redirects to `/` preserving query and hash (OD-3). Onboarding `done` and `ProtectedRoute` land on `/`. Roadmap "Back to Today" lands on `/`. Today embeds restyled `BasisBadge`, retires full day view link, and triggers `WeeklyReviewModal` directly (R-12). Redundant legacy dashboard components retired (`ExecutionDashboard.tsx`, `DashboardPage.tsx`, `DayRoutineTimeline.tsx`, `FullDayVisualizer.tsx`). 0 axe violations. M5.9 not started. |
 | 2026-09-25 | Phase 5 M5.9 done: Full regression verification pass across all R-1 to R-18 checks (R-8, R-9, R-10, R-11, R-12, R-15, R-17 verified with reproducible evidence), OD-9 state matrix walk (all 14 states verified), exit criteria audit (all 4 criteria met), 0 axe violations across 1440px, 390px, and 360px viewports, determinism check (--repeat-each=2) clean on critical specs, Phase 5 regression matrix and official Phase 5 report authored. Phase 5 status is COMPLETE (awaiting Mo's review). Phase 6 (Journey) is next. |
 | 2026-09-25 | Phase 6 M6.1 done: OD-2 decided as Option A (closing stretch on days 85–90, 12 planned weeks on days 1–84, clamp 1–90); OD-7 constraint confirmed (2–4 method phases for v2, 3 fixed phases for v1); definitive Day/Week/Phase mapping and VDS §9 three-layer model added to Phase 6; canonical Journey contracts created in `frontend/src/types/journey.ts`; React rules-of-hooks / compiler memoization ordering fixed in `RoadmapPage.tsx`. Phase 6 status is IN PROGRESS. |
+| 2026-09-25 | Phase 6 M6.2 done: pure data adapter `toJourneyData` and hook `useJourneyData` implemented (`frontend/src/lib/journeyAdapter.ts`, `frontend/src/hooks/useJourneyData.ts`); normalizes v1 (3 fixed phases) and v2 (2-4 method phases) into canonical JourneyData; enforces future honesty (days: [] on unwritten future weeks); maps days 85-90 closing stretch; 21 unit tests added in `journeyAdapter.test.ts` (100% pass). |
+| 2026-09-25 | Phase 6 M6.3 done: Desktop journey composition delivered (`frontend/src/components/journey/JourneyHeader.tsx`, `DesktopStaircase.tsx`, `StrategicRoadmap.tsx`, `index.ts`, `RoadmapPage.tsx`). Implements all 3 VDS §9 progress layers: Layer 1 quick numerical header (`Day N / 90`, tabular figures, method badge, Back to Today), Layer 2 emotional staircase (VDS §25 symbols, 2–4 phase landings, active week daily step runner, Days 85–90 closing stretch, summit destination), and Layer 3 strategic roadmap (collapsible method phases, week milestone breakdown, strict future honesty BP §43 with zero fabricated tasks). 9 unit & integration tests added in `DesktopJourney.test.tsx` (100% pass). 0 axe violations at 1440px and 1024px. M6.4 ready. |
+
+
 
 
