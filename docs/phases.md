@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-24 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3 and M5.4 done.** M5.5 has not started. Today is live at `/` with progressive reveal; `/dashboard` is not redirected.
+Last updated: 2026-09-25 · Current position: **Phases 0, 1, 2, 3 and 4 complete. Phase 5 (Today) is `IN PROGRESS`: M5.1, M5.2, M5.3, M5.4 and M5.5 done.** M5.6 has not started. Focus mode is redesigned with Phase 0 tokens and reliable reflection capture; `/dashboard` is not redirected.
 
 ---
 
@@ -2066,7 +2066,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
 
 ## PHASE 5 — TODAY
 
-**Status:** `IN PROGRESS` (M5.1 and M5.2 done 2026-09-23; M5.3 and M5.4 done 2026-09-24). M5.5 has not started.
+**Status:** `IN PROGRESS` (M5.1 and M5.2 done 2026-09-23; M5.3 and M5.4 done 2026-09-24; M5.5 done 2026-09-25). M5.6 has not started.
 
 **Source:** BP §08–09, §15–18, §23, §26–27, §31–32, §41, §43–46, §48, OD-3, OD-9, ND-7, ND-18 · VDS §9, §14, §20, §24–26, §28
 
@@ -2177,7 +2177,7 @@ None.
 | M5.2 | **Done** (2026-09-23). Application shell and navigation (ND-7): the rail on desktop, the bottom bar on mobile, the onboarding top bar, Account with the Reset confirm, the offline chip, the skip link and one `main#main` per screen. `Navbar.tsx` and the footer removed |
 | M5.3 | **Done** (2026-09-24). Today at `/` for the normal practice day, from `lib/today.ts` (task choice, day counter, UTC date rule) and one write path (`useTaskActions`) that puts the server's task into `GoalContext`. Heading is `rawGoal` (ND-18). The note wipe from `/` is closed. "Explore Goals (10)" and the strip left Today |
 | M5.4 | **Done** (2026-09-24). Daily session with progressive reveal (every field preserved). The 10-minute version is a reveal the user opens. The extra period after `passIf` is fixed |
-| M5.5 | Focus mode redesigned; timer behaviour identical. The reflection is included in the completion write |
+| M5.5 | **Done** (2026-09-25). Focus mode redesigned; timer behaviour identical. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget restyled. Reflection reliably captured into notes; write errors surfaced with retry; Space/Esc shortcuts and 0 axe violations |
 | M5.6 | Completion interaction and notes. The wipe from `/` is already closed in M5.3; this milestone designs how completion and notes look |
 | M5.7 | Every remaining OD-9 state, including goal-load error and a failed offline write that is visible |
 | M5.8 | `/dashboard` redirects to `/`, keeping query and hash. `done` and `ProtectedRoute` change in this same milestone. What M5.3–M5.6 did not already extract is removed |
@@ -2826,6 +2826,131 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
 
 9. Not started
    M5.5 has NOT started.
+   /dashboard was not redirected.
+   Nothing was committed.
+```
+
+### M5.5 report — Focus mode redesign (2026-09-25)
+
+```text
+1. Outcome
+   Focus mode is redesigned as a distraction-free, Level 1 execution surface
+   (BP §32) built entirely on Phase 0 tokens and primitives. Legacy mint (#07CB6C)
+   and deleted dark hexes (#050807, #0c1210, #1a2824) are completely replaced.
+   Timer mechanics (1-second tick loop, pause/resume, reset, spacebar toggle,
+   Web Audio sound effects via audio.ts, mute toggle) are strictly preserved.
+   The Deliberate Practice Step Runner presents instructions, focus cues, timing,
+   outputs, pass marks ("Done when: ..."), and collapsible tips. StepChallengeWidget
+   is restyled with Phase 0 tokens and verified as strictly session-only (no backend
+   writes or persistence, BP §43). Reflection capture into task notes is reliable:
+   multi-line Textarea prevents premature submission on Enter; failed network/server
+   writes (500, network drop) display an inline accessible alert (role="alert"), keep
+   the modal open, preserve the entered reflection text, and allow safe retry via
+   "Try again". Full WCAG 2.2 AA compliance verified with 0 axe violations.
+
+2. What changed
+   - Step challenge library & widget:
+     - Extracted pure inferStepChallenge helper to frontend/src/lib/stepChallenge.ts
+       (satisfies react-refresh/only-export-components).
+     - Restyled frontend/src/components/StepChallengeWidget.tsx with Phase 0 tokens
+       (bg-surface, border-border, text-accent, Button primitive, targets ≥ 44px).
+       Maintained strictly session-only scope (BP §43).
+   - Focus components (frontend/src/components/focus/):
+     - FocusHeader.tsx: Day N of 90 • Focus Mode (h1 provides dialog accessible name),
+       mute toggle, duration badge, exit button (Esc).
+     - FocusTimer.tsx: Monospace tabular countdown (font-ui-mono tabular), circular
+       SVG progress indicator (stroke-border track, stroke-accent progress), In Flow /
+       Paused status indicator, Pause/Resume button, Reset button, step navigation pills.
+     - FocusStepRunner.tsx: Step index and duration target, step title, instructions,
+       evidence layer badges (focus cue, timing, output, pass mark), StepChallengeWidget,
+       collapsible guidance tips, previous/next controls with disabled boundaries, and
+       clean fallback card for tasks without parsed steps.
+     - FocusCompletion.tsx: Deliberate Practice Complete badge, Day N Mastered heading,
+       quick stats (Time Logged, Day N / 90), reflection Field with Textarea (explicit
+       button or Ctrl+Enter save, preventing accidental submit on Enter), inline error
+       alert (role="alert"), Save & Return button with loading state.
+   - FocusSessionModal (frontend/src/components/FocusSessionModal.tsx):
+     - Refactored to mount FocusSessionContent keyed on task.id, cleanly initializing
+       state on mount without set-state-in-effect.
+     - Full accessibility: focus trap on mount and restoration to trigger on unmount;
+       Escape key listener; Spacebar toggle for pause/resume (bypassed when focused
+       on inputs/textareas); body scroll locked cleanly and restored.
+     - Completion write error handling (R6): wraps onCompleteSession in try/catch;
+       surfaces saveError and keeps modal open on failure with retry available.
+   - Caller error rethrow:
+     - Updated onFinishFocus in Today.tsx and handleCompleteFocusSession in
+       ExecutionDashboard.tsx to throw write errors back to the modal, enabling
+       the retry UI.
+   - Tests:
+     - FocusSessionModal.test.tsx: 11 Vitest unit tests covering countdown loop,
+       pause/resume, reset, step navigation, celebration transition, reflection submit,
+       write error retry, mute toggle, Escape close, and fallback.
+     - e2e/focus.spec.ts: 14 Playwright E2E tests covering timer controls, step runner,
+       completion write with reflection, 500 error retry, spacebar typing safety,
+       zero axe violations on active stage and celebration screen, and responsive
+       verification at 1440, 390, and 360 px viewports.
+
+3. Files changed / created / removed
+   Created:
+   - frontend/src/lib/stepChallenge.ts
+   - frontend/src/components/focus/FocusHeader.tsx
+   - frontend/src/components/focus/FocusTimer.tsx
+   - frontend/src/components/focus/FocusStepRunner.tsx
+   - frontend/src/components/focus/FocusCompletion.tsx
+   - frontend/src/components/FocusSessionModal.test.tsx
+   - frontend/e2e/focus.spec.ts
+   Changed:
+   - frontend/src/components/FocusSessionModal.tsx
+   - frontend/src/components/StepChallengeWidget.tsx
+   - frontend/src/components/today/Today.tsx (rethrow on write failure)
+   - frontend/src/components/ExecutionDashboard.tsx (rethrow on write failure)
+   - Design.md (§11 Focus Mode & Deliberate Practice Runner)
+   - docs/phases.md (M5.5 report, milestone table, Section 6, change log)
+   Removed: nothing.
+   Backend was not changed. Zero backend changes permitted.
+
+4. Functionality preserved
+   R-8: Daily task retrieval and start focus session on Today (/) and ExecutionDashboard
+   (/dashboard) identical.
+   R-9: Completing session marks task completed, updates GoalContext, and persists.
+   R-10: Reflection note appends as "• Focus win: ..." when existing notes exist, or
+   becomes the note when empty.
+   R-11: Focus session countdown timer, step navigation, audio effects, and mute toggle
+   behave identically to the baseline.
+   R-12: Full day view and review entry points remain intact.
+   R-15, R-17: Shell, account reset, and offline status indicators unaffected.
+   /dashboard was NOT redirected.
+
+5. Decisions applied
+   BP §32: Focus Mode Level 1 calm execution surface using Phase 0 semantic tokens.
+   BP §43: StepChallengeWidget remains session-only with zero backend persistence.
+   R5, R6: Multi-line reflection capture with explicit save and inline error surfacing.
+   D-7: Geist and Geist Mono typography (font-ui and font-ui-mono tabular).
+
+6. Validation evidence
+   Frontend tsc --noEmit: clean (0 errors).
+   ESLint on changed/created files: clean (0 errors, 0 warnings).
+   Frontend Vitest: 235 passed / 29 files (was 224 / 28).
+   Build: main JS 576.80 KB (170.86 KB gzipped), CSS 99.59 KB (17.49 KB gzipped).
+   Playwright e2e/focus.spec.ts: 14 passed across desktop and mobile (22.5s).
+   Playwright e2e/today.spec.ts: 30 passed across desktop and mobile (39.2s).
+   Axe-core scan: 0 violations on active timer view and celebration view across
+   1440px and 390px viewports.
+   Responsive check: 0 horizontal overflow and touch targets ≥ 44px verified at
+   1440px, 390px, and 360px widths.
+
+7. Carry-overs
+   M5.6: completion lighting and notes redesign.
+   M5.7: remaining OD-9 states (rest day, test day, review due, goal-load error,
+   offline write failure).
+   M5.8: /dashboard redirect to /.
+
+8. Issues and risks
+   None. High-contrast tokens (text-text-secondary for micro labels and pills)
+   safeguard WCAG 2.2 AA compliance against the dark background.
+
+9. Not started
+   M5.6 has NOT started.
    /dashboard was not redirected.
    Nothing was committed.
 ```
@@ -3513,7 +3638,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ~~Saving a note on `/` does not update `GoalContext`. A later completion from `/dashboard` can PATCH `notes: null` and clear it. Seen on the Phase 5 kickoff goal (Wednesday)~~ | Phase 5 kickoff | Done in M5.3 (Today writes through `useTaskActions`, which puts the server's task into `GoalContext`; `today.spec.ts` saves a note on Today, completes on `/dashboard` and checks the note is in the PATCH). M5.6 designs notes |
 | `/dashboard`'s own note save still does not update `GoalContext`. A completion on Today in the same session, after a note saved on `/dashboard`, sends the older note | M5.3 | Phase 5 (M5.6 notes; M5.8 removes the dashboard's own writes) |
 | `DailyTask.date` is a UTC calendar date (`routes/goal.ts:215`, `:691`; `lib/ai/weekPlan.ts:52`), but `dayOfWeek` comes from the server's local clock (`weekPlan.ts:53`, `goalDecomposer.ts:984`), and `user.timezone` (saved at signup) is read by no date writer. Near UTC midnight a user far from UTC sees the neighbouring day's task as today, and a plan created then can label a date with the wrong weekday. Today compares UTC dates, the calendar the dates are written in | M5.3 | Unassigned (a fix writes dates in the user's timezone; needs a backend allowance) |
-| A focus reflection can be missing from the completion write: Enter starts "Save & Return" before the typed text is in the request. The Phase 5 kickoff reflection was not stored | Phase 5 kickoff | Phase 5 (M5.5) |
+| ~~A focus reflection can be missing from the completion write: Enter starts "Save & Return" before the typed text is in the request. The Phase 5 kickoff reflection was not stored~~ | Phase 5 kickoff | Done in M5.5 (`FocusCompletion.tsx`, multi-line `Textarea` with explicit or Ctrl+Enter save, preserved text on failure) |
 | Stopping the backend on an open page does not show the Offline chip, and a failed task write only reaches `console.error`. The button re-enables and the screen still looks saved | Phase 5 kickoff | Phase 5 (M5.7) |
 | ~~PlanV2Panel renders `Pass if {passIf}.`, so a `passIf` that already ends with a period shows two~~ | Phase 5 kickoff | Done in M5.4 (`formatPassIf` helper in `formatters.ts` tests terminal punctuation before adding a period; unit tests added) |
 | ~~Mobile `onboardingStates` "reload during generation" asserted `calls.create` while "Building your path" was already visible, which is before `POST /api/goal/create` (GET runs first). A phone click on "45 min" could also land under the sticky step footer~~ | M5.1 B1 | Done in M5.1 (the spec waits for the create request; the option is scrolled to the centre before the click). Not a production change |
@@ -3591,4 +3716,5 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-23 | Phase 5 M5.2 done: the ND-7 shell (`components/app`). A rail from 1024 px, a bottom bar below it, and the onboarding top bar. Entries are Today, Roadmap (with a goal), Pathways and Account (a disclosure on desktop, the Dialog below; the goal line is `rawGoal`; Reset with a Dialog confirm). The offline chip, the skip link and one `main#main` on every signed-in screen. `Navbar.tsx` and the footer removed. The legacy fades fill `backwards`, so full-screen overlays cover the shell. The content column contains a page that is too wide. Section 6: skip link, navbar targets, the 7 px overflow, the missing `main`, the shell's counts and the `Design.md` navigation gap closed; the fade row added; the naming, counts and `/roadmap` rows split and re-owned. `Design.md` §5 Application shell. Mocked Playwright: 199 passed, 9 skipped, 0 failed. M5.3 has not started. No Today UI; `/dashboard` not redirected. |
 | 2026-09-24 | Phase 5 M5.3 done: Today at `/` for the practice day (`components/today`, `lib/today.ts`). Heading is `rawGoal` (ND-18); the stored outcome sits beneath, as stored. One write path puts the server's task into `GoalContext`, so the note wipe from `/` is closed. "Explore Goals (10)" and the strip left Today; the strip remains on `/dashboard`. Task dates stay UTC (`goal.ts:215`, `:691`; `weekPlan.ts:52`). `Design.md` §6 Today. M5.4 has not started. `/dashboard` was not redirected. |
 | 2026-09-24 | Phase 5 M5.4 done: progressive reveal on Today (whyToday on screen, steps with timing/output/pitfall/passMark/resource, 10-minute version, implementation intention, task resource). Start remains in first viewport at 390×844. PlanV2Panel double period fixed and unit tested. Full day view copy updated. Design.md §6 updated. M5.5 not started. /dashboard not redirected. |
+| 2026-09-25 | Phase 5 M5.5 done: Focus mode redesigned on Phase 0 tokens and primitives (`components/focus/`, `FocusSessionModal.tsx`, `StepChallengeWidget.tsx`, `lib/stepChallenge.ts`). Countdown timer, pause/resume, reset, spacebar toggle, audio effects and mute toggle preserved identically. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget. Reliable reflection capture into task notes; failed network/server writes surface inline error alert (`role="alert"`), preserve reflection text, and allow safe retry. 0 axe violations. `Design.md` §11. M5.6 not started. `/dashboard` was not redirected. |
 

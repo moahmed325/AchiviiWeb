@@ -1,37 +1,263 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import {
-  X,
-  Play,
-  Pause,
-  RotateCcw,
-  Volume2,
-  VolumeX,
-  CheckCircle2,
-  ArrowRight,
-  ArrowLeft,
-  Target,
-  AlertTriangle,
-  Sparkles,
-  ExternalLink,
-  ChevronDown,
-  ChevronUp,
-  Lightbulb,
-  Users,
-  ShieldCheck,
-  PackageCheck,
-  Hourglass,
-} from 'lucide-react';
-import { DailyTask, DetailedStep } from '../types';
+import type { DailyTask, DetailedStep } from '../types';
 import { playSessionStart, playStepTransition, playSessionComplete } from '../lib/audio';
-import { StepChallengeWidget } from './StepChallengeWidget';
+import { FocusHeader } from './focus/FocusHeader';
+import { FocusTimer } from './focus/FocusTimer';
+import { FocusStepRunner } from './focus/FocusStepRunner';
+import { FocusCompletion } from './focus/FocusCompletion';
 
-interface FocusSessionModalProps {
+export interface FocusSessionModalProps {
   task: DailyTask;
   dayNumber: number;
   isOpen: boolean;
   onClose: () => void;
   onCompleteSession: (reflectionNotes?: string) => Promise<void> | void;
 }
+
+interface FocusSessionContentProps {
+  task: DailyTask;
+  dayNumber: number;
+  steps: DetailedStep[];
+  totalDurationSeconds: number;
+  onClose: () => void;
+  onCompleteSession: (reflectionNotes?: string) => Promise<void> | void;
+}
+
+const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
+  task,
+  dayNumber,
+  steps,
+  totalDurationSeconds,
+  onClose,
+  onCompleteSession,
+}) => {
+  // Timer & UI State initialized cleanly on mount
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
+  const [isActive, setIsActive] = useState<boolean>(true);
+  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [isCelebration, setIsCelebration] = useState<boolean>(false);
+  const [showTips, setShowTips] = useState<boolean>(false);
+  const [reflectionNote, setReflectionNote] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Lock body scroll and restore focus on unmount
+  useEffect(() => {
+    const previousActiveElement = document.activeElement as HTMLElement | null;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    playSessionStart(false);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      if (previousActiveElement) {
+        previousActiveElement.focus();
+      }
+    };
+  }, []);
+
+  const triggerCompletion = useCallback(() => {
+    setIsActive(false);
+    setIsCelebration(true);
+    playSessionComplete(isMuted);
+  }, [isMuted]);
+
+  // Step transitions
+  const handleNextStep = useCallback(() => {
+    if (currentStepIndex < steps.length - 1) {
+      setCurrentStepIndex((prev) => prev + 1);
+      setShowTips(false);
+      playStepTransition(isMuted);
+    } else {
+      triggerCompletion();
+    }
+  }, [currentStepIndex, steps.length, isMuted, triggerCompletion]);
+
+  const handlePrevStep = useCallback(() => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex((prev) => prev - 1);
+      setShowTips(false);
+    }
+  }, [currentStepIndex]);
+
+  const handleSelectStep = useCallback(
+    (idx: number) => {
+      setCurrentStepIndex(idx);
+      setShowTips(false);
+      playStepTransition(isMuted);
+    },
+    [isMuted],
+  );
+
+  const handleReset = useCallback(() => {
+    setSecondsRemaining(totalDurationSeconds);
+    setIsActive(false);
+  }, [totalDurationSeconds]);
+
+  // Countdown timer loop
+  useEffect(() => {
+    if (isActive && secondsRemaining > 0) {
+      timerRef.current = setInterval(() => {
+        setSecondsRemaining((prev) => {
+          if (prev <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            triggerCompletion();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else if (!isActive && timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isActive, secondsRemaining, triggerCompletion]);
+
+  // Global Keyboard Shortcuts (Space to play/pause, Esc to close) and Focus Trap
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept if user is typing reflection notes or in input
+      const targetTag = (e.target as HTMLElement).tagName;
+      const isInput = targetTag === 'INPUT' || targetTag === 'TEXTAREA';
+
+      if (e.code === 'Space' && !isInput) {
+        e.preventDefault();
+        if (!isCelebration) {
+          setIsActive((prev) => !prev);
+        }
+      } else if (e.code === 'Escape') {
+        e.preventDefault();
+        onClose();
+      } else if (e.key === 'Tab' && modalRef.current) {
+        // Focus trap within modal
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusable.length > 0) {
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCelebration, onClose]);
+
+  // Submit completion to backend
+  const handleSaveAndExit = async () => {
+    setIsSubmitting(true);
+    setSaveError(null);
+    try {
+      const res = (await onCompleteSession(reflectionNote.trim() ? reflectionNote.trim() : undefined)) as unknown;
+      if (res && typeof res === 'object' && 'ok' in res && !(res as { ok: boolean }).ok) {
+        throw new Error('Save failed');
+      }
+      onClose();
+    } catch (err) {
+      console.error('Failed to complete session:', err);
+      setSaveError("That didn't save. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const currentStep = steps[currentStepIndex];
+
+  return (
+    <div
+      ref={modalRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="focus-session-heading"
+      className="fixed inset-0 z-50 bg-background text-text flex flex-col justify-between p-4 sm:p-6 w-full h-full overflow-y-auto select-none"
+    >
+      {/* Subtle atmospheric ambient glow */}
+      <div
+        className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(127,165,139,0.06),transparent_80%)]"
+        aria-hidden="true"
+      />
+
+      {/* Top Controls Bar */}
+      <FocusHeader
+        dayNumber={dayNumber}
+        durationMinutes={task.durationMinutes || 30}
+        isMuted={isMuted}
+        onToggleMute={() => setIsMuted(!isMuted)}
+        onClose={onClose}
+      />
+
+      {/* Main Focus Stage */}
+      <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-4 sm:py-6">
+        {!isCelebration ? (
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-10 items-center w-full min-h-0">
+            {/* Left Column: Timer Hub */}
+            <div className="md:col-span-5">
+              <FocusTimer
+                taskTitle={task.title}
+                secondsRemaining={secondsRemaining}
+                totalDurationSeconds={totalDurationSeconds}
+                isActive={isActive}
+                onToggleActive={() => setIsActive(!isActive)}
+                onReset={handleReset}
+                steps={steps}
+                currentStepIndex={currentStepIndex}
+                onSelectStep={handleSelectStep}
+              />
+            </div>
+
+            {/* Right Column: Deliberate Practice Step Runner */}
+            <div className="md:col-span-7">
+              <FocusStepRunner
+                currentStep={currentStep}
+                currentStepIndex={currentStepIndex}
+                totalSteps={steps.length}
+                showTips={showTips}
+                onToggleTips={() => setShowTips(!showTips)}
+                onPrevStep={handlePrevStep}
+                onNextStep={handleNextStep}
+                onCompleteFallback={triggerCompletion}
+                fallbackTitle={task.title}
+              />
+            </div>
+          </div>
+        ) : (
+          /* Post-Session Completion Screen */
+          <FocusCompletion
+            dayNumber={dayNumber}
+            durationMinutes={task.durationMinutes || 30}
+            reflectionNote={reflectionNote}
+            onReflectionChange={setReflectionNote}
+            onSave={handleSaveAndExit}
+            isSubmitting={isSubmitting}
+            saveError={saveError}
+          />
+        )}
+      </div>
+
+      {/* Footer Brand Line */}
+      <footer className="w-full max-w-6xl mx-auto flex items-center justify-between text-micro font-ui-mono text-text-secondary shrink-0 pt-2 border-t border-border z-10">
+        <span>ACHIVII FLOW ENGINE</span>
+        <span>ZERO DISTRACTION MODE</span>
+      </footer>
+    </div>
+  );
+};
 
 export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   task,
@@ -57,591 +283,18 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
     return mins * 60;
   }, [task.durationMinutes]);
 
-  // Timer & UI State
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
-  const [isActive, setIsActive] = useState<boolean>(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [isCelebration, setIsCelebration] = useState<boolean>(false);
-  const [showTips, setShowTips] = useState<boolean>(false);
-  const [reflectionNote, setReflectionNote] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Initialize / Reset when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setSecondsRemaining(totalDurationSeconds);
-      setIsActive(true);
-      setCurrentStepIndex(0);
-      setIsCelebration(false);
-      setShowTips(false);
-      setReflectionNote('');
-      playSessionStart(isMuted);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-  }, [isOpen, totalDurationSeconds]);
-
-  // Lock body scroll while focus modal is open to eliminate background scrolling and scrollbars
-  useEffect(() => {
-    if (isOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [isOpen]);
-
-  const triggerCompletion = useCallback(() => {
-    setIsActive(false);
-    setIsCelebration(true);
-    playSessionComplete(isMuted);
-  }, [isMuted]);
-
-  // Step transition
-  const handleNextStep = useCallback(() => {
-    if (currentStepIndex < steps.length - 1) {
-      setCurrentStepIndex((prev) => prev + 1);
-      setShowTips(false); // Reset tips accordion on new step
-      playStepTransition(isMuted);
-    } else {
-      triggerCompletion();
-    }
-  }, [currentStepIndex, steps.length, isMuted, triggerCompletion]);
-
-  const handlePrevStep = useCallback(() => {
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex((prev) => prev - 1);
-      setShowTips(false);
-    }
-  }, [currentStepIndex]);
-
-  // Countdown timer loop
-  useEffect(() => {
-    if (isActive && secondsRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        setSecondsRemaining((prev) => {
-          if (prev <= 1) {
-            if (timerRef.current) clearInterval(timerRef.current);
-            triggerCompletion();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else if (!isActive && timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isActive, secondsRemaining, triggerCompletion]);
-
-  // Global Keyboard Shortcuts (Space to play/pause, Esc to close)
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing reflection notes
-      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') {
-        return;
-      }
-
-      if (e.code === 'Space') {
-        e.preventDefault();
-        if (!isCelebration) {
-          setIsActive((prev) => !prev);
-        }
-      } else if (e.code === 'Escape') {
-        e.preventDefault();
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isCelebration, onClose]);
-
-  // Submit completion to backend
-  const handleSaveAndExit = async () => {
-    setIsSubmitting(true);
-    try {
-      await onCompleteSession(reflectionNote);
-      onClose();
-    } catch (err) {
-      console.error('Failed to complete session:', err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   if (!isOpen) return null;
 
-  // Format time (MM:SS)
-  const minutes = Math.floor(secondsRemaining / 60);
-  const seconds = secondsRemaining % 60;
-  const timeFormatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
-  // Circular progress calculation
-  const progressRatio = (totalDurationSeconds - secondsRemaining) / totalDurationSeconds;
-  const radius = 48;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - progressRatio * circumference;
-
-  const currentStep = steps[currentStepIndex];
-
   return (
-    <div className="fixed inset-0 z-50 bg-[#050807] flex flex-col justify-between p-4 sm:p-6 w-full h-full overflow-hidden animate-fadeIn text-white select-none">
-      {/* Ambient Zen Focus Glow */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(7,203,108,0.06),transparent_80%)]" />
-
-      {/* Top Controls Bar */}
-      <div className="w-full max-w-6xl mx-auto flex items-center justify-between shrink-0 pb-3 border-b border-[#1a2824]/60 z-10">
-        <div className="flex items-center gap-3">
-          <span className="w-2 h-2 rounded-full bg-[#07CB6C] animate-pulse" />
-          <span className="text-xs font-mono font-bold tracking-wider uppercase text-neutral-300">
-            Day {dayNumber} of 90 • Focus Mode
-          </span>
-          <span className="hidden sm:inline-block text-[11px] font-mono text-neutral-400 bg-[#0c1210] px-2.5 py-0.5 rounded border border-[#1a2824]">
-            {task.durationMinutes || 30}m deliberate practice
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Mute Button */}
-          <button
-            type="button"
-            onClick={() => setIsMuted(!isMuted)}
-            title={isMuted ? 'Unmute chimes' : 'Mute chimes'}
-            className="p-2 rounded-md bg-[#0d1411] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-          >
-            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-[#07CB6C]" />}
-          </button>
-
-          {/* Close / Esc Button */}
-          <button
-            type="button"
-            onClick={onClose}
-            title="Exit focus mode (Esc)"
-            className="p-2 rounded-md bg-[#0d1411] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
-          >
-            <span className="text-[10px] font-mono text-neutral-500 hidden sm:inline">ESC</span>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Focus Stage: Balanced 2-Column Zen Layout */}
-      <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-2 sm:py-4">
-        {!isCelebration ? (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-10 items-center w-full min-h-0">
-            {/* ================================================================= */}
-            {/* LEFT COLUMN: TIMER HUB & ATMOSPHERE */}
-            {/* ================================================================= */}
-            <div className="md:col-span-5 flex flex-col items-center text-center space-y-3 lg:space-y-4">
-              {/* Task Title */}
-              <div className="space-y-1 max-w-sm">
-                <h2 className="text-base sm:text-lg lg:text-xl font-bold tracking-tight text-white line-clamp-2 leading-snug">
-                  {task.title}
-                </h2>
-                <p className="text-[11px] text-neutral-400 font-mono">
-                  Press <kbd className="px-1.5 py-0.5 rounded bg-[#111a17] border border-[#1a2824] text-neutral-300">Space</kbd> to {isActive ? 'pause' : 'resume'}
-                </p>
-              </div>
-
-              {/* Scaled Circular SVG Timer */}
-              <div className="relative inline-flex items-center justify-center">
-                <svg className="w-36 h-36 sm:w-44 sm:h-44 -rotate-90 transform">
-                  {/* Background Ring */}
-                  <circle
-                    cx="50%"
-                    cy="50%"
-                    r={radius}
-                    className="stroke-[#101a16]"
-                    strokeWidth="5"
-                    fill="transparent"
-                  />
-                  {/* Mint Progress Ring */}
-                  <circle
-                    cx="50%"
-                    cy="50%"
-                    r={radius}
-                    className="stroke-[#07CB6C] transition-all duration-1000 ease-linear"
-                    strokeWidth="5"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    fill="transparent"
-                  />
-                </svg>
-
-                {/* Time Inside Ring */}
-                <div className="absolute flex flex-col items-center justify-center">
-                  <span className="text-3xl sm:text-4xl font-mono font-bold tracking-tight text-white">
-                    {timeFormatted}
-                  </span>
-                  <span className={`text-[10px] font-mono uppercase tracking-widest mt-1 px-2.5 py-0.5 rounded-full ${
-                    isActive ? 'bg-[#07CB6C]/10 text-[#07CB6C]' : 'bg-neutral-800 text-neutral-400'
-                  }`}>
-                    {isActive ? 'In Flow' : 'Paused'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Timer Controls */}
-              <div className="flex items-center justify-center gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setIsActive(!isActive)}
-                  className={`px-5 py-2 rounded-full font-semibold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-md ${
-                    isActive
-                      ? 'bg-[#111a17] border border-[#1a2824] text-neutral-200 hover:border-[#07CB6C]/40 hover:text-white'
-                      : 'bg-[#07CB6C] text-black hover:bg-[#06b560] hover:scale-105'
-                  }`}
-                >
-                  {isActive ? (
-                    <>
-                      <Pause className="w-3.5 h-3.5" />
-                      <span>Pause</span>
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Resume</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSecondsRemaining(totalDurationSeconds);
-                    setIsActive(false);
-                  }}
-                  title="Reset timer"
-                  className="p-2 rounded-full bg-[#0d1411] border border-[#1a2824] hover:border-neutral-600 text-neutral-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Horizontal Step Indicator Pills */}
-              {steps.length > 0 && (
-                <div className="flex items-center justify-center gap-1.5 pt-1">
-                  {steps.map((_, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setCurrentStepIndex(idx);
-                        setShowTips(false);
-                        playStepTransition(isMuted);
-                      }}
-                      title={`Step ${idx + 1}: ${steps[idx]?.title || ''}`}
-                      className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                        idx === currentStepIndex
-                          ? 'w-7 bg-[#07CB6C]'
-                          : idx < currentStepIndex
-                          ? 'w-3 bg-[#07CB6C]/40'
-                          : 'w-3 bg-[#1a2824]'
-                      }`}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* ================================================================= */}
-            {/* RIGHT COLUMN: DELIBERATE PRACTICE STEP RUNNER */}
-            {/* ================================================================= */}
-            <div className="md:col-span-7">
-              {currentStep ? (
-                <div className="p-4 sm:p-5 lg:p-6 rounded-xl bg-[#09100d] border border-[#1a2824] text-left space-y-3.5 shadow-xl">
-                  {/* Step Header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-[#07CB6C]/20 text-[#07CB6C] text-xs font-mono font-bold flex items-center justify-center border border-[#07CB6C]/30">
-                        {currentStepIndex + 1}
-                      </span>
-                      <span className="text-xs font-mono text-neutral-400 uppercase tracking-wider">
-                        Step {currentStepIndex + 1} of {steps.length}
-                      </span>
-                    </div>
-
-                    <span className="text-xs font-mono text-[#07CB6C] bg-[#07CB6C]/10 px-2.5 py-0.5 rounded border border-[#07CB6C]/20">
-                      {currentStep.durationMinutes} min target
-                    </span>
-                  </div>
-
-                  {/* Step Title & Instructions */}
-                  <div className="space-y-1.5">
-                    <h3 className="text-base sm:text-lg font-bold text-white tracking-tight leading-snug">
-                      {currentStep.title}
-                    </h3>
-
-                    {/* Evidence Layer Tag */}
-                    {currentStep.layer && (() => {
-                      const layerConfig = currentStep.layer === 'mechanism'
-                        ? {
-                            label: 'Science-backed',
-                            badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25',
-                            icon: <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />,
-                            disclaimer: 'Based on controlled scientific research (e.g. deliberate practice, spaced retrieval).'
-                          }
-                        : currentStep.layer === 'adherence'
-                        ? {
-                            label: 'Proven in practice',
-                            badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/25',
-                            icon: <Users className="w-3 h-3 text-purple-400 shrink-0" />,
-                            disclaimer: 'Based on commonly reported real-world success patterns and habit stacking, not laboratory data.'
-                          }
-                        : {
-                            label: 'Expert guidance',
-                            badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/25',
-                            icon: <ShieldCheck className="w-3 h-3 text-amber-400 shrink-0" />,
-                            disclaimer: 'Based on professional practitioner sequencing to prevent injury, burnout, or strain.'
-                          };
-
-                      return (
-                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border ${layerConfig.badgeClass} group relative cursor-help`}>
-                            {layerConfig.icon}
-                            <span>{layerConfig.label}</span>
-                            <span className="text-[10px] opacity-75 group-hover:opacity-100 transition-opacity">ⓘ</span>
-
-                            {/* One-line tooltip modal/popover */}
-                            <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block z-30 w-72 p-2.5 rounded-md bg-[#0d1411] border border-[#1a2824] shadow-2xl text-[11px] text-neutral-300 pointer-events-none leading-relaxed">
-                              <p className="font-semibold text-white mb-0.5 flex items-center gap-1.5">
-                                {layerConfig.icon}
-                                <span>{layerConfig.label}</span>
-                              </p>
-                              <p className="text-neutral-400">{layerConfig.disclaimer}</p>
-                            </div>
-                          </div>
-
-                          {currentStep.layerReasoning && (
-                            <span className="text-[11px] text-neutral-400 italic">
-                              — {currentStep.layerReasoning}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {currentStep.timing && (
-                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-300">
-                        <Hourglass className="w-3 h-3 shrink-0" />
-                        {currentStep.timing}
-                      </div>
-                    )}
-
-                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed max-h-20 overflow-y-auto pr-1">
-                      {currentStep.instructions}
-                    </p>
-
-                    {currentStep.output && (
-                      <div className="flex items-start gap-2 text-xs text-neutral-300">
-                        <PackageCheck className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
-                        <span>
-                          <span className="font-semibold text-sky-400">You'll have: </span>
-                          {currentStep.output}
-                        </span>
-                      </div>
-                    )}
-
-                    {currentStep.passMark && (
-                      <div className="flex items-start gap-2 rounded-md border border-[#07CB6C]/30 bg-[#07CB6C]/10 px-2.5 py-1.5 text-xs">
-                        <ShieldCheck className="w-3.5 h-3.5 text-[#07CB6C] shrink-0 mt-0.5" />
-                        <span className="text-neutral-200">
-                          <span className="font-semibold text-[#07CB6C]">Done when: </span>
-                          {currentStep.passMark}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Interactive Challenge Widget */}
-                  <StepChallengeWidget step={currentStep} />
-
-                  {/* Collapsible Tips & Guidance Toggle */}
-                  {(currentStep.focusCue || currentStep.pitfallToAvoid) && (
-                    <div className="border-t border-[#1a2824] pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setShowTips(!showTips)}
-                        className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer select-none"
-                      >
-                        <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{showTips ? 'Hide Tips & Cues' : 'View Tips & Guidance'}</span>
-                        {showTips ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
-
-                      {showTips && (
-                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs animate-fadeIn">
-                          {currentStep.focusCue && (
-                            <div className="p-2 rounded-md bg-[#07CB6C]/5 border border-[#07CB6C]/20 flex items-start gap-2 text-neutral-300">
-                              <Target className="w-3.5 h-3.5 text-[#07CB6C] shrink-0 mt-0.5" />
-                              <div>
-                                <span className="text-[10px] text-neutral-500 uppercase block font-mono">Focus Cue</span>
-                                <span className="leading-snug">{currentStep.focusCue}</span>
-                              </div>
-                            </div>
-                          )}
-
-                          {currentStep.pitfallToAvoid && (
-                            <div className="p-2 rounded-md bg-neutral-900/50 border border-[#1a2824] flex items-start gap-2 text-neutral-300">
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber-400/80 shrink-0 mt-0.5" />
-                              <div>
-                                <span className="text-[10px] text-neutral-500 uppercase block font-mono">Pitfall</span>
-                                <span className="leading-snug">{currentStep.pitfallToAvoid}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* External Resource Link (if present) */}
-                  {currentStep.resourceUrl && (
-                    <div className="pt-0.5">
-                      <a
-                        href={currentStep.resourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-[#07CB6C] hover:underline"
-                      >
-                        <span>{currentStep.resourceTitle || 'Recommended Guide'}</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Step Navigation Controls */}
-                  <div className="pt-2.5 flex items-center justify-between border-t border-[#1a2824]">
-                    <button
-                      type="button"
-                      onClick={handlePrevStep}
-                      disabled={currentStepIndex === 0}
-                      className="px-3.5 py-1.5 rounded-md border border-[#1a2824] text-xs font-medium text-neutral-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" />
-                      <span>Previous</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleNextStep}
-                      className="px-4 py-1.5 rounded-md bg-[#07CB6C] text-black hover:bg-[#06b560] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.02]"
-                    >
-                      <span>{currentStepIndex === steps.length - 1 ? 'Complete Session' : 'Next Step'}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                /* Fallback if task has no parsed sub-steps */
-                <div className="p-6 rounded-xl bg-[#09100d] border border-[#1a2824] space-y-4">
-                  <p className="text-sm text-neutral-300">
-                    Focus on the primary deliberate practice outcome: <strong>{task.title}</strong>
-                  </p>
-                  <button
-                    type="button"
-                    onClick={triggerCompletion}
-                    className="px-5 py-2 rounded-md bg-[#07CB6C] text-black font-bold text-xs hover:bg-[#06b560] transition-colors cursor-pointer"
-                  >
-                    Complete Practice Session
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* ===================================================================== */
-          /* POST-SESSION ZEN CELEBRATION SCREEN (ZERO SCROLL) */
-          /* ===================================================================== */
-          <div className="max-w-md mx-auto my-auto text-center space-y-4 py-2 animate-fadeIn">
-            {/* Glowing Celebration Badge */}
-            <div className="relative inline-flex items-center justify-center">
-              <div className="w-14 h-14 rounded-full bg-[#07CB6C]/10 border-2 border-[#07CB6C] flex items-center justify-center text-[#07CB6C] shadow-[0_0_25px_rgba(7,203,108,0.3)] animate-bounce">
-                <CheckCircle2 className="w-7 h-7" />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#07CB6C]/10 border border-[#07CB6C]/30 text-[11px] font-mono font-bold text-[#07CB6C]">
-                <Sparkles className="w-3 h-3" />
-                <span>Deliberate Practice Complete</span>
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                Day {dayNumber} Mastered
-              </h2>
-              <p className="text-xs text-neutral-400">
-                You showed up and executed your session. Another day closer to 90-day mastery.
-              </p>
-            </div>
-
-            {/* Quick Stats Summary */}
-            <div className="grid grid-cols-2 gap-3 text-left">
-              <div className="p-3 rounded-lg bg-[#080d0b] border border-[#1a2824]">
-                <span className="text-[10px] font-mono text-neutral-500 uppercase block">Time Logged</span>
-                <span className="text-base font-bold font-mono text-white">
-                  {task.durationMinutes || 30} min
-                </span>
-              </div>
-              <div className="p-3 rounded-lg bg-[#080d0b] border border-[#1a2824]">
-                <span className="text-[10px] font-mono text-neutral-500 uppercase block">Progress</span>
-                <span className="text-base font-bold font-mono text-[#07CB6C]">
-                  Day {dayNumber} / 90
-                </span>
-              </div>
-            </div>
-
-            {/* Reflection Note Input */}
-            <div className="text-left space-y-1.5">
-              <label htmlFor="reflectionInput" className="text-xs font-medium text-neutral-300 block">
-                Quick Reflection (Optional):
-              </label>
-              <input
-                id="reflectionInput"
-                type="text"
-                value={reflectionNote}
-                onChange={(e) => setReflectionNote(e.target.value)}
-                placeholder="What was your breakthrough today?"
-                className="w-full px-3 py-2 rounded-md bg-[#080d0b] border border-[#1a2824] focus:border-[#07CB6C] text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none transition-colors"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSaveAndExit();
-                  }
-                }}
-              />
-            </div>
-
-            {/* Return Button */}
-            <div className="pt-1">
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handleSaveAndExit}
-                className="w-full py-2.5 rounded-md bg-[#07CB6C] hover:bg-[#06b560] text-black font-bold text-xs tracking-wide uppercase transition-all shadow-md hover:scale-[1.02] cursor-pointer disabled:opacity-50"
-              >
-                {isSubmitting ? 'Saving...' : 'Save & Return to Dashboard'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Subtle Footer Brand Line */}
-      <div className="w-full max-w-6xl mx-auto flex items-center justify-between text-[11px] font-mono text-neutral-600 shrink-0 pt-2 border-t border-[#1a2824]/40 z-10">
-        <span>ACHIVII FLOW ENGINE</span>
-        <span>ZERO DISTRACTION MODE</span>
-      </div>
-    </div>
+    <FocusSessionContent
+      key={task.id}
+      task={task}
+      dayNumber={dayNumber}
+      steps={steps}
+      totalDurationSeconds={totalDurationSeconds}
+      onClose={onClose}
+      onCompleteSession={onCompleteSession}
+    />
   );
 };
 

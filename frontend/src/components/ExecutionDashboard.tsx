@@ -318,6 +318,7 @@ export const ExecutionDashboard: React.FC<ExecutionDashboardProps> = ({
       onGoalUpdated({ ...goal, dailyTasks: updatedTasks });
     } catch (err) {
       console.error('Failed to complete focus session:', err);
+      throw err;
     }
   };
 

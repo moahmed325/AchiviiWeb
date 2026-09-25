@@ -500,3 +500,17 @@ Run from `frontend/`:
 | `npm run build` | Type-check and production build. |
 
 Put tests next to their component as `*.test.tsx`. Test behaviour through roles and accessible names (`getByRole('button', { name: 'Save' })`), not class names.
+
+---
+
+## 11. Focus Mode & Deliberate Practice Runner (BP §32)
+
+Focus mode is a distraction-free, Level 1 execution surface designed for calm, immersive practice:
+
+- **Atmospheric Palette:** Built on `bg-background` and `bg-surface` with `border-border`. Free of neon glows, deleted mint `#07CB6C`, and arbitrary hex values.
+- **Timer Mechanics:** Monospace tabular countdown (`font-ui-mono tabular`), circular SVG elapsed-time indicator (`stroke-border` track, `stroke-accent` active progress). Controls: Start/Pause/Resume, Reset, Mute toggle, Step pills.
+- **Accessible Contrast:** In dark focus mode, all micro copy, badges, step hints, and elapsed indicators use `text-text-secondary` (`#A7A59E`, 7.5:1 ratio) to guarantee full WCAG 2.2 AA compliance.
+- **Deliberate Practice Step Runner:** Displays instructions, focus cues, timing, outputs, pass marks ("Done when:"), and collapsible tips.
+- **Session-Only Step Challenges (BP §43):** Step challenges are ephemeral tools to aid practice; they do not write to backend storage or persist past the session.
+- **Error-Resilient Reflection & Completion (R5, R6):** Reflection input utilizes `Field` and `Textarea` with multi-line safety (`Ctrl+Enter` or explicit button). If task write fails (`500` or network drop), the modal stays open, reflection text is preserved, an inline `role="alert"` announces the error, and the button becomes "Try again" for seamless recovery.
+- **Keyboard Shortcuts:** `Space` toggles pause/resume (strictly suppressed when typing in inputs/textareas); `Escape` exits focus mode. Focus trap is enforced while open and returned to the trigger on exit.

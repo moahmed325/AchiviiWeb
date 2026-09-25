@@ -183,7 +183,10 @@ export const Today: React.FC<TodayProps> = ({ goal }) => {
     if (!task) return;
     setActionError(null);
     const result = await finishFocus(task, reflection);
-    if (!result.ok) setActionError(NOT_SAVED);
+    if (!result.ok) {
+      setActionError(NOT_SAVED);
+      throw result.error;
+    }
   };
 
   return (
