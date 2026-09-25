@@ -18,6 +18,24 @@ export const JourneyHeader: React.FC<JourneyHeaderProps> = ({ journey }) => {
   const activePhase =
     journey.phases.find((p) => p.status === 'active') || journey.phases[journey.phases.length - 1];
 
+  // R3: Progress bar animated fill from 0 to target percentage on load using --ease-ascend over 600ms
+  const [fillPercent, setFillPercent] = React.useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return metrics.percentComplete;
+    }
+    return 0;
+  });
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      setFillPercent(metrics.percentComplete);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [metrics.percentComplete]);
+
   return (
     <header className="space-y-4">
       {/* Top Navigation & Day Badge */}
@@ -33,7 +51,7 @@ export const JourneyHeader: React.FC<JourneyHeaderProps> = ({ journey }) => {
         {/* Quick Orientation Pill */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface border border-border text-xs font-ui-mono shadow-sm">
           <span className="size-2 rounded-full bg-accent animate-pulse" aria-hidden="true" />
-          <span className="text-text font-medium" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <span className="text-text font-medium tabular" style={{ fontVariantNumeric: 'tabular-nums' }}>
             Day {metrics.currentDay}
           </span>
           <span className="text-text-secondary">/</span>
@@ -111,18 +129,22 @@ export const JourneyHeader: React.FC<JourneyHeaderProps> = ({ journey }) => {
                 <Calendar className="size-3 text-accent" aria-hidden="true" />
                 <span>Week {metrics.currentWeek} of 12</span>
               </div>
-              <div className="text-2xl sm:text-3xl font-bold text-text font-ui-mono" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <div className="text-2xl sm:text-3xl font-bold text-text font-ui-mono tabular" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 <span className="text-accent">{metrics.currentDay}</span>
                 <span className="text-text-secondary text-lg sm:text-xl font-normal"> / 90 Days</span>
               </div>
             </div>
 
-            {/* Subtle Progress Bar */}
+            {/* Layer 1 Animated Progress Bar (R3) */}
             <div className="w-full sm:w-36 md:w-44 space-y-1">
               <div className="h-1.5 rounded-full bg-surface-elevated border border-border overflow-hidden">
                 <div
-                  className="h-full bg-accent transition-all duration-500 ease-out"
-                  style={{ width: `${metrics.percentComplete}%` }}
+                  data-testid="journey-progress-bar"
+                  className="h-full bg-accent journey-progress-bar"
+                  style={{
+                    width: `${fillPercent}%`,
+                    transition: 'width 600ms var(--ease-ascend)',
+                  }}
                   role="progressbar"
                   aria-valuenow={metrics.percentComplete}
                   aria-valuemin={0}
@@ -130,7 +152,7 @@ export const JourneyHeader: React.FC<JourneyHeaderProps> = ({ journey }) => {
                   aria-label="90-day journey progress"
                 />
               </div>
-              <div className="flex justify-between items-center text-[10px] font-ui-mono text-text-secondary">
+              <div className="flex justify-between items-center text-[10px] font-ui-mono text-text-secondary tabular" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 <span>{metrics.percentComplete}% completed</span>
                 <span>{90 - metrics.currentDay} days left</span>
               </div>

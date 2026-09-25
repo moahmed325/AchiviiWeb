@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ChevronDown,
-  ChevronUp,
   Target,
   Award,
   Lock,
@@ -118,21 +117,24 @@ export const StrategicRoadmap: React.FC<StrategicRoadmapProps> = ({ journey }) =
                     {isExpanded ? 'Collapse' : 'Expand'}
                   </span>
                   <span className="p-1 rounded hover:bg-surface-elevated text-text">
-                    {isExpanded ? (
-                      <ChevronUp className="size-4" aria-hidden="true" />
-                    ) : (
-                      <ChevronDown className="size-4" aria-hidden="true" />
-                    )}
+                    <ChevronDown
+                      className={`size-4 transition-transform duration-200 ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`}
+                      aria-hidden="true"
+                    />
                   </span>
                 </div>
               </button>
 
-              {/* Collapsible Weeks Container */}
-              {isExpanded && (
-                <div
-                  id={`phase-panel-${phase.id}`}
-                  className="px-4 sm:px-5 pb-5 pt-1 space-y-3 border-t border-border/60 animate-fadeIn"
-                >
+              {/* Collapsible Weeks Container (R2: Fluid unfolding) */}
+              <div
+                id={`phase-panel-${phase.id}`}
+                className={`journey-accordion-content ${isExpanded ? 'is-open' : 'is-closed'}`}
+                data-state={isExpanded ? 'open' : 'closed'}
+                aria-hidden={!isExpanded}
+              >
+                <div className="px-4 sm:px-5 pb-5 pt-1 space-y-3 border-t border-border/60">
                   {phase.weeks.map((week: JourneyWeek) => {
                     const isWeekActive = week.isCurrentWeek;
                     const isWeekCompleted = week.status === 'completed';
@@ -307,7 +309,7 @@ export const StrategicRoadmap: React.FC<StrategicRoadmapProps> = ({ journey }) =
                     );
                   })}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}

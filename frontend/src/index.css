@@ -158,13 +158,18 @@
     font-size: 1rem; /* 16px */
   }
 
-  /* Accessibility: respect system preference for reduced motion */
+  /* Accessibility: respect system preference for reduced motion (VDS §29, Section 3.9) */
   @media (prefers-reduced-motion: reduce) {
-    html, * {
+    html,
+    *,
+    *::before,
+    *::after {
       scroll-behavior: auto !important;
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
+      animation-delay: 0s !important;
       transition-duration: 0.01ms !important;
+      transition-delay: 0s !important;
     }
   }
 
@@ -377,3 +382,149 @@ html:has(.marketing) {
     animation: none;
   }
 }
+
+/* ============================================================
+   Phase 6 (Journey) Motion System (VDS §19-20, §25, §29)
+   ============================================================ */
+
+/* Active step ambient beacon breathing oscillation (VDS §20: 3s slow pulse) */
+@keyframes beacon-breathe {
+  0%, 100% {
+    box-shadow: 0 0 8px -2px rgba(127, 165, 139, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 16px -2px rgba(127, 165, 139, 0.45);
+  }
+}
+
+.journey-beacon {
+  animation: beacon-breathe 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Mount Ascent: calm staggered upward emergence (VDS §19) */
+@keyframes journey-ascent {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.journey-ascent {
+  animation: journey-ascent 500ms var(--ease-ascend) backwards;
+  animation-delay: var(--ascent-delay, 0ms);
+}
+
+.journey-beacon.journey-ascent {
+  animation: journey-ascent 500ms var(--ease-ascend) backwards, beacon-breathe 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation-delay: var(--ascent-delay, 0ms), 0ms;
+}
+
+/* Layer 1 Progress Bar animated fill (R3) */
+.journey-progress-bar {
+  transition: width 600ms var(--ease-ascend);
+}
+
+/* Fluid Unfolding for Phase & Week accordions (R2) */
+.journey-accordion-content {
+  overflow: hidden;
+  transition: max-height 320ms var(--ease-settle), opacity 240ms ease-out, visibility 320ms var(--ease-settle);
+}
+
+.journey-accordion-content.is-open,
+.journey-accordion-content[data-state='open'] {
+  max-height: 2500px;
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.journey-accordion-content.is-closed,
+.journey-accordion-content[data-state='closed'] {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+/* Strict Reduced-Motion Overrides for Journey (R4, VDS §29, Section 3.9) */
+@media (prefers-reduced-motion: reduce) {
+  .journey-beacon,
+  .animate-ping,
+  .animate-pulse {
+    animation: none !important;
+    box-shadow: 0 0 0 2px var(--color-accent) !important;
+  }
+
+  .journey-ascent,
+  .animate-fadeIn,
+  .animate-fadeInUp {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .journey-progress-bar {
+    transition: none !important;
+  }
+
+  .journey-accordion-content {
+    transition: none !important;
+  }
+
+  .journey-accordion-content.is-open,
+  .journey-accordion-content[data-state='open'] {
+    max-height: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .journey-accordion-content.is-closed,
+  .journey-accordion-content[data-state='closed'] {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+}
+
+/* Class-level override support (.motion-reduce) */
+.motion-reduce .journey-beacon,
+.motion-reduce .animate-ping,
+.motion-reduce .animate-pulse {
+  animation: none !important;
+  box-shadow: 0 0 0 2px var(--color-accent) !important;
+}
+
+.motion-reduce .journey-ascent,
+.motion-reduce .animate-fadeIn,
+.motion-reduce .animate-fadeInUp {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.motion-reduce .journey-progress-bar {
+  transition: none !important;
+}
+
+.motion-reduce .journey-accordion-content {
+  transition: none !important;
+}
+
+.motion-reduce .journey-accordion-content.is-open,
+.motion-reduce .journey-accordion-content[data-state='open'] {
+  max-height: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.motion-reduce .journey-accordion-content.is-closed,
+.motion-reduce .journey-accordion-content[data-state='closed'] {
+  max-height: 0 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+

@@ -78,14 +78,15 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
       <div className="space-y-6">
         {/* Tiered Phase Landings Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 items-stretch">
-          {phases.map((phase: JourneyPhase) => {
+          {phases.map((phase: JourneyPhase, index: number) => {
             const isPhaseCompleted = phase.status === 'completed';
             const isPhaseActive = phase.status === 'active';
 
             return (
               <div
                 key={phase.id}
-                className={`relative flex flex-col justify-between rounded-control border transition-all duration-200 p-4 ${
+                style={{ '--ascent-delay': `${index * 80}ms` } as React.CSSProperties}
+                className={`relative flex flex-col justify-between rounded-control border transition-all duration-200 p-4 journey-ascent ${
                   isPhaseActive
                     ? 'bg-surface-elevated border-accent/40 shadow-md ring-1 ring-accent/20'
                     : isPhaseCompleted
@@ -171,7 +172,10 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
 
         {/* Elevated Active Week Daily Step Runner (VDS §7–8, §20) */}
         {activeWeek && activeWeek.days.length > 0 && (
-          <div className="rounded-control border border-accent/30 bg-surface-elevated p-4 sm:p-5 shadow-raised space-y-4">
+          <div
+            style={{ '--ascent-delay': '180ms' } as React.CSSProperties}
+            className="rounded-control border border-accent/30 bg-surface-elevated p-4 sm:p-5 shadow-raised space-y-4 journey-ascent"
+          >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
               <div>
                 <div className="text-micro font-ui-mono uppercase tracking-wider text-accent flex items-center gap-1.5">
@@ -192,7 +196,7 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
 
             {/* 7 Daily Steps Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5 min-w-0">
-              {activeWeek.days.map((step: JourneyStep) => {
+              {activeWeek.days.map((step: JourneyStep, stepIndex: number) => {
                 const isStepCompleted = step.status === 'completed';
                 const isStepActive = step.status === 'active';
                 const isToday = step.dayNumber === metrics.currentDay;
@@ -200,12 +204,13 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
                 return (
                   <div
                     key={step.dayNumber}
-                    className={`relative flex flex-col justify-between p-3 rounded-control border transition-all ${
+                    style={{ '--ascent-delay': `${200 + stepIndex * 40}ms` } as React.CSSProperties}
+                    className={`relative flex flex-col justify-between p-3 rounded-control border transition-all journey-ascent ${
                       isStepActive
-                        ? 'bg-surface border-accent shadow-md ring-1 ring-accent/30'
+                        ? 'bg-surface border-accent shadow-md ring-1 ring-accent/30 journey-beacon'
                         : isStepCompleted
-                        ? 'bg-surface-elevated/80 border-border'
-                        : 'bg-surface/50 border-border/60'
+                        ? 'bg-surface-elevated/80 border-accent/20 text-accent/90'
+                        : 'bg-surface/50 border-border/60 text-text-muted'
                     }`}
                   >
                     {/* Step Top Bar */}
@@ -231,7 +236,7 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
                         </span>
                       ) : (
                         <span
-                          className="size-4 rounded-full border border-border flex items-center justify-center text-text-secondary text-[10px]"
+                          className="size-4 rounded-full border border-border flex items-center justify-center text-text-muted text-[10px]"
                           title="Upcoming"
                         >
                           ○
@@ -285,7 +290,8 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
           {/* Days 85–90 Approach Node */}
           <div
-            className={`p-4 rounded-control border transition-all ${
+            style={{ '--ascent-delay': '320ms' } as React.CSSProperties}
+            className={`p-4 rounded-control border transition-all journey-ascent ${
               closingStretch.status === 'active'
                 ? 'bg-surface-elevated border-accent shadow-md ring-1 ring-accent/20'
                 : closingStretch.status === 'completed'
@@ -317,7 +323,10 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
           </div>
 
           {/* Destination Summit (✦ VDS §25) */}
-          <div className="p-4 rounded-control border border-achievement/40 bg-surface shadow-raised relative overflow-hidden">
+          <div
+            style={{ '--ascent-delay': '380ms' } as React.CSSProperties}
+            className="p-4 rounded-control border border-achievement/40 bg-surface shadow-raised relative overflow-hidden journey-ascent"
+          >
             <div className="absolute right-0 bottom-0 size-24 rounded-full bg-achievement/10 blur-xl pointer-events-none" />
 
             <div className="flex items-center justify-between gap-2 mb-2">

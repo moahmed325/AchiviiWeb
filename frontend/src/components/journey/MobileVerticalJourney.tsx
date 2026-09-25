@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ChevronDown,
-  ChevronUp,
   Check,
   Sparkles,
   Target,
@@ -33,13 +32,17 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
 
   const activeStepRef = useRef<HTMLDivElement | null>(null);
 
-  // R2: "You Are Here" Auto-Positioning on initial mobile load
+  // R2: "You Are Here" Auto-Positioning on initial mobile load with reduced-motion respect
   useEffect(() => {
     // Only auto-scroll if user did not arrive via a direct hash deep link (e.g. #main)
     if (!window.location.hash && activeStepRef.current) {
+      const prefersReduced =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const behavior = prefersReduced ? 'instant' : 'smooth';
       const timer = setTimeout(() => {
-        activeStepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 150);
+        activeStepRef.current?.scrollIntoView({ behavior, block: 'center' });
+      }, prefersReduced ? 0 : 150);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -77,10 +80,10 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
             <span>Vertical Progression</span>
           </div>
 
-          {/* Current Position Pill */}
+          {/* Current Position Pill with serene beacon */}
           <div
             data-testid="you-are-here-badge"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/15 border border-accent/40 text-accent font-ui-mono text-micro font-bold shadow-sm"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent/15 border border-accent/40 text-accent font-ui-mono text-micro font-bold shadow-sm journey-beacon"
           >
             <span className="size-1.5 rounded-full bg-accent animate-ping" aria-hidden="true" />
             <span>You are here · Day {metrics.currentDay}</span>
@@ -94,13 +97,17 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
 
       {/* Vertical Spine / Stepper Track (VDS §28) */}
       <div className="relative border-l-2 border-border ml-3.5 pl-4 sm:pl-6 space-y-7 pt-1">
-        {phases.map((phase: JourneyPhase) => {
+        {phases.map((phase: JourneyPhase, index: number) => {
           const isPhaseActive = phase.status === 'active';
           const isPhaseCompleted = phase.status === 'completed';
           const isExpanded = Boolean(expandedPhases[phase.id]);
 
           return (
-            <div key={phase.id} className="relative space-y-3">
+            <div
+              key={phase.id}
+              style={{ '--ascent-delay': `${index * 80}ms` } as React.CSSProperties}
+              className="relative space-y-3 journey-ascent"
+            >
               {/* Spine Node Marker on Left Hairline */}
               <div
                 className={`absolute -left-[23px] sm:-left-[31px] top-3.5 size-5 sm:size-6 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all ${
@@ -162,20 +169,23 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
                   </div>
 
                   <span className="p-2 rounded text-text-secondary shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center">
-                    {isExpanded ? (
-                      <ChevronUp className="size-5 text-text" aria-hidden="true" />
-                    ) : (
-                      <ChevronDown className="size-5 text-text" aria-hidden="true" />
-                    )}
+                    <ChevronDown
+                      className={`size-5 text-text transition-transform duration-200 ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`}
+                      aria-hidden="true"
+                    />
                   </span>
                 </button>
 
-                {/* Collapsible Phase Weeks Content */}
-                {isExpanded && (
-                  <div
-                    id={`mobile-phase-${phase.id}`}
-                    className="px-3.5 pb-4 pt-1 space-y-3 border-t border-border/60 animate-fadeIn"
-                  >
+                {/* Collapsible Phase Weeks Content (R2: Fluid unfolding) */}
+                <div
+                  id={`mobile-phase-${phase.id}`}
+                  className={`journey-accordion-content ${isExpanded ? 'is-open' : 'is-closed'}`}
+                  data-state={isExpanded ? 'open' : 'closed'}
+                  aria-hidden={!isExpanded}
+                >
+                  <div className="px-3.5 pb-4 pt-1 space-y-3 border-t border-border/60">
                     {phase.weeks.map((week: JourneyWeek) => {
                       const isWeekActive = week.isCurrentWeek;
                       const isWeekCompleted = week.status === 'completed';
@@ -262,7 +272,7 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
                               </div>
 
                               <div className="space-y-2">
-                                {week.days.map((step: JourneyStep) => {
+                                {week.days.map((step: JourneyStep, idx: number) => {
                                   const isStepCompleted = step.status === 'completed';
                                   const isStepActive = step.status === 'active';
                                   const isToday = step.dayNumber === metrics.currentDay;
@@ -272,12 +282,13 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
                                       key={step.dayNumber}
                                       ref={isToday ? activeStepRef : undefined}
                                       data-testid={isToday ? 'active-step-node' : undefined}
-                                      className={`p-3 rounded-control border text-xs flex flex-col gap-1.5 transition-all ${
+                                      style={{ '--ascent-delay': `${120 + idx * 40}ms` } as React.CSSProperties}
+                                      className={`p-3 rounded-control border text-xs flex flex-col gap-1.5 transition-all journey-ascent ${
                                         isStepActive
-                                          ? 'bg-surface border-accent shadow-md ring-1 ring-accent/30'
+                                          ? 'bg-surface border-accent shadow-md ring-1 ring-accent/30 journey-beacon'
                                           : isStepCompleted
-                                          ? 'bg-surface-elevated/70 border-border text-text-secondary'
-                                          : 'bg-surface/60 border-border/50 text-text'
+                                          ? 'bg-surface-elevated/70 border-accent/20 text-accent/90'
+                                          : 'bg-surface/60 border-border/50 text-text-muted'
                                       }`}
                                     >
                                       {/* Top Row: Day & Status */}
@@ -289,7 +300,7 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
                                                 ? 'bg-accent/20 text-accent border border-accent/50'
                                                 : isStepActive
                                                 ? 'bg-accent text-background shadow-sm'
-                                                : 'border border-border text-text-secondary'
+                                                : 'border border-border text-text-muted'
                                             }`}
                                           >
                                             {isStepCompleted ? '✓' : isStepActive ? '●' : '○'}
@@ -361,14 +372,17 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
                       );
                     })}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           );
         })}
 
         {/* Closing Stretch (Days 85–90) Node */}
-        <div className="relative space-y-2">
+        <div
+          style={{ '--ascent-delay': '320ms' } as React.CSSProperties}
+          className="relative space-y-2 journey-ascent"
+        >
           {/* Spine Node Marker */}
           <div
             className={`absolute -left-[23px] sm:-left-[31px] top-3.5 size-5 sm:size-6 rounded-full border-2 flex items-center justify-center text-[10px] font-bold transition-all ${
@@ -416,7 +430,10 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
         </div>
 
         {/* Summit Destination Node (✦ Day 90) */}
-        <div className="relative space-y-2">
+        <div
+          style={{ '--ascent-delay': '380ms' } as React.CSSProperties}
+          className="relative space-y-2 journey-ascent"
+        >
           {/* Spine Node Marker */}
           <div
             className="absolute -left-[25px] sm:-left-[33px] top-3.5 size-6 sm:size-7 rounded-full border border-achievement/50 bg-surface flex items-center justify-center text-achievement text-xs font-bold shadow-md ring-2 ring-achievement/20"

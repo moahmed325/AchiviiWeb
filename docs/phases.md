@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-25 · Current position: **Phases 0–5 complete. Phase 6 (Journey) is IN PROGRESS: M6.1, M6.2, M6.3, and M6.4 done.**
+Last updated: 2026-09-25 · Current position: **Phases 0–5 complete. Phase 6 (Journey) is IN PROGRESS: M6.1, M6.2, M6.3, M6.4, and M6.5 done.**
 
 ---
 
@@ -3613,7 +3613,7 @@ None.
 | M6.2 | Journey data adapter: one shape for v1 and v2 goals | `Done` (2026-09-25) |
 | M6.3 | Desktop journey composition | `Done` (2026-09-25) |
 | M6.4 | Mobile vertical journey | `Done` (2026-09-25) |
-| M6.5 | Progress motion and reduced-motion path | `NOT STARTED` |
+| M6.5 | Progress motion and reduced-motion path | `Done` (2026-09-25) |
 | M6.6 | Regression and phase report | `NOT STARTED` |
 
 ### M6.1 report — Decisions OD-2 & OD-7 and Day/Week/Phase mapping (2026-09-25)
@@ -3768,6 +3768,54 @@ None.
      - R-8: Today page (`e2e/today.spec.ts`, 36 tests) 100% green.
      - R-14: Roadmap shell navigation & desktop layout (`e2e/shell.spec.ts`, 10 tests) 100% green.
    - Zero backend changes.
+
+### M6.5 report — Progress motion and reduced-motion path (2026-09-25)
+
+1. **Hardware-Accelerated Progress Motion System (VDS §19, §20, §25)**
+   - **Mount Ascent Animation (`.journey-ascent`):**
+     - Staggered emergence of phase landings, active week runner, closing stretch threshold, and summit destination.
+     - Directional upward ascent using pure CSS transforms and opacity (`translateY(12px)` to `translateY(0)`).
+     - Controlled through CSS variable `--ascent-delay` (calm 60ms increments from past to future) timed with `--ease-ascend` (`cubic-bezier(0.22, 1, 0.36, 1)`).
+   - **Step Illumination & Ambient Beacon (`.journey-beacon`, VDS §20):**
+     - Completed steps (`✓`) carry a serene emerald accent (`border-accent/40 bg-accent/5 text-accent`).
+     - The active step (`●`) carries a breathing ambient beacon: subtle 3-second oscillation (`box-shadow: 0 0 16px -2px rgba(127,165,139,0.4)` to `box-shadow: 0 0 4px 0 rgba(127,165,139,0.15)`).
+     - Upcoming steps (`○`) remain muted until reached.
+     - Compound CSS definition `.journey-beacon.journey-ascent` enables seamless concurrent execution of initial mount ascent and continuous beacon pulse without style clobbering.
+   - **Layer 1 Animated Progress Meter Fill (`frontend/src/components/journey/JourneyHeader.tsx`):**
+     - Fills smoothly from 0% to the target completion percentage on mount over 600ms using `--ease-ascend`.
+     - Day counter and progression numerals styled with `tabular-nums` (`font-variant-numeric: tabular-nums`) preventing layout jitter.
+   - **Fluid Accordion Unfolding (`.journey-accordion-content`):**
+     - Implemented in `StrategicRoadmap.tsx` and `MobileVerticalJourney.tsx`.
+     - Smooth interpolation across height, opacity, and visibility (`transition: max-height 320ms var(--ease-settle), opacity 240ms ease-out, visibility 320ms`).
+     - Phase toggle chevrons rotate smoothly (`transition-transform duration-200`) without icon layout jumps.
+
+2. **Strict Reduced-Motion Path (VDS §29, Section 3.9)**
+   - **Comprehensive CSS Overrides (`@media (prefers-reduced-motion: reduce)` & `.motion-reduce`):**
+     - All transitions and keyframe animations immediately zeroed (`animation-duration: 0.01ms !important`, `animation-delay: 0s !important`, `transition-duration: 0.01ms !important`, `transition-delay: 0s !important`).
+     - Elements with `.journey-ascent` render instantly at full opacity and final position (`opacity: 1 !important; transform: none !important`).
+     - Continuous ambient pulse animation on `.journey-beacon` is replaced with a static focus ring (`box-shadow: 0 0 0 2px var(--color-accent) !important; animation: none !important`).
+     - Accordion content panels snap open/closed instantly (`max-height: none !important`, `opacity: 1 !important`, `transition: none !important`).
+   - **JavaScript Motion Awareness:**
+     - `JourneyHeader.tsx` reads `window.matchMedia('(prefers-reduced-motion: reduce)')` to set initial progress fill width immediately to target without the 0% start delay.
+     - `MobileVerticalJourney.tsx` executes `scrollIntoView({ behavior: 'instant', block: 'center' })` without timeout delay when reduced motion is preferred.
+
+3. **E2E Motion & Reduced-Motion Playwright Suite (`frontend/e2e/journeyMotion.spec.ts`)**
+   - 10 automated end-to-end tests validating:
+     - Standard motion: verifies presence of `.journey-beacon` on active step cards, active beacon pulse keyframe styling, 600ms animated fill progress bar, and rotating accordion toggles.
+     - Reduced motion: verifies instant opacity, lack of continuous beacon animation, immediate content visibility, and instant accordion expansion.
+     - Zero axe accessibility violations (`@axe-core/playwright`) with reduced motion.
+     - Zero horizontal overflow (`documentOverflow <= 1`, `contentOverflow <= 1`) at 1440px desktop, 390px mobile, and 360px compact mobile viewports under reduced motion.
+
+4. **Verification Evidence**
+   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - ESLint: 0 errors, 0 warnings across all modified journey components and test files.
+   - Vitest: 36 test files passed, 308 tests passed (100%).
+   - Playwright Suites:
+     - `e2e/journeyMotion.spec.ts`: 10 passed (10/10) in 24.2s.
+     - `e2e/journeyMobile.spec.ts`: 8 passed (8/8) in 26.8s.
+     - `e2e/shell.spec.ts -g "roadmap"`: 10 passed (10/10) in 23.4s.
+     - `e2e/today.spec.ts`: 36 passed (36/36) in 60.0s (R-8 verified).
+   - Zero backend changes or database modifications.
 
 ### Regression checks
 
@@ -4467,6 +4515,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-25 | Phase 6 M6.2 done: pure data adapter `toJourneyData` and hook `useJourneyData` implemented (`frontend/src/lib/journeyAdapter.ts`, `frontend/src/hooks/useJourneyData.ts`); normalizes v1 (3 fixed phases) and v2 (2-4 method phases) into canonical JourneyData; enforces future honesty (days: [] on unwritten future weeks); maps days 85-90 closing stretch; 21 unit tests added in `journeyAdapter.test.ts` (100% pass). |
 | 2026-09-25 | Phase 6 M6.3 done: Desktop journey composition delivered (`frontend/src/components/journey/JourneyHeader.tsx`, `DesktopStaircase.tsx`, `StrategicRoadmap.tsx`, `index.ts`, `RoadmapPage.tsx`). Implements all 3 VDS §9 progress layers: Layer 1 quick numerical header (`Day N / 90`, tabular figures, method badge, Back to Today), Layer 2 emotional staircase (VDS §25 symbols, 2–4 phase landings, active week daily step runner, Days 85–90 closing stretch, summit destination), and Layer 3 strategic roadmap (collapsible method phases, week milestone breakdown, strict future honesty BP §43 with zero fabricated tasks). 9 unit & integration tests added in `DesktopJourney.test.tsx` (100% pass). 0 axe violations at 1440px and 1024px. M6.4 ready. |
 | 2026-09-25 | Phase 6 M6.4 done: Mobile vertical journey delivered (`frontend/src/components/journey/MobileVerticalJourney.tsx`, `MobileVerticalJourney.test.tsx`, `frontend/e2e/journeyMobile.spec.ts`). Replaces the wide desktop staircase with a vertical ascending spine for viewports `< 768px` (VDS §28). Implements compact phase landing separators, active phase default expansion with collapsed upcoming phases, vertical active daily flight, "You are here" badge and auto-scroll ref positioning (R2), 44px minimum tap targets, days 85–90 approach section, and summit destination. 7 unit tests and 8 Playwright mobile tests pass (0 axe violations at 390px and 360px viewports, 0 overflow). R-8 and R-14 verified. M6.5 ready. |
+| 2026-09-25 | Phase 6 M6.5 done: Progress motion and reduced-motion path delivered (`frontend/src/index.css`, `JourneyHeader.tsx`, `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, `StrategicRoadmap.tsx`, `frontend/e2e/journeyMotion.spec.ts`). Hardware-accelerated ascent stagger (`.journey-ascent` with `--ascent-delay`), active step 3s ambient breathing beacon (`.journey-beacon`), emerald completed step styling, 600ms `--ease-ascend` progress bar fill with tabular figures, and smooth accordion expansion (`.journey-accordion-content` with rotating chevrons). Airtight `prefers-reduced-motion: reduce` zeroing all delays/durations, replacing beacon with static ring, and rendering content instantly. 10/10 tests pass in `journeyMotion.spec.ts` with 0 axe violations. M6.6 ready. |
 
 
 
