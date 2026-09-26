@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-26 · Current position: **Phases 0–6 complete. Phase 6 (Journey) is COMPLETE (awaiting Mo's review). Phase 7 (Weekly review + adaptation) is NOT STARTED and blocked by OD-1a.**
+Last updated: 2026-09-26 · Current position: **Phases 0–6 complete. Phase 7 (Weekly review + adaptation) is IN PROGRESS (M7.1 done).**
 
 ---
 
@@ -73,7 +73,7 @@ Every phase in section 4 uses the same fields:
 | 4 | Journey generation | `COMPLETE` | 3 | — (OD-8, ND-17 Decided) | None remaining. ND-17 matching shipped in M4.2. Stream labels unused |
 | 5 | Today | `COMPLETE` | 0, 4 | — (OD-3, OD-9, ND-7, ND-18 Decided) | None |
 | 6 | Journey | `COMPLETE` | 5 | — (OD-2, OD-7 Decided) | None |
-| 7 | Weekly review + adaptation | `NOT STARTED` | 5 | OD-1 (test results) | Named: weekly test result storage |
+| 7 | Weekly review + adaptation | `IN PROGRESS` | 5 | — (OD-1a Decided) | Named: weekly test result storage |
 | 8 | Progress | `NOT STARTED` | 6, 7 | ND-8 | None beyond Phase 7 |
 | 9 | Achievement | `NOT STARTED` | 6, 7 | OD-1 (completion), OD-2 | Named: goal completion transition |
 | 10 | Premium architecture | `NOT STARTED` | 5, 6 | OD-1 (gating), ND-9, ND-10 | Named: entitlement + server-side gate |
@@ -4090,7 +4090,7 @@ R-8, R-14.
 
 ## PHASE 7 — WEEKLY REVIEW + ADAPTATION
 
-**Status:** `NOT STARTED`
+**Status:** `IN PROGRESS`
 
 **Source:** BP §17–19, §33, §41, §43, OD-1 · VDS §26
 
@@ -4107,14 +4107,17 @@ R-8, R-14.
   * writes the next week from the actual completions;
   * runs a phase-gate milestone check.
 * **Failure:** if adaptation fails it returns 503 and leaves the week unchanged.
-* **Weekly tests:** `RoadmapWeek.test` holds `{ type, instructions, passIf }` and `target` holds a metric or deliverable, but **no test result is ever stored** (OD-1).
+* **Weekly tests:** `RoadmapWeek.test` holds `{ type, instructions, passIf }` and `target` holds a metric or deliverable.
+* **OD-1a Decided (Option A):** Result storage approved for M7.5 via named backend allowance. Authoritative contracts defined in `frontend/src/types/review.ts`. Backend changes isolated to M7.5; zero backend changes in M7.1.
 * **Not implemented (must not appear, BP §43):** retargeting, missed-day carry-forward, and proof judging from `plan-v2-spec.md`.
 
 ### Decisions required before starting
 
-* **OD-1, Phase 7 part: weekly test results.** Is a result-storage backend change approved?
-  * If **yes**, the named allowance below applies and the review can compare the result with the target.
-  * If **no**, the review shows completion and reflection only, with no target comparison.
+* **OD-1, Phase 7 part: weekly test results.** **Decided (Option A — Add result storage)** by Mo at M7.1 (2026-09-26).
+  * A nullable `RoadmapWeek.testResult` JSON field is approved.
+  * Named backend allowance below is activated and scheduled for **M7.5**.
+  * The weekly review will compare the entered test result with the weekly target deliverable (`RoadmapWeek.target`).
+  * Adaptation AI logic in `backend/src/lib/ai/goalDecomposer.ts` remains **completely unchanged**.
 
 ### In scope
 
@@ -4122,7 +4125,7 @@ R-8, R-14.
   * *How did this week go?*
   * what you completed (from task statuses);
   * the reflection;
-  * the test result compared with the target (only with the approved allowance);
+  * the test result compared with the target (enabled by the M7.5 approved allowance);
   * what happens next (`aiAdaptationInsight` and next week's focus).
 * **The adaptation moment:** show that next week was rebuilt, and why, from the real insight. No invented reasoning.
 * **The phase-gate outcome** in encouraging language (BP §18): "Your current results suggest we should reinforce this phase."
@@ -4132,33 +4135,71 @@ R-8, R-14.
 ### Out of scope
 
 * Proof judging, photo/video tests, retargeting, carry-forward.
-* Changing the adaptation logic.
+* Changing the adaptation logic or prompts.
 
-### Backend allowance
+### Backend allowance (Formal M7.5 Technical Specification)
 
-**Named, only if OD-1 approves it:** store a weekly test result, for example a nullable `RoadmapWeek.testResult` JSON field plus an optional field on the review request. Include:
+**Approved under OD-1a (Option A) at M7.1:** store a weekly test result for honest target comparison and Phase 8 (Progress) results layer. Strictly isolated to **M7.5** (zero backend modifications in M7.1–M7.4). Specification:
 
-* a Prisma migration;
-* validation;
-* a Vitest test for the new field;
-* no change to how adaptation behaves unless separately decided.
+1. **Prisma Schema (`backend/prisma/schema.prisma`):**
+   - Add nullable `testResult Json?` to `model RoadmapWeek`.
+   - Migration name: `add_weekly_test_result`.
+2. **Review Request Validation (`backend/src/routes/goal.ts`):**
+   - Accept optional `testResult` payload on `POST /api/goal/weeks/:weekNumber/review`.
+   - Validate structure when provided: `{ value: string | number, unit?: string, passed: boolean, note?: string }`.
+   - Backward-compatible: submitting `{ reflection }` without `testResult` remains fully valid.
+3. **Vitest Backend Tests (`backend/test/`):**
+   - Verify review submission with `testResult` persists the JSON object to `RoadmapWeek.testResult`.
+   - Verify review submission without `testResult` leaves `RoadmapWeek.testResult` null (backward compatibility).
+   - Verify validation errors for malformed `testResult` payloads.
+4. **Strict Boundaries:**
+   - Adaptation AI prompt and decomp algorithm in `backend/src/lib/ai/goalDecomposer.ts` remain **completely untouched**.
+   - Zero changes to `WeeklyReview` table or scoring algorithms.
 
 ### Files likely affected
 
-* The review UI inside `ExecutionDashboard.tsx` / Home (or its Phase 5 successor)
-* new `frontend/src/components/review/*`
-* With the allowance: `backend/prisma/schema.prisma` plus a migration, `backend/src/routes/goal.ts` (the review handler), backend tests, `frontend/src/types/index.ts`
+* The review UI inside `components/today/WeeklyReviewModal.tsx` / `frontend/src/components/review/*`
+* `frontend/src/types/review.ts` and `frontend/src/types/index.ts` (contracts established in M7.1)
+* In M7.5 only: `backend/prisma/schema.prisma` plus migration `add_weekly_test_result`, `backend/src/routes/goal.ts`, `backend/test/`
 
 ### Milestones
 
-| ID | Milestone |
-|---|---|
-| M7.1 | OD-1 (Phase 7 part) decided |
-| M7.2 | Review flow UI |
-| M7.3 | Adaptation moment and phase-gate language |
-| M7.4 | Failure, retry and review-due states |
-| M7.5 | (With the allowance) test-result storage, a backend test, and the UI comparison |
-| M7.6 | Regression and phase report |
+| ID | Milestone | Status |
+|---|---|---|
+| M7.1 | OD-1 (Phase 7 part) decided | `Done` (2026-09-26) |
+| M7.2 | Review flow UI | `NOT STARTED` |
+| M7.3 | Adaptation moment and phase-gate language | `NOT STARTED` |
+| M7.4 | Failure, retry and review-due states | `NOT STARTED` |
+| M7.5 | (With the allowance) test-result storage, a backend test, and the UI comparison | `NOT STARTED` |
+| M7.6 | Regression and phase report | `NOT STARTED` |
+
+### M7.1 report — OD-1 (Phase 7 part) decided and Review contracts (2026-09-26)
+
+1. **Architectural Decision OD-1a Formally Resolved**
+   - **Status:** Decided (Option A — Add result storage) by Mo at M7.1.
+   - **Rationale:** Adds nullable test result storage (`WeeklyTestResult`) to `RoadmapWeek` via the named backend allowance in M7.5, unlocking honest target comparisons in Phase 7 and the real results layer in Phase 8 (Progress) without altering AI adaptation behavior.
+   - **Strict Boundary:** AI adaptation prompts and decomposition algorithms in `backend/src/lib/ai/goalDecomposer.ts` remain completely untouched. Zero backend changes in M7.1.
+
+2. **Authoritative Review Contracts Created (`frontend/src/types/review.ts` & `frontend/src/types/index.ts`)**
+   - `WeeklyTestResult`: canonical structure for user-entered test outcomes (`value: string | number`, `unit?: string`, `passed: boolean`, `note?: string`).
+   - `WeeklyReviewSubmission`: review request payload matching `POST /api/goal/weeks/:weekNumber/review` (`reflection: string`, optional `testResult?: WeeklyTestResult | null`).
+   - `WeeklyReviewPhaseGate`: phase-gate milestone outcome and encouraging reinforcement messaging per BP §18 ("Your current results suggest we should reinforce this phase.").
+   - `WeeklyTargetComparison`: comparison contract linking weekly target deliverable/metric with entered test result and delta assessment.
+   - `WeeklyReviewSummary`: aggregated review presentation model including week number, date range, tasks planned/completed, execution score percentage, target deliverable, test instructions, target comparison, AI adaptation insight, and next week focus preview.
+   - `WeeklyReviewState`: UI state machine (`'due' | 'in_progress' | 'submitting' | 'adapting' | 'complete' | 'error_503'`).
+   - `WeeklyReviewStep`: multi-step review navigation steps (`'overview' | 'reflection' | 'test_result' | 'adaptation' | 'complete'`).
+   - Re-exported via `frontend/src/types/index.ts` and extended `RoadmapWeek.testResult?: WeeklyTestResult | null`.
+
+3. **Backend Allowance Technical Specification Formalized for M7.5**
+   - Defined Prisma schema update (`testResult Json?` on `RoadmapWeek`), migration identifier `add_weekly_test_result`, endpoint validation schema in `backend/src/routes/goal.ts`, Vitest test plan for backward-compatibility verification, and strict AI logic preservation.
+
+4. **Baseline Verification Evidence**
+   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - ESLint: 0 errors, 0 warnings across created and modified type files.
+   - Frontend Vitest: 36 test files passed, 308 tests passed (100%).
+   - Backend Vitest: 20 test files passed, 229 tests passed (100%).
+   - Playwright: 36/36 tests in `today.spec.ts` passed; 10/10 tests in `shell.spec.ts -g "roadmap"` passed.
+   - Zero backend modifications executed in M7.1.
 
 ### Regression checks
 
@@ -4756,6 +4797,8 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-25 | Phase 6 M6.4 done: Mobile vertical journey delivered (`frontend/src/components/journey/MobileVerticalJourney.tsx`, `MobileVerticalJourney.test.tsx`, `frontend/e2e/journeyMobile.spec.ts`). Replaces the wide desktop staircase with a vertical ascending spine for viewports `< 768px` (VDS §28). Implements compact phase landing separators, active phase default expansion with collapsed upcoming phases, vertical active daily flight, "You are here" badge and auto-scroll ref positioning (R2), 44px minimum tap targets, days 85–90 approach section, and summit destination. 7 unit tests and 8 Playwright mobile tests pass (0 axe violations at 390px and 360px viewports, 0 overflow). R-8 and R-14 verified. M6.5 ready. |
 | 2026-09-25 | Phase 6 M6.5 done: Progress motion and reduced-motion path delivered (`frontend/src/index.css`, `JourneyHeader.tsx`, `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, `StrategicRoadmap.tsx`, `frontend/e2e/journeyMotion.spec.ts`). Hardware-accelerated ascent stagger (`.journey-ascent` with `--ascent-delay`), active step 3s ambient breathing beacon (`.journey-beacon`), emerald completed step styling, 600ms `--ease-ascend` progress bar fill with tabular figures, and smooth accordion expansion (`.journey-accordion-content` with rotating chevrons). Airtight `prefers-reduced-motion: reduce` zeroing all delays/durations, replacing beacon with static ring, and rendering content instantly. 10/10 tests pass in `journeyMotion.spec.ts` with 0 axe violations. M6.6 ready. |
 | 2026-09-26 | Phase 6 M6.6 done: Full regression verification pass across all R-1 to R-18 capabilities, Phase 6 validation targets audit, exit criteria audit (all 3 criteria met), responsive/accessibility/motion audit (0 axe violations, 44px tap targets, 0 overflow at 390px/360px), determinism verification (128/128 green under --repeat-each=2 across journeyMotion.spec.ts, journeyMobile.spec.ts, shell.spec.ts -g "roadmap", and today.spec.ts), Phase 6 regression matrix and official Phase 6 report authored. Phase 6 status is COMPLETE (awaiting Mo's review). Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a. |
+| 2026-09-26 | Phase 7 M7.1 done: OD-1a formally resolved as Option A (approve named backend allowance for nullable `RoadmapWeek.testResult` storage and target comparison without altering adaptation AI logic); authoritative review contracts defined in `frontend/src/types/review.ts` and exported via `frontend/src/types/index.ts`; M7.5 backend specification formalized (nullable `testResult Json?` in Prisma, migration `add_weekly_test_result`, endpoint validation, Vitest backward-compatibility test plan, zero AI logic changes); baseline verification passed (0 TS errors, 308 frontend Vitest passed, 229 backend Vitest passed, Playwright Today and Roadmap passed). Phase 7 is IN PROGRESS. |
+
 
 
 

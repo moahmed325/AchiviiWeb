@@ -181,6 +181,7 @@ export interface RoadmapWeek {
   reviewNotes?: string;
   target?: WeekTarget | null;
   test?: WeekTest | null;
+  testResult?: import('./review').WeeklyTestResult | null;
   created_at: string;
 }
 
@@ -283,4 +284,5 @@ export interface WeeklyReviewResponse {
 }
 
 export * from './journey';
+export * from './review';
 

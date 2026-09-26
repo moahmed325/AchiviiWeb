@@ -112,7 +112,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | D-17 | No pricing in the marketing nav while no pricing exists | Product | Decided | 1, 10 |
 | D-18 | Landing page presents Custom Journeys as future Premium; no free-text goal box | Product | Decided | 1, 3, 10 |
 | D-19 | Pathway choice carries through signup, waiting for the goal to load | Architecture | Decided | 1, 2 |
-| OD-1a | Store weekly test results | Architecture | Open | 7 |
+| OD-1a | Store weekly test results | Architecture | Decided (A) | 7, 8 |
 | OD-1b | Goal completion transition | Architecture | Open | 9 |
 | OD-1c | Server-side entitlement for Custom Journeys | Architecture | Open | 10 |
 | OD-2 | 90 vs 84 days | Product | Decided (A) | 5, 6, 9 |
@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phase 6 is complete. OD-2 (Option A: Closing stretch days 85–90) and OD-7 (2–4 method phases / 3 fixed phases) are Decided and fully implemented. M6.1–M6.6 are done: canonical Journey data adapter implemented, desktop staircase and mobile vertical journey delivered, progress motion and reduced-motion path verified, and Phase 6 exit criteria met. Phase 6 is `COMPLETE` (awaiting Mo's review). Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a (weekly test result storage).
+**What blocks the next phase:** Phase 6 is complete. Phase 7 (Weekly review + adaptation) is unblocked and **IN PROGRESS** (M7.1 done). OD-1a is Decided (Option A: approve named backend allowance for nullable `RoadmapWeek.testResult` storage and target comparison without altering adaptation AI logic). Authoritative review contracts defined in `frontend/src/types/review.ts`. Backend changes are strictly deferred to M7.5. M7.2 (Review flow UI) may start when Mo sends it.
 
 ---
 
@@ -558,11 +558,11 @@ The rule itself is Decided as **D-11**. The three allowances it anticipates are 
 
 | Field | Value |
 |---|---|
-| Status | Open |
+| Status | Decided (A) |
 | Category | Architecture |
 | Needed by | 7 (and 8, which displays results) |
 | Raised | BP Open Decision 1 |
-| Decided | — |
+| Decided | 2026-09-26 — Mo, at M7.1 |
 
 **Context.**
 * `RoadmapWeek.test` stores `{ type, instructions, passIf }` and `RoadmapWeek.target` stores a metric or a deliverable, so every v2 week already defines a test.
@@ -588,9 +588,11 @@ The rule itself is Decided as **D-11**. The three allowances it anticipates are 
 
 **Recommendation.** **A.** It is small, optional and backward compatible, and it unlocks honest results in Phases 7 and 8 without changing AI behaviour. Treat B as a later, separate decision with its own evaluation.
 
-**Decision.** —
+**Decision.** **A — Add result storage.** Approved by Mo at M7.1. A nullable `RoadmapWeek.testResult` JSON field will be added in Phase 7 via the named backend allowance in M7.5 (`add_weekly_test_result` Prisma migration). `POST /api/goal/weeks/:weekNumber/review` will accept an optional `testResult` payload conforming to `WeeklyTestResult`. Adaptation AI prompt and logic in `goalDecomposer.ts` remain completely untouched. Authoritative contracts established in `frontend/src/types/review.ts`.
 
-**Consequences.** If A: Phase 7 milestone M7.5 is in scope, and Phase 8 can show results. If C: M7.5 is dropped and Phase 8's results layer is removed.
+**Consequences.** Phase 7 milestone M7.5 is formally in scope (schema migration, validation, Vitest test, review comparison UI). Phase 8 (Progress) is enabled to show real results comparison layer. Adaptation AI prompt and decomposed logic remain strictly unchanged.
+
+**Implemented.** Contracts defined in M7.1 (`frontend/src/types/review.ts`); backend migration, route handler validation, and endpoint tests scheduled for M7.5.
 
 **Related.** D-11, ND-8, BP §17, §19, §33.
 
@@ -1664,5 +1666,7 @@ None yet.
 | 2026-09-25 | Phase 5 M5.8 & M5.9 complete: `/dashboard` permanently redirects to `/` preserving query and hash (OD-3 implemented); legacy dashboard code retired; OD-9 implementation note added. Phase 5 exit criteria met and regression pass complete. Phase 5 marked `COMPLETE` (awaiting Mo's review); Phase 6 (Journey) is next and blocked by OD-2 and OD-7. |
 | 2026-09-25 | Phase 6 M6.1: OD-2 decided as Option A (closing stretch on days 85–90, 12 planned weeks on days 1–84, clamp 1–90); OD-7 constraint confirmed (2–4 method phases for v2, 3 fixed phases for v1); canonical Journey types created in `frontend/src/types/journey.ts`; React compiler/rules-of-hooks ordering fixed in `RoadmapPage.tsx`. |
 | 2026-09-26 | Phase 6 M6.2–M6.6 complete: pure adapter `toJourneyData` implemented; desktop staircase (Layer 2) and strategic roadmap (Layer 3) delivered; mobile vertical spine delivered with "You are here" auto-scroll and 44px tap targets; progress motion and reduced-motion path verified. Phase 6 exit criteria met and regression pass complete (128 determinism tests green under repeat-each=2). Phase 6 marked `COMPLETE` (awaiting Mo's review); Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a. |
+| 2026-09-26 | Phase 7 M7.1: OD-1a Decided as Option A (approve named backend allowance for nullable `RoadmapWeek.testResult` storage and target comparison without altering adaptation AI logic). Authoritative review contracts defined in `frontend/src/types/review.ts`. M7.5 backend specification formalized. Phase 7 is unblocked and `IN PROGRESS`. |
+
 
 
