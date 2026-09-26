@@ -14,7 +14,7 @@ Part of the project framework:
 
 A phase may not start while a decision it depends on is **Open** or **Proposed**. `docs/prompts.md` enforces this with a decision gate at the top of every phase prompt.
 
-Last updated: 2026-09-23
+Last updated: 2026-09-26
 
 ---
 

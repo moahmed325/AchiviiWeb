@@ -22,8 +22,7 @@ import {
 import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
 import { FocusSessionModal } from '../FocusSessionModal';
 import { BasisBadge } from '../BasisBadge';
-import { WeeklyReviewModal } from './WeeklyReviewModal';
-import { MilestoneGateModal, MilestoneGateTransition } from './MilestoneGateModal';
+import { WeeklyReviewModal } from '../review';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 
@@ -147,7 +146,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const [selectedId, setSelectedId] = useState<string>();
   const [focusOpen, setFocusOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [milestoneGate, setMilestoneGate] = useState<MilestoneGateTransition | null>(null);
   const [showSteps, setShowSteps] = useState(false);
   const [showMinimum, setShowMinimum] = useState(false);
   const [showIntention, setShowIntention] = useState(false);
@@ -747,12 +745,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         goal={goal}
         token={token || ''}
         onGoalUpdated={goalContext.updateActiveGoal}
-        onMilestoneGate={setMilestoneGate}
-      />
-
-      <MilestoneGateModal
-        gate={milestoneGate}
-        onClose={() => setMilestoneGate(null)}
       />
     </main>
   );

@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-26 · Current position: **Phases 0–6 complete. Phase 7 (Weekly review + adaptation) is IN PROGRESS (M7.1 done).**
+Last updated: 2026-09-26 · Current position: **Phases 0–6 complete. Phase 7 (Weekly review + adaptation) is IN PROGRESS (M7.1–M7.3 done).**
 
 ---
 
@@ -4167,11 +4167,79 @@ R-8, R-14.
 | ID | Milestone | Status |
 |---|---|---|
 | M7.1 | OD-1 (Phase 7 part) decided | `Done` (2026-09-26) |
-| M7.2 | Review flow UI | `NOT STARTED` |
-| M7.3 | Adaptation moment and phase-gate language | `NOT STARTED` |
+| M7.2 | Review flow UI | `Done` (2026-09-26) |
+| M7.3 | Adaptation moment and phase-gate language | `Done` (2026-09-26) |
 | M7.4 | Failure, retry and review-due states | `NOT STARTED` |
 | M7.5 | (With the allowance) test-result storage, a backend test, and the UI comparison | `NOT STARTED` |
 | M7.6 | Regression and phase report | `NOT STARTED` |
+
+### M7.3 report — Adaptation moment and phase-gate language (2026-09-26)
+
+1. **Adaptation Moment Architecture (`frontend/src/components/review/AdaptationMomentStep.tsx`)**
+   - Delivered post-submission adaptation reveal bridge connecting the completed week with the freshly adapted path:
+     - **The Rebuilt Path Indicator:** Displays `"Week {nextWeekNumber} has been adapted"` (or `"Your closing stretch is ready"` when transitioning to days 85–90) with supportive subtitle: *"Next week's practice sessions have been generated from your actual pace and reflection."*
+     - **Strict Future Honesty (BP §33, §43):** Renders genuine server-generated `aiAdaptationInsight` without fabricating synthetic AI reasoning or hallucinations.
+     - **Next Week Preview Glance:** Surfaces next week's focus theme badge (`Week {nextWeekNumber} Focus: {focus || theme}`), target deliverable glance (`formatTarget(target)`), and planned active practice session count.
+     - **Primary Navigation Action:** Prominent `"Continue to Today"` or `"View Week {nextWeekNumber}"` action (`min-h-[44px]`) propagating updated state to `GoalContext` and returning user smoothly to `/`.
+
+2. **Encouraging Phase-Gate Language (`frontend/src/components/review/PhaseGateOutcomeCard.tsx`)**
+   - Implemented canonical BP §18 philosophy (*"Adapt the journey, don't punish the person"*), replacing clinical pass/fail benchmarks:
+     - **Benchmark Met (score ≥ 80%):** Serene milestone graduation with emerald botanical accent badge (`border-accent/40 bg-accent/5 text-accent`), title `"{completedPhase} Complete"`, and copy: *"You've built strong consistency across this phase and unlocked {nextPhase}. Next week begins the next stage of your journey."*
+     - **Benchmark Not Met (score < 80%):** Supportive non-punitive reinforcement with calm neutral styling (`text-text-secondary`, subtle info border), title `"{completedPhase} Review"`, canonical BP §18 language: *"Your current results suggest we should reinforce this phase."*, and sub-copy: *"The path has adapted to give you space to consolidate your fundamentals before advancing."*
+     - Zero red failure badges, zero shame framing, zero punitive phrasing.
+
+3. **Two-Step Review State Machine & Single-Dialog Coherence**
+   - Refactored `WeeklyReviewModal.tsx` into a clean multi-step state machine (`'review' -> 'adaptation' -> finish`).
+   - Replaced redundant popup modals by embedding `PhaseGateOutcomeCard` directly into the adaptation step.
+   - Cleaned up duplicate `MilestoneGateModal` invocations in `Today.tsx` to maintain single-dialog coherence without modal collisions.
+
+4. **Visual Polish & Motion (VDS §19, §26)**
+   - Emergence motion styled with `.journey-ascent` CSS animation.
+   - Strict `prefers-reduced-motion: reduce` compliance (instant rendering without delay or transition lag).
+   - Exclusively styled with Phase 0 tokens (`--color-background`, `--color-surface`, `--color-accent`, `--color-text`, `--color-line`).
+
+5. **Verification Evidence**
+   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - ESLint: 0 errors across all review components, Today integration, and E2E specs.
+   - Frontend Vitest: 38 test files passed, 324 tests passed (100% pass, including 6/6 in `AdaptationMomentStep.test.tsx` and 10/10 in `WeeklyReviewModal.test.tsx`).
+   - Regression Vitest: 25/25 tests passed in `Today.test.tsx`.
+   - Backend Vitest: 20 test files passed, 229 tests passed (100% pass).
+   - Playwright E2E:
+     - `e2e/weeklyReview.spec.ts`: 8/8 tests passed across desktop (1440px) and mobile (390px, 360px) with 0 axe-core violations, 0 overflow, and 44px tap targets.
+     - `e2e/today.spec.ts`: 36/36 tests passed across desktop and mobile.
+   - Zero backend changes executed (backend allowance strictly preserved for M7.5).
+
+### M7.2 report — Review flow UI (2026-09-26)
+
+1. **Modular Review Architecture (`frontend/src/components/review/`)**
+   - Extracted and modularized the weekly review experience under `frontend/src/components/review/`:
+     - `ReviewSummaryCard.tsx`: Visual Level 3 analytical summary ("How did this week go?") featuring tabular completion numerals (`font-mono text-numeral tabular-nums`), completed active practice sessions count (excluding rest days), warm non-punitive momentum feedback (`Flame` icon with `"Great week! Next week will build on this momentum."` for ≥80%, calm secondary tone with `"Next week will adapt to help you find your rhythm."` for <80%), and analytical glance of weekly focus theme, target deliverable (`formatTarget(target)`), and weekly benchmark test instructions (`formatPassIf(passIf)`).
+     - `ReviewReflectionStep.tsx`: Accessible reflection capture field with guidance hint (*"Take a quiet moment to reflect on your practice."*), generous touch sizing (`min-h-[100px]`), and error alert integration (`role="alert"`).
+     - `WeeklyReviewModal.tsx`: Primary dialog container managing multi-step progression, submission handling with double-submit guard (`aria-busy` and `aria-disabled`), and 503 error resilience.
+     - `index.ts`: Barrel export for all review components and contracts.
+   - Preserved backwards compatibility via lightweight re-export in `frontend/src/components/today/WeeklyReviewModal.tsx` and updated `Today.tsx` to import directly from `../review`.
+
+2. **Visual Level 3 & Design Token Compliance (VDS §26)**
+   - Strict adherence to Phase 0 semantic tokens (`--color-background`, `--color-surface`, `--color-accent`, `--color-text`, `--color-text-secondary`, `--color-caution`, `--color-border`).
+   - Tabular numerals (`tabular-nums font-mono`) preventing number jitter.
+   - Non-punitive philosophy enforced per BP §18: *Adapt the journey, don't punish the person* — zero red failure styling or shame language on lower completion.
+
+3. **Mobile Ergonomics & Accessibility (BP §44, VDS §29)**
+   - Fully verified across mobile viewports (390×844 and 360×800):
+     - 0 horizontal overflow (`documentOverflow <= 1`).
+     - Touch targets meet or exceed minimum dimensions (buttons `min-h-[44px]`).
+     - Reflection textarea comfortably sized and positioned above keyboard.
+   - Screen reader accessibility: proper `<h2>Week ${currentWeekNum} Review</h2>` hierarchy, `aria-describedby` wiring, live region error alert, and 0 axe-core violations.
+
+4. **Verification Evidence**
+   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - ESLint: 0 errors, 0 warnings across created and modified components and specs.
+   - Frontend Vitest: 37 test files passed, 317 tests passed (100% pass, including 9/9 tests in `WeeklyReviewModal.test.tsx`).
+   - Backend Vitest: 20 test files passed, 229 tests passed (100% pass).
+   - Playwright E2E Today suite: 36/36 tests passed in `e2e/today.spec.ts`.
+   - Playwright E2E Today States suite: 16/16 tests passed in `e2e/todayStates.spec.ts`.
+   - Playwright E2E Weekly Review suite: 6/6 tests passed in `e2e/weeklyReview.spec.ts` across desktop (1440px) and mobile (390px, 360px) with 0 axe violations.
+   - Zero backend changes executed (backend allowance strictly deferred to M7.5).
 
 ### M7.1 report — OD-1 (Phase 7 part) decided and Review contracts (2026-09-26)
 
@@ -4798,6 +4866,8 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-25 | Phase 6 M6.5 done: Progress motion and reduced-motion path delivered (`frontend/src/index.css`, `JourneyHeader.tsx`, `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, `StrategicRoadmap.tsx`, `frontend/e2e/journeyMotion.spec.ts`). Hardware-accelerated ascent stagger (`.journey-ascent` with `--ascent-delay`), active step 3s ambient breathing beacon (`.journey-beacon`), emerald completed step styling, 600ms `--ease-ascend` progress bar fill with tabular figures, and smooth accordion expansion (`.journey-accordion-content` with rotating chevrons). Airtight `prefers-reduced-motion: reduce` zeroing all delays/durations, replacing beacon with static ring, and rendering content instantly. 10/10 tests pass in `journeyMotion.spec.ts` with 0 axe violations. M6.6 ready. |
 | 2026-09-26 | Phase 6 M6.6 done: Full regression verification pass across all R-1 to R-18 capabilities, Phase 6 validation targets audit, exit criteria audit (all 3 criteria met), responsive/accessibility/motion audit (0 axe violations, 44px tap targets, 0 overflow at 390px/360px), determinism verification (128/128 green under --repeat-each=2 across journeyMotion.spec.ts, journeyMobile.spec.ts, shell.spec.ts -g "roadmap", and today.spec.ts), Phase 6 regression matrix and official Phase 6 report authored. Phase 6 status is COMPLETE (awaiting Mo's review). Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a. |
 | 2026-09-26 | Phase 7 M7.1 done: OD-1a formally resolved as Option A (approve named backend allowance for nullable `RoadmapWeek.testResult` storage and target comparison without altering adaptation AI logic); authoritative review contracts defined in `frontend/src/types/review.ts` and exported via `frontend/src/types/index.ts`; M7.5 backend specification formalized (nullable `testResult Json?` in Prisma, migration `add_weekly_test_result`, endpoint validation, Vitest backward-compatibility test plan, zero AI logic changes); baseline verification passed (0 TS errors, 308 frontend Vitest passed, 229 backend Vitest passed, Playwright Today and Roadmap passed). Phase 7 is IN PROGRESS. |
+| 2026-09-26 | Phase 7 M7.2 done: Review flow UI redesigned and modularized under `frontend/src/components/review/` (`ReviewSummaryCard.tsx`, `ReviewReflectionStep.tsx`, `WeeklyReviewModal.tsx`, `index.ts`); Visual Level 3 analytical summary with tabular numerals (`tabular-nums font-mono`), active practice sessions completed count (excluding rest days), warm non-punitive momentum feedback (`Flame` with momentum copy for ≥80%, calm secondary tone for <80%), focus theme, target deliverable, and weekly test instructions; accessible reflection capture with 503 retry resilience; compatibility re-export in `components/today/WeeklyReviewModal.tsx`; 9 unit tests added in `WeeklyReviewModal.test.tsx` (100% pass); 6 E2E tests added in `weeklyReview.spec.ts` (0 axe violations, 44px tap targets, 0 overflow across desktop and mobile). M7.3 ready. |
+| 2026-09-26 | Phase 7 M7.3 done: Adaptation Moment and Phase-Gate Language delivered (`AdaptationMomentStep.tsx`, `PhaseGateOutcomeCard.tsx`, `WeeklyReviewModal.tsx`); genuine server `aiAdaptationInsight` displayed with zero hallucinations; upcoming week focus theme and target deliverable previewed; canonical BP §18 non-punitive phase-gate language implemented ("Your current results suggest we should reinforce this phase." for unmet benchmarks, serene milestone graduation when met, zero shame/failure framing); two-step modal state machine ('review' -> 'adaptation' -> finish) integrated with single-dialog coherence; 6 unit tests added in `AdaptationMomentStep.test.tsx` (100% pass); 10 unit tests in `WeeklyReviewModal.test.tsx` (100% pass); 8 E2E tests in `weeklyReview.spec.ts` (100% pass, 0 axe violations, 44px tap targets, 0 overflow across desktop and mobile); full regression suites pass (Today.test.tsx 25/25, full frontend Vitest 324/324 across 38 files, backend Vitest 229/229 across 20 files, Playwright today.spec.ts 36/36). M7.4 ready. |
 
 
 
