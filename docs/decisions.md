@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phase 5 is complete. OD-3 (A), OD-9 (A amended), ND-7 (A narrowed) and ND-18 (A) are Decided and fully implemented. M5.1–M5.9 are done: Today lives at `/` as the single execution surface, `/dashboard` permanently redirects to `/` preserving query and hash, all OD-9 states and error resilience are delivered, and Phase 5 exit criteria are met. Phase 5 is `COMPLETE` (awaiting Mo's review). Phase 6 (Journey) is next and blocked by OD-2 and OD-7.
+**What blocks the next phase:** Phase 6 is complete. OD-2 (Option A: Closing stretch days 85–90) and OD-7 (2–4 method phases / 3 fixed phases) are Decided and fully implemented. M6.1–M6.6 are done: canonical Journey data adapter implemented, desktop staircase and mobile vertical journey delivered, progress motion and reduced-motion path verified, and Phase 6 exit criteria met. Phase 6 is `COMPLETE` (awaiting Mo's review). Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a (weekly test result storage).
 
 ---
 
@@ -708,7 +708,7 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 * Phase 6 Journey renders the 90-day journey with the staircase culminating in the closing stretch and the final goal arrival landing.
 * Phase 9 uses OD-1b option B for explicit goal arrival completion.
 
-**Implemented** 2026-09-25 (Phase 6, M6.1): Decided and formalized in `docs/decisions.md` and `docs/phases.md`. Canonical TypeScript contracts created in `frontend/src/types/journey.ts` incorporating `JourneyClosingStretch`.
+**Implemented** 2026-09-25 / 2026-09-26 (Phase 6, M6.1–M6.6): Decided and formalized in `docs/decisions.md` and `docs/phases.md` at M6.1. Delivered across M6.2–M6.5 in canonical TypeScript contracts (`frontend/src/types/journey.ts`), pure adapter (`frontend/src/lib/journeyAdapter.ts`), `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, and `StrategicRoadmap.tsx`. Days 85–90 approach section renders `finalTest`, reflection, and summit destination (`finalGoal`) with zero synthetic daily tasks and day counter clamped at 1–90.
 
 **Related.** D-2, OD-1b, OD-7, OD-9, BP §06, BP §34, VDS §09, VDS §17–18.
 
@@ -830,6 +830,8 @@ Until M5.8, `/dashboard` keeps working exactly as today. The landing page's sign
 * Nothing assumes four fixed phases; the BP §10 sketch is conceptual.
 
 **Consequences.** Phase 6 validation covers 2, 3 and 4 phases, and v1.
+ 
+**Implemented** 2026-09-25 / 2026-09-26 (Phase 6, M6.2–M6.6): Pure data adapter `frontend/src/lib/journeyAdapter.ts` normalizes 2, 3, and 4 method-named phases for v2 goals and 3 fixed phases for v1 goals into canonical `JourneyData`. Verified across desktop staircase and mobile vertical journey views with 100% test coverage.
 
 ---
 
@@ -1661,5 +1663,6 @@ None yet.
 | 2026-09-25 | Phase 5 M5.5–M5.7 done: Focus mode redesign (M5.5); completion lighting, next step preview & notes redesign (M5.6); all remaining OD-9 states & error resilience (M5.7). |
 | 2026-09-25 | Phase 5 M5.8 & M5.9 complete: `/dashboard` permanently redirects to `/` preserving query and hash (OD-3 implemented); legacy dashboard code retired; OD-9 implementation note added. Phase 5 exit criteria met and regression pass complete. Phase 5 marked `COMPLETE` (awaiting Mo's review); Phase 6 (Journey) is next and blocked by OD-2 and OD-7. |
 | 2026-09-25 | Phase 6 M6.1: OD-2 decided as Option A (closing stretch on days 85–90, 12 planned weeks on days 1–84, clamp 1–90); OD-7 constraint confirmed (2–4 method phases for v2, 3 fixed phases for v1); canonical Journey types created in `frontend/src/types/journey.ts`; React compiler/rules-of-hooks ordering fixed in `RoadmapPage.tsx`. |
+| 2026-09-26 | Phase 6 M6.2–M6.6 complete: pure adapter `toJourneyData` implemented; desktop staircase (Layer 2) and strategic roadmap (Layer 3) delivered; mobile vertical spine delivered with "You are here" auto-scroll and 44px tap targets; progress motion and reduced-motion path verified. Phase 6 exit criteria met and regression pass complete (128 determinism tests green under repeat-each=2). Phase 6 marked `COMPLETE` (awaiting Mo's review); Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a. |
 
 

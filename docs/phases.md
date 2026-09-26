@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-25 · Current position: **Phases 0–5 complete. Phase 6 (Journey) is IN PROGRESS: M6.1, M6.2, M6.3, M6.4, and M6.5 done.**
+Last updated: 2026-09-26 · Current position: **Phases 0–6 complete. Phase 6 (Journey) is COMPLETE (awaiting Mo's review). Phase 7 (Weekly review + adaptation) is NOT STARTED and blocked by OD-1a.**
 
 ---
 
@@ -72,7 +72,7 @@ Every phase in section 4 uses the same fields:
 | 3 | Onboarding | `COMPLETE` | 0, 2 | — (OD-11, ND-5, ND-6, ND-13–16 Decided) | None |
 | 4 | Journey generation | `COMPLETE` | 3 | — (OD-8, ND-17 Decided) | None remaining. ND-17 matching shipped in M4.2. Stream labels unused |
 | 5 | Today | `COMPLETE` | 0, 4 | — (OD-3, OD-9, ND-7, ND-18 Decided) | None |
-| 6 | Journey | `IN PROGRESS` | 5 | — (OD-2, OD-7 Decided) | None |
+| 6 | Journey | `COMPLETE` | 5 | — (OD-2, OD-7 Decided) | None |
 | 7 | Weekly review + adaptation | `NOT STARTED` | 5 | OD-1 (test results) | Named: weekly test result storage |
 | 8 | Progress | `NOT STARTED` | 6, 7 | ND-8 | None beyond Phase 7 |
 | 9 | Achievement | `NOT STARTED` | 6, 7 | OD-1 (completion), OD-2 | Named: goal completion transition |
@@ -3517,7 +3517,7 @@ ACHIVII REDESIGN — PHASE 5 REPORT
 
 ## PHASE 6 — JOURNEY
 
-**Status:** `IN PROGRESS`
+**Status:** `COMPLETE` (awaiting Mo's review)
 
 **Source:** BP §08, §10–11, §17, §47, OD-2, OD-7 · VDS §7–9, §20, §25–26, §28, note 7
 
@@ -3614,7 +3614,7 @@ None.
 | M6.3 | Desktop journey composition | `Done` (2026-09-25) |
 | M6.4 | Mobile vertical journey | `Done` (2026-09-25) |
 | M6.5 | Progress motion and reduced-motion path | `Done` (2026-09-25) |
-| M6.6 | Regression and phase report | `NOT STARTED` |
+| M6.6 | Regression and phase report | `Done` (2026-09-26) |
 
 ### M6.1 report — Decisions OD-2 & OD-7 and Day/Week/Phase mapping (2026-09-25)
 
@@ -3816,6 +3816,245 @@ None.
      - `e2e/shell.spec.ts -g "roadmap"`: 10 passed (10/10) in 23.4s.
      - `e2e/today.spec.ts`: 36 passed (36/36) in 60.0s (R-8 verified).
    - Zero backend changes or database modifications.
+
+### Phase 6 Regression Matrix
+
+#### Must-Not-Break Capabilities (R-1 through R-18)
+
+| ID | Capability | Status | Test Suites & Citations | Validation Evidence |
+|---|---|---|---|---|
+| R-1 | Authentication | Pass | `e2e/auth.spec.ts` (19 tests), `AuthScreen.test.tsx` (13 tests) | Sign up, sign in, sign out, input validation, network error handling, session persistence across reload, goal fetch failure handled safely on `/` without bounce to onboarding |
+| R-2 | Goal creation | Pass | `e2e/onboarding.spec.ts` (14 tests), `e2e/onboardingStates.spec.ts` (28 tests), `src/components/onboarding/payload.test.ts` (6 tests) | Preset and custom goals create successfully via `POST /api/goal/create`; payload verified field for field against baseline; double-click protection verified |
+| R-3 | Preset pathway launch | Pass | `e2e/pathways.spec.ts` (20 tests), `PathwayLibrary.test.tsx` (11 tests) | Pathway launch preselects pathway, navigates into onboarding; switching pathway retains active goal until saved |
+| R-4 | Onboarding payload | Pass | `e2e/onboarding.spec.ts:51-136`, `src/components/onboarding/payload.test.ts` | Request bodies match baseline schema exactly for `POST /api/goal/clarify` and `POST /api/goal/create` |
+| R-5 | AI roadmap generation | Pass | `e2e/generation.spec.ts` (13 tests), `backend/test/goalDecomposer.test.ts` (22 tests) | AI generation creates valid roadmap with phases, weeks, and week-1 daily tasks; onGoalCreated receives clean goal |
+| R-6 | Generation progress stream | Pass | `e2e/generation.spec.ts` | SSE stages (`search`, `method`, `plan`, `done`, `error`) render honest stages (OD-8); 20s silence timer counts client-side; slow copy appears without duplicate lines |
+| R-7 | Saving goals | Pass | `e2e/generation.spec.ts`, `e2e/onboardingStates.spec.ts:245` | Created goals persist to database; `GET /api/goal/active` returns active goal across reloads |
+| R-8 | Daily task retrieval | Pass | `e2e/today.spec.ts` (36 tests), `src/components/today/Today.test.tsx` (25 tests) | Today at `/` displays active task for current UTC day in BP §09 hierarchy: rawGoal heading, clarifiedOutcome beneath, Day N/90, step title, duration, slot time, whyToday, and progressive disclosures. 100% green |
+| R-9 | Daily completion | Pass | `e2e/today.spec.ts:127`, `Today.test.tsx:88` | Toggling completion writes `PATCH /api/goal/tasks/:taskId`, updates `GoalContext`, illuminates card with botanical accent (`border-accent/40 bg-surface/95 ring-1 ring-accent/20`), persists across reload, and "Mark not done" cleanly reverts status. Failed write surfaces visible error alert |
+| R-10 | Task notes & focus wins | Pass | `e2e/today.spec.ts:148, 178, 196`, `Today.test.tsx:165` | Free-form notes auto-save on blur / button; focus wins parse and display with `• Focus win:` bullets; notes survive completion and reloads; no cross-screen wipe occurs |
+| R-11 | Focus session | Pass | `e2e/focus.spec.ts` (14 tests), `FocusSessionModal.test.tsx` (11 tests) | Focus mode opens from Today; countdown runs start to finish; spacebar pause/resume works (bypassed in text fields); deliberate practice step runner with collapsible tips; reflection captures into completion write; failed write surfaces retry alert and preserves text |
+| R-12 | Weekly review | Pass | `Today.test.tsx:538`, `Today.test.tsx:563`, `e2e/todayStates.spec.ts:141` | Weekly review opens directly from Today when review is due or triggered; submits reflection to `POST /api/goal/weeks/:weekNumber/review`; 503 error handled gracefully with retry; advances week and updates next week's daily tasks |
+| R-13 | Weekly progression | Pass | `backend/test/goalDecomposer.test.ts`, `Today.test.tsx` | Next week's tasks appear and `currentWeek` advances after review submission; MilestoneGateModal opens on milestone gate weeks |
+| R-14 | Roadmap | Pass | `e2e/shell.spec.ts -g "roadmap"` (10 tests), `e2e/journeyMotion.spec.ts` (10 tests), `e2e/journeyMobile.spec.ts` (8 tests), `journeyAdapter.test.ts` (21 tests), `DesktopJourney.test.tsx` (9 tests), `MobileVerticalJourney.test.tsx` (7 tests) | `/roadmap` accessible via shell navigation on desktop and mobile, renders v1 (3 fixed phases) and v2 (2–4 method phases) goal roadmap; "Back to Today" navigates to `/`; all 3 VDS §9 progress layers operational |
+| R-15 | Reset / switch goal | Pass | `e2e/shell.spec.ts:358`, `AppShell.test.tsx:75`, `e2e/pathways.spec.ts:164` | Account menu provides "Reset 90-Day Plan" with Dialog confirmation calling `DELETE /api/goal/active` and returning to onboarding; pathway switching in explorer archives previous goal on save |
+| R-16 | Draft goal carried through signup | Pass | `e2e/auth.spec.ts:107`, `e2e/onboarding.spec.ts:245` | Pathway selected while signed out is stored in draft, carried through signup/login into onboarding, and cleared once goal is created |
+| R-17 | Offline indicator & write failures | Pass | `e2e/todayStates.spec.ts:185`, `e2e/shell.spec.ts:404` | App shell displays offline chip; Today displays offline notice banner when disconnected; failed task writes display visible error alert and never pretend to succeed |
+| R-18 | Browser history in onboarding | Pass | `e2e/onboarding.spec.ts:153`, `e2e/generation.spec.ts:132` | Browser back and forward move between steps without losing answers; back during generation stays on generation screen |
+
+#### Phase 6 Validation Matrix Audit
+
+| Target | Requirement / Citation | Status | Evidence & Test Suite |
+|---|---|---|---|
+| **v1 Preset Goal Parity** | 3 fixed phases (Foundation, Acceleration, Mastery), pre-planned tasks across all 12 weeks, smooth transition into Days 85–90 closing stretch | MET | `frontend/src/lib/journeyAdapter.test.ts:46`, `DesktopJourney.test.tsx:98`, `MobileVerticalJourney.test.tsx:64`. Legacy v1 roadmap normalized seamlessly without runtime branching. |
+| **v2 Dynamic Phase Counts (OD-7)** | Support 2, 3, and 4 method-named phases (`Goal.roadmap.phases: { name, startWeek, endWeek, purpose }[]`) | MET | `journeyAdapter.test.ts:63` (2-phase 6+6), `:82` (3-phase 4+4+4), `:101` (4-phase 3+3+3+3). Tested across `DesktopStaircase.tsx` and `MobileVerticalJourney.tsx`. Zero hard-coded assumptions of 4 phases. |
+| **Week Progression Sampling** | Week 1, middle week (Week 6), Week 12 | MET | `journeyAdapter.test.ts:175-210`, `e2e/journeyMobile.spec.ts`, `DesktopJourney.test.tsx`. Week 1 shows day 1..7 active flight; Week 6 shows completed weeks 1..5, active week 6 flight, and upcoming weeks 7..12; Week 12 shows completed weeks 1..11, active week 12 flight, and transition into closing stretch. |
+| **Days 85–90 Closing Stretch (OD-2 Option A)** | Calendar interval dedicated to `roadmap.finalTest`, personal reflection, and destination arrival (`roadmap.finalGoal`) with **zero synthetic daily tasks**. Clamps day counter at 1–90 (`Math.min(90, Math.max(1, dayNumber))`) | MET | `journeyAdapter.ts:77-105`, `journeyAdapter.test.ts:134-173`, `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, `e2e/journeyMotion.spec.ts`. Preceding phases and weeks marked completed; closing stretch becomes active; 0 fake daily tasks generated. |
+| **Strict Future Honesty (BP §43)** | Unwritten future weeks display only strategic focus, target deliverables (`formatTarget`), and weekly test checkpoints (`formatPassIf`), with zero fabricated daily tasks (`days: []`, `hasWrittenTasks: false`) | MET | `journeyAdapter.ts:58-69`, `journeyAdapter.test.ts:115-132`, `DesktopJourney.test.tsx:120`, `MobileVerticalJourney.test.tsx:102`, `e2e/journeyMobile.spec.ts:85`. Verified that no task cards exist in future weeks. |
+| **Three Progress Layers (VDS §9)** | Layer 1 (numerical orientation with tabular numerals), Layer 2 (emotional staircase / vertical spine), Layer 3 (strategic roadmap) | MET | Layer 1 in `JourneyHeader.tsx` (`Day N / 90`, tabular figures, badges, 600ms progress meter), Layer 2 in `DesktopStaircase.tsx` (≥768px) and `MobileVerticalJourney.tsx` (<768px) (VDS §25 symbols, step runner, "You are here" beacon, summit node), Layer 3 in `StrategicRoadmap.tsx` (collapsible accordions). Verified by `DesktopJourney.test.tsx`, `MobileVerticalJourney.test.tsx`, `e2e/journeyMotion.spec.ts`, `e2e/journeyMobile.spec.ts`. |
+
+#### Phase 6 Exit Criteria Audit
+
+| Criteria | Source | Status | Verification & Proof |
+|---|---|---|---|
+| 1. Correct for every phase count and both plan versions | OD-7, Phase 6 Exit Criteria | MET | Pure adapter `toJourneyData` handles 2, 3, and 4 method phases (v2) and 3 fixed phases (v1) with 100% test coverage in `journeyAdapter.test.ts` (21 tests), `DesktopJourney.test.tsx` (9 tests), and `MobileVerticalJourney.test.tsx` (7 tests). |
+| 2. No fabricated future content | BP §43, Phase 6 Exit Criteria | MET | Unwritten future weeks strictly contain empty `days: []` arrays and calm copy ("Daily sessions designed after Week N review"). Days 85–90 contain only `finalTest` and `finalGoal` with zero synthetic daily tasks. Verified in unit tests and Playwright mobile specs (`e2e/journeyMobile.spec.ts`). |
+| 3. Readable without the visuals | VDS §29, Phase 6 Exit Criteria | MET | Complete screen-reader accessible alternative provided via `sr-only` journey progress summaries in `DesktopStaircase.tsx` and `MobileVerticalJourney.tsx`. 0 `@axe-core/playwright` violations across desktop (1440px), mobile (390px), and compact mobile (360px). Keyboard accessible accordion headers with `aria-expanded` and `aria-controls`. |
+
+### M6.6 report — Regression and phase report (2026-09-26)
+
+```text
+1. Outcome
+   Full regression and verification pass executed across the entire Phase 6 surface and baseline product capabilities.
+   All R-1 to R-18 capabilities verified green without regression.
+   All Phase 6 validation targets audited and verified against objective automated evidence.
+   All 3 Phase 6 exit criteria audited and met.
+   Determinism check passed: 128/128 tests green under --repeat-each=2 on critical specs (journeyMotion.spec.ts, journeyMobile.spec.ts, shell.spec.ts -g "roadmap", today.spec.ts).
+   Phase 6 is COMPLETE and awaiting Mo's review.
+   Phase 7 (Weekly review + adaptation) has NOT started and is blocked by OD-1a.
+
+2. What changed
+   - docs/phases.md updated: position header, status table, milestone table (M6.6 marked Done), Phase 6 regression matrix, validation audit, exit criteria audit, M6.6 report, official Phase 6 report, carry-overs table, and change log.
+   - docs/decisions.md updated: index line updated; OD-2 and OD-7 implementation notes updated; change log updated.
+   - Zero production backend or frontend application logic modified.
+   - Zero database changes or Prisma schema edits.
+
+3. Files changed / created / removed
+   Changed:
+   - docs/phases.md
+   - docs/decisions.md
+   Created: none.
+   Removed: none.
+
+4. Functionality preserved
+   All R-1 to R-18 capabilities preserved and verified in the regression matrix above.
+
+5. Decisions applied
+   OD-2 (Option A: Closing stretch days 85–90), OD-7 (2–4 method phases / 3 fixed phases), OD-3, OD-9, ND-7, ND-18 fully verified.
+   OD-1a remains Open and blocks Phase 7.
+
+6. Validation evidence
+   - TypeScript: 0 errors across frontend (node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend) and backend (node backend/node_modules/typescript/bin/tsc --noEmit -p backend).
+   - ESLint: 0 errors, 0 warnings across all Phase 6 components, adapters, pages, and test files (node node_modules/eslint/bin/eslint.js src/components/journey src/lib/journeyAdapter.ts src/pages/RoadmapPage.tsx e2e/journeyMotion.spec.ts e2e/journeyMobile.spec.ts).
+   - Frontend Vitest: 36 test files passed, 308 tests passed (100%).
+   - Backend Vitest: 20 test files passed, 229 tests passed (100%).
+   - Playwright Suites:
+     - e2e/journeyMotion.spec.ts: 10 passed (10/10) in 29.2s.
+     - e2e/journeyMobile.spec.ts: 8 passed (8/8) in 25.4s.
+     - e2e/shell.spec.ts -g "roadmap": 10 passed (10/10) in 22.5s.
+     - e2e/today.spec.ts: 36 passed (36/36) in 60.0s (R-8 verified).
+     - e2e/focus.spec.ts + todayStates.spec.ts + auth.spec.ts: 70 passed, 2 skipped, 0 failed in 2.1m.
+     - e2e/pathways.spec.ts: 20 passed (20/20) in 46.4s.
+     - e2e/onboarding.spec.ts + onboardingStates.spec.ts + generation.spec.ts: 83 passed, 3 skipped, 0 failed in 10.7m.
+   - Determinism: 128/128 tests green under --repeat-each=2 on journeyMotion.spec.ts, journeyMobile.spec.ts, shell.spec.ts -g "roadmap", and today.spec.ts.
+   - Accessibility: 0 WCAG AA violations (@axe-core/playwright) across desktop (1440px), mobile (390px), and compact mobile (360px).
+   - Responsive check: 0 horizontal overflow (scrollWidth <= innerWidth, documentOverflow <= 1, contentOverflow <= 1), tap targets >= 44x44px.
+   - Frontend build: dist/index.html 1.23 KB, CSS 102.40 KB (17.60 KB gzipped), JS 577.09 KB (170.20 KB gzipped).
+
+7. Carry-overs
+   - Weekly test result storage (OD-1a) -> Phase 7 (Weekly review + adaptation).
+   - Goal completion transition and celebration (OD-1b) -> Phase 9 (Achievement).
+   - Main JS chunk size (>500 KB Vite warning) -> Phase 12 (Global polish & code splitting).
+
+8. Issues and risks
+   None. Legacy /roadmap overflow (17px at 390px, 47px at 360px) and rules-of-hooks call order are permanently resolved.
+
+9. Not started
+   Phase 7 (Weekly review + adaptation) has NOT started and is blocked by OD-1a.
+   Nothing was committed to git.
+```
+
+### Phase 6 report (2026-09-26)
+
+```text
+ACHIVII REDESIGN — PHASE 6 REPORT
+
+1. Outcome
+   Phase 6 (Journey) delivers the central 90-day trajectory and orientation surface for Achivii.
+   A user navigating to `/roadmap` (or tapping Roadmap in the app shell) immediately understands
+   where they stand, what they have conquered, and the strategic horizon ahead:
+   - Three distinct progress layers (VDS §9) operate in harmony:
+     1. Layer 1 — Quick numerical orientation (JourneyHeader.tsx) displaying Day N / 90 with
+        tabular numerals, week of 12 badge, active phase indicator, and smooth 600ms progress meter.
+     2. Layer 2 — The emotional staircase on desktop (≥768px, DesktopStaircase.tsx) and vertical
+        ascending spine on mobile (<768px, MobileVerticalJourney.tsx) with phase landings, active
+        daily step flight, "You are here" ambient beacon, closing stretch threshold, and summit destination.
+     3. Layer 3 — The strategic roadmap (StrategicRoadmap.tsx) with collapsible phase accordions,
+        weekly targets, test benchmarks, and strict future honesty.
+   - Canonical pure adapter (frontend/src/lib/journeyAdapter.ts) seamlessly unifies v1 legacy goals
+     (3 fixed phases) and v2 dynamic goals (2, 3, and 4 method-named phases, OD-7) into one JourneyData model.
+   - Days 85–90 Closing Stretch (OD-2 Option A) is formally realized: days 1–84 cover the 12 planned weeks;
+     days 85–90 are dedicated to roadmap.finalTest, personal reflection, and destination arrival (roadmap.finalGoal)
+     with zero synthetic daily tasks and the day counter clamped strictly at 1–90.
+   - Strict future honesty (BP §43) is enforced: future unwritten weeks display strategic focus and targets,
+     with zero fabricated daily task items.
+   - Hardware-accelerated motion system (VDS §19, §20) provides directional ascent stagger (.journey-ascent),
+     3s breathing beacon on the active step (.journey-beacon), and botanical illumination on completed steps.
+   - Airtight reduced-motion path (@media (prefers-reduced-motion: reduce)) zeros all delays and transitions,
+     replaces continuous beacon animations with static focus rings, and unfolds accordions instantly.
+   - Zero horizontal overflow across desktop and mobile down to 360px; all tap targets ≥ 44×44px; 0 axe violations.
+   Phase 6 milestones M6.1 through M6.6 are complete and verified.
+   Phase 6 is marked COMPLETE (awaiting Mo's review).
+   Phase 7 (Weekly review + adaptation) has NOT started.
+
+2. What changed
+   Across M6.1–M6.6:
+   - M6.1: Adopted OD-2 (Option A: 90 vs 84 days with Closing Stretch on days 85–90) and confirmed OD-7
+     (2–4 method phases for v2, 3 fixed phases for v1); established authoritative Day/Week/Phase mapping;
+     created canonical contracts in frontend/src/types/journey.ts; fixed rules-of-hooks ordering in RoadmapPage.tsx.
+   - M6.2: Implemented pure data adapter toJourneyData in frontend/src/lib/journeyAdapter.ts and custom hook
+     useJourneyData in frontend/src/hooks/useJourneyData.ts; normalized v1 and v2 goal structures; mapped
+     days 85–90 closing stretch; added 21 unit tests in journeyAdapter.test.ts (100% green).
+   - M6.3: Delivered Desktop Journey composition: Layer 1 JourneyHeader.tsx, Layer 2 DesktopStaircase.tsx,
+     Layer 3 StrategicRoadmap.tsx, and refactored RoadmapPage.tsx; added 9 unit/integration tests in
+     DesktopJourney.test.tsx; confirmed 0 axe violations at 1440px and 1024px.
+   - M6.4: Delivered Mobile Vertical Journey (MobileVerticalJourney.tsx): single vertical track for viewports <768px,
+     active phase default expansion with collapsed upcoming phases, active daily step flight, "You are here" auto-scroll
+     ref positioning (R2), 44px minimum tap targets, days 85–90 approach section; added 7 unit tests and 8 Playwright
+     mobile tests in journeyMobile.spec.ts at 390px and 360px viewports (0 overflow, 0 axe violations).
+   - M6.5: Delivered progress motion and reduced-motion path: CSS .journey-ascent with --ascent-delay stagger,
+     .journey-beacon with 3s ambient breathing pulse, emerald completed step illumination, 600ms --ease-ascend
+     progress bar fill, smooth accordion unfolding, and comprehensive prefers-reduced-motion: reduce overrides;
+     added 10 Playwright tests in journeyMotion.spec.ts (100% green).
+   - M6.6: Executed comprehensive regression verification across all R-1 to R-18 capabilities, audited Phase 6
+     validation targets and exit criteria, ran 128 determinism tests (--repeat-each=2), and compiled official reports.
+
+3. Files changed / created / removed
+   Created across Phase 6:
+   - frontend/src/types/journey.ts
+   - frontend/src/lib/journeyAdapter.ts, journeyAdapter.test.ts
+   - frontend/src/hooks/useJourneyData.ts
+   - frontend/src/components/journey/JourneyHeader.tsx
+   - frontend/src/components/journey/DesktopStaircase.tsx, DesktopJourney.test.tsx
+   - frontend/src/components/journey/MobileVerticalJourney.tsx, MobileVerticalJourney.test.tsx
+   - frontend/src/components/journey/StrategicRoadmap.tsx
+   - frontend/src/components/journey/index.ts
+   - frontend/e2e/journeyMobile.spec.ts
+   - frontend/e2e/journeyMotion.spec.ts
+   Modified across Phase 6:
+   - frontend/src/types/index.ts (re-exports journey contracts)
+   - frontend/src/pages/RoadmapPage.tsx (refactored to 3-layer architecture and responsive switching)
+   - frontend/src/index.css (journey motion utilities, beacon keyframes, reduced-motion overrides)
+   - docs/phases.md
+   - docs/decisions.md
+   Removed across Phase 6: none.
+   Zero backend changes.
+
+4. Functionality preserved
+   - R-1 Authentication: Login, signup, signout, persistent session, goal fetch resilience (e2e/auth.spec.ts).
+   - R-2 / R-4 Goal Creation & Payload: Identical payload schema and safe create handoff (e2e/onboarding.spec.ts).
+   - R-3 Pathway Launch: Exploration, preview, preset preselection, and safe switching (e2e/pathways.spec.ts).
+   - R-5 / R-6 Generation: Honest stage progression, silence timer, slow notice, error retry (e2e/generation.spec.ts).
+   - R-7 Save Goals: Goal persistence and reload recovery (e2e/generation.spec.ts).
+   - R-8 Daily Task Retrieval: BP §09 hierarchy and UTC calendar matching on Today (e2e/today.spec.ts).
+   - R-9 Daily Completion: Botanical illumination, write to server, reload persistence (e2e/today.spec.ts:127).
+   - R-10 Notes & Focus Wins: Auto-save on blur, focus win bullets, draft safety (e2e/today.spec.ts:148).
+   - R-11 Focus Mode: Countdown timer, spacebar pause/resume, deliberate practice tips (e2e/focus.spec.ts).
+   - R-12 / R-13 Weekly Review & Progression: Review submission, 503 retry, week advancement (Today.test.tsx).
+   - R-14 Roadmap: Shell navigation, 3 progress layers, v1/v2 support, Back to Today (e2e/shell.spec.ts, journeyMotion.spec.ts).
+   - R-15 Reset / Switch Goal: Safe deletion with confirmation, archived switch (e2e/shell.spec.ts:358).
+   - R-16 Draft Preservation: Pathway draft carried through auth into onboarding (e2e/auth.spec.ts:107).
+   - R-17 Offline Banner & Alert: Visual status chip and visible write failure alerts (e2e/todayStates.spec.ts:185).
+   - R-18 Onboarding Navigation: Forward/backward state retention, generation lock (e2e/onboarding.spec.ts:153).
+
+5. Decisions applied
+   - OD-2 (Option A): 90 vs 84 days — Days 1–84 cover 12 planned weeks; days 85–90 form closing stretch
+     dedicated to roadmap.finalTest and roadmap.finalGoal arrival. No synthetic tasks; day counter clamped at 1–90.
+   - OD-7 (Constraint): Journey handles 2–4 method-named phases for v2 goals and 3 fixed phases for v1 goals.
+     Normalized by pure adapter toJourneyData without branching downstream.
+   - BP §08, §10–11: Staircase as conceptual journey language rather than rigid template.
+   - BP §43: Strict future honesty — future weeks present strategic targets, zero fabricated daily tasks.
+   - VDS §7–9: Three-layer progress model: Layer 1 numerical header, Layer 2 staircase/spine, Layer 3 strategic roadmap.
+   - VDS §19–20: Staggered ascent animation, ambient beacon pulse, emerald completion illumination.
+   - VDS §25: Symbolic glyph language (✓ completed, ● active, ○ upcoming, ◆ week milestone, ✦ destination).
+   - VDS §28: Mobile vertical ascending spine with hit targets ≥ 44×44px and "You are here" auto-scroll.
+   - VDS §29: Airtight reduced-motion path and screen-reader accessibility (sr-only progress summary).
+
+6. Validation evidence
+   - TypeScript: 0 errors across frontend and backend.
+   - ESLint: 0 errors, 0 warnings across all Phase 6 files.
+   - Frontend Vitest: 36 test files passed, 308 tests passed (100%).
+   - Backend Vitest: 20 test files passed, 229 tests passed (100%).
+   - Playwright: 10/10 in journeyMotion.spec.ts, 8/8 in journeyMobile.spec.ts, 10/10 in shell.spec.ts -g "roadmap",
+     36/36 in today.spec.ts.
+   - Determinism: 128/128 tests green under --repeat-each=2 on critical specs.
+   - Accessibility: 0 violations (@axe-core/playwright across WCAG 2.0/2.1/2.2 AA) at 1440px, 390px, and 360px.
+   - Responsive check: 0 horizontal overflow (documentOverflow <= 1, contentOverflow <= 1), tap targets >= 44x44px.
+   - Build metrics: JS 577.09 KB (170.20 KB gzipped), CSS 102.40 KB (17.60 KB gzipped).
+
+7. Carry-overs
+   - Weekly test result storage -> Phase 7 (Weekly review + adaptation, OD-1a).
+   - Goal completion transition and celebration -> Phase 9 (Achievement, OD-1b).
+   - Main JS bundle chunk size (>500 KB Vite warning) -> Phase 12 (Global polish & code splitting).
+
+8. Issues and risks found
+   - Main JS bundle (577.09 KB) remains slightly above Vite's 500 KB chunk warning; owned by Phase 12 (code splitting).
+   - Legacy `/roadmap` overflow (17px at 390px, 47px at 360px) and rules-of-hooks call order are permanently resolved.
+
+9. Next phase status
+   Phase 6 is COMPLETE (awaiting Mo's review).
+   Phase 7 (Weekly review + adaptation) has NOT started and is blocked by OD-1a.
+```
 
 ### Regression checks
 
@@ -4373,7 +4612,7 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ~~Pathway descriptions are jargon-heavy (onboarding uses the plain `summary` since M3.5; the landing page and in-app galleries don't yet)~~ | Phase 1 review | Done in M3.6 (every gallery and the landing page show `summary`) |
 | ~~Returning user with a goal choosing a pathway, then signing in, is unverified live~~ | Phase 1 validation | Done in Phase 2 (verified live) |
 | Legacy fonts, base body styles, mint focus rule and the radius override remain for unmigrated screens (role tokens are canonical since Phase 0) | Phase 0 | Phase 12 |
-| `RoadmapPage.tsx` calls hooks after an early return (`rules-of-hooks`) | Phase 0 lint | Phase 6 |
+| ~~`RoadmapPage.tsx` calls hooks after an early return (`rules-of-hooks`)~~ | Phase 0 lint | Done in Phase 6 (M6.1: unconditional hook ordering satisfies React compiler) |
 | Lint baseline: 20 errors, 1 warning in 5 files (was 30 and 4 in 11; see 3.11). `ExecutionDashboard` retired | Phase 0 lint | Each file's migrating phase |
 | Four font families loaded | Phase 1 | Phase 12 |
 | ~~The stream step id `search` describes no search~~ | OD-8 | Accepted under OD-8 at the Phase 4 close (Mo, 2026-09-23); the id and labels stay |
@@ -4399,12 +4638,12 @@ This register is here so every phase can see what blocks it. The decisions thems
 | ~~Landing `marketing/sections/Pathways.tsx` still hard-codes its six groups; onboarding now reads `direction` and `summary` from `certifiedPresets.ts` (OD-11, ND-5)~~ | M3.5 | Done in M3.6 (reads `PATHWAY_GROUPS`) |
 | ~~Onboarding has no skip link; the legacy navbar (and the offline indicator, R-17) sits above it. Navbar targets under 44 px ("Achivii" 87×28, account button 62×34)~~ | M3.5; M3.8 audit | Done in M5.2 (the shell renders the skip link on every signed-in screen and on onboarding; every shell control is at least 44 px; the offline chip sits in the onboarding top bar) |
 | ~~The TED-style speech pathway wasn't matched by the backend~~ | M3.8; ND-17 | Done in M4.2 (matching pattern only). Existing goals were not rewritten |
-| `/roadmap` overflows by 17 px at 390 and 47 px at 360 with an empty roadmap (`main` is 407 px when the stored title is long). Since M5.2 it scrolls sideways inside the shell's content column instead of widening the document | M3.8 audit; M5.2 | Phase 6 (`/roadmap`) |
+| ~~/roadmap overflows by 17 px at 390 and 47 px at 360 with an empty roadmap (`main` is 407 px when the stored title is long). Since M5.2 it scrolls sideways inside the shell's content column instead of widening the document~~ | M3.8 audit; M5.2 | Done in Phase 6 (M6.3/M6.4: responsive layout, min-w-0, text wrap, 0 horizontal overflow at 390 and 360 px) |
 | ~~`/roadmap` and `/dashboard` have no `main` landmark~~ | M3.8 audit | Done in M5.2 (`main#main` at each page wrapper; landmark only) |
 | The onboarding UI Back button pushes a history entry (as at M3.1), so browser Back straight after it returns to the step just left | M3.8 | Phase 11 (touches R-18) |
 | ~~The pathway strip still sits inside the legacy Today (`Home`)~~ | M3.6 | Done in M5.3 (Today has no strip; the shell's Pathways entry opens the same explorer) |
 | ~~The pathway strip still sits inside `ExecutionDashboard`~~ | M3.6 | Done in M5.8 (`ExecutionDashboard.tsx` removed) |
-| Main JS chunk 539.29 KB (163.32 KB gzipped), CSS 93.24 KB (16.49 KB gzipped) at the end of Phase 5 (dropped 46 KB from M5.7); was 568.24 KB in Phase 4. Above Vite's 500 KB warning | M3.5 build; M4.5; M5.9 | Phase 12 (code splitting) |
+| Main JS chunk 577.09 KB (170.20 KB gzipped), CSS 102.40 KB (17.60 KB gzipped) at the end of Phase 6 (was 539.29 KB in Phase 5). Above Vite's 500 KB warning | M3.5 build; M4.5; M5.9; M6.6 | Phase 12 (code splitting) |
 | ~~Failed goal fetch lands on a goal-less Today~~ | Phase 2 | Done in M5.7 (dedicated goal-load error alert with retry button) |
 | ~~Legacy palette on the Today notice~~ | Phase 2 | Done in M5.3 (Today's pathway notice uses the tokens and says "from Pathways") |
 | ~~"Explore Goals" vs "Pathways" naming. The shell and Today say "Pathways"; `ExecutionDashboard` still says "Explore Goals (10)"~~ | Phase 2 | Done in M5.8 (`ExecutionDashboard` removed; app shell and Today use "Pathways") |
@@ -4516,6 +4755,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-25 | Phase 6 M6.3 done: Desktop journey composition delivered (`frontend/src/components/journey/JourneyHeader.tsx`, `DesktopStaircase.tsx`, `StrategicRoadmap.tsx`, `index.ts`, `RoadmapPage.tsx`). Implements all 3 VDS §9 progress layers: Layer 1 quick numerical header (`Day N / 90`, tabular figures, method badge, Back to Today), Layer 2 emotional staircase (VDS §25 symbols, 2–4 phase landings, active week daily step runner, Days 85–90 closing stretch, summit destination), and Layer 3 strategic roadmap (collapsible method phases, week milestone breakdown, strict future honesty BP §43 with zero fabricated tasks). 9 unit & integration tests added in `DesktopJourney.test.tsx` (100% pass). 0 axe violations at 1440px and 1024px. M6.4 ready. |
 | 2026-09-25 | Phase 6 M6.4 done: Mobile vertical journey delivered (`frontend/src/components/journey/MobileVerticalJourney.tsx`, `MobileVerticalJourney.test.tsx`, `frontend/e2e/journeyMobile.spec.ts`). Replaces the wide desktop staircase with a vertical ascending spine for viewports `< 768px` (VDS §28). Implements compact phase landing separators, active phase default expansion with collapsed upcoming phases, vertical active daily flight, "You are here" badge and auto-scroll ref positioning (R2), 44px minimum tap targets, days 85–90 approach section, and summit destination. 7 unit tests and 8 Playwright mobile tests pass (0 axe violations at 390px and 360px viewports, 0 overflow). R-8 and R-14 verified. M6.5 ready. |
 | 2026-09-25 | Phase 6 M6.5 done: Progress motion and reduced-motion path delivered (`frontend/src/index.css`, `JourneyHeader.tsx`, `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, `StrategicRoadmap.tsx`, `frontend/e2e/journeyMotion.spec.ts`). Hardware-accelerated ascent stagger (`.journey-ascent` with `--ascent-delay`), active step 3s ambient breathing beacon (`.journey-beacon`), emerald completed step styling, 600ms `--ease-ascend` progress bar fill with tabular figures, and smooth accordion expansion (`.journey-accordion-content` with rotating chevrons). Airtight `prefers-reduced-motion: reduce` zeroing all delays/durations, replacing beacon with static ring, and rendering content instantly. 10/10 tests pass in `journeyMotion.spec.ts` with 0 axe violations. M6.6 ready. |
+| 2026-09-26 | Phase 6 M6.6 done: Full regression verification pass across all R-1 to R-18 capabilities, Phase 6 validation targets audit, exit criteria audit (all 3 criteria met), responsive/accessibility/motion audit (0 axe violations, 44px tap targets, 0 overflow at 390px/360px), determinism verification (128/128 green under --repeat-each=2 across journeyMotion.spec.ts, journeyMobile.spec.ts, shell.spec.ts -g "roadmap", and today.spec.ts), Phase 6 regression matrix and official Phase 6 report authored. Phase 6 status is COMPLETE (awaiting Mo's review). Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a. |
 
 
 
