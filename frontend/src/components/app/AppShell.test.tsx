@@ -103,7 +103,7 @@ describe('entries', () => {
       const names = Array.from(nav.querySelectorAll('a, button'))
         .filter((el) => !el.closest('[hidden]'))
         .map((el) => el.textContent?.replace('mo@example.com', '').trim());
-      expect(names).toEqual(['Today', 'Roadmap', 'Progress', 'Pathways', 'CoachSoon', 'Account']);
+      expect(names).toEqual(['Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦Soon', 'Account']);
       expect(within(nav).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
       expect(within(nav).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
@@ -119,11 +119,16 @@ describe('entries', () => {
     renderAt('/');
     await rail().findByRole('button', { name: /Coach/ });
     await user.click(rail().getByRole('button', { name: /Coach/ }));
-    const dialog = await screen.findByRole('dialog', { name: 'Coach' });
-    expect(dialog).toHaveTextContent('Coming soon');
-    expect(dialog).toHaveTextContent('in development');
+    const dialog = await screen.findByRole('dialog', { name: 'Achivii Coach' });
+    expect(dialog).toHaveTextContent('In Development');
+    expect(dialog).toHaveTextContent('1-on-1 adaptive practice coaching');
+    expect(dialog).toHaveTextContent('Planned for a future release. Current members will receive early access.');
+    expect(dialog.querySelector('input')).toBeNull();
+    expect(dialog.querySelector('textarea')).toBeNull();
+    expect(dialog.querySelector('[role="textbox"]')).toBeNull();
     await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog', { name: 'Coach' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Achivii Coach' })).toBeNull();
+    expect(rail().getByRole('button', { name: /Coach/ })).toHaveFocus();
   });
 
   it('without a goal: no Roadmap or Progress entry', async () => {

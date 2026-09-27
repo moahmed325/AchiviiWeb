@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import { SkipLink } from '../ui';
 import { PathwaysExplorerModal } from '../PathwaysExplorerModal';
-import { AppBottomBar, AppRail, AppTopBar, CoachComingSoon } from './AppNavigation';
+import { CoachModal } from '../coach/CoachModal';
+import { AppBottomBar, AppRail, AppTopBar } from './AppNavigation';
 import { shellMode } from './shellEntries';
 
 interface AppShellProps {
@@ -65,7 +66,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => 
         {children}
       </div>
       <AppBottomBar onOpenPathways={openPathways} onOpenCoach={() => setCoachOpen(true)} />
-      <CoachComingSoon open={coachOpen} onOpenChange={setCoachOpen} />
+      <CoachModal open={coachOpen} onOpenChange={setCoachOpen} />
       <PathwaysExplorerModal isOpen={pathwaysOpen} onClose={() => setPathwaysOpen(false)} activeGoalTitle={activeGoal?.rawGoal} />
     </div>
   );
