@@ -428,6 +428,8 @@ describe('Desktop Journey Composition (M6.3)', () => {
         setActiveGoal: vi.fn(),
         updateActiveGoal: vi.fn(),
         resetGoal: vi.fn(),
+        completeGoal: vi.fn(),
+        completeActiveGoal: vi.fn(),
       });
 
       render(
@@ -457,6 +459,8 @@ describe('Desktop Journey Composition (M6.3)', () => {
         setActiveGoal: vi.fn(),
         updateActiveGoal: vi.fn(),
         resetGoal: vi.fn(),
+        completeGoal: vi.fn(),
+        completeActiveGoal: vi.fn(),
       });
 
       render(

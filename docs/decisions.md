@@ -113,7 +113,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | D-18 | Landing page presents Custom Journeys as future Premium; no free-text goal box | Product | Decided | 1, 3, 10 |
 | D-19 | Pathway choice carries through signup, waiting for the goal to load | Architecture | Decided | 1, 2 |
 | OD-1a | Store weekly test results | Architecture | Decided (A) | 7, 8 |
-| OD-1b | Goal completion transition | Architecture | Open | 9 |
+| OD-1b | Goal completion transition | Architecture | Decided (B) | 9 |
 | OD-1c | Server-side entitlement for Custom Journeys | Architecture | Open | 10 |
 | OD-2 | 90 vs 84 days | Product | Decided (A) | 5, 6, 9 |
 | OD-3 | Which dashboard becomes Today | Architecture | Decided (A) | 5 |
@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phases 0–8 are complete (awaiting Mo's review). Phase 9 (Achievement) is next and blocked by decisions OD-1b (goal completion transition) and OD-2.
+**What blocks the next phase:** Phases 0–8 are complete. Phase 9 (Achievement) is unblocked and **IN PROGRESS** (OD-1b Decided B; OD-2 was Decided A at M6.1). M9.1 is complete. M9.2 (Backend completion transition) may begin.
 
 ---
 
@@ -602,13 +602,13 @@ The rule itself is Decided as **D-11**. The three allowances it anticipates are 
 
 | Field | Value |
 |---|---|
-| Status | Open |
+| Status | Decided (B) |
 | Category | Architecture |
 | Needed by | 9 |
 | Raised | BP Open Decision 1 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo, at M9.1 |
 
-**Context.** `Goal.status` is `active` or `archived`; nothing sets `completed`. The achievement experience (BP §34, VDS §17–18) needs the server to know a goal is complete. A frontend-only state is forbidden (D-11).
+**Context.** `Goal.status` is `active` or `archived`; nothing sets `completed`. The achievement experience (BP §34, VDS §17–18) needs the server to know a goal is complete. A frontend-only state is forbidden (D-11, Rule 3.2).
 
 **Question.** What marks a goal as completed, and where is that written?
 
@@ -616,9 +616,9 @@ The rule itself is Decided as **D-11**. The three allowances it anticipates are 
 - **A — Completing the final week's review.** The week-12 review (or the last week under OD-2) sets `Goal.status = 'completed'`.
   * Pros: uses an existing, deliberate user action; one code path.
   * Cons: a user who never submits the last review never "arrives".
-- **B — A dedicated "complete journey" endpoint.** Called from the final-stretch screen after the final test (`roadmap.finalTest`).
-  * Pros: an explicit arrival moment; works with OD-2's closing stretch.
-  * Cons: a new endpoint and the edge cases around it.
+- **B — Dedicated completion endpoint with closing-stretch arrival (`POST /api/goal/complete`).** Called from the final-stretch screen after the final test (`roadmap.finalTest`) and final reflection.
+  * Pros: an explicit, earned arrival moment; works seamlessly with OD-2 Option A's closing stretch (Days 85–90); honors BP §34 ("You made it").
+  * Cons: a new endpoint and the edge cases around active goal queries.
 - **C — Date-based.** The goal completes automatically when day 90 passes.
   * Pros: no user action needed.
   * Cons: completion without achievement; contradicts "adapt, don't punish" in reverse (an unearned celebration).
@@ -627,11 +627,21 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 **Recommendation.** **B, paired with OD-2's closing-stretch option.** Arrival is a deliberate act after the final test, which matches the narrative ("You made it"). A fallback may complete the goal once the final review is submitted, if the user skips the final screen.
 
-**Decision.** —
+**Decision.** **B — Explicit completion endpoint with closing-stretch arrival (`POST /api/goal/complete`).** Approved by Mo at M9.1 (2026-09-27). Goal completion is a deliberate, earned arrival action at the end of the closing stretch (Days 85–90) following `roadmap.finalTest` and final reflection, honoring BP §34 ("You made it") and OD-2 (Option A). The server owns and persists completion via `Goal.status = 'completed'` and `completedAt = now()`. A fallback completion transition from the closing stretch screen is supported if a user finishes early. `GET /api/goal/active` returns the goal when `status` is `'active'` OR when `status` is `'completed'` (if no newer active goal exists, ordered by `updatedAt: 'desc'`), allowing the user to view their achievement screen, review real metrics, and revisit their garden across reloads. Embarking on a new journey ("Begin another journey", R-15) preserves the completed goal with `status = 'completed'` (never deleted or overwritten) and opens onboarding to create the new active journey.
 
-**Consequences.** It sets Phase 9 milestone M9.2, and decides how Today and Journey behave after the last week.
+**Consequences.**
+- Approves named backend allowance for Milestone M9.2:
+  - Nullable `completedAt DateTime?` on `Goal` model in `backend/prisma/schema.prisma` with migration `add_goal_completed_status_and_timestamp`.
+  - Route `POST /api/goal/complete` in `backend/src/routes/goal.ts` with optional payload `{ finalReflection?: string, finalMetricResult?: string | number }`.
+  - Update `GET /api/goal/active` query in `backend/src/routes/goal.ts` to fetch `{ status: { in: ['active', 'completed'] } }` ordered by `{ updatedAt: 'desc' }`.
+  - Full Vitest integration test suite in `backend/test/goalCompletion.test.ts`.
+- Defines frontend achievement contracts in `frontend/src/types/achievement.ts`.
+- Precludes frontend-only facades (D-11, Rule 3.2): completion is strictly server-persisted and verified against real stored database records.
+- Sets implementation scope for M9.2 (backend migration, endpoint, tests), M9.3 (garden visual transition & celebration view), M9.4 (achievement summary & next goal handoff), and M9.5 (regression verification).
 
-**Related.** OD-2, D-11, BP §34, VDS §17–18.
+**Implemented.** Decided 2026-09-27 (M9.1). Frontend contracts defined in `frontend/src/types/achievement.ts`; backend migration, route handler, and test suite scheduled for M9.2.
+
+**Related.** OD-2, D-11, BP §34, VDS §17–18, VDS §26–27.
 
 ---
 
@@ -1677,3 +1687,4 @@ None yet.
 | 2026-09-27 | Phase 7 complete: OD-1a implemented and verified across M7.2–M7.6. Review flow UI, adaptation moment, failure/retry states, backend test result persistence, and honest target comparison delivered. Full test baseline green. Phase 7 marked COMPLETE (awaiting Mo's review). Phase 8 (Progress) is unblocked and next. |
 | 2026-09-27 | Phase 8 M8.1: ND-8 Decided as Option A (dedicated Progress page `/progress` attached to app shell navigation per BP §27); zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
 | 2026-09-27 | Phase 8 complete: ND-8 implemented and verified across M8.2–M8.5. Dedicated `/progress` route, shell navigation, completion metrics, phase milestones, benchmark results card, and adaptation history delivered with zero backend edits. Playwright suite `e2e/progress.spec.ts` passes 20/20 tests. Phase 8 marked COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next and blocked by OD-1b and OD-2. |
+| 2026-09-27 | Phase 9 M9.1: OD-1b Decided as Option B (explicit completion endpoint `POST /api/goal/complete` with closing-stretch arrival); named backend allowance approved for M9.2 (`completedAt DateTime?`, migration `add_goal_completed_status_and_timestamp`, and `GET /api/goal/active` update); canonical frontend contracts defined in `frontend/src/types/achievement.ts`. Phase 9 is IN PROGRESS. |

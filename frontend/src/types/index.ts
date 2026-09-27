@@ -247,6 +247,7 @@ export interface Goal {
   roadmap?: GoalRoadmap | null;
   created_at: string;
   updated_at: string;
+  completedAt?: string | null;
   roadmapWeeks?: RoadmapWeek[];
   dailyTasks?: DailyTask[];
   weeklyReviews?: WeeklyReview[];
@@ -286,4 +287,5 @@ export interface WeeklyReviewResponse {
 
 export * from './journey';
 export * from './review';
+export * from './achievement';
 

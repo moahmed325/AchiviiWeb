@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is next.**
+Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is IN PROGRESS (M9.1 and M9.2 done, M9.3 next).**
 
 ---
 
@@ -75,7 +75,7 @@ Every phase in section 4 uses the same fields:
 | 6 | Journey | `COMPLETE` | 5 | — (OD-2, OD-7 Decided) | None |
 | 7 | Weekly review + adaptation | `COMPLETE` | 5 | — (OD-1a Decided) | Named: weekly test result storage |
 | 8 | Progress | `COMPLETE` | 6, 7 | — (ND-8 Decided A) | None beyond Phase 7 |
-| 9 | Achievement | `NOT STARTED` | 6, 7 | OD-1 (completion), OD-2 | Named: goal completion transition |
+| 9 | Achievement | `IN PROGRESS` | 6, 7 | — (OD-1b Decided B, OD-2 Decided A) | Named: goal completion transition |
 | 10 | Premium architecture | `NOT STARTED` | 5, 6 | OD-1 (gating), ND-9, ND-10 | Named: entitlement + server-side gate |
 | 11 | Mobile | `NOT STARTED` | 2–10 | OD-5 | None |
 | 12 | Global polish | `NOT STARTED` | 0–11 | — | None |
@@ -4923,7 +4923,7 @@ R-8, R-14.
 
 ## PHASE 9 — ACHIEVEMENT
 
-**Status:** `NOT STARTED`
+**Status:** `IN PROGRESS`
 
 **Source:** BP §07, §11, §34, §43, §47, OD-1, OD-2 · VDS §17–18, §26–27, note 7
 
@@ -4940,8 +4940,8 @@ R-8, R-14.
 
 ### Decisions required before starting
 
-* **OD-1, Phase 9 part: goal completion.** Approve a named backend transition. What completes a goal: the final review, the final test, or day 90 reached (tied to OD-2)?
-* **OD-2:** must already be decided in Phase 6. The achievement date depends on it.
+* **OD-1b (Goal completion transition):** **Decided (Option B — Dedicated completion endpoint with closing-stretch arrival `POST /api/goal/complete`)** by Mo at M9.1 (2026-09-27). Server persists `Goal.status = 'completed'` and `completedAt = now()`. `GET /api/goal/active` returns the active or most recently completed goal.
+* **OD-2 (90 vs 84 days):** **Decided (Option A — Closing stretch on days 85–90)** by Mo at M6.1.
 
 ### In scope
 
@@ -4963,28 +4963,110 @@ R-8, R-14.
 
 ### Backend allowance
 
-**Named, only if OD-1 approves it:** a goal completion transition that sets `Goal.status = 'completed'`, for example inside the final week's review or a dedicated endpoint. Include:
-
-* a migration only if a completion timestamp field is added;
-* `GET /api/goal/active` behaviour for completed goals specified and tested;
-* Vitest coverage.
+**Named, approved under OD-1b (Option B) at M9.1:** a goal completion transition that sets `Goal.status = 'completed'`, implemented in **M9.2** via dedicated endpoint `POST /api/goal/complete`. Includes:
+* nullable `completedAt DateTime?` added to `Goal` model in `backend/prisma/schema.prisma` with migration `add_goal_completed_status_and_timestamp`;
+* `GET /api/goal/active` query updated to retrieve active or most recently completed goal (`{ status: { in: ['active', 'completed'] } }`);
+* Vitest coverage in `backend/test/goalCompletion.test.ts`.
 
 ### Files likely affected
 
 * new `frontend/src/components/achievement/*`
+* `frontend/src/types/achievement.ts` (created in M9.1)
 * the Today and Journey terminal states
 * `frontend/public/images/brand/garden.jpg` usage
-* With the allowance: `backend/src/routes/goal.ts`, `backend/prisma/schema.prisma` (optional), backend tests, `frontend/src/context/GoalContext.tsx` (reading the new status only)
+* With the allowance (M9.2): `backend/src/routes/goal.ts`, `backend/prisma/schema.prisma`, backend tests, `frontend/src/context/GoalContext.tsx`
 
 ### Milestones
 
-| ID | Milestone |
-|---|---|
-| M9.1 | OD-1 (Phase 9 part) decided; completion rule written down |
-| M9.2 | Backend completion transition with tests |
-| M9.3 | Achievement screen and garden transition |
-| M9.4 | Final-stretch state; "Begin another journey" flow |
-| M9.5 | Regression and phase report |
+| ID | Milestone | Status |
+|---|---|---|
+| M9.1 | OD-1b decided; completion contracts defined | `Done` (2026-09-27) |
+| M9.2 | Backend completion transition with tests | `Done` (2026-09-27) |
+| M9.3 | Achievement screen and garden transition | `NOT STARTED` |
+| M9.4 | Final-stretch state; "Begin another journey" flow | `NOT STARTED` |
+| M9.5 | Regression and phase report | `NOT STARTED` |
+
+### M9.1 report — OD-1b decided and goal completion contracts (2026-09-27)
+
+1. **Architectural Decision OD-1b Formally Resolved (Workflow W4)**
+   - **Status:** Decided (Option B — Explicit completion endpoint `POST /api/goal/complete` with closing-stretch arrival) by Mo at M9.1 (2026-09-27).
+   - **Rationale:** Aligns with the 12-week + closing-stretch architecture (OD-2 Option A) and the core narrative of BP §34 ("You made it"). Completion is an earned, deliberate arrival moment after completing `roadmap.finalTest` and the final reflection, rather than a passive date expiration or an automatic side effect of the Week 12 review.
+   - **Active Goal Query Behavior:** `GET /api/goal/active` is specified to return `{ status: { in: ['active', 'completed'] } }` ordered by `{ updatedAt: 'desc' }`. This ensures users can view their achievement screen, inspect their verified metrics, and revisit their garden across reloads without being redirected to onboarding.
+   - **Next Journey Progression (R-15):** When the user chooses to "Begin another journey", the completed goal remains preserved in the database with `status = 'completed'` (never overwritten or deleted) while onboarding creates the next active goal.
+
+2. **Authoritative Technical Specification for M9.2 Named Backend Allowance**
+   - **Prisma Schema Update:**
+     - Add nullable `completedAt DateTime?` to `model Goal` in `backend/prisma/schema.prisma`.
+     - Target migration: `add_goal_completed_status_and_timestamp`.
+     - Regenerate Prisma Client.
+   - **Route `POST /api/goal/complete`:**
+     - Authentication required (`authenticateToken`).
+     - Optional payload: `{ finalReflection?: string, finalMetricResult?: string | number }`.
+     - Validates that user has an active goal.
+     - Updates `Goal.status = 'completed'` and `Goal.completedAt = new Date()`.
+     - Returns updated goal with tasks, roadmap weeks, and review history.
+   - **Route `GET /api/goal/active` Update:**
+     - Query updated from `where: { userId, status: 'active' }` to `where: { userId, status: { in: ['active', 'completed'] } }` with `orderBy: { updatedAt: 'desc' }`.
+   - **Backend Vitest Test Plan (`backend/test/goalCompletion.test.ts`):**
+     - Test 1: Completing an active goal updates status to `'completed'` and sets `completedAt`.
+     - Test 2: `GET /api/goal/active` returns the completed goal when no newer active goal exists.
+     - Test 3: Calling `POST /api/goal/complete` when no active goal exists returns 404.
+     - Test 4: Starting a new goal after completion preserves the completed goal and activates the new one.
+
+3. **Canonical Achievement TypeScript Contracts (`frontend/src/types/achievement.ts`)**
+   - Created canonical interfaces exported via `frontend/src/types/index.ts`:
+     - `GoalLifecycleStatus`: `'active' | 'completed' | 'archived'`
+     - `FinalTestEvaluation`: test type, target deliverable, instructions, pass criteria, result.
+     - `GoalCompletionPayload`: final reflection, final test result.
+     - `AchievementSummary`: goal id, raw goal, clarified outcome, total days (clamped 90), session counts, adherence rate, benchmark stats, completedAt.
+     - `AchievementCelebrationState`: view state and active tab tracking.
+   - Added `completedAt?: string | null` to `Goal` interface in `frontend/src/types/index.ts`.
+
+4. **Zero Backend Modifications in M9.1**
+   - In accordance with Rule 3.2 and Decision D-11, zero backend files, schemas, or migrations were modified in M9.1. Backend modifications are strictly reserved for Milestone M9.2 under the approved named allowance.
+
+5. **Verification Baseline**
+   - Frontend TypeScript check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - Frontend Vitest: 41 test files passed, 351/351 tests passed.
+   - Backend Vitest: 21 test files passed, 240/240 tests passed.
+   - Documentation integrity: `docs/decisions.md` and `docs/phases.md` synchronized.
+
+### M9.2 report — Backend completion transition with tests (2026-09-27)
+
+1. **Named Backend Allowance Executed (OD-1b Option B / D-11)**
+   - **Database Schema & Migration:** Added nullable `completedAt DateTime?` to `model Goal` in `backend/prisma/schema.prisma`. Generated and applied PostgreSQL migration `20260927165500_add_goal_completed_status_and_timestamp` adding `completedAt TIMESTAMP(3)` to the `goals` table. Regenerated Prisma Client (`@prisma/client`).
+   - **Dedicated Endpoint `POST /api/goal/complete`:** Delivered in `backend/src/routes/goal.ts`. Authenticated via `getAuthUser(req)` (401 guard). Checks active goal existence (404 guard). Transitions `Goal.status = 'completed'` and `Goal.completedAt = new Date()`. Safely updates Week 12 `roadmapWeek.testResult` when `finalTestResult` is provided and `weeklyReview.reflection` when `finalReflection` is provided. Returns `{ goal: presentGoal(...), activeGoal: presentGoal(...) }` with ordered `roadmapWeeks`, `dailyTasks`, and `weeklyReviews`.
+   - **Adaptive Active Goal Retrieval `GET /api/goal/active`:** Updated in `backend/src/routes/goal.ts`. Queries active goal first (`where: { userId: user.id, status: 'active' }`). If no active goal exists, queries for the most recently updated completed goal (`where: { userId: user.id, status: 'completed' }, orderBy: { updated_at: 'desc' }`). Returns `{ activeGoal: null }` only when neither active nor completed goals exist.
+
+2. **Succession Safety & Reset Preservation (R-15)**
+   - Verified that `archiveActiveGoals` only targets `{ userId, status: 'active' }`, preserving historical completed goals in the database when new goals are created.
+   - Verified that `DELETE /api/goal/active` only targets `{ userId, status: 'active' }`, preventing accidental erasure of completed journeys.
+
+3. **Frontend Client & Context Integration**
+   - Implemented `completeGoal(token: string, payload?: GoalCompletionPayload): Promise<Goal>` in `frontend/src/lib/api.ts`.
+   - Exposed `completeGoal` and `completeActiveGoal` in `GoalContextType` and `GoalProvider` (`frontend/src/context/GoalContext.tsx`), updating `activeGoal` in state.
+   - Updated existing mock references in `DesktopJourney.test.tsx` and `journeyAdapter.test.ts`. 0 TypeScript errors.
+
+4. **Integration Test Suite (`backend/test/goalCompletion.test.ts`)**
+   - Authored 10 backend integration tests using an ephemeral Express server with Prisma and Auth mocks:
+     - Test 1: Successful completion transitions status to `'completed'`, sets `completedAt`, and returns formatted goal.
+     - Test 2: Persists optional `finalReflection` and `finalTestResult` without data corruption.
+     - Test 3: `GET /api/goal/active` returns completed goal when no active goal exists (reload persistence).
+     - Test 4: `GET /api/goal/active` prioritizes active goal when both active and completed exist.
+     - Test 5: `GET /api/goal/active` returns null when user has no active or completed goals.
+     - Test 6: `POST /api/goal/complete` returns 404 if no active goal is active.
+     - Test 7: `POST /api/goal/complete` returns 401 if unauthenticated.
+     - Test 8: `GET /api/goal/active` returns 401 if unauthenticated.
+     - Test 9: `DELETE /api/goal/active` exclusively deletes active goals, preserving completed journeys.
+     - Test 10: Goal succession preserves completed journeys when new goals are created.
+   - 10/10 tests pass (100% pass rate).
+
+5. **Authoritative Verification Evidence**
+   - Backend Vitest: 22 test files, 250 tests passed (`npm test --workspace=backend`).
+   - Frontend Vitest: 41 test files, 351 tests passed (`npm test --workspace=frontend`).
+   - Backend Build: 0 errors (`npm run build --workspace=backend`).
+   - Frontend Type Check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - Strict adherence to Rule 3.2 / Decision D-11: zero modifications outside the approved OD-1b named allowance.
 
 ### Regression checks
 
@@ -5414,6 +5496,8 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 8 M8.3 done: Results layer and adaptation history delivered (`BenchmarkResultsCard.tsx`, `AdaptationHistoryList.tsx`, `ProgressPage.tsx`); displays stored benchmark test results from `RoadmapWeek.testResult` (Phase 7 M7.5) with target criteria, user notes, and non-punitive status (`Benchmark achieved` vs `In progress · Reinforcing`, BP §18); displays weekly adaptation log with submitted reflections and server AI adaptation insights; 344/344 frontend Vitest pass across 40 files; production build clean (clean code-split `ProgressPage` chunk); zero backend edits. M8.4 ready. |
 | 2026-09-27 | Phase 8 M8.4 done: Empty and early states delivered across /progress (CompletionOverview, AdaptationHistoryList, BenchmarkResultsCard, ProgressPage); calm non-punitive orientation sublabels at Day 1 / Week 1 with 0 completed sessions; serene adaptation history early card explaining weekly review insights; upcoming benchmark tests preview with target criteria and pass rules; goal-load network failure resilience with retry ('Try again') alert; 41/41 frontend test files pass (351/351 tests); production build clean; zero backend edits. M8.5 ready. |
 | 2026-09-27 | Phase 8 M8.5 done: Full regression verification pass across all capabilities touched by Phase 8 (R-8, R-14, shell navigation), dedicated Playwright E2E suite authored (e2e/progress.spec.ts, 20/20 tests passing), Phase 8 validation scenarios audited (Week 1, Week 6, Week 12, empty reviews, goal database traceability verified), exit criteria verified (100% data traceability, zero fake analytics/streaks/gamification), quality/accessibility/responsive audit clean (0 axe violations, 44px tap targets, 0 overflow at 1440px, 390px, 360px), test baseline clean (frontend Vitest 41 files / 351 tests, backend Vitest 21 files / 240 tests, 126 Playwright E2E tests), production builds clean, zero backend edits (D-11 constraint preserved), M8.5 report and official Phase 8 report authored. Phase 8 status is COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next. |
+| 2026-09-27 | Phase 9 M9.1 done: OD-1b Decided as Option B (dedicated completion endpoint `POST /api/goal/complete` with closing-stretch arrival); technical specification and test plan formalized for M9.2 backend allowance; canonical achievement TypeScript contracts defined in `frontend/src/types/achievement.ts` and re-exported via `frontend/src/types/index.ts`; zero backend edits executed in M9.1; Phase 9 is IN PROGRESS. M9.2 ready. |
+| 2026-09-27 | Phase 9 M9.2 done: Named backend allowance implemented under OD-1b (Option B) and D-11; nullable `Goal.completedAt DateTime?` migration applied in PostgreSQL; `POST /api/goal/complete` endpoint delivered with auth/404 guards and safe optional payload persistence; `GET /api/goal/active` updated to query active first and fall back to completed goal for reload persistence; succession safety verified (completed goals preserved, active goals archived/deleted cleanly); frontend API client `completeGoal` and context `GoalContext.completeGoal` integrated; dedicated Vitest integration test suite `backend/test/goalCompletion.test.ts` authored (10/10 tests pass, 250/250 backend tests pass across 22 files, 351/351 frontend tests pass across 41 files, 0 TS errors, clean builds). Phase 9 is IN PROGRESS. M9.3 ready. |
 
 
 

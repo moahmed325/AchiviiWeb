@@ -1,4 +1,4 @@
-import { User, AuthResponse } from '../types';
+import { User, AuthResponse, Goal, GoalCompletionPayload } from '../types';
 
 export function resolveApiBaseUrl(): string {
   // Default to localhost:5000 when in Vite dev mode or connected via localhost / 127.0.0.1
@@ -258,3 +258,25 @@ export async function resetActiveGoal(token: string): Promise<boolean> {
 
   return data.success;
 }
+
+export async function completeGoal(
+  token: string,
+  payload?: GoalCompletionPayload
+): Promise<Goal> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload || {}),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to complete goal');
+  }
+
+  return data.goal || data.activeGoal;
+}
+

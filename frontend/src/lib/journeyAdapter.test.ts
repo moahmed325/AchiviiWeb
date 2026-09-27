@@ -457,6 +457,8 @@ describe('journeyAdapter', () => {
       setActiveGoal: vi.fn(),
       updateActiveGoal: vi.fn(),
       resetGoal: vi.fn(),
+      completeGoal: vi.fn(),
+      completeActiveGoal: vi.fn(),
     });
 
     it('returns null when activeGoal is null', () => {

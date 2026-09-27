@@ -416,6 +416,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
 /**
  * GET /api/goal/active
  * Returns the user's currently active goal, roadmap weeks, and current week's daily tasks.
+ * If no active goal exists, returns the most recently updated completed goal (OD-1b Option B).
  */
 goalRouter.get('/active', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -440,15 +441,126 @@ goalRouter.get('/active', async (req: Request, res: Response): Promise<void> => 
       }
     });
 
-    if (!activeGoal) {
-      res.json({ activeGoal: null });
+    if (activeGoal) {
+      res.json({ activeGoal: presentGoal(activeGoal as unknown as Record<string, unknown>) });
       return;
     }
 
-    res.json({ activeGoal: presentGoal(activeGoal as unknown as Record<string, unknown>) });
+    // If no active goal exists, query for the most recently updated completed goal (OD-1b)
+    const completedGoal = await prisma.goal.findFirst({
+      where: { userId: user.id, status: 'completed' },
+      orderBy: { updated_at: 'desc' },
+      include: {
+        roadmapWeeks: {
+          orderBy: { weekNumber: 'asc' }
+        },
+        dailyTasks: {
+          orderBy: { dayNumber: 'asc' }
+        },
+        weeklyReviews: {
+          orderBy: { weekNumber: 'asc' }
+        }
+      }
+    });
+
+    if (completedGoal) {
+      res.json({ activeGoal: presentGoal(completedGoal as unknown as Record<string, unknown>) });
+      return;
+    }
+
+    res.json({ activeGoal: null });
   } catch (err: any) {
     console.error('[GoalRouter] Fetch active goal error:', err);
     res.status(500).json({ error: 'Failed to fetch active goal.' });
+  }
+});
+
+/**
+ * POST /api/goal/complete
+ * Transitions the user's active goal to 'completed' status, records completedAt timestamp,
+ * and preserves the completed journey (OD-1b Option B).
+ */
+goalRouter.post('/complete', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+
+    const activeGoal = await prisma.goal.findFirst({
+      where: { userId: user.id, status: 'active' },
+      include: {
+        roadmapWeeks: {
+          orderBy: { weekNumber: 'asc' }
+        },
+        dailyTasks: {
+          orderBy: { dayNumber: 'asc' }
+        },
+        weeklyReviews: {
+          orderBy: { weekNumber: 'asc' }
+        }
+      }
+    });
+
+    if (!activeGoal) {
+      res.status(404).json({ error: 'No active goal found to complete.' });
+      return;
+    }
+
+    const { finalReflection, finalTestResult } = req.body || {};
+
+    if (finalTestResult !== undefined && finalTestResult !== null && typeof finalTestResult === 'object') {
+      const validTest = validateWeeklyTestResult(finalTestResult);
+      if (validTest.valid && validTest.result) {
+        const targetWeek =
+          activeGoal.roadmapWeeks?.find((w) => w.weekNumber === 12) ||
+          activeGoal.roadmapWeeks?.[activeGoal.roadmapWeeks.length - 1];
+        if (targetWeek) {
+          await prisma.roadmapWeek.update({
+            where: { id: targetWeek.id },
+            data: { testResult: validTest.result as unknown as Prisma.InputJsonValue }
+          });
+        }
+      }
+    }
+
+    if (typeof finalReflection === 'string' && finalReflection.trim()) {
+      const targetReview =
+        activeGoal.weeklyReviews?.find((r) => r.weekNumber === 12) ||
+        activeGoal.weeklyReviews?.[activeGoal.weeklyReviews.length - 1];
+      if (targetReview) {
+        await prisma.weeklyReview.update({
+          where: { id: targetReview.id },
+          data: { reflection: finalReflection.trim() }
+        });
+      }
+    }
+
+    const completedGoal = await prisma.goal.update({
+      where: { id: activeGoal.id },
+      data: {
+        status: 'completed',
+        completedAt: new Date()
+      },
+      include: {
+        roadmapWeeks: {
+          orderBy: { weekNumber: 'asc' }
+        },
+        dailyTasks: {
+          orderBy: { dayNumber: 'asc' }
+        },
+        weeklyReviews: {
+          orderBy: { weekNumber: 'asc' }
+        }
+      }
+    });
+
+    const presented = presentGoal(completedGoal as unknown as Record<string, unknown>);
+    res.json({ goal: presented, activeGoal: presented });
+  } catch (err: any) {
+    console.error('[GoalRouter] Complete goal error:', err);
+    res.status(500).json({ error: 'Failed to complete goal.' });
   }
 });
 

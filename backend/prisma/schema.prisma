@@ -33,6 +33,7 @@ model Goal {
   routine          String         @default("{}")
   created_at       DateTime       @default(now())
   updated_at       DateTime       @updatedAt
+  completedAt      DateTime?
 
   isGoldenRail        Boolean   @default(false)
   canonicalMethodName String?

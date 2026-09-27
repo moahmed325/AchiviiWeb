@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Goal } from '../types';
-import { fetchActiveGoal, resetActiveGoal as apiResetGoal, fetchHealthCheck } from '../lib/api';
+import { Goal, GoalCompletionPayload } from '../types';
+import { fetchActiveGoal, resetActiveGoal as apiResetGoal, completeGoal as apiCompleteGoal, fetchHealthCheck } from '../lib/api';
 import { useAuth } from './AuthContext';
 
 interface GoalContextType {
@@ -13,6 +13,8 @@ interface GoalContextType {
   setActiveGoal: (goal: Goal | null) => void;
   updateActiveGoal: (goal: Goal) => void;
   resetGoal: () => Promise<boolean>;
+  completeGoal: (payload?: GoalCompletionPayload) => Promise<Goal>;
+  completeActiveGoal: (payload?: GoalCompletionPayload) => Promise<Goal>;
 }
 
 const GoalContext = createContext<GoalContextType | undefined>(undefined);
@@ -97,6 +99,17 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [token]);
 
+  // Complete active goal
+  const completeGoal = useCallback(
+    async (payload?: GoalCompletionPayload): Promise<Goal> => {
+      if (!token) throw new Error('Not authenticated');
+      const goal = await apiCompleteGoal(token, payload);
+      setActiveGoal(goal);
+      return goal;
+    },
+    [token]
+  );
+
   return (
     <GoalContext.Provider
       value={{
@@ -108,6 +121,8 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setActiveGoal,
         updateActiveGoal,
         resetGoal,
+        completeGoal,
+        completeActiveGoal: completeGoal,
       }}
     >
       {children}
