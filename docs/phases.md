@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is IN PROGRESS (M9.1 and M9.2 done, M9.3 next).**
+Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is IN PROGRESS (M9.1, M9.2, and M9.3 done, M9.4 next).**
 
 ---
 
@@ -4982,7 +4982,7 @@ R-8, R-14.
 |---|---|---|
 | M9.1 | OD-1b decided; completion contracts defined | `Done` (2026-09-27) |
 | M9.2 | Backend completion transition with tests | `Done` (2026-09-27) |
-| M9.3 | Achievement screen and garden transition | `NOT STARTED` |
+| M9.3 | Achievement screen and garden transition | `Done` (2026-09-27) |
 | M9.4 | Final-stretch state; "Begin another journey" flow | `NOT STARTED` |
 | M9.5 | Regression and phase report | `NOT STARTED` |
 
@@ -5067,6 +5067,44 @@ R-8, R-14.
    - Backend Build: 0 errors (`npm run build --workspace=backend`).
    - Frontend Type Check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
    - Strict adherence to Rule 3.2 / Decision D-11: zero modifications outside the approved OD-1b named allowance.
+
+### M9.3 report — Achievement screen and garden transition (2026-09-27)
+
+1. **Visual Level 4 Cinematic Arrival Experience (BP §07, §11, §34, §43, §47; VDS §17–18, §26–27)**
+   - Delivered components under `frontend/src/components/achievement/`:
+     - `AchievementHero.tsx`: Roman garden atmospheric portal, monumental arrival headline ("90 DAYS COMPLETE"), arrival statement ("You reached the destination."), clarified outcome card, quick metric highlights, and primary CTAs (`[ Your results ]` and `[ Begin another journey ]`).
+     - `AchievementResults.tsx`: Verified metrics breakdown (90 days deliberate practice, completed practice sessions, adherence percentage, total practice hours), Capstone Final Test evaluation result card, and Phase 7 milestone benchmark breakdown (`Benchmark achieved` vs `In progress`).
+     - `AchievementJourney.tsx`: Summary of the journey completed—initial ambition vs clarified outcome, methodology architecture cleared (Foundation, Progression, Capstone), closing reflection, and completion timestamp.
+     - `AchievementScreen.tsx`: Top-level container hosting WAI-ARIA tab navigation, responsive layouts, and view state transitions.
+     - `frontend/src/pages/AchievementPage.tsx`: Dedicated page component mounted at `/achievement` with fallback resilience and redirect guard.
+   - Incorporated verified local brand asset `frontend/public/images/brand/garden.jpg` (682×1024 portrait) within an architectural portal (`border border-achievement/20 bg-surface shadow-2xl`) using multi-layered dark underlays (`radial-gradient` and linear vignettes) ensuring text legibility and WCAG AA contrast (≥4.5:1 body, ≥9:1 gold on dark) across desktop (≥768px split hero layout) and mobile (<768px portrait crop) without stretching.
+   - Enforced strict design authenticity: **zero confetti, zero balloons, zero particle bursts, zero sound effects, zero XP, and zero gamification clichés** (VDS §18, §31).
+
+2. **Real Results Calculation Engine (`computeAchievementSummary`)**
+   - Implemented pure calculation functions in `frontend/src/lib/achievement.ts`:
+     - `computeAchievementSummary(goal: Goal): AchievementSummary`: Computes 90-day deliberate practice path duration (clamped per OD-2), counts completed deliberate practice sessions (excluding rest days), calculates honest non-punitive adherence rate (`Math.round((completedSessions / totalPlannedSessions) * 100)`), and aggregates milestone benchmark test results.
+     - `computeTotalPracticeMinutes(goal: Goal): number` & `formatPracticeDuration(minutes: number): string`: Calculates cumulative practice time across completed daily tasks.
+     - `extractFinalTestEvaluation(goal: Goal): FinalTestEvaluation | null`: Extracts Week 12 capstone test deliverable, pass criteria, and stored result.
+     - `formatAchievementDate(dateString?: string | null): string`: Formats completion date with locale support.
+   - Comprehensive unit test suite in `frontend/src/lib/achievement.test.ts` (7/7 tests passing across 100% adherence, 0% adherence, missing benchmarks, and duration formatting).
+
+3. **Accessible Multi-View Tab Navigation & Reduced Motion**
+   - Implemented accessible tab navigation across Arrival (`achievement`), Results (`results`), and Journey (`journey`) matching `AchievementCelebrationState`.
+   - Full WAI-ARIA compliance: `role="tablist"`, `role="tab"`, `aria-selected`, `aria-controls`, and `role="tabpanel"`.
+   - Accessible keyboard arrow navigation (ArrowLeft, ArrowRight, Home, End) with automatic focus management and standard minimum 44×44px touch targets.
+   - Full `prefers-reduced-motion: reduce` support: transitions and physical transforms are disabled, rendering a static, dignified arrival.
+
+4. **Routing & Shell Navigation Integration**
+   - Mounted `/achievement` in `frontend/src/App.tsx`, wrapped in `ProtectedRoute` and lazy-loaded via `React.lazy` into a dedicated code-split bundle (`AchievementPage-B24FuDth.js`, 25.82 kB │ gzip: 6.29 kB).
+   - In `frontend/src/pages/Home.tsx`, when `activeGoal?.status === 'completed'`, renders `AchievementPage` directly via lazy loading and `Suspense`, providing seamless arrival without flashing onboarding or empty today tasks.
+   - Reload persistence: Reloading on `/achievement` or `/` preserves completed goal state retrieved via `GET /api/goal/active` (delivered in M9.2).
+   - Navigation adaptation: `shellEntries.ts` and `AppNavigation.tsx` dynamically update navigation entries—replacing "Today" with "Achievement" and the `Award` icon when viewing a completed goal on both `AppRail` (desktop) and `AppBottomBar` (mobile).
+
+5. **Authoritative Verification Evidence**
+   - Frontend Vitest: 44 test files, 368 tests passed (`npm test --workspace=frontend`).
+   - Frontend TypeScript Check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - Frontend Production Build: Clean code-split build (`npm run build --workspace=frontend`).
+   - Backend Invariance: Zero modifications to backend code or database migrations in M9.3 (strict adherence to Rule 3.2 and Decision D-11).
 
 ### Regression checks
 
@@ -5498,6 +5536,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 8 M8.5 done: Full regression verification pass across all capabilities touched by Phase 8 (R-8, R-14, shell navigation), dedicated Playwright E2E suite authored (e2e/progress.spec.ts, 20/20 tests passing), Phase 8 validation scenarios audited (Week 1, Week 6, Week 12, empty reviews, goal database traceability verified), exit criteria verified (100% data traceability, zero fake analytics/streaks/gamification), quality/accessibility/responsive audit clean (0 axe violations, 44px tap targets, 0 overflow at 1440px, 390px, 360px), test baseline clean (frontend Vitest 41 files / 351 tests, backend Vitest 21 files / 240 tests, 126 Playwright E2E tests), production builds clean, zero backend edits (D-11 constraint preserved), M8.5 report and official Phase 8 report authored. Phase 8 status is COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next. |
 | 2026-09-27 | Phase 9 M9.1 done: OD-1b Decided as Option B (dedicated completion endpoint `POST /api/goal/complete` with closing-stretch arrival); technical specification and test plan formalized for M9.2 backend allowance; canonical achievement TypeScript contracts defined in `frontend/src/types/achievement.ts` and re-exported via `frontend/src/types/index.ts`; zero backend edits executed in M9.1; Phase 9 is IN PROGRESS. M9.2 ready. |
 | 2026-09-27 | Phase 9 M9.2 done: Named backend allowance implemented under OD-1b (Option B) and D-11; nullable `Goal.completedAt DateTime?` migration applied in PostgreSQL; `POST /api/goal/complete` endpoint delivered with auth/404 guards and safe optional payload persistence; `GET /api/goal/active` updated to query active first and fall back to completed goal for reload persistence; succession safety verified (completed goals preserved, active goals archived/deleted cleanly); frontend API client `completeGoal` and context `GoalContext.completeGoal` integrated; dedicated Vitest integration test suite `backend/test/goalCompletion.test.ts` authored (10/10 tests pass, 250/250 backend tests pass across 22 files, 351/351 frontend tests pass across 41 files, 0 TS errors, clean builds). Phase 9 is IN PROGRESS. M9.3 ready. |
+| 2026-09-27 | Phase 9 M9.3 done: Visual Level 4 cinematic achievement experience delivered (`AchievementHero.tsx`, `AchievementResults.tsx`, `AchievementJourney.tsx`, `AchievementScreen.tsx`, `AchievementPage.tsx`); atmospheric Roman garden transition built with verified brand asset `garden.jpg` using multi-layer dark underlays and desktop/mobile aspect ratio handling; real results calculation engine (`computeAchievementSummary`) computes 90-day deliberate practice sessions, adherence rate, milestone benchmark stats, and capstone evaluation with 0 fake data; accessible tab switching across Arrival, Results, and Journey with keyboard arrow navigation and WAI-ARIA roles; `/achievement` mounted in `App.tsx` (code-split chunk `AchievementPage-B24FuDth.js`) and conditionally rendered in `Home.tsx` on completed goal; dynamic shell navigation on `AppRail` and `AppBottomBar` showing "Achievement" with `Award` icon; 16 new automated tests added (44 frontend test files / 368 tests pass, 0 TS errors, clean build); strict zero backend edits (D-11 constraint preserved). Phase 9 is IN PROGRESS. M9.4 ready. |
 
 
 

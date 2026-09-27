@@ -7,6 +7,9 @@ import { Button, Surface } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 import { Today, TodaySkeleton } from '../components/today/Today';
 
+const AchievementPage = React.lazy(() => import('./AchievementPage'));
+
+
 export const Home: React.FC = () => {
   const { user, token, loading: authLoading } = useAuth();
   const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus } = useGoal();
@@ -75,6 +78,14 @@ export const Home: React.FC = () => {
             }
           />
         </main>
+      );
+    }
+
+    if (activeGoal.status === 'completed') {
+      return (
+        <React.Suspense fallback={<TodaySkeleton />}>
+          <AchievementPage goal={activeGoal} />
+        </React.Suspense>
       );
     }
 

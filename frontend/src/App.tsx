@@ -16,6 +16,10 @@ const UiPreviewPage = import.meta.env.DEV ? React.lazy(() => import('./pages/dev
 /* Dedicated Progress page (ND-8 Option A). Lazy-loaded to keep the main bundle lean. */
 const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
 
+/* Dedicated Achievement page (M9.3). Lazy-loaded to keep the main bundle lean. */
+const AchievementPage = React.lazy(() => import('./pages/AchievementPage'));
+
+
 export const DashboardRedirect: React.FC = () => {
   const location = useLocation();
   return <Navigate to={{ pathname: '/', search: location.search, hash: location.hash }} replace />;
@@ -64,6 +68,18 @@ export const App: React.FC = () => {
                   <ProtectedRoute requireGoal={false}>
                     <React.Suspense fallback={null}>
                       <ProgressPage />
+                    </React.Suspense>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Dedicated Achievement Destination (Protected, requires goal, M9.3) */}
+              <Route
+                path="/achievement"
+                element={
+                  <ProtectedRoute requireGoal={true}>
+                    <React.Suspense fallback={null}>
+                      <AchievementPage />
                     </React.Suspense>
                   </ProtectedRoute>
                 }

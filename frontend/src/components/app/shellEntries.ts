@@ -28,10 +28,10 @@ export interface ShellEntries {
   showProgress: boolean;
 }
 
-/** Today is active on `/` (OD-3). */
+/** Today is active on `/` and `/achievement` (OD-3, M9.3). */
 export function shellEntries(pathname: string, hasGoal: boolean): ShellEntries {
   return {
-    todayActive: pathname === '/',
+    todayActive: pathname === '/' || pathname === '/achievement',
     roadmapActive: pathname === '/roadmap',
     showRoadmap: hasGoal,
     progressActive: pathname === '/progress',

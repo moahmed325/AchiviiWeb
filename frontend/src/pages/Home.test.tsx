@@ -102,4 +102,27 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Choose a pathway' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: "We couldn't load your goal" })).not.toBeInTheDocument();
   });
+
+  it('renders achievement screen when active goal has status === completed (M9.3-R1)', async () => {
+    const COMPLETED_GOAL = {
+      ...MOCK_GOAL,
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+    } as unknown as Goal;
+
+    mocked.fetchActiveGoal.mockResolvedValueOnce(COMPLETED_GOAL);
+
+    render(
+      <AuthProvider>
+        <GoalProvider>
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        </GoalProvider>
+      </AuthProvider>
+    );
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'COMPLETE' })).toBeVisible();
+    expect(screen.getByText('You made it.')).toBeVisible();
+  });
 });
