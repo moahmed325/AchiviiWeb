@@ -11,11 +11,11 @@ const FEATURES = [
     body: 'Talk through a hard week, ask why a step matters, and adjust your plan in conversation. It is being designed now and isn’t available yet.',
   },
   {
-    mark: '◇',
+    mark: '✦',
     name: 'Custom Journeys',
-    status: 'Planned for Premium',
+    status: 'Available now · Free',
     headline: 'Have something unique in mind?',
-    body: 'Build a journey around your own goal, beyond the guided pathways, with the same phases, milestones and daily steps.',
+    body: 'Build a guided 90-day journey around your own ambition, beyond the certified pathways, with the same deliberate practice, milestones, and weekly benchmarks. Available free today, planned for a future premium tier.',
   },
 ];
 
@@ -23,7 +23,7 @@ export const Premium: React.FC = () => (
   <Section id="premium" labelledBy="premium-title" className="py-28 sm:py-40">
     <div className="max-w-[46rem]">
       <Reveal>
-        <Eyebrow tone="achievement">Coming to Achivii</Eyebrow>
+        <Eyebrow tone="achievement">Premium Architecture</Eyebrow>
       </Reveal>
       <Reveal as="h2" id="premium-title" delayMs={80} className="mt-8 text-[clamp(2.25rem,4.6vw,4rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-text">
         More ways to climb, on the way.

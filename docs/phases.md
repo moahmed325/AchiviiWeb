@@ -5254,11 +5254,11 @@ None invoked (OD-1c Decided B, ND-9 Decided A). Zero backend changes required.
 | ID | Milestone | Status |
 |---|---|---|
 | M10.1 | ND-9, ND-10 and ND-11 decided | COMPLETE |
-| M10.2 | Coach placement and honest state | IN PROGRESS |
-| M10.3 | Custom Journeys placement in the pathway library | PLANNED |
+| M10.2 | Coach placement and honest state | COMPLETE |
+| M10.3 | Custom Journeys placement in the pathway library | COMPLETE |
 | M10.4 | (With the allowance) server-side entitlement and gate | DEFERRED (ND-10 A, OD-1c B) |
 | M10.5 | (With the allowance) payments integration | DEFERRED (ND-9 A) |
-| M10.6 | Marketing copy updated to match reality | PLANNED |
+| M10.6 | Marketing copy updated to match reality | COMPLETE |
 | M10.7 | Regression and phase report | PLANNED |
 
 ### Regression checks
@@ -5597,6 +5597,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 9 M9.4 done: Designed Days 85–90 Closing Stretch experience delivered in Today (`ClosingStretchView.tsx`, `Today.tsx`, `today.ts`); replaces terminal placeholder with calm narrative, 6-day temporal approach indicator, capstone evaluation card with benchmark selector, and 90-day final reflection with localStorage draft persistence; primary arrival CTA invokes `completeGoal` and seamlessly transitions user to the Roman garden; fallback quiet arrival CTA provided; succession-safe "Begin another journey" dialog (`NewJourneyDialog.tsx`) delivered with Radix Dialog; `ProtectedRoute.tsx` and `OnboardingPage.tsx` updated to allow completed goal users into onboarding to create next goal while permanently preserving completed journeys in the database (R-15); 20 new automated tests added (46 frontend test files / 388 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits (D-11 constraint preserved). Phase 9 is IN PROGRESS. M9.5 ready. |
 | 2026-09-27 | Phase 10 M10.2 done: Coach ✦ placed in both desktop `AppRail` and mobile `AppBottomBar` navigation with `Sparkles` icon and premium `text-achievement` accent (VDS §12, §14); `CoachModal.tsx` created using Radix `Dialog` primitives with honest "In development" status, "✦ Coming Soon" eyebrow, companion coaching value proposition, realistic availability note, and "Back to Practice" dismiss button; zero fake chat UI, mock messages, or checkout buttons (ND-11, BP §43); `AppShell.tsx` manages `coachOpen` state and renders `CoachModal`; 10 CoachModal unit tests and 1 AppShell integration test added; 48 frontend test files / 401 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2, OD-1c Decided B). |
 | 2026-09-27 | Phase 10 M10.3 done: Custom Journeys elevated with premium visual treatment in `PathwayCustomGoal.tsx` — accent eyebrow badge `✦ Custom Journey` with `Sparkles` icon, refined heading "Have something unique in mind?", narrative copy "Build a guided 90-day journey around your own ambition…", and crafted container card (`rounded-card`, `border-border/70`, `hover:border-accent/30`, VDS §12); Custom Journey option integrated into `PathwaysExplorerModal.tsx` via `PathwayLibrary customGoal` slot — clicking navigates to `/onboarding` with `{ customGoal: true, switchGoal: true }` (active goal) or `{ customGoal: true }` (no goal), preserving R-15 safety; zero paywall, lock, or pricing UI (ND-10, OD-1c); 3 new explorer modal tests and updated pathway library and StepGoal tests; 47 frontend test files / 402 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2). |
+| 2026-09-27 | Phase 10 M10.6 done: Marketing copy updated to match reality in `frontend/src/components/marketing/sections/Premium.tsx` (D-18, ND-10). Custom Journeys status badge updated from "Planned for Premium" to "Available now · Free" with narrative copy reflecting that custom 90-day journeys are available free today and planned for a future premium tier; Achivii Coach preserved with honest "In development" status and companion vision; section eyebrow elevated to "Premium Architecture"; free reassurance line ("There is no paid plan yet. Everything you can use in Achivii today is free.") preserved; zero fake pricing, billing, or checkout UI (Rule 3.2, BP §43); dedicated test suite created in `Premium.test.tsx` (4/4 tests pass); full test baseline verified (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits. M10.7 ready. |
 
 
 
