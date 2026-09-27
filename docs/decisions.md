@@ -105,7 +105,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | D-10 | Phase order follows BP §49 | Process | Decided | All |
 | D-11 | Backend scope rule: named, approved allowances only | Architecture | Decided | All |
 | D-12 | Mobile acceptance in every phase | Process | Decided | All |
-| D-13 | Framework documents live in `docs/` | Process | Decided | — |
+| D-13 | Framework documents live in `docs/` | Process | Decided | 2026-09-27 — Mo |
 | D-14 | Brand master images and where they live | Design | Decided | 1, 9, 12 |
 | D-15 | Hero staircase is an SVG scene, not the photo | Design | Decided | 1 |
 | D-16 | Marketing motion uses IntersectionObserver and CSS, no library | Technology | Decided | 1 |
@@ -114,7 +114,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | D-19 | Pathway choice carries through signup, waiting for the goal to load | Architecture | Decided | 1, 2 |
 | OD-1a | Store weekly test results | Architecture | Decided (A) | 7, 8 |
 | OD-1b | Goal completion transition | Architecture | Decided (B) | 9 |
-| OD-1c | Server-side entitlement for Custom Journeys | Architecture | Open | 10 |
+| OD-1c | Server-side entitlement for Custom Journeys | Architecture | Decided (B) | 10 |
 | OD-2 | 90 vs 84 days | Product | Decided (A) | 5, 6, 9 |
 | OD-3 | Which dashboard becomes Today | Architecture | Decided (A) | 5 |
 | OD-4 | Dedicated `/login` and `/signup` routes | Architecture | Decided (A) | 2 |
@@ -134,9 +134,9 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-6 | Free custom-goal entry before Phase 10 | Product | Decided (A) | 3 |
 | ND-7 | Application shell and navigation | Design | Decided (A narrowed) | 5 |
 | ND-8 | Progress: separate page or Journey layer | Design | Decided (A) | 8 |
-| ND-9 | Payments in scope or not | Product | Proposed | 10 |
-| ND-10 | Custom-goal gating | Product | Proposed | 10 |
-| ND-11 | Coach scope | Product | Proposed | 10 |
+| ND-9 | Payments in scope or not | Product | Decided (A) | 10 |
+| ND-10 | Custom-goal gating | Product | Decided (A) | 10 |
+| ND-11 | Coach scope | Product | Decided (A) | 10 |
 | ND-12 | Phase 2 frontend scope additions (`api.ts` status, `GoalContext` failure flag) | Architecture | Decided (A) | 2 |
 | ND-13 | Onboarding step order around the clarify wait | Design | Decided (A) | 3 |
 | ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Decided (A) | 3 |
@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phases 0–8 are complete. Phase 9 (Achievement) is unblocked and **IN PROGRESS** (OD-1b Decided B; OD-2 was Decided A at M6.1). M9.1 is complete. M9.2 (Backend completion transition) may begin.
+**What blocks the next phase:** Phases 0–8 are complete. Phase 9 (Achievement) is unblocked and **IN PROGRESS** (OD-1b Decided B; OD-2 was Decided A at M6.1). M9.1 is complete. M9.2 (Backend completion transition) may begin. Phase 10 is now unblocked for its narrowed architecture-only scope.
 
 ---
 
@@ -649,11 +649,11 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Open — depends on ND-9 and ND-10 |
+| Status | Decided (B) |
 | Category | Architecture |
 | Needed by | 10 |
 | Raised | BP Open Decision 1, BP §22 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo |
 
 **Context.** `POST /api/goal/create` accepts custom goals from anyone. `User` has no plan or entitlement field. A frontend-only lock is bypassable, and it would also remove an existing free capability.
 
@@ -667,7 +667,9 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 **Recommendation.** Decide after ND-9 and ND-10. Adding an entitlement without a way to obtain it (payments) would lock users out of a free feature for no benefit. Only if ND-10 gates custom goals, choose A.
 
-**Decision.** —
+**Decision.** **B — Do not add it yet.** Custom goals remain free during this redesign; no entitlement field or server-side gate is added in Phase 10.
+
+**Consequences.** Phase 10 does not change custom-goal access. Entitlement and payment work remain deferred to a separate product decision/project.
 
 **Related.** ND-9, ND-10, D-18.
 
@@ -1369,11 +1371,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo |
 
 **Context.** BP §20–22 define free and premium tiers. No payment system exists, and BP §43 forbids pretending one does. Payments bring provider choice, a billing model, webhooks, entitlement sync, tax and legal pages: a project, not a redesign task.
 
@@ -1385,9 +1387,9 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A.** Keep the redesign focused. Premium placement (Coach ✦, Custom Journeys) gives the architecture room without shipping anything fake.
 
-**Decision.** —
+**Decision.** **A — No.** Payments are out of scope for this redesign; Phase 10 ships placement and honest copy only.
 
-**Consequences.** If A: OD-1c and ND-10 are effectively deferred, and custom goals stay free.
+**Consequences.** OD-1c and ND-10 resolve to keeping custom goals free for now. Payments become a separate project with its own provider, billing, entitlement, legal and webhook decisions.
 
 **Related.** OD-1c, ND-10, ND-11, D-17.
 
@@ -1397,11 +1399,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed — depends on ND-9 |
+| Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo |
 
 **Context.** BP §22 says custom goals are paid. Today they are free (D-18, ND-6). Gating needs a server-side entitlement (OD-1c) and a way to obtain it (ND-9).
 
@@ -1419,7 +1421,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A.**
 
-**Decision.** —
+**Decision.** **A — Gate only when payments exist.** Existing custom goals are grandfathered; no gate is introduced until a real payment and entitlement flow exists.
 
 **Related.** ND-9, OD-1c, ND-6.
 
@@ -1429,11 +1431,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo |
 
 **Context.** BP §21 describes a future AI coach. No chat exists (BP §43). A real coach means a new backend capability (conversation storage, model access, safety, cost controls) and its own product design.
 
@@ -1445,7 +1447,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A** for the redesign. Treat a real Coach as its own project with its own blueprint.
 
-**Decision.** —
+**Decision.** **A — Architecture only.** Phase 10 provides navigation placement and an honest “Coming soon” state; a real Coach is a separate project.
 
 **Related.** ND-7, ND-9, BP §21.
 

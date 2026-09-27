@@ -76,7 +76,7 @@ Every phase in section 4 uses the same fields:
 | 7 | Weekly review + adaptation | `COMPLETE` | 5 | — (OD-1a Decided) | Named: weekly test result storage |
 | 8 | Progress | `COMPLETE` | 6, 7 | — (ND-8 Decided A) | None beyond Phase 7 |
 | 9 | Achievement | `IN PROGRESS` | 6, 7 | — (OD-1b Decided B, OD-2 Decided A) | Named: goal completion transition |
-| 10 | Premium architecture | `NOT STARTED` | 5, 6 | OD-1 (gating), ND-9, ND-10 | Named: entitlement + server-side gate |
+| 10 | Premium architecture | `NOT STARTED` | 5, 6 | — (OD-1c, ND-9, ND-10, ND-11 Decided) | None; placement and honest copy only |
 | 11 | Mobile | `NOT STARTED` | 2–10 | OD-5 | None |
 | 12 | Global polish | `NOT STARTED` | 0–11 | — | None |
 
