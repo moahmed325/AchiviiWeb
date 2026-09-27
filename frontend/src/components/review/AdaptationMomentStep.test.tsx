@@ -186,4 +186,38 @@ describe('AdaptationMomentStep Component (M7.3)', () => {
 
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
+
+  it('renders benchmark target comparison card when testResult is present (M7.5)', () => {
+    const onContinue = vi.fn();
+
+    render(
+      <AdaptationMomentStep
+        currentWeekNumber={1}
+        nextWeekNumber={2}
+        aiAdaptationInsight="5 of 6 done."
+        currentWeekTarget={{
+          kind: 'number',
+          metric: 'Typing Speed',
+          value: 40,
+          unit: 'wpm',
+          direction: 'higher_is_better',
+        }}
+        testResult={{
+          value: 46,
+          unit: 'wpm',
+          passed: true,
+          note: 'Very smooth typing session',
+        }}
+        onContinue={onContinue}
+      />
+    );
+
+    const comparison = screen.getByTestId('adaptation-target-comparison');
+    expect(comparison).toBeVisible();
+    expect(screen.getByText('Benchmark Comparison')).toBeVisible();
+    expect(screen.getByText('Target Met')).toBeVisible();
+    expect(screen.getByText('46 wpm')).toBeVisible();
+    expect(screen.getByText('Typing Speed: 40 wpm')).toBeVisible();
+    expect(screen.getByText('"Very smooth typing session"')).toBeVisible();
+  });
 });

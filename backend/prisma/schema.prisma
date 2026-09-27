@@ -71,6 +71,7 @@ model RoadmapWeek {
   reviewNotes     String?
   target          Json?    // v2: { kind: "number", metric, value, unit, direction } | { kind: "deliverable", description }
   test            Json?    // v2: { type, instructions, passIf }
+  testResult      Json?
   created_at      DateTime @default(now())
 
   goal            Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)

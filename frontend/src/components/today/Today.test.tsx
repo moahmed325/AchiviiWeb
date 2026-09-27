@@ -628,6 +628,65 @@ describe('Today', () => {
     expect(screen.getByRole('button', { name: 'Mark complete' })).toBeVisible();
     expect(screen.queryByText('Step completed. Deliberate practice logged for today.')).not.toBeInTheDocument();
   });
+
+  it('renders review due card when all active practice tasks are completed ahead of time (M7.4-R3)', async () => {
+    // Current tasks where all active practice sessions are completed
+    const completedTasks = tasks.map((t) =>
+      t.isRestDay ? t : { ...t, status: 'completed' as const }
+    );
+    const goalWithCompletedTasks = { ...GOAL, dailyTasks: completedTasks } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithCompletedTasks);
+    await renderToday();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Week 1 is ready for review' })).toBeVisible();
+    expect(screen.getByText('Review due')).toBeVisible();
+  });
+
+  it('renders closing stretch unlock messaging on Week 12 review due card (M7.4-R3)', async () => {
+    const pastTasks = tasks.map((t, idx) => ({ ...t, weekNumber: 12, date: isoDay(idx - 10) }));
+    const week12Goal = {
+      ...GOAL,
+      currentWeek: 12,
+      dailyTasks: pastTasks,
+      roadmapWeeks: [{ weekNumber: 12, status: 'active', phase: 'Closing' }],
+    } as unknown as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(week12Goal);
+    await renderToday();
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Week 12 is ready for review' })).toBeVisible();
+    expect(
+      screen.getByText("You've reached the end of Week 12. Complete this review to unlock your final closing stretch (days 85–90).")
+    ).toBeVisible();
+  });
+
+  it('allows opening weekly review prior to review due from WeekGlance and footer nav (M7.4-R5)', async () => {
+    const user = userEvent.setup();
+    // Default GOAL has pending practice tasks in the future so reviewDue is false
+    await renderToday();
+
+    // Review due banner is not displayed
+    expect(screen.queryByText('Review due')).not.toBeInTheDocument();
+
+    // But everyday review entry point is available in WeekGlance
+    const glanceReviewBtn = screen.getByRole('button', { name: 'Review week' });
+    expect(glanceReviewBtn).toBeVisible();
+    await user.click(glanceReviewBtn);
+
+    // Modal opens
+    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
+
+    // Close modal
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    // Footer nav entry point is also available
+    const navReviewBtn = screen.getByRole('button', { name: 'Weekly review' });
+    expect(navReviewBtn).toBeVisible();
+    await user.click(navReviewBtn);
+
+    expect(screen.getByRole('dialog')).toBeVisible();
+  });
 });
+
 
 

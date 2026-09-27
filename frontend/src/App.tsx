@@ -13,6 +13,9 @@ import { LoginPage } from './pages/auth/LoginPage';
 /* Development-only primitives preview; the branch is dropped from production builds. */
 const UiPreviewPage = import.meta.env.DEV ? React.lazy(() => import('./pages/dev/UiPreviewPage')) : null;
 
+/* Dedicated Progress page (ND-8 Option A). Lazy-loaded to keep the main bundle lean. */
+const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
+
 export const DashboardRedirect: React.FC = () => {
   const location = useLocation();
   return <Navigate to={{ pathname: '/', search: location.search, hash: location.hash }} replace />;
@@ -50,6 +53,18 @@ export const App: React.FC = () => {
                 element={
                   <ProtectedRoute requireGoal={true}>
                     <RoadmapPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Dedicated Progress page (ND-8 Option A, M8.2) */}
+              <Route
+                path="/progress"
+                element={
+                  <ProtectedRoute requireGoal={true}>
+                    <React.Suspense fallback={null}>
+                      <ProgressPage />
+                    </React.Suspense>
                   </ProtectedRoute>
                 }
               />

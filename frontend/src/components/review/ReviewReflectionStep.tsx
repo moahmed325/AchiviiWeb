@@ -18,6 +18,8 @@ export const ReviewReflectionStep: React.FC<ReviewReflectionStepProps> = ({
   error,
   disabled = false,
 }) => {
+  const errorId = 'review-reflection-error';
+
   return (
     <div className="space-y-3">
       <Field
@@ -32,10 +34,11 @@ export const ReviewReflectionStep: React.FC<ReviewReflectionStepProps> = ({
           disabled={disabled}
           className="min-h-[100px] resize-y"
           aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
         />
       </Field>
       {error && (
-        <p role="alert" className="text-small text-danger">
+        <p id={errorId} role="alert" aria-live="assertive" className="text-small text-danger">
           {error}
         </p>
       )}

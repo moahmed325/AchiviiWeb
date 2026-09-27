@@ -69,17 +69,32 @@ describe('shellMode and shellEntries', () => {
     expect(shellMode('/dashboard', true)).toBe('app');
   });
 
-  it('shows Roadmap only with a goal, and marks Today active on /', () => {
+  it('shows Roadmap and Progress only with a goal, and marks Today active on /', () => {
     expect(shellEntries('/', false).showRoadmap).toBe(false);
+    expect(shellEntries('/', false).showProgress).toBe(false);
     expect(shellEntries('/', true).showRoadmap).toBe(true);
+    expect(shellEntries('/', true).showProgress).toBe(true);
     expect(shellEntries('/', true).todayActive).toBe(true);
     expect(shellEntries('/dashboard', true).todayActive).toBe(false);
-    expect(shellEntries('/roadmap', true)).toEqual({ todayActive: false, roadmapActive: true, showRoadmap: true });
+    expect(shellEntries('/roadmap', true)).toEqual({
+      todayActive: false,
+      roadmapActive: true,
+      showRoadmap: true,
+      progressActive: false,
+      showProgress: true,
+    });
+    expect(shellEntries('/progress', true)).toEqual({
+      todayActive: false,
+      roadmapActive: false,
+      showRoadmap: true,
+      progressActive: true,
+      showProgress: true,
+    });
   });
 });
 
 describe('entries', () => {
-  it('with a goal: Today, Roadmap, Pathways and Account, in both layouts, and nothing else', async () => {
+  it('with a goal: Today, Roadmap, Progress, Pathways and Account, in both layouts, and nothing else', async () => {
     signedIn(GOAL);
     renderAt('/');
     await rail().findByRole('link', { name: 'Roadmap' });
@@ -88,30 +103,36 @@ describe('entries', () => {
       const names = Array.from(nav.querySelectorAll('a, button'))
         .filter((el) => !el.closest('[hidden]'))
         .map((el) => el.textContent?.replace('mo@example.com', '').trim());
-      expect(names).toEqual(['Today', 'Roadmap', 'Pathways', 'Account']);
+      expect(names).toEqual(['Today', 'Roadmap', 'Progress', 'Pathways', 'Account']);
       expect(within(nav).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
       expect(within(nav).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
-      expect(within(nav).queryByText(/Journey|Progress|Coach|coming soon|\(\d+\)/i)).toBeNull();
+      expect(within(nav).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
+      expect(within(nav).queryByText(/Journey|Coach|coming soon|\(\d+\)/i)).toBeNull();
     }
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.queryByText(/Achivii ©/)).toBeNull();
   });
 
-  it('without a goal: no Roadmap entry', async () => {
+  it('without a goal: no Roadmap or Progress entry', async () => {
     signedIn(null);
     renderAt('/');
     await screen.findByText('Today page');
     await vi.waitFor(() => expect(mocked.fetchActiveGoal).toHaveBeenCalled());
     expect(screen.queryByRole('link', { name: 'Roadmap' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Progress' })).toBeNull();
     expect(rail().getByRole('button', { name: 'Pathways' })).toBeInTheDocument();
   });
 
-  it('marks Roadmap as the current page on /roadmap, and Today on /', async () => {
+  it('marks Roadmap as the current page on /roadmap, Progress on /progress, and Today on /', async () => {
     signedIn(GOAL);
     const { unmount } = renderAt('/roadmap');
     expect(await rail().findByRole('link', { name: 'Roadmap' })).toHaveAttribute('aria-current', 'page');
     expect(rail().getByRole('link', { name: 'Today' })).not.toHaveAttribute('aria-current');
+    expect(rail().getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
     unmount();
+    const progressRender = renderAt('/progress');
+    expect(await rail().findByRole('link', { name: 'Progress' })).toHaveAttribute('aria-current', 'page');
+    progressRender.unmount();
     renderAt('/');
     expect(await bottomBar().findByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
   });

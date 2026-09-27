@@ -1,8 +1,9 @@
 import React from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Target } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { cx } from '../ui/cx';
 import { PhaseGateOutcomeCard } from './PhaseGateOutcomeCard';
-import type { DailyTask, WeekTarget } from '../../types';
+import type { DailyTask, WeekTarget, WeeklyTestResult } from '../../types';
 import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
 import { formatTarget } from '../../lib/formatters';
 
@@ -13,6 +14,8 @@ export interface AdaptationMomentStepProps {
   nextWeekTasks?: DailyTask[];
   nextWeekTheme?: string | null;
   nextWeekTarget?: WeekTarget | null;
+  currentWeekTarget?: WeekTarget | null;
+  testResult?: WeeklyTestResult | null;
   milestoneGateTransition?: MilestoneGateTransition | null;
   onContinue: () => void;
 }
@@ -20,7 +23,8 @@ export interface AdaptationMomentStepProps {
 /**
  * Adaptation Moment Step (Phase 7 — BP §17–19, §33, §43, VDS §19, §26).
  * Visibly demonstrates to the user that next week has been shaped from their actual execution.
- * Strictly adheres to Future Honesty: displays only genuine server insight and upcoming focus.
+ * Strictly adheres to Future Honesty: displays only genuine server insight, benchmark target
+ * comparison, and upcoming focus.
  */
 export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
   currentWeekNumber,
@@ -29,6 +33,8 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
   nextWeekTasks,
   nextWeekTheme,
   nextWeekTarget,
+  currentWeekTarget,
+  testResult,
   milestoneGateTransition,
   onContinue,
 }) => {
@@ -55,6 +61,52 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
       {/* Phase-Gate Outcome Card (BP §18) */}
       {milestoneGateTransition && (
         <PhaseGateOutcomeCard gate={milestoneGateTransition} />
+      )}
+
+      {/* Benchmark Target Comparison (OD-1a, BP §17, §33) */}
+      {testResult && (
+        <div
+          data-testid="adaptation-target-comparison"
+          className="rounded-card border border-border bg-surface p-4 text-small space-y-2.5"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
+              <Target aria-hidden="true" strokeWidth={1.5} className="size-3.5 text-accent shrink-0" />
+              <span>Benchmark Comparison</span>
+            </div>
+            <span
+              className={cx(
+                'text-micro font-semibold uppercase tracking-wider',
+                testResult.passed ? 'text-accent' : 'text-caution'
+              )}
+            >
+              {testResult.passed ? 'Target Met' : 'In Progress'}
+            </span>
+          </div>
+
+          <div className="flex items-start justify-between gap-3 pt-0.5">
+            <span className="text-text-secondary shrink-0">Recorded Result</span>
+            <span className="font-semibold text-text text-right tabular-nums">
+              {testResult.value}
+              {testResult.unit ? ` ${testResult.unit}` : ''}
+            </span>
+          </div>
+
+          {currentWeekTarget && (
+            <div className="flex items-start justify-between gap-3 border-t border-border/50 pt-2">
+              <span className="text-text-secondary shrink-0">Week Target</span>
+              <span className="font-medium text-text text-right tabular-nums">
+                {formatTarget(currentWeekTarget)}
+              </span>
+            </div>
+          )}
+
+          {testResult.note && (
+            <div className="border-t border-border/50 pt-2 text-micro text-text-secondary italic">
+              "{testResult.note}"
+            </div>
+          )}
+        </div>
       )}
 
       {/* Server Adaptation Insight (BP §33, §43) */}

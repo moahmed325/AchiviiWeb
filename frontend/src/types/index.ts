@@ -281,6 +281,7 @@ export interface WeeklyReviewResponse {
     nextPhase: string;
     benchmarkMet: boolean;
   } | null;
+  testResult?: import('./review').WeeklyTestResult | null;
 }
 
 export * from './journey';

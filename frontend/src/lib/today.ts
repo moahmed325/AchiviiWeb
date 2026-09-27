@@ -151,12 +151,21 @@ export function isYesterdayPending(tasks: DailyTask[], now: Date): boolean {
 }
 
 /**
- * Checks if all tasks in the current week have dates strictly before today's UTC date.
- * When true, all scheduled days have passed and the weekly review is due.
+ * Checks whether the weekly review is due.
+ * Returns true if all tasks in the current week have dates strictly before today's UTC date
+ * OR if all scheduled active practice tasks for the week are completed.
  */
 export function isWeekReviewDue(tasks: DailyTask[], now: Date): boolean {
   if (tasks.length === 0) return false;
   const today = todayKey(now);
-  return tasks.every((t) => t.date < today);
+  if (tasks.every((t) => t.date < today)) return true;
+
+  const activePracticeTasks = tasks.filter((t) => !t.isRestDay);
+  if (activePracticeTasks.length > 0 && activePracticeTasks.every((t) => t.status === 'completed')) {
+    return true;
+  }
+
+  return false;
 }
+
 

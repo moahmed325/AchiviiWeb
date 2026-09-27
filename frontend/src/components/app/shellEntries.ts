@@ -23,6 +23,9 @@ export interface ShellEntries {
   roadmapActive: boolean;
   /** Roadmap needs an active goal; without one ProtectedRoute would send it to onboarding, so it leads nowhere real. */
   showRoadmap: boolean;
+  progressActive: boolean;
+  /** Progress needs an active goal — same rationale as showRoadmap (ND-8 Option A). */
+  showProgress: boolean;
 }
 
 /** Today is active on `/` (OD-3). */
@@ -31,5 +34,7 @@ export function shellEntries(pathname: string, hasGoal: boolean): ShellEntries {
     todayActive: pathname === '/',
     roadmapActive: pathname === '/roadmap',
     showRoadmap: hasGoal,
+    progressActive: pathname === '/progress',
+    showProgress: hasGoal,
   };
 }

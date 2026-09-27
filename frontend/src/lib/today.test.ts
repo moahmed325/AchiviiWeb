@@ -226,14 +226,25 @@ describe('isWeekReviewDue', () => {
     expect(isWeekReviewDue(pastTasks, friday)).toBe(true);
   });
 
-  it('returns false when at least one task date is today or in the future', () => {
+  it('returns false when at least one task date is today or in the future and practice tasks are pending', () => {
     const currentTasks = [
-      task({ id: 't1', date: '2026-09-21' }),
-      task({ id: 't2', date: '2026-09-23' }),
-      task({ id: 't3', date: '2026-09-24' }),
+      task({ id: 't1', date: '2026-09-21', status: 'completed' }),
+      task({ id: 't2', date: '2026-09-23', status: 'pending' }),
+      task({ id: 't3', date: '2026-09-24', status: 'pending' }),
     ];
     const wednesday = new Date('2026-09-23T12:00:00Z');
     expect(isWeekReviewDue(currentTasks, wednesday)).toBe(false);
+  });
+
+  it('returns true when all active practice tasks are completed even if task dates are in the future', () => {
+    const currentTasks = [
+      task({ id: 't1', date: '2026-09-21', status: 'completed' }),
+      task({ id: 't2', date: '2026-09-23', status: 'completed' }),
+      task({ id: 't3', date: '2026-09-24', status: 'completed' }),
+      task({ id: 't4', date: '2026-09-25', isRestDay: true, status: 'pending' }),
+    ];
+    const wednesday = new Date('2026-09-23T12:00:00Z');
+    expect(isWeekReviewDue(currentTasks, wednesday)).toBe(true);
   });
 
   it('returns false when there are no tasks', () => {

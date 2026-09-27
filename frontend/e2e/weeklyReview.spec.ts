@@ -96,10 +96,10 @@ test.describe('Weekly Review Flow (M7.2)', () => {
     await expect(dialog.getByText('Great week! Next week will build on this momentum.')).toBeVisible();
     await expect(dialog.getByText('Focus')).toBeVisible();
     await expect(dialog.getByText('Form & Consistency')).toBeVisible();
-    await expect(dialog.getByText('Target')).toBeVisible();
-    await expect(dialog.getByText('First working milestone deliverable')).toBeVisible();
+    await expect(dialog.getByText('Target', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('First working milestone deliverable').first()).toBeVisible();
     await expect(dialog.getByText('Weekly test')).toBeVisible();
-    await expect(dialog.getByText('Execute 5 continuous practice rounds')).toBeVisible();
+    await expect(dialog.getByText('Execute 5 continuous practice rounds').first()).toBeVisible();
 
     // Reflection input field
     const textarea = dialog.getByPlaceholder(/Morning sessions went well/i);
@@ -333,5 +333,133 @@ test.describe('Weekly Review Flow (M7.2)', () => {
     const continueBtn = dialog.getByRole('button', { name: 'Continue to Today' });
     await continueBtn.click();
     await expect(dialog).not.toBeVisible();
+  });
+
+  test('persists reflection draft across modal dismissal and page reload (M7.4-R1)', async ({ page }) => {
+    const reviewGoal = createReviewGoal();
+    await mockApi(page, { goal: reviewGoal });
+    await signIn(page);
+    await page.goto('/');
+
+    const reviewSection = page.locator('section[aria-labelledby="review-due-heading"]');
+    await reviewSection.getByRole('button', { name: 'Start weekly review' }).click();
+
+    const dialog = page.getByRole('dialog');
+    const textarea = dialog.getByPlaceholder(/Morning sessions went well/i);
+    await textarea.fill('Mid-review draft thought that should not be lost.');
+
+    // Dismiss modal via Cancel
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).not.toBeVisible();
+
+    // Reopen modal: draft is restored
+    await reviewSection.getByRole('button', { name: 'Start weekly review' }).click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByPlaceholder(/Morning sessions went well/i)).toHaveValue(
+      'Mid-review draft thought that should not be lost.'
+    );
+
+    // Refresh page: draft survives reload
+    await page.reload();
+    await reviewSection.getByRole('button', { name: 'Start weekly review' }).click();
+    await expect(dialog.getByPlaceholder(/Morning sessions went well/i)).toHaveValue(
+      'Mid-review draft thought that should not be lost.'
+    );
+  });
+
+  test('week 12 displays Enter Closing Stretch CTA, never Start Week 13, and shows Closing Stretch Ready title (M7.4-R3)', async ({ page }) => {
+    const base = createReviewGoal();
+    const week12Goal = {
+      ...base,
+      currentWeek: 12,
+      roadmapWeeks: [
+        {
+          ...base.roadmapWeeks[0],
+          weekNumber: 12,
+          theme: 'Closing Execution',
+        },
+      ],
+      dailyTasks: base.dailyTasks.map((t) => ({ ...t, weekNumber: 12 })),
+    };
+
+    await mockApi(page, { goal: week12Goal });
+    await page.route('**/api/goal/weeks/12/review', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          review: {
+            id: 'rev-w12',
+            goalId: week12Goal.id,
+            weekNumber: 12,
+            tasksPlanned: 6,
+            tasksCompleted: 6,
+            scorePercentage: 100,
+            reflection: 'Final week complete.',
+            aiAdaptationInsight: 'Unlocked the closing stretch.',
+            created_at: '',
+          },
+          scorePercentage: 100,
+          nextWeekNumber: null, // Signals closing stretch
+          nextWeekTasks: [],
+        }),
+      });
+    });
+
+    await signIn(page);
+    await page.goto('/');
+
+    const reviewSection = page.locator('section[aria-labelledby="review-due-heading"]');
+    await expect(
+      reviewSection.getByText("You've reached the end of Week 12. Complete this review to unlock your final closing stretch (days 85–90).")
+    ).toBeVisible();
+
+    await reviewSection.getByRole('button', { name: 'Start weekly review' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { level: 2, name: 'Week 12 Review' })).toBeVisible();
+
+    // Verify button copy is 'Enter Closing Stretch' and NEVER 'Start Week 13'
+    await expect(dialog.getByRole('button', { name: 'Start Week 13' })).toHaveCount(0);
+    const enterBtn = dialog.getByRole('button', { name: 'Enter Closing Stretch' });
+    await expect(enterBtn).toBeVisible();
+    await enterBtn.click();
+
+    // Step 2 adaptation title and closing stretch messaging
+    await expect(dialog.getByText('Your closing stretch is ready')).toBeVisible();
+    await expect(
+      dialog.getByText('You have completed the 12 planned weeks. Welcome to the Closing Stretch.')
+    ).toBeVisible();
+    await expect(dialog.getByRole('heading', { level: 2, name: 'Closing Stretch Ready' })).toBeAttached();
+  });
+
+  test('accessible everyday review entry point can be opened from WeekGlance and footer nav (M7.4-R5)', async ({ page }) => {
+    // Normal in-progress week: reviewDue is false
+    const normalGoal = shellGoal();
+    await mockApi(page, { goal: normalGoal });
+    await signIn(page);
+    await page.goto('/');
+
+    // Review due banner is not present
+    await expect(page.locator('section[aria-labelledby="review-due-heading"]')).toHaveCount(0);
+
+    // WeekGlance header has 'Review week' button
+    const glanceReviewBtn = page.getByRole('button', { name: 'Review week' });
+    await expect(glanceReviewBtn).toBeVisible();
+    await glanceReviewBtn.click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
+
+    // Close modal
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).not.toBeVisible();
+
+    // Footer nav has 'Weekly review' button
+    const navReviewBtn = page.getByRole('button', { name: 'Weekly review' });
+    await expect(navReviewBtn).toBeVisible();
+    await navReviewBtn.click();
+    await expect(dialog).toBeVisible();
   });
 });

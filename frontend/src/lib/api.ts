@@ -2,11 +2,11 @@ import { User, AuthResponse } from '../types';
 
 export function resolveApiBaseUrl(): string {
   // Default to localhost:5000 when in Vite dev mode or connected via localhost / 127.0.0.1
-  const isDev = Boolean((import.meta as any).env?.DEV);
+  const isDev = Boolean(import.meta.env?.DEV);
   const isLocalHost = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1');
 
   if (isDev || isLocalHost) {
-    const devEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
+    const devEnvUrl = import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL;
     if (devEnvUrl && typeof devEnvUrl === 'string' && devEnvUrl.trim() !== '') {
       return devEnvUrl.replace(/\/+$/, '');
     }
@@ -14,7 +14,7 @@ export function resolveApiBaseUrl(): string {
   }
 
   // In cloud production deployment (non-localhost), target configured URL or Render fallback
-  const prodEnvUrl = (import.meta as any).env?.VITE_API_BASE_URL || (import.meta as any).env?.VITE_API_URL;
+  const prodEnvUrl = import.meta.env?.VITE_API_BASE_URL || import.meta.env?.VITE_API_URL;
   if (prodEnvUrl && typeof prodEnvUrl === 'string' && prodEnvUrl.trim() !== '') {
     return prodEnvUrl.replace(/\/+$/, '');
   }
@@ -219,15 +219,20 @@ export async function updateDailyTask(
 export async function submitWeeklyReview(
   weekNumber: number,
   reflection: string,
-  token: string
+  token: string,
+  testResult?: import('../types').WeeklyTestResult | null
 ): Promise<import('../types').WeeklyReviewResponse> {
+  const payload: { reflection: string; testResult?: import('../types').WeeklyTestResult | null } = { reflection };
+  if (testResult !== undefined) {
+    payload.testResult = testResult;
+  }
   const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/review`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({ reflection }),
+    body: JSON.stringify(payload),
   });
 
   const data = await response.json();

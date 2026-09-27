@@ -26,6 +26,7 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
   target,
   test,
 }) => {
+  const isEmptyWeek = completedSessions === 0;
   const isHighCompletion = scorePercentage >= 80;
 
   return (
@@ -37,7 +38,11 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
       <div
         className={cx(
           'mt-1 font-mono text-numeral tabular-nums',
-          isHighCompletion ? 'text-accent' : 'text-caution'
+          isEmptyWeek
+            ? 'text-text-secondary'
+            : isHighCompletion
+            ? 'text-accent'
+            : 'text-caution'
         )}
       >
         {scorePercentage}%
@@ -48,7 +53,11 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
       </div>
 
       <div className="mt-3 text-small">
-        {isHighCompletion ? (
+        {isEmptyWeek ? (
+          <p className="font-medium text-text-secondary">
+            This week had no logged practice. Every week is a chance to reset your pace and adapt.
+          </p>
+        ) : isHighCompletion ? (
           <p className="flex items-center justify-center gap-1.5 font-medium text-accent">
             <Flame aria-hidden="true" strokeWidth={1.75} className="size-4 shrink-0" />
             <span>Great week! Next week will build on this momentum.</span>

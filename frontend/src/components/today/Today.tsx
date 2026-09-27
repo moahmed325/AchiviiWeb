@@ -75,22 +75,42 @@ const dayState = (task: DailyTask, now: Date) =>
   task.status === 'completed' ? 'done' : task.isRestDay ? 'rest day' : isToday(task, now) ? 'to do' : 'not done';
 
 /** The current week: done, rest, today and the rest, from real task status. Choosing a day shows its step. */
-const WeekGlance: React.FC<{ tasks: DailyTask[]; selectedId?: string; now: Date; onSelect: (id: string) => void }> = ({
+const WeekGlance: React.FC<{
+  tasks: DailyTask[];
+  selectedId?: string;
+  now: Date;
+  onSelect: (id: string) => void;
+  onOpenReview?: () => void;
+}> = ({
   tasks,
   selectedId,
   now,
   onSelect,
+  onOpenReview,
 }) => {
   const { practiceDays, practiceDone } = weekProgress(tasks);
   return (
     <section aria-labelledby="week-heading" className="mt-14">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="week-heading" className="text-body font-medium text-text">
-          This week
-        </h2>
-        <p className="tabular text-small text-text-secondary">
-          {practiceDone} of {practiceDays} practice {practiceDays === 1 ? 'day' : 'days'} done
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-baseline gap-3">
+          <h2 id="week-heading" className="text-body font-medium text-text">
+            This week
+          </h2>
+          <p className="tabular text-small text-text-secondary">
+            {practiceDone} of {practiceDays} practice {practiceDays === 1 ? 'day' : 'days'} done
+          </p>
+        </div>
+        {onOpenReview && (
+          <Button
+            type="button"
+            variant="quiet"
+            size="sm"
+            onClick={onOpenReview}
+            className="min-h-[44px] text-text-secondary hover:text-text"
+          >
+            Review week
+          </Button>
+        )}
       </div>
       <ul className="mt-4 grid grid-cols-7 divide-x divide-border overflow-hidden rounded-card border border-border">
         {tasks.map((task) => {
@@ -268,7 +288,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 Week {goal.currentWeek || 1} is ready for review
               </h2>
               <p className="mt-1 text-small text-text-secondary">
-                You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path.
+                {goal.currentWeek && goal.currentWeek >= 12
+                  ? "You've reached the end of Week 12. Complete this review to unlock your final closing stretch (days 85–90)."
+                  : "You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path."}
               </p>
             </div>
             <Button
@@ -721,11 +743,27 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         )}
       </section>
 
-      {tasks.length > 0 && <WeekGlance tasks={tasks} selectedId={task?.id} now={now} onSelect={selectDay} />}
+      {tasks.length > 0 && (
+        <WeekGlance
+          tasks={tasks}
+          selectedId={task?.id}
+          now={now}
+          onSelect={selectDay}
+          onOpenReview={() => setReviewOpen(true)}
+        />
+      )}
 
       <nav aria-label="More of your plan" className="mt-12 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button asChild variant="secondary" trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}>
           <Link to="/roadmap">Roadmap</Link>
+        </Button>
+        <Button
+          type="button"
+          variant="quiet"
+          onClick={() => setReviewOpen(true)}
+          className="min-h-[44px] text-text-secondary hover:text-text"
+        >
+          Weekly review
         </Button>
       </nav>
 
@@ -745,6 +783,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         goal={goal}
         token={token || ''}
         onGoalUpdated={goalContext.updateActiveGoal}
+        apiStatus={apiStatus}
       />
     </main>
   );

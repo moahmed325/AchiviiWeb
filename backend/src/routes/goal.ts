@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import {
@@ -493,9 +494,71 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
   }
 });
 
+export interface WeeklyTestResultInput {
+  value: string | number;
+  passed: boolean;
+  unit?: string;
+  note?: string;
+}
+
+export function validateWeeklyTestResult(
+  input: unknown
+): { valid: true; result: WeeklyTestResultInput } | { valid: false; error: string } {
+  if (input === null || input === undefined) {
+    return { valid: false, error: 'testResult cannot be null or undefined when provided.' };
+  }
+  if (typeof input !== 'object' || Array.isArray(input)) {
+    return { valid: false, error: 'testResult must be an object.' };
+  }
+
+  const record = input as Record<string, unknown>;
+
+  // value: required, non-empty string | number
+  if (record.value === undefined || record.value === null) {
+    return { valid: false, error: 'testResult.value is required.' };
+  }
+  if (typeof record.value === 'string') {
+    if (record.value.trim() === '') {
+      return { valid: false, error: 'testResult.value must not be empty.' };
+    }
+  } else if (typeof record.value === 'number') {
+    if (Number.isNaN(record.value)) {
+      return { valid: false, error: 'testResult.value must be a valid number.' };
+    }
+  } else {
+    return { valid: false, error: 'testResult.value must be a string or number.' };
+  }
+
+  // passed: required boolean
+  if (typeof record.passed !== 'boolean') {
+    return { valid: false, error: 'testResult.passed is required and must be a boolean.' };
+  }
+
+  // unit: optional string
+  if (record.unit !== undefined && record.unit !== null && typeof record.unit !== 'string') {
+    return { valid: false, error: 'testResult.unit must be a string when provided.' };
+  }
+
+  // note: optional string
+  if (record.note !== undefined && record.note !== null && typeof record.note !== 'string') {
+    return { valid: false, error: 'testResult.note must be a string when provided.' };
+  }
+
+  return {
+    valid: true,
+    result: {
+      value: typeof record.value === 'string' ? record.value.trim() : record.value,
+      passed: record.passed,
+      ...(typeof record.unit === 'string' && record.unit.trim() !== '' ? { unit: record.unit.trim() } : {}),
+      ...(typeof record.note === 'string' && record.note.trim() !== '' ? { note: record.note.trim() } : {}),
+    },
+  };
+}
+
 /**
  * POST /api/goal/weeks/:weekNumber/review
  * Submits weekly review, computes adherence score against 85% target,
+ * persists optional benchmark test results (OD-1a Option A),
  * and dynamically adapts/generates the next week's tasks.
  */
 goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response): Promise<void> => {
@@ -507,7 +570,17 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     }
 
     const weekNum = parseInt(req.params.weekNumber, 10);
-    const { reflection } = req.body;
+    const { reflection, testResult } = req.body;
+
+    let sanitizedTestResult: WeeklyTestResultInput | null = null;
+    if (testResult !== undefined && testResult !== null) {
+      const validation = validateWeeklyTestResult(testResult);
+      if (!validation.valid) {
+        res.status(400).json({ error: validation.error });
+        return;
+      }
+      sanitizedTestResult = validation.result;
+    }
 
     const goal = await prisma.goal.findFirst({
       where: { userId: user.id, status: 'active' },
@@ -556,7 +629,12 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       });
       await prisma.roadmapWeek.update({
         where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
-        data: { status: 'completed', executionScore: score, reviewNotes: reflection || '' },
+        data: {
+          status: 'completed',
+          executionScore: score,
+          reviewNotes: reflection || '',
+          testResult: sanitizedTestResult ? (sanitizedTestResult as unknown as Prisma.InputJsonObject) : Prisma.DbNull,
+        },
       });
       if (written) {
         nextTasks = await saveWeekTasks(goal.id, nextWeek, written);
@@ -575,6 +653,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
         nextWeekTasks: nextTasks,
         isMilestoneCheckpoint: Boolean(gate),
         milestoneGateTransition: gate,
+        testResult: sanitizedTestResult,
       });
       return;
     }
@@ -626,7 +705,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       data: {
         status: 'completed',
         executionScore: scorePercentage,
-        reviewNotes: reflection || ''
+        reviewNotes: reflection || '',
+        testResult: sanitizedTestResult ? (sanitizedTestResult as unknown as Prisma.InputJsonObject) : Prisma.DbNull,
       }
     });
 
@@ -761,7 +841,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       nextWeekNumber: nextWeekNum <= 12 ? nextWeekNum : null,
       nextWeekTasks,
       isMilestoneCheckpoint,
-      milestoneGateTransition
+      milestoneGateTransition,
+      testResult: sanitizedTestResult,
     });
   } catch (err: any) {
     console.error('[GoalRouter] Weekly review error:', err);

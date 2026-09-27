@@ -133,7 +133,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-5 | Pathway display copy | Product | Decided (A) | 3 |
 | ND-6 | Free custom-goal entry before Phase 10 | Product | Decided (A) | 3 |
 | ND-7 | Application shell and navigation | Design | Decided (A narrowed) | 5 |
-| ND-8 | Progress: separate page or Journey layer | Design | Proposed | 8 |
+| ND-8 | Progress: separate page or Journey layer | Design | Decided (A) | 8 |
 | ND-9 | Payments in scope or not | Product | Proposed | 10 |
 | ND-10 | Custom-goal gating | Product | Proposed | 10 |
 | ND-11 | Coach scope | Product | Proposed | 10 |
@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phase 6 is complete. Phase 7 (Weekly review + adaptation) is unblocked and **IN PROGRESS** (M7.1 done). OD-1a is Decided (Option A: approve named backend allowance for nullable `RoadmapWeek.testResult` storage and target comparison without altering adaptation AI logic). Authoritative review contracts defined in `frontend/src/types/review.ts`. Backend changes are strictly deferred to M7.5. M7.2 (Review flow UI) may start when Mo sends it.
+**What blocks the next phase:** Phase 7 is complete. Phase 8 (Progress) is unblocked and **IN PROGRESS**. Decision ND-8 is formally Decided (Option A: dedicated `/progress` page). M8.1 is done. M8.2 (Completion and milestones) may begin.
 
 ---
 
@@ -1324,11 +1324,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed — depends on OD-1a |
+| Status | Decided (A) |
 | Category | Design |
 | Needed by | 8 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 8 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo, at M8.1 |
 
 **Context.** BP §27 lists Progress as its own area, and VDS §26 gives it its own visual level. Its content depends on data: completion, milestones and adaptation insights exist today; results exist only if OD-1a is approved.
 
@@ -1342,9 +1342,17 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** If OD-1a is **A**, choose a **separate page**; otherwise choose a **Journey layer**, promoted to a page later.
 
-**Decision.** —
+**Decision.** **A — A separate page (`/progress`).** Approved by Mo at M8.1 (2026-09-27). Progress is a dedicated destination at `/progress`, attached to the application shell navigation per BP §27. Now that Decision OD-1a (Option A) has delivered stored weekly benchmark test results in Phase 7 (M7.5), Progress has substantive data across four meaningful layers: work completed by week and phase, phase gate milestones achieved, real benchmark results vs targets, and weekly adaptation insights.
 
-**Related.** OD-1a, ND-7.
+**Consequences.**
+- Dedicated route `/progress` added to `frontend/src/App.tsx` (wrapped in `ProtectedRoute`).
+- Navigation item `Progress` added to the application shell navbar and mobile navigation.
+- Backed by `frontend/src/pages/ProgressPage.tsx` and modular components under `frontend/src/components/progress/`.
+- Visual Level 3 (VDS §26): restrained, typographic, large numerals (`tabular font-mono`), big numbers as visual objects, no fake gamification or chart clutter (BP §43, VDS §31).
+
+**Implemented.** Decided 2026-09-27 (M8.1). Architecture and component implementation scheduled across M8.2–M8.4.
+
+**Related.** OD-1a, ND-7, BP §27, VDS §26, VDS §31.
 
 ---
 
