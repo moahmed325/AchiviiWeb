@@ -142,9 +142,9 @@
   }
 
   body {
-    background-color: #050807;
-    color: #e5ebe7;
-    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-text);
+    font-family: var(--font-ui);
     min-height: 100dvh;
     -webkit-overflow-scrolling: touch;
   }

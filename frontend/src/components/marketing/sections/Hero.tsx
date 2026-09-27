@@ -16,7 +16,7 @@ export const Hero: React.FC = () => (
         </Eyebrow>
         <h1
           id="hero-title"
-          className="mt-7 max-w-[11ch] text-[clamp(3rem,7.4vw,6.25rem)] font-semibold leading-[0.95] tracking-[-0.045em] text-text"
+          className="mt-7 max-w-[11ch] text-display font-semibold leading-[0.95] tracking-[-0.045em] text-text"
         >
           Your ambition deserves a path.
         </h1>

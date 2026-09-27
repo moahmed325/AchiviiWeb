@@ -17,7 +17,7 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
       <nav
         aria-label="Primary"
         className={`mx-auto flex max-w-[1180px] items-center justify-between gap-4 rounded-full border py-1.5 pl-5 pr-1.5 transition-[background-color,border-color,backdrop-filter] duration-500 ${
-          scrolled ? 'border-border bg-background/75 backdrop-blur-xl' : 'border-transparent bg-transparent'
+          scrolled ? 'border-border bg-background/75 backdrop-blur-xl' : 'border-border/60 bg-background/35 backdrop-blur-md'
         }`}
       >
         <a href="#top" className="flex min-h-11 items-center rounded-full" aria-label="Achivii, back to top">
