@@ -61,7 +61,7 @@ export const App: React.FC = () => {
               <Route
                 path="/progress"
                 element={
-                  <ProtectedRoute requireGoal={true}>
+                  <ProtectedRoute requireGoal={false}>
                     <React.Suspense fallback={null}>
                       <ProgressPage />
                     </React.Suspense>

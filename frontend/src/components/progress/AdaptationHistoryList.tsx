@@ -118,7 +118,7 @@ export const AdaptationHistoryList: React.FC<AdaptationHistoryListProps> = ({ go
           >
             {/* Header row */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="font-ui-mono text-micro uppercase text-text-muted">
+              <span className="font-ui-mono text-micro uppercase text-text-secondary">
                 Week {entry.weekNumber}
               </span>
               <span className="text-small text-text-secondary">{entry.theme}</span>
@@ -145,10 +145,10 @@ export const AdaptationHistoryList: React.FC<AdaptationHistoryListProps> = ({ go
                 <MessageSquareText
                   aria-hidden="true"
                   strokeWidth={1.5}
-                  className="mt-0.5 size-4 shrink-0 text-text-muted"
+                  className="mt-0.5 size-4 shrink-0 text-text-secondary"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-micro font-medium uppercase text-text-muted">Your reflection</p>
+                  <p className="text-micro font-medium uppercase text-text-secondary">Your reflection</p>
                   <p className="mt-0.5 text-small text-text-secondary">{entry.reflection}</p>
                 </div>
               </div>
@@ -163,7 +163,7 @@ export const AdaptationHistoryList: React.FC<AdaptationHistoryListProps> = ({ go
                   className="mt-0.5 size-4 shrink-0 text-accent"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-micro font-medium uppercase text-text-muted">Adaptation insight</p>
+                  <p className="text-micro font-medium uppercase text-text-secondary">Adaptation insight</p>
                   <p className="mt-0.5 text-small text-text-secondary">{entry.aiAdaptationInsight}</p>
                 </div>
               </div>

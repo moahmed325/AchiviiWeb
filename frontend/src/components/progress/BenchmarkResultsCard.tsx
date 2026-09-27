@@ -86,13 +86,13 @@ const StatusBadge: React.FC<{ status: BenchmarkStatus }> = ({ status }) => {
   }
   if (status === 'no_result') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 font-ui-mono text-micro uppercase text-text-muted">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 font-ui-mono text-micro uppercase text-text-secondary">
         No result recorded
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 font-ui-mono text-micro uppercase text-text-muted">
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 font-ui-mono text-micro uppercase text-text-secondary">
       <Clock aria-hidden="true" strokeWidth={1.5} className="size-3" />
       Upcoming
     </span>
@@ -131,7 +131,7 @@ export const BenchmarkResultsCard: React.FC<BenchmarkResultsCardProps> = ({ goal
             >
               {/* Header */}
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <span className="font-ui-mono text-micro uppercase text-text-muted">
+                <span className="font-ui-mono text-micro uppercase text-text-secondary">
                   Week {entry.weekNumber}
                 </span>
                 <span className="text-small text-text-secondary">
@@ -143,12 +143,12 @@ export const BenchmarkResultsCard: React.FC<BenchmarkResultsCardProps> = ({ goal
               <div className="mt-2 space-y-1">
                 {targetStr && (
                   <p className="flex items-start gap-2 text-small text-text-secondary">
-                    <Minus aria-hidden="true" strokeWidth={1.5} className="mt-1 size-3 shrink-0 text-text-muted" />
+                    <Minus aria-hidden="true" strokeWidth={1.5} className="mt-1 size-3 shrink-0 text-text-secondary" />
                     <span>Target: {targetStr}</span>
                   </p>
                 )}
                 <p className="flex items-start gap-2 text-small text-text-secondary">
-                  <Minus aria-hidden="true" strokeWidth={1.5} className="mt-1 size-3 shrink-0 text-text-muted" />
+                  <Minus aria-hidden="true" strokeWidth={1.5} className="mt-1 size-3 shrink-0 text-text-secondary" />
                   <span>Pass criteria: {entry.test.passIf}</span>
                 </p>
               </div>
@@ -172,7 +172,7 @@ export const BenchmarkResultsCard: React.FC<BenchmarkResultsCardProps> = ({ goal
 
               {/* Upcoming: show instructions preview */}
               {entry.status === 'upcoming' && entry.test.instructions && (
-                <p className="mt-2 text-small text-text-muted">
+                <p className="mt-2 text-small text-text-secondary">
                   {entry.test.instructions}
                 </p>
               )}

@@ -121,7 +121,7 @@ export const ProgressPage: React.FC = () => {
         <p className="font-ui-mono text-micro uppercase text-accent-hover">Your progress</p>
         <h1 className="text-h2 text-text">{activeGoal.rawGoal}</h1>
         <p className="text-body text-text-secondary">{activeGoal.clarifiedOutcome}</p>
-        <p className="mt-1 text-small text-text-muted">
+        <p className="mt-1 text-small text-text-secondary">
           Day {currentDay} of 90 · Week {currentWeek}
           {activePhase ? ` · ${activePhase}` : ''}
         </p>

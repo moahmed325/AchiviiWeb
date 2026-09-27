@@ -88,7 +88,7 @@ const MetricCard: React.FC<{
       {value}
     </span>
     <span className="text-small text-text-secondary">{label}</span>
-    {sublabel && <span className="text-micro text-text-muted">{sublabel}</span>}
+    {sublabel && <span className="text-micro text-text-secondary">{sublabel}</span>}
   </div>
 );
 

@@ -72,7 +72,7 @@ const statusStyles: Record<WeekEntry['status'], string> = {
 const statusLabel: Record<WeekEntry['status'], { text: string; className: string }> = {
   completed: { text: 'Done', className: 'text-accent-hover' },
   active: { text: 'Now', className: 'text-accent-hover' },
-  upcoming: { text: 'Ahead', className: 'text-text-muted' },
+  upcoming: { text: 'Ahead', className: 'text-text-secondary' },
 };
 
 /**
@@ -96,7 +96,6 @@ export const WeekBreakdownList: React.FC<WeekBreakdownListProps> = ({ goal, clas
             className={cx(
               'flex items-center gap-3 rounded-card border px-4 py-3 sm:px-5 sm:py-3.5 transition-colors duration-(--duration-quick)',
               statusStyles[week.status],
-              week.status === 'upcoming' && 'opacity-60',
             )}
           >
             {/* Week number */}
@@ -107,7 +106,7 @@ export const WeekBreakdownList: React.FC<WeekBreakdownListProps> = ({ goal, clas
                   ? 'bg-accent/15 text-accent-hover'
                   : week.status === 'completed'
                     ? 'bg-text/[0.06] text-text-secondary'
-                    : 'bg-text/[0.04] text-text-muted',
+                    : 'bg-text/[0.04] text-text-secondary',
               )}
             >
               {week.weekNumber}
@@ -118,13 +117,13 @@ export const WeekBreakdownList: React.FC<WeekBreakdownListProps> = ({ goal, clas
               <p
                 className={cx(
                   'truncate text-small font-medium',
-                  week.status === 'upcoming' ? 'text-text-muted' : 'text-text',
+                  week.status === 'upcoming' ? 'text-text-secondary' : 'text-text',
                 )}
               >
                 {week.theme}
               </p>
               {week.practiceTotal > 0 && (
-                <p className="text-micro text-text-muted">
+                <p className="text-micro text-text-secondary">
                   {week.practiceCompleted} of {week.practiceTotal} practice days
                 </p>
               )}

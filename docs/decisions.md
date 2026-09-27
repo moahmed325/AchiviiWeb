@@ -14,7 +14,7 @@ Part of the project framework:
 
 A phase may not start while a decision it depends on is **Open** or **Proposed**. `docs/prompts.md` enforces this with a decision gate at the top of every phase prompt.
 
-Last updated: 2026-09-26
+Last updated: 2026-09-27
 
 ---
 
@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phase 7 is complete. Phase 8 (Progress) is unblocked and **IN PROGRESS**. Decision ND-8 is formally Decided (Option A: dedicated `/progress` page). M8.1 is done. M8.2 (Completion and milestones) may begin.
+**What blocks the next phase:** Phases 0–8 are complete (awaiting Mo's review). Phase 9 (Achievement) is next and blocked by decisions OD-1b (goal completion transition) and OD-2.
 
 ---
 
@@ -1349,8 +1349,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 - Navigation item `Progress` added to the application shell navbar and mobile navigation.
 - Backed by `frontend/src/pages/ProgressPage.tsx` and modular components under `frontend/src/components/progress/`.
 - Visual Level 3 (VDS §26): restrained, typographic, large numerals (`tabular font-mono`), big numbers as visual objects, no fake gamification or chart clutter (BP §43, VDS §31).
-
-**Implemented.** Decided 2026-09-27 (M8.1). Architecture and component implementation scheduled across M8.2–M8.4.
+**Implemented.** Decided 2026-09-27 (M8.1). Implemented and verified across M8.2–M8.5 (dedicated route `/progress`, shell navigation with `TrendingUp` icon, Visual Level 3 analytical presentation across `frontend/src/components/progress/`, axe-clean E2E test suite in `frontend/e2e/progress.spec.ts`). Zero backend edits.
 
 **Related.** OD-1a, ND-7, BP §27, VDS §26, VDS §31.
 
@@ -1675,6 +1674,6 @@ None yet.
 | 2026-09-25 | Phase 6 M6.1: OD-2 decided as Option A (closing stretch on days 85–90, 12 planned weeks on days 1–84, clamp 1–90); OD-7 constraint confirmed (2–4 method phases for v2, 3 fixed phases for v1); canonical Journey types created in `frontend/src/types/journey.ts`; React compiler/rules-of-hooks ordering fixed in `RoadmapPage.tsx`. |
 | 2026-09-26 | Phase 6 M6.2–M6.6 complete: pure adapter `toJourneyData` implemented; desktop staircase (Layer 2) and strategic roadmap (Layer 3) delivered; mobile vertical spine delivered with "You are here" auto-scroll and 44px tap targets; progress motion and reduced-motion path verified. Phase 6 exit criteria met and regression pass complete (128 determinism tests green under repeat-each=2). Phase 6 marked `COMPLETE` (awaiting Mo's review); Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a. |
 | 2026-09-26 | Phase 7 M7.1: OD-1a Decided as Option A (approve named backend allowance for nullable `RoadmapWeek.testResult` storage and target comparison without altering adaptation AI logic). Authoritative review contracts defined in `frontend/src/types/review.ts`. M7.5 backend specification formalized. Phase 7 is unblocked and `IN PROGRESS`. |
-
-
-
+| 2026-09-27 | Phase 7 complete: OD-1a implemented and verified across M7.2–M7.6. Review flow UI, adaptation moment, failure/retry states, backend test result persistence, and honest target comparison delivered. Full test baseline green. Phase 7 marked COMPLETE (awaiting Mo's review). Phase 8 (Progress) is unblocked and next. |
+| 2026-09-27 | Phase 8 M8.1: ND-8 Decided as Option A (dedicated Progress page `/progress` attached to app shell navigation per BP §27); zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
+| 2026-09-27 | Phase 8 complete: ND-8 implemented and verified across M8.2–M8.5. Dedicated `/progress` route, shell navigation, completion metrics, phase milestones, benchmark results card, and adaptation history delivered with zero backend edits. Playwright suite `e2e/progress.spec.ts` passes 20/20 tests. Phase 8 marked COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next and blocked by OD-1b and OD-2. |

@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-27 · Current position: **Phases 0–7 complete. Phase 8 (Progress) is IN PROGRESS (M8.1–M8.4 done, M8.5 next).**
+Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is next.**
 
 ---
 
@@ -74,7 +74,7 @@ Every phase in section 4 uses the same fields:
 | 5 | Today | `COMPLETE` | 0, 4 | — (OD-3, OD-9, ND-7, ND-18 Decided) | None |
 | 6 | Journey | `COMPLETE` | 5 | — (OD-2, OD-7 Decided) | None |
 | 7 | Weekly review + adaptation | `COMPLETE` | 5 | — (OD-1a Decided) | Named: weekly test result storage |
-| 8 | Progress | `IN PROGRESS` | 6, 7 | — (ND-8 Decided A) | None beyond Phase 7 |
+| 8 | Progress | `COMPLETE` | 6, 7 | — (ND-8 Decided A) | None beyond Phase 7 |
 | 9 | Achievement | `NOT STARTED` | 6, 7 | OD-1 (completion), OD-2 | Named: goal completion transition |
 | 10 | Premium architecture | `NOT STARTED` | 5, 6 | OD-1 (gating), ND-9, ND-10 | Named: entitlement + server-side gate |
 | 11 | Mobile | `NOT STARTED` | 2–10 | OD-5 | None |
@@ -4601,7 +4601,7 @@ R-9, R-12, R-13. R-8 (next week's tasks appear on Today).
 
 ## PHASE 8 — PROGRESS
 
-**Status:** `IN PROGRESS`
+**Status:** `COMPLETE (awaiting Mo's review)`
 
 **Source:** BP §17, §27, §43 · VDS §9, §25–26, §31
 
@@ -4617,7 +4617,7 @@ R-9, R-12, R-13. R-8 (next week's tasks appear on Today).
   * `WeeklyReview` rows (planned, completed, score, reflection, insight);
   * phase boundaries;
   * benchmark test results stored in `RoadmapWeek.testResult`.
-* **No page:** there is no dedicated Progress page today (`/progress` to be added in Phase 8).
+* **Dedicated page:** `/progress` is mounted in `frontend/src/App.tsx` and integrated into shell navigation (`AppRail` and `AppBottomBar`).
 
 ### Decisions required before starting
 
@@ -4655,7 +4655,141 @@ None beyond what Phase 7 shipped.
 | M8.2 | Completion and milestones | `Done` (2026-09-27) |
 | M8.3 | Results and adaptation history (data permitting) | `Done` (2026-09-27) |
 | M8.4 | Empty and early states | `Done` (2026-09-27) |
-| M8.5 | Regression and phase report | `NOT STARTED` |
+| M8.5 | Regression and phase report | `Done` (2026-09-27) |
+
+### Phase 8 report (2026-09-27)
+
+```text
+ACHIVII REDESIGN — PHASE 8 REPORT
+
+1. Outcome
+   Phase 8 (Progress) delivers the analytical orientation answer to "How far have I come?" (BP §08, §17, §27, §43; VDS §9, §25–26, §31).
+   Users now have a dedicated, serene destination at `/progress` providing an honest, typographic accounting of their 90-day journey:
+   - Visual Level 3 analytical presentation featuring prominent numerals (tabular-nums font-ui-mono) without artificial rings, streak gamification, or chart clutter (VDS §31).
+   - Real deliberate practice completion metrics (sessions completed, adherence percentage, elapsed days, practice time) derived directly from DailyTask records, with calm orientation copy at Day 1 / Week 1 ("First session awaits", "Starting your journey").
+   - Phase milestone evaluation grouping weeks into macro-phases with non-punitive evaluative status (BP §18).
+   - Chronological 12-week breakdown displaying focus themes, practice day counts, and execution adherence.
+   - Real benchmark results card displaying stored test outcomes from RoadmapWeek.testResult (Phase 7 M7.5) against target criteria, user test reflections, and upcoming benchmark previews.
+   - Adaptation history list displaying genuine historical weekly review reflections and server aiAdaptationInsight records, with a serene empty card explaining the adaptation process when 0 reviews exist.
+   - Resilient error handling displaying an accessible alert (role="alert") with retry ("Try again") on network or goal-load failure, and an inviting empty state for goal-less users.
+   - Fully integrated shell navigation across desktop AppRail and mobile AppBottomBar (ND-8 Option A) with 44×44px tap targets, 0 overflow at 360px, and 0 axe-core violations.
+   Phase 8 milestones M8.1 through M8.5 are complete and verified.
+   Phase 8 is marked COMPLETE (awaiting Mo's review).
+   Phase 9 (Achievement) is next.
+
+2. What changed
+   Across M8.1–M8.5:
+   - M8.1: Recorded architectural decision ND-8 as Option A (dedicated `/progress` page route); confirmed zero backend allowance (D-11).
+   - M8.2: Mounted dedicated `/progress` route with code-splitting in App.tsx; integrated Progress item into AppRail and AppBottomBar with TrendingUp icon; built ProgressPage shell and header; implemented CompletionOverview, PhaseMilestonesCard, and WeekBreakdownList using Visual Level 3 restrained typography.
+   - M8.3: Delivered results layer and adaptation history: BenchmarkResultsCard displaying stored RoadmapWeek.testResult data (shipped in Phase 7 M7.5) with target criteria, user notes, and non-punitive status (Benchmark achieved vs In progress · Reinforcing); AdaptationHistoryList displaying genuine review reflections and server aiAdaptationInsight.
+   - M8.4: Delivered empty and early states: calm orientation copy for Day 1 / Week 1 with 0 completed sessions; serene adaptation history early card explaining weekly review insights; upcoming benchmark test preview badges; goal-load network failure resilience with retry ('Try again') alert.
+   - M8.5: Built comprehensive Playwright E2E suite (e2e/progress.spec.ts, 20 tests); executed full regression sweep across R-8 (Today) and R-14 (Roadmap); audited data traceability (100% stored data, 0 fake analytics); verified accessibility (0 axe violations) and responsive layout (0 overflow at 1440px, 390px, 360px); authored M8.5 and Phase 8 reports.
+
+3. Files changed / created / removed
+   Created across Phase 8:
+   - frontend/src/pages/ProgressPage.tsx, ProgressPage.test.tsx
+   - frontend/src/components/progress/CompletionOverview.tsx
+   - frontend/src/components/progress/PhaseMilestonesCard.tsx
+   - frontend/src/components/progress/WeekBreakdownList.tsx
+   - frontend/src/components/progress/BenchmarkResultsCard.tsx
+   - frontend/src/components/progress/AdaptationHistoryList.tsx
+   - frontend/src/components/progress/index.ts
+   - frontend/src/components/progress/ProgressComponents.test.tsx
+   - frontend/e2e/progress.spec.ts
+   Modified across Phase 8:
+   - frontend/src/App.tsx (mounted /progress route with requireGoal={false})
+   - frontend/src/components/ProtectedRoute.tsx (scoped onboarding redirect to location.pathname === '/onboarding')
+   - frontend/src/components/app/AppRail.tsx (added Progress nav item)
+   - frontend/src/components/app/AppBottomBar.tsx (added Progress nav item)
+   - frontend/src/components/app/shellEntries.ts (added progressActive and showProgress)
+   - frontend/src/components/app/AppShell.test.tsx (updated entries and navigation tests)
+   - frontend/e2e/shell.spec.ts (updated navigation entries, keyboard tab order, and overflow assertion)
+   - docs/phases.md
+   - docs/decisions.md
+   Removed across Phase 8: none.
+
+4. Functionality preserved
+   - R-1 Authentication: Login, signup, signout, persistent session, goal fetch resilience.
+   - R-2 / R-4 Goal Creation & Payload: Identical payload schema and safe create handoff.
+   - R-3 Pathway Launch: Exploration, preview, preset preselection, and safe switching.
+   - R-5 / R-6 Generation: Honest stage progression, silence timer, slow notice, error retry.
+   - R-7 Save Goals: Goal persistence and reload recovery.
+   - R-8 Daily Task Retrieval: Today view reliably retrieves and displays active week tasks. Verified in e2e/today.spec.ts and Today.test.tsx.
+   - R-9 Daily Completion: Botanical illumination, write to server, reload persistence.
+   - R-10 Notes & Focus Wins: Auto-save on blur, focus win bullets, draft safety.
+   - R-11 Focus Mode: Countdown timer, spacebar pause/resume, deliberate practice tips.
+   - R-12 Weekly Review: Analytical summary, benchmark test result recording, reflection capture, 503 retry resilience. Verified in e2e/weeklyReview.spec.ts.
+   - R-13 Weekly Progression: Week advancement, next week task generation, phase-gate evaluation, state synchronization.
+   - R-14 Roadmap: Shell navigation, 3 progress layers, staircase, vertical spine, Back to Today. Verified in e2e/journeyMotion.spec.ts, e2e/journeyMobile.spec.ts, and e2e/shell.spec.ts.
+   - R-15 Reset / Switch Goal: Safe deletion with confirmation, archived switch.
+   - R-16 Draft Preservation: Pathway draft carried through auth into onboarding.
+   - R-17 Offline Banner & Alert: Visual status chip and visible write failure alerts.
+   - R-18 Onboarding Navigation: Forward/backward state retention, generation lock.
+
+5. Decisions applied
+   - ND-8 (Option A): Dedicated Progress page (/progress) attached to shell navigation.
+   - OD-1a (Option A): Results layer consumes nullable RoadmapWeek.testResult stored in Phase 7 M7.5.
+   - D-11 (Backend scope rule): Strictly zero backend edits in Phase 8.
+   - BP §08, §17, §27: "How far have I come?" orientation answered via dedicated Progress view.
+   - BP §43 & VDS §31: Strict data honesty and "do not pretend" — zero fake statistics, zero competitive streaks, zero artificial charts, zero unearned badges.
+   - VDS §26: Visual Level 3 analytical presentation with tabular numerals (tabular-nums font-ui-mono).
+
+6. Validation evidence
+   - TypeScript: 0 errors across frontend (tsc --noEmit -p frontend) and backend (tsc).
+   - ESLint: 0 errors across all touched files.
+   - Frontend Vitest: 41 test files passed, 351/351 tests passed (100% pass).
+   - Backend Vitest: 21 test files passed, 240/240 tests passed (100% pass).
+   - Playwright Suites:
+     - e2e/progress.spec.ts: 20 passed (10 desktop, 10 mobile).
+     - e2e/shell.spec.ts + e2e/today.spec.ts + e2e/weeklyReview.spec.ts: 106 passed, 4 skipped.
+     - e2e/journeyMobile.spec.ts: 8 passed.
+     - e2e/todayStates.spec.ts + e2e/journeyMotion.spec.ts: 26 passed.
+   - Accessibility: 0 violations (@axe-core/playwright across WCAG 2.0/2.1/2.2 AA) at 1440px, 390px, and 360px.
+   - Responsive check: 0 horizontal overflow (documentOverflow <= 1), tap targets >= 44x44px.
+   - Build metrics:
+     - Frontend: dist/index.html 1.23 kB, CSS 104.54 kB (17.83 kB gzip), JS 592.81 kB (174.03 kB gzip), code-split ProgressPage chunk 19.42 kB (4.92 kB gzip).
+     - Backend: compiled cleanly to dist/ via tsc.
+
+7. Carry-overs
+   - Goal completion transition and celebration -> Phase 9 (Achievement, OD-1b).
+   - Main JS bundle chunk size (>500 KB Vite warning) -> Phase 12 (Global polish & code splitting).
+
+8. Issues and risks found
+   - None. All Phase 8 validation scenarios pass cleanly with 100% data traceability.
+   - Main JS bundle (592.81 KB) remains above Vite's 500 KB chunk warning; owned by Phase 12 (code splitting).
+
+9. Next phase status
+   Phase 8 is COMPLETE (awaiting Mo's review).
+   Phase 9 (Achievement) is next and blocked by decisions OD-1b (goal completion transition) and OD-2.
+```
+
+### M8.5 report — Regression and phase report (2026-09-27)
+
+1. **Automated Playwright E2E Suite (`frontend/e2e/progress.spec.ts`)**
+   - Implemented dedicated Playwright test suite `frontend/e2e/progress.spec.ts` covering 20 tests across desktop (1440px) and mobile (390px, 360px):
+     - Route navigation & shell integration: Navigating to `/progress` highlights Progress in desktop `AppRail` and mobile `AppBottomBar` with `TrendingUp` icon; displays active goal heading, day counter, and current phase/week badges.
+     - Early journey state (Week 1, 0 completed sessions): Honest `0` sessions, `0%` adherence, and `0 min` duration without NaN or jitter; verifies calm orientation copy (`"First session awaits · of N planned"` and `"Starting your journey · 0 of N to date"`); serene adaptation empty card explaining weekly reviews (`Sparkles` icon, zero synthetic entries); upcoming benchmark badges with target criteria preview.
+     - Mid-journey state (Week 6 with completed reviews & benchmarks): Renders real execution metrics (e.g. 28 sessions, 93% adherence, 42 days elapsed), phase milestone progression, recorded benchmark results (`Benchmark achieved` vs non-punitive `In progress · Reinforcing`), and genuine adaptation logs with user reflections and server `aiAdaptationInsight`.
+     - Resilience & goal-less states: Unauthenticated access redirects cleanly to `/login`; authenticated user with no active goal displays calm empty state with `"Create Your Journey"` CTA; simulated `goalLoadFailed` renders accessible alert (`role="alert"`) with functional `"Try again"` retry button.
+     - Accessibility & responsive sweeps: 0 `@axe-core/playwright` violations across WCAG 2.0/2.1/2.2 AA; zero horizontal overflow (`documentOverflow <= 1`) at 1440px, 390px, and 360px; all interactive touch targets meet minimum 44×44px dimensions; tabular numerals (`tabular-nums font-ui-mono`) prevent number jitter; reduced motion (`prefers-reduced-motion: reduce`) displays content cleanly without transition traps.
+
+2. **Regression Sweep Across Touched Capabilities (R-8 & R-14)**
+   - R-8 (Daily Task Retrieval): Today page (`/`) verified across `e2e/today.spec.ts` (36/36 passed), `e2e/todayStates.spec.ts` (18/18 passed), and `frontend/src/components/today/Today.test.tsx` (28/28 passed).
+   - R-14 (Roadmap / Journey View): Journey page (`/roadmap`) verified across `e2e/journeyMotion.spec.ts` (8/8 passed), `e2e/journeyMobile.spec.ts` (8/8 passed), and `e2e/shell.spec.ts` (56/56 passed).
+   - App shell navigation: Verified seamless switching between Today, Roadmap, Progress, and Pathways with active pill markers and no route collisions.
+
+3. **Data Traceability & Honesty Audit**
+   - Audited all metrics across `CompletionOverview.tsx`, `PhaseMilestonesCard.tsx`, `WeekBreakdownList.tsx`, `BenchmarkResultsCard.tsx`, and `AdaptationHistoryList.tsx`.
+   - 100% of displayed figures map directly to stored properties on `Goal`, `RoadmapWeek`, `DailyTask`, or `WeeklyReview`. Zero streak gamification, zero fake progress percentages, zero competitive comparisons, zero media proof judging, and zero charts that pretend to show missing metrics (BP §43, VDS §31).
+
+4. **Quality & Verification Baseline**
+   - Frontend type-check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - Backend build: 0 errors (`npm run build --workspace=backend`).
+   - Frontend production build: 0 errors (`npm run build --workspace=frontend`), clean code-split `dist/assets/ProgressPage-*.js` chunk (19.42 kB).
+   - Frontend Vitest: 41 test files passed, 351/351 tests passed.
+   - Backend Vitest: 21 test files passed, 240/240 tests passed.
+   - Playwright E2E: 126 passed, 4 skipped across `e2e/progress.spec.ts` (20/20), `e2e/shell.spec.ts`, `e2e/today.spec.ts`, and `e2e/weeklyReview.spec.ts`.
+   - Zero backend edits: Backend allowance strictly preserved per D-11.
 
 ### M8.4 report — Empty and early states (2026-09-27)
 
@@ -5279,6 +5413,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 8 M8.2 done: Dedicated `/progress` route mounted in `App.tsx` (wrapped in `ProtectedRoute`); desktop `AppRail` and mobile `AppBottomBar` navigation updated with Progress link and `TrendingUp` icon; Visual Level 3 typographic progress overview delivered (`ProgressPage.tsx`, `CompletionOverview.tsx`, `PhaseMilestonesCard.tsx`, `WeekBreakdownList.tsx`); strict future honesty and non-punitive completion metrics; 342/342 frontend Vitest pass, 25/25 Playwright desktop E2E pass. M8.3 ready. |
 | 2026-09-27 | Phase 8 M8.3 done: Results layer and adaptation history delivered (`BenchmarkResultsCard.tsx`, `AdaptationHistoryList.tsx`, `ProgressPage.tsx`); displays stored benchmark test results from `RoadmapWeek.testResult` (Phase 7 M7.5) with target criteria, user notes, and non-punitive status (`Benchmark achieved` vs `In progress · Reinforcing`, BP §18); displays weekly adaptation log with submitted reflections and server AI adaptation insights; 344/344 frontend Vitest pass across 40 files; production build clean (clean code-split `ProgressPage` chunk); zero backend edits. M8.4 ready. |
 | 2026-09-27 | Phase 8 M8.4 done: Empty and early states delivered across /progress (CompletionOverview, AdaptationHistoryList, BenchmarkResultsCard, ProgressPage); calm non-punitive orientation sublabels at Day 1 / Week 1 with 0 completed sessions; serene adaptation history early card explaining weekly review insights; upcoming benchmark tests preview with target criteria and pass rules; goal-load network failure resilience with retry ('Try again') alert; 41/41 frontend test files pass (351/351 tests); production build clean; zero backend edits. M8.5 ready. |
+| 2026-09-27 | Phase 8 M8.5 done: Full regression verification pass across all capabilities touched by Phase 8 (R-8, R-14, shell navigation), dedicated Playwright E2E suite authored (e2e/progress.spec.ts, 20/20 tests passing), Phase 8 validation scenarios audited (Week 1, Week 6, Week 12, empty reviews, goal database traceability verified), exit criteria verified (100% data traceability, zero fake analytics/streaks/gamification), quality/accessibility/responsive audit clean (0 axe violations, 44px tap targets, 0 overflow at 1440px, 390px, 360px), test baseline clean (frontend Vitest 41 files / 351 tests, backend Vitest 21 files / 240 tests, 126 Playwright E2E tests), production builds clean, zero backend edits (D-11 constraint preserved), M8.5 report and official Phase 8 report authored. Phase 8 status is COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next. |
 
 
 

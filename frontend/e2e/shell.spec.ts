@@ -52,16 +52,17 @@ const entryNames = async (page: Page) =>
     .evaluateAll((items) => items.map((item) => (item.textContent ?? '').replace(/\s+/g, ' ').trim()));
 
 test.describe('entries', () => {
-  test('with a goal: Today, Roadmap, Pathways and Account, and nothing else', async ({ page, isMobile }) => {
+  test('with a goal: Today, Roadmap, Progress, Pathways and Account, and nothing else', async ({ page, isMobile }) => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/');
 
     const names = await entryNames(page);
-    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Roadmap', 'Pathways', 'Account']);
+    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Roadmap', 'Progress', 'Pathways', 'Account']);
     await expect(primary(page).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
     await expect(primary(page).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
-    await expect(primary(page).getByText(/Journey|Progress|Coach|coming soon/i)).toHaveCount(0);
+    await expect(primary(page).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
+    await expect(primary(page).getByText(/Journey|Coach|coming soon/i)).toHaveCount(0);
     await expect(page.getByText(/Achivii ©/)).toHaveCount(0);
     await expect(page.getByRole('banner')).toHaveCount(0);
 
@@ -194,7 +195,7 @@ test.describe('layout and accessibility', () => {
       await page.setViewportSize({ width, height: 844 });
       await page.goto('/roadmap');
       await expect(page.locator('main#main')).toBeVisible();
-      expect(await contentOverflow(page), 'the Phase 6 overflow is still there, inside the column').toBeGreaterThan(1);
+      expect(await contentOverflow(page), 'the column content does not overflow the container').toBeLessThanOrEqual(1);
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
       const bar = (await page.locator('[data-shell="bottom-bar"]').boundingBox())!;
       expect(Math.abs(bar.y + bar.height - 844)).toBeLessThanOrEqual(1);
@@ -324,7 +325,7 @@ test.describe('pathways, account and offline', () => {
     await page.goto('/roadmap');
     await expect(page.locator('main#main')).toBeVisible();
     const order: string[] = [];
-    for (let i = 0; i < 6; i += 1) {
+    for (let i = 0; i < 7; i += 1) {
       await page.keyboard.press('Tab');
       order.push(
         await page.evaluate(() => {
@@ -333,7 +334,7 @@ test.describe('pathways, account and offline', () => {
         }),
       );
     }
-    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Today', 'Roadmap', 'Pathways', 'Account']);
+    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Today', 'Roadmap', 'Progress', 'Pathways', 'Account']);
     await page.keyboard.press('Enter');
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toBeFocused();

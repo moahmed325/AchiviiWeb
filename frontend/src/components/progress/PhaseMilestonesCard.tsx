@@ -94,7 +94,7 @@ const StatusIndicator: React.FC<{ status: PhaseStatus }> = ({ status }) => {
   }
   return (
     <span className="flex size-6 items-center justify-center">
-      <Circle aria-hidden="true" strokeWidth={1.5} className="size-4 text-text-muted" />
+      <Circle aria-hidden="true" strokeWidth={1.5} className="size-4 text-text-secondary" />
     </span>
   );
 };
@@ -130,7 +130,7 @@ export const PhaseMilestonesCard: React.FC<PhaseMilestonesCardProps> = ({ goal, 
               <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <h3 className="text-body font-medium text-text">{phase.name}</h3>
-                  <span className="font-ui-mono text-micro uppercase text-text-muted">
+                  <span className="font-ui-mono text-micro uppercase text-text-secondary">
                     {phase.weekRange}
                   </span>
                 </div>
@@ -148,7 +148,7 @@ export const PhaseMilestonesCard: React.FC<PhaseMilestonesCardProps> = ({ goal, 
                     </span>
                   )}
                   {phase.status === 'upcoming' && (
-                    <span className="inline-flex items-center gap-1 font-ui-mono text-micro uppercase text-text-muted">
+                    <span className="inline-flex items-center gap-1 font-ui-mono text-micro uppercase text-text-secondary">
                       Upcoming
                     </span>
                   )}
@@ -167,7 +167,7 @@ export const PhaseMilestonesCard: React.FC<PhaseMilestonesCardProps> = ({ goal, 
                         <Minus
                           aria-hidden="true"
                           strokeWidth={1.5}
-                          className="mt-1 size-3 shrink-0 text-text-muted"
+                          className="mt-1 size-3 shrink-0 text-text-secondary"
                         />
                         <span>{milestone}</span>
                       </li>

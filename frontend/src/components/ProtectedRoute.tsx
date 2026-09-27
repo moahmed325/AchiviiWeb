@@ -57,7 +57,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     navState?.isPreset !== undefined
   );
 
-  if (!requireGoal && activeGoal && !isExplicitGoalSelection) {
+  if (location.pathname === '/onboarding' && activeGoal && !isExplicitGoalSelection) {
     return <Navigate to="/" replace />;
   }
 
