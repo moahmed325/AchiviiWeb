@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TrendingUp } from 'lucide-react';
 import { useGoal } from '../context/GoalContext';
 import { dayNumber } from '../lib/today';
-import { LoadingState, Skeleton } from '../components/ui';
+import { LoadingState, Skeleton, Surface, Button } from '../components/ui';
 import { CompletionOverview, PhaseMilestonesCard, WeekBreakdownList, BenchmarkResultsCard, AdaptationHistoryList } from '../components/progress';
 
 /** Loading skeleton matching the Progress page layout. */
@@ -26,16 +26,27 @@ const ProgressSkeleton: React.FC = () => (
 );
 
 /**
- * M8.2-R2 + M8.3-R3: Progress Page Shell.
+ * M8.2-R2 + M8.3-R3 + M8.4: Progress Page Shell.
  *
  * Dedicated /progress destination (ND-8 Option A).
  * Renders genuine execution metrics, phase milestones, week-by-week
  * breakdown, benchmark results, and adaptation history derived from
  * stored DailyTask, RoadmapWeek, and WeeklyReview records.
  * Visual Level 3: restrained, typographic, large numerals as visual objects.
+ * Resilient against network/fetch failures with retry (M8.4).
  */
 export const ProgressPage: React.FC = () => {
-  const { activeGoal, loadingGoal } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal } = useGoal();
+  const [retrying, setRetrying] = useState(false);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    try {
+      await refreshGoal();
+    } finally {
+      setRetrying(false);
+    }
+  };
 
   const now = useMemo(() => new Date(), []);
   const currentDay = useMemo(
@@ -51,9 +62,30 @@ export const ProgressPage: React.FC = () => {
     return week?.phase || '';
   }, [activeGoal, currentWeek]);
 
-  if (loadingGoal || !activeGoal) {
-    if (loadingGoal) return <ProgressSkeleton />;
+  if (loadingGoal) {
+    return <ProgressSkeleton />;
+  }
 
+  // Goal fetch failed: render dedicated error state (M8.4, OD-9, ND-12)
+  if (goalLoadFailed && !activeGoal) {
+    return (
+      <main id="main" className="ui-root mx-auto w-full max-w-xl flex-1 px-gutter py-16 text-center">
+        <Surface role="alert" tone="base" padding="lg" radius="card" className="flex flex-col items-center gap-4 text-center">
+          <h1 className="text-h2 text-text">
+            We couldn't load your progress
+          </h1>
+          <p className="max-w-md text-body text-text-secondary">
+            Your plan is safe, but we had trouble reaching Achivii. Check your connection or try again.
+          </p>
+          <Button variant="primary" loading={retrying} onClick={handleRetry} className="mt-2">
+            Try again
+          </Button>
+        </Surface>
+      </main>
+    );
+  }
+
+  if (!activeGoal) {
     // No active goal — shouldn't normally happen (ProtectedRoute guards), but handle gracefully
     return (
       <main id="main" className="ui-root mx-auto w-full max-w-xl flex-1 px-gutter py-16 text-center">

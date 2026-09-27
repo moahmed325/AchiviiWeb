@@ -63,6 +63,7 @@ function deriveMetrics(goal: Goal): CompletionMetrics {
 }
 
 function formatDuration(minutes: number): string {
+  if (minutes === 0) return '0 min';
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const remaining = minutes % 60;
@@ -92,11 +93,12 @@ const MetricCard: React.FC<{
 );
 
 /**
- * M8.2-R3: Core Completion Metrics.
+ * M8.2-R3 + M8.4: Core Completion Metrics.
  *
  * Renders high-level completion statistics derived from DailyTask records.
  * Visual Level 3: clean borders, subtle surfaces, large numbers as visual objects,
  * no animated rings or gamified counters (BP §43, VDS §31).
+ * Early-state safe: calm orientation when 0 practice sessions are completed.
  */
 export const CompletionOverview: React.FC<CompletionOverviewProps> = ({ goal, currentDay, className }) => {
   const metrics = useMemo(() => deriveMetrics(goal), [goal]);
@@ -115,12 +117,20 @@ export const CompletionOverview: React.FC<CompletionOverviewProps> = ({ goal, cu
         <MetricCard
           value={`${metrics.completedActive}`}
           label="Practice sessions"
-          sublabel={`of ${metrics.totalPlannedActive} planned`}
+          sublabel={
+            metrics.completedActive === 0
+              ? `First session awaits · of ${metrics.totalPlannedActive} planned`
+              : `of ${metrics.totalPlannedActive} planned`
+          }
         />
         <MetricCard
           value={`${metrics.adherencePercent}%`}
           label="Execution adherence"
-          sublabel={`${metrics.completedActive} of ${metrics.plannedActiveToDate} to date`}
+          sublabel={
+            metrics.completedActive === 0
+              ? `Starting your journey · 0 of ${metrics.plannedActiveToDate} to date`
+              : `${metrics.completedActive} of ${metrics.plannedActiveToDate} to date`
+          }
         />
         <MetricCard
           value={formatDuration(metrics.totalPracticeMinutes)}

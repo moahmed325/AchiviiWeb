@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-27 · Current position: **Phases 0–7 complete. Phase 8 (Progress) is IN PROGRESS (M8.1–M8.3 done, M8.4 next).**
+Last updated: 2026-09-27 · Current position: **Phases 0–7 complete. Phase 8 (Progress) is IN PROGRESS (M8.1–M8.4 done, M8.5 next).**
 
 ---
 
@@ -4654,8 +4654,38 @@ None beyond what Phase 7 shipped.
 | M8.1 | ND-8 decided | `Done` (2026-09-27) |
 | M8.2 | Completion and milestones | `Done` (2026-09-27) |
 | M8.3 | Results and adaptation history (data permitting) | `Done` (2026-09-27) |
-| M8.4 | Empty and early states | `NOT STARTED` |
+| M8.4 | Empty and early states | `Done` (2026-09-27) |
 | M8.5 | Regression and phase report | `NOT STARTED` |
+
+### M8.4 report — Empty and early states (2026-09-27)
+
+1. **Completion Metrics Early-State Resilience (`CompletionOverview.tsx`)**
+   - Implemented honest, calm numerical presentation for Day 1 / Week 1 with 0 completed sessions (`0` sessions, `0%` adherence, `0 min` practice duration).
+   - Replaced blank or misleading default sublabels with reassuring orientation copy:
+     - Practice sessions: `"First session awaits · of N planned"`
+     - Execution adherence: `"Starting your journey · 0 of N to date"`
+   - Hardened `formatDuration` to return `"0 min"` on zero elapsed minutes and guarded against NaN / division-by-zero errors.
+
+2. **Adaptation History Early-State Orientation (`AdaptationHistoryList.tsx`)**
+   - Replaced silent `null` disappearance when zero weekly reviews exist with an encouraging, serene early-state card.
+   - Restrained surface styling (`border-border bg-surface px-5 py-6 sm:px-6`) with `Sparkles` icon (`text-accent`).
+   - Honest orientation copy explaining the review process: *"Weekly reviews unlock adaptation insights. At the end of each week, your review reflections and server path adaptations will appear here."* (BP §18, BP §43; zero fake simulated entries).
+
+3. **Benchmark Results Edge & Early States (`BenchmarkResultsCard.tsx`)**
+   - Renders clear `Upcoming` badge and instructions preview when benchmark tests are specified in roadmap weeks but not yet taken.
+   - Cleanly omits benchmark section when a goal has zero benchmark tests defined across all weeks (e.g. Plan v1 goals), preventing layout shift or runtime exceptions.
+
+4. **Progress Page Goal-Load Error Resilience (`ProgressPage.tsx`)**
+   - Integrated `goalLoadFailed` and `refreshGoal()` from `useGoal()`.
+   - Renders visible, accessible error alert (`role="alert"`) with `"Try again"` retry button if network or server errors prevent goal retrieval, matching the resilience patterns from Today (M5.7) and Roadmap.
+   - Graceful fallback empty state when no active goal exists, guiding user to onboarding with `"Create Your Journey"`.
+
+5. **Automated Verification & Zero Backend Edits**
+   - Unit tests added to `frontend/src/components/progress/ProgressComponents.test.tsx` verifying early completion sublabels (`0%`, `0 min`), adaptation empty state card, and upcoming benchmark badges.
+   - Dedicated page test suite `frontend/src/pages/ProgressPage.test.tsx` testing loading skeleton, error alert with retry button, empty state, and active progress rendering.
+   - 41/41 frontend test files passing (351/351 tests).
+   - Production build clean (`ProgressPage` code-split chunk).
+   - Zero backend edits (D-11 constraint preserved).
 
 ### M8.3 report — Results and adaptation history (2026-09-27)
 
@@ -5248,6 +5278,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 8 M8.1 done: Architectural Decision ND-8 resolved as Option A (dedicated Progress page `/progress`); decision registered in `docs/decisions.md`; zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
 | 2026-09-27 | Phase 8 M8.2 done: Dedicated `/progress` route mounted in `App.tsx` (wrapped in `ProtectedRoute`); desktop `AppRail` and mobile `AppBottomBar` navigation updated with Progress link and `TrendingUp` icon; Visual Level 3 typographic progress overview delivered (`ProgressPage.tsx`, `CompletionOverview.tsx`, `PhaseMilestonesCard.tsx`, `WeekBreakdownList.tsx`); strict future honesty and non-punitive completion metrics; 342/342 frontend Vitest pass, 25/25 Playwright desktop E2E pass. M8.3 ready. |
 | 2026-09-27 | Phase 8 M8.3 done: Results layer and adaptation history delivered (`BenchmarkResultsCard.tsx`, `AdaptationHistoryList.tsx`, `ProgressPage.tsx`); displays stored benchmark test results from `RoadmapWeek.testResult` (Phase 7 M7.5) with target criteria, user notes, and non-punitive status (`Benchmark achieved` vs `In progress · Reinforcing`, BP §18); displays weekly adaptation log with submitted reflections and server AI adaptation insights; 344/344 frontend Vitest pass across 40 files; production build clean (clean code-split `ProgressPage` chunk); zero backend edits. M8.4 ready. |
+| 2026-09-27 | Phase 8 M8.4 done: Empty and early states delivered across /progress (CompletionOverview, AdaptationHistoryList, BenchmarkResultsCard, ProgressPage); calm non-punitive orientation sublabels at Day 1 / Week 1 with 0 completed sessions; serene adaptation history early card explaining weekly review insights; upcoming benchmark tests preview with target criteria and pass rules; goal-load network failure resilience with retry ('Try again') alert; 41/41 frontend test files pass (351/351 tests); production build clean; zero backend edits. M8.5 ready. |
 
 
 

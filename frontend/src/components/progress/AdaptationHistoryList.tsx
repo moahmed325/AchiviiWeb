@@ -83,8 +83,27 @@ function deriveAdaptationHistory(goal: Goal): AdaptationEntry[] {
 export const AdaptationHistoryList: React.FC<AdaptationHistoryListProps> = ({ goal, className }) => {
   const entries = useMemo(() => deriveAdaptationHistory(goal), [goal]);
 
-  // Don't render the section if there's no adaptation data yet
-  if (entries.length === 0) return null;
+  // Early state: no weekly reviews submitted yet (M8.4)
+  if (entries.length === 0) {
+    return (
+      <section aria-labelledby="adaptation-history-heading" className={cx('space-y-3', className)}>
+        <h2 id="adaptation-history-heading" className="text-h3 text-text">
+          Adaptation history
+        </h2>
+        <div className="flex items-start gap-3 rounded-card border border-border bg-surface px-5 py-6 sm:px-6">
+          <Sparkles aria-hidden="true" strokeWidth={1.5} className="mt-0.5 size-5 shrink-0 text-accent" />
+          <div className="space-y-1">
+            <p className="text-small font-medium text-text">
+              Weekly reviews unlock adaptation insights
+            </p>
+            <p className="text-small text-text-secondary">
+              At the end of each week, your review reflections and server path adaptations will appear here.
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section aria-labelledby="adaptation-history-heading" className={cx('space-y-3', className)}>

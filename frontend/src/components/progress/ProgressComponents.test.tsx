@@ -258,4 +258,83 @@ describe('Progress Components (M8.2 — Completion and Milestones)', () => {
     expect(screen.getByText('5 of 5 sessions completed. Solid adherence.')).toBeInTheDocument();
     expect(screen.getByText('100%')).toBeInTheDocument();
   });
+
+  it('CompletionOverview renders calm, non-punitive early state at Week 1 with 0 completed (M8.4)', () => {
+    // Tasks where none are completed yet
+    const tasks = createSampleTasks().map((t) => ({ ...t, status: 'pending' as const }));
+    const weeks = createSampleWeeks();
+    const goal = { ...createSampleGoal(tasks, weeks), currentWeek: 1 };
+
+    render(<CompletionOverview goal={goal} currentDay={1} />);
+
+    // Day 1 of 90
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('Day 1 of 90')).toBeInTheDocument();
+
+    // 0 sessions completed
+    expect(screen.getByText('0')).toBeInTheDocument();
+    expect(screen.getByText('Practice sessions')).toBeInTheDocument();
+    expect(screen.getByText(/First session awaits · of 10 planned/i)).toBeInTheDocument();
+
+    // 0% adherence with non-punitive orientation sublabel
+    expect(screen.getByText('0%')).toBeInTheDocument();
+    expect(screen.getByText('Execution adherence')).toBeInTheDocument();
+    expect(screen.getByText(/Starting your journey · 0 of 5 to date/i)).toBeInTheDocument();
+
+    // 0 min total practice time
+    expect(screen.getByText('0 min')).toBeInTheDocument();
+    expect(screen.getByText('Total practice time')).toBeInTheDocument();
+  });
+
+  it('AdaptationHistoryList renders encouraging card when goal has zero reviews (M8.4)', () => {
+    const tasks = createSampleTasks();
+    const weeks = createSampleWeeks().map((w) => ({
+      ...w,
+      status: (w.weekNumber === 1 ? 'active' : 'pending') as RoadmapWeek['status'],
+      executionScore: undefined,
+    }));
+    const goal = { ...createSampleGoal(tasks, weeks), currentWeek: 1, weeklyReviews: [] };
+
+    render(<AdaptationHistoryList goal={goal} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: /Adaptation history/i })).toBeInTheDocument();
+    expect(screen.getByText('Weekly reviews unlock adaptation insights')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /At the end of each week, your review reflections and server path adaptations will appear here\./i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('BenchmarkResultsCard renders upcoming benchmark badge and pass criteria when no tests completed yet (M8.4)', () => {
+    const tasks = createSampleTasks();
+    const weeks: RoadmapWeek[] = [
+      {
+        id: 'rw-1',
+        goalId: 'g-1',
+        weekNumber: 1,
+        phase: 'Foundation',
+        theme: 'Core Posture',
+        objective: 'Establish posture',
+        keyMilestone: 'Consistent form',
+        targetIntensity: 3,
+        plannedMinutes: 225,
+        status: 'active',
+        target: { kind: 'number', metric: 'Continuous tempo', value: 60, unit: 'bpm', direction: 'higher_is_better' },
+        test: { type: 'count', instructions: 'Play 5 sets unbroken without pausing', passIf: '60 bpm clean for 3 mins' },
+        testResult: null,
+        created_at: '',
+      },
+    ];
+    const goal = { ...createSampleGoal(tasks, weeks), currentWeek: 1 };
+
+    render(<BenchmarkResultsCard goal={goal} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: /Benchmark results/i })).toBeInTheDocument();
+    expect(screen.getByText(/Week 1/i)).toBeInTheDocument();
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+    expect(screen.getByText(/Target: Continuous tempo: 60 bpm/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pass criteria: 60 bpm clean for 3 mins/i)).toBeInTheDocument();
+    expect(screen.getByText('Play 5 sets unbroken without pausing')).toBeInTheDocument();
+  });
 });
