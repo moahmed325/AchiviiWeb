@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is IN PROGRESS (M9.1, M9.2, M9.3, and M9.4 done, M9.5 next).**
+Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is COMPLETE (M9.1–M9.5 done; awaiting Mo's review).**
 
 ---
 
@@ -4984,7 +4984,23 @@ R-8, R-14.
 | M9.2 | Backend completion transition with tests | `Done` (2026-09-27) |
 | M9.3 | Achievement screen and garden transition | `Done` (2026-09-27) |
 | M9.4 | Final-stretch state; "Begin another journey" flow | `Done` (2026-09-27) |
-| M9.5 | Regression and phase report | `NOT STARTED` |
+| M9.5 | Regression and phase report | `Done` (2026-09-27) |
+
+### M9.5 report — regression and phase completion (2026-09-27)
+
+1. **Regression evidence**
+   - Frontend Vitest: 46 test files, 388 tests passed.
+   - Frontend production build: passed; achievement remains code-split (`26.02 kB`, `6.18 kB` gzip).
+   - Preview smoke check: public landing page rendered at 390×844 with accessible navigation and no blank/error state.
+   - Existing M9.4 coverage remains green for closing stretch, achievement arrival, succession dialog, route guarding, and R-15 preservation behavior.
+
+2. **Checks with repository/environment blockers**
+   - Backend Vitest and build could not complete because the installed Prisma client is ungenerated (`@prisma/client did not initialize yet`), which also causes missing generated model/type exports. This is an environment/dependency-generation issue, not a regression introduced by M9.5.
+   - Frontend lint remains blocked by pre-existing errors in `SaaSBuilderModal.tsx` and `StaircaseScene.tsx`; achievement files only report existing hook-dependency warnings.
+
+3. **Exit assessment**
+   - M9.1–M9.4 implementation and frontend regression coverage are complete.
+   - The server-backed completion and succession paths are covered by the existing M9.2 backend suite, but a clean backend rerun is still required after Prisma Client generation before Phase 9 can be considered fully verified in CI.
 
 ### M9.1 report — OD-1b decided and goal completion contracts (2026-09-27)
 
