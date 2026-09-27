@@ -75,8 +75,8 @@ Every phase in section 4 uses the same fields:
 | 6 | Journey | `COMPLETE` | 5 | — (OD-2, OD-7 Decided) | None |
 | 7 | Weekly review + adaptation | `COMPLETE` | 5 | — (OD-1a Decided) | Named: weekly test result storage |
 | 8 | Progress | `COMPLETE` | 6, 7 | — (ND-8 Decided A) | None beyond Phase 7 |
-| 9 | Achievement | `IN PROGRESS` | 6, 7 | — (OD-1b Decided B, OD-2 Decided A) | Named: goal completion transition |
-| 10 | Premium architecture | `NOT STARTED` | 5, 6 | — (OD-1c, ND-9, ND-10, ND-11 Decided) | None; placement and honest copy only |
+| 9 | Achievement | `COMPLETE` | 6, 7 | — (OD-1b Decided B, OD-2 Decided A) | Named: goal completion transition |
+| 10 | Premium architecture | `COMPLETE` | 5, 6 | — (OD-1c, ND-9, ND-10, ND-11 Decided) | None; placement and honest copy only |
 | 11 | Mobile | `NOT STARTED` | 2–10 | OD-5 | None |
 | 12 | Global polish | `NOT STARTED` | 0–11 | — | None |
 
@@ -5202,7 +5202,7 @@ R-7, R-8, R-12, R-13, R-15.
 
 ## PHASE 10 — PREMIUM ARCHITECTURE
 
-**Status:** `IN PROGRESS`
+**Status:** `COMPLETE`
 
 **Source:** BP §03, §20–23, §27, §43, OD-1 · VDS §12, §14, §25
 
@@ -5216,7 +5216,7 @@ R-7, R-8, R-12, R-13, R-15.
 * **Custom goals:** created free through `POST /api/goal/create`, with no entitlement check. Custom goals remain free and functional (ND-10 Decided A).
 * **Accounts:** `User` has no plan or entitlement field.
 * **Payments:** there is no payment system in this redesign (ND-9 Decided A).
-* **Marketing:** Coach is "In development"; Custom Journeys is "Planned for Premium".
+* **Marketing:** Coach is "In development"; Custom Journeys is "Available now · Free" (M10.6).
 
 ### Decisions made before starting (M10.1 Complete)
 
@@ -5259,7 +5259,7 @@ None invoked (OD-1c Decided B, ND-9 Decided A). Zero backend changes required.
 | M10.4 | (With the allowance) server-side entitlement and gate | DEFERRED (ND-10 A, OD-1c B) |
 | M10.5 | (With the allowance) payments integration | DEFERRED (ND-9 A) |
 | M10.6 | Marketing copy updated to match reality | COMPLETE |
-| M10.7 | Regression and phase report | PLANNED |
+| M10.7 | Regression and phase report | COMPLETE |
 
 ### Regression checks
 
@@ -5284,6 +5284,43 @@ R-2, R-3, R-4. Existing custom goals keep working (grandfathering per ND-10).
 
 * Accidentally removing free custom goals before gating is decided.
 * Copy that over-promises Coach.
+
+### Phase 10 Completion Report
+
+1. **What changed:**
+   - **Coach ✦ Navigation Placement & Honest State (M10.2):**
+     * Integrated Coach ✦ item into both desktop `AppRail` and mobile `AppBottomBar` navigation with `Sparkles` icon and premium `text-achievement` accent (VDS §12, §14).
+     * Authored accessible `CoachModal.tsx` using Radix `Dialog` primitives with honest "In development" status pill, "✦ Coming Soon" eyebrow badge, companion coaching value proposition, realistic availability note, and "Back to Practice" button.
+     * Zero fake conversational AI, mock chat messages, or payment/checkout triggers (ND-11, BP §43).
+     * Focus management: Clean focus trap and restoration upon closing dialog via Escape or dismiss button.
+   - **Custom Journeys Elevation in Pathway Library (M10.3):**
+     * Elevated `PathwayCustomGoal.tsx` with premium botanical/warm gold accent styling, `✦ Custom Journey` eyebrow badge, refined heading *"Have something unique in mind?"*, and welcoming narrative copy.
+     * Integrated Custom Journey choice into `PathwaysExplorerModal.tsx` via `PathwayLibrary customGoal` slot.
+     * Succession safety (R-15): Clicking Custom Journey in `PathwaysExplorerModal` navigates to `/onboarding` with `{ customGoal: true, switchGoal: true }` (when active goal exists) or `{ customGoal: true }` (when no goal exists). The active goal remains intact until a new one is saved.
+     * Custom 90-day goal creation remains 100% free and fully operational with zero fake paywalls (ND-10 Decided A, OD-1c Decided B).
+   - **Marketing Copy Parity & Alignment (M10.6):**
+     * Resolved copy discrepancy in `frontend/src/components/marketing/sections/Premium.tsx` (D-18, ND-10).
+     * Updated Custom Journeys status badge from *"Planned for Premium"* to *"Available now · Free"*, stating that custom 90-day journeys are available free today and planned for a future premium tier.
+     * Section eyebrow elevated to *"Premium Architecture"*.
+     * Reassurance line preserved: *"There is no paid plan yet. Everything you can use in Achivii today is free."*
+     * Authored dedicated test suite `Premium.test.tsx` verifying copy alignment, heading hierarchy (`h2`/`h3`), and zero checkout/pricing triggers.
+
+2. **What did not change:**
+   - **Zero backend modifications (Rule 3.2, OD-1c Decided B):** No changes to schema, migrations, routes, or models.
+   - **Zero fake paywalls, locks, or billing UI (ND-9 Decided A, ND-10 Decided A):** Custom goal creation remains unrestricted.
+   - **Preserved core flows:** Preset pathways, today step progression, roadmap staircase, weekly review adaptations, progress analytics, and achievement garden remain completely untouched.
+
+3. **Authoritative Verification Evidence:**
+   - **Frontend Vitest Suite:** 48 test files, 407 tests passed (`npm test --workspace=frontend`).
+   - **Backend Vitest Suite:** 22 test files, 250 tests passed (`npm test --workspace=backend`).
+   - **Frontend Type Check:** 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - **Frontend Production Build:** Clean production bundle built in 3.54s with proper code-split chunks.
+   - **Responsive & Accessibility Checks:** 44px minimum tap targets on all navigation and modal triggers, 0 horizontal scroll at 360px and 390px mobile viewports, full keyboard accessibility with Escape and focus restoration.
+   - **Rule 3.2 / Decision D-11 Compliance:** 0 backend files modified in Phase 10.
+
+4. **Carry-overs:** None.
+
+5. **Next Phase:** Phase 11 (Mobile Sweep) is unblocked and ready to begin.
 
 ---
 
@@ -5598,6 +5635,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 10 M10.2 done: Coach ✦ placed in both desktop `AppRail` and mobile `AppBottomBar` navigation with `Sparkles` icon and premium `text-achievement` accent (VDS §12, §14); `CoachModal.tsx` created using Radix `Dialog` primitives with honest "In development" status, "✦ Coming Soon" eyebrow, companion coaching value proposition, realistic availability note, and "Back to Practice" dismiss button; zero fake chat UI, mock messages, or checkout buttons (ND-11, BP §43); `AppShell.tsx` manages `coachOpen` state and renders `CoachModal`; 10 CoachModal unit tests and 1 AppShell integration test added; 48 frontend test files / 401 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2, OD-1c Decided B). |
 | 2026-09-27 | Phase 10 M10.3 done: Custom Journeys elevated with premium visual treatment in `PathwayCustomGoal.tsx` — accent eyebrow badge `✦ Custom Journey` with `Sparkles` icon, refined heading "Have something unique in mind?", narrative copy "Build a guided 90-day journey around your own ambition…", and crafted container card (`rounded-card`, `border-border/70`, `hover:border-accent/30`, VDS §12); Custom Journey option integrated into `PathwaysExplorerModal.tsx` via `PathwayLibrary customGoal` slot — clicking navigates to `/onboarding` with `{ customGoal: true, switchGoal: true }` (active goal) or `{ customGoal: true }` (no goal), preserving R-15 safety; zero paywall, lock, or pricing UI (ND-10, OD-1c); 3 new explorer modal tests and updated pathway library and StepGoal tests; 47 frontend test files / 402 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2). |
 | 2026-09-27 | Phase 10 M10.6 done: Marketing copy updated to match reality in `frontend/src/components/marketing/sections/Premium.tsx` (D-18, ND-10). Custom Journeys status badge updated from "Planned for Premium" to "Available now · Free" with narrative copy reflecting that custom 90-day journeys are available free today and planned for a future premium tier; Achivii Coach preserved with honest "In development" status and companion vision; section eyebrow elevated to "Premium Architecture"; free reassurance line ("There is no paid plan yet. Everything you can use in Achivii today is free.") preserved; zero fake pricing, billing, or checkout UI (Rule 3.2, BP §43); dedicated test suite created in `Premium.test.tsx` (4/4 tests pass); full test baseline verified (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits. M10.7 ready. |
+| 2026-09-27 | Phase 10 M10.7 done: Full regression verification pass completed across all Phase 10 deliverables (Coach ✦ placement, Custom Journeys elevation, marketing copy alignment, and free-tier integrity per R-2, R-3, R-4, R-15). Responsive layout, 44px touch targets, keyboard accessibility, and 100% marketing/in-app copy parity verified. 48 frontend test files (407 tests) and 22 backend test files (250 tests) pass; 0 TypeScript errors; clean production build. Strict Rule 3.2 backend invariance preserved (0 backend files touched). Phase 10 status is COMPLETE. Phase 11 (Mobile) is unblocked and ready. |
 
 
 
