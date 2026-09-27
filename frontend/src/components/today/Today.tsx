@@ -12,6 +12,7 @@ import {
   isToday,
   isWeekReviewDue,
   isYesterdayPending,
+  isClosingStretchActive,
   parseIntention,
   parseSteps,
   parseTaskNotes,
@@ -23,6 +24,7 @@ import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, T
 import { FocusSessionModal } from '../FocusSessionModal';
 import { BasisBadge } from '../BasisBadge';
 import { WeeklyReviewModal } from '../review';
+import { ClosingStretchView } from './ClosingStretchView';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 
@@ -197,6 +199,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const draft = task ? drafts[task.id] : undefined;
   const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
   const reviewDue = isWeekReviewDue(tasks, now);
+  const isClosingStretch = isClosingStretchActive(goal, now);
   const yesterdayUncompleted = isYesterdayPending(tasks, now) && Boolean(task && isToday(task, now) && task.status === 'pending');
 
   const selectDay = (id: string) => {
@@ -272,7 +275,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           <span className="tabular text-h3 text-text-secondary">/ 90</span>
         </p>
         <p className="text-small text-text-secondary">
-          <span className="tabular">Week {goal.currentWeek || 1}</span>
+          <span className="tabular">
+            {isClosingStretch ? 'Days 85–90 · Closing Stretch' : `Week ${goal.currentWeek || 1}`}
+          </span>
           {week?.phase && <> · {week.phase}</>}
           {week?.theme && <> · {week.theme}</>}
         </p>
@@ -305,15 +310,18 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         </section>
       )}
 
-      <section
-        aria-labelledby="step-heading"
-        className={cx(
-          'mt-10 rounded-panel border p-5 sm:p-7 transition-all duration-(--duration-normal)',
-          done
-            ? 'border-accent/40 bg-surface/95 shadow-sm ring-1 ring-accent/20'
-            : 'border-border bg-surface',
-        )}
-      >
+      {isClosingStretch ? (
+        <ClosingStretchView goal={goal} apiStatus={apiStatus} />
+      ) : (
+        <section
+          aria-labelledby="step-heading"
+          className={cx(
+            'mt-10 rounded-panel border p-5 sm:p-7 transition-all duration-(--duration-normal)',
+            done
+              ? 'border-accent/40 bg-surface/95 shadow-sm ring-1 ring-accent/20'
+              : 'border-border bg-surface',
+          )}
+        >
         {task ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
@@ -719,20 +727,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
             </div>
           </>
         ) : (goal.currentWeek && goal.currentWeek >= 12) || day >= 90 ? (
-          <>
-            <Eyebrow>90-Day Journey</Eyebrow>
-            <h2 id="step-heading" className="mt-3 text-h3 text-text">
-              90-Day Journey Complete
-            </h2>
-            <p className="mt-2 text-small text-text-secondary">
-              You have completed the 90-day deliberate practice path for this goal.
-            </p>
-            <div className="mt-6">
-              <Button asChild variant="secondary" trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}>
-                <Link to="/roadmap">Review 90-day roadmap</Link>
-              </Button>
-            </div>
-          </>
+          <ClosingStretchView goal={goal} apiStatus={apiStatus} />
         ) : (
           <>
             <Eyebrow>Today's step</Eyebrow>
@@ -742,8 +737,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           </>
         )}
       </section>
+      )}
 
-      {tasks.length > 0 && (
+      {!isClosingStretch && tasks.length > 0 && (
         <WeekGlance
           tasks={tasks}
           selectedId={task?.id}

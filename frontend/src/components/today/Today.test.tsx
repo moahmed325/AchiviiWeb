@@ -580,7 +580,7 @@ describe('Today', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
   });
 
-  it('renders 90-day journey complete state when at day 90 / after week 12 with no remaining tasks', async () => {
+  it('renders closing stretch state when at day 90 / after week 12 with no remaining tasks (M9.4-R1)', async () => {
     const goalComplete = {
       ...GOAL,
       currentWeek: 12,
@@ -590,12 +590,15 @@ describe('Today', () => {
     mocked.fetchActiveGoal.mockResolvedValueOnce(goalComplete);
     await renderToday();
 
-    expect(screen.getByText('90-Day Journey')).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: '90-Day Journey Complete' })).toBeVisible();
+    expect(screen.getByText('DAYS 85–90 · THE CLOSING STRETCH')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible();
     expect(
-      screen.getByText('You have completed the 90-day deliberate practice path for this goal.')
+      screen.getByText(/The 84 planned deliberate practice days are complete/i)
     ).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Review 90-day roadmap' })).toHaveAttribute('href', '/roadmap');
+    expect(screen.getByRole('link', { name: 'Review 90-day staircase' })).toHaveAttribute('href', '/roadmap');
+    expect(
+      screen.getByRole('button', { name: 'Complete Journey & Arrive at the Garden' })
+    ).toBeVisible();
   });
 
   it('renders offline notice banner when apiStatus is offline', async () => {

@@ -50,12 +50,33 @@ export const OnboardingPage: React.FC = () => {
     navigate('/');
   };
 
-  const navState = location.state as { presetGoal?: string; draftGoal?: string; isPreset?: boolean } | null;
+  const navState = location.state as {
+    presetGoal?: string;
+    draftGoal?: string;
+    isPreset?: boolean;
+    switchGoal?: boolean;
+    fromCompletedGoal?: boolean;
+  } | null;
   const initialGoal = navState?.presetGoal || navState?.draftGoal;
   const isPreset = Boolean(navState?.isPreset || navState?.presetGoal);
+  const isFromCompleted = Boolean(navState?.fromCompletedGoal || activeGoal?.status === 'completed');
 
   return (
     <div className="flex w-full flex-1 flex-col">
+      {isFromCompleted && (
+        <div
+          role="status"
+          className="mx-auto w-full max-w-2xl px-gutter pt-6 text-left"
+        >
+          <div className="flex items-center gap-3 rounded-card border border-achievement/30 bg-surface p-4 text-small text-text-secondary">
+            <span className="size-2 rounded-full bg-achievement shrink-0" aria-hidden="true" />
+            <span>
+              <strong className="text-text font-medium">Starting a new journey: </strong>
+              Your previous 90-day achievement is safely preserved in your personal history.
+            </span>
+          </div>
+        </div>
+      )}
       <OnboardingWizard
         token={token}
         onGoalCreated={handleGoalCreated}

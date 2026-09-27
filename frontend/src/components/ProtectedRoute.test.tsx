@@ -124,4 +124,75 @@ describe('ProtectedRoute (R1 — OD-9 / ND-12 Route Protection)', () => {
     expect(await screen.findByText('Home Root Page')).toBeInTheDocument();
     expect(screen.queryByText('Onboarding Content')).not.toBeInTheDocument();
   });
+
+  it('allows signed-in user with a completed goal to access /onboarding without redirecting (M9.4-R5)', async () => {
+    mocked.fetchActiveGoal.mockResolvedValueOnce({
+      id: 'g-comp',
+      userId: 'u1',
+      rawGoal: 'Completed Marathon',
+      status: 'completed',
+      planVersion: 2,
+    } as unknown as import('../types').Goal);
+
+    render(
+      <AuthProvider>
+        <GoalProvider>
+          <MemoryRouter initialEntries={['/onboarding']}>
+            <Routes>
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute requireGoal={false}>
+                    <div>Onboarding Content</div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<div>Home Root Page</div>} />
+            </Routes>
+          </MemoryRouter>
+        </GoalProvider>
+      </AuthProvider>
+    );
+
+    expect(await screen.findByText('Onboarding Content')).toBeInTheDocument();
+    expect(screen.queryByText('Home Root Page')).not.toBeInTheDocument();
+  });
+
+  it('allows signed-in user with fromCompletedGoal state to access /onboarding (M9.4-R5)', async () => {
+    mocked.fetchActiveGoal.mockResolvedValueOnce({
+      id: 'g-active',
+      userId: 'u1',
+      rawGoal: 'Active goal',
+      status: 'active',
+      planVersion: 2,
+    } as unknown as import('../types').Goal);
+
+    render(
+      <AuthProvider>
+        <GoalProvider>
+          <MemoryRouter
+            initialEntries={[
+              { pathname: '/onboarding', state: { fromCompletedGoal: true } },
+            ]}
+          >
+            <Routes>
+              <Route
+                path="/onboarding"
+                element={
+                  <ProtectedRoute requireGoal={false}>
+                    <div>Onboarding Content</div>
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/" element={<div>Home Root Page</div>} />
+            </Routes>
+          </MemoryRouter>
+        </GoalProvider>
+      </AuthProvider>
+    );
+
+    expect(await screen.findByText('Onboarding Content')).toBeInTheDocument();
+    expect(screen.queryByText('Home Root Page')).not.toBeInTheDocument();
+  });
 });
+

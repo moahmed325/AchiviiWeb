@@ -168,4 +168,32 @@ export function isWeekReviewDue(tasks: DailyTask[], now: Date): boolean {
   return false;
 }
 
+/**
+ * Checks whether the closing stretch (Days 85–90, OD-2 Option A, BP §34) is active for an active goal.
+ * Triggered when:
+ * 1. goal.status === 'active' AND
+ * 2. Either:
+ *    - dayNumber(goal, now) >= 85, OR
+ *    - goal.currentWeek >= 12 AND all scheduled active practice tasks for week 12 are completed or reviewed.
+ */
+export function isClosingStretchActive(goal: Goal, now: Date): boolean {
+  if (goal.status === 'completed' || goal.status === 'archived') return false;
+
+  const day = dayNumber(goal, now);
+  if (day >= 85) return true;
+
+  const currentWeek = goal.currentWeek ?? 1;
+  if (currentWeek >= 12) {
+    const week12Tasks = (goal.dailyTasks || []).filter((t) => t.weekNumber === 12);
+    const activeTasks = week12Tasks.filter((t) => !t.isRestDay);
+    const allDone = activeTasks.length > 0 && activeTasks.every((t) => t.status === 'completed');
+    const reviewed = Boolean(goal.weeklyReviews?.some((r) => r.weekNumber === 12));
+    if (allDone || reviewed) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 

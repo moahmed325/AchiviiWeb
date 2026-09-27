@@ -1,11 +1,11 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Sparkles, BarChart2, BookOpen } from 'lucide-react';
 import type { Goal, AchievementCelebrationState } from '../../types';
 import { computeAchievementSummary } from '../../lib/achievement';
 import { AchievementHero } from './AchievementHero';
 import { AchievementResults } from './AchievementResults';
 import { AchievementJourney } from './AchievementJourney';
+import { NewJourneyDialog } from './NewJourneyDialog';
 import { cx } from '../ui';
 
 interface AchievementScreenProps {
@@ -33,8 +33,8 @@ export const AchievementScreen: React.FC<AchievementScreenProps> = ({
   initialTab = 'achievement',
   className,
 }) => {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  const [isNewJourneyDialogOpen, setIsNewJourneyDialogOpen] = useState(false);
   const tabRefs = useRef<{ [key in TabKey]?: HTMLButtonElement | null }>({});
 
   const summary = useMemo(() => computeAchievementSummary(goal), [goal]);
@@ -43,8 +43,7 @@ export const AchievementScreen: React.FC<AchievementScreenProps> = ({
     if (onBeginAnotherJourney) {
       onBeginAnotherJourney();
     } else {
-      // Navigate to onboarding with explicit new journey intent (scaffolded for M9.4)
-      navigate('/onboarding', { state: { switchGoal: true } });
+      setIsNewJourneyDialogOpen(true);
     }
   };
 
@@ -163,6 +162,12 @@ export const AchievementScreen: React.FC<AchievementScreenProps> = ({
           </div>
         )}
       </div>
+
+      <NewJourneyDialog
+        open={isNewJourneyDialogOpen}
+        onOpenChange={setIsNewJourneyDialogOpen}
+        goal={goal}
+      />
     </main>
   );
 };

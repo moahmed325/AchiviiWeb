@@ -40,13 +40,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/onboarding" replace />;
   }
 
-  // Route is onboarding, but user already has an active goal -> redirect to dashboard only if NOT explicitly starting/switching to a goal
+  // Route is onboarding, but user already has an active in-progress goal -> redirect to dashboard only if NOT explicitly starting/switching to a goal.
+  // When activeGoal has status === 'completed', the user is allowed into onboarding unconditionally to begin their next journey (BP §34, R-15).
+  const isGoalCompleted = activeGoal?.status === 'completed';
+
   const navState = location.state as {
     presetGoal?: string;
     draftGoal?: string;
     isPreset?: boolean;
     switchGoal?: boolean;
     customGoal?: boolean;
+    fromCompletedGoal?: boolean;
   } | null;
 
   const isExplicitGoalSelection = Boolean(
@@ -54,10 +58,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     navState?.draftGoal ||
     navState?.switchGoal ||
     navState?.customGoal ||
+    navState?.fromCompletedGoal ||
     navState?.isPreset !== undefined
   );
 
-  if (location.pathname === '/onboarding' && activeGoal && !isExplicitGoalSelection) {
+  if (location.pathname === '/onboarding' && activeGoal && !isGoalCompleted && !isExplicitGoalSelection) {
     return <Navigate to="/" replace />;
   }
 

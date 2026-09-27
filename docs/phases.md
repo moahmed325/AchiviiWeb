@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is IN PROGRESS (M9.1, M9.2, and M9.3 done, M9.4 next).**
+Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is IN PROGRESS (M9.1, M9.2, M9.3, and M9.4 done, M9.5 next).**
 
 ---
 
@@ -4983,7 +4983,7 @@ R-8, R-14.
 | M9.1 | OD-1b decided; completion contracts defined | `Done` (2026-09-27) |
 | M9.2 | Backend completion transition with tests | `Done` (2026-09-27) |
 | M9.3 | Achievement screen and garden transition | `Done` (2026-09-27) |
-| M9.4 | Final-stretch state; "Begin another journey" flow | `NOT STARTED` |
+| M9.4 | Final-stretch state; "Begin another journey" flow | `Done` (2026-09-27) |
 | M9.5 | Regression and phase report | `NOT STARTED` |
 
 ### M9.1 report — OD-1b decided and goal completion contracts (2026-09-27)
@@ -5105,6 +5105,56 @@ R-8, R-14.
    - Frontend TypeScript Check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
    - Frontend Production Build: Clean code-split build (`npm run build --workspace=frontend`).
    - Backend Invariance: Zero modifications to backend code or database migrations in M9.3 (strict adherence to Rule 3.2 and Decision D-11).
+
+### M9.4 report — Final-stretch state and "Begin another journey" flow (2026-09-27)
+
+1. **Closing Stretch State in Today (`ClosingStretchView.tsx`, OD-2 Option A, BP §34)**
+   - Delivered `frontend/src/components/today/ClosingStretchView.tsx` and integrated it into `frontend/src/components/today/Today.tsx`.
+   - Activated cleanly when `goal.status === 'active'` and either `dayNumber(goal, now) >= 85` or `goal.currentWeek >= 12` with all active deliberate practice tasks completed or reviewed (`isClosingStretchActive` helper in `frontend/src/lib/today.ts`).
+   - Replaced legacy text placeholder banner with Visual Level 2/3 calm narrative:
+     - Eyebrow: `DAYS 85–90 · THE CLOSING STRETCH` in `font-ui-mono text-micro uppercase tracking-wider text-achievement`.
+     - Headline: `The Final Evaluation & Arrival`.
+     - Narrative: Explains that the 84 planned deliberate practice days are complete and the remaining days are dedicated to taking the capstone evaluation, reflecting on the 90-day journey, and arriving at the destination.
+     - Progress context: Displays a calm 6-day approach indicator (Days 85–90 with active/completed day highlighting) without synthetic daily tasks (OD-2 Option A).
+     - Roadmap staircase link: Retains accessible link to `/roadmap` ("Review 90-day staircase").
+
+2. **Capstone Final Test & Journey Reflection Capture**
+   - Renders the Capstone Evaluation card using `extractFinalTestEvaluation(goal)`:
+     - Displays `goal.roadmap.finalTest` instructions, test type, summit target deliverable, and pass criteria.
+     - Displays summit ambition reminder (`goal.roadmap.finalGoal || goal.clarifiedOutcome || goal.rawGoal`).
+     - Provides non-punitive benchmark result selector (`Benchmark achieved` vs `In progress — Reinforcing`), recorded score / deliverable output input, and optional evaluation notes.
+   - Final Journey Reflection capture:
+     - Textarea with label *"Final Journey Reflection"* and reflective placeholder (*"What shifted over these ninety days? What habits, systems, or understanding feel permanent?"*).
+     - Implemented `localStorage` draft persistence (`achivii_closing_reflection_${goal.id}`) preventing reflection loss across accidental page reloads or network drops; draft is cleared upon successful completion.
+
+3. **Earned Arrival Transition & Fallback Path**
+   - Primary action: `[ Complete Journey & Arrive at the Garden ]` invokes `completeGoal` from `GoalContext` with `{ finalReflection, finalTestResult }`.
+   - On completion: `activeGoal` transitions to `status = 'completed'` and `Home.tsx` immediately renders the Visual Level 4 Roman garden achievement destination (`AchievementPage`) without page reloads.
+   - Fallback action: Quiet secondary CTA `[ Arrive without test ]` allows completion even if the user chooses not to submit a formal test score.
+   - Offline resilience: Disables submit actions when `apiStatus === 'offline'` with a calm status banner; displays non-destructive inline alert (`role="alert"`, `aria-live="assertive"`) with `"Try again"` retry button on network failures.
+
+4. **"Begin Another Journey" Succession Flow (`NewJourneyDialog.tsx`, R-15)**
+   - Created accessible modal dialog `frontend/src/components/achievement/NewJourneyDialog.tsx` using Radix Dialog (`Dialog` and `DialogContent` from `../ui/Dialog`).
+   - Reassures user of succession safety (R-15):
+     - Title: *"Begin Your Next Journey"*.
+     - Subtitle: *"Your completed 90-day journey is permanently preserved in your archives. Starting another journey will open pathway selection to plan your next ambition."*
+     - Highlights completed goal title and completion date.
+     - Reassurance badge: *"Permanently Preserved: Your practice history, reflections, and benchmark test results remain intact in your personal archive."*
+   - Actions:
+     - Secondary: `[ Stay in the Garden ]` dismisses dialog.
+     - Primary: `[ Choose Next Pathway ]` navigates to `/onboarding` with `{ state: { switchGoal: true, fromCompletedGoal: true } }`.
+
+5. **Route Guarding & Succession Safety (R-15)**
+   - Updated `frontend/src/components/ProtectedRoute.tsx`: allows signed-in users with a completed goal (`activeGoal?.status === 'completed'`) or `fromCompletedGoal` navigation state to access `/onboarding` without redirect loops back to `/`.
+   - Updated `frontend/src/pages/OnboardingPage.tsx`: renders an orientation banner (*"Starting a new journey · Your previous 90-day achievement is safely preserved in your personal history"*) when starting a new journey from a completed goal.
+   - Preserves completed goal with `status = 'completed'` in PostgreSQL when creating the new active goal (`POST /api/goal/create`), returning the user to Day 1 / Week 1 of their next ambition.
+
+6. **Authoritative Verification Evidence**
+   - Frontend Vitest: 46 test files, 388 tests passed (`npm test --workspace=frontend`).
+   - Backend Vitest: 22 test files, 250 tests passed (`npm test --workspace=backend`).
+   - Frontend Type Check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - Frontend Production Build: Clean build with code-split achievement chunk (`AchievementPage-u_FtEfkb.js`, 26.02 kB │ gzip: 6.18 kB).
+   - Strict adherence to Rule 3.2 / Decision D-11: zero backend files modified.
 
 ### Regression checks
 
@@ -5537,6 +5587,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 9 M9.1 done: OD-1b Decided as Option B (dedicated completion endpoint `POST /api/goal/complete` with closing-stretch arrival); technical specification and test plan formalized for M9.2 backend allowance; canonical achievement TypeScript contracts defined in `frontend/src/types/achievement.ts` and re-exported via `frontend/src/types/index.ts`; zero backend edits executed in M9.1; Phase 9 is IN PROGRESS. M9.2 ready. |
 | 2026-09-27 | Phase 9 M9.2 done: Named backend allowance implemented under OD-1b (Option B) and D-11; nullable `Goal.completedAt DateTime?` migration applied in PostgreSQL; `POST /api/goal/complete` endpoint delivered with auth/404 guards and safe optional payload persistence; `GET /api/goal/active` updated to query active first and fall back to completed goal for reload persistence; succession safety verified (completed goals preserved, active goals archived/deleted cleanly); frontend API client `completeGoal` and context `GoalContext.completeGoal` integrated; dedicated Vitest integration test suite `backend/test/goalCompletion.test.ts` authored (10/10 tests pass, 250/250 backend tests pass across 22 files, 351/351 frontend tests pass across 41 files, 0 TS errors, clean builds). Phase 9 is IN PROGRESS. M9.3 ready. |
 | 2026-09-27 | Phase 9 M9.3 done: Visual Level 4 cinematic achievement experience delivered (`AchievementHero.tsx`, `AchievementResults.tsx`, `AchievementJourney.tsx`, `AchievementScreen.tsx`, `AchievementPage.tsx`); atmospheric Roman garden transition built with verified brand asset `garden.jpg` using multi-layer dark underlays and desktop/mobile aspect ratio handling; real results calculation engine (`computeAchievementSummary`) computes 90-day deliberate practice sessions, adherence rate, milestone benchmark stats, and capstone evaluation with 0 fake data; accessible tab switching across Arrival, Results, and Journey with keyboard arrow navigation and WAI-ARIA roles; `/achievement` mounted in `App.tsx` (code-split chunk `AchievementPage-B24FuDth.js`) and conditionally rendered in `Home.tsx` on completed goal; dynamic shell navigation on `AppRail` and `AppBottomBar` showing "Achievement" with `Award` icon; 16 new automated tests added (44 frontend test files / 368 tests pass, 0 TS errors, clean build); strict zero backend edits (D-11 constraint preserved). Phase 9 is IN PROGRESS. M9.4 ready. |
+| 2026-09-27 | Phase 9 M9.4 done: Designed Days 85–90 Closing Stretch experience delivered in Today (`ClosingStretchView.tsx`, `Today.tsx`, `today.ts`); replaces terminal placeholder with calm narrative, 6-day temporal approach indicator, capstone evaluation card with benchmark selector, and 90-day final reflection with localStorage draft persistence; primary arrival CTA invokes `completeGoal` and seamlessly transitions user to the Roman garden; fallback quiet arrival CTA provided; succession-safe "Begin another journey" dialog (`NewJourneyDialog.tsx`) delivered with Radix Dialog; `ProtectedRoute.tsx` and `OnboardingPage.tsx` updated to allow completed goal users into onboarding to create next goal while permanently preserving completed journeys in the database (R-15); 20 new automated tests added (46 frontend test files / 388 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits (D-11 constraint preserved). Phase 9 is IN PROGRESS. M9.5 ready. |
 
 
 

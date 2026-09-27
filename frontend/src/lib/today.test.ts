@@ -9,6 +9,7 @@ import {
   isToday,
   isWeekReviewDue,
   isYesterdayPending,
+  isClosingStretchActive,
   parseIntention,
   parseSteps,
   parseTaskNotes,
@@ -249,6 +250,74 @@ describe('isWeekReviewDue', () => {
 
   it('returns false when there are no tasks', () => {
     expect(isWeekReviewDue([], new Date())).toBe(false);
+  });
+});
+
+describe('isClosingStretchActive', () => {
+  const baseGoal = {
+    id: 'g1',
+    status: 'active',
+    targetDate: '2026-12-30',
+    currentWeek: 12,
+    dailyTasks: [],
+    weeklyReviews: [],
+  } as unknown as Goal;
+
+  it('returns true when dayNumber is 85 or greater', () => {
+    // targetDate 5 days from now -> dayNumber = 91 - 5 = 86
+    const now = new Date('2026-09-27T12:00:00Z');
+    const targetDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
+    const goal = { ...baseGoal, currentWeek: 11, targetDate };
+    expect(isClosingStretchActive(goal, now)).toBe(true);
+  });
+
+  it('returns true when currentWeek is 12 and all week 12 active tasks are completed', () => {
+    const now = new Date('2026-09-27T12:00:00Z');
+    const targetDate = new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000).toISOString(); // day < 85
+    const week12Tasks = [
+      task({ id: 't1', weekNumber: 12, isRestDay: false, status: 'completed' }),
+      task({ id: 't2', weekNumber: 12, isRestDay: false, status: 'completed' }),
+      task({ id: 't3', weekNumber: 12, isRestDay: true, status: 'pending' }),
+    ];
+    const goal = { ...baseGoal, currentWeek: 12, targetDate, dailyTasks: week12Tasks };
+    expect(isClosingStretchActive(goal, now)).toBe(true);
+  });
+
+  it('returns true when currentWeek is 12 and week 12 review has been completed', () => {
+    const now = new Date('2026-09-27T12:00:00Z');
+    const targetDate = new Date(now.getTime() + 20 * 24 * 60 * 60 * 1000).toISOString(); // day < 85
+    const goal = {
+      ...baseGoal,
+      currentWeek: 12,
+      targetDate,
+      weeklyReviews: [{ id: 'rev12', weekNumber: 12, reflection: 'Done' }],
+    } as unknown as Goal;
+    expect(isClosingStretchActive(goal, now)).toBe(true);
+  });
+
+  it('returns false when status is not active (e.g. completed)', () => {
+    const now = new Date('2026-09-27T12:00:00Z');
+    const targetDate = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+    const goal = { ...baseGoal, status: 'completed' as const, targetDate };
+    expect(isClosingStretchActive(goal, now)).toBe(false);
+  });
+
+  it('returns false when week 12 has pending practice tasks and day is under 85', () => {
+    const now = new Date('2026-09-27T12:00:00Z');
+    const targetDate = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString(); // day ~ 76
+    const week12Tasks = [
+      task({ id: 't1', weekNumber: 12, isRestDay: false, status: 'completed' }),
+      task({ id: 't2', weekNumber: 12, isRestDay: false, status: 'pending' }),
+    ];
+    const goal = { ...baseGoal, currentWeek: 12, targetDate, dailyTasks: week12Tasks };
+    expect(isClosingStretchActive(goal, now)).toBe(false);
+  });
+
+  it('returns false when currentWeek is less than 12 and day is under 85', () => {
+    const now = new Date('2026-09-27T12:00:00Z');
+    const targetDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(); // day ~ 61
+    const goal = { ...baseGoal, currentWeek: 8, targetDate };
+    expect(isClosingStretchActive(goal, now)).toBe(false);
   });
 });
 
