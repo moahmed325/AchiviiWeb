@@ -4,7 +4,7 @@ import { TrendingUp } from 'lucide-react';
 import { useGoal } from '../context/GoalContext';
 import { dayNumber } from '../lib/today';
 import { LoadingState, Skeleton } from '../components/ui';
-import { CompletionOverview, PhaseMilestonesCard, WeekBreakdownList } from '../components/progress';
+import { CompletionOverview, PhaseMilestonesCard, WeekBreakdownList, BenchmarkResultsCard, AdaptationHistoryList } from '../components/progress';
 
 /** Loading skeleton matching the Progress page layout. */
 const ProgressSkeleton: React.FC = () => (
@@ -26,11 +26,12 @@ const ProgressSkeleton: React.FC = () => (
 );
 
 /**
- * M8.2-R2: Progress Page Shell.
+ * M8.2-R2 + M8.3-R3: Progress Page Shell.
  *
  * Dedicated /progress destination (ND-8 Option A).
- * Renders genuine execution metrics, phase milestones, and week-by-week
- * breakdown derived from stored DailyTask and RoadmapWeek records.
+ * Renders genuine execution metrics, phase milestones, week-by-week
+ * breakdown, benchmark results, and adaptation history derived from
+ * stored DailyTask, RoadmapWeek, and WeeklyReview records.
  * Visual Level 3: restrained, typographic, large numerals as visual objects.
  */
 export const ProgressPage: React.FC = () => {
@@ -102,6 +103,12 @@ export const ProgressPage: React.FC = () => {
 
       {/* Layer 3: Week-by-Week Breakdown */}
       <WeekBreakdownList goal={activeGoal} />
+
+      {/* Layer 4: Benchmark Results (M8.3-R1) — only renders if weeks have tests */}
+      <BenchmarkResultsCard goal={activeGoal} />
+
+      {/* Layer 5: Adaptation History (M8.3-R2) — only renders if reviews exist */}
+      <AdaptationHistoryList goal={activeGoal} />
     </main>
   );
 };

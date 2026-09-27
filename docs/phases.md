@@ -17,7 +17,7 @@ The project framework is three files:
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
-Last updated: 2026-09-27 · Current position: **Phases 0–7 complete. Phase 8 (Progress) is IN PROGRESS (M8.1–M8.2 done, M8.3 next).**
+Last updated: 2026-09-27 · Current position: **Phases 0–7 complete. Phase 8 (Progress) is IN PROGRESS (M8.1–M8.3 done, M8.4 next).**
 
 ---
 
@@ -4653,9 +4653,37 @@ None beyond what Phase 7 shipped.
 |---|---|---|
 | M8.1 | ND-8 decided | `Done` (2026-09-27) |
 | M8.2 | Completion and milestones | `Done` (2026-09-27) |
-| M8.3 | Results and adaptation history (data permitting) | `NOT STARTED` |
+| M8.3 | Results and adaptation history (data permitting) | `Done` (2026-09-27) |
 | M8.4 | Empty and early states | `NOT STARTED` |
 | M8.5 | Regression and phase report | `NOT STARTED` |
+
+### M8.3 report — Results and adaptation history (2026-09-27)
+
+1. **Benchmark Results Card (`BenchmarkResultsCard.tsx`)**
+   - Displays honest, real test results stored in `RoadmapWeek.testResult` (Phase 7 M7.5) against target criteria.
+   - Distinct, non-punitive visual statuses:
+     - Passed benchmarks: calm accent badge with `Check` icon (`Benchmark achieved`) and recorded metric value.
+     - Unmet benchmarks: respectful neutral badge (`In progress · Reinforcing`, BP §18) and recorded metric value.
+     - Upcoming benchmarks: target criteria and pass rules preview.
+   - Includes user's genuine reflection notes from the test session.
+   - Adheres strictly to BP §43 and VDS §31 (zero fabricated analytics, zero fake AI grading, zero charts).
+
+2. **Adaptation History List (`AdaptationHistoryList.tsx`)**
+   - Chronological historical log of weekly reviews actually completed (`WeeklyReview` records).
+   - Shows week number, focus theme, execution adherence score (`font-ui-mono text-numeral tabular-nums`), and practice sessions completed.
+   - Displays user's raw submitted reflection note (`WeeklyReview.reflection`).
+   - Surfaces server's genuine AI adaptation insight (`WeeklyReview.aiAdaptationInsight`), providing clear visibility into how the pathway evolved.
+
+3. **Progress Page Integration (`ProgressPage.tsx`, `components/progress/index.ts`)**
+   - Mounted `BenchmarkResultsCard` and `AdaptationHistoryList` onto `/progress`.
+   - Maintained Visual Level 3 typographic hierarchy and modular page layout.
+
+4. **Automated Verification Evidence**
+   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - ESLint: 0 errors across all progress components, pages, and tests.
+   - Frontend Vitest: 40 test files passed, 344/344 tests passed (including unit tests for `BenchmarkResultsCard` and `AdaptationHistoryList`).
+   - Production Build: Vite build clean (`dist/assets/ProgressPage-*.js` code-split cleanly).
+   - Zero backend edits: Backend allowance strictly preserved per D-11.
 
 ### M8.2 report — Completion and milestones (2026-09-27)
 
@@ -5217,6 +5245,10 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 7 M7.4 done: Failure, retry and review-due states delivered across `WeeklyReviewModal.tsx`, `ReviewSummaryCard.tsx`, `ReviewReflectionStep.tsx`, `Today.tsx`, `today.ts`, and `reviewDraft.ts`; unsubmitted reflection drafts safely persisted in browser storage and restored across accidental dismissals/reloads; 503 adaptation failure and offline network alerts displayed in accessible live region (`role="alert"`, `aria-live="assertive"`) with preserved reflection and working in-modal retry (`'Try again'`); enhanced `isWeekReviewDue` triggers when all week dates have passed or all active practice tasks are completed; Week 12 closing stretch integration displays `'Enter Closing Stretch'` CTA (never `'Start Week 13'`), modal title `'Closing Stretch Ready'`, and Today review-due card copy unlocking days 85–90; calm, serene, non-punitive guidance for empty weeks (0 completed sessions) with zero shame phrasing (BP §18); everyday accessible review entry points delivered in `WeekGlance` ("Review week") and footer nav ("Weekly review") (BP §33 / OD-9); 14/14 tests pass in `WeeklyReviewModal.test.tsx`, 28/28 in `Today.test.tsx`, 23/23 in `today.test.ts`, 332/332 across full frontend Vitest (38 files), 229/229 across backend Vitest (20 files, 0 backend edits), 14/14 Playwright E2E in `weeklyReview.spec.ts` (0 axe violations, 0 overflow, 44px tap targets), 16/16 in `todayStates.spec.ts`. M7.5 ready. |
 | 2026-09-27 | Phase 7 M7.5 done: Named backend allowance implemented under OD-1a (Option A) and D-11 (`RoadmapWeek.testResult Json?` added in `backend/prisma/schema.prisma`, migration `20260927071946_add_weekly_test_result` applied, pgvector integrity verified); review endpoint validation and backward-compatible persistence delivered in `POST /api/goal/weeks/:weekNumber/review` (`backend/src/routes/goal.ts`); dedicated backend Vitest test suite added in `backend/test/weeklyReviewTestResult.test.ts` (11/11 tests pass, 240/240 tests pass across 21 backend test files); frontend API client `submitWeeklyReview` updated in `frontend/src/lib/api.ts`; weekly benchmark test result recording, draft persistence, and honest target comparison UI delivered in `ReviewTestResultStep.tsx`, `WeeklyReviewModal.tsx`, `AdaptationMomentStep.tsx`, and `reviewDraft.ts` (zero media proof uploads, zero photo/video judging, zero AI grading, BP §43); 27/27 review tests pass, 339/339 across full frontend Vitest (39 files), 14/14 Playwright E2E in `weeklyReview.spec.ts` (0 axe violations, 0 overflow, 44px tap targets), 16/16 in `todayStates.spec.ts`. M7.6 ready. |
 | 2026-09-27 | Phase 7 M7.6 done: Full regression verification pass across all capabilities touched by Phase 7 (R-8, R-9, R-12, R-13), Phase 7 validation scenarios audit (all 5 scenarios verified with passing automated evidence), Phase 7 exit criteria audit (all 3 criteria met), quality/accessibility/responsive audit (0 axe violations, 44px tap targets, 0 overflow at 390px/360px), full test suites passing (21/21 backend Vitest test files, 240/240 tests; 39/39 frontend Vitest test files, 339/339 tests; 33/33 Playwright desktop E2E tests, 7/7 mobile E2E tests), production builds clean (frontend JS/CSS and backend tsc), M7.6 report and official Phase 7 report authored. Phase 7 status is COMPLETE (awaiting Mo's review). Phase 8 (Progress) is unblocked and next. |
+| 2026-09-27 | Phase 8 M8.1 done: Architectural Decision ND-8 resolved as Option A (dedicated Progress page `/progress`); decision registered in `docs/decisions.md`; zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
+| 2026-09-27 | Phase 8 M8.2 done: Dedicated `/progress` route mounted in `App.tsx` (wrapped in `ProtectedRoute`); desktop `AppRail` and mobile `AppBottomBar` navigation updated with Progress link and `TrendingUp` icon; Visual Level 3 typographic progress overview delivered (`ProgressPage.tsx`, `CompletionOverview.tsx`, `PhaseMilestonesCard.tsx`, `WeekBreakdownList.tsx`); strict future honesty and non-punitive completion metrics; 342/342 frontend Vitest pass, 25/25 Playwright desktop E2E pass. M8.3 ready. |
+| 2026-09-27 | Phase 8 M8.3 done: Results layer and adaptation history delivered (`BenchmarkResultsCard.tsx`, `AdaptationHistoryList.tsx`, `ProgressPage.tsx`); displays stored benchmark test results from `RoadmapWeek.testResult` (Phase 7 M7.5) with target criteria, user notes, and non-punitive status (`Benchmark achieved` vs `In progress · Reinforcing`, BP §18); displays weekly adaptation log with submitted reflections and server AI adaptation insights; 344/344 frontend Vitest pass across 40 files; production build clean (clean code-split `ProgressPage` chunk); zero backend edits. M8.4 ready. |
+
 
 
 

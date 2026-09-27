@@ -4,6 +4,8 @@ import type { DailyTask, Goal, RoadmapWeek } from '../../types';
 import { CompletionOverview } from './CompletionOverview';
 import { PhaseMilestonesCard } from './PhaseMilestonesCard';
 import { WeekBreakdownList } from './WeekBreakdownList';
+import { BenchmarkResultsCard } from './BenchmarkResultsCard';
+import { AdaptationHistoryList } from './AdaptationHistoryList';
 
 const createSampleTasks = (): DailyTask[] => {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -158,5 +160,102 @@ describe('Progress Components (M8.2 — Completion and Milestones)', () => {
 
     // Week 3 upcoming
     expect(screen.getByText('Dynamic Speed')).toBeInTheDocument();
+  });
+
+  it('BenchmarkResultsCard renders benchmark targets, user results, and honest non-punitive badges (M8.3-R1)', () => {
+    const tasks = createSampleTasks();
+    const weeks: RoadmapWeek[] = [
+      {
+        id: 'rw-1',
+        goalId: 'g-1',
+        weekNumber: 1,
+        phase: 'Foundation',
+        theme: 'Core Posture',
+        objective: 'Establish posture',
+        keyMilestone: 'Consistent form',
+        targetIntensity: 3,
+        plannedMinutes: 225,
+        status: 'completed',
+        target: { kind: 'number', metric: 'Continuous tempo', value: 60, unit: 'bpm', direction: 'higher_is_better' },
+        test: { type: 'count', instructions: 'Play 5 sets unbroken', passIf: '60 bpm clean' },
+        testResult: { value: 62, unit: 'bpm', passed: true, note: 'Felt very natural' },
+        created_at: '',
+      },
+      {
+        id: 'rw-2',
+        goalId: 'g-1',
+        weekNumber: 2,
+        phase: 'Foundation',
+        theme: 'Tempo & Control',
+        objective: 'Increase tempo',
+        keyMilestone: 'Zero errors',
+        targetIntensity: 3,
+        plannedMinutes: 225,
+        status: 'active',
+        target: { kind: 'number', metric: 'Speed', value: 80, unit: 'bpm', direction: 'higher_is_better' },
+        test: { type: 'count', instructions: 'Play at 80 bpm', passIf: '80 bpm clean' },
+        testResult: { value: 72, unit: 'bpm', passed: false, note: 'Tension in left hand' },
+        created_at: '',
+      },
+    ];
+    const goal = createSampleGoal(tasks, weeks);
+
+    render(<BenchmarkResultsCard goal={goal} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: /Benchmark results/i })).toBeInTheDocument();
+
+    // Week 1 passed
+    expect(screen.getByText(/Continuous tempo: 60 bpm/i)).toBeInTheDocument();
+    expect(screen.getByText('62 bpm')).toBeInTheDocument();
+    expect(screen.getByText(/Benchmark achieved/i)).toBeInTheDocument();
+    expect(screen.getByText(/Felt very natural/i)).toBeInTheDocument();
+
+    // Week 2 not passed: non-punitive styling
+    expect(screen.getByText(/Speed: 80 bpm/i)).toBeInTheDocument();
+    expect(screen.getByText('72 bpm')).toBeInTheDocument();
+    expect(screen.getByText(/In progress · Reinforcing/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tension in left hand/i)).toBeInTheDocument();
+  });
+
+  it('AdaptationHistoryList renders reflections, score, and genuine server aiAdaptationInsight (M8.3-R2)', () => {
+    const tasks = createSampleTasks();
+    const weeks: RoadmapWeek[] = [
+      {
+        id: 'rw-1',
+        goalId: 'g-1',
+        weekNumber: 1,
+        phase: 'Foundation',
+        theme: 'Core Posture',
+        objective: 'Establish posture',
+        keyMilestone: 'Consistent form',
+        targetIntensity: 3,
+        plannedMinutes: 225,
+        status: 'completed',
+        created_at: '',
+      },
+    ];
+    const goal = {
+      ...createSampleGoal(tasks, weeks),
+      weeklyReviews: [
+        {
+          id: 'wr-1',
+          goalId: 'g-1',
+          weekNumber: 1,
+          tasksPlanned: 5,
+          tasksCompleted: 5,
+          scorePercentage: 100,
+          reflection: 'Morning sessions worked best for consistency.',
+          aiAdaptationInsight: '5 of 5 sessions completed. Solid adherence.',
+          created_at: '2026-09-07T10:00:00Z',
+        },
+      ],
+    };
+
+    render(<AdaptationHistoryList goal={goal} />);
+
+    expect(screen.getByRole('heading', { level: 2, name: /Adaptation history/i })).toBeInTheDocument();
+    expect(screen.getByText('Morning sessions worked best for consistency.')).toBeInTheDocument();
+    expect(screen.getByText('5 of 5 sessions completed. Solid adherence.')).toBeInTheDocument();
+    expect(screen.getByText('100%')).toBeInTheDocument();
   });
 });
