@@ -94,7 +94,7 @@ describe('shellMode and shellEntries', () => {
 });
 
 describe('entries', () => {
-  it('with a goal: Today, Roadmap, Progress, Pathways and Account, in both layouts, and nothing else', async () => {
+  it('with a goal: Today, Roadmap, Progress, Pathways, Coach and Account, in both layouts', async () => {
     signedIn(GOAL);
     renderAt('/');
     await rail().findByRole('link', { name: 'Roadmap' });
@@ -103,14 +103,27 @@ describe('entries', () => {
       const names = Array.from(nav.querySelectorAll('a, button'))
         .filter((el) => !el.closest('[hidden]'))
         .map((el) => el.textContent?.replace('mo@example.com', '').trim());
-      expect(names).toEqual(['Today', 'Roadmap', 'Progress', 'Pathways', 'Account']);
+      expect(names).toEqual(['Today', 'Roadmap', 'Progress', 'Pathways', 'CoachSoon', 'Account']);
       expect(within(nav).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
       expect(within(nav).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
-      expect(within(nav).queryByText(/Journey|Coach|coming soon|\(\d+\)/i)).toBeNull();
+      expect(within(nav).queryByText(/Journey|coming soon|\(\d+\)/i)).toBeNull();
     }
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.queryByText(/Achivii ©/)).toBeNull();
+  });
+
+  it('opens an honest Coach coming-soon sheet from the shell', async () => {
+    signedIn(GOAL);
+    const user = userEvent.setup();
+    renderAt('/');
+    await rail().findByRole('button', { name: /Coach/ });
+    await user.click(rail().getByRole('button', { name: /Coach/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Coach' });
+    expect(dialog).toHaveTextContent('Coming soon');
+    expect(dialog).toHaveTextContent('in development');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Coach' })).toBeNull();
   });
 
   it('without a goal: no Roadmap or Progress entry', async () => {
