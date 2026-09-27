@@ -109,7 +109,7 @@ describe('PathwayLibrary (cards)', () => {
         }
       />,
     );
-    const custom = screen.getByRole('region', { name: 'Something else in mind?' });
+    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
     expect(within(custom).getByRole('button', { name: 'Describe my own goal' })).toBeEnabled();
     expect(custom).not.toHaveTextContent(/premium|pro\b|locked|upgrade|paid|price|\$/i);
     expect(directionGroup().compareDocumentPosition(custom) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();

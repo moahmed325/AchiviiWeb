@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button, Dialog, DialogClose, DialogContent } from './ui';
 import { findPathwayByTitle } from '../lib/certifiedPresets';
-import { PathwayLibrary, usePathwayLaunch, usePathwaySelection } from './pathways';
+import { PathwayCustomGoal, PathwayLibrary, usePathwayLaunch, usePathwaySelection } from './pathways';
+import { DRAFT_GOAL_KEY } from './onboarding/payload';
 
 interface PathwaysExplorerModalProps {
   isOpen: boolean;
@@ -23,9 +25,18 @@ interface ExplorerContentProps {
 const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, initialPathwayId, onClose }) => {
   const selection = usePathwaySelection({ initialId: initialPathwayId, currentId, startOnFirstDirection: true });
   const { startPathway } = usePathwayLaunch();
+  const navigate = useNavigate();
   const { selected } = selection;
 
   const actionLabel = !hasGoal ? 'Start this pathway' : selected && selected.id === currentId ? 'Restart this pathway' : 'Switch to this pathway';
+
+  const handleCustomJourney = () => {
+    onClose();
+    localStorage.removeItem(DRAFT_GOAL_KEY);
+    navigate('/onboarding', {
+      state: { isPreset: false, customGoal: true, ...(hasGoal ? { switchGoal: true } : {}) },
+    });
+  };
 
   return (
     <DialogContent
@@ -55,7 +66,23 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
         </>
       }
     >
-      <PathwayLibrary navigation="tabs" selection={selection} currentId={currentId} />
+      <PathwayLibrary
+        navigation="tabs"
+        selection={selection}
+        currentId={currentId}
+        customGoal={
+          <PathwayCustomGoal className="mt-8">
+            <Button
+              variant="premium"
+              className="w-full sm:w-auto"
+              onClick={handleCustomJourney}
+              trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+            >
+              {hasGoal ? 'Create a custom journey' : 'Describe my own goal'}
+            </Button>
+          </PathwayCustomGoal>
+        }
+      />
     </DialogContent>
   );
 };

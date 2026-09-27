@@ -3,8 +3,9 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import { SkipLink } from '../ui';
+import { CoachModal } from '../coach/CoachModal';
 import { PathwaysExplorerModal } from '../PathwaysExplorerModal';
-import { AppBottomBar, AppRail, AppTopBar, CoachComingSoon } from './AppNavigation';
+import { AppBottomBar, AppRail, AppTopBar } from './AppNavigation';
 import { shellMode } from './shellEntries';
 
 interface AppShellProps {
@@ -48,11 +49,12 @@ export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => 
   }
 
   const openPathways = () => setPathwaysOpen(true);
+  const openCoach = () => setCoachOpen(true);
 
   return (
     <div className="flex min-h-[100dvh] w-full flex-col bg-background text-text">
       <SkipLink />
-      <AppRail onOpenPathways={openPathways} onOpenCoach={() => setCoachOpen(true)} />
+      <AppRail onOpenPathways={openPathways} onOpenCoach={openCoach} />
       {/*
         A legacy page that is wider than the screen scrolls sideways inside this column instead of widening the
         document. A wider document grows the layout viewport past the visible screen, and the bottom bar and taps on
@@ -64,9 +66,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => 
       >
         {children}
       </div>
-      <AppBottomBar onOpenPathways={openPathways} onOpenCoach={() => setCoachOpen(true)} />
-      <CoachComingSoon open={coachOpen} onOpenChange={setCoachOpen} />
+      <AppBottomBar onOpenPathways={openPathways} onOpenCoach={openCoach} />
       <PathwaysExplorerModal isOpen={pathwaysOpen} onClose={() => setPathwaysOpen(false)} activeGoalTitle={activeGoal?.rawGoal} />
+      <CoachModal isOpen={coachOpen} onClose={() => setCoachOpen(false)} />
     </div>
   );
 };

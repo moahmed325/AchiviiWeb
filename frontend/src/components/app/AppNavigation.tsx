@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Award, CircleUser, Compass, Map as MapIcon, MessageCircle, Sun, TrendingUp, type LucideIcon } from 'lucide-react';
+import { Award, CircleUser, Compass, Map as MapIcon, Sparkles, Sun, TrendingUp, type LucideIcon } from 'lucide-react';
 import { useGoal } from '../../context/GoalContext';
-import { Dialog, DialogContent, cx } from '../ui';
+import { cx } from '../ui';
 import { Wordmark } from '../marketing/Wordmark';
 import { AccountDisclosure, AccountSheet } from './AccountMenu';
 import { OfflineChip } from './OfflineChip';
@@ -77,14 +77,13 @@ export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCo
               Pathways
             </button>
           </li>
+          <li>
+            <button type="button" onClick={onOpenCoach} className={railItem(false)}>
+              <Sparkles aria-hidden="true" strokeWidth={1.5} className="size-5 shrink-0 text-achievement" />
+              <span>Coach <span aria-hidden="true" className="text-achievement">✦</span></span>
+            </button>
+          </li>
         </ul>
-        <div className="mt-4 border-t border-border pt-4">
-          <button type="button" onClick={onOpenCoach} className={railItem(false)}>
-            <RailIcon icon={MessageCircle} />
-            <span className="min-w-0 flex-1">Coach</span>
-            <span className="font-ui-mono text-micro uppercase text-text-secondary">Soon</span>
-          </button>
-        </div>
         <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
           {offline && <OfflineChip className="ml-3 self-start" />}
           <AccountDisclosure context="app" placement="up" />
@@ -162,9 +161,8 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
             </li>
             <li className="min-w-0 flex-1">
               <button type="button" onClick={onOpenCoach} className={barItem(false)}>
-                <BarIcon icon={MessageCircle} />
-                <span>Coach</span>
-                <span className="font-ui-mono text-[0.6rem] uppercase leading-none text-text-secondary">Soon</span>
+                <Sparkles aria-hidden="true" strokeWidth={1.5} className={cx('size-5', 'text-achievement')} />
+                <span className="text-[10px]">Coach <span aria-hidden="true" className="text-achievement">✦</span></span>
               </button>
             </li>
             <li className="min-w-0 flex-1">
@@ -179,24 +177,6 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
     </>
   );
 };
-
-export const CoachComingSoon: React.FC<{ open: boolean; onOpenChange: (open: boolean) => void }> = ({ open, onOpenChange }) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent
-      title="Coach"
-      description="A thoughtful guide for the moments when you need another perspective."
-      size="sm"
-    >
-      <div className="space-y-4 text-small text-text-secondary">
-        <p>Coach is in development. It will be designed as a separate, careful experience rather than a pretend chat.</p>
-        <p>For now, your pathway and daily practice remain the place to make progress.</p>
-        <span className="inline-flex rounded-full border border-border-strong bg-surface px-3 py-1 font-ui-mono text-micro uppercase text-text-secondary">
-          Coming soon
-        </span>
-      </div>
-    </DialogContent>
-  </Dialog>
-);
 
 /** Onboarding and generation: the wordmark, the offline chip and Account (email and Sign out). No rail, no bottom bar. */
 export const AppTopBar: React.FC = () => {

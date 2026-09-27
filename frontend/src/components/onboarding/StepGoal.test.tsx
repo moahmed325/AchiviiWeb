@@ -23,7 +23,7 @@ describe('StepGoal', () => {
   it('keeps a custom goal free and available beside the pathways (ND-6)', async () => {
     const onStartGoal = vi.fn();
     render(<StepGoal rawGoal="" onStartGoal={onStartGoal} />);
-    const custom = screen.getByRole('region', { name: 'Something else in mind?' });
+    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
     expect(custom).not.toHaveTextContent(/premium|locked|upgrade|paid|price/i);
 
     const field = screen.getByRole('textbox', { name: 'Your goal' });

@@ -145,7 +145,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 
-**What blocks the next phase:** Phases 0–8 are complete. Phase 9 (Achievement) is unblocked and **IN PROGRESS** (OD-1b Decided B; OD-2 was Decided A at M6.1). M9.1 is complete. M9.2 (Backend completion transition) may begin. Phase 10 is now unblocked for its narrowed architecture-only scope.
+**What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
 ---
 
@@ -667,9 +667,9 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 **Recommendation.** Decide after ND-9 and ND-10. Adding an entitlement without a way to obtain it (payments) would lock users out of a free feature for no benefit. Only if ND-10 gates custom goals, choose A.
 
-**Decision.** **B — Do not add it yet.** Custom goals remain free during this redesign; no entitlement field or server-side gate is added in Phase 10.
+**Decision.** **B.** Do not add it yet. Custom goals stay free. Phase 10 ships placement and honest copy only.
 
-**Consequences.** Phase 10 does not change custom-goal access. Entitlement and payment work remain deferred to a separate product decision/project.
+**Consequences.** The OD-1c backend allowance is not invoked. No schema changes, no migration, no gating in `/api/goal/create`. Custom goals remain accessible and free.
 
 **Related.** ND-9, ND-10, D-18.
 
@@ -1387,9 +1387,9 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A.** Keep the redesign focused. Premium placement (Coach ✦, Custom Journeys) gives the architecture room without shipping anything fake.
 
-**Decision.** **A — No.** Payments are out of scope for this redesign; Phase 10 ships placement and honest copy only.
+**Decision.** **A.** No payments in this redesign. Phase 10 ships placement and honest copy only; payments become their own project after the redesign.
 
-**Consequences.** OD-1c and ND-10 resolve to keeping custom goals free for now. Payments become a separate project with its own provider, billing, entitlement, legal and webhook decisions.
+**Consequences.** No payment provider, checkout UI, webhook, or billing model will be built in Phase 10. M10.5 is skipped/not applicable. OD-1c and ND-10 are effectively deferred, and custom goals stay free.
 
 **Related.** OD-1c, ND-10, ND-11, D-17.
 
@@ -1421,7 +1421,9 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A.**
 
-**Decision.** **A — Gate only when payments exist.** Existing custom goals are grandfathered; no gate is introduced until a real payment and entitlement flow exists.
+**Decision.** **A.** Gate only when payments exist. Custom goals stay free for now; Phase 10 ships placement and honest copy.
+
+**Consequences.** Custom goals remain fully functional and free; existing custom goals remain supported (grandfathered). M10.4 backend gate is deferred.
 
 **Related.** ND-9, OD-1c, ND-6.
 
@@ -1447,7 +1449,9 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Recommendation.** **A** for the redesign. Treat a real Coach as its own project with its own blueprint.
 
-**Decision.** **A — Architecture only.** Phase 10 provides navigation placement and an honest “Coming soon” state; a real Coach is a separate project.
+**Decision.** **A.** Architecture only. Navigation placement and an honest "Coming soon" state (ND-7); marketing copy unchanged ("In development"). No fake chat UI.
+
+**Consequences.** Coach ✦ navigation item is added to the application shell with an honest, beautifully styled "Coming soon" sheet/view. No fake chat or conversational AI backend.
 
 **Related.** ND-7, ND-9, BP §21.
 

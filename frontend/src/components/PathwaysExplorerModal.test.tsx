@@ -102,4 +102,44 @@ describe('PathwaysExplorerModal', () => {
     expect(localStorage.getItem('achivii_draft_goal')).toBeNull();
     expect(screen.queryByTestId('state')).not.toBeInTheDocument();
   });
+
+  it('shows the Custom Journey option with premium styling and no paywall language', async () => {
+    renderScreen();
+    await open();
+    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
+    expect(custom).toBeInTheDocument();
+    expect(custom).toHaveTextContent(/Custom Journey/i);
+    expect(custom).toHaveTextContent(/Build a guided 90-day journey/i);
+    expect(custom).not.toHaveTextContent(/locked|upgrade|subscribe|buy|price|\$|paywall/i);
+  });
+
+  it('Custom Journey (with goal) navigates to onboarding with switchGoal', async () => {
+    renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App' });
+    await open();
+    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
+    const button = screen.getByRole('button', { name: 'Create a custom journey' });
+    expect(custom).toContainElement(button);
+    await userEvent.click(button);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(JSON.parse(screen.getByTestId('state').textContent!)).toEqual({
+      isPreset: false,
+      customGoal: true,
+      switchGoal: true,
+    });
+    expect(localStorage.getItem('achivii_draft_goal')).toBeNull();
+  });
+
+  it('Custom Journey (no goal) navigates to onboarding without switchGoal', async () => {
+    renderScreen();
+    await open();
+    const button = screen.getByRole('button', { name: 'Describe my own goal' });
+    await userEvent.click(button);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(JSON.parse(screen.getByTestId('state').textContent!)).toEqual({
+      isPreset: false,
+      customGoal: true,
+    });
+    expect(localStorage.getItem('achivii_draft_goal')).toBeNull();
+  });
 });
+

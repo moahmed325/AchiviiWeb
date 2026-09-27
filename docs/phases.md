@@ -5202,7 +5202,7 @@ R-7, R-8, R-12, R-13, R-15.
 
 ## PHASE 10 — PREMIUM ARCHITECTURE
 
-**Status:** `NOT STARTED`
+**Status:** `IN PROGRESS`
 
 **Source:** BP §03, §20–23, §27, §43, OD-1 · VDS §12, §14, §25
 
@@ -5213,62 +5213,53 @@ R-7, R-8, R-12, R-13, R-15.
 ### Current state
 
 * **Chat:** there is no chat functionality.
-* **Custom goals:** created free through `POST /api/goal/create`, with no entitlement check. A frontend-only lock would be bypassable (OD-1) and would also remove a feature free users currently have.
+* **Custom goals:** created free through `POST /api/goal/create`, with no entitlement check. Custom goals remain free and functional (ND-10 Decided A).
 * **Accounts:** `User` has no plan or entitlement field.
-* **Payments:** there is no payment system.
+* **Payments:** there is no payment system in this redesign (ND-9 Decided A).
 * **Marketing:** Coach is "In development"; Custom Journeys is "Planned for Premium".
 
-### Decisions required before starting
+### Decisions made before starting (M10.1 Complete)
 
-* **ND-9: payments.** Are payments in scope for this redesign at all? If yes, which provider, and which billing model? If no, this phase ships only honest, non-purchasable placements.
-* **ND-10: custom-goal gating.** When and how does the free custom-goal path become paid (BP §22)? What happens to existing users and goals created for free? It requires the server-side entitlement below.
-* **ND-11: Coach scope.** Is this phase architecture-only (navigation placement, a "coming" state, a waitlist only if it's real), or does it build a real chat? A real chat is a new backend capability and needs its own named allowance and plan.
-* **OD-1, Phase 10 part:** the entitlement allowance below.
+* **ND-9: payments.** Decided (A) — No payments in this redesign; Phase 10 ships placement and honest copy only.
+* **ND-10: custom-goal gating.** Decided (A) — Gate only when payments exist. Custom goals stay free for now; Phase 10 ships placement and honest copy. Existing custom goals grandfathered.
+* **ND-11: Coach scope.** Decided (A) — Architecture only. Navigation placement and an honest "Coming soon" state (ND-7); no fake chat UI.
+* **OD-1c: Custom-journey entitlement.** Decided (B) — Do not add server-side entitlement yet. Backend allowance is not invoked.
 
-### In scope (architecture-only baseline; extended only by ND-9 to ND-11)
+### In scope (architecture-only baseline per ND-9 A, ND-10 A, ND-11 A)
 
 * **Coach ✦ in the application navigation** (VDS §14) with an honest "coming" state. No fake conversation UI.
-* **Custom Journeys in the pathway library:** "Have something unique in mind?" (BP §22), styled as premium but not an aggressive upsell. If it's locked:
-  * the lock is enforced by the server;
-  * the copy states the real availability;
-  * no "Unlock" button leads to a fake checkout.
+* **Custom Journeys in the pathway library:** "Have something unique in mind?" (BP §22), styled as premium but not an aggressive upsell. Custom goal creation remains free and fully operational.
 * **Premium visual treatment:** subtle botanical green or warm gold, depending on context (VDS §12).
+* **Marketing copy alignment:** ensure marketing and in-app messaging truthfully agree on availability.
 
-### Out of scope (unless ND-9 to ND-11 approve them)
+### Out of scope (per ND-9, ND-10, ND-11)
 
-* Checkout, billing, invoices.
-* AI chat.
-* Notifications.
+* Checkout, billing, invoices, payment providers.
+* AI chat / conversation UI.
+* Backend schema changes / migrations (OD-1c allowance not invoked).
 
 ### Backend allowance
 
-**Named, only if ND-10 approves it:**
-
-* an entitlement field on `User` (or a separate table);
-* a server-side check in `POST /api/goal/create` for non-preset goals;
-* a migration;
-* Vitest coverage for allowed and denied cases.
-
-Payment-provider integration is a **separate** named allowance, only if ND-9 approves it.
+None invoked (OD-1c Decided B, ND-9 Decided A). Zero backend changes required.
 
 ### Files likely affected
 
-* Navigation (the Phase 5 shell)
-* the pathway library (Phase 3)
-* `frontend/src/components/marketing/sections/Premium.tsx` (only if availability changes)
-* With the allowances: `backend/prisma/schema.prisma`, `backend/src/routes/goal.ts`, `backend/src/routes/auth.ts` (exposing the entitlement on `/me`), backend tests, `frontend/src/context/AuthContext.tsx` (reading only)
+* Navigation (`frontend/src/components/app/AppNavigation.tsx`, `shellEntries.ts`, and associated tests)
+* Coach presentation component (e.g. `frontend/src/components/coach/CoachModal.tsx` or sheet/drawer/dialog)
+* The pathway library (`frontend/src/components/PathwaysExplorerModal.tsx`, `frontend/src/components/onboarding/PathwayCard.tsx` / `CustomGoalCard`)
+* `frontend/src/components/marketing/sections/Premium.tsx` (only if copy needs alignment)
 
 ### Milestones
 
-| ID | Milestone |
-|---|---|
-| M10.1 | ND-9, ND-10 and ND-11 decided |
-| M10.2 | Coach placement and honest state |
-| M10.3 | Custom Journeys placement in the pathway library |
-| M10.4 | (With the allowance) server-side entitlement and gate, with tests |
-| M10.5 | (With the allowance) payments integration, per its own plan |
-| M10.6 | Marketing copy updated to match reality |
-| M10.7 | Regression and phase report |
+| ID | Milestone | Status |
+|---|---|---|
+| M10.1 | ND-9, ND-10 and ND-11 decided | COMPLETE |
+| M10.2 | Coach placement and honest state | IN PROGRESS |
+| M10.3 | Custom Journeys placement in the pathway library | PLANNED |
+| M10.4 | (With the allowance) server-side entitlement and gate | DEFERRED (ND-10 A, OD-1c B) |
+| M10.5 | (With the allowance) payments integration | DEFERRED (ND-9 A) |
+| M10.6 | Marketing copy updated to match reality | PLANNED |
+| M10.7 | Regression and phase report | PLANNED |
 
 ### Regression checks
 
@@ -5604,6 +5595,10 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 9 M9.2 done: Named backend allowance implemented under OD-1b (Option B) and D-11; nullable `Goal.completedAt DateTime?` migration applied in PostgreSQL; `POST /api/goal/complete` endpoint delivered with auth/404 guards and safe optional payload persistence; `GET /api/goal/active` updated to query active first and fall back to completed goal for reload persistence; succession safety verified (completed goals preserved, active goals archived/deleted cleanly); frontend API client `completeGoal` and context `GoalContext.completeGoal` integrated; dedicated Vitest integration test suite `backend/test/goalCompletion.test.ts` authored (10/10 tests pass, 250/250 backend tests pass across 22 files, 351/351 frontend tests pass across 41 files, 0 TS errors, clean builds). Phase 9 is IN PROGRESS. M9.3 ready. |
 | 2026-09-27 | Phase 9 M9.3 done: Visual Level 4 cinematic achievement experience delivered (`AchievementHero.tsx`, `AchievementResults.tsx`, `AchievementJourney.tsx`, `AchievementScreen.tsx`, `AchievementPage.tsx`); atmospheric Roman garden transition built with verified brand asset `garden.jpg` using multi-layer dark underlays and desktop/mobile aspect ratio handling; real results calculation engine (`computeAchievementSummary`) computes 90-day deliberate practice sessions, adherence rate, milestone benchmark stats, and capstone evaluation with 0 fake data; accessible tab switching across Arrival, Results, and Journey with keyboard arrow navigation and WAI-ARIA roles; `/achievement` mounted in `App.tsx` (code-split chunk `AchievementPage-B24FuDth.js`) and conditionally rendered in `Home.tsx` on completed goal; dynamic shell navigation on `AppRail` and `AppBottomBar` showing "Achievement" with `Award` icon; 16 new automated tests added (44 frontend test files / 368 tests pass, 0 TS errors, clean build); strict zero backend edits (D-11 constraint preserved). Phase 9 is IN PROGRESS. M9.4 ready. |
 | 2026-09-27 | Phase 9 M9.4 done: Designed Days 85–90 Closing Stretch experience delivered in Today (`ClosingStretchView.tsx`, `Today.tsx`, `today.ts`); replaces terminal placeholder with calm narrative, 6-day temporal approach indicator, capstone evaluation card with benchmark selector, and 90-day final reflection with localStorage draft persistence; primary arrival CTA invokes `completeGoal` and seamlessly transitions user to the Roman garden; fallback quiet arrival CTA provided; succession-safe "Begin another journey" dialog (`NewJourneyDialog.tsx`) delivered with Radix Dialog; `ProtectedRoute.tsx` and `OnboardingPage.tsx` updated to allow completed goal users into onboarding to create next goal while permanently preserving completed journeys in the database (R-15); 20 new automated tests added (46 frontend test files / 388 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits (D-11 constraint preserved). Phase 9 is IN PROGRESS. M9.5 ready. |
+| 2026-09-27 | Phase 10 M10.2 done: Coach ✦ placed in both desktop `AppRail` and mobile `AppBottomBar` navigation with `Sparkles` icon and premium `text-achievement` accent (VDS §12, §14); `CoachModal.tsx` created using Radix `Dialog` primitives with honest "In development" status, "✦ Coming Soon" eyebrow, companion coaching value proposition, realistic availability note, and "Back to Practice" dismiss button; zero fake chat UI, mock messages, or checkout buttons (ND-11, BP §43); `AppShell.tsx` manages `coachOpen` state and renders `CoachModal`; 10 CoachModal unit tests and 1 AppShell integration test added; 48 frontend test files / 401 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2, OD-1c Decided B). |
+| 2026-09-27 | Phase 10 M10.3 done: Custom Journeys elevated with premium visual treatment in `PathwayCustomGoal.tsx` — accent eyebrow badge `✦ Custom Journey` with `Sparkles` icon, refined heading "Have something unique in mind?", narrative copy "Build a guided 90-day journey around your own ambition…", and crafted container card (`rounded-card`, `border-border/70`, `hover:border-accent/30`, VDS §12); Custom Journey option integrated into `PathwaysExplorerModal.tsx` via `PathwayLibrary customGoal` slot — clicking navigates to `/onboarding` with `{ customGoal: true, switchGoal: true }` (active goal) or `{ customGoal: true }` (no goal), preserving R-15 safety; zero paywall, lock, or pricing UI (ND-10, OD-1c); 3 new explorer modal tests and updated pathway library and StepGoal tests; 47 frontend test files / 402 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2). |
+
+
 
 
 
