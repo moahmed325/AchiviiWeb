@@ -14,8 +14,6 @@ export interface GoalCompletionPayload {
   finalReflection?: string;
   finalTestResult?: WeeklyTestResult | null;
 }
- 
-
 
 export interface AchievementSummary {
   goalId: string;
