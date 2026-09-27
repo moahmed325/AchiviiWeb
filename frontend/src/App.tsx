@@ -9,6 +9,7 @@ import { RoadmapPage } from './pages/RoadmapPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { LoginPage } from './pages/auth/LoginPage';
+import { CoachPage } from './pages/CoachPage';
 
 /* Development-only primitives preview; the branch is dropped from production builds. */
 const UiPreviewPage = import.meta.env.DEV ? React.lazy(() => import('./pages/dev/UiPreviewPage')) : null;
@@ -57,6 +58,16 @@ export const App: React.FC = () => {
                 element={
                   <ProtectedRoute requireGoal={true}>
                     <RoadmapPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Architecture-only Coach destination (ND-11 A). */}
+              <Route
+                path="/coach"
+                element={
+                  <ProtectedRoute requireGoal={false}>
+                    <CoachPage />
                   </ProtectedRoute>
                 }
               />

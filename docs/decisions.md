@@ -649,11 +649,11 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Open — depends on ND-9 and ND-10 |
+| Status | Decided (A) |
 | Category | Architecture |
 | Needed by | 10 |
 | Raised | BP Open Decision 1, BP §22 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo |
 
 **Context.** `POST /api/goal/create` accepts custom goals from anyone. `User` has no plan or entitlement field. A frontend-only lock is bypassable, and it would also remove an existing free capability.
 
@@ -1369,11 +1369,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo |
 
 **Context.** BP §20–22 define free and premium tiers. No payment system exists, and BP §43 forbids pretending one does. Payments bring provider choice, a billing model, webhooks, entitlement sync, tax and legal pages: a project, not a redesign task.
 
@@ -1397,11 +1397,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed — depends on ND-9 |
+| Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo |
 
 **Context.** BP §22 says custom goals are paid. Today they are free (D-18, ND-6). Gating needs a server-side entitlement (OD-1c) and a way to obtain it (ND-9).
 
@@ -1429,11 +1429,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
 | Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
-| Decided | — |
+| Decided | 2026-09-27 — Mo |
 
 **Context.** BP §21 describes a future AI coach. No chat exists (BP §43). A real coach means a new backend capability (conversation storage, model access, safety, cost controls) and its own product design.
 
@@ -1496,7 +1496,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Decision.** **A.**
 
-**Consequences.** M3.5 builds two orders from the same step components: preset = direction → category → pathway → starting point → success → schedule → review; custom = direction → custom goal → schedule → starting point → success → review. Browser history follows whichever order is active. If clarify is still running when a custom user finishes Schedule, the existing wait-then-advance behaviour applies, with the M3.7 loading state. The payload is unchanged.
+**Consequences.** M3.5 builds two orders from the same step components: preset = direction ��� category → pathway → starting point → success → schedule → review; custom = direction → custom goal → schedule → starting point → success → review. Browser history follows whichever order is active. If clarify is still running when a custom user finishes Schedule, the existing wait-then-advance behaviour applies, with the M3.7 loading state. The payload is unchanged.
 
 **Related.** ND-14, R-4, R-18, BP §28.
 

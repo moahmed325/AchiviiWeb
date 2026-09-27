@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Award, CircleUser, Compass, Map as MapIcon, Sun, TrendingUp, type LucideIcon } from 'lucide-react';
+import { Award, CircleUser, Compass, Map as MapIcon, MessageCircle, Sun, TrendingUp, type LucideIcon } from 'lucide-react';
 import { useGoal } from '../../context/GoalContext';
 import { cx } from '../ui';
 import { Wordmark } from '../marketing/Wordmark';
@@ -36,7 +36,7 @@ const RailIcon: React.FC<{ icon: LucideIcon; active?: boolean }> = ({ icon: Icon
 
 /** Desktop (lg and up): a restrained left rail. Today, Roadmap, Pathways, then Account at the bottom (ND-7). */
 export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways }) => {
-  const { todayActive, roadmapActive, showRoadmap, progressActive, showProgress, offline, isCompleted } = useEntries();
+  const { todayActive, roadmapActive, showRoadmap, progressActive, showProgress, coachActive, offline, isCompleted } = useEntries();
 
   return (
     <div
@@ -76,6 +76,12 @@ export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways }) => {
               Pathways
             </button>
           </li>
+          <li>
+            <Link to="/coach" aria-current={coachActive ? 'page' : undefined} className={railItem(coachActive)}>
+              <RailIcon icon={MessageCircle} active={coachActive} />
+              Coach <span aria-label="coming soon" className="font-ui-mono text-micro text-achievement">SOON</span>
+            </Link>
+          </li>
         </ul>
         <div className="mt-auto flex flex-col gap-3 border-t border-border pt-4">
           {offline && <OfflineChip className="ml-3 self-start" />}
@@ -106,7 +112,7 @@ const ActiveMark: React.FC = () => <span aria-hidden="true" className="absolute 
  * below every dialog, sheet and focus mode (z-40 under their z-50).
  */
 export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways }) => {
-  const { todayActive, roadmapActive, showRoadmap, progressActive, showProgress, offline, isCompleted } = useEntries();
+  const { todayActive, roadmapActive, showRoadmap, progressActive, showProgress, coachActive, offline, isCompleted } = useEntries();
 
   return (
     <>
@@ -151,6 +157,13 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways }) =
                 <BarIcon icon={Compass} />
                 Pathways
               </button>
+            </li>
+            <li className="min-w-0 flex-1">
+              <Link to="/coach" aria-current={coachActive ? 'page' : undefined} className={barItem(coachActive)}>
+                {coachActive && <ActiveMark />}
+                <BarIcon icon={MessageCircle} active={coachActive} />
+                Coach
+              </Link>
             </li>
             <li className="min-w-0 flex-1">
               <AccountSheet context="app" triggerClassName={barItem(false)}>
