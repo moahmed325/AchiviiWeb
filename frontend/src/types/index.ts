@@ -3,14 +3,6 @@ export interface User {
   email: string;
   timezone?: string;
   created_at: string;
-
-  // Subscription & Billing Fields (Phase 0 / M0.3)
-  plan?: 'free' | 'pro';
-  stripeCustomerId?: string | null;
-  stripeSubscriptionId?: string | null;
-  subscriptionStatus?: 'active' | 'past_due' | 'canceled' | 'trialing' | null;
-  currentPeriodEnd?: string | null;
-  cancelAtPeriodEnd?: boolean;
 }
 
 export interface AuthResponse {

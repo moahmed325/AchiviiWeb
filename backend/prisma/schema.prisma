@@ -8,21 +8,13 @@ generator client {
 }
 
 model User {
-  id                   String    @id @default(uuid())
-  email                String    @unique
-  password_hash        String
-  timezone             String    @default("UTC")
-  created_at           DateTime  @default(now())
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  timezone      String   @default("UTC")
+  created_at    DateTime @default(now())
 
-  // Subscription & Billing Fields (Phase 0 / M0.1)
-  plan                 String    @default("free")
-  stripeCustomerId     String?   @unique
-  stripeSubscriptionId String?   @unique
-  subscriptionStatus   String?
-  currentPeriodEnd     DateTime?
-  cancelAtPeriodEnd    Boolean   @default(false)
-
-  goals                Goal[]
+  goals         Goal[]
 
   @@map("users")
 }

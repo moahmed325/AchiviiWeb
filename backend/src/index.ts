@@ -4,7 +4,6 @@ import dotenv from 'dotenv';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { goalRouter } from './routes/goal.js';
-import { billingRouter } from './routes/billing.js';
 
 dotenv.config();
 
@@ -37,19 +36,12 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
 }));
-// Stripe webhook: must capture the exact raw bytes for signature verification (ND-1).
-// Mounted BEFORE express.json() so the JSON parser never consumes this stream.
-// express.raw sets req._body, so the subsequent express.json() automatically skips
-// these requests. Do not remove or reorder this middleware without re-verifying
-// webhook signature integrity (phases.md R-20).
-app.use('/api/billing/webhook', express.raw({ type: 'application/json', limit: '1mb' }));
 app.use(express.json());
 
 // Routes
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/goal', goalRouter);
-app.use('/api/billing', billingRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 Achivii Backend API running on http://localhost:${PORT}`);

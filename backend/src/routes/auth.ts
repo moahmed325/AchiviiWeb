@@ -65,18 +65,7 @@ export async function getAuthUser(req: Request) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      select: {
-        id: true,
-        email: true,
-        timezone: true,
-        created_at: true,
-        plan: true,
-        stripeCustomerId: true,
-        stripeSubscriptionId: true,
-        subscriptionStatus: true,
-        currentPeriodEnd: true,
-        cancelAtPeriodEnd: true,
-      },
+      select: { id: true, email: true, timezone: true, created_at: true },
     });
     return user;
   } catch {
@@ -124,12 +113,6 @@ authRouter.post('/signup', async (req: Request, res: Response): Promise<void> =>
         email: true,
         timezone: true,
         created_at: true,
-        plan: true,
-        stripeCustomerId: true,
-        stripeSubscriptionId: true,
-        subscriptionStatus: true,
-        currentPeriodEnd: true,
-        cancelAtPeriodEnd: true,
       },
     });
 
@@ -183,12 +166,6 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
         email: user.email,
         timezone: user.timezone,
         created_at: user.created_at,
-        plan: user.plan,
-        stripeCustomerId: user.stripeCustomerId,
-        stripeSubscriptionId: user.stripeSubscriptionId,
-        subscriptionStatus: user.subscriptionStatus,
-        currentPeriodEnd: user.currentPeriodEnd,
-        cancelAtPeriodEnd: user.cancelAtPeriodEnd,
       },
     });
   } catch (error: any) {
