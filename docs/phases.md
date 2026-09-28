@@ -475,7 +475,7 @@ Every phase must pass this authoritative toolchain check:
 
 | ID | Milestone | Status | Details |
 |---|---|---|---|
-| **M2.1** | Express Raw Body Parser & Webhook Route Mounting | `NOT STARTED` | Configure raw body capture on `/api/billing/webhook` before global JSON middleware in `index.ts`. |
+| **M2.1** | Express Raw Body Parser & Webhook Route Mounting | `COMPLETE` | Raw middleware live on `/api/billing/webhook` (verified `bodyIsBuffer: true`); billing router mounted with 501 stubs; build clean; 257/257 backend tests pass; R-1 and goal routes re-verified live. |
 | **M2.2** | Stripe Checkout Session Endpoint | `NOT STARTED` | Implement `POST /api/billing/create-checkout-session` validating interval and creating Stripe session. |
 | **M2.3** | Webhook Cryptographic Verification & Event Handler | `NOT STARTED` | Implement `POST /api/billing/webhook` handling checkout completion, subscription updates, and deletions. |
 | **M2.4** | Fallback Sync Endpoint & Idempotency Testing | `NOT STARTED` | Implement `GET /api/billing/sync-status` and author Vitest suite simulating signed Stripe events. |
