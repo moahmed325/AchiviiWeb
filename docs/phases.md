@@ -1,23 +1,24 @@
-# ACHIVII — IMPLEMENTATION PHASES
+# ACHIVII PRO MEMBERSHIP & STRIPE SUBSCRIPTION — IMPLEMENTATION PHASES
 
-### Roadmap, milestones and exit criteria for the redesign
+### Roadmap, milestones and exit criteria
 
-Companion to the two source-of-truth documents:
+Companion to the primary source-of-truth documents:
 
-* `docs/redesign-blueprint.md` — **what** Achivii is and must become (cited as **BP §n**).
-* `docs/visual-design-system.md` — **how** it looks (cited as **VDS §n**, implementation notes as **VDS note n**).
+* `docs/feature_definition_payment.md` — **what** the feature is and must do (cited as **FD §n**).
+* `docs/decisions.md` — **why**: architecture, technology, and product decisions (cited as **D-n**, **OD-n**, **ND-n**).
+* `backend/prisma/schema.prisma` — current database models and constraints.
+* `docs/visual-design-system.md` — visual tokens, glassmorphism surfaces, and interaction standards (cited as **VDS §n**).
 
-The project framework is three files:
+The project documentation hierarchy:
 
-| File | Answers |
+| Document | Purpose |
 |---|---|
-| `docs/phases.md` (this file) | **When and in what order** — phases, milestones, dependencies, what "done" means |
-| `docs/prompts.md` | **How the agent is instructed** — system, execution and workflow prompts per phase (BP §50 structure) |
-| `docs/decisions.md` | **Why** — architecture, technology and design decisions, including the open ones listed here |
+| `docs/phases.md` (this file) | **When and in what order** — phases, milestones, dependencies, backend allowances, regression protections, and verifiable exit criteria |
+| `docs/implementation_prompt_template.md` | **How the coding agent is instructed** — 21-section self-contained execution prompt compiled per milestone |
+| `docs/decisions.md` | **Why** — architectural decision records (ADRs) preventing accidental regression of key technical choices |
+| `docs/feature_definition_payment.md` | **What** — authoritative behavioral specifications, user actions, states, and acceptance criteria |
 
-This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
-
-Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting Mo's review). Phase 9 (Achievement) is COMPLETE (M9.1–M9.5 done; awaiting Mo's review).**
+Last updated: 2026-09-28 · Current position: **Phase 0 in progress — M0.1 complete; M0.2 next.**
 
 ---
 
@@ -27,38 +28,42 @@ Last updated: 2026-09-27 · Current position: **Phases 0–8 complete (awaiting 
 
 | Status | Meaning |
 |---|---|
-| `NOT STARTED` | No work done |
-| `IN PROGRESS` | Being worked on now |
-| `PARTIAL` | Some milestones delivered; the rest are listed |
-| `COMPLETE` | Exit criteria met, verified, and reviewed by Mo |
-| `BLOCKED` | Waiting on a decision listed under "Decisions required" |
+| `NOT STARTED` | No work has begun on this phase or milestone. |
+| `IN PROGRESS` | Work is actively underway by an implementation agent. |
+| `PARTIAL` | Some milestones in the phase have completed while others remain pending. |
+| `COMPLETE` | All milestones delivered, automated tests pass, manual verification completed, and review approved. |
+| `BLOCKED` | The phase or milestone cannot proceed until an unresolved decision or external dependency is resolved. |
 
 ## Identifiers
 
-* **M&lt;phase&gt;.&lt;n&gt;** — a milestone, e.g. `M5.3`.
-* **OD-n** — an Open Decision from the end of the blueprint (BP "Open Decisions", numbered 1–12).
-* **ND-n** — a New Decision raised while planning phases. Not answered here; to be logged in `decisions.md`.
-* **R-n** — a regression check from the must-not-break list (section 3.3).
+* **M&lt;phase&gt;.&lt;n&gt;** — a concrete, bounded implementation milestone (e.g., `M0.1`, `M2.3`).
+* **OD-n** — an Open Decision originating from `feature_definition_payment.md` (e.g., `OD-1`).
+* **ND-n** — a New Decision identified during implementation planning, recorded in Section 6 and logged to `docs/decisions.md`.
+* **R-n** — a regression check from the project-wide Must-Not-Break register (Section 3.3).
+* **RULE-n** — an authoritative product rule from `feature_definition_payment.md` (Section 14).
+* **AC-n** — a testable acceptance criterion from `feature_definition_payment.md` (Section 32).
+* **UX-n** — a user experience or screen definition from `feature_definition_payment.md` (Section 8).
 
 ## Anatomy of a phase
 
-Every phase in section 4 uses the same fields:
+Every phase in Section 4 follows the exact same 15 canonical fields:
 
-1. **Status**
-2. **Source** — the blueprint and design-system sections it implements
-3. **Objective** — one sentence
-4. **Narrative line** — its place in the story of BP §47
-5. **Current state** — what exists in the code today, with file names
-6. **Decisions required before starting**
-7. **In scope** and **Out of scope**
-8. **Backend allowance** — the only backend changes permitted (see rule 3.2)
-9. **Files likely affected**
-10. **Milestones**
-11. **Regression checks**
-12. **Mobile acceptance**
-13. **Validation**
-14. **Exit criteria**
-15. **Risks**
+1. **Status** — current execution status.
+2. **Source** — specific citations from `feature_definition_payment.md`, `decisions.md`, and design documentation.
+3. **Objective** — one clear sentence describing the observable system outcome.
+4. **Narrative line** — the user-facing product story line.
+5. **Current state** — repository-aware reality of what exists today before the phase begins.
+6. **Decisions required before starting** — blocking OD/ND items.
+7. **In scope** — concrete boundaries of work.
+8. **Out of scope** — explicit non-goals to prevent scope creep.
+9. **Backend allowance** — narrow, strictly named modifications permitted to backend/schema.
+10. **Files likely affected** — starting points in the codebase.
+11. **Milestones** — ordered, bounded implementation units (`M<X.Y>`).
+12. **Regression checks** — touched `R-n` capabilities that must be re-verified.
+13. **Mobile acceptance** — small-screen touch and layout constraints.
+14. **Validation** — exact project commands and manual verification procedures.
+15. **Exit criteria** — observable, non-subjective conditions required for completion.
+16. **Risks** — specific failure modes and mitigations.
 
 ---
 
@@ -66,71 +71,56 @@ Every phase in section 4 uses the same fields:
 
 | # | Phase | Status | Depends on | Decisions blocking start | Backend allowance |
 |---|---|---|---|---|---|
-| 0 | Global design foundation | `COMPLETE` | — | — | None |
-| 1 | Marketing homepage | `COMPLETE` | 0 (marketing scope) | — | None |
-| 2 | Authentication | `COMPLETE` | 0 | — (OD-4, ND-4, ND-12 Decided) | None |
-| 3 | Onboarding | `COMPLETE` | 0, 2 | — (OD-11, ND-5, ND-6, ND-13–16 Decided) | None |
-| 4 | Journey generation | `COMPLETE` | 3 | — (OD-8, ND-17 Decided) | None remaining. ND-17 matching shipped in M4.2. Stream labels unused |
-| 5 | Today | `COMPLETE` | 0, 4 | — (OD-3, OD-9, ND-7, ND-18 Decided) | None |
-| 6 | Journey | `COMPLETE` | 5 | — (OD-2, OD-7 Decided) | None |
-| 7 | Weekly review + adaptation | `COMPLETE` | 5 | — (OD-1a Decided) | Named: weekly test result storage |
-| 8 | Progress | `COMPLETE` | 6, 7 | — (ND-8 Decided A) | None beyond Phase 7 |
-| 9 | Achievement | `COMPLETE` | 6, 7 | — (OD-1b Decided B, OD-2 Decided A) | Named: goal completion transition |
-| 10 | Premium architecture | `COMPLETE` | 5, 6 | — (OD-1c, ND-9, ND-10, ND-11 Decided) | None; placement and honest copy only |
-| 11 | Mobile | `COMPLETE` | 2–10 | OD-5 | None |
-| 12 | Global polish | `COMPLETE` | 0–11 | — | None |
+| **0** | Billing Foundation, Schema & Stripe Client | `NOT STARTED` | — | OD-1 (price env vars) | Named: User billing fields and Stripe client initialization |
+| **1** | Server-Side Goal Limit & Multi-Goal Engine | `NOT STARTED` | 0 | — | Named: Goal creation limit guard and non-archiving multi-goal queries |
+| **2** | Stripe Checkout & Webhook Pipeline | `NOT STARTED` | 0 | — | Named: Checkout session creation, raw webhook verification, subscription sync |
+| **3** | Customer Portal & Billing Management API | `NOT STARTED` | 2 | — | Named: Portal session generation and subscription status endpoint |
+| **4** | Frontend Upgrade Modal, Pricing UI & Entry Points | `NOT STARTED` | 2 | — | None |
+| **5** | Settings Billing Tab, Checkout Return & Grace Mode | `NOT STARTED` | 3, 4 | — | None |
+| **6** | Multi-Goal Switching & Concurrent Trajectories UI | `NOT STARTED` | 1, 5 | — | None |
+| **7** | Mobile Ergonomics, Accessibility & E2E Verification | `NOT STARTED` | 0–6 | — | None |
 
 ---
 
 # 2 — ORDER AND DEPENDENCIES
 
-The blueprint's order (BP §49) is kept. The dependency graph shows which phases truly block others and which could, in principle, overlap. Overlap is **not** the default; one phase at a time remains the rule (3.1).
+The dependency order follows strict architectural boundaries: database and API contracts first, server-side rule enforcement second, external payment integration third, followed by customer-facing interfaces, account settings, multi-goal experience, and the final end-to-end quality sweep.
 
 ```text
-PHASE 0  Foundation (tokens, type, primitives, Design.md)
+PHASE 0  Billing Foundation, Schema & Stripe Client
    │
-   ├──► PHASE 1  Marketing ✔
-   │
-   ▼
-PHASE 2  Authentication
-   │
-   ▼
-PHASE 3  Onboarding
-   │
-   ▼
-PHASE 4  Journey generation
-   │
-   ▼
-PHASE 5  Today  ◄── app shell + navigation are born here
-   │
-   ├──────────────┐
-   ▼              ▼
-PHASE 6        PHASE 7
-Journey        Weekly review + adaptation
-   │              │
-   └──────┬───────┘
-          ▼
-      PHASE 8  Progress
-          │
-          ▼
-      PHASE 9  Achievement
-          │
-          ▼
-      PHASE 10 Premium architecture (Coach + Custom Journeys)
-          │
-          ▼
-      PHASE 11 Mobile sweep
-          │
-          ▼
-      PHASE 12 Global polish
+   ├──────────────────────────────┐
+   ▼                              ▼
+PHASE 1                        PHASE 2
+Goal Limit & Multi-Goal Engine Stripe Checkout & Webhooks
+   │                              │
+   │                              ▼
+   │                           PHASE 3
+   │                           Customer Portal & Billing API
+   │                              │
+   │           ┌──────────────────┤
+   ▼           ▼                  ▼
+PHASE 4     PHASE 5
+Upgrade UI  Settings Billing & Grace Mode
+   │           │
+   └─────┬─────┘
+         ▼
+      PHASE 6  Multi-Goal Switching UI (Pro)
+         │
+         ▼
+      PHASE 7  Mobile, Accessibility & E2E Verification Sweep
 ```
 
-**Why this order holds:**
+### Why this order holds:
 
-* Phase 0 must finish before Phase 2 because authentication is the first screen inside the product world that needs the shared primitives (inputs, buttons, dialogs, error states). Phase 1 was allowed to precede it only because the marketing page could use a marketing-scoped slice of the foundation.
-* Phase 5 creates the application shell. Journey, Progress and Coach entry points attach to that shell, so they come after it.
-* Phases 7, 9 and 10 are the only phases that need backend work that does not exist today (OD-1). Each has a named, minimal backend allowance that must be approved before the phase starts.
-* Mobile is **not** deferred to Phase 11 (OD-5). Every phase carries mobile acceptance criteria. Phase 11 is a final cross-product sweep.
+1. **Phase 0 comes first** because neither server-side authorization guards nor payment webhooks can operate without the database fields (`plan`, `stripeCustomerId`, etc.) and the initialized Stripe client.
+2. **Phase 1 implements server-side goal limits immediately** to guarantee that the 1-goal limit on the free tier is strictly enforced by the API (`RULE-1`, `RULE-7`) before any front-end UI assumes it.
+3. **Phase 2 creates the functional payment bridge** (Checkout + Webhooks). Front-end upgrade modals cannot test actual checkout sessions without this pipeline.
+4. **Phase 3 adds Customer Portal and self-service status**, unlocking subscription management and renewal tracking before UI construction.
+5. **Phase 4 builds the Upgrade Modal and entry points**, wiring directly into Phase 2's Checkout endpoint.
+6. **Phase 5 delivers the Settings Billing tab, return page, and Grace Mode banner**, consuming Phase 3's Customer Portal and subscription status.
+7. **Phase 6 builds the multi-goal switcher UI**, which requires Phase 1's backend multi-goal support and Phase 5's active Pro status.
+8. **Phase 7 completes the cross-product sweep**, verifying mobile viewports, WCAG AA accessibility, and automated Playwright E2E suites.
 
 ---
 
@@ -138,144 +128,106 @@ Journey        Weekly review + adaptation
 
 ## 3.1 One phase at a time
 
-* Work only on the phase named in the prompt.
-* When the exit criteria are met, write the phase report (section 7) and **stop**. Do not begin the next phase automatically.
-* A phase is `COMPLETE` only after Mo reviews it.
+Implementation agents must adhere to strict sequential discipline:
+* Work only on the designated milestone within the active phase.
+* Do not begin subsequent milestones until the active milestone passes all validations.
+* Produce a formal Milestone Completion Report upon finishing.
+* A phase becomes `COMPLETE` only after full review against exit criteria.
 
-## 3.2 Backend scope rule (BP §40, OD-1)
+## 3.2 Backend / architecture scope rule
 
-> **Do not confuse visual redesign with permission to rewrite the backend.**
+* A phase may make a backend change **only if explicitly listed in that phase's "Backend allowance"**.
+* Anything not named remains strictly off-limits (no unauthorized refactors or schema edits).
+* Never create client-only entitlement locks. The UI must never rely on frontend state to gate operations without server-side validation.
 
-* The backend, Prisma schema, API client (`frontend/src/lib/api.ts`), auth and goal contexts, and the onboarding and dashboard business logic are off-limits by default.
-* A phase may make a backend change only if it is **named in that phase's "Backend allowance"** and approved in `decisions.md` before work starts.
-* Anything not named stays off-limits, including "small" refactors.
-* Never create a frontend-only substitute for a missing backend capability. For example, a lock that only exists in the UI is bypassable, and a completion screen that the server doesn't know about is fake.
+## 3.3 Must not break (Regression Register)
 
-## 3.3 Must not break (BP §41)
+Every phase identifies which of these existing capabilities it touches. Touched items must be re-verified before the phase concludes:
 
-Every phase lists which of these it touches. Every touched item is re-verified before the phase ends.
-
-| ID | Capability | Where it lives today | How to verify |
+| ID | Capability | Where it lives today | Verification procedure |
 |---|---|---|---|
-| R-1 | Authentication | `AuthContext.tsx`, `AuthModal.tsx`, `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me` | Sign up, sign out, sign in, reload while signed in |
-| R-2 | Goal creation | `OnboardingWizard.tsx` → `POST /api/goal/create` | Create a custom goal and a preset goal end to end |
-| R-3 | Preset pathway launch | `certifiedPresets.ts`, navigation state `{ presetGoal, isPreset, switchGoal }` | Start from a pathway; the onboarding shows it preselected |
-| R-4 | Onboarding payload | `OnboardingWizard.tsx` → `POST /api/goal/clarify`, `POST /api/goal/create` | Request bodies match the pre-change baseline field for field |
-| R-5 | AI roadmap generation | `POST /api/goal/create` | A goal is created with roadmap, weeks and week-1 tasks |
-| R-6 | Generation progress stream | SSE on `POST /api/goal/create` when `Accept: text/event-stream` | `step`, `done` and `error` events render; the slow flag appears after 20s |
-| R-7 | Saving goals | `saveV2Goal` / `saveV1PresetGoal` in `routes/goal.ts` | `GET /api/goal/active` returns the new goal after reload |
-| R-8 | Daily task retrieval | `GoalContext.tsx` → `GET /api/goal/active` | Today shows the correct day's task |
-| R-9 | Daily completion | `PATCH /api/goal/tasks/:taskId` | Complete a task; the state persists after reload |
-| R-10 | Task notes | `PATCH /api/goal/tasks/:taskId` (`notes`) | Save a note; it persists after reload |
-| R-11 | Focus session | `FocusSessionModal.tsx` | Start, pause, resume and finish the timer; completion is recorded |
-| R-12 | Weekly review | `POST /api/goal/weeks/:weekNumber/review` | Submit a reflection; the review is stored |
-| R-13 | Weekly progression | Same endpoint (writes next week, runs the phase gate) | The next week's tasks appear and `currentWeek` advances |
-| R-14 | Roadmap | `RoadmapPage.tsx`, `PlanV2Panel.tsx` | v1 and v2 goals both render their roadmap |
-| R-15 | Reset / switch goal | `DELETE /api/goal/active`; `switchGoal` state; create archives the previous active goal | Switch goals; the old one is archived and the new one is active |
-| R-16 | Draft goal carried through signup | `localStorage['achivii_draft_goal']`; `pendingPathway` handoff in `Home.tsx` | Pick a pathway signed out → sign up → onboarding has it preselected |
-| R-17 | Offline indicator | `GoalContext` `apiStatus`; marketing nav chip; the app shell's chip (`components/app`, the `Navbar` until M5.2) | Stop the backend; the offline state is shown and nothing crashes |
-| R-18 | Browser history in onboarding | `OnboardingWizard.tsx` | Back and forward move between steps without losing answers |
+| **R-1** | Authentication & Session | `AuthContext.tsx`, `auth.ts`, `getAuthUser` | Sign up, sign in, persistent JWT session across reloads |
+| **R-2** | Goal Creation & Scaffolding | `OnboardingWizard.tsx` &rarr; `POST /api/goal/create` | Create custom goal and certified preset goal end to end |
+| **R-3** | Preset Pathway Launch | `certifiedPresets.ts`, navigation state | Pathway exploration, preview, and preselection in onboarding |
+| **R-4** | Onboarding Payload Schema | `OnboardingWizard.tsx` &rarr; `goal.ts` | Field-for-field parity of generation request payloads |
+| **R-5** | AI Roadmap Generation | `POST /api/goal/create` | Generates 12-week periodized curriculum and velocity table |
+| **R-6** | Generation SSE Stream | SSE on `POST /api/goal/create` (`text/event-stream`) | Progress stages, stage indicators, 20s slow notice, error handling |
+| **R-7** | Goal Persistence | `saveV2Goal` in `routes/goal.ts` | Active goal reloads from database upon refresh |
+| **R-8** | Daily Task Retrieval | `GoalContext.tsx` &rarr; `GET /api/goal/active` | Today dashboard loads current week daily tasks |
+| **R-9** | Daily Task Completion | `PATCH /api/goal/tasks/:taskId` | Botanical task checkoff persists across reloads |
+| **R-10** | Task Notes & Focus Wins | `PATCH /api/goal/tasks/:taskId` (`notes`) | Auto-save on blur persists user notes |
+| **R-11** | Zen Focus Chamber | `FocusSessionModal.tsx` | Fullscreen countdown, spacebar pause/resume, audio chimes |
+| **R-12** | Weekly Review | `POST /api/goal/weeks/:weekNumber/review` | Reflection submission and benchmark test result storage |
+| **R-13** | Weekly Progression | Same endpoint (writes next week, phase gates) | Week advancement and adaptive task generation |
+| **R-14** | Strategic Roadmap View | `RoadmapPage.tsx`, `PlanV2Panel.tsx` | 12-week staircase renders without visual regression |
+| **R-15** | Reset / Switch Goal | `DELETE /api/goal/active`, `switchGoal` state | Goal switching preserves past goal archives cleanly |
+| **R-16** | Draft Goal Preservation | `localStorage['achivii_draft_goal']` | Preserves custom goal input across unauthenticated signup |
+| **R-17** | Offline Indicator | `GoalContext` `apiStatus`, `Navbar` chip | Offline status banner appears when backend is unreachable |
+| **R-18** | Onboarding Navigation | `OnboardingWizard.tsx` | Step navigation preserves entered wizard state |
+| **R-19** | Payment Card Data Safety | Stripe Hosted Checkout & Customer Portal | Zero card details touch Achivii backend or database (PCI-DSS) |
+| **R-20** | Webhook Cryptographic Integrity | `POST /api/billing/webhook` | Raw body signature verification with 5-minute tolerance |
+| **R-21** | Free User 1-Goal Integrity | Free tier accounts | Existing single-goal free users operate 100% free indefinitely |
+| **R-22** | Grace Mode Non-Destruction | Downgraded accounts with >1 goals | Existing goals are NEVER deleted, locked, or hidden |
 
-## 3.4 Do not pretend (BP §43)
+## 3.4 Do not pretend
 
-The UI must never imply that any of these work today:
-
-* analytics
-* notifications
-* payments
-* AI chat
-* multiple active goals
-* fully implemented proof judging
-* a completed goal state (until Phase 9 ships its backend allowance)
-* persistent challenge progress (`StepChallengeWidget` progress is not stored)
-* complete test/target judging
-
-The principle: **design for the future architecture without shipping fake functionality** (BP §23). Also:
-
-* no empty pages created only because a feature will exist one day
-* no fake progress percentages during generation
-* no "Forgot password", OAuth, or email-verification links while those flows don't exist
+The UI must never simulate functionality that the underlying system does not actually support:
+* No mock payment dialogs or fake credit card input forms.
+* No client-side-only "Pro" badges that disappear on reload or lack backend database backing.
+* No mock Customer Portal links.
+* If Stripe is operating in sandbox/test mode, the UI and documentation must clearly state it.
 
 ## 3.5 Voice and copy
 
-* **90 days** is the product language (BP §06). Never "12 weeks" in user-facing copy until OD-2 decides what the UI says about days 85–90.
-* **Adapt the journey, don't punish the person** (BP §18). There is no "failed", "behind" or "missed" language.
-* Every claim must describe something the product really does. Phase 1 copy was checked against the real features (weekly review, "why today", the 10-minute version, phases with milestones); later phases hold the same standard.
+* SaaS pricing copy must be calm, transparent, and dignified.
+* Annual billing savings must be explicitly stated (e.g., *"Save 20% with annual billing"*).
+* No manipulative countdown timers, deceptive "only 2 seats left" badges, or dark pattern cancellation hurdles.
+* Downgrade messaging must be reassuring: *"Your existing goals remain safely archived and accessible."*
 
-## 3.6 Visual rules (VDS §33)
+## 3.6 Visual rules
 
-1. The interface should feel like a journey, not a dashboard.
-2. The staircase represents progress; the garden represents achievement.
-3. Cinematic when inspiring, minimal when executing.
+* Strict compliance with Achivii's dark glassmorphism system: `slate-950` canvas, `slate-900/80` glass panels, cyan/emerald accents (`#10b981`, `#06b6d4`).
+* High-visibility "PRO" pill badge in navigation with glowing emerald border.
+* Tabular numerals (`tabular-nums font-mono`) on pricing cards to prevent numeral jitter.
+* Minimum touch target of 44×44px on all interactive toggles, buttons, and close affordances.
 
-The visual intensity levels (VDS §26) set the budget for each phase:
+## 3.7 Mobile acceptance in every phase
 
-| Level | Surface | Phases |
-|---|---|---|
-| High drama | Marketing | 1 |
-| Cinematic → focused | Auth, onboarding, generation | 2, 3, 4 |
-| Level 1: minimal, immediate | Today | 5 |
-| Level 2: more visual, strategic | Journey | 6 |
-| Level 3: analytical | Progress, weekly review | 7, 8 |
-| Level 4: cinematic | Achievement | 9 |
+* All billing modals, pricing cards, and settings sections must be verified at **390px** and **360px** viewports.
+* Pricing cards stack vertically on viewports &lt; 768px.
+* Zero horizontal overflow (`documentOverflow <= 1`).
+* Checkout and Customer Portal transitions utilize full-screen browser redirect for native Apple Pay / Google Pay support.
 
-## 3.7 Mobile acceptance in every phase (OD-5, BP §44)
+## 3.8 Accessibility baseline
 
-Mobile is the primary execution device. Every phase must meet these before it ends:
+* WCAG 2.1 AA contrast compliance (&ge; 4.5:1 for body copy).
+* Upgrade modal traps focus when opened and cleanly restores focus upon `Escape` or dismissal.
+* Billing interval switch implements `role="radiogroup"` or `role="switch"` with clear `aria-checked` states.
+* Screen reader live region (`aria-live="polite"`) for checkout redirection and error notices.
 
-* Layout verified at **390px**, plus **360px** for dense screens.
-* No horizontal scroll.
-* Tap targets are at least **44×44px**.
-* Safe-area insets respected (the app shell already uses `env(safe-area-inset-*)` in `App.tsx`).
-* Dialogs become bottom sheets where appropriate; long content scrolls inside the sheet, not behind it.
-* The on-screen keyboard doesn't cover the active input in forms.
-* No `backdrop-blur` over large moving imagery on mobile; use a pre-darkened image layer (VDS note 10).
+## 3.9 Motion
 
-## 3.8 Accessibility baseline (VDS §29, notes 2–3)
+* Billing interval toggle transition is subtle (150ms opacity/transform crossfade).
+* Respect `prefers-reduced-motion: reduce`: disable scale and sliding animations.
 
-* Body text contrast is at least 4.5:1 (AA).
-* Muted text `#6F6D67` (≈3.8:1 on the background) is only for large text (≥18px, or ≥14px bold), placeholders and decorative dividers.
-* MICRO text (11–12px) uses the secondary colour, never muted.
-* On the light surface `#F1EFE8`, green text, icons and focus rings use the darker accent variant, because `#7FA58B` there is ≈2.4:1.
-* Everything is reachable and operable by keyboard. Focus is visible (`:focus-visible`). Dialogs trap and restore focus.
-* Important information never exists only in imagery, and colour is never the only progress indicator.
-* Decorative visuals are `aria-hidden`. Meaningful visuals have a text alternative.
-* Headings form a correct outline, and landmarks (`nav`, `main`, `footer`) are present.
+## 3.10 Dependencies
 
-## 3.9 Motion (VDS §19, BP §37)
+* Backend: Official `stripe` npm package added to `backend/package.json`.
+* Frontend: No external billing SDKs needed (uses Stripe Hosted Checkout and Customer Portal via standard browser navigation).
 
-* Motion is slow, intentional, physical and directional: ascent, emergence, unfolding, arrival. No bounce, spin, pop or shake.
-* Every animation has a `prefers-reduced-motion` path. Content must be fully visible without animation.
-* Motion must mean something: progress, a transition, entering focus, or arrival.
+## 3.11 Validation baseline
 
-## 3.10 Dependencies (VDS note 9)
+Every phase must pass this authoritative toolchain check:
 
-* New packages are allowed where they earn their place.
-* Each one is named in the phase that introduces it, with the reason, and logged in `decisions.md`.
-* `lucide-react` stays the single icon family at stroke width 1.5 (VDS note 11). Do not add a second icon set.
-
-## 3.11 Validation baseline (every phase)
-
-Run whichever apply:
-
-| Check | Command / method |
+| Check | Command / Procedure |
 |---|---|
-| Frontend type-check | In `frontend/`: `node node_modules/typescript/bin/tsc --noEmit -p .` |
-| Frontend lint | In `frontend/`: `npx eslint <changed paths>` must be clean. `npm run lint` (everything) is informational until the pre-Phase-0 baseline is fixed (6) |
-| Frontend tests | In `frontend/`: `npm test` (Vitest with Testing Library, jsdom) |
-| Browser tests | In `frontend/`: `npx playwright test` (desktop 1440 and mobile 390 projects; the API is mocked in `e2e/mockApi.ts`, axe runs on the auth screens; `e2e/onboarding.spec.ts` compares the onboarding request bodies with the M3.1 baseline in `e2e/fixtures/onboarding/`). Specs under `e2e/live/` use the real backend and run only with `LIVE_API=1` (`$env:LIVE_API='1'; npx playwright test e2e/live --project=desktop`) |
-| Frontend build | `npm run build --workspace=frontend` |
-| Backend tests (if the backend was touched) | `npm test --workspace=backend` (Vitest) |
-| Backend build (if the backend was touched) | `npm run build --workspace=backend` |
-| Run the app | `npm run frontend` (Vite, :5173) and `npm run backend` (Express, :5000) |
-| Browser verification | Desktop 1440px and mobile 390px; console free of errors and warnings; reduced motion emulated |
-| Regression | Every R-n the phase touches (3.3) |
-
-Phase 0 added ESLint and Vitest with Testing Library (ND-3). Phase 2 added Playwright with axe-core. Phase 3 added the onboarding payload test and the first real-backend specs (M3.1), the pathway specs (`e2e/pathways.spec.ts`, M3.6) and the onboarding state specs (`e2e/onboardingStates.spec.ts`, M3.7). Determinism check for a phase's specs: `npx playwright test <specs> --repeat-each=3`. End-to-end creates with real AI generation, and stopping the real backend, are run by hand (or a throwaway script) and recorded as manual evidence; they are not specs, because generation is slow and costly. Browser verification remains required evidence for every screen.
-
-**Lint baseline (2026-09-23):** 48 errors and 6 warnings in 14 files that predate Phase 0: `AuthModal`, `ExecutionDashboard`, `FocusSessionModal`, `OnboardingWizard`, `PlanV2Panel`, `SaaSBuilderModal`, `StepChallengeWidget`, `marketing/StaircaseScene`, `marketing/hooks`, `AuthContext`, `GoalContext`, `lib/api`, `Home`, `RoadmapPage`. By rule: `no-explicit-any` 15, `set-state-in-effect` 8, `preserve-manual-memoization` 7, `only-export-components` 7, `exhaustive-deps` 6, `rules-of-hooks` 4, `no-unused-vars` 2, `no-empty` 2, `purity` 2, `use-memo` 1. A phase that migrates one of these files leaves it lint-clean.
-
-**Now (end of Phase 3, 2026-09-23):** 30 errors and 4 warnings in 11 files. `AuthModal` was deleted and `AuthContext` cleaned in Phase 2; `OnboardingWizard` is clean since Phase 3 (its 14 errors and 2 warnings are gone, and its successors in `components/onboarding/` are clean). `Home` (1 error, 1 warning) and `ExecutionDashboard` (6 errors, 1 warning) have exactly the rules they had before Phase 3; they belong to Phase 5. By rule: `no-explicit-any` 9, `preserve-manual-memoization` 7, `set-state-in-effect` 5, `exhaustive-deps` 4, `rules-of-hooks` 4, `only-export-components` 3, `no-unused-vars` 1, `use-memo` 1.
+| Frontend Type-Check | `npm run type-check --workspace=frontend` or `node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend` |
+| Backend Build | `npm run build --workspace=backend` |
+| Frontend Unit Tests | `npm test --workspace=frontend` |
+| Backend Unit Tests | `npm test --workspace=backend` |
+| Playwright E2E Tests | `npx playwright test` |
+| Mobile Viewport Sweep | Visual check at 390px and 360px viewports |
+| Accessibility Sweep | 0 `@axe-core/playwright` violations on all touched surfaces |
 
 ---
 
@@ -283,5820 +235,804 @@ Phase 0 added ESLint and Vitest with Testing Library (ND-3). Phase 2 added Playw
 
 ---
 
-## PHASE 0 — GLOBAL DESIGN FOUNDATION
+## PHASE 0 — Billing Foundation, Database Schema & Stripe Client
 
-**Status:** `COMPLETE` (2026-09-23; Mo accepted the phase report after the review fixes). The marketing-scoped slice shipped with Phase 1. "Current state" below is the kickoff snapshot; "What shipped" records the result.
+**Status:** `NOT STARTED`
 
-**Source:** BP §35, §38, §39, §49 (Phase 0), OD-6, OD-10, OD-12 · VDS §2–5, §10–12, §19, §23–25, §29, notes 1–6, 9–11
+**Source:** FD §11, §12, §20, §21, §35 · D-3, D-4 · decisions.md
 
-**Objective:** give every later phase one shared set of tokens, typography, primitives and rules, so no screen invents its own.
+**Objective:** Extend the Prisma schema with user subscription fields, run migrations, initialize the official Stripe backend client, and expose subscription status in the user auth context.
 
-**Narrative line:** none (infrastructure).
+**Narrative line:** *None (infrastructure).*
 
 ### Current state
 
-* **Two token sets live side by side in `frontend/src/index.css` `@theme`:**
-  * *Legacy (the old mint identity):* `--color-canvas #050807`, `--color-surface #0c1210`, `--color-surface-elevated`, `--color-accent-mint #07CB6C` and its variants, `--color-warning-amber`, `--font-sans` (Plus Jakarta Sans), `--font-mono` (JetBrains Mono).
-  * *New (added in Phase 1):* `ink`, `panel`, `panel-raised`, `paper`, `fg`, `fg-secondary`, `fg-muted`, `accent`, `accent-bright`, `accent-deep`, `achievement`, `line`, `line-strong`, `--font-grotesk` (Geist), `--font-grotesk-mono` (Geist Mono), `--radius-panel: 14px`, `--radius-block: 4px`, `--ease-ascend`.
-* **Kickoff measurement (2026-09-23):**
-  * The legacy colour tokens and helper classes (`.surface-panel`, `.glass-panel`, `.gradient-text`, `.border-hairline*`) are **defined but unused**. The app uses 1,109 hard-coded hex literals instead.
-  * The marketing tokens have 162 usages.
-  * The radius override affects 28 usages (`OnboardingWizard.tsx` 26, `FocusSessionModal.tsx` 2).
-  * `font-mono` is used 212 times.
-  * Baseline: type-check and build pass; the main JS chunk is 517 KB (Vite's 500 KB warning); CSS is 93 KB.
-* **Naming doesn't follow VDS note 4.** The new tokens are role-like but not the role names the note specifies (`background`, `surface`, `surface-elevated`, `surface-inverse`, `text`, `text-secondary`, `text-muted`, `accent`, `accent-hover`, `achievement`, `border`). The legacy `--color-surface` name collides with the target role name.
-* **Radius override:** a global override still forces `--radius-xl`, `--radius-2xl` and `--radius-3xl` to `0.375rem` (VDS note 4 says remove it).
-* **Fonts:** `frontend/index.html` loads Geist, Geist Mono, Plus Jakarta Sans and JetBrains Mono from Google Fonts. The app still uses the legacy pair.
-* **Shared primitives:** only marketing-scoped ones exist, in `frontend/src/components/marketing/` (`Button`, `Section`/`Eyebrow`, `Reveal`, `Wordmark`, plus the hooks `usePrefersReducedMotion`, `useInView`, `useCountUp`, `useScrolledPast`). The app has no shared primitives.
-* **Hard-coded styling:** about 1,010 hex values across the app (BP §38).
-* **Modal overlays:** six components implement their own `fixed inset-0` overlay — `AuthModal`, `ExecutionDashboard`, `FocusSessionModal`, `OnboardingWizard`, `PathwaysExplorerModal`, `SaaSBuilderModal` (BP §39 counts about eight modal patterns).
-* **`Design.md`:** still states the old rules (no glassmorphism, no sparkle icons, no large radii). It is superseded by the VDS but not yet rewritten (OD-6).
-* **Tooling:** the frontend has no ESLint, no Vitest and no Playwright.
+* `backend/prisma/schema.prisma`: `User` model only has `id`, `email`, `password_hash`, `timezone`, `created_at`, `goals`.
+* `backend/src/routes/auth.ts`: `getAuthUser` selects only `id`, `email`, `timezone`, `created_at`.
+* `frontend/src/context/AuthContext.tsx`: `User` interface has no `plan` or billing properties.
+* `backend/package.json`: Does not contain `stripe`.
 
 ### Decisions required before starting
 
-* **OD-6:** the `Design.md` rewrite. The direction is settled by the VDS; the rewrite is this phase's deliverable.
-* **OD-12:** semantic token naming. Settled in principle by VDS note 4.
-* **ND-1: token migration strategy.** Options include renaming the Phase 1 marketing tokens to the role names, aliasing role names to them, or keeping marketing tokens as a separate layer. It also covers how the legacy `--color-surface` collision is resolved without breaking unmigrated screens.
-* **ND-2: primitive strategy.** Hand-built primitives on Tailwind 4, or shadcn/ui (or Radix) primitives restyled to the VDS. This affects dialog and sheet accessibility, bundle size and maintenance.
-* **ND-3: frontend verification tooling.** Whether to add ESLint, Vitest with Testing Library (component tests), and Playwright (critical-flow smoke tests). If yes, which flows are covered first.
+* **OD-1**: Specific price IDs and environment variables (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_MONTHLY`, `STRIPE_PRICE_ID_ANNUAL`). *Resolved: Define standard configuration fallbacks in `.env.example`.*
 
 ### In scope
 
-* A role-named token layer (VDS note 4), including:
-  * a darker accent variant for light surfaces (VDS note 3);
-  * warning and error semantic colours that fit the palette (the legacy amber has no successor yet).
-* A typography scale (VDS §5), including display, H1–H3, body, small and micro. Also a `tabular` numeric utility (VDS note 6) and a distinctive large-number treatment (VDS §4).
-* Spacing, radius, border, shadow and motion tokens:
-  * radius per VDS §23: moderate for marketing, small-to-moderate for the app, near-rectangular for special cards;
-  * border starting point `1px solid rgba(255,255,255,.08)` (VDS §10);
-  * motion: durations and easing.
-* App primitives, each with every state it needs (default, hover, focus-visible, active, disabled, loading, error):
-  * Button (primary off-white, secondary outlined, quiet, premium; VDS §12)
-  * IconButton
-  * Input, Textarea, Select, Checkbox/Radio, SegmentedControl
-  * Surface/Card (solid; translucent only over imagery; VDS §10–11)
-  * Badge
-  * Dialog and Sheet (mobile bottom sheet), with focus trap, Escape to close, scroll lock and restored focus
-  * Tabs
-  * ProgressBar
-  * the Step-marker family (VDS §25): step `○`, active `●`, completed `✓`, milestone `◆`, destination `✦`, built as components
-  * EmptyState, LoadingState/Skeleton, ErrorState (with retry)
-  * VisuallyHidden, SkipLink
-* The `Design.md` rewrite. Keep its still-valid mobile, scroll and touch-target rules; adopt the VDS direction; state that the VDS wins on any conflict.
-* A contrast check of every text/surface token pair, recorded in `Design.md`.
-* Optional: a **development-only** primitives preview route, excluded from production builds, to verify primitives visually.
+* Add `stripe` package to `backend/package.json`.
+* Extend Prisma schema `User` model:
+  * `plan`: `String` (default `"free"`).
+  * `stripeCustomerId`: `String?` (unique, indexed).
+  * `stripeSubscriptionId`: `String?` (unique).
+  * `subscriptionStatus`: `String?` (`"active"`, `"past_due"`, `"canceled"`).
+  * `currentPeriodEnd`: `DateTime?`.
+  * `cancelAtPeriodEnd`: `Boolean` (default `false`).
+* Generate Prisma Client and create database migration.
+* Author `backend/src/lib/stripe.ts`: Initialize singleton Stripe client with API version pinning.
+* Update `backend/src/routes/auth.ts`: Include billing fields in `getAuthUser` and `GET /api/auth/me`.
+* Update `frontend/src/types/index.ts` and `AuthContext.tsx` with `plan`, `subscriptionStatus`, and helper `isPro`.
 
 ### Out of scope
 
-* Migrating existing screens. Each later phase migrates the screens it owns.
-* Removing the legacy fonts, the base body styles or the radius override. That happens in Phase 12, once nothing uses them. The override may move earlier only if every affected screen is verified. (Unused legacy colour tokens and helper classes were deleted in Phase 0 under ND-1, because nothing referenced them.)
-* Any behaviour or backend change.
+* Checkout session creation or webhooks (Phase 2).
+* UI paywall components (Phase 4).
 
 ### Backend allowance
 
-None.
+* Named: Update `User` model in `backend/prisma/schema.prisma` with 6 billing fields.
+* Named: Install `stripe` package in backend.
+* Named: Create `backend/src/lib/stripe.ts`.
+* Named: Extend `backend/src/routes/auth.ts` user projection.
 
 ### Files likely affected
 
-* `frontend/src/index.css`
-* `frontend/index.html` (font loading, only if ND-2/ND-3 require it)
-* a new `frontend/src/components/ui/` (or the path chosen in ND-2)
-* `Design.md`
-* `frontend/package.json` (only for packages approved in ND-2/ND-3)
+* `backend/package.json`
+* `backend/prisma/schema.prisma`
+* `backend/src/lib/stripe.ts`
+* `backend/src/routes/auth.ts`
+* `frontend/src/types/index.ts`
+* `frontend/src/context/AuthContext.tsx`
+* `backend/test/auth.test.ts`
 
 ### Milestones
 
-| ID | Milestone |
-|---|---|
-| M0.1 | ✔ Marketing-scoped palette, Geist fonts, radius, ease, grain, reveal and reduced-motion utilities (delivered with Phase 1) |
-| M0.2 | ✔ ND-1, ND-2 and ND-3 decided and logged |
-| M0.3 | ✔ Role-named token layer added; marketing tokens reconciled per ND-1; contrast table recorded |
-| M0.4 | ✔ Typography scale and tabular-number utility |
-| M0.5 | ✔ Spacing, radius, border, shadow and motion tokens |
-| M0.6 | ✔ Form and action primitives: Button, IconButton, Input family, SegmentedControl |
-| M0.7 | ✔ Container primitives: Surface/Card, Badge, Dialog, Sheet, Tabs |
-| M0.8 | ✔ Progress primitives: ProgressBar and the Step-marker family |
-| M0.9 | ✔ State primitives: EmptyState, LoadingState, ErrorState |
-| M0.10 | ✔ `Design.md` rewritten |
-| M0.11 | ✔ Tooling per ND-3, with the first tests passing |
-
-### Regression checks
-
-The marketing landing page renders identically after the token reconciliation (a Phase 1 visual check). The signed-in app renders unchanged, because legacy tokens stay in place.
-
-### Mobile acceptance
-
-Primitives meet 44px targets. Sheet behaviour verified at 390px. Inputs don't trigger iOS zoom (font size ≥16px).
-
-### Validation
-
-* Type-check and build (3.11).
-* Every primitive checked in every state, by keyboard and with reduced motion.
-* The contrast table is complete.
-* The landing page is visually unchanged at 1440px and 390px.
-
-### Exit criteria
-
-* No later phase needs to invent a colour, font size, radius or dialog.
-* `Design.md` no longer contradicts the VDS.
-* Primitives are documented well enough to use without reading their source.
-
-### Risks
-
-* Token renames silently changing Phase 1 visuals. Mitigate by comparing before and after.
-* Over-building primitives nobody uses yet. Build only what Phases 2–5 need; add the rest when a phase needs it.
-
-### What shipped
-
-* **Tokens** (`frontend/src/index.css` `@theme`), by role per ND-1:
-  * colours: `background`, `surface`, `surface-elevated`, `surface-inverse`, `scrim`, `text`, `text-secondary`, `text-muted`, `text-on-inverse`, `accent`, `accent-hover`, `accent-on-inverse`, `achievement`, `caution`, `danger`, `border`, `border-strong`, `border-control` (the 3:1 boundary for form controls);
-  * type scale `display`, `h1`–`h3`, `body-lg`, `body`, `small`, `micro`, `numeral`, each with its line height, tracking and weight;
-  * `gutter` and `section` spacing, four radii (`block`, `control`, `card`, `panel`), two shadows, two easings, four durations and the overlay, dialog and sheet animations.
-* **Legacy cleanup (ND-1):** the unused legacy colour tokens and the `.glass-panel`, `.surface-panel`, `.gradient-text` and `.border-hairline*` classes were deleted. The 173 marketing usages were renamed to role names (`ink` → `background`, `fg` → `text`, `line` → `border`, `font-grotesk` → `font-ui`, and so on). The legacy fonts, base body styles and radius override remain.
-* **Conventions:** `ui-root` (Geist on migrated screens and portals), `focus-ring` (an outline in `--focus-ring-color` that beats the legacy mint rule), `on-inverse` (switches `--focus-ring-color` and `TextLink` to dark green on light surfaces, which hold text and `TextLink` only for now).
-* **Primitives** in `frontend/src/components/ui/`, exported from `index.ts`: `Button`, `IconButton`, `Spinner`, `TextLink`, `Field`, `Input`, `Textarea`, `Select`, `Checkbox`, `ChoiceGroup`, `ChoiceCard`, `SegmentedControl`, `Surface`, `Badge`, `Dialog` (with `DialogTrigger`, `DialogClose`, `DialogContent`, `SheetContent`), `Tabs` (with `TabsList`, `TabsTrigger`, `TabsContent`), `ProgressBar`, `StepMarker`, `EmptyState`, `LoadingState`, `Skeleton`, `ErrorState`, `VisuallyHidden`, `SkipLink`. Dialog, Tabs and `asChild` use Radix (ND-2); the rest are hand-built. Dialogs become bottom sheets below 768px.
-* **Tooling (ND-3):** ESLint (flat config), Vitest with Testing Library in jsdom, and the scripts `lint`, `test` and `test:watch`. 41 tests across 6 files cover every exported primitive.
-* **Review fixes (W11, the groups Mo selected):**
-  * *Accessibility:* inputs, textareas, selects, checkboxes and radios use `border-control` (3.28–3.35:1 instead of 1.5:1). The contrast table gained border rows and every status colour on the light surface; muted text on the light surface is recorded as a fail (4.496:1).
-  * *Light surface:* documented as text and `TextLink` only. Choice cards, segmented tracks and the checkbox box draw their ring from `--focus-ring-color`, so they adapt.
-  * *States:* `error` (and `required`) on `ChoiceGroup`, `SegmentedControl` and `Checkbox`; `TextLink`; `Input` `trailing` slot; `Button` and `IconButton` `loading` keep focus (`aria-disabled` instead of native `disabled`, no submit while loading); `asChild` links honour `disabled`; every error sits in an always-mounted live region, so it is announced.
-  * *Copy:* the preview no longer shows "Missed", notification examples, a Coach/sparkles button or a "Day 88" bar; `Design.md` examples follow.
-* **Development preview:** `/__ui` renders every primitive in every state. It is loaded only when `import.meta.env.DEV`, so production builds contain no trace of it.
-* **`Design.md`** rewritten: VDS precedence, token reference, contrast table, conventions, primitive usage, and the retained mobile, touch, scroll and accessibility rules.
-* **Files:**
-  * `frontend/src/index.css`, `frontend/src/App.tsx` (dev route only), `frontend/vite.config.ts` (`dedupe` for React), `frontend/package.json`, `frontend/bun.lock`
-  * new: `frontend/src/components/ui/**`, `frontend/src/pages/dev/UiPreviewPage.tsx`, `frontend/src/test/setup.ts`, `frontend/src/vite-env.d.ts`, `frontend/eslint.config.js`, `frontend/vitest.config.ts`
-  * token rename only: `frontend/src/components/marketing/**`
-  * `Design.md`, `docs/decisions.md`, `docs/phases.md`, `docs/prompts.md`
-
-### Verification evidence
-
-* Type-check passes. 41 of 41 tests pass. `components/ui` and `pages/dev` are lint-clean; the full-lint baseline is unchanged (48 errors, 6 warnings). The build passes, with the main JS chunk at 516.76 KB (+0.23 KB, the dev-route guard) and CSS at 112.19 KB (+18.8 KB raw, about +2.3 KB gzipped, from the primitives' utilities and the new tokens). The dist contains no preview code.
-* No file references a deleted legacy token or class, and no unmigrated screen uses the new role utilities (static search).
-* Signed in with the test account: the signed-in home and onboarding render in their legacy style (Plus Jakarta Sans, mint) with no horizontal overflow at 772px and 390px. `/dashboard` and `/roadmap` redirect to onboarding because the account has no goal, which is existing behaviour. There is no pre-Phase-0 screenshot of these screens, so this confirms they render, not that they are pixel-identical.
-* Keyboard in the browser: arrow keys move focus across tabs, skip the disabled tab and loop. The SkipLink, with focus forced, is a 140×45px pill at the top left with the focus ring. (The embedded browser has no window focus, so native Tab and focus events can't be driven there; Tab order, radio arrows and selection-follows-focus are covered by the user-event tests.)
-* New states in the browser: `border-control` on the input and checkbox; the password toggle sits inside the input (44×44px, 52px right padding); `TextLink` is `accent-on-inverse` on the light surface; `--focus-ring-color` switches inside `.on-inverse`; forced focus on a choice card, segment and checkbox draws the accent-hover ring; invalid controls turn `danger` with an icon and sentence. At 390px, all 46 controls on `/__ui` are at least 44px and nothing overflows.
-* The landing page is unchanged after the token rename: 0 computed-style differences across 665 elements at 1440px, and visually unchanged at 390px with no horizontal overflow.
-* At 390px on `/__ui`: no horizontal overflow, no interactive element under 44px, and every input is 16px.
-* The dialog opens with its title as its name, focus inside and the body scroll-locked. Tab wraps within it; Escape closes it, releases the lock and returns focus to the trigger. Below 768px it is a full-width bottom sheet with stacked 48px actions; above, a centred dialog.
-* The focus ring renders as a 2px accent-hover outline, overriding the legacy mint rule (checked by forcing `:focus-visible`).
-* Loading buttons keep full opacity with a progress cursor; disabled buttons fade to 45% with a not-allowed cursor.
-* Under reduced motion, dialog, sheet and spinner animations run at 0.00001s.
-* No console errors or warnings while opening and closing every dialog variant, switching tabs and retrying.
-
-### Carry-overs
-
-| Item | Owner |
-|---|---|
-| `RoadmapPage.tsx` calls hooks after an early return (`rules-of-hooks` at lines 31, 51, 57, 76): a latent crash if the early-return condition changes between renders | Phase 6 |
-| Lint baseline in 14 pre-Phase-0 files (3.11) | The phase that migrates each file |
-| No screen uses the primitives yet; the six hand-rolled modal overlays remain | Phases 2–10, per screen |
-| Legacy fonts, base body styles, mint focus rule, scrollbar colours and the radius override | Phase 12 |
-| `frontend/node_modules` held stale folders from an older install that shadowed bun's links and caused a duplicate-React crash; the affected folders were deleted and relinked. A clean `bun install` on a fresh clone is the reliable setup. `vite.config.ts` `dedupe` also masks a broken install; remove it once installs are clean | Housekeeping |
-| `Button`, `Badge`, `StepMarker`, fields and choice controls have no inverse variant; the light surface holds text and `TextLink` only | The first phase that needs a control on a light surface |
-| Focus rings on the first and last tab and on dialog edges can be clipped by `overflow` on their container | Phase 2 (first dialog and tabs in a screen) |
-| No automated accessibility check (for example `vitest-axe`) | Phase 2, with Playwright |
-| `Design.md` gaps from the review (not selected for Phase 0): dialog initial focus lands on ✕, not the first field; `Spinner` undocumented; "1 column on mobile" while `ChoiceGroup` uses `sm:grid-cols-2`; gold "marks milestones" while `StepMarker` milestone is white; the navigation rule pre-empts ND-7; the logs, table and code rules have no primitive behind them | Next `Design.md` pass, before Phase 2 screens use them |
-| Type-scale minimums sit below some VDS ranges; micro tracking (0.16em) is baked into `text-micro` | Phase 2 review against VDS §10–11 |
-| `--duration-reveal` is defined but nothing uses it yet | Phase 12 (use it for marketing reveals or remove it) |
-| `Surface tone="glass"` has no mobile blur guard, only a documented rule | The first phase that uses glass over imagery |
-| `StaircaseScene` keeps literal hex values and `hover:bg-white`; `marketing/Button` duplicates `ui/Button` | Phase 12 (marketing migration to primitives) |
-
----
-
-## PHASE 1 — MARKETING HOMEPAGE
-
-**Status:** `COMPLETE` (2026-09-23)
-
-**Source:** BP §11–13, §24–25, §36–37, §43, §47 · VDS §6–9, §12–13, §15–17, §19, §21–22, §29
-
-**Objective:** turn the signed-out landing page into the Achivii world.
-
-**Narrative line:** *"You have somewhere to go."*
-
-### What shipped
-
-* **Section order:** Hero → Problem → Method → 90-Day Journey → Today's Step → Adaptive → Pathways → Coming to Achivii (Coach, Custom Journeys) → Achievement → Final CTA → Footer.
-* **Hero:** an isometric SVG staircase (`StaircaseScene.tsx`) that rises to a lit doorway.
-* **Journey section:** the path lights up to "You are here".
-* **Today section:** a mock-up of a daily step, based on the YouTube pathway.
-* **Achievement section:** a garden arch.
-* **CTAs:** "Start your journey" and "See how it works".
-* **Navigation:** a floating pill nav with How it works, Journeys, Coach, Sign in and Start. Pricing is deliberately left out because no pricing exists (BP §43).
-* **Premium honesty:** Coach is labelled "In development" and Custom Journeys "Planned for Premium". There are no buttons, and a note says there is no paid plan yet and everything is free.
-* **Bug fixed:** a pathway picked while signed out now carries through signup into onboarding. The handoff waits for the goal to load after login.
-* **Files:**
-  * `frontend/src/components/marketing/**`
-  * `frontend/src/App.tsx` (hides the app Navbar and footer on the signed-out landing)
-  * `frontend/src/pages/Home.tsx` (signed-out branch replaced; signed-in branch untouched)
-  * `frontend/src/index.css`, `frontend/index.html`
-  * `frontend/public/images/brand/*`
-
-### Verification evidence
-
-* Type-check passes.
-* Layout verified at 1440px and 390px, with no horizontal overflow and all tap targets at least 44px.
-* Console clean over a full scroll.
-* Fonts and images load.
-* Reduced motion disables all animation and shows all content.
-* Anchor links clear the nav.
-* All CTAs open the correct auth mode.
-* Pathway → signup → `/onboarding` preselected the pathway ("Certified Blueprint: Run a 10K Under 50 Minutes").
-* Signing out restores the landing page.
-
-### Carry-overs (owned by later phases)
-
-| Item | Owner |
-|---|---|
-| AuthModal still uses the old green style, and its close button overlaps the tabs | Phase 2 |
-| Pathway descriptions are jargon-heavy ("170+ SPM cadence", "RIR hypertrophy", "Silman LPDO scans"); the copy comes from preset data | Phase 3 (ND-5) |
-| Returning user with an active goal who picks a pathway then signs in: verified by reading the code, not live | Phase 2 regression (R-16) |
-| ~~Marketing tokens named `ink`/`panel`/`paper`… rather than VDS role names~~ | Done in Phase 0 (ND-1) |
-| Brand images are low resolution (735×985, 682×1024) | Phase 12 (asset request) |
-| Test account `phase1-landing-test-0923@example.com` exists in the local development database | Housekeeping |
-| The free-text custom-goal box was removed from the landing page; custom goals remain free inside onboarding | Phases 3 and 10 (ND-6, ND-10) |
-
----
-
-## PHASE 2 — AUTHENTICATION
-
-**Status:** `COMPLETE` (2026-09-23; Mo accepted the phase report after the review fixes). The sections from "Decisions required" down are the kickoff plan; "What shipped" records the result.
-
-**Source:** BP §13, §41–42, §47, §49 (Phase 2), OD-4 · VDS §10–12, §16, §26, §29
-
-**Objective:** move sign-up and sign-in out of a modal-dependent architecture, where that helps, into a considered first step inside the Achivii world.
-
-**Narrative line:** the threshold between *"You have somewhere to go"* and *"Tell us where."*
-
-### What shipped
-
-* **Routes (OD-4 A):** `/signup` and `/login` replace `AuthModal`, which is deleted along with `openAuthModal` and the modal state in `AuthContext`. The token logic is unchanged.
-* **Auth screens** (`frontend/src/pages/auth/`):
-  * `AuthLayout`: staircase image beside the form on desktop, a faint image band on mobile; names the chosen journey when a pathway is in the URL, otherwise "You have somewhere to go."
-  * `AuthScreen`: Phase 0 `Field`, `Input`, `IconButton`, `Button`, `LoadingState`; `autocomplete` `email` / `new-password` / `current-password`; show/hide password; validation matching the backend (email needs "@", sign-up password at least 6); loading state and double-submit guard; Enter submits.
-  * Errors: duplicate email (with "Sign in instead", email and pathway kept), wrong credentials, offline, server error, plus an up-front notice when the health check fails.
-* **Handoff and redirects (ND-4 A):** pathway CTAs link to `/signup?pathway=<id>`. `usePostAuthRedirect` and `lib/authFlow.ts` decide the destination once the goal state is known:
-  * pathway and no goal → `/onboarding` with `{ presetGoal, isPreset, switchGoal }` and `achivii_draft_goal`;
-  * pathway and a goal → Today with a "journey in progress" notice; the goal is untouched;
-  * goal fetch failed → Today, never onboarding (ND-12);
-  * otherwise an internal, non-auth `?next=`, else Today (goal) or onboarding (no goal).
-  * A signed-in visitor to an auth route is moved on.
-* **`ProtectedRoute`:** a signed-out visitor goes to `/login?next=<path>`.
-* **CTAs:** every landing CTA, the pathway rows and the app `Navbar`'s signed-out buttons are route links. Copy unchanged. Sign-out returns to the landing page.
-* **ND-12 changes:** `ApiError` with the HTTP status in `lib/api.ts`; `goalLoadFailed` in `GoalContext`.
-* **Tooling (ND-3):** Playwright and axe-core; `e2e/auth.spec.ts` against a mocked API (`e2e/mockApi.ts`), desktop 1440 and mobile 390.
-* **Removed from `Home.tsx`:** the in-memory pathway handoff (`pendingPathway`, `goalFetchSeen`).
-
-### Verification evidence
-
-* Type-check and build pass (main JS chunk 531.54 KB, +14.8 KB since Phase 0; CSS 114.29 KB). Vitest 73 of 73. Playwright 40 of 40 (2 intentional viewport skips).
-* Lint: changed files add no errors; the remaining errors in `api.ts`, `GoalContext.tsx` and `Home.tsx` are the pre-Phase-0 baseline. Full lint 44 errors and 6 warnings in 12 files (from 48 and 6 in 14): `AuthModal` removed, `AuthContext` now clean.
-* All 11 validation steps pass against the real backend (throwaway Playwright script, three test accounts):
-  * fresh sign-up → `/onboarding`; pathway sign-up → onboarding at Schedule with "Run a 10K Under 50 Minutes" preselected and `achivii_draft_goal` set;
-  * sign-in with a goal → Today; with a goal after choosing a pathway → Today with the notice, same goal id before and after, no draft written;
-  * wrong password and duplicate email show the right messages and keep the email;
-  * a double click sends one sign-up request;
-  * back returns to the landing page; reload keeps the screen and pathway; `/login` and `/signup` while signed in redirect to Today (a full load with a token, so this also covers reload while signed in).
-* Backend stopped: simulated by blocking :5000 in the test browser; the notice and the submit error appear and nothing crashes. The real backend was not stopped.
-* 390px: no horizontal overflow on `/signup`, `/login`, `/signup?pathway=run10k`. At 390×664 with the password focused, the 56px submit button stays on screen.
-* axe (WCAG 2.2 AA tags): no violations on the three auth URLs at both widths. Keyboard order checked: skip link, home, email, password, show/hide, submit, switch.
-* Reduced motion: no running animations and nothing hidden. Console: only Chromium's resource lines for the expected 409, 401 and refused responses.
-* Sign-out to the landing page is verified in the mocked Playwright suite only.
-* Review fix: the Today notice's dismiss button is 44×44 (asserted in Playwright).
-
-### Carry-overs (owned by later phases)
-
-| Item | Owner |
-|---|---|
-| A failed goal fetch lands on Today, which then shows the goal-less pathway gallery; it needs an error state driven by `goalLoadFailed` | Phase 5 |
-| The notice says "Explore Goals" while the app nav says "Pathways (10)" | Phase 5 |
-| The Today notice uses `Home.tsx`'s legacy hex palette until Today is migrated | Phase 5 |
-| The offline status is one health check on mount, so it can be stale in either direction (R-17) | Phase 12 |
-| The signed-in redirect has no timeout if the goal fetch never resolves | Phase 12 |
-| ~~`e2e/live/` is empty; the real-backend checks were not kept as specs~~ Done in M3.1 (`e2e/live/onboarding.live.spec.ts`) | Phase 3 (with the payload test) |
-| Test accounts `phase2-w6-{a,b,c}-1790142962485@example.com` (account a has a goal) | Housekeeping |
-
-### Decisions required before starting
-
-* **OD-4:** adding `/login` and `/signup` routes. This touches `ProtectedRoute` and the draft-goal-through-signup flow. The prompt must permit the route change and list R-1, R-3 and R-16 for regression.
-* **ND-4: how a chosen pathway survives navigation to an auth route.** Options include a URL parameter (for example `/signup?pathway=<id>`), the existing `achivii_draft_goal` localStorage key, or both. The decision also covers:
-  * whether the modal stays for in-context moments (for example clicking a pathway);
-  * the redirect rules after auth: no goal → onboarding; active goal → Today; an explicit `?next=` path honoured only if it's internal.
-
-**Decided 2026-09-23:** OD-4 **A** (routes only; the modal is retired) and ND-4 **A** (`/signup?pathway=<slug>`, cleared once consumed; the redirect rules above). See `docs/decisions.md`.
-
-### In scope
-
-* Dedicated sign-up and sign-in screens (if OD-4 approves routes):
-  * cinematic → focused (BP §13);
-  * atmospheric imagery used lightly behind a solid form surface (VDS §11, §16).
-* The AuthModal either rebuilt on Phase 0 primitives, or retired in favour of the routes, per ND-4. The close-button overlap is fixed either way.
-* Form UX:
-  * labelled fields with correct `autocomplete` (`email`, `new-password`, `current-password`);
-  * a show/hide password toggle;
-  * inline validation that matches the backend rules;
-  * submission loading state; double-submit prevention;
-  * Enter to submit.
-* Error states, in encouraging language: email already registered, wrong credentials, network offline, server error.
-* A signed-in user who visits an auth route is redirected.
-* Marketing CTAs point at the new entry points. Copy stays unchanged.
-* Signing out returns to the landing page.
-
-### Out of scope
-
-* Password reset, email verification, OAuth, "remember me". They don't exist and must not be linked (3.4).
-* Changing the token storage mechanism, session lifetime or backend validation.
-* Restyling the signed-in app Navbar (Phase 5).
-
-### Backend allowance
-
-None.
-
-### Files likely affected
-
-* `frontend/src/App.tsx` (routes)
-* `frontend/src/components/ProtectedRoute.tsx`
-* `frontend/src/components/AuthModal.tsx`
-* new `frontend/src/pages/SignupPage.tsx` and `LoginPage.tsx` (if routes are approved)
-* `frontend/src/context/AuthContext.tsx` (presentation hooks only; no changes to token logic)
-* `frontend/src/pages/Home.tsx` (the handoff, per ND-4)
-* `frontend/src/components/marketing/LandingPage.tsx` and its CTA wiring
-
-### Milestones
-
-| ID | Milestone |
-|---|---|
-| M2.1 | OD-4 and ND-4 decided; route table and redirect rules written down |
-| M2.2 | Auth screen layout (desktop and mobile) on Phase 0 primitives |
-| M2.3 | Sign-up and sign-in forms, with validation, loading and every error state |
-| M2.4 | Pathway and draft-goal handoff re-implemented per ND-4 |
-| M2.5 | `ProtectedRoute` and post-auth redirects updated |
-| M2.6 | Landing CTAs rewired; AuthModal rebuilt or retired |
-| M2.7 | Full regression and phase report |
-
-### Regression checks
-
-R-1, R-3, R-16, R-17. Also the Phase 1 CTAs (every CTA reaches the correct auth mode).
-
-### Mobile acceptance
-
-3.7 applies, plus:
-
-* The form is usable with the keyboard open at 390×664 (visible viewport with keyboard).
-* The primary button stays reachable.
-
-### Validation
-
-1. Sign up fresh → onboarding.
-2. Sign up from a pathway → onboarding preselected.
-3. Sign in with an active goal → Today, not onboarding.
-4. Sign in with an active goal after picking a pathway → stays on the existing goal (the untested Phase 1 case).
-5. Wrong password.
-6. Duplicate email.
-7. Backend stopped.
-8. Double-click submit.
-9. Browser back from an auth screen.
-10. Reload on an auth screen.
-11. Visit `/login` while signed in.
-
-### Exit criteria
-
-* Auth no longer depends on a globally mounted modal (unless ND-4 keeps it deliberately).
-* Every path in the validation list behaves as specified.
-* No fake account features are shown.
-
-### Risks
-
-* Losing the pathway handoff. This is the main risk; see ND-4.
-* Redirect loops between `ProtectedRoute` and the auth routes.
-
----
-
-## PHASE 3 — ONBOARDING
-
-**Status:** `COMPLETE` (2026-09-23; Mo accepted the phase report). "Current state" describes the code at the end of the phase; "What shipped", "Verification evidence" and "Carry-overs" record the result; the sections from "Baseline" down are the kickoff plan and the milestone reports, kept as written.
-
-**Source:** BP §16, §24, §28–29, §41, §47, §49 (Phase 3), OD-11 · VDS §4–5, §22, §26, §28
-
-**Objective:** turn goal creation into a premium, guided experience that keeps all of the current intelligence while feeling simple.
-
-**Narrative line:** *"Tell us where."*
-
-### Current state
-
-The code at the end of Phase 3 (M3.8, 2026-09-23). The kickoff snapshot it replaces is summarised in the M3.1 baseline below (the wizard was one 3,038-line component with five steps, five pathway galleries, two category systems and a raw "Failed to fetch" on failure).
-
-* **Structure:** `OnboardingPage.tsx` (41 lines) passes the token, the id of the goal active when onboarding opened (`null` if its load failed) and the app's health-check result to `OnboardingWizard.tsx` (311 lines), which coordinates `components/onboarding/`: flow state, history and requests in `useOnboardingState.ts` (385), the create body in `payload.ts` (43), step order and question grouping in `steps.ts` (48), one question step in `questionFlow.ts` (104), error copy in `requestErrors.ts` (44), day planning in `schedule.ts` (419), and the step components `StepGoal`, `StepQuestions` / `QuestionCard`, `StepSuccess`, `StepSchedule` (with `RoutineTimeline`, `CommitmentsPanel`, `CommitmentEditor`), `StepReview` and `StepGeneration`, laid out by `OnboardingShell`, `OnboardingProgress` and `StepLayout`.
-* **Steps (ND-13):** pathway: direction → starting point → success → schedule → review; custom: direction → schedule (while clarify runs) → starting point → success → review; then generation (the legacy screen, Phase 4). A pathway launched from outside onboarding opens on the starting point. One question per screen. "Success" holds the editable outcome and the `success` question when there is one (ND-14).
-* **Answers collected (BP §29):** unchanged: plan variant (`minimal` / `steady` / `accelerated`), daily minutes, wake and sleep times, busy hours, preferred slot (defaults `07:00`, `23:00`, `09:00 - 17:00`, `evening`), commitments, then the clarify answers; a skipped question is sent as `"Skipped"`. The create body is identical to the M3.1 baseline.
-* **Clarify:** unchanged endpoint and ids. Custom goals get `current_level`, `success`, `equipment`, `obstacle` from the AI; presets get their own questions from preset data (9 of the 10 pathways; the TED-style speech pathway is not matched by the backend and gets the custom questions, see carry-overs). Each goal is sent once; a response for a goal the user has since changed is ignored.
-* **Offline and failure:** `requestErrors.ts` tells "We can't reach Achivii right now" (network) from "We couldn't prepare your questions" and "We couldn't build your plan" (Achivii's own message). The health check and every request result drive a connection notice. A create retry after a lost connection first checks the active goal, so a plan the server finished is not built twice. No raw browser error is shown.
-* **Pathways:** one catalogue (`lib/certifiedPresets.ts`, 322 lines: `direction` is the only grouping, `PATHWAY_GROUPS` the non-empty directions) and one library (`components/pathways/`: `PathwayLibrary`, `PathwayStrip`, `PathwayCustomGoal`, `usePathwaySelection`, `usePathwayLaunch`), used by onboarding, `Home` without a goal, the Today and dashboard strips, and `PathwaysExplorerModal.tsx` (84 lines, a Dialog that is a bottom sheet under 768 px, opened from `Navbar`, Today and the dashboard). The landing page reads `PATHWAY_GROUPS`.
-* **Launch state:** unchanged: `{ presetGoal, isPreset, switchGoal }` through router state plus `localStorage['achivii_draft_goal']`, written by every launch outside onboarding (landing via `/signup?pathway=<id>`, `Home`, the strips, the explorer). The draft key is kept until a plan is created or recovered. A pathway chosen inside onboarding does not write it, so a reload returns to the goal step; custom answers live only on the page (confirmed behaviour, M3.7 review outcome 1).
-* **Browser history (R-18):** each step change pushes `{ wizardStep }` and keeps React Router's state; the Back buttons push too (as at M3.1). `popstate` moves to the target step or, if its data is gone, the furthest reachable one. Generation locks the history.
-* **Custom goals:** free, visible and secondary to the pathways (ND-6); `POST /api/goal/create` doesn't check entitlement.
-
-### What shipped
-
-* **Onboarding flow (M3.5):** a cinematic-to-focused shell (staircase and an ascending step rail on desktop, a progress bar on mobile); the direction step with six directions, their pathways as radio cards and the custom goal beneath (OD-11, ND-6); inline one-question screens with options, "in your own words" and a two-stage skip (the quiz modal is gone); the success step with the editable 90-day outcome; the schedule with plan, minutes, day shape, a keyboard-operable timeline and commitments in a Dialog / bottom sheet; a review with an Edit per section ending in "Build my 90-day path". Every step starts at its heading.
-* **Architecture (M3.3, M3.4):** the wizard split into a state hook, a pure payload builder and step components. ND-16 fixes: no blank step after a reload, a switch-goal reload stays in onboarding, the draft key is kept until create.
-* **Pathways (M3.6):** one catalogue with plain-language `summary` (ND-5), one library in five places, one launch; the landing page reads the same groups. The Home search box and four-category filter are replaced by direction navigation, and a strip tile opens the explorer on that pathway (both accepted at the M3.6 review).
-* **States (M3.7):** every state in the state matrix below has plain copy and a way on: classified clarify and create failures with retry, the connection notice, stale-response and wait fixes, duplicate-safe create retry, commitment-name validation, a blank outcome falling back, and the compact question header at 360 px (accepted at the M3.7 review). The legacy generation screen only had its failure copy made honest.
-* **M3.8:** regression, audits and this report. One cleanup: `schedule.ts` dropped the unused colour fields (`color`, `bg`, `border`, `accentColor`, `bgColor`, `borderColor`) that nothing has read since M3.5. The file went from 500 to 419 lines. The type-check proves nothing else used them; the schedule results and the payload are unchanged.
-* **Primitives touched:** `Dialog` returns focus to the element focused when a state-opened dialog opened (M3.5); `TabsTrigger` uses `.focus-ring-inset` (M3.6); `SegmentedControl` pads less below 640 px (M3.5).
-* **Tests:** Vitest 73 → 156 tests (22 files); Playwright `e2e/onboarding.spec.ts`, `e2e/onboardingStates.spec.ts`, `e2e/pathways.spec.ts` with the M3.1 fixtures, `e2e/onboardingFlow.ts` helpers and new `mockApi` failure options (defaults unchanged); `e2e/live/onboarding.live.spec.ts` (`LIVE_API=1`).
-* **Files:** see the Phase 3 report, section 3. Backend: none.
-
-### Verification evidence
-
-* Type-check clean. Vitest 156 of 156 in 22 files. ESLint clean on all 57 Phase 3 files other than `Home` and `ExecutionDashboard`, which keep exactly their pre-Phase-3 errors; full lint 30 errors and 4 warnings (3.11). Build passes: main JS 565.85 KB (166.99 KB gzipped), +4.95 KB since M3.5; CSS 102.48 KB.
-* Playwright, mocked: 117 passed, 3 skipped (the three project skips) — desktop 59 + 1 skipped, mobile 58 + 2 skipped. The onboarding, state and pathway specs with `--repeat-each=3` on both projects: 231 passed, 3 skipped, 0 failed, 0 flaky.
-* Playwright, live (`LIVE_API=1`): 3 runs, 6 of 6 passed; no forced sign-out.
-* Real backend, end to end (throwaway script, real AI generation): a landing pathway to a created goal (29 s), a custom goal with a skipped question (48 s, double click sent one create), a switch from the Today strip (29 s; the old goal `archived` in the database, not deleted), abandoning switch goal by Back and by closing the tab (goal untouched), and the backend process killed during clarify (pathway and custom) and before Build, then restarted (21 of 21 checks).
-* Browser audit at 1440, 390 and 360 over every onboarding state and pathway surface: axe (WCAG 2.2 AA tags), heading outline, landmarks, overflow, 44 px targets, nested controls, live regions announced once, keyboard-only flows, focus traps and restoration, reduced motion, console. Onboarding and Phase 3 surfaces pass; findings outside Phase 3 are carry-overs.
-* Details: the M3.8 regression matrix, the before-and-after table and the Phase 3 report below.
-
-### Carry-overs (owned by later phases)
-
-| Item | Owner |
-|---|---|
-| ~~The TED-style speech pathway isn't matched by the backend~~. A new clarify for "Deliver a 15-Minute TED-Style Speech" now hits `ted_speech_15min`. The goal already stored with that title was not rewritten | Done in M4.2 (ND-17) |
-| ~~The generation screen keeps its legacy look~~. M4.2 replaced the in-flight screen. M4.3 added the 20-second silence copy and kept failures on that screen | Done in M4.3 |
-| Create recovery after a lost connection is skipped when the current goal failed to load | Phase 5 (goal-load error state) |
-| Onboarding has no skip link; the legacy navbar sits above it. Navbar targets under 44 px ("Achivii" 87×28, account button 62×34); goal links overflow 7 px at 360 px | Phase 5 (app shell) |
-| `/roadmap` overflows by 17 px at 390 and 47 px at 360 with an empty roadmap; `/roadmap` and `/dashboard` have no `main` landmark | Phase 6 (Journey), Phase 5 (dashboard) |
-| The UI Back button pushes a history entry (as at M3.1), so browser Back straight after it returns to the step just left; both reach the previous step when the step was entered going forward | Phase 11 (mobile sweep; changing it touches R-18) |
-| Soft-keyboard states can't be emulated in Playwright | Phase 11 (on-device check) |
-| Reloading while the backend is unreachable signs the user out (`AuthContext` drops the token on any `/me` failure) — the deterministic trigger of the forced sign-out | Unassigned (backend and `AuthContext`; section 6) |
-| Hard-coded pathway counts; undisplayed expert catalogue fields; unused `SaaSBuilderModal`; the strip inside the legacy Today and dashboard | Phase 5 / Phase 12; Phase 12 (Phase 4 does not show them as the generated method); Phase 12; Phase 5 |
-| Main JS chunk above Vite's 500 KB warning | Phase 12 |
-
-### Baseline (M3.1, 2026-09-23)
-
-Captured on the live dev stack with Playwright (clarify passed through to the backend, create recorded and not answered), then committed as fixtures in `frontend/e2e/fixtures/onboarding/`. `e2e/onboarding.spec.ts` replays them with the API mocked; `e2e/live/onboarding.live.spec.ts` repeats both flows against the real backend.
-
-* **Preset flow** (`/signup?pathway=run10k` → sign up → Steady, 45 min → first option of each question): `create-run10k.json`.
-* **Custom flow** ("Bake sourdough bread at home" → Steady, 45 min → option, typed answer, skipped twice, option): `create-custom-sourdough.json`. A skipped question is sent as `"Skipped"`; `clarifiedOutcome` equals `rawGoal`.
-* **Both:** headers `Content-Type: application/json`, `Accept: text/event-stream`, `Authorization: Bearer`. Commitment ids come from `Date.now()` and are normalised before comparing.
-
-Step and history behaviour recorded (the redesign must be no worse):
-
-| Situation | Behaviour today |
-|---|---|
-| Back and forward through steps 1–4 | Works; the goal text and every answer are kept |
-| Back from step 1 | Leaves onboarding (previous page, or out of the app) |
-| Back while the generation error shows | The history entry changes; the error screen stays (step 5 is locked) |
-| Reload on a preset at step 2 | Stays on step 2 with the preset. The draft key was read without router state once and then removed, so a second reload lost the preset |
-| Reload on a custom goal at step 2–4 | Returns to step 1 with an empty goal; later history entries remain |
-| Forward into step 3 or 4 after that reload | **Blank page**: `popstate` skips `canJumpToStep` and the clarify result is gone |
-| Reload during switch goal (user with a goal) | Redirects to `/dashboard`; the `switchGoal` router state was dropped by `replaceState`. The current goal is untouched |
-| Clarify unreachable | Stays on Schedule with "Failed to fetch"; nothing crashes |
-
-**Changed by M3.3 (ND-16):** forward into a step that can't be shown now lands on the furthest reachable step (and the entry is rewritten to match); a reload during switch goal stays in onboarding with the pathway, because history entries keep React Router's state; the draft key is kept until `/api/goal/create` succeeds, so every reload on a preset keeps it. A reload also rewrites the current entry to the step actually shown. Everything else in the table is unchanged.
-
-### Decisions required before starting
-
-* **OD-11: category step.** Career, Fitness, Learning, Creative, Business and Personal cover the 10 presets unevenly (Career and Personal are thin). The category step must map onto real presets; an empty category must never be shown.
-* **ND-5: pathway copy.** Should titles and descriptions be rewritten in plain language (the Phase 1 carry-over)? Where does display copy live — the frontend `certifiedPresets.ts`, the backend presets, or a shared source? Rewriting display copy must not change the preset *matching* keys (`findPresetForGoal` matches on titles).
-* **ND-6: custom goals before Phase 10.** Keep the free custom-goal entry exactly as today (the current behaviour, no regression), or de-emphasise it? It must not be locked until Phase 10 delivers a real server-side entitlement.
-
-**Decided 2026-09-23 (M3.2):** OD-11 **A** (the six landing categories, in one shared data source; a one-pathway category goes straight to that pathway), ND-5 **A** (plain-language display fields in `certifiedPresets.ts`; titles and matching keys unchanged) and ND-6 **A** (custom goals free and visible, secondary to pathways, no lock or badge). See `docs/decisions.md`.
-
-**Decided 2026-09-23 (after M3.1):** ND-13 **A** (custom goals do Schedule while clarify runs, then the questions; presets follow the spec order), ND-14 **A** ("success" = the editable clarified outcome plus the `success` question when present; all other questions are "starting point"), ND-15 **A** (one `PathwayLibrary` for all five in-app galleries) and ND-16 **A** (M3.3 fixes the blank step after a reload and the switch-goal reload; the draft key is cleared after a goal is created).
-
-### In scope
-
-* The A + B flow (BP §28):
-  1. "Every achievement begins with a direction."
-  2. Choose a category, then a pathway (or custom, per ND-6).
-  3. "Tell us where you're starting."
-  4. "Tell us what success looks like."
-  5. Schedule and availability.
-  6. Review.
-  7. "We'll build your 90-day path."
-* **Progressive disclosure.** Keep every question that feeds the payload; group, sequence and default them so the flow feels short (BP §29 — "make complex intelligence feel simple").
-* **One pathway library component** (BP §24). Per ND-15 it replaces all five in-app galleries (the wizard grid, the `Home` gallery and strip, the `ExecutionDashboard` strip, and `PathwaysExplorerModal`, which becomes a Dialog around it). The landing page keeps its own presentation, but uses the same data source.
-* **Step order** per ND-13 (custom goals: Schedule before the questions) and **question grouping** per ND-14.
-* **Recorded bug fixes** per ND-16: the blank step after a reload, the switch-goal reload, and clearing the draft key after create.
-* **Decomposing the wizard.** Split it into step components plus one state hook or reducer. **The payload stays identical** (R-4): capture baseline request bodies for a preset flow and a custom flow before refactoring, and compare after.
-* **Browser history per step** preserved (R-18).
-* **States:** clarify loading, clarify failure (with a fallback path that already exists or a retry), API offline, and a pre-filled review when arriving from a pathway.
-
-### Out of scope
-
-* The generation screen (Phase 4).
-* Gating custom goals (Phase 10).
-* Changing the questions the backend asks through `/clarify`.
-* Changing how presets are matched or planned.
-
-### Backend allowance
-
-None. If ND-5 moves display copy to the backend presets, that is a **named** allowance that must be approved separately, limited to display strings.
-
-### Files likely affected
-
-* `frontend/src/components/OnboardingWizard.tsx` (decomposed into, for example, `frontend/src/components/onboarding/*`)
-* `frontend/src/pages/OnboardingPage.tsx`
-* `frontend/src/lib/certifiedPresets.ts`
-* `frontend/src/components/PathwaysExplorerModal.tsx`
-* `frontend/src/pages/Home.tsx` and `frontend/src/components/ExecutionDashboard.tsx` (gallery markup only, ND-15)
-* `frontend/src/components/marketing/sections/Pathways.tsx` (data source only, OD-11)
-* `frontend/src/types/index.ts` (types only)
-
-### Milestones
-
-| ID | Milestone |
-|---|---|
-| M3.1 | Baseline captured: request bodies for preset and custom flows; step and history behaviour recorded (done 2026-09-23) |
-| M3.2 | OD-11, ND-5 and ND-6 decided (done 2026-09-23) |
-| M3.3 | Wizard state extracted into a hook or reducer with no visual change; payload identical; the ND-16 fixes (done 2026-09-23: `components/onboarding/useOnboardingState.ts` and `payload.ts`; wizard 3,038 → 2,814 lines) |
-| M3.4 | Step components split out with no visual change; payload identical (done 2026-09-23: `OnboardingWizard.tsx` is now a 233-line coordinator (was 2,814) over `components/onboarding/` step components plus `schedule.ts` and `questionFlow.ts`; rendered DOM identical at 1440 and 390 in 38 states; CSS bundle byte-identical) |
-| M3.5 | New visual flow: direction → category → pathway → starting point → success → schedule → review (custom: Schedule before the questions, ND-13; grouping per ND-14) (done 2026-09-23: onboarding shell with a staircase progress rail on desktop and a progress bar on mobile; six directions with their pathways and the custom goal as a secondary path on one step; inline one-question screens replace the modal; a success step with the editable outcome; schedule, timeline (now keyboard-operable) and a commitment Dialog/sheet on the Phase 0 primitives; a review that ends in "Build my 90-day path". Payload identical to the M3.1 baseline, mocked and live. Generation screen unchanged) |
-| M3.6 | Pathway library component; all five in-app galleries use it (ND-15) (done 2026-09-23: `components/pathways/` with `PathwayLibrary` (direction cards or tabs, then pathways as radios, then one action), `PathwayStrip`, `PathwayCustomGoal`, `usePathwaySelection` and `usePathwayLaunch`; onboarding, `Home` (no goal and strip), `ExecutionDashboard` and `PathwaysExplorerModal` use it; the landing page reads `PATHWAY_GROUPS`. Launch state and payload unchanged. See the M3.6 report below) |
-| M3.7 | Every state (loading, clarify failure, offline, preset pre-fill) (done 2026-09-23: state matrix in the M3.7 report; classified clarify/create failures with plain copy and retry; connection notice; stale clarify answers ignored and a changed goal's questions dropped at once; leaving the schedule cancels a pending wait; a create retry after a lost connection can't build the plan twice; blank outcome falls back; commitment names required; 360 px question screens fixed; both `set-state-in-effect` errors fixed. Payload identical, mocked and live) |
-| M3.8 | Regression and phase report (done 2026-09-23: regression matrix and before-and-after table below; R-2, R-3, R-4, R-15, R-16, R-17, R-18 pass mocked and live; preset, custom and switch-goal goals created end to end on the real backend, the old goal archived; double submit creates one goal; the real backend stopped during clarify and before Build; specs deterministic under `--repeat-each=3`; audits pass; unused legacy colours removed from `schedule.ts`; Phase 3 report written. Awaiting Mo's review) |
-
-### Regression checks
-
-R-2, R-3, R-4, R-15 (the switch-goal entry into onboarding), R-16, R-17, R-18.
-
-### Mobile acceptance
-
-3.7 applies, plus:
-
-* One question per screen where the content is dense.
-* Option lists are thumb-reachable.
-* Back is always available and matches browser back.
-
-### Validation
-
-* Complete onboarding for a preset and a custom goal.
-* Diff the request bodies against the M3.1 baseline.
-* Use browser back and forward at every step.
-* Reload mid-flow (document current behaviour; must not be worse).
-* Arrive from a landing pathway.
-* Switch goal from inside the app.
-* Stop the backend during clarify.
-
-### Exit criteria
-
-* No question that feeds the payload has been lost.
-* The payload is identical to the baseline.
-* The wizard is no longer a single multi-thousand-line component.
-* Only one pathway gallery implementation is used inside the app.
-
-### Risks
-
-* Silent payload drift during decomposition. Mitigate with the M3.1 baseline and step-by-step refactors (M3.3 and M3.4 change no visuals).
-* Browser-history regressions (R-18).
-
-### M3.6 report — Pathway Library (2026-09-23)
-
-```text
-ACHIVII REDESIGN — PHASE 3 — M3.6 REPORT
-
-1. Outcome
-   There is one pathway catalogue, one pathway library and one way to choose. Wherever a
-   pathway is offered in the app (onboarding, Today without a goal, the Today and dashboard
-   strips, and the explorer opened from the navbar, Today and the dashboard), the user picks
-   a direction, then a pathway (a radio card), then confirms with a single action. A direction
-   with one pathway selects it straight away. A goal of the user's own stays free and visible
-   beneath the pathways. The landing page keeps its layout but reads the same groups and
-   plain-language summaries. Pathway ids, titles, slugs, the launch state and the onboarding
-   payload are unchanged.
-
-2. What changed
-   Catalogue (lib/certifiedPresets.ts)
-   - The only pathway data. `direction` is the only grouping: the four-value `category` and
-     the `tag` field are removed, and `PATHWAY_GROUPS` (via `groupPathways`) lists the six
-     OD-11 directions that hold at least one pathway, so an empty one can't render.
-   - New helpers: `pathwaysInDirection`, `findPathwayByTitle` (exact title, trimmed and
-     case-insensitive). The old "current pathway" test, `rawGoal.includes(label)`, missed 6 of
-     10 pathways and could match custom goals; it is replaced everywhere.
-   - The interface is documented: `id` and `title` are frozen identity (slug and backend
-     matching key, ND-5); `summary`, `badge`, `dailyMinutes` and `direction` are display.
-   Shared module (components/pathways/)
-   - `PathwayLibrary`: `navigation="cards"` (direction ChoiceCards, then that direction's
-     pathways, then the action; the M3.5 onboarding interaction) or `navigation="tabs"`
-     (Radix Tabs, one panel per direction, for dialogs). Pathways are ChoiceCards showing the
-     title, summary, "Built on …", minutes a day, and "Current pathway" as a Badge. Props:
-     `defaultSelectedId`, `selection` (lift selection to a parent), `currentId`, `action`,
-     `customGoal`.
-   - `usePathwaySelection` / `selectionForDirection`: direction plus selected id; changing
-     direction clears the choice unless the direction has one pathway.
-   - `PathwayStrip`: the compact form for screens with a goal. Every pathway in a swipeable
-     row of single buttons (no nested controls), with the direction, summary, minutes and a
-     "Current" badge; scroll buttons (44 px, disabled at the ends) and "Explore all". A tile
-     opens the explorer with that pathway selected, so switching always ends at the same
-     confirm step.
-   - `PathwayCustomGoal`: the "Something else in mind?" section (ND-6).
-   - `usePathwayLaunch` / `pathwayLaunch` / `CUSTOM_GOAL_LAUNCH`: the one launch. It writes
-     or clears `achivii_draft_goal` and navigates with exactly the state the four copies sent.
-   Screens
-   - Onboarding `StepGoal`: composes `PathwayLibrary` and `PathwayCustomGoal` (same copy,
-     roles and keyboard order as M3.5). `StepReview` uses `findPathwayByTitle`.
-   - `Home`, no goal: the library replaces the legacy searchable gallery, in a `ui-root`
-     screen ("Choose a pathway"), with "Describe my own goal" as the custom route.
-   - `Home` and `ExecutionDashboard`, with a goal: `PathwayStrip` replaces the six-card
-     strips and their "Switch" buttons. "Explore Goals (10)" opens the explorer.
-   - `PathwaysExplorerModal`: a Dialog (a bottom sheet under 768 px) around the tabbed
-     library, with Cancel and one primary action: "Start this pathway" (no goal), "Switch to
-     this pathway", or "Restart this pathway" (current one selected). With a goal, it says the
-     current journey stays as it is until a new one is set up. Each opening starts fresh from
-     the pathway it was opened on. Same props for `Navbar` plus `initialPathwayId`.
-   - Landing `Pathways.tsx`: the hard-coded groups are gone; it renders `PATHWAY_GROUPS`
-     (largest first, for the three-column grid) with `summary` instead of the jargon `desc`.
-     Links are still `/signup?pathway=<id>`.
-   - Tabs: `TabsTrigger` draws the new `.focus-ring-inset`, so the scrolling list no longer
-     clips the ring (Design.md §3 and Tabs updated).
-
-3. Files changed / created / removed
-   Created: frontend/src/components/pathways/{PathwayLibrary.tsx, PathwayStrip.tsx,
-     PathwayCustomGoal.tsx, usePathwaySelection.ts, launch.ts, index.ts}
-   Created (tests): src/lib/certifiedPresets.test.ts, src/lib/pathwayCatalogue.guard.test.ts,
-     src/components/pathways/{PathwayLibrary,PathwayStrip}.test.tsx,
-     src/components/pathways/launch.test.tsx, src/components/PathwaysExplorerModal.test.tsx,
-     src/components/onboarding/StepGoal.test.tsx,
-     src/components/marketing/sections/Pathways.test.tsx, e2e/pathways.spec.ts
-   Changed: src/lib/certifiedPresets.ts (275 → 322 lines; data values unchanged apart from
-     the removed category/tag), src/components/PathwaysExplorerModal.tsx (208 → 84),
-     src/pages/Home.tsx (806 → 586), src/components/ExecutionDashboard.tsx (1,315 → 1,228),
-     src/components/onboarding/StepGoal.tsx, src/components/onboarding/StepReview.tsx,
-     src/components/marketing/sections/Pathways.tsx, src/components/ui/Tabs.tsx,
-     src/index.css (.focus-ring-inset), src/test/setup.ts (jsdom stubs for matchMedia and
-     scrollIntoView), e2e/onboarding.spec.ts (switch-goal test uses the new explorer),
-     Design.md, docs/phases.md
-   Removed: nothing. Backend: no files touched.
-
-4. Functionality preserved
-   R-2  Goal creation: "a pathway chosen inside onboarding" and "a custom goal" mocked specs
-        replay the M3.1 baseline bodies; both live specs pass against the real backend.
-   R-3  Preset launch: every entry sends { presetGoal: title, isPreset: true, switchGoal:
-        true } and writes the draft key, the same as the four removed copies (unit test on
-        pathwayLaunch; Home, Today strip, explorer and dashboard e2e land on "Where are you
-        starting?" with the pathway and a clarify body of { rawGoal: title }).
-   R-15 Switch goal: from the explorer and from a strip tile, onboarding opens with the new
-        pathway, no DELETE is sent and nothing is created; back returns to Today with the
-        current goal still marked; a reload stays in onboarding (existing test, now stricter:
-        it switches to a different pathway and checks the exact draft). Archive-on-create is
-        backend behaviour and unchanged; not re-run live in M3.6.
-   R-16 Signup handoff: unit test asserts resolvePostAuthDestination(pathway) equals
-        pathwayLaunch(pathway); auth.spec landing → /signup?pathway=run10k → onboarding and
-        the live landing-pathway spec pass.
-   R-4, R-18 (touched through StepGoal): all onboarding payload and history specs pass
-        unchanged, including back/forward and reload.
-   Also: current-goal protection (signed-in /login?pathway keeps the goal), browser history
-   (back/forward from Home and Today into onboarding), modal open/close with Escape and
-   Cancel and focus return.
-
-5. Decisions applied (docs/decisions.md)
-   OD-11 A (§ OD-11): six directions from one source; a one-pathway direction selects its
-     pathway; an empty direction never renders (groupPathways; unit tested with a reduced list).
-   ND-5 A (§ ND-5): plain-language `summary` shown everywhere, including the landing page;
-     ids, titles, slugs and backend matching untouched (identity snapshot test).
-   ND-6 A (§ ND-6): custom goal visible on onboarding and Home, secondary to the pathways,
-     never locked; tests assert no lock, price or premium text.
-   ND-15 A (§ ND-15): one library for all five in-app galleries; the modal is a Dialog
-     around it; a source-scan test fails if pathway titles, id lists or the old categories
-     appear outside the catalogue.
-
-6. Validation evidence
-   - Type-check (tsc --noEmit): clean. Build (tsc && vite build): passes; only the existing
-     500 KB chunk warning.
-   - Lint: every new and changed pathway file is clean. Home.tsx and ExecutionDashboard.tsx
-     show the same 7 errors and 2 warnings as at HEAD (same rules, unrelated code).
-   - Vitest: 133 passed in 19 files (43 new), no warnings.
-   - Playwright, mocked: 93 passed, 3 skipped (the existing project-specific skips), desktop
-     1440 and mobile 390. e2e/pathways.spec.ts adds 10 tests per project: Home selection and
-     start, one-pathway direction, custom goal, Home at 390 and 360 (no overflow, 44 px
-     targets, axe), reduced motion, strip → explorer → switch with back/forward, "Explore
-     all" and Cancel with focus return, strip and sheet at 390 and 360 (44 px targets, axe),
-     navbar entry (desktop "Pathways (10)", mobile "Goals"), dashboard strip.
-   - Playwright, live (LIVE_API=1, desktop): 2 passed.
-   - Browser screenshots at 1440, 390 and 360: Home library, Today strip, explorer dialog
-     and sheet; keyboard focus visible on tabs and panels; no console errors (every spec
-     asserts this).
-
-7. Carry-overs
-   - Navbar goal links overflow by 7 px at 360 px with an active goal (pre-existing;
-     Navbar untouched) → Phase 5 (app shell).
-   - Hard-coded "10" in "Explore Goals (10)", "Pathways (10)", "Explore 10 Pathways" and the
-     landing "Ten journeys" → Phase 5 naming pass (landing: Phase 12).
-   - Undisplayed expert fields in the catalogue (`outcome`, `desc`, `coach`, `p1`–`p3`,
-     `sampleDay`) → Phase 4 decides whether generation shows the method; else Phase 12.
-   - `SaaSBuilderModal.tsx` is unused (its own SaaS starter list, not pathways) → Phase 12.
-   - The strip sits inside the legacy Today and dashboard layouts → Phase 5.
-
-8. Issues and risks found
-   - For Mo's review: the Home gallery's search box and the four-category filter are gone;
-     with 10 pathways in six directions (at most 3 each), direction navigation replaces them.
-   - For Mo's review: a strip tile used to switch immediately; it now opens the explorer on
-     that pathway, so switching takes one more, deliberate, click and always shows the
-     reassurance copy.
-   - Landing group order is now largest first (Creative, Fitness, Learning, Career,
-     Business, Personal); Business and Career swapped places.
-   - The explorer doesn't offer a custom goal (as before); onboarding and Home do.
-
-9. Not started
-   M3.7 has NOT started.
-   Phase 4 — Journey Generation has NOT started.
-```
-
-### M3.7 state matrix (2026-09-23)
-
-Built from `useOnboardingState.ts` and the step components after M3.7. "Kept" means held in memory on this page; nothing in onboarding is saved on the server until the plan is created, except the draft goal in `localStorage`.
-
-| State | Trigger | What the user sees | Available action | Data preserved | Recovery |
-|---|---|---|---|---|---|
-| Normal entry | `/onboarding` without launch state | "Where are you going?": directions, pathways, custom goal (ND-6) | Start a pathway, or continue with own goal | — | Back leaves onboarding (R-18) |
-| Preset pre-fill | Launch state `{ presetGoal, isPreset, switchGoal }` or the draft key | Starting point with the pathway in "Your goal"; questions loading, then the first | Answer; Change goal; Back | Draft key | Reload returns here with the pathway |
-| Custom entry | Own goal submitted | Schedule while clarify runs (ND-13) | Fill the schedule; Change goal | Goal text | Change returns to the goal step with the text |
-| Clarify loading | Request in flight | "Preparing your questions" skeleton (`role="status"`); on the schedule, a busy Continue and "Preparing your questions. Your schedule is kept while you wait." | Back, Change goal, keep editing the schedule | Everything entered | Continue can't pass until the questions are back |
-| Clarify success | Response for the current goal | First question, focused | Answer, type, skip | — | — |
-| Clarify failed (Achivii) | 4xx/5xx | Alert "We couldn't prepare your questions" with Achivii's message (schedule: "Your schedule is kept.") | Try again; custom: Continue also retries; Back; Change goal | Goal, schedule, commitments, draft | Retry sends the same goal once |
-| Achivii unreachable | Network failure, or the health check failed at load | Alert "We can't reach Achivii right now" on the step that needs it; elsewhere a notice: "You can keep going, and your answers stay on this page, but your questions and your plan need a connection." | Try again; keep filling in | As above | Notice clears once any request succeeds |
-| Retry | Try again, or Continue after a failure | Loading again | — | Everything | Only the latest response is applied; no second request while one is in flight |
-| Changed goal mid-flight | Change goal while clarify runs | The old goal's questions and answers are dropped at once | — | New goal text | A late answer for the old goal is ignored |
-| Waiting, then Back | Back or browser back from the schedule while waiting | The step the user chose | — | Schedule | The questions arriving later don't pull the user forward |
-| Skipped question | Skip this, then Skip anyway | Reworded question, then "You skipped this one" | Answer anyway | `"Skipped"` in the payload (unchanged) | — |
-| Editable outcome | Edit outcome | Focused textarea; Done | Edit | Kept across Back/Forward and to review and payload | A blank edit falls back to clarify's outcome |
-| Schedule | Days and minutes not chosen | Continue disabled, with the reason as a status | Choose | — | — |
-| Commitment editor | Add or Edit | Dialog, a bottom sheet under 768 px | Done, Cancel, Escape, Delete | Cancel and Escape discard edits | A blank name is caught; focus returns to the opener (or the heading when it's gone) |
-| Review | Every step complete | Summary with an Edit per section | Build my 90-day path | — | Edit returns to that step |
-| Generation handoff | Build | Generation screen (unchanged, Phase 4) | — | One request (double click guarded) | — |
-| Generation failed (Achivii) | Error event or 4xx/5xx | "We couldn't build your plan", Achivii's message (including safety refusals), "No plan was made, and your current journey, if you have one, is unchanged." | Try again; Review your answers | Answers, schedule, draft | Try again sends once more |
-| Connection lost while building | Network failure | "We lost the connection. Your plan wasn't confirmed… We'll check whether it was created before building it again." | Try again; Review your answers | As above | Before re-sending, the active goal is checked; a plan the server finished is used, not built twice |
-| Reload | Browser reload | Pathway: its first question step; custom: the goal step (M3.3) | — | Draft key | — |
-| Reachable-step recovery | Forward into a step whose data is gone | The furthest reachable step; the entry is rewritten | — | — | No blank step |
-| Switch-goal entry | Launch from the app with an active goal | Onboarding, admitted by `switchGoal` | — | Current goal untouched: no DELETE, no create until Build | Reload stays in onboarding |
-| Draft goal | Launch or signup handoff | — | — | Kept through reloads, signup and every failure | Cleared only after a plan is created or recovered |
-
-### M3.7 report — Onboarding states and hardening (2026-09-23)
-
-```text
-ACHIVII REDESIGN — PHASE 3 — M3.7 REPORT
-
-1. Outcome
-   Every onboarding state now has a deliberate, honest treatment (see the state matrix above).
-   The user can tell "Achivii can't be reached" from "Achivii couldn't prepare your
-   questions" and from "we couldn't build your plan", never sees a raw browser error, and
-   always has a way on: retry, go back, change the goal, or review answers. Retries keep
-   every answer, send one request, and can't build the plan twice after a lost connection.
-   The first answer on a question step now starts above the footer at 360 px. The flow,
-   questions, payload and history are otherwise as M3.5 left them.
-
-2. What changed
-   State (components/onboarding/useOnboardingState.ts)
-   - Stale-response guard: only the latest clarify request may change state.
-   - A new goal drops the previous goal's questions and answers immediately. Before, a
-     failed clarify after a goal change could leave the review step blank.
-   - The same goal is never sent twice while it is still being prepared; clarify on mount
-     runs once, even under StrictMode's double effects.
-   - Leaving the schedule cancels a pending wait. Before, the questions arriving later could
-     pull a user who had gone Back forward to the starting point.
-   - Errors are objects ({ kind, title, message }) from requestErrors.ts, and a `connection`
-     value ('unknown' | 'online' | 'offline') is kept from request results.
-   - Create: after a lost connection, the active goal is checked (GET /api/goal/active,
-     existing endpoint) before offering or sending a retry; a goal that is not the one active
-     when onboarding opened, with the same goal text, is taken as the plan the server
-     finished. Skipped when the current goal is unknown (its load failed).
-   - A blank edited outcome falls back to clarify's when the step is left.
-   - Lint: both `react-hooks/set-state-in-effect` errors fixed without disables. The mount
-     effect now only sends the request (the "clarifying" state is initialised); the effect
-     that left the schedule became part of the clarify callback, reading the current step
-     through a ref refreshed after every render. Timing test first: the hook tests below.
-   Copy and UI
-   - requestErrors.ts: network failures → offline copy; Achivii's own messages (written for
-     users, including safety refusals) shown; parsing and programming errors → plain copy.
-   - ConnectionNotice (StepLayout): shown when the health check failed or the last request
-     couldn't reach Achivii, except where the step's own alert already says so.
-   - StepQuestions, StepSchedule: classified error titles and messages; the waiting copy no
-     longer promises "a few seconds".
-   - StepGeneration (legacy, Phase 4): only the failure copy changed. It no longer claims
-     "Both AI providers were temporarily unavailable" for every failure or prints the raw
-     error. It is announced (role="alert"), buttons are 44 px ("Review your answers",
-     "Try again").
-   - CommitmentEditor: Done with a blank name shows a field error and focuses the name.
-   - 360 px: StepHeader `compact` (starting point and success only): below 640 px the
-     eyebrow (already named by the progress bar) is hidden and the description is left to
-     screen readers; the gap above the question is 32 px instead of 48. Tablet and desktop
-     unchanged. Measured at 360×740: the first answer's top moved from 702 px (under the
-     footer at 626 px) to about 580 px.
-   - OnboardingPage passes `currentGoalId` and `apiOffline` from GoalContext (read only).
-
-3. Files changed / created / removed
-   Created: src/components/onboarding/requestErrors.ts; tests:
-     src/components/onboarding/{requestErrors.test.ts, useOnboardingState.test.tsx,
-     CommitmentEditor.test.tsx}, e2e/onboardingStates.spec.ts
-   Changed: src/components/onboarding/{useOnboardingState.ts, StepLayout.tsx,
-     StepQuestions.tsx, StepSuccess.tsx, StepSchedule.tsx, StepGeneration.tsx,
-     CommitmentEditor.tsx}, src/components/OnboardingWizard.tsx, src/pages/OnboardingPage.tsx,
-     e2e/mockApi.ts (new failure options; existing ones unchanged), e2e/onboarding.spec.ts,
-     docs/phases.md
-   Removed: nothing. Backend, API client, GoalContext, AuthContext and the M3.1 fixtures:
-     untouched.
-   Test changes: two assertions in e2e/onboarding.spec.ts ("a clarify failure keeps the user
-     on the schedule step", "a pathway whose clarify fails offers a retry") expected "We
-     couldn't prepare your questions" for a refused connection; that copy is now reserved for
-     failures on Achivii's side, so they expect "We can't reach Achivii right now" and also
-     assert that "Failed to fetch" never appears. Their behavioural assertions are unchanged.
-
-4. Functionality preserved
-   R-2  Preset and custom onboarding complete; the plan is created (mocked, and live up to
-        the recorded create request).
-   R-3  Pathway launch from landing (signup), Home and Today lands on the starting point
-        with the preset; clarify body { rawGoal: title }.
-   R-4  Both M3.1 baseline payload specs pass unchanged (mocked and live); a retried create
-        sends the identical body; "Skipped" unchanged.
-   R-15 Switch goal: no DELETE and no create until Build; reload stays in onboarding.
-   R-16 Draft through signup, reloads, clarify failure and create failure; cleared after a
-        created or recovered plan (unit and e2e).
-   R-17 Navbar indicator unchanged; onboarding adds its own notice.
-   R-18 All history specs pass; Back/Forward keep answers and the edited outcome; a pending
-        wait no longer overrides Back.
-
-5. Decisions applied (docs/decisions.md)
-   ND-13 (order unchanged; custom schedule stays usable while clarify fails), ND-14
-   (grouping unchanged), ND-16 (draft kept until create; reachable-step recovery), ND-6
-   (custom goal untouched and free), OD-11 / ND-5 / ND-15 (pathway entry from M3.6
-   unchanged). No new decisions.
-
-6. Validation evidence
-   - Type-check: clean. Build: passes (existing 500 KB chunk warning only).
-   - ESLint: src/components/onboarding, OnboardingWizard, OnboardingPage and the changed
-     e2e files are clean (the onboarding folder had 2 errors before M3.7).
-   - Vitest: 156 passed in 22 files (23 new: hook timing and state tests under StrictMode,
-     error classification, commitment editor).
-   - Playwright, mocked: 117 passed, 3 skipped (existing project skips), desktop 1440 and
-     mobile 390. onboardingStates.spec.ts adds 12 per project: custom clarify offline →
-     recovery (2 requests, schedule kept, Back/Forward), pathway clarify failure → reload
-     (draft kept) → retry after recovery, Achivii error message, wait cancelled by Back,
-     offline notice (axe) clearing after a success, create failure → review → retry (2
-     identical bodies, draft cleared), lost connection → finished plan recovered (1 create),
-     lost connection with nothing finished (honest copy, draft kept), edited outcome through
-     Back/Forward into the payload, blank outcome, commitment sheet (blank name, Cancel,
-     Escape, focus return, no scroll lock left), 360 px first answer above the footer.
-   - Playwright, live (LIVE_API=1, desktop): 2 passed. The preset test failed once at the
-     redirect straight after the real sign-up (before onboarding code runs) and passed on
-     the re-run; consistent with the recorded intermittent forced sign-out.
-   - Browser screenshots at 1440, 390 and 360: offline notice, pathway clarify offline,
-     question step, schedule clarify error. Consoles clean (asserted by every spec).
-
-7. Carry-overs
-   - The generation screen keeps its legacy look; only its failure copy changed → Phase 4.
-   - Choosing a pathway inside onboarding doesn't write the draft key, so a reload returns
-     to the goal step (M3.3 behaviour, unchanged); custom answers live only on the page → M3.8
-     to confirm, or a decision for Mo.
-   - Recovery after a lost connection is skipped when the current goal failed to load; a
-     retry then could create a second goal (the first archived) → Phase 5 (goal-load error
-     state) removes the case.
-   - Soft-keyboard states can't be emulated in Playwright; the footer is sticky, not fixed
-     → Phase 11 on-device check.
-   - The navbar's Offline chip is a one-time check and stays after recovery (existing
-     Phase 12 row).
-
-8. Issues and risks found
-   - Fixed (found by reading the flow, then covered by tests): blank review after a goal
-     change and a failed clarify; the pending wait pulling
-     a user forward after Back; a late clarify answer for an old goal overwriting the new
-     one; duplicate clarify on mount in development; commitments with blank names; the
-     generation failure claiming AI providers were down for a network error.
-   - The 360 px compaction hides the step description visually on phones for the two
-     question steps (kept for screen readers); judged a net gain, but it is a small visual
-     change to M3.5.
-   - The schedule's clarify alert sits below the long schedule on phones. It is announced
-     immediately and Continue retries, so it was left in place.
-
-9. Not started
-   M3.8 has NOT started.
-   Phase 4 — Journey Generation has NOT started.
-```
-
-### M3.8 regression matrix (2026-09-23)
-
-Every row below was run in this milestone. Mocked Playwright is `npx playwright test` (desktop 1440 and mobile 390): 117 passed, 3 skipped. The onboarding, state and pathway specs with `--repeat-each=3` on both projects: 231 passed, 3 skipped, 0 failed, 0 flaky. Live is `LIVE_API=1`, desktop, three runs, 6 of 6 passed. "Manual" is a throwaway script against the real backend and real AI generation (logs outside the repo, not committed). The generation screen was only observed.
-
-| Check | Result | Evidence |
-|---|---|---|
-| R-2 preset onboarding creates a plan | Pass | `onboarding.spec.ts` preset baseline; live suite preset (3 runs); manual preset create, generation 29 s, lands on `/dashboard` |
-| R-2 custom onboarding creates a plan | Pass | `onboarding.spec.ts` custom baseline; live suite custom (3 runs); manual custom create, generation 48 s |
-| R-3 landing → signup → onboarding | Pass | `auth.spec.ts` pathway sign-up; `onboarding.spec.ts` landing pathway; live suite preset through a real sign-up |
-| R-3 Home without a goal | Pass | `pathways.spec.ts` Home directions, one-pathway direction, custom goal (ND-6), axe, reduced motion |
-| R-3 Today strip | Pass | `pathways.spec.ts` strip tile opens the explorer on that pathway; manual switch from the Today strip |
-| R-3 dashboard strip | Pass | `pathways.spec.ts` dashboard strip and explorer |
-| R-3 explorer from the navbar | Pass | `pathways.spec.ts` navbar opens the same explorer |
-| R-3 existing user with a goal, `?pathway=` | Pass | `auth.spec.ts` sign-in with a goal goes to Today and the pathway does not replace it |
-| R-4 preset payload, mocked | Pass | `onboarding.spec.ts` both landing and in-onboarding pathway bodies match `create-run10k.json`; commitment ids normalised |
-| R-4 custom payload, mocked, including `"Skipped"` | Pass | `onboarding.spec.ts` matches `create-custom-sourdough.json` |
-| R-4 both payloads, live | Pass | `onboarding.live.spec.ts`: preset exact match, custom shape match; 3 green runs |
-| R-4 retried create | Pass | `onboardingStates.spec.ts` failed build retries once with the same body; hook test for the lost-connection retry |
-| R-15 no DELETE and no create before Build | Pass | `onboarding.spec.ts` switch goal; `pathways.spec.ts` Today switch; manual switch (no DELETE, no create until Build) |
-| R-15 abandon leaves the original goal | Pass | Manual: Back out of switch, and closing the tab mid-onboarding; the original goal stayed active and no create was sent |
-| R-15 after Build the previous goal is archived | Pass | Manual switch: new goal active after reload; the previous goal `archived` in the database, not deleted |
-| R-16 draft through signup, reloads and failures | Pass | `onboarding.spec.ts` saved pathway; `onboardingStates.spec.ts` draft kept across clarify and create failure; live suite |
-| R-16 draft cleared after create | Pass | `onboarding.spec.ts`; hook test; manual preset, custom and retried create (draft gone, active goal returned by `GET /api/goal/active`) |
-| R-17 navbar Offline chip unchanged | Pass | Manual: chip absent after the backend was stopped on an already-loaded page (it is a one-time check). Not fixed |
-| R-18 Back and Forward, both orders | Pass | `onboarding.spec.ts` custom and preset orders; browser check at 1440 and 360: UI Back and browser Back both reach the previous step when the step was entered going forward |
-| R-18 Back from the first step | Pass | Leaves onboarding. Same as M3.1 |
-| R-18 Back and Forward while a generation error shows | Pass | Generation locks history: the URL stays `/onboarding` and the error stays. Same as M3.1 |
-| R-18 Forward into a step whose data is gone | Pass | `onboarding.spec.ts` lands on the furthest reachable step. No blank page |
-| R-1 | Not exercised as a change | Live sign-up used the existing auth flow. Auth code was not changed |
-| Exit: no payload-feeding question lost | Pass, with one recorded exception | Custom ids are always `current_level`, `success`, `equipment`, `obstacle`. Nine pathways return their own three questions in preset-source order, and the 10K questions equal the M3.1 fixture. The TED-style speech pathway is not matched by the backend and gets the custom four (present before Phase 3; Phase 4, needs Mo) |
-| Exit: payload identical, mocked and live, including a retry | Pass | R-4 rows above |
-| Exit: wizard is no longer one multi-thousand-line file | Pass | `OnboardingWizard.tsx` is 311 lines (was 3,038). Largest successors: `schedule.ts` 419 (calculation only; was 500), `useOnboardingState.ts` 385, `RoutineTimeline.tsx` 304 |
-| Exit: only one pathway gallery | Pass | `pathwayCatalogue.guard.test.ts`; onboarding, Home, Today, the dashboard and the explorer all use `components/pathways/` |
-| M3.7 state: normal entry | Pass | Goal step "Where are you going?"; reload probe |
-| M3.7 state: preset pre-fill | Pass | `onboarding.spec.ts` reload keeps the preset; reload probe |
-| M3.7 state: custom entry | Pass | `onboarding.spec.ts` custom flow |
-| M3.7 state: clarify loading | Pass | Hook test; `onboardingStates.spec.ts` wait cancelled by Back (`waitForTimeout` 300 ms to prove the user was not pulled forward) |
-| M3.7 state: clarify success | Pass | Both payload specs |
-| M3.7 state: clarify failed (Achivii) | Pass | `onboardingStates.spec.ts` shows Achivii's own message |
-| M3.7 state: Achivii unreachable | Pass | `onboardingStates.spec.ts`; manual backend process killed during clarify (pathway and custom): "We can't reach Achivii right now", schedule kept, no "Failed to fetch" |
-| M3.7 state: retry | Pass | `onboardingStates.spec.ts`; manual restart then Try again shows the questions |
-| M3.7 state: changed goal mid-flight | Pass | Hook tests: stale answer ignored; previous questions dropped at once |
-| M3.7 state: waiting, then Back | Pass | `onboardingStates.spec.ts` and the matching hook test |
-| M3.7 state: skipped question | Pass | Custom payload sends `"Skipped"`; manual custom flow skipped one question |
-| M3.7 state: editable outcome | Pass | `onboardingStates.spec.ts` Back/Forward and blank fallback |
-| M3.7 state: schedule | Pass | Continue disabled until days and minutes are chosen (`onboarding.spec.ts`) |
-| M3.7 state: commitment editor | Pass | `onboarding.spec.ts` body shape; `onboardingStates.spec.ts` blank name, Cancel, Escape, focus return |
-| M3.7 state: review | Pass | Both flows reach review and build from it |
-| M3.7 state: generation handoff | Pass | Double click sends one create (`onboarding.spec.ts`, `waitForTimeout` 500 ms to prove no second request; hook test; manual custom double click: exactly one goal) |
-| M3.7 state: generation failed | Pass | `onboardingStates.spec.ts` honest copy, answers and draft kept, one retry. Screen look is Phase 4 |
-| M3.7 state: connection lost while building | Pass | `onboardingStates.spec.ts` recovered plan and nothing-finished; manual Build with the backend stopped, then one retry after restart |
-| M3.7 state: reload | Pass | Reload probe, below |
-| M3.7 state: reachable-step recovery | Pass | `onboarding.spec.ts` |
-| M3.7 state: switch-goal entry | Pass | `onboarding.spec.ts` (desktop; mobile skip is the known project skip); reload probe; manual |
-| M3.7 state: draft goal | Pass | `onboarding.spec.ts`; reload twice, below |
-| In scope: A+B flow, progressive disclosure, one library, ND-13, ND-14, ND-16, decomposition, history, states | Pass | Delivered. The generation screen is out of scope; only its failure copy changed (M3.7) |
-| Copy audit (3.4, 3.5) | Pass | No analytics, notifications, payments, AI chat, multiple goals or proof judging. "90 days" throughout. No "failed / behind / missed" aimed at the person, no raw errors, no fake percentages |
-| Design-system audit of Phase 3 surfaces | Pass | One cleanup: unused colour strings removed from `schedule.ts`. Remaining legacy hex, raw buttons and radii are on `StepGeneration.tsx` (Phase 4) and the landing page (Phase 1). `OnboardingProgress` and `PathwayStrip` use a raw button because each is one control, not a nested button |
-| Accessibility | Pass on Phase 3 surfaces | axe (WCAG 2.2 AA tags) at 1440, 390 and 360 on every onboarding state and on Home, the strip (scrolled into view), the explorer and the landing Pathways section. Keyboard-only: both flows, the timeline, the commitment sheet (trap, Escape restores the opener) and the strip. Live regions announced once. Generation-screen contrast, missing `main` and sub-44 targets are Phase 4. Navbar targets and the 7 px overflow at 360 with a goal are Phase 5 |
-| Reduced motion | Pass | `onboarding.spec.ts` and `pathways.spec.ts`. With `prefers-reduced-motion`, step content is fully visible once animations settle; the sheet duration is effectively zero |
-| Mobile 390 and 360 | Pass | Every onboarding step: no overflow, targets at least 44×44, one question per screen, Back present. Commitment sheet scrolls inside itself with the page scroll-locked. First answer sits 70 px above the footer at 360×740. `/roadmap` overflow and the navbar are carry-overs |
-| Console | Pass | Specs assert no unexpected console errors. Live runs showed only the known `FullDayVisualizer` nested-button warning (Phase 5) |
-| Landing Pathways links | Pass | Ten links to `/signup?pathway=<id>`, unchanged; the section passes axe; no overflow and no sub-44 links at 360 |
-
-### Before and after, against the M3.1 baseline (2026-09-23)
-
-Reload rows are from a mocked desktop probe that started each case from `/` (a same-URL reload inherits the current history entry, so that one contaminated row was discarded). Nothing is worse than M3.1.
-
-| Situation | At M3.1 | Now | Verdict |
+| ID | Milestone | Status | Details |
 |---|---|---|---|
-| Back and Forward through the steps | Goal text and every answer kept | Both orders, UI Back and browser Back, at 1440 and 360: the previous step, answers kept | Same |
-| Back from the first step | Leaves onboarding | Leaves onboarding | Same |
-| Back and Forward while the generation error shows | The history entry changes; the error screen stays | The URL stays `/onboarding` and the error stays (generation locks history) | Same |
-| UI Back, then browser Back immediately | The UI Back already pushed an entry, so browser Back returned to the step just left | Unchanged. Both reach the true previous step when the step was entered going forward. Carried to Phase 11 | Same |
-| Reload on a launched pathway, starting point | Stayed on that step with the preset. A second reload lost the preset | Stays on "Where are you starting?" with the draft `Run a 10K Under 50 Minutes`, including a second reload | Better |
-| Reload on a launched pathway at success, schedule and review | The draft was removed on read, so a later reload lost the preset | Returns to "Where are you starting?" with the pathway and the draft kept. Answers from later steps live on the page, as they did | Better |
-| Reload during switch goal, twice | Redirected to `/dashboard`. The current goal was untouched | Stays on `/onboarding` at "Where are you starting?". No DELETE | Better |
-| Forward into a step whose data is gone | Blank page | The furthest reachable step; the entry is rewritten | Better |
-| Clarify unreachable | Stayed on Schedule with "Failed to fetch" | "We can't reach Achivii right now". The schedule is kept. No raw error | Better |
-| Reload on a pathway chosen inside onboarding, every step (goal, starting, success, schedule, review) | An in-page choice wrote no draft, so a reload returned to the first step | Returns to "Where are you going?" with an empty goal and no draft. Confirmed behaviour (M3.7 review, ND-16) | Same |
-| Reload on a custom goal, every step (goal, schedule, starting, success, review) | Returned to step 1 with an empty goal | Returns to "Where are you going?" with an empty goal field and no draft | Same |
-
-### Phase 3 report (2026-09-23)
-
-```text
-ACHIVII REDESIGN — PHASE 3 REPORT
-
-1. Outcome
-   Choosing a goal is now a guided flow: a direction, then a pathway or a goal of your
-   own, then where you are starting, what success looks like, when you can make time,
-   and a review that builds the 90-day path. The same pathway library is used everywhere
-   a pathway can be chosen. Failures say what happened and offer a way on, and a reload
-   no longer loses a launched pathway or shows a blank step. The plan that is sent is
-   the same one the M3.1 baseline recorded.
-
-2. What changed
-   Onboarding (M3.3–M3.5, M3.7)
-   - The 3,038-line wizard is a 311-line coordinator over components/onboarding/.
-   - Order (ND-13): pathway goal → starting → success → schedule → review; custom
-     goal → schedule (while clarify runs) → starting → success → review; then the
-     legacy generation screen.
-   - Grouping (ND-14): success is the editable outcome plus the success question.
-   - History (ND-16, R-18): each step pushes wizardStep and keeps React Router's state;
-     a step whose data is gone falls back to the furthest reachable step; generation
-     locks history. The UI Back button still pushes, as it did at M3.1.
-   - Failures are classified (requestErrors.ts). A connection notice covers the steps
-     that don't already have their own alert. A create retry after a lost connection
-     checks the active goal first. Commitment names are required. Question steps use
-     the compact header below 640 px.
-   Pathways (M3.6)
-   - One catalogue (certifiedPresets.ts, direction only) and one library
-     (components/pathways/), used by onboarding, Home without a goal, the Today and
-     dashboard strips, and the explorer Dialog. The landing page reads PATHWAY_GROUPS.
-   - A strip tile opens the explorer on that pathway. Home no longer has a search box
-     or a four-category filter. Both were accepted at the M3.6 review.
-   M3.8
-   - Regression, the audits and this report. One cleanup: schedule.ts lost the colour
-     strings nothing has read since M3.5 (500 → 419 lines). Calculation unchanged.
-
-3. Files changed / created / removed
-   Phase 3 commit 3097016: 67 files, +7,279 / −3,680, no backend files. Working tree
-   on top of it: schedule.ts (this cleanup), docs/phases.md, docs/decisions.md,
-   Design.md.
-   Created: components/onboarding/ (state, payload, steps, questions, schedule, each
-   step, tests), components/pathways/, e2e/onboarding.spec.ts, e2e/onboardingStates.spec.ts,
-   e2e/pathways.spec.ts, e2e/onboardingFlow.ts, e2e/live/onboarding.live.spec.ts,
-   e2e/fixtures/onboarding/ (the four M3.1 fixtures, unchanged since they were recorded),
-   lib/pathwayCatalogue.guard.test.ts.
-   Changed: OnboardingWizard.tsx, OnboardingPage.tsx, certifiedPresets.ts,
-   PathwaysExplorerModal.tsx, Home.tsx and ExecutionDashboard.tsx (gallery markup),
-   marketing/sections/Pathways.tsx (data source), Dialog.tsx, Tabs.tsx, Choice.tsx,
-   mockApi.ts (failure options; defaults unchanged).
-   Removed: the quiz modal, the second category system, the five separate galleries.
-   Backend, API contracts, GoalContext, AuthContext and the generation screen's
-   behaviour: untouched. M3.7 changed only the generation failure copy.
-
-4. Functionality preserved
-   R-2   Preset and custom plans created. Mocked specs, live suite (3 runs) and manual
-         end-to-end creates on the real backend.
-   R-3   Every in-app entry (onboarding, Home, Today, dashboard, navbar explorer) and
-         the landing → signup handoff. An existing user with a goal keeps that goal.
-   R-4   Both M3.1 bodies match mocked and live, including a retried create. Commitment
-         ids are normalised. "Skipped" is unchanged.
-   R-15  No DELETE and no create before Build. Abandoning (Back, or closing the tab)
-         leaves the original goal active. After Build the previous goal is archived.
-   R-16  The draft key survives signup, reloads and failures, and is cleared once a
-         plan is created or recovered.
-   R-17  The navbar Offline chip is still a one-time health check. Verified, not fixed.
-   R-18  Back and Forward keep every answer in both orders. A missing step recovers.
-         Generation stays locked on its error.
-   R-1   Not modified. Live sign-up used the existing auth flow.
-
-5. Decisions applied (docs/decisions.md)
-   OD-11 A, ND-5 A, ND-6 A, ND-13 A, ND-14 A, ND-15 A, ND-16 A. Each matches what
-   shipped; confirmed in the decisions.md changelog at M3.8, without new decision ids.
-   M3.7 review outcomes, logged there rather than as new decisions:
-   - A pathway chosen inside onboarding does not write the draft key (ND-16 reviewed
-     note). Confirmed by reloading every step.
-   - The compact question header at 360 px is accepted, and documented in Design.md.
-   - The Home search box and four-category filter stay removed, and a strip tile opens
-     the explorer. The section 6 row is closed.
-   OD-8 is still open and blocks Phase 4. It was not decided.
-
-6. Validation evidence
-   - Type-check: clean.
-   - Vitest: 156 passed in 22 files.
-   - ESLint: clean on all 57 Phase 3 files other than Home and ExecutionDashboard,
-     which keep exactly their pre-Phase-3 rules. Full lint: 30 errors, 4 warnings in
-     11 files (3.11). OnboardingWizard was a baseline file and is now clean.
-   - Build: main JS 565.85 KB (166.99 KB gzipped), +4.95 KB since the M3.5 560.90 KB.
-     CSS 102.48 KB (17.89 KB gzipped). The chunk warning remains (Phase 12).
-   - Playwright mocked: 117 passed, 3 skipped. --repeat-each=3 on the three Phase 3
-     specs, both projects: 231 passed, 3 skipped, 0 flaky. No .only. No retries added.
-     The three skips are the known project skips (auth keyboard order is desktop-only,
-     auth keyboard-open viewport is mobile-only, switch-goal explorer entry is
-     desktop-only). Live also skips mobile, on purpose, and runs once on desktop.
-   - Playwright live: 3 runs, 6 of 6. No forced sign-out in these runs.
-   - Manual, real backend: preset from a landing link (29 s), custom with one skip and
-     a double click (48 s, one goal), switch from Today (29 s, previous goal archived),
-     abandon by Back and by closing the tab, backend process killed during clarify
-     (pathway and custom) and before Build, then restarted (21 of 21).
-   - Browser: 1440, 390 and 360 over every onboarding state and the pathway surfaces.
-     Screenshots were not committed.
-   - The matrix and the before-and-after table above.
-
-7. Carry-overs
-   See "Carry-overs (owned by later phases)" above. The one that needs Mo before
-   Phase 4 starts: the TED-style speech title is "Deliver a 15-Minute TED-Style Speech"
-   on the frontend and "Deliver an Unforgettable 15-Minute TED-Style Speech" in the
-   backend, and no pattern matches, so clarify returns the custom questions. Present
-   before Phase 3. Fixing it needs a backend matching allowance or a superseding ND-5.
-   OD-8 (honest generation stages) is open and blocks Phase 4. Not decided here.
-
-8. Issues and risks found
-   - Fixed: schedule.ts still carried accent, background and border colour strings
-     from before M3.5, including one legacy hex. Nothing read them (the type-check
-     proves it). Removed. Payload and schedule results unchanged. Suite re-run after
-     the edit: Vitest 156, mocked Playwright 117 passed and 3 skipped, build as above.
-   - Kept, and why: the exhaustive-deps disable on the mount history effect
-     (useOnboardingState.ts). Empty deps is the behaviour R-18 depends on; the effect
-     must not re-write history on every render. The mount clarify disable is the one
-     the pre-Phase-3 wizard already had. The e2e no-empty-pattern disables match
-     auth.spec.ts (Playwright requires an object pattern). No new disable was added
-     for a lint error that could be fixed properly.
-   - Kept: the two waitForTimeout calls (500 ms after a double click, 300 ms after a
-     delayed clarify). Each proves that a second request or a step change did not
-     happen. They are not hiding a race.
-   - Characterised, not fixed: reloading while the backend is unreachable signs the
-     user out. getAuthUser returns null when its lookup throws, /me answers 401, and
-     AuthContext drops the token on any /me failure. Deterministic. Owner: unassigned
-     (backend and AuthContext). The three live runs did not hit it.
-   - Dead code left in place on purpose: expert catalogue fields and SaaSBuilderModal
-     (the prompt keeps them). Exported types used by callers or tests stay.
-
-9. Not started
-   M3.8 is complete. All Phase 3 milestones have been delivered.
-   Phase 3 is awaiting Mo's review and is NOT marked COMPLETE.
-   Phase 4 — Journey Generation has NOT started.
-```
-
----
-
-## PHASE 4 — JOURNEY GENERATION
-
-**Status:** `COMPLETE` (2026-09-23; Mo accepted the phase report). "Current state" describes the code at the end of the phase; "What shipped", "Verification evidence", "Carry-overs" and "Review outcomes" record the result; the sections from "Decisions required" down are the kickoff plan and the milestone reports, kept as written.
-
-**Source:** BP §30, §41, §47, §49 (Phase 4), OD-8, ND-17 · VDS §7, §19–21
-
-**Objective:** make the creation of the 90-day path feel meaningful, while every visible stage describes something the system is really doing.
-
-**Narrative line:** *"We're building your path."*
-
-### Current state
-
-The code at the end of Phase 4 (M4.5, 2026-09-23). The stream facts below include the kickoff. M4.2 replaced the in-flight screen. M4.3 added the silence wait and kept failures on that same screen. M4.4 checks for a finished plan before every create.
-
-* **Screen (M4.2):** `frontend/src/components/onboarding/StepGeneration.tsx`, rendered by `OnboardingWizard.tsx` outside the M3.5 `OnboardingShell` (no progress rail, its own `main`) when the step is `generation`. The OD-8 stages come from `generationStages.ts`. "Understanding your goal" is already complete. "Choosing your method" is active from `search` and completes on `method`, or on `plan` when `method` never arrives. "Building your 90-day journey" appears only with the `method` event, and shows that event's name and whyChosen. On the v1 path it is omitted. "Designing your first steps" is active from `plan` until `done`, which still navigates to `/dashboard`. "Search sources" is gone. There is no spinning progress ring. Failure copy, "Review your answers" and "Try again" are the M3.7 words, on Phase 0 buttons. If a stream event had already arrived, the stages stay visible and the error sits beneath them. Designing your first steps is not marked done unless `plan` arrived. No method name is invented. If nothing arrived, the error screen stands alone.
-* **Request:** `handleGeneratePlan` in `components/onboarding/useOnboardingState.ts` builds the body with `buildCreatePayload` (`payload.ts`, R-4) and calls `createGoalPlan` in `lib/api.ts`. `createGoalPlan` sends `Accept: text/event-stream` and reads the stream. There is no `AbortController`. Unmount does not cancel the fetch, and `POST /api/goal/create` does not abort when the client disconnects. An `isCreating` ref makes a double click send one request in this mount only. Each `step` replaces any earlier step with the same `id` in `planSteps`. On `done`, `finishWithGoal` removes `achivii_draft_goal` (R-16) and calls `onGoalCreated`; `OnboardingPage` sets the active goal and navigates to `/dashboard`.
-* **Transport:** `POST /api/goal/create` streams server-sent events when the request sends `Accept: text/event-stream` (`wantsPlanStream` / `openPlanStream` in `backend/src/routes/goal.ts`). The status is 200 for the whole stream, including errors. The frontend reacts to `step`, `error` and `done`.
-* **Events.** Ids are `search`, `method` and `plan`.
-  * `search` — "Using a proven method for this goal" when `findPresetForGoal(rawGoal)` or `findPresetForGoal(clarifiedOutcome)` hits; otherwise "Comparing methods for your answers".
-  * `method` — the method name and why it was chosen (`detail`). Sent only after `generateRoadmap` returns ok.
-  * `plan` — "Writing your first week".
-  * `done` — `{ type, goal, roadmapWeeks, dailyTasks, elapsedMs, slow }`. `goal` is `presentGoal(saved)`.
-  * `error` — `{ type, error, elapsedMs, slow }`. The frontend throws `new Error(event.error)`.
-  * A stream that ends with neither `done` nor `error` throws "Plan stream ended before a plan was ready." and is treated as a server create error.
-* **Orders (kickoff, including live creates on 2026-09-23):**
-  * **v2 success:** `search` → `method` and `plan` in the same tick → `generateWeekPlan` → `saveV2Goal` → `done`. `planVersion: 2`. `isGoldenRail` is true only when a preset matched. The live TED create took this path as a custom goal (below).
-  * **v1 fallback** (preset, roadmap failed, not unsafe): `search` → no `method` → `plan` → `saveV1PresetGoal` → `done`. `planVersion: 1`, `isGoldenRail: true`, `canonicalMethodName: null`. The live 10K create took this path: `search` at 0 ms (`slow: false`), `plan` at 87702 ms (`slow: true`), `done` at 90345 ms. The screen completes "Choosing your method" when `plan` arrives and does not show a method stage.
-  * **Custom failure:** `search` ("Comparing methods for your answers") → `error`. No v1 fallback. The live sourdough create ended this way (`error` at 54252 ms, `slow: true`). No goal was saved.
-* **Slow (M4.3, corrected in M5.1 B2):** `elapsedMs` and `slow` (true after 20 seconds) are still computed in `openPlanStream` at send time. There is no heartbeat and no new SSE event. The client uses the same 20 seconds during silence, counted from the last event, or from entering generation if none has arrived. The line is "This is taking longer than usual. Still working (Ns)." N is whole seconds since this generation attempt started. During silence that is the client clock. An event that already has `slow: true` starts from `Math.round(elapsedMs / 1000)` and then keeps counting whole client seconds since that event arrived, still one line, so the line is not shown twice. It sits on the active stage (`search` → Choosing your method, `plan` → Designing your first steps). A later event with `slow: false` clears it and the 20 seconds start again. The number keeps moving until the next event or an error. No percentage and no estimated time remaining.
-* **Research:** `generateRoadmap` in `backend/src/lib/ai/roadmap.ts` does not perform web research. It screens the query, matches a preset, extracts stated targets, then calls the model. The id `search` is a misnomer (OD-8).
-* **Archive:** the previous active goal is archived only inside a successful `saveV2Goal` or `saveV1PresetGoal`, after generation succeeds. A failed create leaves the current goal untouched.
-* **Unsafe:** rejected on create by `screenQuery`, not during clarify. The message is already user-facing ("This goal is outside what Achivii can plan safely." or the low-safety sentence). The UI title stays "We couldn't build your plan".
-* **Failure copy:** `describeOnboardingError(err, 'create')` (`requestErrors.ts`) sorts a failure into `offline` ("We lost the connection…") or `server` ("We couldn't build your plan", with Achivii's own message). Answers, schedule and the draft key are kept. "Review your answers" uses `setStep('review')`, which bypasses the generation history lock. "Try again" calls `handleGeneratePlan` again.
-* **Duplicate-safe create (M4.4):** before every `POST /api/goal/create`, and again after any failed create, `findCreatedGoal` calls `GET /api/goal/active`. It accepts a goal whose id is not the one active when this tab first pressed Build, and whose `rawGoal` matches. That id is kept in `sessionStorage` (`achivii_generation_prior_goal`) so a reload that has already loaded the finished plan is not treated as the goal onboarding opened with. It is not a second draft. The draft key is still cleared only in `finishWithGoal`, which also clears the prior id. A same-tab module flag blocks a second mount from sending while the first create is still in flight; a reload clears that flag. The check is skipped when `currentGoalId === null`. That hole stays a Phase 5 carry-over. There is still no `AbortController` and no backend abort.
-* **Browser history (R-18):** while the step is `generation` (building, or showing its error), `goToStep`, `canJumpToStep` and the `popstate` handler ignore step changes, and entering generation pushes no entry.
-* **TED (ND-17, M4.2):** a speech `matchingPattern` now matches the frontend title "Deliver a 15-Minute TED-Style Speech" to `ted_speech_15min`. The backend title still matches by equality. Frontend titles, ids and slugs are unchanged. The other seven drifted titles were not touched. A new clarify for that title returns `baseline`, `primary_fear` and `speech_context`, not the custom four. The existing dev-database goal with the frontend title was not rewritten (`isGoldenRail: false`, `planVersion: 2`). M3.1 fixtures stay 10K and sourdough.
-
-### What shipped
-
-* **Decisions (M4.1):** OD-8 Decided (A amended) and ND-17 Decided (A). Stream labels unused. The id `search` stays, and it still names no search.
-* **Generation screen (M4.2):** "Building your path" outside `OnboardingShell`, with its own `main`. Stages come from `generationStages.ts`. Understanding is already complete. Choosing follows `search`. Building appears only with the streamed method name and whyChosen, and is omitted on v1. Designing is active from `plan` and is not marked done unless `plan` arrived. No invented method name. "Search sources" is gone. No spinning progress ring. `done` still opens `/dashboard`. SSE fixtures and a timed mock stream cover v2, v1 and a custom error. ND-17 is one speech matching pattern.
-* **Slow, error, unsafe, retry (M4.3):** after 20 seconds of silence the active stage says "This is taking longer than usual. Still working (Ns)." N is whole seconds since this attempt started. An event that already has `slow: true` uses that event's seconds, so the line is not shown twice. Failures stay on the same screen, with the M3.7 titles and the two actions. Finished stages stay; the error sits beneath them. If nothing arrived, the error stands alone.
-* **No duplicate goals (M4.4):** every Build calls `GET /api/goal/active` before `POST /api/goal/create`, and again after any failed create. A matching plan already saved for this goal is opened. The id that was active when this tab first pressed Build is remembered in `sessionStorage` (`achivii_generation_prior_goal`) and cleared only in `finishWithGoal`, with the draft. It is not a second draft. A same-tab module flag blocks a second mount while the first create is in flight. A reload clears that flag and does not resume the request. `currentGoalId === null` still skips the check. There is no `AbortController` and no backend abort.
-* **M4.5:** the regression matrix and this report. The two 360 px generation checks now also run axe on `#main`. No generation-only dead code was found, so nothing was removed. The payload, stages, slow line, error actions and the check before create are unchanged.
-
-### Verification evidence
-
-* Frontend type-check is part of the production build, which passes. Main JS 568.24 KB (167.73 KB gzipped), CSS 101.30 KB (17.71 KB gzipped). The chunk warning remains. Since the end of Phase 3 the JS chunk grew by 2.39 KB (gzipped +0.74 KB) and the CSS chunk shrank from 102.48 KB.
-* ESLint on the generation files is clean. `api.ts` keeps its five pre-existing `any` errors. Full frontend lint is still 30 errors and 4 warnings (3.11).
-* Frontend Vitest: 180 passed / 23 files. Backend Vitest: 229 passed / 20 files. No backend file was changed in M4.5; ND-17 shipped in M4.2.
-* Playwright, mocked, both projects (`generation.spec.ts`, `onboardingStates.spec.ts`, `onboarding.spec.ts`): 83 passed, 3 skipped, 0 failed. `generation.spec.ts --repeat-each=3`: 72 passed, 6 skipped (the 360 px checks on the mobile project), 0 failed, 0 flaky.
-* Live AI generate was not run in M4.5. The kickoff observations stand: TED title, v2 custom, completed; 10K, v1 fallback, completed; sourdough, custom error, no goal saved. A quota-forced v1 path is not a UI bug. No new accounts.
-* Details: the M4.5 regression matrix and the Phase 4 report below.
-
-### Carry-overs (owned by later phases)
-
-| Item | Owner |
-|---|---|
-| `currentGoalId === null` still skips the active-goal check, so a Build then can create a second goal | Phase 5 (goal-load error state) |
-| Two creates already in flight before either save finishes. A second mount in the same page load is blocked. A reload, a second tab, or a killed tab can send again if `GET /api/goal/active` does not yet see the new goal. No second lock was added | Accepted residual (Mo, 2026-09-23). A fix would need server-side create idempotency under a new backend allowance; not planned. |
-| Phone lock and wake, from the code, not from a device. No visibility listener. No `AbortController`. A tab that stays in memory continues the request; a killed tab leaves the draft, and the next Build checks first | Phase 11 |
-| `done` still opens the legacy `/dashboard` | Phase 5 (OD-3) |
-| Catalogue expert fields are not shown as the method | Phase 12 |
-| Kickoff accounts in the local database (`phase4-kickoff-*`). M4.5 added none | Housekeeping |
-| Main JS chunk 568.24 KB, above Vite's 500 KB warning | Phase 12 |
-| Navbar targets, `/dashboard` and `/roadmap` axe and overflow findings | Phase 5 (navbar, `/dashboard`); Phase 6 (`/roadmap`) |
-
-### Review outcomes (Mo, 2026-09-23)
-
-* **Overlapping creates:** accepted as a residual risk (carry-over above).
-* **Live evidence:** the new generation screen was not observed against a real stream during Phase 4. All live generation evidence is from the kickoff, on the old screen. The Phase 5 kickoff builds its goal through the real UI on the new screen and records the result below as post-close Phase 4 evidence. A defect found there is reported, not fixed in the kickoff.
-* **`search` id:** it names no search. Accepted under OD-8. The labels are unchanged.
-
-### Post-close follow-up (M5.1 B2)
-
-The still-working number froze on a slow event. The Phase 5 kickoff's live run showed "Still working (132s)" unchanged until done at about 181 seconds. M5.1 keeps counting from that event's seconds, in `generationStages.ts` and `StepGeneration.tsx`. This is not a reopened Phase 4 milestone.
-
-### Decisions required before starting
-
-Both are Decided. Neither blocks M4.2.
-
-* **OD-8 — Decided (A amended), 2026-09-23, Mo.** Four honest stages. "Understanding your goal" is already complete on entry. "Choosing your method" runs from `search` until `method`, or until `plan` if `method` never arrives. "Building your 90-day journey" completes on `method` and reveals the streamed name and whyChosen; if `method` never arrives, do not invent a method name and do not leave that stage pending. "Designing your first steps" runs from `plan` until `done`. Stream labels are not changed. Ids stay `search` / `method` / `plan`.
-* **ND-17 — Decided (A), 2026-09-23, Mo.** Matching only, so the frontend title "Deliver a 15-Minute TED-Style Speech" hits `ted_speech_15min`. Implement with the generation work (M4.2 or a named sub-step of it). ND-5 titles, ids and slugs stay frozen. The other seven title-drift pathways are not changed. Not implemented in M4.1.
-
-### In scope
-
-* A generation screen on the OD-8 stages. The method name and whyChosen come only from the `method` event. `done` still leads to `/dashboard` until Phase 5 / OD-3.
-* **v1 fallback is a first-class path:** `search` → `plan` → `done`, with no `method` event. Do not leave a method stage pending and do not invent a method name.
-* The motion language: ascent and emergence (VDS §19). Steps may appear as stages complete (VDS §7). No fake percentages, no timed fake stages, no invented durations.
-* **Slow state.** The existing "This is taking longer than usual. Still working (Ns)." copy, including during silence, counted from the last event plus 20 seconds. That is the same contract the server already stamps on events. It is not a new SSE event and not a fake percentage (M4.3).
-* **Error state.** A retry that keeps all onboarding answers; the unsafe-goal message in encouraging language.
-* **Leaving mid-generation.** The request continues on the server (no `AbortController`, no backend abort-on-disconnect). `GET /api/goal/active` before every create send, so a finished create is not sent again (M4.4). The new UI must not create duplicate goals on retry.
-* **SSE fixtures and a mock stream** in M4.2, so a timed `search` → `method` → `plan` → `done` sequence (and the v1 path with no `method`) can be tested. Do not regenerate the M3.1 create-body fixtures.
-* **Reduced motion:** stages change without animation, and all text stays visible.
-* No new npm dependencies.
-
-### Out of scope
-
-* Adding real web research to the live route, or any new stream id or field.
-* Changing what is generated.
-* Showing catalogue expert fields (`outcome`, `desc`, `coach`, `p1`–`p3`, `sampleDay`, `badge`) as the generated method.
-* Backend abort-on-disconnect.
-* A Journey reveal (Phase 6). `done` does not pretend to land on Today; Today is Phase 5.
-* The Today redesign (Phase 5).
-* The other seven title-drift pathways (they already match by pattern).
-* Rewriting existing goals in the database.
-* Changing frontend titles, ids or slugs (ND-5), or routes, schemas, API responses or the stream shape.
-
-### Backend allowance
-
-* **Stream labels: not used** (OD-8 A). Do not change the user-facing label strings in `routes/goal.ts`, the step ids, or the payload shape.
-* **Named (ND-17 A), implement with the generation work, not in M4.1:** in `findPresetForGoal` and/or the speech preset's `matchingPatterns` (or an alias), make the frontend title "Deliver a 15-Minute TED-Style Speech" match `ted_speech_15min`. No routes, schemas, responses, ids or payload shape. Existing TED goals are not rewritten. M3.1 fixtures stay 10K / sourdough.
-
-### Files likely affected
-
-* `frontend/src/components/onboarding/StepGeneration.tsx` (the generation screen)
-* `frontend/src/components/OnboardingWizard.tsx` (its `generation` branch only)
-* `frontend/src/components/onboarding/useOnboardingState.ts` (generation state only: `handleGeneratePlan`, `planSteps`, `generationError`, `findCreatedGoal`; the payload and history logic stay as they are)
-* `frontend/src/components/onboarding/requestErrors.ts` (create copy only)
-* `frontend/src/pages/OnboardingPage.tsx` (`done` still navigates to `/dashboard`)
-* `frontend/src/lib/api.ts` (reading the stream only; no contract change)
-* `frontend/e2e/mockApi.ts` (M4.2: play SSE fixtures; M3.1 create-body fixtures stay)
-* new generation components, beside the onboarding step components or in `frontend/src/components/generation/*`
-* `backend/src/lib/ai/presets/speech.ts` and `backend/src/lib/ai/presets/index.ts` (ND-17 matching only)
-
-### Milestones
-
-| ID | Milestone |
-|---|---|
-| M4.1 | **Done** (2026-09-23). OD-8 and ND-17 logged. No generation UI. |
-| M4.2 | **Done** (2026-09-23). OD-8 generation screen, SSE fixtures and mock stream, ND-17 matching. |
-| M4.3 | **Done** (2026-09-23). Silence slow copy, error and unsafe on the same screen, retry kept. |
-| M4.4 | **Done** (2026-09-23). `GET /api/goal/active` before every create. A finished plan is not built again. No backend abort. |
-| M4.5 | **Done** (2026-09-23). Regression matrix and the Phase 4 report. Accepted by Mo with three review outcomes (below "Carry-overs"). |
+| **M0.1** | Install Stripe & Prisma Migration | `COMPLETE` | Add `stripe` to backend, add billing fields to `schema.prisma`, run migration, verify Prisma client generation. |
+| **M0.2** | Stripe Singleton Client Module | `NOT STARTED` | Author `backend/src/lib/stripe.ts` loading environment variables with test fallback handling. |
+| **M0.3** | Auth Contract & Context Extension | `NOT STARTED` | Expose billing fields in `auth.ts`, update `AuthContext.tsx` and frontend `User` interface, verify login/me payload. |
+| **M0.4** | Foundation Vitest & Verification | `NOT STARTED` | Verify backend and frontend Vitest suites, type-checks, and ensure zero regressions across R-1. |
 
 ### Regression checks
 
-R-2, R-5, R-6, R-7, R-15.
+* **R-1**: Authentication flow, user signup, login, persistent session, and token validation must remain 100% operational.
 
 ### Mobile acceptance
 
-3.7 applies, plus:
-
-* The screen stays readable at 360px.
-* The generation screen stays active and readable if the phone locks and wakes (document the behaviour).
+* N/A (Backend and contract foundation).
 
 ### Validation
 
-* Generate a preset goal and a custom goal, including a v1 fallback (no `method` event) and a v2 success (`method` then `plan`).
-* Force a slow run: an event with `slow: true`, and a silence longer than 20 seconds with no new event.
-* Force an error (stop the backend mid-request; use an invalid provider key in a development environment only).
-* Retry after an error.
-* Navigate away and come back. Confirm a second Build does not send create when the first save already finished.
+1. `npm run type-check --workspace=frontend`
+2. `npm run build --workspace=backend`
+3. `npm test --workspace=backend` (auth routes pass with new user fields)
+4. `npm test --workspace=frontend` (auth context passes with `isPro`)
 
 ### Exit criteria
 
-* Every visible stage corresponds to a real event.
-* No fake progress.
-* Answers survive errors.
-* Generation still produces and saves a goal exactly as before.
+* Database schema has user billing columns.
+* Stripe client initializes without errors.
+* Calling `GET /api/auth/me` returns `plan: "free"`, `isPro: false` for standard users.
+* No existing auth tests broken.
 
 ### Risks
 
-* Showing a pending method stage, or an invented method name, on the v1 fallback (OD-8 forbids both).
-* A second Build, from a new mount, while the first create is still running: two saves, one goal archived (M4.4).
-* Provider quota can force the v1 path or a custom error. The mock stream has to cover both v2 and v1 so live quota does not decide what the screen can show.
-* `done` lands on the legacy `/dashboard` until Phase 5. That drop is real; do not fake Today or a Journey reveal.
-
-### M4.1 report — Log decisions (2026-09-23)
-
-```text
-1. Outcome
-   OD-8 and ND-17 are Decided and written into the Phase 4 plan.
-   Phase 4 is IN PROGRESS. M4.1 is done. M4.2 has NOT started.
-   No generation UI was implemented.
-   ND-17 matching has NOT been implemented in the backend.
-
-2. What changed (docs only)
-   docs/decisions.md: OD-8 is Decided (A amended), with the kickoff corrections
-   in its context (v1 skips method; slow is stamped only on events; no heartbeat;
-   method and plan are sent together on v2). ND-17 is Decided (A): matching only,
-   so "Deliver a 15-Minute TED-Style Speech" hits ted_speech_15min. The index,
-   the "what blocks the next phase" line, D-11's Phase 4 allowance note and the
-   change log agree.
-   docs/phases.md: current position, the status table, the Phase 4 status line,
-   current state, decisions, scope, allowance, files and milestones match the
-   kickoff and Mo's choices. Section 5 and section 6 agree. Design.md gains a
-   short generation-stage note (stage list, reduced motion, no fake progress).
-
-3. Files changed
-   docs/decisions.md
-   docs/phases.md
-   Design.md
-
-4. Functionality preserved
-   None coded. R-2, R-5, R-6, R-7 and R-15 are untouched.
-
-5. Decisions applied
-   OD-8 A amended — four honest stages; v1 fallback must not show a pending
-   method stage; stream labels unused; search / method / plan ids unchanged.
-   ND-17 A — matching-only backend allowance, to be implemented with the
-   generation work, not in M4.1. ND-5 stays as decided. The other seven
-   title-drift pathways are not in scope.
-
-6. Validation evidence
-   Re-read of docs/decisions.md and docs/phases.md: the index, the register,
-   the Phase 4 section, section 6 and both change logs name the same status
-   (Decided A amended / Decided A), the same allowance (matching only; stream
-   labels unused) and the same position (IN PROGRESS, M4.1 done, M4.2 not
-   started). git status shows no production source and no backend file changed
-   by this milestone.
-
-7. Carry-overs
-   ND-17 matching is approved and not written. The generation screen is still
-   the legacy StepGeneration. The currentGoalId === null hole stays with
-   Phase 5. Catalogue expert fields stay unused (Phase 12). Kickoff accounts
-   remain in the local development database (section 6).
-
-8. Issues and risks
-   The v1 path is a real generation order, observed live, and the screen still
-   leaves "Choose the method" pending on it. M4.2 has to treat that path as
-   first-class. Duplicate creates across mounts are unchanged until M4.4.
-
-9. Not started
-   M4.2 has NOT started.
-   No generation UI was implemented.
-   ND-17 matching has NOT been implemented in the backend.
-   Phase 5 has not started.
-```
-
-### M4.2 report — Generation screen (2026-09-23)
-
-```text
-1. Outcome
-   Pressing "Build my 90-day path" opens an honest generation screen.
-   Understanding your goal is already complete. Choosing your method follows
-   the search event. Building your 90-day journey appears only when method
-   arrives, with that event's name and why it was chosen. On the v1 path that
-   stage is omitted and no method name is invented. Designing your first steps
-   runs from plan until done, which still opens /dashboard.
-   "Search sources" is gone.
-   The frontend TED title now matches ted_speech_15min.
-   M4.3 has NOT started.
-   M4.4 has NOT started.
-   Phase 5 — Today has NOT started.
-
-2. What changed
-   The in-flight screen uses Phase 0 tokens and StepMarker, outside the
-   onboarding rail, with its own main landmark. Stages are derived from
-   planSteps. The failure panel keeps the M3.7 copy and the two actions, on
-   Button primitives.
-   mockApi can play a timed SSE sequence. Fixtures record the kickoff v2, v1
-   and error orders. Playback delays are shortened; elapsedMs and slow are the
-   observed stamps. The v2 detail sentence is a stand-in: the kickoff logged
-   that detail was present and did not quote it.
-   ND-17 is one matching pattern on the speech preset. findPresetForGoal,
-   routes, schemas, stream ids and payload shape are unchanged.
-
-3. Files changed / created / removed
-   Created:
-   - frontend/src/components/onboarding/generationStages.ts
-   - frontend/src/components/onboarding/StepGeneration.test.tsx
-   - frontend/e2e/generation.spec.ts
-   - frontend/e2e/fixtures/generation/v2-success.json
-   - frontend/e2e/fixtures/generation/v1-fallback.json
-   - frontend/e2e/fixtures/generation/custom-error.json
-   Changed:
-   - frontend/src/components/onboarding/StepGeneration.tsx
-   - frontend/src/components/OnboardingWizard.tsx (generation branch only)
-   - frontend/e2e/mockApi.ts
-   - backend/src/lib/ai/presets/speech.ts
-   - backend/test/presetMatch.test.ts
-   - docs/phases.md
-   - docs/decisions.md (implementation note on ND-17)
-   Removed: none.
-   M3.1 create-body fixtures were not regenerated.
-
-4. Functionality preserved
-   R-2: mocked create still reaches /dashboard on done (v2 and v1 fixtures).
-   R-3: the ten frontend pathway titles still match their own presets; TED
-   now matches ted_speech_15min and returns baseline, primary_fear,
-   speech_context.
-   R-4: onboarding payload specs still match the M3.1 10K and sourdough bodies.
-   R-5 / R-7: the mocked done payload still carries a goal, one week and one
-   task. No live generate was run in this milestone.
-   R-6: step, done and error render. Slow-during-silence is not claimed.
-   R-15: archive timing is unchanged (no save-path edits).
-   R-16: the draft still clears only in finishWithGoal. The error spec keeps
-   the review step and its answers.
-   R-18: generation still does not use the rail, and the history lock in the
-   hook was not changed. "Review your answers" still uses setStep('review').
-
-5. Decisions applied
-   OD-8 A amended. Frontend labels only. Stream label strings, ids and payload
-   shape were not changed.
-   ND-17 A. Matching only, in speech matchingPatterns. Frontend titles, ids
-   and slugs unchanged. The other seven title-drift pathways unchanged.
-   Existing TED goals were not rewritten.
-
-6. Validation evidence
-   Frontend type-check: clean.
-   ESLint on the changed frontend files: clean.
-   Frontend Vitest: 162 passed / 23 files (was 156 / 22).
-   Backend Vitest: 229 passed / 20 files (was 228; the new test is ND-17).
-   Frontend build: main JS 566.36 KB (166.99 KB gzipped), CSS 101.19 KB
-   (17.70 KB gzipped). The chunk warning remains.
-   Backend build: passes.
-   Playwright mocked, both projects: 128 passed, 4 skipped (was 117 passed,
-   3 skipped). Includes generation v2, v1, error, reduced motion, axe on the
-   generating screen at 1440 and 390, no overflow of main at 360, and the
-   existing onboarding payload and handoff specs.
-   No new live accounts. Fixtures use the kickoff observations.
-
-7. Carry-overs
-   M4.3: slow-during-silence (the 20s copy from last-event time, with no new
-   SSE event), and the error / unsafe / retry visual pass.
-   M4.4: GET /api/goal/active before every create send. The currentGoalId ===
-   null hole stays with Phase 5. No abort-on-disconnect.
-   The existing dev-database TED goal stays custom v2.
-
-8. Issues and risks
-   Provider quota can still force the v1 path. The mock covers both orders.
-   A second Build from a new mount can still create a duplicate until M4.4.
-   done still lands on the legacy /dashboard until Phase 5.
-   The v2 fixture's whyChosen sentence is a stand-in, not the live sentence.
-
-9. Not started
-   M4.3 has NOT started.
-   M4.4 has NOT started.
-   Phase 5 — Today has NOT started.
-```
-
-### M4.3 report — Slow, error and retry (2026-09-23)
-
-```text
-1. Outcome
-   A wait longer than 20 seconds with no new stream event now says
-   "This is taking longer than usual. Still working (Ns)." on the active
-   stage. N is whole seconds since this generation attempt started.
-   A failure stays on the same screen. If a stage event had arrived, the
-   finished stages remain and the error sits beneath them. Retry, review
-   and the double-click guard behave as they did.
-   M4.4 has NOT started.
-   M4.5 has NOT started.
-   Phase 5 — Today has NOT started.
-
-2. What changed
-   The client starts a 20-second timer from the last event, or from entering
-   generation if none has arrived. That is the same threshold the server uses
-   when it stamps slow. There is no new SSE event, no percentage and no
-   estimated time remaining.
-   When the latest event already has slow: true, the line uses that event's
-   elapsedMs and is not drawn again for the silence. A later event with
-   slow: false clears the line. The polite live region mentions the slow fact
-   once; the visible line carries the ticking seconds.
-   Offline, server, unsafe and "plan stream ended" keep the M3.7 titles and
-   sentences. "Review your answers" and "Try again" are unchanged. Try again
-   still calls handleGeneratePlan, which clears planSteps before the next send.
-   No GET /api/goal/active before the first send.
-
-3. Files changed / created / removed
-   Changed:
-   - frontend/src/components/onboarding/StepGeneration.tsx
-   - frontend/src/components/onboarding/generationStages.ts
-   - frontend/src/components/onboarding/StepGeneration.test.tsx
-   - frontend/src/components/onboarding/useOnboardingState.test.tsx
-   - frontend/e2e/mockApi.ts (a later create can play the next sequence; a mock-only end step closes the stream)
-   - frontend/e2e/generation.spec.ts
-   - docs/phases.md
-   - Design.md (one sentence on the silence line and the error staying on the screen)
-   Created: none.
-   Removed: none.
-   No backend file changed. M3.1 create-body fixtures were not regenerated.
-   No new live accounts.
-
-4. Functionality preserved
-   R-2: mocked v2 and v1 streams still open /dashboard on done.
-   R-4: onboarding payload specs were not modified. The create body builder was not touched.
-   R-6: step, done and error still render. Slow now also appears after 20 seconds of silence.
-   R-15: the backend was not changed, so archive still happens only inside a successful save.
-   R-16: the draft still clears only in finishWithGoal. Review and a failed retry leave it in place.
-   R-18: the history lock was not changed. The error actions are still the only way off this screen.
-   M4.2: no "Search sources", no invented method name, v1 omits Building your 90-day journey, done opens /dashboard.
-   A double click in this mount still sends one create. Offline retry still uses findCreatedGoal, including the currentGoalId === null hole.
-
-5. Decisions applied
-   OD-8 A amended. The stage mapping is unchanged. The slow line is a status on the active stage, not a new stage and not a fake duration.
-
-6. Validation evidence
-   Frontend type-check: clean (tsc, and again inside the production build).
-   ESLint on the changed frontend and e2e files: clean.
-   Frontend Vitest: 173 passed / 23 files (was 162).
-   Frontend build: main JS 568.07 KB (167.65 KB gzipped), CSS 101.30 KB (17.71 KB gzipped). The chunk warning remains.
-   Playwright, both projects: generation.spec.ts and onboardingStates.spec.ts, 44 passed and 2 skipped, then the silence clock test was corrected and passed on desktop and mobile. Includes v2, v1, server error, unsafe, stream-ended, retry, review, reduced motion, axe on the generating screen and the error screen at 1440 and 390, and no overflow of main at 360.
-   No live AI generate. No backend tests: no backend change.
-
-7. Carry-overs
-   M4.4: GET /api/goal/active before every create send, and leave-mid-generation. A second Build from a new mount can still create a duplicate.
-   Phone lock and wake, from the code, not from a device. The page does not listen for visibility changes, and create has no AbortController. If the tab stays in memory, the request continues; a throttled timer can pause the seconds and then jump when the page wakes. If the OS kills the tab, the reload finds the draft still stored, and the create is not resumed. A finished create is noticed only when findCreatedGoal runs, which is still only after an offline failure or an offline retry. That was not checked on a phone. It stays with Phase 11.
-   currentGoalId === null still skips findCreatedGoal. That hole stays with Phase 5.
-
-8. Issues and risks
-   The still-working number during silence uses the client clock. An event with slow: true uses the server's elapsedMs. They are the same rule (seconds since generation started) measured by different clocks, so a handoff can move the number.
-   The hook still console.errors a failed create. The error specs expect that.
-   done still lands on the legacy /dashboard until Phase 5.
-
-9. Not started
-   M4.4 has NOT started.
-   M4.5 has NOT started.
-   Phase 5 — Today has NOT started.
-```
-
-### M4.4 report — No duplicate goals (2026-09-23)
-
-```text
-1. Outcome
-   Every Build asks GET /api/goal/active before it sends POST /api/goal/create.
-   A plan the server already saved for this goal is opened instead of being built again.
-   The goal that was active when this tab first pressed Build is never treated as that new plan.
-   The request is still not cancelled. The server still runs to completion.
-   M4.5 has NOT started.
-   Phase 5 — Today has NOT started.
-
-2. What changed
-   findCreatedGoal runs before every send, and again after any failed create, not only after a lost connection.
-   The id it compares against is remembered in sessionStorage for this tab (achivii_generation_prior_goal).
-   It is cleared in finishWithGoal, together with the draft. It does not store answers.
-   A module flag in this page load stops a second mount from sending while the first create is still running.
-   A reload clears that flag and checks GET again.
-   currentGoalId === null still skips the check.
-   The stages, the slow line, and the error layout were not redesigned.
-
-3. Files changed / created / removed
-   Changed:
-   - frontend/src/components/onboarding/useOnboardingState.ts
-   - frontend/src/components/onboarding/useOnboardingState.test.tsx
-   - frontend/e2e/mockApi.ts (counts GET /api/goal/active)
-   - frontend/e2e/generation.spec.ts
-   - frontend/e2e/onboardingStates.spec.ts
-   - docs/phases.md
-   Created: none.
-   Removed: none.
-   No backend file changed. payload.ts was not changed. No new live accounts.
-
-4. Functionality preserved
-   R-2: when GET finds nothing new, one create still runs and done still opens /dashboard.
-   R-4: the onboarding payload specs still match the M3.1 bodies.
-   R-5 / R-7: a create response's weeks and week-1 task are still what onGoalCreated receives. The reload recovery uses the active-goal payload the mock returned.
-   R-6: the v2, v1, silence, and error specs still pass.
-   R-15: a GET that returns the goal already active does not skip create, and no DELETE was added. Archive timing is unchanged because the backend was not touched.
-   R-16: the draft is still cleared only in finishWithGoal, including when the plan is recovered instead of created.
-   R-18: Back during generation still stays on the generation screen.
-   M4.2 / M4.3: no "Search sources", no invented method name, v1 omits the method stage, the 20-second silence line remains, failures stay on the generation screen.
-
-5. Decisions applied
-   OD-8 and ND-17 were not reopened. ND-16 is unchanged: a pathway chosen inside onboarding still does not write the draft, and the prior-goal id is not a draft. D-11: no backend change.
-
-6. Validation evidence
-   Frontend type-check: clean, including the production build.
-   ESLint on the changed files: clean.
-   Frontend Vitest: 180 passed / 23 files (was 173).
-   Frontend build: main JS 568.24 KB (167.73 KB gzipped), CSS 101.30 KB (17.71 KB gzipped). The chunk warning remains.
-   Playwright, both projects: generation.spec.ts, onboardingStates.spec.ts, and onboarding.spec.ts. 81 passed and 3 skipped, then the reduced-motion assertion was narrowed to the visible stage title (it had also matched the live region) and that test passed on desktop and mobile. Includes the reload recovery, Back during generation, v2, v1, silence, error, retry, and the M3.1 payload specs.
-   No live AI generate. No backend tests: no backend change.
-
-7. Carry-overs
-   Phase 5: currentGoalId === null still skips the check. The hook does not guess.
-   Phase 11: phone lock and wake, from the code, not from a device. The page does not listen for visibility changes, and create has no AbortController. If the tab stays in memory, the request continues. If the OS kills the tab, the reload finds the draft, and the next Build checks GET first.
-   Residual: two creates already in flight before either save finishes. A second mount in the same page load is blocked. A reload, a second tab, or a killed tab starts a new page load, so the flag is gone. If GET does not yet see the new goal, the next Build can send again. No second lock was added.
-
-8. Issues and risks
-   The prior-goal id lives in sessionStorage for the tab. It is cleared when a plan is created or recovered. It is not cleared when the user simply leaves onboarding, so a later Build in that tab still knows which goal was already active.
-   done still lands on the legacy /dashboard until Phase 5.
-
-9. Not started
-   Leave-mid-generation:
-
-   | Situation | Request | Draft | Previous goal | Next Build |
-   | Double click, same mount | one POST | kept until save | untouched until save | blocked by isCreating |
-   | Try again after server error, save did not happen | second POST | kept | untouched | GET first, then POST |
-   | Try again after server or offline, save did happen | no second POST; finishWithGoal | cleared | archived by that save | recovered |
-   | Reload during generation | browser aborts the fetch; server continues | kept if it existed | unchanged until save | GET first; a finished save is used |
-   | Browser Back during generation | continues | kept | untouched until save | stays on the generation screen |
-   | Navigate away (unmount), same tab | fetch continues | kept until finishWithGoal | untouched until save | a second mount does not send while the first is in flight |
-   | Close tab or kill tab | browser abort; server continues | kept | untouched until save | GET first on the next Build |
-   | Switch-goal Build | one POST; archive only on save | kept until save | the old id is not treated as the new plan | GET first, then POST |
-   | currentGoalId === null | check skipped | kept until save | unknown | create may still be sent |
-
-   M4.5 has NOT started.
-   Phase 5 — Today has NOT started.
-```
-
-### M4.5 regression matrix (2026-09-23)
-
-Every row was run in this milestone, or is cited from a test that still passes. Mocked Playwright is both projects (desktop 1440 and mobile 390): `generation.spec.ts`, `onboardingStates.spec.ts` and `onboarding.spec.ts`, 83 passed, 3 skipped, 0 failed. `generation.spec.ts --repeat-each=3`: 72 passed, 6 skipped (the 360 px checks on the mobile project), 0 failed, 0 flaky. Frontend Vitest is 180 passed / 23 files. Live AI generate was not run. The kickoff observations are reused where a live path is named: TED v2 custom completed, 10K took the v1 fallback and completed, sourdough ended in a custom error and saved no goal. A quota-forced v1 path is not a UI bug. No new accounts.
-
-| Check | Result | Evidence |
-|---|---|---|
-| R-2 preset create completes and lands on `/dashboard` | Pass | `generation.spec.ts` v2 stream opens `/dashboard`; `onboarding.spec.ts` landing pathway sends one create. Kickoff 10K create completed (v1) and was not re-run |
-| R-2 custom create completes, or fails honestly | Pass | `onboarding.spec.ts` custom body matches `create-custom-sourdough.json` and sends one create. Kickoff: TED custom completed on v2; sourdough failed after `search` and saved no goal. Not re-run |
-| R-4 mocked preset payload | Pass | `onboarding.spec.ts` landing and in-onboarding bodies match `create-run10k.json` |
-| R-4 mocked custom payload, including `"Skipped"` | Pass | `onboarding.spec.ts` matches `create-custom-sourdough.json` |
-| R-4 retried create, when GET finds nothing new, sends one body | Pass | `onboardingStates.spec.ts` failed build: two creates, the second body equals the first. Hook: server failure then retry calls active-goal, then one more create |
-| R-5 / R-7 done hands weeks and week-1 tasks to `onGoalCreated` | Pass | Hook: a create response's `roadmapWeeks` and `dailyTasks` are what `onGoalCreated` receives. The reload recovery uses the active-goal payload the mock returned |
-| R-6 v2: search, then method and plan, then done | Pass | `generation.spec.ts` v2: Choosing is Now before the method name; Building and whyChosen appear together; then `/dashboard` |
-| R-6 v1: search, then plan, then done | Pass | `generation.spec.ts` v1: no "Building your 90-day journey", Choosing becomes Done when plan arrives, then `/dashboard` |
-| R-6 custom error: search, then error | Pass | `generation.spec.ts` error after search stays on `/onboarding` with "We couldn't build your plan" |
-| OD-8 Understanding complete on entry | Pass | `StepGeneration.test.tsx`; `generation.spec.ts` reduced motion shows Understanding before the method |
-| OD-8 Choosing your method from search | Pass | `generation.spec.ts` v2 and the silence spec: Choosing is Now after search |
-| OD-8 Building only on method; omitted on v1; no invented name | Pass | `generation.spec.ts` v2 shows the fixture name and whyChosen; v1 and the error spec have a count of 0 for that stage and for the method name |
-| OD-8 Designing from plan; not marked done without plan | Pass | `generation.spec.ts` v2 Designing is Now after plan; the error spec Designing is not Done |
-| No "Search sources". No fake percentage. No timed fake stages | Pass | `generation.spec.ts` v2, v1, silence and error: "Search sources" count 0; silence asserts no "about N seconds left" |
-| Reduced motion: stages change without animation; labels stay visible | Pass | `generation.spec.ts` reduced motion: every stage opacity is 1; Understanding stays visible |
-| 20-second silence copy; N is seconds since this attempt | Pass | `generation.spec.ts` clock fast-forward 21s: the line is on Choosing, seconds ≥ 20, Designing does not contain it. `StepGeneration.test.tsx` reaches 20 then 23 |
-| An event with `slow: true` replaces the silence line | Pass | `StepGeneration.test.tsx`: one line, the event's seconds, on Designing; the status does not repeat "Still working". v1 fixture shows "Still working (88s)." once |
-| Server error and unsafe stay on the generation screen | Pass | `generation.spec.ts`: both use "We couldn't build your plan", Review your answers and Try again. Unsafe shows Achivii's sentence. No "Failed to fetch" |
-| Finished stages remain; the error sits beneath them | Pass | `generation.spec.ts` server error: Understanding is Done, Designing is not Done, the alert is present, Building is absent |
-| Try again: GET first, then one create, stages cleared | Pass | `generation.spec.ts` retry: the alert is gone, the method name is absent, Choosing is Now, then the method appears, `__achiviiCreates` is 2. Hook: a saved plan on the second GET sends no second POST |
-| Review your answers: review, draft kept | Pass | `generation.spec.ts` returns to "Before we build your path". `onboardingStates.spec.ts`: draft still set on the error, answers and schedule still on review, then one more create |
-| GET `/api/goal/active` before every create send | Pass | Hook: first Build with nothing saved calls active-goal once, then one create. Server-error and offline retries call it before the next send |
-| Matching already-saved plan: `finishWithGoal`, no POST | Pass | Hook: first Build with a new matching goal does not call create, clears the draft, and fires `onGoalCreated`. `onboardingStates.spec.ts` offline recovery: one create, then `/dashboard` |
-| The goal active when this tab first pressed Build is not the new plan | Pass | Hook: `currentGoalId` `'old'` and GET returning that id still sends create |
-| Double click, same mount: one POST | Pass | Hook. `onboarding.spec.ts` double click creates one goal |
-| Second mount, same page load, first still in flight: no second POST | Pass | Hook: a hanging create, then a second mount, does not send and does not enter generation |
-| Reload: request not resumed; next Build checks GET first | Pass | `onboardingStates.spec.ts` reload: heading "Building your path" is gone, draft kept, the next Build does not send a second create and opens `/dashboard`. Hook simulates the same with the prior id kept |
-| `currentGoalId === null` still skips the check | Pass | Hook: active-goal is not called; create may still be sent. Not changed |
-| R-16 draft kept until `finishWithGoal`; prior-goal id cleared with it | Pass | Hook: draft remains after a server error and is cleared on create and on recover. `finishWithGoal` removes `achivii_generation_prior_goal` with `achivii_draft_goal` |
-| R-18 Back during generation stays on the generation screen | Pass | `generation.spec.ts` `goBack`: URL stays `/onboarding`, heading stays "Building your path". Hook: `goToStep('review')` during generation stays on generation |
-| R-15 switch-goal: no DELETE; old id is not the new plan | Pass | `onboarding.spec.ts` switch opens onboarding without a create (desktop; mobile skip is the known project skip). Hook: the old id does not skip create. Archive timing is unchanged because the backend was not edited. No DELETE was added |
-| Leave mid-generation matches the M4.4 matrix | Pass, with the residual named there | Same-mount double click, Try again, recover-after-save, reload, Back, second mount, switch-goal and the `null` skip are the rows above. Close or kill tab is the reload case: the browser aborts the fetch, the server is not given an abort, the draft stays, the next Build checks GET. No `AbortController` was added |
-| ND-17 frontend TED title matches `ted_speech_15min` | Pass | `backend/test/presetMatch.test.ts`. Stored goals were not rewritten. Frontend titles, ids and slugs were not edited |
-| Readable at 1440, 390 and 360 | Pass | Projects are 1440 and 390. `generation.spec.ts` generating and error screens at 360: overflow ≤ 1 px. Stages and the error title stay on screen |
-| Phone lock | Documented from the code. Not an on-device check | No visibility listener. No `AbortController`. A tab that stays in memory continues the request. A killed tab is the reload row. Phase 11 owns the device |
-| Generation screen: heading, own `main`, live region, reduced motion, keyboard to the two actions | Pass | The screen's `h1` is "Building your path"; with stages showing, the error title is an `h2`. `main#main` is the axe root. The status region is polite. Reduced-motion and Tab through Review your answers and Try again are in `generation.spec.ts` |
-| axe on the generation screen at 1440, 390 and 360 | Pass | `generation.spec.ts` generating and error screens: axe on `#main` at 1440 and 390, and on the same screens after the viewport is set to 360. WCAG 2.2 AA tags. 0 violations |
-| Navbar, `/dashboard` and `/roadmap` findings | Not fixed | Left for Phase 5 and Phase 6 |
-
-### M4.5 report — Regression and phase report (2026-09-23)
-
-```text
-1. Outcome
-   The generation screen was proved against the Phase 4 checks and written up.
-   No generation feature was added.
-   Phase 4 milestones have been delivered and are awaiting Mo's review.
-   Phase 4 is NOT marked COMPLETE.
-   Phase 5 — Today has NOT started.
-
-2. What changed
-   The two 360 px generation checks now also run axe on #main.
-   No production code changed. No dead generation code was removed.
-   docs/phases.md gained this matrix, the close-out sections and the Phase 4 report.
-   docs/decisions.md index line now says Phase 4 is awaiting Mo and Phase 5 is blocked by OD-3, OD-9 and ND-7.
-   OD-8 and ND-17 stay Decided. Those three Phase 5 decisions stay Open.
-
-3. Files changed / created / removed
-   Changed:
-   - frontend/e2e/generation.spec.ts
-   - docs/phases.md
-   - docs/decisions.md
-   Created: none.
-   Removed: none.
-   No backend file changed. payload.ts was not changed.
-
-4. Functionality preserved
-   R-2, R-4, R-5, R-6, R-7, R-15, R-16 and R-18 pass in the matrix above.
-   OD-8 and ND-17 still hold.
-   GET /api/goal/active still runs before every create.
-   The overlapping in-flight case is still only documented.
-
-5. Decisions applied
-   OD-8 A amended and ND-17 A, already shipped. No decision changed status.
-   OD-3, OD-9 and ND-7 were not decided.
-
-6. Validation evidence
-   Frontend production build (includes tsc): exit 0. JS 568.24 KB (167.73 KB gzipped), CSS 101.30 KB (17.71 KB gzipped).
-   ESLint on the generation files: clean. api.ts keeps five pre-existing any errors. Full lint: 30 errors, 4 warnings.
-   Frontend Vitest: 180 / 23. Backend Vitest: 229 / 20.
-   Playwright: 83 passed, 3 skipped. `generation.spec.ts --repeat-each=3`: 72 passed, 6 skipped (the 360 px checks on the mobile project), 0 failed, 0 flaky.
-   No live generate. No new accounts.
-
-7. Carry-overs
-   See "Carry-overs (owned by later phases)" above.
-   currentGoalId === null → Phase 5.
-   Overlapping in-flight creates → residual, no second lock.
-   Phone lock on a device → Phase 11.
-   done → /dashboard → Phase 5 / OD-3.
-   Catalogue fields as the method → Phase 12.
-
-8. Issues and risks
-   The bundle is still over Vite's 500 KB warning.
-   A second Build from a new page load, before the first save is visible to GET, can still create a second goal.
-   done still drops onto the legacy dashboard.
-
-9. Not started
-   Phase 5 — Today has NOT started.
-   OD-3, OD-9 and ND-7 are still Open.
-   Nothing was committed.
-```
-
-### Phase 4 report (2026-09-23)
-
-```text
-ACHIVII REDESIGN — PHASE 4 REPORT
-
-1. Outcome
-   Building a path now shows only stages the system is really doing: understanding
-   is already done, a method appears only when one was chosen, and the first steps
-   wait for the plan. If it takes more than 20 seconds, the screen says so. If it
-   fails, the same screen says so, and the answers are still there. Pressing Build
-   again does not create a second goal when the server already saved one.
-   done still opens the existing dashboard. Today was not opened.
-   Phase 4 milestones have been delivered and are awaiting Mo's review.
-   Phase 4 is NOT marked COMPLETE.
-
-2. What changed
-   StepGeneration, outside the onboarding shell, lists the OD-8 stages from
-   generationStages.ts. The method name and whyChosen come only from the method
-   event. v1 omits that stage. Silence uses the same 20-second rule as the server,
-   on the client clock, with no new event and no percentage. Errors, including an
-   unsafe goal, stay on that screen. Every Build checks the active goal first.
-   The speech preset now matches the frontend TED title.
-
-3. Files changed / created / removed
-   Across M4.1–M4.5. Created: frontend/src/components/onboarding/generationStages.ts,
-   StepGeneration.test.tsx, frontend/e2e/fixtures/generation/ (v2-success, v1-fallback,
-   custom-error). Changed: StepGeneration.tsx, useOnboardingState.ts and its test,
-   OnboardingWizard.tsx (generation branch), generation.spec.ts, onboardingStates.spec.ts,
-   mockApi.ts, backend/src/lib/ai/presets/speech.ts (one matching pattern, M4.2),
-   backend/test/presetMatch.test.ts, Design.md, docs/decisions.md, docs/phases.md.
-   payload.ts was not changed. No route, schema, or save function was changed.
-
-4. Functionality preserved
-   R-2 preset and custom create still complete, or fail with Achivii's own sentence.
-   R-4 bodies still match the M3.1 fixtures, including a retry.
-   R-5 / R-7 the created goal still carries weeks and week-1 tasks into onGoalCreated.
-   R-6 the three orders still render: v2, v1, and search then error.
-   R-15 a switch does not delete the current goal, and that goal is not treated as the new plan.
-   R-16 the draft is cleared only when a plan is created or recovered.
-   R-18 Back during generation stays on the generation screen.
-   Verified in the M4.5 matrix.
-
-5. Decisions applied
-   OD-8 A amended, logged at M4.1, built in M4.2 and M4.3. Stream labels unused.
-   ND-17 A, logged at M4.1, implemented in M4.2. ND-16 unchanged: the prior-goal id
-   is not a draft. D-11: the only backend change in the phase is the speech pattern.
-   OD-3, OD-9 and ND-7 stay Open and block Phase 5.
-
-6. Validation evidence
-   See "Verification evidence" above and the M4.5 matrix.
-   Type-check and production build pass. Frontend Vitest 180 / 23. Backend Vitest 229 / 20.
-   Mocked Playwright 83 passed, 3 skipped. `generation.spec.ts --repeat-each=3`: 72 passed, 6 skipped (the 360 px checks on the mobile project), 0 failed, 0 flaky.
-   Live generate was not repeated. Kickoff: TED v2 custom, 10K v1, sourdough error.
-   axe on the generation screen at 1440, 390 and 360. Phone lock is from the code.
-
-7. Carry-overs
-   See "Carry-overs (owned by later phases)" above.
-
-8. Issues and risks found
-   The id search still names no search. That is accepted (OD-8); the label was not changed.
-   A reload or a second tab before the save is visible can still send a second create.
-   done still lands on /dashboard. That drop is real.
-
-9. Not started
-   Phase 5 — Today has NOT started.
-   Phase 4 is NOT marked COMPLETE.
-```
+* Missing environment variables during local test runs (mitigate with mockable defaults in `stripe.ts`).
 
 ---
 
-## PHASE 5 — TODAY
+## PHASE 1 — Server-Side Active Goal Limit & Multi-Goal Architecture
 
-**Status:** `COMPLETE` (M5.1–M5.9 done 2026-09-25, awaiting Mo's review).
+**Status:** `NOT STARTED`
 
-**Source:** BP §08–09, §15–18, §23, §26–27, §31–32, §41, §43–46, §48, OD-3, OD-9, ND-7, ND-18 · VDS §9, §14, §20, §24–26, §28
+**Source:** FD §6, §14, §20, §30, §32 · RULE-1, RULE-2, RULE-3, RULE-4, RULE-5, RULE-7 · AC-1, AC-2, AC-7
 
-**Objective:** build the central execution experience. On opening Achivii, the user knows what to do today within seconds.
+**Objective:** Enforce the 1-active-goal limit on the free tier within the backend API, enable concurrent active goals for Pro subscribers without automatic archiving, and support multi-goal retrieval.
 
-**Narrative line:** *"Here's your next step."* ("Always bring the user back to the next step", BP §48.)
+**Narrative line:** *"One journey for everyone; multiple horizons for Pro."*
 
 ### Current state
 
-* **Generation handoff (from Phase 4):** on `done`, `OnboardingPage` `handleGoalCreated` calls `setActiveGoal(goal)` then `navigate('/dashboard')`. `ProtectedRoute` also sends a signed-in user who has an active goal from `/onboarding` to `<Navigate to="/dashboard" replace />`, unless the router state is an explicit goal selection (`presetGoal`, `draftGoal`, `switchGoal`, `customGoal` or `isPreset`). Every Build checks `GET /api/goal/active` before create. `OnboardingPage` passes `currentGoalId={goalLoadFailed ? null : activeGoal?.id}`; `null` skips that check (the goal-load error state is this phase's). There is no Today screen, and generation does not pretend to land on one. Post-auth (`resolvePostAuthDestination`, ND-4) lands an active goal on `/`, not `/dashboard`.
-* **Two dashboards (line counts at the Phase 5 kickoff, 2026-09-23):**
-  * `/` signed-in: the simplified dashboard inside `Home.tsx` (586 lines, including the signed-out landing branch). **Since M5.3:** `components/today/Today.tsx` for a signed-in user with a goal, from `lib/today.ts` and `useTaskActions`; `Home.tsx` keeps the landing, the no-goal pathway invitation and the loading skeleton.
-  * `/dashboard`: `DashboardPage.tsx` (26 lines) → `ExecutionDashboard.tsx` (1,228 lines).
-  * The shell's "Today" points to `/` and is marked current on both `/` and `/dashboard` (OD-3; the Navbar did the same until M5.2).
-* **"Today" is a UTC date** (`new Date().toISOString().split('T')[0]`) in both dashboards. `lib/dateUtils.ts` is unused by either. Tasks come from `currentWeek` only. Selection is the chosen id, else that UTC date, else the first pending task, else the first task. The day counter is calendar days until `targetDate`, clamped at 1–90.
-* **What each dashboard shows.** `Home` shows the goal title, the day counter, the session title and duration, steps (number, title, duration, instructions, focus cue), notes, focus, the pathway strip, and links to `/roadmap` and `/dashboard`. It does not show `isKeySession`, `isTestDay`, `whyToday`, pass mark, pitfall, output, `minimumVersion`, resources or `BasisBadge`, and it has no weekly review. `ExecutionDashboard` shows those fields when the task has them, `BasisBadge` when `goal.basis.label` is set, `PlanV2Panel` when `planVersion === 2` and `roadmap` is set, the routine visualiser, focus, the challenge widget, the pathway strip and Week Review. `onResetGoal` is accepted and never called.
-* **Supporting components:**
-  * `FocusSessionModal.tsx` (648 lines). The timer lives in component state. The task is written only on "Save & Return to Dashboard".
-  * `StepChallengeWidget.tsx` (429 lines). Progress is component state and is **not persisted** (BP §43). `inferStepChallenge` invents a challenge when none is stored.
-  * `FullDayVisualizer.tsx` (245 lines). The header nests a Focus button inside a button.
-  * `DayRoutineTimeline.tsx` (154 lines). Imported by nobody.
-  * `BasisBadge.tsx` (25 lines). Rendered only from `ExecutionDashboard`, and only when `basis.label` is set.
-  * `PlanV2Panel.tsx` (157 lines). Rendered only from `ExecutionDashboard` for a v2 goal that has a roadmap.
-  * `SaaSBuilderModal.tsx` (758 lines). Imported by nobody. Phase 12 owns it (section 6).
-* **App navigation:** at the kickoff, `Navbar.tsx` (270 lines) plus a footer that was only the copyright line, rendered in `App.tsx` for every screen that is not chromeless. **Since M5.2:** `components/app/AppShell.tsx` (ND-7). The rail (lg and up) or the bottom bar (below lg) on signed-in screens; a minimal top bar on onboarding and generation; nothing on the landing, auth and `/__ui` screens. `Navbar.tsx` and the footer are removed.
-* **Task data (`DailyTask`):** matches the Prisma model. `title`, `detailedSteps` (JSON string of steps: instructions, output, doneWhen/passMark, focusCue, pitfall, timing, resource fields), `implementationIntention`, `durationMinutes`, `slotTime`, `whyToday`, `minimumVersion` (the 10-minute step), `isRestDay`, `isKeySession`, `isTestDay`, `status` (`pending`, `completed`, `skipped`; no UI sets `skipped`), `completedAt`, `notes`, `resourceTitle`, `resourceUrl`, `resourceType`, `resourceWhy`.
-* **Writes:** `PATCH /api/goal/tasks/:taskId` accepts `status`, `notes` and `slotTime`. Both dashboards send only `status` and/or `notes`. The server sets `completedAt` when status becomes `completed` and clears it when status returns to `pending`. `Home`'s `handleSaveNotes` did not update the in-memory goal, so a later completion from `ExecutionDashboard` could send `notes: null` and clear a note saved on `/`. Since M5.3, every Today write puts the server's task into `GoalContext`; the dashboard's own note save still does not (section 6).
-* **Goal load:** a failed fetch sets `activeGoal` to null and `goalLoadFailed` to true. `refreshGoal` is never called. `Home` does not read `goalLoadFailed`, so a failed fetch looks like no goal. `ProtectedRoute` with `requireGoal` sends any missing goal to `/onboarding` and does not check `goalLoadFailed`.
-* **Weekly review:** only the Week Review button on `/dashboard`, and it is always available. `POST /api/goal/weeks/:weekNumber/review`. On a v2 plan, a failed next-week write returns 503 ("Couldn't write next week right now. This week is unchanged; please try again.") before any write.
-* **Reset and switch:** "Reset 90-Day Plan" (the Navbar until M5.2; the shell's Account menu since, with a Dialog confirm instead of `window.confirm`) calls `DELETE /api/goal/active` (a real delete) and then opens `/onboarding`. "Switch to this pathway" in the explorer does not delete; the current goal is archived only inside a successful save.
+* `backend/src/routes/goal.ts`: `saveV2Goal` and `saveV1PresetGoal` call `archiveActiveGoals(userId)` unconditionally, forcing all users to have at most 1 active goal by archiving prior ones.
+* `POST /api/goal/create`: Does not inspect user's plan or count active goals.
+* `GET /api/goal/active`: Fetches only the first active goal found.
 
-### Decisions (Mo, 2026-09-23, M5.1)
+### Decisions required before starting
 
-* **OD-3 — Decided (A).** Today lives at `/` for signed-in users, built from `ExecutionDashboard`'s capabilities, in the BP §09 hierarchy. The signed-out landing stays at `/`. `/dashboard` redirects to `/`, keeping query and hash. These change together in M5.8, not before: `OnboardingPage` `navigate('/dashboard')`, `ProtectedRoute`'s `<Navigate to="/dashboard">`, Home "Open Full Day View", Roadmap "Back to Today", and every Playwright assertion that lands on `/dashboard`. `safeNext('/dashboard?…#…')` keeps working through the redirect. Until M5.8, `/dashboard` keeps working exactly as today.
-* **OD-9 — Decided (A amended).** Every row in the state matrix below. No Phase 5 backend change. Rows that wait on OD-1a, OD-1b or OD-2 say so in the matrix.
-* **ND-7 — Decided (A, narrowed).** Desktop: a restrained left rail. Mobile: a bottom bar. At Phase 5 ship: Today (`/`), Roadmap (the existing `/roadmap`, named "Roadmap", not "Journey"), Pathways (the existing explorer, no hard-coded count), Account (a menu: email, Reset 90-Day Plan with its confirm, Sign out). Progress is omitted until Phase 8. Coach ✦ is omitted until Phase 10. No empty page and no "coming soon" page. The offline indicator lives in the shell. The signed-in footer is removed. Onboarding and generation keep a minimal top bar (wordmark and the Account menu with Sign out), not the rail or the bottom bar. Switch goal stays in the explorer (R-15). Skip link, 44 px targets and no 360 px overflow are part of the shell.
-* **ND-18 — Decided (A).** Today's heading is `rawGoal`. The stored `clarifiedOutcome` is shown beneath it, exactly as stored. The frontend does not hide or rewrite it. `saveV2Goal` overwriting `clarifiedOutcome` with `roadmap.finalGoal` is a backend issue in section 6.
-
-### State matrix
-
-| State | Trigger in code | Treatment (intent) | Data used | Waits on | How it is produced for validation (no DB writes) | Milestone |
-|---|---|---|---|---|---|---|
-| Loading | `GoalContext` `loadingGoal` while `GET /api/goal/active` is in flight | Calm skeleton in the Today layout | None yet | — | Playwright delays `/api/goal/active` | M5.3 |
-| No active goal | Fetch succeeded, `activeGoal` null, `goalLoadFailed` false | Invite the user to choose a pathway | — | — | Mock `activeGoal: null`, or the existing no-goal kickoff account | M5.3 |
-| Goal-load error | `goalLoadFailed` true and `activeGoal` null | Its own state, with retry (`refreshGoal`). Not the empty gallery. `ProtectedRoute` does not send it to onboarding. While the load failed, Build does not send a create: show the error and retry first. This closes the `currentGoalId === null` hole | The failed fetch | — | Playwright answers `GET /api/goal/active` with an error. A real account is not required | M5.7 |
-| Practice day | Pending task for today's UTC date in `currentWeek` | BP §09 hierarchy, with Start. Heading is `rawGoal` (ND-18); `clarifiedOutcome` sits beneath, as stored | `DailyTask` title, duration, steps; `rawGoal`; `clarifiedOutcome` | — | Mock a week whose task date is today, or the Phase 5 kickoff goal on a pending day | M5.3 |
-| Key session | That task's `isKeySession` | The same hierarchy, marked as the week's key session | `isKeySession` | — | Mock today's task with `isKeySession: true`. The kickoff week already has a key day; waiting until that date also reaches it | M5.7 |
-| Test day | That task's `isTestDay` | Show the week's test and `passIf`. No result field and no stored score | `isTestDay`, `RoadmapWeek.test` | OD-1a (Phase 7) for a result | Mock today's task as `isTestDay` with a week test. No score is written | M5.7 |
-| Rest day | That task's `isRestDay` | Rest as part of the plan, and a glance at the next step | `isRestDay`, the next task | — | Mock today's task as a rest day | M5.7 |
-| Short on time | The task has `minimumVersion` | A clearly offered reveal on the step ("the 10-minute version"). Not hidden and not forced. The data is unchanged | `minimumVersion` | — | Mock or the kickoff v2 tasks, which already carry `minimumVersion`. Open the reveal in the test | M5.4 |
-| Done for today | Task `status` is `completed` | Quiet confirmation, the step lit, the next step previewed. No XP | `status`, `completedAt`, the next task | — | Complete through the UI on a throwaway account (a real PATCH), then reload. Mock can show the completed payload without a write | M5.6 |
-| Not completed yesterday | The previous day's task in this week is still `pending` | "Here's how we can recover." Never "missed". No rescheduling and no new data | The previous task's `status` | — | Mock yesterday's task `pending` and today's task `pending` | M5.7 |
-| Review due | The Week Review entry (R-12), emphasised once every task date in the week is before today | Reachable every day, as it is now. Emphasised after the week's days have passed. Phase 7 owns the screen | Task dates, `currentWeek` | — | The entry is asserted on an ordinary mocked week. The emphasis uses a mocked week whose dates are all in the past. Do not call the model | M5.7 |
-| Review failed | `POST /api/goal/weeks/:weekNumber/review` returns 503 | The server's sentence ("Couldn't write next week right now. This week is unchanged; please try again."), with retry. No second write | The 503 body | — | Playwright mocks that 503. Do not submit a real review | M5.7 |
-| After week 12 / days 85–90 | `currentWeek` is 12 and the calendar is past the planned days; the day counter clamps at 90 | No invented tasks and no final-stretch content. Copy does not say the goal is complete | `currentWeek`, the day counter, the week-12 tasks | OD-2 | Mock `currentWeek: 12` and task dates in the past. A real account cannot reach this without waiting or a database write; the mock covers it | M5.7 |
-| Completed goal | `Goal.status` `completed` is in the type. The server only uses `active` and `archived` | No screen in Phase 5 | — | OD-1b (Phase 9) | Not produced. There is nothing honest to show until the server can mark a goal complete | — |
-| API offline | `apiStatus === 'offline'` from the load-time health check, or a write fails because the backend is down | Say so. A failed write never looks successful. The one-time health check and the forced sign-out on reload stay as they are (section 6) | `apiStatus`; the failed PATCH | — | Playwright `healthDown`, or stop the backend on a loaded page and attempt a write. No database write | M5.7 |
+* None. (Decisions D-1, D-2, D-5 already established in FD §33).
 
 ### In scope
 
-* **The application shell and navigation** per ND-7, replacing `Navbar.tsx` and the app footer for signed-in screens.
-* **The Today hierarchy** (BP §09, §46): goal → Day N / 90 → today's step → duration → Start → progress glance → the way into the Journey.
-* **The daily session with progressive reveal** (BP §31):
-  * *What:* the title.
-  * *Why:* `whyToday`.
-  * *How:* the steps, with their instructions.
-  * *Done when:* `doneWhen` / `passMark`.
-  * *Focus cue*, *pitfall*, the resource with its reason, and the 10-minute version (`minimumVersion` is a reveal the user opens, not a step that is forced and not a step that is hidden).
-  * **None of this content is removed; it is revealed on demand.**
-* **Focus mode** (BP §32): the existing timer, fully functional, in a focused visual state.
-* **Completion interaction:** the step lights up, then the next step appears (VDS §20). Subtle; no XP explosion.
-* **Notes** (R-10).
-* **Every state from OD-9**, in encouraging language (BP §18).
-* **The basis badge**, restyled, showing the same data it shows today.
-* **Migration** of the Today-related components onto Phase 0 primitives.
+* Update `POST /api/goal/create` in `backend/src/routes/goal.ts`:
+  * Query count of currently active goals (`status === 'active'`) for `user.id`.
+  * If `user.plan === 'free'` and active count &ge; 1 (and request is not an explicit goal switch/archive), reject with HTTP 403 Forbidden and `{ error: 'GOAL_LIMIT_REACHED', code: 'PRO_REQUIRED' }` (RULE-1, RULE-7, AC-7).
+  * If `user.plan === 'pro'`, allow goal creation without calling `archiveActiveGoals` (RULE-3).
+* Support explicit goal replacement/switch parameter (`archivePrevious: true`) so free users can still cleanly replace their goal if desired (R-15).
+* Add `GET /api/goal/list` endpoint returning all active and completed goals for the authenticated user, allowing multi-goal clients to enumerate journeys.
+* Support optional query parameter `GET /api/goal/active?goalId=<id>` so Pro users can fetch a specific active goal.
+* Enforce Grace Mode logic: Downgraded users with &gt; 1 active goals retain all existing goals, but cannot create a new one until active count &lt; 1 (RULE-4, RULE-5).
 
 ### Out of scope
 
-* The Journey view (Phase 6), Weekly review (Phase 7) and Progress (Phase 8), beyond an entry point that follows ND-7.
-* Persisting challenge progress. `StepChallengeWidget` either stays as it is, clearly session-only, or is hidden. It must not look saved.
-* Notifications and reminders (BP §43).
+* Frontend switcher UI components (Phase 6).
+* Payment processing or checkout sessions (Phase 2).
 
 ### Backend allowance
 
-None.
+* Named: Modify `backend/src/routes/goal.ts` to enforce active goal limit on `POST /api/goal/create`.
+* Named: Condition `archiveActiveGoals` execution on user plan and switch intent.
+* Named: Add `GET /api/goal/list` and query filter on `GET /api/goal/active`.
 
 ### Files likely affected
 
-* `frontend/src/App.tsx`
-* `frontend/src/components/ProtectedRoute.tsx`
-* `frontend/src/components/Navbar.tsx` (replaced)
-* `frontend/src/pages/Home.tsx` (signed-in branch)
+* `backend/src/routes/goal.ts`
+* `backend/test/goalLimit.test.ts`
+* `frontend/src/lib/api.ts`
+
+### Milestones
+
+| ID | Milestone | Status | Details |
+|---|---|---|---|
+| **M1.1** | Active Goal Count Guard in Create API | `NOT STARTED` | Implement 403 `GOAL_LIMIT_REACHED` check in `POST /api/goal/create` for free users with &ge; 1 active goal. |
+| **M1.2** | Pro Multi-Goal Non-Archiving Logic | `NOT STARTED` | Bypass `archiveActiveGoals` when user plan is `'pro'`, allowing concurrent active goals. |
+| **M1.3** | Multi-Goal Retrieval & Active Goal Query Filter | `NOT STARTED` | Implement `GET /api/goal/list` and support `?goalId=` on `GET /api/goal/active`. |
+| **M1.4** | Grace Mode API Invariance Verification | `NOT STARTED` | Add comprehensive automated tests verifying that downgraded users keep existing goals and cannot add new ones. |
+
+### Regression checks
+
+* **R-2**: Goal creation for free users with 0 active goals must succeed smoothly.
+* **R-7**: Saving goals and retrieving active goals must remain fully functional.
+* **R-15**: Reset/switch goal flow must still archive previous goal when requested.
+
+### Mobile acceptance
+
+* N/A (Backend authorization and API layer).
+
+### Validation
+
+1. Send `POST /api/goal/create` for free user with 0 goals &rarr; HTTP 201 Created.
+2. Send `POST /api/goal/create` for free user with 1 active goal &rarr; HTTP 403 Forbidden with `GOAL_LIMIT_REACHED`.
+3. Set `user.plan = 'pro'`, send `POST /api/goal/create` &rarr; HTTP 201 Created, both goals remain `active`.
+4. `npm test --workspace=backend`
+
+### Exit criteria
+
+* Free users cannot bypass the 1-goal limit via direct API calls.
+* Pro users can hold multiple active goals concurrently in PostgreSQL.
+* Zero regressions on standard single-goal onboarding.
+
+### Risks
+
+* Existing tests assuming automatic archiving upon goal creation might fail (mitigate by explicitly testing both free replacement and Pro concurrent scenarios).
+
+---
+
+## PHASE 2 — Stripe Checkout & Webhook Pipeline
+
+**Status:** `NOT STARTED`
+
+**Source:** FD §3, §4, §10, §14, §20, §21, §25, §26 · RULE-6 · AC-3, AC-4, N-1
+
+**Objective:** Build secure server-side Stripe Checkout session generation and a robust, cryptographically verified webhook handler for subscription lifecycle synchronization.
+
+**Narrative line:** *"Seamless, secure payment with instant unlock."*
+
+### Current state
+
+* No billing routes or Stripe webhooks exist in `backend/src/routes/`.
+* `backend/src/index.ts` uses standard `express.json()` globally, which consumes request streams before Stripe raw body signature verification can run.
+
+### Decisions required before starting
+
+* None.
+
+### In scope
+
+* Add raw body buffer middleware in `backend/src/index.ts` scoped strictly to `/api/billing/webhook`.
+* Create `backend/src/routes/billing.ts` with router mounted at `/api/billing`:
+  * `POST /api/billing/create-checkout-session`:
+    * Accepts `{ interval: 'monthly' | 'annual' }`.
+    * Checks authenticated user.
+    * Finds or creates `stripeCustomerId` in Stripe for user.
+    * Creates `stripe.checkout.sessions.create` with `mode: 'subscription'`, line items with corresponding Price ID, metadata `{ userId: user.id }`, `success_url`, `cancel_url`.
+    * Returns `{ url: session.url }`.
+  * `POST /api/billing/webhook`:
+    * Verifies `stripe-signature` using `STRIPE_WEBHOOK_SECRET` and raw request body.
+    * Handles `checkout.session.completed`: Updates `User` plan to `'pro'`, records `stripeCustomerId`, `stripeSubscriptionId`, `subscriptionStatus = 'active'`, `currentPeriodEnd`.
+    * Handles `customer.subscription.updated`: Updates renewal dates, interval changes, `cancelAtPeriodEnd`.
+    * Handles `customer.subscription.deleted`: Sets `plan = 'free'`, `subscriptionStatus = 'canceled'`.
+    * Handles `invoice.payment_failed`: Sets `subscriptionStatus = 'past_due'`.
+  * `GET /api/billing/sync-status`: Fallback sync endpoint for client success page to verify active subscription directly.
+
+### Out of scope
+
+* Frontend Upgrade Modal (Phase 4).
+* Customer Portal session endpoint (Phase 3).
+
+### Backend allowance
+
+* Named: Create `backend/src/routes/billing.ts`.
+* Named: Mount raw body handler and billing router in `backend/src/index.ts`.
+* Named: Update `User` subscription fields via Prisma upon webhook receipt.
+
+### Files likely affected
+
+* `backend/src/index.ts`
+* `backend/src/routes/billing.ts`
+* `backend/src/lib/stripe.ts`
+* `backend/test/billingWebhook.test.ts`
+
+### Milestones
+
+| ID | Milestone | Status | Details |
+|---|---|---|---|
+| **M2.1** | Express Raw Body Parser & Webhook Route Mounting | `NOT STARTED` | Configure raw body capture on `/api/billing/webhook` before global JSON middleware in `index.ts`. |
+| **M2.2** | Stripe Checkout Session Endpoint | `NOT STARTED` | Implement `POST /api/billing/create-checkout-session` validating interval and creating Stripe session. |
+| **M2.3** | Webhook Cryptographic Verification & Event Handler | `NOT STARTED` | Implement `POST /api/billing/webhook` handling checkout completion, subscription updates, and deletions. |
+| **M2.4** | Fallback Sync Endpoint & Idempotency Testing | `NOT STARTED` | Implement `GET /api/billing/sync-status` and author Vitest suite simulating signed Stripe events. |
+
+### Regression checks
+
+* **R-1**: Authentication routes must remain unaffected by raw body middleware.
+* **R-20**: Webhook cryptographic signature verification must reject forged headers.
+
+### Mobile acceptance
+
+* N/A (Backend payment pipeline).
+
+### Validation
+
+1. Trigger checkout session creation via test API call &rarr; returns valid Stripe Checkout URL.
+2. Dispatch mock `checkout.session.completed` signed event &rarr; user record in database updates to `plan: "pro"`.
+3. Dispatch mock `customer.subscription.deleted` &rarr; user record updates to `plan: "free"`.
+4. `npm test --workspace=backend`
+
+### Exit criteria
+
+* Server successfully creates valid Stripe checkout sessions.
+* Webhook cryptographically validates and correctly transitions user subscription status in database.
+* Replayed or forged webhooks are rejected with 400.
+
+### Risks
+
+* Express body-parser conflict if raw buffer is not properly isolated from global JSON parser (mitigate with path-specific middleware in `index.ts`).
+
+---
+
+## PHASE 3 — Customer Portal & Billing Management API
+
+**Status:** `NOT STARTED`
+
+**Source:** FD §3, §10, §11, §20 · AC-5 · decisions.md
+
+**Objective:** Implement server-side generation of authenticated Stripe Customer Portal sessions and subscription status query endpoints for self-service billing management.
+
+**Narrative line:** *"Total control over your membership, always."*
+
+### Current state
+
+* Users have no way to access Stripe billing controls, update credit cards, download tax invoices, or cancel subscriptions.
+
+### Decisions required before starting
+
+* None.
+
+### In scope
+
+* Add `POST /api/billing/create-portal-session` to `backend/src/routes/billing.ts`:
+  * Requires authenticated user.
+  * Verifies user has a valid `stripeCustomerId`.
+  * Creates `stripe.billingPortal.sessions.create` with return URL to user account settings (`/settings`).
+  * Returns `{ url: portalSession.url }`.
+* Add `GET /api/billing/status` to `backend/src/routes/billing.ts`:
+  * Returns `{ plan, subscriptionStatus, currentPeriodEnd, cancelAtPeriodEnd, interval }`.
+* Provide clear error handling if a user without a Stripe customer record requests portal access.
+
+### Out of scope
+
+* Frontend Settings billing section (Phase 5).
+
+### Backend allowance
+
+* Named: Add portal session creation and status endpoints in `backend/src/routes/billing.ts`.
+
+### Files likely affected
+
+* `backend/src/routes/billing.ts`
+* `backend/test/billingPortal.test.ts`
+* `frontend/src/lib/api.ts`
+
+### Milestones
+
+| ID | Milestone | Status | Details |
+|---|---|---|---|
+| **M3.1** | Customer Portal Session Endpoint | `NOT STARTED` | Implement `POST /api/billing/create-portal-session` with user customer validation and return URL. |
+| **M3.2** | Subscription Status Query Endpoint | `NOT STARTED` | Implement `GET /api/billing/status` returning authoritative plan metadata. |
+| **M3.3** | Portal API Test Coverage | `NOT STARTED` | Author unit tests verifying portal session generation for valid customers and clean rejection for non-paying users. |
+
+### Regression checks
+
+* **R-1**: Authentication guard on portal session endpoint must prevent unauthenticated access.
+
+### Mobile acceptance
+
+* N/A (Backend API layer).
+
+### Validation
+
+1. Call `POST /api/billing/create-portal-session` for a user with `stripeCustomerId` &rarr; returns valid portal session URL.
+2. Call `POST /api/billing/create-portal-session` for user without `stripeCustomerId` &rarr; returns 400 Bad Request with descriptive message.
+3. `npm test --workspace=backend`
+
+### Exit criteria
+
+* Pro subscribers can request a single-use Customer Portal URL.
+* API returns complete subscription details without exposing secret keys.
+
+### Risks
+
+* Stripe Portal configuration uninitialized in Stripe Dashboard (mitigate by documenting configuration checklist in README/setup notes).
+
+---
+
+## PHASE 4 — Frontend Upgrade Modal, Pricing UI & Entry Points
+
+**Status:** `NOT STARTED`
+
+**Source:** FD §3, §4, §5, §8, §16, §17, §18 · UX-1 · RULE-1 · AC-2, AC-3
+
+**Objective:** Build a responsive, accessible Upgrade / Pricing Modal featuring Monthly and Annual plan options, feature comparisons, and seamless checkout redirection, and intercept limit triggers across the application.
+
+**Narrative line:** *"Unlock unlimited deliberate practice when you're ready."*
+
+### Current state
+
+* Clicking "+ New Goal" or navigating to `/onboarding` allows creating another goal without any limit prompts.
+* Navigation bar (`Navbar.tsx`, `AppRail.tsx`, `AppBottomBar.tsx`) has no Pro badge or upgrade CTA.
+* `PathwaysExplorerModal.tsx` has no tier-awareness.
+
+### Decisions required before starting
+
+* None.
+
+### In scope
+
+* Create `frontend/src/components/billing/UpgradeModal.tsx`:
+  * Built using Radix Dialog (`Dialog`, `DialogContent`).
+  * Monthly vs Annual billing toggle with animated indicator and *"Save 20%"* emerald badge.
+  * Plan feature comparison checklist:
+    * *"Unlimited concurrent 90-day deliberate practice goals"*
+    * *"Full Golden Rail AI deep research pipeline"*
+    * *"Weekly AI adaptations and benchmark evaluations"*
+    * *"Zen focus timer & circadian routine visualizer"*
+    * *"Self-service billing & priority support"*
+  * Clear pricing typography (e.g. $12/month vs $99/year) with tabular numerals (`tabular-nums font-mono`).
+  * Primary CTA: *"Proceed to Secure Checkout"* with loading spinner state and double-click prevention.
+  * Secondary dismiss affordance: *"Continue with 1 Free Goal"*.
+* Intercept goal creation triggers:
+  * When a free user (`user.plan === 'free'` or `!isPro`) with &ge; 1 active goal clicks "+ New Goal" in Dashboard or Navbar, open `UpgradeModal` instead of navigating to onboarding (`ENTRY-1`, AC-2).
+* Add Pro badge & Upgrade CTA to navigation:
+  * If `isPro`: Display glowing emerald "PRO" pill badge in `Navbar.tsx` and mobile navigation.
+  * If free: Display discrete "Upgrade" CTA button in `Navbar.tsx` (`ENTRY-2`).
+* Integrate `createCheckoutSession` API call in `frontend/src/lib/api.ts` and handle redirect to `session.url`.
+
+### Out of scope
+
+* Stripe Elements or custom in-app credit card fields (100% delegated to hosted Stripe Checkout).
+* Settings billing tab (Phase 5).
+
+### Backend allowance
+
+* None. (Frontend UI and client API integration only).
+
+### Files likely affected
+
+* `frontend/src/components/billing/UpgradeModal.tsx` (new)
+* `frontend/src/components/billing/PricingCard.tsx` (new)
+* `frontend/src/components/app/Navbar.tsx`
+* `frontend/src/components/app/AppRail.tsx`
+* `frontend/src/components/app/AppBottomBar.tsx`
 * `frontend/src/pages/DashboardPage.tsx`
-* `frontend/src/components/ExecutionDashboard.tsx` (decomposed)
-* `frontend/src/components/FocusSessionModal.tsx`
-* `frontend/src/components/StepChallengeWidget.tsx`
-* `frontend/src/components/DayRoutineTimeline.tsx`
-* `frontend/src/components/FullDayVisualizer.tsx`
-* `frontend/src/components/BasisBadge.tsx`
-* `frontend/src/lib/formatters.ts`, `frontend/src/lib/dateUtils.ts`
-* new `frontend/src/components/app/*` and `frontend/src/components/today/*`
+* `frontend/src/lib/api.ts`
+* `frontend/src/components/billing/UpgradeModal.test.tsx`
 
 ### Milestones
 
-| ID | Milestone |
-|---|---|
-| M5.1 | **Done** (2026-09-23). OD-3, OD-9, ND-7 and ND-18 decided. State matrix written. The mobile generation-reload spec waits on the create request. The slow line keeps counting after a slow event |
-| M5.2 | **Done** (2026-09-23). Application shell and navigation (ND-7): the rail on desktop, the bottom bar on mobile, the onboarding top bar, Account with the Reset confirm, the offline chip, the skip link and one `main#main` per screen. `Navbar.tsx` and the footer removed |
-| M5.3 | **Done** (2026-09-24). Today at `/` for the normal practice day, from `lib/today.ts` (task choice, day counter, UTC date rule) and one write path (`useTaskActions`) that puts the server's task into `GoalContext`. Heading is `rawGoal` (ND-18). The note wipe from `/` is closed. "Explore Goals (10)" and the strip left Today |
-| M5.4 | **Done** (2026-09-24). Daily session with progressive reveal (every field preserved). The 10-minute version is a reveal the user opens. The extra period after `passIf` is fixed |
-| M5.5 | **Done** (2026-09-25). Focus mode redesigned; timer behaviour identical. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget restyled. Reflection reliably captured into notes; write errors surfaced with retry; Space/Esc shortcuts and 0 axe violations |
-| M5.6 | **Done** (2026-09-25). Completion interaction, step lighting, next step preview, and notes redesign. Completed step illuminated with calm botanical highlight (VDS §20, OD-9); next step preview card with day/duration/snippet; structured focus wins presentation alongside free-form practice notes; auto-save on blur and draft persistence across WeekGlance day switches |
-| M5.7 | **Done** (2026-09-25). Every remaining OD-9 state, including goal-load error on `/` with retry (`refreshGoal()`), route protection in `ProtectedRoute` and onboarding, rest day with adaptation explanation and next step preview glance, key session callout, test day benchmark card with `formatPassIf` and no fake inputs, non-punitive yesterday recovery card, review due card, review 503 error handling, clamped Day 90 / after week 12, offline banner and visible failed writes |
-| M5.8 | **Done** (2026-09-25). `/dashboard` redirects to `/`, keeping query and hash (OD-3). Onboarding `done` and `ProtectedRoute` point to `/`. Roadmap "Back to Today" points to `/`. Today embeds restyled `BasisBadge`, retires full day view link, and triggers `WeeklyReviewModal` directly (R-12). Redundant legacy dashboard components removed |
-| M5.9 | **Done** (2026-09-25). Full regression verification pass across all R-1 to R-18 checks, OD-9 state matrix walk (all 14 states), exit criteria audit, 0 axe violations, determinism verified (--repeat-each=2), Phase 5 regression matrix, and official Phase 5 report authored |
+| ID | Milestone | Status | Details |
+|---|---|---|---|
+| **M4.1** | UpgradeModal & Pricing Card Component | `NOT STARTED` | Build accessible dialog with Monthly/Annual toggle, feature list, and Radix primitives. |
+| **M4.2** | Stripe Checkout Initiation & Redirect | `NOT STARTED` | Wire "Proceed to Checkout" to `POST /api/billing/create-checkout-session` with loading feedback. |
+| **M4.3** | Goal Limit Interception in Dashboard & Navbar | `NOT STARTED` | Intercept "+ New Goal" actions when free user has 1 active goal, triggering UpgradeModal. |
+| **M4.4** | Navigation Pro Badge & Upgrade CTA | `NOT STARTED` | Add dynamic Pro pill or Upgrade button to `Navbar`, `AppRail`, and `AppBottomBar`. |
+| **M4.5** | Component Unit Tests & Accessibility Verification | `NOT STARTED` | Author Vitest tests for modal toggle, keyboard navigation, focus trap, and checkout trigger. |
 
 ### Regression checks
 
-R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
+* **R-2**: Free users with 0 active goals must reach onboarding normally without seeing the modal.
+* **R-18**: Onboarding navigation must remain fully functional.
 
 ### Mobile acceptance
 
-3.7 applies, plus:
-
-* "Today → Start → Complete → Progress" in the fewest taps (VDS §28).
-* Start is reachable with the thumb.
-* Focus mode is usable in portrait and landscape.
+* Verified at 390px and 360px viewports.
+* Pricing cards stack vertically.
+* Toggle buttons and checkout CTA have minimum 44×44px touch targets.
+* Dialog converts smoothly to bottom sheet on small viewports.
 
 ### Validation
 
-* Walk every OD-9 state; use seeded or adjusted development data where a state is hard to reach, and document how each was produced.
-* Complete, then reload.
-* Save a note, then reload.
-* Run the focus timer start to finish.
-* Stop the backend.
-* Keyboard-only pass.
-* Reduced motion.
+1. Sign in as free user with 1 goal &rarr; click "+ New Goal" &rarr; UpgradeModal appears.
+2. Toggle Monthly / Annual &rarr; price numbers and annual badge update cleanly.
+3. Click "Proceed to Secure Checkout" &rarr; button enters loading state, redirects to Stripe URL.
+4. `npm test --workspace=frontend`
 
 ### Exit criteria
 
-* One Today screen.
-* Every DailyTask field that was visible before is still reachable.
-* Every OD-9 state has a designed treatment.
-* No navigation item leads to an empty page.
+* Free users hitting the 1-goal limit are smoothly prompted with the Upgrade Modal.
+* Checkout redirection works without console errors or race conditions.
+* Pro subscribers display the "PRO" badge in navigation.
 
 ### Risks
 
-* Losing session content in the name of minimalism (BP §31 warns against this).
-* Dashboard decomposition breaking completion or notes.
-* OD-3 redirect changes breaking deep links.
+* Pop-up blocker intercepting `window.location.href` (mitigate by redirecting in the same window/tab).
 
-### M5.1 report — Decisions, state matrix, two Phase 4 follow-ups (2026-09-23)
+---
 
-```text
-1. Outcome
-   OD-3, OD-9, ND-7 and ND-18 are Decided and match this section.
-   The Phase 5 state matrix is written. Each row says how it will be produced.
-   The milestone table carries the amendments.
-   The mobile generation-reload spec is green. The still-working line keeps
-   counting after a slow event, still as one line.
-   M5.2 has NOT started.
-   No Today UI, shell or redirect was implemented.
+## PHASE 5 — Settings Billing Tab, Checkout Return & Grace Mode
 
-2. What changed
-   Part A is documentation. The four decisions, the state matrix, the amended
-   milestones and the section 6 rows are recorded. Nothing on screen changed
-   for Today.
-   Part B is two follow-ups on the generation handoff, and nothing else in
-   generation.
-   B1. The heading "Building your path" is shown when the step becomes
-   generation, and that happens before GET /api/goal/active returns and before
-   POST /api/goal/create is sent. The spec read calls.create at that moment.
-   On mobile the POST had not been recorded yet, so the length was 0. Desktop
-   was fast enough that the same assertion passed. Separately, the helper's
-   click scrolled the "45 min" label only to the bottom edge, where the sticky
-   step footer covers the hit target. Other mobile runs reach that control, so
-   the user can still scroll to it. The spec now waits until the create request
-   and the active-goal GET are recorded, and the helper scrolls the label to
-   the centre before the click. No production code was changed.
-   B2. Before: a slow event fixed the seconds at Math.round(elapsedMs / 1000)
-   and later client time was not added, so "Still working (132s)" stayed at
-   132 until done at about 181 seconds. After: the line continues from that
-   event's seconds plus whole client seconds since the event arrived, still
-   one line on the active stage. A later event with slow: false clears it and
-   the 20 seconds start again. Silence before any slow event is unchanged.
-   The polite status sentence is still said once, not on every tick.
+**Status:** `NOT STARTED`
 
-3. Files changed / created / removed
-   Changed:
-   - docs/decisions.md
-   - docs/phases.md
-   - Design.md (one sentence on the still-working line)
-   - frontend/src/components/onboarding/generationStages.ts
-   - frontend/src/components/onboarding/StepGeneration.tsx
-   - frontend/src/components/onboarding/StepGeneration.test.tsx
-   - frontend/e2e/generation.spec.ts
-   - frontend/e2e/onboardingFlow.ts
-   - frontend/e2e/onboardingStates.spec.ts
-   Created: none.
-   Removed: none.
-   No backend file changed. payload.ts was not changed. Home, ExecutionDashboard
-   and FocusSessionModal were not changed. Nothing was committed.
+**Source:** FD §3, §8, §9, §10, §14 · UX-3, UX-4, UX-5 · RULE-4, RULE-5 · AC-4, AC-5, AC-6
 
-4. Functionality preserved
-   The stages, the stream ids, the error layout, GET-before-create, the
-   sessionStorage prior-goal key and the M3.1 create bodies are unchanged.
-   Silence before a slow event still waits 20 seconds and counts from the
-   start of the attempt. A slow: false event still clears the line. The live
-   region still omits the ticking number. done still opens /dashboard.
-   Until M5.8, /dashboard keeps working exactly as today.
+**Objective:** Deliver the dedicated Billing & Subscription section in user settings, the celebratory post-checkout return view, and the non-punitive Grace Mode banner for downgraded users.
 
-5. Decisions applied
-   OD-3 Decided (A). OD-9 Decided (A amended). ND-7 Decided (A narrowed).
-   ND-18 Decided (A): the heading will be rawGoal, and clarifiedOutcome is
-   shown beneath it as stored. They are logged here. They are not built.
-   The saveV2Goal overwrite (goal.ts line 145, clarifiedOutcome: roadmap.finalGoal)
-   is a section 6 backend issue, owner unassigned.
+**Narrative line:** *"Clarity in your account, dignity in your transitions."*
 
-6. Validation evidence
-   Frontend tsc --noEmit: clean (the production build runs it first).
-   ESLint on the changed frontend files: clean.
-   Frontend Vitest: 181 passed / 23 files.
-   Frontend build: main JS 568.52 KB (167.77 KB gzipped), CSS 101.30 KB
-   (17.71 KB gzipped). The chunk warning remains.
-   B1: onboardingStates.spec.ts:245 --repeat-each=5, both projects: 10 passed,
-   0 failed (2.9m). Retries are not configured, so nothing was marked flaky.
-   B2: StepGeneration.test.tsx shows 132, then 135 after 3 seconds, one line,
-   and a slow: false event clears it. The v1 Playwright fixture, clock
-   controlled, shows "Still working (88s)." then "(90s)." then /dashboard,
-   one line, on desktop and mobile.
-   Full mocked Playwright, both projects: 143 passed, 5 skipped, 0 failed
-   (12.2m). The five skips are the same checks as before: the 390 px keyboard
-   check is desktop-skipped, the keyboard-order check is mobile-skipped, the
-   two 360 px generation checks run only on desktop, and the in-app switch-goal
-   check runs only on desktop.
-   Backend: not touched, not rerun.
+### Current state
 
-7. Carry-overs
-   M5.4: the extra period after passIf.
-   M5.5: the focus reflection must be in the completion write.
-   M5.6: the Home note wipe. From M5.3, every Today write puts the server's
-   result back into GoalContext.
-   M5.7: a failed write while the backend is down must be visible, plus the
-   remaining OD-9 states.
-   M5.8: the /dashboard redirect, done, and ProtectedRoute, together.
-   The clarifiedOutcome overwrite stays unassigned until a backend allowance.
+* Settings / Profile has no billing section.
+* No `/billing/success` or return route exists.
+* Downgraded users have no dashboard notification explaining Grace Mode.
 
-8. Issues and risks
-   The mobile failure was the spec, not production behaviour. B1 did not change
-   production code.
-   The frozen counter was production behaviour against the Phase 4 contract.
-   It is fixed in the two generation files. Phase 4 was not reopened.
-   Today will show a stored outcome that may be the model's finalGoal,
-   including a value such as 49.98. That is the ND-18 choice. The frontend
-   does not rewrite it.
+### Decisions required before starting
 
-9. Not started
-   M5.2 has NOT started.
-   No Today UI, shell or redirect was implemented.
-   Nothing was committed.
-```
+* None.
 
-### M5.2 report — Application shell and navigation (2026-09-23)
+### In scope
 
-```text
-1. Outcome
-   Signed-in screens now share one navigation (ND-7): a left rail from 1024 px,
-   a bottom bar below it. The entries are Today, Roadmap (only with a goal),
-   Pathways and Account. Every entry opens a real page or an existing dialog.
-   Onboarding and generation show only a minimal top bar: the wordmark, the
-   offline chip, and Account with Sign out. The old Navbar and the signed-in
-   footer are gone. Every signed-in screen starts with the skip link and has
-   exactly one main#main. The legacy Home, dashboard and roadmap screens look
-   and behave as before inside the shell.
-   M5.3 has NOT started.
-   No Today UI was implemented. /dashboard was not redirected.
+* Build `frontend/src/components/billing/BillingSection.tsx`:
+  * Embedded in User Settings / Account dialog/page (`UX-4`).
+  * Displays current tier: *"Achivii Pro"* with emerald pill or *"Free Plan"*.
+  * Displays billing cycle and renewal date (e.g. *"Renews on October 28, 2026"*).
+  * If cancellation pending: Displays *"Pro active through [Date] · Cancels at period end"*.
+  * Primary button: *"Manage Subscription & Invoices"* &rarr; calls `POST /api/billing/create-portal-session` and redirects to Stripe Customer Portal (AC-5).
+* Build `frontend/src/pages/BillingSuccessPage.tsx` mounted at `/billing/success`:
+  * Reached after Stripe Checkout completion (`UX-3`, AC-4).
+  * Displays calm celebratory animation ("Welcome to Achivii Pro").
+  * Calls `refreshUser()` or `syncStatus()` to instantly update `AuthContext`.
+  * CTA: *"Create Your Next Goal"* &rarr; navigates to onboarding.
+* Build `frontend/src/components/billing/GraceModeBanner.tsx`:
+  * Rendered on `DashboardPage.tsx` when `user.plan === 'free'` and `activeGoalsCount > 1` (`UX-5`, AC-6).
+  * Calm copy: *"You are currently on the Free tier with multiple existing journeys. Your active goals remain fully accessible. To create additional journeys, upgrade to Achivii Pro or archive a completed goal."*
+  * Secondary CTA: *"View Upgrade Options"* opens `UpgradeModal`.
 
-2. What changed
-   - components/app: AppShell picks the frame from the path and the session.
-     The landing, auth and /__ui screens get none. A signed-out protected path
-     gets a bare frame while ProtectedRoute sends it to sign-in. Onboarding
-     gets the top bar. Every other signed-in screen gets the rail or the bar.
-   - Rail: the wordmark, Today, Roadmap, Pathways, a divider, then the offline
-     chip and Account. Bottom bar: Today, Roadmap, Pathways, Account, with the
-     offline chip in a line above them. The bar is sticky, 64 px targets, and
-     sits above the bottom safe area and under every dialog. Today is current
-     on / and /dashboard (until M5.8).
-   - Account: on desktop, a disclosure (aria-expanded, a panel of buttons, not
-     role="menu"). Escape and an outside click close it and return focus;
-     tabbing out closes it. Below 1024 px, the existing Dialog (a sheet under
-     768 px). It shows the email and, with a goal, "Your goal · Week N" and
-     rawGoal (ND-18). Reset 90-Day Plan opens a Dialog confirm: "This deletes
-     your current plan and all of its task progress. It can't be undone."
-     Same resetGoal() and navigate('/onboarding'). A failed reset says "We
-     couldn't reset your plan. Please try again." and stays. Sign out keeps
-     logout and navigate('/') inside React.startTransition. No Reset on
-     onboarding.
-   - Pathways opens the existing PathwaysExplorerModal with the current goal.
-     Switch goal still happens only there (R-15).
-   - Landmarks: main#main on Home (both signed-in branches), DashboardPage and
-     RoadmapPage (landmark only). SkipLink now moves focus to its target
-     itself, without a history entry, so onboarding's history lock (R-18)
-     never sees it.
-   - index.css: animate-fadeIn and animate-fadeInUp fill backwards instead of
-     both. The end state is the element's own style, so nothing looks
-     different. A finished entrance no longer leaves a stacking context, and
-     focus mode and the dashboard's full-screen dialogs cover the shell again.
-     Before this, the bottom bar was painted over focus mode.
-   - The content column scrolls sideways when a page is too wide, instead of
-     widening the document. A wider document grew the layout viewport past the
-     screen, and the bar and taps on it drifted off the bottom edge.
-   - Below 1024 px, html gets scroll-padding-bottom while the bar is on
-     screen, so a focused control is not hidden under it.
-   - Page background: the shell uses the token background. The legacy screens
-     read correctly on it (screenshots at 1440, 1024, 768, 390 and 360).
+### Out of scope
 
-3. Files changed / created / removed
-   Created:
-   - frontend/src/components/app/AppShell.tsx, AppNavigation.tsx,
-     AccountMenu.tsx, ResetPlanDialog.tsx, OfflineChip.tsx, shellEntries.ts
-   - frontend/src/components/app/AppShell.test.tsx
-   - frontend/e2e/shell.spec.ts, frontend/e2e/shellFixtures.ts
-   Changed:
-   - frontend/src/App.tsx (AppShell instead of Navbar and the footer)
-   - frontend/src/pages/Home.tsx, DashboardPage.tsx, RoadmapPage.tsx
-     (main#main only)
-   - frontend/src/components/ui/A11y.tsx (SkipLink focus) and
-     Primitives.test.tsx
-   - frontend/src/index.css (fade fill mode; bottom-bar scroll padding)
-   - frontend/e2e/mockApi.ts (activeStatus, resetStatus, calls.resets)
-   - frontend/e2e/auth.spec.ts: Sign out is reached through the Account
-     button in the Primary navigation, labelled "Sign out" (was
-     aria-haspopup="true" and "Sign Out")
-   - frontend/e2e/pathways.spec.ts: the explorer opener is "Pathways" in the
-     Primary navigation (was "Pathways (10)" / "Goals" in the banner). The
-     360 px strip test now also checks the document, because the navbar
-     overflow it skipped is gone
-   - Design.md (§5 Application shell; SkipLink; breakpoints; legacy fades),
-     docs/decisions.md (ND-7 implemented), docs/phases.md
-   Removed:
-   - frontend/src/components/Navbar.tsx
-   No backend file changed. ProtectedRoute, GoalContext and AuthContext were
-   not changed. No new dependency. M3.1 fixtures unchanged.
+* In-app invoice download table (handled by Stripe Customer Portal).
 
-4. Functionality preserved
-   R-1: sign out lands on the landing page with no /login flash; sign-in with
-   a goal lands on /. R-3: the explorer opens from the shell on desktop and
-   mobile, and a pathway chosen there starts switch goal with no create and
-   no DELETE (shell.spec.ts, both projects). R-15: Reset asks first; cancel sends nothing; confirm sends one
-   DELETE and opens onboarding; a failed reset stays. R-17: the offline chip
-   still comes from the load-time check, in the shell and in the onboarding
-   top bar; when it appears is unchanged. R-18: onboarding history and the
-   generation lock are unchanged, and the skip link adds no history entry.
-   done still opens /dashboard. The legacy screens, Home's own "Explore Goals
-   (10)", FocusSessionModal and the dashboard are unchanged apart from their
-   main landmark.
+### Backend allowance
 
-5. Decisions applied
-   ND-7 (A, narrowed): exactly Today, Roadmap, Pathways and Account; no
-   Journey, Progress, Coach or "coming soon"; Roadmap named "Roadmap"; the
-   offline chip in the shell; the footer removed; the onboarding top bar.
-   ND-18: the Account goal line is rawGoal, never clarifiedOutcome.
-   OD-3: /dashboard is untouched and Today stays current on it until M5.8.
-   ND-2: Radix Dialog for the sheet and the confirm; the disclosure is
-   hand-built; no dropdown-menu package.
+* None.
 
-6. Validation evidence
-   Frontend tsc --noEmit: clean.
-   ESLint on the changed and new files: clean, apart from the errors Home.tsx
-   and RoadmapPage.tsx already had (5 errors, 2 warnings, the same before
-   M5.2). Full lint: 30 errors / 4 warnings, unchanged (the Navbar had none).
-   Frontend Vitest: 193 passed / 24 files (was 181 / 23).
-   Build: main JS 572.62 KB (169.03 KB gzipped), CSS 100.20 KB (17.60 KB
-   gzipped), against 568.52 / 101.30 KB. The chunk warning remains.
-   Full mocked Playwright, both projects: 199 passed, 9 skipped, 0 failed
-   (14.9 min, final run). The skips are the five known ones and four
-   layout-only ones in shell.spec.ts: the two bottom-bar checks on desktop,
-   and the outside click and the rail's Tab order on mobile.
-   An earlier full run had 2 failures: mobile taps on the bottom bar on an
-   empty /roadmap, whose main is 407 px wide. That grew the layout viewport
-   past the screen. The content column now contains it; a test holds it.
-   axe (WCAG 2.2 AA tags), before and after, on / with and without a goal,
-   /dashboard, /roadmap and /onboarding at 1440, 390 and 360 (1024 and 375 in
-   the spec): the only violation is the known nested-interactive on
-   /dashboard (FullDayVisualizer), before and after. With a shorter 800 px
-   window, raw axe also reports target-size on one or two legacy controls
-   that sit partly under the bottom bar at that scroll position. The spec
-   re-checks each one scrolled to the middle, where it passes.
-   Overflow at 360, 375 and 390: 0 px on every screen, document and content
-   column (the navbar's 7 px is gone). Every shell control is at least
-   44 x 44 px; bottom-bar items are 64 px. Focus mode on / and /dashboard
-   covers the rail and the bar.
-   Browser (real backend, the Phase 5 kickoff account, no writes): rail at
-   1440 and 1024, bar at 768, 390 and 360, with the kickoff plan. Account
-   shows "Run a 10K Under 50 Minutes", not 49.98. Reset opened and was
-   cancelled; the goal was still active afterwards. Pathways from the bar;
-   Roadmap current on /roadmap; Today current on /dashboard. Reduced motion:
-   the longest shell transition was 0.01 ms. Console clean apart from the
-   dashboard's known nested-button warning. Sign out landed on the landing
-   page. This webview does not move focus on Tab without OS focus, so the
-   keyboard pass is from Playwright (skip link, wordmark, Today, Roadmap,
-   Pathways, Account, into the panel, and out).
-   Backend: not touched, not rerun.
+### Files likely affected
 
-7. Carry-overs
-   M5.3: Today at / (rawGoal heading, stored outcome beneath). Home's
-   "Explore Goals (10)" and its legacy notice go with it.
-   M5.7: the goal-load error state (the shell already hides Roadmap then),
-   and a failed write while offline. The chip is still a one-time check.
-   M5.8: the /dashboard redirect, done and ProtectedRoute together; Today is
-   current on /dashboard until then.
-   Phase 6: /roadmap with an empty roadmap is still 407 px wide; it now
-   scrolls inside the content column. Journey replaces the Roadmap entry.
-   Phases 8 and 10: Progress and Coach add their entries.
+* `frontend/src/components/billing/BillingSection.tsx` (new)
+* `frontend/src/pages/BillingSuccessPage.tsx` (new)
+* `frontend/src/components/billing/GraceModeBanner.tsx` (new)
+* `frontend/src/App.tsx` (route `/billing/success`)
+* `frontend/src/pages/DashboardPage.tsx`
+* `frontend/src/components/account/AccountSheet.tsx` (or settings equivalent)
+* `frontend/test/billingSettings.test.tsx`
 
-8. Issues and risks
-   The fade fill change is global. Nothing uses those utilities with an
-   opacity or transform of its own, and the end state is identical.
-   The content column hides nothing, but it turns page overflow into a
-   sideways scroll inside the page. The specs measure the column as well as
-   the document, so new overflow still fails a test.
-   Home's loading state and ProtectedRoute's spinner have no main while they
-   show. The skip link has no target for that moment.
-   A signed-out visitor on a protected path briefly sees no navigation before
-   the redirect to sign-in. The old navbar's Sign In and Get Started buttons
-   are gone with it; the landing and auth screens have their own.
+### Milestones
 
-9. Not started
-   M5.3 has NOT started.
-   No Today UI was implemented. /dashboard was not redirected.
-   Nothing was committed.
-```
-
-### M5.2 review outcomes (Mo, 2026-09-24)
-
-* M5.2 accepted.
-* Account stays in the desktop rail and in the mobile bottom bar.
-* On onboarding and generation, Account shows only the email and Sign out: no goal line and no Reset.
-
-### M5.3 report — Today for the practice day (2026-09-24)
-
-```text
-1. Outcome
-   A signed-in user with a goal opens / and sees one Today, in this order:
-   the goal they chose, Day N / 90, today's step, its duration, Start, a
-   glance at the week, then Roadmap and the full day view. The heading is
-   rawGoal. The stored outcome sits beneath it exactly as stored.
-
-2. What changed
-   Home's signed-in branch with a goal is Today. Loading is TodaySkeleton.
-   No goal is still the pathway invitation. Signed-out is still the landing.
-   The step shows its real title, "N min" and "· at {slotTime}" when the task
-   has one, Start (opens the existing FocusSessionModal) and Mark complete /
-   Mark not done. The steps (number, title, duration, instructions, focus
-   cue) and the notes (blur and an explicit Save) sit behind plain reveals.
-   The week glance is the seven real tasks: done, rest, today, not done.
-   Choosing a day shows that day's step. The count is practice days only.
-   A failed write says "That didn't save. Try again." and leaves the step.
-   Every write sends updateDailyTask and, on success, puts the server's task
-   into GoalContext.
-
-   Date rule, unchanged. DailyTask.date is a UTC calendar date:
-   toISOString().split('T')[0] in backend/src/routes/goal.ts:215 (v1 save)
-   and :691 (the week-review writer), and backend/src/lib/ai/weekPlan.ts:52.
-   dayOfWeek uses the server's local clock (weekPlan.ts:53,
-   goalDecomposer.ts:984). user.timezone is saved at signup and read by no
-   date writer. Today compares UTC dates, the calendar the dates are written
-   in. Nothing in the backend changed. The mismatch is a section 6 row,
-   owner unassigned.
-
-   What every non-practice OD-9 state shows now:
-   - Loading: TodaySkeleton. No main while it shows (the same gap the shell
-     already had for the spinner).
-   - No active goal: the pathway invitation, unchanged.
-   - Goal-load error: still that invitation, because Home only checks that
-     there is no goal. The distinct error and retry are M5.7.
-   - Rest day: the real title, the duration, Start, and a "Rest day" badge.
-     The week's cell says "Rest". No rest sentence and no next-step callout.
-   - Key session: the same hierarchy plus a "Key session" badge.
-   - Test day: the same hierarchy plus a "Test day" badge. No pass mark and
-     no score.
-   - Short on time: the same as a practice day. minimumVersion is not
-     offered (M5.4).
-   - Done: a "Done" badge and "Mark not done". No lighting and no next-step
-     preview (M5.6).
-   - Not completed yesterday: the same as a practice day. No recovery
-     sentence (M5.7).
-   - Review due: no emphasis on Today. The caption points at the full day
-     view, which still holds the week review (M5.7).
-   - After week 12: the day number stays at 90. A week with no task says
-     "No step is planned for this week yet." No final-stretch copy.
-   - Completed goal: no branch. The server only uses active and archived, so
-     there is nothing distinct to show.
-   - Offline: the chip is still the one-time health check. A failed write
-     shows the sentence above and changes nothing. The rest of the offline
-     treatment is M5.7.
-
-   Removed from Today, and where each remains:
-   - "Explore Goals (10)": the shell's Pathways entry opens the same
-     explorer. onboarding.spec.ts and pathways.spec.ts open it from there.
-   - The pathway strip: gone from Today. ExecutionDashboard on /dashboard
-     still has it. The small-screen strip test now opens /dashboard.
-   Kept on Today: the steps reveal, notes, the week glance, Start (focus
-   mode), complete, slot time, the pathway notice ("from Pathways", tokens),
-   Roadmap → /roadmap, and "Open full day view" → /dashboard.
-
-3. Files changed / created / removed
-   Created:
-   - frontend/src/lib/today.ts, today.test.ts
-   - frontend/src/components/today/Today.tsx, Today.test.tsx,
-     useTaskActions.ts, useTaskActions.test.tsx
-   - frontend/e2e/today.spec.ts
-   Changed:
-   - frontend/src/pages/Home.tsx (signed-in with a goal renders Today)
-   - frontend/e2e/mockApi.ts (task writes mutate the saved goal, so a reload
-     sees them; taskUpdateStatus)
-   - frontend/e2e/shell.spec.ts (Start is the exact name "Start")
-   - frontend/e2e/onboarding.spec.ts (the explorer opens from the shell)
-   - frontend/e2e/pathways.spec.ts (three tests: the explorer from the shell;
-     the strip test on /dashboard)
-   - Design.md (§6 Today; later sections renumbered), docs/decisions.md
-     (ND-18 implemented), docs/phases.md
-   Removed: nothing.
-   ExecutionDashboard, FocusSessionModal, GoalContext, the shell, the
-   backend and the M3.1 fixtures were not changed. No new dependency.
-
-4. Functionality preserved
-   R-8: Start opens focus mode for this step (today.spec.ts). The modal was
-   not changed; the reflection-on-Enter bug stays with M5.5. A failed focus
-   completion is recorded on Today and does not throw, because the modal
-   swallows a throw and would otherwise look saved.
-   R-9: Mark complete writes status and the current note, shows the server
-   task, and is still done after a reload. Mark not done returns it to
-   pending. Both projects.
-   R-10: a note saved on Today is in the completion PATCH and is still in
-   the field after a reload. A note saved on Today is still in the PATCH
-   when the completion happens on /dashboard (the kickoff wipe). The
-   dashboard's own note save still does not update GoalContext (section 6).
-   R-11: the week glance shows the week's real statuses and selecting a day
-   shows that step.
-   R-12: the week review stays on /dashboard, reached by "Open full day view".
-   R-15 and R-17: the shell is unchanged.
-   done still opens /dashboard. /dashboard was not redirected.
-
-5. Decisions applied
-   OD-3: Today is at / for a signed-in user with a goal. /dashboard is
-   untouched and Today stays current on it until M5.8.
-   OD-9: the practice day is the hierarchy above. Every other row renders
-   the real title and the real status, or the existing loading and no-goal
-   screens, and does not invent copy. The rows that wait are named in
-   point 2.
-   ND-18: the h1 is rawGoal. "90-day outcome:" plus clarifiedOutcome, as
-   stored, never through formatGoalTitle. Logged as implemented in
-   docs/decisions.md.
-
-6. Validation evidence
-   Frontend tsc --noEmit: clean.
-   ESLint on the changed and new files: clean. Full lint: 29 errors /
-   3 warnings (was 30 / 4). Home's signed-in branch took its errors with it.
-   RoadmapPage's pre-existing hook errors are unchanged.
-   Frontend Vitest: 215 passed / 27 files (was 193 / 24).
-   Build: main JS 569.38 KB (169.01 KB gzipped), CSS 99.83 KB (17.57 KB
-   gzipped), against 572.62 / 100.20 KB. The chunk warning remains.
-   Full mocked Playwright, both projects: 225 passed, 9 skipped, 0 failed
-   (14.7 min). The skips are the same nine as M5.2.
-   today.spec.ts, both projects: hierarchy order, the rawGoal heading, Day
-   N / 90, Start opens focus, complete survives a reload, a note survives
-   complete and a reload, the cross-screen wipe, a failed write, the steps
-   reveal, the week glance, Roadmap and the full day view, the empty week.
-   Layout: 1440, 390 and 360, overflow at most 1 px, every visible control
-   in main at least 44 px, axe (WCAG 2.2 AA) empty, Start above the bottom
-   bar at 390×844, keyboard from the skip link to Start to focus mode,
-   reduced motion with no visible animation.
-   Browser on the kickoff account
-   (phase5-kickoff-1790182044713@example.com, no task writes): `/` is the
-   new Today. One h1: "Run a 10K Under 50 Minutes". Beneath it, as stored:
-   "90-day outcome: 49.98". Day 1 of 90. Week 1 with the stored phase and
-   theme. Today's step is already Done from the kickoff (Wednesday,
-   "Establish easy base pace on outdoor asphalt", 30 min · at 19:30,
-   "Mark not done"). The week glance: 2 of 5 practice days done; Saturday
-   and Tuesday are Rest. Choosing Friday shows "Friday's step" and that
-   day's title; choosing Saturday shows "Rest day" and a Rest day badge;
-   choosing Wednesday again restores today. No "Explore Goals (10)", no
-   strip. Rail at 1440 and 1024; bottom bar at 390×844 and 360×740. Overflow
-   0 px. Start is in the first screen and above the bar at 390 and 360
-   (height 48 px). No visible control in main is under 44 px. Console: no
-   Vite overlay; `/api/health`, `/api/auth/me` and `/api/goal/active` all
-   200. This webview does not move focus on Tab without OS focus, so the
-   keyboard pass is from Playwright (skip link, Start, focus mode). No
-   complete, un-complete or note was saved on this account.
-   Backend: not touched.
-
-7. Carry-overs
-   M5.4: the progressive reveal (why, done when, pitfall, resource, the
-   10-minute version) and the extra period after passIf.
-   M5.5: focus mode's look, and the reflection included in the write.
-   M5.6: completion lighting and the notes design. The wipe from / is
-   already closed.
-   M5.7: the remaining OD-9 states in point 2, including the goal-load
-   error and a failed write while offline.
-   M5.8: the /dashboard redirect, and the dashboard's own note save.
-   The UTC date mismatch (section 6) needs a backend allowance. Unassigned.
-
-8. Issues and risks
-   Near UTC midnight a user far from UTC sees the neighbouring day's task,
-   and a plan created then can label a date with the wrong weekday. Today
-   follows the dates as written.
-   A focus completion that fails is visible only after the modal closes,
-   because the modal does not surface the error.
-   Loading still has no main, so the skip link has no target for that moment.
-
-9. Not started
-   M5.4 has NOT started.
-   /dashboard was not redirected.
-   Nothing was committed.
-```
-
-### M5.4 report — Daily session with progressive reveal (2026-09-24)
-
-```text
-1. Outcome
-   Every session field from BP §31 that exists in the stored task is now
-   reachable on Today (/), revealed on demand rather than dumped into a wall
-   of copy. Nothing is removed; empty fields add zero chrome. whyToday appears
-   directly under the session title/duration without pushing Start below the
-   first screen at 390 × 844. Steps progressively reveal instructions, focus
-   cue, timing, output, passMark ("Done when: ..."), and step-level resources
-   (with external links and reasons, without YouTube embeds). Task-level
-   resource, implementation intention (when / where / action or raw), and the
-   10-minute version (OD-9 short on time) are distinct, closed-by-default
-   reveals. PlanV2Panel no longer duplicates terminal periods. Onward copy
-   accurately reflects what still lives only on /dashboard.
-
-2. What changed
-   - Today (frontend/src/components/today/Today.tsx):
-     - whyToday: rendered under duration when present; never uses fallback
-       copy; omitted if null or empty.
-     - How (the steps): "Show the N steps" expands each step card to show
-       instructions, focus cue, timing ("Timing: "), output ("Output: "),
-       passMark ("Done when: "), and step-level resource (title, link if valid
-       HTTP(S) URL, reason). Empty fields omit their labels completely.
-     - The 10-minute version: offered as a quiet reveal ("The 10-minute
-       version"), closed by default, rendered only when minimumVersion is
-       present. Reveals stored title, duration, instructions, and passMark.
-       No second Start button.
-     - Implementation intention: parsed using parseIntention; rendered only
-       when non-empty. Shows structured when/where/action grid or raw string.
-     - Resource: task-level reveal showing title, external link if valid URL,
-       badge type, and why reason. No YouTube iframes on Today (level 1 calm).
-     - Onward copy: updated from "The full day view shows why today matters,
-       pass marks, resources..." to "The full day view shows the week review,
-       plan panel and routine visualiser when your plan has them."
-   - PlanV2Panel (frontend/src/components/PlanV2Panel.tsx & lib/formatters.ts):
-     - Extracted and exported formatPassIf helper to test terminal
-       punctuation ([.!?]$) before appending a period.
-     - Unit tests added in PlanV2Panel.test.tsx.
-   - Tests:
-     - Today.test.tsx: 11 tests covering full session fixture, empty fixture,
-       raw implementation intention, and updated onward copy.
-     - today.spec.ts: 30 tests covering whyToday present/absent, detailed step
-       fields on demand, 10-minute version closed by default, layout at 1440,
-       390, 360 with whyToday set (Start above bar at 390×844), targets ≥ 44px,
-       and reduced motion.
-
-   Field availability on Today:
-
-| Field | On Today | How it is reached | Omitted when empty? |
+| ID | Milestone | Status | Details |
 |---|---|---|---|
-| rawGoal | Yes | Page h1 (ND-18) | No (required) |
-| clarifiedOutcome | Yes | Under h1 as stored | Yes (omitted if empty) |
-| dayNumber | Yes | "Day N / 90" numeral | No (clamped 1–90) |
-| currentWeek / phase / theme | Yes | Beside day number | Yes (omits missing phase/theme) |
-| title | Yes | Step h2 | No |
-| durationMinutes / slotTime | Yes | Step duration line | Yes (slotTime omitted if empty) |
-| whyToday | Yes | Below duration | Yes (omitted if empty; no fallback) |
-| Start / Complete | Yes | Action buttons | No |
-| detailedSteps | Yes | "Show the N steps" reveal | Yes (hidden if 0 steps) |
-| step.instructions | Yes | Inside step card | Yes |
-| step.focusCue | Yes | Inside step card ("Focus: ") | Yes |
-| step.timing | Yes | Inside step card ("Timing: ") | Yes |
-| step.output | Yes | Inside step card ("Output: ") | Yes |
-| step.pitfallToAvoid | Yes | Inside step card ("Pitfall: ") | Yes |
-| step.passMark | Yes | Inside step card ("Done when: ") | Yes (no duplicate period) |
-| step.resourceTitle / Url / Why | Yes | Inside step card ("Resource: ") | Yes (no iframe embed) |
-| minimumVersion | Yes | "The 10-minute version" reveal | Yes (omitted if null) |
-| implementationIntention | Yes | "Implementation intention" reveal | Yes (omitted if empty) |
-| task.resourceTitle / Url / Type / Why | Yes | "Resource" reveal | Yes (omitted if empty) |
-| notes | Yes | "Notes" reveal | No |
-| weekGlance | Yes | 7-day row | Yes (omitted if 0 tasks) |
-| Roadmap link | Yes | Onward nav | No |
-| Full day view link | Yes | Onward nav | No |
+| **M5.1** | BillingSection in Settings | `NOT STARTED` | Implement subscription details card and Customer Portal launch button in Settings. |
+| **M5.2** | BillingSuccessPage & Immediate State Sync | `NOT STARTED` | Implement `/billing/success` route with celebratory greeting and user state refresh. |
+| **M5.3** | Grace Mode Banner & Non-Punitive Notice | `NOT STARTED` | Implement non-destructive notice on Dashboard for downgraded users with multiple goals. |
+| **M5.4** | Settings & Return Vitest Suite | `NOT STARTED` | Author unit tests verifying portal launch, success page rendering, and grace mode copy. |
 
-3. Files changed / created / removed
-   Created:
-   - frontend/src/components/PlanV2Panel.test.tsx
-   Changed:
-   - frontend/src/components/PlanV2Panel.tsx
-   - frontend/src/lib/formatters.ts
-   - frontend/src/pages/RoadmapPage.tsx (import formatTarget from lib/formatters)
-   - frontend/src/components/today/Today.tsx
-   - frontend/src/components/today/Today.test.tsx
-   - frontend/e2e/today.spec.ts
-   - Design.md (§6 Today)
-   - docs/phases.md (M5.4 report, milestone table, Section 6, change log)
-   Removed: nothing.
-   Backend and M3.1 fixtures were not changed. No new dependencies.
+### Regression checks
 
-4. Functionality preserved
-   R-8: Start remains primary action; focus session opens directly from Today.
-   R-9: Mark complete and Mark not done continue to write through useTaskActions
-   and update GoalContext.
-   R-10: Note saves and survives completion and reload.
-   R-11: Week glance displays 7 days; selecting a day displays that day's step
-   and its progressive reveals.
-   R-12: Full day view link opens /dashboard with updated explanatory copy.
-   R-15, R-17: Shell and navigation unchanged.
-   /dashboard was NOT redirected.
+* **R-1**: User account settings and profile management must continue to operate smoothly.
+* **R-22**: Grace Mode must never block viewing or completing tasks on existing goals.
 
-5. Decisions applied
-   OD-3: Today remains at /; /dashboard remains untouched and unredirected.
-   OD-9: Short on time is an opt-in reveal ("The 10-minute version"), closed by
-   default, not forced, and not hidden. Shows stored minimumVersion data.
-   ND-18: Heading is rawGoal; outcome is clarifiedOutcome as stored.
+### Mobile acceptance
 
-6. Validation evidence
-   Frontend tsc --noEmit: clean (0 errors).
-   ESLint on changed files: clean (0 errors, 0 warnings).
-   Full lint: 28 errors / 3 warnings (improved from 29 / 3 baseline by
-   resolving PlanV2Panel fast-refresh violation).
-   Frontend Vitest: 224 passed / 28 files (was 215 / 27).
-   Build: main JS 574.95 KB (170.28 KB gzipped), CSS 99.83 KB (17.57 KB
-   gzipped).
-   Full mocked Playwright: 229 passed, 9 skipped, 0 failed across desktop
-   and mobile (17.6 min).
-   today.spec.ts: 30 passed across desktop and mobile (54.6s).
-   Live browser test on kickoff account (phase5-kickoff-1790182044713@example.com,
-   no writes):
-   - whyToday visible on screen ("Locks in the 174-180 SPM cadence target...").
-   - 10-minute version offered closed by default ("The 10-minute version").
-   - Click opens to stored copy: "Short cadence jog", 10 min, instructions
-     and passMark ("Done when: Cadence target maintained for the full duration").
-   - Steps reveal expands to instructions and passMark.
-   - Start is above the bottom bar at 390 × 844.
-   - No writes performed (read-only).
+* 44px tap targets on "Manage Subscription" and return CTAs.
+* Grace Mode banner text wraps cleanly without overflow at 360px.
+* Customer Portal redirects smoothly in mobile Safari and Chrome.
 
-7. Carry-overs
-   M5.5: focus mode redesign (Enter-saves-before-text, reflection included
-   in completion write).
-   M5.6: completion lighting and notes redesign.
-   M5.7: remaining OD-9 states (rest day, test day, review due, goal-load error,
-   offline write failure).
-   M5.8: /dashboard redirect to /.
+### Validation
 
-8. Issues and risks
-   None new. Playwright driver download requires local cache; verified and
-   cleanly executed.
+1. Navigate to Settings &rarr; verify billing status, plan name, and renewal date.
+2. Click "Manage Subscription" &rarr; redirects to Stripe Customer Portal.
+3. Open `/billing/success` &rarr; verifies Pro activation and provides "Create Next Goal" link.
+4. Simulate user with `plan = 'free'` and 2 active goals &rarr; Grace Mode banner renders.
+5. `npm test --workspace=frontend`
 
-9. Not started
-   M5.5 has NOT started.
-   /dashboard was not redirected.
-   Nothing was committed.
-```
+### Exit criteria
 
-### M5.5 report — Focus mode redesign (2026-09-25)
+* Pro subscribers can reach Stripe Customer Portal with one click.
+* Post-checkout return automatically reflects Pro membership.
+* Downgraded accounts with multiple goals encounter reassuring Grace Mode notice.
 
-```text
-1. Outcome
-   Focus mode is redesigned as a distraction-free, Level 1 execution surface
-   (BP §32) built entirely on Phase 0 tokens and primitives. Legacy mint (#07CB6C)
-   and deleted dark hexes (#050807, #0c1210, #1a2824) are completely replaced.
-   Timer mechanics (1-second tick loop, pause/resume, reset, spacebar toggle,
-   Web Audio sound effects via audio.ts, mute toggle) are strictly preserved.
-   The Deliberate Practice Step Runner presents instructions, focus cues, timing,
-   outputs, pass marks ("Done when: ..."), and collapsible tips. StepChallengeWidget
-   is restyled with Phase 0 tokens and verified as strictly session-only (no backend
-   writes or persistence, BP §43). Reflection capture into task notes is reliable:
-   multi-line Textarea prevents premature submission on Enter; failed network/server
-   writes (500, network drop) display an inline accessible alert (role="alert"), keep
-   the modal open, preserve the entered reflection text, and allow safe retry via
-   "Try again". Full WCAG 2.2 AA compliance verified with 0 axe violations.
+### Risks
 
-2. What changed
-   - Step challenge library & widget:
-     - Extracted pure inferStepChallenge helper to frontend/src/lib/stepChallenge.ts
-       (satisfies react-refresh/only-export-components).
-     - Restyled frontend/src/components/StepChallengeWidget.tsx with Phase 0 tokens
-       (bg-surface, border-border, text-accent, Button primitive, targets ≥ 44px).
-       Maintained strictly session-only scope (BP §43).
-   - Focus components (frontend/src/components/focus/):
-     - FocusHeader.tsx: Day N of 90 • Focus Mode (h1 provides dialog accessible name),
-       mute toggle, duration badge, exit button (Esc).
-     - FocusTimer.tsx: Monospace tabular countdown (font-ui-mono tabular), circular
-       SVG progress indicator (stroke-border track, stroke-accent progress), In Flow /
-       Paused status indicator, Pause/Resume button, Reset button, step navigation pills.
-     - FocusStepRunner.tsx: Step index and duration target, step title, instructions,
-       evidence layer badges (focus cue, timing, output, pass mark), StepChallengeWidget,
-       collapsible guidance tips, previous/next controls with disabled boundaries, and
-       clean fallback card for tasks without parsed steps.
-     - FocusCompletion.tsx: Deliberate Practice Complete badge, Day N Mastered heading,
-       quick stats (Time Logged, Day N / 90), reflection Field with Textarea (explicit
-       button or Ctrl+Enter save, preventing accidental submit on Enter), inline error
-       alert (role="alert"), Save & Return button with loading state.
-   - FocusSessionModal (frontend/src/components/FocusSessionModal.tsx):
-     - Refactored to mount FocusSessionContent keyed on task.id, cleanly initializing
-       state on mount without set-state-in-effect.
-     - Full accessibility: focus trap on mount and restoration to trigger on unmount;
-       Escape key listener; Spacebar toggle for pause/resume (bypassed when focused
-       on inputs/textareas); body scroll locked cleanly and restored.
-     - Completion write error handling (R6): wraps onCompleteSession in try/catch;
-       surfaces saveError and keeps modal open on failure with retry available.
-   - Caller error rethrow:
-     - Updated onFinishFocus in Today.tsx and handleCompleteFocusSession in
-       ExecutionDashboard.tsx to throw write errors back to the modal, enabling
-       the retry UI.
-   - Tests:
-     - FocusSessionModal.test.tsx: 11 Vitest unit tests covering countdown loop,
-       pause/resume, reset, step navigation, celebration transition, reflection submit,
-       write error retry, mute toggle, Escape close, and fallback.
-     - e2e/focus.spec.ts: 14 Playwright E2E tests covering timer controls, step runner,
-       completion write with reflection, 500 error retry, spacebar typing safety,
-       zero axe violations on active stage and celebration screen, and responsive
-       verification at 1440, 390, and 360 px viewports.
+* Webhook latency causing `/billing/success` to load before database updates (mitigated by immediate sync call in `BillingSuccessPage`).
 
-3. Files changed / created / removed
-   Created:
-   - frontend/src/lib/stepChallenge.ts
-   - frontend/src/components/focus/FocusHeader.tsx
-   - frontend/src/components/focus/FocusTimer.tsx
-   - frontend/src/components/focus/FocusStepRunner.tsx
-   - frontend/src/components/focus/FocusCompletion.tsx
-   - frontend/src/components/FocusSessionModal.test.tsx
-   - frontend/e2e/focus.spec.ts
-   Changed:
-   - frontend/src/components/FocusSessionModal.tsx
-   - frontend/src/components/StepChallengeWidget.tsx
-   - frontend/src/components/today/Today.tsx (rethrow on write failure)
-   - frontend/src/components/ExecutionDashboard.tsx (rethrow on write failure)
-   - Design.md (§11 Focus Mode & Deliberate Practice Runner)
-   - docs/phases.md (M5.5 report, milestone table, Section 6, change log)
-   Removed: nothing.
-   Backend was not changed. Zero backend changes permitted.
+---
 
-4. Functionality preserved
-   R-8: Daily task retrieval and start focus session on Today (/) and ExecutionDashboard
-   (/dashboard) identical.
-   R-9: Completing session marks task completed, updates GoalContext, and persists.
-   R-10: Reflection note appends as "• Focus win: ..." when existing notes exist, or
-   becomes the note when empty.
-   R-11: Focus session countdown timer, step navigation, audio effects, and mute toggle
-   behave identically to the baseline.
-   R-12: Full day view and review entry points remain intact.
-   R-15, R-17: Shell, account reset, and offline status indicators unaffected.
-   /dashboard was NOT redirected.
+## PHASE 6 — Multi-Goal Switching & Concurrent Trajectories UI
 
-5. Decisions applied
-   BP §32: Focus Mode Level 1 calm execution surface using Phase 0 semantic tokens.
-   BP §43: StepChallengeWidget remains session-only with zero backend persistence.
-   R5, R6: Multi-line reflection capture with explicit save and inline error surfacing.
-   D-7: Geist and Geist Mono typography (font-ui and font-ui-mono tabular).
+**Status:** `NOT STARTED`
 
-6. Validation evidence
-   Frontend tsc --noEmit: clean (0 errors).
-   ESLint on changed/created files: clean (0 errors, 0 warnings).
-   Frontend Vitest: 235 passed / 29 files (was 224 / 28).
-   Build: main JS 576.80 KB (170.86 KB gzipped), CSS 99.59 KB (17.49 KB gzipped).
-   Playwright e2e/focus.spec.ts: 14 passed across desktop and mobile (22.5s).
-   Playwright e2e/today.spec.ts: 30 passed across desktop and mobile (39.2s).
-   Axe-core scan: 0 violations on active timer view and celebration view across
-   1440px and 390px viewports.
-   Responsive check: 0 horizontal overflow and touch targets ≥ 44px verified at
-   1440px, 390px, and 360px widths.
+**Source:** FD §2, §6, §14, §27 · RULE-3 · AC-4
 
-7. Carry-overs
-   M5.6: completion lighting and notes redesign.
-   M5.7: remaining OD-9 states (rest day, test day, review due, goal-load error,
-   offline write failure).
-   M5.8: /dashboard redirect to /.
+**Objective:** Deliver an intuitive goal switcher in the application navigation and dashboard, enabling Pro subscribers to effortlessly transition between concurrent active 90-day trajectories.
 
-8. Issues and risks
-   None. High-contrast tokens (text-text-secondary for micro labels and pills)
-   safeguard WCAG 2.2 AA compliance against the dark background.
+**Narrative line:** *"Master multiple disciplines without friction."*
 
-9. Not started
-   M5.6 has NOT started.
-   /dashboard was not redirected.
-   Nothing was committed.
-```
+### Current state
 
-### M5.6 report — Completion interaction, step lighting, next step preview & notes redesign (2026-09-25)
+* `GoalContext.tsx` holds a single `activeGoal` and only fetches one active goal.
+* Dashboard and navigation assume the user only ever views or switches their singular active goal.
 
-```text
-1. Outcome
-   Completion interaction and notes redesign (BP §31, VDS §20, OD-9 "Done for today")
-   are delivered on Today (/):
-   - Completed Step Lighting: when task.status === 'completed', the active step card
-     enters an illuminated state with subtle botanical accent highlight (border-accent/40
-     bg-surface/95 ring-1 ring-accent/20 shadow-sm), StepMarker completed, Done badge,
-     and a calm, non-punitive confirmation ("Step completed. Deliberate practice logged
-     for today."). Strictly zero gamified XP explosions, confetti, or streak popups.
-   - Next Step Preview: when today's step is complete, an upcoming practice task preview
-     card shows the next chronological practice day (e.g. "Tomorrow · Thursday"), title,
-     duration, whyToday snippet, and an action to inspect that day's step. If completing
-     the last practice day of the week, renders a bridge ("Week N practice complete.
-     Weekly review ready in the full day view.") linking to /dashboard.
-   - Reversibility: completion remains instant and reversible via "Mark not done", cleanly
-     restoring the active state and removing the preview while preserving all notes.
-   - Notes Redesign: parses stored task notes into structured Focus Wins (rendered as
-     distinct highlight cards with botanical sparkles) and free-form practice notes in
-     the textarea. Recombines and serializes both on save, ensuring focus wins are never
-     wiped when editing freeform notes. Preserves uncommitted drafts across WeekGlance
-     day switches and includes typed drafts in completion writes.
+### Decisions required before starting
 
-2. What changed
-   - Helpers (frontend/src/lib/today.ts & today.test.ts):
-     - Added parseTaskNotes to cleanly separate "• Focus win: ..." lines from free-form text.
-     - Added serializeTaskNotes to recombine free-form text and focus reflections.
-     - Added findNextTask to retrieve the next chronological non-rest practice day in the week.
-     - Added comprehensive unit tests in today.test.ts (16 tests total).
-   - Today Component (frontend/src/components/today/Today.tsx):
-     - Illuminated step card styling when done (border-accent/40 bg-surface/95 ring-1 ring-accent/20).
-     - StepMarker state="completed" and quiet confirmation line beside eyebrow.
-     - Next step preview card with upcoming day label, title, duration, snippet, and view button.
-     - Week completion bridge when the final practice day of the week is completed.
-     - Redesigned notes section displaying structured focus wins logged, textarea with
-       auto-save on blur, explicit save button with loading state, and draft persistence.
-     - onToggle and onSaveNote preserve serialized focus wins and user notes seamlessly.
-   - Tests:
-     - Today.test.tsx: expanded to 14 tests covering step lighting, quiet confirmation,
-       next step preview navigation, week completion bridge, focus wins display, and notes saving.
-     - today.spec.ts: expanded to 32 tests covering completion interaction, step lighting,
-       next step preview, focus wins display, notes persistence, and zero axe violations.
-     - focus.spec.ts: 14 tests re-verified for regression safety.
-   - Design System Documentation (Design.md):
-     - Added Section 12 documenting step lighting, quiet confirmation, next step preview,
-       and notes serialization conventions.
+* None.
 
-3. Files changed / created / removed
-   Changed:
-   - frontend/src/lib/today.ts
-   - frontend/src/lib/today.test.ts
-   - frontend/src/components/today/Today.tsx
-   - frontend/src/components/today/Today.test.tsx
-   - frontend/e2e/today.spec.ts
-   - Design.md (§12 Step Lighting, Next Step Preview & Notes)
-   - docs/phases.md (M5.6 report, milestone table, Section 6, change log)
-   Created / Removed: none.
-   Backend was not changed. Zero backend changes permitted.
+### In scope
 
-4. Functionality preserved
-   R-8: Today loads active day's task and duration.
-   R-9: Completing task marks completed and updates GoalContext; fully reversible.
-   R-10: Notes and focus wins are never wiped across / and /dashboard; draft notes
-   persist across day switching and completions.
-   R-11: Focus session completes and lands on the new illuminated completion state.
-   R-12: Full day view and review entry points remain intact.
-   R-15, R-17: Shell, account reset, and offline status indicators unaffected.
-   /dashboard was NOT redirected.
+* Update `frontend/src/context/GoalContext.tsx`:
+  * Add `activeGoals: Goal[]` list.
+  * Add `switchActiveGoal(goalId: string)` method.
+  * Support fetching all user active goals on load when user is Pro.
+* Create `frontend/src/components/goal/GoalSwitcher.tsx`:
+  * Compact, elegant dropdown in top navigation or dashboard header.
+  * Displays active goal title, current week badge (e.g. *"Week 4 of 12"*), and deliberate practice theme.
+  * Lists all active concurrent goals with quick-switching tap interaction.
+  * Includes "+ New Goal" action at the bottom of the switcher (which creates without paywall for Pro, or triggers UpgradeModal for Free).
+* Ensure Today view, strategic Roadmap view, Progress analytics, and Zen focus session immediately update to reflect the newly selected active goal upon switching.
 
-5. Decisions applied
-   BP §18: Calm, non-punitive tone; no gamification explosions, XP or confetti.
-   BP §31: All session fields reachable on demand.
-   VDS §20: Calm botanical step illumination (border-accent/40 ring-1 ring-accent/20).
-   OD-9: "Done for today" state with quiet confirmation and next step preview.
-   R-10: Structured focus wins presentation and reliable notes serialization.
+### Out of scope
 
-6. Validation evidence
-   Frontend tsc --noEmit: clean (0 errors).
-   ESLint on changed files: clean (0 errors, 0 warnings).
-   Frontend Vitest: 245 passed / 29 files (was 235 / 29).
-   Build: main JS 579.85 KB (171.59 KB gzipped), CSS 100.24 kB (17.57 KB gzipped).
-   Playwright e2e/today.spec.ts: 32 passed across desktop and mobile (45.8s).
-   Playwright e2e/focus.spec.ts: 14 passed across desktop and mobile (25.7s).
-   Axe-core scan: 0 violations on pending and completed Today screens across 1440px and 390px.
-   Responsive check: 0 horizontal overflow and touch targets ≥ 44px at 1440px, 390px, and 360px widths.
+* Cross-goal aggregated analytics (Progress page remains scoped to the currently selected active goal).
 
-7. Carry-overs
-   M5.7: remaining OD-9 states (rest day, test day, review due, goal-load error,
-   offline write failure).
-   M5.8: /dashboard redirect to /.
+### Backend allowance
 
-8. Issues and risks
-   None. Notes serialization guarantees that user notes and automated focus reflections
-   co-exist cleanly without risk of accidental data overwrite.
+* None. (Consumes Phase 1's `GET /api/goal/list` and `GET /api/goal/active?goalId=`).
 
-9. Not started
-   M5.7 has NOT started.
-   /dashboard was not redirected.
-   Nothing was committed.
-```
+### Files likely affected
 
-### M5.7 report — Remaining OD-9 states & error resilience (2026-09-25)
+* `frontend/src/context/GoalContext.tsx`
+* `frontend/src/components/goal/GoalSwitcher.tsx` (new)
+* `frontend/src/components/app/Navbar.tsx`
+* `frontend/src/pages/DashboardPage.tsx`
+* `frontend/src/components/goal/GoalSwitcher.test.tsx`
 
-```text
-1. Outcome
-   All remaining states from the OD-9 state matrix (docs/phases.md §4) are implemented
-   and verified across Home.tsx, ProtectedRoute.tsx, OnboardingPage.tsx, Today.tsx,
-   and ExecutionDashboard.tsx:
-   - Goal-Load Error State & Route Protection (R1, OD-9, ND-12): when goal fetch fails
-     (goalLoadFailed === true), / renders an accessible error alert (role="alert")
-     with heading "We couldn't load your goal", reassuring copy, and working "Try again"
-     (refreshGoal()) button; pathway library is suppressed; ProtectedRoute does NOT redirect
-     to /onboarding; Onboarding Build disables create while goal load failed, permanently
-     closing the currentGoalId === null duplicate-create vulnerability.
-   - Rest Day State (R2, OD-9): intentional rest presentation with "Today's rest" /
-     "{Day}'s rest", Badge "Rest day", adaptation copy ("Rest is where adaptation happens..."),
-     next practice step preview glance, Start button suppressed, and quiet "Log recovery complete"
-     action. Step completion lighting is preserved.
-   - Key Session State (R3, OD-9): pivotal sessions are highlighted with Badge tone="accent"
-     "Key session" and guidance callout ("This is your pivotal session for Week N. Focus on
-     execution quality and adherence."). Start focus mode, duration, and reveals remain intact.
-   - Test Day State (R4, OD-9): pulls test specification from current roadmap week
-     (currentRoadmapWeek(goal)?.test), rendering a dedicated benchmark card with test type,
-     instructions, and pass mark formatted via formatPassIf. Zero fake score inputs, sliders,
-     or pass/fail submit forms exist (OD-1a honesty rule).
-   - Recovery State (R5, OD-9, BP §18): when yesterday's task was uncompleted, Today renders
-     an encouraging recovery card ("Yesterday's step wasn't completed. Here's how we can recover.
-     Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward.").
-     Strictly NO punitive language ("missed", "failed", "behind") or streak-loss shaming.
-   - Review Due State (R6, OD-9, R-12): when all task dates in the current week have passed,
-     Today prominently renders a "Review due" card ("Week N is ready for review") linking
-     directly to /dashboard.
-   - Review Failed (503) State (R7, OD-9): on review submission 503 failure, ExecutionDashboard
-     renders the server's exact sentence ("Couldn't write next week right now. This week is unchanged;
-     please try again.") with role="alert", keeps reflection text intact, and provides "Try again".
-   - Clamped Day 90 / After Week 12 (R8, OD-9, OD-2): day counter clamps at 90 / 90 with tabular
-     figures; when past planned tasks, renders an honest completion card ("90-Day Journey Complete")
-     linking to /roadmap without inventing fake week 13 tasks or pretending Phase 9 completion exists.
-   - API Offline & Visible Failed Writes (R9, OD-9, R-17): dedicated offline notice banner appears
-     on Today when apiStatus === 'offline'; failed task writes immediately display visible error
-     alert (role="alert": "That didn't save. Please check your connection and try again.") and
-     never look saved.
+### Milestones
 
-2. What changed
-   - State Detection Helpers (frontend/src/lib/today.ts & today.test.ts):
-     - Added findYesterdayTask to find yesterday's calendar task in the week.
-     - Added isYesterdayPending to check if yesterday was an uncompleted practice day.
-     - Added isWeekReviewDue to check if all tasks in the week have elapsed.
-     - 22 unit tests passing in today.test.ts.
-   - Goal Context (frontend/src/context/GoalContext.tsx):
-     - Sets goalLoadFailed = true when refreshGoal encounters an error.
-   - Goal-Load Error & Route Protection (Home.tsx, ProtectedRoute.tsx, OnboardingPage.tsx):
-     - Home.tsx renders dedicated error state with role="alert", "Try again" button calling
-       refreshGoal(), and suppresses pathway library when goalLoadFailed && !activeGoal.
-     - ProtectedRoute.tsx redirects to / instead of /onboarding when requireGoal && !activeGoal
-       and goalLoadFailed is true.
-     - OnboardingPage.tsx renders error alert with retry button when goalLoadFailed is true,
-       preventing duplicate plan creation during build.
-   - Execution Dashboard Review Error (frontend/src/components/ExecutionDashboard.tsx):
-     - role="alert" added to reviewError display; review submit button toggles to "Try again".
-   - Today Component (frontend/src/components/today/Today.tsx):
-     - Offline banner when apiStatus === 'offline'.
-     - NOT_SAVED error message updated to "That didn't save. Please check your connection and try again.".
-     - Rest day state: adaptation explanation, suppressed Start, recovery toggle, and next step preview.
-     - Key session state: accent badge and pivotal session guidance callout.
-     - Test day state: benchmark card with instructions, formatPassIf pass mark, zero fake inputs.
-     - Yesterday recovery card: non-punitive guidance when yesterday's step was uncompleted.
-     - Review due card: rendered when isWeekReviewDue(currentWeekTasks, now) is true.
-     - Clamped Day 90 card: rendered when goal.currentWeek >= 12 and no planned tasks remain.
-   - Tests:
-     - Home.test.tsx: 2 unit tests covering goal load failure and retry.
-     - ProtectedRoute.test.tsx: 2 unit tests verifying route protection under goalLoadFailed.
-     - Today.test.tsx: 8 new unit tests covering all OD-9 states (22 tests total).
-     - today.spec.ts: updated write error expectation (32 tests total).
-     - todayStates.spec.ts: 16 Playwright E2E tests covering every OD-9 state across desktop and mobile.
+| ID | Milestone | Status | Details |
+|---|---|---|---|
+| **M6.1** | GoalContext Multi-Goal State Expansion | `NOT STARTED` | Extend `GoalContext` with `activeGoals` list and `switchActiveGoal` selector. |
+| **M6.2** | GoalSwitcher Navigation Component | `NOT STARTED` | Build accessible dropdown showing concurrent goals with current week and theme indicators. |
+| **M6.3** | Seamless View Synchronization | `NOT STARTED` | Verify Today, Roadmap, and Progress views instantly re-render with selected goal context. |
+| **M6.4** | Multi-Goal Interaction Tests | `NOT STARTED` | Author unit tests verifying goal switching, active state retention, and keyboard navigation. |
 
-3. Files changed / created / removed
-   Created:
-   - frontend/e2e/todayStates.spec.ts
-   - frontend/src/components/ProtectedRoute.test.tsx
-   - frontend/src/pages/Home.test.tsx
-   Changed:
-   - frontend/src/lib/today.ts
-   - frontend/src/lib/today.test.ts
-   - frontend/src/context/GoalContext.tsx
-   - frontend/src/pages/Home.tsx
-   - frontend/src/pages/OnboardingPage.tsx
-   - frontend/src/components/ProtectedRoute.tsx
-   - frontend/src/components/ExecutionDashboard.tsx
-   - frontend/src/components/today/Today.tsx
-   - frontend/src/components/today/Today.test.tsx
-   - frontend/e2e/today.spec.ts
-   - Design.md (§13 OD-9 State Matrix & Error Resilience)
-   - docs/phases.md (M5.7 report, milestone table, position header, change log)
-   Removed: nothing.
-   Backend was not changed. Zero backend changes permitted.
+### Regression checks
 
-4. Functionality preserved
-   R-1: Post-auth redirect to / unaffected; error state renders safely.
-   R-8: Daily task retrieval intact for all practice, key, test, and rest days.
-   R-9: Daily task completion toggle works across all state types; failed writes never look saved.
-   R-10: Task notes load and save correctly; focus wins preserved.
-   R-11: Focus session runner functional for practice and key session days.
-   R-12: Weekly review entry reachable from review-due state; 503 handled gracefully.
-   R-15, R-17: Reset goal unaffected; offline status indicated honestly.
-   /dashboard was NOT redirected.
+* **R-7**: Active goal state persists across page reload.
+* **R-8**: Daily task retrieval on Today updates cleanly to match selected goal.
+* **R-14**: Roadmap staircase re-renders for the selected goal.
 
-5. Decisions applied
-   OD-9: Every row in the state matrix implemented (goal load error, rest day, key session,
-   test day, recovery, review due, review 503, clamped day 90, offline banner & failed write).
-   BP §18: Calm, non-punitive tone; no red warning text, "missed", "failed", "behind", or streak shaming.
-   BP §43 & OD-1a: Test Day benchmark instructions and pass mark without fake score inputs or sliders.
-   OD-2: Day 90 / 90 clamped with honest completion message; zero fake week 13 tasks.
-   ND-12: Route protection keeps user on / with error alert instead of redirecting to onboarding.
+### Mobile acceptance
 
-6. Validation evidence
-   Frontend tsc --noEmit: clean (0 errors).
-   ESLint on all changed/created files: clean (0 errors, 0 warnings).
-   Frontend Vitest: 263 passed / 31 files (was 245 / 29).
-   Build: main JS 585.44 KB (172.88 KB gzipped), CSS 100.47 KB (17.59 KB gzipped).
-   Playwright e2e/todayStates.spec.ts: 16 passed across desktop and mobile (18.0s).
-   Playwright e2e/today.spec.ts: 32 passed across desktop and mobile (37.9s).
-   Playwright e2e/focus.spec.ts: 14 passed across desktop and mobile (21.4s).
-   Total Playwright suites for Phase 5: 62 passed, 0 failed across desktop and mobile.
-   Axe-core scan: 0 violations across all OD-9 states at 1440px and 390px viewports.
-   Responsive check: 0 horizontal overflow and touch targets ≥ 44px at 1440px, 390px, and 360px widths.
+* Dropdown converts to clean bottom sheet on mobile viewports (&le; 768px).
+* Touch target for each goal row is &ge; 48px height.
+* Smooth close on selection without double taps.
 
-7. Carry-overs
-   M5.8: /dashboard redirect to / (keeping query and hash), update OnboardingPage navigate('/dashboard')
-   and ProtectedRoute <Navigate to="/dashboard"> to /, and remove duplicate legacy dashboard code.
-   M5.9: Phase 5 regression matrix and final Phase 5 report.
+### Validation
 
-8. Issues and risks
-   None. Route protection permanently eliminates the duplicate-create vulnerability when
-   goal load fails during onboarding build.
+1. Sign in as Pro user with 2 active goals &rarr; GoalSwitcher displays both goals.
+2. Select Goal B &rarr; Today dashboard immediately switches to Goal B's daily drill.
+3. Reload page &rarr; Goal B remains selected.
+4. Click "+ New Goal" in switcher &rarr; opens onboarding wizard directly without paywall.
+5. `npm test --workspace=frontend`
 
-9. Not started
-   M5.8 has NOT started.
-   /dashboard was not redirected.
-   Nothing was committed.
-```
+### Exit criteria
 
-### M5.8 report — Route consolidation, /dashboard redirect & legacy retirement (2026-09-25)
+* Pro users can switch between multiple concurrent goals in under 1 second.
+* Switching updates all child views without desynchronization.
+* Free users with 1 goal see static goal title without switcher complexity.
 
-```text
-1. Outcome
-   Route consolidation and legacy dashboard retirement (OD-3) are complete:
-   - /dashboard permanently redirects to / preserving query parameters and hash fragments (DashboardRedirect.tsx).
-   - Onboarding done (OnboardingPage.tsx) and route guards (ProtectedRoute.tsx) land directly on /.
-   - RoadmapPage "Back to Today" link points to /.
-   - Today (Today.tsx) directly embeds restyled BasisBadge, retires the full day view link, and triggers WeeklyReviewModal directly (R-12).
-   - Redundant legacy dashboard components (ExecutionDashboard.tsx, DashboardPage.tsx, DayRoutineTimeline.tsx, FullDayVisualizer.tsx) are permanently retired (-1,774 lines).
-   - M5.9 has NOT started.
+### Risks
 
-2. What changed
-   - Created frontend/src/pages/DashboardRedirect.tsx to handle permanent redirect from /dashboard to / while preserving search and hash.
-   - App.tsx route /dashboard updated to render DashboardRedirect.
-   - ProtectedRoute.tsx redirect updated from /dashboard to /.
-   - OnboardingPage.tsx handleGoalCreated navigation updated from /dashboard to /.
-   - RoadmapPage.tsx "Back to Today" link updated from /dashboard to /.
-   - BasisBadge.tsx restyled with Phase 0 botanical tokens and embedded into Today.tsx.
-   - WeeklyReviewModal.tsx and MilestoneGateModal.tsx migrated to frontend/src/components/today/ and hooked into Today.tsx review button.
-   - Removed ExecutionDashboard.tsx (1,229 lines), DashboardPage.tsx (26 lines), DayRoutineTimeline.tsx (154 lines), FullDayVisualizer.tsx (245 lines).
-   - Updated E2E test suites in shell.spec.ts, today.spec.ts, pathways.spec.ts, generation.spec.ts, onboarding.spec.ts, and onboardingStates.spec.ts to assert / instead of /dashboard.
+* State stale closure in task completion handlers if `goalId` is not properly bound (mitigate by referencing active goal ID in all mutations).
 
-3. Files changed / created / removed
-   Created:
-   - frontend/src/components/today/WeeklyReviewModal.tsx
-   - frontend/src/components/today/MilestoneGateModal.tsx
-   - frontend/src/pages/DashboardRedirect.test.tsx
-   - frontend/src/components/BasisBadge.test.tsx
-   - frontend/src/components/ProtectedRoute.test.tsx
-   Changed:
-   - frontend/src/App.tsx
-   - frontend/src/pages/OnboardingPage.tsx
-   - frontend/src/pages/RoadmapPage.tsx
-   - frontend/src/components/ProtectedRoute.tsx
-   - frontend/src/components/BasisBadge.tsx
-   - frontend/src/components/today/Today.tsx
-   - frontend/src/components/today/Today.test.tsx
-   - frontend/src/components/app/AppShell.test.tsx
-   - frontend/src/components/app/shellEntries.ts
-   - frontend/src/types/index.ts
-   - frontend/e2e/generation.spec.ts
-   - frontend/e2e/onboarding.spec.ts
-   - frontend/e2e/onboardingStates.spec.ts
-   - frontend/e2e/pathways.spec.ts
-   - frontend/e2e/shell.spec.ts
-   - frontend/e2e/today.spec.ts
-   - frontend/e2e/todayStates.spec.ts
-   Removed:
-   - frontend/src/pages/DashboardPage.tsx
-   - frontend/src/components/ExecutionDashboard.tsx
-   - frontend/src/components/DayRoutineTimeline.tsx
-   - frontend/src/components/FullDayVisualizer.tsx
-   Zero backend changes.
+---
 
-4. Functionality preserved
-   R-1: Authentication redirects intact; landing on / with goal renders Today.
-   R-3: Pathway launching and switching preserved; explorer closes and returns focus.
-   R-8: Daily task retrieval intact on /.
-   R-9: Completion toggle works; persists across reloads; writes through useTaskActions.
-   R-10: Practice notes and focus wins preserved.
-   R-11: Focus mode opens and functions identically.
-   R-12: Weekly review opens directly from Today and handles 503 retry.
-   R-14: Roadmap reachable from shell and links back to /.
-   R-15: Reset 90-Day Plan in Account menu functions with Dialog confirmation.
-   R-17: Offline chip in shell and offline banner on Today remain functional.
+## PHASE 7 — Mobile Ergonomics, Accessibility & E2E Verification Sweep
 
-5. Decisions applied
-   OD-3 (A): One Today at /, built from decomposed capabilities. /dashboard redirects to / preserving query and hash.
-   ND-7: Shell navigation Today points to / and remains active on / and redirected /dashboard.
+**Status:** `NOT STARTED`
 
-6. Validation evidence
-   Type-check: tsc --noEmit exit 0.
-   Vitest: 33 files passed, 271 tests passed (100%).
-   Production build: JS bundle size decreased from 585.44 KB to 539.29 KB (163.32 KB gzipped), CSS decreased to 93.24 KB.
-   Playwright: all suites green across desktop (1440px) and mobile (390px).
+**Source:** FD §16, §17, §31, §32 · AC-1 through AC-7 · N-1 through N-4
 
-7. Carry-overs
-   M5.9: Phase 5 regression matrix and final Phase 5 report.
+**Objective:** Conduct comprehensive cross-viewport mobile sweeps, WCAG AA accessibility audits, and implement automated Playwright E2E test suites proving the payment and subscription system end-to-end.
 
-8. Issues and risks
-   None. Legacy dashboard retirement eliminates duplicate write paths and state divergence.
+**Narrative line:** *"Flawless execution on every device."*
 
-9. Not started
-   M5.9 has NOT started.
-   Phase 6 (Journey) has NOT started.
-```
+### Current state
 
-### Phase 5 regression matrix (2026-09-25)
+* Payment feature components have individual unit tests, but no unified automated Playwright E2E suite covering the complete upgrade, billing portal, and multi-goal lifecycle.
 
-#### Must-Not-Break Capabilities (R-1 through R-18)
+### Decisions required before starting
 
-| ID | Capability | Status | Test Suites & Citations | Validation Evidence |
+* None.
+
+### In scope
+
+* Author comprehensive Playwright E2E suite `frontend/e2e/billing.spec.ts`:
+  * **Test 1**: Free tier user creates 1 goal &rarr; succeeds without upgrade prompt (`AC-1`).
+  * **Test 2**: Free tier user clicks "+ New Goal" &rarr; Upgrade Modal appears (`AC-2`).
+  * **Test 3**: Modal interval toggle switches between Monthly and Annual pricing with correct discounts.
+  * **Test 4**: Mocked checkout flow redirects to `/billing/success` &rarr; plan updates to Pro (`AC-3`, `AC-4`).
+  * **Test 5**: Pro user creates 2nd concurrent goal &rarr; succeeds without paywall; GoalSwitcher toggles between them.
+  * **Test 6**: Settings &rarr; Billing & Subscription opens Stripe Customer Portal link (`AC-5`).
+  * **Test 7**: Grace Mode test: User downgraded with 2 active goals &rarr; goals remain editable, Grace Mode banner renders, "+ New Goal" is locked (`AC-6`).
+  * **Test 8**: API guard test: Direct POST to `/api/goal/create` by free user with active goal returns 403 Forbidden (`AC-7`).
+* Mobile viewport sweep across 360px, 375px, 390px, and 412px:
+  * Check zero horizontal overflow (`documentOverflow <= 1`).
+  * Check touch targets (&ge; 44×44px).
+  * Check bottom sheet ergonomics on mobile Safari and Chrome.
+* Accessibility sweep with `@axe-core/playwright`:
+  * 0 WCAG 2.1 AA violations on UpgradeModal, BillingSection, BillingSuccessPage, and GoalSwitcher.
+
+### Out of scope
+
+* Live credit card processing against Stripe production (Stripe test mode fixtures only).
+
+### Backend allowance
+
+* None.
+
+### Files likely affected
+
+* `frontend/e2e/billing.spec.ts` (new)
+* `frontend/src/components/billing/UpgradeModal.tsx` (polish if needed)
+* `frontend/src/components/billing/BillingSection.tsx` (polish if needed)
+
+### Milestones
+
+| ID | Milestone | Status | Details |
+|---|---|---|---|
+| **M7.1** | Playwright E2E Automated Billing Suite | `NOT STARTED` | Implement 8 end-to-end integration tests covering AC-1 through AC-7. |
+| **M7.2** | Cross-Device Mobile Viewport Sweep | `NOT STARTED` | Audit 360px, 375px, 390px, 412px viewports for zero overflow and 44px tap targets. |
+| **M7.3** | WCAG AA Accessibility & Screen Reader Audit | `NOT STARTED` | Verify 0 axe violations, focus traps, aria labels, and keyboard navigation. |
+| **M7.4** | Full Regression Sweep & Final Verification Report | `NOT STARTED` | Re-verify all touched items in R-1..R-22, compile documentation, and produce Phase 7 report. |
+
+### Regression checks
+
+* Complete verification across **R-1** through **R-22**.
+
+### Mobile acceptance
+
+* 0 horizontal scroll at 360px.
+* Tap targets meet or exceed 44×44px.
+* Native mobile virtual keyboard does not obscure modal inputs or action CTAs.
+
+### Validation
+
+1. `npx playwright test frontend/e2e/billing.spec.ts` (all 8 tests pass)
+2. `npm test --workspace=backend` (100% pass)
+3. `npm test --workspace=frontend` (100% pass)
+4. `npm run type-check --workspace=frontend` (0 errors)
+5. `npm run build --workspace=backend` (clean build)
+6. `npm run build --workspace=frontend` (clean build)
+
+### Exit criteria
+
+* All 7 acceptance criteria (`AC-1` through `AC-7`) verified by automated Playwright E2E tests.
+* Zero axe-core accessibility violations.
+* Zero regressions across existing practice features.
+* Final Phase Report completed.
+
+### Risks
+
+* E2E flakiness from external network calls (mitigate by mocking Stripe API responses in Playwright network routing).
+
+---
+
+# 5 — CROSS-PHASE CARRY-OVERS
+
+Issues discovered during planning or deferred from earlier roadmaps that are tracked across phases:
+
+| Carry-over ID | Description | Originating Phase | Target Phase | Status |
 |---|---|---|---|---|
-| R-1 | Authentication | Pass | `e2e/auth.spec.ts` (35 tests across desktop & mobile), `AuthScreen.test.tsx` (13 tests) | Sign up, sign in, sign out, input validation, network error handling, session persistence across reload, goal fetch failure handled safely on `/` without bounce to onboarding |
-| R-2 | Goal creation | Pass | `e2e/onboarding.spec.ts` (27 tests), `src/components/onboarding/payload.test.ts` (6 tests) | Preset and custom goals create successfully via `POST /api/goal/create`; payload verified field for field against baseline; double-click protection verified |
-| R-3 | Preset pathway launch | Pass | `e2e/pathways.spec.ts` (32 tests), `PathwayLibrary.test.tsx` (11 tests) | Pathway launch preselects pathway, navigates into onboarding; switching pathway retains active goal until saved |
-| R-4 | Onboarding payload | Pass | `e2e/onboarding.spec.ts`, `src/components/onboarding/payload.test.ts` | Request bodies match baseline schema exactly for `POST /api/goal/clarify` and `POST /api/goal/create` |
-| R-5 | AI roadmap generation | Pass | `e2e/generation.spec.ts` (24 tests), `backend/test/goalDecomposer.test.ts` (22 tests) | AI generation creates valid roadmap with phases, weeks, and week-1 daily tasks; onGoalCreated receives clean goal |
-| R-6 | Generation progress stream | Pass | `e2e/generation.spec.ts` | SSE stages (`search`, `method`, `plan`, `done`, `error`) render honest stages (OD-8); 20s silence timer counts client-side; slow copy appears without duplicate lines |
-| R-7 | Saving goals | Pass | `e2e/generation.spec.ts`, `e2e/onboardingStates.spec.ts` | Created goals persist to database; `GET /api/goal/active` returns active goal across reloads |
-| R-8 | Daily task retrieval | Pass | `e2e/today.spec.ts` (30 tests), `src/components/today/Today.test.tsx` (25 tests) | Today at `/` displays active task for current UTC day in BP §09 hierarchy: rawGoal heading, clarifiedOutcome beneath, Day N/90, step title, duration, slot time, whyToday, and progressive disclosures |
-| R-9 | Daily completion | Pass | `e2e/today.spec.ts:127`, `Today.test.tsx:88` | Toggling completion writes `PATCH /api/goal/tasks/:taskId`, updates `GoalContext`, illuminates card with botanical accent (`border-accent/40 bg-surface/95 ring-1 ring-accent/20`), persists across reload, and "Mark not done" cleanly reverts status. Failed write surfaces visible error alert |
-| R-10 | Task notes & focus wins | Pass | `e2e/today.spec.ts:148`, `Today.test.tsx:165` | Free-form notes auto-save on blur / button; focus wins parse and display with `• Focus win:` bullets; notes survive completion and reloads; no cross-screen wipe occurs |
-| R-11 | Focus session | Pass | `e2e/focus.spec.ts` (14 tests), `FocusSessionModal.test.tsx` (11 tests) | Focus mode opens from Today; countdown runs start to finish; spacebar pause/resume works (bypassed in text fields); deliberate practice step runner with collapsible tips; reflection captures into completion write; failed write surfaces retry alert and preserves text |
-| R-12 | Weekly review entry & execution | Pass | `Today.test.tsx:538`, `Today.test.tsx:563`, `e2e/todayStates.spec.ts:141` | Weekly review opens directly from Today when review is due or triggered; submits reflection to `POST /api/goal/weeks/:weekNumber/review`; 503 error handled gracefully with retry; advances week and updates next week's daily tasks |
-| R-13 | Weekly progression | Pass | `backend/test/goalDecomposer.test.ts`, `Today.test.tsx` | Next week's tasks appear and `currentWeek` advances after review submission; MilestoneGateModal opens on milestone gate weeks |
-| R-14 | Roadmap | Pass | `e2e/shell.spec.ts:125`, `src/pages/RoadmapPage.tsx` | `/roadmap` accessible via shell navigation, renders v1 and v2 goal roadmap; "Back to Today" navigates to `/` |
-| R-15 | Reset / switch goal | Pass | `e2e/shell.spec.ts:358`, `AppShell.test.tsx:75`, `e2e/pathways.spec.ts` | Account menu provides "Reset 90-Day Plan" with Dialog confirmation calling `DELETE /api/goal/active` and returning to onboarding; pathway switching in explorer archives previous goal on save |
-| R-16 | Draft goal carried through signup | Pass | `e2e/auth.spec.ts`, `e2e/onboarding.spec.ts` | Pathway selected while signed out is stored in draft, carried through signup/login into onboarding, and cleared once goal is created |
-| R-17 | Offline indicator & write failures | Pass | `e2e/todayStates.spec.ts:185`, `e2e/shell.spec.ts:404` | App shell displays offline chip; Today displays offline notice banner when disconnected; failed task writes display visible error alert and never pretend to succeed |
-| R-18 | Browser history in onboarding | Pass | `e2e/onboarding.spec.ts:153`, `e2e/generation.spec.ts:132` | Browser back and forward move between steps without losing answers; back during generation stays on generation screen |
-
-#### OD-9 State Matrix Walk & Verification
-
-| State | Trigger | Implementation / Treatment | Evidence |
-|---|---|---|---|
-| 1. Loading | `loadingGoal === true` | `TodaySkeleton` renders calm placeholder state | `e2e/today.spec.ts`, `TodaySkeleton.tsx` |
-| 2. No active goal | `activeGoal === null && !goalLoadFailed` | Pathway library invitation displays with custom goal option | `e2e/today.spec.ts`, `Home.tsx` |
-| 3. Goal-load error | `goalLoadFailed === true && !activeGoal` | Dedicated error card on `/` with `"Try again"` button (`refreshGoal()`); `ProtectedRoute` does not kick user to onboarding | `e2e/todayStates.spec.ts:9`, `Today.tsx` |
-| 4. Practice day | Pending task for today | BP §09 hierarchy (`rawGoal` heading, outcome beneath, Day N/90, step, duration, Start, week glance) | `e2e/today.spec.ts:94`, `Today.tsx` |
-| 5. Key session | `task.isKeySession === true` | Accent badge and pivotal session guidance callout | `e2e/todayStates.spec.ts:68`, `Today.tsx` |
-| 6. Test day | `task.isTestDay === true` | Benchmark test instructions and formatted `passIf` criteria without fake inputs | `e2e/todayStates.spec.ts:86`, `Today.tsx` |
-| 7. Rest day | `task.isRestDay === true` | Serene recovery copy, Start button suppressed, `"Log recovery complete"` toggle, next session glance | `e2e/todayStates.spec.ts:33`, `Today.tsx` |
-| 8. Short on time | `task.minimumVersion` present | Closed disclosure offering `"The 10-minute version"` with stored minimum version details | `e2e/today.spec.ts:256`, `Today.tsx` |
-| 9. Done for today | `task.status === 'completed'` | Step illuminated in botanical accent, quiet confirmation, next step preview card | `e2e/today.spec.ts:127`, `Today.tsx` |
-| 10. Yesterday uncompleted | Previous day's task pending | Encouraging recovery card (*"Here's how we can recover"*) without punitive language | `e2e/todayStates.spec.ts:120`, `Today.tsx` |
-| 11. Review due | All week tasks in past | Emphasized weekly transition card linking to review modal | `e2e/todayStates.spec.ts:141`, `Today.tsx` |
-| 12. Review failed (503) | Review endpoint returns 503 | Displays server's exact message with retry button; week unchanged | `Today.test.tsx:563`, `WeeklyReviewModal.tsx` |
-| 13. Clamped Day 90 | `currentWeek === 12` past plan | Day counter clamps at `90 / 90` with honest journey completion copy; zero fake tasks | `e2e/todayStates.spec.ts:165`, `Today.tsx` |
-| 14. API offline & write errors | `apiStatus === 'offline'` / write failure | Visible non-intrusive banner and polite error alerts (`role="alert"`) | `e2e/todayStates.spec.ts:185`, `Today.tsx` |
-
-#### Phase 5 Exit Criteria Audit
-
-| Criteria | Source | Status | Verification & Proof |
-|---|---|---|---|
-| 1. One Today screen | BP §09, OD-3 | MET | Single execution surface lives at `/`; `/dashboard` permanently redirects to `/` preserving query and hash; no secondary dashboard exists. Verified by `e2e/today.spec.ts:298:3`, `e2e/today.spec.ts:304:3`, `DashboardRedirect.test.tsx`, and retirement of `ExecutionDashboard.tsx`. |
-| 2. Every DailyTask field reachable | BP §31 | MET | Title, duration, slot time, `whyToday`, steps (instructions, timing, focus cue, output, pitfall, pass mark, resource), `minimumVersion`, `implementationIntention`, `resourceTitle/Url/Why`, `notes`, `isRestDay`, `isKeySession`, and `isTestDay` are all reachable on demand. Verified by `e2e/today.spec.ts:215`, `today.spec.ts:226`, `today.spec.ts:256`, `todayStates.spec.ts:33`, `todayStates.spec.ts:68`, `todayStates.spec.ts:86`. |
-| 3. Every OD-9 state designed | OD-9 | MET | Every state from the matrix has a deliberate, non-punitive implementation. 14 states verified across `e2e/todayStates.spec.ts`, `today.spec.ts`, and `Today.test.tsx` with 0 axe violations. |
-| 4. No navigation item leads to an empty page | BP §23, ND-7 | MET | App shell entries (Today, Roadmap, Pathways, Account) open real, working surfaces. Verified by `e2e/shell.spec.ts` (116 tests across desktop rail and mobile bottom bar). |
-
-### M5.9 report — Regression and phase report (2026-09-25)
-
-```text
-1. Outcome
-   Full regression and verification pass executed across the entire Phase 5 surface.
-   All R-1 to R-18 capabilities verified green.
-   All 14 OD-9 states verified green.
-   All 4 Phase 5 exit criteria audited and met.
-   Determinism check passed: 132/132 tests green under --repeat-each=2 on critical specs (today.spec.ts, todayStates.spec.ts, focus.spec.ts).
-   Phase 5 is COMPLETE and awaiting Mo's review.
-   Phase 6 (Journey) has NOT started.
-
-2. What changed
-   - docs/phases.md updated: position header, status table, milestone table (M5.8 and M5.9 marked Done), Phase 5 regression matrix, M5.8/M5.9 reports, official Phase 5 report, carry-overs table, and change log.
-   - docs/decisions.md updated: index line updated; OD-3 and OD-9 implementation notes added; change log updated.
-   - frontend/e2e/pathways.spec.ts: removed unused expectWithin helper to keep ESLint clean.
-   - No backend changes.
-
-3. Files changed / created / removed
-   Changed:
-   - frontend/e2e/pathways.spec.ts
-   - docs/phases.md
-   - docs/decisions.md
-   Created: none.
-   Removed: none.
-
-4. Functionality preserved
-   All R-1 to R-18 capabilities preserved and verified in the regression matrix above.
-
-5. Decisions applied
-   OD-3 (A), OD-9 (A amended), ND-7 (A narrowed), ND-18 (A) fully verified.
-   OD-2 and OD-7 remain Open and block Phase 6.
-
-6. Validation evidence
-   - TypeScript: node node_modules/typescript/bin/tsc --noEmit -p . -> 0 errors.
-   - ESLint: npx eslint on all Phase 5 modified files -> 0 errors, 0 warnings.
-   - Unit tests: npm test in frontend -> 33 test files passed, 271 tests passed (100%).
-   - Backend tests: npm test --workspace=backend -> 20 test files passed, 229 tests passed (100%).
-   - Playwright: 265 passed, 9 skipped, 0 failed across desktop (1440px) and mobile (390px).
-   - Determinism: --repeat-each=2 on today.spec.ts, todayStates.spec.ts, focus.spec.ts -> 132 passed, 0 flaky, 0 failed.
-   - Axe-core scan: 0 violations across all Today states, Focus mode, Weekly Review, and AppShell at 1440px, 390px, and 360px.
-   - Frontend build: dist/index.html 1.23 kB, CSS 93.24 kB (16.49 kB gzipped), JS 539.29 kB (163.32 kB gzipped).
-
-7. Carry-overs
-   - /roadmap layout and visual progression -> Phase 6.
-   - Weekly test result storage (OD-1a) -> Phase 7.
-   - Goal completion transition (OD-1b) -> Phase 9.
-   - Final-stretch days 85-90 copy and architecture -> OD-2 (Phase 6).
-
-8. Issues and risks
-   None. Route consolidation is verified and deep links (/dashboard?week=2#focus) redirect seamlessly.
-
-9. Not started
-   Phase 6 (Journey) has NOT started.
-   Nothing was committed.
-```
-
-### Phase 5 report (2026-09-25)
-
-```text
-ACHIVII REDESIGN — PHASE 5 REPORT
-
-1. Outcome
-   Phase 5 (Today) delivers the central daily execution experience for Achivii.
-   On opening Achivii, a signed-in user knows their next step within seconds:
-   - One unified Today screen lives at `/`, implementing the BP §09 hierarchy:
-     user's goal (rawGoal) with clarified outcome beneath, Day N / 90, today's step,
-     duration, slot time, Start, week glance, and progress bridge.
-   - Route consolidation is complete (OD-3): `/dashboard` permanently redirects to `/`
-     preserving query parameters and hash fragments. Onboarding done and route guards
-     land directly on `/`. Legacy ExecutionDashboard and supporting visualizers are retired.
-   - The application shell (ND-7) provides a persistent desktop left rail and mobile
-     bottom bar with Today, Roadmap, Pathways, and Account, plus top bar for onboarding.
-   - Progressive disclosure reveals all session fields (BP §31) on demand without clutter.
-   - Focus Mode (BP §32) is redesigned on Phase 0 tokens with countdown runner, deliberate
-     practice step tips, spacebar toggle, and error-resilient reflection capture.
-   - Active steps illuminate with calm botanical lighting upon completion (VDS §20, OD-9),
-     quiet confirmation, upcoming next-step previews, and parsed focus wins alongside notes.
-   - All 14 states of the OD-9 state matrix are implemented in encouraging, non-punitive tone.
-   Phase 5 milestones M5.1 through M5.9 are complete and verified.
-   Phase 5 is marked COMPLETE (awaiting Mo's review).
-   Phase 6 (Journey) has NOT started.
-
-2. What changed
-   Across M5.1–M5.9:
-   - M5.1: Adopted decisions OD-3, OD-9, ND-7, ND-18; created OD-9 state matrix.
-   - M5.2: Delivered AppShell (desktop rail, mobile bottom bar, minimal onboarding top bar,
-     Account disclosure with Reset confirm Dialog, offline chip, skip link). Removed Navbar.tsx.
-   - M5.3: Delivered Today at `/` with BP §09 hierarchy, rawGoal heading, unified write path
-     via useTaskActions updating GoalContext, closing cross-screen note wipe.
-   - M5.4: Progressive disclosure of whyToday, steps (instructions, cues, output, pitfall,
-     pass mark, resource), closed 10-minute version disclosure, and implementation plan.
-   - M5.5: Redesigned Focus Mode as Level 1 execution surface with preserved timer mechanics,
-     step tips runner, audio cues, reflection capture into notes, and failed write retry alerts.
-   - M5.6: Completion step lighting (botanical accent), next step preview card, reversible
-     "Mark not done", notes redesign with structured focus wins bullets and auto-save on blur.
-   - M5.7: Remaining OD-9 states: goal-load error alert with retry button, route protection,
-     rest day adaptation copy, key session callout, test day benchmark instructions without
-     fake inputs, yesterday recovery card, review due card, review 503 retry, clamped Day 90.
-   - M5.8: Consolidated routes: `/dashboard` redirects to `/` preserving query and hash (OD-3),
-     WeeklyReviewModal and restyled BasisBadge embedded on Today, legacy dashboard retired.
-   - M5.9: Executed comprehensive automated baseline and regression matrix across R-1 to R-18,
-     verified all exit criteria, verified determinism, and authored official Phase 5 report.
-
-3. Files changed / created / removed
-   Created across Phase 5:
-   - frontend/src/components/app/AppShell.tsx, AppShell.test.tsx, shellEntries.ts, AppFooter.tsx
-   - frontend/src/components/today/Today.tsx, Today.test.tsx, TodaySkeleton.tsx, WeeklyReviewModal.tsx, MilestoneGateModal.tsx
-   - frontend/src/components/focus/FocusSessionModal.tsx, FocusSessionModal.test.tsx, FocusRunner.tsx, FocusCompletion.tsx, FocusControls.tsx, FocusTimerDisplay.tsx, StepChallengeWidget.tsx
-   - frontend/src/hooks/useTaskActions.ts, useTaskActions.test.tsx
-   - frontend/src/lib/today.ts, today.test.ts, stepChallenge.ts, stepChallenge.test.ts
-   - frontend/src/pages/DashboardRedirect.tsx, DashboardRedirect.test.tsx
-   - frontend/src/components/BasisBadge.test.tsx, ProtectedRoute.test.tsx
-   - frontend/e2e/today.spec.ts, todayStates.spec.ts, focus.spec.ts, shell.spec.ts
-   Removed across Phase 5:
-   - frontend/src/components/Navbar.tsx
-   - frontend/src/components/ExecutionDashboard.tsx (1,229 lines)
-   - frontend/src/components/FullDayVisualizer.tsx (245 lines)
-   - frontend/src/components/DayRoutineTimeline.tsx (154 lines)
-   - frontend/src/pages/DashboardPage.tsx (26 lines)
-   Zero backend changes.
-
-4. Functionality preserved
-   - R-1 Authentication: Login, signup, signout, persistent session, goal load resilience.
-   - R-2 / R-4 Goal Creation & Payload: Identical payload schema and safe create handoff.
-   - R-3 Pathway Launch: Exploration, preview, preset preselection, and safe switching.
-   - R-5 / R-6 Generation: Honest stage progression, silence timer, slow notice, error retry.
-   - R-7 Save Goals: Goal persistence and reload recovery.
-   - R-8 Daily Task Retrieval: BP §09 hierarchy and UTC calendar matching.
-   - R-9 Daily Completion: Botanical illumination, write to server, reload persistence.
-   - R-10 Notes & Focus Wins: Auto-save on blur, focus win bullet integration, draft safety.
-   - R-11 Focus Mode: Countdown timer, spacebar pause/resume, Deliberate Practice runner.
-   - R-12 / R-13 Weekly Review & Progression: Review submission, 503 retry, week advancement.
-   - R-14 Roadmap: Shell access, roadmap visualization, and Back to Today link to `/`.
-   - R-15 Reset / Switch Goal: Safe deletion with confirmation, archived switch.
-   - R-16 Draft Preservation: Pathway draft carried through auth into onboarding.
-   - R-17 Offline Banner & Alert: Visual status chip and visible non-silent write failure alerts.
-   - R-18 Onboarding Navigation: Forward/backward state retention, generation lock.
-
-5. Decisions applied
-   - OD-3 (A): One Today screen at `/`; `/dashboard` permanently redirects to `/`.
-   - OD-9 (A amended): Complete 14-state matrix designed in calm, encouraging tone.
-   - ND-7 (A narrowed): Left rail navigation on desktop; bottom bar on mobile.
-   - ND-18 (A): Heading is rawGoal; clarifiedOutcome shown beneath as stored.
-   - BP §18: Non-punitive design; zero shame copy; zero gamified streak counters or fake confetti.
-   - BP §43 / OD-1a: Honest test day without fake score inputs.
-   - OD-2: Clamped Day 90 / 90 journey completion.
-
-6. Validation evidence
-   - TypeScript: 0 errors (`node node_modules/typescript/bin/tsc --noEmit -p .`).
-   - ESLint: 0 errors, 0 warnings across all Phase 5 modified files and e2e suites.
-   - Vitest: 33 test files passed, 271 tests passed (100%).
-   - Backend Vitest: 20 test files passed, 229 tests passed (100%).
-   - Playwright: 265 passed, 9 skipped, 0 failed across desktop (1440px) and mobile (390px).
-   - Determinism: 132/132 tests green under `--repeat-each=2` on critical specs (`today.spec.ts`, `todayStates.spec.ts`, `focus.spec.ts`).
-   - Accessibility: 0 violations (`@axe-core/playwright` across WCAG 2.0/2.1/2.2 AA) at 1440px, 390px, and 360px.
-   - Responsive check: 0 horizontal overflow (`documentOverflow <= 1`), touch targets >= 44x44px.
-   - Build metrics: JS 539.29 KB (163.32 KB gzipped), CSS 93.24 KB (16.49 KB gzipped).
-
-7. Carry-overs
-   - /roadmap visual overhaul and staircase progression -> Phase 6 (Journey).
-   - Weekly test result storage -> Phase 7 (Weekly review + adaptation, OD-1a).
-   - Goal completion transition and celebration -> Phase 9 (Achievement, OD-1b).
-   - Final stretch (days 85–90) product copy -> OD-2 (Phase 6).
-
-8. Issues and risks found
-   - Main JS bundle (539.29 KB) remains slightly above Vite's 500 KB chunk warning (dropped 46 KB in Phase 5 from 585 KB); owned by Phase 12 (code splitting).
-   - All Phase 5 surface risks mitigated.
-
-9. Next phase status
-   Phase 5 is COMPLETE (awaiting Mo's review).
-   Phase 6 (Journey) is NOT started and is blocked by OD-2 and OD-7.
-```
+| **CO-1** | Stripe webhook live secret rotation procedure | Phase 2 planning | Production deployment | Open |
+| **CO-2** | Localization of Stripe Checkout currency based on user timezone | Phase 2 planning | Future enhancement | Deferred |
+| **CO-3** | Annual gift memberships and team licenses | Phase 4 planning | Future roadmap | Deferred |
 
 ---
 
-## PHASE 6 — JOURNEY
+# 6 — DECISION / OPEN-ITEM REGISTER
 
-**Status:** `COMPLETE` (awaiting Mo's review)
-
-**Source:** BP §08, §10–11, §17, §47, OD-2, OD-7 · VDS §7–9, §20, §25–26, §28, note 7
-
-**Objective:** a visual 90-day roadmap that shows where the user is going and how far they have come, using the staircase as a conceptual language rather than a template.
-
-**Narrative line:** *"Here's the path."*
-
-### Current state
-
-* **Views:** `RoadmapPage.tsx` (320 lines, `/roadmap`) and `PlanV2Panel.tsx` (145 lines).
-* **v2 goals (`planVersion = 2`):**
-  * `Goal.roadmap = { finalGoal, finalTest, startingPoint, method, phases, weeks }`.
-  * `phases` has 2–4 entries (`{ name, startWeek, endWeek, purpose }`), named by the chosen method.
-  * `weeks` have `{ weekNumber, phase, focus, target, test }`.
-  * **Tasks exist only for the current week**; later weeks are written one at a time after each review.
-* **v1 goals:** three fixed phases (Foundation, Acceleration, Mastery); all 12 weeks are planned up front.
-* **`RoadmapWeek` rows:** `phase`, `theme`, `objective`, `keyMilestone`, `status`, `executionScore`, `target`, `test`.
-* **Length:** the plan is 12 weeks (84 days); the UI calculates a 90-day target date (OD-2).
-
-### Decisions required before starting
-
-* **OD-2: 90 vs 84 days.** Decided (Option A — A closing stretch on days 85–90 on 2026-09-25 at M6.1). Days 1–84 are the planned 12 weeks; days 85–90 are dedicated to taking `roadmap.finalTest`, reflection, and goal arrival. No fake daily tasks. Day counter clamps at 1–90.
-* **OD-7: phase counts.** Decided (constraint, 2026-09-23). The Journey view handles 2–4 method-named phases for v2 goals and 3 fixed phases for v1 goals. Nothing may assume four fixed phases (the BP §10 sketch is conceptual).
-
-### Definitive Day / Week / Phase Mapping (OD-2 & OD-7)
-
-The 90-day Journey is formally structured into two macro intervals across all goal versions:
-
-1. **Days 1–84 (Weeks 1–12): Structured Practice & Method Phases**
-   - **v2 goals (`planVersion = 2`):**
-     - Organized into **2 to 4 method-named phases** (`Goal.roadmap.phases: { name, startWeek, endWeek, purpose }[]`).
-     - Weeks 1–12 have defined strategic milestones (`{ weekNumber, phase, focus, target, test }`).
-     - **Future honesty (BP §43):** Daily tasks exist **only for the current week** (`currentWeek`). Future weeks display strategic focus, targets, and milestones, never invented daily tasks.
-   - **v1 goals (`planVersion = 1`):**
-     - Organized into **3 fixed phases**: Foundation (Weeks 1–4, Days 1–28), Acceleration (Weeks 5–8, Days 29–56), and Mastery (Weeks 9–12, Days 57–84).
-     - Pre-planned tasks exist across all 12 weeks.
-
-2. **Days 85–90 (The Closing Stretch — OD-2 Option A):**
-   - Calendar interval following the completion of Week 12's review.
-   - Dedicated exclusively to taking the final test (`roadmap.finalTest`), personal reflection, and arriving at the destination (`roadmap.finalGoal`).
-   - **Zero invented tasks:** No synthetic daily tasks are generated or scheduled for days 85–90.
-   - Transitions directly into Phase 9 (Achievement).
-   - `targetDate` strictly equals `startDate + 90 days`. The day counter clamps at 1–90 (`Math.min(90, Math.max(1, dayNumber))`).
-
-3. **Three Progress Layers (VDS §9):**
-   - **Layer 1 — Quick numerical layer:** Immediate orientation showing `Day N / 90`, current week (`Week W / 12`), and active phase indicator.
-   - **Layer 2 — Emotional staircase:** The experiential ascent:
-     - **Step:** A day's practice session (`DailyTask.status`).
-     - **Landing:** A phase boundary marking completed macro-methods.
-     - **Milestone:** A week target or test checkpoint.
-     - **Destination:** `roadmap.finalGoal` (the summit / garden threshold).
-     - **You are here:** Explicit marker at the current day/step.
-   - **Layer 3 — Strategic roadmap:** The complete 12-week progression maintaining strict future honesty (no fabricated future tasks).
-
-### In scope
-
-* **The staircase journey** (VDS §7–8, note 7):
-  * step = a day's task (`DailyTask.status`);
-  * landing = a phase boundary;
-  * milestone = a phase or week milestone;
-  * destination = `roadmap.finalGoal`;
-  * a "you are here" marker.
-* **Three layers of progress** (VDS §9): quick `27 / 90`, the emotional staircase, the strategic journey map.
-* **Honest future:** future weeks show only what exists (focus, target, milestone). Never invented tasks for weeks not yet written.
-* **Desktop:** expansive, with more environmental depth.
-* **Mobile:** vertical progression (VDS §28).
-* **Motion:** completed steps lit; the next step revealed (VDS §20), with a reduced-motion path.
-* **Parity:** v1 and v2 goals both render correctly.
-
-### Out of scope
-
-* Changing phase or week generation.
-* Editing the plan from the Journey view.
-* The garden or achievement state (Phase 9).
-
-### Backend allowance
-
-None.
-
-### Files likely affected
-
-* `frontend/src/pages/RoadmapPage.tsx`
-* `frontend/src/components/PlanV2Panel.tsx`
-* `frontend/src/types/journey.ts`
-* new `frontend/src/components/journey/*`
-* the navigation entry per ND-7
-
-### Milestones
-
-| ID | Milestone | Status |
-|---|---|---|
-| M6.1 | OD-2 and OD-7 decided; the day/week/phase mapping written down | `Done` (2026-09-25) |
-| M6.2 | Journey data adapter: one shape for v1 and v2 goals | `Done` (2026-09-25) |
-| M6.3 | Desktop journey composition | `Done` (2026-09-25) |
-| M6.4 | Mobile vertical journey | `Done` (2026-09-25) |
-| M6.5 | Progress motion and reduced-motion path | `Done` (2026-09-25) |
-| M6.6 | Regression and phase report | `Done` (2026-09-26) |
-
-### M6.1 report — Decisions OD-2 & OD-7 and Day/Week/Phase mapping (2026-09-25)
-
-1. **Decisions resolved**
-   - **OD-2 (90 vs 84 days):** Formally Decided as **Option A (A closing stretch: days 85–90)**. Days 1–84 cover the 12 planned weeks (7 days each); days 85–90 form the designed closing stretch (taking `roadmap.finalTest`, reflection, and goal arrival). No synthetic daily tasks are generated. Day counter clamps at 1–90. `targetDate` = start date + 90 days.
-   - **OD-7 (Phase counts):** Formally re-verified as **Decided (constraint)**: Journey handles 2–4 method-named phases for v2 goals and 3 fixed phases (Foundation, Acceleration, Mastery) for v1 goals. Nothing may assume four fixed phases.
-
-2. **Definitive mapping established**
-   - Comprehensive Day / Week / Phase mapping documented for v1 and v2 goals in `docs/phases.md` and `docs/decisions.md`.
-   - VDS §9 three-layer model defined: (1) Quick numerical layer (`Day N / 90`), (2) Emotional staircase (steps, landings, milestones, destination), (3) Strategic roadmap with honest future representation.
-
-3. **Canonical Journey contracts created**
-   - Authoritative TypeScript contracts written in `frontend/src/types/journey.ts` and re-exported from `frontend/src/types/index.ts`:
-     - `JourneyStatus`: `'completed' | 'active' | 'upcoming' | 'locked'`
-     - `JourneyStep`: Individual daily step within days 1–90.
-     - `JourneyWeek`: Week unit (1–12) with focus, target, test, status, and honest task presence.
-     - `JourneyPhase`: Phase unit with dynamic 2–4 (v2) or 3 (v1) bounds.
-     - `JourneyClosingStretch`: Days 85–90 final stretch contract with `finalTest` and `finalGoal`.
-     - `JourneyProgressMetrics`: Numerical layer metrics.
-     - `JourneyData`: Unified Journey shape unifying v1 and v2 goal structures.
-
-4. **React rules-of-hooks fix in `RoadmapPage.tsx`**
-   - Reordered all React hooks (`useMemo`, `useState`) to execute unconditionally at the top of `RoadmapPage.tsx` before any early returns (`if (!activeGoal) return null;`).
-   - Extracted `rawRoutine` to resolve React compiler manual memoization lint error.
-   - ESLint `react-hooks/rules-of-hooks` and `react-hooks/preserve-manual-memoization` pass with 0 errors and 0 warnings.
-
-5. **Verification evidence**
-   - TypeScript: 0 errors (`node node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors, 0 warnings on `RoadmapPage.tsx` (`npx eslint src/pages/RoadmapPage.tsx`).
-   - Vitest: 33 test files passed, 271 tests passed (100%).
-   - Playwright: Existing roadmap and shell navigation specs green.
-   - Zero backend changes.
-
-### M6.2 report — Journey data adapter: one shape for v1 and v2 goals (2026-09-25)
-
-1. **Pure Data Adapter Implemented (`frontend/src/lib/journeyAdapter.ts`)**
-   - Implemented `toJourneyData(goal, todayDate?)` pure function that normalizes any goal (v1 or v2) into the canonical `JourneyData` model.
-   - Unified schema ensures downstream UI components (M6.3/M6.4) never branch on `planVersion`.
-   - Exported `useJourneyData(todayDate?)` custom React hook (and re-exported via `frontend/src/hooks/useJourneyData.ts`) consuming `useGoal()` with memoization.
-
-2. **Phase Count Flexibility (OD-7)**
-   - Seamlessly handles 2, 3, or 4 method-named phases for v2 goals (`Goal.roadmap.phases`).
-   - Automatically provides 3 fixed phases (Foundation, Acceleration, Mastery) for v1 goals or goals missing custom roadmap phases (`V1_DEFAULT_PHASES`).
-
-3. **Future Honesty (BP §43)**
-   - For v2 goals, daily tasks are attached *only* for `currentWeek`.
-   - All unwritten future weeks strictly carry `days: []` and `hasWrittenTasks: false`. Zero synthetic or fabricated daily tasks are generated.
-
-4. **90-Day Alignment & Closing Stretch (OD-2 Option A)**
-   - Days 1–84 map to the 12 planned weeks (7 days each).
-   - Days 85–90 map to `JourneyClosingStretch` (`startDay: 85`, `endDay: 90`, `finalTest`, `finalGoal`).
-   - Closing stretch becomes `active` when `currentDay >= 85` (and marks preceding phases and weeks as completed).
-   - Day calculation clamps strictly between 1 and 90 (`Math.min(90, Math.max(1, dayNumber))`).
-
-5. **Progress Metrics (VDS §9 Layer 1)**
-   - Accurately computes `currentDay`, `totalDays` (90), `currentWeek`, `totalWeeks` (12), `currentPhaseIndex` (1-based active phase), `totalPhases`, `completedTasksCount`, and `percentComplete` (clamped 0–100%).
-
-6. **Comprehensive Test Suite (`frontend/src/lib/journeyAdapter.test.ts`)**
-   - 21 unit tests covering null handling, v2 goals with 2, 3, and 4 phases, v1 legacy goals, future honesty verification, day calculation & clamping, task-to-step mapping, week status progression, and `useJourneyData` React hook behavior.
-   - 100% green test suite.
-
-7. **Verification Evidence**
-   - TypeScript: 0 errors (`node node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors, 0 warnings across all adapter files (`src/lib/journeyAdapter.ts`, `src/lib/journeyAdapter.test.ts`, `src/hooks/useJourneyData.ts`).
-   - Vitest: 34 test files passed, 292 tests passed (100%).
-   - Playwright: 10/10 roadmap tests passed in `e2e/shell.spec.ts` (0 axe violations, 44px tap targets, 0 overflow); 36/36 Today tests passed in `e2e/today.spec.ts` (R-8 verified).
-   - Zero backend changes.
-
-### M6.3 report — Desktop journey composition (2026-09-25)
-
-1. **Three-Layer Progress Model Implemented (VDS §9)**
-   - **Layer 1 — Quick Numerical Orientation (`frontend/src/components/journey/JourneyHeader.tsx`):**
-     - Renders formatted goal title (`formatGoalTitle`) with optional method author credit (`methodName`, `methodAuthor`).
-     - Renders `Day N / 90` with tabular figures (`font-variant-numeric: tabular-nums`, VDS note 6).
-     - Renders macro-position badges: `Week W of 12` and `Phase P of Total` with phase name.
-     - Displays subtle, accessible progress bar (`role="progressbar"`, `aria-valuenow`).
-     - Provides clear "Back to Today" link (`/`).
-   - **Layer 2 — The Emotional Staircase (`frontend/src/components/journey/DesktopStaircase.tsx`):**
-     - Abstracted geometric ascending visualization with VDS §25 symbols (`✓` completed, `●` active, `○` upcoming, `◆` week milestone, `✦` summit destination).
-     - Flexible 2–4 phase landings (or 3 fixed phases for v1 goals) with phase names, purpose, and weekly milestone chips.
-     - Active week daily step runner showing practice sessions from `week.days` with "You are here" marker and rest/key/test badges.
-     - Designed approach threshold for Days 85–90 displaying `roadmap.finalTest`.
-     - Summit destination node marked with `✦` and `roadmap.finalGoal`.
-     - High-contrast architectural surfaces with zero WCAG AA contrast violations (`sr-only` summary provided for screen readers, VDS §29).
-   - **Layer 3 — The Strategic Roadmap (`frontend/src/components/journey/StrategicRoadmap.tsx`):**
-     - Collapsible architectural phase cards (active phase defaults to open, others collapsible via keyboard-accessible button with `aria-expanded`).
-     - Week cards with theme/focus, targets (`formatTarget`), milestones, and weekly tests (`formatPassIf`).
-     - **Strict Future Honesty (BP §43):** Active week reveals real daily practice sessions; future weeks present strategic targets and calm indication that daily tasks will be unlocked after the preceding weekly review, with zero fabricated tasks.
-     - Dedicated closing stretch culmination card displaying horizon review and destination summit.
-
-2. **Roadmap Page Refactored (`frontend/src/pages/RoadmapPage.tsx`)**
-   - Completely refactored to consume `useJourneyData()` hook.
-   - Clean, unconditional React hook ordering satisfying React compiler rules.
-   - Single `<main id="main" tabIndex={-1}>` landmark preserved for accessibility skip-link targets.
-   - Fully responsive across desktop (1440px, 1024px) down to mobile (390px, 375px, 360px) with zero horizontal overflow.
-
-3. **Component Barrel Export (`frontend/src/components/journey/index.ts`)**
-   - Re-exports `JourneyHeader`, `DesktopStaircase`, and `StrategicRoadmap`.
-
-4. **Component Unit & Integration Tests (`frontend/src/components/journey/DesktopJourney.test.tsx`)**
-   - 9 comprehensive tests verifying:
-     - Layer 1 header elements, tabular figures, and Back to Today link.
-     - Layer 2 staircase with 3 phase landings, daily step flight, closing stretch, and summit destination.
-     - Flexible phase rendering for 2-phase (6+6) and 4-phase (3+3+3+3) v2 goals.
-     - Foundation, Acceleration, and Mastery phases for v1 goals.
-     - Future honesty enforcement (unwritten weeks reveal strategic targets with zero daily task items).
-     - Accordion keyboard and button toggling with `aria-expanded`.
-     - Integrated `RoadmapPage` landmark rendering and empty-state fallback.
-
-5. **Verification Evidence**
-   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors, 0 warnings across all journey components and test files.
-   - Vitest: 35 test files passed, 301 tests passed (100%).
-   - Playwright: 10/10 roadmap tests passed in `e2e/shell.spec.ts` (0 axe violations at 1440px and 1024px, 44px tap targets, 0 overflow across desktop and mobile viewports).
-   - Zero backend changes.
-
-### M6.4 report — Mobile vertical journey (2026-09-25)
-
-1. **Dedicated Mobile Vertical Spine (`frontend/src/components/journey/MobileVerticalJourney.tsx`)**
-   - Implemented vertical ascending spine and stepper tailored for mobile screens (VDS §28):
-     - Single continuous vertical connecting track (`border-l-2 border-border`) with node glyphs (○ upcoming, ● active, ✓ completed, ◆ week milestone, ✦ summit destination per VDS §25).
-     - Clean, compact phase landing separators indicating phase boundary, name, purpose, and completion status.
-     - Responsive accordion toggling on phase landings: active phase defaults to expanded; completed and upcoming phases are collapsed by default to minimize cognitive load and visual noise on mobile.
-     - Full-width touch cards with hit targets ≥ 44×44px (`min-h-[44px]` on all interactive elements).
-   - Dedicated Days 85–90 approach section leading into the destination summit node.
-
-2. **"You Are Here" Auto-Positioning on Load (R2)**
-   - Renders high-visibility active position badge at top: `● You are here · Day N`.
-   - Active day step card on the vertical flight is equipped with `activeStepRef`.
-   - `useEffect` automatically scrolls the active step into view (`scrollIntoView({ behavior: 'smooth', block: 'center' })`) on mount when no URL hash is present.
-
-3. **Strict Future Honesty (BP §43)**
-   - Active week expands to display the 7 daily practice sessions along the vertical spine.
-   - Future weeks present strategic focus, targets (`formatTarget`), and milestones with the calm indicator: *"Daily sessions designed after Week N review"*. Zero fabricated daily task items.
-
-4. **Responsive Switching in `RoadmapPage.tsx`**
-   - Seamlessly serves `MobileVerticalJourney` for viewports `< 768px` (`block md:hidden`).
-   - Serves `DesktopStaircase` for viewports `≥ 768px` (`hidden md:block`).
-   - Shared `JourneyHeader` and `StrategicRoadmap` maintained.
-   - `main#main` landmark and skip-link functionality preserved.
-
-5. **Unit & E2E Verification**
-   - **Unit Tests (`frontend/src/components/journey/MobileVerticalJourney.test.tsx`):** 7 tests covering vertical spine progression, 2/3/4-phase v2 goals, 3-phase v1 goals, "You Are Here" active step badge/node, ≥ 44px tap targets, accordion toggling with `aria-expanded`, and future honesty (100% green).
-   - **Playwright Mobile Spec (`frontend/e2e/journeyMobile.spec.ts`):** 8 tests at viewports **390×844** (iPhone) and **360×800** (compact Android):
-     - 0 horizontal overflow (`scrollWidth <= innerWidth`, `documentOverflow <= 1`, `contentOverflow <= 1`).
-     - 0 axe accessibility violations.
-     - "You Are Here" badge visible on load.
-     - All button bounding boxes meet ≥ 44×44px hit target requirements.
-     - Phase accordion interaction and future honesty verified.
-   - **Regression Checks:**
-     - R-8: Today page (`e2e/today.spec.ts`, 36 tests) 100% green.
-     - R-14: Roadmap shell navigation & desktop layout (`e2e/shell.spec.ts`, 10 tests) 100% green.
-   - Zero backend changes.
-
-### M6.5 report — Progress motion and reduced-motion path (2026-09-25)
-
-1. **Hardware-Accelerated Progress Motion System (VDS §19, §20, §25)**
-   - **Mount Ascent Animation (`.journey-ascent`):**
-     - Staggered emergence of phase landings, active week runner, closing stretch threshold, and summit destination.
-     - Directional upward ascent using pure CSS transforms and opacity (`translateY(12px)` to `translateY(0)`).
-     - Controlled through CSS variable `--ascent-delay` (calm 60ms increments from past to future) timed with `--ease-ascend` (`cubic-bezier(0.22, 1, 0.36, 1)`).
-   - **Step Illumination & Ambient Beacon (`.journey-beacon`, VDS §20):**
-     - Completed steps (`✓`) carry a serene emerald accent (`border-accent/40 bg-accent/5 text-accent`).
-     - The active step (`●`) carries a breathing ambient beacon: subtle 3-second oscillation (`box-shadow: 0 0 16px -2px rgba(127,165,139,0.4)` to `box-shadow: 0 0 4px 0 rgba(127,165,139,0.15)`).
-     - Upcoming steps (`○`) remain muted until reached.
-     - Compound CSS definition `.journey-beacon.journey-ascent` enables seamless concurrent execution of initial mount ascent and continuous beacon pulse without style clobbering.
-   - **Layer 1 Animated Progress Meter Fill (`frontend/src/components/journey/JourneyHeader.tsx`):**
-     - Fills smoothly from 0% to the target completion percentage on mount over 600ms using `--ease-ascend`.
-     - Day counter and progression numerals styled with `tabular-nums` (`font-variant-numeric: tabular-nums`) preventing layout jitter.
-   - **Fluid Accordion Unfolding (`.journey-accordion-content`):**
-     - Implemented in `StrategicRoadmap.tsx` and `MobileVerticalJourney.tsx`.
-     - Smooth interpolation across height, opacity, and visibility (`transition: max-height 320ms var(--ease-settle), opacity 240ms ease-out, visibility 320ms`).
-     - Phase toggle chevrons rotate smoothly (`transition-transform duration-200`) without icon layout jumps.
-
-2. **Strict Reduced-Motion Path (VDS §29, Section 3.9)**
-   - **Comprehensive CSS Overrides (`@media (prefers-reduced-motion: reduce)` & `.motion-reduce`):**
-     - All transitions and keyframe animations immediately zeroed (`animation-duration: 0.01ms !important`, `animation-delay: 0s !important`, `transition-duration: 0.01ms !important`, `transition-delay: 0s !important`).
-     - Elements with `.journey-ascent` render instantly at full opacity and final position (`opacity: 1 !important; transform: none !important`).
-     - Continuous ambient pulse animation on `.journey-beacon` is replaced with a static focus ring (`box-shadow: 0 0 0 2px var(--color-accent) !important; animation: none !important`).
-     - Accordion content panels snap open/closed instantly (`max-height: none !important`, `opacity: 1 !important`, `transition: none !important`).
-   - **JavaScript Motion Awareness:**
-     - `JourneyHeader.tsx` reads `window.matchMedia('(prefers-reduced-motion: reduce)')` to set initial progress fill width immediately to target without the 0% start delay.
-     - `MobileVerticalJourney.tsx` executes `scrollIntoView({ behavior: 'instant', block: 'center' })` without timeout delay when reduced motion is preferred.
-
-3. **E2E Motion & Reduced-Motion Playwright Suite (`frontend/e2e/journeyMotion.spec.ts`)**
-   - 10 automated end-to-end tests validating:
-     - Standard motion: verifies presence of `.journey-beacon` on active step cards, active beacon pulse keyframe styling, 600ms animated fill progress bar, and rotating accordion toggles.
-     - Reduced motion: verifies instant opacity, lack of continuous beacon animation, immediate content visibility, and instant accordion expansion.
-     - Zero axe accessibility violations (`@axe-core/playwright`) with reduced motion.
-     - Zero horizontal overflow (`documentOverflow <= 1`, `contentOverflow <= 1`) at 1440px desktop, 390px mobile, and 360px compact mobile viewports under reduced motion.
-
-4. **Verification Evidence**
-   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors, 0 warnings across all modified journey components and test files.
-   - Vitest: 36 test files passed, 308 tests passed (100%).
-   - Playwright Suites:
-     - `e2e/journeyMotion.spec.ts`: 10 passed (10/10) in 24.2s.
-     - `e2e/journeyMobile.spec.ts`: 8 passed (8/8) in 26.8s.
-     - `e2e/shell.spec.ts -g "roadmap"`: 10 passed (10/10) in 23.4s.
-     - `e2e/today.spec.ts`: 36 passed (36/36) in 60.0s (R-8 verified).
-   - Zero backend changes or database modifications.
-
-### Phase 6 Regression Matrix
-
-#### Must-Not-Break Capabilities (R-1 through R-18)
-
-| ID | Capability | Status | Test Suites & Citations | Validation Evidence |
+| ID | Decision Title | Status | Impact | Blocking |
 |---|---|---|---|---|
-| R-1 | Authentication | Pass | `e2e/auth.spec.ts` (19 tests), `AuthScreen.test.tsx` (13 tests) | Sign up, sign in, sign out, input validation, network error handling, session persistence across reload, goal fetch failure handled safely on `/` without bounce to onboarding |
-| R-2 | Goal creation | Pass | `e2e/onboarding.spec.ts` (14 tests), `e2e/onboardingStates.spec.ts` (28 tests), `src/components/onboarding/payload.test.ts` (6 tests) | Preset and custom goals create successfully via `POST /api/goal/create`; payload verified field for field against baseline; double-click protection verified |
-| R-3 | Preset pathway launch | Pass | `e2e/pathways.spec.ts` (20 tests), `PathwayLibrary.test.tsx` (11 tests) | Pathway launch preselects pathway, navigates into onboarding; switching pathway retains active goal until saved |
-| R-4 | Onboarding payload | Pass | `e2e/onboarding.spec.ts:51-136`, `src/components/onboarding/payload.test.ts` | Request bodies match baseline schema exactly for `POST /api/goal/clarify` and `POST /api/goal/create` |
-| R-5 | AI roadmap generation | Pass | `e2e/generation.spec.ts` (13 tests), `backend/test/goalDecomposer.test.ts` (22 tests) | AI generation creates valid roadmap with phases, weeks, and week-1 daily tasks; onGoalCreated receives clean goal |
-| R-6 | Generation progress stream | Pass | `e2e/generation.spec.ts` | SSE stages (`search`, `method`, `plan`, `done`, `error`) render honest stages (OD-8); 20s silence timer counts client-side; slow copy appears without duplicate lines |
-| R-7 | Saving goals | Pass | `e2e/generation.spec.ts`, `e2e/onboardingStates.spec.ts:245` | Created goals persist to database; `GET /api/goal/active` returns active goal across reloads |
-| R-8 | Daily task retrieval | Pass | `e2e/today.spec.ts` (36 tests), `src/components/today/Today.test.tsx` (25 tests) | Today at `/` displays active task for current UTC day in BP §09 hierarchy: rawGoal heading, clarifiedOutcome beneath, Day N/90, step title, duration, slot time, whyToday, and progressive disclosures. 100% green |
-| R-9 | Daily completion | Pass | `e2e/today.spec.ts:127`, `Today.test.tsx:88` | Toggling completion writes `PATCH /api/goal/tasks/:taskId`, updates `GoalContext`, illuminates card with botanical accent (`border-accent/40 bg-surface/95 ring-1 ring-accent/20`), persists across reload, and "Mark not done" cleanly reverts status. Failed write surfaces visible error alert |
-| R-10 | Task notes & focus wins | Pass | `e2e/today.spec.ts:148, 178, 196`, `Today.test.tsx:165` | Free-form notes auto-save on blur / button; focus wins parse and display with `• Focus win:` bullets; notes survive completion and reloads; no cross-screen wipe occurs |
-| R-11 | Focus session | Pass | `e2e/focus.spec.ts` (14 tests), `FocusSessionModal.test.tsx` (11 tests) | Focus mode opens from Today; countdown runs start to finish; spacebar pause/resume works (bypassed in text fields); deliberate practice step runner with collapsible tips; reflection captures into completion write; failed write surfaces retry alert and preserves text |
-| R-12 | Weekly review | Pass | `Today.test.tsx:538`, `Today.test.tsx:563`, `e2e/todayStates.spec.ts:141` | Weekly review opens directly from Today when review is due or triggered; submits reflection to `POST /api/goal/weeks/:weekNumber/review`; 503 error handled gracefully with retry; advances week and updates next week's daily tasks |
-| R-13 | Weekly progression | Pass | `backend/test/goalDecomposer.test.ts`, `Today.test.tsx` | Next week's tasks appear and `currentWeek` advances after review submission; MilestoneGateModal opens on milestone gate weeks |
-| R-14 | Roadmap | Pass | `e2e/shell.spec.ts -g "roadmap"` (10 tests), `e2e/journeyMotion.spec.ts` (10 tests), `e2e/journeyMobile.spec.ts` (8 tests), `journeyAdapter.test.ts` (21 tests), `DesktopJourney.test.tsx` (9 tests), `MobileVerticalJourney.test.tsx` (7 tests) | `/roadmap` accessible via shell navigation on desktop and mobile, renders v1 (3 fixed phases) and v2 (2–4 method phases) goal roadmap; "Back to Today" navigates to `/`; all 3 VDS §9 progress layers operational |
-| R-15 | Reset / switch goal | Pass | `e2e/shell.spec.ts:358`, `AppShell.test.tsx:75`, `e2e/pathways.spec.ts:164` | Account menu provides "Reset 90-Day Plan" with Dialog confirmation calling `DELETE /api/goal/active` and returning to onboarding; pathway switching in explorer archives previous goal on save |
-| R-16 | Draft goal carried through signup | Pass | `e2e/auth.spec.ts:107`, `e2e/onboarding.spec.ts:245` | Pathway selected while signed out is stored in draft, carried through signup/login into onboarding, and cleared once goal is created |
-| R-17 | Offline indicator & write failures | Pass | `e2e/todayStates.spec.ts:185`, `e2e/shell.spec.ts:404` | App shell displays offline chip; Today displays offline notice banner when disconnected; failed task writes display visible error alert and never pretend to succeed |
-| R-18 | Browser history in onboarding | Pass | `e2e/onboarding.spec.ts:153`, `e2e/generation.spec.ts:132` | Browser back and forward move between steps without losing answers; back during generation stays on generation screen |
-
-#### Phase 6 Validation Matrix Audit
-
-| Target | Requirement / Citation | Status | Evidence & Test Suite |
-|---|---|---|---|
-| **v1 Preset Goal Parity** | 3 fixed phases (Foundation, Acceleration, Mastery), pre-planned tasks across all 12 weeks, smooth transition into Days 85–90 closing stretch | MET | `frontend/src/lib/journeyAdapter.test.ts:46`, `DesktopJourney.test.tsx:98`, `MobileVerticalJourney.test.tsx:64`. Legacy v1 roadmap normalized seamlessly without runtime branching. |
-| **v2 Dynamic Phase Counts (OD-7)** | Support 2, 3, and 4 method-named phases (`Goal.roadmap.phases: { name, startWeek, endWeek, purpose }[]`) | MET | `journeyAdapter.test.ts:63` (2-phase 6+6), `:82` (3-phase 4+4+4), `:101` (4-phase 3+3+3+3). Tested across `DesktopStaircase.tsx` and `MobileVerticalJourney.tsx`. Zero hard-coded assumptions of 4 phases. |
-| **Week Progression Sampling** | Week 1, middle week (Week 6), Week 12 | MET | `journeyAdapter.test.ts:175-210`, `e2e/journeyMobile.spec.ts`, `DesktopJourney.test.tsx`. Week 1 shows day 1..7 active flight; Week 6 shows completed weeks 1..5, active week 6 flight, and upcoming weeks 7..12; Week 12 shows completed weeks 1..11, active week 12 flight, and transition into closing stretch. |
-| **Days 85–90 Closing Stretch (OD-2 Option A)** | Calendar interval dedicated to `roadmap.finalTest`, personal reflection, and destination arrival (`roadmap.finalGoal`) with **zero synthetic daily tasks**. Clamps day counter at 1–90 (`Math.min(90, Math.max(1, dayNumber))`) | MET | `journeyAdapter.ts:77-105`, `journeyAdapter.test.ts:134-173`, `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, `e2e/journeyMotion.spec.ts`. Preceding phases and weeks marked completed; closing stretch becomes active; 0 fake daily tasks generated. |
-| **Strict Future Honesty (BP §43)** | Unwritten future weeks display only strategic focus, target deliverables (`formatTarget`), and weekly test checkpoints (`formatPassIf`), with zero fabricated daily tasks (`days: []`, `hasWrittenTasks: false`) | MET | `journeyAdapter.ts:58-69`, `journeyAdapter.test.ts:115-132`, `DesktopJourney.test.tsx:120`, `MobileVerticalJourney.test.tsx:102`, `e2e/journeyMobile.spec.ts:85`. Verified that no task cards exist in future weeks. |
-| **Three Progress Layers (VDS §9)** | Layer 1 (numerical orientation with tabular numerals), Layer 2 (emotional staircase / vertical spine), Layer 3 (strategic roadmap) | MET | Layer 1 in `JourneyHeader.tsx` (`Day N / 90`, tabular figures, badges, 600ms progress meter), Layer 2 in `DesktopStaircase.tsx` (≥768px) and `MobileVerticalJourney.tsx` (<768px) (VDS §25 symbols, step runner, "You are here" beacon, summit node), Layer 3 in `StrategicRoadmap.tsx` (collapsible accordions). Verified by `DesktopJourney.test.tsx`, `MobileVerticalJourney.test.tsx`, `e2e/journeyMotion.spec.ts`, `e2e/journeyMobile.spec.ts`. |
-
-#### Phase 6 Exit Criteria Audit
-
-| Criteria | Source | Status | Verification & Proof |
-|---|---|---|---|
-| 1. Correct for every phase count and both plan versions | OD-7, Phase 6 Exit Criteria | MET | Pure adapter `toJourneyData` handles 2, 3, and 4 method phases (v2) and 3 fixed phases (v1) with 100% test coverage in `journeyAdapter.test.ts` (21 tests), `DesktopJourney.test.tsx` (9 tests), and `MobileVerticalJourney.test.tsx` (7 tests). |
-| 2. No fabricated future content | BP §43, Phase 6 Exit Criteria | MET | Unwritten future weeks strictly contain empty `days: []` arrays and calm copy ("Daily sessions designed after Week N review"). Days 85–90 contain only `finalTest` and `finalGoal` with zero synthetic daily tasks. Verified in unit tests and Playwright mobile specs (`e2e/journeyMobile.spec.ts`). |
-| 3. Readable without the visuals | VDS §29, Phase 6 Exit Criteria | MET | Complete screen-reader accessible alternative provided via `sr-only` journey progress summaries in `DesktopStaircase.tsx` and `MobileVerticalJourney.tsx`. 0 `@axe-core/playwright` violations across desktop (1440px), mobile (390px), and compact mobile (360px). Keyboard accessible accordion headers with `aria-expanded` and `aria-controls`. |
-
-### M6.6 report — Regression and phase report (2026-09-26)
-
-```text
-1. Outcome
-   Full regression and verification pass executed across the entire Phase 6 surface and baseline product capabilities.
-   All R-1 to R-18 capabilities verified green without regression.
-   All Phase 6 validation targets audited and verified against objective automated evidence.
-   All 3 Phase 6 exit criteria audited and met.
-   Determinism check passed: 128/128 tests green under --repeat-each=2 on critical specs (journeyMotion.spec.ts, journeyMobile.spec.ts, shell.spec.ts -g "roadmap", today.spec.ts).
-   Phase 6 is COMPLETE and awaiting Mo's review.
-   Phase 7 (Weekly review + adaptation) has NOT started and is blocked by OD-1a.
-
-2. What changed
-   - docs/phases.md updated: position header, status table, milestone table (M6.6 marked Done), Phase 6 regression matrix, validation audit, exit criteria audit, M6.6 report, official Phase 6 report, carry-overs table, and change log.
-   - docs/decisions.md updated: index line updated; OD-2 and OD-7 implementation notes updated; change log updated.
-   - Zero production backend or frontend application logic modified.
-   - Zero database changes or Prisma schema edits.
-
-3. Files changed / created / removed
-   Changed:
-   - docs/phases.md
-   - docs/decisions.md
-   Created: none.
-   Removed: none.
-
-4. Functionality preserved
-   All R-1 to R-18 capabilities preserved and verified in the regression matrix above.
-
-5. Decisions applied
-   OD-2 (Option A: Closing stretch days 85–90), OD-7 (2–4 method phases / 3 fixed phases), OD-3, OD-9, ND-7, ND-18 fully verified.
-   OD-1a remains Open and blocks Phase 7.
-
-6. Validation evidence
-   - TypeScript: 0 errors across frontend (node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend) and backend (node backend/node_modules/typescript/bin/tsc --noEmit -p backend).
-   - ESLint: 0 errors, 0 warnings across all Phase 6 components, adapters, pages, and test files (node node_modules/eslint/bin/eslint.js src/components/journey src/lib/journeyAdapter.ts src/pages/RoadmapPage.tsx e2e/journeyMotion.spec.ts e2e/journeyMobile.spec.ts).
-   - Frontend Vitest: 36 test files passed, 308 tests passed (100%).
-   - Backend Vitest: 20 test files passed, 229 tests passed (100%).
-   - Playwright Suites:
-     - e2e/journeyMotion.spec.ts: 10 passed (10/10) in 29.2s.
-     - e2e/journeyMobile.spec.ts: 8 passed (8/8) in 25.4s.
-     - e2e/shell.spec.ts -g "roadmap": 10 passed (10/10) in 22.5s.
-     - e2e/today.spec.ts: 36 passed (36/36) in 60.0s (R-8 verified).
-     - e2e/focus.spec.ts + todayStates.spec.ts + auth.spec.ts: 70 passed, 2 skipped, 0 failed in 2.1m.
-     - e2e/pathways.spec.ts: 20 passed (20/20) in 46.4s.
-     - e2e/onboarding.spec.ts + onboardingStates.spec.ts + generation.spec.ts: 83 passed, 3 skipped, 0 failed in 10.7m.
-   - Determinism: 128/128 tests green under --repeat-each=2 on journeyMotion.spec.ts, journeyMobile.spec.ts, shell.spec.ts -g "roadmap", and today.spec.ts.
-   - Accessibility: 0 WCAG AA violations (@axe-core/playwright) across desktop (1440px), mobile (390px), and compact mobile (360px).
-   - Responsive check: 0 horizontal overflow (scrollWidth <= innerWidth, documentOverflow <= 1, contentOverflow <= 1), tap targets >= 44x44px.
-   - Frontend build: dist/index.html 1.23 KB, CSS 102.40 KB (17.60 KB gzipped), JS 577.09 KB (170.20 KB gzipped).
-
-7. Carry-overs
-   - Weekly test result storage (OD-1a) -> Phase 7 (Weekly review + adaptation).
-   - Goal completion transition and celebration (OD-1b) -> Phase 9 (Achievement).
-   - Main JS chunk size (>500 KB Vite warning) -> Phase 12 (Global polish & code splitting).
-
-8. Issues and risks
-   None. Legacy /roadmap overflow (17px at 390px, 47px at 360px) and rules-of-hooks call order are permanently resolved.
-
-9. Not started
-   Phase 7 (Weekly review + adaptation) has NOT started and is blocked by OD-1a.
-   Nothing was committed to git.
-```
-
-### Phase 6 report (2026-09-26)
-
-```text
-ACHIVII REDESIGN — PHASE 6 REPORT
-
-1. Outcome
-   Phase 6 (Journey) delivers the central 90-day trajectory and orientation surface for Achivii.
-   A user navigating to `/roadmap` (or tapping Roadmap in the app shell) immediately understands
-   where they stand, what they have conquered, and the strategic horizon ahead:
-   - Three distinct progress layers (VDS §9) operate in harmony:
-     1. Layer 1 — Quick numerical orientation (JourneyHeader.tsx) displaying Day N / 90 with
-        tabular numerals, week of 12 badge, active phase indicator, and smooth 600ms progress meter.
-     2. Layer 2 — The emotional staircase on desktop (≥768px, DesktopStaircase.tsx) and vertical
-        ascending spine on mobile (<768px, MobileVerticalJourney.tsx) with phase landings, active
-        daily step flight, "You are here" ambient beacon, closing stretch threshold, and summit destination.
-     3. Layer 3 — The strategic roadmap (StrategicRoadmap.tsx) with collapsible phase accordions,
-        weekly targets, test benchmarks, and strict future honesty.
-   - Canonical pure adapter (frontend/src/lib/journeyAdapter.ts) seamlessly unifies v1 legacy goals
-     (3 fixed phases) and v2 dynamic goals (2, 3, and 4 method-named phases, OD-7) into one JourneyData model.
-   - Days 85–90 Closing Stretch (OD-2 Option A) is formally realized: days 1–84 cover the 12 planned weeks;
-     days 85–90 are dedicated to roadmap.finalTest, personal reflection, and destination arrival (roadmap.finalGoal)
-     with zero synthetic daily tasks and the day counter clamped strictly at 1–90.
-   - Strict future honesty (BP §43) is enforced: future unwritten weeks display strategic focus and targets,
-     with zero fabricated daily task items.
-   - Hardware-accelerated motion system (VDS §19, §20) provides directional ascent stagger (.journey-ascent),
-     3s breathing beacon on the active step (.journey-beacon), and botanical illumination on completed steps.
-   - Airtight reduced-motion path (@media (prefers-reduced-motion: reduce)) zeros all delays and transitions,
-     replaces continuous beacon animations with static focus rings, and unfolds accordions instantly.
-   - Zero horizontal overflow across desktop and mobile down to 360px; all tap targets ≥ 44×44px; 0 axe violations.
-   Phase 6 milestones M6.1 through M6.6 are complete and verified.
-   Phase 6 is marked COMPLETE (awaiting Mo's review).
-   Phase 7 (Weekly review + adaptation) has NOT started.
-
-2. What changed
-   Across M6.1–M6.6:
-   - M6.1: Adopted OD-2 (Option A: 90 vs 84 days with Closing Stretch on days 85–90) and confirmed OD-7
-     (2–4 method phases for v2, 3 fixed phases for v1); established authoritative Day/Week/Phase mapping;
-     created canonical contracts in frontend/src/types/journey.ts; fixed rules-of-hooks ordering in RoadmapPage.tsx.
-   - M6.2: Implemented pure data adapter toJourneyData in frontend/src/lib/journeyAdapter.ts and custom hook
-     useJourneyData in frontend/src/hooks/useJourneyData.ts; normalized v1 and v2 goal structures; mapped
-     days 85–90 closing stretch; added 21 unit tests in journeyAdapter.test.ts (100% green).
-   - M6.3: Delivered Desktop Journey composition: Layer 1 JourneyHeader.tsx, Layer 2 DesktopStaircase.tsx,
-     Layer 3 StrategicRoadmap.tsx, and refactored RoadmapPage.tsx; added 9 unit/integration tests in
-     DesktopJourney.test.tsx; confirmed 0 axe violations at 1440px and 1024px.
-   - M6.4: Delivered Mobile Vertical Journey (MobileVerticalJourney.tsx): single vertical track for viewports <768px,
-     active phase default expansion with collapsed upcoming phases, active daily step flight, "You are here" auto-scroll
-     ref positioning (R2), 44px minimum tap targets, days 85–90 approach section; added 7 unit tests and 8 Playwright
-     mobile tests in journeyMobile.spec.ts at 390px and 360px viewports (0 overflow, 0 axe violations).
-   - M6.5: Delivered progress motion and reduced-motion path: CSS .journey-ascent with --ascent-delay stagger,
-     .journey-beacon with 3s ambient breathing pulse, emerald completed step illumination, 600ms --ease-ascend
-     progress bar fill, smooth accordion unfolding, and comprehensive prefers-reduced-motion: reduce overrides;
-     added 10 Playwright tests in journeyMotion.spec.ts (100% green).
-   - M6.6: Executed comprehensive regression verification across all R-1 to R-18 capabilities, audited Phase 6
-     validation targets and exit criteria, ran 128 determinism tests (--repeat-each=2), and compiled official reports.
-
-3. Files changed / created / removed
-   Created across Phase 6:
-   - frontend/src/types/journey.ts
-   - frontend/src/lib/journeyAdapter.ts, journeyAdapter.test.ts
-   - frontend/src/hooks/useJourneyData.ts
-   - frontend/src/components/journey/JourneyHeader.tsx
-   - frontend/src/components/journey/DesktopStaircase.tsx, DesktopJourney.test.tsx
-   - frontend/src/components/journey/MobileVerticalJourney.tsx, MobileVerticalJourney.test.tsx
-   - frontend/src/components/journey/StrategicRoadmap.tsx
-   - frontend/src/components/journey/index.ts
-   - frontend/e2e/journeyMobile.spec.ts
-   - frontend/e2e/journeyMotion.spec.ts
-   Modified across Phase 6:
-   - frontend/src/types/index.ts (re-exports journey contracts)
-   - frontend/src/pages/RoadmapPage.tsx (refactored to 3-layer architecture and responsive switching)
-   - frontend/src/index.css (journey motion utilities, beacon keyframes, reduced-motion overrides)
-   - docs/phases.md
-   - docs/decisions.md
-   Removed across Phase 6: none.
-   Zero backend changes.
-
-4. Functionality preserved
-   - R-1 Authentication: Login, signup, signout, persistent session, goal fetch resilience (e2e/auth.spec.ts).
-   - R-2 / R-4 Goal Creation & Payload: Identical payload schema and safe create handoff (e2e/onboarding.spec.ts).
-   - R-3 Pathway Launch: Exploration, preview, preset preselection, and safe switching (e2e/pathways.spec.ts).
-   - R-5 / R-6 Generation: Honest stage progression, silence timer, slow notice, error retry (e2e/generation.spec.ts).
-   - R-7 Save Goals: Goal persistence and reload recovery (e2e/generation.spec.ts).
-   - R-8 Daily Task Retrieval: BP §09 hierarchy and UTC calendar matching on Today (e2e/today.spec.ts).
-   - R-9 Daily Completion: Botanical illumination, write to server, reload persistence (e2e/today.spec.ts:127).
-   - R-10 Notes & Focus Wins: Auto-save on blur, focus win bullets, draft safety (e2e/today.spec.ts:148).
-   - R-11 Focus Mode: Countdown timer, spacebar pause/resume, deliberate practice tips (e2e/focus.spec.ts).
-   - R-12 / R-13 Weekly Review & Progression: Review submission, 503 retry, week advancement (Today.test.tsx).
-   - R-14 Roadmap: Shell navigation, 3 progress layers, v1/v2 support, Back to Today (e2e/shell.spec.ts, journeyMotion.spec.ts).
-   - R-15 Reset / Switch Goal: Safe deletion with confirmation, archived switch (e2e/shell.spec.ts:358).
-   - R-16 Draft Preservation: Pathway draft carried through auth into onboarding (e2e/auth.spec.ts:107).
-   - R-17 Offline Banner & Alert: Visual status chip and visible write failure alerts (e2e/todayStates.spec.ts:185).
-   - R-18 Onboarding Navigation: Forward/backward state retention, generation lock (e2e/onboarding.spec.ts:153).
-
-5. Decisions applied
-   - OD-2 (Option A): 90 vs 84 days — Days 1–84 cover 12 planned weeks; days 85–90 form closing stretch
-     dedicated to roadmap.finalTest and roadmap.finalGoal arrival. No synthetic tasks; day counter clamped at 1–90.
-   - OD-7 (Constraint): Journey handles 2–4 method-named phases for v2 goals and 3 fixed phases for v1 goals.
-     Normalized by pure adapter toJourneyData without branching downstream.
-   - BP §08, §10–11: Staircase as conceptual journey language rather than rigid template.
-   - BP §43: Strict future honesty — future weeks present strategic targets, zero fabricated daily tasks.
-   - VDS §7–9: Three-layer progress model: Layer 1 numerical header, Layer 2 staircase/spine, Layer 3 strategic roadmap.
-   - VDS §19–20: Staggered ascent animation, ambient beacon pulse, emerald completion illumination.
-   - VDS §25: Symbolic glyph language (✓ completed, ● active, ○ upcoming, ◆ week milestone, ✦ destination).
-   - VDS §28: Mobile vertical ascending spine with hit targets ≥ 44×44px and "You are here" auto-scroll.
-   - VDS §29: Airtight reduced-motion path and screen-reader accessibility (sr-only progress summary).
-
-6. Validation evidence
-   - TypeScript: 0 errors across frontend and backend.
-   - ESLint: 0 errors, 0 warnings across all Phase 6 files.
-   - Frontend Vitest: 36 test files passed, 308 tests passed (100%).
-   - Backend Vitest: 20 test files passed, 229 tests passed (100%).
-   - Playwright: 10/10 in journeyMotion.spec.ts, 8/8 in journeyMobile.spec.ts, 10/10 in shell.spec.ts -g "roadmap",
-     36/36 in today.spec.ts.
-   - Determinism: 128/128 tests green under --repeat-each=2 on critical specs.
-   - Accessibility: 0 violations (@axe-core/playwright across WCAG 2.0/2.1/2.2 AA) at 1440px, 390px, and 360px.
-   - Responsive check: 0 horizontal overflow (documentOverflow <= 1, contentOverflow <= 1), tap targets >= 44x44px.
-   - Build metrics: JS 577.09 KB (170.20 KB gzipped), CSS 102.40 KB (17.60 KB gzipped).
-
-7. Carry-overs
-   - Weekly test result storage -> Phase 7 (Weekly review + adaptation, OD-1a).
-   - Goal completion transition and celebration -> Phase 9 (Achievement, OD-1b).
-   - Main JS bundle chunk size (>500 KB Vite warning) -> Phase 12 (Global polish & code splitting).
-
-8. Issues and risks found
-   - Main JS bundle (577.09 KB) remains slightly above Vite's 500 KB chunk warning; owned by Phase 12 (code splitting).
-   - Legacy `/roadmap` overflow (17px at 390px, 47px at 360px) and rules-of-hooks call order are permanently resolved.
-
-9. Next phase status
-   Phase 6 is COMPLETE (awaiting Mo's review).
-   Phase 7 (Weekly review + adaptation) has NOT started and is blocked by OD-1a.
-```
-
-### Regression checks
-
-R-8, R-14.
-
-### Mobile acceptance
-
-3.7 applies, plus:
-
-* The journey scrolls vertically.
-* "You are here" is visible on load, without searching.
-
-### Validation
-
-* v1 preset goal.
-* v2 goals with 2, 3 and 4 phases (use development data if needed).
-* Week 1, a middle week and week 12.
-* Reduced motion.
-* Screen-reader pass: the journey has a text equivalent (VDS §29).
-
-### Exit criteria
-
-* Correct for every phase count and both plan versions.
-* No fabricated future content.
-* Readable without the visuals.
-
-### Risks
-
-* Designing around a four-phase sketch (OD-7).
-* Leaving the 84/90 mismatch visible (OD-2).
-
----
-
-## PHASE 7 — WEEKLY REVIEW + ADAPTATION
-
-**Status:** `COMPLETE` (awaiting Mo's review)
-
-**Source:** BP §17–19, §33, §41, §43, OD-1 · VDS §26
-
-**Objective:** the bridge between execution and adaptation. A short weekly moment after which next week visibly reflects what really happened.
-
-**Narrative line:** between *"Here's your next step"* and *"Here's the path"*: the path bends to the week.
-
-### Current state
-
-* **Endpoint:** `POST /api/goal/weeks/:weekNumber/review` with a reflection.
-* **Stored in `WeeklyReview`:** `tasksPlanned`, `tasksCompleted`, `scorePercentage`, `reflection`, `aiAdaptationInsight`.
-* **What the endpoint does:**
-  * marks the week completed with its `executionScore`;
-  * writes the next week from the actual completions;
-  * runs a phase-gate milestone check.
-* **Failure:** if adaptation fails it returns 503 and leaves the week unchanged.
-* **Weekly tests:** `RoadmapWeek.test` holds `{ type, instructions, passIf }` and `target` holds a metric or deliverable.
-* **OD-1a Decided (Option A):** Result storage approved for M7.5 via named backend allowance. Authoritative contracts defined in `frontend/src/types/review.ts`. Backend changes isolated to M7.5; zero backend changes in M7.1.
-* **Not implemented (must not appear, BP §43):** retargeting, missed-day carry-forward, and proof judging from `plan-v2-spec.md`.
-
-### Decisions required before starting
-
-* **OD-1, Phase 7 part: weekly test results.** **Decided (Option A — Add result storage)** by Mo at M7.1 (2026-09-26).
-  * A nullable `RoadmapWeek.testResult` JSON field is approved.
-  * Named backend allowance below is activated and scheduled for **M7.5**.
-  * The weekly review will compare the entered test result with the weekly target deliverable (`RoadmapWeek.target`).
-  * Adaptation AI logic in `backend/src/lib/ai/goalDecomposer.ts` remains **completely unchanged**.
-
-### In scope
-
-* **The review flow** (BP §33), limited to what is stored or computed:
-  * *How did this week go?*
-  * what you completed (from task statuses);
-  * the reflection;
-  * the test result compared with the target (enabled by the M7.5 approved allowance);
-  * what happens next (`aiAdaptationInsight` and next week's focus).
-* **The adaptation moment:** show that next week was rebuilt, and why, from the real insight. No invented reasoning.
-* **The phase-gate outcome** in encouraging language (BP §18): "Your current results suggest we should reinforce this phase."
-* **Failure (503):** say plainly that the week was not changed; retry; the reflection is kept.
-* **The "review due" entry point** from Today (the Phase 5 state).
-
-### Out of scope
-
-* Proof judging, photo/video tests, retargeting, carry-forward.
-* Changing the adaptation logic or prompts.
-
-### Backend allowance (Formal M7.5 Technical Specification)
-
-**Approved under OD-1a (Option A) at M7.1:** store a weekly test result for honest target comparison and Phase 8 (Progress) results layer. Strictly isolated to **M7.5** (zero backend modifications in M7.1–M7.4). Specification:
-
-1. **Prisma Schema (`backend/prisma/schema.prisma`):**
-   - Add nullable `testResult Json?` to `model RoadmapWeek`.
-   - Migration name: `add_weekly_test_result`.
-2. **Review Request Validation (`backend/src/routes/goal.ts`):**
-   - Accept optional `testResult` payload on `POST /api/goal/weeks/:weekNumber/review`.
-   - Validate structure when provided: `{ value: string | number, unit?: string, passed: boolean, note?: string }`.
-   - Backward-compatible: submitting `{ reflection }` without `testResult` remains fully valid.
-3. **Vitest Backend Tests (`backend/test/`):**
-   - Verify review submission with `testResult` persists the JSON object to `RoadmapWeek.testResult`.
-   - Verify review submission without `testResult` leaves `RoadmapWeek.testResult` null (backward compatibility).
-   - Verify validation errors for malformed `testResult` payloads.
-4. **Strict Boundaries:**
-   - Adaptation AI prompt and decomp algorithm in `backend/src/lib/ai/goalDecomposer.ts` remain **completely untouched**.
-   - Zero changes to `WeeklyReview` table or scoring algorithms.
-
-### Files likely affected
-
-* The review UI inside `components/today/WeeklyReviewModal.tsx` / `frontend/src/components/review/*`
-* `frontend/src/types/review.ts` and `frontend/src/types/index.ts` (contracts established in M7.1)
-* In M7.5 only: `backend/prisma/schema.prisma` plus migration `add_weekly_test_result`, `backend/src/routes/goal.ts`, `backend/test/`
-
-### Milestones
- 
-| ID | Milestone | Status |
-|---|---|---|
-| M7.1 | OD-1 (Phase 7 part) decided | `Done` (2026-09-26) |
-| M7.2 | Review flow UI | `Done` (2026-09-26) |
-| M7.3 | Adaptation moment and phase-gate language | `Done` (2026-09-26) |
-| M7.4 | Failure, retry and review-due states | `Done` (2026-09-27) |
-| M7.5 | (With the allowance) test-result storage, a backend test, and the UI comparison | `Done` (2026-09-27) |
-| M7.6 | Regression and phase report | `Done` (2026-09-27) |
-
-### M7.6 report — Regression and phase report (2026-09-27)
-
-1. **Regression Sweep Across Touched Capabilities (R-8, R-9, R-12, R-13)**
-   - **R-8 (Daily task retrieval):** Today view reliably retrieves and displays active week tasks with correct day indicators, rest day badges, and session details (`e2e/today.spec.ts` 18/18 passed, `Today.test.tsx` 28/28 passed).
-   - **R-9 (Daily completion):** Completing or uncompleting daily tasks persists to the backend and across page reloads without state desynchronization (`e2e/today.spec.ts:127` passed, `Today.test.tsx` passed).
-   - **R-12 (Weekly review):** Weekly review flow reliably collects reflections and benchmark test results, submits to `POST /api/goal/weeks/:weekNumber/review`, and triggers the adaptation moment (`e2e/weeklyReview.spec.ts` 14/14 passed, `WeeklyReviewModal.test.tsx` 15/15 passed).
-   - **R-13 (Weekly progression):** Goal advances to the next week, next week's practice tasks are generated and saved, and phase-gate milestone checkpoints evaluate cleanly (`backend/test/weeklyReviewTestResult.test.ts` 11/11 passed, `backend/test/goalDecomposer.test.ts` 22/22 passed).
-
-2. **Phase 7 Validation Scenarios Audit**
-   - **Scenario 1 (Full, partial, and empty week review):**
-     - Full week (≥80% completion): Displays botanical flame celebration (`🔥 Stellar consistency! You completed all planned practice sessions this week.`).
-     - Partial week (<80% completion): Warm non-punitive momentum feedback (`🌱 Consistent effort! Every practice session builds lasting competence.`).
-     - Empty week (0 completed sessions): Calm, serene, non-punitive guidance (`✨ Clean slate! Life happens. A fresh week is ready whenever you are.`) with zero shame phrasing and zero red failure styling (BP §18). Verified in `ReviewSummaryCard.tsx` and `WeeklyReviewModal.test.tsx`.
-   - **Scenario 2 (503 adaptation failure & retry resilience):**
-     - When the server returns HTTP 503 during review submission, the week remains completely unchanged, user's reflection and benchmark data are preserved in the modal, an accessible alert is announced (`role="alert"`, `aria-live="assertive"`), and in-modal retry succeeds cleanly on next attempt (`e2e/weeklyReview.spec.ts:201` passed, `WeeklyReviewModal.test.tsx` passed).
-   - **Scenario 3 (Draft persistence on reload / dismissal):**
-     - Unsubmitted reflection drafts and test result inputs survive page reloads and accidental dialog dismissal (`sessionStorage` keyed by goal ID and week number), auto-restoring upon reopen, and cleanly removing storage upon successful submission (`e2e/weeklyReview.spec.ts:338` passed, `reviewDraft.ts`).
-   - **Scenario 4 (Week 12 review & closing stretch):**
-     - In Week 12, review UI displays `Enter Closing Stretch` CTA (never `Start Week 13`), modal title confirms `Closing Stretch Ready`, and Today updates with closing stretch guidance (days 85–90, OD-2 Option A). Verified in `e2e/weeklyReview.spec.ts:370` and `e2e/todayStates.spec.ts:165`.
-   - **Scenario 5 (Stored test-result round-trip):**
-     - User-entered test results (`WeeklyTestResult`) persist to `RoadmapWeek.testResult` via migration `20260927071946_add_weekly_test_result` and display in target comparison card (`backend/test/weeklyReviewTestResult.test.ts` 11/11 passed, `ReviewTestResultStep.test.tsx` 5/5 passed).
-
-3. **Quality, Responsive, and Accessibility Baseline**
-   - **Type Checking:** 0 errors in frontend (`tsc --noEmit -p frontend`) and 0 errors in backend (`npm run build --workspace=backend`).
-   - **ESLint:** 0 errors, 0 warnings across all Phase 7 review and today files.
-   - **Vitest Suites:**
-     - Backend: 21 test files passed, 240/240 tests passed (100%).
-     - Frontend: 39 test files passed, 339/339 tests passed (100%).
-   - **Playwright Suites:**
-     - Desktop (1440px): 33/33 tests passed (`e2e/weeklyReview.spec.ts`, `e2e/todayStates.spec.ts`, `e2e/today.spec.ts`).
-     - Mobile (390px, 360px): 7/7 tests passed in `e2e/weeklyReview.spec.ts`.
-   - **Accessibility & Touch Targets:** 0 axe-core violations (@axe-core/playwright across WCAG 2.0/2.1/2.2 AA); all touch targets ≥44×44px; zero horizontal overflow.
-   - **Production Builds:**
-     - Frontend (`tsc && vite build`): HTML 1.23 kB, CSS 103.59 kB (17.74 kB gzip), JS 590.85 kB (173.38 kB gzip).
-     - Backend (`tsc`): built cleanly.
-
-4. **Phase 7 Exit Criteria Audit**
-   - **Criterion 1 (Review and progression behave exactly as before):** Verified. Progression preserves week incrementing, next week task generation, phase-gate evaluation, and `currentWeek` state advancement.
-   - **Criterion 2 (The user sees why next week changed):** Verified. Genuine `aiAdaptationInsight` returned from server is displayed in `AdaptationMomentStep.tsx` without synthetic hallucinations.
-   - **Criterion 3 (No unimplemented capability is implied):** Verified. Zero media proof uploads, zero photo/video judging, zero AI grading (BP §43). Self-reported benchmark entries compare honestly with targets.
-
-5. **Decision D-11 Backend Boundary Verification**
-   - Phase 7 named backend allowance (`RoadmapWeek.testResult Json?`) is complete. Zero additional backend modifications executed in M7.6. Adaptation AI prompt and decomposition algorithm in `backend/src/lib/ai/goalDecomposer.ts` remain strictly untouched.
-
-### Phase 7 report (2026-09-27)
-
-```text
-ACHIVII REDESIGN — PHASE 7 REPORT
-
-1. Outcome
-   Phase 7 (Weekly review + adaptation) delivers the bridge between execution and adaptation (BP §17–19, §33).
-   A user completing their practice week experiences a calm, reflective, and honest review ritual:
-   - Visual Level 3 analytical summary (ReviewSummaryCard.tsx) displaying tabular completion figures,
-     active practice sessions count (excluding rest days), warm non-punitive momentum feedback,
-     focus theme, target deliverable glance, and weekly test instructions.
-   - Self-reported benchmark test result recording (ReviewTestResultStep.tsx) under the OD-1a approved named
-     backend allowance (RoadmapWeek.testResult Json?), enabling honest target comparisons without fake proof judging.
-   - Reflective capture step (ReviewReflectionStep.tsx) providing a mindful pause before looking ahead.
-   - Resilient draft persistence (reviewDraft.ts) saving unsubmitted reflections and benchmark entries in
-     sessionStorage, safely surviving browser reloads and accidental dialog dismissals.
-   - Robust 503 retry resilience with live accessible error alerts (role="alert", aria-live="assertive"),
-     preserving all user inputs and leaving the database completely intact until successful progression.
-   - Seamless adaptation moment (AdaptationMomentStep.tsx) revealing the rebuilt path indicator, genuine
-     server-generated aiAdaptationInsight (BP §43 future honesty), next week focus preview, and honest
-     target-vs-result comparison card.
-   - Encouraging phase-gate language (PhaseGateOutcomeCard.tsx) replacing pass/fail judgment with supportive
-     reinforcement ("Your current results suggest we should reinforce this phase.", BP §18).
-   - Week 12 closing stretch integration (OD-2 Option A) displaying "Enter Closing Stretch" (never "Start Week 13"),
-     unlocking days 85–90 on Today and in the Journey.
-   - Accessible everyday review entry points on Today (WeekGlance "Review week" and footer nav "Weekly review").
-   - Zero horizontal overflow across desktop and mobile down to 360px; all tap targets ≥44×44px; 0 axe violations.
-   Phase 7 milestones M7.1 through M7.6 are complete and verified.
-   Phase 7 is marked COMPLETE (awaiting Mo's review).
-   Phase 8 (Progress) is next and unblocked (ND-8 decision pending).
-
-2. What changed
-   Across M7.1–M7.6:
-   - M7.1: Resolved OD-1a as Option A (approved named backend allowance for nullable RoadmapWeek.testResult storage);
-     formalized authoritative review contracts in frontend/src/types/review.ts; established technical specification.
-   - M7.2: Redesigned and modularized review UI under frontend/src/components/review/ (ReviewSummaryCard.tsx,
-     ReviewReflectionStep.tsx, WeeklyReviewModal.tsx, index.ts); Visual Level 3 analytical summary with tabular numerals;
-     active practice count (excluding rest days); warm non-punitive momentum feedback; compatibility re-export in Today.
-   - M7.3: Delivered adaptation moment and phase-gate language (AdaptationMomentStep.tsx, PhaseGateOutcomeCard.tsx);
-     rebuilt path indicator; future-honest aiAdaptationInsight display; supportive phase-gate reinforcement copy (BP §18);
-     single-dialog review progression flow.
-   - M7.4: Delivered failure, retry, and review-due states: draft persistence (reviewDraft.ts) across reload/dismissal;
-     503 adaptation failure and offline network alerts in accessible live region with in-modal retry; enhanced
-     isWeekReviewDue triggers; Week 12 closing stretch integration ("Enter Closing Stretch", "Closing Stretch Ready");
-     serene non-punitive guidance for empty weeks (0 completed sessions); everyday review entry points on Today.
-   - M7.5: Implemented approved named backend allowance under OD-1a and D-11 (RoadmapWeek.testResult Json? in Prisma,
-     migration 20260927071946_add_weekly_test_result, pgvector integrity verified); review endpoint validation and
-     persistence in POST /api/goal/weeks/:weekNumber/review; 11/11 tests in backend/test/weeklyReviewTestResult.test.ts;
-     submitWeeklyReview updated in frontend/src/lib/api.ts; benchmark test entry and target comparison UI in ReviewTestResultStep.tsx.
-   - M7.6: Executed comprehensive regression sweep across R-8, R-9, R-12, R-13; audited all 5 Phase 7 validation
-     scenarios; verified quality/accessibility baseline (0 axe violations, 44px tap targets, 0 overflow at 390px/360px);
-     confirmed all 3 Phase 7 exit criteria met; updated documentation and compiled official Phase 7 report.
-
-3. Files changed / created / removed
-   Created across Phase 7:
-   - frontend/src/types/review.ts
-   - frontend/src/lib/reviewDraft.ts
-   - frontend/src/components/review/ReviewSummaryCard.tsx
-   - frontend/src/components/review/ReviewReflectionStep.tsx
-   - frontend/src/components/review/ReviewTestResultStep.tsx, ReviewTestResultStep.test.tsx
-   - frontend/src/components/review/AdaptationMomentStep.tsx, AdaptationMomentStep.test.tsx
-   - frontend/src/components/review/PhaseGateOutcomeCard.tsx
-   - frontend/src/components/review/WeeklyReviewModal.tsx, WeeklyReviewModal.test.tsx
-   - frontend/src/components/review/index.ts
-   - backend/prisma/migrations/20260927071946_add_weekly_test_result/migration.sql
-   - backend/test/weeklyReviewTestResult.test.ts
-   Modified across Phase 7:
-   - backend/prisma/schema.prisma (added nullable testResult Json? to RoadmapWeek)
-   - backend/src/routes/goal.ts (validateWeeklyTestResult and testResult persistence on review endpoint)
-   - frontend/src/types/index.ts (re-exports review contracts and extends RoadmapWeek)
-   - frontend/src/lib/api.ts (submitWeeklyReview payload)
-   - frontend/src/lib/today.ts (isWeekReviewDue enhancement)
-   - frontend/src/components/today/Today.tsx (review entry points, review-due card, closing stretch copy)
-   - frontend/src/components/today/WeeklyReviewModal.tsx (compatibility re-export)
-   - frontend/e2e/weeklyReview.spec.ts (14 comprehensive review flow E2E tests)
-   - docs/phases.md
-   - docs/decisions.md (OD-1a resolution recorded)
-   Removed across Phase 7: none.
-
-4. Functionality preserved
-   - R-1 Authentication: Login, signup, signout, persistent session, goal fetch resilience.
-   - R-2 / R-4 Goal Creation & Payload: Identical payload schema and safe create handoff.
-   - R-3 Pathway Launch: Exploration, preview, preset preselection, and safe switching.
-   - R-5 / R-6 Generation: Honest stage progression, silence timer, slow notice, error retry.
-   - R-7 Save Goals: Goal persistence and reload recovery.
-   - R-8 Daily Task Retrieval: Today view reliably retrieves and displays active week tasks.
-   - R-9 Daily Completion: Botanical illumination, write to server, reload persistence.
-   - R-10 Notes & Focus Wins: Auto-save on blur, focus win bullets, draft safety.
-   - R-11 Focus Mode: Countdown timer, spacebar pause/resume, deliberate practice tips.
-   - R-12 Weekly Review: Analytical summary, benchmark test result recording, reflection capture, 503 retry resilience.
-   - R-13 Weekly Progression: Week advancement, next week task generation, phase-gate evaluation, state synchronization.
-   - R-14 Roadmap: Shell navigation, 3 progress layers, v1/v2 support, Back to Today.
-   - R-15 Reset / Switch Goal: Safe deletion with confirmation, archived switch.
-   - R-16 Draft Preservation: Pathway draft carried through auth into onboarding.
-   - R-17 Offline Banner & Alert: Visual status chip and visible write failure alerts.
-   - R-18 Onboarding Navigation: Forward/backward state retention, generation lock.
-
-5. Decisions applied
-   - OD-1a (Option A): Add weekly test result storage via named backend allowance (RoadmapWeek.testResult Json?).
-     Zero adaptation AI algorithm changes.
-   - OD-2 (Option A): 90 vs 84 days — Week 12 review transitions into closing stretch (days 85–90) with
-     "Enter Closing Stretch" CTA (never "Start Week 13") and "Closing Stretch Ready" modal title.
-   - OD-9 (Every Today state): State 11 Review due card and State 12 Review 503 retry fully integrated.
-   - D-11 (Backend scope rule): Named backend allowance strictly bounded to M7.5; zero backend edits in M7.6.
-   - BP §17–19, §33: The bridge between execution and adaptation. Non-punitive review and honest results layer.
-   - BP §43: Strict future honesty and "do not pretend" — zero proof judging, zero media uploads, zero fake AI grading.
-   - VDS §26: Visual Level 3 analytical presentation with tabular numerals (tabular-nums font-mono).
-
-6. Validation evidence
-   - TypeScript: 0 errors across frontend (tsc --noEmit -p frontend) and backend (tsc).
-   - ESLint: 0 errors, 0 warnings across all Phase 7 review files, utilities, and specs.
-   - Frontend Vitest: 39 test files passed, 339/339 tests passed (100% pass).
-   - Backend Vitest: 21 test files passed, 240/240 tests passed (100% pass).
-   - Playwright Suites:
-     - Desktop (1440px): 33 passed (e2e/weeklyReview.spec.ts, e2e/todayStates.spec.ts, e2e/today.spec.ts).
-     - Mobile (390px, 360px): 7 passed (e2e/weeklyReview.spec.ts).
-   - Accessibility: 0 violations (@axe-core/playwright across WCAG 2.0/2.1/2.2 AA) at 1440px, 390px, and 360px.
-   - Responsive check: 0 horizontal overflow (documentOverflow <= 1, contentOverflow <= 1), tap targets >= 44x44px.
-   - Build metrics:
-     - Frontend: dist/index.html 1.23 kB, CSS 103.59 kB (17.74 kB gzip), JS 590.85 kB (173.38 kB gzip).
-     - Backend: compiled cleanly to dist/ via tsc.
-
-7. Carry-overs
-   - Results layer display in Progress -> Phase 8 (Progress, consuming RoadmapWeek.testResult).
-   - Goal completion transition and celebration -> Phase 9 (Achievement, OD-1b).
-   - Main JS bundle chunk size (>500 KB Vite warning) -> Phase 12 (Global polish & code splitting).
-
-8. Issues and risks found
-   - None. All 5 Phase 7 validation scenarios pass cleanly.
-   - Main JS bundle (590.85 KB) remains above Vite's 500 KB chunk warning; owned by Phase 12 (code splitting).
-
-9. Next phase status
-   Phase 7 is COMPLETE (awaiting Mo's review).
-   Phase 8 (Progress) is next and unblocked (pending architectural decision ND-8: separate page vs Journey layer).
-```
-
-### M7.5 report — Test-result storage, backend tests, and UI comparison (2026-09-27)
-
-1. **Prisma Schema & PostgreSQL Migration (`backend/prisma/schema.prisma`, `add_weekly_test_result`)**
-   - Implemented named backend allowance formally approved under Decision OD-1a (Option A) and D-11:
-     - Added nullable `testResult Json?` to `model RoadmapWeek` in `backend/prisma/schema.prisma`.
-     - Generated and applied migration `20260927071946_add_weekly_test_result` adding column `testResult JSONB` to table `roadmap_weeks`.
-     - Regenerated Prisma Client v6.19.3.
-     - Preserved PostgreSQL database integrity, verifying pgvector HNSW vector index (`research_cache_outcome_embedding_idx`) and GIN index with `npm run verify:pgvector` (100% ok).
-
-2. **Review Endpoint Validation & Backward-Compatible Persistence (`backend/src/routes/goal.ts`)**
-   - Upgraded `POST /api/goal/weeks/:weekNumber/review`:
-     - Added `validateWeeklyTestResult` validating user-entered benchmark outcomes:
-       - `value`: required, non-empty `string | number`.
-       - `passed`: required `boolean`.
-       - `unit`: optional `string`.
-       - `note`: optional `string`.
-       - Returns `400 Bad Request` with descriptive message on malformed payloads.
-     - Both Plan v2 and Plan v1 code paths persist `testResult` to `prisma.roadmapWeek.update` using `Prisma.DbNull` when null/omitted.
-     - Full backward compatibility: submitting `{ reflection }` without `testResult` (or `testResult: null`) succeeds seamlessly and leaves `RoadmapWeek.testResult` as `null`.
-     - Returns persisted `testResult` in the response payload.
-     - Strict boundary preserved: adaptation prompts and decomposition logic in `backend/src/lib/ai/goalDecomposer.ts` remain **100% untouched**.
-
-3. **Backend Vitest Test Suite (`backend/test/weeklyReviewTestResult.test.ts`)**
-   - Created dedicated test suite covering 11 unit and integration test assertions:
-     1. Valid review submission with numeric `{ value: 10, unit: 'km', passed: true, note: 'Felt strong' }` persists to `RoadmapWeek.testResult`.
-     2. Review submission without `testResult` leaves `RoadmapWeek.testResult` as `null` (`Prisma.DbNull`).
-     3. Malformed `testResult` (missing `passed`, empty `value`, non-string `unit`/`note`) returns HTTP 400.
-     4. Unauthenticated request (no Bearer token) returns HTTP 401.
-     5. Complete `validateWeeklyTestResult` unit coverage.
-   - All 21 backend test files passed (240/240 tests passed, 100%).
-
-4. **Frontend API Client Update (`frontend/src/lib/api.ts`)**
-   - Updated `submitWeeklyReview` signature:
-     ```ts
-     export async function submitWeeklyReview(
-       weekNumber: number,
-       reflection: string,
-       token: string,
-       testResult?: WeeklyTestResult | null
-     ): Promise<WeeklyReviewResponse>
-     ```
-   - Sends `testResult` in request payload when provided; fully backward-compatible when omitted.
-   - Fixed pre-existing `(import.meta as any)` type casts in `resolveApiBaseUrl` for 100% ESLint compliance.
-
-5. **Benchmark Test Entry & Honest Target Comparison UI (`frontend/src/components/review/`)**
-   - Delivered `ReviewTestResultStep.tsx` (BP §17, §33, §43, OD-1a):
-     - Displays weekly benchmark instructions (`test.instructions`), formatted pass mark (`formatPassIf(passIf)`), and weekly target glance (`formatTarget(target)`).
-     - Provides accessible touch-sized inputs (`min-h-[44px]`, font size ≥16px):
-       - Result value field (`id="review-test-value"`) with automatic unit badge.
-       - Outcome choice buttons: "Met target" (`CheckCircle2`, emerald accent) and "In progress" (`Clock`, warm caution tone).
-       - Optional context note field (`id="review-test-note"`).
-       - Live honest comparison summary: non-punitive guidance contrasting target vs result.
-       - Clear benchmark action to easily reset entry to null.
-     - Zero proof uploads, zero photo/video judging, zero AI grading (BP §43).
-   - Upgraded `AdaptationMomentStep.tsx`:
-     - Displays `WeeklyTargetComparisonCard` displaying Target Deliverable, Recorded Result, Target Met badge, and supportive coaching linking execution to the freshly adapted upcoming week.
-   - Upgraded `WeeklyReviewModal.tsx`:
-     - Integrates `ReviewTestResultStep` between summary card and reflection capture.
-     - Preserves entered test result drafts across page reloads and accidental dismissals via `saveTestResultDraft` and `loadTestResultDraft` in `reviewDraft.ts`.
-     - Atomically cleans up drafts on submission (`clearReviewDraft`).
-
-6. **Verification Evidence**
-   - TypeScript: 0 errors in backend (`npm run build`) and 0 errors in frontend (`tsc --noEmit -p .`).
-   - ESLint: 0 errors, 0 warnings across all modified frontend files and review components.
-   - Backend Vitest: 21 test files passed, 240/240 tests passed (100% pass).
-   - Frontend Vitest: 39 test files passed, 339/339 tests passed (100% pass, including 15/15 in `WeeklyReviewModal.test.tsx`, 7/7 in `AdaptationMomentStep.test.tsx`, and 5/5 in `ReviewTestResultStep.test.tsx`).
-   - Playwright E2E:
-     - `e2e/weeklyReview.spec.ts`: 14/14 tests passed across desktop (1440px) and mobile (390px, 360px) with 0 axe violations, 0 overflow, and 44px tap targets.
-     - `e2e/todayStates.spec.ts`: 16/16 tests passed across desktop and mobile.
-
-### M7.4 report — Failure, retry and review-due states (2026-09-27)
-
-1. **Reflection Draft Persistence (`frontend/src/lib/reviewDraft.ts`, `WeeklyReviewModal.tsx`)**
-   - Delivered resilient draft reflection persistence across page reloads, browser restarts, and accidental modal dismissals:
-     - **Storage Strategy:** Stores unsubmitted reflections in browser `localStorage` keyed by `achivii_review_draft_${goal.id}_w${currentWeekNum}` with safe `try / catch` handling for private-browsing or restricted storage environments.
-     - **Restoration Lifecycle:** Restores the saved draft on modal mount/open if reflection in state is empty. User edits write continuously to storage.
-     - **Atomic Cleanup:** Safely removes the stored draft only upon successful review submission and transition to the adaptation moment step (`clearReviewDraft`).
-     - **Accidental Dismissal Defense:** Closing or cancelling the modal leaves the drafted reflection completely intact in storage, restoring it immediately upon reopening.
-
-2. **503 Failure, Network Offline, and In-Modal Retry Resilience (`WeeklyReviewModal.tsx`, `ReviewReflectionStep.tsx`)**
-   - Hardened review submission against transient server disruptions and offline network states:
-     - **503 Adaptation Failure:** Surfaces the server's exact message: `"Couldn't write next week right now. This week is unchanged; please try again."`
-     - **Offline Network Alert:** Detects offline status via `apiStatus === 'offline'` or `!navigator.onLine` and informs user: `"You're offline. Reconnect to submit your weekly review."`
-     - **Accessible Error Alert:** Renders error messages inside an accessible live region (`id="review-reflection-error"`, `role="alert"`, `aria-live="assertive"`) linked to the textarea via `aria-describedby` and `aria-invalid`.
-     - **Intact Reflection:** Reflection text is preserved completely in the textarea without data loss.
-     - **In-Modal Retry:** Primary action dynamically switches to `'Try again'`, remaining fully enabled for retry once loading finishes while strictly blocking double-submission during in-flight requests (`aria-busy="true"` and `loading={true}`).
-     - **State Immutability:** On failure, active goal and week status remain 100% untouched.
-
-3. **Review-Due State Triggering & Week 12 Closing Stretch (`frontend/src/lib/today.ts`, `Today.tsx`, `WeeklyReviewModal.tsx`)**
-   - Enhanced `isWeekReviewDue(tasks, now)` in `frontend/src/lib/today.ts` to return `true` when:
-     - All task dates in the current week have passed strictly before today's UTC date, OR
-     - All scheduled active practice tasks in the week are completed (`status === 'completed'`), ignoring scheduled rest days.
-   - Week 12 OD-2 Closing Stretch Integration:
-     - Primary CTA in `WeeklyReviewModal.tsx` displays `'Enter Closing Stretch'`, strictly preventing any non-existent `'Start Week 13'` copy.
-     - Modal title on step 2 displays `'Closing Stretch Ready'` when transitioning into days 85–90.
-     - Today's review-due card for Week 12 explicitly communicates that completing Week 12 unlocks the final closing stretch: *"You've reached the end of Week 12. Complete this review to unlock your final closing stretch (days 85–90)."*
-
-4. **Non-Punitive Empty & Partial Week Handling (`ReviewSummaryCard.tsx`)**
-   - Strictly enforced canonical BP §18 philosophy (*"Adapt the journey, don't punish the person"*):
-     - **Empty Week (0 Completed Sessions):** Renders serene secondary copy without judgment: *"This week had no logged practice. Every week is a chance to reset your pace and adapt."* styled in calm `text-text-secondary` with `font-mono tabular-nums text-text-secondary` percentage numeral. Zero red failure styling, zero shame phrasing.
-     - **Partial Week (1 to N-1 Completed Sessions):** Preserves warm momentum guidance: *"Next week will adapt to help you find your rhythm."* (`text-caution`).
-     - **Strong Week (≥80% Completed Sessions):** Preserves vibrant botanical celebration: Flame icon with *"Great week! Next week will build on this momentum."* (`text-accent`).
-
-5. **Everyday Review Entry Point Accessibility (`Today.tsx`)**
-   - Satisfied BP §33 and OD-9 requirement (*"Reachable every day, emphasised once the week's days have passed"*):
-     - Added secondary quiet action in `WeekGlance` header: `<Button variant="quiet" size="sm" onClick={onOpenReview}>Review week</Button>` (`min-h-[44px]`).
-     - Added everyday review action in Today's footer navigation `<nav aria-label="More of your plan">`: `<Button variant="quiet" onClick={() => setReviewOpen(true)}>Weekly review</Button>` (`min-h-[44px]`).
-     - Forwarded `apiStatus` to `WeeklyReviewModal` to enable instant offline detection.
-
-6. **Verification Evidence**
-   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors, 0 warnings across all modified components, utilities, and specs (`node frontend/node_modules/eslint/bin/eslint.js`).
-   - Frontend Vitest: 38 test files passed, 332 tests passed (100% pass, including 23/23 in `today.test.ts`, 14/14 in `WeeklyReviewModal.test.tsx`, 28/28 in `Today.test.tsx`, and 6/6 in `AdaptationMomentStep.test.tsx`).
-   - Backend Vitest: 20 test files passed, 229 tests passed (100% pass, zero backend modifications executed).
-   - Playwright E2E:
-     - `e2e/weeklyReview.spec.ts`: 14/14 tests passed across desktop (1440px) and mobile (390px, 360px) with 0 axe-core violations, 0 overflow, and ≥44px tap targets.
-     - `e2e/todayStates.spec.ts`: 16/16 tests passed across desktop and mobile.
-
-### M7.3 report — Adaptation moment and phase-gate language (2026-09-26)
-
-1. **Adaptation Moment Architecture (`frontend/src/components/review/AdaptationMomentStep.tsx`)**
-   - Delivered post-submission adaptation reveal bridge connecting the completed week with the freshly adapted path:
-     - **The Rebuilt Path Indicator:** Displays `"Week {nextWeekNumber} has been adapted"` (or `"Your closing stretch is ready"` when transitioning to days 85–90) with supportive subtitle: *"Next week's practice sessions have been generated from your actual pace and reflection."*
-     - **Strict Future Honesty (BP §33, §43):** Renders genuine server-generated `aiAdaptationInsight` without fabricating synthetic AI reasoning or hallucinations.
-     - **Next Week Preview Glance:** Surfaces next week's focus theme badge (`Week {nextWeekNumber} Focus: {focus || theme}`), target deliverable glance (`formatTarget(target)`), and planned active practice session count.
-     - **Primary Navigation Action:** Prominent `"Continue to Today"` or `"View Week {nextWeekNumber}"` action (`min-h-[44px]`) propagating updated state to `GoalContext` and returning user smoothly to `/`.
-
-2. **Encouraging Phase-Gate Language (`frontend/src/components/review/PhaseGateOutcomeCard.tsx`)**
-   - Implemented canonical BP §18 philosophy (*"Adapt the journey, don't punish the person"*), replacing clinical pass/fail benchmarks:
-     - **Benchmark Met (score ≥ 80%):** Serene milestone graduation with emerald botanical accent badge (`border-accent/40 bg-accent/5 text-accent`), title `"{completedPhase} Complete"`, and copy: *"You've built strong consistency across this phase and unlocked {nextPhase}. Next week begins the next stage of your journey."*
-     - **Benchmark Not Met (score < 80%):** Supportive non-punitive reinforcement with calm neutral styling (`text-text-secondary`, subtle info border), title `"{completedPhase} Review"`, canonical BP §18 language: *"Your current results suggest we should reinforce this phase."*, and sub-copy: *"The path has adapted to give you space to consolidate your fundamentals before advancing."*
-     - Zero red failure badges, zero shame framing, zero punitive phrasing.
-
-3. **Two-Step Review State Machine & Single-Dialog Coherence**
-   - Refactored `WeeklyReviewModal.tsx` into a clean multi-step state machine (`'review' -> 'adaptation' -> finish`).
-   - Replaced redundant popup modals by embedding `PhaseGateOutcomeCard` directly into the adaptation step.
-   - Cleaned up duplicate `MilestoneGateModal` invocations in `Today.tsx` to maintain single-dialog coherence without modal collisions.
-
-4. **Visual Polish & Motion (VDS §19, §26)**
-   - Emergence motion styled with `.journey-ascent` CSS animation.
-   - Strict `prefers-reduced-motion: reduce` compliance (instant rendering without delay or transition lag).
-   - Exclusively styled with Phase 0 tokens (`--color-background`, `--color-surface`, `--color-accent`, `--color-text`, `--color-line`).
-
-5. **Verification Evidence**
-   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors across all review components, Today integration, and E2E specs.
-   - Frontend Vitest: 38 test files passed, 324 tests passed (100% pass, including 6/6 in `AdaptationMomentStep.test.tsx` and 10/10 in `WeeklyReviewModal.test.tsx`).
-   - Regression Vitest: 25/25 tests passed in `Today.test.tsx`.
-   - Backend Vitest: 20 test files passed, 229 tests passed (100% pass).
-   - Playwright E2E:
-     - `e2e/weeklyReview.spec.ts`: 8/8 tests passed across desktop (1440px) and mobile (390px, 360px) with 0 axe-core violations, 0 overflow, and 44px tap targets.
-     - `e2e/today.spec.ts`: 36/36 tests passed across desktop and mobile.
-   - Zero backend changes executed (backend allowance strictly preserved for M7.5).
-
-### M7.2 report — Review flow UI (2026-09-26)
-
-1. **Modular Review Architecture (`frontend/src/components/review/`)**
-   - Extracted and modularized the weekly review experience under `frontend/src/components/review/`:
-     - `ReviewSummaryCard.tsx`: Visual Level 3 analytical summary ("How did this week go?") featuring tabular completion numerals (`font-mono text-numeral tabular-nums`), completed active practice sessions count (excluding rest days), warm non-punitive momentum feedback (`Flame` icon with `"Great week! Next week will build on this momentum."` for ≥80%, calm secondary tone with `"Next week will adapt to help you find your rhythm."` for <80%), and analytical glance of weekly focus theme, target deliverable (`formatTarget(target)`), and weekly benchmark test instructions (`formatPassIf(passIf)`).
-     - `ReviewReflectionStep.tsx`: Accessible reflection capture field with guidance hint (*"Take a quiet moment to reflect on your practice."*), generous touch sizing (`min-h-[100px]`), and error alert integration (`role="alert"`).
-     - `WeeklyReviewModal.tsx`: Primary dialog container managing multi-step progression, submission handling with double-submit guard (`aria-busy` and `aria-disabled`), and 503 error resilience.
-     - `index.ts`: Barrel export for all review components and contracts.
-   - Preserved backwards compatibility via lightweight re-export in `frontend/src/components/today/WeeklyReviewModal.tsx` and updated `Today.tsx` to import directly from `../review`.
-
-2. **Visual Level 3 & Design Token Compliance (VDS §26)**
-   - Strict adherence to Phase 0 semantic tokens (`--color-background`, `--color-surface`, `--color-accent`, `--color-text`, `--color-text-secondary`, `--color-caution`, `--color-border`).
-   - Tabular numerals (`tabular-nums font-mono`) preventing number jitter.
-   - Non-punitive philosophy enforced per BP §18: *Adapt the journey, don't punish the person* — zero red failure styling or shame language on lower completion.
-
-3. **Mobile Ergonomics & Accessibility (BP §44, VDS §29)**
-   - Fully verified across mobile viewports (390×844 and 360×800):
-     - 0 horizontal overflow (`documentOverflow <= 1`).
-     - Touch targets meet or exceed minimum dimensions (buttons `min-h-[44px]`).
-     - Reflection textarea comfortably sized and positioned above keyboard.
-   - Screen reader accessibility: proper `<h2>Week ${currentWeekNum} Review</h2>` hierarchy, `aria-describedby` wiring, live region error alert, and 0 axe-core violations.
-
-4. **Verification Evidence**
-   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors, 0 warnings across created and modified components and specs.
-   - Frontend Vitest: 37 test files passed, 317 tests passed (100% pass, including 9/9 tests in `WeeklyReviewModal.test.tsx`).
-   - Backend Vitest: 20 test files passed, 229 tests passed (100% pass).
-   - Playwright E2E Today suite: 36/36 tests passed in `e2e/today.spec.ts`.
-   - Playwright E2E Today States suite: 16/16 tests passed in `e2e/todayStates.spec.ts`.
-   - Playwright E2E Weekly Review suite: 6/6 tests passed in `e2e/weeklyReview.spec.ts` across desktop (1440px) and mobile (390px, 360px) with 0 axe violations.
-   - Zero backend changes executed (backend allowance strictly deferred to M7.5).
-
-### M7.1 report — OD-1 (Phase 7 part) decided and Review contracts (2026-09-26)
-
-1. **Architectural Decision OD-1a Formally Resolved**
-   - **Status:** Decided (Option A — Add result storage) by Mo at M7.1.
-   - **Rationale:** Adds nullable test result storage (`WeeklyTestResult`) to `RoadmapWeek` via the named backend allowance in M7.5, unlocking honest target comparisons in Phase 7 and the real results layer in Phase 8 (Progress) without altering AI adaptation behavior.
-   - **Strict Boundary:** AI adaptation prompts and decomposition algorithms in `backend/src/lib/ai/goalDecomposer.ts` remain completely untouched. Zero backend changes in M7.1.
-
-2. **Authoritative Review Contracts Created (`frontend/src/types/review.ts` & `frontend/src/types/index.ts`)**
-   - `WeeklyTestResult`: canonical structure for user-entered test outcomes (`value: string | number`, `unit?: string`, `passed: boolean`, `note?: string`).
-   - `WeeklyReviewSubmission`: review request payload matching `POST /api/goal/weeks/:weekNumber/review` (`reflection: string`, optional `testResult?: WeeklyTestResult | null`).
-   - `WeeklyReviewPhaseGate`: phase-gate milestone outcome and encouraging reinforcement messaging per BP §18 ("Your current results suggest we should reinforce this phase.").
-   - `WeeklyTargetComparison`: comparison contract linking weekly target deliverable/metric with entered test result and delta assessment.
-   - `WeeklyReviewSummary`: aggregated review presentation model including week number, date range, tasks planned/completed, execution score percentage, target deliverable, test instructions, target comparison, AI adaptation insight, and next week focus preview.
-   - `WeeklyReviewState`: UI state machine (`'due' | 'in_progress' | 'submitting' | 'adapting' | 'complete' | 'error_503'`).
-   - `WeeklyReviewStep`: multi-step review navigation steps (`'overview' | 'reflection' | 'test_result' | 'adaptation' | 'complete'`).
-   - Re-exported via `frontend/src/types/index.ts` and extended `RoadmapWeek.testResult?: WeeklyTestResult | null`.
-
-3. **Backend Allowance Technical Specification Formalized for M7.5**
-   - Defined Prisma schema update (`testResult Json?` on `RoadmapWeek`), migration identifier `add_weekly_test_result`, endpoint validation schema in `backend/src/routes/goal.ts`, Vitest test plan for backward-compatibility verification, and strict AI logic preservation.
-
-4. **Baseline Verification Evidence**
-   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors, 0 warnings across created and modified type files.
-   - Frontend Vitest: 36 test files passed, 308 tests passed (100%).
-   - Backend Vitest: 20 test files passed, 229 tests passed (100%).
-   - Playwright: 36/36 tests in `today.spec.ts` passed; 10/10 tests in `shell.spec.ts -g "roadmap"` passed.
-   - Zero backend modifications executed in M7.1.
-
-### Regression checks
-
-R-9, R-12, R-13. R-8 (next week's tasks appear on Today).
-
-### Mobile acceptance
-
-3.7 applies, plus:
-
-* The review can be finished one-handed in under two minutes.
-* The reflection textarea stays above the keyboard.
-
-### Validation
-
-* Review a full week, a partial week and an empty week.
-* Force a 503 (development only) and confirm the week is unchanged and the reflection is kept.
-* Double-submit.
-* Reload mid-review.
-* The last week (week 12) review.
-
-### Exit criteria
-
-* Review and progression behave exactly as before.
-* The user sees why next week changed.
-* No unimplemented capability is implied.
-
-### Risks
-
-* Showing target comparison without stored results.
-* Making the review feel like an assessment rather than a reflection.
-
----
-
-## PHASE 8 — PROGRESS
-
-**Status:** `COMPLETE (awaiting Mo's review)`
-
-**Source:** BP §17, §27, §43 · VDS §9, §25–26, §31
-
-**Objective:** meaningful progress (completion, milestones, results, adaptation) rather than superficial statistics.
-
-**Narrative line:** *"How far have I come?"* (the orientation half of BP §08).
-
-### Current state
-
-* **Available data:**
-  * `DailyTask.status` and `completedAt`;
-  * `RoadmapWeek.status`, `executionScore`, and `testResult` (shipped in Phase 7 M7.5 under OD-1a);
-  * `WeeklyReview` rows (planned, completed, score, reflection, insight);
-  * phase boundaries;
-  * benchmark test results stored in `RoadmapWeek.testResult`.
-* **Dedicated page:** `/progress` is mounted in `frontend/src/App.tsx` and integrated into shell navigation (`AppRail` and `AppBottomBar`).
-
-### Decisions required before starting
-
-* **ND-8: is Progress a separate page (BP §27 lists it) or a layer of the Journey view?** **Decided (Option A — A separate page `/progress`)** by Mo at M8.1 (2026-09-27). Progress is a dedicated destination at `/progress`, attached to the app shell navigation.
-
-### In scope
-
-* **Completion:** work actually done, by week and by phase.
-* **Milestones:** the phase gates reached.
-* **Results:** stored test results against targets, only if they exist.
-* **Adaptation history:** the insight from each week.
-* **The analytical level** (VDS §26): restrained, typographic, big numbers as visual objects (VDS §4). No charts unless one explains something the numbers can't (VDS §31).
-* **Empty and early states:** week 1 with nothing done yet; a goal with no reviews.
-
-### Out of scope
-
-* Analytics, streak gamification, comparisons with other users, exports (BP §43; VDS §31).
-
-### Backend allowance
-
-None beyond what Phase 7 shipped.
-
-### Files likely affected
-
-* new `frontend/src/pages/ProgressPage.tsx`
-* `frontend/src/components/progress/*`
-* `frontend/src/components/app/Navbar.tsx` and mobile navigation
-* `frontend/src/App.tsx` (route `/progress`)
-
-### Milestones
-
-| ID | Milestone | Status |
-|---|---|---|
-| M8.1 | ND-8 decided | `Done` (2026-09-27) |
-| M8.2 | Completion and milestones | `Done` (2026-09-27) |
-| M8.3 | Results and adaptation history (data permitting) | `Done` (2026-09-27) |
-| M8.4 | Empty and early states | `Done` (2026-09-27) |
-| M8.5 | Regression and phase report | `Done` (2026-09-27) |
-
-### Phase 8 report (2026-09-27)
-
-```text
-ACHIVII REDESIGN — PHASE 8 REPORT
-
-1. Outcome
-   Phase 8 (Progress) delivers the analytical orientation answer to "How far have I come?" (BP §08, §17, §27, §43; VDS §9, §25–26, §31).
-   Users now have a dedicated, serene destination at `/progress` providing an honest, typographic accounting of their 90-day journey:
-   - Visual Level 3 analytical presentation featuring prominent numerals (tabular-nums font-ui-mono) without artificial rings, streak gamification, or chart clutter (VDS §31).
-   - Real deliberate practice completion metrics (sessions completed, adherence percentage, elapsed days, practice time) derived directly from DailyTask records, with calm orientation copy at Day 1 / Week 1 ("First session awaits", "Starting your journey").
-   - Phase milestone evaluation grouping weeks into macro-phases with non-punitive evaluative status (BP §18).
-   - Chronological 12-week breakdown displaying focus themes, practice day counts, and execution adherence.
-   - Real benchmark results card displaying stored test outcomes from RoadmapWeek.testResult (Phase 7 M7.5) against target criteria, user test reflections, and upcoming benchmark previews.
-   - Adaptation history list displaying genuine historical weekly review reflections and server aiAdaptationInsight records, with a serene empty card explaining the adaptation process when 0 reviews exist.
-   - Resilient error handling displaying an accessible alert (role="alert") with retry ("Try again") on network or goal-load failure, and an inviting empty state for goal-less users.
-   - Fully integrated shell navigation across desktop AppRail and mobile AppBottomBar (ND-8 Option A) with 44×44px tap targets, 0 overflow at 360px, and 0 axe-core violations.
-   Phase 8 milestones M8.1 through M8.5 are complete and verified.
-   Phase 8 is marked COMPLETE (awaiting Mo's review).
-   Phase 9 (Achievement) is next.
-
-2. What changed
-   Across M8.1–M8.5:
-   - M8.1: Recorded architectural decision ND-8 as Option A (dedicated `/progress` page route); confirmed zero backend allowance (D-11).
-   - M8.2: Mounted dedicated `/progress` route with code-splitting in App.tsx; integrated Progress item into AppRail and AppBottomBar with TrendingUp icon; built ProgressPage shell and header; implemented CompletionOverview, PhaseMilestonesCard, and WeekBreakdownList using Visual Level 3 restrained typography.
-   - M8.3: Delivered results layer and adaptation history: BenchmarkResultsCard displaying stored RoadmapWeek.testResult data (shipped in Phase 7 M7.5) with target criteria, user notes, and non-punitive status (Benchmark achieved vs In progress · Reinforcing); AdaptationHistoryList displaying genuine review reflections and server aiAdaptationInsight.
-   - M8.4: Delivered empty and early states: calm orientation copy for Day 1 / Week 1 with 0 completed sessions; serene adaptation history early card explaining weekly review insights; upcoming benchmark test preview badges; goal-load network failure resilience with retry ('Try again') alert.
-   - M8.5: Built comprehensive Playwright E2E suite (e2e/progress.spec.ts, 20 tests); executed full regression sweep across R-8 (Today) and R-14 (Roadmap); audited data traceability (100% stored data, 0 fake analytics); verified accessibility (0 axe violations) and responsive layout (0 overflow at 1440px, 390px, 360px); authored M8.5 and Phase 8 reports.
-
-3. Files changed / created / removed
-   Created across Phase 8:
-   - frontend/src/pages/ProgressPage.tsx, ProgressPage.test.tsx
-   - frontend/src/components/progress/CompletionOverview.tsx
-   - frontend/src/components/progress/PhaseMilestonesCard.tsx
-   - frontend/src/components/progress/WeekBreakdownList.tsx
-   - frontend/src/components/progress/BenchmarkResultsCard.tsx
-   - frontend/src/components/progress/AdaptationHistoryList.tsx
-   - frontend/src/components/progress/index.ts
-   - frontend/src/components/progress/ProgressComponents.test.tsx
-   - frontend/e2e/progress.spec.ts
-   Modified across Phase 8:
-   - frontend/src/App.tsx (mounted /progress route with requireGoal={false})
-   - frontend/src/components/ProtectedRoute.tsx (scoped onboarding redirect to location.pathname === '/onboarding')
-   - frontend/src/components/app/AppRail.tsx (added Progress nav item)
-   - frontend/src/components/app/AppBottomBar.tsx (added Progress nav item)
-   - frontend/src/components/app/shellEntries.ts (added progressActive and showProgress)
-   - frontend/src/components/app/AppShell.test.tsx (updated entries and navigation tests)
-   - frontend/e2e/shell.spec.ts (updated navigation entries, keyboard tab order, and overflow assertion)
-   - docs/phases.md
-   - docs/decisions.md
-   Removed across Phase 8: none.
-
-4. Functionality preserved
-   - R-1 Authentication: Login, signup, signout, persistent session, goal fetch resilience.
-   - R-2 / R-4 Goal Creation & Payload: Identical payload schema and safe create handoff.
-   - R-3 Pathway Launch: Exploration, preview, preset preselection, and safe switching.
-   - R-5 / R-6 Generation: Honest stage progression, silence timer, slow notice, error retry.
-   - R-7 Save Goals: Goal persistence and reload recovery.
-   - R-8 Daily Task Retrieval: Today view reliably retrieves and displays active week tasks. Verified in e2e/today.spec.ts and Today.test.tsx.
-   - R-9 Daily Completion: Botanical illumination, write to server, reload persistence.
-   - R-10 Notes & Focus Wins: Auto-save on blur, focus win bullets, draft safety.
-   - R-11 Focus Mode: Countdown timer, spacebar pause/resume, deliberate practice tips.
-   - R-12 Weekly Review: Analytical summary, benchmark test result recording, reflection capture, 503 retry resilience. Verified in e2e/weeklyReview.spec.ts.
-   - R-13 Weekly Progression: Week advancement, next week task generation, phase-gate evaluation, state synchronization.
-   - R-14 Roadmap: Shell navigation, 3 progress layers, staircase, vertical spine, Back to Today. Verified in e2e/journeyMotion.spec.ts, e2e/journeyMobile.spec.ts, and e2e/shell.spec.ts.
-   - R-15 Reset / Switch Goal: Safe deletion with confirmation, archived switch.
-   - R-16 Draft Preservation: Pathway draft carried through auth into onboarding.
-   - R-17 Offline Banner & Alert: Visual status chip and visible write failure alerts.
-   - R-18 Onboarding Navigation: Forward/backward state retention, generation lock.
-
-5. Decisions applied
-   - ND-8 (Option A): Dedicated Progress page (/progress) attached to shell navigation.
-   - OD-1a (Option A): Results layer consumes nullable RoadmapWeek.testResult stored in Phase 7 M7.5.
-   - D-11 (Backend scope rule): Strictly zero backend edits in Phase 8.
-   - BP §08, §17, §27: "How far have I come?" orientation answered via dedicated Progress view.
-   - BP §43 & VDS §31: Strict data honesty and "do not pretend" — zero fake statistics, zero competitive streaks, zero artificial charts, zero unearned badges.
-   - VDS §26: Visual Level 3 analytical presentation with tabular numerals (tabular-nums font-ui-mono).
-
-6. Validation evidence
-   - TypeScript: 0 errors across frontend (tsc --noEmit -p frontend) and backend (tsc).
-   - ESLint: 0 errors across all touched files.
-   - Frontend Vitest: 41 test files passed, 351/351 tests passed (100% pass).
-   - Backend Vitest: 21 test files passed, 240/240 tests passed (100% pass).
-   - Playwright Suites:
-     - e2e/progress.spec.ts: 20 passed (10 desktop, 10 mobile).
-     - e2e/shell.spec.ts + e2e/today.spec.ts + e2e/weeklyReview.spec.ts: 106 passed, 4 skipped.
-     - e2e/journeyMobile.spec.ts: 8 passed.
-     - e2e/todayStates.spec.ts + e2e/journeyMotion.spec.ts: 26 passed.
-   - Accessibility: 0 violations (@axe-core/playwright across WCAG 2.0/2.1/2.2 AA) at 1440px, 390px, and 360px.
-   - Responsive check: 0 horizontal overflow (documentOverflow <= 1), tap targets >= 44x44px.
-   - Build metrics:
-     - Frontend: dist/index.html 1.23 kB, CSS 104.54 kB (17.83 kB gzip), JS 592.81 kB (174.03 kB gzip), code-split ProgressPage chunk 19.42 kB (4.92 kB gzip).
-     - Backend: compiled cleanly to dist/ via tsc.
-
-7. Carry-overs
-   - Goal completion transition and celebration -> Phase 9 (Achievement, OD-1b).
-   - Main JS bundle chunk size (>500 KB Vite warning) -> Phase 12 (Global polish & code splitting).
-
-8. Issues and risks found
-   - None. All Phase 8 validation scenarios pass cleanly with 100% data traceability.
-   - Main JS bundle (592.81 KB) remains above Vite's 500 KB chunk warning; owned by Phase 12 (code splitting).
-
-9. Next phase status
-   Phase 8 is COMPLETE (awaiting Mo's review).
-   Phase 9 (Achievement) is next and blocked by decisions OD-1b (goal completion transition) and OD-2.
-```
-
-### M8.5 report — Regression and phase report (2026-09-27)
-
-1. **Automated Playwright E2E Suite (`frontend/e2e/progress.spec.ts`)**
-   - Implemented dedicated Playwright test suite `frontend/e2e/progress.spec.ts` covering 20 tests across desktop (1440px) and mobile (390px, 360px):
-     - Route navigation & shell integration: Navigating to `/progress` highlights Progress in desktop `AppRail` and mobile `AppBottomBar` with `TrendingUp` icon; displays active goal heading, day counter, and current phase/week badges.
-     - Early journey state (Week 1, 0 completed sessions): Honest `0` sessions, `0%` adherence, and `0 min` duration without NaN or jitter; verifies calm orientation copy (`"First session awaits · of N planned"` and `"Starting your journey · 0 of N to date"`); serene adaptation empty card explaining weekly reviews (`Sparkles` icon, zero synthetic entries); upcoming benchmark badges with target criteria preview.
-     - Mid-journey state (Week 6 with completed reviews & benchmarks): Renders real execution metrics (e.g. 28 sessions, 93% adherence, 42 days elapsed), phase milestone progression, recorded benchmark results (`Benchmark achieved` vs non-punitive `In progress · Reinforcing`), and genuine adaptation logs with user reflections and server `aiAdaptationInsight`.
-     - Resilience & goal-less states: Unauthenticated access redirects cleanly to `/login`; authenticated user with no active goal displays calm empty state with `"Create Your Journey"` CTA; simulated `goalLoadFailed` renders accessible alert (`role="alert"`) with functional `"Try again"` retry button.
-     - Accessibility & responsive sweeps: 0 `@axe-core/playwright` violations across WCAG 2.0/2.1/2.2 AA; zero horizontal overflow (`documentOverflow <= 1`) at 1440px, 390px, and 360px; all interactive touch targets meet minimum 44×44px dimensions; tabular numerals (`tabular-nums font-ui-mono`) prevent number jitter; reduced motion (`prefers-reduced-motion: reduce`) displays content cleanly without transition traps.
-
-2. **Regression Sweep Across Touched Capabilities (R-8 & R-14)**
-   - R-8 (Daily Task Retrieval): Today page (`/`) verified across `e2e/today.spec.ts` (36/36 passed), `e2e/todayStates.spec.ts` (18/18 passed), and `frontend/src/components/today/Today.test.tsx` (28/28 passed).
-   - R-14 (Roadmap / Journey View): Journey page (`/roadmap`) verified across `e2e/journeyMotion.spec.ts` (8/8 passed), `e2e/journeyMobile.spec.ts` (8/8 passed), and `e2e/shell.spec.ts` (56/56 passed).
-   - App shell navigation: Verified seamless switching between Today, Roadmap, Progress, and Pathways with active pill markers and no route collisions.
-
-3. **Data Traceability & Honesty Audit**
-   - Audited all metrics across `CompletionOverview.tsx`, `PhaseMilestonesCard.tsx`, `WeekBreakdownList.tsx`, `BenchmarkResultsCard.tsx`, and `AdaptationHistoryList.tsx`.
-   - 100% of displayed figures map directly to stored properties on `Goal`, `RoadmapWeek`, `DailyTask`, or `WeeklyReview`. Zero streak gamification, zero fake progress percentages, zero competitive comparisons, zero media proof judging, and zero charts that pretend to show missing metrics (BP §43, VDS §31).
-
-4. **Quality & Verification Baseline**
-   - Frontend type-check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - Backend build: 0 errors (`npm run build --workspace=backend`).
-   - Frontend production build: 0 errors (`npm run build --workspace=frontend`), clean code-split `dist/assets/ProgressPage-*.js` chunk (19.42 kB).
-   - Frontend Vitest: 41 test files passed, 351/351 tests passed.
-   - Backend Vitest: 21 test files passed, 240/240 tests passed.
-   - Playwright E2E: 126 passed, 4 skipped across `e2e/progress.spec.ts` (20/20), `e2e/shell.spec.ts`, `e2e/today.spec.ts`, and `e2e/weeklyReview.spec.ts`.
-   - Zero backend edits: Backend allowance strictly preserved per D-11.
-
-### M8.4 report — Empty and early states (2026-09-27)
-
-1. **Completion Metrics Early-State Resilience (`CompletionOverview.tsx`)**
-   - Implemented honest, calm numerical presentation for Day 1 / Week 1 with 0 completed sessions (`0` sessions, `0%` adherence, `0 min` practice duration).
-   - Replaced blank or misleading default sublabels with reassuring orientation copy:
-     - Practice sessions: `"First session awaits · of N planned"`
-     - Execution adherence: `"Starting your journey · 0 of N to date"`
-   - Hardened `formatDuration` to return `"0 min"` on zero elapsed minutes and guarded against NaN / division-by-zero errors.
-
-2. **Adaptation History Early-State Orientation (`AdaptationHistoryList.tsx`)**
-   - Replaced silent `null` disappearance when zero weekly reviews exist with an encouraging, serene early-state card.
-   - Restrained surface styling (`border-border bg-surface px-5 py-6 sm:px-6`) with `Sparkles` icon (`text-accent`).
-   - Honest orientation copy explaining the review process: *"Weekly reviews unlock adaptation insights. At the end of each week, your review reflections and server path adaptations will appear here."* (BP §18, BP §43; zero fake simulated entries).
-
-3. **Benchmark Results Edge & Early States (`BenchmarkResultsCard.tsx`)**
-   - Renders clear `Upcoming` badge and instructions preview when benchmark tests are specified in roadmap weeks but not yet taken.
-   - Cleanly omits benchmark section when a goal has zero benchmark tests defined across all weeks (e.g. Plan v1 goals), preventing layout shift or runtime exceptions.
-
-4. **Progress Page Goal-Load Error Resilience (`ProgressPage.tsx`)**
-   - Integrated `goalLoadFailed` and `refreshGoal()` from `useGoal()`.
-   - Renders visible, accessible error alert (`role="alert"`) with `"Try again"` retry button if network or server errors prevent goal retrieval, matching the resilience patterns from Today (M5.7) and Roadmap.
-   - Graceful fallback empty state when no active goal exists, guiding user to onboarding with `"Create Your Journey"`.
-
-5. **Automated Verification & Zero Backend Edits**
-   - Unit tests added to `frontend/src/components/progress/ProgressComponents.test.tsx` verifying early completion sublabels (`0%`, `0 min`), adaptation empty state card, and upcoming benchmark badges.
-   - Dedicated page test suite `frontend/src/pages/ProgressPage.test.tsx` testing loading skeleton, error alert with retry button, empty state, and active progress rendering.
-   - 41/41 frontend test files passing (351/351 tests).
-   - Production build clean (`ProgressPage` code-split chunk).
-   - Zero backend edits (D-11 constraint preserved).
-
-### M8.3 report — Results and adaptation history (2026-09-27)
-
-1. **Benchmark Results Card (`BenchmarkResultsCard.tsx`)**
-   - Displays honest, real test results stored in `RoadmapWeek.testResult` (Phase 7 M7.5) against target criteria.
-   - Distinct, non-punitive visual statuses:
-     - Passed benchmarks: calm accent badge with `Check` icon (`Benchmark achieved`) and recorded metric value.
-     - Unmet benchmarks: respectful neutral badge (`In progress · Reinforcing`, BP §18) and recorded metric value.
-     - Upcoming benchmarks: target criteria and pass rules preview.
-   - Includes user's genuine reflection notes from the test session.
-   - Adheres strictly to BP §43 and VDS §31 (zero fabricated analytics, zero fake AI grading, zero charts).
-
-2. **Adaptation History List (`AdaptationHistoryList.tsx`)**
-   - Chronological historical log of weekly reviews actually completed (`WeeklyReview` records).
-   - Shows week number, focus theme, execution adherence score (`font-ui-mono text-numeral tabular-nums`), and practice sessions completed.
-   - Displays user's raw submitted reflection note (`WeeklyReview.reflection`).
-   - Surfaces server's genuine AI adaptation insight (`WeeklyReview.aiAdaptationInsight`), providing clear visibility into how the pathway evolved.
-
-3. **Progress Page Integration (`ProgressPage.tsx`, `components/progress/index.ts`)**
-   - Mounted `BenchmarkResultsCard` and `AdaptationHistoryList` onto `/progress`.
-   - Maintained Visual Level 3 typographic hierarchy and modular page layout.
-
-4. **Automated Verification Evidence**
-   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors across all progress components, pages, and tests.
-   - Frontend Vitest: 40 test files passed, 344/344 tests passed (including unit tests for `BenchmarkResultsCard` and `AdaptationHistoryList`).
-   - Production Build: Vite build clean (`dist/assets/ProgressPage-*.js` code-split cleanly).
-   - Zero backend edits: Backend allowance strictly preserved per D-11.
-
-### M8.2 report — Completion and milestones (2026-09-27)
-
-1. **Route Mounting & Shell Navigation Integration (`App.tsx`, `AppNavigation.tsx`, `shellEntries.ts`)**
-   - Registered dedicated route `<Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />` with lazy-loading in `frontend/src/App.tsx`.
-   - Updated `shellEntries.ts` adding `progressActive` (`pathname === '/progress'`) and `showProgress` (`hasGoal`).
-   - Integrated `Progress` navigation link into desktop `AppRail` (between Roadmap and Pathways with `TrendingUp` icon) and mobile `AppBottomBar` with `ActiveMark` support and ≥44×44px tap targets.
-   - Updated `AppShell.test.tsx` (11/11 tests pass) covering shell entries and active navigation states.
-
-2. **Progress Page Shell & Modular Architecture (`frontend/src/pages/ProgressPage.tsx`, `frontend/src/components/progress/`)**
-   - Delivered dedicated `ProgressPage.tsx` adhering to Visual Level 3 (VDS §26) restrained, typographic design.
-   - Includes full layout loading skeleton (`ProgressSkeleton`), header with goal context, day counter, and current phase/week badges.
-   - Graceful fallback for unauthenticated / goal-less states.
-
-3. **Core Completion Metrics (`CompletionOverview.tsx`)**
-   - Derived honest execution metrics directly from stored `DailyTask` records:
-     - Practice sessions completed vs total planned active sessions (excluding rest days).
-     - Overall execution adherence percentage (`completedActive / plannedActiveToDate * 100`).
-     - Day N of 90 counter (`dayNumber(goal, now)`, clamped at 1–90 per OD-2).
-     - Total deliberate practice time formatted in hours and minutes.
-   - Rendered using prominent typographic numerals (`font-ui-mono text-numeral tabular-nums`) without animated rings or streak pressure (BP §43, VDS §31).
-
-4. **Phase & Milestone Progression (`PhaseMilestonesCard.tsx`)**
-   - Grouped roadmap weeks into macro-phases (Plan v2 custom phases or Plan v1 defaults).
-   - Displayed phase names, week ranges, key milestone deliverable descriptions, and phase statuses (`Completed`, `In Progress`, `Upcoming`).
-   - Evaluated phase completion scores using canonical non-punitive BP §18 language.
-
-5. **Week-by-Week Chronological Breakdown (`WeekBreakdownList.tsx`)**
-   - Chronological breakdown of weeks 1 through 12.
-   - Displays week number badge, focus theme, completed vs planned practice days count, and execution score.
-   - Clean visual hierarchy distinguishing completed weeks, active week, and upcoming weeks.
-
-6. **Automated Verification Evidence**
-   - TypeScript: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - ESLint: 0 errors across all progress components, pages, and tests.
-   - Frontend Vitest: 40 test files passed, 342/342 tests passed (100% pass, including `ProgressComponents.test.tsx` and `AppShell.test.tsx`).
-   - Playwright E2E: 25/25 desktop tests passed in `today.spec.ts` and `weeklyReview.spec.ts`.
-   - Production Build: Vite build clean (dist bundle generated in 3.45s).
-   - Zero backend edits: Backend allowance strictly preserved.
-
-### M8.1 report — ND-8 decided (2026-09-27)
-
-1. **Architectural Decision ND-8 Formally Resolved**
-   - **Status:** Decided (Option A — Dedicated Progress page `/progress`) by Mo at M8.1.
-   - **Rationale:** With Decision OD-1a (Option A) having delivered stored benchmark test results (`RoadmapWeek.testResult`) in Phase 7 (M7.5), Progress has substantive data across four meaningful layers (work completed, phase milestones reached, real test results vs targets, and weekly adaptation insights) to justify a dedicated route and navigation item per BP §27.
-   - **Consequences:** Dedicated route `/progress` mapped in `frontend/src/App.tsx` wrapped in `ProtectedRoute`; top-level `Progress` navigation link integrated into the app shell navbar and mobile navigation; component architecture structured under `frontend/src/components/progress/`.
-   - **Zero backend edits:** Backend allowance remains strictly "None beyond what Phase 7 shipped".
-
-### Regression checks
-
-R-8, R-14.
-
-### Mobile acceptance
-
-3.7 applies, plus: large numbers stay legible at 360px, with tabular figures and no layout shift.
-
-### Validation
-
-* A goal at week 1, week 6 and week 12.
-* A goal with no reviews.
-* Numbers checked against the database for one real goal.
-
-### Exit criteria
-
-* Every figure is traceable to stored data.
-* Nothing looks like analytics that don't exist.
-
-### Risks
-
-* Drifting into a card-heavy dashboard (VDS §31).
-
----
-
-## PHASE 9 — ACHIEVEMENT
-
-**Status:** `IN PROGRESS`
-
-**Source:** BP §07, §11, §34, §43, §47, OD-1, OD-2 · VDS §17–18, §26–27, note 7
-
-**Objective:** the completion and celebration experience, the arrival at the garden. After it, the user can start their next goal.
-
-**Narrative line:** *"You made it."*
-
-### Current state
-
-* **Goal status:** `Goal.status` is `active` or `archived`. **Nothing ever sets `completed`** (OD-1).
-* **After the final week:** behaviour after week 12 is undefined in the UI (an OD-9 state).
-* **Starting another goal:** creating a new goal archives the previous active one; `DELETE /api/goal/active` exists for reset.
-* **One goal at a time:** multiple active goals are not supported (BP §43).
-
-### Decisions required before starting
-
-* **OD-1b (Goal completion transition):** **Decided (Option B — Dedicated completion endpoint with closing-stretch arrival `POST /api/goal/complete`)** by Mo at M9.1 (2026-09-27). Server persists `Goal.status = 'completed'` and `completedAt = now()`. `GET /api/goal/active` returns the active or most recently completed goal.
-* **OD-2 (90 vs 84 days):** **Decided (Option A — Closing stretch on days 85–90)** by Mo at M6.1.
-
-### In scope
-
-* **The achievement screen** (BP §34, VDS §18):
-  * 90 DAYS COMPLETE;
-  * the goal;
-  * results (real, from Phase 7 and 8 data);
-  * what you accomplished;
-  * "Your results";
-  * "Begin another journey".
-* **The environment change** (VDS §17, §27): the darkness opens, the architecture warms, the garden appears. Achievement gold (`#C8A96B`) is used here, sparingly. Reduced-motion path required.
-* **"Begin another journey"** reuses the existing archive-and-create flow into onboarding.
-* **After week 12, before completion:** a designed "final stretch" state (from OD-2).
-
-### Out of scope
-
-* A history of past goals, sharing and certificates, unless separately decided.
-* Multiple active goals.
-
-### Backend allowance
-
-**Named, approved under OD-1b (Option B) at M9.1:** a goal completion transition that sets `Goal.status = 'completed'`, implemented in **M9.2** via dedicated endpoint `POST /api/goal/complete`. Includes:
-* nullable `completedAt DateTime?` added to `Goal` model in `backend/prisma/schema.prisma` with migration `add_goal_completed_status_and_timestamp`;
-* `GET /api/goal/active` query updated to retrieve active or most recently completed goal (`{ status: { in: ['active', 'completed'] } }`);
-* Vitest coverage in `backend/test/goalCompletion.test.ts`.
-
-### Files likely affected
-
-* new `frontend/src/components/achievement/*`
-* `frontend/src/types/achievement.ts` (created in M9.1)
-* the Today and Journey terminal states
-* `frontend/public/images/brand/garden.jpg` usage
-* With the allowance (M9.2): `backend/src/routes/goal.ts`, `backend/prisma/schema.prisma`, backend tests, `frontend/src/context/GoalContext.tsx`
-
-### Milestones
-
-| ID | Milestone | Status |
-|---|---|---|
-| M9.1 | OD-1b decided; completion contracts defined | `Done` (2026-09-27) |
-| M9.2 | Backend completion transition with tests | `Done` (2026-09-27) |
-| M9.3 | Achievement screen and garden transition | `Done` (2026-09-27) |
-| M9.4 | Final-stretch state; "Begin another journey" flow | `Done` (2026-09-27) |
-| M9.5 | Regression and phase report | `Done` (2026-09-27) |
-
-### M9.5 report — regression and phase completion (2026-09-27)
-
-1. **Regression evidence**
-   - Frontend Vitest: 46 test files, 388 tests passed.
-   - Frontend production build: passed; achievement remains code-split (`26.02 kB`, `6.18 kB` gzip).
-   - Preview smoke check: public landing page rendered at 390×844 with accessible navigation and no blank/error state.
-   - Existing M9.4 coverage remains green for closing stretch, achievement arrival, succession dialog, route guarding, and R-15 preservation behavior.
-
-2. **Checks with repository/environment blockers**
-   - Backend Vitest and build could not complete because the installed Prisma client is ungenerated (`@prisma/client did not initialize yet`), which also causes missing generated model/type exports. This is an environment/dependency-generation issue, not a regression introduced by M9.5.
-   - Frontend lint remains blocked by pre-existing errors in `SaaSBuilderModal.tsx` and `StaircaseScene.tsx`; achievement files only report existing hook-dependency warnings.
-
-3. **Exit assessment**
-   - M9.1–M9.4 implementation and frontend regression coverage are complete.
-   - The server-backed completion and succession paths are covered by the existing M9.2 backend suite, but a clean backend rerun is still required after Prisma Client generation before Phase 9 can be considered fully verified in CI.
-
-### M9.1 report — OD-1b decided and goal completion contracts (2026-09-27)
-
-1. **Architectural Decision OD-1b Formally Resolved (Workflow W4)**
-   - **Status:** Decided (Option B — Explicit completion endpoint `POST /api/goal/complete` with closing-stretch arrival) by Mo at M9.1 (2026-09-27).
-   - **Rationale:** Aligns with the 12-week + closing-stretch architecture (OD-2 Option A) and the core narrative of BP §34 ("You made it"). Completion is an earned, deliberate arrival moment after completing `roadmap.finalTest` and the final reflection, rather than a passive date expiration or an automatic side effect of the Week 12 review.
-   - **Active Goal Query Behavior:** `GET /api/goal/active` is specified to return `{ status: { in: ['active', 'completed'] } }` ordered by `{ updatedAt: 'desc' }`. This ensures users can view their achievement screen, inspect their verified metrics, and revisit their garden across reloads without being redirected to onboarding.
-   - **Next Journey Progression (R-15):** When the user chooses to "Begin another journey", the completed goal remains preserved in the database with `status = 'completed'` (never overwritten or deleted) while onboarding creates the next active goal.
-
-2. **Authoritative Technical Specification for M9.2 Named Backend Allowance**
-   - **Prisma Schema Update:**
-     - Add nullable `completedAt DateTime?` to `model Goal` in `backend/prisma/schema.prisma`.
-     - Target migration: `add_goal_completed_status_and_timestamp`.
-     - Regenerate Prisma Client.
-   - **Route `POST /api/goal/complete`:**
-     - Authentication required (`authenticateToken`).
-     - Optional payload: `{ finalReflection?: string, finalMetricResult?: string | number }`.
-     - Validates that user has an active goal.
-     - Updates `Goal.status = 'completed'` and `Goal.completedAt = new Date()`.
-     - Returns updated goal with tasks, roadmap weeks, and review history.
-   - **Route `GET /api/goal/active` Update:**
-     - Query updated from `where: { userId, status: 'active' }` to `where: { userId, status: { in: ['active', 'completed'] } }` with `orderBy: { updatedAt: 'desc' }`.
-   - **Backend Vitest Test Plan (`backend/test/goalCompletion.test.ts`):**
-     - Test 1: Completing an active goal updates status to `'completed'` and sets `completedAt`.
-     - Test 2: `GET /api/goal/active` returns the completed goal when no newer active goal exists.
-     - Test 3: Calling `POST /api/goal/complete` when no active goal exists returns 404.
-     - Test 4: Starting a new goal after completion preserves the completed goal and activates the new one.
-
-3. **Canonical Achievement TypeScript Contracts (`frontend/src/types/achievement.ts`)**
-   - Created canonical interfaces exported via `frontend/src/types/index.ts`:
-     - `GoalLifecycleStatus`: `'active' | 'completed' | 'archived'`
-     - `FinalTestEvaluation`: test type, target deliverable, instructions, pass criteria, result.
-     - `GoalCompletionPayload`: final reflection, final test result.
-     - `AchievementSummary`: goal id, raw goal, clarified outcome, total days (clamped 90), session counts, adherence rate, benchmark stats, completedAt.
-     - `AchievementCelebrationState`: view state and active tab tracking.
-   - Added `completedAt?: string | null` to `Goal` interface in `frontend/src/types/index.ts`.
-
-4. **Zero Backend Modifications in M9.1**
-   - In accordance with Rule 3.2 and Decision D-11, zero backend files, schemas, or migrations were modified in M9.1. Backend modifications are strictly reserved for Milestone M9.2 under the approved named allowance.
-
-5. **Verification Baseline**
-   - Frontend TypeScript check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - Frontend Vitest: 41 test files passed, 351/351 tests passed.
-   - Backend Vitest: 21 test files passed, 240/240 tests passed.
-   - Documentation integrity: `docs/decisions.md` and `docs/phases.md` synchronized.
-
-### M9.2 report — Backend completion transition with tests (2026-09-27)
-
-1. **Named Backend Allowance Executed (OD-1b Option B / D-11)**
-   - **Database Schema & Migration:** Added nullable `completedAt DateTime?` to `model Goal` in `backend/prisma/schema.prisma`. Generated and applied PostgreSQL migration `20260927165500_add_goal_completed_status_and_timestamp` adding `completedAt TIMESTAMP(3)` to the `goals` table. Regenerated Prisma Client (`@prisma/client`).
-   - **Dedicated Endpoint `POST /api/goal/complete`:** Delivered in `backend/src/routes/goal.ts`. Authenticated via `getAuthUser(req)` (401 guard). Checks active goal existence (404 guard). Transitions `Goal.status = 'completed'` and `Goal.completedAt = new Date()`. Safely updates Week 12 `roadmapWeek.testResult` when `finalTestResult` is provided and `weeklyReview.reflection` when `finalReflection` is provided. Returns `{ goal: presentGoal(...), activeGoal: presentGoal(...) }` with ordered `roadmapWeeks`, `dailyTasks`, and `weeklyReviews`.
-   - **Adaptive Active Goal Retrieval `GET /api/goal/active`:** Updated in `backend/src/routes/goal.ts`. Queries active goal first (`where: { userId: user.id, status: 'active' }`). If no active goal exists, queries for the most recently updated completed goal (`where: { userId: user.id, status: 'completed' }, orderBy: { updated_at: 'desc' }`). Returns `{ activeGoal: null }` only when neither active nor completed goals exist.
-
-2. **Succession Safety & Reset Preservation (R-15)**
-   - Verified that `archiveActiveGoals` only targets `{ userId, status: 'active' }`, preserving historical completed goals in the database when new goals are created.
-   - Verified that `DELETE /api/goal/active` only targets `{ userId, status: 'active' }`, preventing accidental erasure of completed journeys.
-
-3. **Frontend Client & Context Integration**
-   - Implemented `completeGoal(token: string, payload?: GoalCompletionPayload): Promise<Goal>` in `frontend/src/lib/api.ts`.
-   - Exposed `completeGoal` and `completeActiveGoal` in `GoalContextType` and `GoalProvider` (`frontend/src/context/GoalContext.tsx`), updating `activeGoal` in state.
-   - Updated existing mock references in `DesktopJourney.test.tsx` and `journeyAdapter.test.ts`. 0 TypeScript errors.
-
-4. **Integration Test Suite (`backend/test/goalCompletion.test.ts`)**
-   - Authored 10 backend integration tests using an ephemeral Express server with Prisma and Auth mocks:
-     - Test 1: Successful completion transitions status to `'completed'`, sets `completedAt`, and returns formatted goal.
-     - Test 2: Persists optional `finalReflection` and `finalTestResult` without data corruption.
-     - Test 3: `GET /api/goal/active` returns completed goal when no active goal exists (reload persistence).
-     - Test 4: `GET /api/goal/active` prioritizes active goal when both active and completed exist.
-     - Test 5: `GET /api/goal/active` returns null when user has no active or completed goals.
-     - Test 6: `POST /api/goal/complete` returns 404 if no active goal is active.
-     - Test 7: `POST /api/goal/complete` returns 401 if unauthenticated.
-     - Test 8: `GET /api/goal/active` returns 401 if unauthenticated.
-     - Test 9: `DELETE /api/goal/active` exclusively deletes active goals, preserving completed journeys.
-     - Test 10: Goal succession preserves completed journeys when new goals are created.
-   - 10/10 tests pass (100% pass rate).
-
-5. **Authoritative Verification Evidence**
-   - Backend Vitest: 22 test files, 250 tests passed (`npm test --workspace=backend`).
-   - Frontend Vitest: 41 test files, 351 tests passed (`npm test --workspace=frontend`).
-   - Backend Build: 0 errors (`npm run build --workspace=backend`).
-   - Frontend Type Check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - Strict adherence to Rule 3.2 / Decision D-11: zero modifications outside the approved OD-1b named allowance.
-
-### M9.3 report — Achievement screen and garden transition (2026-09-27)
-
-1. **Visual Level 4 Cinematic Arrival Experience (BP §07, §11, §34, §43, §47; VDS §17–18, §26–27)**
-   - Delivered components under `frontend/src/components/achievement/`:
-     - `AchievementHero.tsx`: Roman garden atmospheric portal, monumental arrival headline ("90 DAYS COMPLETE"), arrival statement ("You reached the destination."), clarified outcome card, quick metric highlights, and primary CTAs (`[ Your results ]` and `[ Begin another journey ]`).
-     - `AchievementResults.tsx`: Verified metrics breakdown (90 days deliberate practice, completed practice sessions, adherence percentage, total practice hours), Capstone Final Test evaluation result card, and Phase 7 milestone benchmark breakdown (`Benchmark achieved` vs `In progress`).
-     - `AchievementJourney.tsx`: Summary of the journey completed—initial ambition vs clarified outcome, methodology architecture cleared (Foundation, Progression, Capstone), closing reflection, and completion timestamp.
-     - `AchievementScreen.tsx`: Top-level container hosting WAI-ARIA tab navigation, responsive layouts, and view state transitions.
-     - `frontend/src/pages/AchievementPage.tsx`: Dedicated page component mounted at `/achievement` with fallback resilience and redirect guard.
-   - Incorporated verified local brand asset `frontend/public/images/brand/garden.jpg` (682×1024 portrait) within an architectural portal (`border border-achievement/20 bg-surface shadow-2xl`) using multi-layered dark underlays (`radial-gradient` and linear vignettes) ensuring text legibility and WCAG AA contrast (≥4.5:1 body, ≥9:1 gold on dark) across desktop (≥768px split hero layout) and mobile (<768px portrait crop) without stretching.
-   - Enforced strict design authenticity: **zero confetti, zero balloons, zero particle bursts, zero sound effects, zero XP, and zero gamification clichés** (VDS §18, §31).
-
-2. **Real Results Calculation Engine (`computeAchievementSummary`)**
-   - Implemented pure calculation functions in `frontend/src/lib/achievement.ts`:
-     - `computeAchievementSummary(goal: Goal): AchievementSummary`: Computes 90-day deliberate practice path duration (clamped per OD-2), counts completed deliberate practice sessions (excluding rest days), calculates honest non-punitive adherence rate (`Math.round((completedSessions / totalPlannedSessions) * 100)`), and aggregates milestone benchmark test results.
-     - `computeTotalPracticeMinutes(goal: Goal): number` & `formatPracticeDuration(minutes: number): string`: Calculates cumulative practice time across completed daily tasks.
-     - `extractFinalTestEvaluation(goal: Goal): FinalTestEvaluation | null`: Extracts Week 12 capstone test deliverable, pass criteria, and stored result.
-     - `formatAchievementDate(dateString?: string | null): string`: Formats completion date with locale support.
-   - Comprehensive unit test suite in `frontend/src/lib/achievement.test.ts` (7/7 tests passing across 100% adherence, 0% adherence, missing benchmarks, and duration formatting).
-
-3. **Accessible Multi-View Tab Navigation & Reduced Motion**
-   - Implemented accessible tab navigation across Arrival (`achievement`), Results (`results`), and Journey (`journey`) matching `AchievementCelebrationState`.
-   - Full WAI-ARIA compliance: `role="tablist"`, `role="tab"`, `aria-selected`, `aria-controls`, and `role="tabpanel"`.
-   - Accessible keyboard arrow navigation (ArrowLeft, ArrowRight, Home, End) with automatic focus management and standard minimum 44×44px touch targets.
-   - Full `prefers-reduced-motion: reduce` support: transitions and physical transforms are disabled, rendering a static, dignified arrival.
-
-4. **Routing & Shell Navigation Integration**
-   - Mounted `/achievement` in `frontend/src/App.tsx`, wrapped in `ProtectedRoute` and lazy-loaded via `React.lazy` into a dedicated code-split bundle (`AchievementPage-B24FuDth.js`, 25.82 kB │ gzip: 6.29 kB).
-   - In `frontend/src/pages/Home.tsx`, when `activeGoal?.status === 'completed'`, renders `AchievementPage` directly via lazy loading and `Suspense`, providing seamless arrival without flashing onboarding or empty today tasks.
-   - Reload persistence: Reloading on `/achievement` or `/` preserves completed goal state retrieved via `GET /api/goal/active` (delivered in M9.2).
-   - Navigation adaptation: `shellEntries.ts` and `AppNavigation.tsx` dynamically update navigation entries—replacing "Today" with "Achievement" and the `Award` icon when viewing a completed goal on both `AppRail` (desktop) and `AppBottomBar` (mobile).
-
-5. **Authoritative Verification Evidence**
-   - Frontend Vitest: 44 test files, 368 tests passed (`npm test --workspace=frontend`).
-   - Frontend TypeScript Check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - Frontend Production Build: Clean code-split build (`npm run build --workspace=frontend`).
-   - Backend Invariance: Zero modifications to backend code or database migrations in M9.3 (strict adherence to Rule 3.2 and Decision D-11).
-
-### M9.4 report — Final-stretch state and "Begin another journey" flow (2026-09-27)
-
-1. **Closing Stretch State in Today (`ClosingStretchView.tsx`, OD-2 Option A, BP §34)**
-   - Delivered `frontend/src/components/today/ClosingStretchView.tsx` and integrated it into `frontend/src/components/today/Today.tsx`.
-   - Activated cleanly when `goal.status === 'active'` and either `dayNumber(goal, now) >= 85` or `goal.currentWeek >= 12` with all active deliberate practice tasks completed or reviewed (`isClosingStretchActive` helper in `frontend/src/lib/today.ts`).
-   - Replaced legacy text placeholder banner with Visual Level 2/3 calm narrative:
-     - Eyebrow: `DAYS 85–90 · THE CLOSING STRETCH` in `font-ui-mono text-micro uppercase tracking-wider text-achievement`.
-     - Headline: `The Final Evaluation & Arrival`.
-     - Narrative: Explains that the 84 planned deliberate practice days are complete and the remaining days are dedicated to taking the capstone evaluation, reflecting on the 90-day journey, and arriving at the destination.
-     - Progress context: Displays a calm 6-day approach indicator (Days 85–90 with active/completed day highlighting) without synthetic daily tasks (OD-2 Option A).
-     - Roadmap staircase link: Retains accessible link to `/roadmap` ("Review 90-day staircase").
-
-2. **Capstone Final Test & Journey Reflection Capture**
-   - Renders the Capstone Evaluation card using `extractFinalTestEvaluation(goal)`:
-     - Displays `goal.roadmap.finalTest` instructions, test type, summit target deliverable, and pass criteria.
-     - Displays summit ambition reminder (`goal.roadmap.finalGoal || goal.clarifiedOutcome || goal.rawGoal`).
-     - Provides non-punitive benchmark result selector (`Benchmark achieved` vs `In progress — Reinforcing`), recorded score / deliverable output input, and optional evaluation notes.
-   - Final Journey Reflection capture:
-     - Textarea with label *"Final Journey Reflection"* and reflective placeholder (*"What shifted over these ninety days? What habits, systems, or understanding feel permanent?"*).
-     - Implemented `localStorage` draft persistence (`achivii_closing_reflection_${goal.id}`) preventing reflection loss across accidental page reloads or network drops; draft is cleared upon successful completion.
-
-3. **Earned Arrival Transition & Fallback Path**
-   - Primary action: `[ Complete Journey & Arrive at the Garden ]` invokes `completeGoal` from `GoalContext` with `{ finalReflection, finalTestResult }`.
-   - On completion: `activeGoal` transitions to `status = 'completed'` and `Home.tsx` immediately renders the Visual Level 4 Roman garden achievement destination (`AchievementPage`) without page reloads.
-   - Fallback action: Quiet secondary CTA `[ Arrive without test ]` allows completion even if the user chooses not to submit a formal test score.
-   - Offline resilience: Disables submit actions when `apiStatus === 'offline'` with a calm status banner; displays non-destructive inline alert (`role="alert"`, `aria-live="assertive"`) with `"Try again"` retry button on network failures.
-
-4. **"Begin Another Journey" Succession Flow (`NewJourneyDialog.tsx`, R-15)**
-   - Created accessible modal dialog `frontend/src/components/achievement/NewJourneyDialog.tsx` using Radix Dialog (`Dialog` and `DialogContent` from `../ui/Dialog`).
-   - Reassures user of succession safety (R-15):
-     - Title: *"Begin Your Next Journey"*.
-     - Subtitle: *"Your completed 90-day journey is permanently preserved in your archives. Starting another journey will open pathway selection to plan your next ambition."*
-     - Highlights completed goal title and completion date.
-     - Reassurance badge: *"Permanently Preserved: Your practice history, reflections, and benchmark test results remain intact in your personal archive."*
-   - Actions:
-     - Secondary: `[ Stay in the Garden ]` dismisses dialog.
-     - Primary: `[ Choose Next Pathway ]` navigates to `/onboarding` with `{ state: { switchGoal: true, fromCompletedGoal: true } }`.
-
-5. **Route Guarding & Succession Safety (R-15)**
-   - Updated `frontend/src/components/ProtectedRoute.tsx`: allows signed-in users with a completed goal (`activeGoal?.status === 'completed'`) or `fromCompletedGoal` navigation state to access `/onboarding` without redirect loops back to `/`.
-   - Updated `frontend/src/pages/OnboardingPage.tsx`: renders an orientation banner (*"Starting a new journey · Your previous 90-day achievement is safely preserved in your personal history"*) when starting a new journey from a completed goal.
-   - Preserves completed goal with `status = 'completed'` in PostgreSQL when creating the new active goal (`POST /api/goal/create`), returning the user to Day 1 / Week 1 of their next ambition.
-
-6. **Authoritative Verification Evidence**
-   - Frontend Vitest: 46 test files, 388 tests passed (`npm test --workspace=frontend`).
-   - Backend Vitest: 22 test files, 250 tests passed (`npm test --workspace=backend`).
-   - Frontend Type Check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - Frontend Production Build: Clean build with code-split achievement chunk (`AchievementPage-u_FtEfkb.js`, 26.02 kB │ gzip: 6.18 kB).
-   - Strict adherence to Rule 3.2 / Decision D-11: zero backend files modified.
-
-### Regression checks
-
-R-7, R-8, R-12, R-13, R-15.
-
-### Mobile acceptance
-
-3.7 applies, plus: the garden image is served at a suitable resolution and cropped for portrait. The brand images are portrait already (VDS note 8).
-
-### Validation
-
-* Drive a development goal to completion.
-* Reload on the achievement screen.
-* Start another journey; confirm the old goal is `completed` (not deleted) and the new one is `active`.
-* Reduced motion.
-
-### Exit criteria
-
-* The server knows a goal is complete.
-* The celebration is real, calm and not confetti (VDS §18).
-* The next goal can be started.
-
-### Risks
-
-* A frontend-only "completed" state (forbidden by 3.2).
-* Completion racing with the final review.
-
----
-
-## PHASE 10 — PREMIUM ARCHITECTURE
-
-**Status:** `COMPLETE`
-
-**Source:** BP §03, §20–23, §27, §43, OD-1 · VDS §12, §14, §25
-
-**Objective:** give Achivii Coach and Custom Journeys their place in the product, attractive and understandable, without faking availability or payment.
-
-**Narrative line:** *"More ways to climb"* (introduced honestly on the marketing site in Phase 1).
-
-### Current state
-
-* **Chat:** there is no chat functionality.
-* **Custom goals:** created free through `POST /api/goal/create`, with no entitlement check. Custom goals remain free and functional (ND-10 Decided A).
-* **Accounts:** `User` has no plan or entitlement field.
-* **Payments:** there is no payment system in this redesign (ND-9 Decided A).
-* **Marketing:** Coach is "In development"; Custom Journeys is "Available now · Free" (M10.6).
-
-### Decisions made before starting (M10.1 Complete)
-
-* **ND-9: payments.** Decided (A) — No payments in this redesign; Phase 10 ships placement and honest copy only.
-* **ND-10: custom-goal gating.** Decided (A) — Gate only when payments exist. Custom goals stay free for now; Phase 10 ships placement and honest copy. Existing custom goals grandfathered.
-* **ND-11: Coach scope.** Decided (A) — Architecture only. Navigation placement and an honest "Coming soon" state (ND-7); no fake chat UI.
-* **OD-1c: Custom-journey entitlement.** Decided (B) — Do not add server-side entitlement yet. Backend allowance is not invoked.
-
-### In scope (architecture-only baseline per ND-9 A, ND-10 A, ND-11 A)
-
-* **Coach ✦ in the application navigation** (VDS §14) with an honest "coming" state. No fake conversation UI.
-* **Custom Journeys in the pathway library:** "Have something unique in mind?" (BP §22), styled as premium but not an aggressive upsell. Custom goal creation remains free and fully operational.
-* **Premium visual treatment:** subtle botanical green or warm gold, depending on context (VDS §12).
-* **Marketing copy alignment:** ensure marketing and in-app messaging truthfully agree on availability.
-
-### Out of scope (per ND-9, ND-10, ND-11)
-
-* Checkout, billing, invoices, payment providers.
-* AI chat / conversation UI.
-* Backend schema changes / migrations (OD-1c allowance not invoked).
-
-### Backend allowance
-
-None invoked (OD-1c Decided B, ND-9 Decided A). Zero backend changes required.
-
-### Files likely affected
-
-* Navigation (`frontend/src/components/app/AppNavigation.tsx`, `shellEntries.ts`, and associated tests)
-* Coach presentation component (e.g. `frontend/src/components/coach/CoachModal.tsx` or sheet/drawer/dialog)
-* The pathway library (`frontend/src/components/PathwaysExplorerModal.tsx`, `frontend/src/components/onboarding/PathwayCard.tsx` / `CustomGoalCard`)
-* `frontend/src/components/marketing/sections/Premium.tsx` (only if copy needs alignment)
-
-### Milestones
-
-| ID | Milestone | Status |
-|---|---|---|
-| M10.1 | ND-9, ND-10 and ND-11 decided | COMPLETE |
-| M10.2 | Coach placement and honest state | COMPLETE |
-| M10.3 | Custom Journeys placement in the pathway library | COMPLETE |
-| M10.4 | (With the allowance) server-side entitlement and gate | DEFERRED (ND-10 A, OD-1c B) |
-| M10.5 | (With the allowance) payments integration | DEFERRED (ND-9 A) |
-| M10.6 | Marketing copy updated to match reality | COMPLETE |
-| M10.7 | Regression and phase report | COMPLETE |
-
-### Regression checks
-
-R-2, R-3, R-4. Existing custom goals keep working (grandfathering per ND-10).
-
-### Mobile acceptance
-
-3.7 applies.
-
-### Validation
-
-* A free user, and (if built) an entitled user.
-* A direct API call to `/create` with a custom goal while not entitled is refused by the server.
-* Marketing and in-app copy agree.
-
-### Exit criteria
-
-* Nothing implies a feature or purchase that doesn't work.
-* Any lock is enforced by the server.
-
-### Risks
-
-* Accidentally removing free custom goals before gating is decided.
-* Copy that over-promises Coach.
-
-### Phase 10 Completion Report
-
-1. **What changed:**
-   - **Coach ✦ Navigation Placement & Honest State (M10.2):**
-     * Integrated Coach ✦ item into both desktop `AppRail` and mobile `AppBottomBar` navigation with `Sparkles` icon and premium `text-achievement` accent (VDS §12, §14).
-     * Authored accessible `CoachModal.tsx` using Radix `Dialog` primitives with honest "In development" status pill, "✦ Coming Soon" eyebrow badge, companion coaching value proposition, realistic availability note, and "Back to Practice" button.
-     * Zero fake conversational AI, mock chat messages, or payment/checkout triggers (ND-11, BP §43).
-     * Focus management: Clean focus trap and restoration upon closing dialog via Escape or dismiss button.
-   - **Custom Journeys Elevation in Pathway Library (M10.3):**
-     * Elevated `PathwayCustomGoal.tsx` with premium botanical/warm gold accent styling, `✦ Custom Journey` eyebrow badge, refined heading *"Have something unique in mind?"*, and welcoming narrative copy.
-     * Integrated Custom Journey choice into `PathwaysExplorerModal.tsx` via `PathwayLibrary customGoal` slot.
-     * Succession safety (R-15): Clicking Custom Journey in `PathwaysExplorerModal` navigates to `/onboarding` with `{ customGoal: true, switchGoal: true }` (when active goal exists) or `{ customGoal: true }` (when no goal exists). The active goal remains intact until a new one is saved.
-     * Custom 90-day goal creation remains 100% free and fully operational with zero fake paywalls (ND-10 Decided A, OD-1c Decided B).
-   - **Marketing Copy Parity & Alignment (M10.6):**
-     * Resolved copy discrepancy in `frontend/src/components/marketing/sections/Premium.tsx` (D-18, ND-10).
-     * Updated Custom Journeys status badge from *"Planned for Premium"* to *"Available now · Free"*, stating that custom 90-day journeys are available free today and planned for a future premium tier.
-     * Section eyebrow elevated to *"Premium Architecture"*.
-     * Reassurance line preserved: *"There is no paid plan yet. Everything you can use in Achivii today is free."*
-     * Authored dedicated test suite `Premium.test.tsx` verifying copy alignment, heading hierarchy (`h2`/`h3`), and zero checkout/pricing triggers.
-
-2. **What did not change:**
-   - **Zero backend modifications (Rule 3.2, OD-1c Decided B):** No changes to schema, migrations, routes, or models.
-   - **Zero fake paywalls, locks, or billing UI (ND-9 Decided A, ND-10 Decided A):** Custom goal creation remains unrestricted.
-   - **Preserved core flows:** Preset pathways, today step progression, roadmap staircase, weekly review adaptations, progress analytics, and achievement garden remain completely untouched.
-
-3. **Authoritative Verification Evidence:**
-   - **Frontend Vitest Suite:** 48 test files, 407 tests passed (`npm test --workspace=frontend`).
-   - **Backend Vitest Suite:** 22 test files, 250 tests passed (`npm test --workspace=backend`).
-   - **Frontend Type Check:** 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - **Frontend Production Build:** Clean production bundle built in 3.54s with proper code-split chunks.
-   - **Responsive & Accessibility Checks:** 44px minimum tap targets on all navigation and modal triggers, 0 horizontal scroll at 360px and 390px mobile viewports, full keyboard accessibility with Escape and focus restoration.
-   - **Rule 3.2 / Decision D-11 Compliance:** 0 backend files modified in Phase 10.
-
-4. **Carry-overs:** None.
-
-5. **Next Phase:** Phase 11 (Mobile Sweep) is unblocked and ready to begin.
-
----
-
-## PHASE 11 — MOBILE
-
-**Status:** `COMPLETE`
-
-**Source:** BP §44–46, OD-5 · VDS §28–29, note 10
-
-**Objective:** a final cross-product mobile sweep. Mobile has been considered in every phase (Rule 3.7 / Decision D-12); this phase verifies the whole journey end to end on small screens.
-
-**Narrative line:** the whole story, in one hand.
-
-### In scope
-
-* **Journey walks** at 390, 375 and 360px, on iOS Safari and Android Chrome (real devices where possible):
-  * landing → sign-up → onboarding → generation → Today → focus → complete → review → Journey → Progress → Achievement.
-* **Safe areas, keyboard overlap, sheets and scroll containment.** Nothing scrolls behind an open sheet.
-* **Touch targets and gestures:** at least 44px targets; no hover-only affordances.
-* **Performance on a mid-range device:**
-  * no `backdrop-blur` over large imagery;
-  * image sizes appropriate for mobile;
-  * animation cost checked with reduced motion both off and on.
-* **Orientation:** portrait-first; landscape doesn't break focus mode.
-* **Open questions:** decide PWA or installability (a new decision if raised) — not assumed.
-
-### Authoritative Testing Matrix (M11.1)
-
-#### 1. Viewport Widths & Target Devices
-| Viewport | Device Representation | Primary Stress Focus |
-|---|---|---|
-| **360px × 800px** | Android compact baseline (Samsung Galaxy A/S compact) | Horizontal overflow / scrollbar prevention; bottom bar flex crowding; compact text truncation; 44px touch targets |
-| **375px × 667px / 812px** | iOS compact baseline (iPhone SE, iPhone mini) | Compact vertical height; modal and dialog sizing; dense form input stacking; keyboard overlap |
-| **390px × 844px** | iOS standard baseline (iPhone 13 / 14 / 15 / 16) | Primary iOS Safari baseline; standard notch and dynamic island safe areas; fluid typography scaling |
-| **412px × 915px** | Android modern standard (Google Pixel 7/8/9, Galaxy Plus) | Standard modern Android layout; high-density display metrics; virtual navigation bar insets |
-
-#### 2. Target Browsers & Rendering Engines
-- **iOS Mobile Safari (WebKit):**
-  * Dynamic navigation URL bar expansion and collapse.
-  * Viewport unit reliability (`100dvh` vs `100vh`).
-  * Safe area insets: `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)`.
-  * iOS input auto-zoom prevention: all form text inputs must use minimum `font-size: 16px` (`text-[16px]` or `text-base`).
-- **Android Chrome (Blink):**
-  * Pull-to-refresh overscroll containment (`overscroll-contain` on root containers).
-  * Virtual keyboard resize behavior (`interactive-widget=resizes-content` / visual viewport).
-  * Touch highlight and tap response (`-webkit-tap-highlight-color`).
-- **Playwright Mobile Emulation (Automated Regression):**
-  * Continuous test verification using Chromium Mobile emulation (`Pixel 5`, `iPhone 13`).
-
-#### 3. Orientations
-- **Portrait:** Default orientation for all screens across the application.
-- **Landscape:** Specifically evaluated for **Focus Mode** (`FocusOverlay.tsx`) on short viewports (~320px–360px vertical height), ensuring timer displays, controls, and completion transitions remain fully visible and operable without clipping.
-
----
-
-### End-to-End Mobile Journey Walk Protocol (13 Steps)
-
-The systematic audit sequence covering every critical user flow on small screens:
-
-| Step | Flow / Route | Screen / Component | Mobile Verification Focus |
-|---|---|---|---|
-| **1** | Landing Page | `/` (signed out) | Sticky mobile nav (`MarketingNav`), hero typography clamp, pathway rows, Coach card, sticky CTA tap targets |
-| **2** | Auth Routes | `/signup`, `/login` | Mobile header, clean form input focus, password visibility toggle, error alert readability, keyboard safe area |
-| **3** | Onboarding Pathway Selection | `/onboarding` | Pathway card selection, direction tab scrolling, Custom Journey card, input sizing, step advance CTAs |
-| **4** | Journey Generation | `StepGeneration.tsx` | Streamed milestone generation stages, linear progress indicator, cancel safety dialog, mobile layout stability |
-| **5** | Today Dashboard | `/` (signed in) | Action card hierarchy, session detail expansion, "Short on time" 10m toggle, rest day layout, key session badge |
-| **6** | Focus Mode | `FocusOverlay.tsx` | Fullscreen mobile takeover, timer visibility, pause/resume tap targets, landscape orientation resilience, completion |
-| **7** | Weekly Review | `WeeklyReviewModal.tsx` | Bottom sheet presentation, 503 resilience alert, test score recording, reflection draft persistence, adaptation reveal |
-| **8** | Strategic Roadmap | `/roadmap` | Vertical ascending spine (`MobileVerticalJourney`), phase milestone cards, closing stretch indicator, 44px targets |
-| **9** | Progress Analytics | `/progress` | Metric summaries, benchmark results list, weekly adaptation history, no clipped chart or table containers |
-| **10** | Pathways Explorer | `PathwaysExplorerModal.tsx` | Modal/sheet presentation, category switching, Custom Journey handoff, R-15 succession navigation |
-| **11** | Coach Info | `CoachModal.tsx` | Accessible modal presentation, honest "In development" status pill, "Back to Practice" button, focus restoration |
-| **12** | Account Management | `AccountSheet` / Menu | Accessible sheet trigger, user email display, "Reset 90-Day Plan" confirmation dialog, sign-out tap target |
-| **13** | Achievement Destination | `/achievement` | Roman garden hero image portrait crop, deliberate practice stats, results review tabs, "Begin another journey" |
-
----
-
-### Mobile Audit Verification Dimensions (Checklist)
-
-- [ ] **Viewport Containment:** Zero unintended horizontal scrolling on `body` or `data-shell="content"` at 360px, 375px, 390px, and 412px viewports.
-- [ ] **Touch Targets:** Every interactive button, link, toggle, and tab target meets the minimum `44px × 44px` physical dimension or equivalent hit-area padding (WCAG 2.5.5 / 2.5.8).
-- [ ] **Safe Area Insets:** Fixed and sticky bars (`AppTopBar`, `AppBottomBar`, `MarketingNav`, modal footers) properly observe `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)`.
-- [ ] **Modal & Sheet Scroll Locking:** Opening Radix Dialogs, sheets, or dropdowns cleanly locks background body scroll (`data-scroll-locked`).
-- [ ] **Virtual Keyboard Ergonomics:** Text inputs, textareas, and submission buttons remain accessible and unobstructed when the virtual keyboard is displayed. No unwanted iOS page zoom (inputs >= 16px).
-- [ ] **Visual Performance & Motion:** No laggy `backdrop-blur` over large background images on mobile devices; full support for `prefers-reduced-motion: reduce`.
-
----
-
-### Backend allowance
-
-None. Rule 3.2 strictly applies.
-
-### Milestones
-
-| ID | Milestone | Status |
-|---|---|---|
-| M11.1 | Device and browser matrix agreed | COMPLETE |
-| M11.2 | End-to-end walk; issues logged | COMPLETE |
-| M11.3 | Fixes | COMPLETE |
-| M11.4 | Re-walk and phase report | COMPLETE |
-
-### M11.2 Mobile Issue Log
-
-| # | Screen / Route | Viewport / Device | Issue Description | Severity | Resolution / Status |
-|---|---|---|---|---|---|
-| 1 | Focus Mode (`FocusSessionModal.tsx`) | 360px, 375px, 390px, 412px (iOS Safari / Android) | Fullscreen dialog root container uses `p-4 sm:p-6 w-full h-full` but lacks top/bottom safe area insets (`pt-[max(1rem,env(safe-area-inset-top))]`, `pb-[max(1rem,env(safe-area-inset-bottom))]`), risking clipping header controls and brand footer under device notches, dynamic islands, or home bars. | High | Fixed in M11.3 (`FocusSessionModal.tsx`): Applied `pl/pr/pt/pb-[max(1rem,env(safe-area-inset-*))]` to root container. |
-| 2 | Focus Mode (`FocusSessionModal.tsx`) | Mobile Landscape (~320px–390px vertical height) | Below `md` breakpoint, `FocusTimer` (~280px) and `FocusStepRunner` (~280px) stack in a single column (`grid-cols-1`). On short mobile landscape screens, this forces extensive vertical scrolling to access active step controls; above `md`, tight height flex-centering can clip controls. | Medium | Fixed in M11.3 (`FocusSessionModal.tsx`): Added `landscape:grid-cols-12` side-by-side layout (`col-span-5` timer, `col-span-7` runner) and container scroll containment. |
-| 3 | Focus Mode Timer (`FocusTimer.tsx`) | 360px, 375px, 390px, 412px (Mobile Touchscreens) | Timer micro-copy displays desktop physical keyboard shortcut hint (`"Press Space to pause/resume"`), taking up vertical space and offering no functional affordance on mobile touchscreen devices. | Low | Fixed in M11.3 (`FocusTimer.tsx`): Hidden desktop keyboard shortcut hint on mobile viewports with `hidden sm:block`. |
-| 4 | Shell Navigation (`AppNavigation.tsx`) | 360px Android compact (e.g. Galaxy A/S compact) | When an active goal is present, `AppBottomBar` renders 6 navigation items (Today, Roadmap, Progress, Pathways, Coach ✦, Account) across 360px (~56px width per tab). Standard label typography (`text-small` 14px / `text-[10px]`) risks visual crowding on ultra-compact widths. | Low | Fixed in M11.3 (`AppNavigation.tsx`): Standardized `barItem` to `text-[11px] sm:text-small` and harmonized label spans with `truncate max-w-[56px] sm:max-w-none text-center`. |
-
-### Exit criteria
-
-Every issue from the walk is fixed or explicitly deferred with a reason.
-
-### Phase 11 Completion Report
-
-1. **What changed:**
-   - **Authoritative Testing Matrix & Protocol Formalized (M11.1):**
-     * Formalized the multi-viewport matrix: 360px × 800px (Android compact baseline), 375px × 667px / 812px (iOS compact baseline), 390px × 844px (iOS standard baseline), 412px × 915px (Android modern standard), and landscape focus mode orientation.
-     * Established the 13-step Journey Walk Protocol and 6-dimension verification checklist (viewport containment, touch targets, safe area insets, sheet scroll locking, keyboard ergonomics, and visual performance/motion).
-   - **Comprehensive 13-Step Mobile Journey Walk & Issue Logging (M11.2):**
-     * Audited all 13 core application steps across viewports against the 6 verification dimensions.
-     * Verified clean passes for Landing, Auth, Onboarding, Generation, Today, Weekly Review, Roadmap, Progress, Pathways Explorer, Coach Modal, Account Sheet, and Achievement.
-     * Identified and cataloged 4 targeted issues in the `M11.2 Mobile Issue Log` spanning Focus Mode safe areas, landscape grid layout, touchscreen shortcut hints, and 360px bottom bar typography.
-   - **Targeted Mobile Fixes Delivered (M11.3):**
-     * **Focus Mode Safe Areas (`FocusSessionModal.tsx`):** Applied `pl/pr/pt/pb-[max(1rem,env(safe-area-inset-*))]` padding to the fullscreen dialog container, ensuring header controls (mute, close) and brand footer maintain safe margins from hardware notches, dynamic islands, and home swipe bars.
-     * **Focus Mode Landscape Layout (`FocusSessionModal.tsx`):** Delivered responsive side-by-side columns on mobile landscape (`landscape:grid-cols-12` with `landscape:col-span-5` timer and `landscape:col-span-7` runner) alongside internal scroll containment, eliminating the need for excessive vertical scrolling on short screens (~320px–390px).
-     * **Focus Timer Touchscreen Ergonomics (`FocusTimer.tsx`):** Hidden the desktop-only Spacebar shortcut hint on mobile viewports (`hidden sm:block`), saving vertical space on touchscreens while preserving it on desktop.
-     * **Shell Bottom Bar Typography & Truncation (`AppNavigation.tsx`):** Harmonized base item typography to `text-[11px] sm:text-small font-medium tracking-tight`, added label truncation safety (`truncate max-w-[56px] sm:max-w-none text-center`), and updated `ActiveMark` insets (`inset-x-3 sm:inset-x-6`) across all 6 tabs for clean layout at 360px.
-     * **Unit Test Coverage (`FocusTimer.test.tsx`):** Added a dedicated test suite verifying timer rendering, controls, and mobile keyboard hint hiding.
-   - **Re-Walk Validation & Verification (M11.4):**
-     * Re-walked the 13 core steps across 360px, 375px, 390px, 412px, and landscape focus mode.
-     * Verified zero horizontal document overflow, >= 44px tap targets, clean safe area insets, scroll locking on sheets/dialogs, and smooth settled animations under `prefers-reduced-motion: reduce`.
-
-2. **What did not change:**
-   - **Zero backend modifications (Rule 3.2):** 0 backend files, schemas, or routes modified.
-   - **Preserved core business logic:** All timers, audio cues, pause/resume state machines, step completion handlers, and navigation routes remain identical.
-   - **Zero speculative code:** No speculative PWA or installability code introduced.
-
-3. **Authoritative Verification Evidence:**
-   - **Frontend Vitest Suite:** 49 test files passed / 410 tests passed (`npm test --workspace=frontend`).
-   - **Backend Vitest Suite:** 22 test files passed / 250 tests passed (`npm test --workspace=backend`).
-   - **Frontend Type Check:** 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
-   - **Frontend Production Build:** Built cleanly in 3.45s (`dist/` generated with code-split chunks).
-   - **Rule 3.2 / Decision D-11 Compliance:** 0 backend files modified in Phase 11.
-
-4. **Carry-overs:** None (all 4 logged issues resolved and verified).
-
-5. **Next Phase:** Phase 12 (Global Polish) is unblocked and ready to begin.
-
----
-
-## PHASE 12 — GLOBAL POLISH
-
-**Status:** `COMPLETE`
-
-**Source:** BP §38–39, §41, §49 (Phase 12) · VDS §29, §31–32, notes 1, 4, 8, 10, 11
-
-**Objective:** consistency, accessibility, performance, complete states and full regression. Leave nothing half-migrated.
-
-### In scope
-
-* **Legacy removal:**
-  * legacy mint tokens;
-  * the `--radius-xl/2xl/3xl` override;
-  * the Plus Jakarta Sans and JetBrains Mono fonts;
-  * the old `Navbar` and footer, if still present;
-  * duplicated pathway galleries and modal implementations.
-  Each removal is made only after confirming nothing uses it.
-* **Dead code:** components confirmed unreachable (for example, verify the reachability of `SaaSBuilderModal.tsx` and `PathwaysExplorerModal.tsx` before deciding).
-* **Hard-coded colours:** outside the token files, reduced to effectively zero (baseline about 1,010, BP §38).
-* **Imagery** (VDS notes 8 and 10):
-  * responsive AVIF/WebP with explicit dimensions;
-  * higher-resolution brand images (an asset request);
-  * per-pathway photos (`frontend/public/images/goals/*`, `images/blueprints/*`) replaced or given a monochrome treatment ("product imagery = monochrome + restrained", VDS §16).
-* **Fonts:** decide whether to self-host.
-* **Accessibility audit:** automated (axe or equivalent) plus manual keyboard and screen-reader passes across all screens.
-* **Performance:** bundle size, route-level code splitting where justified, and LCP/CLS on the landing page and Today.
-* **Copy consistency:** 90-day language, encouraging voice, no stale feature claims.
-* **Full regression:** R-1 to R-18.
-* **Documentation:** `Design.md` final pass.
-
-### Backend allowance
-
-None.
-
-### Milestones
-
-| ID | Milestone | Status |
-|---|---|---|
-| M12.1 | Legacy inventory (what's still used, where) | COMPLETE |
-| M12.2 | Legacy removal, verified screen by screen | COMPLETE |
-| M12.3 | Imagery pipeline and asset replacement | COMPLETE |
-| M12.4 | Accessibility audit and fixes | COMPLETE |
-| M12.5 | Performance pass | COMPLETE |
-| M12.6 | Full regression and final report | COMPLETE |
-
-### Phase 12 Completion Report & Redesign Final Sign-Off
-
-Phase 12 (Global Polish) and Milestone M12.6 mark the formal, authoritative completion of the entire 13-phase Achivii Redesign Project (Phases 0 through 12). The application has been fully transformed from a legacy prototype into a state-of-the-art, cinematic, accessible, and high-performance web experience adhering rigorously to the Redesign Blueprint (`docs/redesign-blueprint.md`) and Visual Design System (`docs/visual-design-system.md`).
-
-#### 1. What Changed Across Phase 12
-* **M12.1 (Legacy Inventory):** Conducted codebase-wide audit cataloging 115 hex color instances, 42 `#07CB6C` mint tokens, global radius overrides, obsolete font imports, dead components, and 10.7MB of uncompressed image assets.
-* **M12.2 (Legacy Removal):** Deleted dead `SaaSBuilderModal.tsx` (750 lines / 38.9KB), obsolete `PlanV2Panel.tsx` and unit tests `PlanV2Panel.test.tsx` (220 lines / 10.2KB), and orphaned blueprint directory `images/blueprints/` (5.4MB). Migrated remaining hard-coded colors and mint tokens to canonical semantic tokens; eliminated `#07CB6C` completely (0 occurrences across repository). Removed legacy `--radius-xl/2xl/3xl` overrides from `index.css`. Streamlined Google Fonts in `index.html` to eliminate `Plus Jakarta Sans` and `JetBrains Mono` (~120KB network overhead saved).
-* **M12.3 (Imagery Pipeline):** Converted all 10 certified preset goal assets to modern WebP format, reducing directory size from 5.2MB down to 369KB (92.9% reduction, >4.8MB saved). Applied VDS §16 monochrome styling (`grayscale contrast-125` + subtle duotone overlay) to product imagery in `JourneyHeader.tsx`. Added explicit `width`, `height`, `decoding="async"`, and modern loading strategies across all `<img>` elements to eliminate Cumulative Layout Shift.
-* **M12.4 (Accessibility Audit):** Executed automated WCAG 2.1 AA / 2.2 AA axe-core scans across all 10 core application surfaces with **0 violations**. Verified keyboard navigation, visible focus rings (`focus-ring`), Radix dialog focus traps, Escape dismissals, programmatic focus restoration, and single `<h1>` hierarchy. Applied surgical component fixes in `MarketingNav`, `LandingPage`, `FocusHeader`, `FocusTimer`, `FocusStepRunner`, and `ClosingStretchView`.
-* **M12.5 (Performance Pass):** Implemented route-level code-splitting in `App.tsx` (`OnboardingPage`, `RoadmapPage`, `SignupPage`, `LoginPage` lazy-loaded with Suspense). Configured Rollup `manualChunks` in `vite.config.ts` for isolated vendor bundles (`vendor-react`, `vendor-radix`, `vendor-icons`). Slashed main entry JS bundle by 39.4% (from 611.41 kB down to 370.31 kB / 107.77 kB gzip), eliminating all Rollup >500kB chunk warnings. Core Web Vitals verified: **CLS = 0.000**, **LCP < 1.0s**.
-* **M12.6 (Full Regression & Final Pass):** Completed authoritative R-1 through R-18 regression verification; executed final review and update of `Design.md`; validated full test and build suites.
-
-#### 2. What Did Not Change (Preserved Architecture)
-* **Backend Invariance (Rule 3.2 / D-11):** Exactly 0 unauthorized backend modifications. Only the three formally approved backend allowances across the entire redesign were touched: OD-1a (nullable `RoadmapWeek.testResult` in Phase 7), OD-1b (nullable `Goal.completedAt` and `/api/goal/complete` in Phase 9), and OD-8 (SSE stream matching in Phase 4).
-* **Core Product Mechanics:** 90-day deliberate practice methodology, honest AI roadmap generation (zero fake progress, zero fabricated future tasks), and local reflection persistence preserved identically.
-
-#### 3. R-1 to R-18 "Must Not Break" Regression Verification Matrix
-
-| ID | Capability | Implementation / Route | Verification Evidence | Status |
-|---|---|---|---|---|
-| **R-1** | Authentication | `/signup`, `/login`, `AuthScreen.tsx`, `api.ts` | 13 automated tests pass in `AuthScreen.test.tsx` and 19 in `authFlow.test.ts`. Full error states, validation, token persistence, and redirect logic intact. 0 axe violations. | **PASS** |
-| **R-2** | Goal Creation | `/onboarding`, `OnboardingWizard.tsx`, `payload.ts` | Both certified preset and custom goals create plans end-to-end with zero paywalls. Payload tests in `payload.test.ts` (6 tests) pass. | **PASS** |
-| **R-3** | Preset Pathway Launch | `/signup?pathway=...`, `usePathwayLaunch.ts` | Selected pathway carries through authentication into onboarding seamlessly without data loss. Verified in `authFlow.test.ts` and E2E `auth.spec.ts`. | **PASS** |
-| **R-4** | Onboarding Payload | `/api/goal/clarify`, `/api/goal/create` | Exact JSON contract preserved field-for-field. 22 onboarding unit tests pass across `steps.test.ts`, `questionFlow.test.ts`, and `requestErrors.test.ts`. | **PASS** |
-| **R-5** | AI Roadmap Generation | `StepGeneration.tsx`, `generation.ts` | 90-day roadmap generated with 2–4 method phases, 12 weeks, and daily deliberate practice tasks. Verified in `e2e/generation.spec.ts`. | **PASS** |
-| **R-6** | Generation Progress Stream | SSE `search`, `method`, `plan` stages | Honest event-driven stages; 20-second still-working indicator functional without fake timers. Verified in `generation.test.ts`. | **PASS** |
-| **R-7** | Saving Goals | `GET /api/goal/active`, `GoalContext.tsx` | Active goal loaded reliably upon initial visit and refreshed cleanly across route navigation and reloads. | **PASS** |
-| **R-8** | Daily Task Retrieval | `/` Today dashboard, `Today.tsx`, `today.ts` | Displays current calendar day task, session duration, output, whyToday, and progressive reveals. 29 unit tests pass in `today.test.ts`. | **PASS** |
-| **R-9** | Daily Completion | `PATCH /api/goal/tasks/:taskId`, `useTaskActions.ts` | Task completion lights up card, records timestamp, shows next step preview, and cleanly reverts via "Mark not done". 28 tests pass in `Today.test.tsx`. | **PASS** |
-| **R-10** | Task Notes & Reflection | `TodayNotes.tsx`, `FocusStepRunner.tsx` | Free-form notes and structured focus wins safely saved and delineated without wipe bugs. Verified in `Today.test.tsx`. | **PASS** |
-| **R-11** | Focus Session | `FocusSessionModal.tsx`, `FocusTimer.tsx` | Distraction-free practice mode with countdown timer, pause/resume, audio cues, safe area insets, and landscape grid. 3 tests pass in `FocusTimer.test.tsx` and E2E `focus.spec.ts`. | **PASS** |
-| **R-12** | Weekly Review | `WeeklyReviewModal.tsx`, `api.ts` | Level 3 analytical summary, reflection capture, benchmark test scoring, and adaptation reveal with in-modal 503 retry resilience. 15 tests pass in `WeeklyReviewModal.test.tsx`. | **PASS** |
-| **R-13** | Weekly Progression | `POST /api/goal/weeks/:weekNumber/review` | Weekly review advances `currentWeek`, presents adapted tasks, and displays encouraging phase-gate reinforcement copy. Verified in `weeklyReview.spec.ts`. | **PASS** |
-| **R-14** | Strategic Roadmap | `/roadmap`, `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx` | Visual Level 2 emotional ascent and Level 3 strategic roadmap. Clamped Day 1–90 counters, 2–4 method phases, auto-scroll to active step. 9 tests pass in `DesktopJourney.test.tsx`. | **PASS** |
-| **R-15** | Reset / Switch Goal & Succession | `AccountSheet.tsx`, `NewJourneyDialog.tsx` | Permanently preserves completed journeys in PostgreSQL (`completedAt !== null`). Allows starting a subsequent 90-day goal without data loss. Verified in `backend/test/goalCompletion.test.ts`. | **PASS** |
-| **R-16** | Draft Goal Carried Through Signup | `localStorage['achivii_draft_goal']` | Preserves chosen preset across unauthenticated visits and clears draft upon plan creation. Verified in `authFlow.test.ts`. | **PASS** |
-| **R-17** | Offline Indicator | Shell top/bottom bar, `ConnectionNotice.tsx` | Displays calm offline chip when `apiStatus === 'offline'` without crashing or corrupting state. Verified in `Today.test.tsx`. | **PASS** |
-| **R-18** | Browser History in Onboarding | `useOnboardingState.ts` | Browser Back/Forward navigation traverses wizard steps cleanly while preserving user inputs. Verified in `onboarding.spec.ts`. | **PASS** |
-
-#### 4. Final Master Verification Evidence
-* **Frontend Unit & Integration Suite:** `npm test --workspace=frontend -- --run` -> **48 test files passed / 405 tests passed (100%)**.
-* **Backend Integration Suite:** `npm test --workspace=backend -- --fileParallelism=false --run` -> **22 test files passed / 250 tests passed (100%)**.
-* **TypeScript Compilation:** `node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend` -> **0 errors**.
-* **Production Build:** `npm run build --workspace=frontend` -> **Clean build in 1.90s**; 0 Rollup chunk warnings; initial entry bundle 370KB (107KB gzip).
-* **Accessibility Scans:** **0 axe-core violations** across all 10 application surfaces and viewports.
-* **Core Web Vitals:** **CLS = 0.000**, **LCP < 1.0s**, **INP < 50ms**.
-* **Rule 3.2 Compliance:** Exactly 0 backend files modified in Phase 12.
-
-#### 5. Master Redesign Project Completion Sign-Off
-All 13 phases of the Achivii Redesign Project are now officially **COMPLETE**:
-- Phase 0: Global Design Foundation (`COMPLETE`)
-- Phase 1: Marketing Homepage (`COMPLETE`)
-- Phase 2: Authentication (`COMPLETE`)
-- Phase 3: Onboarding (`COMPLETE`)
-- Phase 4: Journey Generation (`COMPLETE`)
-- Phase 5: Today Dashboard & App Shell (`COMPLETE`)
-- Phase 6: Strategic Roadmap & Journey (`COMPLETE`)
-- Phase 7: Weekly Review & Adaptation (`COMPLETE`)
-- Phase 8: Progress Analytics (`COMPLETE`)
-- Phase 9: 90-Day Achievement (`COMPLETE`)
-- Phase 10: Premium Architecture & Coach ✦ (`COMPLETE`)
-- Phase 11: Mobile Sweep (`COMPLETE`)
-- Phase 12: Global Polish (`COMPLETE`)
-
-AchiviiWeb is fully production-ready, verified, accessible, and aligned with the founding vision: a cinematic, honest, 90-day deliberate practice companion.
-
-### M12.5 Performance Report
-
-Milestone M12.5 executed a comprehensive performance pass across frontend bundling, route loading, long-term browser cacheability, and Core Web Vitals:
-
-#### 1. Optimization Measures Executed
-* **Route-Level Code-Splitting (`frontend/src/App.tsx`):**
-  - Converted heavy secondary routes (`OnboardingPage`, `RoadmapPage`, `SignupPage`, `LoginPage`) to dynamic `React.lazy` imports wrapped in `<React.Suspense fallback={null}>`.
-  - Maintained `Home.tsx` statically imported for instant initial paint of the root view.
-  - Retained dedicated lazy chunks for `ProgressPage` and `AchievementPage`.
-* **Rollup Vendor Chunking (`frontend/vite.config.ts`):**
-  - Configured `build.rollupOptions.output.manualChunks` to split stable third-party packages into isolated vendor bundles (`vendor-react`, `vendor-radix`, `vendor-icons`), ensuring that application updates do not invalidate client browser caches for fundamental libraries.
-* **Elimination of Rollup Size Warnings:**
-  - Slashed initial entry JS bundle from monolithic **611.41 kB** down to **370.31 kB** (**-39.4% uncompressed / -39.6% gzip**), completely eliminating Vite's `(!) Some chunks are larger than 500 kB` build warning.
-* **Core Web Vitals Enforcement:**
-  - Zero Cumulative Layout Shift (**CLS = 0.000**) guaranteed via explicit image dimensions, aspect-ratio containers, and reserved SVG viewports.
-  - Sub-second Largest Contentful Paint (**LCP < 1.0s**) via Google Fonts `font-display: swap` preconnects and optimized WebP hero assets.
-
-#### 2. Before-and-After Performance Comparison
-
-| Metric / Dimension | Before Optimization (M12.1 Baseline) | After Optimization (M12.5) | Improvement / Net Change |
-|---|---|---|---|
-| **Hard-Coded Hex Count** | 115 occurrences (42 `#07CB6C` mint tokens) | **18 occurrences** (0 in UI; 0 `#07CB6C`; 100% SVG art) | **-84.3%** (zero legacy colors in app UI) |
-| **Main JS Entry Bundle** | 611.41 kB (178.42 kB gzip) | **370.31 kB (107.77 kB gzip)** | **-241.10 kB (-39.4% uncompressed / -39.6% gzip)** |
-| **Rollup Chunk Warnings** | 1 warning (entry chunk > 500 kB) | **0 warnings** (all chunks under 400 kB) | **100% clean bundle hygiene** |
-| **Image Asset Footprint** | ~10.7 MB (`blueprints/` 5.4MB + uncompressed `goals/` 5.2MB) | **~630 KB total** (blueprints deleted; WebP goals 369KB; brand 223KB) | **> 94% reduction (>10.0 MB saved)** |
-| **Vendor Long-Term Caching** | Monolithic bundling (invalidated on every edit) | Isolated vendor chunks (`vendor-react`, `vendor-radix`, `vendor-icons`) | **Optimal HTTP caching lifetime** |
-| **Largest Contentful Paint (LCP)** | ~1.4s – 1.8s (uncompressed hero/dashboard assets) | **< 1.0s** (Landing Page: ~0.8s, Today: ~0.7s) | **~50% faster perceptual paint** |
-| **Cumulative Layout Shift (CLS)** | 0.045 (missing `width`/`height` attributes) | **0.000** (strict zero shift across all routes) | **Perfect visual stability** |
-| **First Input Delay / INP** | < 80ms | **< 50ms** | **Smooth, responsive input handling** |
-
-#### 3. Production Bundle Chunk Breakdown (`dist/assets/`)
-
-| Chunk File | Purpose / Contents | Size (Uncompressed) | Gzip Size |
-|---|---|---|---|
-| `dist/assets/index-BhgApuQ2.js` | **Main Entry Chunk** (AppShell, Shell Navigation, Home/Today core) | **370.31 kB** | **107.77 kB** |
-| `dist/assets/vendor-radix-n4zzWYvO.js` | **Radix UI Primitives** (Dialog, Slot, Tabs) | **54.13 kB** | **18.27 kB** |
-| `dist/assets/vendor-react-Dk-2VcMu.js` | **Core Runtime** (React, ReactDOM, React Router) | **50.77 kB** | **18.00 kB** |
-| `dist/assets/vendor-icons-DAAO8KKd.js` | **Icon Suite** (Lucide React icons) | **27.07 kB** | **6.07 kB** |
-| `dist/assets/OnboardingPage-Dn0Sex5-.js` | **Lazy Route:** Onboarding Wizard & Flow | **59.37 kB** | **19.25 kB** |
-| `dist/assets/RoadmapPage-Cy8jSrfd.js` | **Lazy Route:** Strategic Roadmap & Staircase | **40.45 kB** | **7.48 kB** |
-| `dist/assets/AchievementPage-iq9RO5xr.js` | **Lazy Route:** 90-Day Achievement Destination | **24.86 kB** | **5.85 kB** |
-| `dist/assets/ProgressPage-B8kOLI2i.js` | **Lazy Route:** Progress Analytics & History | **18.98 kB** | **4.75 kB** |
-| `dist/assets/AuthScreen-DXEdTrhE.js` | **Lazy Route:** Authentication Screen Layout | **9.54 kB** | **3.88 kB** |
-| `dist/assets/journeyAdapter-qimF7z3R.js` | **Shared Module:** Journey Data Normalization Adapter | **4.00 kB** | **1.73 kB** |
-| `dist/assets/SignupPage-AnVPoYMD.js` | **Lazy Route:** Sign-up Entrypoint | **0.27 kB** | **0.20 kB** |
-| `dist/assets/LoginPage-PSk_6rHC.js` | **Lazy Route:** Sign-in Entrypoint | **0.26 kB** | **0.20 kB** |
-| `dist/assets/index-b5PN9ZvO.css` | **Compiled Stylesheet** (Vanilla CSS Design System) | **106.47 kB** | **17.67 kB** |
-| `dist/index.html` | **HTML Document Root** | **1.38 kB** | **0.66 kB** |
-
-#### 4. Automated Verification Results
-* **TypeScript Compilation:** `node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend` -> **0 errors**.
-* **Frontend Vitest Suite:** `npm test --workspace=frontend -- --run` -> **48 passed / 405 tests passed (100%)**.
-* **Backend Vitest Suite:** `npm test --workspace=backend -- --fileParallelism=false --run` -> **22 passed / 250 tests passed (100%)**.
-* **Production Build:** `npm run build --workspace=frontend` -> clean build in **1.85s**.
-* **Rule 3.2 Compliance:** Exactly 0 backend files modified.
-
-### M12.4 Accessibility Audit Report
-
-Milestone M12.4 executed an authoritative, cross-product accessibility audit covering all 10 core application surfaces, dialogs, sheets, and interactive flows using automated axe-core scans (WCAG 2.1 AA / 2.2 AA), manual keyboard navigation audits, and screen-reader semantic verification:
-
-#### 1. Scope & Audited Surfaces
-All 10 core application surfaces were audited across desktop (1440px), mobile (390px iPhone), and compact mobile (360px Android) viewports:
-1. **Marketing Landing Page (`/` signed-out):** Canonical `SkipLink` to `<main id="main">`, sticky navigation keyboard tab sequence, heading hierarchy (`h1` -> `h2` -> `h3`), color contrast on botanical green and stone accents, footer links.
-2. **Authentication Routes (`/login`, `/signup`):** Explicit form field labeling (`<label htmlFor="...">`), input error states (`aria-invalid="true"`, `aria-describedby`), password visibility toggle `aria-label`, alert announcements (`role="alert"`).
-3. **Onboarding & Pathway Selection (`/onboarding`):** Direction selection radio groups/tabs (`ChoiceGroup`, `TabsList` with roving tabindex arrow keys), Custom Journey input, character counter announcement, step progression buttons.
-4. **Journey Generation Screen (`StepGeneration.tsx`):** Linear progress stage semantics (`role="status"`, honest stage indicators), cancel dialog keyboard trap, live status updates (`aria-live="polite"`).
-5. **Today Dashboard (`/` signed-in):** Skip link to `#main`, primary action button focus, "Short on time" toggle semantics, rest day card, week calendar glance.
-6. **Focus Mode (`FocusSessionModal.tsx` / `FocusTimer.tsx` / `FocusStepRunner.tsx`):** Fullscreen dialog semantics (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`), timer countdown accessibility, pause/resume button labeling, step runner navigation pills, reflection textarea labeling.
-7. **Weekly Review Modal (`WeeklyReviewModal.tsx`):** Dialog focus lock, rating/score input labeling, reflection persistence textarea, adaptive summary card semantics.
-8. **Strategic Roadmap (`/roadmap`):** Breadcrumb / back link, vertical mobile journey spine landmark, phase milestone cards keyboard activation, closing stretch indicator.
-9. **Progress Analytics (`/progress`):** Benchmark test history cards, adherence metrics, accessible data table/list structure for chart fallbacks.
-10. **Overlay Dialogs & Sheets:**
-    - `CoachModal.tsx`: Focus trap, `DialogTitle`, `DialogDescription`, Escape key handling, focus return to navigation trigger.
-    - `PathwaysExplorerModal.tsx`: Dialog role, tab arrow navigation, Custom Journey action button.
-    - `AccountSheet.tsx`: Sheet trigger, reset plan confirm dialog nesting, sign-out button.
-    - `NewJourneyDialog.tsx`: Dialog role, title, succession warning badge, action buttons.
-
-#### 2. Automated Axe-Core Scans (WCAG 2.1 AA / 2.2 AA)
-Automated axe scans with rule tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` were executed across all core routes:
-* `e2e/auth.spec.ts`: **0 violations** (`/login`, `/signup`, `/signup?pathway=run10k`).
-* `e2e/progress.spec.ts`: **0 violations** across Desktop 1440px, Mobile 390px, and Android 360px.
-* `e2e/focus.spec.ts`: **0 violations** on active practice stage and celebration screen; 44px tap targets verified.
-* `e2e/journeyMobile.spec.ts`: **0 violations** on iPhone 390px and Android 360px.
-* `e2e/journeyMotion.spec.ts`: **0 violations** across Desktop, iPhone, and Android in strict reduced-motion mode.
-* `e2e/today.spec.ts` & `e2e/todayStates.spec.ts`: **0 violations** across rest day, active step, recovery, and review due states.
-* `e2e/onboarding.spec.ts`: **0 violations** across every onboarding step.
-* `e2e/pathways.spec.ts`: **0 violations** across Home pathway library and Today explorer modal.
-* `e2e/weeklyReview.spec.ts`: **0 violations** across review analytical summary, reflection, test score input, and adaptation moment.
-* **Total Axe Violations:** **0 violations** across all audited surfaces.
-
-#### 3. Keyboard Navigation & Focus Restoration
-* **Visible Focus Indicators:** Verified all interactive elements display canonical `focus-ring` (`focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-background`) when focused via keyboard.
-* **Focus Trapping & Escape Dismissals:** All Radix-based overlays (`FocusSessionModal`, `CoachModal`, `PathwaysExplorerModal`, `AccountSheet`, `NewJourneyDialog`, `WeeklyReviewModal`) trap tab focus within the modal container and dismiss cleanly upon pressing `Escape`.
-* **Focus Restoration:** Radix `Dialog` primitives automatically save `document.activeElement` prior to mounting and restore focus directly to the triggering button upon close (via Escape, close button, or backdrop click), preventing focus from jumping to `<body>` or the top of the page.
-* **Skip-Link Functionality:** Canonical `<SkipLink />` on `/` (marketing and dashboard) programmatically shifts focus to `<main id="main">` with visible focus indicator upon first tab.
-
-#### 4. Screen-Reader Semantics & Contrast
-* **Heading Hierarchy:** Verified exact single `<h1>` per view across all routes (`Hero.tsx`, `AuthLayout.tsx`, `StepLayout.tsx`, `Today.tsx`, `JourneyHeader.tsx`, `ProgressPage.tsx`, `AchievementHero.tsx`, `FocusHeader.tsx`) with descending `<h2>`, `<h3>` hierarchy without skipping levels.
-* **Non-Text Content & Decorative Icons:** All decorative Lucide icons across navigation, cards, timer controls, and modals carry `aria-hidden="true"`. All icon-only buttons (`FocusHeader` close/mute, `AppBottomBar`, `AppRail`, `PasswordInput` toggle) feature descriptive `aria-label`s.
-* **Live Regions & Error Announcements:** Form validation, 503 retry alerts, and generation progress stages utilize `role="alert"` / `aria-live="polite"` / `aria-live="assertive"` for immediate screen-reader notification.
-* **Color Contrast:** All normal body text against dark backgrounds (`#0B0B0A`, `#141413`, `#1C1C1A`) meets or exceeds 4.5:1 contrast; large text (>= 24px) and control borders exceed 3:1 contrast.
-
-#### 5. Component Accessibility Fixes Applied
-1. **`frontend/src/components/marketing/MarketingNav.tsx`:** Added `focus-ring` to `#top` home link and navigation links for clear visible keyboard focus indicators.
-2. **`frontend/src/components/marketing/LandingPage.tsx`:** Replaced custom anchor skip link with canonical `<SkipLink />` primitive with programmatic focus transfer to `<main id="main">`.
-3. **`frontend/src/components/focus/FocusHeader.tsx`:** Added `aria-hidden="true"` to mute icons (`VolumeX`/`Volume2`), close icon (`X`), and `ESC` badge text.
-4. **`frontend/src/components/focus/FocusTimer.tsx`:** Added `aria-hidden="true"` to timer control icons (`Pause`, `Play`, `RotateCcw`).
-5. **`frontend/src/components/focus/FocusStepRunner.tsx`:** Added `aria-expanded={showTips}` to collapsible tips disclosure button; added `aria-hidden="true"` to all decorative icons (`Lightbulb`, `ChevronUp`, `ChevronDown`, `Target`, `AlertTriangle`, `ExternalLink`, `ArrowLeft`, `ArrowRight`).
-6. **`frontend/src/components/today/ClosingStretchView.tsx`:** Added `focus-ring` to Capstone Result buttons; added `role="group"` and `aria-label="Capstone Result"`.
-
-#### 6. Verification Results
-* **TypeScript Check:** `tsc --noEmit -p frontend` -> **0 errors**.
-* **Frontend Vitest Suite:** `npm test --workspace=frontend -- --run` -> **48 passed / 405 tests passed (100%)**.
-* **Frontend Production Build:** `npm run build --workspace=frontend` -> clean build in 7.57s.
-* **Rule 3.2 Compliance:** Exactly 0 backend files modified.
-* **Deferred Issues:** 0 accessibility issues deferred.
-
-### M12.3 Imagery Optimization Summary
-
-Milestone M12.3 upgraded the image asset pipeline, applied VDS §16 monochrome styling to product imagery, eliminated Cumulative Layout Shift (CLS) via explicit dimension attributes and modern loading strategies, and converted assets into high-efficiency WebP formats:
-
-#### 1. Asset Optimization & WebP Conversion
-* **Pathway Goal Assets (`frontend/public/images/goals/`):**
-  - Converted and compressed all 10 certified preset goal assets (`saas`, `run10k`, `guitar`, `spanish`, `recomp`, `youtube`, `book`, `deepwork`, `chess`, `speech`) into modern, high-efficiency WebP format (~800px max dimension, quality ~75–80%).
-  - Deleted obsolete uncompressed 700KB–866KB legacy JPG/PNG files.
-  - **Directory Size Reduction:** Slashed from **5,200 KB (5.2 MB)** down to **369 KB** (a **92.9% reduction**, saving over 4.8MB).
-  - Updated all image path references in `frontend/src/lib/certifiedPresets.ts` (`CERTIFIED_PATHWAYS` and `getGoalImage` default fallbacks) to `.webp`.
-* **Brand Master Assets (`frontend/public/images/brand/`):**
-  - Optimized `garden.jpg` (down to 247 KB) and generated `garden.webp` (204 KB).
-  - Generated `staircase.webp` (18.7 KB, down from 33.8 KB).
-
-#### 2. VDS §16 "Monochrome + Restrained" Product Image Treatment
-* **`frontend/src/components/journey/JourneyHeader.tsx`:**
-  - Applied desaturation and contrast filter (`grayscale contrast-125 brightness-90`) to the goal identity thumbnail so photographs conform to the deep architectural aesthetic.
-  - Added subtle duotone overlay with design system tokens (`bg-accent/10 mix-blend-color` + vertical gradient fade) to harmonize photographs with the botanical/stone palette.
-  - Desaturated the ambient background glow (`grayscale opacity-15 blur-3xl`) to eliminate distracting neon color casts behind the goal card.
-
-#### 3. CLS Elimination & Image Loading Attributes
-* Audited and updated all `<img>` elements across the application with explicit `width`, `height`, and asynchronous decoding:
-  - `JourneyHeader.tsx`: Added `width={80} height={80} decoding="async"` on thumbnail; `width={288} height={288} decoding="async" loading="lazy"` on ambient glow.
-  - `AchievementHero.tsx`: Added `width={682} height={1024} decoding="async" fetchPriority="high"` on above-the-fold hero image.
-  - `AuthLayout.tsx`: Added `width={735} height={985} decoding="async" loading="lazy"` on both desktop and mobile staircase imagery.
-  - `OnboardingShell.tsx`: Added `width={735} height={985} decoding="async"` on both desktop aside and mobile header staircase imagery.
-  - `Journey.tsx` & `Achievement.tsx`: Confirmed explicit dimensions (`width`, `height`, `decoding="async"`, `loading="lazy"`).
-
-#### 4. Automated Verification Results
-* **TypeScript Check:** `tsc --noEmit -p frontend` -> **0 errors**.
-* **Frontend Vitest Suite:** `npm test --workspace=frontend -- --run` -> **48 passed / 405 tests passed (100%)**.
-* **Backend Vitest Suite:** `npm test --workspace=backend -- --fileParallelism=false --run` -> **22 passed / 250 tests passed (100%)**.
-* **Frontend Production Build:** `npm run build --workspace=frontend` -> clean build in 3.36s.
-* **Rule 3.2 Compliance:** Exactly 0 backend files modified.
-
-### M12.2 Completion Summary
-
-Milestone M12.2 executed the targeted legacy cleanup and migration cataloged in M12.1:
-
-#### 1. Dead Code and Asset Deletions
-* **`frontend/src/components/SaaSBuilderModal.tsx`**: Deleted (750 lines / 38.9KB dead code removed; had 0 imports across the codebase).
-* **`frontend/src/components/PlanV2Panel.tsx`**: Deleted (140 lines / 6.8KB obsolete weekly panel removed).
-* **`frontend/src/components/PlanV2Panel.test.tsx`**: Deleted (80 lines / 3.4KB obsolete unit tests removed).
-* **`frontend/public/images/blueprints/`**: Deleted entire directory with 6 unused PNG images (`distributed-systems.png`, `half-marathon.png`, `mindfulness.png`, `saas-mvp.png`, `spanish-b1.png`, `write-book.png`), reducing repository footprint by **5.4MB**.
-
-#### 2. Hard-Coded Color & Mint Token Migration
-* **`frontend/src/components/ProtectedRoute.tsx`**:
-  - Replaced hard-coded spinner border: `border-2 border-[#07CB6C] border-t-transparent` -> `border-2 border-accent/30 border-t-accent`.
-  - Replaced loading copy class with semantic typography: `text-xs text-text-muted font-ui-mono`.
-* **`frontend/index.html`**:
-  - Replaced hard-coded `<body>` classes:
-    - From: `bg-[#050807] text-[#e5ebe7] selection:bg-[#07CB6C] selection:text-[#050807] min-h-screen font-sans antialiased`
-    - To: `bg-background text-text selection:bg-accent/30 selection:text-text min-h-screen antialiased`
-* **`frontend/src/index.css`**:
-  - Replaced custom scrollbar hex colors:
-    - Track: `#1a2824` -> `var(--color-surface-elevated)`
-    - Thumb: `#233830` -> `var(--color-border-control)`
-    - Thumb hover: `#233830` -> `var(--color-border)`
-* **Total `#07CB6C` remaining:** **0 occurrences** across the entire repository.
-
-#### 3. Radius Override Removal
-* **`frontend/src/index.css`**:
-  - Removed lines 121–123 (`--radius-xl: 0.375rem; --radius-2xl: 0.375rem; --radius-3xl: 0.375rem;`).
-  - Active UI retains canonical VDS radii (`rounded-control`, `rounded-card`, `rounded-panel`, `rounded-full`) with zero distortion.
-
-#### 4. Typography & Font Streamlining
-* **`frontend/index.html`**:
-  - Updated Google Fonts `<link>` from:
-    `family=Geist:wght@300..700&family=Geist+Mono:wght@400..500&family=Plus+Jakarta+Sans:wght@300..800&family=JetBrains+Mono:wght@400..600&display=swap`
-    to:
-    `family=Geist:wght@300..700&family=Geist+Mono:wght@400..500&display=swap`
-  - Eliminates network requests and payload for `Plus Jakarta Sans` and `JetBrains Mono` (~120KB network overhead saved).
-* **`frontend/src/index.css`**:
-  - Removed legacy `--font-sans` and `--font-mono` CSS variable definitions.
-  - Confirmed `--font-ui` and `--font-ui-mono` are the canonical typeface definitions.
-  - Updated `code, pre, kbd, samp` rule to `font-family: var(--font-ui-mono)`.
-* **`frontend/src/components/review/ReviewSummaryCard.tsx`**:
-  - Updated numeral container class from `font-mono` to canonical `font-ui-mono`.
-
-#### 5. Screen-by-Screen Visual Integrity
-* **Marketing Landing (`/` signed out):** Verified typography rendering with Geist, hero illustration and all sections intact.
-* **Auth (`/login`, `/signup`):** Forms, inputs, and states clean and functional.
-* **ProtectedRoute Spinner:** Clean botanical emerald spinner (`border-accent/30 border-t-accent`) on dark background.
-* **Today Dashboard (`/` signed in):** Action card, focus timer, next session preview, and weekly glance intact.
-* **Strategic Roadmap (`/roadmap`):** Desktop staircase and mobile vertical journey intact with correct radii and monospace counters.
-* **Progress (`/progress`):** Progress cards, benchmark history, and charts intact.
-* **Coach Modal & Pathways Explorer:** Radix modals open cleanly with canonical corner curves.
-* **Achievement (`/achievement`):** Roman garden hero and capstone results render cleanly.
-
-#### 6. Verification Results
-* **TypeScript Check:** `tsc --noEmit -p frontend` -> **0 errors**.
-* **Frontend Vitest Suite:** `npm test --workspace=frontend -- --run` -> **48 passed / 405 tests passed (100%)**.
-* **Backend Vitest Suite:** `npm test --workspace=backend -- --fileParallelism=false --run` -> **22 passed / 250 tests passed (100%)**.
-* **Frontend Production Build:** `npm run build --workspace=frontend` -> clean build in 4.05s.
-* **Rule 3.2 Compliance:** Exactly 0 backend files modified.
-
-### M12.1 Legacy Inventory Report
-
-An exhaustive audit of the frontend codebase (`frontend/src/` and `frontend/public/`) was conducted to identify, count, and classify all legacy artifacts:
-
-#### Category 1: Hard-Coded Hex Color Codes
-* **Total Occurrences:** 115 across the repository:
-  - `frontend/src/components/SaaSBuilderModal.tsx`: **69 occurrences** (candidate for complete removal in M12.2 as dead code).
-  - `frontend/src/components/marketing/StaircaseScene.tsx`: **18 occurrences** (deliberate canvas art gradient tokens for the hero SVG staircase; VDS §15 / §25 compliant).
-  - `frontend/src/index.css`: **17 occurrences** (14 canonical design tokens + 3 custom scrollbar hexes `#1a2824` / `#233830` to be tokenized).
-  - `frontend/src/components/PlanV2Panel.tsx`: **10 occurrences** (candidate for removal in M12.2 along with `PlanV2Panel.test.tsx` as obsolete dashboard view).
-  - `frontend/src/index.html`: **4 occurrences** (`bg-[#050807]`, `text-[#e5ebe7]`, `selection:bg-[#07CB6C]`, `selection:text-[#050807]`; to be migrated to semantic classes).
-  - `frontend/src/components/ProtectedRoute.tsx`: **1 occurrence** (loading spinner `#07CB6C` to be migrated to `border-accent/30 border-t-accent`).
-* **Active Migration Need:** Only 2 files in the active app bundle (`ProtectedRoute.tsx` and `index.html`) require hex color replacement; the rest reside in dead/orphaned components slated for deletion.
-
-#### Category 2: Legacy Mint Tokens (`#07CB6C` & variations)
-* **`#07CB6C` References:** 42 total occurrences:
-  - `SaaSBuilderModal.tsx`: 34 occurrences (dead code).
-  - `PlanV2Panel.tsx`: 7 occurrences (obsolete).
-  - `ProtectedRoute.tsx`: 1 occurrence (loading spinner).
-* **`mint` string tokens:** 0 occurrences across `frontend/src/`.
-* **Tailwind `emerald-*` or `green-*` utilities:** 0 occurrences in `frontend/src/`.
-
-#### Category 3: Radius Overrides
-* **`index.css` (lines 121–123):**
-  - `--radius-xl: 0.375rem;`
-  - `--radius-2xl: 0.375rem;`
-  - `--radius-3xl: 0.375rem;`
-* **Active Component Usage:** **0 occurrences** across all files in `frontend/src/`. All active UI components have already migrated to canonical VDS radii (`rounded-control`, `rounded-card`, `rounded-panel`, `rounded-full`).
-* **Action for M12.2:** Remove the 3 override lines cleanly from `index.css`.
-
-#### Category 4: Typography & Font Imports
-* **`index.html` (line 12):**
-  - Currently loads Google Fonts: `Geist` (300..700), `Geist Mono` (400..500), `Plus Jakarta Sans` (300..800), and `JetBrains Mono` (400..600).
-  - `Plus Jakarta Sans` and `JetBrains Mono` are obsolete font families adding ~120KB of unnecessary network overhead.
-* **`index.css` (lines 117–118):**
-  - Defines `--font-sans: 'Plus Jakarta Sans' ...` and `--font-mono: 'JetBrains Mono' ...`.
-* **Active Usage:**
-  - `index.html` body uses `font-sans` (to be removed; `:root` sets `font-family: var(--font-ui)`).
-  - `ReviewSummaryCard.tsx` uses `font-mono` (to be updated to canonical `font-ui-mono`).
-* **Action for M12.2:** Remove `Plus Jakarta Sans` and `JetBrains Mono` from `index.html` and `index.css`.
-
-#### Category 5: Dead Code & Unreachable Components
-* **`frontend/src/components/SaaSBuilderModal.tsx`:**
-  - 750 lines / 38.9KB.
-  - Zero imports across the entire workspace (verified via ripgrep). Dead legacy prototype component.
-* **`frontend/src/components/PlanV2Panel.tsx` & `PlanV2Panel.test.tsx`:**
-  - 140 lines (component) / 80 lines (test).
-  - Zero imports outside its own test. Obsolete weekly panel superseded by Phase 6 Journey/Roadmap.
-* **`frontend/public/images/blueprints/`:**
-  - 6 PNG images (5.4MB) completely unreferenced in the codebase (`distributed-systems.png`, `half-marathon.png`, `mindfulness.png`, `saas-mvp.png`, `spanish-b1.png`, `write-book.png`).
-* **Action for M12.2:** Delete `SaaSBuilderModal.tsx`, `PlanV2Panel.tsx`, `PlanV2Panel.test.tsx`, and `public/images/blueprints/`.
-
-#### Category 6: Public Pathway Imagery
-* **`frontend/public/images/brand/`:**
-  - `staircase.jpg` (33KB) and `garden.jpg` (298KB). Actively used in marketing and achievement flows.
-* **`frontend/public/images/goals/`:**
-  - 10 JPEGs/PNGs (5.2MB total). Referenced only in `certifiedPresets.ts` to provide atmospheric blurred background glow in `JourneyHeader.tsx`.
-* **Action for M12.3:** Optimize image sizes and evaluate monochrome/restrained asset treatment.
-
-### Exit criteria
-
-* One design system in use everywhere.
-* R-1 to R-18 verified.
-* Accessibility and performance findings fixed or explicitly deferred.
-
----
-
-# 5 — DECISION REGISTER
-
-This register is here so every phase can see what blocks it. The decisions themselves, with options, the choice and the reasoning, belong in `docs/decisions.md`.
-
-## Open decisions from the blueprint
-
-| ID | Decision | Status | Needed by |
-|---|---|---|---|
-| OD-1 | Backend scope per phase. Proposed rule: only named, approved allowances (adopted as rule 3.2; D-11 in `decisions.md`). The allowances are split into OD-1a weekly test results, OD-1b goal completion and OD-1c custom-journey entitlement. | Rule adopted; the allowances are open | 7, 9, 10 |
-| OD-2 | 90 vs 84 days: what fills days 85–90 | Open | 6 (also 5 copy, 9) |
-| OD-3 | Which dashboard becomes Today | **Decided (A):** Today at `/`; `/dashboard` redirects in M5.8, query and hash kept | 5 |
-| OD-4 | Phase 2 route changes (`/login`, `/signup`) | **Decided (A):** routes only, modal retired | 2 |
-| OD-5 | Mobile in every phase | Adopted (3.7) | All |
-| OD-6 | Rewrite `Design.md` | Done in Phase 0 (M0.10) | 0 |
-| OD-7 | The Journey handles 2–4 method-named phases | Constraint adopted; design open | 6 |
-| OD-8 | Honest generation stages | **Decided (A amended):** four stages on real events; v1 fallback (no `method`) must not leave a method stage pending or invent a method name; stream labels unused | 4 |
-| OD-9 | Every Today state defined | **Decided (A amended):** the Phase 5 state matrix. Test results wait on OD-1a, completion on OD-1b, days 85–90 on OD-2 | 5 |
-| OD-10 | Dark/light meaning | **Resolved** (VDS §27: dark only; light surfaces are compositional) | — |
-| OD-11 | Onboarding categories vs free presets | **Decided (A):** the six landing categories from one shared source; a one-pathway category shows that pathway directly | 3 |
-| OD-12 | Semantic token names | Done in Phase 0 (role tokens, ND-1) | 0 |
-
-## New decisions raised by this roadmap
-
-| ID | Decision | Needed by |
-|---|---|---|
-| ND-1 | Token migration strategy — **Decided (A):** role names canonical, unused legacy tokens deleted, marketing renamed | 0 |
-| ND-2 | Primitive strategy — **Decided (B):** Radix headless for the stateful parts, hand-built for the rest | 0 |
-| ND-3 | Frontend tooling — **Decided (A, gradual):** ESLint + Vitest in Phase 0, Playwright in Phase 2, payload test in Phase 3 | 0, 2, 3 |
-| ND-4 | How a chosen pathway survives navigation to auth routes; modal retained or retired; post-auth redirect rules — **Decided (A):** `/signup?pathway=<slug>`, cleared once used; no goal → onboarding, active goal → Today, internal `?next=` only | 2 |
-| ND-5 | Pathway display copy — **Decided (A):** plain-language display fields in `certifiedPresets.ts`; titles and matching keys unchanged | 3 |
-| ND-6 | The free custom-goal entry before Phase 10 — **Decided (A):** free and visible, secondary to pathways, no lock or badge | 3 |
-| ND-7 | Application shell — **Decided (A, narrowed):** left rail and mobile bottom bar; Today, Roadmap, Pathways, Account. No Journey, Progress or Coach until those phases. No signed-in footer | 5 |
-| ND-8 | Progress as its own page or as a Journey layer | 8 |
-| ND-9 | Payments: in scope or not; provider; billing model | 10 |
-| ND-10 | Custom-goal gating: timing, server-side entitlement, grandfathering existing goals | 10 |
-| ND-11 | Coach scope: architecture-only or a real chat build | 10 |
-| ND-12 | Phase 2 frontend scope additions — **Decided (A):** `api.ts` attaches HTTP status to errors; `GoalContext` exposes `goalLoadFailed` | 2 |
-| ND-13 | Onboarding step order — **Decided (A):** spec order for presets; custom goals do Schedule while clarify runs, then the questions | 3 |
-| ND-14 | Question grouping — **Decided (A):** "success" = editable clarified outcome plus the `success` question; everything else is "starting point" | 3 |
-| ND-15 | Pathway library scope — **Decided (A):** one `PathwayLibrary` for all five in-app galleries; the modal becomes a Dialog around it | 3 |
-| ND-16 | Pre-existing onboarding bugs — **Decided (A):** fix the blank step after reload and the switch-goal reload in M3.3; clear the draft key after create | 3 |
-| ND-17 | TED-style speech pathway matching — **Decided (A):** matching only, so the frontend title "Deliver a 15-Minute TED-Style Speech" hits `ted_speech_15min`; titles, ids and slugs stay (ND-5); implement with the generation work | 4 |
-| ND-18 | What Today shows as "your goal" — **Decided (A):** the heading is `rawGoal`; `clarifiedOutcome` is shown beneath it, as stored. The frontend does not rewrite it | 5 |
-
----
-
-# 6 — KNOWN ISSUES AND CARRY-OVERS
-
-| Issue | Source | Owner |
-|---|---|---|
-| ~~AuthModal uses the old style; its close button overlaps the tabs~~ | Phase 1 validation | Done in Phase 2 (modal retired) |
-| ~~Pathway descriptions are jargon-heavy (onboarding uses the plain `summary` since M3.5; the landing page and in-app galleries don't yet)~~ | Phase 1 review | Done in M3.6 (every gallery and the landing page show `summary`) |
-| ~~Returning user with a goal choosing a pathway, then signing in, is unverified live~~ | Phase 1 validation | Done in Phase 2 (verified live) |
-| Legacy fonts, base body styles, mint focus rule and the radius override remain for unmigrated screens (role tokens are canonical since Phase 0) | Phase 0 | Phase 12 |
-| ~~`RoadmapPage.tsx` calls hooks after an early return (`rules-of-hooks`)~~ | Phase 0 lint | Done in Phase 6 (M6.1: unconditional hook ordering satisfies React compiler) |
-| Lint baseline: 20 errors, 1 warning in 5 files (was 30 and 4 in 11; see 3.11). `ExecutionDashboard` retired | Phase 0 lint | Each file's migrating phase |
-| Four font families loaded | Phase 1 | Phase 12 |
-| ~~The stream step id `search` describes no search~~ | OD-8 | Accepted under OD-8 at the Phase 4 close (Mo, 2026-09-23); the id and labels stay |
-| ~~`StepChallengeWidget` progress isn't persisted~~ | BP §43 | Done in M5.5 (redesigned as session-only deliberate practice widget, clearly scoped, no fake persistence claim) |
-| ~~Two dashboards (`/` and `/dashboard`)~~ | OD-3 | Done in M5.8 (`/dashboard` redirects to `/`, legacy dashboard retired) |
-| No completed-goal state on the server | OD-1 | Phase 9 |
-| Weekly test results aren't stored | OD-1 | Phase 7 |
-| Custom goals are free and ungated on the server | BP §22 | Phase 10 (ND-10) |
-| Low-resolution brand images; per-pathway photos off-style | VDS note 8 | Phase 12 |
-| ~~No Playwright smoke tests yet~~ (added in Phase 2); ~~no onboarding payload test yet~~ (added in M3.1) | ND-3 | Done in Phase 3 |
-| Test accounts in the local development database. Phase 1: one. Phase 2: `phase2-w6-{a,b,c}-1790142962485@example.com`. Phase 3 live suite: every `LIVE_API=1` run adds two `phase3-live-*@example.com` (create is held open, so they have no goal; three M3.8 runs added six). M3.8 manual runs: `phase3-m38-preset-1790165635864@example.com` (Run a 10K archived, Master Deep Work active), `phase3-m38-custom-1790165778826@example.com` (one active goal), `phase3-m38-offline-1790165967256@example.com` (one active goal, after a failed then retried create), `phase3-m38-offline-1790165886259@example.com` (no goal; the aborted first stop). Phase 4 kickoff: `phase4-kickoff-custom-1790170753203@example.com` (no goal), `phase4-kickoff-ted-1790170753203@example.com` (v2 custom TED), `phase4-kickoff-preset-1790171135241@example.com` (v1 10K). M4.5 added none. Phase 5 kickoff: `phase5-kickoff-1790182044713@example.com` (v2 10K, one active goal; Wednesday completed and its note cleared; Thursday completed with a saved note). Do not delete that goal | Phase 1–5 validation | Housekeeping |
-| Forced sign-out when the backend is unreachable: `getAuthUser` answers 401 when its database lookup throws, and `AuthContext` drops the token on any `/me` failure. M3.8 confirmed it is deterministic on a reload with the backend stopped (the three live-suite runs did not hit it). Seen twice during the Phase 3 kickoff, then put down to brief pooler outages | Phase 3 kickoff; M3.8 | Unassigned (backend and `AuthContext`) |
-| ~~React warns of a `<button>` nested in a `<button>` in `FullDayVisualizer` (dashboard task row)~~ | Phase 3 kickoff | Done in M5.8 (`FullDayVisualizer.tsx` retired) |
-| ~~Onboarding quiz modal at 390 and 360 px: the footer's "Next Question" button runs past the right edge of the dialog (clipped by the fixed overlay; the page doesn't scroll). Present before M3.4~~ | M3.4 | Done in M3.5 (modal replaced by inline question screens; Playwright checks 360 and 390) |
-| ~~`react-hooks/set-state-in-effect` in `useOnboardingState.ts`: one of three removed in M3.5 (`maxStepReached` is gone; reachability is derived from the answers). Two remain on purpose: the mount effect that starts clarify for a preset or draft, and the effect that leaves the schedule once a pending clarify returns. Moving either into an event changes when clarify starts or when the step changes, which R-4 and R-18 depend on~~ | M3.4 | Done in M3.7 (mount state initialised, the schedule transition moved into the clarify callback; hook timing tests first; no disables) |
-| ~~The in-flight generation screen was replaced in M4.2 (OD-8 stages). Slow-during-silence and the error / unsafe visual pass were still open~~ | M3.7; M4.2 | Done in M4.3 |
-| ~~A pathway chosen inside onboarding doesn't write the draft key, so a reload returns to the goal step; custom answers live only on the page~~ | M3.7 | Done (confirmed behaviour, ND-16) |
-| ~~`currentGoalId === null` still skips `findCreatedGoal` before every create and after a failure, so a Build then can create a second goal~~ | M3.7; M4.4 | Done in M5.7 (goal-load error state stops create; `ProtectedRoute` and `OnboardingPage` check `goalLoadFailed`) |
-| Two creates already in flight before either save finishes. A second mount in the same page load is blocked. A reload, a second tab, or a killed tab can send again if GET does not yet see the new goal. No second lock | M4.4 | Accepted residual (Mo, 2026-09-23). A fix would need server-side create idempotency under a new backend allowance; not planned. |
-| Phone lock and wake were not checked on a device. The page does not listen for visibility changes, and create has no AbortController | M4.3 | Phase 11 |
-| ~~`done` still opens the legacy `/dashboard`~~ | M4.2 | Done in M5.8 (`OnboardingPage` and `ProtectedRoute` land on `/`) |
-| Soft-keyboard states can't be emulated in Playwright (the onboarding footer is sticky, not fixed) | M3.7 | Phase 11 (on-device check) |
-| ~~Landing `marketing/sections/Pathways.tsx` still hard-codes its six groups; onboarding now reads `direction` and `summary` from `certifiedPresets.ts` (OD-11, ND-5)~~ | M3.5 | Done in M3.6 (reads `PATHWAY_GROUPS`) |
-| ~~Onboarding has no skip link; the legacy navbar (and the offline indicator, R-17) sits above it. Navbar targets under 44 px ("Achivii" 87×28, account button 62×34)~~ | M3.5; M3.8 audit | Done in M5.2 (the shell renders the skip link on every signed-in screen and on onboarding; every shell control is at least 44 px; the offline chip sits in the onboarding top bar) |
-| ~~The TED-style speech pathway wasn't matched by the backend~~ | M3.8; ND-17 | Done in M4.2 (matching pattern only). Existing goals were not rewritten |
-| ~~/roadmap overflows by 17 px at 390 and 47 px at 360 with an empty roadmap (`main` is 407 px when the stored title is long). Since M5.2 it scrolls sideways inside the shell's content column instead of widening the document~~ | M3.8 audit; M5.2 | Done in Phase 6 (M6.3/M6.4: responsive layout, min-w-0, text wrap, 0 horizontal overflow at 390 and 360 px) |
-| ~~`/roadmap` and `/dashboard` have no `main` landmark~~ | M3.8 audit | Done in M5.2 (`main#main` at each page wrapper; landmark only) |
-| The onboarding UI Back button pushes a history entry (as at M3.1), so browser Back straight after it returns to the step just left | M3.8 | Phase 11 (touches R-18) |
-| ~~The pathway strip still sits inside the legacy Today (`Home`)~~ | M3.6 | Done in M5.3 (Today has no strip; the shell's Pathways entry opens the same explorer) |
-| ~~The pathway strip still sits inside `ExecutionDashboard`~~ | M3.6 | Done in M5.8 (`ExecutionDashboard.tsx` removed) |
-| Main JS chunk 577.09 KB (170.20 KB gzipped), CSS 102.40 KB (17.60 KB gzipped) at the end of Phase 6 (was 539.29 KB in Phase 5). Above Vite's 500 KB warning | M3.5 build; M4.5; M5.9; M6.6 | Phase 12 (code splitting) |
-| ~~Failed goal fetch lands on a goal-less Today~~ | Phase 2 | Done in M5.7 (dedicated goal-load error alert with retry button) |
-| ~~Legacy palette on the Today notice~~ | Phase 2 | Done in M5.3 (Today's pathway notice uses the tokens and says "from Pathways") |
-| ~~"Explore Goals" vs "Pathways" naming. The shell and Today say "Pathways"; `ExecutionDashboard` still says "Explore Goals (10)"~~ | Phase 2 | Done in M5.8 (`ExecutionDashboard` removed; app shell and Today use "Pathways") |
-| Offline status is a one-time health check; the signed-in redirect has no timeout | Phase 2 | Phase 12 |
-| ~~No real-backend Playwright specs (`e2e/live/` is empty)~~ | Phase 2 | Done in Phase 3 (M3.1) |
-| No inverse variants for `Button`, `Badge`, `StepMarker`, fields or choice controls; light surfaces hold text and `TextLink` only | Phase 0 review | First phase needing a control on a light surface |
-| ~~Focus rings can be clipped by `overflow` on tab lists and dialog edges (the auth screens use neither, so Phase 2 didn't reach it). The first Dialog in the app (M3.5's commitment editor) keeps its controls inside the body's padding; tab lists are unreached~~ | Phase 0 review | Done in M3.6 (`TabsTrigger` uses `.focus-ring-inset`; the strip pads its scroll track; the explorer keeps its controls inside the body's padding) |
-| ~~The navbar's goal links (Today, Roadmap, Goals and the account button) overflow by 7 px at 360 px when a goal is active; present before M3.6 (`Navbar.tsx` untouched)~~ | M3.6 | Done in M5.2 (`Navbar.tsx` removed; 0 px at 360, 375 and 390 on `/`, `/dashboard`, `/roadmap` and onboarding) |
-| ~~The shell's hard-coded counts: "Pathways (10)" and "Explore 10 Pathways" (`Navbar`)~~ | M3.6 | Done in M5.2 (the shell entry is "Pathways", with no count) |
-| ~~Pathway counts still hard-coded: "Explore Goals (10)" (`ExecutionDashboard`; gone from Today in M5.3)~~ | M3.6 | Done in M5.8 (`ExecutionDashboard` removed; landing "Ten journeys" left for Phase 12) |
-| `certifiedPresets.ts` keeps expert fields no screen shows (`outcome`, `desc`, `coach`, `p1`–`p3`, `sampleDay`). Phase 4 did not show them as the generated method. `SaaSBuilderModal.tsx` is unused | M3.6; M4.5 | Phase 12 |
-| ~~M3.6 review items: search and the four-category filter left the Home gallery (direction navigation replaces them); a strip tile opens the explorer instead of switching at once~~ | M3.6 | Done (accepted at the M3.6 review) |
-| ~~A `Dialog` opened from state (no `DialogTrigger`) didn't return focus on close~~ | M3.5 | Done in M3.5 (`DialogContent` returns focus to the element focused when it opened; unit test added) |
-| ~~No automated accessibility check~~ | Phase 0 review | Done in Phase 2 (axe in Playwright) |
-| `Design.md` gaps (dialog initial focus, `Spinner`, `ChoiceGroup` columns, milestone colour, logs/table/code rules without primitives) | Phase 0 review | Next `Design.md` pass |
-| ~~`Design.md` navigation rule pre-empts ND-7~~ | Phase 0 review | Done in M5.2 (`Design.md` "Application shell") |
-| The legacy entrance utilities (`animate-fadeIn`, `animate-fadeInUp`) filled `both`, so a finished entrance kept each page wrapper a stacking context (and, for `fadeInUp`, the containing block of its fixed children). Focus mode and the dashboard's full-screen dialogs sat under the shell | M5.2 | Done in M5.2 (`index.css` fills `backwards`; the end state is the element's own style, so nothing looks different) || Type-scale minimums below some VDS ranges; micro tracking baked in (not taken up in the Phase 2 review) | Phase 0 review | Next `Design.md` pass |
-| `--duration-reveal` unused; glass has no mobile blur guard | Phase 0 review | Phase 12; first phase using glass |
-| `StaircaseScene` literal hex and `hover:bg-white`; `marketing/Button` duplicates `ui/Button`; `vite` `dedupe` masks a broken install | Phase 0 review | Phase 12; housekeeping |
-| `saveV2Goal` sets `clarifiedOutcome` to `roadmap.finalGoal` (`backend/src/routes/goal.ts`, the create data). The user's edited outcome is overwritten. The Phase 5 kickoff goal's title rendered as `49.98` because that was `finalGoal`. Today shows `rawGoal` as the heading and the stored outcome beneath it (ND-18); the frontend does not rewrite the stored value | Phase 5 kickoff; ND-18 | Unassigned (a fix needs a backend allowance; Phase 5 has none) |
-| ~~Saving a note on `/` does not update `GoalContext`. A later completion from `/dashboard` can PATCH `notes: null` and clear it. Seen on the Phase 5 kickoff goal (Wednesday)~~ | Phase 5 kickoff | Done in M5.3 (Today writes through `useTaskActions`, which puts the server's task into `GoalContext`; `today.spec.ts` saves a note on Today, completes on `/dashboard` and checks the note is in the PATCH). M5.6 designs notes |
-| ~~/dashboard's own note save still does not update `GoalContext`. A completion on Today in the same session, after a note saved on `/dashboard`, sends the older note~~ | M5.3 | Done in M5.8 (legacy dashboard removed; Today uses unified `useTaskActions`) |
-| `DailyTask.date` is a UTC calendar date (`routes/goal.ts:215`, `:691`; `lib/ai/weekPlan.ts:52`), but `dayOfWeek` comes from the server's local clock (`weekPlan.ts:53`, `goalDecomposer.ts:984`), and `user.timezone` (saved at signup) is read by no date writer. Near UTC midnight a user far from UTC sees the neighbouring day's task as today, and a plan created then can label a date with the wrong weekday. Today compares UTC dates, the calendar the dates are written in | M5.3 | Unassigned (a fix writes dates in the user's timezone; needs a backend allowance) |
-| ~~A focus reflection can be missing from the completion write: Enter starts "Save & Return" before the typed text is in the request. The Phase 5 kickoff reflection was not stored~~ | Phase 5 kickoff | Done in M5.5 (`FocusCompletion.tsx`, multi-line `Textarea` with explicit or Ctrl+Enter save, preserved text on failure) |
-| ~~Stopping the backend on an open page does not show the Offline chip, and a failed task write only reaches `console.error`. The button re-enables and the screen still looks saved~~ | Phase 5 kickoff | Done in M5.7 (offline banner on `/` and visible write failure alert `role="alert"`) |
-| ~~PlanV2Panel renders `Pass if {passIf}.`, so a `passIf` that already ends with a period shows two~~ | Phase 5 kickoff | Done in M5.4 (`formatPassIf` helper in `formatters.ts` tests terminal punctuation before adding a period; unit tests added) |
-| ~~Mobile `onboardingStates` "reload during generation" asserted `calls.create` while "Building your path" was already visible, which is before `POST /api/goal/create` (GET runs first). A phone click on "45 min" could also land under the sticky step footer~~ | M5.1 B1 | Done in M5.1 (the spec waits for the create request; the option is scrolled to the centre before the click). Not a production change |
-| ~~After a `slow: true` event the still-working seconds froze at `Math.round(elapsedMs / 1000)` until the next event~~ | M5.1 B2 | Done in M5.1 (`generationStages.ts`, `StepGeneration.tsx`). The line keeps counting from that event's seconds. One line |
+| **OD-1** | Stripe Environment Price IDs Configuration | `DECIDED` | Injected via `STRIPE_PRICE_ID_MONTHLY` and `STRIPE_PRICE_ID_ANNUAL` env vars with sensible sandbox fallbacks | No |
+| **ND-1** | Webhook Raw Body Isolation | `DECIDED` | Mount raw buffer middleware specifically on `/api/billing/webhook` before Express global json parser | No |
+| **ND-2** | Free Goal Switch Intent Parameter | `DECIDED` | Provide `archivePrevious: true` in goal creation payload so free users can still replace their active goal cleanly | No |
+| **ND-3** | Multi-Goal Default Selection on Login | `DECIDED` | Default to the most recently updated active goal; allow user to switch via GoalSwitcher | No |
 
 ---
 
 # 7 — PHASE REPORT TEMPLATE
 
-Every phase ends with this report (the format used for Phase 1), then stops for review.
+Upon completing each phase, the implementation agent must append a formal Phase Report using this authoritative format:
 
 ```text
-ACHIVII REDESIGN — PHASE X REPORT
+# PHASE [X] REPORT — [PHASE NAME]
 
 1. Outcome
-   One paragraph: what the user can now see or do.
+   One paragraph describing what the user or system can now do that was impossible before.
 
 2. What changed
-   Per screen or component.
+   Detailed breakdown per screen, component, backend route, schema, or system behavior.
 
 3. Files changed / created / removed
+   - Created: ...
+   - Modified: ...
+   - Removed: ...
 
-4. Functionality preserved
-   Every R-n touched, with how it was verified.
+4. Functionality preserved (Regression Verification)
+   Every R-n touched, with verification evidence and test results.
 
 5. Decisions applied
-   The OD-n / ND-n entries used, and where they're logged in decisions.md.
+   Every OD-n / ND-n implemented, citing rationale.
 
 6. Validation evidence
-   Type-check, build, tests, browser checks at desktop and mobile widths,
-   console, reduced motion, keyboard.
+   - Frontend Type-check: 0 errors
+   - Backend Build: 0 errors
+   - Frontend Vitest: X/X passed
+   - Backend Vitest: X/X passed
+   - Playwright E2E: X/X passed
+   - Mobile Viewports (360px, 390px): 0 horizontal overflow
+   - Accessibility: 0 axe-core violations
 
 7. Carry-overs
-   What remains, and which phase owns it.
+   Any discovered issues or deferred enhancements, with assigned target phases.
 
 8. Issues and risks found
+   Any unexpected friction or edge cases resolved during implementation.
 
-9. Not started
-   Confirmation that the next phase has not begun.
+9. Next phase status
+   Confirm next phase readiness and verify that the next phase has NOT begun.
 ```
 
 ---
 
 # 8 — CHANGE LOG
 
-| Date | Change |
-|---|---|
-| 2026-09-23 | First version. Phase 1 recorded as complete, Phase 0 as partial. Decision register and carry-overs established. |
-| 2026-09-23 | OD-1 register row now points to its three parts (OD-1a/b/c) and to D-11, matching `docs/decisions.md`. |
-| 2026-09-23 | Phase 0 gate cleared: ND-1, ND-2 and ND-3 Decided (M0.2). |
-| 2026-09-23 | Phase 0 milestones M0.2–M0.11 delivered; status awaits Mo's review. OD-6 and OD-12 done. Lint and test commands added to 3.11, with the lint baseline. "What shipped", evidence and carry-overs drafted. |
-| 2026-09-23 | Phase 0 review fixes applied (accessibility, light surface, states, evidence, copy). Evidence updated (41 tests, signed-in spot-check, browser keyboard checks). Unselected review items added as carry-overs. Phase 1's token-rename carry-over marked done. Status still awaits Mo's review. |
-| 2026-09-23 | Phase 0 accepted by Mo: `COMPLETE`. |
-| 2026-09-23 | Phase 0's review carry-overs added to section 6. OD-4 and ND-4 Decided (both A); Phase 2 `IN PROGRESS` pending its kickoff plan. |
-| 2026-09-23 | Phase 2 kickoff plan approved; ND-12 Decided (A) and added to the register. |
-| 2026-09-23 | Phase 2 accepted by Mo: `COMPLETE`. "Current state" replaced by "What shipped", verification evidence and carry-overs. Playwright added to 3.11. Section 6 updated (AuthModal, R-16 and automated accessibility done; new Phase 2 carry-overs; two Phase 0 items reassigned). Phase 3 "Current state" updated for the Phase 2 handoff and the two category systems. |
-| 2026-09-23 | OD-11, ND-5 and ND-6 Decided (all A); Phase 3 M3.2 done and its gate cleared. |
-| 2026-09-23 | Phase 3 kickoff approved: `IN PROGRESS`. "Current state" corrected (size, five steps, clarify shape, preset questions, schedule fields, five galleries, offline and failure). M3.1 done: baseline section with the recorded step and history behaviour; payload and live specs added to 3.11. Section 6: payload test and `e2e/live` done; forced sign-out and nested-button findings added. |
-| 2026-09-23 | ND-13 to ND-16 Decided (all A) and added to the register. Phase 3 scope, files and milestones updated: custom step order, question grouping, the library for all five in-app galleries (`Home`, `ExecutionDashboard` and `Pathways.tsx` added to the files), and the recorded bug fixes in M3.3. |
-| 2026-09-23 | Phase 3 M3.3 done: state hook and pure payload builder extracted, ND-16 fixes applied; the baseline table notes what changed. |
-| 2026-09-23 | Phase 3 M3.4 done: wizard split into step components with no behaviour or visual change; payload identical to the M3.1 baseline. Section 6: modal footer clipping on narrow screens and the `useOnboardingState` lint errors added. |
-| 2026-09-23 | Phase 3 M3.5 done: the new onboarding flow (ND-13 order, ND-14 grouping, OD-11/ND-5/ND-6 applied) on the Phase 0 primitives; payload identical to the M3.1 baseline, mocked and live. "Current state" notes the new steps. Section 6: modal clipping and the Dialog focus bug done; one onboarding lint error removed, two kept for M3.7; landing groups, skip link and bundle size added. Awaiting Mo's review. |
-| 2026-09-23 | Phase 3 M3.6 done: one pathway catalogue (`direction` only; `category` and `tag` removed) and `components/pathways/` used by all five in-app galleries and the explorer Dialog; the landing page reads the same groups; launch state and payload unchanged. M3.6 report added under Phase 3; "Current state" notes the change. Section 6: jargon copy, landing groups and tab focus-ring clipping done; navbar overflow at 360 px, hard-coded counts, unused catalogue fields and the review items added. M3.7 and Phase 4 not started. Awaiting Mo's review. |
-| 2026-09-23 | Phase 3 M3.7 done: onboarding state matrix and M3.7 report added under Phase 3; classified clarify/create failures, connection notice, stale-response and wait fixes, duplicate-safe create retry, 360 px question screens, commitment name validation; payload identical, mocked and live. "Current state" notes the new failure handling. Section 6: the onboarding lint errors done; generation look, in-onboarding draft, recovery edge and soft-keyboard checks added. M3.8 and Phase 4 not started. Awaiting Mo's review. |
-| 2026-09-23 | Phase 3 M3.8 done: regression matrix, before-and-after table and the Phase 3 report added under Phase 3. R-2, R-3, R-4, R-15, R-16, R-17 and R-18 pass mocked and live; preset, custom and switch-goal plans created on the real backend; the real backend was stopped during clarify and before Build. Section 6: the in-onboarding draft and the M3.6 review items closed as confirmed; lint baseline, bundle size, test accounts and the forced sign-out updated. Unused colours removed from `schedule.ts`. `Design.md` notes the compact step header, the connection notice and dialog focus return. Status stays `IN PROGRESS` awaiting Mo's review. Phase 4 has not started. |
-| 2026-09-23 | Phase 3 accepted by Mo: `COMPLETE` (section 1, the Phase 3 status line, current position). "What shipped", "Verification evidence" and "Carry-overs" kept as drafted at M3.8. Section 6: the TED-style speech matching, the `/roadmap` overflow and missing landmarks, the UI Back history push, the navbar target sizes and the legacy strips added, so every Phase 3 carry-over has a row and an owning phase; the catalogue-fields row now says Phase 4 decides whether generation shows catalogue content. Phase 4 "Current state" updated for Phase 3 (the screen in `StepGeneration.tsx`, the create request and stream from `useOnboardingState.ts`, the failure copy, the M3.7 duplicate-safe retry, the history lock) and "Files likely affected" names the real Phase 3 successors. Phase 4 kickoff under way; no Phase 4 implementation has started. |
-| 2026-09-23 | Phase 4 M4.1 done. Kickoff plan accepted. OD-8 Decided (A amended) and ND-17 Decided (A) in the register. Phase 4 is `IN PROGRESS` (not blocked, not complete): current state rewritten from the kickoff (v1 skips `method`; slow has no heartbeat; archive only on successful save; `currentGoalId === null` hole; TED unmatched until ND-17 is implemented). In scope adds the v1 path, client 20s slow during silence, the active-goal check before every create, and SSE fixtures in M4.2. Stream labels unused. Backend allowance is matching-only for the TED speech title. Catalogue-as-method moves to Phase 12. Kickoff throwaway accounts added to section 6. M4.2 has not started. No generation UI. |
-| 2026-09-23 | Phase 4 M4.2 done. OD-8 generation screen, timed SSE fixtures (v2, v1, error) and ND-17 matching (speech pattern only). `done` still opens `/dashboard`. M4.3 and M4.4 have not started. |
-| 2026-09-23 | Phase 4 M4.3 done. The client shows the existing still-working line after 20 seconds of silence, on the active stage. Failures stay on that screen. Retry behaviour is unchanged. No backend change. M4.4 has not started. |
-| 2026-09-23 | Phase 4 M4.4 done. GET /api/goal/active runs before every create, and a plan the server already saved is opened instead of being built again. No abort, and no second draft. M4.5 has not started. |
-| 2026-09-23 | Phase 4 M4.5 done: regression matrix, "What shipped", verification evidence, carry-overs and the Phase 4 report. R-2, R-4, R-5, R-6, R-7, R-15, R-16 and R-18 pass mocked. Section 6: the `search` id accepted under OD-8; `currentGoalId === null`, the overlapping in-flight residual, phone lock, `done` → `/dashboard`, catalogue fields and the bundle size updated. Status stays `IN PROGRESS` awaiting Mo's review. Phase 4 is not marked complete. Phase 5 has not started. |
-| 2026-09-23 | Phase 4 accepted by Mo: `COMPLETE` (section 1, the Phase 4 status line, current position). "What shipped", "Verification evidence" and "Carry-overs" kept as drafted at M4.5. Review outcomes recorded: the overlapping in-flight create is an accepted residual (server-side create idempotency would need a new backend allowance; not planned), the new generation screen is observed live at the Phase 5 kickoff as post-close evidence, and the `search` id is accepted under OD-8. Section 6 rows match. Phase 5 "Current state" names the `OnboardingPage` and `ProtectedRoute` handoff to `/dashboard`. `Design.md`: N in the still-working line is whole seconds since this attempt started. Phase 5 kickoff under way; no Phase 5 implementation has started. |
-| 2026-09-23 | Phase 5 kickoff corrections to "Current state" (status stays `NOT STARTED`): line counts, UTC "today", which dashboard shows which fields, unreachable `DayRoutineTimeline` and `SaaSBuilderModal`, PATCH writers, the goal-load hole, weekly review only on `/dashboard`. The generation handoff to `/dashboard` is unchanged. Section 6 records the kickoff account. No Phase 5 implementation. |
-| 2026-09-23 | Phase 5 M5.1. Status `IN PROGRESS`. OD-3, OD-9, ND-7 and ND-18 Decided (Mo). State matrix, amended milestone table and the M5.1 report are in the Phase 5 section. Section 6 records the outcome overwrite, the note wipe, the lost focus reflection, the silent offline write and the `passIf` period. The mobile generation-reload spec waits for the create request (10 passed under repeat, both projects). The still-working line keeps counting after a slow event (post-close follow-up, not a reopened Phase 4 milestone). Mocked Playwright: 143 passed, 5 skipped, 0 failed. M5.2 has not started. No Today UI, shell or redirect. |
-| 2026-09-23 | Phase 5 M5.2 done: the ND-7 shell (`components/app`). A rail from 1024 px, a bottom bar below it, and the onboarding top bar. Entries are Today, Roadmap (with a goal), Pathways and Account (a disclosure on desktop, the Dialog below; the goal line is `rawGoal`; Reset with a Dialog confirm). The offline chip, the skip link and one `main#main` on every signed-in screen. `Navbar.tsx` and the footer removed. The legacy fades fill `backwards`, so full-screen overlays cover the shell. The content column contains a page that is too wide. Section 6: skip link, navbar targets, the 7 px overflow, the missing `main`, the shell's counts and the `Design.md` navigation gap closed; the fade row added; the naming, counts and `/roadmap` rows split and re-owned. `Design.md` §5 Application shell. Mocked Playwright: 199 passed, 9 skipped, 0 failed. M5.3 has not started. No Today UI; `/dashboard` not redirected. |
-| 2026-09-24 | Phase 5 M5.3 done: Today at `/` for the practice day (`components/today`, `lib/today.ts`). Heading is `rawGoal` (ND-18); the stored outcome sits beneath, as stored. One write path puts the server's task into `GoalContext`, so the note wipe from `/` is closed. "Explore Goals (10)" and the strip left Today; the strip remains on `/dashboard`. Task dates stay UTC (`goal.ts:215`, `:691`; `weekPlan.ts:52`). `Design.md` §6 Today. M5.4 has not started. `/dashboard` was not redirected. |
-| 2026-09-24 | Phase 5 M5.4 done: progressive reveal on Today (whyToday on screen, steps with timing/output/pitfall/passMark/resource, 10-minute version, implementation intention, task resource). Start remains in first viewport at 390×844. PlanV2Panel double period fixed and unit tested. Full day view copy updated. Design.md §6 updated. M5.5 not started. /dashboard not redirected. |
-| 2026-09-25 | Phase 5 M5.5 done: Focus mode redesigned on Phase 0 tokens and primitives (`components/focus/`, `FocusSessionModal.tsx`, `StepChallengeWidget.tsx`, `lib/stepChallenge.ts`). Countdown timer, pause/resume, reset, spacebar toggle, audio effects and mute toggle preserved identically. Deliberate practice step runner with instructions, cues, timing, outputs, pass marks, and collapsible tips. Session-only step challenge widget. Reliable reflection capture into task notes; failed network/server writes surface inline error alert (`role="alert"`), preserve reflection text, and allow safe retry. 0 axe violations. `Design.md` §11. M5.6 not started. `/dashboard` was not redirected. |
-| 2026-09-25 | Phase 5 M5.6 done: Completion interaction, step lighting, next step preview & notes redesign on Today (`components/today/Today.tsx`, `lib/today.ts`). Active step card illuminated with calm botanical highlight (`border-accent/40 bg-surface/95 ring-1 ring-accent/20 shadow-sm`), `StepMarker` completed, and quiet non-punitive confirmation. Next step preview card with upcoming practice day, title, duration, snippet, and inspection link; week completion bridge linking to review. Reversible via "Mark not done". Notes redesign parses and displays structured focus wins alongside free-form notes, auto-saves on blur, and preserves drafts across `WeekGlance` switches. 0 axe violations. `Design.md` §12. M5.7 not started. `/dashboard` was not redirected. |
-| 2026-09-25 | Phase 5 M5.7 done: Remaining OD-9 states & error resilience on Today (`components/today/Today.tsx`, `lib/today.ts`, `Home.tsx`, `ProtectedRoute.tsx`, `OnboardingPage.tsx`, `ExecutionDashboard.tsx`). Goal-load error alert on `/` with retry (`refreshGoal()`), route protection in `ProtectedRoute` and onboarding (closing duplicate create hole); rest day intentional adaptation copy, suppressed Start, and next step preview; key session callout; test day benchmark card with instructions and `formatPassIf` pass mark (zero fake score inputs); non-punitive yesterday recovery card; review due card; review 503 error handling; clamped Day 90 / after week 12; offline banner and visible write failure alert. 0 axe violations. `Design.md` §13. M5.8 not started. `/dashboard` was not redirected. |
-| 2026-09-25 | Phase 5 M5.8 done: `/dashboard` permanently redirects to `/` preserving query and hash (OD-3). Onboarding `done` and `ProtectedRoute` land on `/`. Roadmap "Back to Today" lands on `/`. Today embeds restyled `BasisBadge`, retires full day view link, and triggers `WeeklyReviewModal` directly (R-12). Redundant legacy dashboard components retired (`ExecutionDashboard.tsx`, `DashboardPage.tsx`, `DayRoutineTimeline.tsx`, `FullDayVisualizer.tsx`). 0 axe violations. M5.9 not started. |
-| 2026-09-25 | Phase 5 M5.9 done: Full regression verification pass across all R-1 to R-18 checks (R-8, R-9, R-10, R-11, R-12, R-15, R-17 verified with reproducible evidence), OD-9 state matrix walk (all 14 states verified), exit criteria audit (all 4 criteria met), 0 axe violations across 1440px, 390px, and 360px viewports, determinism check (--repeat-each=2) clean on critical specs, Phase 5 regression matrix and official Phase 5 report authored. Phase 5 status is COMPLETE (awaiting Mo's review). Phase 6 (Journey) is next. |
-| 2026-09-25 | Phase 6 M6.1 done: OD-2 decided as Option A (closing stretch on days 85–90, 12 planned weeks on days 1–84, clamp 1–90); OD-7 constraint confirmed (2–4 method phases for v2, 3 fixed phases for v1); definitive Day/Week/Phase mapping and VDS §9 three-layer model added to Phase 6; canonical Journey contracts created in `frontend/src/types/journey.ts`; React rules-of-hooks / compiler memoization ordering fixed in `RoadmapPage.tsx`. Phase 6 status is IN PROGRESS. |
-| 2026-09-25 | Phase 6 M6.2 done: pure data adapter `toJourneyData` and hook `useJourneyData` implemented (`frontend/src/lib/journeyAdapter.ts`, `frontend/src/hooks/useJourneyData.ts`); normalizes v1 (3 fixed phases) and v2 (2-4 method phases) into canonical JourneyData; enforces future honesty (days: [] on unwritten future weeks); maps days 85-90 closing stretch; 21 unit tests added in `journeyAdapter.test.ts` (100% pass). |
-| 2026-09-25 | Phase 6 M6.3 done: Desktop journey composition delivered (`frontend/src/components/journey/JourneyHeader.tsx`, `DesktopStaircase.tsx`, `StrategicRoadmap.tsx`, `index.ts`, `RoadmapPage.tsx`). Implements all 3 VDS §9 progress layers: Layer 1 quick numerical header (`Day N / 90`, tabular figures, method badge, Back to Today), Layer 2 emotional staircase (VDS §25 symbols, 2–4 phase landings, active week daily step runner, Days 85–90 closing stretch, summit destination), and Layer 3 strategic roadmap (collapsible method phases, week milestone breakdown, strict future honesty BP §43 with zero fabricated tasks). 9 unit & integration tests added in `DesktopJourney.test.tsx` (100% pass). 0 axe violations at 1440px and 1024px. M6.4 ready. |
-| 2026-09-25 | Phase 6 M6.4 done: Mobile vertical journey delivered (`frontend/src/components/journey/MobileVerticalJourney.tsx`, `MobileVerticalJourney.test.tsx`, `frontend/e2e/journeyMobile.spec.ts`). Replaces the wide desktop staircase with a vertical ascending spine for viewports `< 768px` (VDS §28). Implements compact phase landing separators, active phase default expansion with collapsed upcoming phases, vertical active daily flight, "You are here" badge and auto-scroll ref positioning (R2), 44px minimum tap targets, days 85–90 approach section, and summit destination. 7 unit tests and 8 Playwright mobile tests pass (0 axe violations at 390px and 360px viewports, 0 overflow). R-8 and R-14 verified. M6.5 ready. |
-| 2026-09-25 | Phase 6 M6.5 done: Progress motion and reduced-motion path delivered (`frontend/src/index.css`, `JourneyHeader.tsx`, `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, `StrategicRoadmap.tsx`, `frontend/e2e/journeyMotion.spec.ts`). Hardware-accelerated ascent stagger (`.journey-ascent` with `--ascent-delay`), active step 3s ambient breathing beacon (`.journey-beacon`), emerald completed step styling, 600ms `--ease-ascend` progress bar fill with tabular figures, and smooth accordion expansion (`.journey-accordion-content` with rotating chevrons). Airtight `prefers-reduced-motion: reduce` zeroing all delays/durations, replacing beacon with static ring, and rendering content instantly. 10/10 tests pass in `journeyMotion.spec.ts` with 0 axe violations. M6.6 ready. |
-| 2026-09-26 | Phase 6 M6.6 done: Full regression verification pass across all R-1 to R-18 capabilities, Phase 6 validation targets audit, exit criteria audit (all 3 criteria met), responsive/accessibility/motion audit (0 axe violations, 44px tap targets, 0 overflow at 390px/360px), determinism verification (128/128 green under --repeat-each=2 across journeyMotion.spec.ts, journeyMobile.spec.ts, shell.spec.ts -g "roadmap", and today.spec.ts), Phase 6 regression matrix and official Phase 6 report authored. Phase 6 status is COMPLETE (awaiting Mo's review). Phase 7 (Weekly review + adaptation) is next and blocked by OD-1a. |
-| 2026-09-26 | Phase 7 M7.1 done: OD-1a formally resolved as Option A (approve named backend allowance for nullable `RoadmapWeek.testResult` storage and target comparison without altering adaptation AI logic); authoritative review contracts defined in `frontend/src/types/review.ts` and exported via `frontend/src/types/index.ts`; M7.5 backend specification formalized (nullable `testResult Json?` in Prisma, migration `add_weekly_test_result`, endpoint validation, Vitest backward-compatibility test plan, zero AI logic changes); baseline verification passed (0 TS errors, 308 frontend Vitest passed, 229 backend Vitest passed, Playwright Today and Roadmap passed). Phase 7 is IN PROGRESS. |
-| 2026-09-26 | Phase 7 M7.2 done: Review flow UI redesigned and modularized under `frontend/src/components/review/` (`ReviewSummaryCard.tsx`, `ReviewReflectionStep.tsx`, `WeeklyReviewModal.tsx`, `index.ts`); Visual Level 3 analytical summary with tabular numerals (`tabular-nums font-mono`), active practice sessions completed count (excluding rest days), warm non-punitive momentum feedback (`Flame` with momentum copy for ≥80%, calm secondary tone for <80%), focus theme, target deliverable, and weekly test instructions; accessible reflection capture with 503 retry resilience; compatibility re-export in `components/today/WeeklyReviewModal.tsx`; 9 unit tests added in `WeeklyReviewModal.test.tsx` (100% pass); 6 E2E tests added in `weeklyReview.spec.ts` (0 axe violations, 44px tap targets, 0 overflow across desktop and mobile). M7.3 ready. |
-| 2026-09-26 | Phase 7 M7.3 done: Adaptation moment and phase-gate language delivered across `AdaptationMomentStep.tsx`, `PhaseGateOutcomeCard.tsx`, `WeeklyReviewModal.tsx`, and `Today.tsx`; post-submission adaptation reveal bridge displays rebuilt path indicator ("Week N has been adapted"), strict future honesty server adaptation insight, and upcoming week focus preview; encouraging phase-gate language replaces pass/fail judgment with supportive reinforcement ("Your current results suggest we should reinforce this phase.", BP §18); single-dialog review progression flow; 10/10 tests in `WeeklyReviewModal.test.tsx`, 6/6 in `AdaptationMomentStep.test.tsx`, 324/324 across full frontend Vitest, 229/229 backend Vitest, 8/8 Playwright weeklyReview, 36/36 Playwright today. M7.4 ready. |
-| 2026-09-27 | Phase 7 M7.4 done: Failure, retry and review-due states delivered across `WeeklyReviewModal.tsx`, `ReviewSummaryCard.tsx`, `ReviewReflectionStep.tsx`, `Today.tsx`, `today.ts`, and `reviewDraft.ts`; unsubmitted reflection drafts safely persisted in browser storage and restored across accidental dismissals/reloads; 503 adaptation failure and offline network alerts displayed in accessible live region (`role="alert"`, `aria-live="assertive"`) with preserved reflection and working in-modal retry (`'Try again'`); enhanced `isWeekReviewDue` triggers when all week dates have passed or all active practice tasks are completed; Week 12 closing stretch integration displays `'Enter Closing Stretch'` CTA (never `'Start Week 13'`), modal title `'Closing Stretch Ready'`, and Today review-due card copy unlocking days 85–90; calm, serene, non-punitive guidance for empty weeks (0 completed sessions) with zero shame phrasing (BP §18); everyday accessible review entry points delivered in `WeekGlance` ("Review week") and footer nav ("Weekly review") (BP §33 / OD-9); 14/14 tests pass in `WeeklyReviewModal.test.tsx`, 28/28 in `Today.test.tsx`, 23/23 in `today.test.ts`, 332/332 across full frontend Vitest (38 files), 229/229 across backend Vitest (20 files, 0 backend edits), 14/14 Playwright E2E in `weeklyReview.spec.ts` (0 axe violations, 0 overflow, 44px tap targets), 16/16 in `todayStates.spec.ts`. M7.5 ready. |
-| 2026-09-27 | Phase 7 M7.5 done: Named backend allowance implemented under OD-1a (Option A) and D-11 (`RoadmapWeek.testResult Json?` added in `backend/prisma/schema.prisma`, migration `20260927071946_add_weekly_test_result` applied, pgvector integrity verified); review endpoint validation and backward-compatible persistence delivered in `POST /api/goal/weeks/:weekNumber/review` (`backend/src/routes/goal.ts`); dedicated backend Vitest test suite added in `backend/test/weeklyReviewTestResult.test.ts` (11/11 tests pass, 240/240 tests pass across 21 backend test files); frontend API client `submitWeeklyReview` updated in `frontend/src/lib/api.ts`; weekly benchmark test result recording, draft persistence, and honest target comparison UI delivered in `ReviewTestResultStep.tsx`, `WeeklyReviewModal.tsx`, `AdaptationMomentStep.tsx`, and `reviewDraft.ts` (zero media proof uploads, zero photo/video judging, zero AI grading, BP §43); 27/27 review tests pass, 339/339 across full frontend Vitest (39 files), 14/14 Playwright E2E in `weeklyReview.spec.ts` (0 axe violations, 0 overflow, 44px tap targets), 16/16 in `todayStates.spec.ts`. M7.6 ready. |
-| 2026-09-27 | Phase 7 M7.6 done: Full regression verification pass across all capabilities touched by Phase 7 (R-8, R-9, R-12, R-13), Phase 7 validation scenarios audit (all 5 scenarios verified with passing automated evidence), Phase 7 exit criteria audit (all 3 criteria met), quality/accessibility/responsive audit (0 axe violations, 44px tap targets, 0 overflow at 390px/360px), full test suites passing (21/21 backend Vitest test files, 240/240 tests; 39/39 frontend Vitest test files, 339/339 tests; 33/33 Playwright desktop E2E tests, 7/7 mobile E2E tests), production builds clean (frontend JS/CSS and backend tsc), M7.6 report and official Phase 7 report authored. Phase 7 status is COMPLETE (awaiting Mo's review). Phase 8 (Progress) is unblocked and next. |
-| 2026-09-27 | Phase 8 M8.1 done: Architectural Decision ND-8 resolved as Option A (dedicated Progress page `/progress`); decision registered in `docs/decisions.md`; zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
-| 2026-09-27 | Phase 8 M8.2 done: Dedicated `/progress` route mounted in `App.tsx` (wrapped in `ProtectedRoute`); desktop `AppRail` and mobile `AppBottomBar` navigation updated with Progress link and `TrendingUp` icon; Visual Level 3 typographic progress overview delivered (`ProgressPage.tsx`, `CompletionOverview.tsx`, `PhaseMilestonesCard.tsx`, `WeekBreakdownList.tsx`); strict future honesty and non-punitive completion metrics; 342/342 frontend Vitest pass, 25/25 Playwright desktop E2E pass. M8.3 ready. |
-| 2026-09-27 | Phase 8 M8.3 done: Results layer and adaptation history delivered (`BenchmarkResultsCard.tsx`, `AdaptationHistoryList.tsx`, `ProgressPage.tsx`); displays stored benchmark test results from `RoadmapWeek.testResult` (Phase 7 M7.5) with target criteria, user notes, and non-punitive status (`Benchmark achieved` vs `In progress · Reinforcing`, BP §18); displays weekly adaptation log with submitted reflections and server AI adaptation insights; 344/344 frontend Vitest pass across 40 files; production build clean (clean code-split `ProgressPage` chunk); zero backend edits. M8.4 ready. |
-| 2026-09-27 | Phase 8 M8.4 done: Empty and early states delivered across /progress (CompletionOverview, AdaptationHistoryList, BenchmarkResultsCard, ProgressPage); calm non-punitive orientation sublabels at Day 1 / Week 1 with 0 completed sessions; serene adaptation history early card explaining weekly review insights; upcoming benchmark tests preview with target criteria and pass rules; goal-load network failure resilience with retry ('Try again') alert; 41/41 frontend test files pass (351/351 tests); production build clean; zero backend edits. M8.5 ready. |
-| 2026-09-27 | Phase 8 M8.5 done: Full regression verification pass across all capabilities touched by Phase 8 (R-8, R-14, shell navigation), dedicated Playwright E2E suite authored (e2e/progress.spec.ts, 20/20 tests passing), Phase 8 validation scenarios audited (Week 1, Week 6, Week 12, empty reviews, goal database traceability verified), exit criteria verified (100% data traceability, zero fake analytics/streaks/gamification), quality/accessibility/responsive audit clean (0 axe violations, 44px tap targets, 0 overflow at 1440px, 390px, 360px), test baseline clean (frontend Vitest 41 files / 351 tests, backend Vitest 21 files / 240 tests, 126 Playwright E2E tests), production builds clean, zero backend edits (D-11 constraint preserved), M8.5 report and official Phase 8 report authored. Phase 8 status is COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next. |
-| 2026-09-27 | Phase 9 M9.1 done: OD-1b Decided as Option B (dedicated completion endpoint `POST /api/goal/complete` with closing-stretch arrival); technical specification and test plan formalized for M9.2 backend allowance; canonical achievement TypeScript contracts defined in `frontend/src/types/achievement.ts` and re-exported via `frontend/src/types/index.ts`; zero backend edits executed in M9.1; Phase 9 is IN PROGRESS. M9.2 ready. |
-| 2026-09-27 | Phase 9 M9.2 done: Named backend allowance implemented under OD-1b (Option B) and D-11; nullable `Goal.completedAt DateTime?` migration applied in PostgreSQL; `POST /api/goal/complete` endpoint delivered with auth/404 guards and safe optional payload persistence; `GET /api/goal/active` updated to query active first and fall back to completed goal for reload persistence; succession safety verified (completed goals preserved, active goals archived/deleted cleanly); frontend API client `completeGoal` and context `GoalContext.completeGoal` integrated; dedicated Vitest integration test suite `backend/test/goalCompletion.test.ts` authored (10/10 tests pass, 250/250 backend tests pass across 22 files, 351/351 frontend tests pass across 41 files, 0 TS errors, clean builds). Phase 9 is IN PROGRESS. M9.3 ready. |
-| 2026-09-27 | Phase 9 M9.3 done: Visual Level 4 cinematic achievement experience delivered (`AchievementHero.tsx`, `AchievementResults.tsx`, `AchievementJourney.tsx`, `AchievementScreen.tsx`, `AchievementPage.tsx`); atmospheric Roman garden transition built with verified brand asset `garden.jpg` using multi-layer dark underlays and desktop/mobile aspect ratio handling; real results calculation engine (`computeAchievementSummary`) computes 90-day deliberate practice sessions, adherence rate, milestone benchmark stats, and capstone evaluation with 0 fake data; accessible tab switching across Arrival, Results, and Journey with keyboard arrow navigation and WAI-ARIA roles; `/achievement` mounted in `App.tsx` (code-split chunk `AchievementPage-B24FuDth.js`) and conditionally rendered in `Home.tsx` on completed goal; dynamic shell navigation on `AppRail` and `AppBottomBar` showing "Achievement" with `Award` icon; 16 new automated tests added (44 frontend test files / 368 tests pass, 0 TS errors, clean build); strict zero backend edits (D-11 constraint preserved). Phase 9 is IN PROGRESS. M9.4 ready. |
-| 2026-09-27 | Phase 9 M9.4 done: Designed Days 85–90 Closing Stretch experience delivered in Today (`ClosingStretchView.tsx`, `Today.tsx`, `today.ts`); replaces terminal placeholder with calm narrative, 6-day temporal approach indicator, capstone evaluation card with benchmark selector, and 90-day final reflection with localStorage draft persistence; primary arrival CTA invokes `completeGoal` and seamlessly transitions user to the Roman garden; fallback quiet arrival CTA provided; succession-safe "Begin another journey" dialog (`NewJourneyDialog.tsx`) delivered with Radix Dialog; `ProtectedRoute.tsx` and `OnboardingPage.tsx` updated to allow completed goal users into onboarding to create next goal while permanently preserving completed journeys in the database (R-15); 20 new automated tests added (46 frontend test files / 388 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits (D-11 constraint preserved). Phase 9 is IN PROGRESS. M9.5 ready. |
-| 2026-09-27 | Phase 10 M10.2 done: Coach ✦ placed in both desktop `AppRail` and mobile `AppBottomBar` navigation with `Sparkles` icon and premium `text-achievement` accent (VDS §12, §14); `CoachModal.tsx` created using Radix `Dialog` primitives with honest "In development" status, "✦ Coming Soon" eyebrow, companion coaching value proposition, realistic availability note, and "Back to Practice" dismiss button; zero fake chat UI, mock messages, or checkout buttons (ND-11, BP §43); `AppShell.tsx` manages `coachOpen` state and renders `CoachModal`; 10 CoachModal unit tests and 1 AppShell integration test added; 48 frontend test files / 401 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2, OD-1c Decided B). |
-| 2026-09-27 | Phase 10 M10.3 done: Custom Journeys elevated with premium visual treatment in `PathwayCustomGoal.tsx` — accent eyebrow badge `✦ Custom Journey` with `Sparkles` icon, refined heading "Have something unique in mind?", narrative copy "Build a guided 90-day journey around your own ambition…", and crafted container card (`rounded-card`, `border-border/70`, `hover:border-accent/30`, VDS §12); Custom Journey option integrated into `PathwaysExplorerModal.tsx` via `PathwayLibrary customGoal` slot — clicking navigates to `/onboarding` with `{ customGoal: true, switchGoal: true }` (active goal) or `{ customGoal: true }` (no goal), preserving R-15 safety; zero paywall, lock, or pricing UI (ND-10, OD-1c); 3 new explorer modal tests and updated pathway library and StepGoal tests; 47 frontend test files / 402 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2). |
-| 2026-09-27 | Phase 10 M10.6 done: Marketing copy updated to match reality in `frontend/src/components/marketing/sections/Premium.tsx` (D-18, ND-10). Custom Journeys status badge updated from "Planned for Premium" to "Available now · Free" with narrative copy reflecting that custom 90-day journeys are available free today and planned for a future premium tier; Achivii Coach preserved with honest "In development" status and companion vision; section eyebrow elevated to "Premium Architecture"; free reassurance line ("There is no paid plan yet. Everything you can use in Achivii today is free.") preserved; zero fake pricing, billing, or checkout UI (Rule 3.2, BP §43); dedicated test suite created in `Premium.test.tsx` (4/4 tests pass); full test baseline verified (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits. M10.7 ready. |
-| 2026-09-27 | Phase 10 M10.7 done: Full regression verification pass completed across all Phase 10 deliverables (Coach ✦ placement, Custom Journeys elevation, marketing copy alignment, and free-tier integrity per R-2, R-3, R-4, R-15). Responsive layout, 44px touch targets, keyboard accessibility, and 100% marketing/in-app copy parity verified. 48 frontend test files (407 tests) and 22 backend test files (250 tests) pass; 0 TypeScript errors; clean production build. Strict Rule 3.2 backend invariance preserved (0 backend files touched). Phase 10 status is COMPLETE. Phase 11 (Mobile) is unblocked and ready. |
-| 2026-09-27 | Phase 11 M11.1 done: Authoritative mobile device, viewport (360px, 375px, 390px, 412px), browser (iOS Safari, Android Chrome, Playwright mobile), and orientation matrix formally established and documented in `docs/phases.md` (BP §44–46, OD-5, VDS §28–29). Comprehensive 13-step End-to-End Route Walk Protocol and 6-dimension mobile audit checklist formalized. M11.2 issue log structure initialized. Baseline verification clean (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors); zero backend files modified (Rule 3.2). Phase 11 is IN PROGRESS. M11.2 ready. |
-| 2026-09-27 | Phase 11 M11.2 done: End-to-end mobile journey walk executed across all 13 core application steps against the agreed viewport matrix (360px, 375px, 390px, 412px, landscape focus mode) and 6 mobile audit dimensions. 4 concrete issues identified and cataloged in the M11.2 Mobile Issue Log: Focus Mode safe area insets (High, `FocusSessionModal.tsx`), Focus Mode landscape layout and scroll containment (Medium, `FocusSessionModal.tsx`), Focus Mode desktop keyboard hint on touchscreen devices (Low, `FocusTimer.tsx`), and Shell Bottom Bar 6-item label typography crowding at 360px (Low, `AppNavigation.tsx`). Zero backend files modified (Rule 3.2). 48 frontend test files (407 tests) and 22 backend test files (250 tests) pass; 0 TS errors. Phase 11 status is IN PROGRESS. M11.3 (Mobile Fixes) is ready. |
-| 2026-09-27 | Phase 11 M11.3 done: Targeted mobile fixes implemented across all 4 issues from M11.2 Issue Log. Applied `pl/pr/pt/pb-[max(1rem,env(safe-area-inset-*))]` safe area padding to root container in `FocusSessionModal.tsx`; delivered landscape-adaptive side-by-side grid (`landscape:grid-cols-12`, `landscape:col-span-5` timer, `landscape:col-span-7` runner) with clean scroll containment in `FocusSessionModal.tsx`; hidden desktop physical keyboard hint on mobile touchscreens (`hidden sm:block`) in `FocusTimer.tsx`; and harmonized `AppBottomBar` 6-item typography to `text-[11px] sm:text-small` with truncation safety and responsive `ActiveMark` in `AppNavigation.tsx`. Dedicated unit test suite added in `FocusTimer.test.tsx`. 49 frontend test files (410 tests) and 22 backend test files (250 tests) pass; 0 TS errors; clean production build. Zero backend files modified (Rule 3.2). Phase 11 status is IN PROGRESS. M11.4 (Re-Walk and Phase Report) is ready. |
-| 2026-09-27 | Phase 11 M11.4 done: End-to-end mobile re-walk executed across all 13 core steps and 4 target viewports (360px, 375px, 390px, 412px, landscape focus mode). Confirmed all 4 fixes from M11.3 (safe area insets, landscape grid, touch timer ergonomics, and 360px bottom bar typography) function cleanly without regressions. Automated verification clean: 49 frontend test files (410 tests) and 22 backend test files (250 tests) pass; 0 TS errors; clean production build. Rule 3.2 compliance preserved (0 backend files touched). Phase 11 Completion Report authored; Phase 11 status marked COMPLETE. Phase 12 (Global Polish) is unblocked and ready. |
-| 2026-09-27 | Phase 12 M12.1 done: Comprehensive legacy inventory audit completed across 6 categories (hard-coded hex colors, legacy mint tokens, global radius overrides, typography & font imports, dead code & unreachable components, and public pathway imagery). Concrete migration and deletion targets mapped for M12.2 (removal of dead `SaaSBuilderModal.tsx`, obsolete `PlanV2Panel.tsx` and tests, orphaned `images/blueprints/`, unused `--radius-xl/2xl/3xl`, and obsolete `Plus Jakarta Sans`/`JetBrains Mono` imports). Zero backend files modified (Rule 3.2). Phase 12 status is IN PROGRESS. M12.2 (Legacy Removal) is ready. |
-| 2026-09-28 | Phase 12 M12.2 done: Legacy removal executed across the repository. Deleted dead component `SaaSBuilderModal.tsx` (750 lines / 38.9KB), obsolete `PlanV2Panel.tsx` and unit tests `PlanV2Panel.test.tsx` (220 lines / 10.2KB), and orphaned blueprint image directory `frontend/public/images/blueprints/` (6 unused PNGs, 5.4MB freed). Migrated remaining hard-coded colors and mint tokens to canonical semantic tokens: `ProtectedRoute.tsx` spinner to `border-accent/30 border-t-accent`, `index.html` body classes to `bg-background text-text selection:bg-accent/30 selection:text-text`, and `index.css` scrollbars to `var(--color-surface-elevated)` / `var(--color-border-control)`. Completely eliminated `#07CB6C` from the codebase (0 occurrences remaining). Removed legacy radius overrides (`--radius-xl/2xl/3xl`) from `index.css`. Streamlined Google Fonts link in `index.html` to eliminate `Plus Jakarta Sans` and `JetBrains Mono` (~120KB network overhead saved), removed legacy font declarations from `index.css`, and updated `ReviewSummaryCard.tsx` from `font-mono` to `font-ui-mono`. Screen-by-screen visual verification clean. 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build. Rule 3.2 preserved (0 backend files touched). Phase 12 M12.2 is COMPLETE; M12.3 (Imagery Pipeline) is ready. |
-| 2026-09-28 | Phase 12 M12.3 done: Imagery pipeline upgraded, asset optimization executed, and VDS §16 monochrome styling applied. Converted 10 pathway goal assets to modern WebP format and deleted uncompressed legacy files, slashing directory footprint from 5.2MB to 369KB (92.9% reduction, >4.8MB saved). Updated `certifiedPresets.ts` to reference `.webp`. Applied VDS §16 monochrome + restrained treatment to `JourneyHeader.tsx` (grayscale contrast-125 with subtle `bg-accent/10 mix-blend-color` duotone overlay and desaturated ambient glow). Added explicit `width`, `height`, `decoding="async"`, and modern loading strategies across all `<img>` call sites (`AchievementHero.tsx`, `AuthLayout.tsx`, `OnboardingShell.tsx`, `JourneyHeader.tsx`). Generated WebP variants for brand assets `garden.webp` and `staircase.webp`. 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build (3.36s). Rule 3.2 preserved (0 backend files touched). Phase 12 M12.3 is COMPLETE; M12.4 (Accessibility Audit) is ready. |
-| 2026-09-28 | Phase 12 M12.4 done: Comprehensive accessibility audit (Axe + Keyboard + Screen Reader) executed across all 10 core application surfaces, dialogs, and sheets. Automated WCAG 2.1 AA / 2.2 AA axe-core scans verified with 0 violations across desktop, iPhone, and Android viewports. Systematic keyboard navigation confirmed: visible focus rings (`focus-ring`), Radix dialog focus traps, Escape dismissals, programmatic focus restoration to triggering element, and canonical `SkipLink` to `<main id="main">`. Screen-reader semantics verified: single `<h1>` per view, descending hierarchy, non-text Lucide decorative icon hiding (`aria-hidden="true"`), and `role="alert"` / `aria-live` announcements. Surgical component fixes applied (`MarketingNav.tsx`, `LandingPage.tsx`, `FocusHeader.tsx`, `FocusTimer.tsx`, `FocusStepRunner.tsx`, `ClosingStretchView.tsx`). 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build (7.57s). Rule 3.2 preserved (0 backend files touched). Phase 12 M12.4 is COMPLETE; M12.5 (Performance Pass) is ready. |
-| 2026-09-28 | Phase 12 M12.5 done: Performance pass executed across frontend bundling, route loading, long-term browser cacheability, and Core Web Vitals. Implemented route-level code-splitting in `App.tsx` (`OnboardingPage`, `RoadmapPage`, `SignupPage`, `LoginPage` lazy-loaded with Suspense). Configured Rollup `manualChunks` in `vite.config.ts` for isolated vendor bundles (`vendor-react`, `vendor-radix`, `vendor-icons`). Slashed main entry JS bundle by 39.4% (from 611.41 kB down to 370.31 kB / 107.77 kB gzip), eliminating all Rollup >500kB chunk warnings. Core Web Vitals verified: CLS = 0.000 across all routes; LCP < 1.0s on Landing Page and Today. 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build (1.85s). Rule 3.2 preserved (0 backend files touched). Phase 12 M12.5 is COMPLETE; M12.6 (Full Regression & Final Report) is ready. |
-| 2026-09-28 | Phase 12 M12.6 done: Full regression verification pass completed across all 18 core capabilities in the "Must Not Break" register (R-1 through R-18: 100% pass). Final review and update of `Design.md` completed (eliminated legacy font/token references, documented Section 14 Complete Redesign Architecture across Phases 6–12). Automated verification suite clean: 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TypeScript errors; clean production build (1.90s). Rule 3.2 compliance preserved (0 backend files touched). Phase 12 Completion Report and Master Redesign Project Completion Sign-Off authored; Phase 12 and the entire Achivii Redesign Project (Phases 0 through 12) marked COMPLETE. |
-
-
-
-
-
-
-
-
-
+| Date | Change description | Author |
+|---|---|---|
+| 2026-09-28 | Archived previous 12-phase redesign roadmap to `docs/phases_redesign_archive.md` | Phase Roadmap Architect |
+| 2026-09-28 | Generated authoritative 8-phase implementation roadmap for Achivii Pro Membership & Stripe Subscription System (`docs/phases.md`) based on `docs/phases_template.md` and `docs/feature_definition_payment.md` | Phase Roadmap Architect |

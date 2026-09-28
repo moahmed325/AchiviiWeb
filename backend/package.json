@@ -38,6 +38,7 @@
     "express": "^4.21.2",
     "jsonrepair": "3.15.0",
     "prisma": "^6.4.1",
+    "stripe": "^22.6.2",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   },
