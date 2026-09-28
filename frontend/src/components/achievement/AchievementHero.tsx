@@ -152,6 +152,8 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
                 width={682}
                 height={1024}
                 loading="eager"
+                decoding="async"
+                fetchPriority="high"
                 className="h-full w-full object-cover object-center"
               />
               {/* Darkened bottom gradient ensuring high contrast and atmosphere */}

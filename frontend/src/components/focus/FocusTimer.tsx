@@ -42,7 +42,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
         <h2 className="text-h3 font-medium tracking-tight text-text line-clamp-2 leading-snug">
           {taskTitle}
         </h2>
-        <p className="text-micro text-text-secondary font-ui-mono">
+        <p className="hidden sm:block text-micro text-text-secondary font-ui-mono">
           Press <kbd className="px-1.5 py-0.5 rounded-control bg-surface border border-border text-text-secondary">Space</kbd> to {isActive ? 'pause' : 'resume'}
         </p>
       </div>

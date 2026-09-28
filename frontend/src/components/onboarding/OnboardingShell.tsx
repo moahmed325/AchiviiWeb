@@ -32,6 +32,9 @@ export const OnboardingShell: React.FC<OnboardingShellProps> = ({ step, goal, ra
         <img
           src={IMAGE}
           alt=""
+          width={735}
+          height={985}
+          decoding="async"
           className={cx('absolute inset-0 -z-10 size-full object-cover transition-opacity duration-(--duration-slow) ease-settle', IMAGE_OPACITY[step])}
         />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/70 to-background/30" />
@@ -52,7 +55,14 @@ export const OnboardingShell: React.FC<OnboardingShellProps> = ({ step, goal, ra
     <main id="main" className="relative isolate min-w-0 flex-1 px-gutter pb-10 pt-6 lg:px-16 lg:pb-16 lg:pt-14 xl:px-20">
       {step === 'goal' && (
         <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 overflow-hidden lg:hidden">
-          <img src={IMAGE} alt="" className="size-full object-cover object-[center_35%] opacity-30" />
+          <img
+            src={IMAGE}
+            alt=""
+            width={735}
+            height={985}
+            decoding="async"
+            className="size-full object-cover object-[center_35%] opacity-30"
+          />
           <div className="absolute inset-0 bg-gradient-to-b from-background/40 to-background" />
         </div>
       )}

@@ -62,7 +62,15 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ title, description, path
       <SkipLink />
 
       <aside aria-label="Achivii" className="relative isolate hidden overflow-hidden lg:sticky lg:top-0 lg:flex lg:h-[100dvh] lg:flex-col lg:justify-between lg:p-12 xl:p-16">
-        <img src={IMAGE} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover opacity-55" />
+        <img
+          src={IMAGE}
+          alt=""
+          width={735}
+          height={985}
+          decoding="async"
+          loading="lazy"
+          className="absolute inset-0 -z-10 h-full w-full object-cover opacity-55"
+        />
         <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/55 to-background/25" />
         <HomeLink />
         <div className="max-w-md">
@@ -81,7 +89,15 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({ title, description, path
 
       <div className="flex min-h-[100dvh] flex-col">
         <header className="relative isolate overflow-hidden px-gutter pb-6 pt-[max(1rem,env(safe-area-inset-top))] lg:hidden">
-          <img src={IMAGE} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover object-[center_35%] opacity-30" />
+          <img
+            src={IMAGE}
+            alt=""
+            width={735}
+            height={985}
+            decoding="async"
+            loading="lazy"
+            className="absolute inset-0 -z-10 h-full w-full object-cover object-[center_35%] opacity-30"
+          />
           <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-b from-background/40 to-background" />
           <HomeLink />
         </header>

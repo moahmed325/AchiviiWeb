@@ -185,7 +185,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="focus-session-heading"
-      className="fixed inset-0 z-50 bg-background text-text flex flex-col justify-between p-4 sm:p-6 w-full h-full overflow-y-auto select-none"
+      className="fixed inset-0 z-50 bg-background text-text flex flex-col justify-between pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 w-full h-full overflow-y-auto select-none"
     >
       {/* Subtle atmospheric ambient glow */}
       <div
@@ -203,11 +203,11 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       />
 
       {/* Main Focus Stage */}
-      <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-4 sm:py-6">
+      <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-4 sm:py-6 landscape:py-2">
         {!isCelebration ? (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 lg:gap-10 items-center w-full min-h-0">
+          <div className="grid grid-cols-1 md:grid-cols-12 landscape:grid-cols-12 gap-6 lg:gap-10 landscape:gap-4 items-center w-full min-h-0">
             {/* Left Column: Timer Hub */}
-            <div className="md:col-span-5">
+            <div className="md:col-span-5 landscape:col-span-5">
               <FocusTimer
                 taskTitle={task.title}
                 secondsRemaining={secondsRemaining}
@@ -222,7 +222,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
             </div>
 
             {/* Right Column: Deliberate Practice Step Runner */}
-            <div className="md:col-span-7">
+            <div className="md:col-span-7 landscape:col-span-7">
               <FocusStepRunner
                 currentStep={currentStep}
                 currentStepIndex={currentStepIndex}

@@ -37,7 +37,7 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
 
       <div
         className={cx(
-          'mt-1 font-mono text-numeral tabular-nums',
+          'mt-1 font-ui-mono text-numeral tabular-nums',
           isEmptyWeek
             ? 'text-text-secondary'
             : isHighCompletion

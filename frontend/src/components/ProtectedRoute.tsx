@@ -20,8 +20,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (authLoading || (token && loadingGoal)) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
-        <div className="w-8 h-8 border-2 border-[#07CB6C]/30 border-t-[#07CB6C] rounded-full animate-spin" />
-        <p className="text-xs text-neutral-400">Loading your space...</p>
+        <div className="size-8 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+        <p className="text-xs text-text-muted font-ui-mono">Loading your space...</p>
       </div>
     );
   }

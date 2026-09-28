@@ -64,10 +64,18 @@ export const JourneyHeader: React.FC<JourneyHeaderProps> = ({ journey }) => {
         {/* Atmospheric Ambient Glow */}
         {goalImage && (
           <div
-            className="absolute -top-16 right-0 size-72 rounded-full overflow-hidden pointer-events-none opacity-15 blur-3xl"
+            className="absolute -top-16 right-0 size-72 rounded-full overflow-hidden pointer-events-none opacity-15 blur-3xl grayscale"
             aria-hidden="true"
           >
-            <img src={goalImage} alt="" className="w-full h-full object-cover" />
+            <img
+              src={goalImage}
+              alt=""
+              width={288}
+              height={288}
+              decoding="async"
+              loading="lazy"
+              className="w-full h-full object-cover"
+            />
           </div>
         )}
 
@@ -79,9 +87,13 @@ export const JourneyHeader: React.FC<JourneyHeaderProps> = ({ journey }) => {
                 <img
                   src={goalImage}
                   alt={displayGoalTitle}
-                  className="w-full h-full object-cover"
+                  width={80}
+                  height={80}
+                  decoding="async"
+                  className="w-full h-full object-cover grayscale contrast-125 brightness-90"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-transparent" />
+                <div aria-hidden="true" className="absolute inset-0 bg-accent/10 mix-blend-color pointer-events-none" />
+                <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-transparent pointer-events-none" />
               </div>
             )}
 

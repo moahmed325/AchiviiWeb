@@ -77,8 +77,8 @@ Every phase in section 4 uses the same fields:
 | 8 | Progress | `COMPLETE` | 6, 7 | — (ND-8 Decided A) | None beyond Phase 7 |
 | 9 | Achievement | `COMPLETE` | 6, 7 | — (OD-1b Decided B, OD-2 Decided A) | Named: goal completion transition |
 | 10 | Premium architecture | `COMPLETE` | 5, 6 | — (OD-1c, ND-9, ND-10, ND-11 Decided) | None; placement and honest copy only |
-| 11 | Mobile | `NOT STARTED` | 2–10 | OD-5 | None |
-| 12 | Global polish | `NOT STARTED` | 0–11 | — | None |
+| 11 | Mobile | `COMPLETE` | 2–10 | OD-5 | None |
+| 12 | Global polish | `IN PROGRESS` | 0–11 | — | None |
 
 ---
 
@@ -5326,11 +5326,11 @@ R-2, R-3, R-4. Existing custom goals keep working (grandfathering per ND-10).
 
 ## PHASE 11 — MOBILE
 
-**Status:** `NOT STARTED`
+**Status:** `COMPLETE`
 
 **Source:** BP §44–46, OD-5 · VDS §28–29, note 10
 
-**Objective:** a final cross-product mobile sweep. Mobile has been considered in every phase; this phase verifies the whole journey end to end on small screens.
+**Objective:** a final cross-product mobile sweep. Mobile has been considered in every phase (Rule 3.7 / Decision D-12); this phase verifies the whole journey end to end on small screens.
 
 **Narrative line:** the whole story, in one hand.
 
@@ -5347,28 +5347,135 @@ R-2, R-3, R-4. Existing custom goals keep working (grandfathering per ND-10).
 * **Orientation:** portrait-first; landscape doesn't break focus mode.
 * **Open questions:** decide PWA or installability (a new decision if raised) — not assumed.
 
+### Authoritative Testing Matrix (M11.1)
+
+#### 1. Viewport Widths & Target Devices
+| Viewport | Device Representation | Primary Stress Focus |
+|---|---|---|
+| **360px × 800px** | Android compact baseline (Samsung Galaxy A/S compact) | Horizontal overflow / scrollbar prevention; bottom bar flex crowding; compact text truncation; 44px touch targets |
+| **375px × 667px / 812px** | iOS compact baseline (iPhone SE, iPhone mini) | Compact vertical height; modal and dialog sizing; dense form input stacking; keyboard overlap |
+| **390px × 844px** | iOS standard baseline (iPhone 13 / 14 / 15 / 16) | Primary iOS Safari baseline; standard notch and dynamic island safe areas; fluid typography scaling |
+| **412px × 915px** | Android modern standard (Google Pixel 7/8/9, Galaxy Plus) | Standard modern Android layout; high-density display metrics; virtual navigation bar insets |
+
+#### 2. Target Browsers & Rendering Engines
+- **iOS Mobile Safari (WebKit):**
+  * Dynamic navigation URL bar expansion and collapse.
+  * Viewport unit reliability (`100dvh` vs `100vh`).
+  * Safe area insets: `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)`.
+  * iOS input auto-zoom prevention: all form text inputs must use minimum `font-size: 16px` (`text-[16px]` or `text-base`).
+- **Android Chrome (Blink):**
+  * Pull-to-refresh overscroll containment (`overscroll-contain` on root containers).
+  * Virtual keyboard resize behavior (`interactive-widget=resizes-content` / visual viewport).
+  * Touch highlight and tap response (`-webkit-tap-highlight-color`).
+- **Playwright Mobile Emulation (Automated Regression):**
+  * Continuous test verification using Chromium Mobile emulation (`Pixel 5`, `iPhone 13`).
+
+#### 3. Orientations
+- **Portrait:** Default orientation for all screens across the application.
+- **Landscape:** Specifically evaluated for **Focus Mode** (`FocusOverlay.tsx`) on short viewports (~320px–360px vertical height), ensuring timer displays, controls, and completion transitions remain fully visible and operable without clipping.
+
+---
+
+### End-to-End Mobile Journey Walk Protocol (13 Steps)
+
+The systematic audit sequence covering every critical user flow on small screens:
+
+| Step | Flow / Route | Screen / Component | Mobile Verification Focus |
+|---|---|---|---|
+| **1** | Landing Page | `/` (signed out) | Sticky mobile nav (`MarketingNav`), hero typography clamp, pathway rows, Coach card, sticky CTA tap targets |
+| **2** | Auth Routes | `/signup`, `/login` | Mobile header, clean form input focus, password visibility toggle, error alert readability, keyboard safe area |
+| **3** | Onboarding Pathway Selection | `/onboarding` | Pathway card selection, direction tab scrolling, Custom Journey card, input sizing, step advance CTAs |
+| **4** | Journey Generation | `StepGeneration.tsx` | Streamed milestone generation stages, linear progress indicator, cancel safety dialog, mobile layout stability |
+| **5** | Today Dashboard | `/` (signed in) | Action card hierarchy, session detail expansion, "Short on time" 10m toggle, rest day layout, key session badge |
+| **6** | Focus Mode | `FocusOverlay.tsx` | Fullscreen mobile takeover, timer visibility, pause/resume tap targets, landscape orientation resilience, completion |
+| **7** | Weekly Review | `WeeklyReviewModal.tsx` | Bottom sheet presentation, 503 resilience alert, test score recording, reflection draft persistence, adaptation reveal |
+| **8** | Strategic Roadmap | `/roadmap` | Vertical ascending spine (`MobileVerticalJourney`), phase milestone cards, closing stretch indicator, 44px targets |
+| **9** | Progress Analytics | `/progress` | Metric summaries, benchmark results list, weekly adaptation history, no clipped chart or table containers |
+| **10** | Pathways Explorer | `PathwaysExplorerModal.tsx` | Modal/sheet presentation, category switching, Custom Journey handoff, R-15 succession navigation |
+| **11** | Coach Info | `CoachModal.tsx` | Accessible modal presentation, honest "In development" status pill, "Back to Practice" button, focus restoration |
+| **12** | Account Management | `AccountSheet` / Menu | Accessible sheet trigger, user email display, "Reset 90-Day Plan" confirmation dialog, sign-out tap target |
+| **13** | Achievement Destination | `/achievement` | Roman garden hero image portrait crop, deliberate practice stats, results review tabs, "Begin another journey" |
+
+---
+
+### Mobile Audit Verification Dimensions (Checklist)
+
+- [ ] **Viewport Containment:** Zero unintended horizontal scrolling on `body` or `data-shell="content"` at 360px, 375px, 390px, and 412px viewports.
+- [ ] **Touch Targets:** Every interactive button, link, toggle, and tab target meets the minimum `44px × 44px` physical dimension or equivalent hit-area padding (WCAG 2.5.5 / 2.5.8).
+- [ ] **Safe Area Insets:** Fixed and sticky bars (`AppTopBar`, `AppBottomBar`, `MarketingNav`, modal footers) properly observe `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)`.
+- [ ] **Modal & Sheet Scroll Locking:** Opening Radix Dialogs, sheets, or dropdowns cleanly locks background body scroll (`data-scroll-locked`).
+- [ ] **Virtual Keyboard Ergonomics:** Text inputs, textareas, and submission buttons remain accessible and unobstructed when the virtual keyboard is displayed. No unwanted iOS page zoom (inputs >= 16px).
+- [ ] **Visual Performance & Motion:** No laggy `backdrop-blur` over large background images on mobile devices; full support for `prefers-reduced-motion: reduce`.
+
+---
+
 ### Backend allowance
 
-None.
+None. Rule 3.2 strictly applies.
 
 ### Milestones
 
-| ID | Milestone |
-|---|---|
-| M11.1 | Device and browser matrix agreed |
-| M11.2 | End-to-end walk; issues logged |
-| M11.3 | Fixes |
-| M11.4 | Re-walk and phase report |
+| ID | Milestone | Status |
+|---|---|---|
+| M11.1 | Device and browser matrix agreed | COMPLETE |
+| M11.2 | End-to-end walk; issues logged | COMPLETE |
+| M11.3 | Fixes | COMPLETE |
+| M11.4 | Re-walk and phase report | COMPLETE |
+
+### M11.2 Mobile Issue Log
+
+| # | Screen / Route | Viewport / Device | Issue Description | Severity | Resolution / Status |
+|---|---|---|---|---|---|
+| 1 | Focus Mode (`FocusSessionModal.tsx`) | 360px, 375px, 390px, 412px (iOS Safari / Android) | Fullscreen dialog root container uses `p-4 sm:p-6 w-full h-full` but lacks top/bottom safe area insets (`pt-[max(1rem,env(safe-area-inset-top))]`, `pb-[max(1rem,env(safe-area-inset-bottom))]`), risking clipping header controls and brand footer under device notches, dynamic islands, or home bars. | High | Fixed in M11.3 (`FocusSessionModal.tsx`): Applied `pl/pr/pt/pb-[max(1rem,env(safe-area-inset-*))]` to root container. |
+| 2 | Focus Mode (`FocusSessionModal.tsx`) | Mobile Landscape (~320px–390px vertical height) | Below `md` breakpoint, `FocusTimer` (~280px) and `FocusStepRunner` (~280px) stack in a single column (`grid-cols-1`). On short mobile landscape screens, this forces extensive vertical scrolling to access active step controls; above `md`, tight height flex-centering can clip controls. | Medium | Fixed in M11.3 (`FocusSessionModal.tsx`): Added `landscape:grid-cols-12` side-by-side layout (`col-span-5` timer, `col-span-7` runner) and container scroll containment. |
+| 3 | Focus Mode Timer (`FocusTimer.tsx`) | 360px, 375px, 390px, 412px (Mobile Touchscreens) | Timer micro-copy displays desktop physical keyboard shortcut hint (`"Press Space to pause/resume"`), taking up vertical space and offering no functional affordance on mobile touchscreen devices. | Low | Fixed in M11.3 (`FocusTimer.tsx`): Hidden desktop keyboard shortcut hint on mobile viewports with `hidden sm:block`. |
+| 4 | Shell Navigation (`AppNavigation.tsx`) | 360px Android compact (e.g. Galaxy A/S compact) | When an active goal is present, `AppBottomBar` renders 6 navigation items (Today, Roadmap, Progress, Pathways, Coach ✦, Account) across 360px (~56px width per tab). Standard label typography (`text-small` 14px / `text-[10px]`) risks visual crowding on ultra-compact widths. | Low | Fixed in M11.3 (`AppNavigation.tsx`): Standardized `barItem` to `text-[11px] sm:text-small` and harmonized label spans with `truncate max-w-[56px] sm:max-w-none text-center`. |
 
 ### Exit criteria
 
 Every issue from the walk is fixed or explicitly deferred with a reason.
 
+### Phase 11 Completion Report
+
+1. **What changed:**
+   - **Authoritative Testing Matrix & Protocol Formalized (M11.1):**
+     * Formalized the multi-viewport matrix: 360px × 800px (Android compact baseline), 375px × 667px / 812px (iOS compact baseline), 390px × 844px (iOS standard baseline), 412px × 915px (Android modern standard), and landscape focus mode orientation.
+     * Established the 13-step Journey Walk Protocol and 6-dimension verification checklist (viewport containment, touch targets, safe area insets, sheet scroll locking, keyboard ergonomics, and visual performance/motion).
+   - **Comprehensive 13-Step Mobile Journey Walk & Issue Logging (M11.2):**
+     * Audited all 13 core application steps across viewports against the 6 verification dimensions.
+     * Verified clean passes for Landing, Auth, Onboarding, Generation, Today, Weekly Review, Roadmap, Progress, Pathways Explorer, Coach Modal, Account Sheet, and Achievement.
+     * Identified and cataloged 4 targeted issues in the `M11.2 Mobile Issue Log` spanning Focus Mode safe areas, landscape grid layout, touchscreen shortcut hints, and 360px bottom bar typography.
+   - **Targeted Mobile Fixes Delivered (M11.3):**
+     * **Focus Mode Safe Areas (`FocusSessionModal.tsx`):** Applied `pl/pr/pt/pb-[max(1rem,env(safe-area-inset-*))]` padding to the fullscreen dialog container, ensuring header controls (mute, close) and brand footer maintain safe margins from hardware notches, dynamic islands, and home swipe bars.
+     * **Focus Mode Landscape Layout (`FocusSessionModal.tsx`):** Delivered responsive side-by-side columns on mobile landscape (`landscape:grid-cols-12` with `landscape:col-span-5` timer and `landscape:col-span-7` runner) alongside internal scroll containment, eliminating the need for excessive vertical scrolling on short screens (~320px–390px).
+     * **Focus Timer Touchscreen Ergonomics (`FocusTimer.tsx`):** Hidden the desktop-only Spacebar shortcut hint on mobile viewports (`hidden sm:block`), saving vertical space on touchscreens while preserving it on desktop.
+     * **Shell Bottom Bar Typography & Truncation (`AppNavigation.tsx`):** Harmonized base item typography to `text-[11px] sm:text-small font-medium tracking-tight`, added label truncation safety (`truncate max-w-[56px] sm:max-w-none text-center`), and updated `ActiveMark` insets (`inset-x-3 sm:inset-x-6`) across all 6 tabs for clean layout at 360px.
+     * **Unit Test Coverage (`FocusTimer.test.tsx`):** Added a dedicated test suite verifying timer rendering, controls, and mobile keyboard hint hiding.
+   - **Re-Walk Validation & Verification (M11.4):**
+     * Re-walked the 13 core steps across 360px, 375px, 390px, 412px, and landscape focus mode.
+     * Verified zero horizontal document overflow, >= 44px tap targets, clean safe area insets, scroll locking on sheets/dialogs, and smooth settled animations under `prefers-reduced-motion: reduce`.
+
+2. **What did not change:**
+   - **Zero backend modifications (Rule 3.2):** 0 backend files, schemas, or routes modified.
+   - **Preserved core business logic:** All timers, audio cues, pause/resume state machines, step completion handlers, and navigation routes remain identical.
+   - **Zero speculative code:** No speculative PWA or installability code introduced.
+
+3. **Authoritative Verification Evidence:**
+   - **Frontend Vitest Suite:** 49 test files passed / 410 tests passed (`npm test --workspace=frontend`).
+   - **Backend Vitest Suite:** 22 test files passed / 250 tests passed (`npm test --workspace=backend`).
+   - **Frontend Type Check:** 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
+   - **Frontend Production Build:** Built cleanly in 3.45s (`dist/` generated with code-split chunks).
+   - **Rule 3.2 / Decision D-11 Compliance:** 0 backend files modified in Phase 11.
+
+4. **Carry-overs:** None (all 4 logged issues resolved and verified).
+
+5. **Next Phase:** Phase 12 (Global Polish) is unblocked and ready to begin.
+
 ---
 
 ## PHASE 12 — GLOBAL POLISH
 
-**Status:** `NOT STARTED`
+**Status:** `IN PROGRESS`
 
 **Source:** BP §38–39, §41, §49 (Phase 12) · VDS §29, §31–32, notes 1, 4, 8, 10, 11
 
@@ -5402,14 +5509,169 @@ None.
 
 ### Milestones
 
-| ID | Milestone |
-|---|---|
-| M12.1 | Legacy inventory (what's still used, where) |
-| M12.2 | Legacy removal, verified screen by screen |
-| M12.3 | Imagery pipeline and asset replacement |
-| M12.4 | Accessibility audit and fixes |
-| M12.5 | Performance pass |
-| M12.6 | Full regression and final report |
+| ID | Milestone | Status |
+|---|---|---|
+| M12.1 | Legacy inventory (what's still used, where) | COMPLETE |
+| M12.2 | Legacy removal, verified screen by screen | COMPLETE |
+| M12.3 | Imagery pipeline and asset replacement | COMPLETE |
+| M12.4 | Accessibility audit and fixes | READY |
+| M12.5 | Performance pass | PLANNED |
+| M12.6 | Full regression and final report | PLANNED |
+
+### M12.3 Imagery Optimization Summary
+
+Milestone M12.3 upgraded the image asset pipeline, applied VDS §16 monochrome styling to product imagery, eliminated Cumulative Layout Shift (CLS) via explicit dimension attributes and modern loading strategies, and converted assets into high-efficiency WebP formats:
+
+#### 1. Asset Optimization & WebP Conversion
+* **Pathway Goal Assets (`frontend/public/images/goals/`):**
+  - Converted and compressed all 10 certified preset goal assets (`saas`, `run10k`, `guitar`, `spanish`, `recomp`, `youtube`, `book`, `deepwork`, `chess`, `speech`) into modern, high-efficiency WebP format (~800px max dimension, quality ~75–80%).
+  - Deleted obsolete uncompressed 700KB–866KB legacy JPG/PNG files.
+  - **Directory Size Reduction:** Slashed from **5,200 KB (5.2 MB)** down to **369 KB** (a **92.9% reduction**, saving over 4.8MB).
+  - Updated all image path references in `frontend/src/lib/certifiedPresets.ts` (`CERTIFIED_PATHWAYS` and `getGoalImage` default fallbacks) to `.webp`.
+* **Brand Master Assets (`frontend/public/images/brand/`):**
+  - Optimized `garden.jpg` (down to 247 KB) and generated `garden.webp` (204 KB).
+  - Generated `staircase.webp` (18.7 KB, down from 33.8 KB).
+
+#### 2. VDS §16 "Monochrome + Restrained" Product Image Treatment
+* **`frontend/src/components/journey/JourneyHeader.tsx`:**
+  - Applied desaturation and contrast filter (`grayscale contrast-125 brightness-90`) to the goal identity thumbnail so photographs conform to the deep architectural aesthetic.
+  - Added subtle duotone overlay with design system tokens (`bg-accent/10 mix-blend-color` + vertical gradient fade) to harmonize photographs with the botanical/stone palette.
+  - Desaturated the ambient background glow (`grayscale opacity-15 blur-3xl`) to eliminate distracting neon color casts behind the goal card.
+
+#### 3. CLS Elimination & Image Loading Attributes
+* Audited and updated all `<img>` elements across the application with explicit `width`, `height`, and asynchronous decoding:
+  - `JourneyHeader.tsx`: Added `width={80} height={80} decoding="async"` on thumbnail; `width={288} height={288} decoding="async" loading="lazy"` on ambient glow.
+  - `AchievementHero.tsx`: Added `width={682} height={1024} decoding="async" fetchPriority="high"` on above-the-fold hero image.
+  - `AuthLayout.tsx`: Added `width={735} height={985} decoding="async" loading="lazy"` on both desktop and mobile staircase imagery.
+  - `OnboardingShell.tsx`: Added `width={735} height={985} decoding="async"` on both desktop aside and mobile header staircase imagery.
+  - `Journey.tsx` & `Achievement.tsx`: Confirmed explicit dimensions (`width`, `height`, `decoding="async"`, `loading="lazy"`).
+
+#### 4. Automated Verification Results
+* **TypeScript Check:** `tsc --noEmit -p frontend` -> **0 errors**.
+* **Frontend Vitest Suite:** `npm test --workspace=frontend -- --run` -> **48 passed / 405 tests passed (100%)**.
+* **Backend Vitest Suite:** `npm test --workspace=backend -- --fileParallelism=false --run` -> **22 passed / 250 tests passed (100%)**.
+* **Frontend Production Build:** `npm run build --workspace=frontend` -> clean build in 3.36s.
+* **Rule 3.2 Compliance:** Exactly 0 backend files modified.
+
+### M12.2 Completion Summary
+
+Milestone M12.2 executed the targeted legacy cleanup and migration cataloged in M12.1:
+
+#### 1. Dead Code and Asset Deletions
+* **`frontend/src/components/SaaSBuilderModal.tsx`**: Deleted (750 lines / 38.9KB dead code removed; had 0 imports across the codebase).
+* **`frontend/src/components/PlanV2Panel.tsx`**: Deleted (140 lines / 6.8KB obsolete weekly panel removed).
+* **`frontend/src/components/PlanV2Panel.test.tsx`**: Deleted (80 lines / 3.4KB obsolete unit tests removed).
+* **`frontend/public/images/blueprints/`**: Deleted entire directory with 6 unused PNG images (`distributed-systems.png`, `half-marathon.png`, `mindfulness.png`, `saas-mvp.png`, `spanish-b1.png`, `write-book.png`), reducing repository footprint by **5.4MB**.
+
+#### 2. Hard-Coded Color & Mint Token Migration
+* **`frontend/src/components/ProtectedRoute.tsx`**:
+  - Replaced hard-coded spinner border: `border-2 border-[#07CB6C] border-t-transparent` -> `border-2 border-accent/30 border-t-accent`.
+  - Replaced loading copy class with semantic typography: `text-xs text-text-muted font-ui-mono`.
+* **`frontend/index.html`**:
+  - Replaced hard-coded `<body>` classes:
+    - From: `bg-[#050807] text-[#e5ebe7] selection:bg-[#07CB6C] selection:text-[#050807] min-h-screen font-sans antialiased`
+    - To: `bg-background text-text selection:bg-accent/30 selection:text-text min-h-screen antialiased`
+* **`frontend/src/index.css`**:
+  - Replaced custom scrollbar hex colors:
+    - Track: `#1a2824` -> `var(--color-surface-elevated)`
+    - Thumb: `#233830` -> `var(--color-border-control)`
+    - Thumb hover: `#233830` -> `var(--color-border)`
+* **Total `#07CB6C` remaining:** **0 occurrences** across the entire repository.
+
+#### 3. Radius Override Removal
+* **`frontend/src/index.css`**:
+  - Removed lines 121–123 (`--radius-xl: 0.375rem; --radius-2xl: 0.375rem; --radius-3xl: 0.375rem;`).
+  - Active UI retains canonical VDS radii (`rounded-control`, `rounded-card`, `rounded-panel`, `rounded-full`) with zero distortion.
+
+#### 4. Typography & Font Streamlining
+* **`frontend/index.html`**:
+  - Updated Google Fonts `<link>` from:
+    `family=Geist:wght@300..700&family=Geist+Mono:wght@400..500&family=Plus+Jakarta+Sans:wght@300..800&family=JetBrains+Mono:wght@400..600&display=swap`
+    to:
+    `family=Geist:wght@300..700&family=Geist+Mono:wght@400..500&display=swap`
+  - Eliminates network requests and payload for `Plus Jakarta Sans` and `JetBrains Mono` (~120KB network overhead saved).
+* **`frontend/src/index.css`**:
+  - Removed legacy `--font-sans` and `--font-mono` CSS variable definitions.
+  - Confirmed `--font-ui` and `--font-ui-mono` are the canonical typeface definitions.
+  - Updated `code, pre, kbd, samp` rule to `font-family: var(--font-ui-mono)`.
+* **`frontend/src/components/review/ReviewSummaryCard.tsx`**:
+  - Updated numeral container class from `font-mono` to canonical `font-ui-mono`.
+
+#### 5. Screen-by-Screen Visual Integrity
+* **Marketing Landing (`/` signed out):** Verified typography rendering with Geist, hero illustration and all sections intact.
+* **Auth (`/login`, `/signup`):** Forms, inputs, and states clean and functional.
+* **ProtectedRoute Spinner:** Clean botanical emerald spinner (`border-accent/30 border-t-accent`) on dark background.
+* **Today Dashboard (`/` signed in):** Action card, focus timer, next session preview, and weekly glance intact.
+* **Strategic Roadmap (`/roadmap`):** Desktop staircase and mobile vertical journey intact with correct radii and monospace counters.
+* **Progress (`/progress`):** Progress cards, benchmark history, and charts intact.
+* **Coach Modal & Pathways Explorer:** Radix modals open cleanly with canonical corner curves.
+* **Achievement (`/achievement`):** Roman garden hero and capstone results render cleanly.
+
+#### 6. Verification Results
+* **TypeScript Check:** `tsc --noEmit -p frontend` -> **0 errors**.
+* **Frontend Vitest Suite:** `npm test --workspace=frontend -- --run` -> **48 passed / 405 tests passed (100%)**.
+* **Backend Vitest Suite:** `npm test --workspace=backend -- --fileParallelism=false --run` -> **22 passed / 250 tests passed (100%)**.
+* **Frontend Production Build:** `npm run build --workspace=frontend` -> clean build in 4.05s.
+* **Rule 3.2 Compliance:** Exactly 0 backend files modified.
+
+### M12.1 Legacy Inventory Report
+
+An exhaustive audit of the frontend codebase (`frontend/src/` and `frontend/public/`) was conducted to identify, count, and classify all legacy artifacts:
+
+#### Category 1: Hard-Coded Hex Color Codes
+* **Total Occurrences:** 115 across the repository:
+  - `frontend/src/components/SaaSBuilderModal.tsx`: **69 occurrences** (candidate for complete removal in M12.2 as dead code).
+  - `frontend/src/components/marketing/StaircaseScene.tsx`: **18 occurrences** (deliberate canvas art gradient tokens for the hero SVG staircase; VDS §15 / §25 compliant).
+  - `frontend/src/index.css`: **17 occurrences** (14 canonical design tokens + 3 custom scrollbar hexes `#1a2824` / `#233830` to be tokenized).
+  - `frontend/src/components/PlanV2Panel.tsx`: **10 occurrences** (candidate for removal in M12.2 along with `PlanV2Panel.test.tsx` as obsolete dashboard view).
+  - `frontend/src/index.html`: **4 occurrences** (`bg-[#050807]`, `text-[#e5ebe7]`, `selection:bg-[#07CB6C]`, `selection:text-[#050807]`; to be migrated to semantic classes).
+  - `frontend/src/components/ProtectedRoute.tsx`: **1 occurrence** (loading spinner `#07CB6C` to be migrated to `border-accent/30 border-t-accent`).
+* **Active Migration Need:** Only 2 files in the active app bundle (`ProtectedRoute.tsx` and `index.html`) require hex color replacement; the rest reside in dead/orphaned components slated for deletion.
+
+#### Category 2: Legacy Mint Tokens (`#07CB6C` & variations)
+* **`#07CB6C` References:** 42 total occurrences:
+  - `SaaSBuilderModal.tsx`: 34 occurrences (dead code).
+  - `PlanV2Panel.tsx`: 7 occurrences (obsolete).
+  - `ProtectedRoute.tsx`: 1 occurrence (loading spinner).
+* **`mint` string tokens:** 0 occurrences across `frontend/src/`.
+* **Tailwind `emerald-*` or `green-*` utilities:** 0 occurrences in `frontend/src/`.
+
+#### Category 3: Radius Overrides
+* **`index.css` (lines 121–123):**
+  - `--radius-xl: 0.375rem;`
+  - `--radius-2xl: 0.375rem;`
+  - `--radius-3xl: 0.375rem;`
+* **Active Component Usage:** **0 occurrences** across all files in `frontend/src/`. All active UI components have already migrated to canonical VDS radii (`rounded-control`, `rounded-card`, `rounded-panel`, `rounded-full`).
+* **Action for M12.2:** Remove the 3 override lines cleanly from `index.css`.
+
+#### Category 4: Typography & Font Imports
+* **`index.html` (line 12):**
+  - Currently loads Google Fonts: `Geist` (300..700), `Geist Mono` (400..500), `Plus Jakarta Sans` (300..800), and `JetBrains Mono` (400..600).
+  - `Plus Jakarta Sans` and `JetBrains Mono` are obsolete font families adding ~120KB of unnecessary network overhead.
+* **`index.css` (lines 117–118):**
+  - Defines `--font-sans: 'Plus Jakarta Sans' ...` and `--font-mono: 'JetBrains Mono' ...`.
+* **Active Usage:**
+  - `index.html` body uses `font-sans` (to be removed; `:root` sets `font-family: var(--font-ui)`).
+  - `ReviewSummaryCard.tsx` uses `font-mono` (to be updated to canonical `font-ui-mono`).
+* **Action for M12.2:** Remove `Plus Jakarta Sans` and `JetBrains Mono` from `index.html` and `index.css`.
+
+#### Category 5: Dead Code & Unreachable Components
+* **`frontend/src/components/SaaSBuilderModal.tsx`:**
+  - 750 lines / 38.9KB.
+  - Zero imports across the entire workspace (verified via ripgrep). Dead legacy prototype component.
+* **`frontend/src/components/PlanV2Panel.tsx` & `PlanV2Panel.test.tsx`:**
+  - 140 lines (component) / 80 lines (test).
+  - Zero imports outside its own test. Obsolete weekly panel superseded by Phase 6 Journey/Roadmap.
+* **`frontend/public/images/blueprints/`:**
+  - 6 PNG images (5.4MB) completely unreferenced in the codebase (`distributed-systems.png`, `half-marathon.png`, `mindfulness.png`, `saas-mvp.png`, `spanish-b1.png`, `write-book.png`).
+* **Action for M12.2:** Delete `SaaSBuilderModal.tsx`, `PlanV2Panel.tsx`, `PlanV2Panel.test.tsx`, and `public/images/blueprints/`.
+
+#### Category 6: Public Pathway Imagery
+* **`frontend/public/images/brand/`:**
+  - `staircase.jpg` (33KB) and `garden.jpg` (298KB). Actively used in marketing and achievement flows.
+* **`frontend/public/images/goals/`:**
+  - 10 JPEGs/PNGs (5.2MB total). Referenced only in `certifiedPresets.ts` to provide atmospheric blurred background glow in `JourneyHeader.tsx`.
+* **Action for M12.3:** Optimize image sizes and evaluate monochrome/restrained asset treatment.
 
 ### Exit criteria
 
@@ -5636,6 +5898,13 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 10 M10.3 done: Custom Journeys elevated with premium visual treatment in `PathwayCustomGoal.tsx` — accent eyebrow badge `✦ Custom Journey` with `Sparkles` icon, refined heading "Have something unique in mind?", narrative copy "Build a guided 90-day journey around your own ambition…", and crafted container card (`rounded-card`, `border-border/70`, `hover:border-accent/30`, VDS §12); Custom Journey option integrated into `PathwaysExplorerModal.tsx` via `PathwayLibrary customGoal` slot — clicking navigates to `/onboarding` with `{ customGoal: true, switchGoal: true }` (active goal) or `{ customGoal: true }` (no goal), preserving R-15 safety; zero paywall, lock, or pricing UI (ND-10, OD-1c); 3 new explorer modal tests and updated pathway library and StepGoal tests; 47 frontend test files / 402 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2). |
 | 2026-09-27 | Phase 10 M10.6 done: Marketing copy updated to match reality in `frontend/src/components/marketing/sections/Premium.tsx` (D-18, ND-10). Custom Journeys status badge updated from "Planned for Premium" to "Available now · Free" with narrative copy reflecting that custom 90-day journeys are available free today and planned for a future premium tier; Achivii Coach preserved with honest "In development" status and companion vision; section eyebrow elevated to "Premium Architecture"; free reassurance line ("There is no paid plan yet. Everything you can use in Achivii today is free.") preserved; zero fake pricing, billing, or checkout UI (Rule 3.2, BP §43); dedicated test suite created in `Premium.test.tsx` (4/4 tests pass); full test baseline verified (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits. M10.7 ready. |
 | 2026-09-27 | Phase 10 M10.7 done: Full regression verification pass completed across all Phase 10 deliverables (Coach ✦ placement, Custom Journeys elevation, marketing copy alignment, and free-tier integrity per R-2, R-3, R-4, R-15). Responsive layout, 44px touch targets, keyboard accessibility, and 100% marketing/in-app copy parity verified. 48 frontend test files (407 tests) and 22 backend test files (250 tests) pass; 0 TypeScript errors; clean production build. Strict Rule 3.2 backend invariance preserved (0 backend files touched). Phase 10 status is COMPLETE. Phase 11 (Mobile) is unblocked and ready. |
+| 2026-09-27 | Phase 11 M11.1 done: Authoritative mobile device, viewport (360px, 375px, 390px, 412px), browser (iOS Safari, Android Chrome, Playwright mobile), and orientation matrix formally established and documented in `docs/phases.md` (BP §44–46, OD-5, VDS §28–29). Comprehensive 13-step End-to-End Route Walk Protocol and 6-dimension mobile audit checklist formalized. M11.2 issue log structure initialized. Baseline verification clean (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors); zero backend files modified (Rule 3.2). Phase 11 is IN PROGRESS. M11.2 ready. |
+| 2026-09-27 | Phase 11 M11.2 done: End-to-end mobile journey walk executed across all 13 core application steps against the agreed viewport matrix (360px, 375px, 390px, 412px, landscape focus mode) and 6 mobile audit dimensions. 4 concrete issues identified and cataloged in the M11.2 Mobile Issue Log: Focus Mode safe area insets (High, `FocusSessionModal.tsx`), Focus Mode landscape layout and scroll containment (Medium, `FocusSessionModal.tsx`), Focus Mode desktop keyboard hint on touchscreen devices (Low, `FocusTimer.tsx`), and Shell Bottom Bar 6-item label typography crowding at 360px (Low, `AppNavigation.tsx`). Zero backend files modified (Rule 3.2). 48 frontend test files (407 tests) and 22 backend test files (250 tests) pass; 0 TS errors. Phase 11 status is IN PROGRESS. M11.3 (Mobile Fixes) is ready. |
+| 2026-09-27 | Phase 11 M11.3 done: Targeted mobile fixes implemented across all 4 issues from M11.2 Issue Log. Applied `pl/pr/pt/pb-[max(1rem,env(safe-area-inset-*))]` safe area padding to root container in `FocusSessionModal.tsx`; delivered landscape-adaptive side-by-side grid (`landscape:grid-cols-12`, `landscape:col-span-5` timer, `landscape:col-span-7` runner) with clean scroll containment in `FocusSessionModal.tsx`; hidden desktop physical keyboard hint on mobile touchscreens (`hidden sm:block`) in `FocusTimer.tsx`; and harmonized `AppBottomBar` 6-item typography to `text-[11px] sm:text-small` with truncation safety and responsive `ActiveMark` in `AppNavigation.tsx`. Dedicated unit test suite added in `FocusTimer.test.tsx`. 49 frontend test files (410 tests) and 22 backend test files (250 tests) pass; 0 TS errors; clean production build. Zero backend files modified (Rule 3.2). Phase 11 status is IN PROGRESS. M11.4 (Re-Walk and Phase Report) is ready. |
+| 2026-09-27 | Phase 11 M11.4 done: End-to-end mobile re-walk executed across all 13 core steps and 4 target viewports (360px, 375px, 390px, 412px, landscape focus mode). Confirmed all 4 fixes from M11.3 (safe area insets, landscape grid, touch timer ergonomics, and 360px bottom bar typography) function cleanly without regressions. Automated verification clean: 49 frontend test files (410 tests) and 22 backend test files (250 tests) pass; 0 TS errors; clean production build. Rule 3.2 compliance preserved (0 backend files touched). Phase 11 Completion Report authored; Phase 11 status marked COMPLETE. Phase 12 (Global Polish) is unblocked and ready. |
+| 2026-09-27 | Phase 12 M12.1 done: Comprehensive legacy inventory audit completed across 6 categories (hard-coded hex colors, legacy mint tokens, global radius overrides, typography & font imports, dead code & unreachable components, and public pathway imagery). Concrete migration and deletion targets mapped for M12.2 (removal of dead `SaaSBuilderModal.tsx`, obsolete `PlanV2Panel.tsx` and tests, orphaned `images/blueprints/`, unused `--radius-xl/2xl/3xl`, and obsolete `Plus Jakarta Sans`/`JetBrains Mono` imports). Zero backend files modified (Rule 3.2). Phase 12 status is IN PROGRESS. M12.2 (Legacy Removal) is ready. |
+| 2026-09-28 | Phase 12 M12.2 done: Legacy removal executed across the repository. Deleted dead component `SaaSBuilderModal.tsx` (750 lines / 38.9KB), obsolete `PlanV2Panel.tsx` and unit tests `PlanV2Panel.test.tsx` (220 lines / 10.2KB), and orphaned blueprint image directory `frontend/public/images/blueprints/` (6 unused PNGs, 5.4MB freed). Migrated remaining hard-coded colors and mint tokens to canonical semantic tokens: `ProtectedRoute.tsx` spinner to `border-accent/30 border-t-accent`, `index.html` body classes to `bg-background text-text selection:bg-accent/30 selection:text-text`, and `index.css` scrollbars to `var(--color-surface-elevated)` / `var(--color-border-control)`. Completely eliminated `#07CB6C` from the codebase (0 occurrences remaining). Removed legacy radius overrides (`--radius-xl/2xl/3xl`) from `index.css`. Streamlined Google Fonts link in `index.html` to eliminate `Plus Jakarta Sans` and `JetBrains Mono` (~120KB network overhead saved), removed legacy font declarations from `index.css`, and updated `ReviewSummaryCard.tsx` from `font-mono` to `font-ui-mono`. Screen-by-screen visual verification clean. 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build. Rule 3.2 preserved (0 backend files touched). Phase 12 M12.2 is COMPLETE; M12.3 (Imagery Pipeline) is ready. |
+| 2026-09-28 | Phase 12 M12.3 done: Imagery pipeline upgraded, asset optimization executed, and VDS §16 monochrome styling applied. Converted 10 pathway goal assets to modern WebP format and deleted uncompressed legacy files, slashing directory footprint from 5.2MB to 369KB (92.9% reduction, >4.8MB saved). Updated `certifiedPresets.ts` to reference `.webp`. Applied VDS §16 monochrome + restrained treatment to `JourneyHeader.tsx` (grayscale contrast-125 with subtle `bg-accent/10 mix-blend-color` duotone overlay and desaturated ambient glow). Added explicit `width`, `height`, `decoding="async"`, and modern loading strategies across all `<img>` call sites (`AchievementHero.tsx`, `AuthLayout.tsx`, `OnboardingShell.tsx`, `JourneyHeader.tsx`). Generated WebP variants for brand assets `garden.webp` and `staircase.webp`. 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build (3.36s). Rule 3.2 preserved (0 backend files touched). Phase 12 M12.3 is COMPLETE; M12.4 (Accessibility Audit) is ready. |
 
 
 

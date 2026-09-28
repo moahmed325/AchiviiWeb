@@ -49,7 +49,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'From clean relational schema to Stripe billing & first paying user',
     dailyMinutes: 45,
     badge: 'Eric Ries Lean Startup & Vertical Slice Architecture',
-    image: '/images/goals/saas.jpg',
+    image: '/images/goals/saas.webp',
     coach: 'Vertical Slice & Stripe Billing',
     p1: { name: 'Foundation', focus: 'Domain model, authentication & core pipeline (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'Billing integration, user workflows & UX polish (Weeks 5–8)' },
@@ -71,7 +71,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'Progressive aerobic base, 170+ SPM cadence & threshold pacing',
     dailyMinutes: 35,
     badge: 'Jack Daniels VDOT & 80/20 Polarized Base',
-    image: '/images/goals/run10k.jpg',
+    image: '/images/goals/run10k.webp',
     coach: 'Jack Daniels VDOT Formula',
     p1: { name: 'Foundation', focus: 'Aerobic base & cadence rhythm (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'Threshold intervals & stamina expansion (Weeks 5–8)' },
@@ -93,7 +93,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'Fingerstyle mechanics, metronome switches & memory playthrough',
     dailyMinutes: 30,
     badge: 'JustinGuitar Grade 1 & Berklee Ergonomics',
-    image: '/images/goals/guitar.jpg',
+    image: '/images/goals/guitar.webp',
     coach: 'JustinGuitar 1-Min Switches',
     p1: { name: 'Foundation', focus: 'Chord transitions, finger dexterity & metronome timing (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'Fingerstyle patterns, syncopation & barre chords (Weeks 5–8)' },
@@ -115,7 +115,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: '500 core verbs, high-frequency frames & spoken vocalization drills',
     dailyMinutes: 30,
     badge: 'Stephen Krashen Input & Michel Thomas Verbal Production',
-    image: '/images/goals/spanish.png',
+    image: '/images/goals/spanish.webp',
     coach: 'Krashen Natural Order',
     p1: { name: 'Foundation', focus: 'Core 500 active verbs & high-frequency sentence frames (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'Spontaneous response drills & audio comprehension (Weeks 5–8)' },
@@ -137,7 +137,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'Helms nutrition deficit, 2.0g/kg protein, RIR hypertrophy & 48-hr refeeds',
     dailyMinutes: 60,
     badge: 'Eric Helms Nutrition Pyramid & Schoenfeld Hypertrophy',
-    image: '/images/goals/recomp.jpg',
+    image: '/images/goals/recomp.webp',
     coach: 'Renaissance Periodization',
     p1: { name: 'Foundation', focus: 'Baseline deficit calibration & hypertrophy motor patterns (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'Progressive overload, 3s eccentrics & mid-point refeed (Weeks 5–8)' },
@@ -159,7 +159,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'MrBeast retention curves, Ali Abdaal batching & 4-hour lean edits',
     dailyMinutes: 60,
     badge: 'MrBeast 50% Retention & Ali Abdaal Creator Engine',
-    image: '/images/goals/youtube.jpg',
+    image: '/images/goals/youtube.webp',
     coach: 'Paddy Galloway Packaging',
     p1: { name: 'Foundation', focus: 'Packaging, 10-idea spreadsheet & batch production loop (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'First-30-second retention hooks & 4-hour lean editing (Weeks 5–8)' },
@@ -181,7 +181,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'Stephen King closed-door quotas, Pressfield War of Art & Zinsser pruning',
     dailyMinutes: 60,
     badge: 'Steven Pressfield War of Art & William Zinsser On Writing Well',
-    image: '/images/goals/book.jpg',
+    image: '/images/goals/book.webp',
     coach: 'Stephen King Daily Quotas',
     p1: { name: 'Foundation', focus: 'The 3-beat chapter arc, daily word quota & drafting momentum (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'Closed-door zero-editing sprint & 25,000 words banked (Weeks 5–8)' },
@@ -203,7 +203,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'Cal Newport attention residue, Huberman 90m ultradian cycles & shutdown ritual',
     dailyMinutes: 60,
     badge: 'Cal Newport Deep Work & Andrew Huberman Focus Protocols',
-    image: '/images/goals/deepwork.jpg',
+    image: '/images/goals/deepwork.webp',
     coach: 'Cal Newport Law of Focus',
     p1: { name: 'Foundation', focus: 'Digital perimeter lockdown, distraction notepad & 2h focus (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: '90m ultradian cycles, communication batching & 3.5h focus (Weeks 5–8)' },
@@ -225,7 +225,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'Woodpecker spaced repetition puzzles, Silman LPDO scans & CCT pause',
     dailyMinutes: 45,
     badge: 'Axel Smith Woodpecker Method & Jeremy Silman Imbalance Architecture',
-    image: '/images/goals/chess.jpg',
+    image: '/images/goals/chess.webp',
     coach: 'Dan Heisman Real Chess',
     p1: { name: 'Foundation', focus: 'Tactical motifs (pins/forks), CCT blunder checks & 800+ rating (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'Silman LPDO scans, King+Rook/Pawn endgames & 1000+ rating (Weeks 5–8)' },
@@ -247,7 +247,7 @@ export const CERTIFIED_PATHWAYS: CertifiedPathway[] = [
     desc: 'Carmine Gallo 15-word throughline, Toastmasters silence pauses & Duarte sparklines',
     dailyMinutes: 45,
     badge: 'Carmine Gallo Talk Like TED & Toastmasters International',
-    image: '/images/goals/speech.jpg',
+    image: '/images/goals/speech.webp',
     coach: 'Toastmasters Vocal Dynamics',
     p1: { name: 'Foundation', focus: '15-word throughline lock, 3-act storyboard & 5m memory delivery (Weeks 1–4)' },
     p2: { name: 'Acceleration', focus: 'Vocal variety, silence substitution & 12m unbroken video run (Weeks 5–8)' },
@@ -298,7 +298,7 @@ export function findPathwayByTitle(goalText: string | null | undefined): Certifi
 }
 
 export function getGoalImage(goalTitleOrOutcome?: string): string {
-  if (!goalTitleOrOutcome) return '/images/goals/saas.jpg';
+  if (!goalTitleOrOutcome) return '/images/goals/saas.webp';
   const query = goalTitleOrOutcome.toLowerCase();
   const matched = CERTIFIED_PATHWAYS.find((p) => {
     const idMatch = query.includes(p.id);
@@ -317,6 +317,6 @@ export function getGoalImage(goalTitleOrOutcome?: string): string {
       (p.id === 'speech' && (query.includes('speech') || query.includes('speaking') || query.includes('oratory') || query.includes('presentation') || query.includes('talk')));
     return idMatch || labelMatch || titleMatch || keywordMatch;
   });
-  return matched?.image || '/images/goals/saas.jpg';
+  return matched?.image || '/images/goals/saas.webp';
 }
 

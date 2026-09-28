@@ -95,7 +95,7 @@ export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCo
 
 const barItem = (active: boolean) =>
   cx(
-    'focus-ring-inset relative flex min-h-16 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-control text-small',
+    'focus-ring-inset relative flex min-h-16 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-control text-[11px] sm:text-small font-medium tracking-tight',
     'transition-colors duration-(--duration-quick)',
     active ? 'text-text' : 'text-text-secondary hover:text-text',
   );
@@ -105,7 +105,7 @@ const BarIcon: React.FC<{ icon: LucideIcon; active?: boolean }> = ({ icon: Icon,
 );
 
 /** The active item carries a mark as well as colour, so the state is not colour alone. */
-const ActiveMark: React.FC = () => <span aria-hidden="true" className="absolute inset-x-6 top-0 h-0.5 rounded-full bg-accent" />;
+const ActiveMark: React.FC = () => <span aria-hidden="true" className="absolute inset-x-3 sm:inset-x-6 top-0 h-0.5 rounded-full bg-accent" />;
 
 /**
  * Below lg: a bottom bar with Today, Roadmap (with a goal), Pathways and Account. Sticky rather than fixed, so it
@@ -132,7 +132,9 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
               <Link to={isCompleted ? '/achievement' : '/'} aria-current={todayActive ? 'page' : undefined} className={barItem(todayActive)}>
                 {todayActive && <ActiveMark />}
                 <BarIcon icon={isCompleted ? Award : Sun} active={todayActive} />
-                {isCompleted ? 'Achievement' : 'Today'}
+                <span className="truncate max-w-[56px] sm:max-w-none text-center">
+                  {isCompleted ? 'Achievement' : 'Today'}
+                </span>
               </Link>
             </li>
             {showRoadmap && (
@@ -140,7 +142,7 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
                 <Link to="/roadmap" aria-current={roadmapActive ? 'page' : undefined} className={barItem(roadmapActive)}>
                   {roadmapActive && <ActiveMark />}
                   <BarIcon icon={MapIcon} active={roadmapActive} />
-                  Roadmap
+                  <span className="truncate max-w-[56px] sm:max-w-none text-center">Roadmap</span>
                 </Link>
               </li>
             )}
@@ -149,26 +151,26 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
                 <Link to="/progress" aria-current={progressActive ? 'page' : undefined} className={barItem(progressActive)}>
                   {progressActive && <ActiveMark />}
                   <BarIcon icon={TrendingUp} active={progressActive} />
-                  Progress
+                  <span className="truncate max-w-[56px] sm:max-w-none text-center">Progress</span>
                 </Link>
               </li>
             )}
             <li className="min-w-0 flex-1">
               <button type="button" onClick={onOpenPathways} className={barItem(false)}>
                 <BarIcon icon={Compass} />
-                Pathways
+                <span className="truncate max-w-[56px] sm:max-w-none text-center">Pathways</span>
               </button>
             </li>
             <li className="min-w-0 flex-1">
               <button type="button" onClick={onOpenCoach} className={barItem(false)}>
                 <Sparkles aria-hidden="true" strokeWidth={1.5} className={cx('size-5', 'text-achievement')} />
-                <span className="text-[10px]">Coach <span aria-hidden="true" className="text-achievement">✦</span></span>
+                <span className="truncate max-w-[56px] sm:max-w-none text-center">Coach <span aria-hidden="true" className="text-achievement">✦</span></span>
               </button>
             </li>
             <li className="min-w-0 flex-1">
               <AccountSheet context="app" triggerClassName={barItem(false)}>
                 <BarIcon icon={CircleUser} />
-                Account
+                <span className="truncate max-w-[56px] sm:max-w-none text-center">Account</span>
               </AccountSheet>
             </li>
           </ul>
