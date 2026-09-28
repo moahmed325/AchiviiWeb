@@ -5,10 +5,12 @@ import { GoalProvider } from './context/GoalContext';
 import { AppShell } from './components/app/AppShell';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Home } from './pages/Home';
-import { RoadmapPage } from './pages/RoadmapPage';
-import { OnboardingPage } from './pages/OnboardingPage';
-import { SignupPage } from './pages/auth/SignupPage';
-import { LoginPage } from './pages/auth/LoginPage';
+
+/* Route-level code-splitting for secondary flows (M12.5) to keep initial bundle lean. */
+const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
+const RoadmapPage = React.lazy(() => import('./pages/RoadmapPage'));
+const SignupPage = React.lazy(() => import('./pages/auth/SignupPage'));
+const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
 
 /* Development-only primitives preview; the branch is dropped from production builds. */
 const UiPreviewPage = import.meta.env.DEV ? React.lazy(() => import('./pages/dev/UiPreviewPage')) : null;
@@ -35,15 +37,31 @@ export const App: React.FC = () => {
               {/* Public Landing Page */}
               <Route path="/" element={<Home />} />
 
-              <Route path="/signup" element={<SignupPage />} />
-              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/signup"
+                element={
+                  <React.Suspense fallback={null}>
+                    <SignupPage />
+                  </React.Suspense>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <React.Suspense fallback={null}>
+                    <LoginPage />
+                  </React.Suspense>
+                }
+              />
 
               {/* Onboarding / Plan Creation (Protected, only for users without active plan) */}
               <Route
                 path="/onboarding"
                 element={
                   <ProtectedRoute requireGoal={false}>
-                    <OnboardingPage />
+                    <React.Suspense fallback={null}>
+                      <OnboardingPage />
+                    </React.Suspense>
                   </ProtectedRoute>
                 }
               />
@@ -56,7 +74,9 @@ export const App: React.FC = () => {
                 path="/roadmap"
                 element={
                   <ProtectedRoute requireGoal={true}>
-                    <RoadmapPage />
+                    <React.Suspense fallback={null}>
+                      <RoadmapPage />
+                    </React.Suspense>
                   </ProtectedRoute>
                 }
               />
