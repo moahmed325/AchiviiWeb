@@ -20,7 +20,7 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
           scrolled ? 'border-border bg-background/75 backdrop-blur-xl' : 'border-border/60 bg-background/35 backdrop-blur-md'
         }`}
       >
-        <a href="#top" className="flex min-h-11 items-center rounded-full" aria-label="Achivii, back to top">
+        <a href="#top" className="focus-ring flex min-h-11 items-center rounded-full" aria-label="Achivii, back to top">
           <Wordmark />
         </a>
 
@@ -29,7 +29,7 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
             <li key={link.href}>
               <a
                 href={link.href}
-                className="inline-flex min-h-11 items-center rounded-full px-4 text-[14px] text-text-secondary transition-colors hover:text-text"
+                className="focus-ring inline-flex min-h-11 items-center rounded-full px-4 text-[14px] text-text-secondary transition-colors hover:text-text"
               >
                 {link.label}
               </a>

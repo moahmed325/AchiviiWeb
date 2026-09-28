@@ -106,12 +106,12 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
         >
           {isActive ? (
             <>
-              <Pause className="size-4 mr-2" />
+              <Pause aria-hidden="true" className="size-4 mr-2" />
               <span>Pause</span>
             </>
           ) : (
             <>
-              <Play className="size-4 mr-2 fill-current" />
+              <Play aria-hidden="true" className="size-4 mr-2 fill-current" />
               <span>Resume</span>
             </>
           )}
@@ -120,7 +120,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
         <IconButton
           variant="secondary"
           label="Reset timer"
-          icon={<RotateCcw className="size-4" />}
+          icon={<RotateCcw aria-hidden="true" className="size-4" />}
           onClick={onReset}
           className="min-h-[44px] min-w-[44px]"
         />

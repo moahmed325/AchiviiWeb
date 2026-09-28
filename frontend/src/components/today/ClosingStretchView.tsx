@@ -270,12 +270,12 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
             <label className="block text-small font-medium text-text mb-2">
               Capstone Result
             </label>
-            <div className="flex flex-wrap gap-2.5">
+            <div className="flex flex-wrap gap-2.5" role="group" aria-label="Capstone Result">
               <button
                 type="button"
                 onClick={() => handlePassedChange(true)}
                 className={cx(
-                  'flex items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
+                  'focus-ring flex items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
                   testResult?.passed === true
                     ? 'border-accent bg-accent/10 text-accent font-semibold ring-1 ring-accent/30'
                     : 'border-border bg-surface hover:bg-surface-elevated text-text-secondary'
@@ -288,7 +288,7 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
                 type="button"
                 onClick={() => handlePassedChange(false)}
                 className={cx(
-                  'flex items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
+                  'focus-ring flex items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
                   testResult?.passed === false
                     ? 'border-amber-500/50 bg-amber-500/10 text-amber-300 font-semibold ring-1 ring-amber-500/30'
                     : 'border-border bg-surface hover:bg-surface-elevated text-text-secondary'

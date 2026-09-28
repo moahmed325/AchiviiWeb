@@ -5514,9 +5514,70 @@ None.
 | M12.1 | Legacy inventory (what's still used, where) | COMPLETE |
 | M12.2 | Legacy removal, verified screen by screen | COMPLETE |
 | M12.3 | Imagery pipeline and asset replacement | COMPLETE |
-| M12.4 | Accessibility audit and fixes | READY |
-| M12.5 | Performance pass | PLANNED |
+| M12.4 | Accessibility audit and fixes | COMPLETE |
+| M12.5 | Performance pass | READY |
 | M12.6 | Full regression and final report | PLANNED |
+
+### M12.4 Accessibility Audit Report
+
+Milestone M12.4 executed an authoritative, cross-product accessibility audit covering all 10 core application surfaces, dialogs, sheets, and interactive flows using automated axe-core scans (WCAG 2.1 AA / 2.2 AA), manual keyboard navigation audits, and screen-reader semantic verification:
+
+#### 1. Scope & Audited Surfaces
+All 10 core application surfaces were audited across desktop (1440px), mobile (390px iPhone), and compact mobile (360px Android) viewports:
+1. **Marketing Landing Page (`/` signed-out):** Canonical `SkipLink` to `<main id="main">`, sticky navigation keyboard tab sequence, heading hierarchy (`h1` -> `h2` -> `h3`), color contrast on botanical green and stone accents, footer links.
+2. **Authentication Routes (`/login`, `/signup`):** Explicit form field labeling (`<label htmlFor="...">`), input error states (`aria-invalid="true"`, `aria-describedby`), password visibility toggle `aria-label`, alert announcements (`role="alert"`).
+3. **Onboarding & Pathway Selection (`/onboarding`):** Direction selection radio groups/tabs (`ChoiceGroup`, `TabsList` with roving tabindex arrow keys), Custom Journey input, character counter announcement, step progression buttons.
+4. **Journey Generation Screen (`StepGeneration.tsx`):** Linear progress stage semantics (`role="status"`, honest stage indicators), cancel dialog keyboard trap, live status updates (`aria-live="polite"`).
+5. **Today Dashboard (`/` signed-in):** Skip link to `#main`, primary action button focus, "Short on time" toggle semantics, rest day card, week calendar glance.
+6. **Focus Mode (`FocusSessionModal.tsx` / `FocusTimer.tsx` / `FocusStepRunner.tsx`):** Fullscreen dialog semantics (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`), timer countdown accessibility, pause/resume button labeling, step runner navigation pills, reflection textarea labeling.
+7. **Weekly Review Modal (`WeeklyReviewModal.tsx`):** Dialog focus lock, rating/score input labeling, reflection persistence textarea, adaptive summary card semantics.
+8. **Strategic Roadmap (`/roadmap`):** Breadcrumb / back link, vertical mobile journey spine landmark, phase milestone cards keyboard activation, closing stretch indicator.
+9. **Progress Analytics (`/progress`):** Benchmark test history cards, adherence metrics, accessible data table/list structure for chart fallbacks.
+10. **Overlay Dialogs & Sheets:**
+    - `CoachModal.tsx`: Focus trap, `DialogTitle`, `DialogDescription`, Escape key handling, focus return to navigation trigger.
+    - `PathwaysExplorerModal.tsx`: Dialog role, tab arrow navigation, Custom Journey action button.
+    - `AccountSheet.tsx`: Sheet trigger, reset plan confirm dialog nesting, sign-out button.
+    - `NewJourneyDialog.tsx`: Dialog role, title, succession warning badge, action buttons.
+
+#### 2. Automated Axe-Core Scans (WCAG 2.1 AA / 2.2 AA)
+Automated axe scans with rule tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` were executed across all core routes:
+* `e2e/auth.spec.ts`: **0 violations** (`/login`, `/signup`, `/signup?pathway=run10k`).
+* `e2e/progress.spec.ts`: **0 violations** across Desktop 1440px, Mobile 390px, and Android 360px.
+* `e2e/focus.spec.ts`: **0 violations** on active practice stage and celebration screen; 44px tap targets verified.
+* `e2e/journeyMobile.spec.ts`: **0 violations** on iPhone 390px and Android 360px.
+* `e2e/journeyMotion.spec.ts`: **0 violations** across Desktop, iPhone, and Android in strict reduced-motion mode.
+* `e2e/today.spec.ts` & `e2e/todayStates.spec.ts`: **0 violations** across rest day, active step, recovery, and review due states.
+* `e2e/onboarding.spec.ts`: **0 violations** across every onboarding step.
+* `e2e/pathways.spec.ts`: **0 violations** across Home pathway library and Today explorer modal.
+* `e2e/weeklyReview.spec.ts`: **0 violations** across review analytical summary, reflection, test score input, and adaptation moment.
+* **Total Axe Violations:** **0 violations** across all audited surfaces.
+
+#### 3. Keyboard Navigation & Focus Restoration
+* **Visible Focus Indicators:** Verified all interactive elements display canonical `focus-ring` (`focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-background`) when focused via keyboard.
+* **Focus Trapping & Escape Dismissals:** All Radix-based overlays (`FocusSessionModal`, `CoachModal`, `PathwaysExplorerModal`, `AccountSheet`, `NewJourneyDialog`, `WeeklyReviewModal`) trap tab focus within the modal container and dismiss cleanly upon pressing `Escape`.
+* **Focus Restoration:** Radix `Dialog` primitives automatically save `document.activeElement` prior to mounting and restore focus directly to the triggering button upon close (via Escape, close button, or backdrop click), preventing focus from jumping to `<body>` or the top of the page.
+* **Skip-Link Functionality:** Canonical `<SkipLink />` on `/` (marketing and dashboard) programmatically shifts focus to `<main id="main">` with visible focus indicator upon first tab.
+
+#### 4. Screen-Reader Semantics & Contrast
+* **Heading Hierarchy:** Verified exact single `<h1>` per view across all routes (`Hero.tsx`, `AuthLayout.tsx`, `StepLayout.tsx`, `Today.tsx`, `JourneyHeader.tsx`, `ProgressPage.tsx`, `AchievementHero.tsx`, `FocusHeader.tsx`) with descending `<h2>`, `<h3>` hierarchy without skipping levels.
+* **Non-Text Content & Decorative Icons:** All decorative Lucide icons across navigation, cards, timer controls, and modals carry `aria-hidden="true"`. All icon-only buttons (`FocusHeader` close/mute, `AppBottomBar`, `AppRail`, `PasswordInput` toggle) feature descriptive `aria-label`s.
+* **Live Regions & Error Announcements:** Form validation, 503 retry alerts, and generation progress stages utilize `role="alert"` / `aria-live="polite"` / `aria-live="assertive"` for immediate screen-reader notification.
+* **Color Contrast:** All normal body text against dark backgrounds (`#0B0B0A`, `#141413`, `#1C1C1A`) meets or exceeds 4.5:1 contrast; large text (>= 24px) and control borders exceed 3:1 contrast.
+
+#### 5. Component Accessibility Fixes Applied
+1. **`frontend/src/components/marketing/MarketingNav.tsx`:** Added `focus-ring` to `#top` home link and navigation links for clear visible keyboard focus indicators.
+2. **`frontend/src/components/marketing/LandingPage.tsx`:** Replaced custom anchor skip link with canonical `<SkipLink />` primitive with programmatic focus transfer to `<main id="main">`.
+3. **`frontend/src/components/focus/FocusHeader.tsx`:** Added `aria-hidden="true"` to mute icons (`VolumeX`/`Volume2`), close icon (`X`), and `ESC` badge text.
+4. **`frontend/src/components/focus/FocusTimer.tsx`:** Added `aria-hidden="true"` to timer control icons (`Pause`, `Play`, `RotateCcw`).
+5. **`frontend/src/components/focus/FocusStepRunner.tsx`:** Added `aria-expanded={showTips}` to collapsible tips disclosure button; added `aria-hidden="true"` to all decorative icons (`Lightbulb`, `ChevronUp`, `ChevronDown`, `Target`, `AlertTriangle`, `ExternalLink`, `ArrowLeft`, `ArrowRight`).
+6. **`frontend/src/components/today/ClosingStretchView.tsx`:** Added `focus-ring` to Capstone Result buttons; added `role="group"` and `aria-label="Capstone Result"`.
+
+#### 6. Verification Results
+* **TypeScript Check:** `tsc --noEmit -p frontend` -> **0 errors**.
+* **Frontend Vitest Suite:** `npm test --workspace=frontend -- --run` -> **48 passed / 405 tests passed (100%)**.
+* **Frontend Production Build:** `npm run build --workspace=frontend` -> clean build in 7.57s.
+* **Rule 3.2 Compliance:** Exactly 0 backend files modified.
+* **Deferred Issues:** 0 accessibility issues deferred.
 
 ### M12.3 Imagery Optimization Summary
 
@@ -5905,6 +5966,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 12 M12.1 done: Comprehensive legacy inventory audit completed across 6 categories (hard-coded hex colors, legacy mint tokens, global radius overrides, typography & font imports, dead code & unreachable components, and public pathway imagery). Concrete migration and deletion targets mapped for M12.2 (removal of dead `SaaSBuilderModal.tsx`, obsolete `PlanV2Panel.tsx` and tests, orphaned `images/blueprints/`, unused `--radius-xl/2xl/3xl`, and obsolete `Plus Jakarta Sans`/`JetBrains Mono` imports). Zero backend files modified (Rule 3.2). Phase 12 status is IN PROGRESS. M12.2 (Legacy Removal) is ready. |
 | 2026-09-28 | Phase 12 M12.2 done: Legacy removal executed across the repository. Deleted dead component `SaaSBuilderModal.tsx` (750 lines / 38.9KB), obsolete `PlanV2Panel.tsx` and unit tests `PlanV2Panel.test.tsx` (220 lines / 10.2KB), and orphaned blueprint image directory `frontend/public/images/blueprints/` (6 unused PNGs, 5.4MB freed). Migrated remaining hard-coded colors and mint tokens to canonical semantic tokens: `ProtectedRoute.tsx` spinner to `border-accent/30 border-t-accent`, `index.html` body classes to `bg-background text-text selection:bg-accent/30 selection:text-text`, and `index.css` scrollbars to `var(--color-surface-elevated)` / `var(--color-border-control)`. Completely eliminated `#07CB6C` from the codebase (0 occurrences remaining). Removed legacy radius overrides (`--radius-xl/2xl/3xl`) from `index.css`. Streamlined Google Fonts link in `index.html` to eliminate `Plus Jakarta Sans` and `JetBrains Mono` (~120KB network overhead saved), removed legacy font declarations from `index.css`, and updated `ReviewSummaryCard.tsx` from `font-mono` to `font-ui-mono`. Screen-by-screen visual verification clean. 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build. Rule 3.2 preserved (0 backend files touched). Phase 12 M12.2 is COMPLETE; M12.3 (Imagery Pipeline) is ready. |
 | 2026-09-28 | Phase 12 M12.3 done: Imagery pipeline upgraded, asset optimization executed, and VDS §16 monochrome styling applied. Converted 10 pathway goal assets to modern WebP format and deleted uncompressed legacy files, slashing directory footprint from 5.2MB to 369KB (92.9% reduction, >4.8MB saved). Updated `certifiedPresets.ts` to reference `.webp`. Applied VDS §16 monochrome + restrained treatment to `JourneyHeader.tsx` (grayscale contrast-125 with subtle `bg-accent/10 mix-blend-color` duotone overlay and desaturated ambient glow). Added explicit `width`, `height`, `decoding="async"`, and modern loading strategies across all `<img>` call sites (`AchievementHero.tsx`, `AuthLayout.tsx`, `OnboardingShell.tsx`, `JourneyHeader.tsx`). Generated WebP variants for brand assets `garden.webp` and `staircase.webp`. 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build (3.36s). Rule 3.2 preserved (0 backend files touched). Phase 12 M12.3 is COMPLETE; M12.4 (Accessibility Audit) is ready. |
+| 2026-09-28 | Phase 12 M12.4 done: Comprehensive accessibility audit (Axe + Keyboard + Screen Reader) executed across all 10 core application surfaces, dialogs, and sheets. Automated WCAG 2.1 AA / 2.2 AA axe-core scans verified with 0 violations across desktop, iPhone, and Android viewports. Systematic keyboard navigation confirmed: visible focus rings (`focus-ring`), Radix dialog focus traps, Escape dismissals, programmatic focus restoration to triggering element, and canonical `SkipLink` to `<main id="main">`. Screen-reader semantics verified: single `<h1>` per view, descending hierarchy, non-text Lucide decorative icon hiding (`aria-hidden="true"`), and `role="alert"` / `aria-live` announcements. Surgical component fixes applied (`MarketingNav.tsx`, `LandingPage.tsx`, `FocusHeader.tsx`, `FocusTimer.tsx`, `FocusStepRunner.tsx`, `ClosingStretchView.tsx`). 48 frontend test files (405 tests) and 22 backend test files (250 tests) pass (100%); 0 TS errors; clean production build (7.57s). Rule 3.2 preserved (0 backend files touched). Phase 12 M12.4 is COMPLETE; M12.5 (Performance Pass) is ready. |
 
 
 

@@ -166,18 +166,19 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           <button
             type="button"
             onClick={onToggleTips}
+            aria-expanded={showTips}
             className="inline-flex items-center gap-2 text-small text-text-secondary hover:text-text cursor-pointer transition-colors min-h-[44px] focus-ring rounded-control select-none"
           >
-            <Lightbulb className="size-4 text-caution" />
+            <Lightbulb aria-hidden="true" className="size-4 text-caution" />
             <span>{showTips ? 'Hide Tips & Cues' : 'View Tips & Guidance'}</span>
-            {showTips ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            {showTips ? <ChevronUp aria-hidden="true" className="size-4" /> : <ChevronDown aria-hidden="true" className="size-4" />}
           </button>
 
           {showTips && (
             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-small animate-fadeIn">
               {currentStep.focusCue && (
                 <div className="p-3 rounded-control bg-surface-elevated border border-border flex items-start gap-2 text-text-secondary">
-                  <Target className="size-4 text-accent shrink-0 mt-0.5" />
+                  <Target aria-hidden="true" className="size-4 text-accent shrink-0 mt-0.5" />
                   <div>
                     <span className="text-micro text-text-secondary uppercase block font-ui-mono">Focus Cue</span>
                     <span className="leading-snug">{currentStep.focusCue}</span>
@@ -187,7 +188,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
 
               {currentStep.pitfallToAvoid && (
                 <div className="p-3 rounded-control bg-surface-elevated border border-border flex items-start gap-2 text-text-secondary">
-                  <AlertTriangle className="size-4 text-caution shrink-0 mt-0.5" />
+                  <AlertTriangle aria-hidden="true" className="size-4 text-caution shrink-0 mt-0.5" />
                   <div>
                     <span className="text-micro text-text-secondary uppercase block font-ui-mono">Pitfall to Avoid</span>
                     <span className="leading-snug">{currentStep.pitfallToAvoid}</span>
@@ -209,7 +210,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
             className="inline-flex items-center gap-1.5 text-small text-accent hover:underline min-h-[32px] focus-ring rounded-control"
           >
             <span>{currentStep.resourceTitle || 'Recommended Guide'}</span>
-            <ExternalLink className="size-3.5" />
+            <ExternalLink aria-hidden="true" className="size-3.5" />
           </a>
         </div>
       )}
@@ -222,7 +223,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           disabled={currentStepIndex === 0}
           className="min-h-[44px]"
         >
-          <ArrowLeft className="size-4 mr-2" />
+          <ArrowLeft aria-hidden="true" className="size-4 mr-2" />
           <span>Previous</span>
         </Button>
 
@@ -232,7 +233,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           className="min-h-[44px]"
         >
           <span>{currentStepIndex === totalSteps - 1 ? 'Complete Session' : 'Next Step'}</span>
-          <ArrowRight className="size-4 ml-2" />
+          <ArrowRight aria-hidden="true" className="size-4 ml-2" />
         </Button>
       </footer>
     </article>

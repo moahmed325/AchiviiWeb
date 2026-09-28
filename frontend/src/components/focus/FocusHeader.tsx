@@ -38,7 +38,7 @@ export const FocusHeader: React.FC<FocusHeaderProps> = ({
           aria-label={isMuted ? 'Unmute chimes' : 'Mute chimes'}
           className="min-w-[44px] min-h-[44px] p-2.5 rounded-control bg-surface border border-border hover:border-border-control text-text-secondary hover:text-text transition-colors flex items-center justify-center cursor-pointer focus-ring"
         >
-          {isMuted ? <VolumeX className="size-4" /> : <Volume2 className="size-4 text-accent" />}
+          {isMuted ? <VolumeX aria-hidden="true" className="size-4" /> : <Volume2 aria-hidden="true" className="size-4 text-accent" />}
         </button>
 
         {/* Close / Esc Button */}
@@ -49,8 +49,8 @@ export const FocusHeader: React.FC<FocusHeaderProps> = ({
           aria-label="Exit focus mode (Esc)"
           className="min-w-[44px] min-h-[44px] p-2.5 rounded-control bg-surface border border-border hover:border-border-control text-text-secondary hover:text-text transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus-ring"
         >
-          <span className="text-[10px] font-ui-mono text-text-secondary hidden sm:inline">ESC</span>
-          <X className="size-4" />
+          <span className="text-[10px] font-ui-mono text-text-secondary hidden sm:inline" aria-hidden="true">ESC</span>
+          <X aria-hidden="true" className="size-4" />
         </button>
       </div>
     </header>

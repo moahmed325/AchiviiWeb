@@ -1,4 +1,5 @@
 import React from 'react';
+import { SkipLink } from '../ui';
 import { MarketingNav } from './MarketingNav';
 import { Hero } from './sections/Hero';
 import { Problem } from './sections/Problem';
@@ -14,12 +15,7 @@ import { MarketingFooter } from './sections/MarketingFooter';
 
 export const LandingPage: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) => (
   <div className="marketing relative min-h-[100dvh] w-full bg-background text-left text-text antialiased">
-    <a
-      href="#main"
-      className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-full focus:bg-text focus:px-5 focus:py-3 focus:text-sm focus:font-medium focus:text-background"
-    >
-      Skip to content
-    </a>
+    <SkipLink />
     <MarketingNav apiOffline={apiOffline} />
     <main id="main">
       <Hero />
