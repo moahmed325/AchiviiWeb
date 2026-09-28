@@ -18,7 +18,7 @@ The project documentation hierarchy:
 | `docs/decisions.md` | **Why** — architectural decision records (ADRs) preventing accidental regression of key technical choices |
 | `docs/feature_definition_payment.md` | **What** — authoritative behavioral specifications, user actions, states, and acceptance criteria |
 
-Last updated: 2026-09-28 · Current position: **Phase 0 in progress — M0.1 complete; M0.2 next.**
+Last updated: 2026-09-28 · Current position: **Phase 0 COMPLETE — Phase 1 next.**
 
 ---
 
@@ -71,7 +71,7 @@ Every phase in Section 4 follows the exact same 15 canonical fields:
 
 | # | Phase | Status | Depends on | Decisions blocking start | Backend allowance |
 |---|---|---|---|---|---|
-| **0** | Billing Foundation, Schema & Stripe Client | `NOT STARTED` | — | OD-1 (price env vars) | Named: User billing fields and Stripe client initialization |
+| **0** | Billing Foundation, Schema & Stripe Client | `COMPLETE` | — | OD-1 (price env vars) | Named: User billing fields and Stripe client initialization |
 | **1** | Server-Side Goal Limit & Multi-Goal Engine | `NOT STARTED` | 0 | — | Named: Goal creation limit guard and non-archiving multi-goal queries |
 | **2** | Stripe Checkout & Webhook Pipeline | `NOT STARTED` | 0 | — | Named: Checkout session creation, raw webhook verification, subscription sync |
 | **3** | Customer Portal & Billing Management API | `NOT STARTED` | 2 | — | Named: Portal session generation and subscription status endpoint |
@@ -237,7 +237,7 @@ Every phase must pass this authoritative toolchain check:
 
 ## PHASE 0 — Billing Foundation, Database Schema & Stripe Client
 
-**Status:** `NOT STARTED`
+**Status:** `COMPLETE`
 
 **Source:** FD §11, §12, §20, §21, §35 · D-3, D-4 · decisions.md
 
@@ -298,9 +298,9 @@ Every phase must pass this authoritative toolchain check:
 | ID | Milestone | Status | Details |
 |---|---|---|---|
 | **M0.1** | Install Stripe & Prisma Migration | `COMPLETE` | Add `stripe` to backend, add billing fields to `schema.prisma`, run migration, verify Prisma client generation. |
-| **M0.2** | Stripe Singleton Client Module | `NOT STARTED` | Author `backend/src/lib/stripe.ts` loading environment variables with test fallback handling. |
-| **M0.3** | Auth Contract & Context Extension | `NOT STARTED` | Expose billing fields in `auth.ts`, update `AuthContext.tsx` and frontend `User` interface, verify login/me payload. |
-| **M0.4** | Foundation Vitest & Verification | `NOT STARTED` | Verify backend and frontend Vitest suites, type-checks, and ensure zero regressions across R-1. |
+| **M0.2** | Stripe Singleton Client Module | `COMPLETE` | Author `backend/src/lib/stripe.ts` loading environment variables with test fallback handling. |
+| **M0.3** | Auth Contract & Context Extension | `COMPLETE` | Expose billing fields in `auth.ts`, update `AuthContext.tsx` and frontend `User` interface, verify login/me payload. |
+| **M0.4** | Foundation Vitest & Verification | `COMPLETE` | Verify backend and frontend Vitest suites, type-checks, and ensure zero regressions across R-1. |
 
 ### Regression checks
 
