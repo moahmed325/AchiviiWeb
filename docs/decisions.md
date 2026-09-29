@@ -1694,3 +1694,17 @@ None yet.
 | 2026-09-27 | Phase 8 M8.1: ND-8 Decided as Option A (dedicated Progress page `/progress` attached to app shell navigation per BP §27); zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
 | 2026-09-27 | Phase 8 complete: ND-8 implemented and verified across M8.2–M8.5. Dedicated `/progress` route, shell navigation, completion metrics, phase milestones, benchmark results card, and adaptation history delivered with zero backend edits. Playwright suite `e2e/progress.spec.ts` passes 20/20 tests. Phase 8 marked COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next and blocked by OD-1b and OD-2. |
 | 2026-09-27 | Phase 9 M9.1: OD-1b Decided as Option B (explicit completion endpoint `POST /api/goal/complete` with closing-stretch arrival); named backend allowance approved for M9.2 (`completedAt DateTime?`, migration `add_goal_completed_status_and_timestamp`, and `GET /api/goal/active` update); canonical frontend contracts defined in `frontend/src/types/achievement.ts`. Phase 9 is IN PROGRESS. |
+
+### PAY-1 — Achivii Pro pricing
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Decided | 2026-09-29 — Mo |
+
+**Decision.** Achivii Pro launches with two recurring variants: **Pro Monthly: $9/month** and **Pro Yearly: $72/year** (equivalent to $6/month; $36/year below twelve monthly payments).
+
+**Consequences.** Lemon Squeezy production configuration must contain these two recurring Pro variants for the initial launch. Existing subscriptions must not be silently repriced.
+
+**Related.** ND-9, ND-10, `docs/feature_definition_payment.md`.

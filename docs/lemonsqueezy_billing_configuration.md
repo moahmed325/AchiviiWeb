@@ -28,3 +28,14 @@ Never commit `.env` or real Lemon Squeezy credentials. The committed `.env.examp
 ## Production readiness
 
 Live configuration must remain empty until seller onboarding, final Pro variants/pricing, webhook setup, and Ethiopian payout configuration have been verified. Configuring live credentials does not by itself establish payout readiness.
+
+## Approved launch pricing
+
+- Pro Monthly: **$9/month**.
+- Pro Yearly: **$72/year**.
+- Both are recurring Lemon Squeezy variants.
+- Prices are authoritative in the Lemon Squeezy product/variant configuration, not environment variables.
+
+## Payout readiness
+
+Lemon Squeezy currently lists **Ethiopia** among countries supported for bank payouts. This is country-level support only. CBE compatibility remains an operational verification step: the actual CBE payout destination must be accepted during seller onboarding before launch is declared payout-ready.
