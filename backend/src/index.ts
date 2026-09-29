@@ -5,6 +5,7 @@ import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { goalRouter } from './routes/goal.js';
 import { billingRouter } from './routes/billing.js';
+import { webhookRouter } from './routes/webhook.js';
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
 }));
+app.use('/api/billing/webhook', express.raw({ type: 'application/json' }), webhookRouter);
 app.use(express.json());
 
 // Routes
@@ -46,6 +48,6 @@ app.use('/api/goal', goalRouter);
 app.use('/api/billing', billingRouter);
 
 app.listen(PORT, () => {
-  console.log(`ðŸš€ Achivii Backend API running on http://localhost:${PORT}`);
-  console.log(`  â””â”€ Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`Ã°Å¸Å¡â‚¬ Achivii Backend API running on http://localhost:${PORT}`);
+  console.log(`  Ã¢â€â€Ã¢â€â‚¬ Health Check: http://localhost:${PORT}/api/health`);
 });
