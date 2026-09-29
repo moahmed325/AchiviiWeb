@@ -1,4 +1,4 @@
-import { User, AuthResponse, Goal, GoalCompletionPayload } from '../types';
+﻿import { User, AuthResponse, Goal, GoalCompletionPayload } from '../types';
 
 export function resolveApiBaseUrl(): string {
   // Default to localhost:5000 when in Vite dev mode or connected via localhost / 127.0.0.1
@@ -38,6 +38,23 @@ export async function fetchBillingEntitlement(token: string): Promise<BillingEnt
   return data;
 }
 
+export interface BillingAccountState {
+  plan: 'free' | 'pro';
+  status: string;
+  billingInterval: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  manageUrl: string | null;
+}
+
+export async function fetchBillingAccountState(token: string): Promise<BillingAccountState> {
+  const response = await fetch(`${API_BASE_URL}/api/billing/account`, {
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+  });
+  const data = await response.json();
+  if (!response.ok) throw new ApiError(data.error || 'Unable to load billing status', response.status);
+  return data;
+}
 export async function startProCheckout(token: string, interval: 'monthly' | 'yearly'): Promise<{ checkoutUrl: string }> {
   const response = await fetch(`${API_BASE_URL}/api/billing/checkout`, {
     method: 'POST',
@@ -308,3 +325,4 @@ export async function completeGoal(
 
   return data.goal || data.activeGoal;
 }
+

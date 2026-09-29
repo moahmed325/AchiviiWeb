@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import { Dialog, DialogContent, DialogTrigger, cx } from '../ui';
 import { ResetPlanDialog } from './ResetPlanDialog';
+import { fetchBillingAccountState, BillingAccountState } from '../../lib/api';
 
 /**
  * `app`: email, the goal the user chose (ND-18: `rawGoal`, never the stored outcome), Reset and Sign out.
@@ -36,7 +37,16 @@ interface AccountPanelProps {
 }
 
 const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut }) => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const [billing, setBilling] = useState<BillingAccountState | null>(null);
+  const [billingError, setBillingError] = useState<string | null>(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const loadBilling = useCallback(async () => {
+    if (!token) return;
+    setBillingLoading(true); setBillingError(null);
+    try { setBilling(await fetchBillingAccountState(token)); } catch (error) { setBillingError(error instanceof Error ? error.message : 'Unable to load billing status.'); } finally { setBillingLoading(false); }
+  }, [token]);
+  useEffect(() => { void loadBilling(); }, [loadBilling]);
   const { activeGoal } = useGoal();
   const withGoal = context === 'app' && activeGoal;
 
@@ -48,13 +58,22 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut
         {withGoal && (
           <>
             <p className="tabular mt-4 font-ui-mono text-micro uppercase text-text-secondary">
-              Your goal · Week {activeGoal.currentWeek || 1}
+              Your goal ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Week {activeGoal.currentWeek || 1}
             </p>
             <p className="mt-1 break-words text-small text-text">{activeGoal.rawGoal}</p>
           </>
         )}
       </div>
-      <ul className="mt-2 flex flex-col gap-1">
+      <div className="my-3 border-y border-border px-3 py-3">
+        <p className="font-ui-mono text-micro uppercase text-text-secondary">Plan</p>
+        {billingLoading && <p className="mt-1 text-small text-text-secondary">Checking billingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦</p>}
+        {!billingLoading && billing && <>
+          <div className="mt-1 flex items-center justify-between gap-3"><p className="text-small font-medium text-text">{billing.plan === 'pro' ? 'Pro' : 'Free'}</p><span className="text-micro uppercase text-text-secondary">{billing.status === 'none' ? 'No subscription' : billing.status.replace(/_/g, ' ').toLowerCase()}</span></div>
+          {billing.plan === 'pro' && billing.currentPeriodEnd && <p className="mt-1 text-small text-text-secondary">{billing.cancelAtPeriodEnd ? 'Access until ' : 'Next billing date '}{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(billing.currentPeriodEnd))}</p>}
+          {billing.plan === 'pro' && billing.manageUrl && <a href={billing.manageUrl} target="_blank" rel="noreferrer" className={itemClass + ' mt-2 no-underline'}>Manage subscription</a>}
+        </>}
+        {billingError && <div className="mt-1"><p className="text-small text-text-secondary">{billingError}</p><button type="button" onClick={() => void loadBilling()} className="mt-1 text-small text-text underline">Try again</button></div>}
+      </div>      <ul className="mt-2 flex flex-col gap-1">
         {withGoal && (
           <li>
             <button type="button" onClick={onReset} className={itemClass}>
@@ -86,8 +105,8 @@ interface AccountDisclosureProps {
  * Escape and an outside click close it and return focus to the button.
  */
 export const AccountDisclosure: React.FC<AccountDisclosureProps> = ({ context, placement, className }) => {
-  const { user } = useAuth();
   const signOut = useSignOut();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const resetOpenRef = useRef(false);
