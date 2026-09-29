@@ -51,7 +51,7 @@ lerna-debug.log*
 .DS_Store
 Thumbs.db
 
-# Testing & Coverage
+.freebuff/
 coverage/
 backend/test/fixtures/research/*.grounding.json
 backend/test/fixtures/research/eval-five.json
