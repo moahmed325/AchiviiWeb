@@ -1,8 +1,9 @@
-﻿import { Router, Request, Response } from "express";
+import { Router, Request, Response } from "express";
 import { getAuthUser } from "./auth.js";
 import { createLemonSqueezyCheckout, CheckoutInterval } from "../lib/billing/lemonSqueezyCheckout.js";
 import { hasProEntitlement } from "../lib/billing/entitlement.js";
 import { getBillingAccountState } from "../lib/billing/accountState.js";
+import { reconcileUserSubscription } from "../lib/billing/lemonSqueezyReconciliation.js";
 
 export const billingRouter = Router();
 
@@ -26,6 +27,18 @@ export const accountStateHandler = async (req: Request, res: Response): Promise<
   } catch (error) {
     console.error("Billing account state error:", error);
     res.status(500).json({ error: "Unable to load billing status. Please try again." });
+  }
+};
+export const reconcileHandler = async (req: Request, res: Response): Promise<void> => {
+  const user = await getAuthUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized. Please sign in." }); return; }
+  try {
+    const result = await reconcileUserSubscription(user.id);
+    if (!result.reconciled && result.reason === "provider_unavailable") { res.status(503).json({ ...result, error: "Billing provider unavailable. Local entitlement was not changed." }); return; }
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Billing reconciliation error:", error);
+    res.status(502).json({ reconciled: false, error: "Unable to reconcile billing state." });
   }
 };
 export const checkoutHandler = async (req: Request, res: Response): Promise<void> => {
@@ -58,6 +71,6 @@ export const checkoutHandler = async (req: Request, res: Response): Promise<void
 };
 
 billingRouter.get("/entitlement", entitlementHandler);
-billingRouter.get("/account", accountStateHandler);
+billingRouter.post("/reconcile", reconcileHandler);
 billingRouter.post("/checkout", checkoutHandler);
 
