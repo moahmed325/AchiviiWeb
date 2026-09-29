@@ -1,4 +1,4 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const recordWebhookDelivery = vi.fn();
@@ -81,6 +81,23 @@ describe("Lemon Squeezy webhook handler", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true, ignored: true });
     expect(recordWebhookDelivery).not.toHaveBeenCalled();
+  });
+
+  it("updates renewal events to the provider supplied renewal date without creating duplicates", async () => {
+    const payload = subscriptionPayload();
+    payload.meta.event_name = "subscription_updated";
+    payload.data.attributes.renews_at = "2099-11-01T00:00:00Z";
+    payload.data.attributes.variant_name = "Pro Yearly";
+    recordWebhookDelivery.mockResolvedValue({ created: true, eventId: "event-renewal" });
+    userFindUnique.mockResolvedValue({ id: "user-123" });
+    subscriptionUpsert.mockResolvedValue({}); webhookEventUpdate.mockResolvedValue({});
+    const { lemonSqueezyWebhookHandler } = await import("./webhook.js");
+    const body = JSON.stringify(payload); const res = response();
+    await lemonSqueezyWebhookHandler({ body: Buffer.from(body), headers: {}, header: () => sign(body) } as any, res as any);
+    expect(subscriptionUpsert).toHaveBeenCalledTimes(1);
+    expect(subscriptionUpsert.mock.calls[0][0].where).toEqual({ providerSubscriptionId: "sub-123" });
+    expect(subscriptionUpsert.mock.calls[0][0].update).toMatchObject({ status: "ACTIVE", billingInterval: "yearly", cancelAtPeriodEnd: false, currentPeriodEnd: new Date("2099-11-01T00:00:00Z") });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("persists a verified subscription state using the checkout user association", async () => {
