@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { goalRouter } from './routes/goal.js';
+import { billingRouter } from './routes/billing.js';
 
 dotenv.config();
 
@@ -42,8 +43,9 @@ app.use(express.json());
 app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/goal', goalRouter);
+app.use('/api/billing', billingRouter);
 
 app.listen(PORT, () => {
-  console.log(`🚀 Achivii Backend API running on http://localhost:${PORT}`);
-  console.log(`  └─ Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`ðŸš€ Achivii Backend API running on http://localhost:${PORT}`);
+  console.log(`  â””â”€ Health Check: http://localhost:${PORT}/api/health`);
 });
