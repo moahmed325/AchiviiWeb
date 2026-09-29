@@ -1,4 +1,4 @@
-datasource db {
+﻿datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -15,10 +15,38 @@ model User {
   created_at    DateTime @default(now())
 
   goals         Goal[]
+  subscriptions Subscription[]
 
   @@map("users")
 }
 
+model Subscription {
+  id                     String   @id @default(uuid())
+  userId                 String
+  provider               String   @default("lemon_squeezy")
+  providerCustomerId     String?
+  providerSubscriptionId String   @unique
+  providerProductId      String?
+  providerVariantId      String
+  plan                   String
+  billingInterval        String
+  status                 String
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean  @default(false)
+  cancelledAt            DateTime?
+  pausedAt               DateTime?
+  created_at             DateTime @default(now())
+  updated_at             DateTime @updatedAt
+
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([providerCustomerId])
+  @@index([providerVariantId])
+  @@map("subscriptions")
+}
 model Goal {
   id               String         @id @default(uuid())
   userId           String
@@ -146,3 +174,4 @@ model ResearchCache {
 
   @@map("research_cache")
 }
+
