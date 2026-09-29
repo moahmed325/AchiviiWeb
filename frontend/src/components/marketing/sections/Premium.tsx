@@ -12,10 +12,10 @@ const FEATURES = [
   },
   {
     mark: '✦',
-    name: 'Custom Journeys',
-    status: 'Available now · Free',
+    name: 'Achivii Pro',
+    status: 'Available now',
     headline: 'Have something unique in mind?',
-    body: 'Build a guided 90-day journey around your own ambition, beyond the certified pathways, with the same deliberate practice, milestones, and weekly benchmarks. Available free today, planned for a future premium tier.',
+    body: 'Build a guided 90-day journey around your own ambition, beyond the certified pathways, with the same deliberate practice, milestones, and weekly benchmarks. Pro is $9/month or $72/year, and every existing journey stays available for as long as you have it.',
   },
 ];
 
@@ -62,7 +62,7 @@ export const Premium: React.FC = () => (
     </div>
 
     <Reveal as="p" delayMs={200} className="mt-8 text-[15px] text-text-secondary">
-      There is no paid plan yet. Everything you can use in Achivii today is free.
+      Achivii Pro is $9/month or $72/year. Certified pathways stay free — Pro unlocks creating your own custom 90-day journeys.
     </Reveal>
   </Section>
 );

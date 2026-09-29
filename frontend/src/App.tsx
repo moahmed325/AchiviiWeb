@@ -22,6 +22,9 @@ const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
 const AchievementPage = React.lazy(() => import('./pages/AchievementPage'));
 const CheckoutReturnPage = React.lazy(() => import('./pages/CheckoutReturnPage'));
 
+/* Public legal/support pages (store review readiness). */
+const LegalPage = React.lazy(() => import('./pages/LegalPage'));
+
 
 export const DashboardRedirect: React.FC = () => {
   const location = useLocation();
@@ -96,6 +99,9 @@ export const App: React.FC = () => {
 
               {/* Billing return: provider redirect is never treated as payment proof. */}
               <Route path="/billing/return" element={<React.Suspense fallback={null}><CheckoutReturnPage /></React.Suspense>} />
+
+              {/* Public legal/support pages. */}
+              <Route path="/legal/:doc" element={<React.Suspense fallback={null}><LegalPage /></React.Suspense>} />
               {/* Dedicated Achievement Destination (Protected, requires goal, M9.3) */}
               <Route
                 path="/achievement"

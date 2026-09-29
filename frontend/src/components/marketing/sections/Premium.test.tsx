@@ -32,34 +32,36 @@ describe('marketing Premium section (M10.6)', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders Custom Journeys with "Available now · Free" status and accurate narrative copy', () => {
+  it('renders Achivii Pro with "Available now" status and accurate narrative copy', () => {
     render(<Premium />);
     const section = screen.getByRole('region', { name: 'More ways to climb, on the way.' });
 
-    expect(within(section).getByText('Custom Journeys')).toBeInTheDocument();
-    expect(within(section).getByText('Available now · Free')).toBeInTheDocument();
+    expect(within(section).getByText('Achivii Pro')).toBeInTheDocument();
+    expect(within(section).getByText('Available now')).toBeInTheDocument();
     expect(
       within(section).getByText(
         /Build a guided 90-day journey around your own ambition, beyond the certified pathways/i,
       ),
     ).toBeInTheDocument();
     expect(
-      within(section).getByText(/Available free today, planned for a future premium tier/i),
+      within(section).getByText(
+        /Pro is \$9\/month or \$72\/year, and every existing journey stays available/i,
+      ),
     ).toBeInTheDocument();
   });
 
-  it('renders the free reassurance line without any paid plans or checkout UI', () => {
+  it('renders the Pro pricing line without any inline checkout UI', () => {
     render(<Premium />);
     const section = screen.getByRole('region', { name: 'More ways to climb, on the way.' });
 
     expect(
       within(section).getByText(
-        'There is no paid plan yet. Everything you can use in Achivii today is free.',
+        /Achivii Pro is \$9\/month or \$72\/year\. Certified pathways stay free/i,
       ),
     ).toBeInTheDocument();
 
-    // Verify zero checkout, billing, or pricing elements
+    // The marketing page informs about pricing; the checkout itself stays inside
+    // the authenticated app behind the server-side entitlement gate.
     expect(within(section).queryByRole('button')).toBeNull();
-    expect(within(section).queryByText(/subscribe|checkout|pricing|\$\d/i)).toBeNull();
   });
 });

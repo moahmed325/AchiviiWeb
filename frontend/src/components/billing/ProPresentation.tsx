@@ -16,7 +16,7 @@ export const ProPresentation: React.FC<ProPresentationProps> = ({ selectedInterv
       <div className="mt-2 grid max-w-md grid-cols-2 gap-2" role="group">
         {(['monthly','yearly'] as const).map((interval) => <Button key={interval} type="button" size="sm" variant={selectedInterval===interval?'premium':'secondary'} aria-pressed={selectedInterval===interval} onClick={()=>onIntervalChange?.(interval)}>{interval==='monthly'?'Monthly':'Yearly'}</Button>)}
       </div>
-      <p className="mt-2 text-small text-text-secondary">Pricing is shown by the configured checkout. No price is displayed here unless the billing configuration supplies it.</p>
+      <p className="mt-2 text-small text-text-secondary">{selectedInterval === 'yearly' ? '$72 per year, billed yearly.' : '$9 per month, billed monthly. Cancel anytime from your account menu.'}</p>
     </div>
     <Button className="mt-6 w-full sm:w-auto" size="lg" variant="primary" onClick={onContinue} disabled={!onContinue}>Continue to Pro</Button>
   </section>
