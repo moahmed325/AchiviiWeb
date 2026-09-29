@@ -24,20 +24,35 @@ export function resolveApiBaseUrl(): string {
 
 const API_BASE_URL = resolveApiBaseUrl();
 
-export interface BillingEntitlementResponse { plan: 'free' | 'pro'; entitled: boolean; }
+export interface BillingEntitlementResponse {
+  plan: 'free' | 'pro';
+  entitled: boolean;
+}
+
 export async function fetchBillingEntitlement(token: string): Promise<BillingEntitlementResponse> {
-  const response = await fetch(${API_BASE_URL}/api/billing/entitlement, { headers: { Accept: 'application/json', Authorization: Bearer  } });
+  const response = await fetch(`${API_BASE_URL}/api/billing/entitlement`, {
+    headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
+  });
   const data = await response.json();
   if (!response.ok) throw new ApiError(data.error || 'Unable to load billing status', response.status);
   return data;
 }
+
 export async function startProCheckout(token: string, interval: 'monthly' | 'yearly'): Promise<{ checkoutUrl: string }> {
-  const response = await fetch(${API_BASE_URL}/api/billing/checkout, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: Bearer  }, body: JSON.stringify({ interval }) });
+  const response = await fetch(`${API_BASE_URL}/api/billing/checkout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ interval }),
+  });
   const data = await response.json();
   if (!response.ok) throw new ApiError(data.error || 'Unable to start checkout', response.status);
-  return data;
+  if (typeof data.checkoutUrl !== 'string') throw new ApiError('Checkout response was invalid', 502);
+  return { checkoutUrl: data.checkoutUrl };
 }
-
 /** An error response from the API. `status` lets screens tell apart, say, a duplicate email (409) from a server fault. */
 export class ApiError extends Error {
   status: number;
