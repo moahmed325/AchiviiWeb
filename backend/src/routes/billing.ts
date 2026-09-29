@@ -76,6 +76,7 @@ export const checkoutHandler = async (req: Request, res: Response): Promise<void
 };
 
 billingRouter.get("/entitlement", entitlementHandler);
+billingRouter.get("/account", accountStateHandler);
 billingRouter.post("/reconcile", reconcileHandler);
 billingRouter.post("/checkout", checkoutHandler);
 

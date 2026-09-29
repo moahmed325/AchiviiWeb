@@ -20,3 +20,10 @@ describe("billing reconciliation route", () => {
   it("reconciles only for the authenticated user", async () => { getAuthUser.mockResolvedValue({id:"user-123",email:"user@example.com"}); reconcile.mockResolvedValue({reconciled:true,status:"ACTIVE"}); const {reconcileHandler}=await import("./billing.js"); const res=response(); await reconcileHandler({body:{},headers:{}} as any,res as any); expect(reconcile).toHaveBeenCalledWith("user-123"); expect(res.status).toHaveBeenCalledWith(200); });
   it("returns service unavailable without changing state", async () => { getAuthUser.mockResolvedValue({id:"user-123",email:"user@example.com"}); reconcile.mockResolvedValue({reconciled:false,status:"ACTIVE",reason:"provider_unavailable"}); const {reconcileHandler}=await import("./billing.js"); const res=response(); await reconcileHandler({body:{},headers:{}} as any,res as any); expect(res.status).toHaveBeenCalledWith(503); });
 });
+
+describe("billing routes", () => {
+  // The frontend AccountMenu calls GET /api/billing/account for plan state and
+  // the provider-managed subscription entry point (UX-4/UX-5). A missing
+  // registration silently 404s that experience in production.
+  it("exposes the account state route the frontend consumes", async () => { const { billingRouter } = await import("./billing.js"); const layers = (billingRouter as unknown as { stack: Array<{ route?: { path?: string; methods?: Record<string, boolean> } }> }).stack; const account = layers.find((l) => l.route?.path === "/account"); expect(account?.route?.methods?.get).toBe(true); });
+});
