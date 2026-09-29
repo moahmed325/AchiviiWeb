@@ -21,3 +21,14 @@ describe("getBillingAccountState", () => {
     await expect(getBillingAccountState("u1")).resolves.toMatchObject({ plan:"pro", manageUrl:null, cancelAtPeriodEnd:true });
   });
 });
+  it("does not expose another subscription when the local record belongs to the authenticated user", async () => {
+    findFirst.mockResolvedValue(null);
+    await expect(getBillingAccountState("u-attacker")).resolves.toMatchObject({ plan: "free", manageUrl: null });
+    expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: "u-attacker", plan: "pro" } }));
+  });
+
+  it("does not expose an invalid provider portal value", async () => {
+    findFirst.mockResolvedValue({ providerSubscriptionId:"sub-1", status:"ACTIVE", billingInterval:"monthly", currentPeriodEnd:new Date("2027-01-01T00:00:00Z"), cancelAtPeriodEnd:false });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ data:{ attributes:{ urls:{ customer_portal:"javascript:alert(1)" } } } }), { status:200 })));
+    await expect(getBillingAccountState("u1")).resolves.toMatchObject({ manageUrl: null });
+  });

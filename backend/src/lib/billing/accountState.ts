@@ -1,4 +1,4 @@
-﻿import { getBillingConfig } from "../../config/billing.js";
+import { getBillingConfig } from "../../config/billing.js";
 import { prisma } from "../prisma.js";
 
 export type BillingAccountState = Readonly<{
@@ -38,7 +38,7 @@ export const getBillingAccountState = async (userId: string): Promise<BillingAcc
     });
     const payload: unknown = await response.json().catch(() => null);
     const url = extractCustomerPortalUrl(payload);
-    if (response.ok && url) manageUrl = url;
+    if (response.ok && url && /^https:\/\//i.test(url)) manageUrl = url;
   } catch (error) {
     console.error("Billing management URL error:", error);
   }
