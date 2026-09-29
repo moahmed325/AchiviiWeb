@@ -86,7 +86,7 @@ describe("Lemon Squeezy webhook handler", () => {
   it("updates renewal events to the provider supplied renewal date without creating duplicates", async () => {
     const payload = subscriptionPayload();
     payload.meta.event_name = "subscription_updated";
-    payload.data.attributes.renews_at = "2099-11-01T00:00:00Z";
+    (payload.data.attributes as any).renews_at = "2099-11-01T00:00:00Z";
     payload.data.attributes.variant_name = "Pro Yearly";
     recordWebhookDelivery.mockResolvedValue({ created: true, eventId: "event-renewal" });
     userFindUnique.mockResolvedValue({ id: "user-123" });
@@ -105,7 +105,7 @@ describe("Lemon Squeezy webhook handler", () => {
     payload.meta.event_name = "subscription_cancelled";
     payload.data.attributes.status = "cancelled";
     payload.data.attributes.cancelled = true;
-    payload.data.attributes.ends_at = "2099-12-01T00:00:00Z";
+    (payload.data.attributes as any).ends_at = "2099-12-01T00:00:00Z";
     recordWebhookDelivery.mockResolvedValue({ created: true, eventId: "event-cancel" });
     userFindUnique.mockResolvedValue({ id: "user-123" });
     subscriptionUpsert.mockResolvedValue({}); webhookEventUpdate.mockResolvedValue({});
@@ -115,6 +115,21 @@ describe("Lemon Squeezy webhook handler", () => {
     const update = subscriptionUpsert.mock.calls.at(-1)?.[0]?.update;
     expect(update).toMatchObject({ status: "CANCELLED_ENDING", cancelAtPeriodEnd: true, currentPeriodEnd: new Date("2099-12-01T00:00:00Z") });
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+  it("payment failure enters recovery without early downgrade", async () => {
+    const payload = subscriptionPayload(); payload.meta.event_name = "subscription_payment_failed"; payload.data.attributes.status = "past_due"; (payload.data.attributes as any).renews_at = "2099-11-01T00:00:00Z";
+    recordWebhookDelivery.mockResolvedValue({ created: true, eventId: "event-failed" }); userFindUnique.mockResolvedValue({ id: "user-123" }); subscriptionUpsert.mockResolvedValue({}); webhookEventUpdate.mockResolvedValue({});
+    const { lemonSqueezyWebhookHandler } = await import("./webhook.js"); const body = JSON.stringify(payload); const res = response();
+    await lemonSqueezyWebhookHandler({ body: Buffer.from(body), headers: {}, header: () => sign(body) } as any, res as any);
+    expect(subscriptionUpsert.mock.calls.at(-1)?.[0]?.update).toMatchObject({ status: "PAST_DUE_RECOVERY", currentPeriodEnd: new Date("2099-11-01T00:00:00Z") }); expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("payment recovery returns the subscription to active", async () => {
+    const payload = subscriptionPayload(); payload.meta.event_name = "subscription_payment_recovered"; payload.data.attributes.status = "active"; (payload.data.attributes as any).renews_at = "2099-12-01T00:00:00Z";
+    recordWebhookDelivery.mockResolvedValue({ created: true, eventId: "event-recovered" }); userFindUnique.mockResolvedValue({ id: "user-123" }); subscriptionUpsert.mockResolvedValue({}); webhookEventUpdate.mockResolvedValue({});
+    const { lemonSqueezyWebhookHandler } = await import("./webhook.js"); const body = JSON.stringify(payload); const res = response();
+    await lemonSqueezyWebhookHandler({ body: Buffer.from(body), headers: {}, header: () => sign(body) } as any, res as any);
+    expect(subscriptionUpsert.mock.calls.at(-1)?.[0]?.update).toMatchObject({ status: "ACTIVE", currentPeriodEnd: new Date("2099-12-01T00:00:00Z"), cancelAtPeriodEnd: false }); expect(res.status).toHaveBeenCalledWith(200);
   });
   it("persists a verified subscription state using the checkout user association", async () => {
     recordWebhookDelivery.mockResolvedValue({ created: true, eventId: "event-123" });
