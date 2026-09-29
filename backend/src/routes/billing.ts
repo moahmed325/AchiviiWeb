@@ -1,8 +1,21 @@
-﻿import { Router, Request, Response } from "express";
+import { Router, Request, Response } from "express";
 import { getAuthUser } from "./auth.js";
 import { createLemonSqueezyCheckout, CheckoutInterval } from "../lib/billing/lemonSqueezyCheckout.js";
+import { hasProEntitlement } from "../lib/billing/entitlement.js";
 
 export const billingRouter = Router();
+
+export const entitlementHandler = async (req: Request, res: Response): Promise<void> => {
+  const user = await getAuthUser(req);
+  if (!user) { res.status(401).json({ error: "Unauthorized. Please sign in." }); return; }
+  try {
+    const entitled = await hasProEntitlement(user.id);
+    res.status(200).json({ plan: entitled ? "pro" : "free", entitled });
+  } catch (error) {
+    console.error("Billing entitlement error:", error);
+    res.status(500).json({ error: "Unable to load billing status. Please try again." });
+  }
+};
 
 export const checkoutHandler = async (req: Request, res: Response): Promise<void> => {
   const user = await getAuthUser(req);
@@ -33,4 +46,5 @@ export const checkoutHandler = async (req: Request, res: Response): Promise<void
   }
 };
 
+billingRouter.get("/entitlement", entitlementHandler);
 billingRouter.post("/checkout", checkoutHandler);

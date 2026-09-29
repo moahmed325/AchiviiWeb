@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button, Dialog, DialogClose, DialogContent } from './ui';
+import { CustomGoalGate } from './billing';
 import { findPathwayByTitle } from '../lib/certifiedPresets';
 import { PathwayCustomGoal, PathwayLibrary, usePathwayLaunch, usePathwaySelection } from './pathways';
 import { DRAFT_GOAL_KEY } from './onboarding/payload';
@@ -72,14 +73,7 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
         currentId={currentId}
         customGoal={
           <PathwayCustomGoal className="mt-8">
-            <Button
-              variant="premium"
-              className="w-full sm:w-auto"
-              onClick={handleCustomJourney}
-              trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
-            >
-              {hasGoal ? 'Create a custom journey' : 'Describe my own goal'}
-            </Button>
+            <CustomGoalGate onContinue={handleCustomJourney} />
           </PathwayCustomGoal>
         }
       />
