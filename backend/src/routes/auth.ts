@@ -5,7 +5,15 @@ import { normalizeTimezone } from '../lib/timezone.js';
 
 export const authRouter = Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'achivii-secret-key-development-2026';
+const JWT_SECRET = (() => {
+  const configured = process.env.JWT_SECRET?.trim();
+  if (configured) {
+    if (configured.length < 32) throw new Error('JWT_SECRET must be at least 32 characters long.');
+    return configured;
+  }
+  if (process.env.NODE_ENV !== 'production') return 'achivii-secret-key-development-only-2026';
+  throw new Error('JWT_SECRET is required in production.');
+})();
 
 // Secure password hashing with salt via scrypt
 function hashPassword(password: string): string {
