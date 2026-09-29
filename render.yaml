@@ -7,12 +7,7 @@ services:
     rootDir: backend
     # migrate deploy (not db push) — db push skips the migrations folder entirely, which
     # would silently omit CREATE EXTENSION vector and the pgvector indexes in production.
-    # TEMP recovery step (remove after first successful deploy): the first deploy
-    # failed migrations with a UTF-8 BOM syntax error, leaving a failed record that
-    # blocks migrate deploy with P3009. No schema objects were created (the BOM
-    # aborted the first statement), so re-running is safe. `|| true` keeps this
-    # harmless on any database that has no failed migration record.
-    buildCommand: "npm install --include=dev && npx prisma migrate resolve --rolled-back 20260929170000_add_subscriptions || true && npx prisma migrate deploy && npm run build"
+    buildCommand: npm install --include=dev && npx prisma migrate deploy && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
