@@ -1,4 +1,4 @@
-﻿CREATE TABLE "webhook_events" (
+CREATE TABLE "webhook_events" (
     "id" TEXT NOT NULL,
     "deliveryKey" TEXT NOT NULL,
     "eventName" TEXT NOT NULL,

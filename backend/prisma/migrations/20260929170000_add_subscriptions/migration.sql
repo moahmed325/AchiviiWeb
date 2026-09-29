@@ -1,4 +1,4 @@
-﻿CREATE TABLE "subscriptions" (
+CREATE TABLE "subscriptions" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "provider" TEXT NOT NULL DEFAULT 'lemon_squeezy',
