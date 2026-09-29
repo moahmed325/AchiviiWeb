@@ -15,9 +15,39 @@ services:
         value: production
       - key: PORT
         value: 10000
+      # Render-injected connection string for the achivii-db instance below.
+      # Never committed as a literal value.
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: achivii-db
+          property: connectionString
+      # Production frontend origin (Vercel project: achiviiweb). CORS also
+      # accepts any *.vercel.app preview origin via src/index.ts.
       - key: CLIENT_ORIGIN
+        value: https://achiviiweb.vercel.app
+      # Lemon Squeezy stays in Test Mode until live onboarding is complete.
+      # Paste the matching test-mode values from backend/.env when Render prompts
+      # during Blueprint creation; never commit their values.
+      - key: LEMON_SQUEEZY_ENVIRONMENT
+        value: test
+      - key: LEMON_SQUEEZY_TEST_STORE_ID
         sync: false
+      - key: LEMON_SQUEEZY_TEST_API_KEY
+        sync: false
+      - key: LEMON_SQUEEZY_TEST_PRO_MONTHLY_VARIANT_ID
+        sync: false
+      - key: LEMON_SQUEEZY_TEST_PRO_YEARLY_VARIANT_ID
+        sync: false
+      # LEMON_SQUEEZY_TEST_WEBHOOK_SIGNING_SECRET is intentionally NOT set here.
+      # Create the Lemon Squeezy webhook (Phase 7) first, then add the signing
+      # secret to the service in the Render dashboard.
+      # Render generates a base64-encoded 256-bit value (44 chars) on first sync,
+      # satisfying the >=32-char requirement enforced by src/routes/auth.ts.
       - key: JWT_SECRET
         generateValue: true
+
+databases:
+  - name: achivii-db
+    databaseName: achivii
+    region: oregon
+    plan: free
