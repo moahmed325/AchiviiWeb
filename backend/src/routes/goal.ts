@@ -986,10 +986,8 @@ goalRouter.delete('/active', async (req: Request, res: Response): Promise<void> 
       res.status(401).json({ error: 'Unauthorized.' });
       return;
     }
-
-    await prisma.goal.updateMany({
-      where: { userId: user.id, status: 'active' },
-      data: { status: 'archived' }
+    await prisma.goal.deleteMany({
+      where: { userId: user.id, status: 'active' }
     });
 
     res.json({ success: true });
