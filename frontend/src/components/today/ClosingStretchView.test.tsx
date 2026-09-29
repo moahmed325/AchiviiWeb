@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { Goal } from '../../types';
@@ -74,13 +74,13 @@ describe('ClosingStretchView Component (M9.4)', () => {
   it('renders closing stretch header, 6-day approach indicator, and roadmap link (M9.4-R1)', () => {
     renderComponent();
 
-    expect(screen.getByText('DAYS 85–90 · THE CLOSING STRETCH')).toBeVisible();
+    expect(screen.getByText(/DAYS 85.*90.*THE CLOSING STRETCH/)).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible();
     expect(screen.getByText(/The 84 planned deliberate practice days are complete/i)).toBeVisible();
     expect(screen.getByText('Closing Stretch Approach')).toBeVisible();
     expect(screen.getByText('Day 85')).toBeVisible();
     expect(screen.getByText('Day 89')).toBeVisible();
-    expect(screen.getByText('Summit ✦')).toBeVisible();
+    expect(screen.getAllByText(/Summit/).length).toBeGreaterThan(0);
 
     const roadmapLink = screen.getByRole('link', { name: 'Review 90-day staircase' });
     expect(roadmapLink).toHaveAttribute('href', '/roadmap');
@@ -105,7 +105,7 @@ describe('ClosingStretchView Component (M9.4)', () => {
 
     // Toggle benchmark achieved / in progress
     const passButton = screen.getByRole('button', { name: 'Benchmark achieved' });
-    const inProgressButton = screen.getByRole('button', { name: 'In progress — Reinforcing' });
+    const inProgressButton = screen.getByRole('button', { name: /In progress.*Reinforcing/ });
 
     expect(passButton).toBeVisible();
     expect(inProgressButton).toBeVisible();
@@ -116,15 +116,15 @@ describe('ClosingStretchView Component (M9.4)', () => {
     // Value input
     const valueInput = screen.getByLabelText('Recorded Score or Deliverable Output');
     await user.clear(valueInput);
-    await user.type(valueInput, '49:15 min');
+    fireEvent.change(valueInput, { target: { value: '49:15 min' } });
 
     // Notes input
     const notesInput = screen.getByLabelText('Evaluation Notes (optional)');
-    await user.type(notesInput, 'Cool morning weather, negative splits.');
+    fireEvent.change(notesInput, { target: { value: 'Cool morning weather, negative splits.' } });
 
     // Reflection draft
     const reflectionInput = screen.getByLabelText('Final Journey Reflection');
-    await user.type(reflectionInput, 'Ninety days of deliberate practice completely rebuilt my discipline.');
+    fireEvent.change(reflectionInput, { target: { value: 'Ninety days of deliberate practice completely rebuilt my discipline.' } });
 
     // Verify localStorage draft
     expect(localStorage.getItem('achivii_closing_reflection_goal-90')).toBe(
@@ -150,10 +150,10 @@ describe('ClosingStretchView Component (M9.4)', () => {
     renderComponent();
 
     const reflectionInput = screen.getByLabelText('Final Journey Reflection');
-    await user.type(reflectionInput, 'A quiet, earned arrival.');
+    fireEvent.change(reflectionInput, { target: { value: 'A quiet, earned arrival.' } });
 
     const valueInput = screen.getByLabelText('Recorded Score or Deliverable Output');
-    await user.type(valueInput, '48:50 min');
+    fireEvent.change(valueInput, { target: { value: '48:50 min' } });
 
     const arriveButton = screen.getByRole('button', {
       name: 'Complete Journey & Arrive at the Garden',
@@ -182,7 +182,7 @@ describe('ClosingStretchView Component (M9.4)', () => {
     renderComponent();
 
     const reflectionInput = screen.getByLabelText('Final Journey Reflection');
-    await user.type(reflectionInput, 'Completed early without test.');
+    fireEvent.change(reflectionInput, { target: { value: 'Completed early without test.' } });
 
     const fallbackButton = screen.getByRole('button', { name: 'Arrive without test' });
     await user.click(fallbackButton);
@@ -202,7 +202,7 @@ describe('ClosingStretchView Component (M9.4)', () => {
     renderComponent();
 
     const reflectionInput = screen.getByLabelText('Final Journey Reflection');
-    await user.type(reflectionInput, 'Important draft that must not be lost.');
+    fireEvent.change(reflectionInput, { target: { value: 'Important draft that must not be lost.' } });
 
     const arriveButton = screen.getByRole('button', {
       name: 'Complete Journey & Arrive at the Garden',

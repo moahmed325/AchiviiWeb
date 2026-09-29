@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { PathwaysExplorerModal } from './PathwaysExplorerModal';
+
+vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'test-user', email: 'test@example.com' }, token: 'test-token', loading: false, login: vi.fn(), signup: vi.fn(), logout: vi.fn() }) }));
+vi.mock('../lib/api', () => ({ fetchBillingEntitlement: vi.fn().mockResolvedValue({ entitled: true }), startProCheckout: vi.fn() }));
 
 const Onboarding = () => <pre data-testid="state">{JSON.stringify(useLocation().state)}</pre>;
 
@@ -132,7 +135,7 @@ describe('PathwaysExplorerModal', () => {
   it('Custom Journey (no goal) navigates to onboarding without switchGoal', async () => {
     renderScreen();
     await open();
-    const button = screen.getByRole('button', { name: 'Describe my own goal' });
+    const button = screen.getByRole('button', { name: 'Create a custom journey' });
     await userEvent.click(button);
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(JSON.parse(screen.getByTestId('state').textContent!)).toEqual({

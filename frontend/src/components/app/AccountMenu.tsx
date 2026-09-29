@@ -58,7 +58,7 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut
         {withGoal && (
           <>
             <p className="tabular mt-4 font-ui-mono text-micro uppercase text-text-secondary">
-              Your goal ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Week {activeGoal.currentWeek || 1}
+              Your goal Â· Week {activeGoal.currentWeek || 1}
             </p>
             <p className="mt-1 break-words text-small text-text">{activeGoal.rawGoal}</p>
           </>
@@ -66,7 +66,7 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut
       </div>
       <div className="my-3 border-y border-border px-3 py-3">
         <p className="font-ui-mono text-micro uppercase text-text-secondary">Plan</p>
-        {billingLoading && <p className="mt-1 text-small text-text-secondary">Checking billingÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦</p>}
+        {billingLoading && <p className="mt-1 text-small text-text-secondary">Checking billingÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦</p>}
         {!billingLoading && billing && <>
           <div className="mt-1 flex items-center justify-between gap-3"><p className="text-small font-medium text-text">{billing.plan === 'pro' ? 'Pro' : 'Free'}</p><span className="text-micro uppercase text-text-secondary">{billing.status === 'none' ? 'No subscription' : billing.status === 'PAST_DUE_RECOVERY' ? 'Payment needs attention' : billing.status === 'UNPAID' ? 'Payment needs attention' : billing.status === 'PAUSED' ? 'Paused' : billing.status.replace(/_/g, ' ').toLowerCase()}</span></div>
           {billing.plan === 'pro' && billing.currentPeriodEnd && <p className="mt-1 text-small text-text-secondary">{billing.cancelAtPeriodEnd ? 'Access until ' : 'Next billing date '}{new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(billing.currentPeriodEnd))}</p>}
