@@ -1,4 +1,4 @@
-﻿datasource db {
+datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
@@ -46,6 +46,21 @@ model Subscription {
   @@index([providerCustomerId])
   @@index([providerVariantId])
   @@map("subscriptions")
+}
+model WebhookEvent {
+  id             String    @id @default(uuid())
+  deliveryKey    String    @unique
+  eventName      String
+  resourceType   String
+  resourceId     String
+  status         String    @default("RECEIVED")
+  receivedAt     DateTime  @default(now())
+  processedAt    DateTime?
+  processingError String?
+
+  @@index([resourceType, resourceId])
+  @@index([status, receivedAt])
+  @@map("webhook_events")
 }
 model Goal {
   id               String         @id @default(uuid())
@@ -174,4 +189,3 @@ model ResearchCache {
 
   @@map("research_cache")
 }
-
