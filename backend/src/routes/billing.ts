@@ -42,6 +42,11 @@ export const reconcileHandler = async (req: Request, res: Response): Promise<voi
   }
 };
 export const checkoutHandler = async (req: Request, res: Response): Promise<void> => {
+  if (process.env.BILLING_CHECKOUT_ENABLED === "false") {
+    res.status(503).json({ error: "New subscriptions are temporarily unavailable. Please try again later." });
+    return;
+  }
+
   const user = await getAuthUser(req);
   if (!user) {
     res.status(401).json({ error: "Unauthorized. Please sign in." });

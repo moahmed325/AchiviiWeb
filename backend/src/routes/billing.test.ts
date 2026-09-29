@@ -6,9 +6,10 @@ vi.mock("../lib/billing/lemonSqueezyCheckout.js", () => ({ createLemonSqueezyChe
 vi.mock("../lib/billing/lemonSqueezyReconciliation.js", () => ({ reconcileUserSubscription: reconcile }));
 const response = () => ({ status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis() });
 
-beforeEach(() => { getAuthUser.mockReset(); createCheckout.mockReset(); reconcile.mockReset(); });
+beforeEach(() => { getAuthUser.mockReset(); createCheckout.mockReset(); reconcile.mockReset(); delete process.env.BILLING_CHECKOUT_ENABLED; });
 
 describe("billing checkout route", () => {
+  it("can disable new purchases without touching existing entitlements", async () => { process.env.BILLING_CHECKOUT_ENABLED="false"; getAuthUser.mockResolvedValue({id:"user-123",email:"user@example.com"}); const {checkoutHandler}=await import("./billing.js"); const res=response(); await checkoutHandler({body:{interval:"monthly"},headers:{}} as any,res as any); expect(res.status).toHaveBeenCalledWith(503); expect(createCheckout).not.toHaveBeenCalled(); });
   it("rejects unauthenticated requests", async () => { getAuthUser.mockResolvedValue(null); const { checkoutHandler } = await import("./billing.js"); const res=response(); await checkoutHandler({body:{},headers:{}} as any,res as any); expect(res.status).toHaveBeenCalledWith(401); expect(createCheckout).not.toHaveBeenCalled(); });
   it("uses authenticated identity and selected interval", async () => { getAuthUser.mockResolvedValue({id:"user-123",email:"user@example.com"}); createCheckout.mockResolvedValue({checkoutId:"checkout-123",checkoutUrl:"https://checkout.example/123"}); const {checkoutHandler}=await import("./billing.js"); const res=response(); await checkoutHandler({body:{interval:"yearly"},headers:{}} as any,res as any); expect(createCheckout).toHaveBeenCalledWith({userId:"user-123",email:"user@example.com",interval:"yearly"}); expect(res.status).toHaveBeenCalledWith(200); });
   it("rejects invalid interval", async () => { getAuthUser.mockResolvedValue({id:"user-123",email:"user@example.com"}); const {checkoutHandler}=await import("./billing.js"); const res=response(); await checkoutHandler({body:{interval:"weekly"},headers:{}} as any,res as any); expect(res.status).toHaveBeenCalledWith(400); });
