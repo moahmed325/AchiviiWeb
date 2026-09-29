@@ -58,7 +58,7 @@ export const lemonSqueezyWebhookHandler = async (req: Request, res: Response): P
 
   const identity = { eventName, resourceType, resourceId };
   const delivery = await recordWebhookDelivery(rawBody, identity);
-  if (!delivery.created) {
+  if (!delivery.created && !delivery.retry) {
     res.status(200).json({ received: true, duplicate: true });
     return;
   }
@@ -80,7 +80,9 @@ export const lemonSqueezyWebhookHandler = async (req: Request, res: Response): P
   const providerStatus = typeof attributes.status === "string" ? attributes.status : "";
   const endsAt = typeof attributes.ends_at === "string" ? attributes.ends_at : null;
   const renewsAt = typeof attributes.renews_at === "string" ? attributes.renews_at : null;
-  const state = mapLemonSqueezyStatus(providerStatus, endsAt, renewsAt);
+  const state = attributes.cancelled
+    ? (endsAt && new Date(endsAt) > new Date() ? "CANCELLED_ENDING" : "EXPIRED")
+    : mapLemonSqueezyStatus(providerStatus, endsAt, renewsAt);
   const periodEnd = periodEndForState(state, renewsAt, endsAt);
   const periodStart = parseDate(attributes.created_at);
   const variantId = String(attributes.variant_id ?? "");
@@ -162,4 +164,7 @@ const markWebhookFailed = async (eventId: string, message: string): Promise<void
 
 export const webhookRouter = Router();
 webhookRouter.post("/", lemonSqueezyWebhookHandler);
+
+
+
 
