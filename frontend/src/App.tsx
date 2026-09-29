@@ -20,6 +20,7 @@ const ProgressPage = React.lazy(() => import('./pages/ProgressPage'));
 
 /* Dedicated Achievement page (M9.3). Lazy-loaded to keep the main bundle lean. */
 const AchievementPage = React.lazy(() => import('./pages/AchievementPage'));
+const CheckoutReturnPage = React.lazy(() => import('./pages/CheckoutReturnPage'));
 
 
 export const DashboardRedirect: React.FC = () => {
@@ -93,6 +94,8 @@ export const App: React.FC = () => {
                 }
               />
 
+              {/* Billing return: provider redirect is never treated as payment proof. */}
+              <Route path="/billing/return" element={<React.Suspense fallback={null}><CheckoutReturnPage /></React.Suspense>} />
               {/* Dedicated Achievement Destination (Protected, requires goal, M9.3) */}
               <Route
                 path="/achievement"

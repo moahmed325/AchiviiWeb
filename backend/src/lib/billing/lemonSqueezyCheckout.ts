@@ -1,4 +1,4 @@
-﻿import { getBillingConfig } from "../../config/billing.js";
+import { getBillingConfig } from "../../config/billing.js";
 
 const LEMON_SQUEEZY_API_URL = "https://api.lemonsqueezy.com/v1/checkouts";
 
@@ -37,6 +37,7 @@ export const createLemonSqueezyCheckout = async (
           },
           product_options: {
             enabled_variants: [Number(variantId)],
+            redirect_url: (process.env.CLIENT_ORIGIN ?? "http://localhost:5173") + "/billing/return?checkout=success",
           },
           test_mode: config.environment === "test",
         },

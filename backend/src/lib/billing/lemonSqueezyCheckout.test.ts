@@ -1,4 +1,4 @@
-﻿import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
 const originalFetch = globalThis.fetch;
 
@@ -9,6 +9,7 @@ beforeEach(() => {
   process.env.LEMON_SQUEEZY_TEST_WEBHOOK_SIGNING_SECRET = "webhook-secret";
   process.env.LEMON_SQUEEZY_TEST_PRO_MONTHLY_VARIANT_ID = "456";
   process.env.LEMON_SQUEEZY_TEST_PRO_YEARLY_VARIANT_ID = "789";
+  process.env.CLIENT_ORIGIN = "https://achivii.com";
 });
 
 afterEach(() => {
@@ -52,6 +53,7 @@ describe("Lemon Squeezy checkout client", () => {
     expect(body.data.relationships.variant.data.id).toBe("789");
     expect(body.data.attributes.checkout_data.custom).toEqual({ user_id: "user-123" });
     expect(body.data.attributes.checkout_data.email).toBe("user@example.com");
+    expect(body.data.attributes.product_options.redirect_url).toBe("https://achivii.com/billing/return?checkout=success");
     expect(body.data.attributes.test_mode).toBe(true);
   });
 
