@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
+import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import {
   clarifyGoalWithAI,
   adaptUpcomingWeekTasksWithAI,
@@ -267,6 +268,18 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
     }
 
     const { rawGoal, clarifiedOutcome, answers, routine, startDate, domain } = req.body;
+
+    // A preset/certified pathway is determined by the same server-side preset resolver used below.
+    // New non-preset goals require a verified Pro entitlement before any plan generation or mutation.
+    const requestedPreset = typeof rawGoal === 'string' ? findPresetForGoal(rawGoal) : null;
+    const requestedClarifiedPreset = typeof clarifiedOutcome === 'string' ? findPresetForGoal(clarifiedOutcome) : null;
+    if (!requestedPreset && !requestedClarifiedPreset) {
+      const authorization = await authorizeNewCustomGoal(user.id);
+      if (!authorization.allowed) {
+        res.status(403).json({ error: authorization.message, code: authorization.code });
+        return;
+      }
+    }
 
     if (!rawGoal || !clarifiedOutcome) {
       res.status(400).json({ error: 'Goal and clarified outcome are required.' });
@@ -974,8 +987,9 @@ goalRouter.delete('/active', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    await prisma.goal.deleteMany({
-      where: { userId: user.id, status: 'active' }
+    await prisma.goal.updateMany({
+      where: { userId: user.id, status: 'active' },
+      data: { status: 'archived' }
     });
 
     res.json({ success: true });
