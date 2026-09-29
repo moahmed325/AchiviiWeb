@@ -1,4 +1,4 @@
-﻿import { prisma } from "../prisma.js";
+import { prisma } from "../prisma.js";
 
 export const PRO_ENTITLED = "PRO_ENTITLED" as const;
 export const PRO_NOT_ENTITLED = "PRO_NOT_ENTITLED" as const;
