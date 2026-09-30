@@ -45,7 +45,7 @@ Authentication: legacy auth → dual transition → users linked to Supabase Aut
 - Existing session restoration.
 - Existing protected routes.
 - Existing account/logout.
-- Existing billing/account.
+- Existing 04-billing/account.
 
 No migration-specific user-facing entry point is required.
 

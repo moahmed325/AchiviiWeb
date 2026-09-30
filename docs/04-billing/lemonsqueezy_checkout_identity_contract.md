@@ -138,7 +138,7 @@ Each provider subscription must remain associated with the correct Achivii user.
 The frontend may request:
 
 ```text
-POST /api/billing/checkout
+POST /api/04-billing/checkout
 ```
 
 with a requested plan/interval such as:
@@ -181,7 +181,7 @@ The backend derives the user ID from authentication and derives the Lemon Squeez
 
 M0.3 intentionally does **not** implement:
 
-- `/api/billing/checkout`;
+- `/api/04-billing/checkout`;
 - Lemon Squeezy API calls;
 - Prisma billing tables;
 - webhook endpoints;

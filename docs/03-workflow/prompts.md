@@ -6,11 +6,11 @@ Part of the project framework:
 
 | File | Answers |
 |---|---|
-| `docs/architecture/redesign-blueprint.md` | What Achivii is and must become (source of truth, **BP §n**) |
-| `docs/architecture/visual-design-system.md` | How it looks (source of truth, **VDS §n**) |
-| `docs/process/phases.md` | When and in what order: phases, milestones, exit criteria |
-| `docs/process/prompts.md` (this file) | How the agent is instructed |
-| `docs/process/decisions.md` | Why: decisions with options, choice and reasoning |
+| `docs/01-product/redesign-blueprint.md` | What Achivii is and must become (source of truth, **BP §n**) |
+| `docs/01-product/visual-design-system.md` | How it looks (source of truth, **VDS §n**) |
+| `docs/03-workflow/phases.md` | When and in what order: phases, milestones, exit criteria |
+| `docs/03-workflow/prompts.md` (this file) | How the agent is instructed |
+| `docs/03-workflow/decisions.md` | Why: decisions with options, choice and reasoning |
 
 This file contains **instructions only**. Requirements live in the blueprint and design system, sequencing and done-criteria in `phases.md`, and decision outcomes in `decisions.md`. When a prompt and one of those files disagree, the file wins and the prompt must be corrected.
 
@@ -71,7 +71,7 @@ Replace every `{{...}}` before sending. Never leave a placeholder in a sent prom
 
 ## Decision gate
 
-Every phase prompt lists the decisions it depends on. If any of them is not marked **Decided** in `docs/process/decisions.md`, the agent must stop and run W3 for it instead of guessing. This rule is repeated inside the prompts on purpose.
+Every phase prompt lists the decisions it depends on. If any of them is not marked **Decided** in `docs/03-workflow/decisions.md`, the agent must stop and run W3 for it instead of guessing. This rule is repeated inside the prompts on purpose.
 
 ---
 
@@ -98,11 +98,11 @@ clear action at a time.
 - The marketing site inspires. The application focuses.
 
 SOURCES OF TRUTH (read them; do not rely on memory of earlier conversations)
-1. docs/architecture/redesign-blueprint.md      what Achivii is and must become
-2. docs/architecture/visual-design-system.md    how it looks (Design.md implements it; the VDS wins)
-3. docs/process/phases.md                  phase order, scope, milestones, exit criteria
-4. docs/process/decisions.md               decided questions and their reasoning
-5. docs/process/prompts.md                 how work is run
+1. docs/01-product/redesign-blueprint.md      what Achivii is and must become
+2. docs/01-product/visual-design-system.md    how it looks (Design.md implements it; the VDS wins)
+3. docs/03-workflow/phases.md                  phase order, scope, milestones, exit criteria
+4. docs/03-workflow/decisions.md               decided questions and their reasoning
+5. docs/03-workflow/prompts.md                 how work is run
 If these conflict: the blueprint and design system win on product and visuals,
 decisions.md wins on anything it has decided, and phases.md wins on scope and
 order. Report every conflict you notice; never resolve one silently.
@@ -120,7 +120,7 @@ STACK (verify rather than assume if anything looks different)
 - Frontend build: `npm run build --workspace=frontend`
 - Backend tests: `npm test --workspace=backend`; build: `npm run build --workspace=backend`
 - Frontend lint: in frontend/, `npx eslint <changed paths>` must be clean. The full
-  `npm run lint` fails on a known pre-Phase-0 baseline (docs/process/phases.md 3.11); a
+  `npm run lint` fails on a known pre-Phase-0 baseline (docs/03-workflow/phases.md 3.11); a
   file you migrate must leave it lint-clean.
 - Frontend tests: in frontend/, `npm test` (Vitest + Testing Library, jsdom).
 - Playwright smoke tests arrive at the start of Phase 2 (ND-3).
@@ -133,7 +133,7 @@ PERMANENT RULES
    schema, frontend/src/lib/api.ts, AuthContext and GoalContext logic, and
    onboarding/dashboard business logic are off-limits unless the current phase's
    "Backend allowance" names the exact change AND decisions.md approves it.
-3. Never break the must-not-break list (docs/process/phases.md section 3.3, R-1 to R-18):
+3. Never break the must-not-break list (docs/03-workflow/phases.md section 3.3, R-1 to R-18):
    authentication, goal creation, preset pathway launch, onboarding payload, AI
    roadmap generation, generation progress stream, saving goals, daily task
    retrieval, daily completion, task notes, focus session, weekly review, weekly
@@ -181,7 +181,7 @@ COMMUNICATION
 - Lead with the outcome. Plain, complete sentences. Name files and endpoints.
 - Before a long piece of work, say in one sentence what you are about to do.
 - When something fails or is blocked, say so immediately and plainly.
-- End every phase with the report template in docs/process/phases.md section 7.
+- End every phase with the report template in docs/03-workflow/phases.md section 7.
 ```
 
 ---
@@ -194,17 +194,17 @@ COMMUNICATION
 ACHIVII — LOAD CONTEXT
 
 Read, in full:
-- docs/architecture/redesign-blueprint.md
-- docs/architecture/visual-design-system.md
-- docs/process/phases.md
-- docs/process/decisions.md
-Then read the Phase {{PHASE}} ({{PHASE_NAME}}) section of docs/process/phases.md again
+- docs/01-product/redesign-blueprint.md
+- docs/01-product/visual-design-system.md
+- docs/03-workflow/phases.md
+- docs/03-workflow/decisions.md
+Then read the Phase {{PHASE}} ({{PHASE_NAME}}) section of docs/03-workflow/phases.md again
 closely.
 
 Do not change any file.
 
 Reply with:
-1. The current status of every phase, from docs/process/phases.md section 1.
+1. The current status of every phase, from docs/03-workflow/phases.md section 1.
 2. For Phase {{PHASE}}: its objective, in-scope list, out-of-scope list and
    backend allowance, in your own words (at most 15 lines).
 3. Every decision Phase {{PHASE}} depends on, and whether each is Decided or
@@ -223,7 +223,7 @@ ACHIVII — PHASE {{PHASE}} KICKOFF ({{PHASE_NAME}}) — READ-ONLY
 This step is investigation and planning only. Do not modify, create, delete or
 install anything.
 
-1. Verify "Current state" for Phase {{PHASE}} in docs/process/phases.md against the code.
+1. Verify "Current state" for Phase {{PHASE}} in docs/03-workflow/phases.md against the code.
    Open every file listed under "Files likely affected" and every endpoint the
    phase touches. Report where the document is wrong or incomplete.
 2. Trace each must-not-break item (R-n) this phase touches from UI to server and
@@ -238,7 +238,7 @@ install anything.
 4. List every open decision this phase depends on. For each, say what in the
    code makes it matter.
 5. Propose an implementation plan by milestone (use the milestone ids in
-   docs/process/phases.md). For each milestone: files, approach, risks, and how it will
+   docs/03-workflow/phases.md). For each milestone: files, approach, risks, and how it will
    be verified.
 6. List any dependency you would add, with the reason.
 7. List anything you believe should be in or out of scope that phases.md does
@@ -257,7 +257,7 @@ ACHIVII — DECISION REQUEST: {{DECISION_ID}}
 Do not implement anything. Prepare a decision for Mo.
 
 1. State the question in one sentence, and quote where it comes from (blueprint
-   Open Decisions, docs/process/phases.md section 5, or a new finding).
+   Open Decisions, docs/03-workflow/phases.md section 5, or a new finding).
 2. Explain what in the code and the product makes it matter, with file and
    endpoint names.
 3. Give two to four realistic options. For each:
@@ -270,7 +270,7 @@ Do not implement anything. Prepare a decision for Mo.
 4. Recommend one option and say why. If you genuinely cannot recommend, say
    what information would settle it.
 5. Draft the decisions.md entry for the recommended option, using the entry
-   format in docs/process/decisions.md, with Status "Proposed".
+   format in docs/03-workflow/decisions.md, with Status "Proposed".
 
 Stop and wait for Mo's choice.
 
@@ -284,11 +284,11 @@ ACHIVII — LOG DECISION: {{DECISION_ID}}
 
 Mo's decision: {{NOTES}}
 
-1. Write or update the {{DECISION_ID}} entry in docs/process/decisions.md with Status
+1. Write or update the {{DECISION_ID}} entry in docs/03-workflow/decisions.md with Status
    "Decided", today's date, the chosen option, the options considered, the
    reasoning and the consequences (including any backend allowance it approves
    and the phases it affects).
-2. Update docs/process/phases.md: the decision register (section 5), and any phase
+2. Update docs/03-workflow/phases.md: the decision register (section 5), and any phase
    section whose scope, allowance or milestones this decision changes. Add a
    line to the change log (section 8).
 3. Change no code.
@@ -300,14 +300,14 @@ Mo's decision: {{NOTES}}
 ```text
 ACHIVII — PHASE {{PHASE}} · MILESTONE {{MILESTONE}}
 
-Implement only milestone {{MILESTONE}} as described in docs/process/phases.md and the
+Implement only milestone {{MILESTONE}} as described in docs/03-workflow/phases.md and the
 approved kickoff plan. The Phase {{PHASE}} execution prompt (P{{PHASE}}) remains
 in force.
 
 Before editing:
 - Re-read every file you will change.
 - Confirm every decision this milestone depends on is Decided in
-  docs/process/decisions.md. If one is not, stop and say so.
+  docs/03-workflow/decisions.md. If one is not, stop and say so.
 
 While working:
 - Keep changes coherent and reviewable; no unrelated edits.
@@ -318,7 +318,7 @@ While working:
   stop and explain.
 
 When the milestone is done:
-- Run the validation baseline (docs/process/phases.md section 3.11) for what you touched.
+- Run the validation baseline (docs/03-workflow/phases.md section 3.11) for what you touched.
 - Verify the milestone's behaviour in the browser at desktop and 390px.
 - Re-check each must-not-break item the milestone touched.
 - Reply with: what changed, files changed, how it was verified, anything left
@@ -341,7 +341,7 @@ Change no code during this pass. Record results only.
    - backend tests and build, if the backend was touched
    - frontend lint on changed files, and frontend tests (Playwright too, once it exists)
 2. Browser, with the app running (frontend :5173, backend :5000):
-   - every validation step listed for Phase {{PHASE}} in docs/process/phases.md
+   - every validation step listed for Phase {{PHASE}} in docs/03-workflow/phases.md
    - desktop 1440px and mobile 390px (360px for dense screens)
    - console: no errors, warnings or unhandled rejections on load and through
      the flows
@@ -350,7 +350,7 @@ Change no code during this pass. Record results only.
      restore focus
    - backend stopped: offline behaviour correct and nothing crashes
 3. Every must-not-break item (R-n) the phase touches, verified as described in
-   docs/process/phases.md section 3.3.
+   docs/03-workflow/phases.md section 3.3.
 4. Honesty sweep: search the changed screens for anything that implies a
    capability from the "do not pretend" list.
 
@@ -365,7 +365,7 @@ If you create test accounts or data, list them so they can be cleaned up.
 ```text
 ACHIVII — PHASE {{PHASE}} REPORT
 
-Write the phase report using the template in docs/process/phases.md section 7, in this
+Write the phase report using the template in docs/03-workflow/phases.md section 7, in this
 order:
 1. Outcome
 2. What changed
@@ -391,7 +391,7 @@ You are resuming work that was interrupted. Do not trust your memory of it.
 1. Run W1 (load context) for Phase {{PHASE}}.
 2. Inspect the working tree: `git status` and `git diff` for the files this
    phase touches. Summarise what has already been changed.
-3. Compare that with the milestones in docs/process/phases.md and the approved kickoff
+3. Compare that with the milestones in docs/03-workflow/phases.md and the approved kickoff
    plan. Say which milestones look complete, partial or not started, with
    evidence.
 4. Run the frontend type-check to establish the current state.
@@ -419,7 +419,7 @@ Do not fix it yet.
    b. Pre-existing and inside the current phase's scope: fix now if small; ask
       if not.
    c. Pre-existing and outside scope: record it as a carry-over with an owning
-      phase in docs/process/phases.md section 6.
+      phase in docs/03-workflow/phases.md section 6.
    d. Touches a must-not-break item (R-n): state which, and treat it as high
       priority whatever its origin.
 4. Propose the smallest correct fix and how it will be verified.
@@ -439,7 +439,7 @@ Do not make the change. Explain:
 1. What you want to change, and exactly where.
 2. Why the current phase cannot meet its exit criteria without it, or what goes
    wrong if it waits.
-3. Which rule it touches: scope (docs/process/phases.md), backend allowance (system
+3. Which rule it touches: scope (docs/03-workflow/phases.md), backend allowance (system
    prompt rule 2), must-not-break (R-n) or do-not-pretend.
 4. The smallest version of the change.
 5. The alternative of deferring it: which phase would own it, and the cost of
@@ -459,7 +459,7 @@ Stop thinking as the implementer. Review Phase {{PHASE}} as a senior engineer an
 product designer who has never seen this work.
 
 Start from the requirements, not the code:
-1. For every in-scope item and milestone in docs/process/phases.md Phase {{PHASE}}: can
+1. For every in-scope item and milestone in docs/03-workflow/phases.md Phase {{PHASE}}: can
    you prove it works? Cite evidence (a check you ran, a flow you walked). "The
    code is there" is not evidence.
 2. For every exit criterion: met or not, and why.
@@ -483,7 +483,7 @@ ACHIVII — CLOSE PHASE {{PHASE}}
 
 Mo has reviewed and accepted the Phase {{PHASE}} report.
 
-1. In docs/process/phases.md:
+1. In docs/03-workflow/phases.md:
    - set Phase {{PHASE}} to COMPLETE (with the date) in section 1 and in its own
      section
    - replace its "Current state" with "What shipped" and "Verification evidence",
@@ -492,7 +492,7 @@ Mo has reviewed and accepted the Phase {{PHASE}} report.
      section 6
    - update any later phase whose "Current state" this phase changed
    - add a change-log line in section 8
-2. In docs/process/decisions.md: make sure every decision applied in this phase is
+2. In docs/03-workflow/decisions.md: make sure every decision applied in this phase is
    recorded as Decided.
 3. Change no code.
 4. Summarise the documentation changes, then stop.
@@ -516,7 +516,7 @@ Rules for these prompts:
 
 * A phase execution prompt is sent **after** W2 (kickoff) is approved and the phase's decisions are logged (W3/W4).
 * It authorises implementation of the whole phase, but the work still proceeds one milestone at a time through W5.
-* It restates the key constraints inline so it stands on its own, but `docs/process/phases.md` remains the authority on scope.
+* It restates the key constraints inline so it stands on its own, but `docs/03-workflow/phases.md` remains the authority on scope.
 
 ---
 
@@ -526,7 +526,7 @@ Rules for these prompts:
 ACHIVII REDESIGN — PHASE 0: GLOBAL DESIGN FOUNDATION
 
 PRECONDITIONS
-- Decided in docs/process/decisions.md: OD-6 (Design.md rewrite), OD-12 (semantic token
+- Decided in docs/03-workflow/decisions.md: OD-6 (Design.md rewrite), OD-12 (semantic token
   names), ND-1 (token migration strategy), ND-2 (primitive strategy), ND-3
   (frontend tooling). If any is not Decided, stop and run W3 for it.
 - Decisions applied:
@@ -553,7 +553,7 @@ uses the legacy mint identity:
 OBJECTIVE
 Give every later phase one shared foundation: role-named tokens, typography,
 spacing/radius/border/shadow/motion tokens, accessible primitives, and a
-Design.md that agrees with docs/architecture/visual-design-system.md.
+Design.md that agrees with docs/01-product/visual-design-system.md.
 
 DESIGN DIRECTION
 Dark, cinematic, architectural, premium, intelligent, at 7/10 intensity.
@@ -649,7 +649,7 @@ Notes: {{NOTES}}
 
 ## P1 — MARKETING HOMEPAGE (complete)
 
-Phase 1 was completed on 2026-09-23. There is no prompt to run. Its record, carry-overs and verification evidence are in `docs/process/phases.md` Phase 1.
+Phase 1 was completed on 2026-09-23. There is no prompt to run. Its record, carry-overs and verification evidence are in `docs/03-workflow/phases.md` Phase 1.
 
 To make a later change to the landing page, use W10 (scope change) inside the phase that needs it. Keep these Phase 1 constraints:
 
@@ -677,8 +677,8 @@ PHASE 1 CONSTRAINTS THAT STILL APPLY TO THE LANDING PAGE
 ACHIVII REDESIGN — PHASE 2: AUTHENTICATION
 
 PRECONDITIONS
-- Phase 0 is COMPLETE in docs/process/phases.md.
-- Decided in docs/process/decisions.md: OD-4 (auth routes), ND-4 (pathway handoff, modal
+- Phase 0 is COMPLETE in docs/03-workflow/phases.md.
+- Decided in docs/03-workflow/decisions.md: OD-4 (auth routes), ND-4 (pathway handoff, modal
   kept or retired, post-auth redirects). If either is not Decided, stop and run
   W3.
 - Decisions applied:
@@ -755,7 +755,7 @@ components/AuthModal.tsx, context/AuthContext.tsx, pages/Home.tsx,
 components/marketing/LandingPage.tsx, lib/api.ts (read only).
 
 VALIDATION
-Every validation step in docs/process/phases.md Phase 2, including:
+Every validation step in docs/03-workflow/phases.md Phase 2, including:
 - fresh sign-up → onboarding
 - sign-up from a pathway → onboarding preselected
 - sign-in with an active goal → Today
@@ -787,7 +787,7 @@ ACHIVII REDESIGN — PHASE 3: ONBOARDING
 
 PRECONDITIONS
 - Phases 0 and 2 are COMPLETE.
-- Decided in docs/process/decisions.md: OD-11 (categories vs presets), ND-5 (pathway
+- Decided in docs/03-workflow/decisions.md: OD-11 (categories vs presets), ND-5 (pathway
   display copy), ND-6 (custom-goal entry before Phase 10). If any is not
   Decided, stop and run W3.
 - Decisions applied:
@@ -895,7 +895,7 @@ ACHIVII REDESIGN — PHASE 4: JOURNEY GENERATION
 
 PRECONDITIONS
 - Phase 3 is COMPLETE.
-- Decided in docs/process/decisions.md: OD-8 (honest generation stages). If not Decided,
+- Decided in docs/03-workflow/decisions.md: OD-8 (honest generation stages). If not Decided,
   stop and run W3.
 - Decisions applied:
 {{DECISIONS_APPLIED}}
@@ -992,7 +992,7 @@ ACHIVII REDESIGN — PHASE 5: TODAY
 
 PRECONDITIONS
 - Phases 0 and 4 are COMPLETE.
-- Decided in docs/process/decisions.md: OD-3 (which dashboard becomes Today), OD-9 (every
+- Decided in docs/03-workflow/decisions.md: OD-3 (which dashboard becomes Today), OD-9 (every
   Today state), ND-7 (application shell and navigation). If any is not Decided,
   stop and run W3.
 - Decisions applied:
@@ -1114,7 +1114,7 @@ ACHIVII REDESIGN — PHASE 6: JOURNEY
 
 PRECONDITIONS
 - Phase 5 is COMPLETE.
-- Decided in docs/process/decisions.md: OD-2 (90 vs 84 days), OD-7 (phase counts). If
+- Decided in docs/03-workflow/decisions.md: OD-2 (90 vs 84 days), OD-7 (phase counts). If
   either is not Decided, stop and run W3.
 - Decisions applied:
 {{DECISIONS_APPLIED}}
@@ -1209,7 +1209,7 @@ ACHIVII REDESIGN — PHASE 7: WEEKLY REVIEW + ADAPTATION
 
 PRECONDITIONS
 - Phase 5 is COMPLETE.
-- Decided in docs/process/decisions.md: OD-1, Phase 7 part (whether weekly test results
+- Decided in docs/03-workflow/decisions.md: OD-1, Phase 7 part (whether weekly test results
   are stored). If not Decided, stop and run W3.
 - Decisions applied:
 {{DECISIONS_APPLIED}}
@@ -1308,7 +1308,7 @@ ACHIVII REDESIGN — PHASE 8: PROGRESS
 
 PRECONDITIONS
 - Phases 6 and 7 are COMPLETE.
-- Decided in docs/process/decisions.md: ND-8 (Progress as a page or a Journey layer). If
+- Decided in docs/03-workflow/decisions.md: ND-8 (Progress as a page or a Journey layer). If
   not Decided, stop and run W3.
 - Decisions applied:
 {{DECISIONS_APPLIED}}
@@ -1385,7 +1385,7 @@ ACHIVII REDESIGN — PHASE 9: ACHIEVEMENT
 
 PRECONDITIONS
 - Phases 6 and 7 are COMPLETE.
-- Decided in docs/process/decisions.md: OD-1, Phase 9 part (goal completion transition
+- Decided in docs/03-workflow/decisions.md: OD-1, Phase 9 part (goal completion transition
   and what completes a goal) and OD-2 (90 vs 84 days). If either is not Decided,
   stop and run W3.
 - Decisions applied:
@@ -1474,7 +1474,7 @@ ACHIVII REDESIGN — PHASE 10: PREMIUM ARCHITECTURE
 
 PRECONDITIONS
 - Phases 5 and 6 are COMPLETE.
-- Decided in docs/process/decisions.md: ND-9 (payments in scope or not), ND-10
+- Decided in docs/03-workflow/decisions.md: ND-9 (payments in scope or not), ND-10
   (custom-goal gating), ND-11 (Coach scope), and OD-1, Phase 10 part
   (entitlement allowance). If any is not Decided, stop and run W3.
 - Decisions applied:
@@ -1571,7 +1571,7 @@ Notes: {{NOTES}}
 ACHIVII REDESIGN — PHASE 11: MOBILE
 
 PRECONDITIONS
-- Phases 2 to 10 are COMPLETE (or explicitly deferred in docs/process/phases.md).
+- Phases 2 to 10 are COMPLETE (or explicitly deferred in docs/03-workflow/phases.md).
 - The device and browser matrix is agreed (M11.1). If not, propose one and stop.
 - Decisions applied:
 {{DECISIONS_APPLIED}}

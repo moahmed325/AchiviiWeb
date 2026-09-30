@@ -11,11 +11,11 @@
 
 ## Source-of-truth documents
 
-- `docs/process/feature_definition_payment.md` — authoritative feature behavior, product decisions, acceptance criteria, constraints, and resolved/open decisions.
-- `docs/process/phases_template.md` — roadmap structure and implementation discipline.
-- `docs/process/decisions.md` — existing Achivii product/architecture decisions, including the prior decision that payments were deferred from the redesign.
-- `docs/architecture/visual-design-system.md` — existing visual rules.
-- `Design.md` / `docs/architecture/redesign-blueprint.md` — existing product/design context where relevant.
+- `docs/03-workflow/feature_definition_payment.md` — authoritative feature behavior, product decisions, acceptance criteria, constraints, and resolved/open decisions.
+- `docs/03-workflow/phases_template.md` — roadmap structure and implementation discipline.
+- `docs/03-workflow/decisions.md` — existing Achivii product/architecture decisions, including the prior decision that payments were deferred from the redesign.
+- `docs/01-product/visual-design-system.md` — existing visual rules.
+- `Design.md` / `docs/01-product/redesign-blueprint.md` — existing product/design context where relevant.
 - Repository implementation — authoritative for what currently exists in code.
 
 ### Important historical context
@@ -339,7 +339,7 @@ Payment lifecycle validation must additionally use Lemon Squeezy test-mode event
 
 ### Source
 
-- `docs/process/feature_definition_payment.md`: External Services, Product Rules, Security/Privacy, In Scope, Non-Negotiables, Open Decisions OD-2 and OD-8.
+- `docs/03-workflow/feature_definition_payment.md`: External Services, Product Rules, Security/Privacy, In Scope, Non-Negotiables, Open Decisions OD-2 and OD-8.
 - Repository package/config structure.
 - Existing authentication and product architecture.
 
@@ -516,7 +516,7 @@ None (infrastructure).
 
 ### Current state
 
-The current Prisma schema contains `User`, `Goal`, roadmap, task, review, and research models, but no billing/subscription model.
+The current Prisma schema contains `User`, `Goal`, roadmap, task, review, and research models, but no 04-billing/subscription model.
 
 ### Decisions required before starting
 
@@ -857,7 +857,7 @@ None; the feature definition has already resolved:
 Allowed:
 
 - Add entitlement check to the custom-goal creation path.
-- Add a billing/entitlement helper used by the goal route.
+- Add a 04-billing/entitlement helper used by the goal route.
 - Add the minimum data lookup required to determine whether a goal/user is grandfathered.
 
 Not allowed:
@@ -1074,7 +1074,7 @@ R-1, R-2, R-3, R-5, R-6, R-7.
 
 ### Mobile acceptance
 
-Verify narrow mobile billing/gating/return states and touch targets.
+Verify narrow mobile 04-billing/gating/return states and touch targets.
 
 ### Accessibility
 

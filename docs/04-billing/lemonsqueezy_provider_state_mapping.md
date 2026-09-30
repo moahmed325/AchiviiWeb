@@ -6,7 +6,7 @@
 
 ## Purpose
 
-This document is the authoritative translation boundary between Lemon Squeezy subscription states and Achivii's internal billing/entitlement model.
+This document is the authoritative translation boundary between Lemon Squeezy subscription states and Achivii's internal 04-billing/entitlement model.
 
 Provider-specific status strings must remain inside the billing adapter/webhook layer. Product authorization consumes Achivii states only.
 

@@ -3,13 +3,13 @@
 ### Copy-paste-ready implementation prompts for every payment milestone
 
 **Source of truth**
-- `docs/process/feature_definition_payment.md` — what the payment feature must do.
-- `docs/process/phases.md` — phase order, scope, milestones, exit criteria.
-- `docs/process/decisions.md` — decisions that must not be reversed.
-- `docs/process/implementation_prompt_template.md` — prompt-generation/implementation discipline.
+- `docs/03-workflow/feature_definition_payment.md` — what the payment feature must do.
+- `docs/03-workflow/phases.md` — phase order, scope, milestones, exit criteria.
+- `docs/03-workflow/decisions.md` — decisions that must not be reversed.
+- `docs/03-workflow/implementation_prompt_template.md` — prompt-generation/implementation discipline.
 - Repository code — current implementation truth.
 
-**Important:** This file is intentionally separate from the existing redesign `docs/process/prompts.md`. It prevents the payment implementation prompts from overwriting or contaminating the redesign execution system.
+**Important:** This file is intentionally separate from the existing redesign `docs/03-workflow/prompts.md`. It prevents the payment implementation prompts from overwriting or contaminating the redesign execution system.
 
 ---
 
@@ -25,10 +25,10 @@ You are the implementation agent responsible for Achivii's Lemon Squeezy billing
 Your job is to implement ONLY the milestone you are explicitly given, verify it, report evidence, and stop.
 
 SOURCES OF TRUTH
-1. docs/process/feature_definition_payment.md
-2. docs/process/phases.md
-3. docs/process/decisions.md
-4. docs/process/implementation_prompt_template.md
+1. docs/03-workflow/feature_definition_payment.md
+2. docs/03-workflow/phases.md
+3. docs/03-workflow/decisions.md
+4. docs/03-workflow/implementation_prompt_template.md
 5. Existing repository implementation
 
 The repository is the source of truth for what currently exists.
@@ -161,10 +161,10 @@ You are the implementation agent responsible for M0.1 of the Achivii Lemon Squee
 Achivii is introducing international subscription billing through Lemon Squeezy. The initial model is Free + Pro, with monthly and yearly Pro variants. Custom goals are the primary Pro capability.
 
 Read:
-- docs/process/feature_definition_payment.md
-- docs/process/phases.md
-- docs/process/decisions.md
-- docs/process/implementation_prompt_template.md
+- docs/03-workflow/feature_definition_payment.md
+- docs/03-workflow/phases.md
+- docs/03-workflow/decisions.md
+- docs/03-workflow/implementation_prompt_template.md
 
 Do not reintroduce Stripe.
 
@@ -203,9 +203,9 @@ Verify provider assumptions against current Lemon Squeezy documentation/API beha
 - Existing UI and API behavior unrelated to billing.
 
 ## Files / Areas to Inspect
-- docs/process/feature_definition_payment.md
-- docs/process/phases.md
-- docs/process/decisions.md
+- docs/03-workflow/feature_definition_payment.md
+- docs/03-workflow/phases.md
+- docs/03-workflow/decisions.md
 - backend/src
 - backend/prisma/schema.prisma
 - backend package/config files
@@ -371,7 +371,7 @@ STOP. Do not start M0.4.
 # IMPLEMENTATION TASK — M0.4 Provider State Mapping
 
 ## Objective
-Finalize the mapping from verified Lemon Squeezy subscription states to Achivii billing/entitlement states.
+Finalize the mapping from verified Lemon Squeezy subscription states to Achivii 04-billing/entitlement states.
 
 ## Requirements
 ### R1
@@ -948,7 +948,7 @@ Reuse existing design-system primitives.
 Ensure responsive layout at 390px and 360px.
 
 ## Inspect
-- Existing billing/product surfaces.
+- Existing 04-billing/product surfaces.
 - frontend/src/components/ui.
 - Existing typography/spacing/tokens.
 - Feature definition UI requirements.
@@ -1095,7 +1095,7 @@ Show current plan.
 ### R2
 Show subscription status.
 ### R3
-Show relevant billing/period-end date when available.
+Show relevant 04-billing/period-end date when available.
 ### R4
 Provide provider-managed subscription management entry when available.
 ### R5
@@ -1382,7 +1382,7 @@ STOP. Do not start M6.3.
 # IMPLEMENTATION TASK — M6.3 Billing Lifecycle Matrix
 
 ## Objective
-Execute the full lifecycle matrix defined in docs/process/phases.md.
+Execute the full lifecycle matrix defined in docs/03-workflow/phases.md.
 
 ## Matrix
 1. No subscription → Free.
@@ -1560,4 +1560,4 @@ Do not send the next milestone until the current milestone has been reviewed and
 |---|---|
 | 2026-09-29 | Created dedicated Lemon Squeezy payment implementation prompt system from the project's implementation prompt template and payment phases. |
 | 2026-09-29 | Added one copy-paste-ready implementation prompt for every payment milestone M0.1–M6.6. |
-| 2026-09-29 | Explicitly separated payment prompts from the existing redesign `docs/process/prompts.md` to avoid overwriting the redesign execution system. |
+| 2026-09-29 | Explicitly separated payment prompts from the existing redesign `docs/03-workflow/prompts.md` to avoid overwriting the redesign execution system. |

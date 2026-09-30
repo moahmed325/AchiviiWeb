@@ -56,7 +56,7 @@ Browser
   → fetch JSON/Bearer → Render web service "achivii-api" (https://achivii-api.onrender.com)
        ├─ Render PostgreSQL "achivii-db" (db "achivii", oregon, free) — DATABASE_URL injected via fromDatabase
        ├─ Lemon Squeezy API (checkout create, subscription fetch, reconciliation)
-       └─ Lemon Squeezy webhook → POST https://achivii-api.onrender.com/api/billing/webhook
+       └─ Lemon Squeezy webhook → POST https://achivii-api.onrender.com/api/04-billing/webhook
 ```
 
 - **Frontend hosting config:** root [vercel.json](vercel.json) (`framework: vite`, install/build commands `cd frontend && …`, output `frontend/dist`, SPA rewrite, `VITE_API_BASE_URL`/`VITE_API_URL` = `https://achivii-api.onrender.com`) and a duplicate [frontend/vercel.json](frontend/vercel.json) (output `dist`). A committed [frontend/.env.production](frontend/.env.production) pins the same values, and [frontend/vite.config.ts](frontend/vite.config.ts) **hard-codes** the Render URL via `define` as a final fallback. [VERIFIED]
@@ -79,13 +79,13 @@ Browser
 | Billing API (entitlement/account/reconcile/checkout) | [backend/src/routes/billing.ts](backend/src/routes/billing.ts) |
 | LS webhook handler | [backend/src/routes/webhook.ts](backend/src/routes/webhook.ts) |
 | Billing config/env resolution | [backend/src/config/billing.ts](backend/src/config/billing.ts) |
-| Billing domain logic | [backend/src/lib/billing/](backend/src/lib/billing) — `entitlement.ts`, `accountState.ts`, `lemonSqueezyCheckout.ts`, `lemonSqueezyReconciliation.ts`, `lemonSqueezyState.ts`, `webhookEvents.ts`, `webhookIdentity.ts`, `webhookSignature.ts`, `goalAuthorization.ts` |
+| Billing domain logic | [backend/src/lib/04-billing/](backend/src/lib/billing) — `entitlement.ts`, `accountState.ts`, `lemonSqueezyCheckout.ts`, `lemonSqueezyReconciliation.ts`, `lemonSqueezyState.ts`, `webhookEvents.ts`, `webhookIdentity.ts`, `webhookSignature.ts`, `goalAuthorization.ts` |
 | Prisma client singleton | [backend/src/lib/prisma.ts](backend/src/lib/prisma.ts) |
 | Health endpoint | [backend/src/routes/health.ts](backend/src/routes/health.ts) |
 | Frontend API client | [frontend/src/lib/api.ts](frontend/src/lib/api.ts) |
 | Frontend auth state | [frontend/src/context/AuthContext.tsx](frontend/src/context/AuthContext.tsx), [frontend/src/lib/authFlow.ts](frontend/src/lib/authFlow.ts) |
 | Frontend route guard | [frontend/src/components/ProtectedRoute.tsx](frontend/src/components/ProtectedRoute.tsx) |
-| Billing UI | [frontend/src/components/billing/CustomGoalGate.tsx](frontend/src/components/billing/CustomGoalGate.tsx), [frontend/src/components/billing/ProPresentation.tsx](frontend/src/components/billing/ProPresentation.tsx), [frontend/src/pages/CheckoutReturnPage.tsx](frontend/src/pages/CheckoutReturnPage.tsx), [frontend/src/components/app/AccountMenu.tsx](frontend/src/components/app/AccountMenu.tsx) |
+| Billing UI | [frontend/src/components/04-billing/CustomGoalGate.tsx](frontend/src/components/04-billing/CustomGoalGate.tsx), [frontend/src/components/04-billing/ProPresentation.tsx](frontend/src/components/04-billing/ProPresentation.tsx), [frontend/src/pages/CheckoutReturnPage.tsx](frontend/src/pages/CheckoutReturnPage.tsx), [frontend/src/components/app/AccountMenu.tsx](frontend/src/components/app/AccountMenu.tsx) |
 | Deployment | [render.yaml](render.yaml), [vercel.json](vercel.json), [frontend/vercel.json](frontend/vercel.json) |
 
 ---
@@ -360,7 +360,7 @@ All facts in this section are **[VERIFIED]** from code unless tagged.
 | Feature | Present? | Detail |
 |---|---|---|
 | Refresh tokens | **No** | Single 14-day JWT; nothing refreshes it. |
-| Password reset | **No** | Confirmed by [docs/process/prompts.md:693](docs/process/prompts.md#L693): "There is no password reset, email verification or OAuth." |
+| Password reset | **No** | Confirmed by [docs/03-workflow/prompts.md:693](docs/03-workflow/prompts.md#L693): "There is no password reset, email verification or OAuth." |
 | Email verification | **No** | Same. |
 | OAuth / social | **No** | Same. |
 | MFA | **No** | No reference anywhere. |
@@ -402,7 +402,7 @@ All **[VERIFIED]**.
 | `goals.userId` (+cascade → weeks/tasks/reviews) | FK |
 | `subscriptions.userId` | FK |
 | Backend authz | `getAuthUser` → `prisma.user.findUnique({ id })`; goal routes filter `where: { userId: user.id }`; task PATCH checks `task.goal.userId === user.id`; webhook resolves `custom_data.user_id` → `users.id` before upserting subscriptions |
-| Lemon Squeezy checkout | `checkout_data.custom.user_id = user.id` ([lemonSqueezyCheckout.ts](backend/src/lib/billing/lemonSqueezyCheckout.ts)) — and [docs/billing/lemonsqueezy_checkout_identity_contract.md](docs/billing/lemonsqueezy_checkout_identity_contract.md) declares `User.id` the canonical billing identifier |
+| Lemon Squeezy checkout | `checkout_data.custom.user_id = user.id` ([lemonSqueezyCheckout.ts](backend/src/lib/04-billing/lemonSqueezyCheckout.ts)) — and [docs/04-04-billing/lemonsqueezy_checkout_identity_contract.md](docs/04-04-billing/lemonsqueezy_checkout_identity_contract.md) declares `User.id` the canonical billing identifier |
 | Lemon Squeezy webhook | `meta.custom_data.user_id` → `users.id` lookup; **if it doesn't resolve, the event is marked FAILED and no entitlement is granted** |
 | Frontend | Only type-level (`Goal.userId` in [types/index.ts](frontend/src/types/index.ts)); no rendering, routing, or localStorage use of `user.id` was found — the UI keys off `user` presence and `token`, not the ID value. [VERIFIED by search; low blast radius] |
 
@@ -424,30 +424,30 @@ Add a nullable, unique `users.auth_user_id` column (UUID, referencing `auth.user
 | Piece | File(s) |
 |---|---|
 | Config/env resolution (test vs live namespaces, fail-closed) | [backend/src/config/billing.ts](backend/src/config/billing.ts) |
-| Checkout creation (LS REST `/v1/checkouts`) | [backend/src/lib/billing/lemonSqueezyCheckout.ts](backend/src/lib/billing/lemonSqueezyCheckout.ts) |
-| Entitlement evaluation | [backend/src/lib/billing/entitlement.ts](backend/src/lib/billing/entitlement.ts) |
-| Account state + customer-portal URL fetch | [backend/src/lib/billing/accountState.ts](backend/src/lib/billing/accountState.ts) |
-| Reconciliation (local vs provider) | [backend/src/lib/billing/lemonSqueezyReconciliation.ts](backend/src/lib/billing/lemonSqueezyReconciliation.ts) |
-| Provider status mapping | [backend/src/lib/billing/lemonSqueezyState.ts](backend/src/lib/billing/lemonSqueezyState.ts) |
-| Webhook idempotency record | [backend/src/lib/billing/webhookEvents.ts](backend/src/lib/billing/webhookEvents.ts) + [webhookIdentity.ts](backend/src/lib/billing/webhookIdentity.ts) |
-| Webhook signature verification | [backend/src/lib/billing/webhookSignature.ts](backend/src/lib/billing/webhookSignature.ts) |
-| Pro gate for custom goals | [backend/src/lib/billing/goalAuthorization.ts](backend/src/lib/billing/goalAuthorization.ts) → used in [goal.ts](backend/src/routes/goal.ts) `/create` |
-| Routes | [backend/src/routes/billing.ts](backend/src/routes/billing.ts): `GET /api/billing/entitlement`, `GET /api/billing/account`, `POST /api/billing/reconcile`, `POST /api/billing/checkout` |
-| Webhook route | [backend/src/routes/webhook.ts](backend/src/routes/webhook.ts) at `POST /api/billing/webhook` (mounted **before** `express.json()` with `express.raw({ type: 'application/json' })` in [index.ts](backend/src/index.ts)) |
-| Frontend | [CustomGoalGate.tsx](frontend/src/components/billing/CustomGoalGate.tsx), [CheckoutReturnPage.tsx](frontend/src/pages/CheckoutReturnPage.tsx), [AccountMenu.tsx](frontend/src/components/app/AccountMenu.tsx), [ProPresentation.tsx](frontend/src/components/billing/ProPresentation.tsx) |
-| Docs | [docs/billing/lemonsqueezy_billing_configuration.md](docs/billing/lemonsqueezy_billing_configuration.md), [docs/billing/lemonsqueezy_checkout_identity_contract.md](docs/billing/lemonsqueezy_checkout_identity_contract.md), [docs/billing/lemonsqueezy_webhook_idempotency.md](docs/billing/lemonsqueezy_webhook_idempotency.md), [docs/billing/launch_rollback_readiness.md](docs/billing/launch_rollback_readiness.md) |
-| Tests | `backend/src/routes/billing*.test.ts`, `backend/src/routes/webhook.test.ts`, `backend/src/lib/billing/*.test.ts` (17 files) — pure unit tests with mocked Prisma/fetch |
+| Checkout creation (LS REST `/v1/checkouts`) | [backend/src/lib/04-billing/lemonSqueezyCheckout.ts](backend/src/lib/04-billing/lemonSqueezyCheckout.ts) |
+| Entitlement evaluation | [backend/src/lib/04-billing/entitlement.ts](backend/src/lib/04-billing/entitlement.ts) |
+| Account state + customer-portal URL fetch | [backend/src/lib/04-billing/accountState.ts](backend/src/lib/04-billing/accountState.ts) |
+| Reconciliation (local vs provider) | [backend/src/lib/04-billing/lemonSqueezyReconciliation.ts](backend/src/lib/04-billing/lemonSqueezyReconciliation.ts) |
+| Provider status mapping | [backend/src/lib/04-billing/lemonSqueezyState.ts](backend/src/lib/04-billing/lemonSqueezyState.ts) |
+| Webhook idempotency record | [backend/src/lib/04-billing/webhookEvents.ts](backend/src/lib/04-billing/webhookEvents.ts) + [webhookIdentity.ts](backend/src/lib/04-billing/webhookIdentity.ts) |
+| Webhook signature verification | [backend/src/lib/04-billing/webhookSignature.ts](backend/src/lib/04-billing/webhookSignature.ts) |
+| Pro gate for custom goals | [backend/src/lib/04-billing/goalAuthorization.ts](backend/src/lib/04-billing/goalAuthorization.ts) → used in [goal.ts](backend/src/routes/goal.ts) `/create` |
+| Routes | [backend/src/routes/billing.ts](backend/src/routes/billing.ts): `GET /api/04-billing/entitlement`, `GET /api/04-billing/account`, `POST /api/04-billing/reconcile`, `POST /api/04-billing/checkout` |
+| Webhook route | [backend/src/routes/webhook.ts](backend/src/routes/webhook.ts) at `POST /api/04-billing/webhook` (mounted **before** `express.json()` with `express.raw({ type: 'application/json' })` in [index.ts](backend/src/index.ts)) |
+| Frontend | [CustomGoalGate.tsx](frontend/src/components/04-billing/CustomGoalGate.tsx), [CheckoutReturnPage.tsx](frontend/src/pages/CheckoutReturnPage.tsx), [AccountMenu.tsx](frontend/src/components/app/AccountMenu.tsx), [ProPresentation.tsx](frontend/src/components/04-billing/ProPresentation.tsx) |
+| Docs | [docs/04-04-billing/lemonsqueezy_billing_configuration.md](docs/04-04-billing/lemonsqueezy_billing_configuration.md), [docs/04-04-billing/lemonsqueezy_checkout_identity_contract.md](docs/04-04-billing/lemonsqueezy_checkout_identity_contract.md), [docs/04-04-billing/lemonsqueezy_webhook_idempotency.md](docs/04-04-billing/lemonsqueezy_webhook_idempotency.md), [docs/04-04-billing/launch_rollback_readiness.md](docs/04-04-billing/launch_rollback_readiness.md) |
+| Tests | `backend/src/routes/billing*.test.ts`, `backend/src/routes/webhook.test.ts`, `backend/src/lib/04-billing/*.test.ts` (17 files) — pure unit tests with mocked Prisma/fetch |
 
 ### 8.2 Current flow [VERIFIED]
 
 ```
 User (authenticated, Bearer JWT)
- → frontend POST /api/billing/checkout { interval }
+ → frontend POST /api/04-billing/checkout { interval }
  → backend getAuthUser → user.id + user.email
  → LS API: create checkout (store, variant from env; checkout_data.email = user.email;
-    checkout_data.custom.user_id = user.id; redirect_url = CLIENT_ORIGIN + /billing/return?checkout=success)
+    checkout_data.custom.user_id = user.id; redirect_url = CLIENT_ORIGIN + /04-billing/return?checkout=success)
  → browser redirect to LS-hosted checkout → payment
- → LS signed webhook POST /api/billing/webhook (X-Signature HMAC-SHA256 hex over raw body)
+ → LS signed webhook POST /api/04-billing/webhook (X-Signature HMAC-SHA256 hex over raw body)
  → verify signature (timing-safe) → parse → event in SUPPORTED_EVENTS (10 subscription_* events)?
  → recordWebhookDelivery: INSERT webhook_events (deliveryKey = SHA-256(rawBody), unique) → duplicates answered {duplicate:true};
     existing RECEIVED/FAILED rows are retryable
@@ -456,8 +456,8 @@ User (authenticated, Bearer JWT)
  → $transaction: subscriptions.upsert (by providerSubscriptionId) + webhook_events → PROCESSED
  → entitlement: hasProEntitlement(userId) reads local subscriptions (plan='pro'), status ∈ {ACTIVE, CANCELLED_ENDING,
     PAST_DUE_RECOVERY, UNPAID, PAUSED}, and currentPeriodEnd > now → PRO_ENTITLED
- → frontend: CheckoutReturnPage polls /api/billing/entitlement (never trusts the redirect);
-    AccountMenu shows /api/billing/account state + manageUrl
+ → frontend: CheckoutReturnPage polls /api/04-billing/entitlement (never trusts the redirect);
+    AccountMenu shows /api/04-billing/account state + manageUrl
 ```
 
 Provider IDs stored: `providerCustomerId`, `providerSubscriptionId` (**unique**, local key), `providerProductId`, `providerVariantId` (+ env-configured monthly/yearly variant IDs). Provider: fixed string `'lemon_squeezy'`. Mode: **test** (`LEMON_SQUEEZY_ENVIRONMENT=test` in render.yaml; live namespace reserved for post-onboarding).
@@ -469,7 +469,7 @@ Provider IDs stored: `providerCustomerId`, `providerSubscriptionId` (**unique**,
 3. **`webhook_events` and `deliveryKey` uniqueness** — the idempotency fence; must be migrated with data intact.
 4. **Webhook endpoint URL, signature verification, raw-body middleware** (`X-Signature` hex HMAC-SHA256 over the exact raw body; `express.raw` mounted before `express.json()`).
 5. **`LEMON_SQUEEZY_*` environment variables and the test/live namespace logic** — including the fact that `LEMON_SQUEEZY_TEST_WEBHOOK_SIGNING_SECRET` is dashboard-only.
-6. **`CLIENT_ORIGIN`** — it doubles as the checkout `redirect_url` base (`/billing/return?checkout=success`) and CORS origin.
+6. **`CLIENT_ORIGIN`** — it doubles as the checkout `redirect_url` base (`/04-billing/return?checkout=success`) and CORS origin.
 7. **Entitlement logic** (`ENTITLED_STATUSES`, period-end boundary rule, unpaid/pause semantics) and the Pro gate on custom goals.
 8. **`BILLING_CHECKOUT_ENABLED` kill switch semantics** (503 on checkout only; does not touch existing subs).
 9. **Reconciliation endpoint behavior** (never fabricates state; provider outage → 503 with local state intact).
@@ -506,7 +506,7 @@ Every file below **[VERIFIED]** to touch auth. Migration-likely list with reason
 | [frontend/src/context/GoalContext.tsx](frontend/src/context/GoalContext.tsx) | Fetches goal whenever `token` changes; health check | Token provenance change only; keep `token`-in-effects pattern or switch to user-id trigger |
 | [frontend/src/components/app/AccountMenu.tsx](frontend/src/components/app/AccountMenu.tsx) | `logout()` (client-side clear + navigate), billing state fetch with token | `logout` → `supabase.auth.signOut()`; token passed to billing calls |
 | [frontend/src/components/app/AppShell.tsx](frontend/src/components/app/AppShell.tsx) | Shell mode from `Boolean(token)` | Source of token truth change |
-| [frontend/src/components/billing/CustomGoalGate.tsx](frontend/src/components/billing/CustomGoalGate.tsx) | Entitlement + checkout with token | Token provenance only — logic must not change |
+| [frontend/src/components/04-billing/CustomGoalGate.tsx](frontend/src/components/04-billing/CustomGoalGate.tsx) | Entitlement + checkout with token | Token provenance only — logic must not change |
 | [frontend/src/pages/CheckoutReturnPage.tsx](frontend/src/pages/CheckoutReturnPage.tsx) | Polls entitlement with token; waits for `authLoading` | Token provenance only |
 | [frontend/src/pages/OnboardingPage.tsx](frontend/src/pages/OnboardingPage.tsx), [frontend/src/pages/Home.tsx](frontend/src/pages/Home.tsx) | `useAuth()` for token/user gating | Token provenance only |
 | [frontend/src/components/today/Today.tsx](frontend/src/components/today/Today.tsx), [frontend/src/components/today/useTaskActions.ts](frontend/src/components/today/useTaskActions.ts) | Task updates with token | Token provenance only |
@@ -529,7 +529,7 @@ Also **non-auth localStorage usage that must not be disturbed** during the auth 
 | [backend/src/routes/webhook.ts](backend/src/routes/webhook.ts) | No header auth, but resolves `custom_data.user_id` → `users.id`; rejects unknown users | **Must not change**; depends only on `users.id` stability |
 | [backend/src/index.ts](backend/src/index.ts) | Mounts routers; CORS allow-list; webhook raw-body order | Only if auth needs middleware (e.g. optional-JWT for transition), CORS may need the Supabase redirect/origin handled (it already allows `*.vercel.app`) |
 | [backend/src/lib/prisma.ts](backend/src/lib/prisma.ts) | Prisma singleton used by `getAuthUser` | Unchanged for DB move; no auth coupling |
-| Tests: [backend/test/timezone.test.ts](backend/test/timezone.test.ts) (auth router mocked-Prisma signup tests), route-level billing/webhook tests | Exercise auth shapes indirectly | Update where signup/login contract changes |
+| Tests: [backend/test/timezone.test.ts](backend/test/timezone.test.ts) (auth router mocked-Prisma signup tests), route-level 04-billing/webhook tests | Exercise auth shapes indirectly | Update where signup/login contract changes |
 
 **Compatibility requirement (the one-sentence contract):** every route must continue to receive a resolved internal user `{ id, email, timezone, created_at }` whose `id` is the legacy `users.id`, regardless of what token type authenticated the request.
 
@@ -572,7 +572,7 @@ Categorically: **KEEP** — all Lemon Squeezy vars, `CLIENT_ORIGIN`, `PORT`, `NO
 - **How Render connects to the DB:** internal `fromDatabase` injection today → becomes a dashboard-managed secret after cutover.
 - **How Vercel connects to the backend:** plain HTTPS fetch to `https://achivii-api.onrender.com`.
 - **CORS:** [index.ts](backend/src/index.ts) — allow-list = `CLIENT_ORIGIN` (+comma-split) ∪ dev defaults ∪ **any `*.vercel.app`**; `credentials: true`; methods incl. PATCH; headers `Content-Type, Authorization, Accept`. Webhook callers (LS) send no Origin → allowed via `!origin` branch. **Nothing about the Supabase DB move changes CORS; the auth migration also needs no CORS change** (frontend talks to Supabase directly over its own domain, and to the API exactly as today). If a custom production domain exists, it must be added to `CLIENT_ORIGIN` [UNKNOWN whether one exists].
-- **Production URLs:** API `https://achivii-api.onrender.com` [VERIFIED]; frontend `https://achiviiweb.vercel.app` [VERIFIED from render.yaml comment]; LS webhook `https://achivii-api.onrender.com/api/billing/webhook` [INFERRED from index.ts mount + docs; actual LS dashboard config UNKNOWN].
+- **Production URLs:** API `https://achivii-api.onrender.com` [VERIFIED]; frontend `https://achiviiweb.vercel.app` [VERIFIED from render.yaml comment]; LS webhook `https://achivii-api.onrender.com/api/04-billing/webhook` [INFERRED from index.ts mount + docs; actual LS dashboard config UNKNOWN].
 - **What breaks if `DATABASE_URL` changes incorrectly:** every DB-backed route (auth, goals, billing handlers, webhook processing) fails at runtime while **the health check still passes** — i.e., Render shows a healthy deploy over a broken app. Frontend shows `apiStatus: offline` and auth screens announce it, but protected pages just fail fetches. Mitigation: post-deploy verification checklist (§17) + quick rollback by reverting the env value.
 - **Deploy-time environment supply:** Render Blueprint env vars + `sync: false` dashboard values + `generateValue`; Vercel build env from vercel.json (+ dashboard overrides [UNKNOWN]).
 
@@ -717,7 +717,7 @@ Downtime profile: Phase 1 = single short write freeze (minutes); Phases 2–3 = 
 | 2 | **Password migration failure** (scrypt not importable) | High | All existing users locked out | Option A lazy import (§14.1); never delete `password_hash` until legacy path retired | Legacy user logs in post-cutover; new Supabase login works immediately after | Users still know their passwords; re-run import |
 | 3 | **Lost users** (import drops rows / splits identities) | Critical | People can't sign in; goals "disappear" (orphaned) | Verbatim table copy; email-based 1:1 link only via `auth_user_id`; no email-match INSERTs into `users` | §13.4 count + email-set hash diff | Restore from dump / flip DATABASE_URL back |
 | 4 | **Lost goals/weeks/tasks/reviews** | Critical | Core product data | Single-transaction data restore with FKs present; §13.4 per-table counts + FK-orphan queries | Spot-check a known user's roadmap in UI | Flip DATABASE_URL back |
-| 5 | **Lost subscriptions / provider IDs** | Critical | Pro users downgraded; webhooks can't upsert (unique key) | Copy `subscriptions` byte-for-byte; verify uniqueness + counts + entitled list | Existing Pro user sees Pro after cutover; `/api/billing/account` matches pre-move snapshot | Flip DATABASE_URL back |
+| 5 | **Lost subscriptions / provider IDs** | Critical | Pro users downgraded; webhooks can't upsert (unique key) | Copy `subscriptions` byte-for-byte; verify uniqueness + counts + entitled list | Existing Pro user sees Pro after cutover; `/api/04-billing/account` matches pre-move snapshot | Flip DATABASE_URL back |
 | 6 | **Broken LS webhooks** | Critical | Entitlement stops updating; purchases lost during window | Keep endpoint/secret/raw-body path untouched; cutover in short window (LS retries); monitor `webhook_events.status` | Test-mode test purchase end-to-end; dashboard resend of a recent event | None needed — LS retries; investigate failures via `processingError` |
 | 7 | **Broken entitlements** | High | Free/paid state wrong | Don't touch `entitlement.ts`/`lemonSqueezyState.ts`; verify status distribution unchanged | Entitlement snapshot diff (§13.4) | Revert offending deploy |
 | 8 | **pgvector migration failure** (extension missing, HNSW/GIN absent, wrong dim) | High | Cache tier-2 misses → repeated paid research; or restore errors | `migrate deploy` before data load; `verify:pgvector` gate before cutover | Script passes on Supabase; Tier-2 test hits | Re-run extension/migration; flip back if data degraded |
@@ -762,7 +762,7 @@ Downtime profile: Phase 1 = single short write freeze (minutes); Phases 2–3 = 
 | [frontend/src/components/ProtectedRoute.tsx](frontend/src/components/ProtectedRoute.tsx) | Loading semantics with async refresh; likely small |
 | [frontend/src/context/GoalContext.tsx](frontend/src/context/GoalContext.tsx) | Token provenance / effect triggers |
 | [frontend/src/components/app/AppShell.tsx](frontend/src/components/app/AppShell.tsx), [AccountMenu.tsx](frontend/src/components/app/AccountMenu.tsx) | Token/user provenance; logout call |
-| [frontend/src/components/billing/CustomGoalGate.tsx](frontend/src/components/billing/CustomGoalGate.tsx), [frontend/src/pages/CheckoutReturnPage.tsx](frontend/src/pages/CheckoutReturnPage.tsx) | Token provenance only — behavior must not change |
+| [frontend/src/components/04-billing/CustomGoalGate.tsx](frontend/src/components/04-billing/CustomGoalGate.tsx), [frontend/src/pages/CheckoutReturnPage.tsx](frontend/src/pages/CheckoutReturnPage.tsx) | Token provenance only — behavior must not change |
 | [frontend/src/pages/OnboardingPage.tsx](frontend/src/pages/OnboardingPage.tsx), [Home.tsx](frontend/src/pages/Home.tsx), today components using `useAuth()` | Mechanical token provenance updates |
 | [frontend/vite.config.ts](frontend/vite.config.ts), [vercel.json](vercel.json), [frontend/vercel.json](frontend/vercel.json) | Only if Supabase env vars need build-time injection alongside existing ones |
 | [backend/package.json](backend/package.json) | New dependency(s): Supabase admin client or a JWT/JWKS library (`jose`), frontend `@supabase/supabase-js` in [frontend/package.json](frontend/package.json) |
@@ -773,7 +773,7 @@ Downtime profile: Phase 1 = single short write freeze (minutes); Phases 2–3 = 
 | File | Why |
 |---|---|
 | [backend/src/routes/webhook.ts](backend/src/routes/webhook.ts) | LS webhook contract: signature → idempotency → `custom_data.user_id` → upsert. Depends only on `users.id` stability |
-| [backend/src/lib/billing/entitlement.ts](backend/src/lib/billing/entitlement.ts), [lemonSqueezyState.ts](backend/src/lib/billing/lemonSqueezyState.ts), [lemonSqueezyCheckout.ts](backend/src/lib/billing/lemonSqueezyCheckout.ts), [lemonSqueezyReconciliation.ts](backend/src/lib/billing/lemonSqueezyReconciliation.ts), [accountState.ts](backend/src/lib/billing/accountState.ts), [webhookEvents.ts](backend/src/lib/billing/webhookEvents.ts), [webhookIdentity.ts](backend/src/lib/billing/webhookIdentity.ts), [webhookSignature.ts](backend/src/lib/billing/webhookSignature.ts), [goalAuthorization.ts](backend/src/lib/billing/goalAuthorization.ts) | Entire billing domain is `users.id`-keyed and provider-facing; any change risks §8.4 hazards |
+| [backend/src/lib/04-billing/entitlement.ts](backend/src/lib/04-billing/entitlement.ts), [lemonSqueezyState.ts](backend/src/lib/04-billing/lemonSqueezyState.ts), [lemonSqueezyCheckout.ts](backend/src/lib/04-billing/lemonSqueezyCheckout.ts), [lemonSqueezyReconciliation.ts](backend/src/lib/04-billing/lemonSqueezyReconciliation.ts), [accountState.ts](backend/src/lib/04-billing/accountState.ts), [webhookEvents.ts](backend/src/lib/04-billing/webhookEvents.ts), [webhookIdentity.ts](backend/src/lib/04-billing/webhookIdentity.ts), [webhookSignature.ts](backend/src/lib/04-billing/webhookSignature.ts), [goalAuthorization.ts](backend/src/lib/04-billing/goalAuthorization.ts) | Entire billing domain is `users.id`-keyed and provider-facing; any change risks §8.4 hazards |
 | [backend/src/config/billing.ts](backend/src/config/billing.ts) | LS env namespace logic — untouched |
 | [backend/src/lib/cache/researchCache.ts](backend/src/lib/cache/researchCache.ts) | Raw pgvector SQL is portable and battle-tested; do not rewrite during the move |
 | [backend/scripts/verify-pgvector.ts](backend/scripts/verify-pgvector.ts) | Reused as the migration gate, unchanged |
@@ -808,9 +808,9 @@ Downtime profile: Phase 1 = single short write freeze (minutes); Phases 2–3 = 
 - [ ] Password behavior: wrong password rejected; ≥6-char policy (or new Supabase policy — decision recorded); no duplicate accounts created on repeat logins.
 
 ### BILLING
-- [ ] Checkout: monthly and yearly test-mode purchase completes; `redirect_url` lands on `/billing/return?checkout=success`.
-- [ ] Subscription lookup: `/api/billing/account` returns correct state + `manageUrl`.
-- [ ] Entitlement: `/api/billing/entitlement` flips to `pro` only after webhook processes (return page shows pending first).
+- [ ] Checkout: monthly and yearly test-mode purchase completes; `redirect_url` lands on `/04-billing/return?checkout=success`.
+- [ ] Subscription lookup: `/api/04-billing/account` returns correct state + `manageUrl`.
+- [ ] Entitlement: `/api/04-billing/entitlement` flips to `pro` only after webhook processes (return page shows pending first).
 - [ ] Webhook delivery: event lands in `webhook_events` with `status=PROCESSED`; `subscriptions` row upserted for the right `users.id`.
 - [ ] Signature verification: tampered body/missing header → 400, nothing persisted.
 - [ ] Duplicate webhook: replay identical payload → `{duplicate:true}`; no second subscription mutation.
@@ -860,7 +860,7 @@ Downtime profile: Phase 1 = single short write freeze (minutes); Phases 2–3 = 
 2. **Default the runtime connection to the Supabase shared session pooler** (`…pooler.supabase.com:5432`, `sslmode=require`) pending the Render-IPv6 test; run migrations via direct/session, never the transaction pooler. Do not use transaction mode with this codebase's interactive transactions and prepared-statement usage.
 3. **Preserve `users.id` as the immutable internal identity.** Add `users.auth_user_id` as the Supabase link. This single decision keeps goals, subscriptions, entitlements, and the Lemon Squeezy `custom_data.user_id` contract intact with zero data remapping.
 4. **Migrate passwords by rolling import, not reset:** keep the scrypt login during a transition window, create the Supabase Auth user on first successful legacy login, and sweep stragglers. Supabase cannot import scrypt hashes — plan around it, don't discover it in production.
-5. **Freeze the Lemon Squeezy code path entirely.** No file in `src/lib/billing/`, `webhook.ts`, `config/billing.ts`, or any LS env var changes. The only LS-adjacent actions are: verify webhook delivery post-cutover and optionally use the existing `BILLING_CHECKOUT_ENABLED` kill switch during the DB cutover window.
+5. **Freeze the Lemon Squeezy code path entirely.** No file in `src/lib/04-billing/`, `webhook.ts`, `config/billing.ts`, or any LS env var changes. The only LS-adjacent actions are: verify webhook delivery post-cutover and optionally use the existing `BILLING_CHECKOUT_ENABLED` kill switch during the DB cutover window.
 6. **Fix the schema-drift situation explicitly** (recommend: replay history as-is on Supabase; clean up the orphaned Stripe columns in a later, separate migration).
 7. **Back up today** — the free-plan expiry question (§19.1) makes the dump urgent independent of everything else in this document.
 

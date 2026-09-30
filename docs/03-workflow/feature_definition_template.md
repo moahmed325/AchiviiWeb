@@ -1419,7 +1419,7 @@ WHAT milestones belong to each phase?
 
 WHAT dependencies exist?
 
-WHAT architecture/backend work is allowed?
+WHAT 01-product/backend work is allowed?
 
 WHAT files/areas should be inspected?
 

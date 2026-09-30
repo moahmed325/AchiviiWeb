@@ -1,62 +1,62 @@
-# Achivii — Documentation
+# Achivii Docs — START HERE
 
-All project documentation lives in the four topical subfolders below. Every document is Markdown; cross-references between documents use repo-root paths (e.g. `docs/process/decisions.md`).
+This folder is organized so you can find the right document without remembering the old project history.
 
-## 📁 Folder map
+## Where do I go?
 
-### `architecture/` — What Achivii is and how it's built
-| Document | Purpose |
+| Folder | Use it for |
 |---|---|
-| [redesign-blueprint.md](architecture/redesign-blueprint.md) | Product source of truth — what Achivii is and must become (**BP §n** references) |
-| [visual-design-system.md](architecture/visual-design-system.md) | How Achivii looks — the design system (**VDS §n** references) |
-| [CUSTOM_GOAL_EXECUTION_ARCHITECTURE.md](architecture/CUSTOM_GOAL_EXECUTION_ARCHITECTURE.md) | Technical architecture of the custom-goal (Golden Rail) execution engine |
+| `01-product/` | What Achivii should be — product direction and visual design |
+| `02-architecture/` | How important technical systems are structured |
+| `03-workflow/` | How we plan, execute, verify, and record work |
+| `04-billing/` | Lemon Squeezy billing and subscription documentation |
+| `05-migration/` | Render → Supabase migration and infrastructure work |
+| `99-archive/` | Old/superseded documents — reference only |
 
-### `billing/` — Lemon Squeezy integration (contracts, config, rollback)
-| Document | Purpose |
-|---|---|
-| [lemonsqueezy_billing_configuration.md](billing/lemonsqueezy_billing_configuration.md) | Environment-variable configuration, test/live namespace, pricing, payout readiness |
-| [lemonsqueezy_checkout_identity_contract.md](billing/lemonsqueezy_checkout_identity_contract.md) | The checkout `custom_data.user_id` identity contract (M0.3) |
-| [lemonsqueezy_provider_contract.md](billing/lemonsqueezy_provider_contract.md) | Provider-facing contract boundaries |
-| [lemonsqueezy_provider_state_mapping.md](billing/lemonsqueezy_provider_state_mapping.md) | Lemon Squeezy status → internal subscription state mapping (M0.4) |
-| [lemonsqueezy_webhook_idempotency.md](billing/lemonsqueezy_webhook_idempotency.md) | `WebhookEvent.deliveryKey` idempotency model (M1.2) |
-| [launch_rollback_readiness.md](billing/launch_rollback_readiness.md) | Launch checklist, checkout kill switch, credential rotation (M6.6) |
-| [m2.5_test_mode_verification.md](billing/m2.5_test_mode_verification.md) | Test-mode verification record |
+## The documents you will use most
 
-### `process/` — How the project is run (decisions, phases, prompts, templates)
-| Document | Purpose |
-|---|---|
-| [decisions.md](process/decisions.md) | Every decision, its options, choice and consequences — the **why** |
-| [phases.md](process/phases.md) | The redesign execution roadmap — **when and in what order** |
-| [prompts.md](process/prompts.md) | Phase-by-phase agent instructions for the redesign |
-| [feature_definition_payment.md](process/feature_definition_payment.md) | Feature definition for the payment/billing milestone |
-| [prompts_payment.md](process/prompts_payment.md) | Agent instructions for the payment milestones |
-| [feature_definition_template.md](process/feature_definition_template.md) | Reusable feature-definition template |
-| [phases_template.md](process/phases_template.md) | Reusable phases/roadmap template |
-| [implementation_prompt_template.md](process/implementation_prompt_template.md) | Reusable implementation-prompt template |
-| [archive/phases_redesign_archive.md](process/archive/phases_redesign_archive.md) | Superseded redesign process notes (historical) |
+### Product
+- `01-product/redesign-blueprint.md` — product source of truth
+- `01-product/visual-design-system.md` — visual/design source of truth
 
-### `migration/` — Infrastructure migration (Render → Supabase)
-| Document | Purpose |
-|---|---|
-| [feature-definition-infrastructure-migration.md](migration/feature-definition-infrastructure-migration.md) | Feature definition for the database + auth migration |
-| [MIGRATION_BRIEF_RENDER_TO_SUPABASE.md](migration/MIGRATION_BRIEF_RENDER_TO_SUPABASE.md) | Complete read-only investigation brief: current architecture, database, auth, billing, risks, migration order, verification plan |
-| [../infrastructure-migration/phases.md](../infrastructure-migration/phases.md) | Implementation phases roadmap for the infrastructure migration |
+### Architecture
+- `02-architecture/CUSTOM_GOAL_EXECUTION_ARCHITECTURE.md` — custom-goal execution architecture
 
-### `process/archive/` — Historical
-Superseded documents kept for context only. Do not treat as current guidance.
+### Workflow
+- `03-workflow/phases.md` — current payment implementation roadmap
+- `03-workflow/decisions.md` — why important decisions were made
+- `03-workflow/prompts.md` — implementation prompts for the redesign
+- `03-workflow/feature_definition_template.md` — reusable feature-definition template
+- `03-workflow/implementation_prompt_template.md` — reusable agent-prompt template
 
----
+### Billing
+- `04-billing/` — use this whenever working on Lemon Squeezy billing
 
-## Canonical reading order (for a new contributor)
+### Migration
+- `05-migration/phases.md` — migration execution phases and completion status
+- `05-migration/MIGRATION_BRIEF_RENDER_TO_SUPABASE.md` — detailed migration investigation/brief
+- `05-migration/feature-definition-infrastructure-migration.md` — migration feature definition
 
-1. [architecture/redesign-blueprint.md](architecture/redesign-blueprint.md) — the product
-2. [architecture/visual-design-system.md](architecture/visual-design-system.md) — the look
-3. [process/phases.md](process/phases.md) — the plan
-4. [process/decisions.md](process/decisions.md) — the rationale
-5. [process/prompts.md](process/prompts.md) — how work is instructed
-6. [billing/](billing/) — when touching anything payment-related
-7. [migration/MIGRATION_BRIEF_RENDER_TO_SUPABASE.md](migration/MIGRATION_BRIEF_RENDER_TO_SUPABASE.md) — before any infrastructure work
+## Simple rule
 
-## Source-of-truth precedence
+If you are **building the product**, start with `01-product/`.
 
-On conflict between framework documents, [process/decisions.md](process/decisions.md) §"Sources of truth" governs: **the blueprint wins on product, the VDS wins on visuals, decisions.md records why.**
+If you are **changing technical structure**, check `02-architecture/`.
+
+If you are **doing a task**, check `03-workflow/`.
+
+If you are **touching payments**, check `04-billing/`.
+
+If you are **touching Supabase/Render/auth migration**, check `05-migration/`.
+
+Do not use anything in `99-archive/` as current instructions.
+
+## Source-of-truth order
+
+1. Product behavior → `01-product/redesign-blueprint.md`
+2. Visual decisions → `01-product/visual-design-system.md`
+3. Recorded project decisions → `03-workflow/decisions.md`
+4. Current task scope/order → the relevant roadmap in `03-workflow/` or `05-migration/`
+5. Code → authoritative for what is actually implemented
+
+When documents conflict, prefer the newer explicit decision and verify the repository before assuming something is implemented.

@@ -2,7 +2,7 @@
 
 **Goal:** Move Achivii production PostgreSQL from Render to the fresh Supabase project, then migrate custom scrypt/JWT authentication to Supabase Auth without changing user identity or billing behavior.
 
-**Source of truth:** `docs/infrastructure-migration/feature-definition-infrastructure-migration.md`, migration brief, repository code/tests.
+**Source of truth:** `docs/05-05-migration/feature-definition-infrastructure-migration.md`, migration brief, repository code/tests.
 
 **Current position:** Migration closeout is complete. P0-P4 are complete; Supabase PostgreSQL serves production DB traffic, Supabase Auth is authoritative, and legacy JWT/scrypt authentication is retired. Live authenticated browser verification remains waived per the owner’s explicit instruction.
 

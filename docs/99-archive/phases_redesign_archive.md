@@ -4,16 +4,16 @@
 
 Companion to the two source-of-truth documents:
 
-* `docs/architecture/redesign-blueprint.md` — **what** Achivii is and must become (cited as **BP §n**).
-* `docs/architecture/visual-design-system.md` — **how** it looks (cited as **VDS §n**, implementation notes as **VDS note n**).
+* `docs/01-product/redesign-blueprint.md` — **what** Achivii is and must become (cited as **BP §n**).
+* `docs/01-product/visual-design-system.md` — **how** it looks (cited as **VDS §n**, implementation notes as **VDS note n**).
 
 The project framework is three files:
 
 | File | Answers |
 |---|---|
-| `docs/process/phases.md` (this file) | **When and in what order** — phases, milestones, dependencies, what "done" means |
-| `docs/process/prompts.md` | **How the agent is instructed** — system, execution and workflow prompts per phase (BP §50 structure) |
-| `docs/process/decisions.md` | **Why** — architecture, technology and design decisions, including the open ones listed here |
+| `docs/03-workflow/phases.md` (this file) | **When and in what order** — phases, milestones, dependencies, what "done" means |
+| `docs/03-workflow/prompts.md` | **How the agent is instructed** — system, execution and workflow prompts per phase (BP §50 structure) |
+| `docs/03-workflow/decisions.md` | **Why** — architecture, technology and design decisions, including the open ones listed here |
 
 This file does not invent product requirements. Where the source documents leave something open, it is listed as a decision to make, not answered here.
 
@@ -428,7 +428,7 @@ Primitives meet 44px targets. Sheet behaviour verified at 390px. Inputs don't tr
   * `frontend/src/index.css`, `frontend/src/App.tsx` (dev route only), `frontend/vite.config.ts` (`dedupe` for React), `frontend/package.json`, `frontend/bun.lock`
   * new: `frontend/src/components/ui/**`, `frontend/src/pages/dev/UiPreviewPage.tsx`, `frontend/src/test/setup.ts`, `frontend/src/vite-env.d.ts`, `frontend/eslint.config.js`, `frontend/vitest.config.ts`
   * token rename only: `frontend/src/components/marketing/**`
-  * `Design.md`, `docs/process/decisions.md`, `docs/process/phases.md`, `docs/process/prompts.md`
+  * `Design.md`, `docs/03-workflow/decisions.md`, `docs/03-workflow/phases.md`, `docs/03-workflow/prompts.md`
 
 ### Verification evidence
 
@@ -584,7 +584,7 @@ Primitives meet 44px targets. Sheet behaviour verified at 390px. Inputs don't tr
   * whether the modal stays for in-context moments (for example clicking a pathway);
   * the redirect rules after auth: no goal → onboarding; active goal → Today; an explicit `?next=` path honoured only if it's internal.
 
-**Decided 2026-09-23:** OD-4 **A** (routes only; the modal is retired) and ND-4 **A** (`/signup?pathway=<slug>`, cleared once consumed; the redirect rules above). See `docs/process/decisions.md`.
+**Decided 2026-09-23:** OD-4 **A** (routes only; the modal is retired) and ND-4 **A** (`/signup?pathway=<slug>`, cleared once consumed; the redirect rules above). See `docs/03-workflow/decisions.md`.
 
 ### In scope
 
@@ -761,7 +761,7 @@ Step and history behaviour recorded (the redesign must be no worse):
 * **ND-5: pathway copy.** Should titles and descriptions be rewritten in plain language (the Phase 1 carry-over)? Where does display copy live — the frontend `certifiedPresets.ts`, the backend presets, or a shared source? Rewriting display copy must not change the preset *matching* keys (`findPresetForGoal` matches on titles).
 * **ND-6: custom goals before Phase 10.** Keep the free custom-goal entry exactly as today (the current behaviour, no regression), or de-emphasise it? It must not be locked until Phase 10 delivers a real server-side entitlement.
 
-**Decided 2026-09-23 (M3.2):** OD-11 **A** (the six landing categories, in one shared data source; a one-pathway category goes straight to that pathway), ND-5 **A** (plain-language display fields in `certifiedPresets.ts`; titles and matching keys unchanged) and ND-6 **A** (custom goals free and visible, secondary to pathways, no lock or badge). See `docs/process/decisions.md`.
+**Decided 2026-09-23 (M3.2):** OD-11 **A** (the six landing categories, in one shared data source; a one-pathway category goes straight to that pathway), ND-5 **A** (plain-language display fields in `certifiedPresets.ts`; titles and matching keys unchanged) and ND-6 **A** (custom goals free and visible, secondary to pathways, no lock or badge). See `docs/03-workflow/decisions.md`.
 
 **Decided 2026-09-23 (after M3.1):** ND-13 **A** (custom goals do Schedule while clarify runs, then the questions; presets follow the spec order), ND-14 **A** ("success" = the editable clarified outcome plus the `success` question when present; all other questions are "starting point"), ND-15 **A** (one `PathwayLibrary` for all five in-app galleries) and ND-16 **A** (M3.3 fixes the blank step after a reload and the switch-goal reload; the draft key is cleared after a goal is created).
 
@@ -926,7 +926,7 @@ ACHIVII REDESIGN — PHASE 3 — M3.6 REPORT
      src/components/marketing/sections/Pathways.tsx, src/components/ui/Tabs.tsx,
      src/index.css (.focus-ring-inset), src/test/setup.ts (jsdom stubs for matchMedia and
      scrollIntoView), e2e/onboarding.spec.ts (switch-goal test uses the new explorer),
-     Design.md, docs/process/phases.md
+     Design.md, docs/03-workflow/phases.md
    Removed: nothing. Backend: no files touched.
 
 4. Functionality preserved
@@ -950,7 +950,7 @@ ACHIVII REDESIGN — PHASE 3 — M3.6 REPORT
    (back/forward from Home and Today into onboarding), modal open/close with Escape and
    Cancel and focus return.
 
-5. Decisions applied (docs/process/decisions.md)
+5. Decisions applied (docs/03-workflow/decisions.md)
    OD-11 A (§ OD-11): six directions from one source; a one-pathway direction selects its
      pathway; an empty direction never renders (groupPathways; unit tested with a reduced list).
    ND-5 A (§ ND-5): plain-language `summary` shown everywhere, including the landing page;
@@ -1093,7 +1093,7 @@ ACHIVII REDESIGN — PHASE 3 — M3.7 REPORT
      StepQuestions.tsx, StepSuccess.tsx, StepSchedule.tsx, StepGeneration.tsx,
      CommitmentEditor.tsx}, src/components/OnboardingWizard.tsx, src/pages/OnboardingPage.tsx,
      e2e/mockApi.ts (new failure options; existing ones unchanged), e2e/onboarding.spec.ts,
-     docs/process/phases.md
+     docs/03-workflow/phases.md
    Removed: nothing. Backend, API client, GoalContext, AuthContext and the M3.1 fixtures:
      untouched.
    Test changes: two assertions in e2e/onboarding.spec.ts ("a clarify failure keeps the user
@@ -1116,7 +1116,7 @@ ACHIVII REDESIGN — PHASE 3 — M3.7 REPORT
    R-18 All history specs pass; Back/Forward keep answers and the edited outcome; a pending
         wait no longer overrides Back.
 
-5. Decisions applied (docs/process/decisions.md)
+5. Decisions applied (docs/03-workflow/decisions.md)
    ND-13 (order unchanged; custom schedule stays usable while clarify fails), ND-14
    (grouping unchanged), ND-16 (draft kept until create; reachable-step recovery), ND-6
    (custom goal untouched and free), OD-11 / ND-5 / ND-15 (pathway entry from M3.6
@@ -1294,7 +1294,7 @@ ACHIVII REDESIGN — PHASE 3 REPORT
 
 3. Files changed / created / removed
    Phase 3 commit 3097016: 67 files, +7,279 / −3,680, no backend files. Working tree
-   on top of it: schedule.ts (this cleanup), docs/process/phases.md, docs/process/decisions.md,
+   on top of it: schedule.ts (this cleanup), docs/03-workflow/phases.md, docs/03-workflow/decisions.md,
    Design.md.
    Created: components/onboarding/ (state, payload, steps, questions, schedule, each
    step, tests), components/pathways/, e2e/onboarding.spec.ts, e2e/onboardingStates.spec.ts,
@@ -1325,7 +1325,7 @@ ACHIVII REDESIGN — PHASE 3 REPORT
          Generation stays locked on its error.
    R-1   Not modified. Live sign-up used the existing auth flow.
 
-5. Decisions applied (docs/process/decisions.md)
+5. Decisions applied (docs/03-workflow/decisions.md)
    OD-11 A, ND-5 A, ND-6 A, ND-13 A, ND-14 A, ND-15 A, ND-16 A. Each matches what
    shipped; confirmed in the decisions.md changelog at M3.8, without new decision ids.
    M3.7 review outcomes, logged there rather than as new decisions:
@@ -1573,20 +1573,20 @@ R-2, R-5, R-6, R-7, R-15.
    ND-17 matching has NOT been implemented in the backend.
 
 2. What changed (docs only)
-   docs/process/decisions.md: OD-8 is Decided (A amended), with the kickoff corrections
+   docs/03-workflow/decisions.md: OD-8 is Decided (A amended), with the kickoff corrections
    in its context (v1 skips method; slow is stamped only on events; no heartbeat;
    method and plan are sent together on v2). ND-17 is Decided (A): matching only,
    so "Deliver a 15-Minute TED-Style Speech" hits ted_speech_15min. The index,
    the "what blocks the next phase" line, D-11's Phase 4 allowance note and the
    change log agree.
-   docs/process/phases.md: current position, the status table, the Phase 4 status line,
+   docs/03-workflow/phases.md: current position, the status table, the Phase 4 status line,
    current state, decisions, scope, allowance, files and milestones match the
    kickoff and Mo's choices. Section 5 and section 6 agree. Design.md gains a
    short generation-stage note (stage list, reduced motion, no fake progress).
 
 3. Files changed
-   docs/process/decisions.md
-   docs/process/phases.md
+   docs/03-workflow/decisions.md
+   docs/03-workflow/phases.md
    Design.md
 
 4. Functionality preserved
@@ -1600,7 +1600,7 @@ R-2, R-5, R-6, R-7, R-15.
    title-drift pathways are not in scope.
 
 6. Validation evidence
-   Re-read of docs/process/decisions.md and docs/process/phases.md: the index, the register,
+   Re-read of docs/03-workflow/decisions.md and docs/03-workflow/phases.md: the index, the register,
    the Phase 4 section, section 6 and both change logs name the same status
    (Decided A amended / Decided A), the same allowance (matching only; stream
    labels unused) and the same position (IN PROGRESS, M4.1 done, M4.2 not
@@ -1667,8 +1667,8 @@ R-2, R-5, R-6, R-7, R-15.
    - frontend/e2e/mockApi.ts
    - backend/src/lib/ai/presets/speech.ts
    - backend/test/presetMatch.test.ts
-   - docs/process/phases.md
-   - docs/process/decisions.md (implementation note on ND-17)
+   - docs/03-workflow/phases.md
+   - docs/03-workflow/decisions.md (implementation note on ND-17)
    Removed: none.
    M3.1 create-body fixtures were not regenerated.
 
@@ -1763,7 +1763,7 @@ R-2, R-5, R-6, R-7, R-15.
    - frontend/src/components/onboarding/useOnboardingState.test.tsx
    - frontend/e2e/mockApi.ts (a later create can play the next sequence; a mock-only end step closes the stream)
    - frontend/e2e/generation.spec.ts
-   - docs/process/phases.md
+   - docs/03-workflow/phases.md
    - Design.md (one sentence on the silence line and the error staying on the screen)
    Created: none.
    Removed: none.
@@ -1834,7 +1834,7 @@ R-2, R-5, R-6, R-7, R-15.
    - frontend/e2e/mockApi.ts (counts GET /api/goal/active)
    - frontend/e2e/generation.spec.ts
    - frontend/e2e/onboardingStates.spec.ts
-   - docs/process/phases.md
+   - docs/03-workflow/phases.md
    Created: none.
    Removed: none.
    No backend file changed. payload.ts was not changed. No new live accounts.
@@ -1945,15 +1945,15 @@ Every row was run in this milestone, or is cited from a test that still passes. 
 2. What changed
    The two 360 px generation checks now also run axe on #main.
    No production code changed. No dead generation code was removed.
-   docs/process/phases.md gained this matrix, the close-out sections and the Phase 4 report.
-   docs/process/decisions.md index line now says Phase 4 is awaiting Mo and Phase 5 is blocked by OD-3, OD-9 and ND-7.
+   docs/03-workflow/phases.md gained this matrix, the close-out sections and the Phase 4 report.
+   docs/03-workflow/decisions.md index line now says Phase 4 is awaiting Mo and Phase 5 is blocked by OD-3, OD-9 and ND-7.
    OD-8 and ND-17 stay Decided. Those three Phase 5 decisions stay Open.
 
 3. Files changed / created / removed
    Changed:
    - frontend/e2e/generation.spec.ts
-   - docs/process/phases.md
-   - docs/process/decisions.md
+   - docs/03-workflow/phases.md
+   - docs/03-workflow/decisions.md
    Created: none.
    Removed: none.
    No backend file changed. payload.ts was not changed.
@@ -2023,7 +2023,7 @@ ACHIVII REDESIGN — PHASE 4 REPORT
    custom-error). Changed: StepGeneration.tsx, useOnboardingState.ts and its test,
    OnboardingWizard.tsx (generation branch), generation.spec.ts, onboardingStates.spec.ts,
    mockApi.ts, backend/src/lib/ai/presets/speech.ts (one matching pattern, M4.2),
-   backend/test/presetMatch.test.ts, Design.md, docs/process/decisions.md, docs/process/phases.md.
+   backend/test/presetMatch.test.ts, Design.md, docs/03-workflow/decisions.md, docs/03-workflow/phases.md.
    payload.ts was not changed. No route, schema, or save function was changed.
 
 4. Functionality preserved
@@ -2256,8 +2256,8 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
 
 3. Files changed / created / removed
    Changed:
-   - docs/process/decisions.md
-   - docs/process/phases.md
+   - docs/03-workflow/decisions.md
+   - docs/03-workflow/phases.md
    - Design.md (one sentence on the still-working line)
    - frontend/src/components/onboarding/generationStages.ts
    - frontend/src/components/onboarding/StepGeneration.tsx
@@ -2405,7 +2405,7 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
      360 px strip test now also checks the document, because the navbar
      overflow it skipped is gone
    - Design.md (§5 Application shell; SkipLink; breakpoints; legacy fades),
-     docs/process/decisions.md (ND-7 implemented), docs/process/phases.md
+     docs/03-workflow/decisions.md (ND-7 implemented), docs/03-workflow/phases.md
    Removed:
    - frontend/src/components/Navbar.tsx
    No backend file changed. ProtectedRoute, GoalContext and AuthContext were
@@ -2587,8 +2587,8 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    - frontend/e2e/onboarding.spec.ts (the explorer opens from the shell)
    - frontend/e2e/pathways.spec.ts (three tests: the explorer from the shell;
      the strip test on /dashboard)
-   - Design.md (§6 Today; later sections renumbered), docs/process/decisions.md
-     (ND-18 implemented), docs/process/phases.md
+   - Design.md (§6 Today; later sections renumbered), docs/03-workflow/decisions.md
+     (ND-18 implemented), docs/03-workflow/phases.md
    Removed: nothing.
    ExecutionDashboard, FocusSessionModal, GoalContext, the shell, the
    backend and the M3.1 fixtures were not changed. No new dependency.
@@ -2620,7 +2620,7 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    point 2.
    ND-18: the h1 is rawGoal. "90-day outcome:" plus clarifiedOutcome, as
    stored, never through formatGoalTitle. Logged as implemented in
-   docs/process/decisions.md.
+   docs/03-workflow/decisions.md.
 
 6. Validation evidence
    Frontend tsc --noEmit: clean.
@@ -2770,7 +2770,7 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    - frontend/src/components/today/Today.test.tsx
    - frontend/e2e/today.spec.ts
    - Design.md (§6 Today)
-   - docs/process/phases.md (M5.4 report, milestone table, Section 6, change log)
+   - docs/03-workflow/phases.md (M5.4 report, milestone table, Section 6, change log)
    Removed: nothing.
    Backend and M3.1 fixtures were not changed. No new dependencies.
 
@@ -2905,7 +2905,7 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    - frontend/src/components/today/Today.tsx (rethrow on write failure)
    - frontend/src/components/ExecutionDashboard.tsx (rethrow on write failure)
    - Design.md (§11 Focus Mode & Deliberate Practice Runner)
-   - docs/process/phases.md (M5.5 report, milestone table, Section 6, change log)
+   - docs/03-workflow/phases.md (M5.5 report, milestone table, Section 6, change log)
    Removed: nothing.
    Backend was not changed. Zero backend changes permitted.
 
@@ -3011,7 +3011,7 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    - frontend/src/components/today/Today.test.tsx
    - frontend/e2e/today.spec.ts
    - Design.md (§12 Step Lighting, Next Step Preview & Notes)
-   - docs/process/phases.md (M5.6 report, milestone table, Section 6, change log)
+   - docs/03-workflow/phases.md (M5.6 report, milestone table, Section 6, change log)
    Created / Removed: none.
    Backend was not changed. Zero backend changes permitted.
 
@@ -3061,7 +3061,7 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
 
 ```text
 1. Outcome
-   All remaining states from the OD-9 state matrix (docs/process/phases.md §4) are implemented
+   All remaining states from the OD-9 state matrix (docs/03-workflow/phases.md §4) are implemented
    and verified across Home.tsx, ProtectedRoute.tsx, OnboardingPage.tsx, Today.tsx,
    and ExecutionDashboard.tsx:
    - Goal-Load Error State & Route Protection (R1, OD-9, ND-12): when goal fetch fails
@@ -3149,7 +3149,7 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    - frontend/src/components/today/Today.test.tsx
    - frontend/e2e/today.spec.ts
    - Design.md (§13 OD-9 State Matrix & Error Resilience)
-   - docs/process/phases.md (M5.7 report, milestone table, position header, change log)
+   - docs/03-workflow/phases.md (M5.7 report, milestone table, position header, change log)
    Removed: nothing.
    Backend was not changed. Zero backend changes permitted.
 
@@ -3352,16 +3352,16 @@ R-8, R-9, R-10, R-11, R-12 (entry point), R-15, R-17.
    Phase 6 (Journey) has NOT started.
 
 2. What changed
-   - docs/process/phases.md updated: position header, status table, milestone table (M5.8 and M5.9 marked Done), Phase 5 regression matrix, M5.8/M5.9 reports, official Phase 5 report, carry-overs table, and change log.
-   - docs/process/decisions.md updated: index line updated; OD-3 and OD-9 implementation notes added; change log updated.
+   - docs/03-workflow/phases.md updated: position header, status table, milestone table (M5.8 and M5.9 marked Done), Phase 5 regression matrix, M5.8/M5.9 reports, official Phase 5 report, carry-overs table, and change log.
+   - docs/03-workflow/decisions.md updated: index line updated; OD-3 and OD-9 implementation notes added; change log updated.
    - frontend/e2e/pathways.spec.ts: removed unused expectWithin helper to keep ESLint clean.
    - No backend changes.
 
 3. Files changed / created / removed
    Changed:
    - frontend/e2e/pathways.spec.ts
-   - docs/process/phases.md
-   - docs/process/decisions.md
+   - docs/03-workflow/phases.md
+   - docs/03-workflow/decisions.md
    Created: none.
    Removed: none.
 
@@ -3623,7 +3623,7 @@ None.
    - **OD-7 (Phase counts):** Formally re-verified as **Decided (constraint)**: Journey handles 2–4 method-named phases for v2 goals and 3 fixed phases (Foundation, Acceleration, Mastery) for v1 goals. Nothing may assume four fixed phases.
 
 2. **Definitive mapping established**
-   - Comprehensive Day / Week / Phase mapping documented for v1 and v2 goals in `docs/process/phases.md` and `docs/process/decisions.md`.
+   - Comprehensive Day / Week / Phase mapping documented for v1 and v2 goals in `docs/03-workflow/phases.md` and `docs/03-workflow/decisions.md`.
    - VDS §9 three-layer model defined: (1) Quick numerical layer (`Day N / 90`), (2) Emotional staircase (steps, landings, milestones, destination), (3) Strategic roadmap with honest future representation.
 
 3. **Canonical Journey contracts created**
@@ -3874,15 +3874,15 @@ None.
    Phase 7 (Weekly review + adaptation) has NOT started and is blocked by OD-1a.
 
 2. What changed
-   - docs/process/phases.md updated: position header, status table, milestone table (M6.6 marked Done), Phase 6 regression matrix, validation audit, exit criteria audit, M6.6 report, official Phase 6 report, carry-overs table, and change log.
-   - docs/process/decisions.md updated: index line updated; OD-2 and OD-7 implementation notes updated; change log updated.
+   - docs/03-workflow/phases.md updated: position header, status table, milestone table (M6.6 marked Done), Phase 6 regression matrix, validation audit, exit criteria audit, M6.6 report, official Phase 6 report, carry-overs table, and change log.
+   - docs/03-workflow/decisions.md updated: index line updated; OD-2 and OD-7 implementation notes updated; change log updated.
    - Zero production backend or frontend application logic modified.
    - Zero database changes or Prisma schema edits.
 
 3. Files changed / created / removed
    Changed:
-   - docs/process/phases.md
-   - docs/process/decisions.md
+   - docs/03-workflow/phases.md
+   - docs/03-workflow/decisions.md
    Created: none.
    Removed: none.
 
@@ -3995,8 +3995,8 @@ ACHIVII REDESIGN — PHASE 6 REPORT
    - frontend/src/types/index.ts (re-exports journey contracts)
    - frontend/src/pages/RoadmapPage.tsx (refactored to 3-layer architecture and responsive switching)
    - frontend/src/index.css (journey motion utilities, beacon keyframes, reduced-motion overrides)
-   - docs/process/phases.md
-   - docs/process/decisions.md
+   - docs/03-workflow/phases.md
+   - docs/03-workflow/decisions.md
    Removed across Phase 6: none.
    Zero backend changes.
 
@@ -4292,8 +4292,8 @@ ACHIVII REDESIGN — PHASE 7 REPORT
    - frontend/src/components/today/Today.tsx (review entry points, review-due card, closing stretch copy)
    - frontend/src/components/today/WeeklyReviewModal.tsx (compatibility re-export)
    - frontend/e2e/weeklyReview.spec.ts (14 comprehensive review flow E2E tests)
-   - docs/process/phases.md
-   - docs/process/decisions.md (OD-1a resolution recorded)
+   - docs/03-workflow/phases.md
+   - docs/03-workflow/decisions.md (OD-1a resolution recorded)
    Removed across Phase 7: none.
 
 4. Functionality preserved
@@ -4704,8 +4704,8 @@ ACHIVII REDESIGN — PHASE 8 REPORT
    - frontend/src/components/app/shellEntries.ts (added progressActive and showProgress)
    - frontend/src/components/app/AppShell.test.tsx (updated entries and navigation tests)
    - frontend/e2e/shell.spec.ts (updated navigation entries, keyboard tab order, and overflow assertion)
-   - docs/process/phases.md
-   - docs/process/decisions.md
+   - docs/03-workflow/phases.md
+   - docs/03-workflow/decisions.md
    Removed across Phase 8: none.
 
 4. Functionality preserved
@@ -5045,7 +5045,7 @@ R-8, R-14.
    - Frontend TypeScript check: 0 errors (`node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend`).
    - Frontend Vitest: 41 test files passed, 351/351 tests passed.
    - Backend Vitest: 21 test files passed, 240/240 tests passed.
-   - Documentation integrity: `docs/process/decisions.md` and `docs/process/phases.md` synchronized.
+   - Documentation integrity: `docs/03-workflow/decisions.md` and `docs/03-workflow/phases.md` synchronized.
 
 ### M9.2 report — Backend completion transition with tests (2026-09-27)
 
@@ -5520,7 +5520,7 @@ None.
 
 ### Phase 12 Completion Report & Redesign Final Sign-Off
 
-Phase 12 (Global Polish) and Milestone M12.6 mark the formal, authoritative completion of the entire 13-phase Achivii Redesign Project (Phases 0 through 12). The application has been fully transformed from a legacy prototype into a state-of-the-art, cinematic, accessible, and high-performance web experience adhering rigorously to the Redesign Blueprint (`docs/architecture/redesign-blueprint.md`) and Visual Design System (`docs/architecture/visual-design-system.md`).
+Phase 12 (Global Polish) and Milestone M12.6 mark the formal, authoritative completion of the entire 13-phase Achivii Redesign Project (Phases 0 through 12). The application has been fully transformed from a legacy prototype into a state-of-the-art, cinematic, accessible, and high-performance web experience adhering rigorously to the Redesign Blueprint (`docs/01-product/redesign-blueprint.md`) and Visual Design System (`docs/01-product/visual-design-system.md`).
 
 #### 1. What Changed Across Phase 12
 * **M12.1 (Legacy Inventory):** Conducted codebase-wide audit cataloging 115 hex color instances, 42 `#07CB6C` mint tokens, global radius overrides, obsolete font imports, dead components, and 10.7MB of uncompressed image assets.
@@ -5866,7 +5866,7 @@ An exhaustive audit of the frontend codebase (`frontend/src/` and `frontend/publ
 
 # 5 — DECISION REGISTER
 
-This register is here so every phase can see what blocks it. The decisions themselves, with options, the choice and the reasoning, belong in `docs/process/decisions.md`.
+This register is here so every phase can see what blocks it. The decisions themselves, with options, the choice and the reasoning, belong in `docs/03-workflow/decisions.md`.
 
 ## Open decisions from the blueprint
 
@@ -6022,7 +6022,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | Date | Change |
 |---|---|
 | 2026-09-23 | First version. Phase 1 recorded as complete, Phase 0 as partial. Decision register and carry-overs established. |
-| 2026-09-23 | OD-1 register row now points to its three parts (OD-1a/b/c) and to D-11, matching `docs/process/decisions.md`. |
+| 2026-09-23 | OD-1 register row now points to its three parts (OD-1a/b/c) and to D-11, matching `docs/03-workflow/decisions.md`. |
 | 2026-09-23 | Phase 0 gate cleared: ND-1, ND-2 and ND-3 Decided (M0.2). |
 | 2026-09-23 | Phase 0 milestones M0.2–M0.11 delivered; status awaits Mo's review. OD-6 and OD-12 done. Lint and test commands added to 3.11, with the lint baseline. "What shipped", evidence and carry-overs drafted. |
 | 2026-09-23 | Phase 0 review fixes applied (accessibility, light surface, states, evidence, copy). Evidence updated (41 tests, signed-in spot-check, browser keyboard checks). Unselected review items added as carry-overs. Phase 1's token-rename carry-over marked done. Status still awaits Mo's review. |
@@ -6068,7 +6068,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 7 M7.4 done: Failure, retry and review-due states delivered across `WeeklyReviewModal.tsx`, `ReviewSummaryCard.tsx`, `ReviewReflectionStep.tsx`, `Today.tsx`, `today.ts`, and `reviewDraft.ts`; unsubmitted reflection drafts safely persisted in browser storage and restored across accidental dismissals/reloads; 503 adaptation failure and offline network alerts displayed in accessible live region (`role="alert"`, `aria-live="assertive"`) with preserved reflection and working in-modal retry (`'Try again'`); enhanced `isWeekReviewDue` triggers when all week dates have passed or all active practice tasks are completed; Week 12 closing stretch integration displays `'Enter Closing Stretch'` CTA (never `'Start Week 13'`), modal title `'Closing Stretch Ready'`, and Today review-due card copy unlocking days 85–90; calm, serene, non-punitive guidance for empty weeks (0 completed sessions) with zero shame phrasing (BP §18); everyday accessible review entry points delivered in `WeekGlance` ("Review week") and footer nav ("Weekly review") (BP §33 / OD-9); 14/14 tests pass in `WeeklyReviewModal.test.tsx`, 28/28 in `Today.test.tsx`, 23/23 in `today.test.ts`, 332/332 across full frontend Vitest (38 files), 229/229 across backend Vitest (20 files, 0 backend edits), 14/14 Playwright E2E in `weeklyReview.spec.ts` (0 axe violations, 0 overflow, 44px tap targets), 16/16 in `todayStates.spec.ts`. M7.5 ready. |
 | 2026-09-27 | Phase 7 M7.5 done: Named backend allowance implemented under OD-1a (Option A) and D-11 (`RoadmapWeek.testResult Json?` added in `backend/prisma/schema.prisma`, migration `20260927071946_add_weekly_test_result` applied, pgvector integrity verified); review endpoint validation and backward-compatible persistence delivered in `POST /api/goal/weeks/:weekNumber/review` (`backend/src/routes/goal.ts`); dedicated backend Vitest test suite added in `backend/test/weeklyReviewTestResult.test.ts` (11/11 tests pass, 240/240 tests pass across 21 backend test files); frontend API client `submitWeeklyReview` updated in `frontend/src/lib/api.ts`; weekly benchmark test result recording, draft persistence, and honest target comparison UI delivered in `ReviewTestResultStep.tsx`, `WeeklyReviewModal.tsx`, `AdaptationMomentStep.tsx`, and `reviewDraft.ts` (zero media proof uploads, zero photo/video judging, zero AI grading, BP §43); 27/27 review tests pass, 339/339 across full frontend Vitest (39 files), 14/14 Playwright E2E in `weeklyReview.spec.ts` (0 axe violations, 0 overflow, 44px tap targets), 16/16 in `todayStates.spec.ts`. M7.6 ready. |
 | 2026-09-27 | Phase 7 M7.6 done: Full regression verification pass across all capabilities touched by Phase 7 (R-8, R-9, R-12, R-13), Phase 7 validation scenarios audit (all 5 scenarios verified with passing automated evidence), Phase 7 exit criteria audit (all 3 criteria met), quality/accessibility/responsive audit (0 axe violations, 44px tap targets, 0 overflow at 390px/360px), full test suites passing (21/21 backend Vitest test files, 240/240 tests; 39/39 frontend Vitest test files, 339/339 tests; 33/33 Playwright desktop E2E tests, 7/7 mobile E2E tests), production builds clean (frontend JS/CSS and backend tsc), M7.6 report and official Phase 7 report authored. Phase 7 status is COMPLETE (awaiting Mo's review). Phase 8 (Progress) is unblocked and next. |
-| 2026-09-27 | Phase 8 M8.1 done: Architectural Decision ND-8 resolved as Option A (dedicated Progress page `/progress`); decision registered in `docs/process/decisions.md`; zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
+| 2026-09-27 | Phase 8 M8.1 done: Architectural Decision ND-8 resolved as Option A (dedicated Progress page `/progress`); decision registered in `docs/03-workflow/decisions.md`; zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
 | 2026-09-27 | Phase 8 M8.2 done: Dedicated `/progress` route mounted in `App.tsx` (wrapped in `ProtectedRoute`); desktop `AppRail` and mobile `AppBottomBar` navigation updated with Progress link and `TrendingUp` icon; Visual Level 3 typographic progress overview delivered (`ProgressPage.tsx`, `CompletionOverview.tsx`, `PhaseMilestonesCard.tsx`, `WeekBreakdownList.tsx`); strict future honesty and non-punitive completion metrics; 342/342 frontend Vitest pass, 25/25 Playwright desktop E2E pass. M8.3 ready. |
 | 2026-09-27 | Phase 8 M8.3 done: Results layer and adaptation history delivered (`BenchmarkResultsCard.tsx`, `AdaptationHistoryList.tsx`, `ProgressPage.tsx`); displays stored benchmark test results from `RoadmapWeek.testResult` (Phase 7 M7.5) with target criteria, user notes, and non-punitive status (`Benchmark achieved` vs `In progress · Reinforcing`, BP §18); displays weekly adaptation log with submitted reflections and server AI adaptation insights; 344/344 frontend Vitest pass across 40 files; production build clean (clean code-split `ProgressPage` chunk); zero backend edits. M8.4 ready. |
 | 2026-09-27 | Phase 8 M8.4 done: Empty and early states delivered across /progress (CompletionOverview, AdaptationHistoryList, BenchmarkResultsCard, ProgressPage); calm non-punitive orientation sublabels at Day 1 / Week 1 with 0 completed sessions; serene adaptation history early card explaining weekly review insights; upcoming benchmark tests preview with target criteria and pass rules; goal-load network failure resilience with retry ('Try again') alert; 41/41 frontend test files pass (351/351 tests); production build clean; zero backend edits. M8.5 ready. |
@@ -6081,7 +6081,7 @@ ACHIVII REDESIGN — PHASE X REPORT
 | 2026-09-27 | Phase 10 M10.3 done: Custom Journeys elevated with premium visual treatment in `PathwayCustomGoal.tsx` — accent eyebrow badge `✦ Custom Journey` with `Sparkles` icon, refined heading "Have something unique in mind?", narrative copy "Build a guided 90-day journey around your own ambition…", and crafted container card (`rounded-card`, `border-border/70`, `hover:border-accent/30`, VDS §12); Custom Journey option integrated into `PathwaysExplorerModal.tsx` via `PathwayLibrary customGoal` slot — clicking navigates to `/onboarding` with `{ customGoal: true, switchGoal: true }` (active goal) or `{ customGoal: true }` (no goal), preserving R-15 safety; zero paywall, lock, or pricing UI (ND-10, OD-1c); 3 new explorer modal tests and updated pathway library and StepGoal tests; 47 frontend test files / 402 tests pass, 22 backend test files / 250 tests pass, 0 TypeScript errors, clean production build; zero backend edits (Rule 3.2). |
 | 2026-09-27 | Phase 10 M10.6 done: Marketing copy updated to match reality in `frontend/src/components/marketing/sections/Premium.tsx` (D-18, ND-10). Custom Journeys status badge updated from "Planned for Premium" to "Available now · Free" with narrative copy reflecting that custom 90-day journeys are available free today and planned for a future premium tier; Achivii Coach preserved with honest "In development" status and companion vision; section eyebrow elevated to "Premium Architecture"; free reassurance line ("There is no paid plan yet. Everything you can use in Achivii today is free.") preserved; zero fake pricing, billing, or checkout UI (Rule 3.2, BP §43); dedicated test suite created in `Premium.test.tsx` (4/4 tests pass); full test baseline verified (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors, clean production build); zero backend edits. M10.7 ready. |
 | 2026-09-27 | Phase 10 M10.7 done: Full regression verification pass completed across all Phase 10 deliverables (Coach ✦ placement, Custom Journeys elevation, marketing copy alignment, and free-tier integrity per R-2, R-3, R-4, R-15). Responsive layout, 44px touch targets, keyboard accessibility, and 100% marketing/in-app copy parity verified. 48 frontend test files (407 tests) and 22 backend test files (250 tests) pass; 0 TypeScript errors; clean production build. Strict Rule 3.2 backend invariance preserved (0 backend files touched). Phase 10 status is COMPLETE. Phase 11 (Mobile) is unblocked and ready. |
-| 2026-09-27 | Phase 11 M11.1 done: Authoritative mobile device, viewport (360px, 375px, 390px, 412px), browser (iOS Safari, Android Chrome, Playwright mobile), and orientation matrix formally established and documented in `docs/process/phases.md` (BP §44–46, OD-5, VDS §28–29). Comprehensive 13-step End-to-End Route Walk Protocol and 6-dimension mobile audit checklist formalized. M11.2 issue log structure initialized. Baseline verification clean (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors); zero backend files modified (Rule 3.2). Phase 11 is IN PROGRESS. M11.2 ready. |
+| 2026-09-27 | Phase 11 M11.1 done: Authoritative mobile device, viewport (360px, 375px, 390px, 412px), browser (iOS Safari, Android Chrome, Playwright mobile), and orientation matrix formally established and documented in `docs/03-workflow/phases.md` (BP §44–46, OD-5, VDS §28–29). Comprehensive 13-step End-to-End Route Walk Protocol and 6-dimension mobile audit checklist formalized. M11.2 issue log structure initialized. Baseline verification clean (48 frontend test files / 407 tests pass, 22 backend test files / 250 tests pass, 0 TS errors); zero backend files modified (Rule 3.2). Phase 11 is IN PROGRESS. M11.2 ready. |
 | 2026-09-27 | Phase 11 M11.2 done: End-to-end mobile journey walk executed across all 13 core application steps against the agreed viewport matrix (360px, 375px, 390px, 412px, landscape focus mode) and 6 mobile audit dimensions. 4 concrete issues identified and cataloged in the M11.2 Mobile Issue Log: Focus Mode safe area insets (High, `FocusSessionModal.tsx`), Focus Mode landscape layout and scroll containment (Medium, `FocusSessionModal.tsx`), Focus Mode desktop keyboard hint on touchscreen devices (Low, `FocusTimer.tsx`), and Shell Bottom Bar 6-item label typography crowding at 360px (Low, `AppNavigation.tsx`). Zero backend files modified (Rule 3.2). 48 frontend test files (407 tests) and 22 backend test files (250 tests) pass; 0 TS errors. Phase 11 status is IN PROGRESS. M11.3 (Mobile Fixes) is ready. |
 | 2026-09-27 | Phase 11 M11.3 done: Targeted mobile fixes implemented across all 4 issues from M11.2 Issue Log. Applied `pl/pr/pt/pb-[max(1rem,env(safe-area-inset-*))]` safe area padding to root container in `FocusSessionModal.tsx`; delivered landscape-adaptive side-by-side grid (`landscape:grid-cols-12`, `landscape:col-span-5` timer, `landscape:col-span-7` runner) with clean scroll containment in `FocusSessionModal.tsx`; hidden desktop physical keyboard hint on mobile touchscreens (`hidden sm:block`) in `FocusTimer.tsx`; and harmonized `AppBottomBar` 6-item typography to `text-[11px] sm:text-small` with truncation safety and responsive `ActiveMark` in `AppNavigation.tsx`. Dedicated unit test suite added in `FocusTimer.test.tsx`. 49 frontend test files (410 tests) and 22 backend test files (250 tests) pass; 0 TS errors; clean production build. Zero backend files modified (Rule 3.2). Phase 11 status is IN PROGRESS. M11.4 (Re-Walk and Phase Report) is ready. |
 | 2026-09-27 | Phase 11 M11.4 done: End-to-end mobile re-walk executed across all 13 core steps and 4 target viewports (360px, 375px, 390px, 412px, landscape focus mode). Confirmed all 4 fixes from M11.3 (safe area insets, landscape grid, touch timer ergonomics, and 360px bottom bar typography) function cleanly without regressions. Automated verification clean: 49 frontend test files (410 tests) and 22 backend test files (250 tests) pass; 0 TS errors; clean production build. Rule 3.2 compliance preserved (0 backend files touched). Phase 11 Completion Report authored; Phase 11 status marked COMPLETE. Phase 12 (Global Polish) is unblocked and ready. |

@@ -215,7 +215,7 @@ The backend may use the Lemon Squeezy API to:
 
 Frontend code must never receive the provider API key or webhook signing secret.
 
-Product services should depend on internal billing/subscription abstractions rather than importing Lemon Squeezy API details directly.
+Product services should depend on internal 04-billing/subscription abstractions rather than importing Lemon Squeezy API details directly.
 
 ## 7. Management URLs
 

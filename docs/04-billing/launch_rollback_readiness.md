@@ -2,7 +2,7 @@
 
 ## New-purchase kill switch
 
-Set `BILLING_CHECKOUT_ENABLED=false` in the backend runtime environment and restart/redeploy the backend. The `/billing/checkout` endpoint returns HTTP 503 and does not call Lemon Squeezy. This affects new purchases only; it does not revoke existing subscriptions or alter stored entitlements.
+Set `BILLING_CHECKOUT_ENABLED=false` in the backend runtime environment and restart/redeploy the backend. The `/04-billing/checkout` endpoint returns HTTP 503 and does not call Lemon Squeezy. This affects new purchases only; it does not revoke existing subscriptions or alter stored entitlements.
 
 Restore `BILLING_CHECKOUT_ENABLED=true` (or remove the variable, since enabled is the default) and redeploy to resume checkout.
 

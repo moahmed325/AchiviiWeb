@@ -1,6 +1,6 @@
 # ACHIVII VISUAL DESIGN SYSTEM v1
 
-Companion to `docs/architecture/redesign-blueprint.md`. The blueprint defines what Achivii is; this document defines how it looks.
+Companion to `docs/01-product/redesign-blueprint.md`. The blueprint defines what Achivii is; this document defines how it looks.
 
 Built from two references used together:
 
