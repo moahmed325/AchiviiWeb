@@ -144,14 +144,20 @@ Goal: introduce Supabase Auth while legacy scrypt/JWT auth remains available.
 - Resolve authenticated Supabase users to the internal user.
 
 ### M2.3 Frontend sessions
-- Introduce Supabase session ownership where required.
+- Introduce Supabase session ownership in the frontend.
+- Make Supabase session restoration available to the existing auth context.
 - Preserve existing protected-route behavior and non-auth localStorage.
+- Do not make Supabase signup/login the normal path yet; that is P3.
+
+**Status:** pending. Backend Supabase token verification and backend dual-auth linking are already implemented, but the frontend still owns the legacy achivii_auth_token only.
 
 ### M2.4 Dual transition
 - Keep legacy scrypt/JWT verification working.
 - Link existing users safely.
 - Prepare new-user bootstrap.
 - Prevent duplicate internal users.
+
+**Status:** backend implementation complete; final P2 verification is blocked on M2.3 frontend session ownership.
 
 ### M2.5 Verification
 Test:
@@ -166,7 +172,9 @@ Test:
 - duplicate identity
 - internal users.id resolution
 
-P2 exit: Supabase identities can be linked safely while legacy auth still works.
+Do not mark logout, refresh or session restoration as PASS until a real Supabase frontend session has been exercised.
+
+P2 exit: Supabase identities can be linked safely while legacy auth still works, and the frontend can restore and own a Supabase session.
 
 # P3 — AUTH CUTOVER
 

@@ -4,7 +4,7 @@
 
 **Source of truth:** `docs/infrastructure-migration/feature-definition-infrastructure-migration.md`, migration brief, repository code/tests.
 
-**Current position:** Phase 1 complete / database cutover verified; Phase 2 auth groundwork is next and has not started.
+**Current position:** Phase 1 complete / database cutover verified; Phase 2 auth groundwork is in progress. M2.1, backend M2.2, and backend M2.4 work are implemented. M2.3 frontend session ownership remains the active blocker before P2 verification/exit.
 
 ## Global rules
 
@@ -30,7 +30,7 @@
 |---|---|---|
 | P0 | COMPLETE | Facts, baseline, transfer method and rollback posture |
 | P1 | COMPLETE | Supabase is serving production DB traffic; data and runtime verification passed |
-| P2 | NOT STARTED | Supabase identity/session foundation |
+| P2 | IN PROGRESS | Backend identity/dual-auth foundation implemented; frontend Supabase session ownership remains |
 | P3 | BLOCKED | Supabase Auth becomes normal path |
 | P4 | BLOCKED | Legacy auth retired and migration closed |
 
@@ -108,20 +108,32 @@
 - Add nullable unique `users.auth_user_id`.
 - Link Supabase `sub` to the existing internal `users.id`.
 
-### M2.2 — Token/session foundation
+### M2.2 — Backend token foundation
 - Add backend Supabase token verification.
-- Add frontend Supabase session handling.
-- Preserve the existing user/API contract.
+- Preserve the existing internal user/API contract.
+- Resolve Supabase-authenticated users to the original internal users.id.
+- Legacy auth remains available.
 
-### M2.3 — Dual auth
+### M2.3 — Frontend session foundation
+- Introduce Supabase session ownership in the frontend.
+- Make Supabase session restoration available to the existing auth context.
+- Preserve existing protected-route behavior and non-auth localStorage.
+- Do not cut over normal signup/login yet; that belongs to P3.
+
+**Status:** pending. Backend Supabase verification is implemented, but frontend session ownership/restoration is not yet implemented. P2 cannot exit until this milestone is complete.
+
+### M2.4 — Dual transition
 - Keep legacy scrypt/JWT verification working.
 - Prevent duplicate internal users.
 - Establish safe existing-user linking and new-user bootstrap.
 
-### M2.4 — Verify
-- Test existing user, new user, free user, Pro user, wrong password, logout, refresh, protected routes and identity resolution.
+**Status:** backend implementation complete; final P2 verification remains blocked on M2.3.
 
-**Exit:** Supabase identities can be safely linked to existing users while legacy auth still works.
+### M2.5 — Verify
+- Test existing user, new user, free user, Pro user, wrong password, logout, refresh/session restoration, protected routes, duplicate identity and internal users.id resolution.
+- Do not mark logout/refresh/session restoration PASS until a real Supabase frontend session has been exercised.
+
+**Exit:** Supabase identities can be safely linked to existing users while legacy auth still works, and the frontend can restore and own a Supabase session.
 
 # P3 — AUTH CUTOVER
 
