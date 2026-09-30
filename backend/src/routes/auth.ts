@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import crypto from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
 import { normalizeTimezone } from '../lib/timezone.js';
+import { verifySupabaseToken } from '../lib/supabaseAuth.js';
 
 export const authRouter = Router();
 
@@ -67,15 +68,28 @@ export async function getAuthUser(req: Request) {
     return null;
   }
   const token = authHeader.split(' ')[1];
+
   const payload = verifyToken(token);
-  if (!payload || !payload.userId) return null;
+  if (payload?.userId) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, email: true, timezone: true, created_at: true },
+      });
+      if (user) return user;
+    } catch {
+      return null;
+    }
+  }
+
+  const supabaseIdentity = await verifySupabaseToken(token);
+  if (!supabaseIdentity) return null;
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
+    return await prisma.user.findUnique({
+      where: { auth_user_id: supabaseIdentity.authUserId },
       select: { id: true, email: true, timezone: true, created_at: true },
     });
-    return user;
   } catch {
     return null;
   }

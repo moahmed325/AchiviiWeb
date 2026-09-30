@@ -30,6 +30,7 @@
   "dependencies": {
     "@google/genai": "^2.21.0",
     "@prisma/client": "^6.4.1",
+    "@supabase/supabase-js": "^2.117.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^22.13.5",
