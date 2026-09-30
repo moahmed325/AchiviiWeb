@@ -96,6 +96,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
+    if (supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error || !data.session) {
+        throw new Error(error?.message || 'Login failed.');
+      }
+      const accessToken = data.session.access_token;
+      const currentUser = await fetchCurrentUser(accessToken);
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      setToken(accessToken);
+      setUser(currentUser);
+      return;
+    }
+
     const res = await loginUser(email, password);
     localStorage.setItem(TOKEN_STORAGE_KEY, res.token);
     setToken(res.token);
@@ -103,6 +116,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = async (email: string, password: string) => {
+    if (supabase) {
+      const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { timezone: tz } },
+      });
+      if (error) throw new Error(error.message);
+      if (!data.session) {
+        throw new Error('Account created. Please confirm your email, then sign in.');
+      }
+      const accessToken = data.session.access_token;
+      const currentUser = await fetchCurrentUser(accessToken);
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      setToken(accessToken);
+      setUser(currentUser);
+      return;
+    }
+
     const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
     const res = await signupUser(email, password, tz);
     localStorage.setItem(TOKEN_STORAGE_KEY, res.token);

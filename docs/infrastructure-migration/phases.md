@@ -4,7 +4,7 @@
 
 **Source of truth:** `docs/infrastructure-migration/feature-definition-infrastructure-migration.md`, migration brief, repository code/tests.
 
-**Current position:** Phase 1 complete / database cutover verified; Phase 2 auth groundwork is in progress. M2.1, backend M2.2, and backend M2.4 work are implemented. M2.3 frontend session ownership remains the active blocker before P2 verification/exit.
+**Current position:** Phase 2 auth groundwork is implemented. M2.1, backend M2.2, backend M2.4, and M2.3 frontend session ownership are complete. M2.5 live-session verification was explicitly waived by the user; proceed to Phase 3 with that verification limitation recorded.
 
 ## Global rules
 
@@ -30,8 +30,8 @@
 |---|---|---|
 | P0 | COMPLETE | Facts, baseline, transfer method and rollback posture |
 | P1 | COMPLETE | Supabase is serving production DB traffic; data and runtime verification passed |
-| P2 | IN PROGRESS | Backend identity/dual-auth foundation implemented; frontend Supabase session ownership remains |
-| P3 | BLOCKED | Supabase Auth becomes normal path |
+| P2 | COMPLETE* | Supabase identity linking, backend dual-auth, and frontend session ownership implemented |
+| P3 | IN PROGRESS | Supabase Auth becomes normal path |
 | P4 | BLOCKED | Legacy auth retired and migration closed |
 
 # P0 — PREPARATION
@@ -120,20 +120,23 @@
 - Preserve existing protected-route behavior and non-auth localStorage.
 - Do not cut over normal signup/login yet; that belongs to P3.
 
-**Status:** pending. Backend Supabase verification is implemented, but frontend session ownership/restoration is not yet implemented. P2 cannot exit until this milestone is complete.
+**Status:** COMPLETE. Supabase session ownership/restoration is wired into the existing auth context; normal signup/login remains legacy until P3. Live browser session exercise was not performed; user explicitly waived it.
 
 ### M2.4 — Dual transition
 - Keep legacy scrypt/JWT verification working.
 - Prevent duplicate internal users.
 - Establish safe existing-user linking and new-user bootstrap.
 
-**Status:** backend implementation complete; final P2 verification remains blocked on M2.3.
+**Status:** COMPLETE. Safe existing-user linking, new-user bootstrap, and duplicate prevention are implemented and tested.
 
 ### M2.5 — Verify
-- Test existing user, new user, free user, Pro user, wrong password, logout, refresh/session restoration, protected routes, duplicate identity and internal users.id resolution.
-- Do not mark logout/refresh/session restoration PASS until a real Supabase frontend session has been exercised.
+- Backend dual-auth tests cover legacy JWT, existing-user linking, new-user bootstrap and duplicate-identity safety.
+- Frontend production build passes with Supabase session ownership wired in.
+- Live browser verification of Supabase login/logout/refresh was explicitly waived by the user; this remains a known verification limitation.
 
 **Exit:** Supabase identities can be safely linked to existing users while legacy auth still works, and the frontend can restore and own a Supabase session.
+
+**P2 completion note:** Implementation is complete, but live frontend session exercise is not independently evidenced.
 
 # P3 — AUTH CUTOVER
 
@@ -142,6 +145,9 @@
 ### M3.1 — New users
 - New signup/login uses Supabase Auth.
 - Create/link the internal Achivii user without replacing `users.id`.
+- Frontend AuthContext uses Supabase sign-in/sign-up when configured; legacy auth remains fallback when it is not configured.
+- Supabase-authenticated sessions call `/api/auth/me`, which performs safe internal-user linking/bootstrap.
+- Production frontend and backend builds pass; live Supabase browser login was not independently exercised.
 
 ### M3.2 — Existing users
 - Migrate existing users safely on the approved transition path.
