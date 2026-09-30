@@ -13,25 +13,6 @@ describe('dual authentication identity resolution', () => {
     vi.clearAllMocks();
   });
 
-  it('keeps legacy JWT resolution unchanged', async () => {
-    const { getAuthUser } = await import('./auth.js');
-    findUnique.mockResolvedValueOnce({
-      id: 'internal-1',
-      email: 'user@example.com',
-      timezone: 'UTC',
-      created_at: new Date('2026-01-01'),
-    });
-
-    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-    const body = Buffer.from(JSON.stringify({ userId: 'internal-1', email: 'user@example.com' })).toString('base64url');
-    const secret = 'achivii-secret-key-development-only-2026';
-    const signature = (await import('node:crypto')).createHmac('sha256', secret).update(`${header}.${body}`).digest('base64url');
-    const req: any = { headers: { authorization: `Bearer ${header}.${body}.${signature}` } };
-
-    await expect(getAuthUser(req)).resolves.toMatchObject({ id: 'internal-1' });
-    expect(verifySupabaseToken).not.toHaveBeenCalled();
-  });
-
   it('links a valid Supabase identity to the existing email without creating a user', async () => {
     verifySupabaseToken.mockResolvedValue({ authUserId: 'auth-1', email: 'USER@example.com' });
     findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce({

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { User } from '../types';
-import { loginUser, signupUser, fetchCurrentUser } from '../lib/api';
+import { fetchCurrentUser } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
 interface AuthContextType {
@@ -14,11 +14,10 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-const TOKEN_STORAGE_KEY = 'achivii_auth_token';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_STORAGE_KEY));
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,28 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const legacyToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (!legacyToken) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const currentUser = await fetchCurrentUser(legacyToken);
-        if (active) {
-          setToken(legacyToken);
-          setUser(currentUser);
-        }
-      } catch {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        if (active) {
-          setToken(null);
-          setUser(null);
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
+      setUser(null);
+      setToken(null);
+      setLoading(false);
     };
 
     void restore();
@@ -96,86 +76,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, password: string) => {
-    if (supabase) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (data.session) {
-        const accessToken = data.session.access_token;
-        const currentUser = await fetchCurrentUser(accessToken);
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        setToken(accessToken);
-        setUser(currentUser);
-        return;
-      }
+    if (!supabase) throw new Error('Supabase Auth is not configured.');
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
+    if (!data.session) throw new Error('No active session was returned. Please try again.');
 
-      // Existing users can transition on their first Supabase login without
-      // creating a second internal account: validate the legacy credentials,
-      // create the matching Supabase identity, then let /me perform the link.
-      const legacy = await loginUser(email, password);
-      const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
-      const migrated = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { timezone: tz } },
-      });
-      if (migrated.error) {
-        throw new Error(error?.message || migrated.error.message);
-      }
-      if (!migrated.data.session) {
-        throw new Error('Please confirm your email, then sign in again.');
-      }
-
-      const accessToken = migrated.data.session.access_token;
-      const currentUser = await fetchCurrentUser(accessToken);
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      setToken(accessToken);
-      setUser(currentUser);
-      void legacy;
-      return;
-    }
-
-    const res = await loginUser(email, password);
-    localStorage.setItem(TOKEN_STORAGE_KEY, res.token);
-    setToken(res.token);
-    setUser(res.user);
+    const accessToken = data.session.access_token;
+    const currentUser = await fetchCurrentUser(accessToken);
+    setToken(accessToken);
+    setUser(currentUser);
   };
 
   const signup = async (email: string, password: string) => {
-    if (supabase) {
-      const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { timezone: tz },
-          emailRedirectTo: window.location.origin,
-        },
-      });
-      if (error) throw new Error(error.message);
-      if (!data.session) {
-        // Email confirmation is enabled in Supabase. Signup succeeded; the
-        // user is intentionally not signed in until the confirmation link is used.
-        throw new Error('Account created. Check your email to confirm your account, then sign in.');
-      }
-      const accessToken = data.session.access_token;
-      const currentUser = await fetchCurrentUser(accessToken);
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      setToken(accessToken);
-      setUser(currentUser);
-      return;
+    if (!supabase) throw new Error('Supabase Auth is not configured.');
+    const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { timezone: tz },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    if (error) throw new Error(error.message);
+    if (!data.session) {
+      throw new Error('Account created. Check your email to confirm your account, then sign in.');
     }
 
-    const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
-    const res = await signupUser(email, password, tz);
-    localStorage.setItem(TOKEN_STORAGE_KEY, res.token);
-    setToken(res.token);
-    setUser(res.user);
+    const accessToken = data.session.access_token;
+    const currentUser = await fetchCurrentUser(accessToken);
+    setToken(accessToken);
+    setUser(currentUser);
   };
 
   const logout = async () => {
     if (supabase) {
       await supabase.auth.signOut();
     }
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken(null);
     setUser(null);
   };

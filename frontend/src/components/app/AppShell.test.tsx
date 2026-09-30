@@ -21,6 +21,22 @@ vi.mock('../../lib/api', async (importOriginal) => {
 });
 
 const mocked = vi.mocked(api);
+const supabaseMock = vi.hoisted(() => ({
+  auth: {
+    getSession: vi.fn(async () => ({
+      data: {
+        session: localStorage.getItem('achivii_auth_token')
+          ? { access_token: localStorage.getItem('achivii_auth_token') }
+          : null,
+      },
+    })),
+    onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+    signInWithPassword: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(async () => undefined),
+  },
+}));
+vi.mock('../../lib/supabase', () => ({ supabase: supabaseMock }));
 const USER = { id: 'u1', email: 'mo@example.com', created_at: '2026-09-23' };
 const GOAL = { id: 'g1', rawGoal: 'Run a 10K Under 50 Minutes', clarifiedOutcome: '49.98', currentWeek: 3 } as Goal;
 
@@ -47,7 +63,7 @@ const rail = () => within(document.querySelector<HTMLElement>('[data-shell="rail
 const bottomBar = () => within(document.querySelector<HTMLElement>('[data-shell="bottom-bar"]')!);
 
 const signedIn = (goal: Goal | null) => {
-  localStorage.setItem('achivii_auth_token', 't');
+  supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { access_token: 't' } } });
   mocked.fetchCurrentUser.mockResolvedValue(USER);
   mocked.fetchActiveGoal.mockResolvedValue(goal);
 };
@@ -55,6 +71,9 @@ const signedIn = (goal: Goal | null) => {
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  supabaseMock.auth.getSession.mockImplementation(async () => ({
+    data: { session: null },
+  }));
   mocked.fetchHealthCheck.mockResolvedValue({ status: 'ok', timestamp: '', service: 'api' });
 });
 

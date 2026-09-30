@@ -39,10 +39,6 @@ services:
       # LEMON_SQUEEZY_TEST_WEBHOOK_SIGNING_SECRET is intentionally NOT set here.
       # Create the Lemon Squeezy webhook (Phase 7) first, then add the signing
       # secret to the service in the Render dashboard.
-      # Render generates a base64-encoded 256-bit value (44 chars) on first sync,
-      # satisfying the >=32-char requirement enforced by src/routes/auth.ts.
-      - key: JWT_SECRET
-        generateValue: true
 
 databases:
   - name: achivii-db

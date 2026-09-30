@@ -195,6 +195,10 @@
 - Remove migration-only configuration.
 - Do not delete password hashes unless explicitly approved.
 
+**Implementation status:** CODE COMPLETE. Backend authentication now accepts only Supabase access tokens; legacy HS256 JWT creation/verification and scrypt signup/login endpoints are removed. Frontend signup/login/session restoration now use Supabase Auth only. Legacy password hashes remain in the schema as nullable historical data and have not been deleted. `render.yaml` no longer declares `JWT_SECRET`.
+
+**Pending deployment action:** Remove the existing `JWT_SECRET` environment variable from the Render `achivii-api` service, then redeploy. This is the final migration-only configuration removal before M4.2 can be marked complete.
+
 ### M4.3 — Final verification
 - Build/tests, login/session restoration, goals, Pro entitlement, Lemon Squeezy webhook idempotency and deployment checks.
 

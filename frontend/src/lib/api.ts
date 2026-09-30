@@ -1,4 +1,4 @@
-﻿import { User, AuthResponse, Goal, GoalCompletionPayload } from '../types';
+﻿import { User, Goal, GoalCompletionPayload } from '../types';
 
 export function resolveApiBaseUrl(): string {
   // Default to localhost:5000 when in Vite dev mode or connected via localhost / 127.0.0.1
@@ -97,37 +97,6 @@ export async function fetchHealthCheck(): Promise<HealthResponse> {
   }
 
   return response.json();
-}
-
-export async function signupUser(email: string, password: string, timezone?: string): Promise<AuthResponse> {
-  const resolvedTimezone = timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
-  const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, timezone: resolvedTimezone }),
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new ApiError(data.error || 'Registration failed', response.status);
-  }
-
-  return data;
-}
-
-export async function loginUser(email: string, password: string): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new ApiError(data.error || 'Login failed', response.status);
-  }
-
-  return data;
 }
 
 export async function fetchCurrentUser(token: string): Promise<User> {

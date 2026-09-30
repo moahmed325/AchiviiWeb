@@ -15,14 +15,22 @@ vi.mock('../../lib/api', async (importOriginal) => {
   return {
     ...actual,
     fetchHealthCheck: vi.fn(),
-    signupUser: vi.fn(),
-    loginUser: vi.fn(),
     fetchCurrentUser: vi.fn(),
     fetchActiveGoal: vi.fn(),
   };
 });
 
 const mocked = vi.mocked(api);
+const supabaseMock = vi.hoisted(() => ({
+  auth: {
+    getSession: vi.fn(),
+    onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+    signInWithPassword: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+  },
+}));
+vi.mock('../../lib/supabase', () => ({ supabase: supabaseMock }));
 const USER = { id: 'u1', email: 'mo@example.com', created_at: '2026-09-23' };
 const GOAL = { id: 'g1', rawGoal: 'Ship a SaaS' } as Goal;
 
@@ -69,8 +77,9 @@ beforeEach(() => {
   localStorage.clear();
   mocked.fetchHealthCheck.mockResolvedValue({ status: 'ok', timestamp: '', service: 'api' });
   mocked.fetchCurrentUser.mockImplementation(() => later(USER));
-  mocked.signupUser.mockImplementation(() => later({ message: 'ok', token: 't-new', user: USER }));
-  mocked.loginUser.mockImplementation(() => later({ message: 'ok', token: 't-new', user: USER }));
+  supabaseMock.auth.getSession.mockResolvedValue({ data: { session: null } });
+  supabaseMock.auth.signUp.mockResolvedValue({ data: { session: { access_token: 't-new' } }, error: null });
+  supabaseMock.auth.signInWithPassword.mockResolvedValue({ data: { session: { access_token: 't-new' } }, error: null });
   mocked.fetchActiveGoal.mockImplementation(() => later(null));
 });
 
@@ -99,16 +108,16 @@ describe('sign-up and sign-in screens', () => {
     expect(screen.getByText('Use at least 6 characters.')).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText('Email')).toHaveFocus();
-    expect(mocked.signupUser).not.toHaveBeenCalled();
+    expect(supabaseMock.auth.signUp).not.toHaveBeenCalled();
   });
 
   it('sends one request however many times submit is pressed', async () => {
-    mocked.signupUser.mockImplementation(() => new Promise(() => {}));
+    supabaseMock.auth.signUp.mockImplementation(() => new Promise(() => {}));
     renderAt('/signup');
     const user = await fillAndSubmit('mo@example.com', 'secret1', /create account/i);
     await user.click(screen.getByRole('button', { name: /creating your account/i }));
     await user.keyboard('{Enter}');
-    expect(mocked.signupUser).toHaveBeenCalledTimes(1);
+    expect(supabaseMock.auth.signUp).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /creating your account/i })).toHaveAttribute('aria-busy', 'true');
   });
 
@@ -150,7 +159,7 @@ describe('sign-up and sign-in screens', () => {
   });
 
   it('still redirects when the goal fetch settles before it renders as loading', async () => {
-    mocked.loginUser.mockResolvedValue({ message: 'ok', token: 't-new', user: USER });
+    supabaseMock.auth.signInWithPassword.mockResolvedValue({ data: { session: { access_token: 't-new' } }, error: null });
     mocked.fetchCurrentUser.mockResolvedValue(USER);
     mocked.fetchActiveGoal.mockResolvedValue(GOAL);
     renderAt('/login');
@@ -166,15 +175,15 @@ describe('sign-up and sign-in screens', () => {
   });
 
   it('moves an already signed-in visitor straight on', async () => {
-    localStorage.setItem('achivii_auth_token', 't-old');
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { access_token: 't-old' } } });
     mocked.fetchActiveGoal.mockImplementation(() => later(GOAL));
     renderAt('/login?next=%2Froadmap');
     expect(await screen.findByText('At roadmap')).toBeInTheDocument();
-    expect(mocked.loginUser).not.toHaveBeenCalled();
+    expect(supabaseMock.auth.signInWithPassword).not.toHaveBeenCalled();
   });
 
   it('explains a duplicate email and links to sign-in with the pathway kept', async () => {
-    mocked.signupUser.mockImplementation(() => laterReject(new api.ApiError('An account with this email already exists.', 409)));
+    supabaseMock.auth.signUp.mockImplementation(() => laterReject(new api.ApiError('An account with this email already exists.', 409)));
     renderAt('/signup?pathway=saas');
     await fillAndSubmit('mo@example.com', 'secret1', /create account/i);
     const alert = await screen.findByRole('alert');
@@ -184,12 +193,12 @@ describe('sign-up and sign-in screens', () => {
   });
 
   it('explains wrong credentials and an unreachable server', async () => {
-    mocked.loginUser.mockImplementationOnce(() => laterReject(new api.ApiError('Invalid email or password.', 401)));
+    supabaseMock.auth.signInWithPassword.mockImplementationOnce(() => laterReject(new api.ApiError('Invalid email or password.', 401)));
     renderAt('/login');
     const user = await fillAndSubmit('mo@example.com', 'wrong', /^sign in$/i);
     expect(await screen.findByRole('alert')).toHaveTextContent("That email and password don't match.");
 
-    mocked.loginUser.mockImplementationOnce(() => laterReject(new TypeError('Failed to fetch')));
+    supabaseMock.auth.signInWithPassword.mockImplementationOnce(() => laterReject(new TypeError('Failed to fetch')));
     await user.click(screen.getByRole('button', { name: /^sign in$/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent("We can't reach Achivii right now.");
   });
