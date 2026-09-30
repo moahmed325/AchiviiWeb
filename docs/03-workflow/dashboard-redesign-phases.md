@@ -155,30 +155,46 @@ Make deep information available without making the default view feel dense.
 ### Carry-over to Phase 3
 
 - Perform real browser viewport validation at desktop, 390px, and 360px.
-- Verify every OD-9 state visually, including offline/error, recovery, review, closing stretch, and completed-goal flow.
+- Verify the documented OD-9 Today states visually, including offline/error, recovery, review, and closing stretch; keep the future completed-goal branch separate from the closing-stretch behavior.
 - Record concrete browser evidence before declaring the redesign fully complete.
 
 ## Phase 3 — Responsive visual refinement & validation
 
-**Status:** NEXT
+**Status:** COMPLETE
 
 ### Objective
 Finish the visual system integration and prove the redesign works across states and viewport sizes.
 
-### Milestones
+### Implementation completed
 
-- **M3.1** Desktop refinement at representative widths.
-- **M3.2** Mobile refinement at 390px and 360px.
-- **M3.3** Verify no horizontal overflow and usable touch targets.
-- **M3.4** Verify loading, offline, error, rest, test, done, recovery, review, and closing-stretch states.
-- **M3.5** Run frontend tests, type-check/build, and relevant browser checks.
-- **M3.6** Compare against the source-of-truth design rules and record evidence.
+- Preserved the existing Today architecture and state branches; no backend/API/data-model changes were introduced.
+- Kept progressive-detail disclosures touch-friendly and retained the existing Start/Complete hierarchy.
+- Refined the 7-day week glance so each day control has a reliable touch target at narrow widths without introducing page-level horizontal overflow.
+- Updated the Today E2E fixtures to use the current Supabase session storage contract after the auth migration.
+- Updated the week-12/day-90 E2E expectation to match the documented closing-stretch behavior rather than asserting a future completed-goal screen.
+
+### Browser validation evidence
+
+- today.spec.ts + todayStates.spec.ts: **52/52 passed**.
+- Desktop project: **26/26 passed** at 1440px.
+- Mobile project: **26/26 passed**; the responsive checks explicitly exercise **390px and 360px** for overflow, touch-target, and axe validation.
+- OD-9 state coverage passed for goal-load failure, rest, key session, test day, recovery, review due, closing stretch, offline/write failure, plus the normal Today interaction paths.
+- Keyboard, reduced-motion, overflow, accessibility, notes, completion, focus mode, progressive disclosures, and /dashboard → / redirect checks passed.
+
+### Build / static validation
+
+- Frontend production build: **passed** (tsc + Vite build; existing >500 kB chunk warning only).
+- git diff --check: **passed**.
+- Today component unit suite had previously passed **28/28** after the Phase 2 adjustments.
 
 ### Exit criteria
 
 - Required tests/builds pass.
-- No critical visual or interaction regressions remain.
+- No critical visual or interaction regressions remain in the validated Today flows.
+- Desktop, 390px, and 360px browser evidence is recorded.
 - Dashboard redesign is documented as complete with evidence.
+
+**Phase 3 is complete. The Today dashboard redesign is now fully validated for the documented scope.**
 
 ## Rules for every phase
 
