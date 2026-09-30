@@ -157,8 +157,15 @@
 - Keep legacy login available as fallback until coverage is verified.
 
 ### M3.3 — Sessions and protected routes
-- Supabase session restoration becomes authoritative.
-- Backend requests resolve to the original internal user.
+- Supabase session restoration is authoritative when Supabase Auth is configured.
+- The existing AuthContext owns the Supabase access token and restores persisted sessions.
+- ProtectedRoute continues to gate protected screens on the resolved internal user/token.
+- Backend protected requests accept the Supabase bearer token and resolve it to the original internal `users.id`.
+- Legacy `achivii_auth_token` is only used as fallback when no Supabase session is present.
+- Verified: frontend production build passes; backend dual-auth tests pass (4/4); existing production unauthenticated protected-route checks return HTTP 401.
+- Live browser session exercise remains waived per user instruction.
+
+**Status:** COMPLETE.
 
 ### M3.4 — End-to-end verification
 - Verify free and Pro accounts, goals, protected routes, entitlement, logout and refresh.

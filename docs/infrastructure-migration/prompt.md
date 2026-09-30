@@ -197,6 +197,8 @@ Goal: make Supabase Auth the normal path without changing internal identity or b
 - Backend protected requests resolve to the original internal user.
 - Logout and refresh must work.
 
+**Status:** COMPLETE for implementation/automated verification. Frontend build passes, backend dual-auth tests pass (4/4), and the existing production protected-route unauthenticated check returns HTTP 401. Live browser login/logout/refresh was explicitly waived by the user.
+
 ### M3.4 Product/billing verification
 Verify:
 - free account
