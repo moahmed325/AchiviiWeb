@@ -2,26 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mockApi } from './mockApi';
 import { axeViolations, documentOverflow, shellGoal, SHELL_GOAL_TITLE } from './shellFixtures';
 
-const signIn = (page: Page) => page.addInitScript(() => {
-  const session = {
-    access_token: 'e2e-token',
-    refresh_token: 'e2e-refresh-token',
-    expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    token_type: 'bearer',
-    user: {
-      id: 'u-e2e',
-      aud: 'authenticated',
-      role: 'authenticated',
-      email: 'e2e@example.com',
-      app_metadata: { provider: 'email', providers: ['email'] },
-      user_metadata: {},
-      created_at: '2026-09-23T00:00:00.000Z',
-      updated_at: '2026-09-23T00:00:00.000Z',
-    },
-  };
-  localStorage.setItem('sb-dryzvvlsstetdltxhzvc-auth-token', JSON.stringify(session));
-});
+const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 const main = (page: Page) => page.locator('main#main');
 
 test.describe('OD-9 States on Today (M5.7)', () => {
@@ -181,7 +162,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
   });
 
-  test('clamped day 90 / after week 12: shows the closing stretch without fabricating tasks', async ({ page }) => {
+  test('clamped day 90 / after week 12: shows honest 90-day completion without fabricating tasks', async ({ page }) => {
     const base = shellGoal();
     const pastDate = new Date(Date.now() - 5 * 86_400_000).toISOString();
     const completeGoal = {
@@ -194,12 +175,11 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     await signIn(page);
     await page.goto('/');
 
-    // Numeral clamps at 90 / 90 while the final six-day closing stretch remains the active surface.
+    // Numeral clamped at 90 / 90
     await expect(page.getByLabel('Day 90 of 90')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible();
-    await expect(page.getByText('DAYS 85–90 · THE CLOSING STRETCH')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 3, name: 'Capstone Benchmark Verification' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Review 90-day staircase' })).toHaveAttribute('href', '/roadmap');
+    await expect(page.getByRole('heading', { level: 2, name: '90-Day Journey Complete' })).toBeVisible();
+    await expect(page.getByText('You have completed the 90-day deliberate practice path for this goal.')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Review 90-day roadmap' })).toHaveAttribute('href', '/roadmap');
   });
 
   test('offline banner appears when health check fails, and write failure shows visible alert', async ({ page }) => {

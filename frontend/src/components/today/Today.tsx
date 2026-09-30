@@ -117,20 +117,20 @@ const WeekGlance: React.FC<{
           </Button>
         )}
       </div>
-      <ul className="mt-4 flex min-w-0 divide-x divide-border overflow-x-auto rounded-card border border-border">
+      <ul className="mt-4 grid grid-cols-7 divide-x divide-border overflow-hidden rounded-card border border-border">
         {tasks.map((task) => {
           const selected = task.id === selectedId;
           const today = isToday(task, now);
           const marker = task.status === 'completed' ? 'completed' : today ? 'active' : 'upcoming';
           return (
-            <li key={task.id} className="min-w-[48px] flex-1">
+            <li key={task.id} className="min-w-0">
               <button
                 type="button"
                 aria-pressed={selected}
                 aria-label={`${dayLabel(task, now)}, ${dayState(task, now)}`}
                 onClick={() => onSelect(task.id)}
                 className={cx(
-                  'focus-ring-inset flex min-h-[64px] w-full cursor-pointer flex-col items-center justify-center gap-1.5 py-2',
+                  'focus-ring-inset flex min-h-16 w-full cursor-pointer flex-col items-center justify-center gap-1.5 py-2',
                   'transition-colors duration-(--duration-quick)',
                   selected ? 'bg-text/[0.08] text-text' : 'text-text-secondary hover:bg-text/[0.04] hover:text-text',
                 )}

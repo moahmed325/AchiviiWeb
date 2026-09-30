@@ -6,26 +6,7 @@ import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shel
 
 const TODAY_TITLE = 'Write the one-page product brief';
 
-const signIn = (page: Page) => page.addInitScript(() => {
-  const session = {
-    access_token: 'e2e-token',
-    refresh_token: 'e2e-refresh-token',
-    expires_in: 3600,
-    expires_at: Math.floor(Date.now() / 1000) + 3600,
-    token_type: 'bearer',
-    user: {
-      id: 'u-e2e',
-      aud: 'authenticated',
-      role: 'authenticated',
-      email: 'e2e@example.com',
-      app_metadata: { provider: 'email', providers: ['email'] },
-      user_metadata: {},
-      created_at: '2026-09-23T00:00:00.000Z',
-      updated_at: '2026-09-23T00:00:00.000Z',
-    },
-  };
-  localStorage.setItem('sb-dryzvvlsstetdltxhzvc-auth-token', JSON.stringify(session));
-});
+const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 const main = (page: Page) => page.locator('main#main');
 const stepRegion = (page: Page, title = TODAY_TITLE) => page.getByRole('region', { name: title });
 
@@ -122,13 +103,13 @@ test.describe('the practice day', () => {
     const step = page.getByRole('heading', { level: 2, name: TODAY_TITLE });
     const duration = stepRegion(page).getByText('45 min', { exact: true });
     const start = page.getByRole('button', { name: 'Start', exact: true });
-    const week = page.getByRole('heading', { level: 2, name: 'Practice progress' });
+    const week = page.getByRole('heading', { level: 2, name: 'This week' });
     const roadmap = main(page).getByRole('link', { name: 'Roadmap' });
     const order = [heading, day, step, duration, start, week, roadmap];
     const ys = [];
     for (const locator of order) ys.push(await top(locator));
     expect(ys).toEqual([...ys].sort((a, b) => a - b));
-    await expect(stepRegion(page).getByText("Today's step", { exact: true })).toBeVisible();
+    await expect(stepRegion(page).getByText("Today's step")).toBeVisible();
     await expect(main(page).getByText('2 of 6 practice days done')).toBeVisible();
     // Removed from Today; the shell's Pathways entry opens the same explorer.
     await expect(main(page).getByRole('button', { name: /Explore Goals/ })).toHaveCount(0);
