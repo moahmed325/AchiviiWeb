@@ -145,11 +145,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { timezone: tz } },
+        options: {
+          data: { timezone: tz },
+          emailRedirectTo: window.location.origin,
+        },
       });
       if (error) throw new Error(error.message);
       if (!data.session) {
-        throw new Error('Account created. Please confirm your email, then sign in.');
+        // Email confirmation is enabled in Supabase. Signup succeeded; the
+        // user is intentionally not signed in until the confirmation link is used.
+        throw new Error('Account created. Check your email to confirm your account, then sign in.');
       }
       const accessToken = data.session.access_token;
       const currentUser = await fetchCurrentUser(accessToken);

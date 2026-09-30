@@ -90,6 +90,9 @@ export function describeAuthError(error: unknown): AuthErrorDescription {
     }
     if (error.status === 400) return { kind: 'invalid', message: error.message };
   }
+  if (error instanceof Error && error.message) {
+    return { kind: 'server', message: error.message };
+  }
   return { kind: 'server', message: 'Something went wrong on our side. Please try again in a moment.' };
 }
 
