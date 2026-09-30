@@ -169,6 +169,13 @@
 
 ### M3.4 — End-to-end verification
 - Verify free and Pro accounts, goals, protected routes, entitlement, logout and refresh.
+- Automated billing verification completed: billing route tests 10/10 passed; webhook identity/idempotency tests 6/6 passed.
+- Frontend production build passed.
+- Backend TypeScript build passed.
+- Existing production unauthenticated protected-route behavior remains HTTP 401.
+- Live authenticated free/Pro account, logout and refresh checks were not independently exercised; user previously waived live browser session verification.
+
+**Status:** COMPLETE* — automated/code-level verification passed; live authenticated browser verification remains unperformed.
 
 **Exit:** Supabase Auth is the normal path and remaining legacy users are known.
 

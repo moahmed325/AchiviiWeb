@@ -210,6 +210,8 @@ Verify:
 - session restoration
 - Lemon Squeezy webhook behavior
 
+**Status:** COMPLETE* — billing route tests 10/10 passed, webhook identity/idempotency tests 6/6 passed, frontend production build passed, and backend TypeScript build passed. Live authenticated free/Pro/logout/session-restoration checks were not independently exercised because live browser verification was explicitly waived.
+
 P3 exit: Supabase Auth is the normal path and remaining legacy users are known.
 # P4 — CLEANUP AND CLOSE
 
