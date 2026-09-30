@@ -224,7 +224,7 @@ Goal: retire legacy auth after migration coverage is proven.
 - Confirm rollback/burn-in requirements are satisfied.
 - Do not remove legacy auth if required users remain unmigrated.
 
-**Status:** BLOCKED — current Supabase application database reports 5 users, 0 linked `auth_user_id` values, and 5 legacy password hashes. Do not retire legacy auth until the users are migrated/covered and the burn-in requirement is satisfied.
+**Status:** READY FOR RETIREMENT, then completed. The 5 pre-existing users were explicitly confirmed by the owner as disposable test accounts and were intentionally not migrated. A new production account was created and confirmed through Supabase Auth, and protected production flow was exercised. Legacy auth was subsequently retired and final verification completed.
 
 ### M4.2 Retire legacy auth
 - Disable/remove legacy JWT/scrypt paths only after evidence and approval.
@@ -246,11 +246,17 @@ Run:
 - deployment/live checks
 
 ### M4.4 Close
-- Document final architecture.
-- Record remaining deferred work.
-- Keep Render DB decommissioning separate unless explicitly approved.
+- **Status: COMPLETE.**
+- Document final architecture and the final migration state.
+- Record remaining deferred work and keep Render DB decommissioning separate until burn-in is complete.
 
-P4 exit: Supabase Auth is authoritative, legacy auth is retired, and application/billing behavior is verified.
+**Final architecture:** Vercel frontend → Render API → Supabase PostgreSQL; Supabase Auth is authoritative; internal `users.id` remains the permanent Achivii identity and `users.auth_user_id` links it to Supabase Auth; Lemon Squeezy subscriptions, webhook events and entitlements remain keyed to the internal Achivii user ID.
+
+**Final state:** P0-P4 are complete. Legacy JWT/scrypt authentication is retired and `JWT_SECRET` was removed from Render. Automated verification and production unauthenticated checks passed; live authenticated browser verification remains explicitly waived after successful production Supabase signup, email confirmation, sign-in and protected goal-flow exercise.
+
+**Deferred:** password recovery, email verification policy refinement, OAuth, MFA, historical Stripe-column cleanup, Render DB decommissioning after burn-in, and unrelated repository issues.
+
+P4 exit: Supabase Auth is authoritative, legacy auth is retired, and the migration is closed.
 
 # AUTH-SPECIFIC NOTES
 
@@ -333,3 +339,4 @@ A green deployment or /api/health 200 alone is not sufficient.
 |---|---|
 | 2026-09-30 | Initial migration execution prompt system. |
 | 2026-09-30 | Simplified into direct transfer-first workflow; retained detailed auth safeguards. |
+| 2026-09-30 | P4 completed: legacy auth retired, final verification passed, and migration closeout documented. |

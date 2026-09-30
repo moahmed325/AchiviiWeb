@@ -4,7 +4,7 @@
 
 **Source of truth:** `docs/infrastructure-migration/feature-definition-infrastructure-migration.md`, migration brief, repository code/tests.
 
-**Current position:** Phase 2 auth groundwork is implemented. M2.1, backend M2.2, backend M2.4, and M2.3 frontend session ownership are complete. M2.5 live-session verification was explicitly waived by the user; proceed to Phase 3 with that verification limitation recorded.
+**Current position:** Migration closeout is complete. P0-P4 are complete; Supabase PostgreSQL serves production DB traffic, Supabase Auth is authoritative, and legacy JWT/scrypt authentication is retired. Live authenticated browser verification remains waived per the owner’s explicit instruction.
 
 ## Global rules
 
@@ -31,8 +31,8 @@
 | P0 | COMPLETE | Facts, baseline, transfer method and rollback posture |
 | P1 | COMPLETE | Supabase is serving production DB traffic; data and runtime verification passed |
 | P2 | COMPLETE* | Supabase identity linking, backend dual-auth, and frontend session ownership implemented |
-| P3 | IN PROGRESS | Supabase Auth becomes normal path |
-| P4 | BLOCKED | Legacy auth retired and migration closed |
+| P3 | COMPLETE | Supabase Auth became the normal authentication path |
+| P4 | COMPLETE | Legacy auth retired and migration closed |
 
 # P0 — PREPARATION
 
@@ -211,9 +211,17 @@
 - Live authenticated browser verification was previously waived after successful production Supabase signup, email confirmation, sign-in, and protected goal flow exercise.
 
 ### M4.4 — Close
-- Document final architecture and remaining deferred work.
+- **Status:** COMPLETE.
+- Final architecture and migration state are recorded below.
+- Remaining deferred work and the burn-in/rollback posture are explicitly recorded.
 
-**Exit:** Supabase Auth is authoritative, legacy auth is retired, application/billing behavior is verified.
+**Final architecture:** Supabase PostgreSQL is the production database; Render hosts the API; Vercel hosts the frontend; Supabase Auth is the authoritative authentication system; `users.id` remains the internal identity and `users.auth_user_id` links it to the Supabase Auth identity; Lemon Squeezy continues to key subscriptions/webhooks/entitlements by the internal Achivii user ID.
+
+**Final verification state:** Database transfer, pgvector, builds/tests, production health, protected-route behavior, authentication retirement, billing entitlement coverage, webhook idempotency and goal-completion coverage were verified. Live authenticated browser verification remains waived after the owner confirmed successful production Supabase signup, email confirmation, sign-in and protected goal-flow exercise.
+
+**Deferred / separate work:** Password recovery, email verification policy refinement, OAuth, MFA, historical Stripe-column cleanup, Render DB decommissioning after burn-in, and unrelated repository issues remain outside this migration closeout.
+
+**Exit:** Supabase Auth is authoritative, legacy auth is retired, and the migration is closed with deferred work explicitly recorded.
 
 # Deferred
 
@@ -240,4 +248,6 @@ The migration is complete only when data, `users.id`, subscriptions, webhook eve
 |---|---|
 | 2026-09-30 | Initial roadmap. |
 | 2026-09-30 | Simplified into a direct transfer-first execution plan while retaining detailed auth phases. |
-| 2026-09-30 | P0 and P1 completed: Supabase data transfer verified, pgvector/build/tests passed, production Render API cut over to Supabase, and render.yaml changed to manually managed DATABASE_URL. P2 remains not started. |
+| 2026-09-30 | P0 and P1 completed: Supabase data transfer verified, pgvector/build/tests passed, production Render API cut over to Supabase, and render.yaml changed to manually managed DATABASE_URL. |
+| 2026-09-30 | P2-P3 completed: Supabase identity linking/session ownership and Auth cutover implemented and verified with automated coverage; live authenticated browser verification was explicitly waived. |
+| 2026-09-30 | P4 completed: legacy JWT/scrypt auth retired, Render JWT_SECRET removed, final verification passed, and migration closeout documented. |
