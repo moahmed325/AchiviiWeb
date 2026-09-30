@@ -61,6 +61,82 @@ function verifyToken(token: string): { userId: string; email: string } | null {
   }
 }
 
+type AuthenticatedUser = {
+  id: string;
+  email: string;
+  timezone: string;
+  created_at: Date;
+};
+
+const authUserSelect = {
+  id: true,
+  email: true,
+  timezone: true,
+  created_at: true,
+} as const;
+
+async function resolveSupabaseUser(
+  authUserId: string,
+  email: string | null,
+): Promise<AuthenticatedUser | null> {
+  const linked = await prisma.user.findUnique({
+    where: { auth_user_id: authUserId },
+    select: authUserSelect,
+  });
+  if (linked) return linked;
+
+  const normalizedEmail = email?.toLowerCase().trim();
+  if (!normalizedEmail) return null;
+
+  const existing = await prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { ...authUserSelect, auth_user_id: true },
+  });
+
+  if (existing) {
+    if (existing.auth_user_id && existing.auth_user_id !== authUserId) {
+      return null;
+    }
+
+    try {
+      const linkedNow = await prisma.user.updateMany({
+        where: { id: existing.id, auth_user_id: null },
+        data: { auth_user_id: authUserId },
+      });
+      if (linkedNow.count === 1) {
+        return await prisma.user.findUnique({
+          where: { auth_user_id: authUserId },
+          select: authUserSelect,
+        });
+      }
+
+      const afterRace = await prisma.user.findUnique({
+        where: { auth_user_id: authUserId },
+        select: authUserSelect,
+      });
+      return afterRace ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    return await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        auth_user_id: authUserId,
+      },
+      select: authUserSelect,
+    });
+  } catch {
+    const afterRace = await prisma.user.findUnique({
+      where: { auth_user_id: authUserId },
+      select: authUserSelect,
+    });
+    return afterRace ?? null;
+  }
+}
+
 // Helper: Extract authenticated user from Authorization header
 export async function getAuthUser(req: Request) {
   const authHeader = req.headers.authorization;
@@ -74,7 +150,7 @@ export async function getAuthUser(req: Request) {
     try {
       const user = await prisma.user.findUnique({
         where: { id: payload.userId },
-        select: { id: true, email: true, timezone: true, created_at: true },
+        select: authUserSelect,
       });
       if (user) return user;
     } catch {
@@ -86,10 +162,7 @@ export async function getAuthUser(req: Request) {
   if (!supabaseIdentity) return null;
 
   try {
-    return await prisma.user.findUnique({
-      where: { auth_user_id: supabaseIdentity.authUserId },
-      select: { id: true, email: true, timezone: true, created_at: true },
-    });
+    return await resolveSupabaseUser(supabaseIdentity.authUserId, supabaseIdentity.email);
   } catch {
     return null;
   }
@@ -172,7 +245,7 @@ authRouter.post('/login', async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const isMatch = verifyPassword(password, user.password_hash);
+    const isMatch = user.password_hash ? verifyPassword(password, user.password_hash) : false;
     if (!isMatch) {
       res.status(401).json({ error: 'Invalid email or password.' });
       return;
