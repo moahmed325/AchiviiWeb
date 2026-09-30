@@ -177,6 +177,8 @@
 
 **Status:** COMPLETE* — automated/code-level verification passed; live authenticated browser verification remains unperformed.
 
+**P3 exit evidence:** Supabase Auth is the normal frontend authentication path when configured; legacy auth remains only as a compatibility fallback during burn-in.
+
 **Exit:** Supabase Auth is the normal path and remaining legacy users are known.
 
 # P4 — CLEANUP & CLOSE
@@ -185,6 +187,8 @@
 
 ### M4.1 — Retirement readiness
 - Confirm remaining legacy users and rollback needs.
+
+**Status:** BLOCKED — current Supabase application database has 5 users, 0 linked `auth_user_id` values, and 5 users still carrying legacy password hashes. Legacy auth cannot be retired yet. Render rollback remains available. This is a migration-coverage gap, not a code failure.
 
 ### M4.2 — Retire legacy auth
 - Disable/remove legacy JWT/scrypt paths only after approval and evidence.

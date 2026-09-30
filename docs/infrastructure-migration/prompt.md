@@ -212,7 +212,7 @@ Verify:
 
 **Status:** COMPLETE* — billing route tests 10/10 passed, webhook identity/idempotency tests 6/6 passed, frontend production build passed, and backend TypeScript build passed. Live authenticated free/Pro/logout/session-restoration checks were not independently exercised because live browser verification was explicitly waived.
 
-P3 exit: Supabase Auth is the normal path and remaining legacy users are known.
+P3 exit: Supabase Auth is the normal path and remaining legacy users are known. P4 retirement readiness must establish the remaining legacy-user count before legacy auth is removed.
 # P4 — CLEANUP AND CLOSE
 
 Execute only P4.
@@ -223,6 +223,8 @@ Goal: retire legacy auth after migration coverage is proven.
 - Confirm remaining legacy users.
 - Confirm rollback/burn-in requirements are satisfied.
 - Do not remove legacy auth if required users remain unmigrated.
+
+**Status:** BLOCKED — current Supabase application database reports 5 users, 0 linked `auth_user_id` values, and 5 legacy password hashes. Do not retire legacy auth until the users are migrated/covered and the burn-in requirement is satisfied.
 
 ### M4.2 Retire legacy auth
 - Disable/remove legacy JWT/scrypt paths only after evidence and approval.
