@@ -150,8 +150,11 @@
 - Production frontend and backend builds pass; live Supabase browser login was not independently exercised.
 
 ### M3.2 — Existing users
-- Migrate existing users safely on the approved transition path.
+- Migrate existing users through the approved first-login transition path.
+- Legacy credentials are validated, then a matching Supabase Auth identity is created.
+- The backend `/api/auth/me` path links that Supabase identity to the existing internal `users.id`.
 - Never create a duplicate internal account.
+- Keep legacy login available as fallback until coverage is verified.
 
 ### M3.3 — Sessions and protected routes
 - Supabase session restoration becomes authoritative.

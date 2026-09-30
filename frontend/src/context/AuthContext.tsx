@@ -98,14 +98,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     if (supabase) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error || !data.session) {
-        throw new Error(error?.message || 'Login failed.');
+      if (data.session) {
+        const accessToken = data.session.access_token;
+        const currentUser = await fetchCurrentUser(accessToken);
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        setToken(accessToken);
+        setUser(currentUser);
+        return;
       }
-      const accessToken = data.session.access_token;
+
+      // Existing users can transition on their first Supabase login without
+      // creating a second internal account: validate the legacy credentials,
+      // create the matching Supabase identity, then let /me perform the link.
+      const legacy = await loginUser(email, password);
+      const tz = (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC') || 'UTC';
+      const migrated = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { timezone: tz } },
+      });
+      if (migrated.error) {
+        throw new Error(error?.message || migrated.error.message);
+      }
+      if (!migrated.data.session) {
+        throw new Error('Please confirm your email, then sign in again.');
+      }
+
+      const accessToken = migrated.data.session.access_token;
       const currentUser = await fetchCurrentUser(accessToken);
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       setToken(accessToken);
       setUser(currentUser);
+      void legacy;
       return;
     }
 
