@@ -188,7 +188,7 @@
 ### M4.1 — Retirement readiness
 - Confirm remaining legacy users and rollback needs.
 
-**Status:** BLOCKED — current Supabase application database has 5 users, 0 linked `auth_user_id` values, and 5 users still carrying legacy password hashes. Legacy auth cannot be retired yet. Render rollback remains available. This is a migration-coverage gap, not a code failure.
+**Status:** READY FOR RETIREMENT. The 5 pre-existing application users were confirmed by the owner to be disposable test accounts and are intentionally not being migrated. A new production account was created through Supabase Auth, confirmed by email, successfully signed in on the Vercel production frontend, and successfully exercised a protected goal-creation flow. Render rollback remains available during burn-in. Legacy auth retirement can now proceed.
 
 ### M4.2 — Retire legacy auth
 - Disable/remove legacy JWT/scrypt paths only after approval and evidence.
