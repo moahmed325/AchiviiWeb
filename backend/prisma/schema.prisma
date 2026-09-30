@@ -11,6 +11,7 @@ model User {
   id            String   @id @default(uuid())
   email         String   @unique
   password_hash String
+  auth_user_id  String?  @unique
   timezone      String   @default("UTC")
   created_at    DateTime @default(now())
 
