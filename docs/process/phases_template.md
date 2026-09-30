@@ -82,8 +82,8 @@ Typical documents may include:
 /docs/architecture.md
 /docs/design.md
 /docs/testing.md
-/docs/decisions.md
-/docs/phases.md
+/docs/process/decisions.md
+/docs/process/phases.md
 ```
 
 Do not assume these exact files exist.

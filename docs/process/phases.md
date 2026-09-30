@@ -11,11 +11,11 @@
 
 ## Source-of-truth documents
 
-- `docs/feature_definition_payment.md` — authoritative feature behavior, product decisions, acceptance criteria, constraints, and resolved/open decisions.
-- `docs/phases_template.md` — roadmap structure and implementation discipline.
-- `docs/decisions.md` — existing Achivii product/architecture decisions, including the prior decision that payments were deferred from the redesign.
-- `docs/visual-design-system.md` — existing visual rules.
-- `Design.md` / `docs/redesign-blueprint.md` — existing product/design context where relevant.
+- `docs/process/feature_definition_payment.md` — authoritative feature behavior, product decisions, acceptance criteria, constraints, and resolved/open decisions.
+- `docs/process/phases_template.md` — roadmap structure and implementation discipline.
+- `docs/process/decisions.md` — existing Achivii product/architecture decisions, including the prior decision that payments were deferred from the redesign.
+- `docs/architecture/visual-design-system.md` — existing visual rules.
+- `Design.md` / `docs/architecture/redesign-blueprint.md` — existing product/design context where relevant.
 - Repository implementation — authoritative for what currently exists in code.
 
 ### Important historical context
@@ -339,7 +339,7 @@ Payment lifecycle validation must additionally use Lemon Squeezy test-mode event
 
 ### Source
 
-- `docs/feature_definition_payment.md`: External Services, Product Rules, Security/Privacy, In Scope, Non-Negotiables, Open Decisions OD-2 and OD-8.
+- `docs/process/feature_definition_payment.md`: External Services, Product Rules, Security/Privacy, In Scope, Non-Negotiables, Open Decisions OD-2 and OD-8.
 - Repository package/config structure.
 - Existing authentication and product architecture.
 

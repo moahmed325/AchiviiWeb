@@ -85,9 +85,9 @@ documentation and repository state.
 
 Use these documents:
 
-/docs/phases.md
+/docs/process/phases.md
 /docs/architecture.md
-/docs/decisions.md
+/docs/process/decisions.md
 /docs/design.md
 /docs/testing.md
 
@@ -118,7 +118,7 @@ When documentation and implementation disagree:
 
 The project must maintain the following documentation.
 
-/docs/phases.md
+/docs/process/phases.md
 
 This is the master development roadmap.
 
@@ -227,7 +227,7 @@ Do not duplicate rapidly-changing milestone information here.
 Architecture describes HOW the system is built.
 
 --------------------------------------------------
-/docs/decisions.md
+/docs/process/decisions.md
 --------------------------------------------------
 
 This is the architectural/product decision log.
@@ -524,7 +524,7 @@ Example:
 
 - relevant tests
 
-- docs/phases.md"
+- docs/process/phases.md"
 
 G. IMPLEMENTATION GUIDANCE
 
@@ -940,7 +940,7 @@ Context:
 Options:
 Consequences:
 
-After I choose, record the decision in /docs/decisions.md.
+After I choose, record the decision in /docs/process/decisions.md.
 
 Future prompts must respect recorded decisions.
 

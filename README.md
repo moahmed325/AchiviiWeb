@@ -70,8 +70,11 @@ AchiviiWeb/
 │   ├── scripts/                  # Diagnostic utilities (Tavily probe, pgvector verifier, cache demo)
 │   ├── test/                     # 49 unit tests covering Tavily, timezone, decomposer, and vector cache
 │   └── .env.example              # Backend environment configuration template
-├── docs/                         # In-depth technical specifications:
-│   └── CUSTOM_GOAL_EXECUTION_ARCHITECTURE.md
+├── docs/                         # Project documentation (indexed in docs/README.md):
+│   ├── architecture/             # Product blueprint, visual design system, custom-goal engine
+│   ├── billing/                  # Lemon Squeezy contracts, configuration & rollback readiness
+│   ├── process/                  # Decisions, phases, prompts & templates (+ archive/)
+│   └── migration/                # Render → Supabase migration (feature definition & brief)
 ├── golden-rail-pipeline-spec.md  # Golden Rail live research specification
 ├── package.json                  # Root monorepo workspace scripts
 └── README.md

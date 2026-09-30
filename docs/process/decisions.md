@@ -6,13 +6,13 @@ Part of the project framework:
 
 | File | Answers |
 |---|---|
-| `docs/redesign-blueprint.md` | What Achivii is and must become (source of truth, **BP §n**) |
-| `docs/visual-design-system.md` | How it looks (source of truth, **VDS §n**) |
-| `docs/phases.md` | When and in what order |
-| `docs/prompts.md` | How the agent is instructed |
-| `docs/decisions.md` (this file) | **Why** — every decision, its options, the choice and its consequences |
+| `docs/architecture/redesign-blueprint.md` | What Achivii is and must become (source of truth, **BP §n**) |
+| `docs/architecture/visual-design-system.md` | How it looks (source of truth, **VDS §n**) |
+| `docs/process/phases.md` | When and in what order |
+| `docs/process/prompts.md` | How the agent is instructed |
+| `docs/process/decisions.md` (this file) | **Why** — every decision, its options, the choice and its consequences |
 
-A phase may not start while a decision it depends on is **Open** or **Proposed**. `docs/prompts.md` enforces this with a decision gate at the top of every phase prompt.
+A phase may not start while a decision it depends on is **Open** or **Proposed**. `docs/process/prompts.md` enforces this with a decision gate at the top of every phase prompt.
 
 Last updated: 2026-09-27
 
@@ -37,8 +37,8 @@ Last updated: 2026-09-27
 | Prefix | Meaning |
 |---|---|
 | **D-n** | Foundational decisions already made (source documents, Phase 1, framework setup) |
-| **OD-n** | Open Decisions from the end of `docs/redesign-blueprint.md` (numbered 1–12 there) |
-| **ND-n** | New decisions raised in `docs/phases.md` |
+| **OD-n** | Open Decisions from the end of `docs/architecture/redesign-blueprint.md` (numbered 1–12 there) |
+| **ND-n** | New decisions raised in `docs/process/phases.md` |
 
 OD-1 is split into three parts, because each part gates a different phase:
 
@@ -52,7 +52,7 @@ OD-1 is split into three parts, because each part gates a different phase:
 
 ## Entry format
 
-Every entry uses this structure. W3 in `docs/prompts.md` drafts entries in this format; W4 records the outcome.
+Every entry uses this structure. W3 in `docs/process/prompts.md` drafts entries in this format; W4 records the outcome.
 
 ```text
 ### <ID> — <Title>
@@ -85,7 +85,7 @@ milestones, follow-up work.
 
 ## Changing a decision
 
-A Decided entry is never silently edited. To change it, add a new entry that supersedes it, mark the old one **Superseded** with a link, and update `docs/phases.md`.
+A Decided entry is never silently edited. To change it, add a new entry that supersedes it, mark the old one **Superseded** with a link, and update `docs/process/phases.md`.
 
 ---
 
@@ -163,7 +163,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 
 **Context.** Several older planning documents exist or existed (`Design.md`, `TODO.md`, `best-roadmap.md`, `golden-rail-pipeline-spec.md`, `plan-v2-spec.md`, and the old root `phases.md` and `prompts.md`, which Mo has since removed). Agents need one unambiguous authority.
 
-**Decision.** The redesign's sources of truth are `docs/redesign-blueprint.md` (product) and `docs/visual-design-system.md` (visuals). `docs/phases.md`, `docs/prompts.md` and `docs/decisions.md` implement them. On conflict:
+**Decision.** The redesign's sources of truth are `docs/architecture/redesign-blueprint.md` (product) and `docs/architecture/visual-design-system.md` (visuals). `docs/process/phases.md`, `docs/process/prompts.md` and `docs/process/decisions.md` implement them. On conflict:
 * the blueprint and design system win on product and visuals;
 * this log wins on anything it has decided;
 * `phases.md` wins on scope and order.
@@ -274,7 +274,7 @@ Phase 1 also introduced a darker accent, `#3F6B4E` (`accent-deep`), for use on l
 | Raised | BP Open Decision 6 |
 | Decided | VDS implementation note 1 |
 
-**Decision.** `docs/visual-design-system.md` supersedes `Design.md`. `Design.md` is rewritten in Phase 0 (M0.10): it keeps its still-valid mobile, scroll and touch-target rules, adopts the design system's direction (light glass over imagery, deep shadows, the ✦ destination mark, moderate radii), and states that the design system wins on conflict.
+**Decision.** `docs/architecture/visual-design-system.md` supersedes `Design.md`. `Design.md` is rewritten in Phase 0 (M0.10): it keeps its still-valid mobile, scroll and touch-target rules, adopts the design system's direction (light glass over imagery, deep shadows, the ✦ destination mark, moderate radii), and states that the design system wins on conflict.
 
 **Consequences.** Until the rewrite, agents follow the design system wherever `Design.md` disagrees.
 
@@ -360,7 +360,7 @@ No Radix Select or Tooltip was added: `Select` is native, and no phase up to 5 n
 | Category | Process |
 | Needed by | All |
 | Raised | BP §49 |
-| Decided | Blueprint; adopted in `docs/phases.md` on 2026-09-23 |
+| Decided | Blueprint; adopted in `docs/process/phases.md` on 2026-09-23 |
 
 **Decision.** The order is:
 
@@ -392,7 +392,7 @@ One phase at a time. Each ends with a report and Mo's review.
 | Category | Architecture |
 | Needed by | All |
 | Raised | BP §40 and Open Decision 1 |
-| Decided | Adopted in `docs/phases.md` rule 3.2 on 2026-09-23 |
+| Decided | Adopted in `docs/process/phases.md` rule 3.2 on 2026-09-23 |
 
 **Decision.** Backend, schema, API client, auth and goal contexts, and onboarding/dashboard business logic are off-limits by default. A phase may change the backend only where its "Backend allowance" names the exact change **and** a Decided entry here approves it. Frontend-only substitutes for missing backend capabilities are forbidden.
 
@@ -408,7 +408,7 @@ One phase at a time. Each ends with a report and Mo's review.
 | Category | Process |
 | Needed by | All |
 | Raised | BP Open Decision 5 |
-| Decided | Adopted in `docs/phases.md` rule 3.7 on 2026-09-23 |
+| Decided | Adopted in `docs/process/phases.md` rule 3.7 on 2026-09-23 |
 
 **Decision.** Every phase is verified at 390px (and 360px for dense screens): no horizontal scroll, tap targets at least 44px, safe areas respected, sheets on mobile. Phase 11 is a final sweep, not the first time mobile is considered.
 
@@ -722,7 +722,7 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 * Phase 6 Journey renders the 90-day journey with the staircase culminating in the closing stretch and the final goal arrival landing.
 * Phase 9 uses OD-1b option B for explicit goal arrival completion.
 
-**Implemented** 2026-09-25 / 2026-09-26 (Phase 6, M6.1–M6.6): Decided and formalized in `docs/decisions.md` and `docs/phases.md` at M6.1. Delivered across M6.2–M6.5 in canonical TypeScript contracts (`frontend/src/types/journey.ts`), pure adapter (`frontend/src/lib/journeyAdapter.ts`), `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, and `StrategicRoadmap.tsx`. Days 85–90 approach section renders `finalTest`, reflection, and summit destination (`finalGoal`) with zero synthetic daily tasks and day counter clamped at 1–90.
+**Implemented** 2026-09-25 / 2026-09-26 (Phase 6, M6.1–M6.6): Decided and formalized in `docs/process/decisions.md` and `docs/process/phases.md` at M6.1. Delivered across M6.2–M6.5 in canonical TypeScript contracts (`frontend/src/types/journey.ts`), pure adapter (`frontend/src/lib/journeyAdapter.ts`), `DesktopStaircase.tsx`, `MobileVerticalJourney.tsx`, and `StrategicRoadmap.tsx`. Days 85–90 approach section renders `finalTest`, reflection, and summit destination (`finalGoal`) with zero synthetic daily tasks and day counter clamped at 1–90.
 
 **Related.** D-2, OD-1b, OD-7, OD-9, BP §06, BP §34, VDS §09, VDS §17–18.
 
@@ -810,7 +810,7 @@ Until M5.8, `/dashboard` keeps working exactly as today. The landing page's sign
 
 **Consequences.** If A: Phase 2 updates `App.tsx` routes, `ProtectedRoute`, and every `openAuthModal` call site (landing CTAs, pathway rows, Navbar). R-1, R-3 and R-16 are regression-checked.
 
-**Implemented** 2026-09-23 (Phase 2). `/signup` and `/login` are live (`frontend/src/pages/auth/`); `AuthModal.tsx` and `openAuthModal` are gone. `ProtectedRoute` sends signed-out visitors to `/login?next=<path>`. R-1, R-3 and R-16 were verified against the real backend (`docs/phases.md` Phase 2).
+**Implemented** 2026-09-23 (Phase 2). `/signup` and `/login` are live (`frontend/src/pages/auth/`); `AuthModal.tsx` and `openAuthModal` are gone. `ProtectedRoute` sends signed-out visitors to `/login?next=<path>`. R-1, R-3 and R-16 were verified against the real backend (`docs/process/phases.md` Phase 2).
 
 **Related.** ND-4, D-19.
 
@@ -836,7 +836,7 @@ Until M5.8, `/dashboard` keeps working exactly as today. The landing page's sign
 | Category | Design |
 | Needed by | 6 |
 | Raised | BP Open Decision 7 |
-| Decided | Adopted in `docs/phases.md` on 2026-09-23 |
+| Decided | Adopted in `docs/process/phases.md` on 2026-09-23 |
 
 **Decision.**
 * The Journey view handles any number of phases from 2 to 4, with method-chosen names, for v2 goals, and the 3 fixed phases (Foundation, Acceleration, Mastery) for v1 goals.
@@ -1022,7 +1022,7 @@ A second category system exists in the code (found at the Phase 3 gate): each pr
 | Status | Decided |
 | Category | Architecture |
 | Needed by | 0 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 0 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 0 |
 | Decided | 2026-09-23 — Mo, at the Phase 0 gate |
 
 **Context.** `frontend/src/index.css` has three overlapping vocabularies:
@@ -1080,7 +1080,7 @@ The feared name collision is therefore theoretical: no screen reads the legacy `
 | Status | Decided |
 | Category | Technology |
 | Needed by | 0 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 0 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 0 |
 | Decided | 2026-09-23 — Mo, at the Phase 0 gate |
 
 **Context.**
@@ -1121,7 +1121,7 @@ The feared name collision is therefore theoretical: no screen reads the legacy `
 | Status | Decided |
 | Category | Technology |
 | Needed by | 0, 2, 3 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 0 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 0 |
 | Decided | 2026-09-23 — Mo, at the Phase 0 gate |
 
 **Context.**
@@ -1155,9 +1155,9 @@ The feared name collision is therefore theoretical: no screen reads the legacy `
 
 **Decision.** **A, introduced gradually.** ESLint and Vitest with Testing Library are added in Phase 0. Playwright smoke tests come at the start of Phase 2, and the onboarding payload test at the start of Phase 3.
 
-**Consequences.** The validation baseline in `docs/phases.md` §3.11 and the system prompt gain the new commands once they exist.
+**Consequences.** The validation baseline in `docs/process/phases.md` §3.11 and the system prompt gain the new commands once they exist.
 
-**Implemented** 2026-09-23 (Phase 0). ESLint and Vitest are set up, and 41 component tests pass (22 at first delivery, 41 after the review fixes). The first full lint run found a baseline of 48 errors and 6 warnings in 14 pre-Phase-0 files, recorded in `docs/phases.md` §3.11. It includes a real `rules-of-hooks` violation in `RoadmapPage.tsx`, carried over to Phase 6. The Phase 3 part is still to come.
+**Implemented** 2026-09-23 (Phase 0). ESLint and Vitest are set up, and 41 component tests pass (22 at first delivery, 41 after the review fixes). The first full lint run found a baseline of 48 errors and 6 warnings in 14 pre-Phase-0 files, recorded in `docs/process/phases.md` §3.11. It includes a real `rules-of-hooks` violation in `RoadmapPage.tsx`, carried over to Phase 6. The Phase 3 part is still to come.
 
 **Implemented** 2026-09-23 (Phase 2). Playwright with axe-core: `frontend/e2e/auth.spec.ts`, desktop 1440 and mobile 390 projects. Unlike the option text, the suite mocks the API (`e2e/mockApi.ts`, mirroring `backend/src/routes/auth.ts`) so it runs without a database; `e2e/live/` is reserved for real-backend specs run with `LIVE_API=1`, and is still empty (a Phase 3 carry-over).
 
@@ -1174,7 +1174,7 @@ The feared name collision is therefore theoretical: no screen reads the legacy `
 | Status | Decided |
 | Category | Architecture |
 | Needed by | 2 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 2 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 2 |
 | Decided | 2026-09-23 — Mo, at the Phase 2 gate |
 
 **Context.** D-19's handoff lives in `Home.tsx` component state and would be lost when navigating to `/signup`. `localStorage['achivii_draft_goal']` already exists for carrying a draft into onboarding.
@@ -1261,7 +1261,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | Status | Decided |
 | Category | Product |
 | Needed by | 3 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 3 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 3 |
 | Decided | 2026-09-23 — Mo, at the Phase 3 gate |
 
 **Context.** Custom goals are free and work today. The landing page presents Custom Journeys as future Premium (D-18) and says everything available today is free. Locking custom goals before server-side gating exists is forbidden (D-11), and would break R-2.
@@ -1296,7 +1296,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | Status | Decided (A narrowed) |
 | Category | Design |
 | Needed by | 5 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 5 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 5 |
 | Decided | 2026-09-23 — Mo, at M5.1 |
 
 **Context.**
@@ -1339,7 +1339,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | Status | Decided (A) |
 | Category | Design |
 | Needed by | 8 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 8 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 8 |
 | Decided | 2026-09-27 — Mo, at M8.1 |
 
 **Context.** BP §27 lists Progress as its own area, and VDS §26 gives it its own visual level. Its content depends on data: completion, milestones and adaptation insights exist today; results exist only if OD-1a is approved.
@@ -1374,7 +1374,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 10 |
 | Decided | 2026-09-27 — Mo |
 
 **Context.** BP §20–22 define free and premium tiers. No payment system exists, and BP §43 forbids pretending one does. Payments bring provider choice, a billing model, webhooks, entitlement sync, tax and legal pages: a project, not a redesign task.
@@ -1402,7 +1402,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 10 |
 | Decided | 2026-09-27 — Mo |
 
 **Context.** BP §22 says custom goals are paid. Today they are free (D-18, ND-6). Gating needs a server-side entitlement (OD-1c) and a way to obtain it (ND-9).
@@ -1436,7 +1436,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | Status | Decided (A) |
 | Category | Product |
 | Needed by | 10 |
-| Raised | 2026-09-23 — `docs/phases.md` Phase 10 |
+| Raised | 2026-09-23 — `docs/process/phases.md` Phase 10 |
 | Decided | 2026-09-27 — Mo |
 
 **Context.** BP §21 describes a future AI coach. No chat exists (BP §43). A real coach means a new backend capability (conversation storage, model access, safety, cost controls) and its own product design.
@@ -1663,7 +1663,7 @@ None yet.
 
 | Date | Change |
 |---|---|
-| 2026-09-23 | First version. Foundational decisions D-1 to D-19 recorded. OD-1 split into OD-1a/b/c. All open decisions from the blueprint and `docs/phases.md` entered with options and recommendations. |
+| 2026-09-23 | First version. Foundational decisions D-1 to D-19 recorded. OD-1 split into OD-1a/b/c. All open decisions from the blueprint and `docs/process/phases.md` entered with options and recommendations. |
 | 2026-09-23 | Phase 0 gate: ND-1 → A, ND-2 → B, ND-3 → A (gradual), all Decided by Mo. D-7 (Geist) confirmed for the whole app. ND-1 context updated with the kickoff measurement. |
 | 2026-09-23 | Phase 0 delivered. Implementation notes added to D-6, ND-1, ND-2 and ND-3. Packages added in Phase 0 logged under D-8. |
 | 2026-09-23 | Phase 0 review fixes: `border-control` and `--focus-ring-color` noted under ND-1, `TextLink` under ND-2, test count updated under ND-3. |
@@ -1707,4 +1707,4 @@ None yet.
 
 **Consequences.** Lemon Squeezy production configuration must contain these two recurring Pro variants for the initial launch. Existing subscriptions must not be silently repriced.
 
-**Related.** ND-9, ND-10, `docs/feature_definition_payment.md`.
+**Related.** ND-9, ND-10, `docs/process/feature_definition_payment.md`.
