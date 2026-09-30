@@ -7,7 +7,7 @@ services:
     rootDir: backend
     # migrate deploy (not db push) — db push skips the migrations folder entirely, which
     # would silently omit CREATE EXTENSION vector and the pgvector indexes in production.
-    buildCommand: npm install --include=dev && npx prisma migrate deploy && npm run build
+    buildCommand: npm install --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
