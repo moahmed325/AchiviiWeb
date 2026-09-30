@@ -200,7 +200,15 @@
 **Deployment verification:** The existing `JWT_SECRET` environment variable was removed from Render and the service redeployed. Production health returned HTTP 200 and the unauthenticated protected `/api/auth/me` route returned HTTP 401 after deployment.
 
 ### M4.3 — Final verification
-- Build/tests, login/session restoration, goals, Pro entitlement, Lemon Squeezy webhook idempotency and deployment checks.
+- **Status:** COMPLETE (automated + production unauthenticated checks; live authenticated browser verification remains waived).
+- Backend TypeScript build passed.
+- Backend Vitest suite passed: 54 test files, 362 tests.
+- Frontend TypeScript/Vite production build passed.
+- Production `/api/health` returned HTTP 200 after legacy auth retirement deployment.
+- Production protected `/api/auth/me` returned HTTP 401 without a Supabase access token.
+- Repository source/config search found no active legacy JWT/scrypt auth implementation or legacy signup/login endpoints outside historical/generated artifacts.
+- Billing entitlement, checkout, webhook idempotency, goal completion and migration-related automated coverage passed within the backend suite.
+- Live authenticated browser verification was previously waived after successful production Supabase signup, email confirmation, sign-in, and protected goal flow exercise.
 
 ### M4.4 — Close
 - Document final architecture and remaining deferred work.
