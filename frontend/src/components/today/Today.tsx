@@ -485,6 +485,15 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               </div>
             )}
 
+            {(steps.length > 0 || task.minimumVersion || intention || task.resourceTitle) && (
+              <div className="mt-7 border-t border-border pt-5">
+                <Eyebrow>More detail</Eyebrow>
+                <p className="mt-1 text-small text-text-secondary">
+                  Open only what you need to complete today's step well.
+                </p>
+              </div>
+            )}
+
             {steps.length > 0 && (
               <div className="mt-6 border-t border-border pt-4">
                 <Button
@@ -494,7 +503,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   aria-controls={stepsId}
                   onClick={() => setShowSteps((value) => !value)}
                   trailingIcon={<ChevronDown aria-hidden="true" strokeWidth={1.5} className={cx('size-4', showSteps && 'rotate-180')} />}
-                  className="-ml-4"
+                  className="-ml-4 min-h-[44px]"
                 >
                   {showSteps ? 'Hide the steps' : `Show the ${steps.length} ${steps.length === 1 ? 'step' : 'steps'}`}
                 </Button>
@@ -572,7 +581,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   aria-controls={minimumId}
                   onClick={() => setShowMinimum((value) => !value)}
                   trailingIcon={<ChevronDown aria-hidden="true" strokeWidth={1.5} className={cx('size-4', showMinimum && 'rotate-180')} />}
-                  className="-ml-4"
+                  className="-ml-4 min-h-[44px]"
                 >
                   {showMinimum ? 'Hide the 10-minute version' : 'The 10-minute version'}
                 </Button>
@@ -605,7 +614,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   aria-controls={intentionId}
                   onClick={() => setShowIntention((value) => !value)}
                   trailingIcon={<ChevronDown aria-hidden="true" strokeWidth={1.5} className={cx('size-4', showIntention && 'rotate-180')} />}
-                  className="-ml-4"
+                  className="-ml-4 min-h-[44px]"
                 >
                   {showIntention ? 'Hide implementation intention' : 'Implementation intention'}
                 </Button>
@@ -652,7 +661,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   aria-controls={resourceId}
                   onClick={() => setShowResource((value) => !value)}
                   trailingIcon={<ChevronDown aria-hidden="true" strokeWidth={1.5} className={cx('size-4', showResource && 'rotate-180')} />}
-                  className="-ml-4"
+                  className="-ml-4 min-h-[44px]"
                 >
                   {showResource ? 'Hide resource' : 'Resource'}
                 </Button>
@@ -692,7 +701,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   aria-controls={notesId}
                   onClick={() => setShowNotes((value) => !value)}
                   trailingIcon={<ChevronDown aria-hidden="true" strokeWidth={1.5} className={cx('size-4', showNotes && 'rotate-180')} />}
-                  className="-ml-4"
+                  className="-ml-4 min-h-[44px]"
                 >
                   Notes
                 </Button>

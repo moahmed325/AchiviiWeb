@@ -111,7 +111,7 @@ Today
 
 ## Phase 2 — Progressive detail & interaction polish
 
-**Status:** PHASE 0 COMPLETE
+**Status:** COMPLETE WITH CARRY-OVER
 
 ### Objective
 Make deep information available without making the default view feel dense.
@@ -131,9 +131,36 @@ Make deep information available without making the default view feel dense.
 - Deep information remains reachable in one or two intentional interactions.
 - Keyboard and reduced-motion behavior remain correct.
 
+### Phase 2 — Completion report
+
+**Status:** COMPLETE WITH CARRY-OVER
+
+### Implementation completed
+
+- Added a lightweight "More detail" cue so progressive content is clearly separated from the core session.
+- Kept steps, the 10-minute version, implementation intention, resources, and notes collapsed by default and reachable through existing disclosures.
+- Increased disclosure control hit areas to a minimum 44px height for touch accessibility.
+- Preserved all existing disclosure state, data, aria-expanded / aria-controls, note saving, resource links, and focus-session actions.
+- Preserved the existing Start / Complete hierarchy; Roadmap and Weekly review remain secondary actions.
+- No backend, API, routing, data-model, or product-capability changes.
+
+### Validation
+
+- `git diff --check`: passed.
+- Frontend `npm run build` (TypeScript check + Vite build): passed; existing >500 kB chunk warning remains.
+- Today test file: passed, 28/28 tests. The review-failure stderr is intentional test coverage.
+- Keyboard/focus behavior reviewed from the existing accessible Button/disclosure pattern; no interaction model was replaced.
+- Reduced-motion behavior remains inherited from the existing UI system; no new motion dependency was introduced.
+
+### Carry-over to Phase 3
+
+- Perform real browser viewport validation at desktop, 390px, and 360px.
+- Verify every OD-9 state visually, including offline/error, recovery, review, closing stretch, and completed-goal flow.
+- Record concrete browser evidence before declaring the redesign fully complete.
+
 ## Phase 3 — Responsive visual refinement & validation
 
-**Status:** PHASE 0 COMPLETE
+**Status:** NEXT
 
 ### Objective
 Finish the visual system integration and prove the redesign works across states and viewport sizes.
