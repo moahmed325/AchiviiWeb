@@ -92,18 +92,15 @@ const WeekGlance: React.FC<{
 }) => {
   const { practiceDays, practiceDone } = weekProgress(tasks);
   return (
-    <section aria-labelledby="week-heading" className="mt-8 rounded-panel border border-border bg-surface p-4 sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Eyebrow>This week</Eyebrow>
-          <div className="mt-1 flex flex-wrap items-baseline gap-3">
-            <h2 id="week-heading" className="text-body font-medium text-text">
-              Practice progress
-            </h2>
-            <p className="tabular text-small text-text-secondary">
-              {practiceDone} of {practiceDays} practice {practiceDays === 1 ? 'day' : 'days'} done
-            </p>
-          </div>
+    <section aria-labelledby="week-heading" className="mt-14">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-baseline gap-3">
+          <h2 id="week-heading" className="text-body font-medium text-text">
+            This week
+          </h2>
+          <p className="tabular text-small text-text-secondary">
+            {practiceDone} of {practiceDays} practice {practiceDays === 1 ? 'day' : 'days'} done
+          </p>
         </div>
         {onOpenReview && (
           <Button
@@ -248,7 +245,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   };
 
   return (
-    <main id="main" className="ui-root mx-auto w-full max-w-4xl flex-1 px-gutter py-8 text-left sm:py-12">
+    <main id="main" className="ui-root mx-auto w-full max-w-3xl flex-1 px-gutter py-10 text-left sm:py-14">
       <PathwayNotice />
 
       {apiStatus === 'offline' && (
@@ -261,28 +258,21 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         </div>
       )}
 
-      <header className="rounded-panel border border-border bg-surface px-5 py-5 sm:px-7 sm:py-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <Eyebrow>Your goal</Eyebrow>
-            <h1 className="mt-2 break-words text-h2 text-text">{goal.rawGoal}</h1>
-            {goal.clarifiedOutcome?.trim() && (
-              <p className="mt-3 break-words text-small text-text-secondary">
-                <span className="font-medium">90-day outcome: </span>
-                {goal.clarifiedOutcome}
-              </p>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-2 rounded-card border border-border bg-background/60 px-3 py-2">
-            <span className="tabular text-h3 text-text">{day}</span>
-            <span className="tabular text-small text-text-secondary">/ 90</span>
-          </div>
-        </div>
+      <header>
+        <Eyebrow>Your goal</Eyebrow>
+        <h1 className="mt-3 break-words text-h2 text-text">{goal.rawGoal}</h1>
+        {goal.clarifiedOutcome?.trim() && (
+          <p className="mt-3 break-words text-small text-text-secondary">
+            <span className="font-medium">90-day outcome: </span>
+            {goal.clarifiedOutcome}
+          </p>
+        )}
       </header>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-1">
-        <p aria-label={`Day ${day} of 90`} className="sr-only">
-          <span>{day}/ 90</span>
+      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
+        <p aria-label={`Day ${day} of 90`} className="flex items-baseline gap-2">
+          <span className="tabular text-numeral text-text">{day}</span>
+          <span className="tabular text-h3 text-text-secondary">/ 90</span>
         </p>
         <p className="text-small text-text-secondary">
           <span className="tabular">
@@ -326,7 +316,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         <section
           aria-labelledby="step-heading"
           className={cx(
-            'mt-8 rounded-panel border p-5 sm:p-8 transition-all duration-(--duration-normal)',
+            'mt-10 rounded-panel border p-5 sm:p-7 transition-all duration-(--duration-normal)',
             done
               ? 'border-accent/40 bg-surface/95 shadow-sm ring-1 ring-accent/20'
               : 'border-border bg-surface',
