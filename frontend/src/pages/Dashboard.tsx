@@ -1,18 +1,48 @@
 import React from 'react';
-import { ArrowRight, Map, Play, TrendingUp } from 'lucide-react';
+import { ArrowRight, Check, Clock, Map, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useGoal } from '../context/GoalContext';
-import { dayNumber, currentRoadmapWeek, currentWeekTasks, selectTodayTask, weekProgress } from '../lib/today';
-import { Badge, Button, LoadingState, Skeleton } from '../components/ui';
+import { currentRoadmapWeek, currentWeekTasks, dayNumber, isToday, selectTodayTask, weekProgress } from '../lib/today';
+import type { DailyTask } from '../types';
+import { Badge, Button, LoadingState, Skeleton, StepMarker } from '../components/ui';
 
 export const DashboardSkeleton: React.FC = () => (
-  <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-14">
+  <main id="main" className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
     <LoadingState label="Loading your dashboard">
-      <Skeleton className="h-3 w-20" /><Skeleton className="mt-4 h-10 w-3/4" />
-      <Skeleton className="mt-3 h-4 w-1/2" />
-      <div className="mt-10 grid gap-4 sm:grid-cols-2"><Skeleton className="h-44" /><Skeleton className="h-44" /></div>
+      <Skeleton className="h-3 w-32" />
+      <Skeleton className="mt-5 h-12 w-2/3" />
+      <Skeleton className="mt-4 h-4 w-1/2" />
+      <Skeleton className="mt-12 h-px w-full" />
+      <div className="mt-10 grid gap-5 lg:grid-cols-[1.5fr_1fr]"><Skeleton className="h-64" /><Skeleton className="h-64" /></div>
     </LoadingState>
   </main>
+);
+
+const greetingFor = (now: Date) => {
+  const hour = now.getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
+type DayState = 'completed' | 'today' | 'rest' | 'upcoming';
+
+const dayStateOf = (task: DailyTask, now: Date): DayState => {
+  if (task.status === 'completed') return 'completed';
+  if (task.isRestDay) return 'rest';
+  if (isToday(task, now)) return 'today';
+  return 'upcoming';
+};
+
+const dayStateLabel: Record<DayState, string> = {
+  completed: 'completed',
+  today: 'today',
+  rest: 'rest day',
+  upcoming: 'upcoming',
+};
+
+const EmptyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <main id="main" className="ui-root mx-auto w-full max-w-xl flex-1 px-gutter py-20 text-center">{children}</main>
 );
 
 export const Dashboard: React.FC = () => {
@@ -20,11 +50,11 @@ export const Dashboard: React.FC = () => {
   const [now] = React.useState(() => new Date());
   if (loadingGoal) return <DashboardSkeleton />;
   if (goalLoadFailed && !activeGoal) return (
-    <main id="main" className="mx-auto w-full max-w-xl flex-1 px-gutter py-20 text-center">
+    <EmptyShell>
       <h1 className="text-h2 text-text">We could not load your dashboard</h1>
       <p className="mt-3 text-body text-text-secondary">Your journey is safe. Check your connection and try again.</p>
       <Button className="mt-6" onClick={refreshGoal}>Try again</Button>
-    </main>
+    </EmptyShell>
   );
   if (!activeGoal) return null;
 
@@ -33,67 +63,97 @@ export const Dashboard: React.FC = () => {
   const week = currentRoadmapWeek(activeGoal);
   const day = dayNumber(activeGoal, now);
   const { practiceDays, practiceDone } = weekProgress(tasks);
-  const progress = Math.min(100, Math.round((practiceDone / Math.max(practiceDays, 1)) * 100));
   const currentWeek = week?.weekNumber ?? Math.ceil(day / 7);
+  const journeyPercent = Math.min(100, Math.max(2, Math.round((day / 90) * 100)));
+  const isDone = task?.status === 'completed';
+  const isRest = Boolean(task?.isRestDay) && !isDone;
+  const dateLabel = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const stagger = (ms: number): React.CSSProperties => ({ animationDelay: ms + 'ms' });
+
+  const eyebrow = isDone ? 'Done for today' : isRest ? 'Rest day' : 'Next session';
+  const heading = isDone ? 'Well done. Today is complete.' : task?.title || 'Your next session is ready.';
+  const support = isDone
+    ? 'You showed up. Come back when you are ready to continue.'
+    : isRest
+      ? 'Rest is part of the plan. Nothing is due today.'
+      : task?.whyToday;
+  const cta = isDone ? 'Review today' : isRest ? 'See today' : 'Begin today';
 
   return (
-    <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-gutter py-8 sm:py-12">
-      <header className="relative overflow-hidden border-b border-border pb-8">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-achievement/10 blur-3xl" />
-        <p className="relative font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Your journey</p>
-        <div className="relative mt-3 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0 max-w-2xl">
-            <h1 className="text-h1 text-text">Keep moving toward your goal.</h1>
-            <p className="mt-3 text-body text-text-secondary">{activeGoal.clarifiedOutcome || activeGoal.rawGoal}</p>
+    <main id="main" className="ui-root relative mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
+      <div aria-hidden="true" className="dash-glow" />
+
+      <header className="animate-rise-in relative" style={stagger(0)}>
+        <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">{dateLabel}</p>
+        <h1 className="mt-5 text-h1 text-text">{greetingFor(now)}.</h1>
+        <p className="mt-4 line-clamp-2 max-w-2xl text-body-lg text-text-secondary">{activeGoal.clarifiedOutcome || activeGoal.rawGoal}</p>
+
+        <div className="mt-12" role="img" aria-label={'Day ' + day + ' of 90'}>
+          <div className="mb-4 flex items-center justify-between font-ui-mono text-micro uppercase tracking-[0.16em]">
+            <span className="text-text">Day {day}</span>
+            <span className="inline-flex items-center gap-2 text-achievement"><StepMarker state="destination" size="sm" />Day 90</span>
           </div>
-          <span className="shrink-0 font-ui-mono text-small text-text-secondary">Day {day} <span className="text-achievement">/ 90</span></span>
+          <div className="dash-journey" style={{ '--dash-progress': journeyPercent + '%' } as React.CSSProperties}>
+            <div className="dash-journey__fill" />
+          </div>
         </div>
       </header>
 
-      <section aria-labelledby="next-heading" className="mt-8 grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
-        <div className="relative overflow-hidden rounded-[1.75rem] border border-achievement/30 bg-gradient-to-br from-achievement/10 via-surface to-surface p-6 shadow-[0_18px_55px_-35px_rgba(200,169,107,0.7)] sm:p-8">
-          <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-achievement/10 blur-3xl" />
-          <div className="relative">
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-ui-mono text-micro uppercase tracking-[0.14em] text-achievement">Next up</p>
-              {task?.isKeySession && <Badge tone="accent">Key session</Badge>}
-            </div>
-            <h2 id="next-heading" className="mt-4 text-h2 text-text">{task?.title || 'Your next session is ready.'}</h2>
-            {task?.whyToday && <p className="mt-3 max-w-xl text-small leading-6 text-text-secondary">{task.whyToday}</p>}
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Button asChild leadingIcon={<Play className="size-4 fill-current" />}><Link to="/today">Go to today</Link></Button>
-              <Button asChild variant="quiet" trailingIcon={<ArrowRight className="size-4" />}><Link to="/progress">See progress</Link></Button>
-            </div>
+      <section aria-labelledby="next-heading" className="relative mt-12 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+        <div className="dash-card animate-rise-in p-7 sm:p-10" style={stagger(140)}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">{eyebrow}</p>
+            {task?.isKeySession && !isDone && <Badge tone="achievement">Key session</Badge>}
+          </div>
+          <h2 id="next-heading" className="mt-6 max-w-[22ch] text-h2 text-text">{heading}</h2>
+          {support && <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">{support}</p>}
+          {task && !isRest && !isDone && task.durationMinutes > 0 && (
+            <p className="mt-6 inline-flex items-center gap-2 text-small text-text-secondary">
+              <Clock aria-hidden="true" strokeWidth={1.5} className="size-4 text-achievement" />
+              {task.durationMinutes} min{task.slotTime ? ' · ' + task.slotTime : ''}
+            </p>
+          )}
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <Button asChild variant="gold" size="lg" trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-5" />}>
+              <Link to="/today">{cta}</Link>
+            </Button>
           </div>
         </div>
 
-        <div className="rounded-[1.75rem] border border-border bg-surface p-6 sm:p-7">
-          <p className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">This week</p>
-          <div className="mt-4 flex items-end justify-between gap-3">
-            <div><span className="font-ui-mono text-3xl text-achievement">{practiceDone}</span><span className="text-small text-text-secondary"> / {practiceDays} days</span></div>
-            <span className="text-small text-text-secondary">{progress}%</span>
-          </div>
-          <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-elevated">
-            <div className="h-full rounded-full bg-achievement shadow-[0_0_12px_1px_rgba(200,169,107,0.3)] transition-all" style={{ width: progress + '%' }} />
-          </div>
-          <p className="mt-4 text-small text-text-secondary">Week {currentWeek}{week?.phase ? ' · ' + week.phase : ''}</p>
+        <div className="dash-panel animate-rise-in flex flex-col p-7 sm:p-8" style={stagger(260)}>
+          <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-text-secondary">This week</p>
+          <p className="mt-5 flex items-baseline gap-2">
+            <span className="tabular text-h1 text-achievement">{practiceDone}</span>
+            <span className="text-body text-text-secondary">of {practiceDays} sessions</span>
+          </p>
+          <ol aria-label="Days this week" className="mt-8 flex items-start justify-between gap-1">
+            {tasks.map((t) => {
+              const state = dayStateOf(t, now);
+              return (
+                <li key={t.id} className="flex flex-col items-center gap-2" aria-label={t.dayOfWeek + ', ' + dayStateLabel[state]}>
+                  <span className="dash-day" data-state={state}>
+                    {state === 'completed' && <Check aria-hidden="true" strokeWidth={2.25} className="size-3.5" />}
+                  </span>
+                  <span aria-hidden="true" className="font-ui-mono text-micro uppercase text-text-secondary">{t.dayOfWeek.slice(0, 3)}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-auto pt-8 text-small leading-6 text-text-secondary">
+            Week {currentWeek}{week?.phase ? ' · ' + week.phase : ''}
+            {week?.theme && <span className="block text-text">{week.theme}</span>}
+          </p>
         </div>
       </section>
 
-      <section aria-label="Journey links" className="mt-8 grid gap-3 sm:grid-cols-3">
-        <Link to="/today" className="group rounded-2xl border border-border p-5 transition-colors hover:border-achievement/40 hover:bg-achievement/[0.035]">
-          <Play className="size-5 text-achievement" /><h2 className="mt-4 text-body font-medium text-text">Today</h2>
-          <p className="mt-1 text-small text-text-secondary">Do the work that matters now.</p>
-        </Link>
-        <Link to="/progress" className="group rounded-2xl border border-border p-5 transition-colors hover:border-achievement/40 hover:bg-achievement/[0.035]">
-          <TrendingUp className="size-5 text-achievement" /><h2 className="mt-4 text-body font-medium text-text">Progress</h2>
-          <p className="mt-1 text-small text-text-secondary">See what your work is changing.</p>
-        </Link>
-        <Link to="/roadmap" className="group rounded-2xl border border-border p-5 transition-colors hover:border-achievement/40 hover:bg-achievement/[0.035]">
-          <Map className="size-5 text-achievement" /><h2 className="mt-4 text-body font-medium text-text">Roadmap</h2>
-          <p className="mt-1 text-small text-text-secondary">See where this journey is going.</p>
-        </Link>
-      </section>
+      <nav aria-label="Journey" className="animate-rise-in relative mt-12 flex flex-wrap gap-x-2 gap-y-1 border-t border-border pt-6" style={stagger(380)}>
+        <Button asChild variant="quiet" size="sm" leadingIcon={<TrendingUp aria-hidden="true" strokeWidth={1.5} className="size-4 text-achievement" />}>
+          <Link to="/progress">Progress</Link>
+        </Button>
+        <Button asChild variant="quiet" size="sm" leadingIcon={<Map aria-hidden="true" strokeWidth={1.5} className="size-4 text-achievement" />}>
+          <Link to="/roadmap">Roadmap</Link>
+        </Button>
+      </nav>
     </main>
   );
 };

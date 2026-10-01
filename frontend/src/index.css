@@ -862,3 +862,122 @@ html:has(.marketing) {
     box-shadow: none;
   }
 }
+
+/* ============================================================
+   Dashboard (premium, calm)
+   One gold thread runs through the page: a hairline that fills toward day 90, a warm light falling on the next
+   session, and a lit mark for every day completed. Everything else stays quiet. Colours come from tokens only;
+   the global reduced-motion rule neutralises all motion here.
+   ============================================================ */
+@layer components {
+  @keyframes dash-grow {
+    from { width: 0; }
+  }
+
+  @keyframes dash-breathe {
+    0%, 100% { box-shadow: 0 0 8px 1px color-mix(in oklab, var(--color-achievement) 40%, transparent); }
+    50% { box-shadow: 0 0 18px 4px color-mix(in oklab, var(--color-achievement) 65%, transparent); }
+  }
+
+  /* Warm light falling from above the header. Decorative, sits behind the content. */
+  .dash-glow {
+    position: absolute;
+    inset: -2rem 0 auto 0;
+    height: 30rem;
+    pointer-events: none;
+    background: radial-gradient(60% 60% at 50% 0%, color-mix(in oklab, var(--color-achievement) 12%, transparent), transparent 72%);
+  }
+
+  /* The journey hairline: 90 days, filled in gold up to today. */
+  .dash-journey {
+    position: relative;
+    height: 1px;
+    background: var(--color-border-strong);
+  }
+
+  .dash-journey__fill {
+    position: absolute;
+    left: 0;
+    top: -0.5px;
+    height: 2px;
+    width: var(--dash-progress, 0%);
+    border-radius: 9999px;
+    background: linear-gradient(90deg, color-mix(in oklab, var(--color-achievement) 12%, transparent), var(--color-achievement));
+    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 45%, transparent);
+    animation: dash-grow 1500ms var(--ease-ascend) 240ms backwards;
+  }
+
+  .dash-journey__fill::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 50%;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    transform: translate(50%, -50%);
+    background: var(--color-achievement);
+    animation: dash-breathe 3.6s ease-in-out infinite;
+  }
+
+  /* The next session: the one lit surface on the page. */
+  .dash-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-panel);
+    border: 1px solid color-mix(in oklab, var(--color-achievement) 28%, transparent);
+    background-color: var(--color-surface);
+    background-image:
+      radial-gradient(80% 70% at 100% 0%, color-mix(in oklab, var(--color-achievement) 15%, transparent), transparent 62%),
+      linear-gradient(180deg, color-mix(in oklab, var(--color-text) 3%, transparent), transparent 42%);
+    box-shadow: var(--shadow-raised), 0 34px 80px -50px color-mix(in oklab, var(--color-achievement) 60%, transparent);
+  }
+
+  .dash-card::before {
+    content: '';
+    position: absolute;
+    inset-inline: 12%;
+    top: -1px;
+    height: 1px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-achievement) 85%, transparent), transparent);
+  }
+
+  .dash-panel {
+    position: relative;
+    border-radius: var(--radius-panel);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--color-text) 2.5%, transparent), transparent 50%);
+    box-shadow: var(--shadow-raised);
+  }
+
+  /* One mark per day of the week. Shape and an accessible label carry the state, not colour alone. */
+  .dash-day {
+    display: flex;
+    width: 1.5rem;
+    height: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border-control);
+    color: var(--color-text-on-inverse);
+    transition: background-color 400ms ease, box-shadow 520ms var(--ease-ascend);
+  }
+
+  .dash-day[data-state='completed'] {
+    background-color: var(--color-achievement);
+    border-color: var(--color-achievement);
+    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 42%, transparent);
+  }
+
+  .dash-day[data-state='today'] {
+    border-color: var(--color-achievement);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-achievement) 16%, transparent);
+  }
+
+  .dash-day[data-state='rest'] {
+    border-style: dashed;
+    border-color: var(--color-border-strong);
+  }
+}
