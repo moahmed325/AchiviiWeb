@@ -2,7 +2,7 @@ import React from 'react';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cx } from './cx';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'premium' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'quiet' | 'premium' | 'gold' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 const base =
@@ -17,6 +17,7 @@ const variants: Record<ButtonVariant, string> = {
   secondary: 'border border-border-strong text-text hover:border-text/40 hover:bg-text/[0.04]',
   quiet: 'text-text-secondary hover:text-text hover:bg-text/[0.04]',
   premium: 'border border-achievement/40 text-achievement hover:border-achievement/70 hover:bg-achievement/[0.06]',
+  gold: 'btn-gold bg-achievement text-text-on-inverse hover:bg-achievement-hover',
   danger: 'border border-danger/40 text-danger hover:border-danger/70 hover:bg-danger/[0.06]',
 };
 

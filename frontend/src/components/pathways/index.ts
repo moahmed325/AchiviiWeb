@@ -3,6 +3,12 @@ export type { PathwayLibraryProps, PathwayLibraryAction } from './PathwayLibrary
 export { PathwayStrip } from './PathwayStrip';
 export type { PathwayStripProps } from './PathwayStrip';
 export { PathwayCustomGoal } from './PathwayCustomGoal';
+export { PathwayCard } from './PathwayCard';
+export type { PathwayCardProps } from './PathwayCard';
+export { PathwayAscent } from './PathwayAscent';
+export type { PathwayAscentProps } from './PathwayAscent';
+export { ascentOf, splitWeeks } from './ascent';
+export type { Ascent, AscentPhase } from './ascent';
 export { usePathwaySelection, selectionForDirection } from './usePathwaySelection';
 export type { PathwaySelection, PathwaySelectionOptions } from './usePathwaySelection';
 export { usePathwayLaunch, pathwayLaunch, CUSTOM_GOAL_LAUNCH } from './launch';

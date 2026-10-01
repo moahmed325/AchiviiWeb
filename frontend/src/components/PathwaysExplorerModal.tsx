@@ -41,7 +41,9 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
 
   return (
     <DialogContent
-      size="lg"
+      size="xl"
+      className="pathways-dialog"
+      eyebrow={<span className="text-achievement">Choose your ascent</span>}
       title="Explore pathways"
       description={
         hasGoal
@@ -50,10 +52,23 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
       }
       footer={
         <>
+          <p className="hidden min-w-0 items-center gap-2 text-small md:mr-auto md:flex">
+            {selected ? (
+              <>
+                <span aria-hidden="true" className="text-achievement">
+                  &#10022;
+                </span>
+                <span className="truncate text-text">{selected.title}</span>
+              </>
+            ) : (
+              <span className="text-text-secondary">Choose a pathway to continue</span>
+            )}
+          </p>
           <DialogClose asChild>
             <Button variant="quiet">Cancel</Button>
           </DialogClose>
           <Button
+            variant="gold"
             disabled={!selected}
             onClick={() => {
               if (!selected) return;
@@ -72,7 +87,7 @@ const ExplorerContent: React.FC<ExplorerContentProps> = ({ hasGoal, currentId, i
         selection={selection}
         currentId={currentId}
         customGoal={
-          <PathwayCustomGoal className="mt-8">
+          <PathwayCustomGoal variant="luminous" className="mt-8">
             <CustomGoalGate onContinue={handleCustomJourney} />
           </PathwayCustomGoal>
         }

@@ -22,6 +22,8 @@
   /* Accent for text, icons and focus rings on surface-inverse; 5.3:1 */
   --color-accent-on-inverse: #3F6B4E;
   --color-achievement: #C8A96B;
+  /* Lighter gold for hover and focus on achievement surfaces; 11:1 on background */
+  --color-achievement-hover: #DAC48B;
   --color-caution: #D9A05B;
   --color-danger: #E0897A;
 
@@ -517,3 +519,346 @@ html:has(.marketing) {
   visibility: hidden !important;
 }
 
+
+/* ============================================================
+   Pathways dialog (premium)
+   Gold is the destination colour (VDS section 2). Here it marks where a pathway ends, the one you have chosen and
+   the way up to it. Same vocabulary as the Progress header: mono eyebrows, a hairline with a glowing segment, soft
+   halos. Motion is slow and upward; the global reduced-motion rule above neutralises all of it.
+   ============================================================ */
+@layer components {
+  @keyframes ascent-draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+  }
+
+  @keyframes destination-glow {
+    0%, 100% { filter: drop-shadow(0 0 3px color-mix(in oklab, var(--color-achievement) 35%, transparent)); }
+    50% { filter: drop-shadow(0 0 9px color-mix(in oklab, var(--color-achievement) 80%, transparent)); }
+  }
+
+  /* The dialog surface: a warm light falling from above, a gold hairline on the top edge, and a glowing
+     hairline beside the title that echoes the Progress header. */
+  .pathways-dialog {
+    --focus-ring-color: var(--color-achievement-hover);
+    background-image:
+      radial-gradient(70% 38% at 50% -6%, color-mix(in oklab, var(--color-achievement) 11%, transparent), transparent 72%),
+      linear-gradient(180deg, color-mix(in oklab, var(--color-text) 2.5%, transparent), transparent 220px);
+  }
+
+  .pathways-dialog::before {
+    content: '';
+    position: absolute;
+    inset-inline: 14%;
+    top: -1px;
+    height: 1px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-achievement) 80%, transparent), transparent);
+  }
+
+  .pathways-dialog [data-slot='header'] > div:first-child {
+    position: relative;
+    padding-left: 1.125rem;
+    border-left: 1px solid color-mix(in oklab, var(--color-achievement) 40%, transparent);
+  }
+
+  .pathways-dialog [data-slot='header'] > div:first-child::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 0;
+    width: 1px;
+    height: 3rem;
+    background: var(--color-achievement);
+    box-shadow: 0 0 18px 2px color-mix(in oklab, var(--color-achievement) 28%, transparent);
+  }
+
+  /* Direction tabs: the active tab is lit from beneath by a gold line that rises into place. */
+  .pathway-tabs {
+    scrollbar-width: none;
+  }
+
+  .pathway-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (max-width: 47.99rem) {
+    .pathway-tabs {
+      padding-right: 2rem;
+      -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent);
+      mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent);
+    }
+  }
+
+  .pathway-tab::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0.75rem;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 9999px;
+    background: var(--color-achievement);
+    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 55%, transparent);
+    opacity: 0;
+    transform: scaleX(0.4);
+    transition: opacity 280ms ease, transform 520ms var(--ease-ascend);
+  }
+
+  .pathway-tab[data-state='active']::after {
+    opacity: 1;
+    transform: none;
+  }
+
+  .pathway-tab svg {
+    transition: color var(--duration-quick) ease;
+  }
+
+  .pathway-tab[data-state='active'] svg {
+    color: var(--color-achievement);
+  }
+}
+
+@layer components {
+  /* Pathway card: a quiet architectural surface. Choosing it raises a gold rail up its left edge and lights the mark. */
+  .pathway-card {
+    position: relative;
+    cursor: pointer;
+    padding: 1.125rem 1.25rem 1.125rem 1.375rem;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    transition: border-color 280ms ease, background-color 280ms ease, box-shadow 520ms var(--ease-ascend);
+  }
+
+  .pathway-card:hover {
+    border-color: var(--color-border-strong);
+    background-color: var(--color-surface-elevated);
+  }
+
+  .pathway-card::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 1rem;
+    bottom: 1rem;
+    width: 2px;
+    border-radius: 2px;
+    background: linear-gradient(to top, color-mix(in oklab, var(--color-achievement) 35%, transparent), var(--color-achievement));
+    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 45%, transparent);
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: transform 620ms var(--ease-ascend);
+  }
+
+  .pathway-card:has(input:checked) {
+    border-color: color-mix(in oklab, var(--color-achievement) 55%, transparent);
+    background-color: var(--color-surface-elevated);
+    background-image: linear-gradient(135deg, color-mix(in oklab, var(--color-achievement) 9%, transparent), transparent 60%);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--color-achievement) 16%, transparent),
+      0 24px 48px -28px color-mix(in oklab, var(--color-achievement) 50%, transparent);
+  }
+
+  .pathway-card:has(input:checked)::before {
+    transform: scaleY(1);
+  }
+
+  .pathway-card:has(input:focus-visible) {
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: 2px;
+  }
+
+  .pathway-card__mark {
+    display: flex;
+    width: 1.375rem;
+    height: 1.375rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border-control);
+    color: var(--color-text-on-inverse);
+    transition: background-color 280ms ease, border-color 280ms ease, box-shadow 420ms ease;
+  }
+
+  .pathway-card__mark > svg {
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 200ms ease, transform 360ms var(--ease-ascend);
+  }
+
+  .pathway-card:has(input:checked) .pathway-card__mark {
+    background-color: var(--color-achievement);
+    border-color: var(--color-achievement);
+    box-shadow: 0 0 16px 1px color-mix(in oklab, var(--color-achievement) 45%, transparent);
+  }
+
+  .pathway-card:has(input:checked) .pathway-card__mark > svg {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@layer components {
+  /* The ascent: where a pathway ends, and the three flights that climb there. Light gathers toward the top. */
+  .pathway-ascent {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-panel);
+    border: 1px solid color-mix(in oklab, var(--color-achievement) 24%, transparent);
+    background-color: var(--color-surface);
+    background-image:
+      radial-gradient(90% 70% at 100% 0%, color-mix(in oklab, var(--color-achievement) 14%, transparent), transparent 62%),
+      linear-gradient(180deg, color-mix(in oklab, var(--color-text) 3%, transparent), transparent 40%);
+    box-shadow: var(--shadow-raised);
+  }
+
+  .pathway-ascent--empty {
+    border-color: var(--color-border);
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--color-text) 2%, transparent), transparent 50%);
+  }
+
+  .pathway-ascent--empty .pathway-ascent__stairs {
+    opacity: 0.35;
+  }
+
+  .pathway-ascent--empty .pathway-ascent__stairs path {
+    stroke: var(--color-text-secondary);
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 0.6;
+  }
+
+  .pathway-ascent--empty .pathway-ascent__stairs circle {
+    fill: var(--color-text-secondary);
+    animation: none;
+  }
+
+  .pathway-ascent__stairs {
+    position: absolute;
+    right: 1.25rem;
+    top: 1.5rem;
+    width: 5.5rem;
+    height: auto;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .pathway-ascent__stairs path {
+    fill: none;
+    stroke: var(--color-achievement);
+    stroke-width: 1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    opacity: 0.6;
+    animation: ascent-draw 1600ms var(--ease-ascend) 120ms both;
+  }
+
+  .pathway-ascent__stairs circle {
+    fill: var(--color-achievement);
+    animation: destination-glow 3.6s ease-in-out infinite;
+  }
+
+  .pathway-ascent__dest {
+    animation: destination-glow 3.6s ease-in-out infinite;
+  }
+
+  /* One continuous rail through the destination and the three flights, brightest at the top. Each row draws its own
+     segment, so the rail needs no measuring. Rows are spaced with padding so the segments touch. */
+  .pathway-ascent__row {
+    position: relative;
+  }
+
+  .pathway-ascent__row::before {
+    content: '';
+    position: absolute;
+    left: 11.5px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-achievement) var(--rail-from, 40%), transparent),
+      color-mix(in oklab, var(--color-achievement) var(--rail-to, 40%), transparent)
+    );
+  }
+
+  .pathway-ascent__row[data-rung='destination'] { --rail-from: 90%; --rail-to: 72%; }
+  .pathway-ascent__row[data-rung='destination']::before { top: 14px; }
+  .pathway-ascent__row[data-rung='peak'] { --rail-from: 72%; --rail-to: 50%; }
+  .pathway-ascent__row[data-rung='rise'] { --rail-from: 50%; --rail-to: 30%; }
+  .pathway-ascent__row[data-rung='base'] { --rail-from: 30%; --rail-to: 30%; }
+  .pathway-ascent__row[data-rung='base']::before { bottom: auto; height: 14px; }
+
+  .pathway-ascent__marker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: flex;
+    width: 1.5rem;
+    height: 1.5rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* A milestone: a small diamond. The last flight is filled and lit, because it is where the climb tops out. */
+  .pathway-ascent__diamond {
+    display: block;
+    width: 0.5625rem;
+    height: 0.5625rem;
+    transform: rotate(45deg);
+    border: 1px solid color-mix(in oklab, var(--color-achievement) 75%, transparent);
+    background-color: var(--color-background);
+  }
+
+  .pathway-ascent__diamond.is-final {
+    border-color: var(--color-achievement);
+    background-color: var(--color-achievement);
+    box-shadow: 0 0 10px 2px color-mix(in oklab, var(--color-achievement) 38%, transparent);
+  }
+}
+
+@layer components {
+  /* Custom Journey: the open door beside the certified pathways. Same gold, warmer and quieter. */
+  .pathway-custom {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius-panel);
+    border: 1px solid color-mix(in oklab, var(--color-achievement) 26%, transparent);
+    background-color: color-mix(in oklab, var(--color-surface) 70%, transparent);
+    background-image: linear-gradient(120deg, color-mix(in oklab, var(--color-achievement) 12%, transparent), transparent 58%);
+    transition: border-color 420ms ease, box-shadow 520ms var(--ease-ascend);
+  }
+
+  .pathway-custom:hover {
+    border-color: color-mix(in oklab, var(--color-achievement) 50%, transparent);
+    box-shadow: 0 24px 56px -32px color-mix(in oklab, var(--color-achievement) 55%, transparent);
+  }
+
+  /* Gold call to action: used where the next step is arrival, not routine. A slow sheen crosses it on hover. */
+  .btn-gold {
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--color-achievement) 55%, transparent),
+      0 14px 34px -14px color-mix(in oklab, var(--color-achievement) 70%, transparent);
+  }
+
+  .btn-gold::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.38) 50%, transparent 65%);
+    transform: translateX(-120%);
+    transition: transform 900ms var(--ease-ascend);
+  }
+
+  .btn-gold:hover:not(:disabled)::after {
+    transform: translateX(120%);
+  }
+
+  .btn-gold:disabled {
+    box-shadow: none;
+  }
+}

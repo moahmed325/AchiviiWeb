@@ -10,11 +10,13 @@ export const DialogTrigger = DialogPrimitive.Trigger;
 export const DialogClose = DialogPrimitive.Close;
 
 export type DialogLayout = 'auto' | 'sheet';
-export type DialogSize = 'sm' | 'md' | 'lg';
+export type DialogSize = 'sm' | 'md' | 'lg' | 'xl';
 
 export interface DialogContentProps extends Omit<React.ComponentProps<typeof DialogPrimitive.Content>, 'title'> {
   title: React.ReactNode;
   description?: React.ReactNode;
+  /** A short label above the title, for example the section a dialog belongs to. Style it where you pass it. */
+  eyebrow?: React.ReactNode;
   /** Keeps the title for screen readers but hides it visually. */
   hideTitle?: boolean;
   /** 'auto': bottom sheet below 768px (md), centred dialog above. 'sheet': bottom sheet at every size. */
@@ -41,11 +43,13 @@ const sizes: Record<DialogSize, string> = {
   sm: 'md:max-w-md',
   md: 'md:max-w-lg',
   lg: 'md:max-w-2xl',
+  xl: 'md:max-w-4xl',
 };
 
 export const DialogContent: React.FC<DialogContentProps> = ({
   title,
   description,
+  eyebrow,
   hideTitle = false,
   layout = 'auto',
   size = 'md',
@@ -88,8 +92,13 @@ export const DialogContent: React.FC<DialogContentProps> = ({
           className,
         )}
       >
-        <div className="flex items-start gap-4 px-6 pb-4 pt-6 md:px-7 md:pt-7">
+        <div data-slot="header" className="flex items-start gap-4 px-6 pb-4 pt-6 md:px-7 md:pt-7">
           <div className="min-w-0 flex-1">
+            {eyebrow && (
+              <p data-slot="eyebrow" className="mb-2 font-ui-mono text-micro uppercase tracking-[0.16em] text-text-secondary">
+                {eyebrow}
+              </p>
+            )}
             <DialogPrimitive.Title className={hideTitle ? 'sr-only' : 'text-h3 text-text'}>{title}</DialogPrimitive.Title>
             {description && (
               <DialogPrimitive.Description className="mt-2 text-small text-text-secondary">{description}</DialogPrimitive.Description>
