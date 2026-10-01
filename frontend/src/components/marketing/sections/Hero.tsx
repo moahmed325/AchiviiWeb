@@ -37,12 +37,16 @@ export const Hero: React.FC = () => (
             See how it works
           </Button>
         </div>
-        <p className="mt-8 flex items-center gap-3 font-ui-mono text-[12px] uppercase tracking-[0.18em] text-text-secondary/80">
-          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-achievement shadow-[0_0_10px_2px_rgba(200,169,107,0.6)]" />
-          Free to start
-          <span aria-hidden="true" className="text-text-muted">/</span>
-          Built around your schedule
-        </p>
+        <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 font-ui-mono text-[11px] uppercase tracking-[0.16em] text-text-secondary/80">
+          <span className="inline-flex items-center gap-2">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-achievement shadow-[0_0_10px_2px_rgba(200,169,107,0.6)]" />
+            Free to start
+          </span>
+          <span aria-hidden="true" className="hidden text-text-muted sm:inline">/</span>
+          <span>Built around your schedule</span>
+          <span aria-hidden="true" className="hidden text-text-muted sm:inline">/</span>
+          <span>No streaks to break</span>
+        </div>
       </div>
 
       <div className="relative -mx-6 sm:-mx-10 lg:mx-0 lg:col-span-6 lg:h-[100svh]">

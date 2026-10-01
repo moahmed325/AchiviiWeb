@@ -27,6 +27,12 @@ export const Proof: React.FC = () => {
   return (
     <section aria-label="Achivii at a glance" className="relative px-6 sm:px-10 lg:px-16">
       <div className="mx-auto w-full max-w-[1280px]">
+        <div className="flex flex-col gap-3 py-8 sm:flex-row sm:items-center sm:justify-between sm:py-10">
+          <p className="font-ui-mono text-[11px] uppercase tracking-[0.18em] text-achievement">A calmer way to make progress</p>
+          <p className="max-w-[34rem] text-sm leading-relaxed text-text-secondary sm:text-right">
+            Built for people with real calendars, changing energy, and one thing they genuinely want to finish.
+          </p>
+        </div>
         <div aria-hidden="true" className="gold-hairline" />
         <ul ref={ref} className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {FACTS.map((fact, index) => (
