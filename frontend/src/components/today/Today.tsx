@@ -283,9 +283,37 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
             {task.isRestDay && <p className="mt-3 max-w-xl text-small leading-6 text-text-secondary">Rest is part of the plan. Recover today so you can execute the next session well.</p>}
             {task.isTestDay && week?.test && <div className="mt-5 rounded-2xl border border-border bg-background/40 p-4"><p className="font-ui-mono text-micro uppercase text-[#C9A227]">{week.test.type || 'Benchmark'}</p>{week.test.instructions && <p className="mt-2 text-small text-text-secondary">{week.test.instructions}</p>}{week.test.passIf && <p className="mt-2 text-small text-text"><span className="text-text-secondary">Pass when: </span>{formatPassIf(week.test.passIf)}</p>}</div>}
             {done && <div className="mt-4 flex items-center gap-2 text-small font-medium text-[#C9A227]"><Check className="size-4" />Completed for today</div>}
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              {!task.isRestDay && <Button onClick={() => setFocusOpen(true)} leadingIcon={<Play className="size-4" />}>Start session</Button>}
-              <Button variant={task.isRestDay ? 'primary' : 'secondary'} loading={busy} onClick={onToggle}>{done ? 'Mark not done' : task.isRestDay ? 'Log recovery' : 'Mark complete'}</Button>
+            {!task.isRestDay && !done && (
+              <div className="relative mt-7 overflow-hidden rounded-2xl border border-[#C9A227]/30 bg-gradient-to-br from-[#C9A227]/[0.11] via-[#C9A227]/[0.045] to-surface p-4 shadow-[0_16px_40px_-24px_rgba(201,162,39,0.75)] sm:p-5">
+                <div aria-hidden="true" className="pointer-events-none absolute -right-12 -top-16 size-32 rounded-full bg-[#C9A227]/10 blur-2xl" />
+                <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="flex size-8 items-center justify-center rounded-full bg-[#C9A227]/15 text-[#C9A227]">
+                        <Play className="size-3.5 fill-current" aria-hidden="true" />
+                      </span>
+                      <p className="font-ui-mono text-micro uppercase tracking-wide text-[#C9A227]">Ready when you are</p>
+                    </div>
+                    <p className="mt-2 text-small font-medium text-text">Give yourself the next {task.durationMinutes || 30} minutes.</p>
+                    <p className="mt-1 text-small text-text-secondary">Start the session and focus only on today.</p>
+                  </div>
+                  <Button
+                    onClick={() => setFocusOpen(true)}
+                    leadingIcon={<Play className="size-4 fill-current" />}
+                    className="min-h-12 w-full shrink-0 px-6 shadow-[0_10px_28px_-12px_rgba(201,162,39,0.8)] sm:w-auto"
+                  >
+                    Start session
+                  </Button>
+                </div>
+              </div>
+            )}
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+              {(task.isRestDay || done) && (
+                <Button variant={task.isRestDay ? 'primary' : 'secondary'} loading={busy} onClick={onToggle}>{done ? 'Mark not done' : 'Log recovery'}</Button>
+              )}
+              {!task.isRestDay && !done && (
+                <Button variant="secondary" loading={busy} onClick={onToggle}>Mark complete</Button>
+              )}
             </div>
             <p role="alert" className="mt-3 text-small text-danger empty:hidden">{actionError ?? ''}</p>
 
