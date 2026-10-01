@@ -347,19 +347,14 @@ describe('Desktop Journey Composition (M6.3)', () => {
         </MemoryRouter>
       );
 
-      // Active week (Week 2) has daily practice sessions
+      // The roadmap keeps the active week strategic and intentionally hides daily execution detail.
       expect(screen.getByText('Building Volume')).toBeInTheDocument();
-      expect(screen.getByText('Daily Practice Sessions')).toBeInTheDocument();
-      expect(screen.getByText('Aerobic Threshold Intervals')).toBeInTheDocument();
+      expect(screen.getByText('Your progression')).toBeInTheDocument();
+      expect(screen.queryByText(/Run 18km weekly volume/i)).not.toBeInTheDocument();
 
-      // Future week (Week 3) displays strategic target & future honesty calm message
-      expect(screen.getByText('Aerobic Threshold')).toBeInTheDocument();
-      expect(screen.getByText(/Run 18km weekly volume/i)).toBeInTheDocument();
-      expect(
-        screen.getByText(/Future Honesty · Daily sessions designed after Week 2 review/i)
-      ).toBeInTheDocument();
-
-      // Ensure NO daily session items or fabricated checkboxes are generated for Week 3
+      // Future weeks must not fabricate daily sessions on the roadmap.
+      expect(screen.queryByText('Daily Practice Sessions')).not.toBeInTheDocument();
+      expect(screen.queryByText('Aerobic Threshold Intervals')).not.toBeInTheDocument();
       expect(screen.queryByText('Day 15')).not.toBeInTheDocument();
       expect(screen.queryByText('Day 16')).not.toBeInTheDocument();
     });
@@ -474,10 +469,11 @@ describe('Desktop Journey Composition (M6.3)', () => {
       expect(main).toHaveAttribute('id', 'main');
       expect(main).toHaveAttribute('tabIndex', '-1');
 
-      // Check all 3 layers rendered inside
-      expect(screen.getByText('Back to Today')).toBeInTheDocument();
-      expect(screen.getByText('The 90-Day Ascent')).toBeInTheDocument();
-      expect(screen.getByText('Method Phases & Weekly Targets')).toBeInTheDocument();
+      // Check the simplified roadmap hierarchy rendered inside
+      expect(screen.getByText('Today')).toBeInTheDocument();
+      expect(screen.getByText('Your roadmap')).toBeInTheDocument();
+      expect(screen.getByText('You are here')).toBeInTheDocument();
+      expect(screen.getByText('Your progression')).toBeInTheDocument();
     });
 
     it('renders accessible fallback when no active goal exists', () => {
