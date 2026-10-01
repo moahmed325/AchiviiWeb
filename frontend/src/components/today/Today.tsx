@@ -260,19 +260,19 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
 
       <header>
         <Eyebrow>Your goal</Eyebrow>
-        <h1 className="mt-3 break-words text-h2 text-text">{goal.rawGoal}</h1>
+        <h1 className="mt-2 break-words text-h3 font-medium text-text">{goal.rawGoal}</h1>
         {goal.clarifiedOutcome?.trim() && (
-          <p className="mt-3 break-words text-small text-text-secondary">
+          <p className="mt-2 max-w-2xl break-words text-small text-text-secondary">
             <span className="font-medium">90-day outcome: </span>
             {goal.clarifiedOutcome}
           </p>
         )}
       </header>
 
-      <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2">
+      <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2">
         <p aria-label={`Day ${day} of 90`} className="flex items-baseline gap-2">
-          <span className="tabular text-numeral text-text">{day}</span>
-          <span className="tabular text-h3 text-text-secondary">/ 90</span>
+          <span className="tabular text-h3 text-text">{day}</span>
+          <span className="tabular text-small text-text-secondary">/ 90</span>
         </p>
         <p className="text-small text-text-secondary">
           <span className="tabular">
@@ -316,7 +316,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         <section
           aria-labelledby="step-heading"
           className={cx(
-            'mt-10 rounded-panel border p-5 sm:p-7 transition-all duration-(--duration-normal)',
+            'mt-9 rounded-panel border p-5 sm:p-7 transition-all duration-(--duration-normal)',
             done
               ? 'border-accent/40 bg-surface/95 shadow-sm ring-1 ring-accent/20'
               : 'border-border bg-surface',
@@ -357,7 +357,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               </div>
             )}
 
-            <h2 id="step-heading" className="mt-3 break-words text-h3 text-text">
+            <h2 id="step-heading" className="mt-3 break-words text-h2 text-text">
               {task.title}
             </h2>
             <p className="tabular mt-2 text-small text-text-secondary">
@@ -398,7 +398,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               </div>
             )}
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               {!task.isRestDay && (
                 <Button
                   onClick={() => setFocusOpen(true)}
@@ -749,7 +749,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         />
       )}
 
-      <nav aria-label="More of your plan" className="mt-12 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <nav aria-label="More of your plan" className="mt-10 flex flex-col gap-2 sm:flex-row sm:items-center">
         <Button asChild variant="secondary" trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}>
           <Link to="/roadmap">Roadmap</Link>
         </Button>
