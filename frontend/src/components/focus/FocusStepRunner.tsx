@@ -1,7 +1,6 @@
 import React from 'react';
 import { ArrowRight, ExternalLink } from 'lucide-react';
 import { Button } from '../ui';
-import { StepChallengeWidget } from '../StepChallengeWidget';
 import type { DetailedStep } from '../../types';
 
 interface FocusStepRunnerProps {
@@ -23,12 +22,6 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
   currentStep, currentStepIndex, totalSteps, onNextStep, onCompleteFallback, fallbackTitle,
   minimumVersion, onUseMinimumVersion, isMinimumVersion,
 }) => {
-  const [challengeComplete, setChallengeComplete] = React.useState(false);
-
-  React.useEffect(() => {
-    setChallengeComplete(false);
-  }, [currentStep?.stepNumber, isMinimumVersion]);
-
   if (!currentStep) return (
     <section className="max-w-xl mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-accent/20 shadow-[0_16px_50px_rgba(199,167,92,0.08)] text-center">
       <p className="text-base text-text leading-relaxed mb-5">{fallbackTitle}</p>
@@ -59,12 +52,6 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           </p>
         )}
 
-        <StepChallengeWidget
-          step={currentStep}
-          className="mt-7"
-          onChallengeComplete={setChallengeComplete}
-        />
-
         {(currentStep.resourceUrl || currentStep.focusCue || currentStep.pitfallToAvoid) && (
           <details className="group pt-1">
             <summary className="cursor-pointer list-none text-small text-text-secondary hover:text-achievement transition-colors focus-ring rounded-control">
@@ -78,18 +65,10 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           </details>
         )}
 
-        <Button
-          variant="primary"
-          onClick={onNextStep}
-          disabled={!challengeComplete}
-          className="w-full min-h-[52px] text-base shadow-[0_12px_32px_rgba(200,169,107,0.16)] disabled:opacity-40 disabled:shadow-none"
-        >
+        <Button variant="primary" onClick={onNextStep} className="w-full min-h-[52px] text-base shadow-[0_12px_32px_rgba(200,169,107,0.16)]">
           {isMinimumVersion ? 'Complete minimum' : currentStepIndex === totalSteps - 1 ? 'Complete session' : 'Done — next'}
           <ArrowRight className="size-4 ml-2" />
         </Button>
-        {!challengeComplete && (
-          <p className="text-center text-micro text-text-muted">Complete the action above to continue.</p>
-        )}
       </div>
     </article>
   );
