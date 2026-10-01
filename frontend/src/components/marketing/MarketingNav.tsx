@@ -6,7 +6,8 @@ import { useScrolledPast } from './hooks';
 const LINKS = [
   { href: '#method', label: 'How it works' },
   { href: '#pathways', label: 'Journeys' },
-  { href: '#premium', label: 'Coach' },
+  { href: '#premium', label: 'Pricing' },
+  { href: '#faq', label: 'FAQ' },
 ];
 
 export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) => {
@@ -16,8 +17,10 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
     <header className="fixed inset-x-0 top-0 z-40 px-3 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <nav
         aria-label="Primary"
-        className={`mx-auto flex max-w-[1180px] items-center justify-between gap-4 rounded-full border py-1.5 pl-5 pr-1.5 transition-[background-color,border-color,backdrop-filter] duration-500 ${
-          scrolled ? 'border-border bg-background/75 backdrop-blur-xl' : 'border-border/60 bg-background/35 backdrop-blur-md'
+        className={`mx-auto flex max-w-[1080px] items-center justify-between gap-4 rounded-full border py-1.5 pl-5 pr-1.5 transition-[background-color,border-color,backdrop-filter,box-shadow] duration-500 ${
+          scrolled
+            ? 'border-achievement/25 bg-background/80 shadow-[0_18px_50px_-30px_rgba(200,169,107,0.5)] backdrop-blur-xl'
+            : 'border-border/60 bg-background/35 backdrop-blur-md'
         }`}
       >
         <a href="#top" className="focus-ring flex min-h-11 items-center rounded-full" aria-label="Achivii, back to top">
@@ -29,7 +32,7 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
             <li key={link.href}>
               <a
                 href={link.href}
-                className="focus-ring inline-flex min-h-11 items-center rounded-full px-4 text-[14px] text-text-secondary transition-colors hover:text-text"
+                className="focus-ring inline-flex min-h-11 items-center rounded-full px-4 text-[14px] text-text-secondary transition-colors hover:text-achievement-hover"
               >
                 {link.label}
               </a>
@@ -50,7 +53,7 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
           <Button variant="quiet" to="/login" className="px-3 sm:px-4">
             Sign in
           </Button>
-          <Button variant="primary" to="/signup" className="px-4 sm:px-5">
+          <Button variant="gold" to="/signup" className="px-4 sm:px-5">
             <span className="sm:hidden">Start</span>
             <span className="hidden sm:inline">Start your journey</span>
           </Button>

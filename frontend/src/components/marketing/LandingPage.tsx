@@ -1,32 +1,30 @@
 import React from 'react';
 import { SkipLink } from '../ui';
 import { MarketingNav } from './MarketingNav';
+import { ScrollThread } from './ScrollThread';
 import { Hero } from './sections/Hero';
-import { Problem } from './sections/Problem';
+import { Proof } from './sections/Proof';
 import { Method } from './sections/Method';
-import { Journey } from './sections/Journey';
-import { Today } from './sections/Today';
-import { Adaptive } from './sections/Adaptive';
+import { Product } from './sections/Product';
 import { Pathways } from './sections/Pathways';
 import { Premium } from './sections/Premium';
-import { Achievement } from './sections/Achievement';
+import { Faq } from './sections/Faq';
 import { FinalCta } from './sections/FinalCta';
 import { MarketingFooter } from './sections/MarketingFooter';
 
 export const LandingPage: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) => (
   <div className="marketing relative min-h-[100dvh] w-full bg-background text-left text-text antialiased">
     <SkipLink />
+    <ScrollThread />
     <MarketingNav apiOffline={apiOffline} />
     <main id="main">
       <Hero />
-      <Problem />
+      <Proof />
       <Method />
-      <Journey />
-      <Today />
-      <Adaptive />
+      <Product />
       <Pathways />
       <Premium />
-      <Achievement />
+      <Faq />
       <FinalCta />
     </main>
     <MarketingFooter />

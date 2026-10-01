@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 
-type Variant = 'primary' | 'secondary' | 'quiet';
+type Variant = 'primary' | 'gold' | 'secondary' | 'quiet';
 type Size = 'md' | 'lg';
 
 const base =
@@ -12,6 +12,7 @@ const base =
 
 const variants: Record<Variant, string> = {
   primary: 'bg-text text-background hover:bg-white',
+  gold: 'btn-gold',
   secondary: 'border border-border-strong text-text hover:border-text/40 hover:bg-text/[0.04]',
   quiet: 'text-text-secondary hover:text-text',
 };
@@ -45,12 +46,12 @@ export const Button: React.FC<ButtonProps | AnchorProps | RouteProps> = ({
   const classes = `${base} ${variants[variant]} ${sizes[size]} ${className}`;
   const content = (
     <>
-      <span>{children}</span>
+      <span className="relative z-10">{children}</span>
       {withArrow && (
         <ArrowRight
           aria-hidden="true"
           strokeWidth={1.75}
-          className="w-4 h-4 transition-transform duration-300 ease-[var(--ease-ascend)] group-hover:translate-x-0.5"
+          className="relative z-10 w-4 h-4 transition-transform duration-300 ease-[var(--ease-ascend)] group-hover:translate-x-0.5"
         />
       )}
     </>

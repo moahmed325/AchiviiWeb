@@ -24,6 +24,9 @@
   --color-achievement: #C8A96B;
   /* Lighter gold for hover and focus on achievement surfaces; 11:1 on background */
   --color-achievement-hover: #DAC48B;
+  /* Landing-page gold ramp: highlight and shadow stops for gradients and glows, never for small text */
+  --color-gold-bright: #F1DFB0;
+  --color-gold-deep: #9C8247;
   --color-caution: #D9A05B;
   --color-danger: #E0897A;
 
@@ -979,5 +982,98 @@ html:has(.marketing) {
   .dash-day[data-state='rest'] {
     border-style: dashed;
     border-color: var(--color-border-strong);
+  }
+}
+
+/* ============================================================
+   Landing page: the gold thread
+   Gold is the light at the top of the stairs. On the landing page it
+   marks everything that moves you toward the summit.
+   ============================================================ */
+.gold-text {
+  background-image: linear-gradient(100deg, #f1dfb0 0%, #c8a96b 48%, #e6cf95 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+@media (forced-colors: active) {
+  .gold-text {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: CanvasText;
+  }
+}
+
+.gold-hairline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200, 169, 107, 0.6), transparent);
+}
+
+@keyframes gold-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.07);
+  }
+}
+
+.gold-breathe {
+  animation: gold-breathe 8s ease-in-out infinite;
+}
+
+.btn-gold {
+  position: relative;
+  overflow: hidden;
+  background-image: linear-gradient(180deg, #e8d3a0 0%, #c8a96b 58%, #b39358 100%);
+  color: #0b0b0a;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    0 10px 30px -12px rgba(200, 169, 107, 0.6);
+}
+
+.btn-gold::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 32%, rgba(255, 255, 255, 0.5) 50%, transparent 68%);
+  transform: translateX(-130%);
+  transition: transform 0.9s var(--ease-ascend);
+  pointer-events: none;
+}
+
+.btn-gold:hover {
+  filter: brightness(1.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 16px 44px -10px rgba(218, 196, 139, 0.75);
+}
+
+.btn-gold:hover::after {
+  transform: translateX(130%);
+}
+
+/* Gold-bordered panel with a soft lit corner */
+.gold-panel {
+  border: 1px solid rgba(200, 169, 107, 0.32);
+  background:
+    radial-gradient(90% 70% at 100% 0%, rgba(200, 169, 107, 0.16), transparent 62%),
+    var(--color-surface);
+  box-shadow: 0 40px 100px -50px rgba(200, 169, 107, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gold-breathe {
+    animation: none;
+    opacity: 0.8;
+  }
+
+  .btn-gold::after {
+    display: none;
   }
 }

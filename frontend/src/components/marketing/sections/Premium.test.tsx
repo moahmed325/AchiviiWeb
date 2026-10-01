@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { Premium } from './Premium';
+
+const renderPremium = () =>
+  render(
+    <MemoryRouter>
+      <Premium />
+    </MemoryRouter>,
+  );
 
 describe('marketing Premium section (M10.6)', () => {
   it('renders accessible section with h2 title and h3 feature headings', () => {
-    render(<Premium />);
+    renderPremium();
     const section = screen.getByRole('region', { name: 'More ways to climb, on the way.' });
     expect(section).toBeInTheDocument();
 
@@ -19,7 +27,7 @@ describe('marketing Premium section (M10.6)', () => {
   });
 
   it('renders Achivii Coach with honest "In development" status and accurate copy', () => {
-    render(<Premium />);
+    renderPremium();
     const section = screen.getByRole('region', { name: 'More ways to climb, on the way.' });
 
     expect(within(section).getByText('Achivii Coach')).toBeInTheDocument();
@@ -33,7 +41,7 @@ describe('marketing Premium section (M10.6)', () => {
   });
 
   it('renders Achivii Pro with "Available now" status and accurate narrative copy', () => {
-    render(<Premium />);
+    renderPremium();
     const section = screen.getByRole('region', { name: 'More ways to climb, on the way.' });
 
     expect(within(section).getByText('Achivii Pro')).toBeInTheDocument();
@@ -51,7 +59,7 @@ describe('marketing Premium section (M10.6)', () => {
   });
 
   it('renders the Pro pricing line without any inline checkout UI', () => {
-    render(<Premium />);
+    renderPremium();
     const section = screen.getByRole('region', { name: 'More ways to climb, on the way.' });
 
     expect(

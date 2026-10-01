@@ -202,8 +202,8 @@ export const StaircaseScene: React.FC<StaircaseSceneProps> = ({
     >
       <defs>
         <radialGradient id="stair-halo" cx={doorCx} cy={doorCy} r={viewBox.height * 0.55} gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor="#F5EBD6" stopOpacity="0.34" />
-          <stop offset="0.35" stopColor="#C8A96B" stopOpacity="0.08" />
+          <stop offset="0" stopColor="#F3D9A0" stopOpacity="0.42" />
+          <stop offset="0.35" stopColor="#C8A96B" stopOpacity="0.14" />
           <stop offset="1" stopColor="#0B0B0A" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="stair-face-x" x1="0" y1={viewBox.minY} x2="0" y2={viewBox.minY + viewBox.height} gradientUnits="userSpaceOnUse">
@@ -280,7 +280,7 @@ export const StaircaseScene: React.FC<StaircaseSceneProps> = ({
         }
         const b = item.box;
         const t = Math.max(0, b.z1) / topMaxZ;
-        const topFill = mix('#8D8A83', '#F6F3EC', Math.pow(t, 0.75));
+        const topFill = mix('#8D8A83', '#F6E6BC', Math.pow(t, 0.75));
         return (
           <g
             key={`box-${index}`}
