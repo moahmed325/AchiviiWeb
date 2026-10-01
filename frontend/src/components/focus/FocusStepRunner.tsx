@@ -1,7 +1,6 @@
 import React from 'react';
-import { ArrowRight, ExternalLink, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ExternalLink } from 'lucide-react';
 import { Button } from '../ui';
-import { StepChallengeWidget } from '../StepChallengeWidget';
 import type { DetailedStep } from '../../types';
 
 interface FocusStepRunnerProps {
@@ -31,43 +30,45 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
   );
 
   return (
-    <article aria-label={isMinimumVersion ? 'Minimum version' : `Current step`} className="max-w-2xl mx-auto w-full rounded-2xl bg-surface border border-border shadow-raised overflow-hidden">      <div className="h-1 bg-accent" aria-hidden="true" />
-      <div className="p-5 sm:p-7 space-y-5">
-        <div>
-          <p className="text-micro font-ui-mono uppercase tracking-[0.18em] text-accent mb-2">
-            {isMinimumVersion ? 'Minimum version' : 'Do this now'}
-          </p>
-          <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text leading-tight">{currentStep.title}</h3>
-        </div>
+    <article aria-label={isMinimumVersion ? 'Minimum version' : 'Current step'} className="w-full max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-5">
+        <p className="text-micro font-ui-mono uppercase tracking-[0.18em] text-achievement">
+          {isMinimumVersion ? 'Minimum version' : `Step ${currentStepIndex + 1} of ${totalSteps}`}
+        </p>
+        {minimumVersion && !isMinimumVersion && (
+          <button type="button" onClick={onUseMinimumVersion} aria-label="Low energy — do the minimum" className="text-small text-text-secondary hover:text-achievement transition-colors focus-ring rounded-control">
+            Do the minimum
+          </button>
+        )}
+      </div>
 
-        <p className="text-base text-text-secondary leading-relaxed">{currentStep.instructions}</p>
+      <div className="space-y-5">
+        <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text leading-tight">{currentStep.title}</h3>
+        <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-xl">{currentStep.instructions}</p>
 
         {currentStep.passMark && (
-          <div className="flex items-start gap-2.5 rounded-xl bg-accent/8 border border-accent/20 px-4 py-3 text-small text-text-secondary">
-            <ShieldCheck className="size-4 text-accent shrink-0 mt-0.5" />
-            <span><strong className="text-text font-medium">Done when:</strong> {currentStep.passMark}</span>
-          </div>
+          <p className="text-small text-text-secondary pl-3 border-l-2 border-achievement/50">
+            <strong className="text-text font-medium">Done when:</strong> {currentStep.passMark}
+          </p>
         )}
 
-        <StepChallengeWidget step={currentStep} />
-
-        {minimumVersion && !isMinimumVersion && (
-          <button type="button" onClick={onUseMinimumVersion} className="w-full text-left rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 hover:bg-accent/10 transition-colors focus-ring">
-            <span className="block text-small font-medium text-text">Low energy? Do the minimum.</span>
-            <span className="block text-micro text-text-secondary mt-0.5">Keep the habit moving with the shorter version.</span>
-          </button>
-        )}        {currentStep.resourceUrl && (
-          <a href={currentStep.resourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-small text-accent hover:underline focus-ring rounded-control">
-            {currentStep.resourceTitle || 'Open guide'} <ExternalLink className="size-3.5" />
-          </a>
+        {(currentStep.resourceUrl || currentStep.focusCue || currentStep.pitfallToAvoid) && (
+          <details className="group pt-1">
+            <summary className="cursor-pointer list-none text-small text-text-secondary hover:text-achievement transition-colors focus-ring rounded-control">
+              Need help?
+            </summary>
+            <div className="mt-3 space-y-2 text-small text-text-secondary">
+              {currentStep.focusCue && <p><span className="text-text">Focus:</span> {currentStep.focusCue}</p>}
+              {currentStep.pitfallToAvoid && <p><span className="text-text">Avoid:</span> {currentStep.pitfallToAvoid}</p>}
+              {currentStep.resourceUrl && <a href={currentStep.resourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-achievement">{currentStep.resourceTitle || 'Open guide'} <ExternalLink className="size-3.5" /></a>}
+            </div>
+          </details>
         )}
 
-        <div className="pt-2 border-t border-border">
-          <Button variant="primary" onClick={onNextStep} className="w-full min-h-[52px] text-base shadow-[0_12px_32px_rgba(199,167,92,0.16)]">
-            {isMinimumVersion ? 'Complete minimum' : currentStepIndex === totalSteps - 1 ? 'Complete session' : 'I’m done — next'}
-            <ArrowRight className="size-4 ml-2" />
-          </Button>
-        </div>
+        <Button variant="primary" onClick={onNextStep} className="w-full min-h-[52px] text-base shadow-[0_12px_32px_rgba(200,169,107,0.16)]">
+          {isMinimumVersion ? 'Complete minimum' : currentStepIndex === totalSteps - 1 ? 'Complete session' : 'Done — next'}
+          <ArrowRight className="size-4 ml-2" />
+        </Button>
       </div>
     </article>
   );

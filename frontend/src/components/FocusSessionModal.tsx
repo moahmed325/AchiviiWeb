@@ -96,11 +96,6 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     }
   }, [currentStepIndex]);
 
-  const handleReset = useCallback(() => {
-    setSecondsRemaining(totalDurationSeconds);
-    setIsActive(false);
-  }, [totalDurationSeconds]);
-
   // Countdown timer loop
   useEffect(() => {
     if (hasStarted && isActive && secondsRemaining > 0) {
@@ -192,7 +187,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     >
       {/* Subtle atmospheric ambient glow */}
       <div
-        className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_40%,rgba(127,165,139,0.06),transparent_80%)]"
+        className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_65%_55%_at_50%_40%,rgba(200,169,107,0.07),transparent_76%)]"
         aria-hidden="true"
       />
 
@@ -206,12 +201,12 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       />
 
       {/* Main Focus Stage */}
-      <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-6 sm:py-8">
+      <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-8 sm:py-10">
         {!isCelebration ? (
           !hasStarted ? (
             <section className="max-w-2xl mx-auto w-full text-center space-y-7">
               <div className="space-y-4">
-                <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-accent">Focus mode</p>
+                <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-achievement">Focus session</p>
                 <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text">{task.title}</h2>
                 {currentStep && <p className="text-base text-text-secondary max-w-xl mx-auto leading-relaxed">{currentStep.instructions}</p>}
               </div>
@@ -223,17 +218,16 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
               >
                 Start focused session
               </Button>
-              <p className="text-micro text-text-secondary">Space to start</p>
+              <p className="text-micro text-text-secondary">Press Space to start</p>
             </section>
           ) : (
-            <div className="space-y-6 w-full">
+            <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-10">
               <FocusTimer
                 taskTitle={task.title}
                 secondsRemaining={secondsRemaining}
                 totalDurationSeconds={totalDurationSeconds}
                 isActive={isActive}
                 onToggleActive={() => setIsActive(!isActive)}
-                onReset={handleReset}
                 currentStepIndex={currentStepIndex}
                 totalSteps={steps.length}
               />
