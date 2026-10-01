@@ -141,10 +141,45 @@ export const ProgressPage: React.FC = () => {
       {/* Meaningful current-position evidence comes before detailed history. */}
       <PhaseMilestonesCard goal={activeGoal} />
 
-      {/* Detailed chronology remains available below the primary progress story. */}
-      <WeekBreakdownList goal={activeGoal} />
-      <BenchmarkResultsCard goal={activeGoal} />
-      <AdaptationHistoryList goal={activeGoal} />
+      {/* Detailed evidence remains available through explicit, accessible disclosures. */}
+      <details className="group rounded-card border border-border bg-surface px-5 py-4 sm:px-6">
+        <summary className="cursor-pointer list-none font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+          <span className="flex items-center justify-between gap-4">
+            <span>Week by week</span>
+            <span className="font-ui-mono text-micro uppercase text-text-secondary group-open:hidden">Explore</span>
+            <span className="hidden font-ui-mono text-micro uppercase text-text-secondary group-open:inline">Hide</span>
+          </span>
+        </summary>
+        <div className="mt-4">
+          <WeekBreakdownList goal={activeGoal} />
+        </div>
+      </details>
+
+      <details className="group rounded-card border border-border bg-surface px-5 py-4 sm:px-6">
+        <summary className="cursor-pointer list-none font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+          <span className="flex items-center justify-between gap-4">
+            <span>Benchmark results</span>
+            <span className="font-ui-mono text-micro uppercase text-text-secondary group-open:hidden">Explore</span>
+            <span className="hidden font-ui-mono text-micro uppercase text-text-secondary group-open:inline">Hide</span>
+          </span>
+        </summary>
+        <div className="mt-4">
+          <BenchmarkResultsCard goal={activeGoal} />
+        </div>
+      </details>
+
+      <details className="group rounded-card border border-border bg-surface px-5 py-4 sm:px-6">
+        <summary className="cursor-pointer list-none font-medium text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background">
+          <span className="flex items-center justify-between gap-4">
+            <span>Adaptation history</span>
+            <span className="font-ui-mono text-micro uppercase text-text-secondary group-open:hidden">Explore</span>
+            <span className="hidden font-ui-mono text-micro uppercase text-text-secondary group-open:inline">Hide</span>
+          </span>
+        </summary>
+        <div className="mt-4">
+          <AdaptationHistoryList goal={activeGoal} />
+        </div>
+      </details>
     </main>
   );
 };

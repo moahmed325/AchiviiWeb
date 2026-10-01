@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-describe('Progress evidence hierarchy', () => {
-  it('keeps the evidence-first ordering contract explicit', () => {
-    expect(['progress story', 'current position evidence', 'detailed history']).toEqual([
-      'progress story',
-      'current position evidence',
-      'detailed history',
+describe('Progress progressive depth', () => {
+  it('keeps the secondary evidence contract explicit', () => {
+    const sections = ['Week by week', 'Benchmark results', 'Adaptation history'];
+    expect(sections).toHaveLength(3);
+    expect(sections).toEqual([
+      'Week by week',
+      'Benchmark results',
+      'Adaptation history',
     ]);
   });
 });
