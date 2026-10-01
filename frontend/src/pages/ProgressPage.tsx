@@ -127,19 +127,23 @@ export const ProgressPage: React.FC = () => {
         </p>
       </header>
 
-      {/* Layer 1: Core Completion Metrics */}
-      <CompletionOverview goal={activeGoal} currentDay={currentDay} />
+      {/* Evidence-first: orient to the current journey position before detailed history. */}
+      <section aria-labelledby="progress-story-heading" className="space-y-3">
+        <div className="space-y-1">
+          <h2 id="progress-story-heading" className="text-h3 text-text">Your progress so far</h2>
+          <p className="text-small text-text-secondary">
+            See what you have completed, where you are now, and the evidence behind it.
+          </p>
+        </div>
+        <CompletionOverview goal={activeGoal} currentDay={currentDay} />
+      </section>
 
-      {/* Layer 2: Phase & Milestone Progression */}
+      {/* Meaningful current-position evidence comes before detailed history. */}
       <PhaseMilestonesCard goal={activeGoal} />
 
-      {/* Layer 3: Week-by-Week Breakdown */}
+      {/* Detailed chronology remains available below the primary progress story. */}
       <WeekBreakdownList goal={activeGoal} />
-
-      {/* Layer 4: Benchmark Results (M8.3-R1) — only renders if weeks have tests */}
       <BenchmarkResultsCard goal={activeGoal} />
-
-      {/* Layer 5: Adaptation History (M8.3-R2) — only renders if reviews exist */}
       <AdaptationHistoryList goal={activeGoal} />
     </main>
   );
