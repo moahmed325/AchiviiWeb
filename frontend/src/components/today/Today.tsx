@@ -91,6 +91,7 @@ const WeekGlance: React.FC<{
   onOpenReview,
 }) => {
   const { practiceDays, practiceDone } = weekProgress(tasks);
+  const [showWeek, setShowWeek] = useState(false);
   return (
     <section aria-labelledby="week-heading" className="mt-14">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -114,7 +115,19 @@ const WeekGlance: React.FC<{
           </Button>
         )}
       </div>
-      <ul className="mt-4 grid grid-cols-7 divide-x divide-border overflow-hidden rounded-card border border-border">
+      <div className="mt-3">
+        <Button
+          type="button"
+          variant="quiet"
+          size="sm"
+          aria-expanded={showWeek}
+          aria-controls="week-glance-days"
+          onClick={() => setShowWeek((value) => !value)}
+        >
+          {showWeek ? "Hide week" : "Show week"}
+        </Button>
+      </div>
+      <ul id="week-glance-days" hidden={!showWeek} className="mt-3 grid grid-cols-7 divide-x divide-border overflow-hidden rounded-card border border-border">
         {tasks.map((task) => {
           const selected = task.id === selectedId;
           const today = isToday(task, now);

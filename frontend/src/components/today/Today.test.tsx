@@ -153,7 +153,9 @@ describe('Today', () => {
   });
 
   it("choosing another day shows that day's step", async () => {
+    const user = userEvent.setup();
     await renderToday();
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
     const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
     const thursday = days.find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!;
     await userEvent.click(thursday);
@@ -332,6 +334,7 @@ describe('Today', () => {
     expect(screen.getByRole('region', { name: 'Session 4' })).toBeInTheDocument();
 
     // Switch back to Wednesday
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
     const wedBtn = screen.getAllByRole('button', { pressed: false }).find((b) => b.getAttribute('aria-label')?.startsWith('Wed'))!;
     await user.click(wedBtn);
 
@@ -344,6 +347,7 @@ describe('Today', () => {
   it('displays week completion bridge when the final practice task of the week is completed', async () => {
     const user = userEvent.setup();
     await renderToday();
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
 
     // Select Saturday (last practice day of the week, task t6)
     const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
@@ -403,6 +407,7 @@ describe('Today', () => {
     await renderToday();
 
     // Select Sunday (rest day)
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
     const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
     const sunday = days.find((b) => b.getAttribute('aria-label')?.startsWith('Sun'))!;
     await user.click(sunday);
