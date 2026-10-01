@@ -119,10 +119,31 @@ export const JourneyHeader: React.FC<JourneyHeaderProps> = ({ journey }) => {
                 </Badge>
               </div>
 
-              {/* Goal Title */}
+              {/* Destination — the first orientation answer */}
+              <div className="text-micro font-ui-mono uppercase tracking-wider text-text-secondary">
+                Destination
+              </div>
               <h1 className="text-xl sm:text-2xl font-bold text-text tracking-tight leading-snug">
                 {displayGoalTitle}
               </h1>
+
+              {/* Current position + week role — the second orientation answer */}
+              {activePhase && (
+                <div className="rounded-control border border-accent/20 bg-surface-elevated/60 px-3 py-2 space-y-0.5">
+                  <div className="text-micro font-ui-mono uppercase tracking-wider text-accent">
+                    You are here · Week {metrics.currentWeek} of {metrics.totalWeeks} · Phase {activePhase.index}
+                  </div>
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    <span className="font-medium text-text">
+                      {activePhase.weeks.find((week) => week.isCurrentWeek)?.focus ||
+                        activePhase.weeks.find((week) => week.isCurrentWeek)?.theme ||
+                        activePhase.weeks.find((week) => week.isCurrentWeek)?.title ||
+                        'Current week'}
+                    </span>
+                    {activePhase.purpose ? ` — ${activePhase.purpose}` : ''}
+                  </p>
+                </div>
+              )}
 
               {/* Stored Clarified Outcome */}
               {journey.clarifiedOutcome && journey.clarifiedOutcome !== journey.rawGoal && (

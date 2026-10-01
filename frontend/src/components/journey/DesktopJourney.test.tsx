@@ -122,6 +122,10 @@ describe('Desktop Journey Composition (M6.3)', () => {
 
       // Goal title & outcome
       expect(screen.getAllByText('Run 10 kilometers in under 50 minutes').length).toBeGreaterThan(0);
+      // M3.1 orientation answers are explicit in the first view
+      expect(screen.getByText('Destination')).toBeInTheDocument();
+      expect(screen.getByText(/You are here · Week 2 of 12 · Phase 1/i)).toBeInTheDocument();
+      expect(screen.getByText('Week 2')).toBeInTheDocument();
       // Method badge & author credit
       expect(screen.getByText(/Method: Classic Periodization/i)).toBeInTheDocument();
       expect(screen.getByText(/Arthur Lydiard/i)).toBeInTheDocument();
