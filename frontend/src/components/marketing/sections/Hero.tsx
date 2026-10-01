@@ -7,7 +7,7 @@ export const Hero: React.FC = () => (
   <section
     id="top"
     aria-labelledby="hero-title"
-    className="relative isolate overflow-hidden px-5 pt-28 sm:px-10 sm:pt-32 lg:px-16 lg:pt-0 lg:min-h-[100svh]"
+    className="relative isolate overflow-hidden px-5 pb-16 pt-28 sm:px-10 sm:pb-24 sm:pt-32 lg:px-16 lg:pt-0 lg:min-h-[100svh]"
   >
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
       <div className="gold-breathe absolute -right-[10%] top-[8%] h-[70vmin] w-[70vmin] rounded-full bg-[radial-gradient(circle,rgba(200,169,107,0.22),rgba(200,169,107,0.06)_45%,transparent_70%)]" />
@@ -16,12 +16,13 @@ export const Hero: React.FC = () => (
 
     <div className="mx-auto grid w-full max-w-[1280px] items-center gap-4 lg:min-h-[100svh] lg:grid-cols-12 lg:gap-8">
       <div className="relative z-10 lg:col-span-6 lg:py-32">
-        <Eyebrow tone="achievement" className="reveal is-visible">
-          A 90-day system for one meaningful goal
-        </Eyebrow>
+        <div className="mb-8 flex items-center gap-3 font-ui-mono text-[10px] uppercase tracking-[0.2em] text-text-secondary sm:mb-10">
+          <span className="h-px w-8 bg-achievement" />
+          <span>Make room for the work that matters</span>
+        </div>
         <h1
           id="hero-title"
-          className="mt-6 max-w-[10ch] text-[clamp(3rem,15vw,6.25rem)] font-semibold leading-[0.92] tracking-[-0.055em] text-text sm:mt-7"
+          className="max-w-[9ch] text-[clamp(3.5rem,13vw,7.8rem)] font-semibold leading-[0.87] tracking-[-0.07em] text-text sm:mt-7"
         >
           Your ambition deserves <span className="gold-text whitespace-nowrap">a path.</span>
         </h1>

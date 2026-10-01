@@ -27,10 +27,15 @@ export const Proof: React.FC = () => {
   return (
     <section aria-label="Achivii at a glance" className="relative px-6 sm:px-10 lg:px-16">
       <div className="mx-auto w-full max-w-[1280px]">
-        <div className="flex flex-col gap-3 py-8 sm:flex-row sm:items-center sm:justify-between sm:py-10">
-          <p className="font-ui-mono text-[11px] uppercase tracking-[0.18em] text-achievement">A calmer way to make progress</p>
-          <p className="max-w-[34rem] text-sm leading-relaxed text-text-secondary sm:text-right">
-            Built for people with real calendars, changing energy, and one thing they genuinely want to finish.
+        <div className="grid gap-6 py-10 sm:grid-cols-[1fr_auto] sm:items-end sm:py-14">
+          <div>
+            <p className="font-ui-mono text-[11px] uppercase tracking-[0.18em] text-achievement">Progress, without the performance</p>
+            <h2 className="mt-4 max-w-[18ch] text-3xl font-medium leading-tight tracking-[-0.04em] text-text sm:text-4xl">
+              A quieter way to become who you said you would.
+            </h2>
+          </div>
+          <p className="max-w-[24rem] text-sm leading-relaxed text-text-secondary sm:text-right">
+            Built for real calendars, changing energy, and the one thing you genuinely want to finish.
           </p>
         </div>
         <div aria-hidden="true" className="gold-hairline" />
