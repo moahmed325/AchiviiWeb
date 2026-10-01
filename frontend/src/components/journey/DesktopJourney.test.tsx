@@ -176,6 +176,33 @@ describe('Desktop Journey Composition (M6.3)', () => {
       expect(screen.getByText('Sub-50 10K Finisher')).toBeInTheDocument();
     });
 
+    it('reveals phase milestones on demand while keeping the active phase open by default', () => {
+      const goal: Goal = {
+        ...baseGoal,
+        roadmap: roadmap3Phases,
+        currentWeek: 2,
+      };
+      const journey = toJourneyData(goal);
+      expect(journey).not.toBeNull();
+
+      render(
+        <MemoryRouter>
+          <DesktopStaircase journey={journey!} />
+        </MemoryRouter>
+      );
+
+      const phase1 = screen.getByRole('button', { name: /Aerobic Foundation/i });
+      const phase2 = screen.getByRole('button', { name: /Anaerobic Development/i });
+      expect(phase1).toHaveAttribute('aria-expanded', 'true');
+      expect(phase2).toHaveAttribute('aria-expanded', 'false');
+
+      expect(screen.getByText('W1')).toBeInTheDocument();
+      fireEvent.click(phase2);
+      expect(phase2).toHaveAttribute('aria-expanded', 'true');
+      fireEvent.click(phase1);
+      expect(phase1).toHaveAttribute('aria-expanded', 'false');
+    });
+
     it('renders exactly 2 phase landings for a 2-phase v2 goal', () => {
       const roadmap2Phases: GoalRoadmap = {
         finalGoal: 'Sub-50 10K',

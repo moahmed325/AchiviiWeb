@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Check,
   Circle,
@@ -17,6 +17,18 @@ export interface DesktopStaircaseProps {
 
 export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) => {
   const { phases, closingStretch, metrics } = journey;
+  const [expandedPhases, setExpandedPhases] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    phases.forEach((phase) => {
+      initial[phase.id] = phase.status === 'active';
+    });
+    return initial;
+  });
+
+  const togglePhase = (phaseId: string) => {
+    setExpandedPhases((prev) => ({ ...prev, [phaseId]: !prev[phaseId] }));
+  };
+
   const activePhase = phases.find((p) => p.status === 'active') || phases[phases.length - 1];
   const activeWeek = activePhase?.weeks.find((w) => w.isCurrentWeek) || activePhase?.weeks[0];
 
@@ -81,6 +93,7 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
           {phases.map((phase: JourneyPhase, index: number) => {
             const isPhaseCompleted = phase.status === 'completed';
             const isPhaseActive = phase.status === 'active';
+            const isExpanded = Boolean(expandedPhases[phase.id]);
 
             return (
               <div
@@ -94,8 +107,14 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
                     : 'bg-surface/60 border-border/70'
                 }`}
               >
-                {/* Landing Header */}
-                <div className="space-y-2">
+                {/* Landing Header — summary stays visible; milestone detail is on demand */}
+                <button
+                  type="button"
+                  onClick={() => togglePhase(phase.id)}
+                  aria-expanded={isExpanded}
+                  aria-controls={`staircase-phase-${phase.id}`}
+                  className="w-full text-left space-y-2 rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-micro font-ui-mono uppercase tracking-wider text-text-secondary">
                       Landing {phase.index} · {phase.weeksLabel}
@@ -127,10 +146,20 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
                       {phase.purpose}
                     </p>
                   )}
-                </div>
+                  <span className="inline-flex items-center gap-1 text-micro font-ui-mono text-text-secondary pt-1">
+                    <span>{isExpanded ? 'Hide weekly milestones' : 'View weekly milestones'}</span>
+                    <ChevronRight className={`size-3 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} aria-hidden="true" />
+                  </span>
+                </button>
 
-                {/* Milestone Nodes in Phase */}
-                <div className="mt-4 pt-3 border-t border-border/80 space-y-2">
+                {/* Milestone Nodes in Phase — explicit progressive depth */}
+                <div
+                  id={`staircase-phase-${phase.id}`}
+                  className={`journey-accordion-content ${isExpanded ? 'is-open' : 'is-closed'}`}
+                  data-state={isExpanded ? 'open' : 'closed'}
+                  aria-hidden={!isExpanded}
+                >
+                  <div className="mt-4 pt-3 border-t border-border/80 space-y-2">
                   <div className="text-[10px] font-ui-mono uppercase tracking-wider text-text-secondary">
                     Weekly Milestones (◆)
                   </div>
@@ -163,6 +192,7 @@ export const DesktopStaircase: React.FC<DesktopStaircaseProps> = ({ journey }) =
                         </div>
                       );
                     })}
+                  </div>
                   </div>
                 </div>
               </div>
