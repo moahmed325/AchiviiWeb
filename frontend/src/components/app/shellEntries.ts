@@ -19,6 +19,7 @@ export function shellMode(pathname: string, signedIn: boolean, previewPath?: str
 }
 
 export interface ShellEntries {
+  dashboardActive: boolean;
   todayActive: boolean;
   roadmapActive: boolean;
   /** Roadmap needs an active goal; without one ProtectedRoute would send it to onboarding, so it leads nowhere real. */
@@ -31,6 +32,7 @@ export interface ShellEntries {
 /** Today is active on `/` and `/achievement` (OD-3, M9.3). */
 export function shellEntries(pathname: string, hasGoal: boolean): ShellEntries {
   return {
+    dashboardActive: pathname === '/dashboard',
     todayActive: pathname === '/' || pathname === '/achievement',
     roadmapActive: pathname === '/roadmap',
     showRoadmap: hasGoal,

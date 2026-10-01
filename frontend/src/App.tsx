@@ -5,6 +5,7 @@ import { GoalProvider } from './context/GoalContext';
 import { AppShell } from './components/app/AppShell';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Home } from './pages/Home';
+import { Dashboard } from './pages/Dashboard';
 
 /* Route-level code-splitting for secondary flows (M12.5) to keep initial bundle lean. */
 const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
@@ -26,10 +27,7 @@ const CheckoutReturnPage = React.lazy(() => import('./pages/CheckoutReturnPage')
 const LegalPage = React.lazy(() => import('./pages/LegalPage'));
 
 
-export const DashboardRedirect: React.FC = () => {
-  const location = useLocation();
-  return <Navigate to={{ pathname: '/', search: location.search, hash: location.hash }} replace />;
-};
+export const DashboardRedirect: React.FC = () => { const location = useLocation(); return <Navigate to={{ pathname: '/', search: location.search, hash: location.hash }} replace />; };
 
 export const App: React.FC = () => {
   return (
@@ -70,8 +68,15 @@ export const App: React.FC = () => {
                 }
               />
 
-              {/* Legacy dashboard route redirects to / preserving query and hash (OD-3) */}
-              <Route path="/dashboard" element={<DashboardRedirect />} />
+              {/* Dashboard: the user's home base, separate from daily execution. */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute requireGoal={true}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Dedicated 90-Day Roadmap (Protected, requires active plan) */}
               <Route

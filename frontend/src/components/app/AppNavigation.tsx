@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Award, CircleUser, Compass, Map as MapIcon, Sparkles, Sun, TrendingUp, type LucideIcon } from 'lucide-react';
+import { Award, CircleUser, Compass, LayoutDashboard, Map as MapIcon, Sparkles, Sun, TrendingUp, type LucideIcon } from 'lucide-react';
 import { useGoal } from '../../context/GoalContext';
 import { cx } from '../ui';
 import { Wordmark } from '../marketing/Wordmark';
@@ -37,7 +37,7 @@ const RailIcon: React.FC<{ icon: LucideIcon; active?: boolean }> = ({ icon: Icon
 
 /** Desktop (lg and up): a restrained left rail. Today, Roadmap, Pathways, then Account at the bottom (ND-7). */
 export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCoach }) => {
-  const { todayActive, roadmapActive, showRoadmap, progressActive, showProgress, offline, isCompleted } = useEntries();
+  const { dashboardActive, todayActive, roadmapActive, showRoadmap, progressActive, showProgress, offline, isCompleted } = useEntries();
 
   return (
     <div
@@ -49,6 +49,12 @@ export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCo
       </Link>
       <nav aria-label="Primary" className="mt-8 flex min-h-0 flex-1 flex-col">
         <ul className="flex flex-col gap-1">
+          <li>
+            <Link to="/dashboard" aria-current={dashboardActive ? 'page' : undefined} className={railItem(dashboardActive)}>
+              <RailIcon icon={LayoutDashboard} active={dashboardActive} />
+              Dashboard
+            </Link>
+          </li>
           <li>
             <Link to={isCompleted ? '/achievement' : '/'} aria-current={todayActive ? 'page' : undefined} className={railItem(todayActive)}>
               <RailIcon icon={isCompleted ? Award : Sun} active={todayActive} />
@@ -113,7 +119,7 @@ const ActiveMark: React.FC = () => <span aria-hidden="true" className="absolute 
  * below every dialog, sheet and focus mode (z-40 under their z-50).
  */
 export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCoach }) => {
-  const { todayActive, roadmapActive, showRoadmap, progressActive, showProgress, offline, isCompleted } = useEntries();
+  const { dashboardActive, todayActive, roadmapActive, showRoadmap, progressActive, showProgress, offline, isCompleted } = useEntries();
 
   return (
     <>
@@ -128,6 +134,13 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
         )}
         <nav aria-label="Primary" className="mx-auto max-w-lg px-2">
           <ul className="flex">
+            <li className="min-w-0 flex-1">
+              <Link to="/dashboard" aria-current={dashboardActive ? 'page' : undefined} className={barItem(dashboardActive)}>
+                {dashboardActive && <ActiveMark />}
+                <BarIcon icon={LayoutDashboard} active={dashboardActive} />
+                <span className="truncate max-w-[56px] sm:max-w-none text-center">Home</span>
+              </Link>
+            </li>
             <li className="min-w-0 flex-1">
               <Link to={isCompleted ? '/achievement' : '/'} aria-current={todayActive ? 'page' : undefined} className={barItem(todayActive)}>
                 {todayActive && <ActiveMark />}
