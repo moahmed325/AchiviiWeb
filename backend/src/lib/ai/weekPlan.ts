@@ -101,6 +101,21 @@ const WEEK_SYSTEM = `You write one week of daily practice for a person following
 target are already decided. Do not change them. Every day must move the person toward this week's target.
 Respond with one JSON object that matches the schema.`;
 
+const challengeProperties = {
+  type: { type: 'string', enum: ['repetitions', 'active_recall', 'checklist', 'exercise'] },
+  drillName: { type: 'string' },
+  targetCount: { type: 'integer' },
+  totalSets: { type: 'integer' },
+  unit: { type: 'string' },
+  question: { type: 'string' },
+  hint: { type: 'string' },
+  keyTakeaway: { type: 'string' },
+  items: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, label: { type: 'string' } }, required: ['id', 'label'] } },
+  prompt: { type: 'string' },
+  targetDeliverable: { type: 'string' },
+  evaluationCriteria: { type: 'string' },
+};
+
 const stepProperties = {
   title: { type: 'string' },
   instructions: { type: 'string' },
@@ -109,6 +124,7 @@ const stepProperties = {
   doneWhen: { type: 'string' },
   focusCue: { type: 'string' },
   pitfall: { type: 'string' },
+  challenge: { type: 'object', properties: challengeProperties, required: ['type'] },
 };
 
 export const WEEK_RESPONSE_SCHEMA = {
@@ -212,6 +228,9 @@ WRITE THE WEEK
   - output: what they end up with
   - doneWhen: the check that it's good enough
   - focusCue and pitfall
+  - challenge: an interactive action for THIS step. Use repetitions for sets or attempts, active_recall for learning,
+    checklist for a multi-part build, or exercise for a concrete deliverable. Include the real action, not generic advice.
+    Different kinds of work should use different challenge types when appropriate.
   - priority: 1 = most important today, no ties
   - timing (optional): only when the step can't follow the previous one straight away
 - No two practice days are the same. Most practice days include doing the real thing, not only preparing for it.
@@ -231,6 +250,7 @@ interface RawStep {
   pitfall?: unknown;
   priority?: unknown;
   timing?: unknown;
+  challenge?: unknown;
 }
 
 interface RawDay {
@@ -267,6 +287,7 @@ function toStep(raw: RawStep, stepNumber: number): DetailedStep & { priority: nu
     passMark: text(raw.doneWhen),
     output: text(raw.output),
     ...(timing ? { timing } : {}),
+    ...(raw.challenge && typeof raw.challenge === 'object' ? { challenge: raw.challenge as DetailedStep['challenge'] } : {}),
     priority: int(raw.priority) ?? Number.MAX_SAFE_INTEGER,
   };
 }

@@ -5,7 +5,6 @@ import { FocusHeader } from './focus/FocusHeader';
 import { FocusTimer } from './focus/FocusTimer';
 import { FocusStepRunner } from './focus/FocusStepRunner';
 import { FocusCompletion } from './focus/FocusCompletion';
-import { Button } from './ui';
 
 export interface FocusSessionModalProps {
   task: DailyTask;
@@ -34,8 +33,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
 }) => {
   // Timer & UI State initialized cleanly on mount
   const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
-  const [hasStarted, setHasStarted] = useState<boolean>(false);
-  const [isActive, setIsActive] = useState<boolean>(false);
+  const [isActive, setIsActive] = useState<boolean>(true);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [isMinimumVersion, setIsMinimumVersion] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
@@ -62,11 +60,10 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     };
   }, []);
 
-  const startSession = useCallback(() => {
-    setHasStarted(true);
-    setIsActive(true);
+  // Opening the focus session IS the start action. There is no second confirmation screen.
+  useEffect(() => {
     playSessionStart(isMuted);
-  }, [isMuted]);
+  }, []);
 
   const triggerCompletion = useCallback(() => {
     setIsActive(false);
@@ -98,7 +95,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
 
   // Countdown timer loop
   useEffect(() => {
-    if (hasStarted && isActive && secondsRemaining > 0) {
+    if (isActive && secondsRemaining > 0) {
       timerRef.current = setInterval(() => {
         setSecondsRemaining((prev) => {
           if (prev <= 1) {
@@ -116,7 +113,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [hasStarted, isActive, secondsRemaining, triggerCompletion]);
+  }, [isActive, secondsRemaining, triggerCompletion]);
 
   // Global Keyboard Shortcuts (Space to play/pause, Esc to close) and Focus Trap
   useEffect(() => {
@@ -128,8 +125,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       if (e.code === 'Space' && !isInput) {
         e.preventDefault();
         if (!isCelebration) {
-          if (!hasStarted) startSession();
-          else setIsActive((prev) => !prev);
+          setIsActive((prev) => !prev);
         }
       } else if (e.code === 'Escape') {
         e.preventDefault();
@@ -155,7 +151,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasStarted, isCelebration, onClose, startSession]);
+  }, [isCelebration, onClose]);
 
   // Submit completion to backend
   const handleSaveAndExit = async () => {
@@ -203,24 +199,6 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       {/* Main Focus Stage */}
       <div className="w-full max-w-3xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-8 sm:py-10">
         {!isCelebration ? (
-          !hasStarted ? (
-            <section className="max-w-2xl mx-auto w-full text-center space-y-7">
-              <div className="space-y-4">
-                <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-achievement">Focus session</p>
-                <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text">{task.title}</h2>
-                {currentStep && <p className="text-base text-text-secondary max-w-xl mx-auto leading-relaxed">{currentStep.instructions}</p>}
-              </div>
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={startSession}
-                className="w-full max-w-md mx-auto min-h-[56px] text-base shadow-[0_14px_40px_rgba(199,167,92,0.2)]"
-              >
-                Start focused session
-              </Button>
-              <p className="text-micro text-text-secondary">Press Space to start</p>
-            </section>
-          ) : (
             <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-10">
               <FocusTimer
                 taskTitle={task.title}
@@ -251,7 +229,6 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
                 isMinimumVersion={isMinimumVersion}
               />
             </div>
-          )
         ) : (
           <FocusCompletion
             dayNumber={dayNumber}

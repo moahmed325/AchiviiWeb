@@ -24,25 +24,20 @@ describe('FocusSessionModal', () => {
     <FocusSessionModal task={task} dayNumber={3} isOpen onClose={onClose} onCompleteSession={onCompleteSession} />,
   );
 
-  it('renders a calm start state without starting the timer', () => {
+  it('starts the timer immediately when the focus session opens', () => {
     renderOpen();
     expect(screen.getByText('Focus')).toBeInTheDocument();
     expect(screen.getByText('Warm-up Run and Cadence Drills')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /start focused session/i })).toBeInTheDocument();
-    expect(playSessionStart).not.toHaveBeenCalled();
-  });
-
-  it('starts the timer only after the user starts', () => {
-    renderOpen();
-    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
     expect(screen.getByText('30:00')).toBeInTheDocument();
+    expect(screen.getByText('In flow')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+    expect(playSessionStart).toHaveBeenCalled();
     expect(screen.getByText('In flow')).toBeInTheDocument();
     expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
     expect(playSessionStart).toHaveBeenCalled();
   });
   it('counts down and supports pause/resume', () => {
     renderOpen();
-    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
     act(() => vi.advanceTimersByTime(3000));
     expect(screen.getByText('29:57')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /pause/i }));
@@ -55,7 +50,6 @@ describe('FocusSessionModal', () => {
 
   it('moves sequentially through steps and completes', () => {
     renderOpen();
-    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     expect(playStepTransition).toHaveBeenCalled();
     expect(screen.getByText('Cadence Drills')).toBeInTheDocument();
@@ -67,7 +61,6 @@ describe('FocusSessionModal', () => {
   it('offers the minimum version without adding another card or flow', () => {
     const task = { ...sampleTask, minimumVersion: { stepNumber: 1, title: '10-minute minimum', instructions: 'Do the simplest useful version.', durationMinutes: 10, focusCue: '', pitfallToAvoid: '' } };
     renderOpen(task);
-    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
     fireEvent.click(screen.getByRole('button', { name: /low energy/i }));
     expect(screen.getByText('Minimum version')).toBeInTheDocument();
     expect(screen.getByText('10-minute minimum')).toBeInTheDocument();
