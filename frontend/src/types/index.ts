@@ -143,15 +143,15 @@ export interface DailyTask {
   status: 'pending' | 'completed' | 'skipped';
   completedAt?: string;
   notes?: string;
+  /** v2: a 10-minute minimum version for low-time/low-energy days. */
+  minimumVersion?: DetailedStep | null;
+  isKeySession?: boolean;
+  isTestDay?: boolean;
+  whyToday?: string | null;
   resourceTitle?: string;
   resourceUrl?: string;
   resourceType?: ResourceType;
   resourceWhy?: string;
-  /** v2 goals only. */
-  isKeySession?: boolean;
-  isTestDay?: boolean;
-  whyToday?: string | null;
-  minimumVersion?: DetailedStep | null;
   created_at: string;
 }
 

@@ -6,11 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Lightbulb,
-  Sparkles,
-  Users,
   ShieldCheck,
-  PackageCheck,
-  Hourglass,
   Target,
   AlertTriangle,
 } from 'lucide-react';
@@ -28,6 +24,9 @@ interface FocusStepRunnerProps {
   onNextStep: () => void;
   onCompleteFallback: () => void;
   fallbackTitle: string;
+  minimumVersion?: DetailedStep | null;
+  onUseMinimumVersion: () => void;
+  isMinimumVersion: boolean;
 }
 
 export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
@@ -40,6 +39,9 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
   onNextStep,
   onCompleteFallback,
   fallbackTitle,
+  minimumVersion,
+  onUseMinimumVersion,
+  isMinimumVersion,
 }) => {
   if (!currentStep) {
     return (
@@ -78,73 +80,10 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           {currentStep.title}
         </h3>
 
-        {/* Evidence Layer Tag */}
-        {currentStep.layer && (() => {
-          const layerConfig =
-            currentStep.layer === 'mechanism'
-              ? {
-                  label: 'Science-backed',
-                  icon: <Sparkles className="size-3 text-accent shrink-0" />,
-                  disclaimer: 'Based on controlled scientific research (e.g. deliberate practice, spaced retrieval).',
-                }
-              : currentStep.layer === 'adherence'
-              ? {
-                  label: 'Proven in practice',
-                  icon: <Users className="size-3 text-accent shrink-0" />,
-                  disclaimer: 'Based on commonly reported real-world success patterns and habit stacking, not laboratory data.',
-                }
-              : {
-                  label: 'Expert guidance',
-                  icon: <ShieldCheck className="size-3 text-caution shrink-0" />,
-                  disclaimer: 'Based on professional practitioner sequencing to prevent injury, burnout, or strain.',
-                };
-
-          return (
-            <div className="flex flex-wrap items-center gap-2 pt-0.5">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-control text-micro font-medium bg-surface-elevated border border-border text-text-secondary group relative cursor-help">
-                {layerConfig.icon}
-                <span>{layerConfig.label}</span>
-                <span className="text-[10px] text-text-secondary group-hover:text-text transition-colors">ⓘ</span>
-
-                {/* Tooltip on hover */}
-                <div className="absolute left-0 bottom-full mb-1.5 hidden group-hover:block z-30 w-72 p-2.5 rounded-control bg-surface-elevated border border-border shadow-overlay text-micro text-text pointer-events-none leading-relaxed">
-                  <p className="font-semibold text-text mb-0.5 flex items-center gap-1.5">
-                    {layerConfig.icon}
-                    <span>{layerConfig.label}</span>
-                  </p>
-                  <p className="text-text-secondary">{layerConfig.disclaimer}</p>
-                </div>
-              </div>
-
-              {currentStep.layerReasoning && (
-                <span className="text-micro text-text-secondary italic">
-                  — {currentStep.layerReasoning}
-                </span>
-              )}
-            </div>
-          );
-        })()}
-
-        {currentStep.timing && (
-          <div className="flex items-center gap-1.5 text-micro font-medium text-caution">
-            <Hourglass className="size-3.5 shrink-0" />
-            <span>{currentStep.timing}</span>
-          </div>
-        )}
 
         <p className="text-small text-text-secondary leading-relaxed max-h-32 overflow-y-auto pr-1">
           {currentStep.instructions}
         </p>
-
-        {currentStep.output && (
-          <div className="flex items-start gap-2 text-small text-text-secondary">
-            <PackageCheck className="size-4 text-accent shrink-0 mt-0.5" />
-            <span>
-              <strong className="text-text font-medium">You'll have: </strong>
-              {currentStep.output}
-            </span>
-          </div>
-        )}
 
         {currentStep.passMark && (
           <div className="flex items-start gap-2 rounded-control border border-accent/30 bg-accent/10 px-3 py-2 text-small">
@@ -215,6 +154,18 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
         </div>
       )}
 
+      {minimumVersion && !isMinimumVersion && (
+        <div className="rounded-control border border-accent/30 bg-accent/5 px-3 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-small font-medium text-text">Short on time or energy?</p>
+            <p className="text-micro text-text-secondary mt-0.5">Do the 10-minute minimum version and keep the day moving.</p>
+          </div>
+          <Button variant="secondary" onClick={onUseMinimumVersion} className="min-h-[44px] shrink-0">
+            Do minimum version
+          </Button>
+        </div>
+      )}
+
       {/* Step Navigation Controls */}
       <footer className="pt-3 flex items-center justify-between border-t border-border">
         <Button
@@ -230,9 +181,9 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
         <Button
           variant="primary"
           onClick={onNextStep}
-          className="min-h-[44px]"
+          className="min-h-[48px] px-5 shadow-[0_10px_30px_rgba(199,167,92,0.16)]"
         >
-          <span>{currentStepIndex === totalSteps - 1 ? 'Complete Session' : 'Next Step'}</span>
+          <span>{isMinimumVersion ? 'Complete minimum session' : currentStepIndex === totalSteps - 1 ? 'Complete Session' : 'Next Step'}</span>
           <ArrowRight aria-hidden="true" className="size-4 ml-2" />
         </Button>
       </footer>

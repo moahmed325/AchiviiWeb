@@ -82,6 +82,10 @@ describe('FocusSessionModal', () => {
     expect(screen.getByText('Day 3 of 90 • Focus Mode')).toBeInTheDocument();
     expect(screen.getByText('30m deliberate practice')).toBeInTheDocument();
     expect(screen.getByText('Warm-up Run and Cadence Drills')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start focused session/i })).toBeInTheDocument();
+    expect(playSessionStart).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
     expect(screen.getByText('30:00')).toBeInTheDocument();
     expect(screen.getByText('In Flow')).toBeInTheDocument();
     expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
@@ -100,6 +104,7 @@ describe('FocusSessionModal', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
     expect(screen.getByText('30:00')).toBeInTheDocument();
     act(() => {
       vi.advanceTimersByTime(3000);
@@ -118,10 +123,12 @@ describe('FocusSessionModal', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+
     // Click pause button
     const pauseButton = screen.getByRole('button', { name: /pause/i });
     fireEvent.click(pauseButton);
-    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getAllByText('Paused').length).toBeGreaterThanOrEqual(1);
 
     act(() => {
       vi.advanceTimersByTime(5000);
@@ -149,6 +156,8 @@ describe('FocusSessionModal', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+
     act(() => {
       vi.advanceTimersByTime(10000);
     });
@@ -158,7 +167,7 @@ describe('FocusSessionModal', () => {
     fireEvent.click(resetButton);
 
     expect(screen.getByText('30:00')).toBeInTheDocument();
-    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getAllByText('Paused').length).toBeGreaterThanOrEqual(1);
   });
 
   it('navigates through steps and toggles tips', () => {
@@ -171,6 +180,8 @@ describe('FocusSessionModal', () => {
         onCompleteSession={vi.fn()}
       />,
     );
+
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
 
     // Tips toggle
     const tipsButton = screen.getByRole('button', { name: /view tips & guidance/i });
@@ -208,14 +219,16 @@ describe('FocusSessionModal', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+
     // Step 1 -> Step 2
     fireEvent.click(screen.getByRole('button', { name: /next step/i }));
     // Step 2 -> Complete Session
     fireEvent.click(screen.getByRole('button', { name: /complete session/i }));
 
     expect(playSessionComplete).toHaveBeenCalled();
-    expect(screen.getByText('Deliberate Practice Complete')).toBeInTheDocument();
-    expect(screen.getByText('Day 3 Mastered')).toBeInTheDocument();
+    expect(screen.getByText('Session complete')).toBeInTheDocument();
+    expect(screen.getByText('You did the work.')).toBeInTheDocument();
     expect(screen.getByText('30 min')).toBeInTheDocument();
     expect(screen.getByText('Day 3 / 90')).toBeInTheDocument();
   });
@@ -233,6 +246,8 @@ describe('FocusSessionModal', () => {
         onCompleteSession={onComplete}
       />,
     );
+
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
 
     // Move to celebration
     fireEvent.click(screen.getByRole('button', { name: /next step/i }));
@@ -265,6 +280,8 @@ describe('FocusSessionModal', () => {
         onCompleteSession={onComplete}
       />,
     );
+
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
 
     // Move to celebration
     fireEvent.click(screen.getByRole('button', { name: /next step/i }));
@@ -340,9 +357,11 @@ describe('FocusSessionModal', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+
     expect(screen.getByText(/focus on the primary deliberate practice outcome/i)).toBeInTheDocument();
     const completeButton = screen.getByRole('button', { name: /complete practice session/i });
     fireEvent.click(completeButton);
-    expect(screen.getByText('Deliberate Practice Complete')).toBeInTheDocument();
+    expect(screen.getByText('Session complete')).toBeInTheDocument();
   });
 });

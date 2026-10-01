@@ -3,25 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { FocusTimer } from './FocusTimer';
 
 describe('FocusTimer Component (M11.3)', () => {
-  const sampleSteps = [
-    {
-      stepNumber: 1,
-      title: 'Step 1',
-      instructions: 'Instructions 1',
-      durationMinutes: 10,
-      focusCue: 'Stay centered',
-      pitfallToAvoid: 'Rushing',
-    },
-    {
-      stepNumber: 2,
-      title: 'Step 2',
-      instructions: 'Instructions 2',
-      durationMinutes: 20,
-      focusCue: 'Keep pace',
-      pitfallToAvoid: 'Losing focus',
-    },
-  ];
-
   it('renders task title, formatted time, and hides desktop keyboard hint on mobile', () => {
     render(
       <FocusTimer
@@ -31,9 +12,8 @@ describe('FocusTimer Component (M11.3)', () => {
         isActive={true}
         onToggleActive={vi.fn()}
         onReset={vi.fn()}
-        steps={sampleSteps}
         currentStepIndex={0}
-        onSelectStep={vi.fn()}
+        totalSteps={2}
       />,
     );
 
@@ -41,10 +21,7 @@ describe('FocusTimer Component (M11.3)', () => {
     expect(screen.getByText('25:00')).toBeInTheDocument();
     expect(screen.getByText('In Flow')).toBeInTheDocument();
 
-    // Check keyboard hint contains hidden sm:block
-    const hint = screen.getByText(/Press/i);
-    expect(hint).toHaveClass('hidden');
-    expect(hint).toHaveClass('sm:block');
+    expect(screen.getByText(/Step 1 of 2/i)).toBeInTheDocument();
   });
 
   it('handles pause/resume button clicks', () => {
@@ -57,9 +34,8 @@ describe('FocusTimer Component (M11.3)', () => {
         isActive={true}
         onToggleActive={handleToggle}
         onReset={vi.fn()}
-        steps={sampleSteps}
         currentStepIndex={0}
-        onSelectStep={vi.fn()}
+        totalSteps={2}
       />,
     );
 
@@ -78,13 +54,12 @@ describe('FocusTimer Component (M11.3)', () => {
         isActive={false}
         onToggleActive={vi.fn()}
         onReset={handleReset}
-        steps={sampleSteps}
         currentStepIndex={0}
-        onSelectStep={vi.fn()}
+        totalSteps={2}
       />,
     );
 
-    expect(screen.getByText('Paused')).toBeInTheDocument();
+    expect(screen.getAllByText('Paused').length).toBeGreaterThanOrEqual(1);
     const resetBtn = screen.getByRole('button', { name: /reset/i });
     fireEvent.click(resetBtn);
     expect(handleReset).toHaveBeenCalledTimes(1);

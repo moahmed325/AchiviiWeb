@@ -5,6 +5,7 @@ import { FocusHeader } from './focus/FocusHeader';
 import { FocusTimer } from './focus/FocusTimer';
 import { FocusStepRunner } from './focus/FocusStepRunner';
 import { FocusCompletion } from './focus/FocusCompletion';
+import { Button } from './ui';
 
 export interface FocusSessionModalProps {
   task: DailyTask;
@@ -33,8 +34,10 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
 }) => {
   // Timer & UI State initialized cleanly on mount
   const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
-  const [isActive, setIsActive] = useState<boolean>(true);
+  const [hasStarted, setHasStarted] = useState<boolean>(false);
+  const [isActive, setIsActive] = useState<boolean>(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [isMinimumVersion, setIsMinimumVersion] = useState<boolean>(false);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isCelebration, setIsCelebration] = useState<boolean>(false);
   const [showTips, setShowTips] = useState<boolean>(false);
@@ -51,8 +54,6 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    playSessionStart(false);
-
     return () => {
       document.body.style.overflow = originalOverflow;
       if (previousActiveElement) {
@@ -60,6 +61,12 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       }
     };
   }, []);
+
+  const startSession = useCallback(() => {
+    setHasStarted(true);
+    setIsActive(true);
+    playSessionStart(isMuted);
+  }, [isMuted]);
 
   const triggerCompletion = useCallback(() => {
     setIsActive(false);
@@ -69,6 +76,10 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
 
   // Step transitions
   const handleNextStep = useCallback(() => {
+    if (isMinimumVersion) {
+      triggerCompletion();
+      return;
+    }
     if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex((prev) => prev + 1);
       setShowTips(false);
@@ -76,7 +87,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     } else {
       triggerCompletion();
     }
-  }, [currentStepIndex, steps.length, isMuted, triggerCompletion]);
+  }, [currentStepIndex, steps.length, isMuted, isMinimumVersion, triggerCompletion]);
 
   const handlePrevStep = useCallback(() => {
     if (currentStepIndex > 0) {
@@ -85,15 +96,6 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     }
   }, [currentStepIndex]);
 
-  const handleSelectStep = useCallback(
-    (idx: number) => {
-      setCurrentStepIndex(idx);
-      setShowTips(false);
-      playStepTransition(isMuted);
-    },
-    [isMuted],
-  );
-
   const handleReset = useCallback(() => {
     setSecondsRemaining(totalDurationSeconds);
     setIsActive(false);
@@ -101,7 +103,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
 
   // Countdown timer loop
   useEffect(() => {
-    if (isActive && secondsRemaining > 0) {
+    if (hasStarted && isActive && secondsRemaining > 0) {
       timerRef.current = setInterval(() => {
         setSecondsRemaining((prev) => {
           if (prev <= 1) {
@@ -119,7 +121,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isActive, secondsRemaining, triggerCompletion]);
+  }, [hasStarted, isActive, secondsRemaining, triggerCompletion]);
 
   // Global Keyboard Shortcuts (Space to play/pause, Esc to close) and Focus Trap
   useEffect(() => {
@@ -131,7 +133,8 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       if (e.code === 'Space' && !isInput) {
         e.preventDefault();
         if (!isCelebration) {
-          setIsActive((prev) => !prev);
+          if (!hasStarted) startSession();
+          else setIsActive((prev) => !prev);
         }
       } else if (e.code === 'Escape') {
         e.preventDefault();
@@ -157,7 +160,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isCelebration, onClose]);
+  }, [hasStarted, isCelebration, onClose, startSession]);
 
   // Submit completion to backend
   const handleSaveAndExit = async () => {
@@ -177,7 +180,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     }
   };
 
-  const currentStep = steps[currentStepIndex];
+  const currentStep = isMinimumVersion ? task.minimumVersion ?? undefined : steps[currentStepIndex];
 
   return (
     <div
@@ -203,11 +206,39 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       />
 
       {/* Main Focus Stage */}
-      <div className="w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-4 sm:py-6 landscape:py-2">
+      <div className="w-full max-w-4xl mx-auto flex-1 flex flex-col justify-center min-h-0 z-10 py-6 sm:py-8">
         {!isCelebration ? (
-          <div className="grid grid-cols-1 md:grid-cols-12 landscape:grid-cols-12 gap-6 lg:gap-10 landscape:gap-4 items-center w-full min-h-0">
-            {/* Left Column: Timer Hub */}
-            <div className="md:col-span-5 landscape:col-span-5">
+          !hasStarted ? (
+            <section className="max-w-2xl mx-auto w-full text-center space-y-7">
+              <div className="mx-auto size-16 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-center shadow-[0_12px_40px_rgba(199,167,92,0.12)]">
+                <span className="size-3 rounded-full bg-accent shadow-[0_0_24px_rgba(199,167,92,0.55)]" />
+              </div>
+              <div className="space-y-3">
+                <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-accent">You are in focus mode</p>
+                <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text">{task.title}</h2>
+                <p className="text-base sm:text-lg text-text-secondary max-w-xl mx-auto leading-relaxed">
+                  For the next {task.durationMinutes || 30} minutes, you only need to do the work in front of you.
+                </p>
+              </div>
+              {currentStep && (
+                <div className="rounded-2xl border border-accent/25 bg-surface/80 px-5 py-4 text-left shadow-raised">
+                  <p className="text-micro font-ui-mono uppercase tracking-wider text-text-secondary">First up</p>
+                  <p className="mt-1 text-lg font-medium text-text">{currentStep.title}</p>
+                  <p className="mt-1 text-small text-text-secondary line-clamp-2">{currentStep.instructions}</p>
+                </div>
+              )}
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={startSession}
+                className="w-full max-w-md mx-auto min-h-[56px] text-base shadow-[0_14px_40px_rgba(199,167,92,0.2)]"
+              >
+                Start focused session
+              </Button>
+              <p className="text-micro text-text-secondary">Space to start · Esc to leave</p>
+            </section>
+          ) : (
+            <div className="space-y-6 w-full">
               <FocusTimer
                 taskTitle={task.title}
                 secondsRemaining={secondsRemaining}
@@ -215,14 +246,10 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
                 isActive={isActive}
                 onToggleActive={() => setIsActive(!isActive)}
                 onReset={handleReset}
-                steps={steps}
                 currentStepIndex={currentStepIndex}
-                onSelectStep={handleSelectStep}
+                totalSteps={steps.length}
               />
-            </div>
 
-            {/* Right Column: Deliberate Practice Step Runner */}
-            <div className="md:col-span-7 landscape:col-span-7">
               <FocusStepRunner
                 currentStep={currentStep}
                 currentStepIndex={currentStepIndex}
@@ -233,14 +260,21 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
                 onNextStep={handleNextStep}
                 onCompleteFallback={triggerCompletion}
                 fallbackTitle={task.title}
+                minimumVersion={task.minimumVersion}
+                onUseMinimumVersion={() => {
+                  setIsMinimumVersion(true);
+                  setIsActive(true);
+                  setShowTips(false);
+                }}
+                isMinimumVersion={isMinimumVersion}
               />
             </div>
-          </div>
+          )
         ) : (
-          /* Post-Session Completion Screen */
           <FocusCompletion
             dayNumber={dayNumber}
             durationMinutes={task.durationMinutes || 30}
+            isMinimumVersion={isMinimumVersion}
             reflectionNote={reflectionNote}
             onReflectionChange={setReflectionNote}
             onSave={handleSaveAndExit}

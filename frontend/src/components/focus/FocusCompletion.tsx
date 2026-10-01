@@ -5,6 +5,7 @@ import { Button, Badge, Field, Textarea } from '../ui';
 interface FocusCompletionProps {
   dayNumber: number;
   durationMinutes: number;
+  isMinimumVersion?: boolean;
   reflectionNote: string;
   onReflectionChange: (val: string) => void;
   onSave: () => void;
@@ -15,6 +16,7 @@ interface FocusCompletionProps {
 export const FocusCompletion: React.FC<FocusCompletionProps> = ({
   dayNumber,
   durationMinutes,
+  isMinimumVersion = false,
   reflectionNote,
   onReflectionChange,
   onSave,
@@ -34,13 +36,15 @@ export const FocusCompletion: React.FC<FocusCompletionProps> = ({
       <div className="space-y-1.5">
         <Badge tone="accent" className="mx-auto">
           <Sparkles className="size-3 mr-1.5" />
-          <span>Deliberate Practice Complete</span>
+          <span>{isMinimumVersion ? 'Minimum version complete' : 'Session complete'}</span>
         </Badge>
         <h2 className="text-h2 font-semibold text-text tracking-tight">
-          Day {dayNumber} Mastered
+          You did the work.
         </h2>
         <p className="text-small text-text-secondary">
-          You showed up and executed your session. Another day closer to 90-day mastery.
+          {isMinimumVersion
+            ? 'You protected the habit with the minimum version. That still counts as moving the goal forward.'
+            : 'The session is done. Take a moment to capture what you learned before you return to your day.'}
         </p>
       </div>
 

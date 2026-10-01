@@ -1,7 +1,6 @@
 import React from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { Button, IconButton } from '../ui';
-import type { DetailedStep } from '../../types';
 
 interface FocusTimerProps {
   taskTitle: string;
@@ -10,9 +9,8 @@ interface FocusTimerProps {
   isActive: boolean;
   onToggleActive: () => void;
   onReset: () => void;
-  steps: DetailedStep[];
   currentStepIndex: number;
-  onSelectStep: (index: number) => void;
+  totalSteps: number;
 }
 
 export const FocusTimer: React.FC<FocusTimerProps> = ({
@@ -22,9 +20,8 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
   isActive,
   onToggleActive,
   onReset,
-  steps,
   currentStepIndex,
-  onSelectStep,
+  totalSteps,
 }) => {
   const minutes = Math.floor(secondsRemaining / 60);
   const seconds = secondsRemaining % 60;
@@ -38,12 +35,13 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
   return (
     <section aria-label="Focus timer and session controls" className="flex flex-col items-center text-center space-y-4">
       {/* Task Title & Keyboard Hint */}
-      <div className="space-y-1.5 max-w-sm">
-        <h2 className="text-h3 font-medium tracking-tight text-text line-clamp-2 leading-snug">
+      <div className="space-y-2 max-w-xl">
+        <span className="text-micro font-ui-mono uppercase tracking-[0.18em] text-accent">{isActive ? 'In progress' : 'Paused'}</span>
+        <h2 className="text-h2 sm:text-3xl font-semibold tracking-tight text-text line-clamp-2 leading-tight">
           {taskTitle}
         </h2>
-        <p className="hidden sm:block text-micro text-text-secondary font-ui-mono">
-          Press <kbd className="px-1.5 py-0.5 rounded-control bg-surface border border-border text-text-secondary">Space</kbd> to {isActive ? 'pause' : 'resume'}
+        <p className="text-small text-text-secondary">
+          Step {Math.min(currentStepIndex + 1, totalSteps)} of {totalSteps || 1} · Keep your attention on the step in front of you.
         </p>
       </div>
 
@@ -126,32 +124,16 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
         />
       </div>
 
-      {/* Horizontal Step Indicator Pills */}
-      {steps.length > 0 && (
-        <nav aria-label="Step navigation" className="flex flex-wrap items-center justify-center gap-1 pt-1">
-          {steps.map((step, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => onSelectStep(idx)}
-              title={`Step ${idx + 1}: ${step.title || ''}`}
-              aria-label={`Step ${idx + 1}: ${step.title || ''}`}
-              aria-current={idx === currentStepIndex ? 'step' : undefined}
-              className="min-h-[44px] min-w-[28px] flex items-center justify-center p-1.5 cursor-pointer focus-ring rounded-control"
-            >
-              <span
-                className={`h-2 rounded-full transition-all ${
-                  idx === currentStepIndex
-                    ? 'w-8 bg-accent'
-                    : idx < currentStepIndex
-                    ? 'w-3.5 bg-accent/40'
-                    : 'w-3.5 bg-border-control'
-                }`}
-              />
-            </button>
-          ))}
-        </nav>
-      )}
+      <div className="flex items-center gap-2 text-micro font-ui-mono text-text-secondary">
+        {Array.from({ length: Math.max(totalSteps, 1) }).map((_, idx) => (
+          <span
+            key={idx}
+            className={`h-1.5 rounded-full transition-all ${idx <= currentStepIndex ? 'w-7 bg-accent' : 'w-4 bg-border-control'}`}
+            aria-hidden="true"
+          />
+        ))}
+        <span className="ml-1">{Math.min(currentStepIndex + 1, totalSteps || 1)}/{totalSteps || 1}</span>
+      </div>
     </section>
   );
 };
