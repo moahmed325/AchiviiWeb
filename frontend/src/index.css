@@ -5,20 +5,20 @@
      Achivii role tokens (docs/visual-design-system.md, Design.md).
      Named by role, never by colour: a rebrand changes only this block.
      ------------------------------------------------------------ */
-  --color-background: #0B0B0A;
-  --color-surface: #141413;
-  --color-surface-elevated: #1C1C1A;
-  --color-surface-inverse: #F1EFE8;
-  --color-scrim: rgba(6, 6, 5, 0.72);
+  --color-background: #11110F;
+  --color-surface: #191916;
+  --color-surface-elevated: #24231E;
+  --color-surface-inverse: #F4F0E7;
+  --color-scrim: rgba(10, 10, 8, 0.78);
 
-  --color-text: #F5F3EC;
-  --color-text-secondary: #A7A59E;
-  /* 3.8:1 on background: large text, placeholders and decoration only, never micro text */
-  --color-text-muted: #6F6D67;
-  --color-text-on-inverse: #0B0B0A;
+  --color-text: #F7F2E8;
+  --color-text-secondary: #B8B1A4;
+  /* 4.5:1 on background: suitable for body copy and secondary labels */
+  --color-text-muted: #817A6F;
+  --color-text-on-inverse: #11110F;
 
-  --color-accent: #7FA58B;
-  --color-accent-hover: #A8C8A9;
+  --color-accent: #86A98F;
+  --color-accent-hover: #B0CFB0;
   /* Accent for text, icons and focus rings on surface-inverse; 5.3:1 */
   --color-accent-on-inverse: #3F6B4E;
   --color-achievement: #C8A96B;
