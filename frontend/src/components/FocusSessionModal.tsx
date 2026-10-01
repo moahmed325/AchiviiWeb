@@ -210,23 +210,11 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
         {!isCelebration ? (
           !hasStarted ? (
             <section className="max-w-2xl mx-auto w-full text-center space-y-7">
-              <div className="mx-auto size-16 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-center shadow-[0_12px_40px_rgba(199,167,92,0.12)]">
-                <span className="size-3 rounded-full bg-accent shadow-[0_0_24px_rgba(199,167,92,0.55)]" />
-              </div>
-              <div className="space-y-3">
-                <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-accent">You are in focus mode</p>
+              <div className="space-y-4">
+                <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-accent">Focus mode</p>
                 <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text">{task.title}</h2>
-                <p className="text-base sm:text-lg text-text-secondary max-w-xl mx-auto leading-relaxed">
-                  For the next {task.durationMinutes || 30} minutes, you only need to do the work in front of you.
-                </p>
+                {currentStep && <p className="text-base text-text-secondary max-w-xl mx-auto leading-relaxed">{currentStep.instructions}</p>}
               </div>
-              {currentStep && (
-                <div className="rounded-2xl border border-accent/25 bg-surface/80 px-5 py-4 text-left shadow-raised">
-                  <p className="text-micro font-ui-mono uppercase tracking-wider text-text-secondary">First up</p>
-                  <p className="mt-1 text-lg font-medium text-text">{currentStep.title}</p>
-                  <p className="mt-1 text-small text-text-secondary line-clamp-2">{currentStep.instructions}</p>
-                </div>
-              )}
               <Button
                 variant="primary"
                 size="lg"
@@ -235,7 +223,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
               >
                 Start focused session
               </Button>
-              <p className="text-micro text-text-secondary">Space to start · Esc to leave</p>
+              <p className="text-micro text-text-secondary">Space to start</p>
             </section>
           ) : (
             <div className="space-y-6 w-full">
@@ -284,11 +272,6 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
         )}
       </div>
 
-      {/* Footer Brand Line */}
-      <footer className="w-full max-w-6xl mx-auto flex items-center justify-between text-micro font-ui-mono text-text-secondary shrink-0 pt-2 border-t border-border z-10">
-        <span>ACHIVII FLOW ENGINE</span>
-        <span>ZERO DISTRACTION MODE</span>
-      </footer>
     </div>
   );
 };

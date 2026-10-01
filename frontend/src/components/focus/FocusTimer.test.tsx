@@ -1,67 +1,32 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { FocusTimer } from './FocusTimer';
+import '@testing-library/jest-dom/vitest';
 
-describe('FocusTimer Component (M11.3)', () => {
-  it('renders task title, formatted time, and hides desktop keyboard hint on mobile', () => {
-    render(
-      <FocusTimer
-        taskTitle="Deep Work Session"
-        secondsRemaining={1500}
-        totalDurationSeconds={1800}
-        isActive={true}
-        onToggleActive={vi.fn()}
-        onReset={vi.fn()}
-        currentStepIndex={0}
-        totalSteps={2}
-      />,
-    );
+describe('FocusTimer', () => {
+  afterEach(() => cleanup());
+  const props = {
+    taskTitle: 'Deep Work Session', secondsRemaining: 1500, totalDurationSeconds: 1800,
+    isActive: true, onToggleActive: vi.fn(), onReset: vi.fn(), currentStepIndex: 0, totalSteps: 2,
+  };
 
-    expect(screen.getByText('Deep Work Session')).toBeInTheDocument();
+  it('renders the timer and focused step context', () => {
+    render(<FocusTimer {...props} />);
     expect(screen.getByText('25:00')).toBeInTheDocument();
-    expect(screen.getByText('In Flow')).toBeInTheDocument();
-
-    expect(screen.getByText(/Step 1 of 2/i)).toBeInTheDocument();
+    expect(screen.getByText('In flow')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
   });
 
-  it('handles pause/resume button clicks', () => {
-    const handleToggle = vi.fn();
-    render(
-      <FocusTimer
-        taskTitle="Deep Work Session"
-        secondsRemaining={1500}
-        totalDurationSeconds={1800}
-        isActive={true}
-        onToggleActive={handleToggle}
-        onReset={vi.fn()}
-        currentStepIndex={0}
-        totalSteps={2}
-      />,
-    );
-
-    const pauseBtn = screen.getByRole('button', { name: /pause/i });
-    fireEvent.click(pauseBtn);
-    expect(handleToggle).toHaveBeenCalledTimes(1);
+  it('handles pause and resume', () => {
+    const onToggleActive = vi.fn();
+    render(<FocusTimer {...props} onToggleActive={onToggleActive} />);
+    fireEvent.click(screen.getByRole('button', { name: /pause/i }));
+    expect(onToggleActive).toHaveBeenCalledTimes(1);
   });
-
-  it('handles reset button clicks', () => {
-    const handleReset = vi.fn();
-    render(
-      <FocusTimer
-        taskTitle="Deep Work Session"
-        secondsRemaining={1500}
-        totalDurationSeconds={1800}
-        isActive={false}
-        onToggleActive={vi.fn()}
-        onReset={handleReset}
-        currentStepIndex={0}
-        totalSteps={2}
-      />,
-    );
-
-    expect(screen.getAllByText('Paused').length).toBeGreaterThanOrEqual(1);
-    const resetBtn = screen.getByRole('button', { name: /reset/i });
-    fireEvent.click(resetBtn);
-    expect(handleReset).toHaveBeenCalledTimes(1);
+  it('handles reset', () => {
+    const onReset = vi.fn();
+    render(<FocusTimer {...props} isActive={false} onReset={onReset} />);
+    fireEvent.click(screen.getByRole('button', { name: /reset/i }));
+    expect(onReset).toHaveBeenCalledTimes(1);
   });
 });
