@@ -252,16 +252,16 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
       <header className="relative isolate overflow-hidden rounded-[2rem] border border-[#C9A227]/25 bg-surface px-6 py-6 shadow-[0_18px_55px_-30px_rgba(201,162,39,0.65)] sm:px-8 sm:py-8">
         <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-28 size-72 rounded-full bg-[#C9A227]/12 blur-3xl" />
         <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 left-1/3 size-44 rounded-full bg-[#C9A227]/8 blur-3xl" />
-        <div className="relative flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2"><span className="size-2 rounded-full bg-[#C9A227] shadow-[0_0_14px_rgba(201,162,39,0.9)]" /><Eyebrow className="text-[#C9A227]">Today</Eyebrow></div>
-          <span className="hidden rounded-full border border-[#C9A227]/20 bg-[#C9A227]/[0.07] px-3 py-1 font-ui-mono text-[10px] uppercase tracking-wider text-[#C9A227] sm:inline-flex">{week?.phase || 'Your journey'}</span>
+        <div className="relative flex items-center gap-2">
+          <span className="size-2 rounded-full bg-[#C9A227] shadow-[0_0_14px_rgba(201,162,39,0.9)]" />
+          <Eyebrow className="text-[#C9A227]">Today</Eyebrow>
         </div>
         <div className="flex items-start justify-between gap-5">
           <div className="min-w-0">
             <h1 className="max-w-2xl break-words text-h2 font-medium tracking-tight text-text sm:text-h1">{task?.title || 'Your next step'}</h1>
             {task?.whyToday?.trim() && <p className="mt-3 max-w-xl text-small leading-6 text-text-secondary">{task.whyToday}</p>}
           </div>
-          <div className="hidden shrink-0 rounded-2xl border border-[#C9A227]/25 bg-[#C9A227]/[0.08] px-4 py-3 text-right shadow-[inset_0_0_24px_rgba(201,162,39,0.08)] sm:block"><p className="font-ui-mono text-micro uppercase text-[#C9A227]">Day</p><p className="mt-0.5 tabular text-h3 font-medium text-text">{day}<span className="text-small text-text-secondary"> / 90</span></p><div className="mt-2 h-1 w-16 overflow-hidden rounded-full bg-[#C9A227]/15"><div className="h-full rounded-full bg-[#C9A227]" style={{ width: `${Math.min(100, (day / 90) * 100)}%` }} /></div></div>
+          <div className="hidden shrink-0 rounded-2xl border border-[#C9A227]/25 bg-[#C9A227]/[0.08] px-4 py-3 text-right shadow-[inset_0_0_24px_rgba(201,162,39,0.08)] sm:block"><p className="font-ui-mono text-micro uppercase text-[#C9A227]">Day</p><p className="mt-0.5 tabular text-h3 font-medium text-text">{day}<span className="text-small text-text-secondary"> / 90</span></p></div>
         </div>
       </header>
 
@@ -276,15 +276,15 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
       {reviewDue && <section className="mt-8 rounded-2xl border border-[#C9A227]/30 bg-gradient-to-br from-[#C9A227]/10 via-surface to-surface p-5"><p className="font-ui-mono text-micro uppercase text-[#C9A227]">Week complete</p><div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-small text-text-secondary">Your weekly review is ready.</p><Button type="button" variant="primary" onClick={() => setReviewOpen(true)}>Review week</Button></div></section>}
 
       {isClosingStretch ? <div className="mt-8"><ClosingStretchView goal={goal} apiStatus={apiStatus} /></div> : (
-        <section aria-labelledby="step-heading" className={cx('relative mt-7 overflow-hidden rounded-[2rem] border p-6 shadow-[0_18px_50px_-36px_rgba(0,0,0,0.45)] sm:p-8 before:absolute before:left-0 before:right-0 before:top-0 before:h-1', done ? 'border-[#C9A227]/40 bg-gradient-to-br from-[#C9A227]/[0.12] via-surface to-surface before:bg-[#C9A227]' : 'border-border bg-surface before:bg-gradient-to-r before:from-[#C9A227] before:via-[#C9A227]/30 before:to-transparent')}>
+        <section aria-labelledby="step-heading" className={cx('relative mt-7 overflow-hidden rounded-[2rem] border p-6 shadow-sm sm:p-8 before:absolute before:left-0 before:right-0 before:top-0 before:h-1', done ? 'border-[#C9A227]/35 bg-gradient-to-br from-[#C9A227]/[0.09] via-surface to-surface before:bg-[#C9A227]' : 'border-border bg-surface before:bg-border')}>
           {task ? <>
-            <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-[#C9A227]" /><Eyebrow>{task.isRestDay ? "Today's rest" : "Today's focus"}</Eyebrow></div><span className="rounded-full bg-background px-3 py-1 font-ui-mono text-micro text-text-secondary">{task.durationMinutes || 30} min</span></div>
+            <div className="flex items-center justify-between gap-3"><Eyebrow>{task.isRestDay ? "Today's rest" : "Today's focus"}</Eyebrow><span className="font-ui-mono text-micro text-text-secondary">{task.durationMinutes || 30} min</span></div>
             <h2 id="step-heading" className="mt-3 text-h3 font-medium tracking-tight text-text">{task.isRestDay ? 'Recover well today.' : task.title}</h2>
             {task.isRestDay && <p className="mt-3 max-w-xl text-small leading-6 text-text-secondary">Rest is part of the plan. Recover today so you can execute the next session well.</p>}
             {task.isTestDay && week?.test && <div className="mt-5 rounded-2xl border border-border bg-background/40 p-4"><p className="font-ui-mono text-micro uppercase text-[#C9A227]">{week.test.type || 'Benchmark'}</p>{week.test.instructions && <p className="mt-2 text-small text-text-secondary">{week.test.instructions}</p>}{week.test.passIf && <p className="mt-2 text-small text-text"><span className="text-text-secondary">Pass when: </span>{formatPassIf(week.test.passIf)}</p>}</div>}
             {done && <div className="mt-4 flex items-center gap-2 text-small font-medium text-[#C9A227]"><Check className="size-4" />Completed for today</div>}
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              {!task.isRestDay && <Button onClick={() => setFocusOpen(true)} leadingIcon={<Play className="size-4" />} className="shadow-[0_8px_24px_-12px_rgba(201,162,39,0.9)]">Start session</Button>}
+              {!task.isRestDay && <Button onClick={() => setFocusOpen(true)} leadingIcon={<Play className="size-4" />}>Start session</Button>}
               <Button variant={task.isRestDay ? 'primary' : 'secondary'} loading={busy} onClick={onToggle}>{done ? 'Mark not done' : task.isRestDay ? 'Log recovery' : 'Mark complete'}</Button>
             </div>
             <p role="alert" className="mt-3 text-small text-danger empty:hidden">{actionError ?? ''}</p>
@@ -300,7 +300,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
 
       {!isClosingStretch && tasks.length > 0 && <section aria-labelledby="week-heading" className="mt-10 rounded-[1.5rem] border border-[#C9A227]/15 bg-[#C9A227]/[0.025] p-5 sm:p-6"><div className="flex items-center justify-between"><div><p className="font-ui-mono text-micro uppercase text-[#C9A227]">Your week</p><h2 id="week-heading" className="mt-1 text-body font-medium text-text">The week at a glance</h2></div><Button variant="quiet" size="sm" onClick={()=>setReviewOpen(true)}>Review</Button></div><Button variant="quiet" size="sm" className="mt-2" aria-expanded={showWeek} onClick={()=>setShowWeek(v=>!v)}>{showWeek?'Hide week':'Show week'}<ChevronDown className={cx('ml-1 size-4',showWeek&&'rotate-180')}/></Button><ul hidden={!showWeek} className="mt-3 grid grid-cols-7 overflow-hidden rounded-2xl border border-border">{tasks.map(item=>{const selected=item.id===task?.id;const todayItem=isToday(item,now);return <li key={item.id} className="min-w-0 border-r border-border last:border-r-0"><button type="button" aria-pressed={selected} onClick={()=>selectDay(item.id)} className={cx('flex min-h-16 w-full flex-col items-center justify-center gap-1 py-2 text-small',selected?'bg-[#C9A227]/10 text-text':'text-text-secondary hover:bg-background')}><span className={cx('font-ui-mono text-micro uppercase',todayItem&&'text-[#C9A227]')}>{item.dayOfWeek.slice(0,3)}</span><span>{item.date.slice(8)}</span>{item.status==='completed'?<Check className="size-3.5 text-[#C9A227]"/>:item.isRestDay?<span className="text-micro">Rest</span>:<span className="size-1.5 rounded-full bg-border"/>}</button></li>})}</ul></section>}
 
-      <nav aria-label="More of your plan" className="mt-8 flex items-center justify-between border-t border-border pt-6"><span className="font-ui-mono text-micro uppercase text-text-secondary">Keep the streak alive</span><Button asChild variant="quiet" trailingIcon={<ArrowRight className="size-4"/>}><Link to="/roadmap">View roadmap</Link></Button></nav>
+      <nav aria-label="More of your plan" className="mt-8 border-t border-border pt-6"><Button asChild variant="quiet" trailingIcon={<ArrowRight className="size-4"/>}><Link to="/roadmap">View roadmap</Link></Button></nav>
       {task && <FocusSessionModal task={task} dayNumber={task.dayNumber} isOpen={focusOpen} onClose={()=>setFocusOpen(false)} onCompleteSession={onFinishFocus}/>}
       <WeeklyReviewModal isOpen={reviewOpen} onClose={()=>setReviewOpen(false)} goal={goal} token={token||''} onGoalUpdated={goalContext.updateActiveGoal} apiStatus={apiStatus}/>
     </main>
