@@ -10,7 +10,7 @@ export const Hero: React.FC = () => (
   <section
     id="top"
     aria-labelledby="hero-title"
-    className="relative isolate overflow-hidden px-6 sm:px-10 lg:px-16 pt-28 sm:pt-32 lg:pt-0 lg:min-h-[100svh]"
+    className="relative isolate overflow-hidden px-5 pt-28 sm:px-10 sm:pt-32 lg:px-16 lg:pt-0 lg:min-h-[100svh]"
   >
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
       <div
@@ -35,7 +35,7 @@ export const Hero: React.FC = () => (
         </Eyebrow>
         <h1
           id="hero-title"
-          className="mt-7 max-w-[11ch] text-display font-semibold leading-[0.95] tracking-[-0.045em] text-text"
+          className="mt-6 max-w-[10ch] text-[clamp(3rem,15vw,6.25rem)] font-semibold leading-[0.92] tracking-[-0.055em] text-text sm:mt-7"
         >
           {LEAD_WORDS.map((word, index) => (
             <React.Fragment key={word}>
@@ -51,7 +51,7 @@ export const Hero: React.FC = () => (
             a path.
           </span>
         </h1>
-        <p className="mt-7 max-w-[34rem] text-[clamp(1.05rem,1.4vw,1.2rem)] leading-relaxed text-text-secondary">
+        <p className="mt-6 max-w-[34rem] text-[clamp(1rem,1.4vw,1.2rem)] leading-[1.65] text-text-secondary sm:mt-7">
           Achivii turns what you want into a 90-day journey with phases, milestones and one focused step every day,
           fitted around the hours you actually have.
         </p>
