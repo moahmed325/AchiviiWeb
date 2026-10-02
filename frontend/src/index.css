@@ -1184,3 +1184,133 @@ html:has(.marketing) {
     transition: border-color 600ms var(--ease-ascend);
   }
 }
+
+/* ============================================================
+   Roadmap (premium path)
+   A single gold rail climbs from week 1 to the destination. It is lit up to where the user stands, dim beyond.
+   Phase landings are nodes on the rail; the destination is the one star. Tokens only, motion is slow and upward,
+   and the global reduced-motion rule neutralises all of it.
+   ============================================================ */
+@layer components {
+  /* The 12 weeks at a glance, grouped by phase. */
+  .road-week {
+    display: block;
+    height: 0.375rem;
+    border-radius: 9999px;
+    background-color: color-mix(in oklab, var(--color-text) 9%, transparent);
+    transition: background-color 400ms ease, box-shadow 520ms var(--ease-ascend);
+  }
+
+  .road-week[data-state='completed'] {
+    background-color: var(--color-achievement);
+  }
+
+  .road-week[data-state='current'] {
+    background-color: var(--color-achievement-hover);
+    animation: dash-breathe 3.6s ease-in-out infinite;
+  }
+
+  /* One row per phase. Each row draws its own piece of the rail, so the rail needs no measuring. */
+  .road-row {
+    position: relative;
+    padding-left: 2.75rem;
+  }
+
+  .road-row::before {
+    content: '';
+    position: absolute;
+    left: 11.5px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: color-mix(in oklab, var(--color-text) 12%, transparent);
+  }
+
+  .road-row:first-child::before { top: 1.875rem; }
+
+  .road-row[data-status='completed']::before {
+    background: color-mix(in oklab, var(--color-achievement) 70%, transparent);
+    box-shadow: 0 0 10px 0 color-mix(in oklab, var(--color-achievement) 30%, transparent);
+  }
+
+  .road-row[data-status='active']::before {
+    background: linear-gradient(to bottom, var(--color-achievement), color-mix(in oklab, var(--color-text) 12%, transparent) 85%);
+  }
+
+  .road-row--end::before { bottom: auto; height: 1.875rem; }
+
+  .road-node {
+    position: absolute;
+    left: 0;
+    top: 1.125rem;
+    z-index: 1;
+    display: flex;
+    width: 1.5rem;
+    height: 1.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid var(--color-border-control);
+    background-color: var(--color-background);
+    color: var(--color-text-on-inverse);
+    transition: background-color 400ms ease, box-shadow 520ms var(--ease-ascend);
+  }
+
+  .road-row[data-status='completed'] .road-node {
+    background-color: var(--color-achievement);
+    border-color: var(--color-achievement);
+    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 40%, transparent);
+  }
+
+  .road-row[data-status='active'] .road-node {
+    border-color: var(--color-achievement);
+    animation: dash-breathe 3.6s ease-in-out infinite;
+  }
+
+  .road-row[data-status='active'] .road-node::after {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 9999px;
+    background: var(--color-achievement);
+  }
+
+  .road-node--destination {
+    left: -2px;
+    top: 0.875rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: 0;
+    background: transparent;
+    box-shadow: none !important;
+    animation: destination-glow 3.6s ease-in-out infinite !important;
+  }
+
+  .road-node--destination::after { content: none !important; }
+
+  /* The phase card: quiet when ahead or behind, lit when it is where the user is. */
+  .road-card {
+    display: block;
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    transition: border-color 280ms ease, background-color 280ms ease, box-shadow 520ms var(--ease-ascend);
+  }
+
+  .road-card:hover {
+    border-color: var(--color-border-strong);
+    background-color: var(--color-surface-elevated);
+  }
+
+  .road-row[data-status='active'] .road-card {
+    border-color: color-mix(in oklab, var(--color-achievement) 45%, transparent);
+    background-image: linear-gradient(135deg, color-mix(in oklab, var(--color-achievement) 9%, transparent), transparent 60%);
+    box-shadow: var(--shadow-raised), 0 26px 56px -36px color-mix(in oklab, var(--color-achievement) 55%, transparent);
+  }
+
+  .road-detail {
+    border-radius: var(--radius-card);
+    border: 1px solid var(--color-border);
+    background-color: color-mix(in oklab, var(--color-surface) 70%, transparent);
+  }
+}
