@@ -29,16 +29,17 @@ export const StrategicRoadmap: React.FC<StrategicRoadmapProps> = ({ journey }) =
       </div>
 
       <div className="mt-10">
-        {phases.map((phase) => (
+        {phases.map((phase, index) => (
           <PhaseRow
             key={phase.id}
             phase={phase}
             currentWeek={metrics.currentWeek}
             isOpen={Boolean(expanded[phase.id])}
             onToggle={() => toggle(phase.id)}
+            delay={index * 90}
           />
         ))}
-        <Destination closingStretch={closingStretch} />
+        <Destination closingStretch={closingStretch} delay={phases.length * 90} />
       </div>
     </section>
   );
@@ -49,21 +50,21 @@ interface PhaseRowProps {
   currentWeek: number;
   isOpen: boolean;
   onToggle: () => void;
+  delay: number;
 }
 
-const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggle }) => {
+const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggle, delay }) => {
   const activeWeek = phase.weeks.find((week) => week.isCurrentWeek);
   const isActive = phase.status === 'active';
   const isComplete = phase.status === 'completed';
   const weeksDone = phase.weeks.filter((week) => week.status === 'completed').length;
   const weeksTotal = phase.weeks.length;
-  const showProgress = (isActive || isComplete) && weeksTotal > 0;
   const comingUp = phase.weeks.filter((week) => week.weekNumber > currentWeek);
 
   return (
-    <div className="road-row" data-status={phase.status}>
+    <div className="road-row animate-rise-in" data-status={phase.status} style={{ animationDelay: delay + 'ms' }}>
       <span className="road-node" aria-hidden="true">
-        {isComplete && <Check strokeWidth={2.5} className="size-3.5" />}
+        {isComplete && <Check strokeWidth={2.25} className="size-3.5" />}
       </span>
 
       <div className="pb-4">
@@ -76,7 +77,7 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
         >
           <div className="flex items-center gap-4">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">{phase.weeksLabel}</span>
                 {isActive && <Badge tone="achievement">Current</Badge>}
                 {isComplete && <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-achievement">Complete</span>}
@@ -86,10 +87,10 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
             </div>
             <ChevronDown aria-hidden="true" strokeWidth={1.5} className={'size-5 shrink-0 transition-transform duration-300 ' + (isOpen ? 'rotate-180 text-achievement' : 'text-text-secondary')} />
           </div>
-          {showProgress && (
+          {(isActive || isComplete) && weeksTotal > 0 && (
             <div className="mt-5 flex items-center gap-3">
-              <div aria-hidden="true" className="h-1 flex-1 overflow-hidden rounded-full bg-text/[0.08]">
-                <div className="h-full rounded-full bg-achievement transition-all duration-700" style={{ width: Math.round((weeksDone / weeksTotal) * 100) + '%' }} />
+              <div aria-hidden="true" className="h-[3px] flex-1 overflow-hidden rounded-full bg-text/[0.08]">
+                <div className="h-full rounded-full bg-achievement" style={{ width: Math.round((weeksDone / weeksTotal) * 100) + '%' }} />
               </div>
               <span className="font-ui-mono text-micro text-text-secondary">{weeksDone} of {weeksTotal} weeks</span>
             </div>
@@ -104,13 +105,13 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
         >
           <div className="road-detail mt-3 p-5 sm:p-6">
             {!isActive && phase.purpose && <p className="max-w-2xl text-body leading-7 text-text-secondary">{phase.purpose}</p>}
-            {isActive && activeWeek ? (
+            {activeWeek && isActive ? (
               <>
                 <CurrentWeek week={activeWeek} />
                 {comingUp.length > 0 && <WeekList title="Coming up" weeks={comingUp} currentWeek={currentWeek} />}
               </>
             ) : (
-              <WeekList weeks={phase.weeks} currentWeek={currentWeek} bare={!phase.purpose} />
+              <WeekList weeks={phase.weeks} currentWeek={currentWeek} />
             )}
           </div>
         </div>
@@ -141,15 +142,15 @@ const CurrentWeek: React.FC<{ week: JourneyWeek }> = ({ week }) => (
   </div>
 );
 
-/** Planned weeks only: a title and, when the plan states one, its milestone. Targets and sessions are never shown for weeks that are not current. */
-const WeekList: React.FC<{ weeks: JourneyWeek[]; currentWeek: number; title?: string; bare?: boolean }> = ({ weeks, currentWeek, title, bare }) => (
-  <div className={title ? 'mt-6 border-t border-border pt-5' : bare ? '' : 'mt-5 border-t border-border pt-4'}>
-    {title && <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-text-secondary">{title}</p>}
-    <ol className={'divide-y divide-border ' + (title ? 'mt-2' : '')}>
+/** Only what the plan actually holds: a theme and, when written, a milestone. Never daily sessions or targets. */
+const WeekList: React.FC<{ weeks: JourneyWeek[]; currentWeek: number; title?: string }> = ({ weeks, currentWeek, title }) => (
+  <div className={title ? 'mt-6 border-t border-border pt-5' : ''}>
+    {title && <p className="mb-1 font-ui-mono text-micro uppercase tracking-[0.16em] text-text-secondary">{title}</p>}
+    <ol className="divide-y divide-border">
       {weeks.map((week) => {
         const current = week.weekNumber === currentWeek;
         const name = weekTitle(week);
-        const showMilestone = Boolean(week.keyMilestone) && week.keyMilestone !== name;
+        const milestone = week.keyMilestone && week.keyMilestone !== name ? week.keyMilestone : null;
         return (
           <li key={week.weekNumber} className="flex items-start gap-4 py-3.5">
             <span className={'w-14 shrink-0 pt-0.5 font-ui-mono text-micro uppercase tracking-[0.1em] ' + (current ? 'text-achievement' : 'text-text-secondary')}>
@@ -157,7 +158,7 @@ const WeekList: React.FC<{ weeks: JourneyWeek[]; currentWeek: number; title?: st
             </span>
             <div className="min-w-0 flex-1">
               <p className={'text-body ' + (week.status === 'completed' || current ? 'text-text' : 'text-text-secondary')}>{name}</p>
-              {showMilestone && <p className="mt-1 line-clamp-2 text-small text-text-secondary">{week.keyMilestone}</p>}
+              {milestone && <p className="mt-1 line-clamp-2 text-small text-text-secondary">{milestone}</p>}
             </div>
             {week.status === 'completed' && <Check strokeWidth={2} className="mt-1 size-4 shrink-0 text-achievement" aria-label="Completed" />}
             {week.status === 'locked' && <Lock strokeWidth={1.5} className="mt-1 size-4 shrink-0 text-text-secondary" aria-label="Locked" />}
@@ -175,19 +176,16 @@ const Detail: React.FC<{ label: string; icon: React.ReactNode; value: string }> 
   </div>
 );
 
-/** The climax of the path: the one star, at the end of the rail. */
-const Destination: React.FC<{ closingStretch: JourneyData['closingStretch'] }> = ({ closingStretch }) => (
-  <div className="road-row road-row--end" data-status={closingStretch.status}>
-    <span className="road-node road-node--destination" aria-hidden="true">
-      <StepMarker state="destination" size="lg" />
-    </span>
+/** The climax of the path: the one star at the end of the rail. */
+const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; delay: number }> = ({ closingStretch, delay }) => (
+  <div className="road-row road-row--end animate-rise-in" data-status={closingStretch.status} style={{ animationDelay: delay + 'ms' }}>
+    <span className="road-node road-node--destination" aria-hidden="true"><StepMarker state="destination" size="lg" /></span>
     <div className="dash-card p-6 sm:p-8">
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Final stretch</p>
         <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">{'Days ' + closingStretch.startDay + '\u2013' + closingStretch.endDay}</span>
-        {closingStretch.isCurrent && <Badge tone="achievement">Current</Badge>}
       </div>
-      <h3 className="mt-4 max-w-[28ch] text-h2 text-text">{closingStretch.finalGoal}</h3>
+      <h3 className="mt-5 max-w-[28ch] text-h2 text-text">{closingStretch.finalGoal}</h3>
       <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">Your final benchmark: {closingStretch.finalTest}</p>
     </div>
   </div>
