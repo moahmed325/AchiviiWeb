@@ -11,6 +11,8 @@ export const ScrollThread: React.FC = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight;
       const progress = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
       if (bar.current) bar.current.style.transform = `scaleX(${progress})`;
+      const heroProgress = Math.min(1, Math.max(0, window.scrollY / window.innerHeight));
+      document.documentElement.style.setProperty('--hero-p', heroProgress.toFixed(3));
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
@@ -22,6 +24,7 @@ export const ScrollThread: React.FC = () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
       if (frame) cancelAnimationFrame(frame);
+      document.documentElement.style.removeProperty('--hero-p');
     };
   }, []);
 

@@ -12,14 +12,14 @@ const PathwayRow: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
   <li>
     <Link
       to={`/signup?pathway=${encodeURIComponent(pathway.id)}`}
-      className="group flex min-h-11 w-full items-start justify-between gap-4 border-t border-border py-5 text-left transition-colors hover:border-achievement/50"
+      className="group flex min-h-11 w-full items-start justify-between gap-4 border-t border-border py-4 text-left transition-colors sm:py-5 hover:border-achievement/50"
     >
       <span>
         <span className="block text-[17px] font-medium leading-snug tracking-[-0.015em] text-text transition-colors group-hover:text-achievement-hover">
           {pathway.title}
         </span>
-        <span className="mt-1.5 line-clamp-2 block text-sm leading-relaxed text-text-secondary">{pathway.summary}</span>
-        <span className="tabular mt-3 block font-ui-mono text-[11px] uppercase tracking-[0.16em] text-text-secondary/80">
+        <span className="mt-1.5 line-clamp-2 hidden text-sm sm:block leading-relaxed text-text-secondary">{pathway.summary}</span>
+        <span className="tabular mt-1.5 block font-ui-mono sm:mt-3 text-[11px] uppercase tracking-[0.16em] text-text-secondary/80">
           {pathway.dailyMinutes} min a day
         </span>
       </span>
@@ -33,7 +33,7 @@ const PathwayRow: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
 );
 
 export const Pathways: React.FC = () => (
-  <Section id="pathways" labelledBy="pathways-title" className="py-24 sm:py-36">
+  <Section id="pathways" labelledBy="pathways-title" className="py-16 sm:py-36">
     <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
       <div className="lg:col-span-7">
         <Reveal>

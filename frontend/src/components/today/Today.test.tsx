@@ -112,7 +112,7 @@ describe('Today', () => {
   it('Start opens focus mode for this step', async () => {
     await renderToday();
     await userEvent.click(screen.getByRole('button', { name: 'Start' }));
-    expect(screen.getByText('Day 3 of 90 • Focus Mode')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Exit focus mode (Esc)' })).toBeInTheDocument();
   });
 
   it('Complete goes through the write path, and a failure says so and keeps the step as it was', async () => {

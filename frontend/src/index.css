@@ -1077,3 +1077,110 @@ html:has(.marketing) {
     display: none;
   }
 }
+
+
+/* ============================================================
+   Landing page: motion and polish
+   ============================================================ */
+
+/* Headline words rise out of a soft blur, one after another */
+@keyframes word-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.45em, 0);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+}
+
+.word-rise {
+  display: inline-block;
+  animation: word-rise 1.1s var(--ease-ascend) both;
+}
+
+/* Cursor-following gold light on cards. Position is set by SpotlightEffect. */
+.spotlight {
+  position: relative;
+}
+
+.spotlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(200, 169, 107, 0.13), transparent 62%);
+}
+
+.spotlight:hover::before {
+  opacity: 1;
+}
+
+/* Pathway marquee: decorative ribbon of real journey names */
+@keyframes marquee-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 70s linear infinite;
+}
+
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+.marquee {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+}
+
+/* Soft horizontal fade so the lit edge of the stair scene never shows a hard line */
+.scene-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
+
+  .hero-parallax {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+
+/* ============================================================
+   Today. It borrows the Dashboard's vocabulary (dash-card, dash-panel, dash-day, dash-journey), so the two pages read
+   as one product. Two additions only: a warm glow behind the day numeral, and a brighter light on the step card once
+   the step is done. Quiet confirmation, no confetti (BP 18). Reduced motion is handled by the global rule above.
+   ============================================================ */
+@layer components {
+  .today-numeral {
+    text-shadow: 0 0 56px color-mix(in oklab, var(--color-achievement) 30%, transparent);
+  }
+
+  .dash-card.today-done {
+    border-color: color-mix(in oklab, var(--color-achievement) 48%, transparent);
+    background-image:
+      radial-gradient(90% 80% at 100% 0%, color-mix(in oklab, var(--color-achievement) 22%, transparent), transparent 62%),
+      linear-gradient(180deg, color-mix(in oklab, var(--color-text) 3%, transparent), transparent 42%);
+    transition: border-color 600ms var(--ease-ascend);
+  }
+}

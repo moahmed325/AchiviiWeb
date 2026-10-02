@@ -142,7 +142,7 @@ const JourneyRail: React.FC = () => {
 };
 
 export const Product: React.FC = () => (
-  <Section id="product" labelledBy="product-title" className="py-24 sm:py-36">
+  <Section id="product" labelledBy="product-title" className="py-16 sm:py-36">
     <div className="grid items-center gap-16 lg:grid-cols-12 lg:gap-10">
       <div className="lg:col-span-5">
         <Reveal>

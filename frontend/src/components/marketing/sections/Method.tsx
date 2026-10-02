@@ -20,7 +20,7 @@ const STEPS = [
 const SLAB_HEIGHTS = ['md:min-h-[270px]', 'md:min-h-[340px]', 'md:min-h-[410px]'];
 
 export const Method: React.FC = () => (
-  <Section id="method" labelledBy="method-title" className="py-24 sm:py-36">
+  <Section id="method" labelledBy="method-title" className="py-16 sm:py-36">
     <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
       <div className="lg:col-span-7">
         <Reveal>
@@ -43,7 +43,7 @@ export const Method: React.FC = () => (
             as="li"
             key={step.title}
             delayMs={index * 130}
-            className={`flex flex-col justify-between rounded-panel p-7 sm:p-8 ${SLAB_HEIGHTS[index]} ${
+            className={`spotlight flex flex-col justify-between rounded-panel p-7 sm:p-8 ${SLAB_HEIGHTS[index]} ${
               summit ? 'gold-panel' : 'border border-border bg-surface'
             }`}
           >

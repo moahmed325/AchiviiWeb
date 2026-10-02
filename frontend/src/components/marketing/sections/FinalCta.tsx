@@ -8,7 +8,7 @@ export const FinalCta: React.FC = () => {
   const { ref, inView } = useInView<HTMLElement>({ threshold: 0.3 });
 
   return (
-    <section ref={ref} aria-labelledby="final-cta-title" className="relative isolate overflow-hidden px-6 py-24 sm:px-10 sm:py-36 lg:px-16">
+    <section ref={ref} id="start" aria-labelledby="final-cta-title" className="relative isolate overflow-hidden px-6 py-16 sm:px-10 sm:py-36 lg:px-16">
       <div
         aria-hidden="true"
         className={`pointer-events-none absolute inset-0 -z-10 transition-opacity duration-[2400ms] ease-out motion-reduce:transition-none ${

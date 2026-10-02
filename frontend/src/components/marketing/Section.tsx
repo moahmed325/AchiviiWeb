@@ -9,7 +9,7 @@ interface SectionProps {
 }
 
 /** One heading scale for every landing section, so the page reads as a single calm rhythm. */
-export const HEADING = 'text-[clamp(2.25rem,4.4vw,3.75rem)] font-semibold leading-[1.04] tracking-[-0.04em] text-text';
+export const HEADING = 'text-balance text-[clamp(2.25rem,4.4vw,3.75rem)] font-semibold leading-[1.04] tracking-[-0.04em] text-text';
 
 export const Section: React.FC<SectionProps> = ({ id, labelledBy, className = '', innerClassName = '', children }) => (
   <section id={id} aria-labelledby={labelledBy} className={`relative scroll-mt-24 px-6 sm:px-10 lg:px-16 ${className}`}>

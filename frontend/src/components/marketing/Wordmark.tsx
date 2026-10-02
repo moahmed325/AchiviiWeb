@@ -11,7 +11,7 @@ export const StepMark: React.FC<{ className?: string }> = ({ className = 'w-5 h-
 
 export const Wordmark: React.FC<{ className?: string }> = ({ className = '' }) => (
   <span className={`inline-flex items-center gap-2.5 font-ui text-[17px] font-semibold tracking-[-0.03em] text-text ${className}`}>
-    <StepMark className="w-[18px] h-[18px] text-accent-hover" />
+    <StepMark className="w-[18px] h-[18px] text-achievement" />
     Achivii
   </span>
 );

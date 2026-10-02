@@ -1,0 +1,53 @@
+﻿import { chromium } from '@playwright/test';
+import fs from 'node:fs';
+const out = process.env.TEMP + '\\shots2';
+fs.mkdirSync(out, { recursive: true });
+const browser = await chromium.launch();
+const errors = [];
+const watch = (page, n) => { page.on('pageerror', (e) => errors.push(`${n}: ${e.message.slice(0,160)}`)); page.on('console', (m) => { if (m.type()==='error' && !m.text().includes('ERR_CONNECTION_REFUSED')) errors.push(`${n}: ${m.text().slice(0,160)}`); }); };
+
+// Desktop
+let page = await browser.newPage({ viewport: { width: 1440, height: 900 } }); watch(page, 'desktop');
+await page.goto('http://localhost:5199/', { waitUntil: 'networkidle' });
+await page.waitForTimeout(3200);
+await page.screenshot({ path: `${out}\\d-hero.png` });
+await page.evaluate(() => document.getElementById('method')?.scrollIntoView());
+await page.waitForTimeout(1500);
+await page.mouse.move(700, 600);
+await page.screenshot({ path: `${out}\\d-marquee-or-method.png` });
+await page.evaluate(() => document.getElementById('premium')?.scrollIntoView());
+await page.waitForTimeout(2200);
+await page.screenshot({ path: `${out}\\d-pricing-yearly.png` });
+await page.getByLabel('Monthly', { exact: false }).first().check({ force: true });
+await page.waitForTimeout(400);
+const price = await page.locator('#premium [aria-live]').innerText();
+console.log('after toggling to monthly, price shows:', price.replace(/\s+/g,' '));
+await page.screenshot({ path: `${out}\\d-pricing-monthly.png` });
+const activeNav = await page.locator('nav a[aria-current="location"]').allInnerTexts();
+console.log('nav active link:', activeNav);
+console.log('h1 text:', await page.locator('h1').innerText());
+await page.close();
+
+// Mobile
+page = await browser.newPage({ viewport: { width: 390, height: 844 } }); watch(page, 'mobile');
+await page.goto('http://localhost:5199/', { waitUntil: 'networkidle' });
+await page.waitForTimeout(3200);
+await page.screenshot({ path: `${out}\\m-hero.png` });
+const sticky0 = await page.locator('text=Begin your 90 days').isVisible();
+await page.evaluate(() => window.scrollTo(0, 1400));
+await page.waitForTimeout(1200);
+const sticky1 = await page.locator('text=Begin your 90 days').isVisible();
+await page.screenshot({ path: `${out}\\m-sticky.png` });
+await page.evaluate(() => document.getElementById('start')?.scrollIntoView());
+await page.waitForTimeout(1200);
+const sticky2 = await page.locator('text=Begin your 90 days').isVisible();
+console.log('sticky bar visible at top / mid-page / at final CTA:', sticky0, sticky1, sticky2);
+await page.evaluate(() => document.getElementById('pathways')?.scrollIntoView());
+await page.waitForTimeout(1800);
+await page.screenshot({ path: `${out}\\m-pathways.png` });
+await page.evaluate(() => document.getElementById('premium')?.scrollIntoView());
+await page.waitForTimeout(1800);
+await page.screenshot({ path: `${out}\\m-pricing.png` });
+console.log('mobile page height:', await page.evaluate(() => document.documentElement.scrollHeight), 'overflow:', await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth));
+console.log('code errors:', errors.length ? errors : 'none');
+await browser.close();

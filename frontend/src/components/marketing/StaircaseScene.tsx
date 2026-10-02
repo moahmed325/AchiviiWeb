@@ -232,9 +232,9 @@ export const StaircaseScene: React.FC<StaircaseSceneProps> = ({
       <rect
         className="portal-light"
         style={{ '--stair-delay': delayFor(totalReveal * 0.6) } as React.CSSProperties}
-        x={viewBox.minX}
+        x={viewBox.minX - viewBox.width * 2}
         y={viewBox.minY}
-        width={viewBox.width}
+        width={viewBox.width * 5}
         height={viewBox.height}
         fill="url(#stair-halo)"
       />
@@ -326,7 +326,7 @@ export const StaircaseScene: React.FC<StaircaseSceneProps> = ({
         />
       </g>
 
-      <rect x={viewBox.minX} y={viewBox.minY} width={viewBox.width} height={viewBox.height} fill="url(#stair-floor-fade)" pointerEvents="none" />
+      <rect x={viewBox.minX - viewBox.width * 2} y={viewBox.minY} width={viewBox.width * 5} height={viewBox.height} fill="url(#stair-floor-fade)" pointerEvents="none" />
     </svg>
   );
 };
