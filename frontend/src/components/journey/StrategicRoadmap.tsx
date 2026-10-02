@@ -23,7 +23,7 @@ export const StrategicRoadmap: React.FC<StrategicRoadmapProps> = ({ journey }) =
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">The path</p>
-          <h2 id="roadmap-heading" className="mt-3 text-h2 text-text">Your progression</h2>
+          <h2 id="roadmap-heading" className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-text sm:text-3xl">Your progression</h2>
         </div>
         <span className="hidden text-small text-text-secondary sm:block">Open a phase for detail</span>
       </div>
@@ -82,7 +82,7 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
                 {isActive && <Badge tone="achievement">Current</Badge>}
                 {isComplete && <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-achievement">Complete</span>}
               </div>
-              <h3 className="mt-2 text-h3 text-text">{phase.name}</h3>
+              <h3 className="mt-2 text-lg font-semibold tracking-tight text-text sm:text-xl">{phase.name}</h3>
               {!isOpen && phase.purpose && <p className="mt-1.5 line-clamp-1 text-small text-text-secondary">{phase.purpose}</p>}
             </div>
             <ChevronDown aria-hidden="true" strokeWidth={1.5} className={'size-5 shrink-0 transition-transform duration-300 ' + (isOpen ? 'rotate-180 text-achievement' : 'text-text-secondary')} />
@@ -125,7 +125,7 @@ const CurrentWeek: React.FC<{ week: JourneyWeek }> = ({ week }) => (
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <div>
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">This week</p>
-        <h4 className="mt-2 text-h3 text-text">{weekTitle(week)}</h4>
+        <h4 className="mt-2 text-lg font-semibold tracking-tight text-text sm:text-xl">{weekTitle(week)}</h4>
       </div>
       <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">Week {week.weekNumber}</span>
     </div>
@@ -185,7 +185,7 @@ const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; del
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Final stretch</p>
         <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">{'Days ' + closingStretch.startDay + '\u2013' + closingStretch.endDay}</span>
       </div>
-      <h3 className="mt-5 max-w-[28ch] text-h2 text-text">{closingStretch.finalGoal}</h3>
+      <h3 className="mt-5 max-w-[30ch] text-2xl font-semibold leading-tight tracking-[-0.02em] text-text sm:text-3xl">{closingStretch.finalGoal}</h3>
       <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">Your final benchmark: {closingStretch.finalTest}</p>
     </div>
   </div>

@@ -51,7 +51,7 @@ export const Dashboard: React.FC = () => {
   if (loadingGoal) return <DashboardSkeleton />;
   if (goalLoadFailed && !activeGoal) return (
     <EmptyShell>
-      <h1 className="text-h2 text-text">We could not load your dashboard</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-text">We could not load your dashboard</h1>
       <p className="mt-3 text-body text-text-secondary">Your journey is safe. Check your connection and try again.</p>
       <Button className="mt-6" onClick={refreshGoal}>Try again</Button>
     </EmptyShell>
@@ -85,7 +85,7 @@ export const Dashboard: React.FC = () => {
 
       <header className="animate-rise-in relative" style={stagger(0)}>
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">{dateLabel}</p>
-        <h1 className="mt-5 text-h1 text-text">{greetingFor(now)}.</h1>
+        <h1 className="mt-4 text-3xl font-semibold tracking-[-0.03em] text-text sm:text-4xl">{greetingFor(now)}.</h1>
         <p className="mt-4 line-clamp-2 max-w-2xl text-body-lg text-text-secondary">{activeGoal.clarifiedOutcome || activeGoal.rawGoal}</p>
 
         <div className="mt-12" role="img" aria-label={'Day ' + day + ' of 90'}>
@@ -105,7 +105,7 @@ export const Dashboard: React.FC = () => {
             <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">{eyebrow}</p>
             {task?.isKeySession && !isDone && <Badge tone="achievement">Key session</Badge>}
           </div>
-          <h2 id="next-heading" className="mt-6 max-w-[22ch] text-h2 text-text">{heading}</h2>
+          <h2 id="next-heading" className="mt-5 max-w-[26ch] text-2xl font-semibold leading-tight tracking-[-0.02em] text-text sm:text-3xl">{heading}</h2>
           {support && <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">{support}</p>}
           {task && !isRest && !isDone && task.durationMinutes > 0 && (
             <p className="mt-6 inline-flex items-center gap-2 text-small text-text-secondary">
@@ -123,7 +123,7 @@ export const Dashboard: React.FC = () => {
         <div className="dash-panel animate-rise-in flex flex-col p-7 sm:p-8" style={stagger(260)}>
           <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-text-secondary">This week</p>
           <p className="mt-5 flex items-baseline gap-2">
-            <span className="tabular text-h1 text-achievement">{practiceDone}</span>
+            <span className="tabular text-4xl font-semibold tracking-tight text-achievement">{practiceDone}</span>
             <span className="text-body text-text-secondary">of {practiceDays} sessions</span>
           </p>
           <ol aria-label="Days this week" className="mt-8 flex items-start justify-between gap-1">

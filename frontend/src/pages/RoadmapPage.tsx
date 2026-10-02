@@ -21,7 +21,7 @@ const EmptyRoadmap: React.FC = () => (
     <div className="mx-auto flex size-12 items-center justify-center rounded-full border border-achievement/30 bg-achievement/10 text-achievement">
       <Compass className="size-5" strokeWidth={1.5} aria-hidden="true" />
     </div>
-    <h1 className="mt-5 text-h3 text-text">No Active Journey</h1>
+    <h1 className="mt-5 text-xl font-semibold tracking-tight text-text">No Active Journey</h1>
     <p className="mt-2 text-body text-text-secondary">Create a 90-day goal to build your roadmap.</p>
     <Button asChild variant="gold" className="mt-6"><Link to="/onboarding">Create Your Journey</Link></Button>
   </div>
@@ -50,7 +50,7 @@ const RoadmapContent: React.FC<{ journey: NonNullable<ReturnType<typeof useJourn
           Today
         </Link>
         <p className="mt-8 font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Your roadmap</p>
-        <h1 className="mt-4 max-w-3xl text-h2 text-text sm:text-h1">{title}</h1>
+        <h1 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-[-0.03em] text-text sm:text-4xl">{title}</h1>
         {journey.methodName && <p className="mt-4 text-body text-text-secondary">{journey.methodName}{journey.methodAuthor ? ' \u00b7 ' + journey.methodAuthor : ''}</p>}
 
         <dl className="mt-10 grid grid-cols-3 divide-x divide-border">
@@ -58,7 +58,7 @@ const RoadmapContent: React.FC<{ journey: NonNullable<ReturnType<typeof useJourn
             <div key={stat.label} className={index === 0 ? 'pr-4 sm:pr-8' : 'px-4 sm:px-8'}>
               <dt className="font-ui-mono text-micro uppercase tracking-[0.16em] text-text-secondary">{stat.label}</dt>
               <dd className="mt-2 flex items-baseline gap-2">
-                <span className={'tabular text-h2 ' + (stat.gold ? 'text-achievement' : 'text-text')}>{stat.value}</span>
+                <span className={'tabular text-3xl font-semibold tracking-tight sm:text-4xl ' + (stat.gold ? 'text-achievement' : 'text-text')}>{stat.value}</span>
                 {stat.of !== null && <span className="font-ui-mono text-small text-text-secondary">/ {stat.of}</span>}
               </dd>
             </div>
@@ -87,7 +87,7 @@ const RoadmapContent: React.FC<{ journey: NonNullable<ReturnType<typeof useJourn
           <span className="size-2 shrink-0 rounded-full bg-achievement" style={{ boxShadow: '0 0 14px 2px color-mix(in oklab, var(--color-achievement) 55%, transparent)' }} aria-hidden="true" />
           <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">You are here</p>
         </div>
-        <h2 className="mt-5 max-w-[24ch] text-h2 text-text">{activePhase?.name || 'Current phase'}</h2>
+        <h2 className="mt-5 max-w-[26ch] text-2xl font-semibold leading-tight tracking-[-0.02em] text-text sm:text-3xl">{activePhase?.name || 'Current phase'}</h2>
         {activePhase?.purpose && <p className="mt-4 max-w-2xl text-body leading-7 text-text-secondary">{activePhase.purpose}</p>}
         <div className="mt-8">
           <Button asChild variant="gold" trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-5" />}>
