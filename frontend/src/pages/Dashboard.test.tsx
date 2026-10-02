@@ -53,7 +53,7 @@ describe('Dashboard', () => {
     renderWith(buildGoal('pending'));
 
     expect(screen.getByRole('img', { name: 'Day 28 of 90' })).toBeInTheDocument();
-    expect(screen.getByText('63 days to go')).toBeInTheDocument();
+    expect(screen.getByText('62 days to go')).toBeInTheDocument();
     expect(screen.getByText('1 of 3 sessions done this week. Keep the rhythm.')).toBeInTheDocument();
 
     expect(screen.getByRole('heading', { level: 2, name: 'Tempo intervals' })).toBeInTheDocument();
