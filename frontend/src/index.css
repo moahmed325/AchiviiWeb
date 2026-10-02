@@ -1314,3 +1314,65 @@ html:has(.marketing) {
     background-color: color-mix(in oklab, var(--color-surface) 70%, transparent);
   }
 }
+
+/* ============================================================
+   Dashboard v2: the day ring, the lit session card, and the coming-up strip.
+   Same rules as above: tokens only, slow upward motion, reduced-motion handled globally.
+   ============================================================ */
+@layer components {
+  @keyframes dash-ring-draw {
+    from { stroke-dashoffset: var(--ring-c); }
+  }
+
+  @keyframes dash-fade-in {
+    from { opacity: 0; }
+  }
+
+  @keyframes dash-orb {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+
+  /* The day ring: the page's focal point. Gold arc drawn up to today, a glowing head where the user stands. */
+  .dash-ring__track,
+  .dash-ring__arc {
+    fill: none;
+    stroke-width: 5;
+  }
+
+  .dash-ring__track {
+    stroke: color-mix(in oklab, var(--color-text) 9%, transparent);
+  }
+
+  .dash-ring__arc {
+    stroke: var(--color-achievement);
+    stroke-linecap: round;
+    stroke-dasharray: var(--ring-c);
+    stroke-dashoffset: var(--ring-offset);
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--color-achievement) 45%, transparent));
+    animation: dash-ring-draw 1700ms var(--ease-ascend) 300ms backwards;
+  }
+
+  .dash-ring__head {
+    fill: var(--color-achievement-hover);
+    animation: dash-fade-in 500ms ease 1800ms backwards, destination-glow 3.6s ease-in-out 2300ms infinite;
+  }
+
+  /* A warm orb behind the next-session card. Sits under the content and breathes slowly. */
+  .dash-card--glow > * {
+    position: relative;
+  }
+
+  .dash-card--glow::after {
+    content: '';
+    position: absolute;
+    right: -5rem;
+    top: -6rem;
+    width: 20rem;
+    height: 20rem;
+    border-radius: 9999px;
+    pointer-events: none;
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--color-achievement) 22%, transparent), transparent);
+    animation: dash-orb 7s ease-in-out infinite;
+  }
+}
