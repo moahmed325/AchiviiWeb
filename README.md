@@ -70,12 +70,14 @@ AchiviiWeb/
 │   ├── scripts/                  # Diagnostic utilities (Tavily probe, pgvector verifier, cache demo)
 │   ├── test/                     # 49 unit tests covering Tavily, timezone, decomposer, and vector cache
 │   └── .env.example              # Backend environment configuration template
-├── docs/                         # Project documentation (indexed in docs/README.md):
-│   ├── architecture/             # Product blueprint, visual design system, custom-goal engine
-│   ├── billing/                  # Lemon Squeezy contracts, configuration & rollback readiness
-│   ├── process/                  # Decisions, phases, prompts & templates (+ archive/)
-│   └── migration/                # Render → Supabase migration (feature definition & brief)
-├── golden-rail-pipeline-spec.md  # Golden Rail live research specification
+├── docs/                         # Project documentation (start at docs/README.md):
+│   ├── product/                  # Product blueprint and visual design system
+│   ├── architecture/             # How the systems work (custom-goal engine, plan v2)
+│   ├── features/                 # One folder per feature: problem, solution, feature, phases, prompts
+│   ├── templates/                # Blank templates, numbered like a feature folder
+│   ├── archive/                  # Finished or replaced work
+│   └── decisions.md              # The single decision log
+├── Design.md                     # Design source of truth for agents
 ├── package.json                  # Root monorepo workspace scripts
 └── README.md
 ```

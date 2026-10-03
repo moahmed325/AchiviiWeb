@@ -90,7 +90,7 @@ model Goal {
   allowedUrls         Json?     // retrieved URLs; later weeks may not invent links
   velocityTable       Json?     // Week 1 -> Week 12 metric matrix, derived from research
   canonicalKey        String?   // hierarchical domain key, e.g. "lang.japanese.jlpt_n3"
-  planVersion         Int       @default(1) // 2 = roadmap + one week at a time (plan-v2-spec.md)
+  planVersion         Int       @default(1) // 2 = roadmap + one week at a time (docs/architecture/plan-v2.md)
   roadmap             Json?     // v2: { finalGoal, finalTest, startingPoint, method, phases }
 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
