@@ -168,6 +168,8 @@ export interface DailyTask {
   notes?: string;
   /** v2: a 10-minute minimum version for low-time/low-energy days. */
   minimumVersion?: DetailedStep | null;
+  /** ND-3: true when the completion was the 10-minute version only. */
+  usedMinimumVersion?: boolean;
   isKeySession?: boolean;
   isTestDay?: boolean;
   whyToday?: string | null;
