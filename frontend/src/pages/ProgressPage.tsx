@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, TrendingUp } from 'lucide-react';
 import { useGoal } from '../context/GoalContext';
+import { useUserTimezone } from '../context/AuthContext';
 import { dayNumber } from '../lib/today';
 import { LoadingState, Skeleton, Button } from '../components/ui';
 import { WeekBreakdownList, BenchmarkResultsCard, AdaptationHistoryList } from '../components/progress';
@@ -27,8 +28,9 @@ export const ProgressPage: React.FC = () => {
     try { await refreshGoal(); } finally { setRetrying(false); }
   };
 
+  const timezone = useUserTimezone();
   const now = useMemo(() => new Date(), []);
-  const currentDay = activeGoal ? dayNumber(activeGoal, now) : 1;
+  const currentDay = activeGoal ? dayNumber(activeGoal, now, timezone) : 1;
   const currentWeek = activeGoal ? Math.min(12, Math.max(1, activeGoal.currentWeek || 1)) : 1;
 
   const progress = useMemo(() => {

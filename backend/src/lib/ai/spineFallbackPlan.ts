@@ -114,8 +114,8 @@ function buildBlockWeek(input: SpineWeekTasksInput, weekNumber: number): DailyTa
 
   for (let d = 0; d < 7; d++) {
     const date = new Date(weekStartDate);
-    date.setDate(date.getDate() + d);
-    const dayOfWeek = DAY_NAMES[date.getDay()];
+    date.setUTCDate(date.getUTCDate() + d);
+    const dayOfWeek = DAY_NAMES[date.getUTCDay()];
     const dayNumber = (weekNumber - 1) * 7 + d + 1;
 
     if (restDays.includes(d)) {
@@ -195,8 +195,8 @@ export function buildSpineWeekTasks(input: SpineWeekTasksInput): DailyTaskPlan[]
 
   for (let d = 0; d < 7; d++) {
     const date = new Date(weekStartDate);
-    date.setDate(date.getDate() + d);
-    const dayOfWeek = DAY_NAMES[date.getDay()];
+    date.setUTCDate(date.getUTCDate() + d);
+    const dayOfWeek = DAY_NAMES[date.getUTCDay()];
     const dayNumber = (weekNumber - 1) * 7 + d + 1;
 
     if (restDays.includes(d)) {

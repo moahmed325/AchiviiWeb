@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Goal, GoalCompletionPayload } from '../types';
-import { fetchActiveGoal, resetActiveGoal as apiResetGoal, completeGoal as apiCompleteGoal, fetchHealthCheck } from '../lib/api';
+import { fetchActiveGoal, reconcileGoal, resetActiveGoal as apiResetGoal, completeGoal as apiCompleteGoal, fetchHealthCheck } from '../lib/api';
 import { useAuth } from './AuthContext';
 
 interface GoalContextType {
@@ -8,6 +8,8 @@ interface GoalContextType {
   loadingGoal: boolean;
   /** The last goal fetch failed, so a null `activeGoal` does not mean the user has no goal. */
   goalLoadFailed: boolean;
+  /** The token whose goal fetch last settled, so a consumer can tell the goal state is current for its token. */
+  goalLoadedFor: string | null;
   apiStatus: 'online' | 'offline' | 'checking';
   refreshGoal: () => Promise<void>;
   setActiveGoal: (goal: Goal | null) => void;
@@ -24,6 +26,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeGoal, setActiveGoal] = useState<Goal | null>(null);
   const [loadingGoal, setLoadingGoal] = useState<boolean>(true);
   const [goalLoadFailed, setGoalLoadFailed] = useState(false);
+  const [goalLoadedFor, setGoalLoadedFor] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
 
   // Health check on initial mount
@@ -46,11 +49,19 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!token) {
       setActiveGoal(null);
       setGoalLoadFailed(false);
+      setGoalLoadedFor(null);
       setLoadingGoal(false);
       return;
     }
 
     setLoadingGoal(true);
+    // Missed sessions (ND-6): reconcile once per load, before the goal is fetched, so the goal reflects it.
+    // A failure here never stops the goal from loading.
+    try {
+      await reconcileGoal(token);
+    } catch (err) {
+      console.warn('Failed to reconcile goal:', err);
+    }
     try {
       const goal = await fetchActiveGoal(token);
       setActiveGoal(goal);
@@ -60,6 +71,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveGoal(null);
       setGoalLoadFailed(true);
     } finally {
+      setGoalLoadedFor(token);
       setLoadingGoal(false);
     }
   }, [token]);
@@ -116,6 +128,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeGoal,
         loadingGoal,
         goalLoadFailed,
+        goalLoadedFor,
         apiStatus,
         refreshGoal,
         setActiveGoal,

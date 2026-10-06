@@ -17,6 +17,7 @@ vi.mock('../../lib/api', async (importOriginal) => {
     fetchHealthCheck: vi.fn(),
     fetchCurrentUser: vi.fn(),
     fetchActiveGoal: vi.fn(),
+    reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
   };
 });
 
@@ -164,7 +165,7 @@ describe('sign-up and sign-in screens', () => {
     mocked.fetchActiveGoal.mockResolvedValue(GOAL);
     renderAt('/login');
     await fillAndSubmit('mo@example.com', 'secret1', /^sign in$/i);
-    expect(await screen.findByText('At today', {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText('At today')).toBeInTheDocument();
   });
 
   it('honours an internal next after sign-in', async () => {
@@ -180,6 +181,26 @@ describe('sign-up and sign-in screens', () => {
     renderAt('/login?next=%2Froadmap');
     expect(await screen.findByText('At roadmap')).toBeInTheDocument();
     expect(supabaseMock.auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('moves a signed-in visitor on when the user and goal fetches settle together', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { access_token: 't-old' } } });
+    mocked.fetchCurrentUser.mockImplementation(() => gate.then(() => USER));
+    mocked.fetchActiveGoal.mockImplementation(() => gate.then(() => GOAL));
+    renderAt('/login?next=%2Froadmap');
+    await vi.waitFor(() => expect(mocked.fetchActiveGoal).toHaveBeenCalled());
+    release();
+    expect(await screen.findByText('At roadmap')).toBeInTheDocument();
+  });
+
+  it('moves a signed-in visitor on when the goal arrives before the user', async () => {
+    supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { access_token: 't-old' } } });
+    mocked.fetchCurrentUser.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(USER), 40)));
+    mocked.fetchActiveGoal.mockImplementation(() => later(GOAL));
+    renderAt('/login?next=%2Froadmap');
+    expect(await screen.findByText('At roadmap')).toBeInTheDocument();
   });
 
   it('explains a duplicate email and links to sign-in with the pathway kept', async () => {

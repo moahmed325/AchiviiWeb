@@ -9,7 +9,7 @@ import { useTaskActions } from './useTaskActions';
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
-  return { ...actual, fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), updateDailyTask: vi.fn() };
+  return { ...actual, fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }), updateDailyTask: vi.fn() };
 });
 
 const mocked = vi.mocked(api);
@@ -110,6 +110,15 @@ describe('useTaskActions', () => {
       't',
     );
     expect(taskIn(result.current.goal, 't1')?.status).toBe('completed');
+  });
+
+  it('finishing focus through the minimum version sends usedMinimumVersion (ND-3); a full finish does not', async () => {
+    const { result } = await setup();
+    await act(() => result.current.actions.finishFocus(TASK, undefined, true));
+    expect(mocked.updateDailyTask).toHaveBeenLastCalledWith('t1', { status: 'completed', notes: undefined, usedMinimumVersion: true }, 't');
+
+    await act(() => result.current.actions.finishFocus(OTHER, undefined, false));
+    expect(mocked.updateDailyTask).toHaveBeenLastCalledWith('t2', { status: 'completed', notes: undefined }, 't');
   });
 
   it('a failed write changes nothing and returns the error', async () => {

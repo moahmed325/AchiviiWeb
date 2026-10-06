@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
+import { normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
+import { buildReconcileResult } from '../lib/missedSessions.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import {
   clarifyGoalWithAI,
@@ -209,7 +211,7 @@ async function saveV1PresetGoal(input: {
   await prisma.dailyTask.createMany({
     data: plan.initialTasks.map((t, idx) => {
       const taskDate = new Date(input.start);
-      taskDate.setDate(taskDate.getDate() + idx);
+      taskDate.setUTCDate(taskDate.getUTCDate() + idx);
       return {
         goalId: goal.id,
         weekNumber: 1,
@@ -295,9 +297,10 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const start = startDate ? new Date(startDate) : new Date();
+    // ND-1: the goal starts on the user's local calendar day, stored as that date at 00:00 UTC.
+    const start = resolveGoalStart(normalizeTimezone(user.timezone), startDate);
     const targetDate = new Date(start);
-    targetDate.setDate(targetDate.getDate() + 90);
+    targetDate.setUTCDate(targetDate.getUTCDate() + 90);
 
     const routineInput: UserRoutineInput = {
       wakeTime: routine?.wakeTime || '07:00',
@@ -493,6 +496,55 @@ goalRouter.get('/active', async (req: Request, res: Response): Promise<void> => 
  * Transitions the user's active goal to 'completed' status, records completedAt timestamp,
  * and preserves the completed journey (OD-1b Option B).
  */
+// POST /api/goal/reconcile
+// Missed sessions (ND-6): called once when the app loads, before the goal is fetched. In P1 it only reports
+// the derived classification (ND-2) and the open gap for the active plan v2 goal, and writes nothing.
+goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+
+    const goal = await prisma.goal.findFirst({
+      where: { userId: user.id, status: 'active' },
+      select: {
+        id: true,
+        planVersion: true,
+        routine: true,
+        dailyTasks: {
+          select: {
+            id: true,
+            date: true,
+            weekNumber: true,
+            dayNumber: true,
+            status: true,
+            isRestDay: true,
+            isKeySession: true,
+            isTestDay: true,
+          },
+          orderBy: { dayNumber: 'asc' },
+        },
+      },
+    });
+
+    const result = buildReconcileResult(goal, {
+      now: new Date(),
+      timezone: user.timezone,
+      sleepTime: goal ? readRoutine(goal).sleepTime : undefined,
+    });
+
+    // P2 applies carry-forward here, from `result.days`, before responding. It must stay idempotent
+    // (04-phases.md 3.4): running reconcile again must never carry a step twice.
+
+    res.json(result);
+  } catch (err: any) {
+    console.error('[GoalRouter] Reconcile error:', err);
+    res.status(500).json({ error: 'Failed to reconcile goal.' });
+  }
+});
+
 goalRouter.post('/complete', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await getAuthUser(req);
@@ -590,7 +642,12 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
     }
 
     const { taskId } = req.params;
-    const { status, notes, slotTime } = req.body;
+    const { status, notes, slotTime, usedMinimumVersion } = req.body;
+
+    if (usedMinimumVersion !== undefined && typeof usedMinimumVersion !== 'boolean') {
+      res.status(400).json({ error: 'usedMinimumVersion must be a boolean.' });
+      return;
+    }
 
     const task = await prisma.dailyTask.findUnique({
       where: { id: taskId },
@@ -607,6 +664,11 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
       data: {
         ...(status ? { status } : {}),
         completedAt: status === 'completed' ? new Date() : status === 'pending' ? null : task.completedAt,
+        // ND-3: the flag describes the current completion, so it is rewritten only when
+        // status changes, and is true only for a minimum completion of a task that has one.
+        ...(status
+          ? { usedMinimumVersion: status === 'completed' && usedMinimumVersion === true && task.minimumVersion != null }
+          : {}),
         ...(notes !== undefined ? { notes } : {}),
         ...(slotTime !== undefined ? { slotTime } : {})
       }
@@ -845,7 +907,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
 
       // Calculate next week start date (7 days after weekNum start)
       const nextWeekStart = new Date(goal.startDate);
-      nextWeekStart.setDate(nextWeekStart.getDate() + (nextWeekNum - 1) * 7);
+      nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + (nextWeekNum - 1) * 7);
 
       // Build granular audit of previous week's tasks to ground AI generation against actual execution
       const previousTasksAudit: PreviousWeekTaskSummary[] = weekTasks
@@ -892,7 +954,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       nextWeekTasks = await Promise.all(
         adaptedTaskPlans.map((t, idx) => {
           const taskDate = new Date(nextWeekStart);
-          taskDate.setDate(taskDate.getDate() + idx);
+          taskDate.setUTCDate(taskDate.getUTCDate() + idx);
           const dateStr = taskDate.toISOString().split('T')[0];
 
           return prisma.dailyTask.create({

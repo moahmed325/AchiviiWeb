@@ -34,7 +34,7 @@ const buildGoal = (todayStatus: 'pending' | 'completed'): Goal => {
   ];
   return {
     id: 'g', userId: 'u', rawGoal: 'Run a 10K', clarifiedOutcome: 'Run 10 kilometers in under 50 minutes', methodologyNotes: '',
-    status: 'active', startDate: '2026-09-01T00:00:00.000Z', targetDate: new Date(now + 63 * DAY_MS).toISOString(), currentWeek: 4,
+    status: 'active', startDate: '2026-09-01T00:00:00.000Z', targetDate: `${todayKey(new Date(now + 63 * DAY_MS))}T00:00:00.000Z`, currentWeek: 4,
     answers: '{}', routine: '{}', created_at: '2026-09-01T00:00:00.000Z', updated_at: '2026-09-01T00:00:00.000Z',
     roadmapWeeks: [{ id: 'rw', goalId: 'g', weekNumber: 4, phase: 'Aerobic Foundation', theme: 'Building Volume', objective: 'x', keyMilestone: 'First 5km continuous run', targetIntensity: 65, plannedMinutes: 140, status: 'active', created_at: '2026-09-01' }],
     dailyTasks: tasks,

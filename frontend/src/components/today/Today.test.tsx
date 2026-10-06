@@ -7,6 +7,8 @@ import { GoalProvider, useGoal } from '../../context/GoalContext';
 import * as api from '../../lib/api';
 import type { DailyTask, Goal } from '../../types';
 import { Today } from './Today';
+import { todayKey } from '../../lib/today';
+import { addDaysToDateKey } from '../../lib/dateUtils';
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
@@ -15,14 +17,15 @@ vi.mock('../../lib/api', async (importOriginal) => {
     fetchHealthCheck: vi.fn(),
     fetchCurrentUser: vi.fn(),
     fetchActiveGoal: vi.fn(),
+    reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
     updateDailyTask: vi.fn(),
     submitWeeklyReview: vi.fn(),
   };
 });
 
 const mocked = vi.mocked(api);
-const DAY = 86_400_000;
-const isoDay = (offset: number) => new Date(Date.now() + offset * DAY).toISOString().slice(0, 10);
+// Task dates are the user's local calendar days (ND-1), so build them on the same clock the app reads.
+const isoDay = (offset: number) => addDaysToDateKey(todayKey(new Date()), offset);
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const STEPS = JSON.stringify([
@@ -55,7 +58,7 @@ const GOAL = {
   rawGoal: 'Run a 10K Under 50 Minutes',
   clarifiedOutcome: '49.98',
   currentWeek: 1,
-  targetDate: new Date(Date.now() + 88 * DAY).toISOString(),
+  targetDate: `${isoDay(88)}T00:00:00.000Z`,
   roadmapWeeks: [{ weekNumber: 1, phase: 'Aerobic base', theme: 'Easy miles' }],
   dailyTasks: tasks,
 } as unknown as Goal;
@@ -113,6 +116,48 @@ describe('Today', () => {
     await renderToday();
     await userEvent.click(screen.getByRole('button', { name: 'Start' }));
     expect(screen.getByRole('button', { name: 'Exit focus mode (Esc)' })).toBeInTheDocument();
+  });
+
+  // ND-3: only Focus mode's "Complete minimum" records the 10-minute version.
+  const MINIMUM = { stepNumber: 1, title: '10-minute shakeout', durationMinutes: 10, instructions: 'Jog easily.', focusCue: '', pitfallToAvoid: '' };
+  const renderTodayWithMinimum = () => {
+    mocked.fetchActiveGoal.mockResolvedValueOnce({
+      ...GOAL,
+      dailyTasks: tasks.map((t) => (t.id === 't3' ? { ...t, minimumVersion: MINIMUM } : t)),
+    } as unknown as Goal);
+    return renderToday();
+  };
+
+  it('a Focus "Complete minimum" sends usedMinimumVersion with the completion', async () => {
+    const user = userEvent.setup();
+    await renderTodayWithMinimum();
+    await user.click(screen.getByRole('button', { name: 'Start' }));
+    await user.click(screen.getByRole('button', { name: /start focused session/i }));
+    await user.click(screen.getByRole('button', { name: /low energy/i }));
+    await user.click(screen.getByRole('button', { name: /complete minimum/i }));
+    expect(screen.getByText('Minimum complete')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /finish & return/i }));
+    expect(mocked.updateDailyTask).toHaveBeenCalledTimes(1);
+    expect(mocked.updateDailyTask).toHaveBeenCalledWith('t3', { status: 'completed', notes: undefined, usedMinimumVersion: true }, 't');
+  });
+
+  it('a full Focus completion sends no usedMinimumVersion, even when a minimum version exists', async () => {
+    const user = userEvent.setup();
+    await renderTodayWithMinimum();
+    await user.click(screen.getByRole('button', { name: 'Start' }));
+    await user.click(screen.getByRole('button', { name: /start focused session/i }));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /complete session/i }));
+    await user.click(screen.getByRole('button', { name: /finish & return/i }));
+    expect(mocked.updateDailyTask).toHaveBeenCalledTimes(1);
+    expect(mocked.updateDailyTask).toHaveBeenCalledWith('t3', { status: 'completed', notes: undefined }, 't');
+  });
+
+  it("Today's Complete sends no usedMinimumVersion, even when a minimum version exists", async () => {
+    const user = userEvent.setup();
+    await renderTodayWithMinimum();
+    await user.click(screen.getByRole('button', { name: 'Mark complete' }));
+    expect(mocked.updateDailyTask).toHaveBeenCalledWith('t3', { status: 'completed', notes: undefined }, 't');
   });
 
   it('Complete goes through the write path, and a failure says so and keeps the step as it was', async () => {

@@ -127,6 +127,29 @@ export interface DetailedStep {
   resourceWhy?: string;
 }
 
+/** One day as `POST /api/goal/reconcile` classifies it (missed sessions M1.2/M1.3). Derived, never stored. */
+export interface ReconcileDay {
+  taskId: string;
+  date: string;
+  weekNumber: number;
+  dayNumber: number;
+  isKeySession: boolean;
+  isTestDay: boolean;
+  kind: 'done' | 'missed' | 'rest' | 'planned';
+}
+
+/** Response of `POST /api/goal/reconcile`. Only active plan v2 goals are classified. */
+export type ReconcileResult =
+  | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' }
+  | {
+      applies: true;
+      goalId: string;
+      asOf: string;
+      timezone: string;
+      days: ReconcileDay[];
+      gap: { firstDate: string; lastDate: string; length: number; taskIds: string[] } | null;
+    };
+
 export interface DailyTask {
   id: string;
   goalId: string;
@@ -145,6 +168,8 @@ export interface DailyTask {
   notes?: string;
   /** v2: a 10-minute minimum version for low-time/low-energy days. */
   minimumVersion?: DetailedStep | null;
+  /** ND-3: true when the completion was the 10-minute version only. */
+  usedMinimumVersion?: boolean;
   isKeySession?: boolean;
   isTestDay?: boolean;
   whyToday?: string | null;

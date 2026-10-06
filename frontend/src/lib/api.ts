@@ -209,9 +209,30 @@ export async function fetchActiveGoal(token: string): Promise<import('../types')
   return data.activeGoal;
 }
 
+/**
+ * Missed sessions (ND-6): reconciles the active goal. Called once when the app loads, before the goal is fetched.
+ * In P1 it only reports how each day is classified; nothing on screen uses it yet.
+ */
+export async function reconcileGoal(token: string): Promise<import('../types').ReconcileResult> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/reconcile`, {
+    method: 'POST',
+    headers: {
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to reconcile goal');
+  }
+
+  return data;
+}
+
 export async function updateDailyTask(
   taskId: string,
-  updates: { status?: 'pending' | 'completed' | 'skipped'; notes?: string; slotTime?: string },
+  updates: { status?: 'pending' | 'completed' | 'skipped'; notes?: string; slotTime?: string; usedMinimumVersion?: boolean },
   token: string
 ): Promise<import('../types').DailyTask> {
   const response = await fetch(`${API_BASE_URL}/api/goal/tasks/${taskId}`, {

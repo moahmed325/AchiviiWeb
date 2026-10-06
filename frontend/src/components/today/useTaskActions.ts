@@ -61,13 +61,16 @@ export function useTaskActions() {
     [latest, write],
   );
 
-  /** Focus mode's "Save & Return": completes the step and adds the reflection as a "Focus win" line. */
+  /**
+   * Focus mode's "Save & Return": completes the step and adds the reflection as a "Focus win" line. The flag is sent
+   * only for a minimum-version completion (ND-3); without it the server records a full session.
+   */
   const finishFocus = useCallback(
-    (task: DailyTask, reflection?: string) => {
+    (task: DailyTask, reflection?: string, usedMinimumVersion = false) => {
       const current = latest(task);
       const win = reflection?.trim();
       const notes = win ? (current.notes ? `${current.notes}\n• Focus win: ${win}` : win) : current.notes;
-      return write(current.id, { status: 'completed', notes });
+      return write(current.id, { status: 'completed', notes, ...(usedMinimumVersion ? { usedMinimumVersion: true } : {}) });
     },
     [latest, write],
   );

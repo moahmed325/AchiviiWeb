@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, Check, Clock, Map, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useGoal } from '../context/GoalContext';
+import { useUserTimezone } from '../context/AuthContext';
 import { useJourneyData } from '../hooks/useJourneyData';
 import {
   currentRoadmapWeek,
@@ -39,10 +40,10 @@ const greetingFor = (now: Date) => {
 
 type DayState = 'completed' | 'today' | 'rest' | 'upcoming';
 
-const dayStateOf = (task: DailyTask, now: Date): DayState => {
+const dayStateOf = (task: DailyTask, now: Date, timezone?: string): DayState => {
   if (task.status === 'completed') return 'completed';
   if (task.isRestDay) return 'rest';
-  if (isToday(task, now)) return 'today';
+  if (isToday(task, now, timezone)) return 'today';
   return 'upcoming';
 };
 
@@ -107,6 +108,7 @@ const EmptyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 export const Dashboard: React.FC = () => {
   const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal } = useGoal();
   const journey = useJourneyData();
+  const timezone = useUserTimezone();
   const [now] = React.useState(() => new Date());
   if (loadingGoal) return <DashboardSkeleton />;
   if (goalLoadFailed && !activeGoal) return (
@@ -119,9 +121,9 @@ export const Dashboard: React.FC = () => {
   if (!activeGoal) return null;
 
   const tasks = currentWeekTasks(activeGoal);
-  const task = selectTodayTask(tasks, now);
+  const task = selectTodayTask(tasks, now, undefined, timezone);
   const week = currentRoadmapWeek(activeGoal);
-  const day = dayNumber(activeGoal, now);
+  const day = dayNumber(activeGoal, now, timezone);
   const { practiceDays, practiceDone } = weekProgress(tasks);
   const currentWeek = week?.weekNumber ?? Math.ceil(day / 7);
   const isDone = task?.status === 'completed';
@@ -129,7 +131,7 @@ export const Dashboard: React.FC = () => {
   const dateLabel = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const stagger = (ms: number): React.CSSProperties => ({ animationDelay: ms + 'ms' });
 
-  const status = statusLine({ closing: isClosingStretchActive(activeGoal, now), isDone, isRest, slipped: !isDone && isYesterdayPending(tasks, now), practiceDone, practiceDays });
+  const status = statusLine({ closing: isClosingStretchActive(activeGoal, now, timezone), isDone, isRest, slipped: !isDone && isYesterdayPending(tasks, now, timezone), practiceDone, practiceDays });
   const steps = parseSteps(task?.detailedSteps);
   const previewSteps = steps.slice(0, 3);
   const moreSteps = steps.length - previewSteps.length;
@@ -152,7 +154,7 @@ export const Dashboard: React.FC = () => {
   const cells: ComingUpItem[] = [];
   if (later) {
     cells.push({ marker: <StepMarker state="upcoming" size="sm" />, label: 'Later this week', value: later.dayOfWeek + ' \u00b7 ' + later.title, note: later.isTestDay ? 'Test day' : later.isKeySession ? 'Key session' : undefined });
-  } else if (isWeekReviewDue(tasks, now)) {
+  } else if (isWeekReviewDue(tasks, now, timezone)) {
     cells.push({ marker: <StepMarker state="upcoming" size="sm" />, label: 'Up next', value: 'Your weekly review' });
   }
   if (week?.keyMilestone) {
@@ -221,7 +223,7 @@ export const Dashboard: React.FC = () => {
           </p>
           <ol aria-label="Days this week" className="mt-8 flex items-start justify-between gap-1">
             {tasks.map((t) => {
-              const state = dayStateOf(t, now);
+              const state = dayStateOf(t, now, timezone);
               return (
                 <li key={t.id} className="flex flex-col items-center gap-2" aria-label={t.dayOfWeek + ', ' + dayStateLabel[state]}>
                   <span className="dash-day" data-state={state}>

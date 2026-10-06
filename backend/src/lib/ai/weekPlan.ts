@@ -46,11 +46,11 @@ export function weekLayout(variant: PlanVariant, weekStart: Date): DayLayout[] {
   const rest = restDayIndices(variant);
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(weekStart);
-    date.setDate(date.getDate() + index);
+    date.setUTCDate(date.getUTCDate() + index);
     return {
       dayNumber: index + 1,
       date: date.toISOString().split('T')[0],
-      dayOfWeek: DAY_NAMES[date.getDay()],
+      dayOfWeek: DAY_NAMES[date.getUTCDay()],
       isRestDay: rest.includes(index),
       isTestDay: false,
     };

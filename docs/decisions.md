@@ -116,7 +116,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | OD-1b | Goal completion transition | Architecture | Decided (B) | 9 |
 | OD-1c | Server-side entitlement for Custom Journeys | Architecture | Decided (B) | 10 |
 | OD-2 | 90 vs 84 days | Product | Decided (A) | 5, 6, 9 |
-| OD-3 | Which dashboard becomes Today | Architecture | Decided (A) | 5 |
+| OD-3 | Which dashboard becomes Today | Architecture | Superseded by ND-19 | 5 |
 | OD-4 | Dedicated `/login` and `/signup` routes | Architecture | Decided (A) | 2 |
 | OD-5 | Mobile in every phase | Process | Decided (see D-12) | All |
 | OD-6 | Rewrite `Design.md` | Design | Decided (see D-6) | 0 |
@@ -144,6 +144,8 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-16 | Pre-existing onboarding bugs fixed in Phase 3 | Architecture | Decided (A) | 3 |
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
+| ND-19 | Keep the Dashboard as an overview beside Today | Product | Decided (A) | — |
+| ND-20 | Legacy billing columns on `users` (schema drift) | Technology | Decided (A) | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -732,7 +734,7 @@ For every option: specify how `GET /api/goal/active` behaves for a completed goa
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by [ND-19](#nd-19--keep-the-dashboard-as-an-overview-beside-today) |
 | Category | Architecture |
 | Needed by | 5 |
 | Raised | BP Open Decision 3 |
@@ -1653,9 +1655,71 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-19 — Keep the Dashboard as an overview beside Today
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-07 — test-fix review: `AppShell.test.tsx` expected the OD-3 shell, the code has a Dashboard |
+| Decided | 2026-10-07 — Mo delegated the call ("whatever you think is best"); recorded as the agent's recommendation |
+
+**Context.** OD-3 (A) put Today at `/` and made `/dashboard` redirect there (implemented 2026-09-25, M5.8). From 2026-09-30 (`7d78760` "add user dashboard home base") through 2026-10-02 ("Dashboard v2": day ring, status line, session card, coming-up strip), a new `pages/Dashboard.tsx` was built at `/dashboard`, with its own tests and a shell entry ("Dashboard" in the rail, "Home" in the bottom bar). `Design.md` §5 and OD-3 still describe the shell without it.
+
+**Question.** Does the Dashboard stay, or does the code go back to OD-3?
+
+**Options.**
+- **A — Keep it as an overview.** `/` stays Today, where the step is done. `/dashboard` is a read-only overview of the day and week that links into Today for any action. Pros: keeps five commits of deliberate work and its tests; no user-facing removal. Cons: two screens show today's step; the "two sources of truth" risk OD-3 named.
+- **B — Remove it (restore OD-3).** Pros: one screen, as the blueprint argues. Cons: deletes recent, tested work that was built on purpose.
+
+**Recommendation.** **A.** The Dashboard was built deliberately and recently, after OD-3, and is covered by tests. OD-3's risk is handled by a rule instead of a removal: the Dashboard never writes or decides anything itself. It reads the same `lib/today.ts` helpers as Today (so both always agree, see missed-sessions M1.1b) and sends every action to Today.
+
+**Decision.** **A — keep `/dashboard` as an overview; Today at `/` stays the place where the step is done.** Supersedes OD-3.
+
+**Consequences.**
+* `Design.md` §5 lists the Dashboard entry; §6 notes the overview.
+* `DashboardRedirect.tsx` (the OD-3 redirect) is no longer the route for `/dashboard`.
+* Any logic the Dashboard needs comes from shared helpers (`lib/today.ts`, `useJourneyData`), never from its own copy.
+
+**Related.** OD-3, ND-18, missed-sessions M1.1b.
+
+---
+
+### ND-20 — Legacy billing columns on `users` (schema drift)
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Technology |
+| Needed by | — |
+| Raised | 2026-10-07 — missed-sessions M2.0 drift check |
+| Decided | 2026-10-07 — Mo delegated the call ("whatever you think is best"); recorded as the agent's recommendation |
+
+**Context.** Migration `20260928171500_add_user_billing_fields` added six Stripe-era columns to `users` (`plan`, `stripeCustomerId`, `stripeSubscriptionId`, `subscriptionStatus`, `currentPeriodEnd`, `cancelAtPeriodEnd`) and two unique indexes. Billing then moved to the `Subscription` table (Lemon Squeezy, `20260929170000_add_subscriptions`), and the columns were removed from `schema.prisma` without a migration. They still exist in every database that ran the migrations. No code reads or writes them (all billing reads `Subscription`). `prisma migrate deploy` is unaffected, but `prisma migrate dev` sees drift and would generate a migration that drops them.
+
+**Question.** Drop the columns, or make the schema match the database?
+
+**Options.**
+- **A — Declare them in the schema as legacy.** Add the six fields (and the two unique constraints) back to `User`, marked deprecated, with no migration (the database already has them). Pros: removes the drift with zero database change and zero data loss; `migrate dev` becomes safe. Cons: dead fields stay visible on the `User` type until dropped.
+- **B — Drop them with a migration.** Pros: clean schema and database. Cons: irreversible on production; whatever the columns hold is lost; nobody has checked whether they hold anything.
+
+**Recommendation.** **A now, B later.** Make the schema honest without touching any database. Dropping them is a separate, deliberate step once someone has confirmed on the production database that they are empty or unneeded.
+
+**Decision.** **A — declare the six columns in `schema.prisma` as deprecated legacy fields, no migration.** A drop (B) needs its own decision after the production data is checked.
+
+**Consequences.**
+* `User` gains six `@deprecated` fields matching the migration exactly (types, defaults, `@unique`).
+* No code may start using them. Every `prisma.user` query already uses an explicit `select`, so they are never sent to clients.
+* Until this lands, nobody runs `prisma migrate dev`.
+
+**Related.** PAY-1, missed-sessions M2.0.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
-None yet.
+* **OD-3** — Superseded by **ND-19** on 2026-10-07.
 
 ---
 
@@ -1694,6 +1758,7 @@ None yet.
 | 2026-09-27 | Phase 8 M8.1: ND-8 Decided as Option A (dedicated Progress page `/progress` attached to app shell navigation per BP §27); zero backend allowance confirmed (D-11). Phase 8 is IN PROGRESS. |
 | 2026-09-27 | Phase 8 complete: ND-8 implemented and verified across M8.2–M8.5. Dedicated `/progress` route, shell navigation, completion metrics, phase milestones, benchmark results card, and adaptation history delivered with zero backend edits. Playwright suite `e2e/progress.spec.ts` passes 20/20 tests. Phase 8 marked COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next and blocked by OD-1b and OD-2. |
 | 2026-09-27 | Phase 9 M9.1: OD-1b Decided as Option B (explicit completion endpoint `POST /api/goal/complete` with closing-stretch arrival); named backend allowance approved for M9.2 (`completedAt DateTime?`, migration `add_goal_completed_status_and_timestamp`, and `GET /api/goal/active` update); canonical frontend contracts defined in `frontend/src/types/achievement.ts`. Phase 9 is IN PROGRESS. |
+| 2026-10-07 | ND-19 Decided (A): the Dashboard stays at `/dashboard` as an overview; OD-3 marked Superseded. ND-20 Decided (A): the six legacy billing columns on `users` are declared in `schema.prisma` as deprecated, with no migration. Both delegated by Mo to the agent's recommendation. |
 
 ### PAY-1 — Achivii Pro pricing
 

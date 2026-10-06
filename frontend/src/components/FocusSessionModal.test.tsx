@@ -73,6 +73,28 @@ describe('FocusSessionModal', () => {
     expect(screen.getByText('10-minute minimum')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /complete minimum/i }));
     expect(screen.getByText('Minimum complete')).toBeInTheDocument();
+  });
+
+  it('tells the caller when the minimum version was completed (ND-3)', async () => {
+    const task = { ...sampleTask, minimumVersion: { stepNumber: 1, title: '10-minute minimum', instructions: 'Do the simplest useful version.', durationMinutes: 10, focusCue: '', pitfallToAvoid: '' } };
+    const onComplete = vi.fn().mockResolvedValue(undefined);
+    renderOpen(task, onComplete);
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /low energy/i }));
+    fireEvent.click(screen.getByRole('button', { name: /complete minimum/i }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /finish & return/i })));
+    expect(onComplete).toHaveBeenCalledWith(undefined, { usedMinimumVersion: true });
+  });
+
+  it('a full session reports no minimum version even when one exists', async () => {
+    const task = { ...sampleTask, minimumVersion: { stepNumber: 1, title: '10-minute minimum', instructions: 'Do the simplest useful version.', durationMinutes: 10, focusCue: '', pitfallToAvoid: '' } };
+    const onComplete = vi.fn().mockResolvedValue(undefined);
+    renderOpen(task, onComplete);
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /complete session/i }));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /finish & return/i })));
+    expect(onComplete).toHaveBeenCalledWith(undefined, { usedMinimumVersion: false });
   });  it('saves an optional reflection and closes', async () => {
     const onComplete = vi.fn().mockResolvedValue(undefined);
     const onClose = vi.fn();
@@ -82,7 +104,7 @@ describe('FocusSessionModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /complete session/i }));
     fireEvent.change(screen.getByPlaceholderText('What mattered today?'), { target: { value: 'Great pacing.' } });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: /finish & return/i })));
-    expect(onComplete).toHaveBeenCalledWith('Great pacing.');
+    expect(onComplete).toHaveBeenCalledWith('Great pacing.', { usedMinimumVersion: false });
     expect(onClose).toHaveBeenCalled();
   });
 

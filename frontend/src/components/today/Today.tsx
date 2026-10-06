@@ -21,7 +21,7 @@ import {
   weekProgress,
 } from '../../lib/today';
 import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
-import { FocusSessionModal } from '../FocusSessionModal';
+import { FocusSessionModal, type FocusCompletionOptions } from '../FocusSessionModal';
 import { BasisBadge } from '../BasisBadge';
 import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
@@ -123,17 +123,17 @@ const PathwayNotice: React.FC = () => {
   );
 };
 
-const dayLabel = (task: DailyTask, now: Date) => `${task.dayOfWeek.slice(0, 3)} ${task.date.slice(8)}${isToday(task, now) ? ', today' : ''}`;
+const dayLabel = (task: DailyTask, now: Date, timezone?: string) => `${task.dayOfWeek.slice(0, 3)} ${task.date.slice(8)}${isToday(task, now, timezone) ? ', today' : ''}`;
 
-const dayState = (task: DailyTask, now: Date) =>
-  task.status === 'completed' ? 'done' : task.isRestDay ? 'rest day' : isToday(task, now) ? 'to do' : 'not done';
+const dayState = (task: DailyTask, now: Date, timezone?: string) =>
+  task.status === 'completed' ? 'done' : task.isRestDay ? 'rest day' : isToday(task, now, timezone) ? 'to do' : 'not done';
 
 /** Which `dash-day` mark a day gets. Shape carries the state as well as colour. */
-const markState = (task: DailyTask, now: Date) =>
-  task.status === 'completed' ? 'completed' : task.isRestDay ? 'rest' : isToday(task, now) ? 'today' : 'upcoming';
+const markState = (task: DailyTask, now: Date, timezone?: string) =>
+  task.status === 'completed' ? 'completed' : task.isRestDay ? 'rest' : isToday(task, now, timezone) ? 'today' : 'upcoming';
 
-const DayMark: React.FC<{ task: DailyTask; now: Date }> = ({ task, now }) => {
-  const state = markState(task, now);
+const DayMark: React.FC<{ task: DailyTask; now: Date; timezone?: string }> = ({ task, now, timezone }) => {
+  const state = markState(task, now, timezone);
   return (
     <span className="dash-day" data-state={state}>
       {state === 'completed' && <Check aria-hidden="true" strokeWidth={2.25} className="size-3.5" />}
@@ -146,9 +146,10 @@ const WeekGlance: React.FC<{
   tasks: DailyTask[];
   selectedId?: string;
   now: Date;
+  timezone?: string;
   onSelect: (id: string) => void;
   onOpenReview: () => void;
-}> = ({ tasks, selectedId, now, onSelect, onOpenReview }) => {
+}> = ({ tasks, selectedId, now, timezone, onSelect, onOpenReview }) => {
   const { practiceDays, practiceDone } = weekProgress(tasks);
   const [showWeek, setShowWeek] = useState(false);
   return (
@@ -183,7 +184,7 @@ const WeekGlance: React.FC<{
         <ol aria-hidden="true" className="mt-7 flex items-start justify-between gap-1">
           {tasks.map((task) => (
             <li key={task.id} className="flex flex-col items-center gap-2">
-              <DayMark task={task} now={now} />
+              <DayMark task={task} now={now} timezone={timezone} />
               <span className="font-ui-mono text-micro uppercase text-text-secondary">{task.dayOfWeek.slice(0, 3)}</span>
             </li>
           ))}
@@ -193,13 +194,13 @@ const WeekGlance: React.FC<{
       <ul id="week-glance-days" hidden={!showWeek} className="mt-6 grid grid-cols-7 gap-1">
         {tasks.map((task) => {
           const selected = task.id === selectedId;
-          const today = isToday(task, now);
+          const today = isToday(task, now, timezone);
           return (
             <li key={task.id} className="min-w-0">
               <button
                 type="button"
                 aria-pressed={selected}
-                aria-label={`${dayLabel(task, now)}, ${dayState(task, now)}`}
+                aria-label={`${dayLabel(task, now, timezone)}, ${dayState(task, now, timezone)}`}
                 onClick={() => onSelect(task.id)}
                 className={cx(
                   'focus-ring flex min-h-20 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-control py-2',
@@ -208,7 +209,7 @@ const WeekGlance: React.FC<{
                 )}
               >
                 <span className={cx('font-ui-mono text-micro uppercase', today && 'text-achievement')}>{task.dayOfWeek.slice(0, 3)}</span>
-                <DayMark task={task} now={now} />
+                <DayMark task={task} now={now} timezone={timezone} />
                 <span className="tabular text-small">{task.date.slice(8)}</span>
               </button>
             </li>
@@ -232,7 +233,8 @@ interface TodayProps {
  * The look is the Dashboard's: one lit surface (the step), gold for the journey and for arrival, quiet everywhere else.
  */
 export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const timezone = user?.timezone;
   const goalContext = useGoal();
   const apiStatus = propApiStatus ?? goalContext.apiStatus;
   const [now] = useState(() => new Date());
@@ -258,11 +260,11 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const notesId = useId();
 
   const tasks = currentWeekTasks(goal);
-  const task = selectTodayTask(tasks, now, selectedId);
+  const task = selectTodayTask(tasks, now, selectedId, timezone);
   const steps = parseSteps(task?.detailedSteps);
   const intention = parseIntention(task?.implementationIntention);
   const week = currentRoadmapWeek(goal);
-  const day = dayNumber(goal, now);
+  const day = dayNumber(goal, now, timezone);
   const journeyPercent = Math.min(100, Math.max(2, Math.round((day / 90) * 100)));
   const done = task?.status === 'completed';
   const nextTask = task ? findNextTask(tasks, task.id) : null;
@@ -270,9 +272,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const focusWins = parsedNotes.focusWins;
   const draft = task ? drafts[task.id] : undefined;
   const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
-  const reviewDue = isWeekReviewDue(tasks, now);
-  const isClosingStretch = isClosingStretchActive(goal, now);
-  const yesterdayUncompleted = isYesterdayPending(tasks, now) && Boolean(task && isToday(task, now) && task.status === 'pending');
+  const reviewDue = isWeekReviewDue(tasks, now, timezone);
+  const isClosingStretch = isClosingStretchActive(goal, now, timezone);
+  const yesterdayUncompleted = isYesterdayPending(tasks, now, timezone) && Boolean(task && isToday(task, now, timezone) && task.status === 'pending');
 
   const selectDay = (id: string) => {
     setSelectedId(id);
@@ -306,10 +308,10 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
     window.setTimeout(() => setNoteSaved(false), 2000);
   };
 
-  const onFinishFocus = async (reflection?: string) => {
+  const onFinishFocus = async (reflection?: string, options?: FocusCompletionOptions) => {
     if (!task) return;
     setActionError(null);
-    const result = await finishFocus(task, reflection);
+    const result = await finishFocus(task, reflection, options?.usedMinimumVersion);
     if (!result.ok) {
       setActionError(NOT_SAVED);
       throw result.error;
@@ -408,10 +410,10 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               <div className="flex flex-wrap items-center gap-2">
                 <Eyebrow gold className="mr-1">
                   {task.isRestDay
-                    ? isToday(task, now)
+                    ? isToday(task, now, timezone)
                       ? "Today's rest"
                       : `${task.dayOfWeek}'s rest`
-                    : isToday(task, now)
+                    : isToday(task, now, timezone)
                       ? "Today's step"
                       : `${task.dayOfWeek}'s step`}
                 </Eyebrow>
@@ -722,7 +724,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
       )}
 
       {!isClosingStretch && tasks.length > 0 && (
-        <WeekGlance tasks={tasks} selectedId={task?.id} now={now} onSelect={selectDay} onOpenReview={() => setReviewOpen(true)} />
+        <WeekGlance tasks={tasks} selectedId={task?.id} now={now} timezone={timezone} onSelect={selectDay} onOpenReview={() => setReviewOpen(true)} />
       )}
 
       <nav

@@ -16,6 +16,7 @@ vi.mock('../../lib/api', async (importOriginal) => {
     fetchHealthCheck: vi.fn(),
     fetchCurrentUser: vi.fn(),
     fetchActiveGoal: vi.fn(),
+    reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
     resetActiveGoal: vi.fn(),
   };
 });
@@ -61,7 +62,7 @@ const renderAt = (url: string) =>
 /** jsdom applies no CSS, so the rail and the bottom bar are both in the tree; each is checked on its own. */
 const rail = () => within(document.querySelector<HTMLElement>('[data-shell="rail"]')!);
 const bottomBar = () => within(document.querySelector<HTMLElement>('[data-shell="bottom-bar"]')!);
-/** Sign-in resolves asynchronously (Supabase getSession), so the app shell mounts a tick after render. */
+/** The Supabase session resolves after the first render, so the app frame (rail and bar) mounts a tick later. */
 const shellReady = () => vi.waitFor(() => expect(document.querySelector('[data-shell="rail"]')).not.toBeNull());
 
 const signedIn = (goal: Goal | null) => {
@@ -98,7 +99,6 @@ describe('shellMode and shellEntries', () => {
     expect(shellEntries('/', true).todayActive).toBe(true);
     expect(shellEntries('/dashboard', true).todayActive).toBe(false);
     expect(shellEntries('/dashboard', true).dashboardActive).toBe(true);
-    expect(shellEntries('/', true).dashboardActive).toBe(false);
     expect(shellEntries('/roadmap', true)).toEqual({
       dashboardActive: false,
       todayActive: false,
@@ -119,20 +119,20 @@ describe('shellMode and shellEntries', () => {
 });
 
 describe('entries', () => {
-  it('with a goal: Dashboard, Today, Roadmap, Progress, Pathways, Coach and Account, in both layouts', async () => {
+  it('with a goal: Dashboard (Home on mobile), Today, Roadmap, Progress, Pathways, Coach and Account, in both layouts', async () => {
     signedIn(GOAL);
     renderAt('/');
     await shellReady();
     await rail().findByRole('link', { name: 'Roadmap' });
-    // The dashboard entry is "Dashboard" on the rail and the shorter "Home" on the bottom bar.
-    for (const [layout, dashboardLabel] of [[rail(), 'Dashboard'], [bottomBar(), 'Home']] as const) {
+    for (const [layout, home] of [[rail(), 'Dashboard'], [bottomBar(), 'Home']] as const) {
       const nav = layout.getByRole('navigation', { name: 'Primary' });
       const names = Array.from(nav.querySelectorAll('a, button'))
         .filter((el) => !el.closest('[hidden]'))
         .map((el) => el.textContent?.replace('mo@example.com', '').trim());
-      expect(names).toEqual([dashboardLabel, 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
+      expect(names).toEqual([home, 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
+      expect(within(nav).getByRole('link', { name: home })).toHaveAttribute('href', '/dashboard');
+      expect(within(nav).getByRole('link', { name: home })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
-      expect(within(nav).getByRole('link', { name: dashboardLabel })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
       expect(within(nav).queryByText(/Journey|coming soon|\(\d+\)/i)).toBeNull();
