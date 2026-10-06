@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 1.3 | **Date:** 2026-10-07 (M1.2 prompt drafted)
+**Version:** 1.4 | **Date:** 2026-10-07 (M1.3 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -278,7 +278,87 @@ The repository shows per-step completion data after all (then R5 needs a decisio
 
 ## M1.3 — Reconcile Endpoint
 
-_Prompt to be drafted after M1.2 is complete._
+### STATUS
+READY (drafted 2026-10-07). Depends on M1.2 (complete, commit `a108343`).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P1/M1.3. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+M1.2 added pure functions in `backend/src/lib/missedSessions.ts`: `classifyDays(tasks, { now, timezone, sleepTime })` returns one `DayClassification` per task (`done` / `missed` / `rest` / `planned`), and `findOpenGap(days)` returns the open gap or `null`. Nothing calls them yet. ND-6 decided that reconciliation runs through a new `POST /api/goal/reconcile`, called once when the app loads, and that `GET /api/goal/active` stays a pure read. In P1 the endpoint only **reports**; P2 adds carry-forward writes on top of the same route. So build it as: load → classify → (P2 will apply changes here) → respond.
+
+Repository facts (verify, do not trust this prompt):
+- `goalRouter` is in `backend/src/routes/goal.ts`, mounted at `/api/goal`. Every handler starts with `const user = await getAuthUser(req)` and returns 401 when it is null. `getAuthUser` returns the Prisma `User`, which includes `timezone`.
+- `GET /active` loads the active goal with `prisma.goal.findFirst({ where: { userId, status: 'active' }, include: { dailyTasks: { orderBy: { dayNumber: 'asc' } }, ... } })`, and falls back to the latest completed goal.
+- `Goal.planVersion` is an `Int` (1 = old goals, 2 = plan v2). `readRoutine(goal).sleepTime` (`backend/src/lib/planV2.ts`) gives the raw stored bedtime; `classifyDays` validates it.
+- HTTP-level route tests already exist with Prisma and `getAuthUser` mocked and the router mounted on a real Express server: `backend/test/goalCompletion.test.ts`, `backend/test/weeklyReviewTestResult.test.ts`. Use the same pattern.
+- Frontend: `frontend/src/context/GoalContext.tsx` `loadGoal` calls `fetchActiveGoal(token)` from `frontend/src/lib/api.ts` when the token changes; `refreshGoal` re-fetches after actions. Several frontend tests mock `../lib/api` (some spread the real module with `importOriginal`, so a new real function would really call `fetch` there).
+
+### OBJECTIVE
+A working, idempotent `POST /api/goal/reconcile` that returns the derived classification and open gap for the user's active plan v2 goal and writes nothing, plus a single call to it when the app loads. AC-1, AC-5 and AC-14 become true at the API level (EV-2).
+
+### READ FIRST
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-6, ND-8), section 3.4 (idempotency), 3.8 (preservation), P1 (6.2-6.10), M1.3.
+- docs/features/missed-sessions/03-feature.md: AC-1, AC-5, AC-14, section 5 (misses are detected when the app is opened).
+- docs/features/missed-sessions/milestones/m1.2-day-close-classification.md (section 7, carry-overs).
+
+### INSPECT FIRST
+- `backend/src/routes/goal.ts`: `GET /active`, `POST /complete`, `POST /weeks/:weekNumber/review` (auth, error and response style).
+- `backend/src/lib/missedSessions.ts`, `backend/src/lib/planV2.ts` (`readRoutine`).
+- `backend/test/goalCompletion.test.ts` (mocking and server setup).
+- `frontend/src/lib/api.ts` (`fetchActiveGoal` style, `API_BASE_URL`), `frontend/src/context/GoalContext.tsx` (`loadGoal`, `refreshGoal`), and every frontend test that mocks `../lib/api` or renders `GoalProvider`.
+
+### REQUIREMENTS
+R1. **Route.** `POST /api/goal/reconcile` in `goal.ts`, no request body. 401 without a valid user (same message style as the other handlers). 500 with a generic message and a `console.error` on unexpected errors, like the other handlers.
+
+R2. **Which goal.** The user's goal with `status: 'active'` only (not the completed-goal fallback of `GET /active`), loaded with its `dailyTasks`. Read only the fields classification needs.
+
+R3. **Gating (3.8, AC-14).** Respond 200 with `{ applies: false, reason }` and nothing else when there is no active goal (`reason: 'no_active_goal'`) or its `planVersion` is not 2 (`reason: 'not_plan_v2'`). Old goals get no classification and nothing about them changes.
+
+R4. **Response for a plan v2 goal.** 200 with:
+`{ applies: true, goalId, asOf, timezone, days, gap }`
+- `asOf`: the ISO instant used as `now` (read once per request).
+- `timezone`: the zone actually used (`normalizeTimezone(user.timezone)`).
+- `days`: `classifyDays(goal.dailyTasks, { now, timezone, sleepTime: readRoutine(goal).sleepTime })`, ordered by date then day number.
+- `gap`: `findOpenGap(days)`.
+No copy, no labels, no extra derived fields; this is data for P2 and P3.
+
+R5. **No writes (ND-2).** The handler performs no Prisma create, update, upsert or delete, and no model call. Put the response-building in a small pure function (in `missedSessions.ts` or beside the route) so it can be tested without HTTP, and leave one clearly marked place where P2's carry-forward will go. Do not build any of P2.
+
+R6. **Idempotent (3.4).** Two calls at the same `now` return identical bodies, and the database is unchanged after any number of calls. Prove both in tests.
+
+R7. **`GET /active` unchanged.** No edits to it or to `presentGoal`.
+
+R8. **Frontend call on app load.** Add `reconcileGoal(token)` to `frontend/src/lib/api.ts` in the style of `fetchActiveGoal`. In `GoalContext.loadGoal`, call it once **before** `fetchActiveGoal` (once P2 writes, the goal must be fetched after reconciliation). Any failure (network, non-200, bad JSON) is caught and logged with `console.warn`, and goal loading continues exactly as before: a reconcile problem must never block, delay past its own failure, or fail the goal load (R-1). Do not call it from `refreshGoal`. Do not store or render the result; there is no consumer until P3. Update the frontend tests that mock `../lib/api` so none of them makes a real network call, and add one GoalProvider test proving the call happens once per load, before `fetchActiveGoal`, and that a reconcile failure still loads the goal.
+
+R9. **Tests (backend).** HTTP-level tests in the existing pattern (new file, for example `backend/test/reconcile.test.ts`), with time controlled (fake timers or an injectable `now` in the pure function):
+- 401 without a user.
+- No active goal → `applies: false, reason: 'no_active_goal'`.
+- `planVersion: 1` goal with a closed, pending practice day → `applies: false, reason: 'not_plan_v2'` (AC-14).
+- EV-2: a plan v2 goal in `Africa/Addis_Ababa` with `sleepTime` 23:00, whose yesterday is pending. Before its close (00:40 local) the day is `planned`; after (01:00 local) it is `missed` (AC-1). Record both response bodies in the report.
+- A past pending rest day is `rest` in the response (AC-5).
+- Three missed practice days produce a `gap`; a done day after them produces none.
+- Missing user timezone → `timezone: 'UTC'`; missing `sleepTime` in `routine` → 04:00 close.
+- Idempotency: two calls give identical bodies, and no Prisma write mock is ever called across the whole file.
+- `GET /active` still returns the same body as before for the same goal (R7), if the existing tests do not already cover it.
+
+### OUT OF SCOPE
+Carry-forward, swap, mark missed, high-load handling and any write (P2); the `usedMinimumVersion` migration (M2.0); any UI, copy, or storing the result in context (P3); late-test and weekly status (P4); changes to `GET /active`, `presentGoal` or `missedSessions.ts` rules; per-step completion (ND-8); fixing the 9 `AppShell.test.tsx` failures (ND-7) or the flaky `AuthScreen.test.tsx` test.
+
+### REGRESSION CHECKS
+R-1 (auth and active-goal loading: a failing reconcile never breaks goal loading), R-7 (old goals: `not_plan_v2`, no change), R-9 (timezone helpers unchanged). Baseline: backend 55 files / 384 tests pass when `test/researchCache.test.ts` is excluded; backend and frontend `tsc --noEmit` pass; frontend lint 0 errors, 2 warnings; frontend tests fail only in `AppShell.test.tsx` (9), plus an occasional pre-existing `AuthScreen.test.tsx` timing flake. `researchCache.test.ts` writes to whatever `DATABASE_URL` points at: run it only against a confirmed development database, otherwise exclude it (`npx vitest run --exclude test/researchCache.test.ts`) and say so.
+
+### VALIDATION
+Repository commands only. Backend: the new test file first, then `npx vitest run --exclude test/researchCache.test.ts` (or `npm test` against a confirmed development database) and `npx tsc --noEmit`. Frontend: the changed test files first, then `npm test`, `npx tsc --noEmit`, `npm run lint`.
+
+### DELIVERABLE
+The route, the pure response builder, the frontend `reconcileGoal` and its single call in `loadGoal`, tests for R8 and R9, and a report at `docs/features/missed-sessions/milestones/m1.3-reconcile-endpoint.md`: files changed, evidence for R1-R9, the two EV-2 response bodies, commands and results against the baseline, and carry-overs for P2 (where the writes go, and how idempotency must hold once they do). Do not commit or push.
+
+### DONE
+`POST /api/goal/reconcile` returns the classification and gap for an active plan v2 goal, `applies: false` for everything else, writes nothing, and returns the same body when repeated; the app calls it once per load before fetching the goal, and a reconcile failure never affects loading; all validation is at the baseline or better.
+
+### STOP IF
+The active goal cannot be found the same way `GET /active` finds it; `User.timezone` is not available from `getAuthUser`; the frontend call cannot be added without changing what any screen shows or how long it takes to load when reconcile succeeds; a write, a schema change or a change to `GET /active` appears necessary; or tests can only pass by calling the real network or database. Report instead of working around it.
 
 ## M1.1b — User-Timezone "Today" (COMPLETE, implemented version)
 
