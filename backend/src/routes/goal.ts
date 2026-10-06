@@ -14,6 +14,7 @@ import {
   type PlanGenerationResult,
 } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
+import { isHighLoadGoal } from '../lib/highLoad.js';
 import { cleanBlocks, cleanWorkKinds } from '../lib/method/blocks.js';
 import { formatBasisBadge, type PlanGrounding } from '../lib/research/planGrounding.js';
 import { applySafetyClamps } from '../lib/research/safetyClamps.js';
@@ -362,6 +363,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         target: first.target,
         test: first.test,
         weekStart: start,
+        highLoadGoal: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
       });
     }
 

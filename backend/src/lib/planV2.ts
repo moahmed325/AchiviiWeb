@@ -12,6 +12,7 @@ import {
   type WeekTest,
 } from './ai/roadmap.js';
 import { activeDaysFor, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
+import { isHighLoadGoal } from './highLoad.js';
 
 /** What `Goal.roadmap` holds for a v2 goal. The 12 weeks live in `RoadmapWeek` rows. */
 export interface StoredRoadmap {
@@ -140,6 +141,7 @@ export async function writeNextWeek(
     target: next.target as unknown as WeekTarget,
     test: next.test as unknown as WeekTest,
     weekStart: weekStartFor(goal.startDate, next.weekNumber),
+    highLoadGoal: isHighLoadGoal(goal),
     lastWeek: done?.target
       ? {
           target: done.target as unknown as WeekTarget,

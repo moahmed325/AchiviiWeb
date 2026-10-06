@@ -95,6 +95,8 @@ export interface WeekCallInput {
   weekStart: Date;
   lastWeek?: LastWeekSummary;
   retestFirst?: boolean;
+  /** ND-5: a physical preset goal (`isHighLoadGoal`); every practice step is then high-load. */
+  highLoadGoal?: boolean;
 }
 
 const WEEK_SYSTEM = `You write one week of daily practice for a person following a 90-day plan. The goal, the method and this week's
@@ -127,8 +129,8 @@ export const WEEK_RESPONSE_SCHEMA = {
             type: 'array',
             items: {
               type: 'object',
-              properties: { ...stepProperties, priority: { type: 'integer' }, timing: { type: 'string' } },
-              required: ['title', 'instructions', 'minutes', 'output', 'doneWhen', 'focusCue', 'pitfall', 'priority'],
+              properties: { ...stepProperties, priority: { type: 'integer' }, timing: { type: 'string' }, highLoad: { type: 'boolean' } },
+              required: ['title', 'instructions', 'minutes', 'output', 'doneWhen', 'focusCue', 'pitfall', 'priority', 'highLoad'],
             },
           },
           minimumVersion: {
@@ -214,6 +216,7 @@ WRITE THE WEEK
   - focusCue and pitfall
   - priority: 1 = most important today, no ties
   - timing (optional): only when the step can't follow the previous one straight away
+  - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false
 - No two practice days are the same. Most practice days include doing the real thing, not only preparing for it.
 - Only use equipment they have. Match their level. Never assign loads beyond what is safe for their level.
 - No steps for journaling, reflecting, or reading about the method. Breaks go inside a step's instructions,
@@ -231,6 +234,7 @@ interface RawStep {
   pitfall?: unknown;
   priority?: unknown;
   timing?: unknown;
+  highLoad?: unknown;
 }
 
 interface RawDay {
@@ -268,6 +272,8 @@ function toStep(raw: RawStep, stepNumber: number): DetailedStep & { priority: nu
     output: text(raw.output),
     ...(timing ? { timing } : {}),
     priority: int(raw.priority) ?? Number.MAX_SAFE_INTEGER,
+    // ND-5: only a real boolean counts; a missing or odd value is never a reason to retry.
+    highLoad: raw.highLoad === true,
   };
 }
 
@@ -314,6 +320,7 @@ function testStepFor(test: WeekTest, minutes: number): DetailedStep & { priority
     passMark: test.passIf,
     output: 'Your test result.',
     priority: 0,
+    highLoad: false,
   };
 }
 
@@ -451,7 +458,17 @@ export function checkWeekAnswer(
   const polished = polishDays(days);
   soft.push(...dayQualityFailures(polished));
   if (soft.length > 0 && !lastAttempt) return { reason: soft.slice(0, 8).join(' ') };
-  return { value: polished };
+  return { value: input.highLoadGoal ? polished.map(markHighLoad) : polished };
+}
+
+/** ND-5: on a physical preset goal every practice step and the 10-minute version are high-load, whatever the model said. */
+function markHighLoad(day: WeekDayPlan): WeekDayPlan {
+  if (day.isRestDay) return day;
+  return {
+    ...day,
+    detailedSteps: day.detailedSteps.map((step) => ({ ...step, highLoad: true })),
+    minimumVersion: day.minimumVersion ? { ...day.minimumVersion, highLoad: true } : null,
+  };
 }
 
 /** Prompt 3: one week of days that move the person toward this week's target. Null when both attempts fail. */

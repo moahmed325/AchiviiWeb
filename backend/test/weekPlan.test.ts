@@ -4,8 +4,10 @@ vi.mock('../src/lib/ai/gemini.js', () => ({
   generateStructuredContent: vi.fn(),
 }));
 
+import { readFileSync } from 'node:fs';
 import { generateStructuredContent } from '../src/lib/ai/gemini.js';
 import {
+  WEEK_RESPONSE_SCHEMA,
   buildWeekPrompt,
   checkWeekAnswer,
   generateWeekPlan,
@@ -251,5 +253,99 @@ describe('generateWeekPlan', () => {
     mocked.mockResolvedValueOnce({ success: true, data: week() } as never);
     const days = await generateWeekPlan(input);
     expect(days).toHaveLength(7);
+  });
+});
+
+describe('high-load step flag (M2.1, ND-5)', () => {
+  const HIGH_LOAD_LINE =
+    '  - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false';
+  const stepSchema = WEEK_RESPONSE_SCHEMA.properties.days.items.properties.steps.items;
+  const practice = (days: Array<{ isRestDay: boolean }>) => days.filter((day) => !day.isRestDay);
+  const value = (result: ReturnType<typeof checkWeekAnswer>) => {
+    if (!('value' in result)) throw new Error(result.reason);
+    return result.value;
+  };
+
+  it('requires a boolean highLoad on every step the model writes', () => {
+    expect(stepSchema.properties.highLoad).toEqual({ type: 'boolean' });
+    expect(stepSchema.required).toContain('highLoad');
+  });
+
+  it('adds exactly one line to the prompt and changes nothing else', () => {
+    const before = readFileSync(new URL('./fixtures/weekPrompt.before-m2.1.txt', import.meta.url), 'utf8');
+    const prompt = buildWeekPrompt(input, weekLayout('steady', input.weekStart));
+    const lines = prompt.split('\n');
+    expect(lines.filter((line) => line !== HIGH_LOAD_LINE).join('\n')).toBe(before);
+    expect(lines.filter((line) => line === HIGH_LOAD_LINE)).toHaveLength(1);
+    expect(lines[lines.indexOf(HIGH_LOAD_LINE) - 1]).toMatch(/^  - timing \(optional\)/);
+  });
+
+  it("keeps the model's true and false", () => {
+    const answer = week((days) => {
+      days[0].steps = [{ ...step('Run 3 km easy', 1, 15), highLoad: true }, { ...step('Type sentence set 1', 2, 15), highLoad: false }];
+    });
+    const day1 = value(checkWeekAnswer(answer, input))[0];
+    expect(day1.detailedSteps.map((s) => [s.title, s.highLoad])).toEqual([
+      ['Run 3 km easy', true],
+      ['Type sentence set 1', false],
+    ]);
+  });
+
+  it('turns a missing or non-boolean flag into false, without asking again', () => {
+    const answer = week((days) => {
+      days[1].steps = [{ ...step('Drill 2 letters', 1, 15), highLoad: 'true' }, { ...step('Type sentence set 2', 2, 15), highLoad: 1 }];
+      days[3].steps = [{ ...step('Slow home row pass', 1, 12), highLoad: 'yes' }];
+      days[0].minimumVersion = { ...step('Two minutes per row, set 1', 1, 10), highLoad: null };
+    });
+    const days = value(checkWeekAnswer(answer, input));
+    for (const day of days) {
+      for (const s of day.detailedSteps) expect(s.highLoad).toBe(false);
+      if (day.minimumVersion) expect(day.minimumVersion.highLoad).toBe(false);
+    }
+  });
+
+  it('a week without any flag is still accepted on the first answer', async () => {
+    const mocked = vi.mocked(generateStructuredContent);
+    mocked.mockReset();
+    mocked.mockResolvedValueOnce({ success: true, data: week() } as never);
+    const days = await generateWeekPlan(input);
+    expect(mocked).toHaveBeenCalledTimes(1);
+    expect(days!.flatMap((day) => day.detailedSteps).every((s) => s.highLoad === false)).toBe(true);
+  });
+
+  it('on a physical preset goal marks every practice step, the test step and the minimum version, whatever the model said', () => {
+    const answer = week((days) => {
+      for (const day of days) {
+        day.steps = (day.steps as Array<Record<string, unknown>>).map((s) => ({ ...s, highLoad: false }));
+        if (day.minimumVersion) day.minimumVersion = { ...(day.minimumVersion as object), highLoad: false };
+      }
+    });
+    const days = value(checkWeekAnswer(answer, { ...input, highLoadGoal: true }));
+    for (const day of practice(days) as typeof days) {
+      expect(day.detailedSteps.length).toBeGreaterThan(0);
+      for (const s of day.detailedSteps) expect(s.highLoad).toBe(true);
+      expect(day.minimumVersion!.highLoad).toBe(true);
+    }
+    expect(days[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!.highLoad).toBe(true);
+    // Rest days keep their one light step as the model wrote it.
+    expect(days[3].detailedSteps[0].highLoad).toBe(false);
+  });
+
+  it('marks the test step code adds on the last attempt: true on a physical preset goal, false otherwise', () => {
+    const noTest = week((days) => {
+      days[5].steps = [step('Drill six letters', 1, 15), step('Type sentence set six', 2, 15)];
+    });
+    const added = (highLoadGoal: boolean) =>
+      value(checkWeekAnswer(noTest, { ...input, highLoadGoal }, true))[5].detailedSteps.find((s) => s.title.startsWith('Weekly test'))!;
+    expect(added(true).highLoad).toBe(true);
+    expect(added(false).highLoad).toBe(false);
+  });
+
+  it('a derived minimum version takes the flag of the step it comes from', () => {
+    const answer = week((days) => {
+      delete days[0].minimumVersion;
+      days[0].steps = [{ ...step('Run 3 km easy', 1, 15), highLoad: true }, { ...step('Type sentence set 1', 2, 15), highLoad: false }];
+    });
+    expect(value(checkWeekAnswer(answer, input, true))[0].minimumVersion!.highLoad).toBe(true);
   });
 });
