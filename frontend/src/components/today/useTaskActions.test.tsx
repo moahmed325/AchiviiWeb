@@ -112,6 +112,15 @@ describe('useTaskActions', () => {
     expect(taskIn(result.current.goal, 't1')?.status).toBe('completed');
   });
 
+  it('finishing focus through the minimum version sends usedMinimumVersion (ND-3); a full finish does not', async () => {
+    const { result } = await setup();
+    await act(() => result.current.actions.finishFocus(TASK, undefined, true));
+    expect(mocked.updateDailyTask).toHaveBeenLastCalledWith('t1', { status: 'completed', notes: undefined, usedMinimumVersion: true }, 't');
+
+    await act(() => result.current.actions.finishFocus(OTHER, undefined, false));
+    expect(mocked.updateDailyTask).toHaveBeenLastCalledWith('t2', { status: 'completed', notes: undefined }, 't');
+  });
+
   it('a failed write changes nothing and returns the error', async () => {
     const { result } = await setup();
     mocked.updateDailyTask.mockRejectedValueOnce(new Error('Failed to fetch'));

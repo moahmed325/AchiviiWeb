@@ -118,6 +118,48 @@ describe('Today', () => {
     expect(screen.getByRole('button', { name: 'Exit focus mode (Esc)' })).toBeInTheDocument();
   });
 
+  // ND-3: only Focus mode's "Complete minimum" records the 10-minute version.
+  const MINIMUM = { stepNumber: 1, title: '10-minute shakeout', durationMinutes: 10, instructions: 'Jog easily.', focusCue: '', pitfallToAvoid: '' };
+  const renderTodayWithMinimum = () => {
+    mocked.fetchActiveGoal.mockResolvedValueOnce({
+      ...GOAL,
+      dailyTasks: tasks.map((t) => (t.id === 't3' ? { ...t, minimumVersion: MINIMUM } : t)),
+    } as unknown as Goal);
+    return renderToday();
+  };
+
+  it('a Focus "Complete minimum" sends usedMinimumVersion with the completion', async () => {
+    const user = userEvent.setup();
+    await renderTodayWithMinimum();
+    await user.click(screen.getByRole('button', { name: 'Start' }));
+    await user.click(screen.getByRole('button', { name: /start focused session/i }));
+    await user.click(screen.getByRole('button', { name: /low energy/i }));
+    await user.click(screen.getByRole('button', { name: /complete minimum/i }));
+    expect(screen.getByText('Minimum complete')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /finish & return/i }));
+    expect(mocked.updateDailyTask).toHaveBeenCalledTimes(1);
+    expect(mocked.updateDailyTask).toHaveBeenCalledWith('t3', { status: 'completed', notes: undefined, usedMinimumVersion: true }, 't');
+  });
+
+  it('a full Focus completion sends no usedMinimumVersion, even when a minimum version exists', async () => {
+    const user = userEvent.setup();
+    await renderTodayWithMinimum();
+    await user.click(screen.getByRole('button', { name: 'Start' }));
+    await user.click(screen.getByRole('button', { name: /start focused session/i }));
+    await user.click(screen.getByRole('button', { name: /next/i }));
+    await user.click(screen.getByRole('button', { name: /complete session/i }));
+    await user.click(screen.getByRole('button', { name: /finish & return/i }));
+    expect(mocked.updateDailyTask).toHaveBeenCalledTimes(1);
+    expect(mocked.updateDailyTask).toHaveBeenCalledWith('t3', { status: 'completed', notes: undefined }, 't');
+  });
+
+  it("Today's Complete sends no usedMinimumVersion, even when a minimum version exists", async () => {
+    const user = userEvent.setup();
+    await renderTodayWithMinimum();
+    await user.click(screen.getByRole('button', { name: 'Mark complete' }));
+    expect(mocked.updateDailyTask).toHaveBeenCalledWith('t3', { status: 'completed', notes: undefined }, 't');
+  });
+
   it('Complete goes through the write path, and a failure says so and keeps the step as it was', async () => {
     const user = userEvent.setup();
     await renderToday();

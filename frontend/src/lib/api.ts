@@ -232,7 +232,7 @@ export async function reconcileGoal(token: string): Promise<import('../types').R
 
 export async function updateDailyTask(
   taskId: string,
-  updates: { status?: 'pending' | 'completed' | 'skipped'; notes?: string; slotTime?: string },
+  updates: { status?: 'pending' | 'completed' | 'skipped'; notes?: string; slotTime?: string; usedMinimumVersion?: boolean },
   token: string
 ): Promise<import('../types').DailyTask> {
   const response = await fetch(`${API_BASE_URL}/api/goal/tasks/${taskId}`, {

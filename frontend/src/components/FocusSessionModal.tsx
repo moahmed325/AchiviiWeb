@@ -7,12 +7,17 @@ import { FocusStepRunner } from './focus/FocusStepRunner';
 import { FocusCompletion } from './focus/FocusCompletion';
 import { Button } from './ui';
 
+/** ND-3: tells the caller whether the session was completed through the 10-minute version. */
+export interface FocusCompletionOptions {
+  usedMinimumVersion: boolean;
+}
+
 export interface FocusSessionModalProps {
   task: DailyTask;
   dayNumber: number;
   isOpen: boolean;
   onClose: () => void;
-  onCompleteSession: (reflectionNotes?: string) => Promise<void> | void;
+  onCompleteSession: (reflectionNotes?: string, options?: FocusCompletionOptions) => Promise<void> | void;
 }
 
 interface FocusSessionContentProps {
@@ -21,7 +26,7 @@ interface FocusSessionContentProps {
   steps: DetailedStep[];
   totalDurationSeconds: number;
   onClose: () => void;
-  onCompleteSession: (reflectionNotes?: string) => Promise<void> | void;
+  onCompleteSession: (reflectionNotes?: string, options?: FocusCompletionOptions) => Promise<void> | void;
 }
 
 const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
@@ -162,7 +167,9 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     setIsSubmitting(true);
     setSaveError(null);
     try {
-      const res = (await onCompleteSession(reflectionNote.trim() ? reflectionNote.trim() : undefined)) as unknown;
+      const res = (await onCompleteSession(reflectionNote.trim() ? reflectionNote.trim() : undefined, {
+        usedMinimumVersion: isMinimumVersion,
+      })) as unknown;
       if (res && typeof res === 'object' && 'ok' in res && !(res as { ok: boolean }).ok) {
         throw new Error('Save failed');
       }

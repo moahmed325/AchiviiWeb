@@ -149,6 +149,7 @@ model DailyTask {
   isTestDay               Boolean   @default(false)
   whyToday                String?
   minimumVersion          Json?     // v2: the 10-minute step for days the full session won't happen
+  usedMinimumVersion      Boolean   @default(false) // ND-3: completed only through the 10-minute version
   created_at              DateTime  @default(now())
 
   goal                    Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)

@@ -21,7 +21,7 @@ import {
   weekProgress,
 } from '../../lib/today';
 import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
-import { FocusSessionModal } from '../FocusSessionModal';
+import { FocusSessionModal, type FocusCompletionOptions } from '../FocusSessionModal';
 import { BasisBadge } from '../BasisBadge';
 import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
@@ -308,10 +308,10 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
     window.setTimeout(() => setNoteSaved(false), 2000);
   };
 
-  const onFinishFocus = async (reflection?: string) => {
+  const onFinishFocus = async (reflection?: string, options?: FocusCompletionOptions) => {
     if (!task) return;
     setActionError(null);
-    const result = await finishFocus(task, reflection);
+    const result = await finishFocus(task, reflection, options?.usedMinimumVersion);
     if (!result.ok) {
       setActionError(NOT_SAVED);
       throw result.error;

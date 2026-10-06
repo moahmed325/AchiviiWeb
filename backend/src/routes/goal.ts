@@ -642,7 +642,12 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
     }
 
     const { taskId } = req.params;
-    const { status, notes, slotTime } = req.body;
+    const { status, notes, slotTime, usedMinimumVersion } = req.body;
+
+    if (usedMinimumVersion !== undefined && typeof usedMinimumVersion !== 'boolean') {
+      res.status(400).json({ error: 'usedMinimumVersion must be a boolean.' });
+      return;
+    }
 
     const task = await prisma.dailyTask.findUnique({
       where: { id: taskId },
@@ -659,6 +664,11 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
       data: {
         ...(status ? { status } : {}),
         completedAt: status === 'completed' ? new Date() : status === 'pending' ? null : task.completedAt,
+        // ND-3: the flag describes the current completion, so it is rewritten only when
+        // status changes, and is true only for a minimum completion of a task that has one.
+        ...(status
+          ? { usedMinimumVersion: status === 'completed' && usedMinimumVersion === true && task.minimumVersion != null }
+          : {}),
         ...(notes !== undefined ? { notes } : {}),
         ...(slotTime !== undefined ? { slotTime } : {})
       }
