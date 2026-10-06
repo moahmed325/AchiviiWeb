@@ -3,7 +3,7 @@
  * Pure: no database, no clock, no environment. Given how every day is classified, the open gap, the tasks with
  * their stored steps, the goal and the user's local today, it decides which missed priority-1 steps move, where,
  * and which are dropped. `POST /reconcile` writes the result behind the ND-15 switch.
- * Rules: docs/features/missed-sessions/03-feature.md section 11 and 04-phases.md ND-9 to ND-17.
+ * Rules: docs/features/missed-sessions/03-feature.md section 11 and 04-phases.md ND-9 to ND-18.
  */
 import type { DetailedStep } from './ai/goalDecomposer.js';
 import { isHighLoadStep } from './highLoad.js';
@@ -17,7 +17,16 @@ export interface CarryMarker {
   replaced: DetailedStep[];
 }
 
-export type CarriedStep = DetailedStep & { carriedFrom?: CarryMarker };
+/**
+ * ND-18: stored on every step that lands on a day by answering a swap offer (M2.4). It names the day the step came
+ * from. Both swapped days are then handled: never carried, never held again.
+ */
+export interface SwapMarker {
+  taskId: string;
+  date: string;
+}
+
+export type CarriedStep = DetailedStep & { carriedFrom?: CarryMarker; swappedFrom?: SwapMarker };
 
 /** A task as the planner sees it: classification fields plus its parsed steps and planned minutes. */
 export interface CarryTask extends ClassifiableTask {
@@ -108,6 +117,31 @@ function markerOf(step: CarriedStep): CarryMarker | null {
   return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
 }
 
+function swapMarkerOf(step: CarriedStep): SwapMarker | null {
+  const marker = step.swappedFrom;
+  return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
+}
+
+/**
+ * Days whose miss is already handled (ND-13, ND-14, ND-18): the source of a stored `carriedFrom` marker, the source
+ * of a stored `swappedFrom` marker, or a day that holds a `swappedFrom` step.
+ */
+export function handledTaskIds(tasks: ReadonlyArray<{ id: string; steps: readonly CarriedStep[] }>): Set<string> {
+  const handled = new Set<string>();
+  for (const task of tasks) {
+    for (const step of task.steps) {
+      const carried = markerOf(step);
+      if (carried) handled.add(carried.taskId);
+      const swapped = swapMarkerOf(step);
+      if (swapped) {
+        handled.add(swapped.taskId);
+        handled.add(task.id);
+      }
+    }
+  }
+  return handled;
+}
+
 /** Stored test steps are ranked like any step (weekPlan `rankSteps`), so they are also recognized by title. */
 const TEST_STEP = /^weekly test\b/i;
 
@@ -171,7 +205,7 @@ export function fitCarriedStep(
 /**
  * Plans every carry and drop for the classified days. Deterministic for the same input.
  *
- * For each missed practice day that is not already the source of a stored `carriedFrom` marker, in this order:
+ * For each missed practice day that is not already handled (`handledTaskIds`: a carry or swap marker), in this order:
  * 1. in the open gap → `in_gap` (ND-11);
  * 2. its receiving day (ND-17: the first later day of the same week that is a practice day, not rest and not
  *    the test day; next week's rows are never used) does not exist → `no_receiving_day`;
@@ -189,14 +223,13 @@ export function planCarries(input: CarryInput): CarryPlan {
   const taskById = new Map(input.tasks.map((task) => [task.id, task]));
   const ordered = [...input.days].sort(byDate);
 
-  const handled = new Set<string>();
+  const handled = handledTaskIds(input.tasks);
   const taken = new Set<string>();
   for (const day of ordered) {
     const task = taskById.get(day.taskId);
     for (const step of task?.steps ?? []) {
       const marker = markerOf(step);
       if (!marker) continue;
-      handled.add(marker.taskId);
       taken.add(day.taskId);
       plan.alreadyCarried.push({ fromTaskId: marker.taskId, fromDate: marker.date, toTaskId: day.taskId, toDate: day.date, step });
     }

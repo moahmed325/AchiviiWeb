@@ -294,3 +294,19 @@ describe('signals: rest days (AC-5)', () => {
     }
   });
 });
+
+describe('signals: a carry stored before the missed day closes (ND-18, M2.4)', () => {
+  it('is reported at once, until its receiving day closes', () => {
+    // "Mark today missed" on Tue at 10:00 carried Tue's lead onto Wed; Tue itself has not closed.
+    const lead = { ...step('tue lead', 2, 15), carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } };
+    const stored = rows({
+      mon: { status: 'completed' },
+      wed: { detailedSteps: JSON.stringify([step('wed lead', 1, 15), lead]) },
+    });
+    const now = reconcileAt(stored, '2026-09-22T10:05:00Z');
+    expect(now.result.applies && now.result.days.find((d) => d.taskId === 'tue')?.kind).toBe('planned');
+    expect(now.signals.carried.map((c) => [c.fromTaskId, c.toTaskId])).toEqual([['tue', 'wed']]);
+    expect(now.signals.notice).toBe('carried');
+    expect(reconcileAt(stored, '2026-09-24T01:00:00Z').signals.carried).toEqual([]);
+  });
+});

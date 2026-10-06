@@ -2,10 +2,9 @@ import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
-import { getZonedDateString, normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
-import { buildReconcileResult } from '../lib/missedSessions.js';
-import { parseStoredSteps, planCarries, type PlannedCarry } from '../lib/carryForward.js';
-import { buildSignals } from '../lib/missedSignals.js';
+import { normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
+import { handledTaskIds, parseStoredSteps, type CarriedStep } from '../lib/carryForward.js';
+import { carryEnabled, evaluate, loadReconcileGoal, runReconcile, type ReconcileGoal } from '../lib/reconcileCore.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import {
   clarifyGoalWithAI,
@@ -511,75 +510,262 @@ goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void>
       res.status(401).json({ error: 'Unauthorized.' });
       return;
     }
-
-    const goal = await prisma.goal.findFirst({
-      where: { userId: user.id, status: 'active' },
-      select: {
-        id: true,
-        planVersion: true,
-        routine: true,
-        rawGoal: true,
-        clarifiedOutcome: true,
-        dailyTasks: {
-          select: {
-            id: true,
-            date: true,
-            weekNumber: true,
-            dayNumber: true,
-            status: true,
-            isRestDay: true,
-            isKeySession: true,
-            isTestDay: true,
-            detailedSteps: true,
-            durationMinutes: true,
-          },
-          orderBy: { dayNumber: 'asc' },
-        },
-      },
-    });
-
-    const now = new Date();
-    const sleepTime = goal ? readRoutine(goal).sleepTime : undefined;
-    const result = buildReconcileResult(goal, { now, timezone: user.timezone, sleepTime });
-    if (!result.applies || !goal) {
-      res.json(result);
-      return;
-    }
-
-    // M2.2 carry-forward. Idempotent (04-phases.md 3.4): a carried day is the source of a stored marker and is
-    // never planned again, and each write is a compare-and-set on the receiving day's steps (ND-13).
-    const today = getZonedDateString(now, result.timezone);
-    const plan = planCarries({
-      days: result.days,
-      gap: result.gap,
-      tasks: goal.dailyTasks.map((task) => ({ ...task, steps: parseStoredSteps(task.detailedSteps) })),
-      goal,
-      today,
-      timezone: result.timezone,
-      sleepTime,
-    });
-    const enabled = process.env.MISSED_SESSIONS_CARRY_ENABLED === 'true';
-    const written: PlannedCarry[] = [];
-    if (enabled) {
-      const stored = new Map(goal.dailyTasks.map((task) => [task.id, task]));
-      for (const carry of plan.carries) {
-        const receiving = stored.get(carry.toTaskId)!;
-        // Writes only if the receiving day is exactly as read; a lost race is skipped, not retried.
-        const { count } = await prisma.dailyTask.updateMany({
-          where: { id: receiving.id, goalId: goal.id, status: receiving.status, detailedSteps: receiving.detailedSteps },
-          data: { detailedSteps: JSON.stringify(carry.steps), durationMinutes: carry.durationMinutes },
-        });
-        if (count === 1) written.push(carry);
-      }
-    }
-
-    // M2.3: derived signals for P3 (ND-16); only stored carries count as moved.
-    const signals = buildSignals({ days: result.days, gap: result.gap, plan, written, now, today, timezone: result.timezone, sleepTime });
-
-    res.json({ ...result, carry: { enabled, ...plan, written }, signals });
+    // M2.2 carry-forward and M2.3 signals, shared with the M2.4 actions (lib/reconcileCore.ts). Idempotent
+    // (04-phases.md 3.4): a handled day is never planned again, and each write is a compare-and-set (ND-13).
+    const goal = await loadReconcileGoal(user.id);
+    res.json(await runReconcile(goal, user, new Date()));
   } catch (err: any) {
     console.error('[GoalRouter] Reconcile error:', err);
     res.status(500).json({ error: 'Failed to reconcile goal.' });
+  }
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Missed sessions M2.4: mark today missed, swap two days, carry now (ND-9, ND-14, ND-17, ND-18).
+// Every action writes only when MISSED_SESSIONS_CARRY_ENABLED is 'true' (ND-15); otherwise 409 carry_disabled.
+// Each answers with the reconcile body, so the client refreshes in one round trip.
+
+type ActionReason =
+  | 'not_today'
+  | 'rest_day'
+  | 'completed'
+  | 'already_handled'
+  | 'not_held'
+  | 'not_same_week'
+  | 'not_open'
+  | 'test_day'
+  | 'holds_carry'
+  | 'changed'
+  | 'not_plan_v2'
+  | 'carry_disabled';
+
+const ACTION_ERRORS: Record<ActionReason, string> = {
+  not_today: 'This can only be done for today.',
+  rest_day: 'Rest days cannot be changed this way.',
+  completed: 'This day is already done.',
+  already_handled: 'This day has already been changed.',
+  not_held: 'There is no open swap offer for this day.',
+  not_same_week: 'Both days must be in the same week.',
+  not_open: 'Both days must still be open.',
+  test_day: 'The test day cannot be swapped.',
+  holds_carry: 'A day that already received a moved step cannot be swapped.',
+  changed: 'The plan changed. Reload and try again.',
+  not_plan_v2: 'This plan does not support this action.',
+  carry_disabled: 'This action is not available yet.',
+};
+
+function refuse(res: Response, reason: ActionReason): void {
+  res.status(409).json({ error: ACTION_ERRORS[reason], reason });
+}
+
+async function actionUser(req: Request, res: Response) {
+  const user = await getAuthUser(req);
+  if (!user) res.status(401).json({ error: 'Unauthorized.' });
+  return user;
+}
+
+/** 404 (not a task of the user's active goal), then not_plan_v2 and carry_disabled. Null when answered. */
+async function actionGoal(res: Response, user: { id: string }, taskIds: string[]) {
+  const goal = await loadReconcileGoal(user.id);
+  const tasks = taskIds.map((id) => goal?.dailyTasks.find((task) => task.id === id));
+  if (!goal || tasks.some((task) => !task)) {
+    res.status(404).json({ error: 'Task not found.' });
+    return null;
+  }
+  if (goal.planVersion !== 2) {
+    refuse(res, 'not_plan_v2');
+    return null;
+  }
+  if (!carryEnabled()) {
+    refuse(res, 'carry_disabled');
+    return null;
+  }
+  return { goal, tasks: tasks as ReconcileGoal['dailyTasks'] };
+}
+
+const hasCarriedStep = (steps: CarriedStep[]) => steps.some((step) => step.carriedFrom && typeof step.carriedFrom === 'object');
+
+/**
+ * POST /api/goal/tasks/:taskId/mark-missed
+ * Plans today's open practice day as missed, so the M2.2 rules apply unchanged: carried (one guarded write),
+ * held for a swap offer (key session), or dropped. A hold or a drop stores nothing (ND-14); never a status.
+ */
+goalRouter.post('/tasks/:taskId/mark-missed', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await actionUser(req, res);
+    if (!user) return;
+    const loaded = await actionGoal(res, user, [req.params.taskId]);
+    if (!loaded) return;
+    const { goal, tasks: [task] } = loaded;
+
+    const now = new Date();
+    const evaluation = evaluate(goal, user, now);
+    if (!evaluation.applies) return refuse(res, 'not_plan_v2');
+    if (task.date !== evaluation.today) return refuse(res, 'not_today');
+    if (task.isRestDay) return refuse(res, 'rest_day');
+    if (task.status === 'completed') return refuse(res, 'completed');
+    if (handledTaskIds(evaluation.tasks).has(task.id)) return refuse(res, 'already_handled');
+
+    res.json(await runReconcile(goal, user, now, { asMissed: task.id }));
+  } catch (err: any) {
+    console.error('[GoalRouter] Mark missed error:', err);
+    res.status(500).json({ error: 'Failed to update the plan.' });
+  }
+});
+
+/**
+ * POST /api/goal/tasks/:taskId/carry-now
+ * The "no swap, just move the main step" answer to a held key session: carried exactly as M2.2 carries an
+ * ordinary day (fit rule, high-load, guarded write). Today's own open key session counts as held once marked,
+ * so it is planned as missed here too (nothing about the mark is stored).
+ */
+goalRouter.post('/tasks/:taskId/carry-now', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await actionUser(req, res);
+    if (!user) return;
+    const loaded = await actionGoal(res, user, [req.params.taskId]);
+    if (!loaded) return;
+    const { goal, tasks: [task] } = loaded;
+
+    const now = new Date();
+    const plain = evaluate(goal, user, now);
+    if (!plain.applies) return refuse(res, 'not_plan_v2');
+    if (handledTaskIds(plain.tasks).has(task.id)) return refuse(res, 'already_handled');
+    const isOpenToday = task.date === plain.today && plain.result.days.some((day) => day.taskId === task.id && day.kind === 'planned');
+    const overrides = isOpenToday ? { asMissed: task.id } : {};
+    const held = evaluate(goal, user, now, overrides);
+    if (!held.applies || !held.plan.held.some((item) => item.taskId === task.id)) return refuse(res, 'not_held');
+
+    res.json(await runReconcile(goal, user, now, { ...overrides, asNotKey: task.id }));
+  } catch (err: any) {
+    console.error('[GoalRouter] Carry now error:', err);
+    res.status(500).json({ error: 'Failed to update the plan.' });
+  }
+});
+
+/** The `DailyTask` fields that belong to the plan and move in a swap. Date and user fields stay with the day. */
+const SWAP_CONTENT_SELECT = {
+  id: true,
+  date: true,
+  status: true,
+  title: true,
+  detailedSteps: true,
+  implementationIntention: true,
+  durationMinutes: true,
+  resourceTitle: true,
+  resourceUrl: true,
+  resourceType: true,
+  resourceWhy: true,
+  isKeySession: true,
+  whyToday: true,
+  minimumVersion: true,
+} satisfies Prisma.DailyTaskSelect;
+
+type SwapRow = Prisma.DailyTaskGetPayload<{ select: typeof SWAP_CONTENT_SELECT }>;
+
+class SwapConflict extends Error {}
+
+/** The content of `from`, as written onto the other day. With a marker, every step that lands gets `swappedFrom`. */
+function swapContent(from: SwapRow, marker: boolean): Prisma.DailyTaskUpdateManyMutationInput {
+  let detailedSteps = from.detailedSteps;
+  const steps = parseStoredSteps(from.detailedSteps);
+  if (marker && steps.length > 0) {
+    detailedSteps = JSON.stringify(steps.map((step) => ({ ...step, swappedFrom: { taskId: from.id, date: from.date } })));
+  }
+  return {
+    title: from.title,
+    detailedSteps,
+    implementationIntention: from.implementationIntention,
+    durationMinutes: from.durationMinutes,
+    resourceTitle: from.resourceTitle,
+    resourceUrl: from.resourceUrl,
+    resourceType: from.resourceType,
+    resourceWhy: from.resourceWhy,
+    isKeySession: from.isKeySession,
+    whyToday: from.whyToday,
+    minimumVersion: from.minimumVersion === null ? Prisma.DbNull : (from.minimumVersion as Prisma.InputJsonValue),
+  };
+}
+
+/**
+ * POST /api/goal/tasks/:taskId/swap  { withTaskId, expected: { [taskId]: detailedSteps, [withTaskId]: detailedSteps } }
+ * Exchanges the plan content of two days of the same week; dates, status and the user's own fields stay.
+ * Open swap: two open practice days dated today or later, not the test day, neither holding a moved step.
+ * Answering a swap offer (ND-9): `taskId` is a held key session and `withTaskId` its receiving day; the steps that
+ * land on both days get `swappedFrom` (ND-18), so nothing is carried back. Both writes are one transaction, each a
+ * compare-and-set on `expected` and on status; if either matches no row, nothing is written (409 changed).
+ */
+goalRouter.post('/tasks/:taskId/swap', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await actionUser(req, res);
+    if (!user) return;
+    const taskId = req.params.taskId;
+    const { withTaskId, expected } = (req.body ?? {}) as { withTaskId?: unknown; expected?: unknown };
+    const expectedMap = expected && typeof expected === 'object' && !Array.isArray(expected) ? (expected as Record<string, unknown>) : null;
+    if (
+      typeof withTaskId !== 'string' ||
+      !withTaskId ||
+      withTaskId === taskId ||
+      !expectedMap ||
+      typeof expectedMap[taskId] !== 'string' ||
+      typeof expectedMap[withTaskId] !== 'string'
+    ) {
+      res.status(400).json({ error: 'Send withTaskId and the expected steps of both days.' });
+      return;
+    }
+    const loaded = await actionGoal(res, user, [taskId, withTaskId]);
+    if (!loaded) return;
+    const { goal, tasks: [a, b] } = loaded;
+    if (a.weekNumber !== b.weekNumber) return refuse(res, 'not_same_week');
+
+    const now = new Date();
+    const evaluation = evaluate(goal, user, now);
+    if (!evaluation.applies) return refuse(res, 'not_plan_v2');
+    const offer = evaluation.plan.held.some((held) => held.taskId === a.id && held.receivingTaskId === b.id);
+
+    if (!offer) {
+      const handled = handledTaskIds(evaluation.tasks);
+      const kindOf = new Map(evaluation.result.days.map((day) => [day.taskId, day.kind]));
+      const stepsOf = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
+      for (const day of [a, b]) {
+        if (day.isRestDay) return refuse(res, 'rest_day');
+        if (day.isTestDay) return refuse(res, 'test_day');
+        if (day.status === 'completed') return refuse(res, 'completed');
+        if (kindOf.get(day.id) !== 'planned' || day.date < evaluation.today) return refuse(res, 'not_open');
+        if (hasCarriedStep(stepsOf.get(day.id) ?? [])) return refuse(res, 'holds_carry');
+        if (handled.has(day.id)) return refuse(res, 'already_handled');
+      }
+    }
+    if (expectedMap[a.id] !== a.detailedSteps || expectedMap[b.id] !== b.detailedSteps) return refuse(res, 'changed');
+
+    const rows = await prisma.dailyTask.findMany({ where: { id: { in: [a.id, b.id] }, goalId: goal.id }, select: SWAP_CONTENT_SELECT });
+    const rowA = rows.find((row) => row.id === a.id);
+    const rowB = rows.find((row) => row.id === b.id);
+    if (!rowA || !rowB) return refuse(res, 'changed');
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const writes: Array<[SwapRow, SwapRow]> = [
+          [rowA, rowB],
+          [rowB, rowA],
+        ];
+        for (const [target, source] of writes) {
+          const { count } = await tx.dailyTask.updateMany({
+            where: { id: target.id, goalId: goal.id, status: target.status, detailedSteps: expectedMap[target.id] as string },
+            data: swapContent(source, offer),
+          });
+          if (count !== 1) throw new SwapConflict();
+        }
+      });
+    } catch (err) {
+      if (err instanceof SwapConflict) return refuse(res, 'changed');
+      throw err;
+    }
+
+    res.json(await runReconcile(await loadReconcileGoal(user.id), user, new Date()));
+  } catch (err: any) {
+    console.error('[GoalRouter] Swap error:', err);
+    res.status(500).json({ error: 'Failed to update the plan.' });
   }
 });
 
