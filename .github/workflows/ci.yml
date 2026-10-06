@@ -1,0 +1,59 @@
+# Runs every check before code reaches production. Merging to main deploys at once (Render and Vercel),
+# so a red run here means: do not merge. No secrets and no database are needed: every test mocks Prisma
+# and the model calls (see CLAUDE.md).
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+      - name: Install (workspaces, locked)
+        run: bun install --frozen-lockfile
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+      - name: Type-check (src/)
+        working-directory: backend
+        run: npx tsc --noEmit
+      - name: Tests
+        working-directory: backend
+        run: npx vitest run
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+      - name: Install (workspaces, locked)
+        run: bun install --frozen-lockfile
+      - name: Type-check
+        working-directory: frontend
+        run: npx tsc --noEmit -p .
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Tests
+        working-directory: frontend
+        run: npx vitest run
+      - name: Build
+        working-directory: frontend
+        run: npm run build
