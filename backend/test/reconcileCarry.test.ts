@@ -132,7 +132,7 @@ describe('POST /api/goal/reconcile carry-forward (M2.2)', () => {
     given(goal(tasks()));
     const { status, body } = await reconcile();
     expect(status).toBe(200);
-    expect(Object.keys(body).sort()).toEqual(['applies', 'asOf', 'carry', 'days', 'gap', 'goalId', 'timezone']);
+    expect(Object.keys(body).sort()).toEqual(['applies', 'asOf', 'carry', 'days', 'gap', 'goalId', 'signals', 'timezone']);
     expect(body.days.map((d: any) => d.kind)).toEqual(['missed', 'planned', 'planned']);
     expect(body.carry.enabled).toBe(false);
     expect(body.carry.carries).toHaveLength(1);

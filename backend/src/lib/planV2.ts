@@ -149,7 +149,8 @@ export async function writeNextWeek(
           done: practice.filter((task) => task.status === 'completed').length,
           planned: practice.length,
           keySessionsSkipped: practice
-            .filter((task) => task.isKeySession && task.status !== 'completed')
+            // OD-2: a key session done only through the 10-minute version is not "key done" (M2.3).
+            .filter((task) => task.isKeySession && (task.status !== 'completed' || task.usedMinimumVersion === true))
             .map((task) => `${task.dayOfWeek}: ${task.title}`),
         }
       : undefined,
