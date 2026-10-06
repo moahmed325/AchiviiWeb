@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 1.6 | **Date:** 2026-10-07 (M2.1 prompt drafted)
+**Version:** 1.7 | **Date:** 2026-10-07 (M2.2 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -561,3 +561,87 @@ New plan v2 steps carry `highLoad` (true for every step of `run10k`/`recomp` goa
 
 ### STOP IF
 Steps reach the database through a path other than `generateWeekPlan` for plan v2; making `highLoad` required makes the existing week tests or a live-shaped fixture fail in a way that needs other prompt changes; another preset turns out to be physical (list it and ask); identifying the preset needs a stored preset id; or any requirement would change what a user sees. Report instead of working around it.
+
+---
+
+## M2.2 — Carry-Forward
+
+### STATUS
+READY (drafted 2026-10-07). Depends on M2.1 (complete). This is the first milestone that changes users' stored plans, so it ships **switched off** (ND-15).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P2/M2.2. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+P1 made `POST /api/goal/reconcile` report each day's classification and the open gap, and left one marked place in the route ("P2 applies carry-forward here"). M2.1 added `isHighLoadStep(step, goal)` (`backend/src/lib/highLoad.ts`). M2.2 decides which missed priority-1 steps move and where, and writes the moves safely. It is gated by an environment switch that stays off until P3's notice is live, so production behavior does not change when this merges.
+
+The rules (Feature Definition section 11 and its 2026-10-07 clarifications; 04-phases.md ND-9 to ND-17). Read them there; in short:
+- **Fixed receiving day (ND-17).** Each missed practice day has exactly one receiving day: the first day after it, in date order, that is a practice day, not a rest day and not the test day. It is fixed by the plan and never recalculated.
+- **When a carry happens.** The missed day's priority-1 step moves to its receiving day only if that day exists, is still open (classified `planned`), has a date on or after the user's local today, is not completed, and has not already received a carry. Otherwise the step is dropped, permanently. Nothing is carried across a week boundary (next week's rows do not exist yet).
+- **Most recent miss wins (ND-12).** If several missed days share one receiving day, the latest one is carried; the others are dropped.
+- **No carry from an open gap (ND-11).** Days in the open gap (`findOpenGap`) are never carried.
+- **High-load (RULE-10).** A step for which `isHighLoadStep(step, goal)` is true is dropped.
+- **Key sessions (ND-9).** A missed key session's step is held while its swap offer is open: the offer is open while its receiving day is open. M2.4 adds the answer; until then, a held step that is never answered is dropped when its receiving day closes. M2.2 only holds and reports.
+- **Fit (ND-10, RULE-1).** On the receiving day, remove its lowest-priority steps, lowest first, until the minutes freed are at least the carried step's minutes. Never remove the receiving day's own priority-1 step or its test step. If it still does not fit, drop the carried step. The day's total minutes never increase.
+- **Writes are guarded (ND-13).** A carry is written as a compare-and-set on `DailyTask.detailedSteps` (a JSON string): update only where `id` matches **and** `detailedSteps` still equals the string that was read (for example `updateMany` with both in `where`, and check the count). A second concurrent request finds no match and writes nothing. The carried step stores `carriedFrom: { taskId, date, replaced: DetailedStep[] }`.
+- **Already handled.** A missed day that is the `carriedFrom.taskId` of any stored step is already carried and is never carried again.
+- **Switch (ND-15).** Writes happen only when `process.env.MISSED_SESSIONS_CARRY_ENABLED === 'true'` (read per request). Otherwise reconcile computes and reports the same plan and writes nothing.
+
+Repository facts (verify, do not trust this prompt):
+- `backend/src/routes/goal.ts` `POST /reconcile` loads the active goal with a `select` that does not yet include `detailedSteps`, `durationMinutes`, `rawGoal` or `clarifiedOutcome`; it calls `buildReconcileResult` (`backend/src/lib/missedSessions.ts`), then responds. Old goals return `applies: false` and must stay untouched.
+- Steps: `DailyTask.detailedSteps` is a JSON string array of `DetailedStep` (`backend/src/lib/ai/goalDecomposer.ts`) with unique `priority` per day (1 = most important; the test step is 0), `stepNumber`, `durationMinutes`, `highLoad?`. `DailyTask.durationMinutes` is the day's total, written from the week plan (`dailyTaskRows`, `backend/src/lib/planV2.ts`).
+- Route tests use the pattern in `backend/test/reconcile.test.ts` (Prisma and `getAuthUser` mocked, `Date` faked); it currently asserts that no write method is ever called, which stays true with the switch off.
+- `render.yaml` lists the API's environment variables.
+
+### OBJECTIVE
+A pure carry planner and a guarded writer behind the switch, so that turning the switch on makes reconcile move exactly the steps the rules allow, once, without ever lengthening a day.
+
+### READ FIRST
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-8 to ND-17), section 2.4 (release order), section 3 (rules, especially 3.4, 3.5, 3.11), P2 (7.1-7.10), M2.2.
+- docs/features/missed-sessions/03-feature.md: sections 6, 7, 10, 11 (with clarifications), AC-3, AC-4, AC-6, AC-13.
+- docs/features/missed-sessions/milestones/m1.2-day-close-classification.md, m1.3-reconcile-endpoint.md (section 7), m2.1-high-load-flag.md.
+
+### INSPECT FIRST
+- `backend/src/lib/missedSessions.ts` (`classifyDays`, `findOpenGap`, `buildReconcileResult`, `ReconcileResult`), `backend/src/lib/highLoad.ts`, `backend/src/lib/timezone.ts`.
+- `backend/src/routes/goal.ts` `POST /reconcile` and `PATCH /tasks/:taskId` (another writer of the same rows).
+- `backend/src/lib/planV2.ts` (`dailyTaskRows`, `saveWeekTasks`), `backend/test/reconcile.test.ts`, `render.yaml`.
+- How the frontend reads `detailedSteps` (`frontend/src/lib/today.ts` `parseSteps`) to confirm extra step fields are ignored.
+
+### REQUIREMENTS
+R1. **Pure planner.** A function (in `missedSessions.ts` or a new `backend/src/lib/carryForward.ts`) that takes the classified days, the open gap, the tasks with their parsed steps, the goal (for `isHighLoadStep`), the user's local today, and returns:
+- `carries`: `{ fromTaskId, fromDate, toTaskId, toDate, step, replaced }` for each move to make, with the receiving day's new step list;
+- `drops`: `{ taskId, date, reason }` with one reason from `no_receiving_day`, `receiving_day_closed`, `receiving_day_done`, `receiving_day_taken`, `lost_to_later_miss`, `in_gap`, `high_load`, `does_not_fit`, `swap_unanswered`, `no_priority_step`;
+- `held`: `{ taskId, date, receivingTaskId, offerUntil }` for key sessions waiting for a swap answer;
+- `alreadyCarried`: the moves found in stored `carriedFrom` markers.
+No Prisma, no clock, no environment reads. Deterministic for the same input.
+
+R2. **Building the receiving day.** The carried step keeps its content and `highLoad`, gains `carriedFrom`, and takes priority 2 (directly after the receiving day's own priority-1 step); the remaining steps keep their relative order, and `stepNumber` and `priority` are renumbered so both stay unique and contiguous (the test step keeps priority 0). The new total of step minutes is never more than the old total. The receiving task's `durationMinutes` is set to the new total.
+
+R3. **Writer.** At the marked place in `POST /reconcile`: extend the `select` with the fields the planner needs, run the planner, and when the switch is on, write each carry with the compare-and-set from the rules (one write per receiving day; a lost race is skipped, not retried). Nothing else is written: no status, no field on the missed day (ND-2, ND-14).
+
+R4. **Response.** Add one field to the plan v2 response, for example `carry: { enabled, carries, drops, held, alreadyCarried, written }` (`written` lists the carries this request actually wrote; empty when the switch is off or a race was lost). Keep every existing field unchanged. No user-facing copy: that is P3.
+
+R5. **Switch.** Read `MISSED_SESSIONS_CARRY_ENABLED` per request; only the exact string `true` turns writes on. Add it to `render.yaml` with value `"false"` and a comment pointing to ND-15. Mention it in `CLAUDE.md` only if that file already documents environment variables.
+
+R6. **Tests.**
+- Planner (unit): a carry onto the next day; receiving day is the test day's neighbor rule (the step before the test day drops, `no_receiving_day`); receiving day closed, done, or already taken; two missed days sharing one receiving day (latest wins, the other `lost_to_later_miss`); an open gap (`in_gap`); a high-load step (`high_load`), including a `run10k` goal whose stored steps have no flag; fit needing one and needing two removed steps; the receiving day's priority-1 and test steps never removed; does not fit (`does_not_fit`); a missed key session held while its receiving day is open, then `swap_unanswered` once it closes; a day with no priority-1 step; already carried (found from the marker, never planned again); renumbering of `stepNumber` and `priority`.
+- Invariant (property-style): over many generated weeks and miss patterns, no receiving day's total minutes ever increases, each receiving day gets at most one carry, and planning on the output of a previous run plans nothing new.
+- Route: switch off → identical response fields as before plus `carry`, and no write method called; switch on → exactly one guarded write per carry with the expected `where`; a second call after the write plans nothing new; two concurrent calls where the first write wins → the second writes nothing (simulate with the mocked `updateMany` returning 0); old goals still `applies: false` with no writes; the existing `reconcile.test.ts` assertions still pass with the switch unset.
+
+### OUT OF SCOPE
+User-facing notices and copy (P3); counting rules and signals such as short-on-time and gentle-return (M2.3); the swap answer and mark-missed actions (M2.4); an undo endpoint; any schema change or migration; any frontend change; turning the switch on anywhere.
+
+### REGRESSION CHECKS
+R-1 (goal loading: reconcile errors still never block it), R-2 (task completion still works; `PATCH /tasks` is untouched), R-6, R-7 (old goals untouched). Baseline: backend `npx vitest run` 44 files / 398 tests pass; backend `npx tsc --noEmit` passes (the backend type-check covers `src/` only); frontend `npx vitest run` 425 tests, 0 failures; frontend `npx tsc --noEmit`, lint (0 errors, 2 warnings) and build pass. Use each package's own TypeScript if `npx` fetches another version. No test may need a database or the network.
+
+### VALIDATION
+Repository commands only: the new and changed test files first, then backend `npx vitest run` and `npx tsc --noEmit`, then the frontend checks once.
+
+### DELIVERABLE
+The planner, the writer behind the switch, the response field, the `render.yaml` entry, tests for R6, and a report at `docs/features/missed-sessions/milestones/m2.2-carry-forward.md`: files changed, evidence for R1-R6, EV-3 (the test list per case) and EV-4 (one week fixture before and after a miss, with the switch on and off), commands and results against the baseline, and carry-overs for M2.3 and M2.4. Do not commit or push to `main`.
+
+### DONE
+With the switch off, production behaves exactly as now apart from the extra `carry` field. With it on, each allowed carry is written once, guarded against concurrent requests, never lengthens a day, never lands on a test day, never moves a high-load step, never comes from an open gap, and never redirects a dropped step later; all validation is at the baseline or better.
+
+### STOP IF
+A rule above conflicts with the Feature Definition or 04-phases.md as written; the compare-and-set cannot be expressed with Prisma on the current schema; any other code path rewrites `detailedSteps` of the current week in a way that would race with reconcile (list it); stored steps lack the priorities the fit rule needs; or the work needs a schema change, a frontend change or user-facing copy. Report instead of working around it.
