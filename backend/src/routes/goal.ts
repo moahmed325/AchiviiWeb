@@ -5,6 +5,7 @@ import { getAuthUser } from './auth.js';
 import { getZonedDateString, normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
 import { buildReconcileResult } from '../lib/missedSessions.js';
 import { parseStoredSteps, planCarries, type PlannedCarry } from '../lib/carryForward.js';
+import { buildSignals } from '../lib/missedSignals.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import {
   clarifyGoalWithAI,
@@ -547,12 +548,13 @@ goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void>
 
     // M2.2 carry-forward. Idempotent (04-phases.md 3.4): a carried day is the source of a stored marker and is
     // never planned again, and each write is a compare-and-set on the receiving day's steps (ND-13).
+    const today = getZonedDateString(now, result.timezone);
     const plan = planCarries({
       days: result.days,
       gap: result.gap,
       tasks: goal.dailyTasks.map((task) => ({ ...task, steps: parseStoredSteps(task.detailedSteps) })),
       goal,
-      today: getZonedDateString(now, result.timezone),
+      today,
       timezone: result.timezone,
       sleepTime,
     });
@@ -571,7 +573,10 @@ goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void>
       }
     }
 
-    res.json({ ...result, carry: { enabled, ...plan, written } });
+    // M2.3: derived signals for P3 (ND-16); only stored carries count as moved.
+    const signals = buildSignals({ days: result.days, gap: result.gap, plan, written, now, today, timezone: result.timezone, sleepTime });
+
+    res.json({ ...result, carry: { enabled, ...plan, written }, signals });
   } catch (err: any) {
     console.error('[GoalRouter] Reconcile error:', err);
     res.status(500).json({ error: 'Failed to reconcile goal.' });
