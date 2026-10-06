@@ -15,6 +15,22 @@ model User {
   timezone      String   @default("UTC")
   created_at    DateTime @default(now())
 
+  // ND-20: legacy Stripe-era billing columns. They still exist in the database (migration
+  // 20260928171500_add_user_billing_fields) and are declared here only so the schema matches it.
+  // Billing reads `Subscription`. Never use these; dropping them needs its own migration and decision.
+  /// @deprecated Legacy, unused (ND-20).
+  plan                 String    @default("free")
+  /// @deprecated Legacy, unused (ND-20).
+  stripeCustomerId     String?   @unique
+  /// @deprecated Legacy, unused (ND-20).
+  stripeSubscriptionId String?   @unique
+  /// @deprecated Legacy, unused (ND-20).
+  subscriptionStatus   String?
+  /// @deprecated Legacy, unused (ND-20).
+  currentPeriodEnd     DateTime?
+  /// @deprecated Legacy, unused (ND-20).
+  cancelAtPeriodEnd    Boolean   @default(false)
+
   goals         Goal[]
   subscriptions Subscription[]
 
