@@ -452,6 +452,7 @@ describe('journeyAdapter', () => {
       activeGoal,
       loadingGoal: false,
       goalLoadFailed: false,
+      goalLoadedFor: null,
       apiStatus: 'online' as const,
       refreshGoal: vi.fn(),
       setActiveGoal: vi.fn(),

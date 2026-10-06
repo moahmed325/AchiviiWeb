@@ -34,6 +34,7 @@ const baseGoalContext = {
   activeGoal: mockCompletedGoal,
   loadingGoal: false,
   goalLoadFailed: false,
+  goalLoadedFor: null,
   apiStatus: 'online' as const,
   refreshGoal: vi.fn(),
   setActiveGoal: vi.fn(),
