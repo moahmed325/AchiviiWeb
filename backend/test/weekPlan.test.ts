@@ -272,7 +272,8 @@ describe('high-load step flag (M2.1, ND-5)', () => {
   });
 
   it('adds exactly one line to the prompt and changes nothing else', () => {
-    const before = readFileSync(new URL('./fixtures/weekPrompt.before-m2.1.txt', import.meta.url), 'utf8');
+    // Git may check the fixture out with CRLF on Windows; the prompt itself always uses LF.
+    const before = readFileSync(new URL('./fixtures/weekPrompt.before-m2.1.txt', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     const prompt = buildWeekPrompt(input, weekLayout('steady', input.weekStart));
     const lines = prompt.split('\n');
     expect(lines.filter((line) => line !== HIGH_LOAD_LINE).join('\n')).toBe(before);
