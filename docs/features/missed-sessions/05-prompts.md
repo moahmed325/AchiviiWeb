@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 1.7 | **Date:** 2026-10-07 (M2.2 prompt drafted)
+**Version:** 1.8 | **Date:** 2026-10-07 (M2.3 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -645,3 +645,77 @@ With the switch off, production behaves exactly as now apart from the extra `car
 
 ### STOP IF
 A rule above conflicts with the Feature Definition or 04-phases.md as written; the compare-and-set cannot be expressed with Prisma on the current schema; any other code path rewrites `detailedSteps` of the current week in a way that would race with reconcile (list it); stored steps lack the priorities the fit rule needs; or the work needs a schema change, a frontend change or user-facing copy. Report instead of working around it.
+
+---
+
+## M2.3 — Counting Rules and Signals
+
+### STATUS
+READY (drafted 2026-10-07). Depends on M2.2 (complete; carry writes switched off).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P2/M2.3. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+Two pieces of P2 remain before the UI: how the 10-minute version counts (OD-2), and the signals P3 will render (ND-16). Signals are data, not copy: P3 writes the words. They are derived on every reconcile from the classification, the open gap, the carry plan and the stored `carriedFrom` markers; nothing new is stored.
+
+Repository facts (verify, do not trust this prompt):
+- `POST /api/goal/reconcile` (`backend/src/routes/goal.ts`) returns, for a plan v2 goal, `{ applies, goalId, asOf, timezone, days, gap, carry: { enabled, carries, drops, held, alreadyCarried, written } }`. The planner is `planCarries` in `backend/src/lib/carryForward.ts`; classification and gap are in `backend/src/lib/missedSessions.ts`.
+- The only place that decides whether a key session was done is `writeNextWeek` (`backend/src/lib/planV2.ts`, `keySessionsSkipped`, about line 152): today `task.isKeySession && task.status !== 'completed'`. `DailyTask.usedMinimumVersion` exists since M2.0 (true when the day was completed only through the 10-minute version).
+- `LastWeekSummary` (`backend/src/lib/ai/weekPlan.ts`) feeds the week call's "last week" block; its `done` and `planned` already count a 10-minute completion as done.
+- The weekly update (prompt 4) that would consume missed and dropped counts does not exist (M4.2 is blocked).
+
+### OBJECTIVE
+Make OD-2 true where key sessions are counted, expose the per-week counts M4.2 will need, and return a small, honest `signals` object from reconcile that P3 can render without any further logic.
+
+### READ FIRST
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-3, ND-9, ND-11, ND-15, ND-16, ND-17), P2 (7.3, M2.3), P3 (8.3, 8.7) to see what the UI will need.
+- docs/features/missed-sessions/03-feature.md: sections 6, 8 (UX-1, UX-2, UX-4), 9, 11 (RULE-4, RULE-6, RULE-8, RULE-9), 12, OD-2, AC-7, AC-10.
+- docs/features/missed-sessions/milestones/m2.2-carry-forward.md (carry-overs for M2.3).
+
+### INSPECT FIRST
+- `backend/src/lib/carryForward.ts` (`CarryPlan`, `PlannedCarry`, `CarryDrop`, `HeldCarry`, `CarriedEarlier`), `backend/src/lib/missedSessions.ts`, `backend/src/routes/goal.ts` `POST /reconcile`.
+- `backend/src/lib/planV2.ts` `writeNextWeek` and its tests, `backend/src/lib/ai/weekPlan.ts` `LastWeekSummary` and `lastWeekBlock`.
+- `backend/test/reconcile.test.ts`, `backend/test/reconcileCarry.test.ts`, `backend/test/carryForward.test.ts`.
+
+### REQUIREMENTS
+R1. **OD-2 in the week call.** In `writeNextWeek`, a key session counts as skipped when it is not completed **or** was completed only through the 10-minute version (`usedMinimumVersion === true`). Nothing else in `LastWeekSummary` changes: `done` still counts a 10-minute completion as done (RULE-4, AC-7). No prompt wording changes.
+
+R2. **Week counts (for M4.2).** A pure, exported function that, for one week of a plan v2 goal, returns `{ practicePlanned, practiceDone, doneByMinimum, keySessions, keyDone, keySkipped, missed, carried, dropped }`, from the tasks, their classification and the carry plan. `keyDone` excludes 10-minute completions (OD-2); `missed` counts classified `missed` practice days; `carried` counts stored carries out of that week (markers), `dropped` counts that week's drops. Not wired into any prompt or route in this milestone (M4.2 will use it); tested only.
+
+R3. **Signals.** Add `signals` to the plan v2 reconcile response, computed by a pure function from the existing result and plan (no new queries):
+- `carried`: stored carries that concern today, each `{ fromDate, fromTaskId, toDate, toTaskId, stepTitle }`. A carry concerns today from the missed day's close until its receiving day closes. **Only stored carries** (from `carry.written` or `carry.alreadyCarried`): a carry that was only planned (switch off) is never reported as moved.
+- `dropped`: drops whose missed day closed most recently, i.e. the latest missed practice day before today, when its step was dropped; each `{ date, taskId, reason }`. Reported only while that missed day is the most recent closed practice day.
+- `swapOffer`: the held key session whose receiving day is open, `{ missedTaskId, missedDate, receivingTaskId, receivingDate, offerUntil }`, or null.
+- `shortOnTime`: true when the current week (the week of today's task) has 2 or more `missed` practice days and today is an open practice day (RULE-9, UX-2).
+- `gentleReturn`: when there is an open gap and today is the first open practice day after it, `{ gapLength, firstDate, lastDate }`; otherwise null (RULE-8, UX-4, AC-10).
+- `notice`: the one thing P3 shows as a line (notice fatigue, 8.10), chosen in this order: `gentle_return`, `swap_offer`, `carried`, `dropped`, or null. `shortOnTime` is separate (it changes which version is offered, not the line).
+With the switch off, `carried` is always empty, so no "moved" notice can appear before the move is real (ND-15).
+
+R4. **Old goals and no goal.** `applies: false` responses are unchanged: no `signals`, no `carry`.
+
+R5. **No writes, no copy, no schema.** M2.3 writes nothing new, adds no user-facing strings, no migration, no frontend change, and does not change the carry planner's decisions.
+
+R6. **Tests.**
+- `writeNextWeek`: a key session completed in full is done; completed only through the 10-minute version is skipped; pending is skipped; a non-key 10-minute completion still counts in `done`.
+- Week counts: a fixture week with full, 10-minute, missed, carried and dropped days gives the expected numbers; rest days never count.
+- Signals, one case per field: a written carry concerns today until its receiving day closes, then not; an already stored carry from an earlier reconcile; a planned but unwritten carry (switch off) gives no `carried`; a drop shown only while its day is the most recent closed practice day; a swap offer while held, gone once the receiving day closes; `shortOnTime` at 1 and 2 misses, and false on a rest day; `gentleReturn` on the first open practice day after a gap, not the day after; `notice` precedence when several apply; a rest day today never yields a carried or dropped notice about a rest day (AC-5).
+- Route: the plan v2 response gains `signals` and keeps every other field exactly; `applies: false` responses are unchanged; with the switch off nothing is written (the existing assertions still hold).
+
+### OUT OF SCOPE
+Rendering or wording any notice (P3); the swap answer and mark-missed actions (M2.4); changing carry decisions (M2.2); wiring week counts into the weekly review or any model prompt (M4.2); any schema change, migration or frontend change; turning on `MISSED_SESSIONS_CARRY_ENABLED`.
+
+### REGRESSION CHECKS
+R-5 (weekly review still opens and saves), R-6 (week plan generation and its tests), R-7 (old goals), and every M2.2 carry test unchanged. Baseline: backend `npx vitest run` 46 files / 446 tests pass; backend `npx tsc --noEmit` passes (covers `src/` only); frontend `npx vitest run` 425 tests, 0 failures; frontend `npx tsc --noEmit`, lint (0 errors, 2 warnings) and build pass. Use each package's own TypeScript if `npx` fetches another version. No test may need a database or the network.
+
+### VALIDATION
+Repository commands only: the new and changed test files first, then backend `npx vitest run` and `npx tsc --noEmit`, then the frontend checks once.
+
+### DELIVERABLE
+The OD-2 change, the week-counts function, the `signals` field, tests for R6, and a report at `docs/features/missed-sessions/milestones/m2.3-counting-and-signals.md`: files changed, evidence for R1-R6, one example `signals` object for each notice type, commands and results against the baseline, and carry-overs for P3 (the exact fields to render) and M4.2 (the week counts). Do not commit or push to `main`.
+
+### DONE
+A key session done only as the 10-minute version is reported to the week call as skipped; week counts are available and tested; reconcile returns signals that never claim a move that did not happen, pick at most one notice, and change nothing for old goals; validation is at the baseline or better.
+
+### STOP IF
+Another code path decides "key done" (list it); a signal cannot be derived without storing new state; the signal timing rules above conflict with the Feature Definition or 04-phases.md; or the work needs copy, a frontend change, a schema change, or a change to carry decisions. Report instead of working around it.
