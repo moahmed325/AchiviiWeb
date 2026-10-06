@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 1.2 | **Date:** 2026-10-07
+**Version:** 1.3 | **Date:** 2026-10-07 (M1.2 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -190,7 +190,89 @@ M1.1b is complete when:
 
 ## M1.2 — Day-Close and Classification (pure functions only)
 
-_Next. M1.1b is complete; this prompt is to be drafted._
+### STATUS
+READY (drafted 2026-10-07). Depends on M1.1b (complete, commit `7cf7e3b`).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P1/M1.2. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+M1.1b made `User.timezone` the single clock: `DailyTask.date` is the user's local calendar date, and new goals are dated on the user's local day. M1.2 builds the pure logic that decides, for a given instant, which past days of a plan were done, which were missed, and whether a gap is open. It writes nothing. M1.3 will call it from `POST /api/goal/reconcile`; P2 adds carry-forward on top.
+
+Repository facts (verify, do not trust this prompt):
+- `DailyTask.status` is a free string; code writes only `pending` and `completed` (M1.1 R2). Completion is recorded **per day** (`status`, `completedAt`), never per step. The 10-minute version is stored exactly like a full session until M2.0 adds `usedMinimumVersion` (M1.1 R10).
+- `DailyTask` has `date` ('YYYY-MM-DD'), `weekNumber`, `dayNumber`, `isRestDay`, `isKeySession`, `isTestDay`.
+- `sleepTime` ('HH:MM', default `23:00` at goal create) lives in `Goal.routine`, a JSON string. `readRoutine` (`backend/src/lib/planV2.ts`) parses it but its `RoutineShape` type does not declare `sleepTime`.
+- `backend/src/lib/timezone.ts` has `normalizeTimezone`, `getZonedDateString`, `getZonedTimeParts` and `getZonedDayBounds`. `getZonedDayBounds` takes the UTC offset at local **noon**, so it can be one hour off for a wall time on a DST-change day. Do not use it to place the day-close instant.
+- Rows for future weeks do not exist until the weekly review writes them (M1.1 R4), so classification only ever sees weeks already written.
+
+### OBJECTIVE
+Pure, fully tested backend functions that compute each day's close instant, classify every task of a goal as done / missed / rest / planned at a given instant, and detect a gap. These satisfy AC-1, AC-5 and AC-14 at the logic level.
+
+### READ FIRST
+- docs/features/missed-sessions/03-feature.md: section 6 (Missed / Done session, Gap), section 7 (lifecycle), section 10 (edge cases), RULE-5, RULE-8, OD-1, AC-1, AC-5, AC-10, AC-14.
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-1, ND-2), P1 (6.2-6.10), M1.2.
+- docs/features/missed-sessions/milestones/m1.1-repository-verification.md (R1, R2, R4, R9, R10) and m1.1b-user-timezone-today.md (section 4).
+
+### INSPECT FIRST
+- `backend/src/lib/timezone.ts` and `backend/test/timezone.test.ts`.
+- `backend/src/lib/planV2.ts` (`readRoutine`, `RoutineShape`).
+- `backend/prisma/schema.prisma` (`DailyTask`, `Goal.routine`, `User.timezone`).
+- `backend/src/routes/goal.ts` goal create (how `routine.sleepTime` is written and defaulted).
+- The style of existing pure-logic modules and their tests (for example `backend/src/lib/ai/weekPlan.ts` with `backend/test/weekPlan.test.ts`).
+
+### REQUIREMENTS
+R1. **Local wall time to instant.** Add to `timezone.ts` a function that turns a local date ('YYYY-MM-DD') plus a wall time ('HH:MM') in an IANA timezone into the exact UTC instant, correct on DST-change days. A wall time that does not exist (spring-forward gap) resolves to the first valid instant after it. An ambiguous wall time (fall-back overlap) resolves to the **later** instant, because a later close can never create a false miss. Existing `timezone.ts` exports keep their behavior (R-9).
+
+R2. **Day-close instant (OD-1).** For a task dated D, in the user's timezone, with `sleepTime` S:
+- If S is from 18:00 to 23:59, bedtime is D at S. If S is from 00:00 to 17:59, bedtime is D+1 at S (an after-midnight or daytime sleeper).
+- Close = bedtime + 2 hours, capped at D+1 04:00 local. So a day never closes before D 20:00 or after D+1 04:00.
+- `sleepTime` missing, empty or not a valid 'HH:MM': close at D+1 04:00 (the most conservative reading; P1 risk 6.10).
+- Timezone missing or invalid: `normalizeTimezone` (UTC), the same fallback as M1.1b.
+Examples to test: S 23:00 → D+1 01:00; S 22:30 → D+1 00:30; S 01:00 → D+1 03:00; S 03:00 → D+1 04:00 (capped); S 09:00 → D+1 04:00; S 19:00 → D 21:00.
+
+R3. **Routine reading.** Extend `RoutineShape` with an optional `sleepTime` (type only; `readRoutine` keeps its current output for every existing caller). Validate the value inside the new module, not by changing `readRoutine`'s defaults.
+
+R4. **Classification (ND-2: derived, never stored).** A function takes the goal's tasks, `now`, the timezone and the raw `sleepTime`, and returns one entry per task: its id, date, week and day number, `isKeySession`, `isTestDay`, and a kind:
+- `rest`: `isRestDay` is true, whatever the status or time (RULE-5, AC-5). A rest day is never `missed` and never `done`.
+- `done`: practice day with `status === 'completed'`, whether or not its day has closed.
+- `missed`: practice day whose close instant is at or before `now` and whose status is anything other than `completed`.
+- `planned`: practice day whose day has not closed yet (today, a still-open yesterday before its close, and future days).
+Test days and key sessions are classified like any practice day; the flags are carried through so P2 and P4 can treat them differently. Do not decide carry, swap or late-test behavior here.
+
+R5. **Done means the day's status (scope decision for M1.2).** The data has no per-step completion, so "at least one step done" and "the P1 step was done but later steps were not" (Feature Definition section 6 and section 10) cannot be computed. In M1.2, done = `status === 'completed'`, and the 10-minute version counts as done because it is stored the same way (RULE-4). Do not add per-step tracking or parse `notes` for it. Record this in the report as the limit of "partial-day credit" and name what would be needed to go further.
+
+R6. **Gap detection (RULE-8, AC-10 logic).** A function over the classification, ordered by date: a gap is 3 or more `missed` practice days in a row. Rest days neither count nor break a run; a `done` or `planned` practice day breaks it. Runs may span a week boundary. Return the open gap (the run that ends at the most recent closed practice day, if its length is 3 or more) with its first and last dates and its length, or none. Do not decide what the next session becomes; that is P2/P3.
+
+R7. **Pure and deterministic.** No Prisma, no network, no `Date.now()` or `new Date()` inside the logic: `now` is a parameter. Results must not depend on the server's timezone (`TZ`). No writes, no new `status` value, no schema change, no route change.
+
+R8. **Tests** (new file, for example `backend/test/missedSessions.test.ts`, plus additions to `timezone.test.ts` for R1):
+- Every R2 example, in at least UTC+3 (`Africa/Addis_Ababa`), UTC-8 (`America/Los_Angeles`) and UTC+14 (`Pacific/Kiritimati`).
+- DST: a close time on the spring-forward night and on the fall-back night (`America/New_York`, 8 Mar 2026 and 1 Nov 2026), including a wall time inside the gap and one inside the overlap.
+- A late-evening session: task D completed at 00:40 on D+1 with S 23:00 is `done`; the same task still pending at 00:40 is `planned`, and at 01:00 exactly it becomes `missed`.
+- Rest days: pending and past → `rest`; completed → `rest`.
+- Missing, empty and malformed `sleepTime` (`''`, `'25:00'`, `'7pm'`) → close at D+1 04:00.
+- Missing or invalid timezone → UTC.
+- Gap: exactly 2 missed (no gap), 3 missed (gap), 3 missed with a rest day between them (gap of 3), missed-done-missed-missed (no gap), a run that crosses from week 1 into week 2, and a trailing run still ending in a `planned` today (the gap ends at the last closed day).
+- The same inputs give identical output with `TZ` set to UTC and to another zone (the runner allows `TZ=... npx vitest run <file>`; M1.1b used this).
+
+### OUT OF SCOPE
+`POST /api/goal/reconcile` and any route (M1.3); carry-forward, swap, mark missed, high-load handling (P2); the `usedMinimumVersion` migration (M2.0); any UI, copy or frontend change (P3); late-test and weekly status (P4); per-step completion tracking; changing `getZonedDayBounds`; fixing the 9 `AppShell.test.tsx` failures (ND-7) or the flaky `AuthScreen.test.tsx` test.
+
+### REGRESSION CHECKS
+R-7 (old goals: nothing in this milestone runs for them; no shared code path changes), R-9 (`timezone.ts` existing exports unchanged; `timezone.test.ts` passes untouched). Baseline: backend 55 files / 373 tests pass; backend `tsc --noEmit` passes. The frontend is not touched; if you run it, the baseline is 9 failures in `AppShell.test.tsx` (plus an occasional pre-existing `AuthScreen.test.tsx` timing flake). `backend/test/researchCache.test.ts` writes to whatever database `DATABASE_URL` points at: confirm it is a development database before running the full backend suite, or run only the files you changed.
+
+### VALIDATION
+Use only repository-defined commands. Run the new and changed test files first (`cd backend && npx vitest run test/missedSessions.test.ts test/timezone.test.ts`, also under two `TZ` values), then `cd backend && npm test` and `cd backend && npx tsc --noEmit`.
+
+### DELIVERABLE
+New module (for example `backend/src/lib/missedSessions.ts`), the R1 helper in `timezone.ts`, the `RoutineShape` type addition, tests for R8, and a report at `docs/features/missed-sessions/milestones/m1.2-day-close-classification.md`: files changed, evidence for R1-R8, the R5 partial-day limit, commands and results against the baseline, carry-overs for M1.3. Do not commit or push.
+
+### DONE
+The day-close instant is correct for every R2 case, including DST; every task classifies as exactly one of done / missed / rest / planned; rest days are never missed; gaps of 3+ are detected across rest days and week boundaries; output does not depend on the server timezone; nothing is written; the backend suite and type check pass at the baseline.
+
+### STOP IF
+The repository shows per-step completion data after all (then R5 needs a decision); `sleepTime` is stored somewhere other than `Goal.routine` or in another format; a correct DST conversion cannot be built on `Intl` without a new dependency; the work needs a route, a schema change or a frontend change; or a Feature Definition rule conflicts with R2-R6 as written. Report instead of working around it.
 
 ---
 
