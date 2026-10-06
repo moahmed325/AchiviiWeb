@@ -3,9 +3,16 @@ import { CertifiedPresetBlueprint } from './types.js';
 export const run10kPreset: CertifiedPresetBlueprint = {
   id: 'run10k',
   matchingPatterns: [
-    /\b10\s*k\b/i,
-    /\brun\b.*\b10\s*(k|km|kilometers?)\b/i,
-    /\b10\s*(k|km|kilometers?)\b.*\b(under|sub)[-\s]?50\b/i,
+    // "10k" alone also means subscribers, followers, dollars or words, so every
+    // pattern needs running context next to the distance.
+    // "run a 10k", "running my first 10 km", "race a sub-50 10K"
+    /\b(run|runs|running|race|racing|jog|jogging)\s+((a|an|the|my|first|faster|sub[-\s]?\d+)\s+){0,3}10\s*(k|km|kilomet(er|re)s?)\b/i,
+    // "10k run", "10 km race", "finish a 10K road race"
+    /\b10\s*(k|km|kilomet(er|re)s?)\s+(run|race|road\s+race|running|jog)\b/i,
+    // "10K under 50 minutes", "10 km sub-50"; the time must be minutes (or end the goal)
+    /\b10\s*(k|km|kilomet(er|re)s?)\b.*\b(under|sub)[-\s]?50(\s*(min|mins|minutes)\b|\s*$)/i,
+    // "sub-50 10k"
+    /\bsub[-\s]?50(\s*(min|minute|minutes))?\s+10\s*(k|km)\b/i,
   ],
   title: 'Run a 10K Under 50 Minutes',
   primaryDomain: 'Endurance Running & Aerobic Conditioning',

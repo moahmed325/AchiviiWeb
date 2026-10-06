@@ -4,10 +4,11 @@ export const chessPreset: CertifiedPresetBlueprint = {
   id: 'chess_1200_rating',
   matchingPatterns: [
     /chess/i,
-    /1200.*rating/i,
+    // A bare "1200 ... rating" also catches Codeforces or SAT goals; require a chess time control.
+    /\b1200\s+(rapid|blitz|bullet|classical)\b/i,
     /chess\.com/i,
     /lichess/i,
-    /rapid.*rating/i,
+    /\b(rapid|blitz)\s+rating\b/i,
     /\belo\b/i,
     /tactics.*puzzle/i,
     /grandmaster/i,
