@@ -8,6 +8,8 @@ interface GoalContextType {
   loadingGoal: boolean;
   /** The last goal fetch failed, so a null `activeGoal` does not mean the user has no goal. */
   goalLoadFailed: boolean;
+  /** The token whose goal fetch last settled, so a consumer can tell the goal state is current for its token. */
+  goalLoadedFor: string | null;
   apiStatus: 'online' | 'offline' | 'checking';
   refreshGoal: () => Promise<void>;
   setActiveGoal: (goal: Goal | null) => void;
@@ -24,6 +26,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeGoal, setActiveGoal] = useState<Goal | null>(null);
   const [loadingGoal, setLoadingGoal] = useState<boolean>(true);
   const [goalLoadFailed, setGoalLoadFailed] = useState(false);
+  const [goalLoadedFor, setGoalLoadedFor] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
 
   // Health check on initial mount
@@ -46,6 +49,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!token) {
       setActiveGoal(null);
       setGoalLoadFailed(false);
+      setGoalLoadedFor(null);
       setLoadingGoal(false);
       return;
     }
@@ -67,6 +71,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveGoal(null);
       setGoalLoadFailed(true);
     } finally {
+      setGoalLoadedFor(token);
       setLoadingGoal(false);
     }
   }, [token]);
@@ -123,6 +128,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeGoal,
         loadingGoal,
         goalLoadFailed,
+        goalLoadedFor,
         apiStatus,
         refreshGoal,
         setActiveGoal,
