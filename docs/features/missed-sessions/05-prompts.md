@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 1.9 | **Date:** 2026-10-07 (M2.4 prompt drafted)
+**Version:** 2.0 | **Date:** 2026-10-07 (M3.1 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -794,3 +794,79 @@ Mark missed, swap and carry-now each apply the M2.2 rules, write once under conc
 
 ### STOP IF
 A rule above conflicts with the Feature Definition or 04-phases.md; an action needs a stored status or a schema change; the two-day swap cannot be made atomic with Prisma on the current setup; any field's owner (content versus date-and-user) is unclear in a way that changes behavior (list it and ask); or the work needs copy, UI or a frontend change. Report instead of working around it.
+
+---
+
+# 3 — P3 TODAY EXPERIENCE
+
+## M3.1 — Miss Notice
+
+### STATUS
+READY (drafted 2026-10-07). Depends on P2 (complete). The first user-visible milestone. After it is live, the ND-15 switch can be turned on (04-phases.md 2.4).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P3/M3.1. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+P2 made `POST /api/goal/reconcile` return `carry` and `signals` (ND-16), with `signals.notice` naming the one line to show (`gentle_return`, `swap_offer`, `carried`, `dropped`, or null). The frontend calls reconcile once per load in `GoalContext.loadGoal` but keeps nothing from it, and its `ReconcileResult` type (`frontend/src/types/index.ts`) predates `carry` and `signals`. Today still shows the generic, frontend-only callout "Yesterday's step wasn't completed" (`Today.tsx`, `yesterdayUncompleted`), and the Dashboard's status line says "Yesterday slipped past. No catching up needed, just today." (`pages/Dashboard.tsx`, `statusLine`, `slipped`). M3.1 replaces both with the real notice.
+
+Scope of the notice in M3.1: only `carried` and `dropped`. `gentle_return` needs the 10-minute default (M3.2) before its line ("Today's a short one") is true, and `swap_offer` needs the swap UI (M3.3). Until then, those two kinds render nothing.
+
+### OBJECTIVE
+Today and the Dashboard show one calm, honest line about a missed day, taken from reconcile, and a tab left open overnight catches up on its own.
+
+### READ FIRST
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-14 to ND-18), 2.4 (release order), section 3 (3.6 tone, 3.7 honesty, 3.9 accessibility, 3.11), P3 (8.1-8.10, M3.1, M3.3 notes).
+- docs/features/missed-sessions/03-feature.md: sections 8 (UX-1), 9, 12 (tone and copy), AC-1, AC-5, AC-12.
+- docs/features/missed-sessions/milestones/m2.3-counting-and-signals.md (the `signals` fields and examples) and m2.4-mark-missed-and-swap.md (what P3 calls).
+- Design.md sections 5 and 6, and docs/decisions.md ND-19 (the Dashboard reads the same data as Today and never contradicts it).
+
+### INSPECT FIRST
+- `frontend/src/context/GoalContext.tsx`, `frontend/src/lib/api.ts` (`reconcileGoal`), `frontend/src/types/index.ts` (`ReconcileResult`, `ReconcileDay`).
+- `frontend/src/components/today/Today.tsx` (`yesterdayUncompleted`, `Callout`) and `Today.test.tsx` (including the no-"missed"/"failed"/"behind" assertions).
+- `frontend/src/pages/Dashboard.tsx` (`statusLine`, `slipped`) and `Dashboard.test.tsx`; `frontend/src/lib/today.ts` (`isYesterdayPending`, `todayKey`).
+- The backend response shape: `backend/src/lib/missedSignals.ts` (`MissedSignals`) and `backend/src/lib/reconcileCore.ts` (`ReconcileBody`).
+- `frontend/e2e/mockApi.ts`, `today.spec.ts`, `todayStates.spec.ts`.
+
+### REQUIREMENTS
+R1. **Types.** Mirror the backend response in `frontend/src/types/index.ts`: extend the plan v2 `ReconcileResult` with `carry` (full types only for the fields the UI reads) and `signals` (`carried`, `dropped`, `swapOffer`, `shortOnTime`, `gentleReturn`, `notice`), matching `MissedSignals` field for field.
+
+R2. **Keep the result.** `GoalContext` stores the latest reconcile body as `reconciliation` (null before the first answer, after a failure, when signed out, and for `applies: false`). Load order and failure handling stay exactly as in M1.3: reconcile first, then the goal; a reconcile failure is logged and never affects loading. `refreshGoal` does not reconcile.
+
+R3. **Catch up on a new day.** When the page becomes visible again (`visibilitychange` to visible, or window `focus`) and the user's local date (`todayKey` with the stored timezone) differs from the date of the last reconcile, run the same load again (reconcile, then the goal). At most one run at a time; never on the same date; nothing when signed out.
+
+R4. **Today's notice.** Remove the `yesterdayUncompleted` callout. In its place, when `signals.notice` is `carried` or `dropped`, show exactly one line in the existing `Callout`, with these strings and no others:
+- `carried`, moved into today: "{Day}'s session didn't happen. We moved its most important step into today, so today stays the same length."
+- `carried`, moved to a later day: "{Day}'s session didn't happen. We moved its most important step to {Weekday}, so that day stays the same length."
+- `dropped`: "{Day}'s session didn't happen. Nothing needs making up: the plan carries on as it is."
+`{Day}` is "Yesterday" when the missed date is yesterday in the user's timezone, otherwise its weekday ("Monday"); `{Weekday}` is the receiving day's weekday. Take the dates from `signals.carried[0]` or `signals.dropped[0]`. Never show the drop reason. For `gentle_return`, `swap_offer` and null, show nothing (M3.2, M3.3). A rest day never shows a notice (the backend already returns no line on a rest day; keep that true in the UI). The notice belongs to Today's view of today only, not when another day is selected.
+
+R5. **Dashboard agrees (ND-19).** Replace the `slipped` input of `statusLine` with the same signals: `carried` into today → "{Day}'s most important step is part of today's session."; `dropped` → "{Day} slipped past. No catching up needed, just today."; `{Day}` follows the R4 rule; otherwise unchanged. The line keeps the priority `slipped` has now. `isYesterdayPending` stops driving any user-facing line; remove it and its tests only if nothing else uses it.
+
+R6. **Copy rules (3.6, AC-12).** No string added or shown contains "missed", "behind", "failed", "why", or a status label. The existing assertions stay, and new ones cover every R4 and R5 string.
+
+R7. **Accessibility.** The notice reuses `Callout` (no new live region; it appears with the page). Zero horizontal overflow at 360, 375, 390 and 412 px; the longest string wraps cleanly.
+
+R8. **Tests.**
+- GoalContext: stores the body; null on failure, on `applies: false`, and when signed out; a visibility event on a new date runs reconcile then the goal once; the same date does nothing; two quick visibility events run once.
+- Today: each R4 string, including "Yesterday" versus a weekday and "into today" versus a later day; nothing for `gentle_return`, `swap_offer`, null, a rest day, another selected day, or a failed reconcile; never more than one line; the old callout text is gone.
+- Dashboard: each R5 line, and the unchanged lines.
+- e2e: make `mockApi.ts` answer `POST /api/goal/reconcile` (default `applies: false`) so existing specs never depend on a failing request; add one `todayStates.spec.ts` case with a `carried` notice at 390 px.
+
+### OUT OF SCOPE
+Short-on-time and gentle-return (M3.2); swap, mark-missed and carry-now UI (M3.3); any backend change; turning on `MISSED_SESSIONS_CARRY_ENABLED` (a dashboard step after this ships, see the release checklist); new copy beyond R4 and R5.
+
+### REGRESSION CHECKS
+R-1 (goal loading), R-3 (every Today state), R-5, R-10 (no punitive copy), R-11 (axe and overflow). Baseline: backend `npm test` 50 files / 504 tests pass; frontend `npm test` 425 tests, 0 failures; frontend `npm run typecheck`, `npm run lint` (0 errors, 2 warnings) and `npm run build` pass; GitHub Actions CI (`.github/workflows/ci.yml`) green on the branch. Prefer the package scripts: a bare `npx tsc` can fetch a newer TypeScript.
+
+### VALIDATION
+Repository commands only: the changed test files first, then frontend `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and the Playwright specs you touched (`npx playwright test e2e/todayStates.spec.ts`). Push the branch and confirm CI passes.
+
+### DELIVERABLE
+The types, the stored reconciliation, the new-day catch-up, the Today notice, the Dashboard line, tests for R8, and a report at `docs/features/missed-sessions/milestones/m3.1-miss-notice.md`: files changed, every user-facing string, evidence for R1-R8 (EV-5 tests, EV-6 screenshots at 390 and 360 px), commands and results, and a **release checklist** for turning the switch on: set `MISSED_SESSIONS_CARRY_ENABLED` to `true` in the Render dashboard, confirm in production that a closed, pending practice day's priority-1 step moves once and Today shows the `carried` line, and how to turn it off again. Do not commit or push to `main`.
+
+### DONE
+Today and the Dashboard show at most one honest line about a missed day, from reconcile, with the exact strings above; the old callout is gone; nothing claims a move that did not happen; a tab opened on a new day catches up; all checks and CI pass.
+
+### STOP IF
+The backend response does not match `MissedSignals`; a string above cannot be made true for a case (list it); the notice would need a backend change; or the Dashboard and Today cannot read the same signals without restructuring. Report instead of working around it.
