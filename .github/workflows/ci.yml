@@ -1,0 +1,68 @@
+# Runs every check before code reaches production. Merging to main deploys at once (Render and Vercel),
+# so a red run here means: do not merge. No secrets and no database are needed: every test mocks Prisma
+# and the model calls (see CLAUDE.md).
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Install exactly as Render does (render.yaml buildCommand), so CI tests what ships.
+      - name: Install (as Render)
+        working-directory: backend
+        run: npm install --include=dev
+      # Package scripts use the installed binaries; a bare npx could download a newer TypeScript or Vitest.
+      - name: Tool versions
+        working-directory: backend
+        run: npm exec --no -- tsc --version && npm exec --no -- vitest --version
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npm run prisma:generate
+      - name: Type-check (src/)
+        working-directory: backend
+        run: npm run typecheck
+      - name: Tests
+        working-directory: backend
+        run: npm test
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Install exactly as Vercel does (vercel.json installCommand), so CI tests what ships.
+      - name: Install (as Vercel)
+        working-directory: frontend
+        run: npm install
+      - name: Tool versions
+        working-directory: frontend
+        run: npm exec --no -- tsc --version && npm exec --no -- vitest --version
+      - name: Type-check
+        working-directory: frontend
+        run: npm run typecheck
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Tests
+        working-directory: frontend
+        run: npm test
+      - name: Build
+        working-directory: frontend
+        run: npm run build
