@@ -2,8 +2,9 @@ import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
-import { normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
+import { getZonedDateString, normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
 import { buildReconcileResult } from '../lib/missedSessions.js';
+import { parseStoredSteps, planCarries, type PlannedCarry } from '../lib/carryForward.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import {
   clarifyGoalWithAI,
@@ -499,8 +500,9 @@ goalRouter.get('/active', async (req: Request, res: Response): Promise<void> => 
  * and preserves the completed journey (OD-1b Option B).
  */
 // POST /api/goal/reconcile
-// Missed sessions (ND-6): called once when the app loads, before the goal is fetched. In P1 it only reports
-// the derived classification (ND-2) and the open gap for the active plan v2 goal, and writes nothing.
+// Missed sessions (ND-6): called once when the app loads, before the goal is fetched. Reports the derived
+// classification (ND-2) and the open gap for the active plan v2 goal, plus the carry-forward plan (M2.2).
+// Carries are written only when MISSED_SESSIONS_CARRY_ENABLED is 'true' (ND-15); otherwise nothing is written.
 goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await getAuthUser(req);
@@ -515,6 +517,8 @@ goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void>
         id: true,
         planVersion: true,
         routine: true,
+        rawGoal: true,
+        clarifiedOutcome: true,
         dailyTasks: {
           select: {
             id: true,
@@ -525,22 +529,49 @@ goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void>
             isRestDay: true,
             isKeySession: true,
             isTestDay: true,
+            detailedSteps: true,
+            durationMinutes: true,
           },
           orderBy: { dayNumber: 'asc' },
         },
       },
     });
 
-    const result = buildReconcileResult(goal, {
-      now: new Date(),
-      timezone: user.timezone,
-      sleepTime: goal ? readRoutine(goal).sleepTime : undefined,
+    const now = new Date();
+    const sleepTime = goal ? readRoutine(goal).sleepTime : undefined;
+    const result = buildReconcileResult(goal, { now, timezone: user.timezone, sleepTime });
+    if (!result.applies || !goal) {
+      res.json(result);
+      return;
+    }
+
+    // M2.2 carry-forward. Idempotent (04-phases.md 3.4): a carried day is the source of a stored marker and is
+    // never planned again, and each write is a compare-and-set on the receiving day's steps (ND-13).
+    const plan = planCarries({
+      days: result.days,
+      gap: result.gap,
+      tasks: goal.dailyTasks.map((task) => ({ ...task, steps: parseStoredSteps(task.detailedSteps) })),
+      goal,
+      today: getZonedDateString(now, result.timezone),
+      timezone: result.timezone,
+      sleepTime,
     });
+    const enabled = process.env.MISSED_SESSIONS_CARRY_ENABLED === 'true';
+    const written: PlannedCarry[] = [];
+    if (enabled) {
+      const stored = new Map(goal.dailyTasks.map((task) => [task.id, task]));
+      for (const carry of plan.carries) {
+        const receiving = stored.get(carry.toTaskId)!;
+        // Writes only if the receiving day is exactly as read; a lost race is skipped, not retried.
+        const { count } = await prisma.dailyTask.updateMany({
+          where: { id: receiving.id, goalId: goal.id, status: receiving.status, detailedSteps: receiving.detailedSteps },
+          data: { detailedSteps: JSON.stringify(carry.steps), durationMinutes: carry.durationMinutes },
+        });
+        if (count === 1) written.push(carry);
+      }
+    }
 
-    // P2 applies carry-forward here, from `result.days`, before responding. It must stay idempotent
-    // (04-phases.md 3.4): running reconcile again must never carry a step twice.
-
-    res.json(result);
+    res.json({ ...result, carry: { enabled, ...plan, written } });
   } catch (err: any) {
     console.error('[GoalRouter] Reconcile error:', err);
     res.status(500).json({ error: 'Failed to reconcile goal.' });
