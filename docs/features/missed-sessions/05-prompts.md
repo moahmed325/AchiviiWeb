@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 1.8 | **Date:** 2026-10-07 (M2.3 prompt drafted)
+**Version:** 1.9 | **Date:** 2026-10-07 (M2.4 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -719,3 +719,78 @@ A key session done only as the 10-minute version is reported to the week call as
 
 ### STOP IF
 Another code path decides "key done" (list it); a signal cannot be derived without storing new state; the signal timing rules above conflict with the Feature Definition or 04-phases.md; or the work needs copy, a frontend change, a schema change, or a change to carry decisions. Report instead of working around it.
+
+---
+
+## M2.4 — Mark Missed and Swap Actions
+
+### STATUS
+READY (drafted 2026-10-07). Depends on M2.3 (complete). Completes P2. Every write stays behind the ND-15 switch.
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P2/M2.4. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+Three user actions remain, each producing the same recovery as automatic detection (AC-2) and answering the key-session swap offer (RULE-6, AC-6, ND-9): mark today missed, swap two days, and "just move the main step" for a held key session. The rules come from 04-phases.md ND-9 to ND-18; ND-18 (added with this prompt) settles what M2.2 and M2.3 left open:
+- **Mark missed shows at once.** A stored carry is reported in `signals.carried` from the moment it is stored until its receiving day closes (the lower bound "from the missed day's close" is removed). Automatic carries are only ever written after the close, so they are unaffected.
+- **Swap marker.** Answering a swap offer moves the missed key session's content onto today and today's original content onto the missed (past) day. The steps that land on each day carry `swappedFrom: { taskId, date }` inside `detailedSteps` JSON. The planner treats a missed day that is the `swappedFrom.taskId` of any stored step, or holds steps with a `swappedFrom` marker, as handled: never carried, never held again. Without this, the next reconcile would carry today's original priority-1 step back into today.
+- **All plan-changing actions are switched.** Mark missed, swap and carry-now write only when `MISSED_SESSIONS_CARRY_ENABLED === 'true'`; otherwise they answer 409 with `reason: 'carry_disabled'` and write nothing (rule 3.11).
+
+Repository facts (verify, do not trust this prompt):
+- `POST /api/goal/reconcile` (`backend/src/routes/goal.ts`) loads the active goal, classifies (`buildReconcileResult`), plans (`planCarries`, `backend/src/lib/carryForward.ts`), writes carries with a compare-and-set `updateMany` behind the switch, builds `signals` (`buildSignals`, `backend/src/lib/missedSignals.ts`) and responds.
+- Content fields of `DailyTask` (see `schema.prisma`): `title`, `detailedSteps` (JSON string), `implementationIntention`, `durationMinutes`, `resourceTitle`, `resourceUrl`, `resourceType`, `resourceWhy`, `isKeySession`, `whyToday`, `minimumVersion`. Fields that belong to the date and the user, not the plan: `id`, `goalId`, `weekNumber`, `dayNumber`, `date`, `dayOfWeek`, `slotTime`, `isRestDay`, `isTestDay`, `status`, `completedAt`, `notes`, `usedMinimumVersion`.
+- The frontend receives `detailedSteps` as the stored string (`frontend/src/types/index.ts`), so a client can send back exactly what it saw.
+- Prisma interactive transactions are already used in `backend/src/routes/webhook.ts` (`prisma.$transaction(async (tx) => ...)`), with a mocked `$transaction` in `webhook.test.ts`.
+
+### OBJECTIVE
+Three guarded, idempotent endpoints that let a user change this week's plan by hand, each returning the same body as reconcile so the client can refresh in one round trip, all off until the switch is on.
+
+### READ FIRST
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-9 to ND-18), section 3 (3.4, 3.5, 3.8, 3.11), P2 (M2.4), P3 (M3.3, which will call these).
+- docs/features/missed-sessions/03-feature.md: section 3 (core user actions), 7, 10, 11 (RULE-6 and clarifications), AC-2, AC-6.
+- docs/features/missed-sessions/milestones/m2.2-carry-forward.md and m2.3-counting-and-signals.md (carry-overs).
+
+### INSPECT FIRST
+- `backend/src/routes/goal.ts` (`POST /reconcile`, `PATCH /tasks/:taskId` for the auth and ownership pattern), `backend/src/lib/carryForward.ts`, `backend/src/lib/missedSignals.ts`, `backend/src/lib/missedSessions.ts`.
+- `backend/src/routes/webhook.ts` and `webhook.test.ts` (transaction pattern), `backend/test/reconcileCarry.test.ts`, `backend/test/reconcileSignals.test.ts`, `backend/test/carryForward.test.ts`.
+
+### REQUIREMENTS
+R1. **One reconcile core.** Extract the body of `POST /reconcile` into a function the route and the three actions share (load, classify, plan, write behind the switch, build signals), with an optional override that treats one open task as `missed` for planning. `POST /reconcile` behaves exactly as now (its tests must pass unchanged).
+
+R2. **Mark today missed.** `POST /api/goal/tasks/:taskId/mark-missed`, no body. Allowed only for the user's active plan v2 goal, on the task dated the user's local today, which is a practice day (not rest), not completed, and not already handled (a source of a `carriedFrom` or `swappedFrom` marker). It plans with that task treated as missed, so every M2.2 rule applies unchanged: it is carried to its receiving day, held for a swap offer if it is a key session, or dropped (for example no receiving day, high-load, does not fit, or now part of a gap). Only a carry writes anything (a guarded write, as in M2.2); a hold or a drop stores nothing (ND-14), and the day closes as missed tonight as it would anyway. Never writes a status. Responds 200 with the reconcile body. A repeat call after a carry is a no-op (already handled).
+
+R3. **Swap.** `POST /api/goal/tasks/:taskId/swap` with `{ withTaskId, expected: { [taskId]: string, [withTaskId]: string } }`, where `expected` holds each day's `detailedSteps` exactly as the client last loaded it. Two shapes are allowed, both in the same week of the active plan v2 goal:
+- **Open swap:** both days open (classified `planned`), dated today or later, practice days, not the test day, not completed, and neither holds a `carriedFrom` step. The content fields are exchanged; date-and-user fields stay. No marker is needed.
+- **Answering a swap offer (ND-9):** `taskId` is a held missed key session and `withTaskId` is its receiving day, still open. The content fields are exchanged, and every step that lands on either day gets `swappedFrom` (R5). Key sessions never land on the test day (the receiving day is never the test day, ND-17).
+Both days are written in one interactive transaction, each with a compare-and-set on `detailedSteps` equal to `expected` and on `status`; if either write matches no row, the transaction rolls back and the endpoint answers 409 (`reason: 'changed'`). So a double submit swaps once. `usedMinimumVersion` is not moved (neither day is completed). Responds 200 with the reconcile body.
+
+R4. **Carry now.** `POST /api/goal/tasks/:taskId/carry-now`, no body: the "no swap, just move the main step" answer to a held key session. Allowed only while the task is held (its receiving day open); it carries the priority-1 step exactly as M2.2 would for a non-key day (fit rule, high-load, guarded write). Responds 200 with the reconcile body; a repeat is a no-op.
+
+R5. **Planner and signals (ND-18).** In `planCarries`: a day that is the `swappedFrom.taskId` of any stored step, or that holds a step with `swappedFrom`, is handled (no carry, no hold, no drop entry). In `buildSignals`: a stored carry is reported from the moment it is stored until its receiving day closes. A swapped offer no longer appears as `swapOffer`. Add the marker type next to `CarryMarker`.
+
+R6. **Guards and answers.** 401 without a user; 404 when the task is not the user's (as `PATCH /tasks` does); 409 with a `reason` for a disallowed state (`not_today`, `rest_day`, `completed`, `already_handled`, `not_held`, `not_same_week`, `not_open`, `test_day`, `holds_carry`, `changed`, `not_plan_v2`, `carry_disabled`); 400 for a malformed body. Error bodies follow the existing `{ error }` style plus `reason`. No user-facing copy beyond those error messages.
+
+R7. **Tests.**
+- Mark missed: carried (written, and immediately in `signals.carried` with notice `carried`); a key session held (swap offer appears); dropped for each reason path that applies to today; not today, rest day, completed, already handled; repeat is a no-op; switch off → 409 `carry_disabled` and nothing written.
+- Swap: open swap exchanges exactly the content fields and keeps the others; answering an offer writes `swappedFrom` on both days, the offer disappears, and a following reconcile plans nothing for either day (no carry back); `expected` mismatch → 409 `changed` with nothing written (rollback); double submit swaps once; not same week, test day, completed, closed, or a day holding a carry → 409; switch off → 409.
+- Carry now: carries a held key session's priority-1 step with the fit rule; not held → 409; repeat no-op; switch off → 409.
+- Signals: a carry stored before the missed day closes is reported at once; automatic carries unchanged.
+- `POST /reconcile` tests pass unchanged; old goals answer `not_plan_v2` for every action.
+
+### OUT OF SCOPE
+UI and wording for any action (P3, M3.3); marking a past or future day missed; swapping across weeks or with rest or test days; an undo endpoint; any schema change or migration; any frontend change; turning on the switch.
+
+### REGRESSION CHECKS
+R-2 (task completion via `PATCH /tasks` untouched), R-6, R-7, and every M2.2 and M2.3 test unchanged except where R5 deliberately changes the carried-signal window (update only those assertions, and say which). Baseline: backend `npx vitest run` 49 files / 469 tests pass; backend `npx tsc --noEmit` passes (covers `src/` only); frontend `npx vitest run` 425 tests, 0 failures; frontend `npx tsc --noEmit`, lint (0 errors, 2 warnings) and build pass. Use each package's own TypeScript if `npx` fetches another version. No test may need a database or the network.
+
+### VALIDATION
+Repository commands only: the new and changed test files first, then backend `npx vitest run` and `npx tsc --noEmit`, then the frontend checks once.
+
+### DELIVERABLE
+The shared reconcile core, the three endpoints, the planner and signals changes, tests for R7, and a report at `docs/features/missed-sessions/milestones/m2.4-mark-missed-and-swap.md`: files changed, evidence for R1-R7, the request and response for each endpoint, commands and results against the baseline, and carry-overs for P3 (exactly what M3.3 calls and when). Do not commit or push to `main`.
+
+### DONE
+Mark missed, swap and carry-now each apply the M2.2 rules, write once under concurrent or repeated requests, never carry a swapped day back, show a manual carry at once, change nothing for old goals, and write nothing while the switch is off; `POST /reconcile` is unchanged; validation is at the baseline or better; P2's exit criteria (04-phases.md 7.9) are met.
+
+### STOP IF
+A rule above conflicts with the Feature Definition or 04-phases.md; an action needs a stored status or a schema change; the two-day swap cannot be made atomic with Prisma on the current setup; any field's owner (content versus date-and-user) is unclear in a way that changes behavior (list it and ask); or the work needs copy, UI or a frontend change. Report instead of working around it.
