@@ -1,18 +1,17 @@
 import type { DailyTask, DetailedStep, Goal, RoadmapWeek } from '../types';
-
-const DAY_MS = 1000 * 60 * 60 * 24;
+import { addDaysToDateKey, daysBetweenDateKeys, getLocalDateString } from './dateUtils';
 
 /**
- * Today's date key, in the calendar the task dates are written in.
- * The backend writes `DailyTask.date` as a UTC date (`toISOString().split('T')[0]` in `routes/goal.ts` and
- * `lib/ai/weekPlan.ts`); the user's timezone is stored but not used for task dates. So "today" is the UTC date.
+ * Today's date key ('YYYY-MM-DD') in the user's timezone (ND-1, missed-sessions M1.1b).
+ * `DailyTask.date` is the user's local calendar date, so "today" is the local date too.
+ * Timezone order: the one passed in (the signed-in user's), then the browser's, then UTC.
  */
-export function todayKey(now: Date): string {
-  return now.toISOString().split('T')[0];
+export function todayKey(now: Date, timezone?: string): string {
+  return getLocalDateString(now, timezone) || now.toISOString().split('T')[0];
 }
 
-export function isToday(task: Pick<DailyTask, 'date'>, now: Date): boolean {
-  return task.date === todayKey(now);
+export function isToday(task: Pick<DailyTask, 'date'>, now: Date, timezone?: string): boolean {
+  return task.date === todayKey(now, timezone);
 }
 
 /** The current week's tasks, in day order. */
@@ -22,18 +21,22 @@ export function currentWeekTasks(goal: Pick<Goal, 'currentWeek' | 'dailyTasks'>)
 }
 
 /** The chosen task if it is in this week, else today's, else the first pending, else the first. */
-export function selectTodayTask(tasks: DailyTask[], now: Date, selectedId?: string): DailyTask | null {
+export function selectTodayTask(tasks: DailyTask[], now: Date, selectedId?: string, timezone?: string): DailyTask | null {
   if (tasks.length === 0) return null;
   if (selectedId) {
     const selected = tasks.find((t) => t.id === selectedId);
     if (selected) return selected;
   }
-  return tasks.find((t) => isToday(t, now)) ?? tasks.find((t) => t.status === 'pending') ?? tasks[0];
+  return tasks.find((t) => isToday(t, now, timezone)) ?? tasks.find((t) => t.status === 'pending') ?? tasks[0];
 }
 
 /** Calendar days until `targetDate`, counted down from 90, clamped to 1–90. */
-export function dayNumber(goal: Pick<Goal, 'targetDate'>, now: Date): number {
-  const daysRemaining = Math.max(0, Math.ceil((new Date(goal.targetDate).getTime() - now.getTime()) / DAY_MS));
+export function dayNumber(goal: Pick<Goal, 'targetDate'>, now: Date, timezone?: string): number {
+  // Whole calendar days, counted on date keys, so the day number turns over at the user's local midnight
+  // together with the task dates. `targetDate` is a UTC instant whose UTC date is the target day.
+  const target = new Date(goal.targetDate);
+  if (Number.isNaN(target.getTime())) return 1;
+  const daysRemaining = Math.max(0, daysBetweenDateKeys(todayKey(now, timezone), target.toISOString().slice(0, 10)));
   return Math.min(90, Math.max(1, 91 - daysRemaining));
 }
 
@@ -134,10 +137,9 @@ export function findNextTask(tasks: DailyTask[], currentTaskId: string): DailyTa
   return subsequent.find((t) => !t.isRestDay) ?? null;
 }
 
-/** Finds the task scheduled for yesterday (1 calendar day before now in UTC). */
-export function findYesterdayTask(tasks: DailyTask[], now: Date): DailyTask | null {
-  const yesterday = new Date(now.getTime() - DAY_MS);
-  const yesterdayKey = todayKey(yesterday);
+/** Finds the task scheduled for yesterday (the calendar day before today in the user's timezone). */
+export function findYesterdayTask(tasks: DailyTask[], now: Date, timezone?: string): DailyTask | null {
+  const yesterdayKey = addDaysToDateKey(todayKey(now, timezone), -1);
   return tasks.find((t) => t.date === yesterdayKey) ?? null;
 }
 
@@ -145,19 +147,19 @@ export function findYesterdayTask(tasks: DailyTask[], now: Date): DailyTask | nu
  * Checks whether yesterday's scheduled practice task was left uncompleted (status === 'pending').
  * Rest days are not considered uncompleted practice.
  */
-export function isYesterdayPending(tasks: DailyTask[], now: Date): boolean {
-  const yesterday = findYesterdayTask(tasks, now);
+export function isYesterdayPending(tasks: DailyTask[], now: Date, timezone?: string): boolean {
+  const yesterday = findYesterdayTask(tasks, now, timezone);
   return Boolean(yesterday && !yesterday.isRestDay && yesterday.status === 'pending');
 }
 
 /**
  * Checks whether the weekly review is due.
- * Returns true if all tasks in the current week have dates strictly before today's UTC date
+ * Returns true if all tasks in the current week have dates strictly before today's date in the user's timezone
  * OR if all scheduled active practice tasks for the week are completed.
  */
-export function isWeekReviewDue(tasks: DailyTask[], now: Date): boolean {
+export function isWeekReviewDue(tasks: DailyTask[], now: Date, timezone?: string): boolean {
   if (tasks.length === 0) return false;
-  const today = todayKey(now);
+  const today = todayKey(now, timezone);
   if (tasks.every((t) => t.date < today)) return true;
 
   const activePracticeTasks = tasks.filter((t) => !t.isRestDay);
@@ -176,10 +178,10 @@ export function isWeekReviewDue(tasks: DailyTask[], now: Date): boolean {
  *    - dayNumber(goal, now) >= 85, OR
  *    - goal.currentWeek >= 12 AND all scheduled active practice tasks for week 12 are completed or reviewed.
  */
-export function isClosingStretchActive(goal: Goal, now: Date): boolean {
+export function isClosingStretchActive(goal: Goal, now: Date, timezone?: string): boolean {
   if (goal.status === 'completed' || goal.status === 'archived') return false;
 
-  const day = dayNumber(goal, now);
+  const day = dayNumber(goal, now, timezone);
   if (day >= 85) return true;
 
   const currentWeek = goal.currentWeek ?? 1;

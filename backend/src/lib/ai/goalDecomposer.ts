@@ -374,7 +374,7 @@ Required Output:
    Each week must have: weekNumber (1-12), phase, theme, objective, keyMilestone, targetIntensity, plannedMinutes (${dailyMins}).
    "theme" names what gets practised that week. "objective" states the number to reach by the end of it.
 3. "initialTasks": Exactly 7 daily tasks for Week 1 (Days 1 to 7).
-   - Day 1 is ${startDate.toLocaleDateString('en-US', { weekday: 'long' })}.
+   - Day 1 is ${startDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })}.
    - Design exactly ${activeDaysTarget} active deliberate practice days, and ${restDaysTarget} rest days (conforming to the ${planVariant} track).
    - STRICT CONSTRAINT: Never schedule 2 rest days consecutively (The 2-Day Rule).
 ${taskRulesBlock(dailyMins)}
@@ -602,7 +602,7 @@ Granular Task Log:
 ${previousTasksFormatted}
 
 TASK:
-Generate exactly 7 daily tasks for Week ${targetWeekNumber} (Days ${(targetWeekNumber - 1) * 7 + 1} to ${targetWeekNumber * 7}) starting on ${weekStartDate.toLocaleDateString('en-US', { weekday: 'long' })}.
+Generate exactly 7 daily tasks for Week ${targetWeekNumber} (Days ${(targetWeekNumber - 1) * 7 + 1} to ${targetWeekNumber * 7}) starting on ${weekStartDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })}.
 Ensure exactly ${activeDaysTarget} active deliberate practice days and ${restDaysTarget} rest days conforming to "${planVariant}" and the 2-Day Rule.
 Ensure seamless continuity from the execution audit above. Explicitly bridge any unmastered skills or user notes into the first 2 active days before escalating difficulty.
 
@@ -980,8 +980,8 @@ function getDeterministicPresetTasks(
 
   for (let d = 0; d < 7; d++) {
     const currentDate = new Date(startDate);
-    currentDate.setDate(currentDate.getDate() + d);
-    const dayOfWeek = dayNames[currentDate.getDay()];
+    currentDate.setUTCDate(currentDate.getUTCDate() + d);
+    const dayOfWeek = dayNames[currentDate.getUTCDay()];
     const isRestDay = restDayIndices.includes(d);
 
     const arch = isRestDay

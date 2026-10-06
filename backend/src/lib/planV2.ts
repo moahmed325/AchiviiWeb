@@ -34,7 +34,7 @@ function json<T>(value: T) {
 
 export function weekStartFor(goalStart: Date, weekNumber: number): Date {
   const start = new Date(goalStart);
-  start.setDate(start.getDate() + (weekNumber - 1) * 7);
+  start.setUTCDate(start.getUTCDate() + (weekNumber - 1) * 7);
   return start;
 }
 

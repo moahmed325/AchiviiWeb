@@ -10,6 +10,8 @@ import type {
   JourneyWeek,
 } from '../types/journey';
 import { useGoal } from '../context/GoalContext';
+import { useUserTimezone } from '../context/AuthContext';
+import { dayNumber, todayKey } from './today';
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -29,13 +31,14 @@ export const V1_DEFAULT_PHASES: RoadmapPhase[] = [
  */
 export function calculateDayNumber(
   goal: Partial<Pick<Goal, 'targetDate' | 'startDate' | 'created_at'>>,
-  now: Date
+  now: Date,
+  timezone?: string
 ): number {
   if (goal.targetDate) {
     const targetTime = new Date(goal.targetDate).getTime();
     if (!isNaN(targetTime)) {
-      const daysRemaining = Math.max(0, Math.ceil((targetTime - now.getTime()) / DAY_MS));
-      return Math.min(90, Math.max(1, 91 - daysRemaining));
+      // Same calendar-day count as Today (user's timezone), so the two screens never disagree.
+      return dayNumber({ targetDate: goal.targetDate }, now, timezone);
     }
   }
 
@@ -91,14 +94,22 @@ export function mapTaskToStep(task: DailyTask, currentDay: number, todayStr: str
  * @param todayDate Optional reference date (defaults to new Date())
  * @returns Canonical JourneyData model, or null if goal is null/undefined
  */
-export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | string): JourneyData | null {
+export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | string, timezone?: string): JourneyData | null {
   if (!goal) return null;
 
-  const parsedDate = todayDate ? (typeof todayDate === 'string' ? new Date(todayDate) : todayDate) : new Date();
+  // A plain 'YYYY-MM-DD' is already a calendar day: read it at noon UTC so no timezone can move it to another day.
+  const isDayKey = typeof todayDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(todayDate);
+  const parsedDate = todayDate
+    ? isDayKey
+      ? new Date(`${todayDate}T12:00:00Z`)
+      : typeof todayDate === 'string'
+        ? new Date(todayDate)
+        : todayDate
+    : new Date();
   const now = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = isDayKey ? (todayDate as string) : todayKey(now, timezone);
 
-  const currentDay = calculateDayNumber(goal, now);
+  const currentDay = calculateDayNumber(goal, now, timezone);
   const currentWeek = Math.min(12, Math.max(1, goal.currentWeek || 1));
 
   const isV2 = Boolean(goal.planVersion === 2 && goal.roadmap);
@@ -264,7 +275,8 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
  */
 export function useJourneyData(todayDate?: Date | string): JourneyData | null {
   const { activeGoal } = useGoal();
+  const timezone = useUserTimezone();
   return useMemo(() => {
-    return toJourneyData(activeGoal, todayDate);
-  }, [activeGoal, todayDate]);
+    return toJourneyData(activeGoal, todayDate, timezone);
+  }, [activeGoal, todayDate, timezone]);
 }

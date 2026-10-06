@@ -42,3 +42,20 @@ export function getLocalDateString(
 export function getTodayDateString(timezone?: string): string {
   return getLocalDateString(new Date(), timezone);
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Whole calendar days from `from` to `to`, both 'YYYY-MM-DD' keys. Negative when `to` is earlier. */
+export function daysBetweenDateKeys(from: string, to: string): number {
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / DAY_MS);
+}
+
+/** The 'YYYY-MM-DD' key `days` calendar days after `key` (negative goes back). Timezone and DST never matter. */
+export function addDaysToDateKey(key: string, days: number): string {
+  const t = Date.parse(`${key}T00:00:00Z`);
+  if (Number.isNaN(t)) return key;
+  return new Date(t + days * DAY_MS).toISOString().slice(0, 10);
+}

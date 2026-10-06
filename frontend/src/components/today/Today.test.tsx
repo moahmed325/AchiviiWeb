@@ -7,6 +7,8 @@ import { GoalProvider, useGoal } from '../../context/GoalContext';
 import * as api from '../../lib/api';
 import type { DailyTask, Goal } from '../../types';
 import { Today } from './Today';
+import { todayKey } from '../../lib/today';
+import { addDaysToDateKey } from '../../lib/dateUtils';
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
@@ -21,8 +23,8 @@ vi.mock('../../lib/api', async (importOriginal) => {
 });
 
 const mocked = vi.mocked(api);
-const DAY = 86_400_000;
-const isoDay = (offset: number) => new Date(Date.now() + offset * DAY).toISOString().slice(0, 10);
+// Task dates are the user's local calendar days (ND-1), so build them on the same clock the app reads.
+const isoDay = (offset: number) => addDaysToDateKey(todayKey(new Date()), offset);
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const STEPS = JSON.stringify([
@@ -55,7 +57,7 @@ const GOAL = {
   rawGoal: 'Run a 10K Under 50 Minutes',
   clarifiedOutcome: '49.98',
   currentWeek: 1,
-  targetDate: new Date(Date.now() + 88 * DAY).toISOString(),
+  targetDate: `${isoDay(88)}T00:00:00.000Z`,
   roadmapWeeks: [{ weekNumber: 1, phase: 'Aerobic base', theme: 'Easy miles' }],
   dailyTasks: tasks,
 } as unknown as Goal;

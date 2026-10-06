@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import type { Goal, WeeklyTestResult, GoalCompletionPayload } from '../../types';
 import { useGoal } from '../../context/GoalContext';
+import { useUserTimezone } from '../../context/AuthContext';
 import { extractFinalTestEvaluation } from '../../lib/achievement';
 import { dayNumber } from '../../lib/today';
 import { Button } from '../ui/Button';
@@ -46,8 +47,9 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
   onComplete,
 }) => {
   const { completeGoal } = useGoal();
+  const timezone = useUserTimezone();
   const [now] = useState(() => new Date());
-  const currentDay = dayNumber(goal, now);
+  const currentDay = dayNumber(goal, now, timezone);
 
   const evalData = useMemo(() => extractFinalTestEvaluation(goal), [goal]);
   const storageKey = `${STORAGE_KEY_PREFIX}${goal.id}`;

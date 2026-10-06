@@ -157,3 +157,24 @@ export function getZonedDayBounds(
     endOfDay: new Date(endUtcMs),
   };
 }
+
+/**
+ * The date a goal starts, as a Date at 00:00 UTC on the user's local calendar day (ND-1).
+ * Stored this way, every later step of date arithmetic can use UTC methods and never depend on the server's timezone.
+ * - No `startDate`: today, in the user's timezone.
+ * - A plain 'YYYY-MM-DD': that calendar day, as given.
+ * - Any other value (an instant): the user's local calendar day for that instant.
+ * - Unparseable: today, in the user's timezone.
+ */
+export function resolveGoalStart(timezone: string, startDate?: unknown, now: Date = new Date()): Date {
+  if (typeof startDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+    const day = new Date(`${startDate}T00:00:00.000Z`);
+    if (!isNaN(day.getTime())) return day;
+  }
+  let instant = now;
+  if (typeof startDate === 'string' || typeof startDate === 'number' || startDate instanceof Date) {
+    const parsed = startDate instanceof Date ? startDate : new Date(startDate);
+    if (!isNaN(parsed.getTime())) instant = parsed;
+  }
+  return new Date(`${getZonedDateString(instant, timezone)}T00:00:00.000Z`);
+}

@@ -129,3 +129,12 @@ export function useAuth(): AuthContextType {
   if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
+
+/**
+ * The signed-in user's stored IANA timezone (ND-1, missed-sessions M1.1b), or undefined.
+ * Unlike useAuth it never throws outside an AuthProvider, so shared hooks and pages can use it safely;
+ * the date helpers then fall back to the browser timezone, then UTC.
+ */
+export function useUserTimezone(): string | undefined {
+  return useContext(AuthContext)?.user?.timezone || undefined;
+}

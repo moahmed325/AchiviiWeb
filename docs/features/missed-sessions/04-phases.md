@@ -1,8 +1,8 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** READY FOR IMPLEMENTATION PROMPT GENERATION (P1-P3 and M4.1 can start now; M4.2 is blocked, see 2.2)
-**Version:** 1.0
+**Status:** IN PROGRESS (M1.1 and M1.1b complete; next is M1.2; M4.2 is blocked, see 2.2)
+**Version:** 1.2 (updated 2026-10-07: M1.1b complete)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
 **Plan source:** docs/architecture/plan-v2.md (Missed sessions, Week call, Weekly update)
@@ -67,16 +67,34 @@ A single, predictable recovery path per session type, applied automatically when
 | F-7 | Presets `run10k.ts` and `recomp.ts` generate physical steps. | They need the high-load flag in M2.1. |
 | F-8 | No streak code exists in the frontend. | OD-4 needs no work. |
 
+## 1.5 Decisions and corrections from M1.1 (evidence: milestones/m1.1-repository-verification.md)
+
+Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this section and 1.4 disagree, this section wins.
+
+| ID | Decision (approved 2026-10-03) | Effect on the roadmap |
+|---|---|---|
+| ND-1 | Use `User.timezone` as the one clock for "today". `DailyTask.date` is treated as the user's local calendar date. The frontend and backend switch to the same source. | New milestone **M1.1b** before M1.2. The app today uses UTC dates; `timezone.ts` has no production importer. |
+| ND-2 | **Derive** "missed" from date + `pending` + day-close time. Do not add a `missed` value to `DailyTask.status`. Persist only moved steps. | M1.2 is pure functions. M1.3 persists nothing about "missed". About 55 status readers are untouched. |
+| ND-3 | Add one column `DailyTask.usedMinimumVersion Boolean @default(false)` so the 10-minute version is recorded. | New milestone **M2.0** (the only schema migration in this feature). Required for OD-2. |
+| ND-4 | Add a small endpoint that logs the weekly test **without closing the week**. | M4.1 now includes a narrow backend addition. |
+| ND-5 | High-load flag: by goal for presets (`run10k`, `recomp`), and per step from the model for custom goals. | M2.1 covers both. Preset prose files are not the source, because v2 steps are model-written. |
+| ND-6 | Reconcile runs through a new `POST /api/goal/reconcile`, called once when the app loads. `GET /active` stays a pure read. | M1.3 builds this endpoint. |
+| ND-7 | The 9 failing tests in `frontend/src/components/app/AppShell.test.tsx` are a **recorded baseline**, fixed separately. | Every milestone's regression check compares against this baseline, not against zero failures. |
+
+**Validation baseline (2026-10-03, `main`):** backend `npm test` 54 files / 362 tests pass; backend and frontend `tsc --noEmit` pass; frontend lint 0 errors; frontend `npm test` 9 failures, all in `AppShell.test.tsx` (pre-existing); Playwright e2e not run (no npm script).
+
+**Other corrections to carry:** a weekly-review route (`POST /weeks/:weekNumber/review`) already exists for v2 goals, so M4.2 extends it and no longer builds it from scratch; status, `nextTargets`, checkpoint offer and `retestFirst` are still not built. Preset prose in `run10k.ts`, `guitar.ts` and `saas.ts` promises "missed days shift into weekend buffers", which is not implemented; M5.2 must make this copy honest. The frontend `DetailedStep` type lacks `priority`; add it in P3.
+
 ---
 
 # 2 — ROADMAP AT A GLANCE
 
 | Phase | Name | Depends on | Backend allowance |
 |---|---|---|---|
-| P1 | Miss Recognition | Feature Definition | New lib module, wired into active-goal load. No schema migration expected. |
-| P2 | Recovery Rules | P1 | Carry-forward, high-load flag, mark-missed and swap actions. |
+| P1 | Miss Recognition | Feature Definition | User-timezone date source (M1.1b), new pure lib module, new `POST /api/goal/reconcile`. No migration. |
+| P2 | Recovery Rules | P1 | **One migration** (`usedMinimumVersion`, M2.0), carry-forward, high-load flag, mark-missed and swap actions. |
 | P3 | Today Experience | P2 | None beyond response fields P2 exposes. |
-| P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Late test logging; week-close handoff. |
+| P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Endpoint to log the test without closing the week (M4.1); week-close handoff extends the existing review route (M4.2). |
 | P5 | QA, Copy Audit & Regression | P1-P4 | None. |
 
 All phases begin **NOT STARTED**.
@@ -164,19 +182,20 @@ Every phase uses: Status, Source, Objective, Current state, In scope, Out of sco
 
 # 6 — P1 MISS RECOGNITION
 
-**Status:** NOT STARTED
+**Status:** IN PROGRESS (M1.1, M1.1b complete; M1.2, M1.3 not started)
 
 ## 6.1 Source
 Feature Definition RULE-5, RULE-8 (detection part), OD-1, AC-1, AC-5, AC-14. Findings F-1, F-2.
 
 ## 6.2 Objective
-Reliably decide, on app open, which past practice days of the active plan v2 goal were missed, using the user's timezone and sleep time, and persist that decision idempotently.
+Reliably decide, on app open, which past practice days of the active plan v2 goal were missed, using the user's timezone and sleep time. The decision is derived each time and never stored as a status.
 
 ## 6.3 In scope
 - Day-close calculation (OD-1) using `timezone.ts`.
-- Classification of each past day: done, missed, rest (never missed), planned.
+- A single user-timezone clock for "today" (M1.1b).
+- Derived (never stored) classification of each past day: done, missed, rest (never missed), planned.
 - Detection of a gap (3+ missed practice days in a row).
-- Idempotent reconcile on active-goal load that marks closed, uncompleted practice days as `missed`.
+- An idempotent `POST /api/goal/reconcile` that returns the classification (P2 adds the writes).
 
 ## 6.4 Out of scope
 - Moving or changing any step (P2).
@@ -185,21 +204,23 @@ Reliably decide, on app open, which past practice days of the active plan v2 goa
 - Push notifications.
 
 ## 6.5 Backend allowance
-New pure-logic module plus a call from the active-goal path. A new `missed` value for `DailyTask.status` is expected to need no migration (F-2); verify in M1.1. A migration requires a narrow explicit decision (ND-n).
+New pure-logic module, a user-timezone date source (M1.1b), and a new `POST /api/goal/reconcile` endpoint (ND-6). **No schema migration and no new `status` value** (ND-2): "missed" is derived, never stored.
 
 ## 6.6 Files likely affected (verify first)
-`backend/src/lib/timezone.ts` (reuse only), a new lib module, `backend/src/routes/goal.ts` (active-goal route), `backend/test/`.
+`backend/src/lib/timezone.ts` (reuse), `backend/src/lib/ai/weekPlan.ts` (`weekLayout` date labels for new goals), a new lib module, `backend/src/routes/goal.ts`, `frontend/src/lib/today.ts`, `frontend/src/lib/dateUtils.ts`, `frontend/src/context/AuthContext.tsx`, `backend/test/`, `frontend/src/lib/today.test.ts`.
 
 ## 6.7 Milestones
 
-**M1.1 — Repository verification.** Confirm where `sleepTime` and timezone are stored (`Goal.routine`, request, or user), what `status` values exist and who reads them, how `yesterdayUncompleted` is derived, how the active-goal route builds tasks, and which test commands exist. Output: evidence note and any ND-n. No code.
+**M1.1 — Repository verification. COMPLETE** (2026-10-03). Evidence: `milestones/m1.1-repository-verification.md`. Answers feed ND-1 to ND-7 above.
 
-**M1.2 — Day-close and classification.** Pure functions: day-close time, task classification, gap detection. Unit tests for: late-evening sessions not marked missed, timezone offsets and DST, travel across zones, rest days never missed, 04:00 cap, a partial day (any step or the 10-minute version) counts as done.
+**M1.1b — User-timezone "today". COMPLETE** (2026-10-07). Evidence: `milestones/m1.1b-user-timezone-today.md`. Make `User.timezone` the single clock for "today" (ND-1). Frontend: `todayKey`, `isToday`, `findYesterdayTask`, `isWeekReviewDue` use the user's timezone (browser zone, then UTC, as fallback) instead of the UTC date. Backend: dates written for **new** goals are the user's local calendar dates, using `timezone.ts`. Existing rows are not rewritten. Tests: offsets such as UTC+3, UTC-8 and UTC+14, DST changes, a goal created late in the evening, and a user whose timezone is missing. Regression: R-3, R-5, R-7, R-9.
 
-**M1.3 — Idempotent reconcile on load.** Run classification on active-goal load for `planVersion: 2` only, persist `missed`, and expose it in the response. Running twice changes nothing. Old goals untouched.
+**M1.2 — Day-close and classification (pure functions only).** Day-close time (sleep time + 2 hours, capped at 04:00 local), derived classification (done, missed, rest, planned) from date + status + close time, partial-day credit, and gap detection. No writes, no new status value. Unit tests for late-evening sessions, DST, rest days, the 04:00 cap, and partial days.
+
+**M1.3 — Reconcile endpoint.** `POST /api/goal/reconcile`, `planVersion: 2` only, called once on app load. In P1 it returns the derived classification and persists nothing; P2 adds the carry-forward writes on top. Idempotent by design. `GET /active` is unchanged. Old goals untouched.
 
 ## 6.8 Regression checks
-R-1, R-2, R-3, R-7, R-9.
+R-1, R-2, R-3, R-5, R-7, R-9.
 
 ## 6.9 Exit criteria
 AC-1, AC-5, AC-14 are demonstrably true at the logic and API level. Reconcile is idempotent. Evidence EV-1: tests for each case in M1.2. EV-2: before/after API response for a goal with a closed unfinished day.
@@ -231,18 +252,20 @@ Apply the carry-forward and drop rules in code so a miss moves at most one prior
 UI, weekly status, model prompts beyond adding the flag to the week-call schema, pause plan (OD-3).
 
 ## 7.5 Backend allowance
-Step schema addition in `detailedSteps` JSON (no migration expected). Two small actions on the goal router.
+**One schema migration**: `DailyTask.usedMinimumVersion Boolean @default(false)` (ND-3, M2.0). Step schema addition in `detailedSteps` JSON (no migration). Two small actions on the goal router.
 
 ## 7.6 Files likely affected (verify first)
 `backend/src/lib/ai/weekPlan.ts`, `taskRules.ts`, `planSchema.ts`, `ai/presets/run10k.ts`, `ai/presets/recomp.ts`, `backend/src/routes/goal.ts`, new recovery lib module, `backend/test/`.
 
 ## 7.7 Milestones
 
-**M2.1 — High-load step flag.** Add the per-step flag to the step schema and validation; set it for physical preset steps and allow the week call to set it. Existing plans without the flag are treated as normal.
+**M2.0 — `usedMinimumVersion` migration (ND-3).** Add `DailyTask.usedMinimumVersion Boolean @default(false)` to the schema. Generate and apply the Prisma migration. Wire the column in the focus-session completion path so the flag is set when the user completes the 10-minute version. Existing rows default to `false`. This is the only schema migration in the feature.
+
+**M2.1 - High-load step flag.** Two sources (ND-5): goal-level for `run10k` and `recomp` goals (every step counts as high-load), and a per-step `highLoad` field emitted by the week call for custom goals, added to `WEEK_RESPONSE_SCHEMA` and normalized in `checkWeekAnswer` (`weekPlan.ts`). Preset prose files are not the source, because v2 steps are model-written. Existing steps without the flag count as normal.
 
 **M2.2 — Carry-forward algorithm.** Pure function with tests for: next eligible day exists, day before test day (drop), multiple missed days before one eligible day (only one carry), P1 step already done (no carry), high-load (drop), receiving day minutes never increase, idempotent on repeat.
 
-**M2.3 — Counting rules and signals.** 10-minute version counts as done, key-session rule per OD-2, short-on-time and gentle-return signals, key-skipped and missed counts recorded.
+**M2.3 - Counting rules and signals.** The 10-minute version counts as a done session. A key session completed only through the 10-minute version is not "key done" (OD-2), decided from `DailyTask.usedMinimumVersion` (M2.0). Short-on-time and gentle-return signals. Key-skipped and missed counts are derived and passed to the weekly review (ND-2).
 
 **M2.4 — Mark missed and swap actions.** Verify absence first. Mark missed runs the same recovery as detection. Swap exchanges two days within the week and respects test-day and key-session placement rules (key sessions never on the test day).
 
@@ -317,7 +340,7 @@ Let a user take the weekly test late, and make an unlogged test flow honestly in
 
 ## 9.3 Milestones
 
-**M4.1 — Late test card (ready).** A "Take the test now" card on Today from the end of test day until the next week opens, built on the existing weekly test result logging. After the window, the card is gone.
+**M4.1 - Late test (ready).** A small backend endpoint logs the weekly test result into `RoadmapWeek.testResult` **without closing the week** (ND-4), reusing `validateWeeklyTestResult`. On Today, a "Take the test now" card shows from the end of test day until the weekly review is submitted, because the existing review (`POST /weeks/:weekNumber/review`) is what closes the week today. After the review, the card is gone.
 
 **M4.2 — Week-close handoff (BLOCKED).** On the first open of a new week, if the test is unlogged, run the plan v2 weekly update with the test marked missing, target held, and sessions deciding status; feed it missed-day, dropped-step, and key-skipped counts; apply `retestFirst` after two far_behind weeks and the daily-time check. **Blocked until plan v2 build step 4 (weekly update, prompt 4) exists.** Do not build a substitute status engine in this feature.
 
@@ -347,7 +370,7 @@ Prove the whole feature against the Feature Definition and the regression regist
 
 ## 10.2 Milestones
 **M5.1 — Acceptance walkthrough.** Walk AC-1 to AC-14 and record evidence; mark any AC that depends on M4.2 as deferred if it is still blocked.
-**M5.2 — Copy audit.** Search all new user-facing strings for "missed", "behind", "failed", and "why" prompts. All five Feature Definition copy situations match section 12.
+**M5.2 — Copy audit.** Search all new user-facing strings for "missed", "behind", "failed", and "why" prompts. All five Feature Definition copy situations match section 12. Additionally verify that preset prose in `run10k.ts`, `guitar.ts`, and `saas.ts` either matches implemented behavior or has been softened (ND-5 honesty).
 **M5.3 — Regression and old goals.** Run R-1 to R-11; confirm planVersion 1 goals behave exactly as before (AC-14).
 
 ## 10.3 Exit criteria
@@ -365,7 +388,7 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 | AC-4 Never onto test day | M2.2 |
 | AC-5 Rest days never missed | M1.2, M3.3 |
 | AC-6 Key session swap first | M2.4, M3.3 |
-| AC-7 10-minute version always counts | M2.3, M3.2 |
+| AC-7 10-minute version always counts | M2.0, M2.3, M3.2 |
 | AC-8 Late test card | M4.1 |
 | AC-9 Unlogged test at week close | M4.2 (blocked) |
 | AC-10 Gap gentle-return | M2.3, M3.2 |
@@ -391,9 +414,9 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Recommended first prompt: **M1.1 (repository verification)**, because it settles where `sleepTime`, timezone, and task status are stored before any code is written.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M1.2 (day-close and classification, pure functions only)**.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** READY FOR IMPLEMENTATION PROMPT GENERATION
+**Status:** M1.2 PROMPT TO BE DRAFTED

@@ -328,7 +328,7 @@ describe('journeyAdapter', () => {
       const nearEndTarget = new Date('2026-11-30T00:00:00.000Z');
       const testNow = new Date(nearEndTarget.getTime() - 5 * 24 * 60 * 60 * 1000);
 
-      const result = toJourneyData(baseGoal, testNow);
+      const result = toJourneyData(baseGoal, testNow, 'UTC');
       expect(result?.metrics.currentDay).toBe(86);
       expect(result?.closingStretch.status).toBe('active');
       expect(result?.closingStretch.isCurrent).toBe(true);

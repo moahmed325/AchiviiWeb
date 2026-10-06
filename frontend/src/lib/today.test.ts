@@ -64,25 +64,71 @@ describe('selectTodayTask', () => {
   const wednesdayNoon = new Date('2026-09-23T12:00:00Z');
 
   it('prefers the chosen task, then today, then the first pending, then the first', () => {
-    expect(selectTodayTask(week, wednesdayNoon, 'thu')?.id).toBe('thu');
-    expect(selectTodayTask(week, wednesdayNoon, 'gone')?.id).toBe('wed');
-    expect(selectTodayTask(week, wednesdayNoon)?.id).toBe('wed');
-    expect(selectTodayTask(week, new Date('2026-10-30T12:00:00Z'))?.id).toBe('wed');
+    expect(selectTodayTask(week, wednesdayNoon, 'thu', 'UTC')?.id).toBe('thu');
+    expect(selectTodayTask(week, wednesdayNoon, 'gone', 'UTC')?.id).toBe('wed');
+    expect(selectTodayTask(week, wednesdayNoon, undefined, 'UTC')?.id).toBe('wed');
+    expect(selectTodayTask(week, new Date('2026-10-30T12:00:00Z'), undefined, 'UTC')?.id).toBe('wed');
     const allDone = week.map((t) => ({ ...t, status: 'completed' as const }));
-    expect(selectTodayTask(allDone, new Date('2026-10-30T12:00:00Z'))?.id).toBe('mon');
+    expect(selectTodayTask(allDone, new Date('2026-10-30T12:00:00Z'), undefined, 'UTC')?.id).toBe('mon');
     expect(selectTodayTask([], wednesdayNoon)).toBeNull();
   });
 
-  // Task dates are UTC dates (backend routes/goal.ts:215, :691; lib/ai/weekPlan.ts:52), so the UTC date decides.
-  it('uses the UTC date at the day boundary, the calendar the task dates are written in', () => {
-    // 00:30 on Thursday in UTC+3 is still Wednesday 21:30 UTC.
-    const halfPastMidnightUtcPlus3 = new Date('2026-09-23T21:30:00Z');
-    expect(todayKey(halfPastMidnightUtcPlus3)).toBe('2026-09-23');
-    expect(selectTodayTask(week, halfPastMidnightUtcPlus3)?.id).toBe('wed');
-    // 23:30 on Wednesday in UTC-5 is already Thursday 04:30 UTC.
-    const lateEveningUtcMinus5 = new Date('2026-09-24T04:30:00Z');
-    expect(selectTodayTask(week, lateEveningUtcMinus5)?.id).toBe('thu');
-    expect(isToday(week[3], lateEveningUtcMinus5)).toBe(true);
+  // ND-1 (missed-sessions M1.1b): task dates are the user's local calendar dates, so the user's timezone decides.
+  it('uses the local date in UTC+3 just after local midnight, not the UTC date', () => {
+    // 00:30 on Thursday in Addis Ababa is still Wednesday 21:30 UTC.
+    const halfPastMidnightAddis = new Date('2026-09-23T21:30:00Z');
+    expect(todayKey(halfPastMidnightAddis, 'Africa/Addis_Ababa')).toBe('2026-09-24');
+    expect(selectTodayTask(week, halfPastMidnightAddis, undefined, 'Africa/Addis_Ababa')?.id).toBe('thu');
+    expect(isToday(week[3], halfPastMidnightAddis, 'Africa/Addis_Ababa')).toBe(true);
+  });
+
+  it('uses the local date in a western timezone late in the evening, not the UTC date', () => {
+    // 23:30 on Wednesday in New York (EDT) is already Thursday 03:30 UTC.
+    const lateEveningNewYork = new Date('2026-09-24T03:30:00Z');
+    expect(todayKey(lateEveningNewYork, 'America/New_York')).toBe('2026-09-23');
+    expect(selectTodayTask(week, lateEveningNewYork, undefined, 'America/New_York')?.id).toBe('wed');
+    // 23:30 on Wednesday in Los Angeles (UTC-7 in September).
+    expect(todayKey(new Date('2026-09-24T06:30:00Z'), 'America/Los_Angeles')).toBe('2026-09-23');
+  });
+
+  it('handles UTC+14 (Pacific/Kiritimati), a day ahead of UTC for most of the day', () => {
+    // 02:00 on Thursday in Kiritimati is 12:00 on Wednesday UTC.
+    expect(todayKey(new Date('2026-09-23T12:00:00Z'), 'Pacific/Kiritimati')).toBe('2026-09-24');
+  });
+
+  it('turns over at local midnight across a DST change', () => {
+    // New York leaves DST on 1 Nov 2026: 23:59 EST on 1 Nov is 04:59 UTC on 2 Nov; 00:00 EST on 2 Nov is 05:00 UTC.
+    expect(todayKey(new Date('2026-11-02T04:59:00Z'), 'America/New_York')).toBe('2026-11-01');
+    expect(todayKey(new Date('2026-11-02T05:00:00Z'), 'America/New_York')).toBe('2026-11-02');
+  });
+
+  it('falls back to the browser timezone when no timezone is stored, and never throws on a bad one', () => {
+    const instant = new Date('2026-09-23T21:30:00Z');
+    const browser = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const expected = new Intl.DateTimeFormat('en-CA', { timeZone: browser, year: 'numeric', month: '2-digit', day: '2-digit' }).format(instant);
+    expect(todayKey(instant)).toBe(expected);
+    expect(todayKey(instant, undefined)).toBe(expected);
+    expect(todayKey(instant, '')).toBe(expected);
+    expect(() => todayKey(instant, 'Not/AZone')).not.toThrow();
+    expect(todayKey(instant, 'Not/AZone')).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('yesterday and review-due use the local day boundary', () => {
+  it('finds yesterday by the user\'s local date', () => {
+    // 00:30 Thursday in Addis Ababa: yesterday is Wednesday, although the UTC date is still Wednesday.
+    const halfPastMidnightAddis = new Date('2026-09-23T21:30:00Z');
+    expect(findYesterdayTask(week, halfPastMidnightAddis, 'Africa/Addis_Ababa')?.id).toBe('wed');
+    expect(findYesterdayTask(week, halfPastMidnightAddis, 'UTC')?.id).toBe('tue');
+  });
+
+  it('makes the review due only after the last task date has passed locally', () => {
+    const lastDay = week[week.length - 1].date;
+    const pending = week.map((t) => ({ ...t, status: 'pending' as const }));
+    // 23:30 on the last day in New York is the next UTC day, but the week is not over locally.
+    const lateLastEvening = new Date(`${lastDay}T23:30:00-04:00`);
+    expect(isWeekReviewDue(pending, lateLastEvening, 'America/New_York')).toBe(false);
+    expect(isWeekReviewDue(pending, lateLastEvening, 'UTC')).toBe(true);
   });
 });
 
@@ -90,11 +136,11 @@ describe('dayNumber', () => {
   const goal = { targetDate: '2026-12-22T00:00:00.000Z' } as Goal;
 
   it('counts down from 90 to the target date and clamps to 1–90', () => {
-    expect(dayNumber(goal, new Date('2026-06-01T00:00:00Z'))).toBe(1); // before the start
-    expect(dayNumber(goal, new Date('2026-09-23T00:00:00Z'))).toBe(1); // 90 days out
-    expect(dayNumber(goal, new Date('2026-09-25T00:00:00Z'))).toBe(3);
-    expect(dayNumber(goal, new Date('2026-12-21T00:00:00Z'))).toBe(90); // the last day
-    expect(dayNumber(goal, new Date('2027-02-01T00:00:00Z'))).toBe(90); // after the target date
+    expect(dayNumber(goal, new Date('2026-06-01T00:00:00Z'), 'UTC')).toBe(1); // before the start
+    expect(dayNumber(goal, new Date('2026-09-23T00:00:00Z'), 'UTC')).toBe(1); // 90 days out
+    expect(dayNumber(goal, new Date('2026-09-25T00:00:00Z'), 'UTC')).toBe(3);
+    expect(dayNumber(goal, new Date('2026-12-21T00:00:00Z'), 'UTC')).toBe(90); // the last day
+    expect(dayNumber(goal, new Date('2027-02-01T00:00:00Z'), 'UTC')).toBe(90); // after the target date
   });
 });
 
@@ -185,24 +231,24 @@ describe('findYesterdayTask and isYesterdayPending', () => {
   // week: mon (completed, 2026-09-21), tue (completed, 2026-09-22), wed (pending, 2026-09-23), thu (pending, 2026-09-24)
   it('finds yesterday task based on UTC calendar date', () => {
     const wednesday = new Date('2026-09-23T12:00:00Z');
-    expect(findYesterdayTask(week, wednesday)?.id).toBe('tue');
+    expect(findYesterdayTask(week, wednesday, 'UTC')?.id).toBe('tue');
 
     const tuesday = new Date('2026-09-22T12:00:00Z');
-    expect(findYesterdayTask(week, tuesday)?.id).toBe('mon');
+    expect(findYesterdayTask(week, tuesday, 'UTC')?.id).toBe('mon');
 
     const monday = new Date('2026-09-21T12:00:00Z');
     // Sunday is 2026-09-27 in week, so 2026-09-20 is not in week
-    expect(findYesterdayTask(week, monday)).toBeNull();
+    expect(findYesterdayTask(week, monday, 'UTC')).toBeNull();
   });
 
   it('detects uncompleted yesterday practice task', () => {
     const thursday = new Date('2026-09-24T12:00:00Z');
     // Yesterday was wed (2026-09-23), which is pending and not rest
-    expect(isYesterdayPending(week, thursday)).toBe(true);
+    expect(isYesterdayPending(week, thursday, 'UTC')).toBe(true);
 
     const wednesday = new Date('2026-09-23T12:00:00Z');
     // Yesterday was tue (2026-09-22), which is completed
-    expect(isYesterdayPending(week, wednesday)).toBe(false);
+    expect(isYesterdayPending(week, wednesday, 'UTC')).toBe(false);
   });
 
   it('does not treat rest day as an uncompleted practice task', () => {
@@ -212,7 +258,7 @@ describe('findYesterdayTask and isYesterdayPending', () => {
     ];
     const sunday = new Date('2026-09-27T12:00:00Z');
     // Yesterday was saturday, which was a rest day
-    expect(isYesterdayPending(testTasks, sunday)).toBe(false);
+    expect(isYesterdayPending(testTasks, sunday, 'UTC')).toBe(false);
   });
 });
 
