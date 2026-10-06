@@ -191,7 +191,7 @@ M1.1b is complete when:
 ## M1.2 — Day-Close and Classification (pure functions only)
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on M1.1b (complete, commit `7cf7e3b`).
+COMPLETE (2026-10-07). Report: `docs/features/missed-sessions/milestones/m1.2-day-close-classification.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P1/M1.2. Implement only this milestone. Follow the operating contract in section 0.

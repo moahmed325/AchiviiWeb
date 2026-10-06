@@ -178,3 +178,68 @@ export function resolveGoalStart(timezone: string, startDate?: unknown, now: Dat
   }
   return new Date(`${getZonedDateString(instant, timezone)}T00:00:00.000Z`);
 }
+
+const zonedPartsFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** The wall-clock reading of an instant in a timezone, written as if it were UTC (ms). */
+function zonedWallAsUtcMs(instantMs: number, timezone: string): number {
+  let formatter = zonedPartsFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hourCycle: 'h23',
+    });
+    zonedPartsFormatters.set(timezone, formatter);
+  }
+  const v: Record<string, number> = {};
+  for (const p of formatter.formatToParts(new Date(instantMs))) {
+    if (p.type !== 'literal') v[p.type] = parseInt(p.value, 10);
+  }
+  return Date.UTC(v.year, v.month - 1, v.day, v.hour === 24 ? 0 : v.hour, v.minute, v.second);
+}
+
+/** UTC offset (ms, positive east of UTC) in force at an instant. */
+function zonedOffsetMs(instantMs: number, timezone: string): number {
+  return zonedWallAsUtcMs(instantMs, timezone) - Math.floor(instantMs / 1000) * 1000;
+}
+
+/**
+ * The exact instant at which the local clock in `timezone` reads `time` ('HH:MM') on `dateStr` ('YYYY-MM-DD').
+ * Correct on DST-change days, unlike `getZonedDayBounds`, which takes the offset at local noon.
+ * - A wall time skipped by a spring-forward change resolves to the first valid instant after it (the change itself).
+ * - A wall time that happens twice in a fall-back change resolves to the later of the two.
+ * Throws on a malformed date or time.
+ */
+export function zonedWallTimeToInstant(dateStr: string, time: string, timezone: string = 'UTC'): Date {
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+  const timeMatch = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (!dateMatch || !timeMatch) {
+    throw new Error(`Invalid wall time passed to zonedWallTimeToInstant: ${dateStr} ${time}`);
+  }
+  const tz = normalizeTimezone(timezone);
+  const wallMs = Date.UTC(+dateMatch[1], +dateMatch[2] - 1, +dateMatch[3], +timeMatch[1], +timeMatch[2]);
+  if (isNaN(wallMs)) throw new Error(`Invalid wall time passed to zonedWallTimeToInstant: ${dateStr} ${time}`);
+
+  // Offsets a day either side cover any single DST change near this wall time.
+  const DAY = 86_400_000;
+  const offsetBefore = zonedOffsetMs(wallMs - DAY, tz);
+  const offsetAfter = zonedOffsetMs(wallMs + DAY, tz);
+  const matches = [wallMs - offsetBefore, wallMs - offsetAfter].filter((t) => zonedWallAsUtcMs(t, tz) === wallMs);
+  if (matches.length > 0) return new Date(Math.max(...matches));
+
+  // Spring-forward gap: find the change, the first instant on the new offset, to the minute.
+  let lo = Math.min(wallMs - offsetBefore, wallMs - offsetAfter);
+  let hi = Math.max(wallMs - offsetBefore, wallMs - offsetAfter);
+  while (hi - lo > 60_000) {
+    const mid = lo + Math.floor((hi - lo) / 120_000) * 60_000;
+    if (zonedOffsetMs(mid, tz) === offsetAfter) hi = mid;
+    else lo = mid;
+  }
+  return new Date(hi);
+}

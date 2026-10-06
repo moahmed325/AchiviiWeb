@@ -1,8 +1,8 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** IN PROGRESS (M1.1 and M1.1b complete; next is M1.2; M4.2 is blocked, see 2.2)
-**Version:** 1.2 (updated 2026-10-07: M1.1b complete)
+**Status:** IN PROGRESS (M1.1, M1.1b and M1.2 complete; next is M1.3; M4.2 is blocked, see 2.2)
+**Version:** 1.3 (updated 2026-10-07: M1.1b and M1.2 complete, ND-8)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
 **Plan source:** docs/architecture/plan-v2.md (Missed sessions, Week call, Weekly update)
@@ -80,6 +80,7 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | ND-5 | High-load flag: by goal for presets (`run10k`, `recomp`), and per step from the model for custom goals. | M2.1 covers both. Preset prose files are not the source, because v2 steps are model-written. |
 | ND-6 | Reconcile runs through a new `POST /api/goal/reconcile`, called once when the app loads. `GET /active` stays a pure read. | M1.3 builds this endpoint. |
 | ND-7 | The 9 failing tests in `frontend/src/components/app/AppShell.test.tsx` are a **recorded baseline**, fixed separately. | Every milestone's regression check compares against this baseline, not against zero failures. |
+| ND-8 | Completion is stored per day, never per step, so M1.2 counts a day as done only when it is marked completed. "Partial-day credit" and "P1 done, later steps not" are not computed. | M1.2 (recorded 2026-10-07). Per-step completion would need a storage change and is outside P1. |
 
 **Validation baseline (2026-10-03, `main`):** backend `npm test` 54 files / 362 tests pass; backend and frontend `tsc --noEmit` pass; frontend lint 0 errors; frontend `npm test` 9 failures, all in `AppShell.test.tsx` (pre-existing); Playwright e2e not run (no npm script).
 
@@ -182,7 +183,7 @@ Every phase uses: Status, Source, Objective, Current state, In scope, Out of sco
 
 # 6 — P1 MISS RECOGNITION
 
-**Status:** IN PROGRESS (M1.1, M1.1b complete; M1.2, M1.3 not started)
+**Status:** IN PROGRESS (M1.1, M1.1b, M1.2 complete; M1.3 not started)
 
 ## 6.1 Source
 Feature Definition RULE-5, RULE-8 (detection part), OD-1, AC-1, AC-5, AC-14. Findings F-1, F-2.
@@ -215,7 +216,7 @@ New pure-logic module, a user-timezone date source (M1.1b), and a new `POST /api
 
 **M1.1b — User-timezone "today". COMPLETE** (2026-10-07). Evidence: `milestones/m1.1b-user-timezone-today.md`. Make `User.timezone` the single clock for "today" (ND-1). Frontend: `todayKey`, `isToday`, `findYesterdayTask`, `isWeekReviewDue` use the user's timezone (browser zone, then UTC, as fallback) instead of the UTC date. Backend: dates written for **new** goals are the user's local calendar dates, using `timezone.ts`. Existing rows are not rewritten. Tests: offsets such as UTC+3, UTC-8 and UTC+14, DST changes, a goal created late in the evening, and a user whose timezone is missing. Regression: R-3, R-5, R-7, R-9.
 
-**M1.2 — Day-close and classification (pure functions only).** Day-close time (sleep time + 2 hours, capped at 04:00 local), derived classification (done, missed, rest, planned) from date + status + close time, partial-day credit, and gap detection. No writes, no new status value. Unit tests for late-evening sessions, DST, rest days, the 04:00 cap, and partial days.
+**M1.2 — Day-close and classification (pure functions only). COMPLETE** (2026-10-07). Evidence: `milestones/m1.2-day-close-classification.md`. Partial-day credit is limited by ND-8. Day-close time (sleep time + 2 hours, capped at 04:00 local), derived classification (done, missed, rest, planned) from date + status + close time, partial-day credit, and gap detection. No writes, no new status value. Unit tests for late-evening sessions, DST, rest days, the 04:00 cap, and partial days.
 
 **M1.3 — Reconcile endpoint.** `POST /api/goal/reconcile`, `planVersion: 2` only, called once on app load. In P1 it returns the derived classification and persists nothing; P2 adds the carry-forward writes on top. Idempotent by design. `GET /active` is unchanged. Old goals untouched.
 
@@ -414,9 +415,9 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M1.2 (day-close and classification, pure functions only)**.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M1.3 (reconcile endpoint)**.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** M1.2 PROMPT TO BE DRAFTED
+**Status:** M1.3 PROMPT TO BE DRAFTED

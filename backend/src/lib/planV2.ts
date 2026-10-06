@@ -85,6 +85,8 @@ interface RoutineShape {
   dailyMinutes?: number;
   planVariant?: PlanVariant;
   preferredSlot?: string;
+  /** 'HH:MM', written at goal create. Read and validated by `missedSessions.ts`. */
+  sleepTime?: string;
 }
 
 export function readRoutine(goal: Pick<Goal, 'routine'>): Required<Pick<RoutineShape, 'dailyMinutes' | 'planVariant'>> & RoutineShape {
