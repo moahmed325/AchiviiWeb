@@ -1,5 +1,96 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { prisma } from '../src/lib/prisma.js';
+
+/**
+ * An in-memory stand-in for the Postgres "research_cache" table, so the suite runs without a database
+ * (like the other backend suites, which mock prisma). It mirrors only what researchCache.ts relies on:
+ * the Tier 0 jsonb `rawInputs @>` lookup, the Tier 2 pgvector `<=>` ordering, and the save upsert on canonicalKey.
+ */
+const researchCacheTable = vi.hoisted(() => {
+  type Row = {
+    id: string;
+    canonicalKey: string;
+    canonicalMethod: any;
+    outcomeEmbedding: number[] | null;
+    hitCount: number;
+    lastUsedAt: Date;
+    readyForPromotion: boolean;
+  };
+  const rows = new Map<string, Row>();
+  const parseVector = (literal: string): number[] => JSON.parse(literal);
+  const cosine = (a: number[], b: number[]) => {
+    let dot = 0, na = 0, nb = 0;
+    for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] ** 2; nb += b[i] ** 2; }
+    return na === 0 || nb === 0 ? 0 : dot / (Math.sqrt(na) * Math.sqrt(nb));
+  };
+  const publicRow = ({ outcomeEmbedding: _vector, ...row }: Row) => ({ ...row, canonicalMethod: structuredClone(row.canonicalMethod) });
+  const byId = (id: string) => [...rows.values()].find((row) => row.id === id);
+  const matchesKey = (key: string, filter: any) => {
+    if (filter === undefined) return true;
+    if (typeof filter === 'string') return key === filter;
+    if (filter.startsWith !== undefined) return key.startsWith(filter.startsWith);
+    if (filter.in !== undefined) return filter.in.includes(key);
+    if (filter.equals !== undefined) return key === filter.equals;
+    throw new Error(`Unsupported canonicalKey filter: ${JSON.stringify(filter)}`);
+  };
+
+  const $queryRaw = async (strings: TemplateStringsArray, ...values: any[]) => {
+    const sql = strings.join('?');
+    if (sql.includes('INSERT INTO "research_cache"')) {
+      const [id, canonicalKey, vector, method] = values;
+      const existing = rows.get(canonicalKey);
+      const now = new Date();
+      const row: Row = existing
+        ? { ...existing, outcomeEmbedding: parseVector(vector), canonicalMethod: JSON.parse(method), lastUsedAt: now }
+        : { id, canonicalKey, outcomeEmbedding: parseVector(vector), canonicalMethod: JSON.parse(method), hitCount: 1, lastUsedAt: now, readyForPromotion: false };
+      rows.set(canonicalKey, row);
+      return [publicRow(row)];
+    }
+    if (sql.includes(`-> 'rawInputs' @>`)) {
+      const wanted = JSON.parse(values[0]);
+      const match = [...rows.values()].find((row) => Array.isArray(row.canonicalMethod?.rawInputs) && row.canonicalMethod.rawInputs.includes(wanted));
+      return match ? [publicRow(match)] : [];
+    }
+    if (sql.includes('<=>')) {
+      const query = parseVector(values[0]);
+      const limit = values[2];
+      return [...rows.values()]
+        .filter((row) => row.outcomeEmbedding)
+        .map((row) => ({ id: row.id, canonicalKey: row.canonicalKey, hitCount: row.hitCount, similarity: cosine(row.outcomeEmbedding!, query) }))
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, limit);
+    }
+    throw new Error(`Unexpected raw query in research cache test: ${sql}`);
+  };
+
+  const researchCache = {
+    findUnique: async ({ where }: any) => {
+      const row = where.canonicalKey !== undefined ? rows.get(where.canonicalKey) : byId(where.id);
+      return row ? publicRow(row) : null;
+    },
+    update: async ({ where, data }: any) => {
+      const row = where.canonicalKey !== undefined ? rows.get(where.canonicalKey) : byId(where.id);
+      if (!row) throw new Error('Record to update not found.');
+      for (const [field, value] of Object.entries<any>(data)) {
+        (row as any)[field] = value && typeof value === 'object' && 'increment' in value
+          ? (row as any)[field] + value.increment
+          : structuredClone(value);
+      }
+      return publicRow(row);
+    },
+    deleteMany: async ({ where }: any = {}) => {
+      let count = 0;
+      for (const key of [...rows.keys()]) {
+        if (matchesKey(key, where?.canonicalKey)) { rows.delete(key); count++; }
+      }
+      return { count };
+    },
+  };
+
+  return { $queryRaw, researchCache };
+});
+
+vi.mock('../src/lib/prisma.js', () => ({ prisma: researchCacheTable }));
 import {
   cosineSimilarity,
   resolveResearchCache,
