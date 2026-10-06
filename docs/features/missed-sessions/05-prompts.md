@@ -495,7 +495,7 @@ Another path completes the minimum version; the migration would need anything be
 ## M2.1 — High-Load Step Flag (ND-5)
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on M2.0 (complete).
+COMPLETE (2026-10-07, commit `d1f7cb6`). Report: `docs/features/missed-sessions/milestones/m2.1-high-load-flag.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.1. Implement only this milestone. Follow the operating contract in section 0.

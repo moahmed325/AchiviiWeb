@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** IN PROGRESS (P1 and M2.0 complete; next is M2.1; M4.2 is blocked, see 2.2)
+**Status:** IN PROGRESS (P1, M2.0 and M2.1 complete; next is M2.2; M4.2 is blocked, see 2.2)
 **Version:** 1.5 (updated 2026-10-07: phase review, ND-9 to ND-16)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
@@ -250,7 +250,7 @@ Wrong day boundary causes false misses (Feature Definition R-1). Mitigation: M1.
 
 # 7 — P2 RECOVERY RULES
 
-**Status:** IN PROGRESS (M2.0 complete)
+**Status:** IN PROGRESS (M2.0, M2.1 complete)
 
 ## 7.1 Source
 RULE-1, RULE-2, RULE-3, RULE-4, RULE-6 (data part), RULE-8 (data part), RULE-10, OD-2, OD-5, AC-2, AC-3, AC-4, AC-7, AC-13. Findings F-2, F-4, F-7.
@@ -279,7 +279,7 @@ UI, weekly status, model prompts beyond adding the flag to the week-call schema,
 
 **M2.0 — `usedMinimumVersion` migration (ND-3). COMPLETE** (2026-10-07). Evidence: `milestones/m2.0-used-minimum-version.md`. Add `DailyTask.usedMinimumVersion Boolean @default(false)` to the schema. Generate the Prisma migration as a file; it is applied by `prisma migrate deploy` on the next Render deploy of `main`, never from the agent. Wire the column in the focus-session completion path so the flag is set when the user completes the 10-minute version. Existing rows default to `false`. This is the only schema migration in the feature.
 
-**M2.1 - High-load step flag.** Two sources (ND-5): goal-level for `run10k` and `recomp` goals (every step counts as high-load), and a per-step `highLoad` field emitted by the week call for custom goals, added to `WEEK_RESPONSE_SCHEMA` and normalized in `checkWeekAnswer` (`weekPlan.ts`). Preset prose files are not the source, because v2 steps are model-written. One reader, `isHighLoadStep(step, goal)`, also treats every step of an existing `run10k`/`recomp` goal as high-load even though its stored steps have no flag; steps of custom goals written before M2.1 count as normal.
+**M2.1 - High-load step flag. COMPLETE** (2026-10-07). Evidence: `milestones/m2.1-high-load-flag.md`. The recomp preset's id is `body_recomposition_90day`. Two sources (ND-5): goal-level for `run10k` and `recomp` goals (every step counts as high-load), and a per-step `highLoad` field emitted by the week call for custom goals, added to `WEEK_RESPONSE_SCHEMA` and normalized in `checkWeekAnswer` (`weekPlan.ts`). Preset prose files are not the source, because v2 steps are model-written. One reader, `isHighLoadStep(step, goal)`, also treats every step of an existing `run10k`/`recomp` goal as high-load even though its stored steps have no flag; steps of custom goals written before M2.1 count as normal.
 
 **M2.2 — Carry-forward.** A pure planning function, then the guarded write.
 * Pure function (input: classification, gap, tasks, goal, now; output: carries and drops): next eligible day = the next practice day that is still open, not the test day and not completed; most recent miss wins (ND-12); fit rule (ND-10); high-load dropped via `isHighLoadStep` (M2.1); nothing carried from a gap run (ND-11); missed key sessions held while their swap offer is open (ND-9); a day already the source of a `carriedFrom` marker is never carried again.
@@ -442,4 +442,4 @@ The Implementation Prompt consumes **one milestone** from this file, the approve
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1 and M2.0 COMPLETE; M2.1 PROMPT READY
+**Status:** P1, M2.0 and M2.1 COMPLETE; M2.2 PROMPT TO BE DRAFTED
