@@ -567,7 +567,7 @@ Steps reach the database through a path other than `generateWeekPlan` for plan v
 ## M2.2 — Carry-Forward
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on M2.1 (complete). This is the first milestone that changes users' stored plans, so it ships **switched off** (ND-15).
+COMPLETE (2026-10-07, commit `d666deb`; merged with `render.yaml` changed to `sync: false`). Report: `docs/features/missed-sessions/milestones/m2.2-carry-forward.md`. Ships **switched off** (ND-15).
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.2. Implement only this milestone. Follow the operating contract in section 0.

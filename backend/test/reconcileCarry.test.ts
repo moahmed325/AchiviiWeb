@@ -244,8 +244,10 @@ describe('POST /api/goal/reconcile carry-forward (M2.2)', () => {
 });
 
 describe('render.yaml (ND-15)', () => {
-  it('ships the carry switch off', () => {
+  it('ships the carry switch off and leaves it to the dashboard', () => {
     const yaml = readFileSync(new URL('../../render.yaml', import.meta.url), 'utf8');
-    expect(yaml).toMatch(/- key: MISSED_SESSIONS_CARRY_ENABLED\r?\n\s+value: "false"/);
+    // sync: false sets no value from the Blueprint (unset is off), and a Blueprint sync never overwrites the dashboard.
+    expect(yaml).toMatch(/- key: MISSED_SESSIONS_CARRY_ENABLED\r?\n\s+sync: false/);
+    expect(yaml).not.toMatch(/MISSED_SESSIONS_CARRY_ENABLED\r?\n\s+value:/);
   });
 });

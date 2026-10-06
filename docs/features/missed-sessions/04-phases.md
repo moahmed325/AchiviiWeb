@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** IN PROGRESS (P1, M2.0 and M2.1 complete; next is M2.2; M4.2 is blocked, see 2.2)
+**Status:** IN PROGRESS (P1, M2.0, M2.1 and M2.2 complete; next is M2.3; M4.2 is blocked, see 2.2)
 **Version:** 1.5 (updated 2026-10-07: phase review, ND-9 to ND-16)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
@@ -251,7 +251,7 @@ Wrong day boundary causes false misses (Feature Definition R-1). Mitigation: M1.
 
 # 7 — P2 RECOVERY RULES
 
-**Status:** IN PROGRESS (M2.0, M2.1 complete)
+**Status:** IN PROGRESS (M2.0, M2.1, M2.2 complete)
 
 ## 7.1 Source
 RULE-1, RULE-2, RULE-3, RULE-4, RULE-6 (data part), RULE-8 (data part), RULE-10, OD-2, OD-5, AC-2, AC-3, AC-4, AC-7, AC-13. Findings F-2, F-4, F-7.
@@ -282,9 +282,9 @@ UI, weekly status, model prompts beyond adding the flag to the week-call schema,
 
 **M2.1 - High-load step flag. COMPLETE** (2026-10-07). Evidence: `milestones/m2.1-high-load-flag.md`. The recomp preset's id is `body_recomposition_90day`. Two sources (ND-5): goal-level for `run10k` and `recomp` goals (every step counts as high-load), and a per-step `highLoad` field emitted by the week call for custom goals, added to `WEEK_RESPONSE_SCHEMA` and normalized in `checkWeekAnswer` (`weekPlan.ts`). Preset prose files are not the source, because v2 steps are model-written. One reader, `isHighLoadStep(step, goal)`, also treats every step of an existing `run10k`/`recomp` goal as high-load even though its stored steps have no flag; steps of custom goals written before M2.1 count as normal.
 
-**M2.2 — Carry-forward.** A pure planning function, then the guarded write.
+**M2.2 — Carry-forward. COMPLETE** (2026-10-07, switched off). Evidence: `milestones/m2.2-carry-forward.md`. Planner in `backend/src/lib/carryForward.ts`. A pure planning function, then the guarded write.
 * Pure function (input: classification, gap, tasks, goal, now; output: carries and drops): next eligible day = the next practice day that is still open, not the test day and not completed; most recent miss wins (ND-12); fit rule (ND-10); high-load dropped via `isHighLoadStep` (M2.1); nothing carried from a gap run (ND-11); missed key sessions held while their swap offer is open (ND-9); a day already the source of a `carriedFrom` marker is never carried again.
-* Write: in `POST /reconcile` at the marked P2 place, one transaction per receiving day with the unchanged-since-read check and the `carriedFrom` marker holding the replaced steps (ND-13). Only when `MISSED_SESSIONS_CARRY_ENABLED` is `true`; otherwise the response reports the planned carries and nothing is written (ND-15). Add the variable to `render.yaml` with value `false`.
+* Write: in `POST /reconcile` at the marked P2 place, one transaction per receiving day with the unchanged-since-read check and the `carriedFrom` marker holding the replaced steps (ND-13). Only when `MISSED_SESSIONS_CARRY_ENABLED` is `true`; otherwise the response reports the planned carries and nothing is written (ND-15). The variable is declared in `render.yaml` with `sync: false` (no value: unset is off, and a Blueprint sync can never overwrite the dashboard setting).
 * Tests: every rule above; day before the test day (drop); multiple misses before one eligible day; a carried step that does not fit (drop) and one that needs two replaced steps; the receiving day's own priority-1 and test steps never replaced; a property-style test that no day's total minutes ever increase; idempotency (repeat calls, and two concurrent calls, carry once); switch off writes nothing. ("P1 step already done" is not a case: completion is per day, ND-8.)
 
 **M2.3 - Counting rules and signals.** The 10-minute version counts as a done session. A key session completed only through the 10-minute version is not "key done" (OD-2), decided from `DailyTask.usedMinimumVersion` (M2.0): change `keySessionsSkipped` in `writeNextWeek` (`backend/src/lib/planV2.ts`) to count it as skipped. Missed-day and dropped-step counts are derived and passed to the weekly review (ND-2). Reconcile returns the derived signals (ND-16): carried (what, from, to), dropped, swap offer, short-on-time (2+ missed practice days this week), gentle-return (open gap).
@@ -438,9 +438,9 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M2.2 (carry-forward)**, after M2.1. M4.1 can be drafted at any time.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M2.3 (counting rules and signals)**. M4.1 can be drafted at any time.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1, M2.0 and M2.1 COMPLETE; M2.2 PROMPT READY
+**Status:** P1, M2.0, M2.1 and M2.2 COMPLETE; M2.3 PROMPT TO BE DRAFTED
