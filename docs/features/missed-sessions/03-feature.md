@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — FEATURE DEFINITION
 
-**Status:** READY FOR PHASE DEFINITION
-**Version:** 1.0 (open decisions OD-1 to OD-5 closed with the recommended options on 2026-10-03)
+**Status:** IMPLEMENTATION IN PROGRESS (M1.1 and M1.1b complete, M1.2 next)
+**Version:** 1.1 (updated 2026-10-03 with M1.1 findings and ND-1 to ND-7 decisions)
 **Date:** 2026-10-03
 **Builds on:** docs/architecture/plan-v2.md (Missed sessions, Week call, Weekly update), docs/product/redesign-blueprint.md (sections 18-19, Encouraging Intelligence / Adaptive System)
 
@@ -124,7 +124,7 @@ Rest days have no missed state.
 - The user returns after weeks away: apply the gap rule, then the weekly update rules for each closed week.
 - A step is high-load (running, strength): it is dropped, never carried.
 - Old goals (not plan v2): behavior unchanged. Copy only may adopt the new tone.
-- Time zone change or travel: day boundaries follow the device's local time. Travel must not create phantom misses.
+- Time zone change or travel: day boundaries follow `User.timezone` (ND-1), not device local time. Travel must not create phantom misses. If the user updates their timezone, the new zone applies going forward.
 
 ## 11. Rules
 
@@ -158,6 +158,10 @@ Neutral and encouraging, never firm. One line that moves forward. Never ask why.
 - The recovery rules in section 11.
 - Late-test card and gentle-return day.
 - Copy in section 12.
+- One schema migration: `DailyTask.usedMinimumVersion Boolean @default(false)` (ND-3).
+- One new endpoint: `POST /api/goal/reconcile` (ND-6).
+- One new endpoint: log weekly test without closing the week (ND-4).
+- Preset copy honesty: either implement "shifts into weekend buffer" or soften the prose (ND-5/M5.2).
 
 ### Out of scope
 - Push notifications and reminders (later phase).
@@ -177,11 +181,11 @@ Neutral and encouraging, never firm. One line that moves forward. Never ask why.
 
 | ID | Decision | Resolution |
 |---|---|---|
-| OD-1 | When does a day close? | The user's `sleepTime` plus a 2-hour buffer, capped at 04:00 local time, evaluated in the user's IANA timezone. Local midnight is not used. |
-| OD-2 | Does the 10-minute version count toward the 50% rule? | Yes for sessions done. No for key-session done. |
+| OD-1 | When does a day close? | The user's `sleepTime` plus a 2-hour buffer, capped at 04:00 local time, evaluated in the user's IANA timezone (`User.timezone`). Local midnight is not used. See ND-1. |
+| OD-2 | Does the 10-minute version count toward the 50% rule? | Yes for sessions done. No for key-session done. Requires `DailyTask.usedMinimumVersion` (ND-3). |
 | OD-3 | Pause plan for illness or travel? | Yes, but as a separate future feature. Until then, long breaks are handled as a gap (RULE-8). Out of scope here. |
 | OD-4 | Is a streak shown? | No streak is currently shown, so none is introduced. If one is ever added: rest days and 10-minute versions keep it alive, and a miss never resets it to zero. |
-| OD-5 | How are high-load steps identified? | A new per-step flag, since `safety` is per plan, not per step. |
+| OD-5 | How are high-load steps identified? | A new per-step flag, since `safety` is per plan, not per step. For presets (`run10k`, `recomp`), all steps are high-load by goal type. For custom goals, the model emits the flag (ND-5). |
 
 ## 15. Acceptance Criteria
 
@@ -204,7 +208,7 @@ Neutral and encouraging, never firm. One line that moves forward. Never ask why.
 
 | ID | Risk | Mitigation |
 |---|---|---|
-| R-1 | Wrong day boundary creates false misses. | Close OD-1 first; use device local time. |
+| R-1 | Wrong day boundary creates false misses. | Resolved by ND-1: use `User.timezone` as the single clock. Fallback to UTC when no timezone is stored. M1.1b implements. |
 | R-2 | Dropped steps hide real skipped work from the weekly update. | Weekly update receives missed-day and dropped-step counts. |
 | R-3 | Long absences exhaust the 12 weeks. | OD-3 pause plan; gap rule meanwhile. |
 | R-4 | Copy sounds punitive. | Follow section 12 and the blueprint tone rules. |
@@ -216,4 +220,4 @@ This Feature Definition defines **what missed-session handling must do and how i
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** READY FOR PHASE DEFINITION
+**Status:** IMPLEMENTATION IN PROGRESS
