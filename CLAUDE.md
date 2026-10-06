@@ -35,6 +35,8 @@ npm run eval:goals                        # live evaluation over a goal set
 
 Backend tests live in two places: `backend/test/*.test.ts` (engine and research logic) and next to the code in `backend/src/**/*.test.ts` (billing and routes).
 
+Most tests mock `lib/prisma.js`, but `test/researchCache.test.ts` is an integration test: it needs `DATABASE_URL` pointing at a migrated Postgres with pgvector and fails with `Environment variable not found: DATABASE_URL` without one. Use a disposable database (it deletes `test.*` cache rows), run `npx prisma migrate deploy` against it, and run `npx prisma generate` first in a fresh checkout or `tsc` reports missing Prisma types.
+
 Frontend (`cd frontend`):
 
 ```bash

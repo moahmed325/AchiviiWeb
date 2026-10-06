@@ -320,7 +320,9 @@ Achivii bridges the gap between high-level ambition and daily execution through 
 Both workspaces use Vitest. The frontend also has Playwright browser tests:
 
 ```bash
-# Run full backend test suite via Vitest
+# Run full backend test suite via Vitest.
+# test/researchCache.test.ts needs DATABASE_URL set to a migrated Postgres + pgvector
+# database (use a disposable one: it deletes test.* cache rows). Other tests mock Prisma.
 npm test --workspace=backend
 
 # Run with Bun (optional)

@@ -61,6 +61,8 @@ const renderAt = (url: string) =>
 /** jsdom applies no CSS, so the rail and the bottom bar are both in the tree; each is checked on its own. */
 const rail = () => within(document.querySelector<HTMLElement>('[data-shell="rail"]')!);
 const bottomBar = () => within(document.querySelector<HTMLElement>('[data-shell="bottom-bar"]')!);
+/** Sign-in resolves asynchronously (Supabase getSession), so the app shell mounts a tick after render. */
+const shellReady = () => vi.waitFor(() => expect(document.querySelector('[data-shell="rail"]')).not.toBeNull());
 
 const signedIn = (goal: Goal | null) => {
   supabaseMock.auth.getSession.mockResolvedValue({ data: { session: { access_token: 't' } } });
@@ -95,7 +97,10 @@ describe('shellMode and shellEntries', () => {
     expect(shellEntries('/', true).showProgress).toBe(true);
     expect(shellEntries('/', true).todayActive).toBe(true);
     expect(shellEntries('/dashboard', true).todayActive).toBe(false);
+    expect(shellEntries('/dashboard', true).dashboardActive).toBe(true);
+    expect(shellEntries('/', true).dashboardActive).toBe(false);
     expect(shellEntries('/roadmap', true)).toEqual({
+      dashboardActive: false,
       todayActive: false,
       roadmapActive: true,
       showRoadmap: true,
@@ -103,6 +108,7 @@ describe('shellMode and shellEntries', () => {
       showProgress: true,
     });
     expect(shellEntries('/progress', true)).toEqual({
+      dashboardActive: false,
       todayActive: false,
       roadmapActive: false,
       showRoadmap: true,
@@ -113,17 +119,20 @@ describe('shellMode and shellEntries', () => {
 });
 
 describe('entries', () => {
-  it('with a goal: Today, Roadmap, Progress, Pathways, Coach and Account, in both layouts', async () => {
+  it('with a goal: Dashboard, Today, Roadmap, Progress, Pathways, Coach and Account, in both layouts', async () => {
     signedIn(GOAL);
     renderAt('/');
+    await shellReady();
     await rail().findByRole('link', { name: 'Roadmap' });
-    for (const layout of [rail(), bottomBar()]) {
+    // The dashboard entry is "Dashboard" on the rail and the shorter "Home" on the bottom bar.
+    for (const [layout, dashboardLabel] of [[rail(), 'Dashboard'], [bottomBar(), 'Home']] as const) {
       const nav = layout.getByRole('navigation', { name: 'Primary' });
       const names = Array.from(nav.querySelectorAll('a, button'))
         .filter((el) => !el.closest('[hidden]'))
         .map((el) => el.textContent?.replace('mo@example.com', '').trim());
-      expect(names).toEqual(['Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
+      expect(names).toEqual([dashboardLabel, 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
       expect(within(nav).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+      expect(within(nav).getByRole('link', { name: dashboardLabel })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
       expect(within(nav).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
       expect(within(nav).queryByText(/Journey|coming soon|\(\d+\)/i)).toBeNull();
@@ -136,6 +145,7 @@ describe('entries', () => {
     signedIn(GOAL);
     const user = userEvent.setup();
     renderAt('/');
+    await shellReady();
     await rail().findByRole('button', { name: /Coach/ });
     await user.click(rail().getByRole('button', { name: /Coach/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Achivii Coach' });
@@ -158,14 +168,17 @@ describe('entries', () => {
   it('marks Roadmap as the current page on /roadmap, Progress on /progress, and Today on /', async () => {
     signedIn(GOAL);
     const { unmount } = renderAt('/roadmap');
+    await shellReady();
     expect(await rail().findByRole('link', { name: 'Roadmap' })).toHaveAttribute('aria-current', 'page');
     expect(rail().getByRole('link', { name: 'Today' })).not.toHaveAttribute('aria-current');
     expect(rail().getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
     unmount();
     const progressRender = renderAt('/progress');
+    await shellReady();
     expect(await rail().findByRole('link', { name: 'Progress' })).toHaveAttribute('aria-current', 'page');
     progressRender.unmount();
     renderAt('/');
+    await shellReady();
     expect(await bottomBar().findByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
   });
 
@@ -181,6 +194,7 @@ describe('entries', () => {
     signedIn(GOAL);
     const user = userEvent.setup();
     renderAt('/');
+    await shellReady();
     await rail().findByRole('link', { name: 'Roadmap' });
     await user.click(rail().getByRole('button', { name: /Coach/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Achivii Coach' });
@@ -196,6 +210,7 @@ describe('Account', () => {
     signedIn(GOAL);
     const user = userEvent.setup();
     renderAt('/roadmap');
+    await shellReady();
     await rail().findByRole('link', { name: 'Roadmap' });
     const trigger = rail().getByRole('button', { name: /^Account/ });
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -220,6 +235,7 @@ describe('Account', () => {
     mocked.resetActiveGoal.mockResolvedValue(true);
     const user = userEvent.setup();
     renderAt('/roadmap');
+    await shellReady();
     await rail().findByRole('link', { name: 'Roadmap' });
     await user.click(rail().getByRole('button', { name: /^Account/ }));
     await user.click(rail().getByRole('button', { name: 'Reset 90-Day Plan' }));
@@ -242,6 +258,7 @@ describe('Account', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const user = userEvent.setup();
     renderAt('/roadmap');
+    await shellReady();
     await rail().findByRole('link', { name: 'Roadmap' });
     await user.click(rail().getByRole('button', { name: /^Account/ }));
     await user.click(rail().getByRole('button', { name: 'Reset 90-Day Plan' }));
@@ -270,6 +287,7 @@ describe('Account', () => {
     signedIn(GOAL);
     mocked.fetchHealthCheck.mockRejectedValue(new Error('down'));
     renderAt('/');
+    await shellReady();
     expect(await rail().findByRole('status')).toHaveTextContent('Offline');
     expect(bottomBar().getByRole('status')).toHaveTextContent('Offline');
   });
