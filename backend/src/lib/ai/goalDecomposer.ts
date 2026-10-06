@@ -96,6 +96,8 @@ export interface DetailedStep {
   timing?: string;
   /** v2: 1 = most important step that day, unique within the day. */
   priority?: number;
+  /** ND-5: physical strain (running, lifting); such a step is dropped, never carried. */
+  highLoad?: boolean;
   layer?: TaskLayerType;
   layerReasoning?: string;
   challenge?: StepChallenge;
