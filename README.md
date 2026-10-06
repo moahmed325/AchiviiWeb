@@ -6,12 +6,13 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4.0-38b2ac.svg)](https://tailwindcss.com/)
 [![Prisma](https://img.shields.io/badge/Prisma-6.4-2d3748.svg)](https://www.prisma.io/)
 [![Vitest](https://img.shields.io/badge/Vitest-5.0-729b1b.svg)](https://vitest.dev/)
-[![Groq](https://img.shields.io/badge/Groq-LLaMA_3.3_70B-f55036.svg)](https://groq.com/)
+[![Gemini](https://img.shields.io/badge/Gemini-3.5_Flash_Lite-4285f4.svg)](https://ai.google.dev/)
+[![Groq](https://img.shields.io/badge/Groq-Fallback-f55036.svg)](https://groq.com/)
 [![Tavily](https://img.shields.io/badge/Tavily-Live_Canon_Research-4f46e5.svg)](https://tavily.com/)
 
 **Achivii** is an intelligent, full-stack deliberate practice platform engineered to transform open-ended human ambitions into concrete, high-velocity 90-day execution trajectories. 
 
-Unlike conventional to-do apps that generate generic, ungrounded task lists, Achivii synthesizes battle-tested cognitive and behavioral science—**The 12-Week Year** (Moran & Lennington), **Deliberate Practice** (K. Anders Ericsson), **Implementation Intentions** (Peter Gollwitzer)—with **The Golden Rail Pipeline**: real-time live research via Tavily Search, trust-tier domain authority ranking, dual-tier vector caching, deterministic safety clamps, and blazing fast structured LLM inference via Groq and Google Gemini.
+Unlike conventional to-do apps that generate generic, ungrounded task lists, Achivii synthesizes battle-tested cognitive and behavioral science—**The 12-Week Year** (Moran & Lennington), **Deliberate Practice** (K. Anders Ericsson), **Implementation Intentions** (Peter Gollwitzer)—with **The Golden Rail Pipeline**: real-time live research via Tavily Search, trust-tier domain authority ranking, dual-tier vector caching, deterministic safety clamps, and blazing fast structured LLM inference via Google Gemini, with Groq as the fallback.
 
 ---
 
@@ -23,52 +24,58 @@ Achivii is organized as a clean TypeScript monorepo with strict separation of co
 AchiviiWeb/
 ├── frontend/                     # React 19 + Vite + TypeScript + Tailwind CSS v4
 │   ├── src/
-│   │   ├── components/           # Deliberate practice & interactive UI components:
-│   │   │   ├── OnboardingWizard.tsx      # 2-way visual wizard with modal diagnostics & calendar slotting
-│   │   │   ├── ExecutionDashboard.tsx    # Live 90-day command center, streak metrics & phase gates
-│   │   │   ├── FocusSessionModal.tsx     # Fullscreen Zen focus chamber with Web Audio chimes & ambient audio
-│   │   │   ├── FullDayVisualizer.tsx     # 24-hour circadian routine timeline & autonomous practice slotting
-│   │   │   ├── DayRoutineTimeline.tsx    # Interactive daily drill schedule visualizer
+│   │   ├── components/
+│   │   │   ├── ui/                       # Shared primitives (Button, Field, Dialog, Surface, Tabs, ...)
+│   │   │   ├── app/                      # App shell: desktop rail, mobile bottom bar, account menu
+│   │   │   ├── onboarding/               # Onboarding steps: goal, questions, schedule, review, generation
+│   │   │   ├── today/                    # Today screen
+│   │   │   ├── focus/                    # Focus session runner and timer
+│   │   │   ├── journey/                  # 12-week roadmap (desktop staircase, mobile vertical journey)
+│   │   │   ├── review/                   # Weekly review and adaptation
+│   │   │   ├── progress/                 # Progress page cards
+│   │   │   ├── achievement/              # 90-day achievement screen
+│   │   │   ├── pathways/                 # Certified pathway library and launch
+│   │   │   ├── billing/ coach/ marketing/
+│   │   │   ├── FocusSessionModal.tsx     # Fullscreen focus session
 │   │   │   ├── StepChallengeWidget.tsx   # Domain-tailored micro-drills (motor reps, recall, checklist)
-│   │   │   ├── PathwaysExplorerModal.tsx # Catalog explorer for the 10 Certified Master Blueprints
-│   │   │   ├── SaaSBuilderModal.tsx      # Interactive SaaS launch blueprint & asset generator
-│   │   │   ├── AuthModal.tsx             # Frictionless login & signup dialog
-│   │   │   ├── Navbar.tsx                # Dynamic top navigation with auth state & pathway shortcuts
 │   │   │   └── ProtectedRoute.tsx        # Route authorization guard
-│   │   ├── context/              # Auth & reactive goal application state providers
-│   │   ├── pages/                # View routes:
-│   │   │   ├── Home.tsx                  # High-conversion landing page & pathway showcase
-│   │   │   ├── OnboardingPage.tsx        # Wizard host route for custom goals and preset blueprints
-│   │   │   ├── DashboardPage.tsx         # Active goal execution command center
-│   │   │   └── RoadmapPage.tsx           # 12-week periodized curriculum & milestone gate inspector
-│   │   ├── lib/                  # Axios API client and IANA timezone utilities
-│   │   ├── types/                # Strict TypeScript schemas and API contracts
-│   │   └── index.css             # Tailwind CSS v4 design tokens and custom glassmorphism utilities
+│   │   ├── context/              # AuthContext (Supabase session) and GoalContext (active goal)
+│   │   ├── pages/                # Home, Dashboard, OnboardingPage, RoadmapPage, ProgressPage,
+│   │   │                         # AchievementPage, auth/ (login, signup), dev/ (/__ui preview)
+│   │   ├── lib/                  # API client, Supabase client, presets catalogue, date utilities
+│   │   ├── types/                # TypeScript API contracts
+│   │   └── index.css             # Tailwind CSS v4 design tokens (@theme)
+│   ├── e2e/                      # Playwright tests (mocked API; e2e/live hits a real backend)
 │   ├── .env.example              # Frontend environment configuration template
 │   └── vite.config.ts
 ├── backend/                      # Node.js + Express + TypeScript + Prisma ORM
 │   ├── prisma/
-│   │   ├── schema.prisma         # Relational schema (User, Goal, RoadmapWeek, DailyTask, WeeklyReview, ResearchCache)
-│   │   └── seed.ts               # Preloaded certified master pathways and test fixtures
+│   │   ├── schema.prisma         # User, Subscription, WebhookEvent, Goal, RoadmapWeek, DailyTask, WeeklyReview, ResearchCache
+│   │   └── migrations/           # Includes CREATE EXTENSION vector and the pgvector indexes
 │   ├── src/
 │   │   ├── routes/               # REST API endpoints:
-│   │   │   ├── auth.ts               # JWT registration, authentication & profile management
-│   │   │   ├── goal.ts               # Clarification, Golden Rail plan generation, tasks, reviews & adaptation
+│   │   │   ├── auth.ts               # Supabase token verification and user profile
+│   │   │   ├── goal.ts               # Clarification, plan generation, tasks, weekly reviews, completion
+│   │   │   ├── billing.ts            # Lemon Squeezy checkout and entitlement
+│   │   │   ├── webhook.ts            # Lemon Squeezy webhooks (raw body, signature checked)
 │   │   │   └── health.ts             # Health check & database probe endpoint
-│   │   ├── lib/                  # Core algorithmic engines:
+│   │   ├── lib/
 │   │   │   ├── ai/
-│   │   │   │   ├── groq.ts               # Groq primary inference engine (llama-3.3-70b-versatile, structured JSON)
-│   │   │   │   ├── gemini.ts             # Google Gemini fallback engine (@google/genai, gemini-1.5-flash / 2.0-flash)
-│   │   │   │   ├── goalDecomposer.ts     # Stage 1 clarification, Stage 5 plan generation & adaptation
+│   │   │   │   ├── gemini.ts             # LLM cascade: Gemini primary, then Groq
+│   │   │   │   ├── groq.ts               # Groq fallback (openai/gpt-oss-120b, then gpt-oss-20b)
+│   │   │   │   ├── goalDecomposer.ts     # Plan generation & adaptation
+│   │   │   │   ├── weekPlan.ts, roadmap.ts   # Plan v2 roadmap and week calls
 │   │   │   │   └── presets/              # 10 Certified Master Blueprints (VDOT, CAGED, Lean Startup, etc.)
+│   │   │   ├── research/             # Tavily research, trust tiers, safety filter and clamps, plan spine
 │   │   │   ├── cache/
-│   │   │   │   └── researchCache.ts      # Stage 1.5 ResearchCache (Tier 1 exact match & Tier 2 vector cosine similarity)
-│   │   │   ├── tavily.ts             # Tavily Search & Extract wrapper with trust-tier heuristics & safety filter
+│   │   │   │   └── researchCache.ts      # ResearchCache (Tier 1 exact match & Tier 2 vector cosine similarity)
+│   │   │   ├── billing/              # Entitlement, checkout, webhook handling
+│   │   │   ├── tavily.ts             # Tavily Search & Extract wrapper
 │   │   │   ├── timezone.ts           # IANA timezone conversion helpers (zero naive UTC splitting)
 │   │   │   └── prisma.ts             # Prisma ORM client singleton
 │   │   └── index.ts              # Express API server entry point
-│   ├── scripts/                  # Diagnostic utilities (Tavily probe, pgvector verifier, cache demo)
-│   ├── test/                     # 49 unit tests covering Tavily, timezone, decomposer, and vector cache
+│   ├── scripts/                  # Diagnostics (LLM ping, Tavily probe, pgvector verifier, cache demo, evals)
+│   ├── test/                     # Vitest unit tests for the engine and research pipeline
 │   └── .env.example              # Backend environment configuration template
 ├── docs/                         # Project documentation (start at docs/README.md):
 │   ├── product/                  # Product blueprint and visual design system
@@ -78,6 +85,7 @@ AchiviiWeb/
 │   ├── archive/                  # Finished or replaced work
 │   └── decisions.md              # The single decision log
 ├── Design.md                     # Design source of truth for agents
+├── CLAUDE.md                     # Guidance for Claude Code
 ├── package.json                  # Root monorepo workspace scripts
 └── README.md
 ```
@@ -132,16 +140,24 @@ CLIENT_ORIGIN="http://localhost:5173"
 # (db.[project-ref].supabase.co) is IPv6-only and unreachable from IPv4-only networks.
 DATABASE_URL="postgresql://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres"
 
-# --- Primary LLM Engine: Groq (Recommended for lightning-fast structured generation) ---
+# --- Supabase Auth (backend verifies the user's access token) ---
+SUPABASE_URL="https://your-project.supabase.co"
+SUPABASE_ANON_KEY="your-supabase-anon-key"
+
+# --- Primary LLM Engine: Google Gemini ---
+GEMINI_API_KEY="AIzaSy..."
+GEMINI_MODEL="gemini-3.5-flash-lite"
+
+# --- Fallback LLM Engine: Groq (Optional) ---
 GROQ_API_KEY="gsk_..."
-GROQ_MODEL="llama-3.3-70b-versatile"
+GROQ_MODEL="openai/gpt-oss-120b"
+GROQ_BACKUP_MODEL="openai/gpt-oss-20b"
 
 # --- Live Canon Research: Tavily Search (Free tier: 1,000 queries/month) ---
 TAVILY_API_KEY="tvly-..."
 
-# --- Fallback LLM Engine: Google Gemini (Optional) ---
-GEMINI_API_KEY="AIzaSy..."
-GEMINI_MODEL="gemini-1.5-flash"
+# --- Billing: Lemon Squeezy (test mode by default; see backend/.env.example) ---
+LEMON_SQUEEZY_ENVIRONMENT="test"
 ```
 
 #### Database Synchronization:
@@ -155,8 +171,6 @@ npx prisma migrate deploy
 # Confirms the extension, the vector(768) column and both indexes are live,
 # and that the Tier 2 lookup actually hits the vector index.
 npm run verify:pgvector
-
-npm run db:seed
 ```
 
 ---
@@ -170,10 +184,12 @@ cd ../frontend
 cp .env.example .env
 ```
 
-Ensure `VITE_API_BASE_URL` points to your backend:
+Ensure `VITE_API_BASE_URL` points to your backend and the Supabase values match your project:
 
 ```env
 VITE_API_BASE_URL="http://localhost:5000"
+VITE_SUPABASE_URL="https://your-project.supabase.co"
+VITE_SUPABASE_ANON_KEY="your-supabase-anon-key"
 ```
 
 ---
@@ -201,12 +217,18 @@ npm run frontend
 | `PORT` | Backend | Optional | Port for the Express server (defaults to `5000`). |
 | `CLIENT_ORIGIN` | Backend | Optional | CORS allowed origin (defaults to `http://localhost:5173`). |
 | `DATABASE_URL` | Backend | **Yes** | PostgreSQL connection string. Must be a database with `pgvector` available. Use Supabase's session pooler URL. |
-| `GROQ_API_KEY` | Backend | Recommended | Fast structured JSON output via `llama-3.3-70b-versatile`. |
-| `GROQ_MODEL` | Backend | Optional | Target Groq model (defaults to `llama-3.3-70b-versatile`). |
+| `SUPABASE_URL` | Backend | **Yes** | Supabase project URL, used to verify access tokens. |
+| `SUPABASE_ANON_KEY` | Backend | **Yes** | Supabase anon/publishable key. Never the service-role key. |
+| `GEMINI_API_KEY` | Backend | Recommended | Primary LLM provider via `@google/genai`. |
+| `GEMINI_MODEL` | Backend | Optional | Target Gemini model (defaults to `gemini-3.5-flash-lite`). |
+| `GROQ_API_KEY` | Backend | Optional | Fallback LLM provider when Gemini fails. |
+| `GROQ_MODEL` | Backend | Optional | Groq fallback model (defaults to `openai/gpt-oss-120b`). |
+| `GROQ_BACKUP_MODEL` | Backend | Optional | Second Groq model with its own daily budget (defaults to `openai/gpt-oss-20b`). |
 | `TAVILY_API_KEY` | Backend | Recommended | Live web research engine for custom goal verification and canon synthesis. |
-| `GEMINI_API_KEY` | Backend | Optional | Secondary fallback provider via `@google/genai`. |
-| `GEMINI_MODEL` | Backend | Optional | Target Gemini model (defaults to `gemini-1.5-flash`). |
+| `LEMON_SQUEEZY_*` | Backend | For billing | Lemon Squeezy store, API key, webhook secret and variant IDs, with separate `TEST_` and `LIVE_` sets. See `backend/.env.example`. |
 | `VITE_API_BASE_URL` | Frontend | **Yes** | Base URL for backend API requests (e.g. `http://localhost:5000`). |
+| `VITE_SUPABASE_URL` | Frontend | **Yes** | Supabase project URL for the browser client. |
+| `VITE_SUPABASE_ANON_KEY` | Frontend | **Yes** | Supabase anon key for the browser client. |
 
 ---
 
@@ -251,7 +273,7 @@ Most AI goal platforms fail because they generate ungrounded, hallucinated routi
 ```
 
 ### Honest Fallback Protection
-If both Groq and Gemini fail during custom goal generation, Achivii does **not** fabricate a broken or degraded plan. Instead, the pipeline returns an explicit, honest HTTP 503 failure state with retry guidance, maintaining system integrity.
+If both Gemini and Groq fail during custom goal generation, Achivii builds the plan from the verified research spine instead. When there is nothing grounded to build from, it does **not** fabricate a broken or degraded plan. Instead, the pipeline returns an explicit, honest HTTP 503 failure state with retry guidance, maintaining system integrity.
 
 ---
 
@@ -278,7 +300,7 @@ For popular mastery pursuits, Achivii provides 10 pre-engineered, evidence-backe
 
 Achivii bridges the gap between high-level ambition and daily execution through four integrated modules:
 
-1. **24-Hour Autonomous Circadian Slotting (`FullDayVisualizer`)**:
+1. **24-Hour Autonomous Circadian Slotting (onboarding `StepSchedule` and `RoutineTimeline`)**:
    - Gathers your natural wake time, sleep window, and busy hours.
    - Automatically slots practice sessions into optimal cognitive windows (morning cortisol peak, midday recharge, or post-work transition) without manual calendar entry.
 2. **Zen Focus Chamber (`FocusSessionModal`)**:
@@ -295,14 +317,20 @@ Achivii bridges the gap between high-level ambition and daily execution through 
 
 ## 🧪 Testing & Quality Assurance
 
-Achivii features an automated Vitest test suite with **100% pass rate across 49 unit tests**, validating all core engines:
+Both workspaces use Vitest. The frontend also has Playwright browser tests:
 
 ```bash
-# Run full backend test suite via Vitest
+# Run full backend test suite via Vitest (Prisma is mocked; no database needed)
 npm test --workspace=backend
 
 # Run with Bun (optional)
 cd backend && bun test
+
+# Frontend unit tests (Vitest + Testing Library)
+npm test --workspace=frontend
+
+# Frontend browser tests (Playwright, mocked API)
+cd frontend && npx playwright test
 ```
 
 ### Diagnostic Scripts:
@@ -310,7 +338,7 @@ cd backend && bun test
 # Test Tavily Search API, extraction & trust-tier heuristics
 npm run test:tavily --workspace=backend
 
-# Test Groq LLaMA 3.3 70B structured JSON output
+# Test Groq structured JSON output (fallback provider)
 npm run test:groq --workspace=backend
 
 # Demo Phase 2 ResearchCache resolution (Tier 1 & Tier 2 vector matching)
