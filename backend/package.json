@@ -11,11 +11,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "db:seed": "prisma db seed",
-    "seed": "prisma db seed",
     "test": "vitest run",
     "test:watch": "vitest",
-    "migrate:backfill": "tsx scripts/backfill-phase1-sessions.ts",
     "verify:pgvector": "tsx scripts/verify-pgvector.ts",
     "test:tavily": "tsx scripts/test-tavily.ts",
     "test:groq": "tsx scripts/test-groq-stage1.ts",
@@ -50,8 +47,5 @@
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",
     "vitest": "^5.0.0"
-  },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
   }
 }
