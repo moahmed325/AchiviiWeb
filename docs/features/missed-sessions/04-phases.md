@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** IN PROGRESS (P1 and M2.0 to M2.3 complete; next is M2.4; M4.2 is blocked, see 2.2)
+**Status:** IN PROGRESS (P1 and P2 complete; next is P3, M3.1; M4.2 is blocked, see 2.2)
 **Version:** 1.5 (updated 2026-10-07: phase review, ND-9 to ND-16)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
@@ -110,7 +110,7 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Endpoint to log the test without closing the week (M4.1); week-close handoff extends the existing review route (M4.2). |
 | P5 | QA, Copy Audit & Regression | P1-P4 | None. |
 
-Current status: P1 COMPLETE; P2 IN PROGRESS; P3, P4, P5 NOT STARTED (M4.1 can start any time, see 2.3).
+Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3, P4, P5 NOT STARTED (M4.1 can start any time, see 2.3).
 
 ## 2.1 Dependency graph
 ```
@@ -252,7 +252,7 @@ Wrong day boundary causes false misses (Feature Definition R-1). Mitigation: M1.
 
 # 7 — P2 RECOVERY RULES
 
-**Status:** IN PROGRESS (M2.0 to M2.3 complete)
+**Status:** COMPLETE (2026-10-07: M2.0 to M2.4; all writes behind the ND-15 switch, which is off)
 
 ## 7.1 Source
 RULE-1, RULE-2, RULE-3, RULE-4, RULE-6 (data part), RULE-8 (data part), RULE-10, OD-2, OD-5, AC-2, AC-3, AC-4, AC-7, AC-13. Findings F-2, F-4, F-7.
@@ -290,7 +290,7 @@ UI, weekly status, model prompts beyond adding the flag to the week-call schema,
 
 **M2.3 - Counting rules and signals. COMPLETE** (2026-10-07). Evidence: `milestones/m2.3-counting-and-signals.md`. Signals in `backend/src/lib/missedSignals.ts`; P3 takes the line from `signals.notice`. The 10-minute version counts as a done session. A key session completed only through the 10-minute version is not "key done" (OD-2), decided from `DailyTask.usedMinimumVersion` (M2.0): change `keySessionsSkipped` in `writeNextWeek` (`backend/src/lib/planV2.ts`) to count it as skipped. Missed-day and dropped-step counts are derived by a tested week-counts function, ready for M4.2 to pass to the weekly update (ND-2); they are not added to any prompt now (7.4). Reconcile returns the derived signals (ND-16): carried (what, from, to), dropped, swap offer, short-on-time (2+ missed practice days this week), gentle-return (open gap).
 
-**M2.4 — Mark missed and swap actions.** Verify absence first. Mark missed runs the M2.2 carry for today at once, with the same rules, guard and switch, and stores nothing else (ND-14); never a `skipped` or `missed` status. Swap exchanges the plan content of two open practice days in the same week (dates stay), never moves the test day, never puts a key session on the test day, and answers a key-session swap offer (ND-9). Both are idempotent and guarded like M2.2.
+**M2.4 — Mark missed and swap actions. COMPLETE** (2026-10-07). Evidence: `milestones/m2.4-mark-missed-and-swap.md`. Endpoints: `POST /api/goal/tasks/:taskId/mark-missed`, `.../swap`, `.../carry-now`, all returning the reconcile body. Verify absence first. Mark missed runs the M2.2 carry for today at once, with the same rules, guard and switch, and stores nothing else (ND-14); never a `skipped` or `missed` status. Swap exchanges the plan content of two open practice days in the same week (dates stay), never moves the test day, never puts a key session on the test day, and answers a key-session swap offer (ND-9). Both are idempotent and guarded like M2.2.
 
 ## 7.8 Regression checks
 R-2, R-4, R-6, R-7, R-8.
@@ -336,7 +336,7 @@ None, beyond fields P2 already exposes. Turning on `MISSED_SESSIONS_CARRY_ENABLE
 
 **M3.2 — Short-on-time and gentle-return.** UX-2 and UX-4, with the 10-minute version reachable in two taps or fewer.
 
-**M3.3 — Key-session swap and mark-missed UI.** Swap offered before carry-forward for a missed key session. Rest days never show a miss message.
+**M3.3 — Key-session swap and mark-missed UI.** Swap offered before carry-forward for a missed key session. Rest days never show a miss message. Use each action's response (the reconcile body) to refresh. Two things only that response knows (M2.4 report): when today's key session is marked missed, its `swapOffer` is not shown again on a reload until tonight's close, so keep it on screen from the response; and a drop caused by marking today missed appears in that response's `carry.drops` but becomes a `dropped` notice only after the close.
 
 **M3.4 — State coverage and accessibility.** Loading, error, offline, rest, key, test, review-due, and completed states still correct; axe and overflow checks at the existing widths. Add an `e2e` npm script in `frontend/package.json` that runs the existing Playwright config, so EV-5 can be run by a command.
 
@@ -439,9 +439,9 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M2.4 (mark missed and swap)**. M4.1 can be drafted at any time.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M3.1 (miss notice)**. M4.1 can be drafted at any time. M4.1 can be drafted at any time.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1 and M2.0 to M2.3 COMPLETE; M2.4 PROMPT READY
+**Status:** P1 and P2 COMPLETE; M3.1 PROMPT TO BE DRAFTED

@@ -725,7 +725,7 @@ Another code path decides "key done" (list it); a signal cannot be derived witho
 ## M2.4 — Mark Missed and Swap Actions
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on M2.3 (complete). Completes P2. Every write stays behind the ND-15 switch.
+COMPLETE (2026-10-07, commit `1a98c63`). Report: `docs/features/missed-sessions/milestones/m2.4-mark-missed-and-swap.md`. Completes P2.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.4. Implement only this milestone. Follow the operating contract in section 0.
