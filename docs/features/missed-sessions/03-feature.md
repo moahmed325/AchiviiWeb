@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — FEATURE DEFINITION
 
 **Status:** IMPLEMENTATION IN PROGRESS (P1 Miss Recognition complete; P2 next)
-**Version:** 1.1 (updated 2026-10-03 with M1.1 findings and ND-1 to ND-7 decisions)
+**Version:** 1.2 (updated 2026-10-07: rule clarifications from the phase review, ND-9 to ND-12)
 **Date:** 2026-10-03
 **Builds on:** docs/architecture/plan-v2.md (Missed sessions, Week call, Weekly update), docs/product/redesign-blueprint.md (sections 18-19, Encouraging Intelligence / Adaptive System)
 
@@ -138,6 +138,12 @@ Rest days have no missed state.
 **RULE-8 — Gap handling.** After 3+ missed practice days in a row, the next session defaults to the 10-minute version.
 **RULE-9 — Escalation.** 1 miss: carry-forward plus one line. 2 misses in a week: surface the 10-minute version. far_behind week: target held. Two far_behind weeks: re-test first and daily-time check. Weeks 4 and 8: checkpoint offer.
 **RULE-10 — High-load steps are dropped, not carried.**
+
+**Clarifications (2026-10-07, phase review; 04-phases.md ND-9 to ND-12):**
+- RULE-6: while a missed key session's swap offer is open, its step is not carried. The offer stands until the day that would receive the carry closes; then the normal carry rule runs.
+- RULE-1 and RULE-2: the carried step replaces the receiving day's lowest-priority steps, lowest first, until it fits. The receiving day's own priority-1 step and test step are never replaced. If it cannot fit, it is dropped.
+- RULE-8: after a gap, nothing from the gap is carried; the next session is the gentle-return day.
+- Several missed days, one eligible day: the most recent missed day's priority-1 step is carried; the others are dropped.
 
 ## 12. Tone and Copy
 

@@ -2,7 +2,7 @@
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
 **Status:** IN PROGRESS (P1 and M2.0 complete; next is M2.1; M4.2 is blocked, see 2.2)
-**Version:** 1.4 (updated 2026-10-07: P1 complete, ND-8)
+**Version:** 1.5 (updated 2026-10-07: phase review, ND-9 to ND-16)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
 **Plan source:** docs/architecture/plan-v2.md (Missed sessions, Week call, Weekly update)
@@ -58,13 +58,13 @@ A single, predictable recovery path per session type, applied automatically when
 ## 1.4 Repository findings that shape the roadmap (evidence from 2026-10-03 inspection)
 | ID | Finding | Consequence |
 |---|---|---|
-| F-1 | `backend/src/lib/timezone.ts` already provides IANA validation and zoned day-boundary helpers. | Reuse for OD-1. Do not write new date logic. |
-| F-2 | `DailyTask.status` is a free string (default `pending`); the PATCH `/api/goal/tasks/:taskId` route accepts any `status`. Steps live in the `detailedSteps` string and `minimumVersion` is JSON. | A `missed` status and a per-step flag likely need no schema migration. Verify in M1.1. |
+| F-1 | `backend/src/lib/timezone.ts` already provides IANA validation and zoned day-boundary helpers. | Reuse for OD-1. Do not write new date logic. **Corrected by M1.1 (see 1.5): the helpers existed but were unused; M1.1b wired them in.** |
+| F-2 | `DailyTask.status` is a free string (default `pending`); the PATCH `/api/goal/tasks/:taskId` route accepts any `status`. Steps live in the `detailedSteps` string and `minimumVersion` is JSON. | A `missed` status and a per-step flag likely need no schema migration. Verify in M1.1. **Settled by ND-2: no `missed` status; "missed" is derived.** |
 | F-3 | `Today.tsx` has a frontend-only `yesterdayUncompleted` callout. Nothing persists or moves. Existing tests assert no "missed", "failed", "behind" wording on Today. | P3 replaces the callout; keep the no-punitive-copy assertions. |
 | F-4 | No "mark today missed" or "swap day" implementation was found in frontend or backend. | M2.4 builds them. Plan v2 only decided them. |
-| F-5 | `weekPlan.ts` accepts `retestFirst` as an input, but no weekly-update code (status, nextTargets, checkpointOffer) exists in the backend. | M4.2 is blocked on plan v2 build step 4. |
-| F-6 | `RoadmapWeek.testResult` and `validateWeeklyTestResult` exist. | Late test logging (M4.1) can build on them. |
-| F-7 | Presets `run10k.ts` and `recomp.ts` generate physical steps. | They need the high-load flag in M2.1. |
+| F-5 | `weekPlan.ts` accepts `retestFirst` as an input, but no weekly-update code (status, nextTargets, checkpointOffer) exists in the backend. | M4.2 is blocked on plan v2 build step 4. **Corrected by M1.1: the weekly review route exists; status, `nextTargets`, checkpoint and `retestFirst` do not.** |
+| F-6 | `RoadmapWeek.testResult` and `validateWeeklyTestResult` exist. | Late test logging (M4.1) can build on them. **Corrected by M1.1: `testResult` is only written by the review, which closes the week; see ND-4.** |
+| F-7 | Presets `run10k.ts` and `recomp.ts` generate physical steps. | They need the high-load flag in M2.1. **Corrected by M1.1: v2 steps are model-written, so the flag comes from the goal and the week call, not the preset files (ND-5).** |
 | F-8 | No streak code exists in the frontend. | OD-4 needs no work. |
 
 ## 1.5 Decisions and corrections from M1.1 (evidence: milestones/m1.1-repository-verification.md)
@@ -81,6 +81,14 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | ND-6 | Reconcile runs through a new `POST /api/goal/reconcile`, called once when the app loads. `GET /active` stays a pure read. | M1.3 builds this endpoint. |
 | ND-7 | The 9 failing tests in `frontend/src/components/app/AppShell.test.tsx` are a **recorded baseline**, fixed separately. | **Resolved 2026-10-07** (merge of `claude/eager-chatelet-d44dd8`): the tests were out of date. From P2 on, the frontend baseline is zero failures. |
 | ND-8 | Completion is stored per day, never per step, so M1.2 counts a day as done only when it is marked completed. "Partial-day credit" and "P1 done, later steps not" are not computed. | M1.2 (recorded 2026-10-07). Per-step completion would need a storage change and is outside P1. |
+| ND-9 | **Key session: swap before carry.** Reconcile does not carry a missed key session's step while its swap offer is open. The offer stands until the day that would receive the carry closes. The user's answer triggers the swap (M2.4) or the carry; if the offer day closes unanswered, the normal carry rule runs then. | Recorded 2026-10-07 (phase review). RULE-6 and AC-6 hold even though reconcile runs automatically. M2.2 and M2.4. |
+| ND-10 | **Fit rule (RULE-1).** The carried step replaces the receiving day's lowest-priority steps, lowest first, until its minutes fit inside the minutes they free. The receiving day's own priority-1 step and its test step are never replaced. If it cannot fit, the step is dropped. | Recorded 2026-10-07. "A day never gets longer" is guaranteed by construction, not just by a test. M2.2. |
+| ND-11 | **No carry after a gap.** When reconcile finds an open gap (3+ missed practice days in a row), nothing from that run is carried; the steps are dropped and the next session is the gentle-return day (RULE-8). | Recorded 2026-10-07. The return day stays short. M2.2, M2.3. |
+| ND-12 | **Most recent miss wins.** When several missed days compete for one eligible day, the most recent missed day's priority-1 step is carried; the others are dropped. | Recorded 2026-10-07. M2.2. |
+| ND-13 | **Carry writes are guarded.** A carry is written in one database transaction that re-reads the receiving day and writes only if its steps are unchanged since they were read. The carried step stores a `carriedFrom` marker (source task id and date) and the steps it replaced, inside `detailedSteps` JSON. | Recorded 2026-10-07. Two tabs or two reloads cannot carry twice; every carry is auditable and reversible. No migration. M2.2. |
+| ND-14 | **Mark missed needs no new storage.** Marking today missed runs the carry for today at once (ND-10 to ND-13). The receiving day's `carriedFrom` marker records it, and reconcile treats a day that is the source of a marker as already handled. It never writes a status, and never `skipped`: `frontend/src/lib/journeyAdapter.ts` counts `skipped` as done. | Recorded 2026-10-07. Keeps ND-2 (no new status). M2.4. |
+| ND-15 | **Ship dark, behind a switch.** Every merge to `main` deploys to production at once (Render and Vercel, no CI). Carry writes are gated by one backend environment switch, `MISSED_SESSIONS_CARRY_ENABLED`, off unless set to `true`. With it off, reconcile computes and returns what it would do but writes nothing. It is turned on only after M3.1 (the notice that says what moved) is live, and it is the kill switch if anything goes wrong. | Recorded 2026-10-07. Users never see a plan change without the line that explains it. M2.2 adds the switch; M3.1 turns it on. |
+| ND-16 | **Notices are derived, not stored.** "Moved to Thursday", "dropped", short-on-time and gentle-return are computed from classification plus the `carriedFrom` markers, and shown on the day they concern. No "seen" state is stored. | Recorded 2026-10-07. M2.3 returns them from reconcile; P3 renders them. |
 
 **Validation baseline from P2 on (2026-10-07, `main` after P1 and the test-fix merges):** backend `npx vitest run` 41 files / 361 tests pass, including `researchCache.test.ts`, which no longer touches a database; backend and frontend `tsc --noEmit` pass; frontend lint 0 errors, 2 warnings; frontend `npx vitest run` 419 tests, 0 failures (5 full runs in a row); frontend `npm run build` passes. `backend/vitest.config.ts` excludes `dist/`, whose stale compiled tests inflated earlier backend counts.
 
@@ -95,12 +103,12 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | Phase | Name | Depends on | Backend allowance |
 |---|---|---|---|
 | P1 | Miss Recognition | Feature Definition | User-timezone date source (M1.1b), new pure lib module, new `POST /api/goal/reconcile`. No migration. |
-| P2 | Recovery Rules | P1 | **One migration** (`usedMinimumVersion`, M2.0), carry-forward, high-load flag, mark-missed and swap actions. |
+| P2 | Recovery Rules | P1 | **One migration** (`usedMinimumVersion`, M2.0), carry-forward behind the ND-15 switch, high-load flag, mark-missed and swap actions. |
 | P3 | Today Experience | P2 | None beyond response fields P2 exposes. |
 | P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Endpoint to log the test without closing the week (M4.1); week-close handoff extends the existing review route (M4.2). |
 | P5 | QA, Copy Audit & Regression | P1-P4 | None. |
 
-All phases begin **NOT STARTED**.
+Current status: P1 COMPLETE; P2 IN PROGRESS; P3, P4, P5 NOT STARTED (M4.1 can start any time, see 2.3).
 
 ## 2.1 Dependency graph
 ```
@@ -119,7 +127,10 @@ P3 Today     P4 Test day & week close
 **M4.2 (week-close handoff) is BLOCKED** by the plan v2 weekly update (prompt 4), which is not built (F-5). It covers AC-9, AC-11 and the status inputs. Everything else can ship without it. When the weekly update is built, M4.2 becomes unblocked and P4 can complete.
 
 ## 2.3 Ordering rationale
-Recognition comes first because every rule needs a trustworthy "was this day missed" answer. Rules are built before UI so the UI reads decided state instead of inventing it. The test day work is split so the part that does not need the weekly update can ship.
+Recognition comes first because every rule needs a trustworthy "was this day missed" answer. Rules are built before UI so the UI reads decided state instead of inventing it. The test day work is split so the part that does not need the weekly update can ship. M4.1 (late test) depends only on P1, so it can be run at any point, in parallel with P2 or P3.
+
+## 2.4 Release order (ND-15)
+Code merged to `main` reaches production immediately. So: P2 lands with `MISSED_SESSIONS_CARRY_ENABLED` off; P3's M3.1 lands; the switch is turned on in the Render dashboard; M3.1's evidence is re-checked in production. Turning the switch off again stops all carries at once without a deploy.
 
 ---
 
@@ -154,6 +165,10 @@ New Today UI keeps semantic structure, keyboard operation, visible focus, non-co
 
 ## 3.10 Validation
 Do not invent commands. Inspect `package.json` scripts and the existing test setup (backend tests, frontend unit tests, Playwright e2e) immediately before choosing validation.
+
+
+## 3.11 Ship dark
+Any code that changes a user's stored plan must be off by default behind a named switch until the UI that explains the change is live (ND-15). Merging to `main` deploys.
 
 ---
 
@@ -245,41 +260,44 @@ Apply the carry-forward and drop rules in code so a miss moves at most one prior
 
 ## 7.3 In scope
 - High-load per-step flag (OD-5), set for plan v2 week calls and for `run10k` and `recomp` presets.
-- Carry-forward: priority-1 step replaces the lowest-priority step on the next eligible day; drop when none, or when high-load.
+- Carry-forward: the priority-1 step of the most recent missed day (ND-12) moves to the next eligible day, replacing that day's lowest-priority steps until it fits (ND-10); drop when there is no eligible day, when the step is high-load, when it cannot fit, or after a gap (ND-11). Missed key sessions wait for the swap answer (ND-9). Writes are guarded (ND-13) and switched off by default (ND-15).
 - The 10-minute version counts as done; a key session done only by the 10-minute version is not "key done".
 - Record key-session-skipped and missed counts for later weekly use.
 - "Mark today missed" and "swap day" actions, if absent (F-4), producing the same recovery as automatic detection.
-- Signals for the UI: carried, dropped, short-on-time (2 misses in a week), gentle-return (after a gap).
+- Signals for the UI, derived not stored (ND-16): carried, dropped, swap offer, short-on-time (2 misses in a week), gentle-return (after a gap).
 
 ## 7.4 Out of scope
 UI, weekly status, model prompts beyond adding the flag to the week-call schema, pause plan (OD-3).
 
 ## 7.5 Backend allowance
-**One schema migration**: `DailyTask.usedMinimumVersion Boolean @default(false)` (ND-3, M2.0). Step schema addition in `detailedSteps` JSON (no migration). Two small actions on the goal router.
+**One schema migration**: `DailyTask.usedMinimumVersion Boolean @default(false)` (ND-3, M2.0). Step fields inside `detailedSteps` JSON (`highLoad`, `carriedFrom`; no migration). Writes inside `POST /reconcile` behind the ND-15 switch. Two small actions on the goal router (mark missed, swap).
 
 ## 7.6 Files likely affected (verify first)
-`backend/src/lib/ai/weekPlan.ts`, `taskRules.ts`, `planSchema.ts`, `ai/presets/run10k.ts`, `ai/presets/recomp.ts`, `backend/src/routes/goal.ts`, new recovery lib module, `backend/test/`.
+`backend/src/lib/ai/weekPlan.ts`, `backend/src/lib/ai/presets/index.ts` (read only, to identify presets), `backend/src/lib/missedSessions.ts`, `backend/src/lib/planV2.ts` (`writeNextWeek` counts), `backend/src/routes/goal.ts` (`POST /reconcile`, new actions), a new recovery lib module, `backend/test/`. Preset prose files are **not** changed (ND-5).
 
 ## 7.7 Milestones
 
 **M2.0 — `usedMinimumVersion` migration (ND-3). COMPLETE** (2026-10-07). Evidence: `milestones/m2.0-used-minimum-version.md`. Add `DailyTask.usedMinimumVersion Boolean @default(false)` to the schema. Generate the Prisma migration as a file; it is applied by `prisma migrate deploy` on the next Render deploy of `main`, never from the agent. Wire the column in the focus-session completion path so the flag is set when the user completes the 10-minute version. Existing rows default to `false`. This is the only schema migration in the feature.
 
-**M2.1 - High-load step flag.** Two sources (ND-5): goal-level for `run10k` and `recomp` goals (every step counts as high-load), and a per-step `highLoad` field emitted by the week call for custom goals, added to `WEEK_RESPONSE_SCHEMA` and normalized in `checkWeekAnswer` (`weekPlan.ts`). Preset prose files are not the source, because v2 steps are model-written. Existing steps without the flag count as normal.
+**M2.1 - High-load step flag.** Two sources (ND-5): goal-level for `run10k` and `recomp` goals (every step counts as high-load), and a per-step `highLoad` field emitted by the week call for custom goals, added to `WEEK_RESPONSE_SCHEMA` and normalized in `checkWeekAnswer` (`weekPlan.ts`). Preset prose files are not the source, because v2 steps are model-written. One reader, `isHighLoadStep(step, goal)`, also treats every step of an existing `run10k`/`recomp` goal as high-load even though its stored steps have no flag; steps of custom goals written before M2.1 count as normal.
 
-**M2.2 — Carry-forward algorithm.** Pure function with tests for: next eligible day exists, day before test day (drop), multiple missed days before one eligible day (only one carry), P1 step already done (no carry), high-load (drop), receiving day minutes never increase, idempotent on repeat.
+**M2.2 — Carry-forward.** A pure planning function, then the guarded write.
+* Pure function (input: classification, gap, tasks, goal, now; output: carries and drops): next eligible day = the next practice day that is still open, not the test day and not completed; most recent miss wins (ND-12); fit rule (ND-10); high-load dropped via `isHighLoadStep` (M2.1); nothing carried from a gap run (ND-11); missed key sessions held while their swap offer is open (ND-9); a day already the source of a `carriedFrom` marker is never carried again.
+* Write: in `POST /reconcile` at the marked P2 place, one transaction per receiving day with the unchanged-since-read check and the `carriedFrom` marker holding the replaced steps (ND-13). Only when `MISSED_SESSIONS_CARRY_ENABLED` is `true`; otherwise the response reports the planned carries and nothing is written (ND-15). Add the variable to `render.yaml` with value `false`.
+* Tests: every rule above; day before the test day (drop); multiple misses before one eligible day; a carried step that does not fit (drop) and one that needs two replaced steps; the receiving day's own priority-1 and test steps never replaced; a property-style test that no day's total minutes ever increase; idempotency (repeat calls, and two concurrent calls, carry once); switch off writes nothing. ("P1 step already done" is not a case: completion is per day, ND-8.)
 
-**M2.3 - Counting rules and signals.** The 10-minute version counts as a done session. A key session completed only through the 10-minute version is not "key done" (OD-2), decided from `DailyTask.usedMinimumVersion` (M2.0). Short-on-time and gentle-return signals. Key-skipped and missed counts are derived and passed to the weekly review (ND-2).
+**M2.3 - Counting rules and signals.** The 10-minute version counts as a done session. A key session completed only through the 10-minute version is not "key done" (OD-2), decided from `DailyTask.usedMinimumVersion` (M2.0): change `keySessionsSkipped` in `writeNextWeek` (`backend/src/lib/planV2.ts`) to count it as skipped. Missed-day and dropped-step counts are derived and passed to the weekly review (ND-2). Reconcile returns the derived signals (ND-16): carried (what, from, to), dropped, swap offer, short-on-time (2+ missed practice days this week), gentle-return (open gap).
 
-**M2.4 — Mark missed and swap actions.** Verify absence first. Mark missed runs the same recovery as detection. Swap exchanges two days within the week and respects test-day and key-session placement rules (key sessions never on the test day).
+**M2.4 — Mark missed and swap actions.** Verify absence first. Mark missed runs the M2.2 carry for today at once, with the same rules, guard and switch, and stores nothing else (ND-14); never a `skipped` or `missed` status. Swap exchanges the plan content of two open practice days in the same week (dates stay), never moves the test day, never puts a key session on the test day, and answers a key-session swap offer (ND-9). Both are idempotent and guarded like M2.2.
 
 ## 7.8 Regression checks
 R-2, R-4, R-6, R-7, R-8.
 
 ## 7.9 Exit criteria
-AC-2, AC-3, AC-4, AC-7, AC-13 are true at the logic and API level. A property-style test proves no day exceeds its planned minutes. Evidence EV-3: test list per M2.2 case. EV-4: a week fixture before and after a miss.
+AC-2, AC-3, AC-4, AC-6 (logic), AC-7, AC-13 are true at the logic and API level. A property-style test proves no day exceeds its planned minutes. Concurrent reconcile calls carry once. With the switch off, production behaves exactly as after P1. Evidence EV-3: test list per M2.2 case. EV-4: a week fixture before and after a miss, with the switch on and off.
 
 ## 7.10 Risks
-Duplicate or lost steps on repeated reconcile (idempotency test). Preset steps without the flag stacking physical load (M2.1 covers `run10k` and `recomp`; list any other physical presets found).
+Duplicate or lost steps on repeated or concurrent reconcile (ND-13 guard and tests). Preset steps without the flag stacking physical load (`isHighLoadStep` covers old `run10k`/`recomp` goals; list any other physical presets found). Plan changes reaching users before the notice exists (ND-15 switch).
 
 ---
 
@@ -305,20 +323,20 @@ Show the recovery on Today in one calm line with one clear next action, replacin
 Late test card (P4), weekly update message and checkpoint offer (P4/M4.2), streaks, reminders.
 
 ## 8.5 Backend allowance
-None, beyond fields P2 already exposes.
+None, beyond fields P2 already exposes. Turning on `MISSED_SESSIONS_CARRY_ENABLED` is a dashboard setting, not code (ND-15).
 
 ## 8.6 Files likely affected (verify first)
 `frontend/src/components/today/Today.tsx` and `Today.test.tsx`, `frontend/src/components/focus/*`, `frontend/src/types/index.ts`, `frontend/src/lib/api.ts`, `frontend/e2e/todayStates.spec.ts`.
 
 ## 8.7 Milestones
 
-**M3.1 — Miss notice.** Replace the `yesterdayUncompleted` callout with the real carried or dropped notice. Copy from Feature Definition section 12.
+**M3.1 — Miss notice.** Replace the `yesterdayUncompleted` callout with the real carried or dropped notice from the reconcile signals (ND-16). Copy from Feature Definition section 12. Also reconcile again when the tab becomes visible on a new local date, so a tab left open overnight catches up. After this ships, turn the ND-15 switch on and re-check the notice in production (2.4).
 
 **M3.2 — Short-on-time and gentle-return.** UX-2 and UX-4, with the 10-minute version reachable in two taps or fewer.
 
 **M3.3 — Key-session swap and mark-missed UI.** Swap offered before carry-forward for a missed key session. Rest days never show a miss message.
 
-**M3.4 — State coverage and accessibility.** Loading, error, offline, rest, key, test, review-due, and completed states still correct; axe and overflow checks at the existing widths.
+**M3.4 — State coverage and accessibility.** Loading, error, offline, rest, key, test, review-due, and completed states still correct; axe and overflow checks at the existing widths. Add an `e2e` npm script in `frontend/package.json` that runs the existing Playwright config, so EV-5 can be run by a command.
 
 ## 8.8 Regression checks
 R-3, R-4, R-5, R-10, R-11.
@@ -343,7 +361,7 @@ Let a user take the weekly test late, and make an unlogged test flow honestly in
 
 ## 9.3 Milestones
 
-**M4.1 - Late test (ready).** A small backend endpoint logs the weekly test result into `RoadmapWeek.testResult` **without closing the week** (ND-4), reusing `validateWeeklyTestResult`. On Today, a "Take the test now" card shows from the end of test day until the weekly review is submitted, because the existing review (`POST /weeks/:weekNumber/review`) is what closes the week today. After the review, the card is gone.
+**M4.1 - Late test (ready; depends only on P1, can run any time).** A small backend endpoint logs the weekly test result into `RoadmapWeek.testResult` **without closing the week** (ND-4), reusing `validateWeeklyTestResult`. On Today, a "Take the test now" card shows from the end of test day until the weekly review is submitted, because the existing review (`POST /weeks/:weekNumber/review`) is what closes the week today. After the review, the card is gone.
 
 **M4.2 — Week-close handoff (BLOCKED).** On the first open of a new week, if the test is unlogged, run the plan v2 weekly update with the test marked missing, target held, and sessions deciding status; feed it missed-day, dropped-step, and key-skipped counts; apply `retestFirst` after two far_behind weeks and the daily-time check. **Blocked until plan v2 build step 4 (weekly update, prompt 4) exists.** Do not build a substitute status engine in this feature.
 
@@ -390,11 +408,11 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 | AC-3 Only P1 moves, no longer day | M2.2 |
 | AC-4 Never onto test day | M2.2 |
 | AC-5 Rest days never missed | M1.2, M3.3 |
-| AC-6 Key session swap first | M2.4, M3.3 |
+| AC-6 Key session swap first | M2.2 (hold, ND-9), M2.4, M3.3 |
 | AC-7 10-minute version always counts | M2.0, M2.3, M3.2 |
 | AC-8 Late test card | M4.1 |
 | AC-9 Unlogged test at week close | M4.2 (blocked) |
-| AC-10 Gap gentle-return | M2.3, M3.2 |
+| AC-10 Gap gentle-return | M2.2 (no carry, ND-11), M2.3, M3.2 |
 | AC-11 Two far_behind weeks re-test | M4.2 (blocked) |
 | AC-12 Copy rules | M3.1-M3.4, M5.2 |
 | AC-13 High-load dropped | M2.1, M2.2 |
@@ -412,12 +430,14 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 | RC-4 | Punitive tone slips in. | Copy audit M5.2 and assertions in P3. |
 | RC-5 | Physical goals stacking load. | M2.1 flag and drop rule. |
 | RC-6 | Scope creep into pause plan or streaks. | Both explicitly out of scope (OD-3, OD-4). |
+| RC-7 | Users' plans change in production before the notice that explains it exists, because merging to `main` deploys. | ND-15 switch, release order 2.4, rule 3.11. |
+| RC-8 | A carry is applied twice or lost under concurrent requests. | ND-13 transaction and `carriedFrom` marker; concurrency test in M2.2. |
 
 ---
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M2.0 (`usedMinimumVersion` migration)**.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M2.2 (carry-forward)**, after M2.1. M4.1 can be drafted at any time.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
