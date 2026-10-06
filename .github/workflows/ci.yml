@@ -24,15 +24,19 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install (workspaces, locked)
         run: bun install --frozen-lockfile
+      # Package scripts use the locked binaries; a bare npx could download a newer TypeScript or Vitest.
+      - name: Tool versions
+        working-directory: backend
+        run: npm exec --no -- tsc --version && npm exec --no -- vitest --version
       - name: Generate Prisma client
         working-directory: backend
-        run: npx prisma generate
+        run: npm run prisma:generate
       - name: Type-check (src/)
         working-directory: backend
-        run: npx tsc --noEmit
+        run: npm run typecheck
       - name: Tests
         working-directory: backend
-        run: npx vitest run
+        run: npm test
 
   frontend:
     runs-on: ubuntu-latest
@@ -45,15 +49,18 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - name: Install (workspaces, locked)
         run: bun install --frozen-lockfile
+      - name: Tool versions
+        working-directory: frontend
+        run: npm exec --no -- tsc --version && npm exec --no -- vitest --version
       - name: Type-check
         working-directory: frontend
-        run: npx tsc --noEmit -p .
+        run: npm run typecheck
       - name: Lint
         working-directory: frontend
         run: npm run lint
       - name: Tests
         working-directory: frontend
-        run: npx vitest run
+        run: npm test
       - name: Build
         working-directory: frontend
         run: npm run build
