@@ -23,6 +23,12 @@ services:
       # accepts any *.vercel.app preview origin via src/index.ts.
       - key: CLIENT_ORIGIN
         value: https://achiviiweb.vercel.app
+      # Missed-sessions carry-forward writes (ND-15, docs/features/missed-sessions/04-phases.md).
+      # Off: reconcile reports what it would move and writes nothing. Turned on only in the
+      # Render dashboard after M3.1 (the notice that explains a moved step) is live; it is
+      # also the kill switch. Only the exact string "true" turns writes on.
+      - key: MISSED_SESSIONS_CARRY_ENABLED
+        value: "false"
       # Lemon Squeezy stays in Test Mode until live onboarding is complete.
       # Paste the matching test-mode values from backend/.env when Render prompts
       # during Blueprint creation; never commit their values.

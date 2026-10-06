@@ -151,7 +151,10 @@ describe('POST /api/goal/reconcile (missed sessions M1.3)', () => {
     given(goal(tasks), addis('2026-09-24', '00:40'));
     const before = await reconcile();
     expect(before.status).toBe(200);
-    expect(before.body).toEqual({
+    // M2.2 adds `carry`; every field that was there before is unchanged.
+    const { carry, ...existing } = before.body;
+    expect(carry).toMatchObject({ enabled: false, carries: [], held: [], alreadyCarried: [], written: [] });
+    expect(existing).toEqual({
       applies: true,
       goalId: 'goal-v2',
       asOf: '2026-09-23T21:40:00.000Z',

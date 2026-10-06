@@ -79,6 +79,8 @@ LLM providers: `lib/ai/gemini.ts` holds the cascade, **Gemini first, then Groq**
 
 Plan v2 (`lib/planV2.ts`, `ai/weekPlan.ts`, `ai/roadmap.ts`, spec in `docs/architecture/plan-v2.md`): weekly targets that adapt. Each week the user logs a weekly test (`POST /api/goal/weeks/:weekNumber/review`), the remaining targets are updated, and the next week is written. New goals are flagged `planVersion: 2`; older goals must keep working on the old code path.
 
+Missed sessions (`lib/missedSessions.ts`, `lib/carryForward.ts`, `POST /api/goal/reconcile`): carry-forward writes happen only when `MISSED_SESSIONS_CARRY_ENABLED` is exactly `true`. It is `"false"` in `render.yaml` and stays off until the notice that explains a moved step is live (ND-15); never turn it on from code or tests.
+
 Billing (`lib/billing/`, `config/billing.ts`): Lemon Squeezy, test mode by default, selected by `LEMON_SQUEEZY_ENVIRONMENT` with separate `_TEST_` / `_LIVE_` variables. Custom (non-preset) goals are a Pro entitlement (`goalAuthorization.ts`, `entitlement.ts`). Webhooks are deduplicated through `WebhookEvent`.
 
 Dates use IANA time zones via `lib/timezone.ts`; don't split dates in naive UTC.
