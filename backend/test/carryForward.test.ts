@@ -360,3 +360,17 @@ describe('invariants over generated weeks', () => {
     expect(carriesSeen).toBeGreaterThan(50);
   });
 });
+
+describe('planCarries: swapped days (ND-18, M2.4)', () => {
+  it('treats the source and the holder of a swappedFrom marker as handled: no carry, no hold, no drop', () => {
+    // Tue (a key session) was swapped with Wed: each day now holds the other's steps, marked.
+    const tueSteps = practiceSteps('wed').map((s) => ({ ...s, swappedFrom: { taskId: 'w1-wed', date: '2026-09-23' } }));
+    const wedSteps = practiceSteps('tue').map((s) => ({ ...s, swappedFrom: { taskId: 'w1-tue', date: '2026-09-22' } }));
+    const plan = planCarries(
+      week({ mon: { kind: 'done' }, tue: { kind: 'missed', key: true, steps: tueSteps }, wed: { kind: 'missed', steps: wedSteps } }, { today: '2026-09-24' })
+    );
+    const mentioned = [...plan.carries.map((c) => c.fromTaskId), ...plan.drops.map((d) => d.taskId), ...plan.held.map((h) => h.taskId)];
+    expect(mentioned).not.toContain('w1-tue');
+    expect(mentioned).not.toContain('w1-wed');
+  });
+});

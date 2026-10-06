@@ -155,14 +155,14 @@ export function buildSignals(input: SignalInput): MissedSignals {
   const today = ordered.find((day) => day.date === input.today) ?? null;
   const todayOpenPractice = today !== null && today.kind === 'planned';
 
-  // Carried: stored carries, from the missed day's close until the receiving day closes.
+  // Carried: stored carries, from the moment they are stored until the receiving day closes (ND-18).
   const stored: Array<CarriedEarlier | PlannedCarry> = [...input.written, ...input.plan.alreadyCarried];
   const seen = new Set<string>();
   const carried: CarriedSignal[] = [];
   for (const move of stored) {
     if (seen.has(move.fromTaskId)) continue;
     seen.add(move.fromTaskId);
-    if (nowMs < closeOf(move.fromDate) || nowMs >= closeOf(move.toDate)) continue;
+    if (nowMs >= closeOf(move.toDate)) continue;
     carried.push({ fromDate: move.fromDate, fromTaskId: move.fromTaskId, toDate: move.toDate, toTaskId: move.toTaskId, stepTitle: move.step.title });
   }
 
