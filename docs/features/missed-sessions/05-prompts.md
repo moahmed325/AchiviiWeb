@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 1.5 | **Date:** 2026-10-07 (M2.0 prompt drafted)
+**Version:** 1.6 | **Date:** 2026-10-07 (M2.1 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -489,3 +489,75 @@ The column exists in the schema and in exactly one new migration; a minimum-vers
 
 ### STOP IF
 Another path completes the minimum version; the migration would need anything beyond adding this one column (a backfill, a rename, an index); generating or checking it seems to need a database connection; the migration history does not match `schema.prisma` at HEAD (drift); or any requirement would change what a user sees. Report instead of working around it.
+
+---
+
+## M2.1 — High-Load Step Flag (ND-5)
+
+### STATUS
+READY (drafted 2026-10-07). Depends on M2.0 (complete).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P2/M2.1. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+RULE-10 and AC-13: a high-load step (running, strength) is dropped, never carried, so a missed day can never stack physical load onto another day. M2.2's carry-forward needs to know which steps are high-load. OD-5 and ND-5 decided two sources: goal-level for the `run10k` and `recomp` presets (every step counts as high-load), and a per-step `highLoad` flag written by the week call for custom goals. M2.1 records and exposes the flag; it moves nothing.
+
+Repository facts (verify, do not trust this prompt):
+- Plan v2 steps are model-written for presets too (M1.1 R11), so the preset prose files are not the source. They are written only by `generateWeekPlan` (`backend/src/lib/ai/weekPlan.ts`), called from goal create (`backend/src/routes/goal.ts`, about line 351) and `writeNextWeek` (`backend/src/lib/planV2.ts`). If the first week call fails, goal create falls back to a v1 plan; v1 is out of scope (AC-14).
+- The model's step shape is `WEEK_RESPONSE_SCHEMA` (`stepProperties` plus `priority` and `timing`); the step rules are in `buildWeekPrompt`'s "Each step has:" list; `toStep` and `checkWeekAnswer` normalize the answer into `DetailedStep` (`backend/src/lib/ai/goalDecomposer.ts`). Steps are stored as JSON in `DailyTask.detailedSteps`, so a new step field needs **no migration**. `minimumVersion` is a separate step object, and the test step is added by code (`testStepFor`, priority 0).
+- Goals do not store which preset they came from. The app identifies a preset from the goal text: `findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome)` (`backend/src/lib/ai/presets/index.ts`), as goal create and `goalDecomposer.ts` already do. Preset ids: `book, chess, deepwork, guitar, recomp, run10k, saas, spanish, speech, youtube`. M1.1 found only `run10k` and `recomp` to be physical.
+- Existing `run10k` and `recomp` goals already have stored steps without any flag.
+- `backend/test/weekPlan.test.ts` mocks the model (`generateStructuredContent`) and tests `checkWeekAnswer` and `buildWeekPrompt`.
+
+### OBJECTIVE
+Every plan v2 step written from now on carries an honest `highLoad` boolean, and one pure function answers "is this step high-load?" for any goal, including goals written before this milestone, so M2.2 can drop instead of carry.
+
+### READ FIRST
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-5), section 3 (rules; 3.3 rules live in code, 3.8 preservation), P2 (7.1-7.10), M2.1.
+- docs/features/missed-sessions/03-feature.md: RULE-10, AC-13, OD-5, section 10 (edge case on high-load steps).
+- docs/features/missed-sessions/milestones/m1.1-repository-verification.md (R3, R11).
+
+### INSPECT FIRST
+- `backend/src/lib/ai/weekPlan.ts`: `WEEK_RESPONSE_SCHEMA`, `buildWeekPrompt`, `RawStep`, `toStep`, `rankSteps`, `keepTopSteps`, `testStepFor`, `checkWeekAnswer` (including how `minimumVersion` is built), `WeekCallInput`.
+- `backend/src/lib/ai/goalDecomposer.ts` (`DetailedStep`), `backend/src/lib/ai/presets/index.ts` and `presets/run10k.ts`, `presets/recomp.ts` (their `id` and matching patterns).
+- Both `generateWeekPlan` callers and what goal fields they have (`rawGoal`, `clarifiedOutcome`).
+- `backend/test/weekPlan.test.ts` and any test that snapshots the week schema or prompt.
+
+### REQUIREMENTS
+R1. **Step type.** Add optional `highLoad?: boolean` to `DetailedStep`, with a one-line comment (ND-5: physical strain; dropped, never carried).
+
+R2. **Model flag (custom goals).** Add `highLoad: { type: 'boolean' }` to the step schema for practice steps and make it required there, and add one line to the "Each step has:" list in `buildWeekPrompt`, for example: "highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false". Do not change any other prompt wording, the system prompt, or the day/rest/test rules (section 7.4: no prompt changes beyond adding the flag).
+
+R3. **Normalization.** `toStep` keeps `highLoad` only when the model sent a real boolean; anything else becomes `false`. A missing flag never fails the answer or triggers a retry. Rest-day light steps and `minimumVersion` follow the same rule.
+
+R4. **Goal-level flag (presets).** Add `highLoadGoal?: boolean` to `WeekCallInput`. When it is true, `checkWeekAnswer` sets `highLoad: true` on every step of every practice day, the code-added test step and `minimumVersion`, whatever the model said. Both callers set it from one shared pure helper, `isHighLoadGoal({ rawGoal, clarifiedOutcome })`, true exactly when `findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome)` is `run10k` or `recomp`. Keep the list of high-load preset ids in one exported constant.
+
+R5. **One reader for M2.2.** Export a pure `isHighLoadStep(step, goal)` (place it with the helper, for example in a small new module such as `backend/src/lib/highLoad.ts`): true when `isHighLoadGoal(goal)` is true, or when `step.highLoad === true`; false otherwise. This makes existing `run10k`/`recomp` goals safe even though their stored steps have no flag. Steps of custom goals written before M2.1 have no flag and count as normal, as the roadmap says.
+
+R6. **No movement, no schema change.** Nothing reads the flag yet except `isHighLoadStep` and its tests. No migration (the field lives in JSON), no route change, no frontend change (the frontend `DetailedStep` type is updated in P3), no change to v1 or preset prose files.
+
+R7. **Tests** (extend `backend/test/weekPlan.test.ts`; new file for the helper, for example `backend/test/highLoad.test.ts`):
+- The schema requires `highLoad` on practice steps; the prompt contains the one new line and is otherwise unchanged (compare against the previous prompt text for a fixed input).
+- `checkWeekAnswer`: the model's `true`/`false` is kept; a missing or non-boolean value becomes `false` without a retry; with `highLoadGoal: true`, every practice step, the test step and `minimumVersion` are `true` even when the model said `false`.
+- `isHighLoadGoal`: a `run10k` goal by `rawGoal`, a `recomp` goal by `clarifiedOutcome` only, a non-physical preset (`guitar`), a custom goal, and empty text.
+- `isHighLoadStep`: a stored step without the flag on a `run10k` goal is high-load; on a custom goal it is not; `highLoad: true` on a custom goal is high-load.
+- Both callers pass `highLoadGoal` (assert on the input given to the mocked week call, or test the helper they call).
+
+### OUT OF SCOPE
+Carry-forward and drop (M2.2); counting rules and signals (M2.3); mark missed and swap (M2.4); storing a preset id on `Goal` or any schema change; changing preset prose or v1 plans; backfilling flags into stored steps; any frontend, UI or copy change; any other prompt change.
+
+### REGRESSION CHECKS
+R-6 (week plan generation: existing `weekPlan.ts` rules and tests still pass), R-7 (old goals: v1 untouched), R-8 (presets still generate and load). Baseline (04-phases.md, P2 on, plus M2.0): backend `npx vitest run` 42 files / 377 tests pass; backend and frontend `npx tsc --noEmit` pass (use each package's own TypeScript, `node_modules/.bin/tsc`, if `npx` fetches a different version); frontend lint 0 errors, 2 warnings; frontend `npx vitest run` 425 tests, 0 failures; frontend `npm run build` passes. No test needs a database or the network.
+
+### VALIDATION
+Repository commands only: the new and changed test files first, then backend `npx vitest run` and `npx tsc --noEmit`. Run the frontend checks once to confirm nothing changed there.
+
+### DELIVERABLE
+The type, schema, prompt line, normalization, goal-level stamping, the shared helpers, tests for R7, and a report at `docs/features/missed-sessions/milestones/m2.1-high-load-flag.md`: files changed, the exact prompt line added, evidence for R1-R7, commands and results against the baseline, and carry-overs for M2.2 (call `isHighLoadStep`, never read `step.highLoad` directly). Do not commit or push.
+
+### DONE
+New plan v2 steps carry `highLoad` (true for every step of `run10k`/`recomp` goals, the model's honest answer otherwise); `isHighLoadStep` gives the right answer for old and new goals; nothing moves; no schema, route, UI or prose change; validation is at the baseline or better.
+
+### STOP IF
+Steps reach the database through a path other than `generateWeekPlan` for plan v2; making `highLoad` required makes the existing week tests or a live-shaped fixture fail in a way that needs other prompt changes; another preset turns out to be physical (list it and ask); identifying the preset needs a stored preset id; or any requirement would change what a user sees. Report instead of working around it.

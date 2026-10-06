@@ -422,4 +422,4 @@ The Implementation Prompt consumes **one milestone** from this file, the approve
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1 and M2.0 COMPLETE; M2.1 PROMPT TO BE DRAFTED
+**Status:** P1 and M2.0 COMPLETE; M2.1 PROMPT READY
