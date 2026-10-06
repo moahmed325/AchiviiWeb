@@ -651,7 +651,7 @@ A rule above conflicts with the Feature Definition or 04-phases.md as written; t
 ## M2.3 — Counting Rules and Signals
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on M2.2 (complete; carry writes switched off).
+COMPLETE (2026-10-07, commit `8966b75`). Report: `docs/features/missed-sessions/milestones/m2.3-counting-and-signals.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.3. Implement only this milestone. Follow the operating contract in section 0.
