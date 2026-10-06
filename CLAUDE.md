@@ -42,7 +42,7 @@ Frontend (`cd frontend`):
 ```bash
 npm test                                 # vitest + Testing Library in jsdom (src/**/*.test.{ts,tsx})
 npx vitest run src/components/ui/Button.test.tsx
-npm run lint                             # whole frontend; has a known pre-existing error baseline
+npm run lint                             # whole frontend; baseline is 0 errors, 2 warnings
 npx eslint <changed files>               # files you touch must be lint-clean
 npm run build                            # tsc && vite build
 npx playwright test                      # e2e/*.spec.ts, API mocked via e2e/mockApi.ts; starts Vite itself
