@@ -421,7 +421,7 @@ The user's timezone cannot be reliably obtained on the frontend; making new-goal
 ## M2.0 — `usedMinimumVersion` Migration (ND-3)
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on P1 (complete). This is the only schema migration in the feature.
+COMPLETE (2026-10-07, commit `1d219aa`). Report: `docs/features/missed-sessions/milestones/m2.0-used-minimum-version.md`. This is the only schema migration in the feature.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.0. Implement only this milestone. Follow the operating contract in section 0, including its stop condition on schema changes: this milestone **is** the one recorded schema decision (ND-3), and no other schema change is allowed.
