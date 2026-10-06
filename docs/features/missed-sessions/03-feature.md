@@ -1,6 +1,6 @@
 # Achivii Missed Sessions — FEATURE DEFINITION
 
-**Status:** IMPLEMENTATION IN PROGRESS (M1.1, M1.1b and M1.2 complete, M1.3 next)
+**Status:** IMPLEMENTATION IN PROGRESS (P1 Miss Recognition complete; P2 next)
 **Version:** 1.1 (updated 2026-10-03 with M1.1 findings and ND-1 to ND-7 decisions)
 **Date:** 2026-10-03
 **Builds on:** docs/architecture/plan-v2.md (Missed sessions, Week call, Weekly update), docs/product/redesign-blueprint.md (sections 18-19, Encouraging Intelligence / Adaptive System)

@@ -16,6 +16,7 @@ vi.mock('../../lib/api', async (importOriginal) => {
     fetchHealthCheck: vi.fn(),
     fetchCurrentUser: vi.fn(),
     fetchActiveGoal: vi.fn(),
+    reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
     resetActiveGoal: vi.fn(),
   };
 });

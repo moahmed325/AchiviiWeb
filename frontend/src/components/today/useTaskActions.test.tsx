@@ -9,7 +9,7 @@ import { useTaskActions } from './useTaskActions';
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
-  return { ...actual, fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), updateDailyTask: vi.fn() };
+  return { ...actual, fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }), updateDailyTask: vi.fn() };
 });
 
 const mocked = vi.mocked(api);

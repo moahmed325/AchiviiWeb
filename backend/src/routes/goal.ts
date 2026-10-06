@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import { normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
+import { buildReconcileResult } from '../lib/missedSessions.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import {
   clarifyGoalWithAI,
@@ -495,6 +496,55 @@ goalRouter.get('/active', async (req: Request, res: Response): Promise<void> => 
  * Transitions the user's active goal to 'completed' status, records completedAt timestamp,
  * and preserves the completed journey (OD-1b Option B).
  */
+// POST /api/goal/reconcile
+// Missed sessions (ND-6): called once when the app loads, before the goal is fetched. In P1 it only reports
+// the derived classification (ND-2) and the open gap for the active plan v2 goal, and writes nothing.
+goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+
+    const goal = await prisma.goal.findFirst({
+      where: { userId: user.id, status: 'active' },
+      select: {
+        id: true,
+        planVersion: true,
+        routine: true,
+        dailyTasks: {
+          select: {
+            id: true,
+            date: true,
+            weekNumber: true,
+            dayNumber: true,
+            status: true,
+            isRestDay: true,
+            isKeySession: true,
+            isTestDay: true,
+          },
+          orderBy: { dayNumber: 'asc' },
+        },
+      },
+    });
+
+    const result = buildReconcileResult(goal, {
+      now: new Date(),
+      timezone: user.timezone,
+      sleepTime: goal ? readRoutine(goal).sleepTime : undefined,
+    });
+
+    // P2 applies carry-forward here, from `result.days`, before responding. It must stay idempotent
+    // (04-phases.md 3.4): running reconcile again must never carry a step twice.
+
+    res.json(result);
+  } catch (err: any) {
+    console.error('[GoalRouter] Reconcile error:', err);
+    res.status(500).json({ error: 'Failed to reconcile goal.' });
+  }
+});
+
 goalRouter.post('/complete', async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await getAuthUser(req);

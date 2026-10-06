@@ -149,3 +149,28 @@ export function findOpenGap(days: readonly DayClassification[]): Gap | null {
     taskIds: run.map((d) => d.taskId),
   };
 }
+
+/** What `POST /api/goal/reconcile` returns (M1.3). Data for P2 and P3: no copy, no labels. */
+export type ReconcileResult =
+  | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' }
+  | { applies: true; goalId: string; asOf: string; timezone: string; days: DayClassification[]; gap: Gap | null };
+
+/**
+ * The reconcile response for the user's active goal (or null when there is none), at `now`.
+ * Only plan v2 goals are classified; old goals get `applies: false` and nothing else (AC-14).
+ * Days come back in date order, then day number.
+ */
+export function buildReconcileResult(
+  goal: { id: string; planVersion: number; dailyTasks: readonly ClassifiableTask[] } | null,
+  context: { now: Date; timezone?: unknown; sleepTime?: unknown }
+): ReconcileResult {
+  if (!goal) return { applies: false, reason: 'no_active_goal' };
+  if (goal.planVersion !== 2) return { applies: false, reason: 'not_plan_v2' };
+
+  const timezone = normalizeTimezone(context.timezone);
+  const ordered = [...goal.dailyTasks].sort((a, b) =>
+    a.date === b.date ? a.dayNumber - b.dayNumber : a.date < b.date ? -1 : 1
+  );
+  const days = classifyDays(ordered, { now: context.now, timezone, sleepTime: context.sleepTime });
+  return { applies: true, goalId: goal.id, asOf: context.now.toISOString(), timezone, days, gap: findOpenGap(days) };
+}

@@ -279,7 +279,7 @@ The repository shows per-step completion data after all (then R5 needs a decisio
 ## M1.3 — Reconcile Endpoint
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on M1.2 (complete, commit `a108343`).
+COMPLETE (2026-10-07). Report: `docs/features/missed-sessions/milestones/m1.3-reconcile-endpoint.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P1/M1.3. Implement only this milestone. Follow the operating contract in section 0.

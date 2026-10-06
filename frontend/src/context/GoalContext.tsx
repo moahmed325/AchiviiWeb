@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Goal, GoalCompletionPayload } from '../types';
-import { fetchActiveGoal, resetActiveGoal as apiResetGoal, completeGoal as apiCompleteGoal, fetchHealthCheck } from '../lib/api';
+import { fetchActiveGoal, reconcileGoal, resetActiveGoal as apiResetGoal, completeGoal as apiCompleteGoal, fetchHealthCheck } from '../lib/api';
 import { useAuth } from './AuthContext';
 
 interface GoalContextType {
@@ -51,6 +51,13 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setLoadingGoal(true);
+    // Missed sessions (ND-6): reconcile once per load, before the goal is fetched, so the goal reflects it.
+    // A failure here never stops the goal from loading.
+    try {
+      await reconcileGoal(token);
+    } catch (err) {
+      console.warn('Failed to reconcile goal:', err);
+    }
     try {
       const goal = await fetchActiveGoal(token);
       setActiveGoal(goal);
