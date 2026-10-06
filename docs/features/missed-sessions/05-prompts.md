@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 1.4 | **Date:** 2026-10-07 (M1.3 prompt drafted)
+**Version:** 1.5 | **Date:** 2026-10-07 (M2.0 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -413,3 +413,79 @@ Code and tests for R1-R7, plus a short report: files changed, how each requireme
 
 ### STOP IF
 The user's timezone cannot be reliably obtained on the frontend; making new-goal dates local would break the week layout or the review-due logic for existing goals in a way that hides or duplicates tasks; a schema change appears necessary; or the work needs to expand into day-close or missed classification. Report instead of working around it.
+
+---
+
+# 2 — P2 RECOVERY RULES
+
+## M2.0 — `usedMinimumVersion` Migration (ND-3)
+
+### STATUS
+READY (drafted 2026-10-07). Depends on P1 (complete). This is the only schema migration in the feature.
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P2/M2.0. Implement only this milestone. Follow the operating contract in section 0, including its stop condition on schema changes: this milestone **is** the one recorded schema decision (ND-3), and no other schema change is allowed.
+
+### CONTEXT
+OD-2: the 10-minute version counts as a done session, but a key session done only through it is not "key done". M1.1 R10 found that completing the minimum version is stored exactly like a full session (`status: 'completed'`), so the two cannot be told apart. ND-3 adds one column to record it. M2.0 only **records** the flag; M2.3 will use it in the counting rules.
+
+Repository facts (verify, do not trust this prompt):
+- `DailyTask` is in `backend/prisma/schema.prisma` (table `daily_tasks`, camelCase quoted columns). The datasource is PostgreSQL.
+- Migrations are versioned folders in `backend/prisma/migrations/` (`YYYYMMDDHHMMSS_name/migration.sql`); `20260927071946_add_weekly_test_result` is a one-column example. `render.yaml` runs `npx prisma migrate deploy` on every deploy, so **any migration merged to `main` is applied to the deployed database on the next deploy**.
+- `backend/.env` points at a hosted Supabase database that has not been confirmed as development-only.
+- The only path that completes the minimum version: Focus mode's "Complete minimum" (`FocusStepRunner.tsx`, state `isMinimumVersion` in `FocusSessionModal.tsx`) → `onCompleteSession(reflection)` → `Today.tsx` `onFinishFocus` → `useTaskActions.finishFocus` → `updateDailyTask` (`frontend/src/lib/api.ts`) → `PATCH /api/goal/tasks/:taskId` (`backend/src/routes/goal.ts`). The flag is dropped at the first step.
+- That route accepts only `status`, `notes` and `slotTime`, sets `completedAt` on `completed` and clears it on `pending`. No test covers it yet.
+- Today also shows the minimum version's content behind a reveal button, but completing from Today uses the normal Complete action (`toggleComplete`), which is a full completion.
+
+### OBJECTIVE
+Add `DailyTask.usedMinimumVersion` and set it correctly whenever a task's completion changes, so M2.3 can apply OD-2 from stored data.
+
+### READ FIRST
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-3, and the validation baseline from P2 on), section 3 (rules), P2 (7.1-7.10), M2.0.
+- docs/features/missed-sessions/03-feature.md: OD-2, RULE-4, AC-7.
+- docs/features/missed-sessions/milestones/m1.1-repository-verification.md (R2, R10).
+
+### INSPECT FIRST
+- `backend/prisma/schema.prisma` (`DailyTask`) and two or three existing migrations.
+- `backend/src/routes/goal.ts` `PATCH /tasks/:taskId`, and every other place that writes `status` or creates `DailyTask` rows (`planV2.ts` `saveWeekTasks`, goal create, weekly review).
+- `frontend/src/components/FocusSessionModal.tsx`, `focus/FocusStepRunner.tsx`, `focus/FocusCompletion.tsx`, `today/Today.tsx` (`onFinishFocus`), `today/useTaskActions.ts`, `lib/api.ts` (`updateDailyTask`), `types/index.ts` (`DailyTask`).
+- The tests for those files, and `backend/test/goalCompletion.test.ts` for the HTTP route-test pattern.
+
+### REQUIREMENTS
+R1. **Schema.** Add `usedMinimumVersion Boolean @default(false)` to `DailyTask`, with a short comment pointing to ND-3. Nothing else in the schema changes.
+
+R2. **Migration file, not applied.** Create one migration folder, timestamped after the latest existing one and named for example `add_daily_task_used_minimum_version`, whose SQL only adds the column: `ALTER TABLE "daily_tasks" ADD COLUMN "usedMinimumVersion" BOOLEAN NOT NULL DEFAULT false;`. Generate or check it without a database, for example with `npx prisma migrate diff --from-schema-datamodel <schema at HEAD> --to-schema-datamodel prisma/schema.prisma --script`. **Do not run `prisma migrate dev`, `migrate deploy`, `migrate reset` or `db push`, and do not connect to any database.** Run `npx prisma generate` so the client types include the column (it does not touch a database). Existing rows get `false` from the default when the migration is applied later.
+
+R3. **Server rule (`PATCH /tasks/:taskId`).** Accept an optional boolean `usedMinimumVersion`; reject a non-boolean with 400. The stored flag follows the completion it describes:
+- `status: 'completed'` sets the flag to the given value, or `false` when it is omitted (a normal completion is a full session).
+- `status: 'pending'` (un-completing) sets it to `false`.
+- A request without `status` (a note or slot change) leaves it unchanged, and `usedMinimumVersion` sent without `status: 'completed'` is ignored.
+- `true` is stored only when the task has a `minimumVersion`; otherwise `false`. Old goals have no minimum version, so nothing changes for them (AC-14).
+The response returns the updated task, now including the flag.
+
+R4. **No other writer changes.** Rows created by week generation, goal create or the weekly review get the column default. Do not change those paths.
+
+R5. **Frontend wiring.** `FocusSessionModal` passes whether the minimum version was completed through `onCompleteSession` (for example a second argument `{ usedMinimumVersion: boolean }`; keep existing callers working). `Today.onFinishFocus` hands it to `useTaskActions.finishFocus`, which sends `usedMinimumVersion: true` with `status: 'completed'` only for a minimum completion. `toggleComplete` and every other completion stay full completions (no flag sent, so the server stores `false`). Add `usedMinimumVersion?: boolean` to the frontend `DailyTask` type and to `updateDailyTask`'s update shape. No visible change: same screens, same copy ("Minimum complete" stays as it is).
+
+R6. **Tests.**
+- Backend, HTTP-level in the `goalCompletion.test.ts` pattern (new file, for example `backend/test/taskUpdate.test.ts`): completed with `true` on a task with a minimum version → `true`; completed with no flag → `false`; completed with `true` on a task without a minimum version → `false`; back to pending → `false` and `completedAt` cleared; a notes-only update leaves the flag as it was; a non-boolean flag → 400; another user's task → 404 as today; `completedAt` behavior otherwise unchanged.
+- Frontend: Focus "Complete minimum" sends `usedMinimumVersion: true` with `status: 'completed'`; a full Focus completion and Today's Complete button send no flag; un-completing sends `status: 'pending'`.
+- Evidence that the migration SQL adds exactly that one column (a small test that reads the file, or the `migrate diff` output recorded in the report).
+
+### OUT OF SCOPE
+Using the flag anywhere (OD-2 counting, key-done, weekly review: M2.3); the high-load flag (M2.1); carry-forward (M2.2); mark missed and swap (M2.4); any UI or copy change; applying the migration to any database; any other schema change; backfilling old rows.
+
+### REGRESSION CHECKS
+R-2 (task completion still works and persists), R-4 (focus session and the 10-minute version still usable), R-7 (old goals unchanged). Baseline (04-phases.md, from P2 on): backend `npx vitest run` 41 files / 361 tests pass; backend and frontend `tsc --noEmit` pass; frontend lint 0 errors, 2 warnings; frontend `npx vitest run` 419 tests, 0 failures; frontend `npm run build` passes. No test in either suite needs a database.
+
+### VALIDATION
+Repository commands only: `npx prisma generate`; the new and changed test files first; then backend `npx vitest run` and `npx tsc --noEmit`, frontend `npx vitest run`, `npx tsc --noEmit`, `npm run lint`, `npm run build`.
+
+### DELIVERABLE
+The schema change, one migration folder, the PATCH rule, the frontend wiring, tests for R6, and a report at `docs/features/missed-sessions/milestones/m2.0-used-minimum-version.md`: files changed, the migration SQL, evidence for R1-R6, commands and results against the baseline, and a clear note that the migration is **not applied** and will be applied by `prisma migrate deploy` on the next Render deploy of `main`. Do not commit or push.
+
+### DONE
+The column exists in the schema and in exactly one new migration; a minimum-version completion from Focus mode stores `true`, every other completion stores `false`, un-completing clears it, other updates leave it alone; nothing visible changed; no database was touched; validation is at the baseline or better.
+
+### STOP IF
+Another path completes the minimum version; the migration would need anything beyond adding this one column (a backfill, a rename, an index); generating or checking it seems to need a database connection; the migration history does not match `schema.prisma` at HEAD (drift); or any requirement would change what a user sees. Report instead of working around it.
