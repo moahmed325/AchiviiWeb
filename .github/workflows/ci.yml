@@ -21,10 +21,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: oven-sh/setup-bun@v2
-      - name: Install (workspaces, locked)
-        run: bun install --frozen-lockfile
-      # Package scripts use the locked binaries; a bare npx could download a newer TypeScript or Vitest.
+      # Install exactly as Render does (render.yaml buildCommand), so CI tests what ships.
+      - name: Install (as Render)
+        working-directory: backend
+        run: npm install --include=dev
+      # Package scripts use the installed binaries; a bare npx could download a newer TypeScript or Vitest.
       - name: Tool versions
         working-directory: backend
         run: npm exec --no -- tsc --version && npm exec --no -- vitest --version
@@ -46,9 +47,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: oven-sh/setup-bun@v2
-      - name: Install (workspaces, locked)
-        run: bun install --frozen-lockfile
+      # Install exactly as Vercel does (vercel.json installCommand), so CI tests what ships.
+      - name: Install (as Vercel)
+        working-directory: frontend
+        run: npm install
       - name: Tool versions
         working-directory: frontend
         run: npm exec --no -- tsc --version && npm exec --no -- vitest --version
