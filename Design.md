@@ -2,7 +2,7 @@
 
 Read this file before writing any frontend code, component or layout. It is the implementation rulebook: the tokens, the primitives, and the mobile, touch, scroll and accessibility rules every screen follows.
 
-**Precedence.** The visual direction lives in [`docs/architecture/visual-design-system.md`](docs/architecture/visual-design-system.md) (the VDS). If this file and the VDS ever disagree, **the VDS wins** and this file is corrected. Product and screen decisions live in [`docs/architecture/redesign-blueprint.md`](docs/architecture/redesign-blueprint.md) and [`docs/process/decisions.md`](docs/process/decisions.md).
+**Precedence.** The visual direction lives in [`docs/product/visual-design-system.md`](docs/product/visual-design-system.md) (the VDS). If this file and the VDS ever disagree, **the VDS wins** and this file is corrected. Product and screen decisions live in [`docs/product/redesign-blueprint.md`](docs/product/redesign-blueprint.md) and [`docs/decisions.md`](docs/decisions.md).
 
 **Where things are.**
 

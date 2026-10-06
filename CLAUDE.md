@@ -103,8 +103,3 @@ Backend is ESM with `NodeNext` resolution, so relative imports need the `.js` ex
 ## Docs
 
 `docs/README.md` explains the layout and rules. When docs disagree, trust in this order: `docs/product/redesign-blueprint.md` (product), `docs/product/visual-design-system.md` (visual), `docs/decisions.md`, the feature's `04-phases.md`, then code (authoritative for what is actually built). Each feature has one folder under `docs/features/<name>/` with fixed numbered files (`01-problem.md` ... `05-prompts.md`); finished features move to `docs/archive/`. Decisions are appended to `docs/decisions.md`; only the "Decision" line of an entry is binding.
-
-## Known stale spots
-
-- `README.md` still describes Groq as primary and lists files that no longer exist (`ExecutionDashboard.tsx`, `AuthModal.tsx`, `prisma/seed.ts`). `npm run db:seed` and `migrate:backfill` point at missing files.
-- `Design.md` links to `docs/architecture/visual-design-system.md` and `docs/process/decisions.md`; the real paths are `docs/product/visual-design-system.md` and `docs/decisions.md`.
