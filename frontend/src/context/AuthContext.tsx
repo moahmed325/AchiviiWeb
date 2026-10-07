@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { User } from '../types';
 import { fetchCurrentUser } from '../lib/api';
 import { supabase } from '../lib/supabase';
+import { fromSupabaseAuthError } from '../lib/authFlow';
 
 interface AuthContextType {
   user: User | null;
@@ -78,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     if (!supabase) throw new Error('Supabase Auth is not configured.');
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw new Error(error.message);
+    if (error) throw fromSupabaseAuthError(error);
     if (!data.session) throw new Error('No active session was returned. Please try again.');
 
     const accessToken = data.session.access_token;
@@ -98,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emailRedirectTo: window.location.origin,
       },
     });
-    if (error) throw new Error(error.message);
+    if (error) throw fromSupabaseAuthError(error);
     if (!data.session) {
       throw new Error('Account created. Check your email to confirm your account, then sign in.');
     }

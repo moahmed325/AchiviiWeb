@@ -1,3 +1,4 @@
+import { isAuthError } from '@supabase/supabase-js';
 import { ApiError } from './api';
 import type { CertifiedPathway } from './certifiedPresets';
 
@@ -94,6 +95,25 @@ export function describeAuthError(error: unknown): AuthErrorDescription {
     return { kind: 'server', message: error.message };
   }
   return { kind: 'server', message: 'Something went wrong on our side. Please try again in a moment.' };
+}
+
+/**
+ * A Supabase Auth error, translated into what `describeAuthError` understands. Supabase reports a wrong password,
+ * a taken email and a lost connection with its own codes and wording; without this they all reached the screen as
+ * Supabase's raw message (for example "Invalid login credentials").
+ */
+export function fromSupabaseAuthError(error: unknown): Error {
+  if (!isAuthError(error)) return error instanceof Error ? error : new Error(String(error));
+  // supabase-js reports a request that never reached the server as status 0. It also reports 5xx answers as
+  // AuthRetryableFetchError, but with their status, so the status decides, not the class.
+  if (error.status === 0) return new TypeError(error.message || 'Failed to fetch');
+  if (error.code === 'invalid_credentials') return new ApiError('Invalid email or password.', 401);
+  if (error.code === 'user_already_exists' || error.code === 'email_exists') {
+    return new ApiError('An account with this email already exists.', 409);
+  }
+  if ((error.status ?? 0) >= 500) return new Error('Something went wrong on our side. Please try again in a moment.');
+  // Anything else (a weak password, an unconfirmed email) is the user's to fix, in Supabase's own words.
+  return new ApiError(error.message, 400);
 }
 
 export const PASSWORD_MIN_LENGTH = 6;

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { AuthApiError, AuthRetryableFetchError, AuthWeakPasswordError } from '@supabase/supabase-js';
 import { ApiError } from './api';
 import { findPathwayBySlug } from './certifiedPresets';
 import {
   authSwitchHref,
   describeAuthError,
+  fromSupabaseAuthError,
   resolvePostAuthDestination,
   safeNext,
   validateEmail,
@@ -108,5 +110,45 @@ describe('validation', () => {
     expect(validatePassword('123456', 'signup')).toBeUndefined();
     expect(validatePassword('1', 'login')).toBeUndefined();
     expect(validatePassword('', 'login')).toBe('Enter your password.');
+  });
+});
+
+describe('fromSupabaseAuthError', () => {
+  // Supabase's own error classes, as signInWithPassword and signUp return them.
+  const describeSupabase = (error: unknown) => describeAuthError(fromSupabaseAuthError(error));
+
+  it('explains a wrong password instead of showing "Invalid login credentials"', () => {
+    expect(describeSupabase(new AuthApiError('Invalid login credentials', 400, 'invalid_credentials'))).toEqual({
+      kind: 'credentials',
+      message: "That email and password don't match. Check both and try again.",
+    });
+  });
+
+  it('treats a taken email as a duplicate, so the screen offers sign-in', () => {
+    expect(describeSupabase(new AuthApiError('User already registered', 422, 'user_already_exists')).kind).toBe('duplicate');
+    expect(describeSupabase(new AuthApiError('Email address already in use', 422, 'email_exists')).kind).toBe('duplicate');
+  });
+
+  it('treats an unreachable server as offline', () => {
+    expect(describeSupabase(new AuthRetryableFetchError('Failed to fetch', 0)).kind).toBe('offline');
+  });
+
+  it('hides the details of a server error, including the 5xx answers supabase-js marks as retryable', () => {
+    const server = { kind: 'server', message: 'Something went wrong on our side. Please try again in a moment.' };
+    expect(describeSupabase(new AuthApiError('Database error saving new user', 500, 'unexpected_failure'))).toEqual(server);
+    expect(describeSupabase(new AuthRetryableFetchError('Internal server error', 500))).toEqual(server);
+    expect(describeSupabase(new AuthRetryableFetchError('HTTP 503', 503))).toEqual(server);
+  });
+
+  it("keeps Supabase's wording for something the user can fix", () => {
+    expect(describeSupabase(new AuthWeakPasswordError('Password should be at least 6 characters.', 422, ['length']))).toEqual({
+      kind: 'invalid',
+      message: 'Password should be at least 6 characters.',
+    });
+  });
+
+  it('passes other errors through unchanged', () => {
+    const error = new TypeError('Failed to fetch');
+    expect(fromSupabaseAuthError(error)).toBe(error);
   });
 });
