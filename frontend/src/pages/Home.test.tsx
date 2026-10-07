@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { GoalProvider } from '../context/GoalContext';
 import * as api from '../lib/api';
@@ -15,6 +15,8 @@ vi.mock('../lib/api', async (importOriginal) => {
     fetchHealthCheck: vi.fn(),
     fetchCurrentUser: vi.fn(),
     fetchActiveGoal: vi.fn(),
+    fetchBillingEntitlement: vi.fn(),
+    startProCheckout: vi.fn(),
     reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
   };
 });
@@ -45,6 +47,7 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
     localStorage.setItem('achivii_auth_token', 'test-token');
     mocked.fetchHealthCheck.mockResolvedValue({ status: 'ok', timestamp: new Date().toISOString(), service: 'achivii-api' });
     mocked.fetchCurrentUser.mockResolvedValue(MOCK_USER);
+    mocked.fetchBillingEntitlement.mockResolvedValue({ plan: 'pro', entitled: true });
   });
 
   it('renders dedicated error state when goal loading fails, with working retry', async () => {
@@ -125,5 +128,59 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: 'COMPLETE' })).toBeVisible();
     expect(screen.getByText('You made it.')).toBeVisible();
+  });
+});
+
+describe('Home: a goal of your own is Pro (ND-10, billing OD-3)', () => {
+  const Onboarding = () => <pre data-testid="onboarding-state">{JSON.stringify(useLocation().state)}</pre>;
+
+  const renderHome = () =>
+    render(
+      <AuthProvider>
+        <GoalProvider>
+          <MemoryRouter>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+            </Routes>
+          </MemoryRouter>
+        </GoalProvider>
+      </AuthProvider>,
+    );
+
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem('achivii_auth_token', 'test-token');
+    mocked.fetchHealthCheck.mockResolvedValue({ status: 'ok', timestamp: new Date().toISOString(), service: 'achivii-api' });
+    mocked.fetchCurrentUser.mockResolvedValue(MOCK_USER);
+    mocked.fetchActiveGoal.mockResolvedValue(null as unknown as Goal);
+  });
+
+  it('tells a free user before onboarding, and leaves the pathways free', async () => {
+    mocked.fetchBillingEntitlement.mockResolvedValue({ plan: 'free', entitled: false });
+    renderHome();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Choose a pathway' })).toBeVisible();
+    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
+
+    expect(await screen.findByRole('heading', { name: 'Make the journey yours.' })).toBeVisible();
+    expect(custom).toContainElement(screen.getByRole('button', { name: 'Continue to Pro' }));
+    expect(screen.queryByRole('button', { name: 'Describe my own goal' })).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Choose a direction' })).toBeVisible();
+    expect(screen.queryByTestId('onboarding-state')).not.toBeInTheDocument();
+  });
+
+  it('takes a Pro user straight into onboarding with a custom goal, as before', async () => {
+    const user = userEvent.setup();
+    mocked.fetchBillingEntitlement.mockResolvedValue({ plan: 'pro', entitled: true });
+    renderHome();
+    const describeOwnGoal = await screen.findByRole('button', { name: 'Describe my own goal' });
+    expect(screen.queryByRole('button', { name: 'Continue to Pro' })).not.toBeInTheDocument();
+
+    await user.click(describeOwnGoal);
+    expect(JSON.parse((await screen.findByTestId('onboarding-state')).textContent!)).toEqual({
+      isPreset: false,
+      customGoal: true,
+    });
   });
 });

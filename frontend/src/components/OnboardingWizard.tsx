@@ -176,6 +176,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             generationError={generationError}
             onReviewInputs={() => setStep('review')}
             onRetry={handleGeneratePlan}
+            onChooseGoal={() => setStep('goal')}
           />
         </main>
       </div>

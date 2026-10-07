@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
 import { PathwayCustomGoal, PathwayLibrary, usePathwayLaunch } from '../components/pathways';
+import { CustomGoalGate } from '../components/billing';
 import { Button, Surface } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 import { Today, TodaySkeleton } from '../components/today/Today';
@@ -66,14 +67,17 @@ export const Home: React.FC = () => {
             action={{ label: 'Start this pathway', onChoose: startPathway }}
             customGoal={
               <PathwayCustomGoal className="mt-16">
-                <Button
-                  variant="secondary"
-                  onClick={startCustomGoal}
-                  className="w-full sm:w-auto"
-                  trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
-                >
-                  Describe my own goal
-                </Button>
+                {/* A new custom goal is Pro (ND-10): a free user is told here, before onboarding. */}
+                <CustomGoalGate>
+                  <Button
+                    variant="secondary"
+                    onClick={startCustomGoal}
+                    className="w-full sm:w-auto"
+                    trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                  >
+                    Describe my own goal
+                  </Button>
+                </CustomGoalGate>
               </PathwayCustomGoal>
             }
           />

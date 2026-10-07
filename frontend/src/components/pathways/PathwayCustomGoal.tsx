@@ -30,8 +30,8 @@ const Constellation: React.FC = () => (
 );
 
 /**
- * Premium Custom Journeys container (ND-6, ND-10, VDS §12).
- * Free, available and crafted — never locked, never an afterthought.
+ * Premium Custom Journeys container (ND-6, ND-10, VDS §12). Never an afterthought; a new custom goal is Pro, so each
+ * screen puts `CustomGoalGate` around its way in.
  */
 export const PathwayCustomGoal: React.FC<PathwayCustomGoalProps> = ({ children, className, variant = 'default' }) => {
   const headingId = useId();

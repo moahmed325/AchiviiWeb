@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { startProCheckout } from './api';
+import { ApiError, createGoalPlan, startProCheckout } from './api';
 
 describe('startProCheckout', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
@@ -24,5 +24,18 @@ describe('startProCheckout', () => {
   it('rejects a malformed success response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 })));
     await expect(startProCheckout('token-1', 'monthly')).rejects.toMatchObject({ status: 502 });
+  });
+});
+
+describe('createGoalPlan', () => {
+  beforeEach(() => { vi.restoreAllMocks(); });
+
+  it('keeps the status and code of a custom goal refused without Pro, so onboarding can say so', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: 'Custom Goals require Achivii Pro.', code: 'CUSTOM_GOAL_REQUIRES_PRO',
+    }), { status: 403, headers: { 'content-type': 'application/json' } })));
+    const refusal = createGoalPlan({} as never, 'token-1');
+    await expect(refusal).rejects.toBeInstanceOf(ApiError);
+    await expect(refusal).rejects.toMatchObject({ status: 403, code: 'CUSTOM_GOAL_REQUIRES_PRO', message: 'Custom Goals require Achivii Pro.' });
   });
 });

@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import * as api from '../../lib/api';
 import type { PlanProgressEvent } from '../../lib/api';
 import type { OnboardingError } from './requestErrors';
 import { StepGeneration } from './StepGeneration';
 import { SLOW_AFTER_MS, generationAnnouncement, generationStages, slowCopy } from './generationStages';
+
+vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ token: 'test-token' }) }));
+vi.mock('../../lib/api', () => ({ fetchBillingEntitlement: vi.fn(), startProCheckout: vi.fn() }));
 
 const step = (id: PlanProgressEvent['id'], extra: Partial<PlanProgressEvent> = {}): PlanProgressEvent => ({
   type: 'step',
@@ -312,5 +316,59 @@ describe('generation failures', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText(METHOD)).not.toBeInTheDocument();
     expect(listItem('Choosing your method')).toHaveTextContent('Not started');
+  });
+});
+
+describe('a custom goal refused without Pro', () => {
+  const PRO_REQUIRED: OnboardingError = {
+    kind: 'pro',
+    title: 'Custom Goals require Achivii Pro',
+    message: 'Certified pathways stay free. Pro unlocks creating your own custom 90-day journeys.',
+  };
+  const entitlement = vi.mocked(api.fetchBillingEntitlement);
+
+  it('says so honestly, offers Pro to a free user, and keeps the free pathways one step away', async () => {
+    entitlement.mockResolvedValue({ plan: 'free', entitled: false });
+    const onChooseGoal = vi.fn();
+    const onRetry = vi.fn();
+    render(
+      <StepGeneration
+        planSteps={[]}
+        generationError={PRO_REQUIRED}
+        onReviewInputs={() => {}}
+        onRetry={onRetry}
+        onChooseGoal={onChooseGoal}
+      />,
+    );
+    const alert = screen.getByRole('alert');
+    expect(screen.getByRole('heading', { level: 1, name: 'Custom Goals require Achivii Pro' })).toBeInTheDocument();
+    expect(alert).toHaveTextContent('Certified pathways stay free. Pro unlocks creating your own custom 90-day journeys.');
+    expect(alert).toHaveTextContent('No plan was made, and your current journey, if you have one, is unchanged.');
+    expect(alert).not.toHaveTextContent("We couldn't build your plan");
+
+    const upgrade = await screen.findByRole('button', { name: 'Continue to Pro' });
+    expect(alert).not.toContainElement(upgrade);
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a certified pathway' }));
+    expect(onChooseGoal).toHaveBeenCalledOnce();
+    expect(onRetry).not.toHaveBeenCalled();
+  });
+
+  it('lets a user who is Pro by now build the plan again', async () => {
+    entitlement.mockResolvedValue({ plan: 'pro', entitled: true });
+    const onRetry = vi.fn();
+    render(
+      <StepGeneration
+        planSteps={[]}
+        generationError={PRO_REQUIRED}
+        onReviewInputs={() => {}}
+        onRetry={onRetry}
+        onChooseGoal={() => {}}
+      />,
+    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    expect(onRetry).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('button', { name: 'Continue to Pro' })).not.toBeInTheDocument();
   });
 });

@@ -102,6 +102,13 @@ export interface MockOptions {
    * backend answers without a plan v2 goal, so no spec depends on a failing or held request.
    */
   reconcile?: Record<string, unknown>;
+  /**
+   * The plan `GET /api/billing/entitlement` reports. `pro` by default, so specs written before the custom-goal gate
+   * (ND-10) still reach the custom goal field; `free` shows the Pro gate instead.
+   */
+  plan?: 'free' | 'pro';
+  /** With `clarify`: `/api/goal/create` refuses with the server's 403 for a custom goal without Pro. */
+  createProRequired?: boolean;
 }
 
 export interface TaskUpdate {
@@ -163,6 +170,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     resetStatus = 200,
     taskUpdateStatus,
     reconcile = { applies: false, reason: 'not_plan_v2' },
+    plan = 'pro',
+    createProRequired = false,
   } = options;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
   const saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
@@ -236,6 +245,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     }
 
     if (path === '/api/auth/me') return json(route, 200, { user: USER });
+    if (path === '/api/billing/entitlement') return json(route, 200, { plan, entitled: plan === 'pro' });
     if (path === '/api/goal/active' && route.request().method() === 'DELETE') {
       calls.resets += 1;
       if (resetStatus >= 400) return json(route, resetStatus, { error: 'Failed to reset goal' });
@@ -287,6 +297,10 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
         },
         body: request.postDataJSON(),
       });
+      // As backend/src/routes/goal.ts answers before any plan work (authorizeNewCustomGoal).
+      if (createProRequired) {
+        return json(route, 403, { error: 'Custom Goals require Achivii Pro.', code: 'CUSTOM_GOAL_REQUIRES_PRO' });
+      }
       if (failure === 'offline') return route.abort('connectionrefused');
       if (failure !== undefined) {
         return route.fulfill({
