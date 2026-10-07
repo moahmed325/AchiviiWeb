@@ -761,4 +761,44 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
     expect(loadTestResultDraft('g-1', 1)).toBeNull();
     expect(loadReviewDraft('g-1', 1)).toBe('');
   });
+
+  describe('pre-filled from a result logged earlier (missed sessions M4.1 R3)', () => {
+    const STORED = { value: 'Completed 4 sets', passed: false, note: 'Fourth set rushed' };
+    const response = (testResult: WeeklyReviewResponse['testResult']): WeeklyReviewResponse => ({
+      review: { id: 'r', goalId: 'g-1', weekNumber: 1, tasksPlanned: 6, tasksCompleted: 6, scorePercentage: 100, reflection: '', aiAdaptationInsight: '', created_at: '' },
+      scorePercentage: 100,
+      nextWeekNumber: 2,
+      nextWeekTasks: [],
+      testResult,
+    });
+    const renderModal = (goal: Goal, isOpen = true) =>
+      render(<WeeklyReviewModal isOpen={isOpen} onClose={vi.fn()} goal={goal} token="test-token" onGoalUpdated={vi.fn()} />);
+
+    it('starts the test step from the stored result, before the local draft, and submits it', async () => {
+      const user = userEvent.setup();
+      localStorage.setItem('achivii_test_result_draft_g-1_w1', JSON.stringify({ value: 'old draft', passed: true }));
+      mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(STORED));
+      renderModal(createSampleGoal(createSampleTasks(6, 6), { testResult: STORED }));
+
+      expect(screen.getByLabelText('Your result')).toHaveValue('Completed 4 sets');
+      expect(screen.getByLabelText(/Observation or context/i)).toHaveValue('Fourth set rushed');
+      await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+      expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, '', 'test-token', STORED);
+    });
+
+    it('falls back to the local draft when nothing is stored', () => {
+      localStorage.setItem('achivii_test_result_draft_g-1_w1', JSON.stringify({ value: 'my draft', passed: true }));
+      renderModal(createSampleGoal(createSampleTasks(6, 6)));
+      expect(screen.getByLabelText('Your result')).toHaveValue('my draft');
+    });
+
+    it('takes a result stored after it mounted (logged from the late-test card)', () => {
+      const tasks = createSampleTasks(6, 6);
+      const { rerender } = renderModal(createSampleGoal(tasks), false);
+      rerender(
+        <WeeklyReviewModal isOpen={true} onClose={vi.fn()} goal={createSampleGoal(tasks, { testResult: STORED })} token="test-token" onGoalUpdated={vi.fn()} />
+      );
+      expect(screen.getByLabelText('Your result')).toHaveValue('Completed 4 sets');
+    });
+  });
 });

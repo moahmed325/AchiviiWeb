@@ -282,6 +282,29 @@ export async function submitWeeklyReview(
   return data;
 }
 
+/**
+ * Missed sessions M4.1 (ND-4): logs the week's test result without closing the week (`PUT .../test-result`).
+ * Throws `ApiError` with the status and the server's `reason` as `code` (`week_closed`, `not_plan_v2`).
+ */
+export async function logWeeklyTestResult(
+  weekNumber: number,
+  result: import('../types').WeeklyTestResult,
+  token: string
+): Promise<{ testResult: import('../types').WeeklyTestResult }> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/test-result`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(result),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new ApiError(data.error || 'Failed to save the test result', response.status, data.reason);
+  return data;
+}
+
 export async function resetActiveGoal(token: string): Promise<boolean> {
   const response = await fetch(`${API_BASE_URL}/api/goal/active`, {
     method: 'DELETE',

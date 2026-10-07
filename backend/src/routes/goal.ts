@@ -537,7 +537,8 @@ type ActionReason =
   | 'holds_carry'
   | 'changed'
   | 'not_plan_v2'
-  | 'carry_disabled';
+  | 'carry_disabled'
+  | 'week_closed';
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -552,6 +553,7 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   changed: 'The plan changed. Reload and try again.',
   not_plan_v2: 'This plan does not support this action.',
   carry_disabled: 'This action is not available yet.',
+  week_closed: 'This week has already been reviewed.',
 };
 
 function refuse(res: Response, reason: ActionReason): void {
@@ -967,6 +969,49 @@ export function validateWeeklyTestResult(
 }
 
 /**
+ * PUT /api/goal/weeks/:weekNumber/test-result
+ * Missed sessions M4.1 (ND-4, RULE-7): logs the week's test result without closing the week. Stores
+ * `RoadmapWeek.testResult` and nothing else: no status change, no next week, no model call. The latest call wins.
+ * The weekly review keeps this result when it is submitted without one.
+ */
+goalRouter.put('/weeks/:weekNumber/test-result', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await actionUser(req, res);
+    if (!user) return;
+
+    const validation = validateWeeklyTestResult(req.body);
+    if (!validation.valid) {
+      res.status(400).json({ error: validation.error });
+      return;
+    }
+
+    const weekNumber = Number(req.params.weekNumber);
+    const goal = Number.isInteger(weekNumber)
+      ? await prisma.goal.findFirst({
+          where: { userId: user.id, status: 'active' },
+          select: { planVersion: true, roadmapWeeks: { where: { weekNumber }, select: { id: true, status: true } } },
+        })
+      : null;
+    const week = goal?.roadmapWeeks[0];
+    if (!goal || !week) {
+      res.status(404).json({ error: 'Week not found.' });
+      return;
+    }
+    if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
+    if (week.status === 'completed') return refuse(res, 'week_closed');
+
+    await prisma.roadmapWeek.update({
+      where: { id: week.id },
+      data: { testResult: validation.result as unknown as Prisma.InputJsonObject },
+    });
+    res.json({ testResult: validation.result });
+  } catch (err: any) {
+    console.error('[GoalRouter] Log test result error:', err);
+    res.status(500).json({ error: 'Failed to save the test result.' });
+  }
+});
+
+/**
  * POST /api/goal/weeks/:weekNumber/review
  * Submits weekly review, computes adherence score against 85% target,
  * persists optional benchmark test results (OD-1a Option A),
@@ -1044,7 +1089,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
           status: 'completed',
           executionScore: score,
           reviewNotes: reflection || '',
-          testResult: sanitizedTestResult ? (sanitizedTestResult as unknown as Prisma.InputJsonObject) : Prisma.DbNull,
+          // M4.1: a review sent without a result keeps the one logged earlier (PUT .../test-result).
+          ...(sanitizedTestResult ? { testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject } : {}),
         },
       });
       if (written) {
@@ -1117,7 +1163,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
         status: 'completed',
         executionScore: scorePercentage,
         reviewNotes: reflection || '',
-        testResult: sanitizedTestResult ? (sanitizedTestResult as unknown as Prisma.InputJsonObject) : Prisma.DbNull,
+        // M4.1: a review sent without a result keeps the one logged earlier (PUT .../test-result).
+        ...(sanitizedTestResult ? { testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject } : {}),
       }
     });
 

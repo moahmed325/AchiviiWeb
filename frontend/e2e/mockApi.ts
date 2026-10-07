@@ -109,6 +109,12 @@ export interface MockOptions {
   plan?: 'free' | 'pro';
   /** With `clarify`: `/api/goal/create` refuses with the server's 403 for a custom goal without Pro. */
   createProRequired?: boolean;
+  /**
+   * `PUT /api/goal/weeks/:weekNumber/test-result` (missed sessions M4.1) answers with this status and `{ error }`
+   * instead of saving. When it saves, the week in the mocked goal gets the result, so a reload returns it; a completed
+   * week answers 409 `week_closed`, as the backend does.
+   */
+  testResultStatus?: number;
 }
 
 export interface TaskUpdate {
@@ -139,6 +145,8 @@ export interface MockCalls {
   resets: number;
   /** Every PATCH /api/goal/tasks/:id body, including failed ones. */
   taskUpdates: TaskUpdate[];
+  /** Every PUT /api/goal/weeks/:weekNumber/test-result request, including failed ones. */
+  testResults: Array<{ weekNumber: number; body: unknown }>;
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -148,7 +156,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [] };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], testResults: [] };
   const {
     goal = null,
     signupStatus = 201,
@@ -172,6 +180,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     reconcile = { applies: false, reason: 'not_plan_v2' },
     plan = 'pro',
     createProRequired = false,
+    testResultStatus,
   } = options;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
   const saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
@@ -258,6 +267,20 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     }
 
     if (path === '/api/goal/reconcile' && route.request().method() === 'POST') return json(route, 200, reconcile);
+
+    const testResultMatch = path.match(/^\/api\/goal\/weeks\/(\d+)\/test-result$/);
+    if (testResultMatch && route.request().method() === 'PUT') {
+      const weekNumber = Number(testResultMatch[1]);
+      const body = route.request().postDataJSON();
+      calls.testResults.push({ weekNumber, body });
+      if (testResultStatus) return json(route, testResultStatus, { error: 'Failed to save the test result.' });
+      const weeks = (saved?.roadmapWeeks ?? []) as Array<Record<string, unknown>>;
+      const week = weeks.find((w) => w.weekNumber === weekNumber);
+      if (!week) return json(route, 404, { error: 'Week not found.' });
+      if (week.status === 'completed') return json(route, 409, { error: 'This week has already been reviewed.', reason: 'week_closed' });
+      week.testResult = body;
+      return json(route, 200, { testResult: body });
+    }
 
     const taskMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)$/);
     if (taskMatch && route.request().method() === 'PATCH') {

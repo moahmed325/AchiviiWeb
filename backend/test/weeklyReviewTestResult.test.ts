@@ -177,7 +177,7 @@ describe('Weekly Review Test Result Storage & Validation (Milestone M7.5 — OD-
       );
     });
 
-    it('2. Submitting review without testResult leaves RoadmapWeek.testResult as null (backward compatibility)', async () => {
+    it('2. Submitting review without testResult leaves RoadmapWeek.testResult as stored (M4.1: never written as null)', async () => {
       (getAuthUser as any).mockResolvedValueOnce(mockUser);
       (prisma.goal.findFirst as any).mockResolvedValueOnce(mockGoalV2);
       (prisma.weeklyReview.upsert as any).mockResolvedValueOnce({
@@ -208,16 +208,16 @@ describe('Weekly Review Test Result Storage & Validation (Milestone M7.5 — OD-
       const json = await res.json();
       expect(json.testResult).toBeNull();
 
-      // Verify Prisma roadmapWeek.update was called with DbNull for testResult
+      // M4.1: the week is closed, and its testResult is not touched (a result logged earlier is kept)
       expect(prisma.roadmapWeek.update).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { goalId_weekNumber: { goalId: 'goal-v2-101', weekNumber: 1 } },
-          data: expect.objectContaining({
-            status: 'completed',
-            testResult: Prisma.DbNull,
-          }),
+          data: expect.objectContaining({ status: 'completed' }),
         })
       );
+      const closing = (prisma.roadmapWeek.update as any).mock.calls[0][0];
+      expect(closing.data).not.toHaveProperty('testResult');
+      expect(Object.values(closing.data)).not.toContain(Prisma.DbNull);
     });
 
     it('3. Submitting malformed testResult returns HTTP 400 with descriptive error', async () => {

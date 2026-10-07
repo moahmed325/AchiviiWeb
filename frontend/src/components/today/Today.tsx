@@ -27,6 +27,7 @@ import { FocusSessionModal, type FocusCompletionOptions } from '../FocusSessionM
 import { BasisBadge } from '../BasisBadge';
 import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
+import { LateTestCard } from './LateTestCard';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 
@@ -418,6 +419,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           </div>
         </section>
       )}
+
+      {/* Missed sessions M4.1: the week's test, still open after test day (self-contained). */}
+      <LateTestCard goal={goal} now={now} timezone={timezone} />
 
       {isClosingStretch ? (
         <ClosingStretchView goal={goal} apiStatus={apiStatus} />
