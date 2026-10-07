@@ -1,6 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
 import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
+
+/** Let Today's fade-in finish before axe measures contrast. Looping animations are ignored. */
+const settled = (page: Page) =>
+  page.waitForFunction(() =>
+    document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
+  );
 
 /**
  * Milestone M7.2: Review Flow UI E2E Specs.
@@ -120,6 +126,7 @@ test.describe('Weekly Review Flow (M7.2)', () => {
     for (const width of widths) {
       await page.setViewportSize({ width, height: 800 });
       expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
+      await settled(page);
       expect(await axeViolations(page), `axe at ${width}`).toEqual([]);
     }
   });
