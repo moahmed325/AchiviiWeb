@@ -127,4 +127,42 @@ describe('FocusSessionModal', () => {
     fireEvent.keyDown(window, { code: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  describe('startWith (missed sessions M3.2)', () => {
+    const withMinimum = { ...sampleTask, minimumVersion: { stepNumber: 1, title: '10-minute minimum', instructions: 'Do the simplest useful version.', durationMinutes: 10, focusCue: '', pitfallToAvoid: '' } };
+    const open = (task: DailyTask, startWith?: 'full' | 'minimum', onCompleteSession = vi.fn().mockResolvedValue(undefined)) =>
+      render(<FocusSessionModal task={task} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={onCompleteSession} startWith={startWith} />);
+
+    it("'minimum' opens on the 10-minute version and completes with usedMinimumVersion: true", async () => {
+      const onComplete = vi.fn().mockResolvedValue(undefined);
+      open(withMinimum, 'minimum', onComplete);
+      expect(screen.getByText('Do the simplest useful version.')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('Minimum version')).toBeInTheDocument();
+      expect(screen.getByText('10-minute minimum')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /low energy/i })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /complete minimum/i }));
+      expect(screen.getByText('Minimum complete')).toBeInTheDocument();
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: /finish & return/i })));
+      expect(onComplete).toHaveBeenCalledWith(undefined, { usedMinimumVersion: true });
+    });
+
+    it('the default opens the full session', () => {
+      open(withMinimum);
+      fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /low energy/i })).toBeInTheDocument();
+    });
+
+    it("'minimum' without a minimum version falls back to the full session", async () => {
+      const onComplete = vi.fn().mockResolvedValue(undefined);
+      open(sampleTask, 'minimum', onComplete);
+      fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /next/i }));
+      fireEvent.click(screen.getByRole('button', { name: /complete session/i }));
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: /finish & return/i })));
+      expect(onComplete).toHaveBeenCalledWith(undefined, { usedMinimumVersion: false });
+    });
+  });
 });

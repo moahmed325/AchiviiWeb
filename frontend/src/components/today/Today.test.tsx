@@ -658,6 +658,169 @@ describe('Today', () => {
     });
   });
 
+  describe('short on time and gentle return (missed sessions M3.2)', () => {
+    const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
+    const reconciled = (signals: Partial<MissedSignals>) =>
+      mocked.reconcileGoal.mockResolvedValue({
+        applies: true,
+        goalId: 'g1',
+        asOf: new Date().toISOString(),
+        timezone: 'UTC',
+        days: [],
+        gap: null,
+        carry: { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [] },
+        signals: { ...NONE, ...signals },
+      });
+    const GENTLE: Partial<MissedSignals> = { notice: 'gentle_return', gentleReturn: { gapLength: 3, firstDate: isoDay(-4), lastDate: isoDay(-1) } };
+    const WELCOME = "Welcome back. Today's a short one to ease in.";
+    const COUNTS = 'The 10-minute version still counts toward this week.';
+    /** Today (t3) with a 10-minute version, plus any changes to it. */
+    const withMinimum = (today: Partial<DailyTask> = {}) =>
+      mocked.fetchActiveGoal.mockResolvedValueOnce({
+        ...GOAL,
+        dailyTasks: tasks.map((t) => (t.id === 't3' ? { ...t, minimumVersion: MINIMUM, ...today } : t)),
+      } as unknown as Goal);
+    const button = (name: string) => screen.queryByRole('button', { name });
+    const expectUnchanged = () => {
+      expect(screen.queryByText(WELCOME)).not.toBeInTheDocument();
+      expect(screen.queryByText(COUNTS)).not.toBeInTheDocument();
+      expect(button('Start the 10-minute version')).not.toBeInTheDocument();
+      expect(button('Start the full session')).not.toBeInTheDocument();
+    };
+    const expectCalmCopy = () => {
+      const text = document.body.textContent ?? '';
+      for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
+    };
+
+    it('gentle-return day: the welcome line, the 10-minute version as the gold action, the full session one tap away', async () => {
+      reconciled(GENTLE);
+      withMinimum();
+      await renderToday();
+      expect(screen.getByText(WELCOME)).toBeVisible();
+      const primary = screen.getByRole('button', { name: 'Start the 10-minute version' });
+      const full = screen.getByRole('button', { name: 'Start the full session' });
+      expect(button('Start')).not.toBeInTheDocument();
+      // Primary first, then the full session, in reading and keyboard order.
+      expect(primary.compareDocumentPosition(full) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.queryByText(COUNTS)).not.toBeInTheDocument();
+      expectCalmCopy();
+    });
+
+    it('gentle-return day: the gold action opens Focus mode on the 10-minute version and records it', async () => {
+      const user = userEvent.setup();
+      reconciled(GENTLE);
+      withMinimum();
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Start the 10-minute version' }));
+      await user.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('Minimum version')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /complete minimum/i }));
+      await user.click(screen.getByRole('button', { name: /finish & return/i }));
+      expect(mocked.updateDailyTask).toHaveBeenCalledWith('t3', { status: 'completed', notes: undefined, usedMinimumVersion: true }, 't');
+    });
+
+    it('gentle-return day: "Start the full session" opens the full session, as Start does', async () => {
+      const user = userEvent.setup();
+      reconciled(GENTLE);
+      withMinimum();
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Start the full session' }));
+      await user.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+      expect(screen.queryByText('Minimum version')).not.toBeInTheDocument();
+    });
+
+    it('short on time: Start stays first, the 10-minute version is one tap away, with its line under the buttons', async () => {
+      const user = userEvent.setup();
+      reconciled({ shortOnTime: true });
+      withMinimum();
+      await renderToday();
+      const start = screen.getByRole('button', { name: 'Start' });
+      const minimum = screen.getByRole('button', { name: 'Start the 10-minute version' });
+      expect(start.compareDocumentPosition(minimum) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      const line = screen.getByText(COUNTS);
+      expect(line).toBeVisible();
+      expect(minimum.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(screen.queryByText(WELCOME)).not.toBeInTheDocument();
+      expectCalmCopy();
+
+      await user.click(minimum);
+      await user.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('Minimum version')).toBeInTheDocument();
+    });
+
+    it('short on time together with a carried line: both show, the carried line as the notice', async () => {
+      reconciled({
+        shortOnTime: true,
+        notice: 'carried',
+        carried: [{ fromDate: isoDay(-1), fromTaskId: 't2', toDate: isoDay(0), toTaskId: 't3', stepTitle: 'Lead' }],
+      });
+      withMinimum();
+      await renderToday();
+      expect(screen.getByText(/^Yesterday's session didn't happen\. We moved its most important step into today/)).toBeVisible();
+      expect(screen.getByText(COUNTS)).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Start the 10-minute version' })).toBeVisible();
+    });
+
+    it('both signals: only the gentle-return day shows', async () => {
+      reconciled({ ...GENTLE, shortOnTime: true });
+      withMinimum();
+      await renderToday();
+      expect(screen.getByText(WELCOME)).toBeVisible();
+      expect(screen.queryByText(COUNTS)).not.toBeInTheDocument();
+      expect(screen.getAllByRole('button', { name: 'Start the 10-minute version' })).toHaveLength(1);
+    });
+
+    it('neither signal: Today is unchanged', async () => {
+      reconciled({});
+      withMinimum();
+      await renderToday();
+      expectUnchanged();
+      expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
+    });
+
+    it.each([
+      ['gentle return', GENTLE],
+      ['short on time', { shortOnTime: true }],
+    ] as Array<[string, Partial<MissedSignals>]>)('%s without a 10-minute version: nothing changes, nothing says short', async (_, signals) => {
+      reconciled(signals);
+      await renderToday();
+      expectUnchanged();
+      expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
+    });
+
+    it.each([
+      ['gentle return', GENTLE],
+      ['short on time', { shortOnTime: true }],
+    ] as Array<[string, Partial<MissedSignals>]>)('%s on a completed day: nothing changes', async (_, signals) => {
+      reconciled(signals);
+      withMinimum({ status: 'completed' });
+      await renderToday();
+      expectUnchanged();
+    });
+
+    it.each([
+      ['gentle return', GENTLE],
+      ['short on time', { shortOnTime: true }],
+    ] as Array<[string, Partial<MissedSignals>]>)('%s belongs to today only, not to another selected day', async (_, signals) => {
+      const user = userEvent.setup();
+      reconciled(signals);
+      mocked.fetchActiveGoal.mockResolvedValueOnce({
+        ...GOAL,
+        dailyTasks: tasks.map((t) => (t.isRestDay ? t : { ...t, minimumVersion: MINIMUM })),
+      } as unknown as Goal);
+      await renderToday();
+      expect(button('Start the 10-minute version')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Show week' }));
+      const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
+      await user.click(days.find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!);
+      expect(screen.getByText("Thursday's step")).toBeInTheDocument();
+      expectUnchanged();
+      expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
+    });
+  });
+
   it('renders review due banner when all tasks of the week have passed', async () => {
     // All tasks in the week occurred in the past (e.g. days -10 to -4)
     const pastTasks = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 10) }));

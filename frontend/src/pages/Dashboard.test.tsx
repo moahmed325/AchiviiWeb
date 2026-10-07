@@ -149,3 +149,38 @@ describe('Dashboard', () => {
     });
   });
 });
+
+describe('Dashboard: gentle-return line (missed sessions M3.2, ND-19)', () => {
+  const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
+  const body = (signals: Partial<MissedSignals>) => ({ applies: true, goalId: 'g', signals: { ...NONE, ...signals } }) as unknown as Reconciliation;
+  const key = (offset: number) => todayKey(new Date(Date.now() + offset * DAY_MS));
+  const GENTLE: Partial<MissedSignals> = { notice: 'gentle_return', gentleReturn: { gapLength: 3, firstDate: key(-4), lastDate: key(-1) } };
+  const MINIMUM = { stepNumber: 1, title: 'Ten minutes', durationMinutes: 10, instructions: '', focusCue: '', pitfallToAvoid: '' };
+  const withMinimum = (status: 'pending' | 'completed' = 'pending') => {
+    const goal = buildGoal(status);
+    goal.dailyTasks = goal.dailyTasks!.map((t) => (t.id === 't2' ? { ...t, minimumVersion: MINIMUM } : t));
+    return goal;
+  };
+  const WELCOME = "Welcome back. Today's a short one to ease in.";
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it('says the welcome line on a gentle-return day, and nothing about being short on time', () => {
+    renderWith(withMinimum(), body({ ...GENTLE, shortOnTime: true }));
+    expect(screen.getByText(WELCOME)).toBeInTheDocument();
+    expect(screen.queryByText(/still counts toward this week/)).not.toBeInTheDocument();
+    const text = document.body.textContent ?? '';
+    for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
+  });
+
+  it('has no short-on-time line', () => {
+    renderWith(withMinimum(), body({ shortOnTime: true }));
+    expect(screen.queryByText(/10-minute version/)).not.toBeInTheDocument();
+    expect(screen.getByText('1 of 3 sessions done this week. Keep the rhythm.')).toBeInTheDocument();
+  });
+
+  it('keeps the old priority: a finished day speaks first', () => {
+    renderWith(withMinimum('completed'), body(GENTLE));
+    expect(screen.queryByText(WELCOME)).not.toBeInTheDocument();
+  });
+});
