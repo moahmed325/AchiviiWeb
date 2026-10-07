@@ -157,12 +157,23 @@ export function weekdayOf(dateKey: string): string | null {
  * Dashboard never disagree (ND-19). Data only: each screen writes its own words.
  * - `day`: "Yesterday" when the day concerned is yesterday in the user's timezone, otherwise its weekday.
  * - `carried`: `intoToday` when the step landed on today, otherwise `toWeekday` names the receiving day.
- * Only `carried` and `dropped` are shown in M3.1; other kinds (M3.2, M3.3), a rest day today, a body for another
- * goal, or a date that cannot be read give null.
+ * - `gentle_return` (M3.2): only when today is an open practice day with a 10-minute version, because its line
+ *   ("Today's a short one") is true only where that version is the default.
+ * `swap_offer` (M3.3), a rest day today, a body for another goal, or a date that cannot be read give null.
  */
 export type MissNotice =
   | { kind: 'carried'; day: string; intoToday: boolean; toWeekday: string }
-  | { kind: 'dropped'; day: string };
+  | { kind: 'dropped'; day: string }
+  | { kind: 'gentle_return' };
+
+/** Today's task when it is an open practice day (not rest, not completed) with a 10-minute version. */
+function openTodayWithMinimum(goal: Pick<Goal, 'dailyTasks'>, today: string): DailyTask | null {
+  return (
+    (goal.dailyTasks || []).find(
+      (task) => task.date === today && !task.isRestDay && task.status !== 'completed' && Boolean(task.minimumVersion),
+    ) ?? null
+  );
+}
 
 export function missNotice(
   reconciliation: Reconciliation | null,
@@ -192,7 +203,27 @@ export function missNotice(
     const day = dropped ? dayLabel(dropped.date) : null;
     return day ? { kind: 'dropped', day } : null;
   }
+  if (signals.notice === 'gentle_return') {
+    return openTodayWithMinimum(goal, today) ? { kind: 'gentle_return' } : null;
+  }
   return null;
+}
+
+/**
+ * Short on time (missed sessions M3.2, UX-2, RULE-9): offer the 10-minute version beside Start. True when the signal
+ * is set, today is an open practice day with a 10-minute version, and today is not a gentle-return day (there the
+ * 10-minute version is already the default).
+ */
+export function shortOnTimeOffer(
+  reconciliation: Reconciliation | null,
+  goal: Pick<Goal, 'id' | 'dailyTasks'>,
+  now: Date,
+  timezone?: string
+): boolean {
+  if (!reconciliation || reconciliation.goalId !== goal.id) return false;
+  const signals = reconciliation.signals;
+  if (!signals?.shortOnTime || signals.notice === 'gentle_return') return false;
+  return openTodayWithMinimum(goal, todayKey(now, timezone)) !== null;
 }
 
 /**

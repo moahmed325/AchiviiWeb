@@ -10,6 +10,7 @@ import {
   isWeekReviewDue,
   isClosingStretchActive,
   missNotice,
+  shortOnTimeOffer,
   parseIntention,
   parseSteps,
   parseTaskNotes,
@@ -421,3 +422,37 @@ describe('isClosingStretchActive', () => {
   });
 });
 
+
+describe('gentle_return and short on time (missed sessions M3.2)', () => {
+  // Wednesday 2026-09-23 at noon UTC: 'wed' is today.
+  const wednesday = new Date('2026-09-23T12:00:00Z');
+  const MINIMUM = { stepNumber: 1, title: 'Ten minutes', durationMinutes: 10, instructions: 'Start small.', focusCue: '', pitfallToAvoid: '' };
+  const goalWith = (today: Partial<DailyTask> = {}) =>
+    ({ id: 'g', dailyTasks: week.map((t) => (t.id === 'wed' ? { ...t, minimumVersion: MINIMUM, ...today } : t)) }) as Goal;
+  const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
+  const body = (signals: Partial<MissedSignals>, goalId = 'g') =>
+    ({ applies: true, goalId, signals: { ...NONE, ...signals } }) as unknown as Reconciliation;
+  const GENTLE: Partial<MissedSignals> = { notice: 'gentle_return', gentleReturn: { gapLength: 3, firstDate: '2026-09-19', lastDate: '2026-09-22' } };
+
+  it('missNotice: gentle_return when today is open practice with a 10-minute version', () => {
+    expect(missNotice(body(GENTLE), goalWith(), wednesday, 'UTC')).toEqual({ kind: 'gentle_return' });
+  });
+
+  it('missNotice: no gentle_return without a 10-minute version, on a rest day, or on a completed day', () => {
+    expect(missNotice(body(GENTLE), goalWith({ minimumVersion: null }), wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body(GENTLE), goalWith({ isRestDay: true }), wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body(GENTLE), goalWith({ status: 'completed' }), wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body(GENTLE, 'other-goal'), goalWith(), wednesday, 'UTC')).toBeNull();
+  });
+
+  it('shortOnTimeOffer: true only with the signal, an open practice day with a 10-minute version, and no gentle return', () => {
+    expect(shortOnTimeOffer(body({ shortOnTime: true }), goalWith(), wednesday, 'UTC')).toBe(true);
+    expect(shortOnTimeOffer(body({ shortOnTime: false }), goalWith(), wednesday, 'UTC')).toBe(false);
+    expect(shortOnTimeOffer(body({ shortOnTime: true, ...GENTLE }), goalWith(), wednesday, 'UTC')).toBe(false);
+    expect(shortOnTimeOffer(body({ shortOnTime: true }), goalWith({ minimumVersion: null }), wednesday, 'UTC')).toBe(false);
+    expect(shortOnTimeOffer(body({ shortOnTime: true }), goalWith({ status: 'completed' }), wednesday, 'UTC')).toBe(false);
+    expect(shortOnTimeOffer(body({ shortOnTime: true }), goalWith({ isRestDay: true }), wednesday, 'UTC')).toBe(false);
+    expect(shortOnTimeOffer(body({ shortOnTime: true }, 'other-goal'), goalWith(), wednesday, 'UTC')).toBe(false);
+    expect(shortOnTimeOffer(null, goalWith(), wednesday, 'UTC')).toBe(false);
+  });
+});

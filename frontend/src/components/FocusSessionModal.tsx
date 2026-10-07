@@ -18,6 +18,11 @@ export interface FocusSessionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCompleteSession: (reflectionNotes?: string, options?: FocusCompletionOptions) => Promise<void> | void;
+  /**
+   * Missed sessions M3.2: `'minimum'` opens on the 10-minute version, exactly as if the runner's "Do the minimum"
+   * had been used. Without a `minimumVersion` it falls back to the full session. Default `'full'`.
+   */
+  startWith?: 'full' | 'minimum';
 }
 
 interface FocusSessionContentProps {
@@ -27,6 +32,7 @@ interface FocusSessionContentProps {
   totalDurationSeconds: number;
   onClose: () => void;
   onCompleteSession: (reflectionNotes?: string, options?: FocusCompletionOptions) => Promise<void> | void;
+  startWith: 'full' | 'minimum';
 }
 
 const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
@@ -36,13 +42,14 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
   totalDurationSeconds,
   onClose,
   onCompleteSession,
+  startWith,
 }) => {
   // Timer & UI State initialized cleanly on mount
   const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
-  const [isMinimumVersion, setIsMinimumVersion] = useState<boolean>(false);
+  const [isMinimumVersion, setIsMinimumVersion] = useState<boolean>(startWith === 'minimum' && Boolean(task.minimumVersion));
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isCelebration, setIsCelebration] = useState<boolean>(false);
   const [showTips, setShowTips] = useState<boolean>(false);
@@ -283,6 +290,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   isOpen,
   onClose,
   onCompleteSession,
+  startWith = 'full',
 }) => {
   // Parse steps
   const steps: DetailedStep[] = useMemo(() => {
@@ -312,6 +320,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
       totalDurationSeconds={totalDurationSeconds}
       onClose={onClose}
       onCompleteSession={onCompleteSession}
+      startWith={startWith}
     />
   );
 };

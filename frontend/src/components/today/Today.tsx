@@ -13,6 +13,7 @@ import {
   isWeekReviewDue,
   isClosingStretchActive,
   missNotice,
+  shortOnTimeOffer,
   parseIntention,
   parseSteps,
   parseTaskNotes,
@@ -69,9 +70,11 @@ const Callout: React.FC<{ icon?: React.ReactNode; children: React.ReactNode }> =
   </div>
 );
 
-/** The one line about a day that didn't happen (missed sessions M3.1, Feature Definition section 12). */
+/** The one line about a day that didn't happen (missed sessions M3.1, M3.2; Feature Definition section 12). */
 const missNoticeLine = (notice: MissNotice) =>
-  notice.kind === 'dropped'
+  notice.kind === 'gentle_return'
+    ? "Welcome back. Today's a short one to ease in."
+    : notice.kind === 'dropped'
     ? `${notice.day}'s session didn't happen. Nothing needs making up: the plan carries on as it is.`
     : notice.intoToday
       ? `${notice.day}'s session didn't happen. We moved its most important step into today, so today stays the same length.`
@@ -249,6 +252,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const [now] = useState(() => new Date());
   const [selectedId, setSelectedId] = useState<string>();
   const [focusOpen, setFocusOpen] = useState(false);
+  const [focusStart, setFocusStart] = useState<'full' | 'minimum'>('full');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
   const [showMinimum, setShowMinimum] = useState(false);
@@ -284,7 +288,15 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const reviewDue = isWeekReviewDue(tasks, now, timezone);
   const isClosingStretch = isClosingStretchActive(goal, now, timezone);
   // The miss notice belongs to Today's view of today only, never to another selected day (M3.1 R4).
-  const notice = task && isToday(task, now, timezone) ? missNotice(goalContext.reconciliation, goal, now, timezone) : null;
+  const viewingToday = Boolean(task && isToday(task, now, timezone));
+  const notice = viewingToday ? missNotice(goalContext.reconciliation, goal, now, timezone) : null;
+  // M3.2: on a gentle-return day the 10-minute version is the default; when short on time it is one tap away.
+  const gentleReturn = notice?.kind === 'gentle_return';
+  const shortOnTime = viewingToday && !gentleReturn && shortOnTimeOffer(goalContext.reconciliation, goal, now, timezone);
+  const openFocus = (startWith: 'full' | 'minimum') => {
+    setFocusStart(startWith);
+    setFocusOpen(true);
+  };
 
   const selectDay = (id: string) => {
     setSelectedId(id);
@@ -487,16 +499,38 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 </p>
               )}
 
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-                {!task.isRestDay && (
-                  <Button
-                    variant={done ? 'secondary' : 'gold'}
-                    size="lg"
-                    onClick={() => setFocusOpen(true)}
-                    leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
-                    className="w-full sm:w-auto sm:min-w-44"
-                  >
-                    Start
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                {gentleReturn ? (
+                  <>
+                    <Button
+                      variant="gold"
+                      size="lg"
+                      onClick={() => openFocus('minimum')}
+                      leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                      className="w-full sm:w-auto sm:min-w-44"
+                    >
+                      Start the 10-minute version
+                    </Button>
+                    <Button variant="secondary" onClick={() => openFocus('full')} className="w-full sm:w-auto">
+                      Start the full session
+                    </Button>
+                  </>
+                ) : (
+                  !task.isRestDay && (
+                    <Button
+                      variant={done ? 'secondary' : 'gold'}
+                      size="lg"
+                      onClick={() => openFocus('full')}
+                      leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                      className="w-full sm:w-auto sm:min-w-44"
+                    >
+                      Start
+                    </Button>
+                  )
+                )}
+                {shortOnTime && (
+                  <Button variant="secondary" onClick={() => openFocus('minimum')} className="w-full sm:w-auto">
+                    Start the 10-minute version
                   </Button>
                 )}
                 <Button
@@ -510,6 +544,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   {done ? 'Mark not done' : task.isRestDay ? 'Log recovery complete' : 'Mark complete'}
                 </Button>
               </div>
+              {shortOnTime && <p className="mt-3 text-small text-text-secondary">The 10-minute version still counts toward this week.</p>}
               <p role="alert" className="mt-3 text-small text-danger empty:hidden">
                 {actionError ?? ''}
               </p>
@@ -754,6 +789,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           isOpen={focusOpen}
           onClose={() => setFocusOpen(false)}
           onCompleteSession={onFinishFocus}
+          startWith={focusStart}
         />
       )}
 
