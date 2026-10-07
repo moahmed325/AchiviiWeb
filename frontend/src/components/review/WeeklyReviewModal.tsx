@@ -62,10 +62,19 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   const [reflection, setReflection] = useState(() =>
     goal?.id ? loadReviewDraft(goal.id, currentWeekNum) : ''
   );
+  // M4.1: a result logged earlier (stored on the week) comes first, then the local draft.
+  const storedTestResult = activeWeek?.testResult ?? null;
   const [testResult, setTestResult] = useState<WeeklyTestResult | null>(() =>
-    goal?.id ? loadTestResultDraft(goal.id, currentWeekNum) : null
+    storedTestResult ?? (goal?.id ? loadTestResultDraft(goal.id, currentWeekNum) : null)
   );
+  const [prevStored, setPrevStored] = useState(storedTestResult);
   const [prevOpen, setPrevOpen] = useState(isOpen);
+
+  // A result logged after this modal mounted (the late-test card) replaces what the step holds.
+  if (storedTestResult !== prevStored) {
+    setPrevStored(storedTestResult);
+    if (storedTestResult) setTestResult(storedTestResult);
+  }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [adaptationData, setAdaptationData] = useState<WeeklyReviewResponse | null>(null);
@@ -82,7 +91,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
         }
       }
       if (!testResult) {
-        const savedTest = loadTestResultDraft(goal.id, currentWeekNum);
+        const savedTest = storedTestResult ?? loadTestResultDraft(goal.id, currentWeekNum);
         if (savedTest) {
           setTestResult(savedTest);
         }

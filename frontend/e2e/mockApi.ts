@@ -117,6 +117,12 @@ export interface MockOptions {
   markMissed?: PlanActionAnswer;
   swap?: PlanActionAnswer;
   carryNow?: PlanActionAnswer;
+  /**
+   * `PUT /api/goal/weeks/:weekNumber/test-result` (missed sessions M4.1) answers with this status and `{ error }`
+   * instead of saving. When it saves, the week in the mocked goal gets the result, so a reload returns it; a completed
+   * week answers 409 `week_closed`, as the backend does.
+   */
+  testResultStatus?: number;
 }
 
 /**
@@ -161,6 +167,8 @@ export interface MockCalls {
   taskUpdates: TaskUpdate[];
   /** Every plan action request (M3.3), including refused ones. */
   planActions: Array<{ action: 'mark-missed' | 'swap' | 'carry-now'; taskId: string; body: unknown }>;
+  /** Every PUT /api/goal/weeks/:weekNumber/test-result request, including failed ones. */
+  testResults: Array<{ weekNumber: number; body: unknown }>;
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -170,7 +178,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [] };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [] };
   const {
     goal = null,
     signupStatus = 201,
@@ -197,6 +205,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     markMissed = CARRY_DISABLED,
     swap = CARRY_DISABLED,
     carryNow = CARRY_DISABLED,
+    testResultStatus,
   } = options;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
   let saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
@@ -292,6 +301,20 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       const status = answer.status ?? 200;
       if (status === 200 && answer.goal) saved = structuredClone(answer.goal) as typeof saved;
       return json(route, status, answer.body ?? {});
+    }
+
+    const testResultMatch = path.match(/^\/api\/goal\/weeks\/(\d+)\/test-result$/);
+    if (testResultMatch && route.request().method() === 'PUT') {
+      const weekNumber = Number(testResultMatch[1]);
+      const body = route.request().postDataJSON();
+      calls.testResults.push({ weekNumber, body });
+      if (testResultStatus) return json(route, testResultStatus, { error: 'Failed to save the test result.' });
+      const weeks = (saved?.roadmapWeeks ?? []) as Array<Record<string, unknown>>;
+      const week = weeks.find((w) => w.weekNumber === weekNumber);
+      if (!week) return json(route, 404, { error: 'Week not found.' });
+      if (week.status === 'completed') return json(route, 409, { error: 'This week has already been reviewed.', reason: 'week_closed' });
+      week.testResult = body;
+      return json(route, 200, { testResult: body });
     }
 
     const taskMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)$/);
