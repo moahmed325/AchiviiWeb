@@ -62,7 +62,7 @@ describe('Dashboard', () => {
     expect(within(steps).getAllByRole('listitem')).toHaveLength(3);
     expect(within(steps).getByText('Warm up jog')).toBeInTheDocument();
     expect(screen.getByText('+ 1 more step')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Begin today/i })).toHaveAttribute('href', '/today');
+    expect(screen.getByRole('link', { name: /Begin today/i })).toHaveAttribute('href', '/');
   });
 
   it('shows what is coming up without inventing anything', () => {

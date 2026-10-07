@@ -27,7 +27,8 @@ export default defineConfig({
   // server started with the real .env. Nothing listens on the Supabase URL: e2e/mockApi.ts answers it, and
   // `signIn` writes a session for it. Variables already in the environment override Vite's .env files.
   webServer: {
-    command: 'node node_modules/vite/bin/vite.js --port 5174 --strictPort',
+    // npm exec finds Vite whether the install put it in frontend/node_modules or the workspace root.
+    command: 'npm exec --no -- vite --port 5174 --strictPort',
     url: 'http://localhost:5174',
     reuseExistingServer: !process.env.CI,
     env: {

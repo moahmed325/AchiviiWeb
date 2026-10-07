@@ -215,7 +215,7 @@ export const Dashboard: React.FC = () => {
           )}
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild variant="gold" size="lg" trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-5" />}>
-              <Link to="/today">{cta}</Link>
+              <Link to="/">{cta}</Link>
             </Button>
           </div>
         </div>
