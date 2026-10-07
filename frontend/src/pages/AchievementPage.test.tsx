@@ -36,6 +36,7 @@ const baseGoalContext = {
   goalLoadFailed: false,
   goalLoadedFor: null,
   apiStatus: 'online' as const,
+  reconciliation: null,
   refreshGoal: vi.fn(),
   setActiveGoal: vi.fn(),
   updateActiveGoal: vi.fn(),

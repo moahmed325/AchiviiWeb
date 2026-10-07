@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { Goal, GoalCompletionPayload } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { Goal, GoalCompletionPayload, Reconciliation } from '../types';
 import { fetchActiveGoal, reconcileGoal, resetActiveGoal as apiResetGoal, completeGoal as apiCompleteGoal, fetchHealthCheck } from '../lib/api';
 import { useAuth } from './AuthContext';
+import { todayKey } from '../lib/today';
 
 interface GoalContextType {
   activeGoal: Goal | null;
@@ -11,6 +12,11 @@ interface GoalContextType {
   /** The token whose goal fetch last settled, so a consumer can tell the goal state is current for its token. */
   goalLoadedFor: string | null;
   apiStatus: 'online' | 'offline' | 'checking';
+  /**
+   * The latest plan v2 reconcile body (missed sessions M3.1, ND-16): the source of the miss notice on Today and
+   * the Dashboard. Null before the first answer, after a failure, when signed out, and for `applies: false`.
+   */
+  reconciliation: Reconciliation | null;
   refreshGoal: () => Promise<void>;
   setActiveGoal: (goal: Goal | null) => void;
   updateActiveGoal: (goal: Goal) => void;
@@ -22,12 +28,17 @@ interface GoalContextType {
 const GoalContext = createContext<GoalContextType | undefined>(undefined);
 
 export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const timezone = user?.timezone;
   const [activeGoal, setActiveGoal] = useState<Goal | null>(null);
   const [loadingGoal, setLoadingGoal] = useState<boolean>(true);
   const [goalLoadFailed, setGoalLoadFailed] = useState(false);
   const [goalLoadedFor, setGoalLoadedFor] = useState<string | null>(null);
   const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
+  const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null);
+  // When the last load started, and whether one is running, for the new-day catch-up (M3.1 R3).
+  const lastLoadAt = useRef<Date | null>(null);
+  const loading = useRef(false);
 
   // Health check on initial mount
   useEffect(() => {
@@ -48,19 +59,25 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadGoal = useCallback(async () => {
     if (!token) {
       setActiveGoal(null);
+      setReconciliation(null);
+      lastLoadAt.current = null;
       setGoalLoadFailed(false);
       setGoalLoadedFor(null);
       setLoadingGoal(false);
       return;
     }
 
+    loading.current = true;
+    lastLoadAt.current = new Date();
     setLoadingGoal(true);
     // Missed sessions (ND-6): reconcile once per load, before the goal is fetched, so the goal reflects it.
-    // A failure here never stops the goal from loading.
+    // A failure here never stops the goal from loading. The body is kept for the miss notice (M3.1).
     try {
-      await reconcileGoal(token);
+      const result = await reconcileGoal(token);
+      setReconciliation(result.applies ? result : null);
     } catch (err) {
       console.warn('Failed to reconcile goal:', err);
+      setReconciliation(null);
     }
     try {
       const goal = await fetchActiveGoal(token);
@@ -73,12 +90,30 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setGoalLoadedFor(token);
       setLoadingGoal(false);
+      loading.current = false;
     }
   }, [token]);
 
   useEffect(() => {
     loadGoal();
   }, [loadGoal]);
+
+  // A tab left open overnight catches up (M3.1 R3): when the page is seen again on a new local date, run the
+  // same load (reconcile, then the goal). Never on the same date, never twice at once, never when signed out.
+  useEffect(() => {
+    if (!token) return;
+    const catchUp = () => {
+      if (document.visibilityState !== 'visible' || loading.current || !lastLoadAt.current) return;
+      if (todayKey(new Date(), timezone) === todayKey(lastLoadAt.current, timezone)) return;
+      loadGoal();
+    };
+    document.addEventListener('visibilitychange', catchUp);
+    window.addEventListener('focus', catchUp);
+    return () => {
+      document.removeEventListener('visibilitychange', catchUp);
+      window.removeEventListener('focus', catchUp);
+    };
+  }, [token, timezone, loadGoal]);
 
   // Update active goal in memory (e.g. after task completion)
   const updateActiveGoal = useCallback((updated: Goal) => {
@@ -130,6 +165,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
         goalLoadFailed,
         goalLoadedFor,
         apiStatus,
+        reconciliation,
         refreshGoal,
         setActiveGoal,
         updateActiveGoal,

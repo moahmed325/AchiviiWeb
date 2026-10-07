@@ -11,14 +11,15 @@ import {
   findNextTask,
   isToday,
   isWeekReviewDue,
-  isYesterdayPending,
   isClosingStretchActive,
+  missNotice,
   parseIntention,
   parseSteps,
   parseTaskNotes,
   selectTodayTask,
   serializeTaskNotes,
   weekProgress,
+  type MissNotice,
 } from '../../lib/today';
 import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
 import { FocusSessionModal, type FocusCompletionOptions } from '../FocusSessionModal';
@@ -67,6 +68,14 @@ const Callout: React.FC<{ icon?: React.ReactNode; children: React.ReactNode }> =
     <div className="min-w-0 text-small text-text-secondary">{children}</div>
   </div>
 );
+
+/** The one line about a day that didn't happen (missed sessions M3.1, Feature Definition section 12). */
+const missNoticeLine = (notice: MissNotice) =>
+  notice.kind === 'dropped'
+    ? `${notice.day}'s session didn't happen. Nothing needs making up: the plan carries on as it is.`
+    : notice.intoToday
+      ? `${notice.day}'s session didn't happen. We moved its most important step into today, so today stays the same length.`
+      : `${notice.day}'s session didn't happen. We moved its most important step to ${notice.toWeekday}, so that day stays the same length.`;
 
 /** One quiet row that opens on demand. The panel stays in the document, hidden, so the button can name it. */
 const Disclosure: React.FC<{ id: string; open: boolean; label: string; onToggle: () => void; children: React.ReactNode }> = ({
@@ -274,7 +283,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
   const reviewDue = isWeekReviewDue(tasks, now, timezone);
   const isClosingStretch = isClosingStretchActive(goal, now, timezone);
-  const yesterdayUncompleted = isYesterdayPending(tasks, now, timezone) && Boolean(task && isToday(task, now, timezone) && task.status === 'pending');
+  // The miss notice belongs to Today's view of today only, never to another selected day (M3.1 R4).
+  const notice = task && isToday(task, now, timezone) ? missNotice(goalContext.reconciliation, goal, now, timezone) : null;
 
   const selectDay = (id: string) => {
     setSelectedId(id);
@@ -441,12 +451,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               )}
               {task.whyToday?.trim() ? <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">{task.whyToday}</p> : null}
 
-              {yesterdayUncompleted && (
+              {notice && (
                 <Callout>
-                  <h3 className="font-medium text-text">Yesterday's step wasn't completed</h3>
-                  <p className="mt-1">
-                    Here's how we can recover. Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward.
-                  </p>
+                  <p className="text-text">{missNoticeLine(notice)}</p>
                 </Callout>
               )}
 

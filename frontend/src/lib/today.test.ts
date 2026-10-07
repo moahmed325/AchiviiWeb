@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DailyTask, Goal } from '../types';
+import type { DailyTask, Goal, MissedSignals, Reconciliation } from '../types';
 import {
   currentRoadmapWeek,
   currentWeekTasks,
@@ -8,14 +8,15 @@ import {
   findYesterdayTask,
   isToday,
   isWeekReviewDue,
-  isYesterdayPending,
   isClosingStretchActive,
+  missNotice,
   parseIntention,
   parseSteps,
   parseTaskNotes,
   selectTodayTask,
   serializeTaskNotes,
   todayKey,
+  weekdayOf,
   weekProgress,
 } from './today';
 
@@ -227,7 +228,7 @@ describe('findNextTask', () => {
   });
 });
 
-describe('findYesterdayTask and isYesterdayPending', () => {
+describe('findYesterdayTask', () => {
   // week: mon (completed, 2026-09-21), tue (completed, 2026-09-22), wed (pending, 2026-09-23), thu (pending, 2026-09-24)
   it('finds yesterday task based on UTC calendar date', () => {
     const wednesday = new Date('2026-09-23T12:00:00Z');
@@ -240,25 +241,78 @@ describe('findYesterdayTask and isYesterdayPending', () => {
     // Sunday is 2026-09-27 in week, so 2026-09-20 is not in week
     expect(findYesterdayTask(week, monday, 'UTC')).toBeNull();
   });
+});
 
-  it('detects uncompleted yesterday practice task', () => {
-    const thursday = new Date('2026-09-24T12:00:00Z');
-    // Yesterday was wed (2026-09-23), which is pending and not rest
-    expect(isYesterdayPending(week, thursday, 'UTC')).toBe(true);
+describe('weekdayOf', () => {
+  it('names the weekday of a date key, and nothing for a key it cannot read', () => {
+    expect(weekdayOf('2026-09-21')).toBe('Monday');
+    expect(weekdayOf('2026-09-27')).toBe('Sunday');
+    expect(weekdayOf('')).toBeNull();
+    expect(weekdayOf('21/09/2026')).toBeNull();
+  });
+});
 
-    const wednesday = new Date('2026-09-23T12:00:00Z');
-    // Yesterday was tue (2026-09-22), which is completed
-    expect(isYesterdayPending(week, wednesday, 'UTC')).toBe(false);
+describe('missNotice (missed sessions M3.1)', () => {
+  // Wednesday 2026-09-23 at noon UTC; yesterday is Tuesday 2026-09-22.
+  const wednesday = new Date('2026-09-23T12:00:00Z');
+  const goal = { id: 'g', dailyTasks: week } as Goal;
+  const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
+  const body = (signals: Partial<MissedSignals>, goalId = 'g') =>
+    ({ applies: true, goalId, signals: { ...NONE, ...signals } }) as unknown as Reconciliation;
+  const carried = (fromDate: string, toDate: string) => ({ fromDate, fromTaskId: 'a', toDate, toTaskId: 'b', stepTitle: 'Lead' });
+
+  it('carried into today, from yesterday', () => {
+    expect(missNotice(body({ notice: 'carried', carried: [carried('2026-09-22', '2026-09-23')] }), goal, wednesday, 'UTC')).toEqual({
+      kind: 'carried',
+      day: 'Yesterday',
+      intoToday: true,
+      toWeekday: 'Wednesday',
+    });
   });
 
-  it('does not treat rest day as an uncompleted practice task', () => {
-    const testTasks = [
-      task({ id: 'sat', date: '2026-09-26', isRestDay: true, status: 'pending' }),
-      task({ id: 'sun', date: '2026-09-27', isRestDay: false, status: 'pending' }),
-    ];
+  it('carried to a later day, from an earlier weekday', () => {
+    expect(missNotice(body({ notice: 'carried', carried: [carried('2026-09-21', '2026-09-24')] }), goal, wednesday, 'UTC')).toEqual({
+      kind: 'carried',
+      day: 'Monday',
+      intoToday: false,
+      toWeekday: 'Thursday',
+    });
+  });
+
+  it('dropped, named "Yesterday" or by weekday; the reason is never part of it', () => {
+    expect(missNotice(body({ notice: 'dropped', dropped: [{ date: '2026-09-22', taskId: 'tue', reason: 'high_load' }] }), goal, wednesday, 'UTC')).toEqual({
+      kind: 'dropped',
+      day: 'Yesterday',
+    });
+    expect(missNotice(body({ notice: 'dropped', dropped: [{ date: '2026-09-21', taskId: 'mon', reason: 'does_not_fit' }] }), goal, wednesday, 'UTC')).toEqual({
+      kind: 'dropped',
+      day: 'Monday',
+    });
+  });
+
+  it('"Yesterday" follows the user timezone', () => {
+    // 2026-09-23T22:30Z is already Thursday in Addis Ababa (UTC+3), so Wednesday is yesterday there.
+    const late = new Date('2026-09-23T22:30:00Z');
+    const signals = { notice: 'dropped' as const, dropped: [{ date: '2026-09-23', taskId: 'wed', reason: 'high_load' as const }] };
+    expect(missNotice(body(signals), goal, late, 'Africa/Addis_Ababa')).toEqual({ kind: 'dropped', day: 'Yesterday' });
+    expect(missNotice(body(signals), goal, late, 'UTC')).toEqual({ kind: 'dropped', day: 'Wednesday' });
+  });
+
+  it('says nothing for gentle_return, swap_offer, null, no body, or another goal', () => {
+    const offer = { missedTaskId: 'tue', missedDate: '2026-09-22', receivingTaskId: 'wed', receivingDate: '2026-09-23', offerUntil: '' };
+    expect(missNotice(body({ notice: 'gentle_return', gentleReturn: { gapLength: 3, firstDate: '2026-09-19', lastDate: '2026-09-22' } }), goal, wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body({ notice: 'swap_offer', swapOffer: offer }), goal, wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body({ notice: null, carried: [carried('2026-09-22', '2026-09-23')] }), goal, wednesday, 'UTC')).toBeNull();
+    expect(missNotice(null, goal, wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body({ notice: 'carried', carried: [carried('2026-09-22', '2026-09-23')] }, 'other-goal'), goal, wednesday, 'UTC')).toBeNull();
+  });
+
+  it('never speaks on a rest day (AC-5), and never without the data it names', () => {
     const sunday = new Date('2026-09-27T12:00:00Z');
-    // Yesterday was saturday, which was a rest day
-    expect(isYesterdayPending(testTasks, sunday, 'UTC')).toBe(false);
+    expect(missNotice(body({ notice: 'dropped', dropped: [{ date: '2026-09-24', taskId: 'thu', reason: 'high_load' }] }), goal, sunday, 'UTC')).toBeNull();
+    expect(missNotice(body({ notice: 'carried', carried: [] }), goal, wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body({ notice: 'dropped', dropped: [] }), goal, wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body({ notice: 'dropped', dropped: [{ date: 'bad', taskId: 'x', reason: 'high_load' }] }), goal, wednesday, 'UTC')).toBeNull();
   });
 });
 

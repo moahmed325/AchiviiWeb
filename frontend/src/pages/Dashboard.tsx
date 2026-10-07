@@ -11,10 +11,11 @@ import {
   isClosingStretchActive,
   isToday,
   isWeekReviewDue,
-  isYesterdayPending,
+  missNotice,
   parseSteps,
   selectTodayTask,
   weekProgress,
+  type MissNotice,
 } from '../lib/today';
 import type { DailyTask } from '../types';
 import { Badge, Button, LoadingState, Skeleton, StepMarker } from '../components/ui';
@@ -51,14 +52,18 @@ const dayStateLabel: Record<DayState, string> = { completed: 'completed', today:
 
 const plural = (n: number, one: string, many: string) => n + ' ' + (n === 1 ? one : many);
 
-/** One plain sentence about where the week stands, built only from real task state. Not a chat message and not styled as the Coach. */
-const statusLine = (s: { closing: boolean; isDone: boolean; isRest: boolean; slipped: boolean; practiceDone: number; practiceDays: number }) => {
+/**
+ * One plain sentence about where the week stands, built only from real task state and the same reconcile signals
+ * Today reads (ND-19, missed sessions M3.1). Not a chat message and not styled as the Coach.
+ */
+const statusLine = (s: { closing: boolean; isDone: boolean; isRest: boolean; notice: MissNotice | null; practiceDone: number; practiceDays: number }) => {
   const left = Math.max(0, s.practiceDays - s.practiceDone);
   if (s.closing) return 'The final stretch. Everything so far has led here.';
   if (s.isDone && s.practiceDays > 0 && left === 0) return 'Week complete. You did everything the plan asked of you.';
   if (s.isDone) return plural(left, 'session', 'sessions') + ' left this week. Rest well tonight.';
   if (s.isRest) return 'A rest day is part of the plan. Let the work settle in.';
-  if (s.slipped) return 'Yesterday slipped past. No catching up needed, just today.';
+  if (s.notice?.kind === 'carried' && s.notice.intoToday) return s.notice.day + "'s most important step is part of today's session.";
+  if (s.notice?.kind === 'dropped') return s.notice.day + ' slipped past. No catching up needed, just today.';
   if (s.practiceDays > 0 && s.practiceDone === 0) return 'A fresh week. One session at a time.';
   if (s.practiceDays > 0 && left === 1) return 'One session left this week. Finish it and the week is yours.';
   if (s.practiceDays > 0) return s.practiceDone + ' of ' + s.practiceDays + ' sessions done this week. Keep the rhythm.';
@@ -106,7 +111,7 @@ const EmptyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 export const Dashboard: React.FC = () => {
-  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, reconciliation } = useGoal();
   const journey = useJourneyData();
   const timezone = useUserTimezone();
   const [now] = React.useState(() => new Date());
@@ -131,7 +136,7 @@ export const Dashboard: React.FC = () => {
   const dateLabel = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const stagger = (ms: number): React.CSSProperties => ({ animationDelay: ms + 'ms' });
 
-  const status = statusLine({ closing: isClosingStretchActive(activeGoal, now, timezone), isDone, isRest, slipped: !isDone && isYesterdayPending(tasks, now, timezone), practiceDone, practiceDays });
+  const status = statusLine({ closing: isClosingStretchActive(activeGoal, now, timezone), isDone, isRest, notice: missNotice(reconciliation ?? null, activeGoal, now, timezone), practiceDone, practiceDays });
   const steps = parseSteps(task?.detailedSteps);
   const previewSteps = steps.slice(0, 3);
   const moreSteps = steps.length - previewSteps.length;
