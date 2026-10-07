@@ -476,6 +476,38 @@ describe('Desktop Journey Composition (M6.3)', () => {
       expect(screen.getByText('Your roadmap')).toBeInTheDocument();
       expect(screen.getByText('You are here')).toBeInTheDocument();
       expect(screen.getByText('Your progression')).toBeInTheDocument();
+
+      // As on Today (ND-18): the heading is the goal the user chose, the stored outcome beneath it as stored,
+      // and the final stretch is named with the same goal, never the model's wording.
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Run a 10K in 50 Minutes');
+      expect(screen.getByText('Run 10 kilometers in under 50 minutes')).toBeInTheDocument();
+      expect(screen.getByText('90-day outcome:')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 3, name: 'Run a 10K in 50 Minutes' })).toBeInTheDocument();
+      expect(screen.queryByText('Sub-50 10K Finisher')).not.toBeInTheDocument();
+    });
+
+    it('does not repeat the goal as its own outcome', () => {
+      vi.mocked(useGoal).mockReturnValue({
+        activeGoal: { ...baseGoal, clarifiedOutcome: baseGoal.rawGoal, roadmap: roadmap3Phases, dailyTasks: createMockTasks(2) },
+        loadingGoal: false,
+        goalLoadFailed: false,
+        goalLoadedFor: null,
+        apiStatus: 'online',
+        reconciliation: null,
+        refreshGoal: vi.fn(),
+        setActiveGoal: vi.fn(),
+        updateActiveGoal: vi.fn(),
+        resetGoal: vi.fn(),
+        completeGoal: vi.fn(),
+        completeActiveGoal: vi.fn(),
+      });
+      render(
+        <MemoryRouter>
+          <RoadmapPage />
+        </MemoryRouter>
+      );
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Run a 10K in 50 Minutes');
+      expect(screen.queryByText('90-day outcome:')).not.toBeInTheDocument();
     });
 
     it('renders accessible fallback when no active goal exists', () => {

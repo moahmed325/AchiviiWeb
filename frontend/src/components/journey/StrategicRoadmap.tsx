@@ -39,7 +39,7 @@ export const StrategicRoadmap: React.FC<StrategicRoadmapProps> = ({ journey }) =
             delay={index * 90}
           />
         ))}
-        <Destination closingStretch={closingStretch} delay={phases.length * 90} />
+        <Destination closingStretch={closingStretch} goal={journey.rawGoal} delay={phases.length * 90} />
       </div>
     </section>
   );
@@ -177,7 +177,8 @@ const Detail: React.FC<{ label: string; icon: React.ReactNode; value: string }> 
 );
 
 /** The climax of the path: the one star at the end of the rail. */
-const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; delay: number }> = ({ closingStretch, delay }) => (
+/** Named with the goal the user chose, as on Today and the Roadmap header (ND-18). */
+const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; goal: string; delay: number }> = ({ closingStretch, goal, delay }) => (
   <div className="road-row road-row--end animate-rise-in" data-status={closingStretch.status} style={{ animationDelay: delay + 'ms' }}>
     <span className="road-node road-node--destination" aria-hidden="true"><StepMarker state="destination" size="lg" /></span>
     <div className="dash-card p-6 sm:p-8">
@@ -185,7 +186,7 @@ const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; del
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Final stretch</p>
         <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">{'Days ' + closingStretch.startDay + '\u2013' + closingStretch.endDay}</span>
       </div>
-      <h3 className="mt-5 max-w-[30ch] text-2xl font-semibold leading-tight tracking-[-0.02em] text-text sm:text-3xl">{closingStretch.finalGoal}</h3>
+      <h3 className="mt-5 max-w-[30ch] text-2xl font-semibold leading-tight tracking-[-0.02em] text-text sm:text-3xl">{goal}</h3>
       <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">Your final benchmark: {closingStretch.finalTest}</p>
     </div>
   </div>

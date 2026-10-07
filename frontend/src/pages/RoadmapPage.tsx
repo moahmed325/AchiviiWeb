@@ -4,7 +4,6 @@ import { ArrowLeft, ArrowRight, Compass } from 'lucide-react';
 import { useJourneyData } from '../hooks/useJourneyData';
 import { StrategicRoadmap } from '../components/journey/StrategicRoadmap';
 import { Button, StepMarker } from '../components/ui';
-import { formatGoalTitle } from '../lib/formatters';
 
 export const RoadmapPage: React.FC = () => {
   const journey = useJourneyData();
@@ -30,7 +29,8 @@ const EmptyRoadmap: React.FC = () => (
 const stagger = (ms: number): React.CSSProperties => ({ animationDelay: ms + 'ms' });
 
 const RoadmapContent: React.FC<{ journey: NonNullable<ReturnType<typeof useJourneyData>> }> = ({ journey }) => {
-  const title = formatGoalTitle(journey.clarifiedOutcome, journey.rawGoal);
+  // As on Today (ND-18): the heading is the goal the user chose; the stored 90-day outcome sits beneath it, as stored.
+  const outcome = journey.clarifiedOutcome?.trim();
   const { metrics, phases } = journey;
   const activePhase = phases.find((phase) => phase.status === 'active') || phases[0];
   const daysToGo = Math.max(0, metrics.totalDays - metrics.currentDay);
@@ -50,7 +50,13 @@ const RoadmapContent: React.FC<{ journey: NonNullable<ReturnType<typeof useJourn
           Today
         </Link>
         <p className="mt-8 font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Your roadmap</p>
-        <h1 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-[-0.03em] text-text sm:text-4xl">{title}</h1>
+        <h1 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-[-0.03em] text-text sm:text-4xl">{journey.rawGoal}</h1>
+        {outcome && outcome !== journey.rawGoal && (
+          <p className="mt-3 max-w-3xl text-small text-text-secondary">
+            <span className="font-medium text-text">90-day outcome: </span>
+            {outcome}
+          </p>
+        )}
         {journey.methodName && <p className="mt-4 text-body text-text-secondary">{journey.methodName}{journey.methodAuthor ? ' \u00b7 ' + journey.methodAuthor : ''}</p>}
 
         <dl className="mt-10 grid grid-cols-3 divide-x divide-border">

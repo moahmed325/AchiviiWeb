@@ -1651,6 +1651,8 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Implemented** 2026-09-24 (Phase 5, M5.3) in `frontend/src/components/today/Today.tsx`: the `h1` is `rawGoal`, and "90-day outcome:" with `clarifiedOutcome` as stored sits beneath it. The kickoff goal reads "Run a 10K Under 50 Minutes" with "49.98" beneath. `/dashboard` and `/roadmap` still show `formatGoalTitle(clarifiedOutcome, rawGoal)` until M5.8 and Phase 6.
 
+**Extended** 2026-10-07 (Mo): `/roadmap` follows the same rule. Its `h1` is `rawGoal`, the stored `clarifiedOutcome` sits beneath it as "90-day outcome:" (omitted when it only repeats the goal), and the final-stretch card is named with `rawGoal` (`pages/RoadmapPage.tsx`, `components/journey/StrategicRoadmap.tsx`).
+
 **Related.** OD-3, D-11, BP §09.
 
 ---
