@@ -91,7 +91,8 @@ describe('shellMode and shellEntries', () => {
     expect(shellMode('/dashboard', true)).toBe('app');
   });
 
-  it('shows Roadmap and Progress only with a goal, and marks Today active on /', () => {
+  it('shows Dashboard, Roadmap and Progress only with a goal, and marks Today active on /', () => {
+    expect(shellEntries('/', false).showDashboard).toBe(false);
     expect(shellEntries('/', false).showRoadmap).toBe(false);
     expect(shellEntries('/', false).showProgress).toBe(false);
     expect(shellEntries('/', true).showRoadmap).toBe(true);
@@ -101,6 +102,7 @@ describe('shellMode and shellEntries', () => {
     expect(shellEntries('/dashboard', true).dashboardActive).toBe(true);
     expect(shellEntries('/roadmap', true)).toEqual({
       dashboardActive: false,
+      showDashboard: true,
       todayActive: false,
       roadmapActive: true,
       showRoadmap: true,
@@ -109,6 +111,7 @@ describe('shellMode and shellEntries', () => {
     });
     expect(shellEntries('/progress', true)).toEqual({
       dashboardActive: false,
+      showDashboard: true,
       todayActive: false,
       roadmapActive: false,
       showRoadmap: true,
@@ -155,11 +158,13 @@ describe('entries', () => {
     expect(screen.queryByRole('dialog', { name: 'Achivii Coach' })).toBeNull();
   });
 
-  it('without a goal: no Roadmap or Progress entry', async () => {
+  it('without a goal: no Dashboard, Roadmap or Progress entry', async () => {
     signedIn(null);
     renderAt('/');
     await screen.findByText('Today page');
     await vi.waitFor(() => expect(mocked.fetchActiveGoal).toHaveBeenCalled());
+    expect(screen.queryByRole('link', { name: 'Dashboard' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Home' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Roadmap' })).toBeNull();
     expect(screen.queryByRole('link', { name: 'Progress' })).toBeNull();
     expect(rail().getByRole('button', { name: 'Pathways' })).toBeInTheDocument();

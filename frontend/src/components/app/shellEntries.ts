@@ -20,6 +20,8 @@ export function shellMode(pathname: string, signedIn: boolean, previewPath?: str
 
 export interface ShellEntries {
   dashboardActive: boolean;
+  /** The Dashboard needs an active goal too (ND-19): without one ProtectedRoute sends `/dashboard` to onboarding. */
+  showDashboard: boolean;
   todayActive: boolean;
   roadmapActive: boolean;
   /** Roadmap needs an active goal; without one ProtectedRoute would send it to onboarding, so it leads nowhere real. */
@@ -33,6 +35,7 @@ export interface ShellEntries {
 export function shellEntries(pathname: string, hasGoal: boolean): ShellEntries {
   return {
     dashboardActive: pathname === '/dashboard',
+    showDashboard: hasGoal,
     todayActive: pathname === '/' || pathname === '/achievement',
     roadmapActive: pathname === '/roadmap',
     showRoadmap: hasGoal,
