@@ -76,6 +76,12 @@ export const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
  * bar counts as obscured. Each such node is checked again scrolled to the middle of the viewport; only a control that
  * is still too small there is reported.
  */
+/** Waits until no finite animation is running (a page's fade-in), so axe measures final contrast. Loops are ignored. */
+export const settled = (page: Page) =>
+  page.waitForFunction(() =>
+    document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
+  );
+
 export const axeViolations = async (page: Page) => {
   const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
   const found: string[] = [];

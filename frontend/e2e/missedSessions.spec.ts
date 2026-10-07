@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
+import { axeViolations, documentOverflow, settled, shellGoal } from './shellFixtures';
 
 // Missed sessions M3.2: the gentle-return day and the short-on-time offer on Today (UX-2, UX-4, AC-10).
 // Signals come from the mocked reconcile response; the switch for carry writes is a backend concern and untouched.
@@ -55,6 +55,8 @@ async function expectCleanAt(page: Page, widths: number[]) {
   for (const width of widths) {
     await page.setViewportSize({ width, height: 844 });
     expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
+    // Axe measures contrast: let the fade-in finish first, as todayStates.spec.ts does.
+    await settled(page);
     expect(await axeViolations(page), `axe at ${width}`).toEqual([]);
   }
 }
