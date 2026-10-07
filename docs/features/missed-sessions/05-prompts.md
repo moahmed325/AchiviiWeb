@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 2.0 | **Date:** 2026-10-07 (M3.1 prompt drafted)
+**Version:** 2.1 | **Date:** 2026-10-07 (M3.2 prompt drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -870,3 +870,78 @@ Today and the Dashboard show at most one honest line about a missed day, from re
 
 ### STOP IF
 The backend response does not match `MissedSignals`; a string above cannot be made true for a case (list it); the notice would need a backend change; or the Dashboard and Today cannot read the same signals without restructuring. Report instead of working around it.
+
+---
+
+## M3.2 — Short-on-Time and Gentle Return
+
+### STATUS
+READY (drafted 2026-10-07). Depends on M3.1 (complete).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P3/M3.2. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+Reconcile's `signals` (backend `backend/src/lib/missedSignals.ts`, mirrored in `frontend/src/types/index.ts`) already carry `shortOnTime` (2+ missed practice days this week, today still an open practice day; RULE-9, UX-2) and `gentleReturn` (today is the first open practice day after a gap of 3+; RULE-8, UX-4, AC-10), and `signals.notice` is `gentle_return` on that day. M3.1 shows the `carried` and `dropped` lines through `missNotice` in `frontend/src/lib/today.ts` and deliberately shows nothing for `gentle_return`, because its line ("Today's a short one") is only true once the 10-minute version is the default. M3.2 makes it true.
+
+Repository facts (verify, do not trust this prompt):
+- Today (`frontend/src/components/today/Today.tsx`) has one gold **Start** button that opens `FocusSessionModal` on the full session, and a closed-by-default reveal "The 10-minute version" (shown only when `task.minimumVersion` is set).
+- `FocusSessionModal` (`frontend/src/components/FocusSessionModal.tsx`) starts on the full session; the step runner (`focus/FocusStepRunner.tsx`) offers a switch to the minimum version (`onUseMinimumVersion`). Completing the minimum version sends `usedMinimumVersion: true` (M2.0), so it counts as done but not as key done (OD-2).
+- The Dashboard (`frontend/src/pages/Dashboard.tsx`) reads the same notice through `missNotice` (ND-19).
+- Another session is updating `frontend/e2e/todayStates.spec.ts` and `today.spec.ts`; do not edit those files.
+
+### OBJECTIVE
+On a gentle-return day the 10-minute version is the default and the full session is one tap away; after two missed days in a week the 10-minute version is offered prominently; both are honest and use the Feature Definition's own copy.
+
+### READ FIRST
+- docs/features/missed-sessions/03-feature.md: section 8 (UX-2, UX-4), 11 (RULE-4, RULE-8, RULE-9 and the clarifications), 12 (copy), AC-7, AC-10, AC-12.
+- docs/features/missed-sessions/04-phases.md: section 3 (3.6 tone, 3.7 honesty, 3.9 accessibility), P3 (8.3, 8.7 M3.2, 8.10 notice fatigue).
+- docs/features/missed-sessions/milestones/m3.1-miss-notice.md and m2.3-counting-and-signals.md.
+- Design.md sections 6 (Today), 11 and 12 (Focus mode).
+
+### INSPECT FIRST
+- `frontend/src/components/today/Today.tsx`, `Today.test.tsx`; `frontend/src/components/FocusSessionModal.tsx`, `FocusSessionModal.test.tsx`, `focus/FocusStepRunner.tsx`.
+- `frontend/src/lib/today.ts` (`missNotice`, `MissNotice`) and `today.test.ts`; `frontend/src/pages/Dashboard.tsx` and `Dashboard.test.tsx`.
+- `frontend/e2e/mockApi.ts` (the `reconcile` option) and `shellFixtures.ts`.
+
+### REQUIREMENTS
+R1. **Focus mode can start on the 10-minute version.** `FocusSessionModal` takes an optional `startWith: 'full' | 'minimum'` (default `'full'`, so every existing caller behaves as now). With `'minimum'` and a `task.minimumVersion`, it opens straight on the minimum version, exactly as if the user had used the runner's switch, and its completion sends `usedMinimumVersion: true` as today. The user can still switch to the full session from inside, if the runner allows that now; do not add new switching UI.
+
+R2. **Gentle-return day (UX-4, AC-10).** Extend `missNotice` with a `gentle_return` kind, returned only when `signals.notice` is `gentle_return`, today's task is an open practice day and it has a `minimumVersion` (without a minimum version the line would not be true, so return null). On Today's view of today:
+- the notice line, in the existing `Callout`: "Welcome back. Today's a short one to ease in." (exact);
+- the gold primary action becomes "Start the 10-minute version" and opens Focus mode with `startWith: 'minimum'`;
+- the full session is one tap away: a secondary button "Start the full session" opens Focus mode as **Start** does now.
+On every other day, Today's buttons are unchanged.
+
+R3. **Short on time (UX-2, RULE-9).** When `signals.shortOnTime` is true, today is an open practice day with a `minimumVersion`, and it is not a gentle-return day: keep **Start** as the primary action, and add a secondary button "Start the 10-minute version" (opens Focus mode with `startWith: 'minimum'`, so the 10-minute version is one tap away) with the line "The 10-minute version still counts toward this week." (exact) directly under the buttons, as part of the action, not as a notice `Callout`. It can appear together with a `carried` or `dropped` notice line (that line is the notice; this one belongs to the button). On a gentle-return day it is not shown (the 10-minute version is already the default).
+
+R4. **Dashboard agrees (ND-19).** On a gentle-return day the Dashboard's status line is "Welcome back. Today's a short one to ease in." at the priority M3.1 gave the miss notice. No short-on-time line on the Dashboard.
+
+R5. **Copy and honesty (3.6, 3.7, AC-12).** Only the strings above are added; none contains "missed", "behind", "failed" or "why". Nothing says "short" unless the 10-minute version is really the default on that screen.
+
+R6. **Accessibility (3.9).** Every new button is at least 44×44 px, reachable by keyboard in a sensible order (primary, then secondary), with no horizontal overflow at 360, 375, 390 and 412 px; axe clean.
+
+R7. **Tests.**
+- `FocusSessionModal`: `startWith: 'minimum'` opens on the minimum version and completes with `usedMinimumVersion: true`; the default opens the full session; `'minimum'` without a minimum version falls back to the full session.
+- `missNotice`: `gentle_return` with and without a minimum version, on a rest day, and on a completed day.
+- Today: gentle-return day (line, primary and secondary actions, what each opens); short-on-time (secondary action and its line, together with a `carried` line); neither, both (only gentle-return), no minimum version, a completed day and another selected day (no change); the 10-minute version reachable in one tap in both cases.
+- Dashboard: the gentle-return line.
+- e2e: a new file `frontend/e2e/missedSessions.spec.ts` (do not edit `todayStates.spec.ts` or `today.spec.ts`), signing in with `signIn` from `./mockApi` and setting signals through `mockApi`'s `reconcile` option: a gentle-return day and a short-on-time day at 390 px, with axe and overflow checks at 360 and 412 px.
+
+### OUT OF SCOPE
+Swap, mark-missed and carry-now UI (M3.3); any backend change; new switching UI inside Focus mode; making the 10-minute version the default on any day other than a gentle-return day; turning on `MISSED_SESSIONS_CARRY_ENABLED`.
+
+### REGRESSION CHECKS
+R-3 (every Today state), R-4 (Focus mode and the 10-minute version), R-10, R-11. Baseline: backend `npm test` 50 files / 504 tests; frontend `npm test` 463 tests, 0 failures; `npm run typecheck`, `npm run lint` (0 errors, 2 warnings), `npm run build` pass; CI green on the branch. Browser tests run with `cd frontend && npx playwright test e2e/missedSessions.spec.ts` (it starts its own server on port 5174 with a fake Supabase; `signIn` from `./mockApi`).
+
+### VALIDATION
+Repository commands only: the changed unit test files first, then `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then the new e2e spec on both projects. Push the branch and confirm CI passes.
+
+### DELIVERABLE
+The `startWith` option, the gentle-return and short-on-time UI, the Dashboard line, tests for R7, and a report at `docs/features/missed-sessions/milestones/m3.2-short-on-time-and-gentle-return.md`: files changed, every user-facing string, evidence for R1-R7 with screenshots at 390 and 360 px, commands and results. Do not commit or push to `main`.
+
+### DONE
+A gentle-return day opens on the 10-minute version with the full session one tap away and the Feature Definition's welcome line; after two missed days in a week the 10-minute version is one tap away with its line; every other day is unchanged; all checks and CI pass.
+
+### STOP IF
+`signals` lacks a field this needs; the 10-minute version cannot be made the default without changing what the step runner does on other days; a string above would be untrue for some case (list it); or the work needs a backend change. Report instead of working around it.
