@@ -506,15 +506,20 @@ Put tests next to their component as `*.test.tsx`. Test behaviour through roles 
 
 ## 11. Focus Mode & Deliberate Practice Runner (BP §32)
 
-Focus mode is a distraction-free, Level 1 execution surface designed for calm, immersive practice:
+Focus mode (`components/FocusSessionModal.tsx`, parts in `components/focus/`) is a distraction-free, Level 1 execution surface, opened from Today's **Start**. Since the Sep 30 redesign it does one step at a time and nothing else:
 
-- **Atmospheric Palette:** Built on `bg-background` and `bg-surface` with `border-border`. Free of neon glows, deleted mint `#07CB6C`, and arbitrary hex values.
-- **Timer Mechanics:** Monospace tabular countdown (`font-ui-mono tabular`), circular SVG elapsed-time indicator (`stroke-border` track, `stroke-accent` active progress). Controls: Start/Pause/Resume, Reset, Mute toggle, Step pills.
-- **Accessible Contrast:** In dark focus mode, all micro copy, badges, step hints, and elapsed indicators use `text-text-secondary` (`#A7A59E`, 7.5:1 ratio) to guarantee full WCAG 2.2 AA compliance.
-- **Deliberate Practice Step Runner:** Displays instructions, focus cues, timing, outputs, pass marks ("Done when:"), and collapsible tips.
-- **Session-Only Step Challenges (BP §43):** Step challenges are ephemeral tools to aid practice; they do not write to backend storage or persist past the session.
-- **Error-Resilient Reflection & Completion (R5, R6):** Reflection input utilizes `Field` and `Textarea` with multi-line safety (`Ctrl+Enter` or explicit button). If task write fails (`500` or network drop), the modal stays open, reflection text is preserved, an inline `role="alert"` announces the error, and the button becomes "Try again" for seamless recovery.
-- **Keyboard Shortcuts:** `Space` toggles pause/resume (strictly suppressed when typing in inputs/textareas); `Escape` exits focus mode. Focus trap is enforced while open and returned to the trigger on exit.
+- **Surface:** a full-screen `role="dialog"` (`aria-modal`) on `bg-background`, with body scroll locked while it is open. The dialog is named by the visible "Focus" label (`aria-labelledby`), so it always has an accessible name.
+- **Header:** one quiet "Focus" label with two icon buttons, **Mute** (Unmute when muted) and **Exit** ("Exit focus mode (Esc)"). It shows no day number: `task.dayNumber` is the day of the week in older plans and the day of the 90 in plan v2, so it would be wrong for older goals.
+- **Start screen:** Focus opens on a calm start screen, never a running timer: "Focus session", the task title, the first step's instructions, one primary **Start focused session** button and the hint "Press Space to start". The timer starts only when the user starts.
+- **Timer:** a monospace tabular countdown (`font-ui-mono tabular`) of the task's duration, a thin elapsed-time bar above it, the state ("In flow" or "Paused") and one **Pause**/**Resume** button. There is no Reset and there are no step pills. When the countdown reaches 0 the session completes.
+- **Step runner:** "Step N of M", the step title, its instructions and its pass mark ("Done when:"). The primary button is **Done — next**, and **Complete session** on the last step. Steps only move forward; there is no Previous. A task with no parsed steps shows its title and **Complete session**.
+- **"Need help?" disclosure:** a closed `<details>` under the instructions, rendered only when the step has a focus cue ("Focus:"), a pitfall ("Avoid:") or a resource link. It replaces the old tips toggle.
+- **The 10-minute version (OD-9):** when the task has a `minimumVersion`, the runner offers a quiet **Do the minimum** button (accessible name "Low energy — do the minimum"). It swaps the step for the minimum version ("Minimum version", its title and instructions) and keeps the timer running; its button is **Complete minimum**. Completing it sends `usedMinimumVersion: true` with the task completion (missed sessions M2.0, ND-3); a full session, or Today's Complete, never sends the flag.
+- **Completion screen:** "Session complete" ("Minimum complete" after the 10-minute version), the heading "You did the work.", and an optional note ("One thing to remember", placeholder "What mattered today?"; `Ctrl+Enter` / `Cmd+Enter` saves). **Finish & return** marks the task completed, adds the note to the task's notes as a focus win (§12), and closes Focus mode. No XP, confetti or streaks.
+- **Error-resilient completion (R5, R6):** while saving, the button shows "Saving…" with `loading`. If the write fails (`500` or network drop), the dialog stays open, the note is preserved, an inline `role="alert"` says "That didn't save. Please try again.", and the button becomes **Try again**.
+- **Keyboard:** `Space` starts the session on the start screen, then toggles pause/resume. It is ignored while typing in an input or textarea and on the completion screen. `Escape` exits Focus mode. Focus is trapped while it is open and returned to the trigger on exit.
+- **Touch targets:** every control is at least 44×44px (§7), including the Mute and Exit icon buttons and Pause/Resume. `e2e/focus.spec.ts` checks this at 1440, 390 and 360px.
+- **Accessible contrast:** micro copy and secondary text meet §2.2 on the dark focus surface; secondary copy uses `text-text-secondary`.
 
 ---
 
