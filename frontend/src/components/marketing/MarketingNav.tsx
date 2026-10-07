@@ -45,7 +45,7 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
         aria-label="Primary"
         className={`mx-auto flex max-w-[1080px] items-center justify-between gap-2 rounded-[18px] border py-1.5 pl-4 pr-1.5 sm:rounded-full sm:pl-5 transition-[background-color,border-color,backdrop-filter,box-shadow] duration-500 ${
           scrolled
-            ? 'border-achievement/25 bg-background/80 shadow-[0_18px_50px_-30px_rgba(200,169,107,0.5)] backdrop-blur-xl'
+            ? 'border-achievement/25 bg-background/80 shadow-[0_18px_50px_-30px_color-mix(in_srgb,var(--color-achievement)_50%,transparent)] backdrop-blur-xl'
             : 'border-border/60 bg-background/35 backdrop-blur-md'
         }`}
       >

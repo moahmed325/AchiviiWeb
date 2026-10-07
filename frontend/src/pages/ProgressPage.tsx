@@ -85,7 +85,7 @@ export const ProgressPage: React.FC = () => {
   return (
     <main id="main" tabIndex={-1} className="mx-auto w-full max-w-3xl flex-1 px-gutter py-8 sm:py-12 focus:outline-none">
       <header className="relative max-w-2xl border-l border-achievement/40 pl-5 sm:pl-6">
-        <div className="absolute -left-px top-0 h-12 w-px bg-achievement shadow-[0_0_18px_2px_rgba(200,169,107,0.28)]" />
+        <div className="absolute -left-px top-0 h-12 w-px bg-achievement shadow-[0_0_18px_2px_color-mix(in_srgb,var(--color-achievement)_28%,transparent)]" />
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Progress</p>
         <h1 className="mt-3 text-h2 text-text">{activeGoal.rawGoal}</h1>
         <p className="mt-2 max-w-xl text-body text-text-secondary">{activeGoal.clarifiedOutcome}</p>
@@ -98,10 +98,10 @@ export const ProgressPage: React.FC = () => {
             <h2 id="current-progress" className="mt-2 text-h3 text-text">{currentPhase?.name || 'Your journey'}</h2>
             <p className="mt-1 text-small text-text-secondary">Week {currentWeek} · Day {currentDay}</p>
           </div>
-          <span className="font-ui-mono text-2xl tabular-nums text-achievement drop-shadow-[0_0_14px_rgba(200,169,107,0.18)]">{progress.percent}%</span>
+          <span className="font-ui-mono text-2xl tabular-nums text-achievement drop-shadow-[0_0_14px_color-mix(in_srgb,var(--color-achievement)_18%,transparent)]">{progress.percent}%</span>
         </div>
         <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-surface-elevated" aria-label={progress.percent + '% progress'} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percent}>
-          <div className="h-full rounded-full bg-achievement shadow-[0_0_12px_1px_rgba(200,169,107,0.35)] transition-[width] duration-700 ease-out" style={{ width: progress.percent + '%' }} />
+          <div className="h-full rounded-full bg-achievement shadow-[0_0_12px_1px_color-mix(in_srgb,var(--color-achievement)_35%,transparent)] transition-[width] duration-700 ease-out" style={{ width: progress.percent + '%' }} />
         </div>
         <p className="mt-3 text-small text-text-secondary">
           {progress.completed > 0 ? progress.completed + ' practice sessions completed so far.' : 'Your journey is ready. Start with today’s session.'}
@@ -121,7 +121,7 @@ export const ProgressPage: React.FC = () => {
               <div key={phase.name} className={'relative border-t-2 pt-4 transition-colors duration-500 ' + (isCurrent ? 'border-achievement' : isComplete ? 'border-achievement/45' : 'border-border')}>
                 <div className="flex items-center gap-2">
                   {isComplete && <Check className="size-3.5 text-achievement" aria-hidden="true" />}
-                  {isCurrent && <span className="size-2 rounded-full bg-achievement shadow-[0_0_10px_2px_rgba(200,169,107,0.38)]" aria-hidden="true" />}
+                  {isCurrent && <span className="size-2 rounded-full bg-achievement shadow-[0_0_10px_2px_color-mix(in_srgb,var(--color-achievement)_38%,transparent)]" aria-hidden="true" />}
                   <span className={'text-small font-medium ' + (isCurrent ? 'text-text' : 'text-text-secondary')}>{phase.name}</span>
                 </div>
                 <p className="mt-1 text-micro text-text-secondary">Weeks {phase.startWeek}–{phase.endWeek}</p>

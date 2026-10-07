@@ -285,6 +285,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const focusWins = parsedNotes.focusWins;
   const draft = task ? drafts[task.id] : undefined;
   const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
+  // While the week waits for its review, the review is the one gold action on the page (Design.md §1, ND-21).
   const reviewDue = isWeekReviewDue(tasks, now, timezone);
   const isClosingStretch = isClosingStretchActive(goal, now, timezone);
   // The miss notice belongs to Today's view of today only, never to another selected day (M3.1 R4).
@@ -412,7 +413,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   : "You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path."}
               </p>
             </div>
-            <Button type="button" variant="primary" className="shrink-0 sm:min-w-44" onClick={() => setReviewOpen(true)}>
+            <Button type="button" variant="gold" className="shrink-0 sm:min-w-44" onClick={() => setReviewOpen(true)}>
               Start weekly review
             </Button>
           </div>
@@ -503,7 +504,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 {gentleReturn ? (
                   <>
                     <Button
-                      variant="gold"
+                      variant={reviewDue ? 'secondary' : 'gold'}
                       size="lg"
                       onClick={() => openFocus('minimum')}
                       leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
@@ -518,7 +519,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 ) : (
                   !task.isRestDay && (
                     <Button
-                      variant={done ? 'secondary' : 'gold'}
+                      variant={done || reviewDue ? 'secondary' : 'gold'}
                       size="lg"
                       onClick={() => openFocus('full')}
                       leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}

@@ -17,7 +17,7 @@ export const Hero: React.FC = () => (
         className="hero-parallax absolute -right-[10%] top-[8%] h-[70vmin] w-[70vmin]"
         style={{ transform: 'translate3d(0, calc(var(--hero-p, 0) * -90px), 0)' }}
       >
-        <div className="gold-breathe h-full w-full rounded-full bg-[radial-gradient(circle,rgba(200,169,107,0.22),rgba(200,169,107,0.06)_45%,transparent_70%)]" />
+        <div className="gold-breathe h-full w-full rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--color-achievement)_22%,transparent),color-mix(in_srgb,var(--color-achievement)_6%,transparent)_45%,transparent_70%)]" />
       </div>
       <div className="absolute inset-x-0 bottom-0 h-px gold-hairline" />
     </div>
@@ -65,7 +65,7 @@ export const Hero: React.FC = () => (
         </div>
         <p className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 font-ui-mono text-[12px] uppercase tracking-[0.18em] text-text-secondary/80">
           <span className="flex items-center gap-3 whitespace-nowrap">
-            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-achievement shadow-[0_0_10px_2px_rgba(200,169,107,0.6)]" />
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-achievement shadow-[0_0_10px_2px_color-mix(in_srgb,var(--color-achievement)_60%,transparent)]" />
             Free to start
           </span>
           <span aria-hidden="true" className="hidden text-text-muted sm:inline">
@@ -85,7 +85,7 @@ export const Hero: React.FC = () => (
 
         <div
           aria-hidden="true"
-          className="stair-piece absolute bottom-[14%] left-6 hidden w-[260px] rounded-panel border border-achievement/30 bg-background/70 p-4 shadow-[0_24px_60px_-30px_rgba(200,169,107,0.5)] backdrop-blur-md sm:block lg:bottom-[22%] lg:left-0"
+          className="stair-piece absolute bottom-[14%] left-6 hidden w-[260px] rounded-panel border border-achievement/30 bg-background/70 p-4 shadow-[0_24px_60px_-30px_color-mix(in_srgb,var(--color-achievement)_50%,transparent)] backdrop-blur-md sm:block lg:bottom-[22%] lg:left-0"
           style={{ '--stair-delay': '2300ms' } as React.CSSProperties}
         >
           <p className="font-ui-mono text-[11px] uppercase tracking-[0.18em] text-achievement-hover">Today · Day 01</p>

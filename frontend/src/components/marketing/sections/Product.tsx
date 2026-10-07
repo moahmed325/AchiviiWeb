@@ -45,7 +45,7 @@ const TodayMockup: React.FC = () => {
 
         <div className="mt-5 h-[3px] w-full overflow-hidden rounded-full bg-border">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-gold-deep via-achievement to-gold-bright shadow-[0_0_12px_rgba(200,169,107,0.7)] transition-[width] duration-[1400ms] ease-ascend motion-reduce:transition-none"
+            className="h-full rounded-full bg-gradient-to-r from-gold-deep via-achievement to-gold-bright shadow-[0_0_12px_color-mix(in_srgb,var(--color-achievement)_70%,transparent)] transition-[width] duration-[1400ms] ease-ascend motion-reduce:transition-none"
             style={{ width: inView ? '30%' : '0%' }}
           />
         </div>
@@ -105,7 +105,7 @@ const JourneyRail: React.FC = () => {
         <span aria-hidden="true" className="absolute left-[7px] top-2 hidden h-px w-[calc(100%-14px)] bg-border-strong sm:block" />
         <span
           aria-hidden="true"
-          className="absolute left-[7px] top-2 hidden h-px origin-left bg-gradient-to-r from-gold-deep to-achievement shadow-[0_0_10px_rgba(200,169,107,0.8)] transition-transform duration-[1600ms] ease-ascend motion-reduce:transition-none sm:block"
+          className="absolute left-[7px] top-2 hidden h-px origin-left bg-gradient-to-r from-gold-deep to-achievement shadow-[0_0_10px_color-mix(in_srgb,var(--color-achievement)_80%,transparent)] transition-transform duration-[1600ms] ease-ascend motion-reduce:transition-none sm:block"
           style={{ width: 'calc(100% - 14px)', transform: `scaleX(${inView ? fill / 100 : 0})` }}
         />
         {RAIL.map((stop, index) => {
@@ -116,7 +116,7 @@ const JourneyRail: React.FC = () => {
                 aria-hidden="true"
                 className={`relative z-10 mt-1 block h-[15px] w-[15px] shrink-0 rounded-full border sm:mt-0 ${
                   stop.summit
-                    ? 'gold-breathe border-achievement bg-achievement shadow-[0_0_22px_6px_rgba(200,169,107,0.55)]'
+                    ? 'gold-breathe border-achievement bg-achievement shadow-[0_0_22px_6px_color-mix(in_srgb,var(--color-achievement)_55%,transparent)]'
                     : reached
                       ? 'border-achievement bg-achievement'
                       : 'border-border-strong bg-background'

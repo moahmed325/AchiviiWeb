@@ -27,7 +27,7 @@ export const FocusTimer: React.FC<FocusTimerProps> = ({
       </div>
       <span className="text-6xl sm:text-7xl font-ui-mono font-semibold tracking-tight text-text tabular">{timeFormatted}</span>
       <span className="mt-2 text-micro font-ui-mono uppercase tracking-[0.18em] text-achievement">{isActive ? 'In flow' : 'Paused'}</span>
-      <Button variant={isActive ? 'secondary' : 'primary'} onClick={onToggleActive} className="mt-5 min-h-[42px] min-w-[108px] border-achievement/40 shadow-[0_8px_24px_rgba(200,169,107,0.12)]">
+      <Button variant={isActive ? 'secondary' : 'primary'} onClick={onToggleActive} className="mt-5 min-w-[108px] border-achievement/40 shadow-[0_8px_24px_color-mix(in_srgb,var(--color-achievement)_12%,transparent)]">
         {isActive ? <><Pause aria-hidden="true" className="size-4 mr-2" />Pause</> : <><Play aria-hidden="true" className="size-4 mr-2 fill-current" />Resume</>}
       </Button>
     </section>

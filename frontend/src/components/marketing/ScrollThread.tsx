@@ -32,7 +32,7 @@ export const ScrollThread: React.FC = () => {
     <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 z-[44] h-[2px]">
       <span
         ref={bar}
-        className="block h-full origin-left bg-gradient-to-r from-gold-deep via-achievement to-gold-bright shadow-[0_0_14px_rgba(200,169,107,0.7)]"
+        className="block h-full origin-left bg-gradient-to-r from-gold-deep via-achievement to-gold-bright shadow-[0_0_14px_color-mix(in_srgb,var(--color-achievement)_70%,transparent)]"
         style={{ transform: 'scaleX(0)' }}
       />
     </div>

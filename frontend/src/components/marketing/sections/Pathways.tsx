@@ -52,7 +52,7 @@ export const Pathways: React.FC = () => (
       {GROUPS.map((group, groupIndex) => (
         <Reveal key={group.direction} delayMs={(groupIndex % 3) * 100}>
           <h3 className="mb-2 flex items-center gap-2.5 font-ui-mono text-xs uppercase tracking-[0.2em] text-achievement">
-            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-achievement shadow-[0_0_8px_2px_rgba(200,169,107,0.6)]" />
+            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-achievement shadow-[0_0_8px_2px_color-mix(in_srgb,var(--color-achievement)_60%,transparent)]" />
             {group.direction}
           </h3>
           <ul>

@@ -520,11 +520,11 @@ Copy is part of the design. These rules hold on every screen; feature docs give 
 
 Places where the code does not yet follow this file or the VDS. They are listed so nobody copies them as patterns. Each needs a decision: change the code, or change the rule (in the VDS first).
 
+A glow or shadow in a token colour is written with `color-mix`, for example `shadow-[0_0_14px_color-mix(in_srgb,var(--color-achievement)_55%,transparent)]`, never as a hard-coded `rgba(...)`.
+
 | Where | What | Rule |
 |---|---|---|
-| Today, when the week is due for review | The review card's `primary` "Start weekly review" can show on the same screen as the gold Start | One main action per screen (§1, §4). |
-| `FocusSessionModal`, `focus/FocusHeader`, `FocusTimer`, `FocusCompletion`, `FocusStepRunner` | Hard-coded `rgba(...)` shadows, a `radial-gradient` glow, and raw `text-2xl`/`text-3xl`/`text-5xl`, `min-h-[48px]` | Tokens only (§2); type utilities (§2.3). |
-| Marketing sections (`Hero`, `FinalCta`, `Product`, `Premium`, `Pathways`, `MarketingNav`, `StaircaseScene`, `ScrollThread`) | Hard-coded hex and `rgba(...)` values inside their gold gradients and glows | The gold ramp itself is allowed on the landing page (§1, ND-21), but through the tokens (`gold-bright`, `achievement`, `gold-deep`), not hard-coded values (§2). |
+| `components/marketing/StaircaseScene.tsx` | Its canvas palette is hex values in JavaScript (most mirror tokens) | Tokens only (§2). Canvas drawing can't use the Tailwind utilities; reading the tokens with `getComputedStyle` would bring it in line. |
 | Focus mode in the 10-minute version | The header and timer still show the full session's minutes | Say what is true (§10). |
 | Today and Dashboard on a gentle-return day | The step's duration shows the full session's minutes next to "Today's a short one" | Say what is true (§10). Open question from missed-sessions M3.2. |
 

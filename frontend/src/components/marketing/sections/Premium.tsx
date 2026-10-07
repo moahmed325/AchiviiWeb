@@ -141,7 +141,7 @@ export const Premium: React.FC = () => {
         >
           <div
             aria-hidden="true"
-            className="gold-breathe pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(200,169,107,0.28),transparent_65%)]"
+            className="gold-breathe pointer-events-none absolute -right-20 -top-20 h-80 w-80 rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--color-achievement)_28%,transparent),transparent_65%)]"
           />
           <div className="relative z-10">
             <div className="flex flex-wrap items-center justify-between gap-3">

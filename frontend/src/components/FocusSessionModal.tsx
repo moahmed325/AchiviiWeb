@@ -201,7 +201,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
     >
       {/* Subtle atmospheric ambient glow */}
       <div
-        className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_65%_55%_at_50%_40%,rgba(200,169,107,0.07),transparent_76%)]"
+        className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_65%_55%_at_50%_40%,color-mix(in_srgb,var(--color-achievement)_7%,transparent),transparent_76%)]"
         aria-hidden="true"
       />
 
@@ -221,14 +221,14 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
             <section className="max-w-2xl mx-auto w-full text-center space-y-7">
               <div className="space-y-4">
                 <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-achievement">Focus session</p>
-                <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text">{task.title}</h2>
-                {currentStep && <p className="text-base text-text-secondary max-w-xl mx-auto leading-relaxed">{currentStep.instructions}</p>}
+                <h2 className="text-h2 text-text">{task.title}</h2>
+                {currentStep && <p className="text-body text-text-secondary max-w-xl mx-auto">{currentStep.instructions}</p>}
               </div>
               <Button
                 variant="primary"
                 size="lg"
                 onClick={startSession}
-                className="w-full max-w-md mx-auto min-h-[56px] text-base shadow-[0_14px_40px_rgba(199,167,92,0.2)]"
+                className="w-full max-w-md mx-auto shadow-[0_14px_40px_color-mix(in_srgb,var(--color-achievement)_20%,transparent)]"
               >
                 Start focused session
               </Button>

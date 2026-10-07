@@ -23,9 +23,9 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
   minimumVersion, onUseMinimumVersion, isMinimumVersion,
 }) => {
   if (!currentStep) return (
-    <section className="max-w-xl mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-accent/20 shadow-[0_16px_50px_rgba(199,167,92,0.08)] text-center">
-      <p className="text-base text-text leading-relaxed mb-5">{fallbackTitle}</p>
-      <Button variant="primary" onClick={onCompleteFallback} className="min-h-[48px] w-full">Complete session</Button>
+    <section className="max-w-xl mx-auto p-6 sm:p-8 rounded-panel bg-surface border border-accent/20 shadow-[0_16px_50px_color-mix(in_srgb,var(--color-achievement)_8%,transparent)] text-center">
+      <p className="text-body text-text mb-5">{fallbackTitle}</p>
+      <Button variant="primary" onClick={onCompleteFallback} className="w-full">Complete session</Button>
     </section>
   );
 
@@ -43,8 +43,8 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
       </div>
 
       <div className="space-y-5">
-        <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text leading-tight">{currentStep.title}</h3>
-        <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-xl">{currentStep.instructions}</p>
+        <h3 className="text-h3 text-text">{currentStep.title}</h3>
+        <p className="text-body sm:text-body-lg text-text-secondary max-w-xl">{currentStep.instructions}</p>
 
         {currentStep.passMark && (
           <p className="text-small text-text-secondary pl-3 border-l-2 border-achievement/50">
@@ -65,7 +65,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           </details>
         )}
 
-        <Button variant="primary" onClick={onNextStep} className="w-full min-h-[52px] text-base shadow-[0_12px_32px_rgba(200,169,107,0.16)]">
+        <Button variant="primary" size="lg" onClick={onNextStep} className="w-full shadow-[0_12px_32px_color-mix(in_srgb,var(--color-achievement)_16%,transparent)]">
           {isMinimumVersion ? 'Complete minimum' : currentStepIndex === totalSteps - 1 ? 'Complete session' : 'Done — next'}
           <ArrowRight className="size-4 ml-2" />
         </Button>

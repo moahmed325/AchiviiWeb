@@ -14,7 +14,7 @@ export const FinalCta: React.FC = () => {
         className={`pointer-events-none absolute inset-0 -z-10 transition-opacity duration-[2400ms] ease-out motion-reduce:transition-none ${
           inView ? 'opacity-100' : 'opacity-0'
         }`}
-        style={{ background: 'radial-gradient(70% 60% at 72% 50%, rgba(200,169,107,0.22), rgba(200,169,107,0.05) 50%, transparent 75%)' }}
+        style={{ background: 'radial-gradient(70% 60% at 72% 50%, color-mix(in srgb, var(--color-achievement) 22%, transparent), color-mix(in srgb, var(--color-achievement) 5%, transparent) 50%, transparent 75%)' }}
       />
       <div aria-hidden="true" className="gold-hairline absolute inset-x-0 top-0" />
 
@@ -47,7 +47,7 @@ export const FinalCta: React.FC = () => {
 
         <Reveal as="figure" delayMs={150} className="order-1 mx-auto w-full max-w-[400px] lg:order-2 lg:col-span-5 lg:col-start-8">
           <div
-            className={`relative aspect-[682/1024] overflow-hidden rounded-t-full border border-achievement/40 shadow-[0_0_80px_-10px_rgba(200,169,107,0.35)] transition-[filter] duration-[2400ms] ease-out motion-reduce:transition-none ${
+            className={`relative aspect-[682/1024] overflow-hidden rounded-t-full border border-achievement/40 shadow-[0_0_80px_-10px_color-mix(in_srgb,var(--color-achievement)_35%,transparent)] transition-[filter] duration-[2400ms] ease-out motion-reduce:transition-none ${
               inView ? 'brightness-100 saturate-100' : 'brightness-[0.35] saturate-[0.4]'
             }`}
           >
