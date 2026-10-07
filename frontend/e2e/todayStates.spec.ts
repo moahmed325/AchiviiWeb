@@ -4,6 +4,12 @@ import { axeViolations, documentOverflow, shellGoal, SHELL_GOAL_TITLE } from './
 
 const main = (page: Page) => page.locator('main#main');
 
+/** Let Today's fade-in finish before axe measures contrast. Looping animations are ignored. */
+const settled = (page: Page) =>
+  page.waitForFunction(() =>
+    document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
+  );
+
 test.describe('OD-9 States on Today (M5.7)', () => {
   test('goal load failure: shows error alert, does not redirect to onboarding, retry reloads goal', async ({ page }) => {
     // 1. Initial goal load fails with 500
@@ -60,6 +66,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     for (const width of widths) {
       await page.setViewportSize({ width, height: 800 });
       expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
+      await settled(page);
       expect(await axeViolations(page), `axe at ${width}`).toEqual([]);
     }
   });
@@ -174,6 +181,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     for (const width of [390, 360, 375, 412]) {
       await page.setViewportSize({ width, height: 844 });
       expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
+      await settled(page);
       expect(await axeViolations(page), `axe at ${width}`).toEqual([]);
     }
   });
@@ -217,9 +225,13 @@ test.describe('OD-9 States on Today (M5.7)', () => {
 
     // Numeral clamped at 90 / 90
     await expect(page.getByLabel('Day 90 of 90')).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: '90-Day Journey Complete' })).toBeVisible();
-    await expect(page.getByText('You have completed the 90-day deliberate practice path for this goal.')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Review 90-day roadmap' })).toHaveAttribute('href', '/roadmap');
+    // Past day 85 an active goal is in the closing stretch (M9.4), which replaced the old "Journey Complete" card.
+    await expect(page.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible();
+    await expect(page.getByText(/The 84 planned deliberate practice days are complete/)).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Review 90-day staircase' })).toHaveAttribute('href', '/roadmap');
+    // No fabricated step: no practice-day card and no Start.
+    await expect(main(page).locator('section[aria-labelledby="step-heading"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0);
   });
 
   test('offline banner appears when health check fails, and write failure shows visible alert', async ({ page }) => {

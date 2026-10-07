@@ -8,6 +8,8 @@ const TODAY_TITLE = 'Write the one-page product brief';
 
 const main = (page: Page) => page.locator('main#main');
 const stepRegion = (page: Page, title = TODAY_TITLE) => page.getByRole('region', { name: title });
+/** Focus mode is a full-screen dialog (M5.5) that opens on the step's own title. */
+const focusMode = (page: Page) => page.getByRole('dialog');
 
 let consoleErrors: string[] = [];
 
@@ -118,9 +120,10 @@ test.describe('the practice day', () => {
   test('Start opens the existing focus mode for this step', async ({ page }) => {
     await openToday(page);
     await page.getByRole('button', { name: 'Start', exact: true }).click();
-    await expect(page.getByText('Day 3 of 90 • Focus Mode')).toBeVisible();
-    await page.getByTitle('Exit focus mode (Esc)').click();
-    await expect(page.getByText('Day 3 of 90 • Focus Mode')).toHaveCount(0);
+    await expect(focusMode(page).getByRole('heading', { level: 2, name: TODAY_TITLE })).toBeVisible();
+    await expect(focusMode(page).getByRole('button', { name: 'Start focused session' })).toBeVisible();
+    await focusMode(page).getByTitle('Exit focus mode (Esc)').click();
+    await expect(focusMode(page)).toHaveCount(0);
   });
 
   test('Complete saves, shows the server result, and is still done after a reload', async ({ page }) => {
@@ -276,6 +279,8 @@ test.describe('the practice day', () => {
 
   test("the week glance picks another day, and that day's step is the one shown", async ({ page }) => {
     await openToday(page);
+    // The seven day cells sit behind "Show week" (73c7b0e); the closed glance is a decorative row.
+    await main(page).getByRole('button', { name: 'Show week' }).click();
     const days = main(page).getByRole('list').last().getByRole('button');
     await expect(days).toHaveCount(7);
     await days.nth(0).click();
@@ -294,16 +299,22 @@ test.describe('the practice day', () => {
     await expect(main(page).getByRole('link', { name: 'Open full day view' })).toHaveCount(0);
   });
 
-  test('navigating to /dashboard directly redirects to /', async ({ page }) => {
+  test('navigating to /dashboard directly shows the overview, not Today, and it writes nothing (ND-19)', async ({ page }) => {
     await openToday(page);
     await page.goto('/dashboard');
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/dashboard');
+    await expect(main(page).getByRole('heading', { level: 2, name: TODAY_TITLE })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toHaveCount(0);
+    await expect(main(page).getByRole('button', { name: /Mark complete|Start/ })).toHaveCount(0);
   });
 
-  test('navigating to /dashboard?week=2#focus redirects to /?week=2#focus', async ({ page }) => {
+  test("the Dashboard's action leads into Today for the same step (ND-19)", async ({ page }) => {
     await openToday(page);
-    await page.goto('/dashboard?week=2#focus');
-    await expect(page).toHaveURL('/?week=2#focus');
+    await page.goto('/dashboard');
+    await main(page).getByRole('link', { name: 'Begin today' }).click();
+    await expect(page).toHaveURL('/');
+    await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toBeVisible();
+    await expect(stepRegion(page).getByRole('button', { name: 'Mark complete' })).toBeVisible();
   });
 
   test('a goal with no tasks this week says so plainly', async ({ page }) => {
@@ -348,7 +359,7 @@ test.describe('layout, keyboard and motion', () => {
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeFocused();
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Day 3 of 90 • Focus Mode')).toBeVisible();
+    await expect(focusMode(page).getByRole('heading', { level: 2, name: TODAY_TITLE })).toBeVisible();
   });
 
   test('with reduced motion, nothing on Today animates and everything is shown', async ({ page }) => {

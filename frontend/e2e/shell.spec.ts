@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mockApi, signIn } from './mockApi';
+import { API, mockApi, signIn } from './mockApi';
 import { PRESET_GOAL, baseline, chooseOption, expectStep } from './onboardingFlow';
 import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
@@ -8,6 +8,16 @@ import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shel
 const primary = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
 const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
 const accountButton = (page: Page) => primary(page).getByRole('button', { name: /^Account/ });
+
+/** The Account panel loads the plan (`GET /api/billing/account`); answer it as a free user with no subscription. */
+const freePlan = (page: Page) =>
+  page.route(`${API}/api/billing/account`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ plan: 'free', status: 'none', billingInterval: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, manageUrl: null }),
+    }),
+  );
 
 
 let consoleErrors: string[] = [];
@@ -51,17 +61,24 @@ const entryNames = async (page: Page) =>
     .evaluateAll((items) => items.map((item) => (item.textContent ?? '').replace(/\s+/g, ' ').trim()));
 
 test.describe('entries', () => {
-  test('with a goal: Today, Roadmap, Progress, Pathways and Account, and nothing else', async ({ page, isMobile }) => {
+  test('with a goal: Dashboard (Home on mobile), Today, Roadmap, Progress, Pathways, Coach and Account, and nothing else', async ({
+    page,
+    isMobile,
+  }) => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/');
+    // The goal-dependent entries appear once the goal has loaded.
+    await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toBeVisible();
 
     const names = await entryNames(page);
-    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Roadmap', 'Progress', 'Pathways', 'Account']);
+    const home = isMobile ? 'Home' : 'Dashboard';
+    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual([home, 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
     await expect(primary(page).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+    await expect(primary(page).getByRole('link', { name: home })).not.toHaveAttribute('aria-current');
     await expect(primary(page).getByRole('link', { name: 'Roadmap' })).not.toHaveAttribute('aria-current');
     await expect(primary(page).getByRole('link', { name: 'Progress' })).not.toHaveAttribute('aria-current');
-    await expect(primary(page).getByText(/Journey|Coach|coming soon/i)).toHaveCount(0);
+    await expect(primary(page).getByText(/Journey|coming soon/i)).toHaveCount(0);
     await expect(page.getByText(/Achivii ©/)).toHaveCount(0);
     await expect(page.getByRole('banner')).toHaveCount(0);
 
@@ -76,13 +93,13 @@ test.describe('entries', () => {
     }
   });
 
-  test('without a goal: no Roadmap, and / still invites a pathway', async ({ page }) => {
+  test('without a goal: no Dashboard, Roadmap or Progress, and / still invites a pathway', async ({ page }) => {
     await mockApi(page, { goal: null });
     await signIn(page);
     await page.goto('/');
     await expect(page.getByRole('heading', { level: 1, name: 'Choose a pathway' })).toBeVisible();
     const names = await entryNames(page);
-    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Pathways', 'Account']);
+    expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Pathways', 'Coach ✦', 'Account']);
   });
 
   test('a goal that failed to load: the shell still renders, and Roadmap is hidden', async ({ page }) => {
@@ -93,12 +110,16 @@ test.describe('entries', () => {
     await expect(primary(page).getByRole('link', { name: 'Roadmap' })).toHaveCount(0);
   });
 
-  test('Today is active on /; navigating to /dashboard redirects to /', async ({ page }) => {
+  test('Today is active on /, the Dashboard on /dashboard (ND-19), and Roadmap on /roadmap', async ({ page, isMobile }) => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
-    await page.goto('/dashboard');
-    await expect(page).toHaveURL('/');
+    const dashboard = primary(page).getByRole('link', { name: isMobile ? 'Home' : 'Dashboard' });
+    await page.goto('/');
     await expect(primary(page).getByRole('link', { name: 'Today' })).toHaveAttribute('aria-current', 'page');
+    await dashboard.click();
+    await expect(page).toHaveURL('/dashboard');
+    await expect(dashboard).toHaveAttribute('aria-current', 'page');
+    await expect(primary(page).getByRole('link', { name: 'Today' })).not.toHaveAttribute('aria-current');
     await primary(page).getByRole('link', { name: 'Roadmap' }).click();
     await expect(page).toHaveURL('/roadmap');
     await expect(primary(page).getByRole('link', { name: 'Roadmap' })).toHaveAttribute('aria-current', 'page');
@@ -175,6 +196,9 @@ test.describe('layout and accessibility', () => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/');
+    // Scroll once Today has its full height, not while it is still loading.
+    await expect(page.getByRole('heading', { level: 2, name: 'This week' })).toBeVisible();
+    await settled(page);
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const main = (await page.locator('main#main').boundingBox())!;
     const bar = (await page.locator('[data-shell="bottom-bar"]').boundingBox())!;
@@ -223,11 +247,12 @@ test.describe('layout and accessibility', () => {
     await expectShellCovered(page, isMobile ? 'bottom-bar' : 'rail');
   });
 
-  test('navigating to /dashboard with search and hash redirects to / preserving both', async ({ page }) => {
+  test('/dashboard with search and hash is the overview, not a redirect, and keeps both (ND-19)', async ({ page, isMobile }) => {
     await mockApi(page, { goal: shellGoal() });
     await signIn(page);
     await page.goto('/dashboard?tab=overview#section');
-    await expect(page).toHaveURL('/?tab=overview#section');
+    await expect(primary(page).getByRole('link', { name: isMobile ? 'Home' : 'Dashboard' })).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveURL('/dashboard?tab=overview#section');
   });
 
   test('with reduced motion, the shell has no running animation', async ({ page }) => {
@@ -295,6 +320,7 @@ test.describe('pathways, account and offline', () => {
 
   test('Account opens and closes from the keyboard, and Escape returns focus', async ({ page, isMobile }) => {
     await mockApi(page, { goal: shellGoal() });
+    await freePlan(page);
     await signIn(page);
     await page.goto('/roadmap');
     const trigger = accountButton(page);
@@ -320,11 +346,12 @@ test.describe('pathways, account and offline', () => {
   test('keyboard only: the rail comes first, in order, and Account is reached and left by keyboard', async ({ page, isMobile }) => {
     test.skip(isMobile, 'The rail is the desktop layout; the bottom bar follows the page in document order.');
     await mockApi(page, { goal: shellGoal() });
+    await freePlan(page);
     await signIn(page);
     await page.goto('/roadmap');
     await expect(page.locator('main#main')).toBeVisible();
     const order: string[] = [];
-    for (let i = 0; i < 7; i += 1) {
+    for (let i = 0; i < 9; i += 1) {
       await page.keyboard.press('Tab');
       order.push(
         await page.evaluate(() => {
@@ -333,7 +360,7 @@ test.describe('pathways, account and offline', () => {
         }),
       );
     }
-    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Today', 'Roadmap', 'Progress', 'Pathways', 'Account']);
+    expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
     await page.keyboard.press('Enter');
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toBeFocused();
