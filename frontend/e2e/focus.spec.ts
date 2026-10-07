@@ -243,7 +243,8 @@ test.describe('Focus Mode', () => {
   test('responsive layout: zero horizontal overflow and targets >= 44px at 1440, 390, 360', async ({ page }) => {
     for (const width of [1440, 390, 360]) {
       await page.setViewportSize({ width, height: 844 });
-      await openToday(page);
+      // With a 10-minute version, so its "Do the minimum" control is on screen too.
+      await openToday(page, { goal: goalWithMinimumVersion() });
       const modal = await startSession(page);
 
       // Check document / modal has no horizontal overflow
@@ -252,7 +253,7 @@ test.describe('Focus Mode', () => {
       expect(modalOverflow, `modal overflow at ${width}`).toBeLessThanOrEqual(0);
 
       // Check the session's controls meet the 44px minimum target
-      for (const name of ['Pause', 'Mute', 'Exit focus mode (Esc)', 'Done — next']) {
+      for (const name of ['Pause', 'Mute', 'Exit focus mode (Esc)', 'Done — next', 'Low energy — do the minimum']) {
         const box = await modal.getByRole('button', { name, exact: true }).boundingBox();
         expect(box, `${name} at ${width}`).not.toBeNull();
         if (box) {
@@ -260,6 +261,11 @@ test.describe('Focus Mode', () => {
           expect(box.width, `${name} width at ${width}`).toBeGreaterThanOrEqual(44);
         }
       }
+
+      // The "Need help?" disclosure is a text control: at least 44px tall.
+      const help = await modal.getByText('Need help?', { exact: true }).boundingBox();
+      expect(help, `Need help? at ${width}`).not.toBeNull();
+      if (help) expect(help.height, `Need help? height at ${width}`).toBeGreaterThanOrEqual(44);
 
       await modal.getByTitle('Exit focus mode (Esc)').click();
       await expect(modal).toHaveCount(0);

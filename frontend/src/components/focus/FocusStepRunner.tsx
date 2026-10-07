@@ -36,7 +36,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
           {isMinimumVersion ? 'Minimum version' : `Step ${currentStepIndex + 1} of ${totalSteps}`}
         </p>
         {minimumVersion && !isMinimumVersion && (
-          <button type="button" onClick={onUseMinimumVersion} aria-label="Low energy — do the minimum" className="text-small text-text-secondary hover:text-achievement transition-colors focus-ring rounded-control">
+          <button type="button" onClick={onUseMinimumVersion} aria-label="Low energy — do the minimum" className="inline-flex min-h-11 items-center text-small text-text-secondary hover:text-achievement transition-colors focus-ring rounded-control">
             Do the minimum
           </button>
         )}
@@ -54,7 +54,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
 
         {(currentStep.resourceUrl || currentStep.focusCue || currentStep.pitfallToAvoid) && (
           <details className="group pt-1">
-            <summary className="cursor-pointer list-none text-small text-text-secondary hover:text-achievement transition-colors focus-ring rounded-control">
+            <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-small text-text-secondary hover:text-achievement transition-colors focus-ring rounded-control">
               Need help?
             </summary>
             <div className="mt-3 space-y-2 text-small text-text-secondary">
