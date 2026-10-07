@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ApiError } from '../../lib/api';
 import { describeOnboardingError } from './requestErrors';
 
 describe('describeOnboardingError', () => {
@@ -31,5 +32,21 @@ describe('describeOnboardingError', () => {
       expect(described.kind).toBe('server');
       expect(described.message).toBe('Something went wrong on our side. Please try again in a moment.');
     }
+  });
+
+  it('says plainly that a custom goal needs Pro when create is refused with 403 CUSTOM_GOAL_REQUIRES_PRO', () => {
+    const refusal = new ApiError('Custom Goals require Achivii Pro.', 403, 'CUSTOM_GOAL_REQUIRES_PRO');
+    expect(describeOnboardingError(refusal, 'create')).toEqual({
+      kind: 'pro',
+      title: 'Custom Goals require Achivii Pro',
+      message: 'Certified pathways stay free. Pro unlocks creating your own custom 90-day journeys.',
+    });
+  });
+
+  it('treats any other 403 as an ordinary server failure', () => {
+    expect(describeOnboardingError(new ApiError('Forbidden', 403), 'create')).toMatchObject({ kind: 'server', message: 'Forbidden' });
+    expect(
+      describeOnboardingError(new ApiError('Custom Goals require Achivii Pro.', 403, 'CUSTOM_GOAL_REQUIRES_PRO'), 'clarify'),
+    ).toMatchObject({ kind: 'server' });
   });
 });

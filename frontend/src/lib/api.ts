@@ -73,11 +73,14 @@ export async function startProCheckout(token: string, interval: 'monthly' | 'yea
 /** An error response from the API. `status` lets screens tell apart, say, a duplicate email (409) from a server fault. */
 export class ApiError extends Error {
   status: number;
+  /** The server's machine-readable `code`, when it sends one (e.g. `CUSTOM_GOAL_REQUIRES_PRO`). */
+  code?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -157,7 +160,7 @@ export async function createGoalPlan(
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('text/event-stream')) {
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Failed to generate 90-day plan');
+    if (!response.ok) throw new ApiError(data.error || 'Failed to generate 90-day plan', response.status, data.code);
     return data;
   }
 

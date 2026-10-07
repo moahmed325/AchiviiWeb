@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '../ui';
+import { CustomGoalGate } from '../billing';
 import { StepMarker } from '../ui/Progress';
 import type { PlanProgressEvent } from '../../lib/api';
 import type { OnboardingError } from './requestErrors';
@@ -18,6 +19,8 @@ interface StepGenerationProps {
   generationError: OnboardingError | null;
   onReviewInputs: () => void;
   onRetry: () => void;
+  /** Back to the goal step, where the certified pathways stay free. Offered when create needs Pro. */
+  onChooseGoal?: () => void;
 }
 
 const STATUS: Record<GenerationStageState, string> = {
@@ -63,7 +66,13 @@ const nextAnnouncement = (stages: GenerationStage[], previous: string) => {
  * A stream event with `slow: true` starts from that event's seconds and keeps counting
  * whole client seconds since the event arrived, still as one line on the active stage.
  */
-export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, generationError, onReviewInputs, onRetry }) => {
+export const StepGeneration: React.FC<StepGenerationProps> = ({
+  planSteps,
+  generationError,
+  onReviewInputs,
+  onRetry,
+  onChooseGoal,
+}) => {
   const [clock, setClock] = useState(() => {
     const t = Date.now();
     return { startedAt: t, now: t };
@@ -158,8 +167,8 @@ export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, gener
     </ol>
   );
 
-  const errorPanel = generationError && (
-    <div role="alert" className={`flex max-w-xl flex-col gap-4 ${planSteps.length > 0 ? 'mt-10 border-t border-border pt-8' : ''}`}>
+  const errorMessage = generationError && (
+    <>
       {planSteps.length > 0 ? (
         <h2 id={STEP_HEADING_ID} tabIndex={-1} className="text-h2 text-text outline-none">
           {generationError.title}
@@ -170,21 +179,50 @@ export const StepGeneration: React.FC<StepGenerationProps> = ({ planSteps, gener
         </h1>
       )}
       <p className="text-body text-text-secondary">{generationError.message}</p>
-      {generationError.kind === 'server' && (
+      {generationError.kind !== 'offline' && (
         <p className="text-body text-text-secondary">
           No plan was made, and your current journey, if you have one, is unchanged.
         </p>
       )}
-      <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-        <Button variant="secondary" fullWidth className="sm:w-auto" onClick={onReviewInputs}>
-          Review your answers
-        </Button>
-        <Button variant="primary" fullWidth className="sm:w-auto" onClick={onRetry}>
-          Try again
-        </Button>
-      </div>
-    </div>
+    </>
   );
+  const panelClass = `flex max-w-xl flex-col gap-4 ${planSteps.length > 0 ? 'mt-10 border-t border-border pt-8' : ''}`;
+
+  const errorPanel =
+    generationError &&
+    (generationError.kind === 'pro' ? (
+      // The offer stays outside the alert, so only the refusal is announced. The gate checks entitlement again: a
+      // user who has just become Pro can build, a free user is offered Pro, and the free pathways stay one step away.
+      <div className={panelClass}>
+        <div role="alert" className="flex flex-col gap-4">
+          {errorMessage}
+        </div>
+        <div className="mt-2 flex flex-col gap-4">
+          <CustomGoalGate>
+            <Button variant="primary" fullWidth className="sm:w-auto sm:self-start" onClick={onRetry}>
+              Try again
+            </Button>
+          </CustomGoalGate>
+          {onChooseGoal && (
+            <Button variant="secondary" fullWidth className="sm:w-auto sm:self-start" onClick={onChooseGoal}>
+              Choose a certified pathway
+            </Button>
+          )}
+        </div>
+      </div>
+    ) : (
+      <div role="alert" className={panelClass}>
+        {errorMessage}
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+          <Button variant="secondary" fullWidth className="sm:w-auto" onClick={onReviewInputs}>
+            Review your answers
+          </Button>
+          <Button variant="primary" fullWidth className="sm:w-auto" onClick={onRetry}>
+            Try again
+          </Button>
+        </div>
+      </div>
+    ));
 
   if (generationError && planSteps.length === 0) {
     return errorPanel;

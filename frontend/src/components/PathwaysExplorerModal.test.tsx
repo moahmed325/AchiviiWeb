@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { fetchBillingEntitlement } from '../lib/api';
 import { PathwaysExplorerModal } from './PathwaysExplorerModal';
 
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { id: 'test-user', email: 'test@example.com' }, token: 'test-token', loading: false, login: vi.fn(), signup: vi.fn(), logout: vi.fn() }) }));
@@ -144,5 +145,14 @@ describe('PathwaysExplorerModal', () => {
     });
     expect(localStorage.getItem('achivii_draft_goal')).toBeNull();
   });
-});
 
+  it('Custom Journey shows a free user the Pro gate instead of a way into onboarding', async () => {
+    vi.mocked(fetchBillingEntitlement).mockResolvedValueOnce({ plan: 'free', entitled: false });
+    renderScreen();
+    await open();
+    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
+    expect(custom).toContainElement(await screen.findByRole('button', { name: 'Continue to Pro' }));
+    expect(screen.queryByRole('button', { name: 'Create a custom journey' })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('state')).not.toBeInTheDocument();
+  });
+});

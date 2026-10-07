@@ -219,6 +219,26 @@ describe('creating the plan', () => {
     expect(localStorage.getItem(DRAFT_GOAL_KEY)).toBeNull();
   });
 
+  it('a custom goal refused without Pro is described as Pro, not as a fault, and nothing is created', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    create.mockRejectedValueOnce(
+      Object.assign(new Error('Custom Goals require Achivii Pro.'), { status: 403, code: 'CUSTOM_GOAL_REQUIRES_PRO' }),
+    );
+    clarify.mockResolvedValue(CUSTOM_CLARIFY);
+    const { result, onGoalCreated } = setup({ currentGoalId: undefined });
+    act(() => result.current.handleStartGoal(CUSTOM, 'custom'));
+    await flush();
+    act(() => result.current.setSkipCounts(Object.fromEntries(CUSTOM_CLARIFY.followUpQuestions.map((q) => [q.id, 2]))));
+    await chooseSchedule(result);
+
+    await act(() => result.current.handleGeneratePlan());
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(result.current.step).toBe('generation');
+    expect(result.current.generationError).toMatchObject({ kind: 'pro', title: 'Custom Goals require Achivii Pro' });
+    expect(result.current.connection).toBe('online');
+    expect(onGoalCreated).not.toHaveBeenCalled();
+  });
+
   it('a retry clears the stages from the failed attempt before sending again', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     create.mockImplementationOnce(async (_payload, _token, onStep) => {
