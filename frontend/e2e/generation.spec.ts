@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { mockApi, type GenerationStreamStep } from './mockApi';
+import { mockApi, type GenerationStreamStep, signIn } from './mockApi';
 import {
   PRESET_GOAL,
   answerPresetQuestions,
@@ -41,7 +41,6 @@ test.afterEach(async ({}, testInfo) => {
   expect(consoleErrors).toEqual([]);
 });
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 
 const reachReview = async (page: Page) => {
   await page.goto('/onboarding');

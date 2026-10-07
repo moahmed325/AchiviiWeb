@@ -11,7 +11,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5174',
     // Full Chromium in new headless mode, closer to a real browser than the headless shell.
     channel: 'chromium',
     trace: 'retain-on-failure',
@@ -23,9 +23,17 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
     },
   ],
+  // Its own port and a fake Supabase project, so the tests never sign in to a real service and never reuse a dev
+  // server started with the real .env. Nothing listens on the Supabase URL: e2e/mockApi.ts answers it, and
+  // `signIn` writes a session for it. Variables already in the environment override Vite's .env files.
   webServer: {
-    command: 'node node_modules/vite/bin/vite.js --port 5173 --strictPort',
-    url: 'http://localhost:5173',
-    reuseExistingServer: true,
+    command: 'node node_modules/vite/bin/vite.js --port 5174 --strictPort',
+    url: 'http://localhost:5174',
+    reuseExistingServer: !process.env.CI,
+    env: {
+      VITE_SUPABASE_URL: 'http://localhost:54321',
+      VITE_SUPABASE_ANON_KEY: 'e2e-anon-key',
+      VITE_API_BASE_URL: 'http://localhost:5000',
+    },
   },
 });

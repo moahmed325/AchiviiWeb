@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import {
   CUSTOM_GOAL,
   CUSTOM_TYPED_SUCCESS,
@@ -29,7 +29,6 @@ const GOAL = {
   dailyTasks: [],
 };
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 
 let consoleErrors: string[] = [];
 

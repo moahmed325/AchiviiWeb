@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import { shellGoal } from './shellFixtures';
 
 // TEMPORARY: visual check of Today. Not committed.
@@ -10,7 +10,7 @@ test('today screenshots', async ({ page }, testInfo) => {
   mkdirSync(OUT, { recursive: true });
   const name = testInfo.project.name;
   await mockApi(page, { goal: shellGoal() });
-  await page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
+  await signIn(page);
   await page.goto('/');
   await page.getByRole('heading', { level: 1 }).waitFor();
   await page.waitForTimeout(2600);

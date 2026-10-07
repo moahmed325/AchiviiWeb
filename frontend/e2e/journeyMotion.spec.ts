@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { expect, test } from '@playwright/test';
+import { mockApi, signIn } from './mockApi';
 import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
 /**
@@ -7,8 +7,6 @@ import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
  * Verifies VDS §19-20, §25, §29, and Section 3.9 motion requirements.
  */
 
-const signIn = (page: Page) =>
-  page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 
 let consoleErrors: string[] = [];
 

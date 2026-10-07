@@ -1,8 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import { axeViolations, documentOverflow, shellGoal, SHELL_GOAL_TITLE } from './shellFixtures';
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 const main = (page: Page) => page.locator('main#main');
 
 test.describe('OD-9 States on Today (M5.7)', () => {

@@ -4,6 +4,45 @@ export const API = 'http://localhost:5000';
 
 const USER = { id: 'u-e2e', email: 'e2e@example.com', created_at: '2026-09-23T00:00:00.000Z' };
 
+/**
+ * The Supabase project the e2e dev server is built with (playwright.config.ts `webServer.env`). Nothing listens
+ * there: `mockApi` answers its auth requests, and `signIn` writes a session where supabase-js looks for it
+ * (`sb-<first label of the host>-auth-token`).
+ */
+export const SUPABASE_URL = 'http://localhost:54321';
+const SUPABASE_STORAGE_KEY = 'sb-localhost-auth-token';
+
+const SUPABASE_USER = {
+  id: USER.id,
+  aud: 'authenticated',
+  role: 'authenticated',
+  email: USER.email,
+  app_metadata: { provider: 'email', providers: ['email'] },
+  user_metadata: {},
+  created_at: USER.created_at,
+};
+
+/** A session as Supabase returns and stores it. The token is JWT-shaped but unsigned; nothing here verifies it. */
+function supabaseSession() {
+  const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+  const expiresAt = 4102444800; // 2100-01-01: never expires during a run.
+  return {
+    access_token: `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: USER.id, role: 'authenticated', exp: expiresAt })}.e2e`,
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: expiresAt,
+    refresh_token: 'e2e-refresh-token',
+    user: SUPABASE_USER,
+  };
+}
+
+/** Signs the visitor in before the page loads, as a returning user whose Supabase session is still stored. */
+export const signIn = (page: Page) =>
+  page.addInitScript(
+    ([key, session]) => localStorage.setItem(key, session),
+    [SUPABASE_STORAGE_KEY, JSON.stringify(supabaseSession())] as const,
+  );
+
 export interface MockOptions {
   /** The active goal returned after sign-in; null means the user has none. */
   goal?: Record<string, unknown> | null;
@@ -100,7 +139,7 @@ const json = (route: Route, status: number, body: unknown) =>
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Stands in for the backend auth rules (backend/src/routes/auth.ts) without touching the dev database. */
+/** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
   const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [] };
   const {
@@ -127,6 +166,31 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
   } = options;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
   const saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
+
+  // Supabase Auth (supabase-js against SUPABASE_URL): sign-in, sign-up and sign-out, with Supabase's own error shapes.
+  await page.route(`${SUPABASE_URL}/auth/v1/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace('/auth/v1', '');
+    const authError = (status: number, code: string, msg: string) => json(route, status, { code: status, error_code: code, msg });
+
+    if (path === '/token' && url.searchParams.get('grant_type') === 'password') {
+      calls.login += 1;
+      await wait(authDelayMs);
+      if (loginStatus === 401) return authError(400, 'invalid_credentials', 'Invalid login credentials');
+      if (loginStatus >= 500) return authError(loginStatus, 'unexpected_failure', 'Internal server error');
+      return json(route, 200, supabaseSession());
+    }
+    if (path === '/signup') {
+      calls.signup += 1;
+      await wait(authDelayMs);
+      if (signupStatus === 409) return authError(422, 'user_already_exists', 'User already registered');
+      if (signupStatus >= 500) return authError(signupStatus, 'unexpected_failure', 'Database error saving new user');
+      return json(route, 200, supabaseSession());
+    }
+    if (path === '/logout') return route.fulfill({ status: 204 });
+    if (path === '/user') return json(route, 200, SUPABASE_USER);
+    return authError(404, 'not_found', `No e2e mock for ${path}`);
+  });
 
   if (createStream) {
     await page.addInitScript((sequences: GenerationStreamStep[][]) => {
@@ -169,22 +233,6 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     if (path === '/api/health') {
       if (healthDown) return json(route, 503, { error: 'Service unavailable' });
       return json(route, 200, { status: 'ok', timestamp: '', service: 'achivii-api' });
-    }
-
-    if (path === '/api/auth/signup') {
-      calls.signup += 1;
-      await wait(authDelayMs);
-      if (signupStatus === 409) return json(route, 409, { error: 'An account with this email already exists.' });
-      if (signupStatus >= 500) return json(route, signupStatus, { error: 'Internal server error during registration.' });
-      return json(route, 201, { message: 'ok', token: 'e2e-token', user: USER });
-    }
-
-    if (path === '/api/auth/login') {
-      calls.login += 1;
-      await wait(authDelayMs);
-      if (loginStatus === 401) return json(route, 401, { error: 'Invalid email or password.' });
-      if (loginStatus >= 500) return json(route, loginStatus, { error: 'Internal server error.' });
-      return json(route, 200, { message: 'ok', token: 'e2e-token', user: USER });
     }
 
     if (path === '/api/auth/me') return json(route, 200, { user: USER });

@@ -1,12 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
 /** M5.3: Today at `/` for the normal practice day (BP §09), built from the task data, every write through one path. */
 
 const TODAY_TITLE = 'Write the one-page product brief';
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 const main = (page: Page) => page.locator('main#main');
 const stepRegion = (page: Page, title = TODAY_TITLE) => page.getByRole('region', { name: title });
 

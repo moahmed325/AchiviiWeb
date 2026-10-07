@@ -1,8 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import { shellGoal, axeViolations, documentOverflow } from './shellFixtures';
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 
 const openToday = async (page: Page, options: Parameters<typeof mockApi>[1] = {}) => {
   const calls = await mockApi(page, { goal: shellGoal(), ...options });

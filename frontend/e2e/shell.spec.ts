@@ -1,11 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import { PRESET_GOAL, baseline, chooseOption, expectStep } from './onboardingFlow';
 import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
 /** M5.2: the ND-7 shell. A rail on desktop, a bottom bar on mobile, a minimal top bar on onboarding. */
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 const primary = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
 const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
 const accountButton = (page: Page) => primary(page).getByRole('button', { name: /^Account/ });

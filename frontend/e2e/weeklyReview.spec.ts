@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { expect, test } from '@playwright/test';
+import { mockApi, signIn } from './mockApi';
 import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
 /**
@@ -9,7 +9,6 @@ import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
  * 44px tap targets, zero horizontal overflow, and zero axe accessibility violations.
  */
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 
 let consoleErrors: string[] = [];
 

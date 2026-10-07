@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import { PRESET_GOAL, baseline, chooseOption, expectStep } from './onboardingFlow';
 
 /** The pathway library in every in-app place it appears (M3.6, ND-15). */
@@ -20,7 +20,6 @@ const GOAL = {
   dailyTasks: [],
 };
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 const draftGoal = (page: Page) => page.evaluate(() => localStorage.getItem('achivii_draft_goal'));
 const explorer = (page: Page) => page.getByRole('dialog', { name: 'Explore pathways' });
 const strip = (page: Page) => page.getByRole('region', { name: 'Pathways', exact: true });

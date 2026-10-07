@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
 /**
@@ -9,7 +9,6 @@ import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
  * touch targets, tabular numerals, reduced motion, zero overflow, and axe accessibility.
  */
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 const primary = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
 
 let consoleErrors: string[] = [];

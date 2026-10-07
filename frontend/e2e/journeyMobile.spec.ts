@@ -1,10 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
 /** M6.4: Mobile vertical journey (/roadmap on viewports < 768px). */
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 
 let consoleErrors: string[] = [];
 

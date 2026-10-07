@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { mockApi } from './mockApi';
+import { mockApi, signIn } from './mockApi';
 
 const GOAL = {
   id: 'g-e2e',
@@ -15,7 +15,6 @@ const GOAL = {
   dailyTasks: [],
 };
 
-const signIn = (page: Page) => page.addInitScript(() => localStorage.setItem('achivii_auth_token', 'e2e-token'));
 
 async function fill(page: Page, email: string, password: string) {
   await page.getByLabel('Email').fill(email);
@@ -219,6 +218,8 @@ test.describe('form behaviour', () => {
     test.skip(isMobile, 'Keyboard order is checked once, on desktop.');
     await mockApi(page);
     await page.goto('/login');
+    // The auth screen is lazy-loaded: wait for the form before tabbing, or every Tab lands on <body>.
+    await expect(page.getByLabel('Email')).toBeVisible();
     const order: string[] = [];
     for (let i = 0; i < 7; i += 1) {
       await page.keyboard.press('Tab');
