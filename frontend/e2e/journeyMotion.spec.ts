@@ -1,10 +1,14 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
 import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
 /**
  * M6.5: Progress motion and reduced-motion path on /roadmap.
  * Verifies VDS §19-20, §25, §29, and Section 3.9 motion requirements.
+ *
+ * Since the roadmap redesign (f62e59b, 30e20ab) the motion lives on one responsive layout: the current week's segment
+ * of the 12-week strip and the active node on the gold rail breathe (`dash-breathe`), and phase cards unfold through
+ * `journey-accordion-content`. The reduced-motion path is the global rule in index.css.
  */
 
 
@@ -26,6 +30,31 @@ test.afterEach(async ({}, testInfo) => {
   expect(consoleErrors).toEqual([]);
 });
 
+/** The current week's segment in the 12-week strip: the page's progress indicator. */
+const currentWeekSegment = (page: Page) =>
+  page.getByRole('img', { name: 'Week 1 of 12' }).locator('.road-week[data-state="current"]');
+
+/** The node on the rail where the user stands: the active step beacon. */
+const activeRailNode = (page: Page) => page.locator('.road-row[data-status="active"] .road-node');
+
+/** The first phase card's toggle, and the panel it controls. */
+const phaseOne = async (page: Page) => {
+  const toggle = page.getByRole('button', { name: /^Weeks 1–4 .*Foundation/ });
+  const panel = page.locator(`#${await toggle.getAttribute('aria-controls')}`);
+  return { toggle, panel };
+};
+
+const motionOf = (element: Locator) =>
+  element.evaluate((el) => {
+    const style = window.getComputedStyle(el);
+    return {
+      animationName: style.animationName,
+      animationDuration: style.animationDuration,
+      transitionProperty: style.transitionProperty,
+      transitionDuration: style.transitionDuration,
+    };
+  });
+
 test.describe('Journey Motion (M6.5) — Standard Motion Mode', () => {
   test.use({ reducedMotion: 'no-preference' });
 
@@ -37,35 +66,28 @@ test.describe('Journey Motion (M6.5) — Standard Motion Mode', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/roadmap');
 
-    // 1. Layer 1 Progress Bar Fill (R3)
-    const progressBar = page.locator('[data-testid="journey-progress-bar"]');
-    await expect(progressBar).toBeVisible();
-    await expect(progressBar).toHaveClass(/journey-progress-bar/);
-
-    const transitionStyle = await progressBar.evaluate((el) => window.getComputedStyle(el).transition);
-    expect(transitionStyle).toContain('width');
+    // 1. Progress strip: exactly one current week, which breathes and eases its fill (R3)
+    const segment = currentWeekSegment(page);
+    await expect(segment).toHaveCount(1);
+    await expect(segment).toBeVisible();
+    const segmentMotion = await motionOf(segment);
+    expect(segmentMotion.animationName).toContain('dash-breathe');
+    expect(segmentMotion.transitionProperty).toContain('background-color');
 
     // 2. Active Step Illumination Beacon (R1, VDS §20)
-    const activeStepNode = page.locator('.journey-beacon:visible').first();
+    const activeStepNode = activeRailNode(page);
+    await expect(activeStepNode).toHaveCount(1);
     await expect(activeStepNode).toBeVisible();
-
-    const activeAnimation = await activeStepNode.evaluate((el) => {
-      const style = window.getComputedStyle(el);
-      return {
-        animationName: style.animationName,
-        boxShadow: style.boxShadow,
-      };
-    });
-    // In standard motion, beacon-breathe keyframe animation runs
-    expect(activeAnimation.animationName).toContain('beacon-breathe');
+    // In standard motion, the breathing keyframe animation runs
+    expect((await motionOf(activeStepNode)).animationName).toContain('dash-breathe');
 
     // 3. Fluid Unfolding for Strategic Phase Accordion (R2)
-    const phase1Panel = page.locator('#phase-panel-p1');
+    const { toggle: phase1Toggle, panel: phase1Panel } = await phaseOne(page);
     await expect(phase1Panel).toHaveClass(/journey-accordion-content/);
     await expect(phase1Panel).toHaveAttribute('data-state', 'open');
+    expect((await motionOf(phase1Panel)).transitionProperty).toContain('max-height');
 
     // Toggle Phase 1 closed
-    const phase1Toggle = page.getByRole('button', { name: /Phase 1 of/i });
     await phase1Toggle.click();
     await expect(phase1Panel).toHaveAttribute('data-state', 'closed');
 
@@ -89,30 +111,35 @@ test.describe('Journey Motion (M6.5) — Standard Motion Mode', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/roadmap');
 
-    // 1. "You are here" badge beacon
-    const mobileBadge = page.locator('[data-testid="you-are-here-badge"]');
-    await expect(mobileBadge).toBeVisible();
-    await expect(mobileBadge).toHaveClass(/journey-beacon/);
+    // 1. "You are here" card is shown, and the strip's current week breathes
+    const youAreHere = page.getByRole('region', { name: 'Current position' });
+    await expect(youAreHere).toBeVisible();
+    await expect(youAreHere).toContainText('You are here');
+    expect((await motionOf(currentWeekSegment(page))).animationName).toContain('dash-breathe');
 
     // 2. Active step node has beacon
-    const activeStep = page.locator('[data-testid="active-step-node"]');
+    const activeStep = activeRailNode(page);
     await expect(activeStep).toBeVisible();
-    await expect(activeStep).toHaveClass(/journey-beacon/);
+    expect((await motionOf(activeStep)).animationName).toContain('dash-breathe');
 
     // 3. Mobile accordion fluid transition
-    const mobilePanel = page.locator('#mobile-phase-p1');
+    const { toggle: mobileToggle, panel: mobilePanel } = await phaseOne(page);
     await expect(mobilePanel).toBeVisible();
     await expect(mobilePanel).toHaveClass(/journey-accordion-content/);
     await expect(mobilePanel).toHaveAttribute('data-state', 'open');
 
-    // Toggle closed
-    const mobileToggle = page.getByRole('button', { name: /Landing 1/i });
+    // Toggle closed, and the chevron turns back
+    const chevron = mobileToggle.locator('svg');
     await mobileToggle.click();
     await expect(mobilePanel).toHaveAttribute('data-state', 'closed');
+    await expect(mobilePanel).toBeHidden();
+    expect(await chevron.getAttribute('class')).not.toContain('rotate-180');
 
     // Toggle back open
     await mobileToggle.click();
     await expect(mobilePanel).toHaveAttribute('data-state', 'open');
+    await expect(mobilePanel).toBeVisible();
+    expect(await chevron.getAttribute('class')).toContain('rotate-180');
   });
 });
 
@@ -139,44 +166,32 @@ test.describe('Journey Motion (M6.5) — Strict Reduced-Motion Path', () => {
       await expect(main).toBeVisible();
       const mainOpacity = await main.evaluate((el) => window.getComputedStyle(el).opacity);
       expect(Number(mainOpacity)).toBe(1);
+      await expect(main.getByRole('region', { name: 'Current position' })).toBeVisible();
 
-      // 2. Active step beacon animation is disabled (animation is none / 0 duration)
-      const beaconEl = page.locator('.journey-beacon:visible').first();
+      // 2. Active step beacon and current-week animations are disabled (none, or clamped to 0.01ms)
+      const isAnimationDisabled = (motion: Awaited<ReturnType<typeof motionOf>>) =>
+        motion.animationName === 'none' || parseFloat(motion.animationDuration) <= 0.01;
+      const beaconEl = activeRailNode(page);
       await expect(beaconEl).toBeVisible();
-      const beaconComputed = await beaconEl.evaluate((el) => {
-        const style = window.getComputedStyle(el);
-        return {
-          animationName: style.animationName,
-          animationDuration: style.animationDuration,
-        };
-      });
-      // In reduced motion, animation is none or duration is clamped to 0.01ms
-      const isAnimationDisabled =
-        beaconComputed.animationName === 'none' ||
-        parseFloat(beaconComputed.animationDuration) <= 0.01;
-      expect(isAnimationDisabled).toBe(true);
+      expect(isAnimationDisabled(await motionOf(beaconEl))).toBe(true);
+      expect(isAnimationDisabled(await motionOf(currentWeekSegment(page)))).toBe(true);
+
+      // No animation anywhere on the page outlasts the clamp or loops
+      const lingering = await page.evaluate(() =>
+        document
+          .getAnimations()
+          .map((animation) => animation.effect?.getComputedTiming())
+          .filter((timing) => !timing || Number(timing.duration) > 0.01 || timing.iterations !== 1).length,
+      );
+      expect(lingering).toBe(0);
 
       // 3. Accordion transitions are instantaneous
       const accordionPanel = page.locator('.journey-accordion-content:visible').first();
-      if (await accordionPanel.isVisible()) {
-        const accordionTransition = await accordionPanel.evaluate((el) => {
-          const style = window.getComputedStyle(el);
-          return style.transitionDuration;
-        });
-        const durationSeconds = parseFloat(accordionTransition);
-        expect(durationSeconds <= 0.01).toBe(true);
-      }
+      await expect(accordionPanel).toBeVisible();
+      expect(parseFloat((await motionOf(accordionPanel)).transitionDuration) <= 0.01).toBe(true);
 
-      // 4. Progress bar transition is instantaneous / immediate
-      const progressBar = page.locator('[data-testid="journey-progress-bar"]');
-      if (await progressBar.isVisible()) {
-        const barTransition = await progressBar.evaluate((el) => {
-          const style = window.getComputedStyle(el);
-          return style.transitionDuration;
-        });
-        const barDuration = parseFloat(barTransition);
-        expect(barDuration <= 0.01).toBe(true);
-      }
+      // 4. Progress strip transition is instantaneous / immediate
+      expect(parseFloat((await motionOf(currentWeekSegment(page))).transitionDuration) <= 0.01).toBe(true);
 
       // 5. Zero Horizontal Scroll Overflow
       const overflow = await documentOverflow(page);

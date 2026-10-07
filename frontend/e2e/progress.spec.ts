@@ -4,6 +4,8 @@ import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
 
 /**
  * Milestone M8.5: Dedicated Progress Page E2E Specs.
+ * Updated for the simplified page (728ea8c, c4518bd): "Right now" (phase, week, day, percent), the journey's phases,
+ * and a "Detailed history" disclosure holding week by week, benchmark results and adaptation history.
  * Verifies route navigation, shell integration, early state (Week 1, 0 sessions),
  * mid-journey state (Week 6 with reviews & benchmarks), goal-less & error resilience,
  * touch targets, tabular numerals, reduced motion, zero overflow, and axe accessibility.
@@ -44,14 +46,29 @@ const expectTapTargets = async (controls: Locator) => {
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+/**
+ * The calendar day `offset` days from today, as a date key. Since missed-sessions M1.1b the day number and task dates
+ * follow the user's timezone (here the browser's, as the mock user stores none), so fixtures count on the local
+ * calendar; UTC dates are a day off around local midnight.
+ */
+const localDayKey = (offset: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+/** A goal day stored as the app stores it: the local calendar day at 00:00 UTC. */
+const storedDay = (offset: number) => `${localDayKey(offset)}T00:00:00.000Z`;
+
 const createEarlyGoal = () => {
   const base = shellGoal();
   const now = new Date();
   return {
     ...base,
     currentWeek: 1,
-    startDate: now.toISOString(),
-    targetDate: new Date(now.getTime() + 90 * 86_400_000).toISOString(),
+    startDate: storedDay(0),
+    targetDate: storedDay(90),
     roadmapWeeks: [
       {
         id: 'rw-1',
@@ -91,7 +108,7 @@ const createEarlyGoal = () => {
       goalId: base.id,
       weekNumber: 1,
       dayNumber: idx + 1,
-      date: new Date(now.getTime() + idx * 86_400_000).toISOString().slice(0, 10),
+      date: localDayKey(idx),
       dayOfWeek,
       title: idx === 6 ? 'Weekly Rest & Review' : `Discovery Session ${idx + 1}`,
       detailedSteps: '[]',
@@ -110,7 +127,6 @@ const createMidJourneyGoal = () => {
   const now = new Date();
   const elapsedDays = 40;
   const start = new Date(now.getTime() - elapsedDays * 86_400_000);
-  const target = new Date(start.getTime() + 90 * 86_400_000);
 
   const weeks = [
     {
@@ -239,7 +255,7 @@ const createMidJourneyGoal = () => {
         goalId: base.id,
         weekNumber: w,
         dayNumber: dayNum,
-        date: new Date(start.getTime() + (dayNum - 1) * 86_400_000).toISOString().slice(0, 10),
+        date: localDayKey(dayNum - 1 - elapsedDays),
         dayOfWeek: DAYS[d],
         title: isRest ? 'Active Recovery' : `Practice Session W${w}D${d + 1}`,
         detailedSteps: '[]',
@@ -280,12 +296,24 @@ const createMidJourneyGoal = () => {
   return {
     ...base,
     currentWeek: 6,
-    startDate: start.toISOString(),
-    targetDate: target.toISOString(),
+    startDate: storedDay(-elapsedDays),
+    targetDate: storedDay(90 - elapsedDays),
     roadmapWeeks: weeks,
     dailyTasks: tasks,
     weeklyReviews: reviews,
   };
+};
+
+/** The "Right now" section, named by the current phase. */
+const rightNow = (page: Page) => page.locator('main#main section[aria-labelledby="current-progress"]');
+
+/** The secondary evidence (week by week, benchmarks, adaptation) sits behind one disclosure (progressive depth). */
+const openDetailedHistory = async (page: Page) => {
+  const toggle = page.getByRole('button', { name: /^Detailed history/ });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('region', { name: 'Week by week' })).toHaveCount(0);
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 };
 
 test.describe('Route Navigation & Shell Integration', () => {
@@ -298,12 +326,13 @@ test.describe('Route Navigation & Shell Integration', () => {
     await signIn(page);
     await page.goto('/progress');
 
-    // Page header elements
+    // Page header elements: the goal the user chose, the stored outcome beneath it (ND-18), and where they stand
     const main = page.locator('main#main');
     await expect(main).toBeVisible();
     await expect(main.getByRole('heading', { level: 1 })).toHaveText(goal.rawGoal);
     await expect(main.getByText(goal.clarifiedOutcome)).toBeVisible();
-    await expect(main.getByText(/Day 1 of 90 · Week 1 · Foundation/)).toBeVisible();
+    await expect(rightNow(page).getByRole('heading', { level: 2 })).toHaveText('Foundation');
+    await expect(rightNow(page).getByText('Week 1 · Day 1', { exact: true })).toBeVisible();
 
     // Shell navigation active state
     const progressLink = primary(page).getByRole('link', { name: 'Progress' });
@@ -340,23 +369,27 @@ test.describe('Early Journey State (Week 1, 0 Completed Sessions)', () => {
     await signIn(page);
     await page.goto('/progress');
 
-    // Layer 1: CompletionOverview honest numerals and non-punitive orientation sublabels
-    const overview = page.locator('section[aria-labelledby="completion-overview-heading"]');
-    await expect(overview).toBeVisible();
+    // Layer 1: "Right now" shows an honest 0 and calm, non-punitive orientation copy
+    const now = rightNow(page);
+    await expect(now).toBeVisible();
+    await expect(now.getByText('0%', { exact: true })).toBeVisible();
+    await expect(now.getByRole('progressbar', { name: '0% progress' })).toHaveAttribute('aria-valuenow', '0');
+    await expect(now.getByText('Your journey is ready. Start with today’s session.')).toBeVisible();
+    await expect(now.getByText(/sessions completed/)).toHaveCount(0);
 
-    // Practice sessions: 0 of 6 planned
-    await expect(overview.getByText('0', { exact: true }).first()).toBeVisible();
-    await expect(overview.getByText('Practice sessions')).toBeVisible();
-    await expect(overview.getByText('First session awaits · of 6 planned')).toBeVisible();
+    // Layer 2: the journey's phases, the first one current
+    const journey = page.getByRole('region', { name: 'Your journey' });
+    await expect(journey.getByText('Foundation (current phase)')).toBeVisible();
+    await expect(journey.getByText('Acceleration (upcoming)')).toBeVisible();
+    await expect(journey.getByText('Mastery (upcoming)')).toBeVisible();
+    await expect(journey.getByText(/\(completed\)/)).toHaveCount(0);
 
-    // Adherence: 0% with calm starting orientation
-    await expect(overview.getByText('0%')).toBeVisible();
-    await expect(overview.getByText('Execution adherence')).toBeVisible();
-    await expect(overview.getByText('Starting your journey · 0 of 6 to date')).toBeVisible();
+    await openDetailedHistory(page);
 
-    // Practice time: 0 min
-    await expect(overview.getByText('0 min')).toBeVisible();
-    await expect(overview.getByText('Total practice time')).toBeVisible();
+    // Layer 3: week by week, nothing done yet: 0 of 6 practice days
+    const weeks = page.getByRole('region', { name: 'Week by week' });
+    await expect(weeks).toBeVisible();
+    await expect(weeks.getByText('0 of 6 practice days')).toBeVisible();
 
     // Layer 4: BenchmarkResultsCard shows upcoming badge with pass criteria and instructions preview
     const benchmarks = page.locator('section[aria-labelledby="benchmark-results-heading"]');
@@ -388,31 +421,29 @@ test.describe('Mid-Journey State (Week 6 with Completed Reviews & Benchmarks)', 
 
     const main = page.locator('main#main');
     await expect(main).toBeVisible();
-    await expect(main.getByText(/Week 6 · Acceleration/).first()).toBeVisible();
 
-    // Layer 1: Non-zero metrics derived from 28 completed sessions
-    const overview = page.locator('section[aria-labelledby="completion-overview-heading"]');
-    await expect(overview.getByText('28', { exact: true })).toBeVisible();
-    await expect(overview.getByText('Practice sessions')).toBeVisible();
-    await expect(overview.getByText('of 30 planned')).toBeVisible();
-
-    // 28 / 30 active sessions to date = 93% adherence
-    await expect(overview.getByText('93%')).toBeVisible();
-    await expect(overview.getByText('28 of 30 to date')).toBeVisible();
-
-    // Total practice time: 28 * 45m = 1260m = 21 hrs
-    await expect(overview.getByText('21 hrs')).toBeVisible();
+    // Layer 1: where the user stands (week 6 is in Acceleration, as on the Roadmap) and real execution:
+    // 28 of the 30 sessions planned to date = 93%
+    const now = rightNow(page);
+    await expect(now.getByRole('heading', { level: 2 })).toHaveText('Acceleration');
+    await expect(now.getByText('Week 6 · Day 41', { exact: true })).toBeVisible();
+    await expect(now.getByText('93%', { exact: true })).toBeVisible();
+    await expect(now.getByRole('progressbar', { name: '93% progress' })).toHaveAttribute('aria-valuenow', '93');
+    await expect(now.getByText('28 practice sessions completed so far.')).toBeVisible();
 
     // Layer 2: Phase milestones progression
-    const phases = page.locator('section[aria-labelledby="phase-milestones-heading"]');
+    const phases = page.getByRole('region', { name: 'Your journey' });
     await expect(phases).toBeVisible();
-    await expect(phases.getByText('Foundation')).toBeVisible();
-    await expect(phases.getByText('Acceleration')).toBeVisible();
-    await expect(phases.getByText('Mastery')).toBeVisible();
-    await expect(phases.getByText('Completed', { exact: true })).toBeVisible();
-    await expect(phases.getByText('In progress', { exact: true })).toBeVisible();
-    await expect(phases.getByText('Upcoming', { exact: true })).toBeVisible();
-    await expect(phases.getByText('100% execution')).toBeVisible();
+    await expect(phases.getByText('Foundation (completed)')).toBeVisible();
+    await expect(phases.getByText('Acceleration (current phase)')).toBeVisible();
+    await expect(phases.getByText('Mastery (upcoming)')).toBeVisible();
+
+    await openDetailedHistory(page);
+
+    // Layer 3: week by week execution
+    const weeks = page.getByRole('region', { name: 'Week by week' });
+    await expect(weeks.getByText('5 of 5 practice days')).toHaveCount(5);
+    await expect(weeks.getByText('3 of 5 practice days')).toBeVisible();
 
     // Layer 4: Benchmark results card with passed and non-punitive unmet badges
     const benchmarks = page.locator('section[aria-labelledby="benchmark-results-heading"]');
@@ -469,10 +500,10 @@ test.describe('Resilience & Goal-less States', () => {
 
     const main = page.locator('main#main');
     await expect(main).toBeVisible();
-    await expect(main.getByRole('heading', { level: 1, name: 'No Active Journey' })).toBeVisible();
-    await expect(main.getByText('Start your 90-day journey to see your progress here.')).toBeVisible();
+    await expect(main.getByRole('heading', { level: 1, name: 'No active journey' })).toBeVisible();
+    await expect(main.getByText('Create a journey to start tracking your progress.')).toBeVisible();
 
-    const cta = main.getByRole('link', { name: 'Create Your Journey' });
+    const cta = main.getByRole('link', { name: 'Create journey' });
     await expect(cta).toBeVisible();
     await expect(cta).toHaveAttribute('href', '/onboarding');
   });
@@ -505,13 +536,11 @@ test.describe('Resilience & Goal-less States', () => {
     await signIn(page);
     await page.goto('/progress');
 
-    // Error alert rendered with role="alert"
+    // Error alert rendered with role="alert", reassuring rather than alarming
     const alert = page.getByRole('alert');
     await expect(alert).toBeVisible();
-    await expect(page.getByRole('heading', { level: 1, name: "We couldn't load your progress" })).toBeVisible();
-    await expect(
-      page.getByText('Your plan is safe, but we had trouble reaching Achivii. Check your connection or try again.'),
-    ).toBeVisible();
+    await expect(alert.getByRole('heading', { level: 1, name: 'Your progress is safe.' })).toBeVisible();
+    await expect(alert.getByText("We couldn't reach Achivii right now.")).toBeVisible();
 
     const retryBtn = alert.getByRole('button', { name: 'Try again' });
     await expect(retryBtn).toBeVisible();
@@ -523,7 +552,7 @@ test.describe('Resilience & Goal-less States', () => {
     // Page recovers and displays progress content
     await expect(alert).not.toBeVisible();
     await expect(page.getByRole('heading', { level: 1, name: goal.rawGoal })).toBeVisible();
-    await expect(page.locator('section[aria-labelledby="completion-overview-heading"]')).toBeVisible();
+    await expect(rightNow(page)).toBeVisible();
   });
 });
 
@@ -545,9 +574,11 @@ test.describe('Accessibility & Responsive Sweeps', () => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       await page.goto('/progress');
       await expect(page.locator('main#main')).toBeVisible();
+      await page.getByRole('button', { name: /^Detailed history/ }).click();
+      await expect(page.getByRole('region', { name: 'Adaptation history' })).toBeVisible();
       await settled(page);
 
-      // 1. Zero horizontal overflow
+      // 1. Zero horizontal overflow, with the detailed history open
       const overflow = await documentOverflow(page);
       expect(overflow, `horizontal overflow at ${vp.width}px`).toBeLessThanOrEqual(1);
 
@@ -558,6 +589,7 @@ test.describe('Accessibility & Responsive Sweeps', () => {
       // 3. Minimum 44x44px tap targets on interactive elements
       const interactive = primary(page).locator('a, button').filter({ visible: true });
       await expectTapTargets(interactive);
+      await expectTapTargets(page.locator('main#main button').filter({ visible: true }));
 
       // 4. Zero Axe-core violations
       const violations = await axeViolations(page);
@@ -574,8 +606,22 @@ test.describe('Accessibility & Responsive Sweeps', () => {
 
     await expect(page.locator('main#main')).toBeVisible();
     await expect(page.getByRole('heading', { level: 1, name: goal.rawGoal })).toBeVisible();
-    await expect(page.locator('section[aria-labelledby="completion-overview-heading"]')).toBeVisible();
+    await expect(rightNow(page)).toBeVisible();
+
+    // The progress fill does not animate, and opening the detailed history shows it at once
+    const fill = rightNow(page).getByRole('progressbar').locator('div');
+    const fillDuration = await fill.evaluate((el) => parseFloat(window.getComputedStyle(el).transitionDuration));
+    expect(fillDuration).toBeLessThanOrEqual(0.01);
+
+    await page.getByRole('button', { name: /^Detailed history/ }).click();
     await expect(page.locator('section[aria-labelledby="benchmark-results-heading"]')).toBeVisible();
     await expect(page.locator('section[aria-labelledby="adaptation-history-heading"]')).toBeVisible();
+    const lingering = await page.evaluate(() =>
+      document
+        .getAnimations()
+        .map((animation) => animation.effect?.getComputedTiming())
+        .filter((timing) => !timing || Number(timing.duration) > 0.01 || timing.iterations !== 1).length,
+    );
+    expect(lingering).toBe(0);
   });
 });
