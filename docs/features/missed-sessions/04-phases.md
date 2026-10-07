@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** IN PROGRESS (P1 and P2 complete; next is P3, M3.1; M4.2 is blocked, see 2.2)
+**Status:** IN PROGRESS (P1, P2 and M3.1 complete; switch can be turned on, see 2.4; next is M3.2; M4.2 is blocked, see 2.2)
 **Version:** 1.5 (updated 2026-10-07: phase review, ND-9 to ND-16)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
@@ -110,7 +110,7 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Endpoint to log the test without closing the week (M4.1); week-close handoff extends the existing review route (M4.2). |
 | P5 | QA, Copy Audit & Regression | P1-P4 | None. |
 
-Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3, P4, P5 NOT STARTED (M4.1 can start any time, see 2.3).
+Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3 IN PROGRESS (M3.1 complete); P4, P5 NOT STARTED (M4.1 can start any time, see 2.3).
 
 ## 2.1 Dependency graph
 ```
@@ -305,7 +305,7 @@ Duplicate or lost steps on repeated or concurrent reconcile (ND-13 guard and tes
 
 # 8 — P3 TODAY EXPERIENCE
 
-**Status:** NOT STARTED
+**Status:** IN PROGRESS (M3.1 complete)
 
 ## 8.1 Source
 UX-1, UX-2, UX-4, RULE-6 (UI), RULE-8 (UI), RULE-9, tone section, AC-1, AC-5, AC-6, AC-7, AC-10, AC-12. Finding F-3.
@@ -332,7 +332,7 @@ None, beyond fields P2 already exposes. Turning on `MISSED_SESSIONS_CARRY_ENABLE
 
 ## 8.7 Milestones
 
-**M3.1 — Miss notice.** Replace the `yesterdayUncompleted` callout with the real carried or dropped notice from the reconcile signals (ND-16). Copy from Feature Definition section 12. Also reconcile again when the tab becomes visible on a new local date, so a tab left open overnight catches up. After this ships, turn the ND-15 switch on and re-check the notice in production (2.4).
+**M3.1 — Miss notice. COMPLETE** (2026-10-07). Evidence: `milestones/m3.1-miss-notice.md` (release checklist in its last section). Replace the `yesterdayUncompleted` callout with the real carried or dropped notice from the reconcile signals (ND-16). Copy from Feature Definition section 12. Also reconcile again when the tab becomes visible on a new local date, so a tab left open overnight catches up. After this ships, turn the ND-15 switch on and re-check the notice in production (2.4).
 
 **M3.2 — Short-on-time and gentle-return.** UX-2 and UX-4, with the 10-minute version reachable in two taps or fewer.
 
@@ -439,9 +439,9 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M3.1 (miss notice)**. M4.1 can be drafted at any time. M4.1 can be drafted at any time.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M3.2 (short-on-time and gentle-return)**. M4.1 can be drafted at any time. M4.1 can be drafted at any time.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1 and P2 COMPLETE; M3.1 PROMPT READY
+**Status:** P1, P2 and M3.1 COMPLETE; M3.2 PROMPT TO BE DRAFTED

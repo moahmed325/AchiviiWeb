@@ -802,7 +802,7 @@ A rule above conflicts with the Feature Definition or 04-phases.md; an action ne
 ## M3.1 — Miss Notice
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on P2 (complete). The first user-visible milestone. After it is live, the ND-15 switch can be turned on (04-phases.md 2.4).
+COMPLETE (2026-10-07, commit `084682c`). Report: `docs/features/missed-sessions/milestones/m3.1-miss-notice.md`, including the release checklist for the ND-15 switch.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P3/M3.1. Implement only this milestone. Follow the operating contract in section 0.
