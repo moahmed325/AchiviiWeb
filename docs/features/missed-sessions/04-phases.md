@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** IN PROGRESS (P1, P2 and M3.1 complete; switch can be turned on, see 2.4; next is M3.2; M4.2 is blocked, see 2.2)
+**Status:** IN PROGRESS (P1, P2, M3.1 and M3.2 complete; switch stays off until M3.3, see 2.4; next is M3.3; M4.2 is blocked, see 2.2)
 **Version:** 1.5 (updated 2026-10-07: phase review, ND-9 to ND-16)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
@@ -110,7 +110,7 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Endpoint to log the test without closing the week (M4.1); week-close handoff extends the existing review route (M4.2). |
 | P5 | QA, Copy Audit & Regression | P1-P4 | None. |
 
-Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3 IN PROGRESS (M3.1 complete); P4, P5 NOT STARTED (M4.1 can start any time, see 2.3).
+Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3 IN PROGRESS (M3.1, M3.2 complete); P4, P5 NOT STARTED (M4.1 can start any time, see 2.3).
 
 ## 2.1 Dependency graph
 ```
@@ -305,7 +305,7 @@ Duplicate or lost steps on repeated or concurrent reconcile (ND-13 guard and tes
 
 # 8 — P3 TODAY EXPERIENCE
 
-**Status:** IN PROGRESS (M3.1 complete)
+**Status:** IN PROGRESS (M3.1, M3.2 complete)
 
 ## 8.1 Source
 UX-1, UX-2, UX-4, RULE-6 (UI), RULE-8 (UI), RULE-9, tone section, AC-1, AC-5, AC-6, AC-7, AC-10, AC-12. Finding F-3.
@@ -334,7 +334,7 @@ None, beyond fields P2 already exposes. Turning on `MISSED_SESSIONS_CARRY_ENABLE
 
 **M3.1 — Miss notice. COMPLETE** (2026-10-07). Evidence: `milestones/m3.1-miss-notice.md` (release checklist in its last section). Replace the `yesterdayUncompleted` callout with the real carried or dropped notice from the reconcile signals (ND-16). Copy from Feature Definition section 12. Also reconcile again when the tab becomes visible on a new local date, so a tab left open overnight catches up. After this ships, turn the ND-15 switch on and re-check the notice in production (2.4).
 
-**M3.2 — Short-on-time and gentle-return.** UX-2 and UX-4, with the 10-minute version reachable in two taps or fewer.
+**M3.2 — Short-on-time and gentle-return. COMPLETE** (2026-10-07). Evidence: `milestones/m3.2-short-on-time-and-gentle-return.md`. UX-2 and UX-4, with the 10-minute version reachable in two taps or fewer.
 
 **M3.3 — Key-session swap and mark-missed UI.** Swap offered before carry-forward for a missed key session. Rest days never show a miss message. Use each action's response (the reconcile body) to refresh. Two things only that response knows (M2.4 report): when today's key session is marked missed, its `swapOffer` is not shown again on a reload until tonight's close, so keep it on screen from the response; and a drop caused by marking today missed appears in that response's `carry.drops` but becomes a `dropped` notice only after the close. **Wording when the day is today (decided 2026-10-07):** after "mark today missed", the day concerned is today, so M3.1's `{Day}` rule ("Yesterday" or a weekday) would read "Tuesday's session didn't happen" on that Tuesday. Extend the rule: when the day concerned is today, use these strings instead, and no others. Today, carried: "Today's session is set aside. We moved its most important step to {Weekday}, so that day stays the same length." Today, dropped: "Today's session is set aside. Nothing needs making up: the plan carries on as it is." Dashboard, either case: "Today's session is set aside. No catching up needed." Same copy rules as M3.1 (no "missed", "behind", "failed" or "why").
 
@@ -439,9 +439,9 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M3.2 (short-on-time and gentle-return)**. M4.1 can be drafted at any time. M4.1 can be drafted at any time.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M3.3 (key-session swap and mark-missed UI)**. M4.1 can be drafted at any time. M4.1 can be drafted at any time.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1, P2 and M3.1 COMPLETE; M3.2 PROMPT READY
+**Status:** P1, P2, M3.1 and M3.2 COMPLETE; M3.3 PROMPT TO BE DRAFTED

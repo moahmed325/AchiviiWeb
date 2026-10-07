@@ -876,7 +876,7 @@ The backend response does not match `MissedSignals`; a string above cannot be ma
 ## M3.2 — Short-on-Time and Gentle Return
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on M3.1 (complete).
+COMPLETE (2026-10-07, commit `4e6f87a`). Report: `docs/features/missed-sessions/milestones/m3.2-short-on-time-and-gentle-return.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P3/M3.2. Implement only this milestone. Follow the operating contract in section 0.
