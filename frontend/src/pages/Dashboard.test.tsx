@@ -179,6 +179,18 @@ describe('Dashboard: gentle-return line (missed sessions M3.2, ND-19)', () => {
     expect(screen.getByText('1 of 3 sessions done this week. Keep the rhythm.')).toBeInTheDocument();
   });
 
+  it("describes the 10-minute version on a gentle-return day: its minutes, no list of the full session's steps", () => {
+    renderWith(withMinimum(), body(GENTLE));
+    expect(screen.getByText('10 min · at 07:00')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Inside this session' })).not.toBeInTheDocument();
+  });
+
+  it('other days keep the full session in the card', () => {
+    renderWith(withMinimum(), body({ shortOnTime: true }));
+    expect(screen.getByText('30 min · 4 steps · at 07:00')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Inside this session' })).toBeInTheDocument();
+  });
+
   it('keeps the old priority: a finished day speaks first', () => {
     renderWith(withMinimum('completed'), body(GENTLE));
     expect(screen.queryByText(WELCOME)).not.toBeInTheDocument();

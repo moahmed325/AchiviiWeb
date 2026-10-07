@@ -414,7 +414,7 @@ Structural rules for the screens that have them. Exact copy, and which state sho
 - **Order (BP §09, §31):** your goal → Day N / 90 → today's step → duration → `whyToday` (when stored) → at most one notice line → the actions → progressive reveals → a glance at the week → the way onward (Roadmap, weekly review).
 - **The heading is the goal the user chose** (`rawGoal`, the page's one `h1`, ND-18). The stored 90-day outcome (`clarifiedOutcome`) sits beneath it in `text-small`, exactly as stored: never hidden, guessed at, rewritten or passed through `formatGoalTitle`.
 - **Day N / 90** is `text-numeral` with `tabular` figures, "/ 90" beside it, and "Week N · phase · theme" as stored. The number comes from `dayNumber()` in `lib/today.ts`.
-- **The step:** the title as `h2`, "N min · at HH:MM", and `whyToday` when present (no fallback copy). Then **one main action** and the complete toggle (secondary). The main action is Start; on a gentle-return day it is "Start the 10-minute version", with the full session as a secondary button one tap away (missed sessions M3.2). Rest days have no Start.
+- **The step:** the title as `h2`, "N min · at HH:MM", and `whyToday` when present (no fallback copy). Then **one main action** and the complete toggle (secondary). The main action is Start; on a gentle-return day it is "Start the 10-minute version", with the full session as a secondary button one tap away (missed sessions M3.2), and the duration shown on Today and the Dashboard is the 10-minute version's (the Dashboard then lists no full-session steps). Rest days have no Start.
 - **At most one notice line** (notice fatigue), in the quiet gold-ruled `Callout`, only on Today's view of today and never on a rest day. It comes from the reconcile signals through `missNotice` (`lib/today.ts`), which the Dashboard also uses. A line that belongs to an action (the short-on-time line) sits under the buttons, not in the `Callout`.
 - **Progressive reveal (BP §31):** details open on demand below the actions: the steps, the 10-minute version (closed by default, only when `minimumVersion` is set), the implementation intention, the task resource (no embedded video), and notes. Empty sections are omitted, never shown as placeholders. Under reduced motion, reveals change state without animation.
 - **Start stays in the first screen** at 390 × 844 with a normal-length title and `whyToday` present, above the bottom bar.
@@ -431,6 +431,7 @@ Structural rules for the screens that have them. Exact copy, and which state sho
 
 - **A calm start.** It opens on a start screen; the timer starts only when the user starts it.
 - **What it can start on.** `startWith: 'full'` (default) or `'minimum'` (the 10-minute version, when the task has one; otherwise the full session). Once in the 10-minute version there is no switch back inside Focus mode; offer the full session from the screen that opened it.
+- **The 10-minute version is timed on its own minutes** (`minimumMinutes`), whether it starts there or the user switches to it; the full session's minutes are never shown for it.
 - **Completion reports how it was done.** `onCompleteSession(reflection, { usedMinimumVersion })`, so a 10-minute completion is stored as such (ND-3).
 - **Keyboard.** Space starts, pauses and resumes (never while typing in a field); Escape closes; focus is trapped while open and returned to the trigger on close. Ctrl/Cmd+Enter saves the reflection.
 - **A failed save** keeps the modal and the reflection, announces the error (`role="alert"`) and turns the button into "Try again".
@@ -525,8 +526,6 @@ A glow or shadow in a token colour is written with `color-mix`, for example `sha
 | Where | What | Rule |
 |---|---|---|
 | `components/marketing/StaircaseScene.tsx` | Its canvas palette is hex values in JavaScript (most mirror tokens) | Tokens only (§2). Canvas drawing can't use the Tailwind utilities; reading the tokens with `getComputedStyle` would bring it in line. |
-| Focus mode in the 10-minute version | The header and timer still show the full session's minutes | Say what is true (§10). |
-| Today and Dashboard on a gentle-return day | The step's duration shows the full session's minutes next to "Today's a short one" | Say what is true (§10). Open question from missed-sessions M3.2. |
 
 ---
 

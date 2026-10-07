@@ -730,6 +730,21 @@ describe('Today', () => {
       expect(screen.queryByText('Minimum version')).not.toBeInTheDocument();
     });
 
+    it("gentle-return day: the step shows the 10-minute version's minutes; other days the full session's", async () => {
+      reconciled(GENTLE);
+      withMinimum();
+      await renderToday();
+      expect(screen.getByText('10 min · at 19:30')).toBeInTheDocument();
+      expect(screen.queryByText('30 min · at 19:30')).not.toBeInTheDocument();
+    });
+
+    it('short on time keeps the full session as the default, so its minutes stay', async () => {
+      reconciled({ shortOnTime: true });
+      withMinimum();
+      await renderToday();
+      expect(screen.getByText('30 min · at 19:30')).toBeInTheDocument();
+    });
+
     it('short on time: Start stays first, the 10-minute version is one tap away, with its line under the buttons', async () => {
       const user = userEvent.setup();
       reconciled({ shortOnTime: true });

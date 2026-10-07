@@ -164,5 +164,20 @@ describe('FocusSessionModal', () => {
       await act(async () => fireEvent.click(screen.getByRole('button', { name: /finish & return/i })));
       expect(onComplete).toHaveBeenCalledWith(undefined, { usedMinimumVersion: false });
     });
+
+    it('times the 10-minute version on its own minutes, never the full session', () => {
+      const { unmount } = open(withMinimum, 'minimum');
+      fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('10:00')).toBeInTheDocument();
+      expect(screen.queryByText('30:00')).not.toBeInTheDocument();
+      unmount();
+
+      // Switching from the full session to the minimum restarts the clock on the minimum's minutes.
+      open(withMinimum);
+      fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('30:00')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /low energy/i }));
+      expect(screen.getByText('10:00')).toBeInTheDocument();
+    });
   });
 });

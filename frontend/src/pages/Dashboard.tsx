@@ -11,6 +11,7 @@ import {
   isClosingStretchActive,
   isToday,
   isWeekReviewDue,
+  minimumMinutes,
   missNotice,
   parseSteps,
   selectTodayTask,
@@ -137,13 +138,20 @@ export const Dashboard: React.FC = () => {
   const dateLabel = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
   const stagger = (ms: number): React.CSSProperties => ({ animationDelay: ms + 'ms' });
 
-  const status = statusLine({ closing: isClosingStretchActive(activeGoal, now, timezone), isDone, isRest, notice: missNotice(reconciliation ?? null, activeGoal, now, timezone), practiceDone, practiceDays });
+  const notice = missNotice(reconciliation ?? null, activeGoal, now, timezone);
+  const status = statusLine({ closing: isClosingStretchActive(activeGoal, now, timezone), isDone, isRest, notice, practiceDone, practiceDays });
   const steps = parseSteps(task?.detailedSteps);
+  // A gentle-return day defaults to the 10-minute version (missed sessions M3.2), so the card describes that, not the
+  // full session's minutes and steps.
+  const shortDay = notice?.kind === 'gentle_return' ? minimumMinutes(task) : null;
   const previewSteps = steps.slice(0, 3);
   const moreSteps = steps.length - previewSteps.length;
-  const showSteps = Boolean(task) && !isDone && !isRest && previewSteps.length > 0;
+  const showSteps = Boolean(task) && !isDone && !isRest && shortDay === null && previewSteps.length > 0;
   const meta = task && !isRest && !isDone
-    ? [task.durationMinutes > 0 ? task.durationMinutes + ' min' : '', steps.length > 0 ? plural(steps.length, 'step', 'steps') : '', task.slotTime ? 'at ' + task.slotTime : ''].filter(Boolean).join(' \u00b7 ')
+    ? (shortDay !== null
+        ? [shortDay + ' min', task.slotTime ? 'at ' + task.slotTime : '']
+        : [task.durationMinutes > 0 ? task.durationMinutes + ' min' : '', steps.length > 0 ? plural(steps.length, 'step', 'steps') : '', task.slotTime ? 'at ' + task.slotTime : '']
+      ).filter(Boolean).join(' \u00b7 ')
     : '';
 
   const eyebrow = isDone ? 'Done for today' : isRest ? 'Rest day' : 'Next session';

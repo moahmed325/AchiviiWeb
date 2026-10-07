@@ -12,6 +12,7 @@ import {
   isToday,
   isWeekReviewDue,
   isClosingStretchActive,
+  minimumMinutes,
   missNotice,
   shortOnTimeOffer,
   parseIntention,
@@ -455,7 +456,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               </h2>
               <p className="tabular mt-4 inline-flex items-center gap-2 text-small text-text-secondary">
                 <Clock aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0 text-achievement" />
-                {task.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
+                {/* On a gentle-return day the 10-minute version is the default, so its minutes are the day's minutes. */}
+                {(gentleReturn ? minimumMinutes(task) : null) ?? (task.durationMinutes || 30)} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
               </p>
               {task.isRestDay && (
                 <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import type { DailyTask, DetailedStep } from '../types';
 import { playSessionStart, playStepTransition, playSessionComplete } from '../lib/audio';
+import { minimumMinutes } from '../lib/today';
 import { FocusHeader } from './focus/FocusHeader';
 import { FocusTimer } from './focus/FocusTimer';
 import { FocusStepRunner } from './focus/FocusStepRunner';
@@ -45,11 +46,14 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
   startWith,
 }) => {
   // Timer & UI State initialized cleanly on mount
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
+  // The 10-minute version is timed on its own minutes, never the full session's (Design.md §10).
+  const minimumSeconds = (minimumMinutes(task) ?? 10) * 60;
+  const startsOnMinimum = startWith === 'minimum' && Boolean(task.minimumVersion);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(startsOnMinimum ? minimumSeconds : totalDurationSeconds);
   const [hasStarted, setHasStarted] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
-  const [isMinimumVersion, setIsMinimumVersion] = useState<boolean>(startWith === 'minimum' && Boolean(task.minimumVersion));
+  const [isMinimumVersion, setIsMinimumVersion] = useState<boolean>(startsOnMinimum);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [isCelebration, setIsCelebration] = useState<boolean>(false);
   const [showTips, setShowTips] = useState<boolean>(false);
@@ -239,7 +243,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
               <FocusTimer
                 taskTitle={task.title}
                 secondsRemaining={secondsRemaining}
-                totalDurationSeconds={totalDurationSeconds}
+                totalDurationSeconds={isMinimumVersion ? minimumSeconds : totalDurationSeconds}
                 isActive={isActive}
                 onToggleActive={() => setIsActive(!isActive)}
                 currentStepIndex={currentStepIndex}
@@ -259,6 +263,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
                 minimumVersion={task.minimumVersion}
                 onUseMinimumVersion={() => {
                   setIsMinimumVersion(true);
+                  setSecondsRemaining(minimumSeconds);
                   setIsActive(true);
                   setShowTips(false);
                 }}

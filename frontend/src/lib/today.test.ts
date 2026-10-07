@@ -9,6 +9,7 @@ import {
   isToday,
   isWeekReviewDue,
   isClosingStretchActive,
+  minimumMinutes,
   missNotice,
   shortOnTimeOffer,
   parseIntention,
@@ -454,5 +455,15 @@ describe('gentle_return and short on time (missed sessions M3.2)', () => {
     expect(shortOnTimeOffer(body({ shortOnTime: true }), goalWith({ isRestDay: true }), wednesday, 'UTC')).toBe(false);
     expect(shortOnTimeOffer(body({ shortOnTime: true }, 'other-goal'), goalWith(), wednesday, 'UTC')).toBe(false);
     expect(shortOnTimeOffer(null, goalWith(), wednesday, 'UTC')).toBe(false);
+  });
+});
+
+describe('minimumMinutes', () => {
+  it("is the 10-minute version's own minutes, 10 when it has none, and null without one", () => {
+    const step = { stepNumber: 1, title: 'x', durationMinutes: 8, instructions: '', focusCue: '', pitfallToAvoid: '' };
+    expect(minimumMinutes({ minimumVersion: step })).toBe(8);
+    expect(minimumMinutes({ minimumVersion: { ...step, durationMinutes: 0 } })).toBe(10);
+    expect(minimumMinutes({ minimumVersion: null })).toBeNull();
+    expect(minimumMinutes(null)).toBeNull();
   });
 });

@@ -166,6 +166,13 @@ export type MissNotice =
   | { kind: 'dropped'; day: string }
   | { kind: 'gentle_return' };
 
+/** The 10-minute version's own minutes (at least 1), or null when the task has none. */
+export function minimumMinutes(task: Pick<DailyTask, 'minimumVersion'> | null | undefined): number | null {
+  const minimum = task?.minimumVersion;
+  if (!minimum) return null;
+  return minimum.durationMinutes > 0 ? minimum.durationMinutes : 10;
+}
+
 /** Today's task when it is an open practice day (not rest, not completed) with a 10-minute version. */
 function openTodayWithMinimum(goal: Pick<Goal, 'dailyTasks'>, today: string): DailyTask | null {
   return (
