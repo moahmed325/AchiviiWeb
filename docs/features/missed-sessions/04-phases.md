@@ -363,7 +363,7 @@ Let a user take the weekly test late, and make an unlogged test flow honestly in
 
 ## 9.3 Milestones
 
-**M4.1 - Late test (ready; depends only on P1, can run any time).** A small backend endpoint logs the weekly test result into `RoadmapWeek.testResult` **without closing the week** (ND-4), reusing `validateWeeklyTestResult`. On Today, a "Take the test now" card shows from the end of test day until the weekly review is submitted, because the existing review (`POST /weeks/:weekNumber/review`) is what closes the week today. After the review, the card is gone.
+**M4.1 - Late test (ready; depends only on P1, can run any time).** A small backend endpoint logs the weekly test result into `RoadmapWeek.testResult` **without closing the week** (ND-4), reusing `validateWeeklyTestResult`. The weekly review must then keep a stored result when it is submitted without one (today it writes null in both review paths). On Today, a "Take the test now" card shows from the end of test day until the weekly review is submitted, because the existing review (`POST /weeks/:weekNumber/review`) is what closes the week today. After the review, the card is gone.
 
 **M4.2 — Week-close handoff (BLOCKED).** On the first open of a new week, if the test is unlogged, run the plan v2 weekly update with the test marked missing, target held, and sessions deciding status; feed it missed-day, dropped-step, and key-skipped counts; apply `retestFirst` after two far_behind weeks and the daily-time check. **Blocked until plan v2 build step 4 (weekly update, prompt 4) exists.** Do not build a substitute status engine in this feature.
 
@@ -444,4 +444,4 @@ The Implementation Prompt consumes **one milestone** from this file, the approve
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1, P2, M3.1 and M3.2 COMPLETE; M3.3 PROMPT TO BE DRAFTED
+**Status:** P1, P2, M3.1 and M3.2 COMPLETE; M3.3 and M4.1 PROMPTS READY

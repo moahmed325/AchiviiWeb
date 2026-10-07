@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 2.1 | **Date:** 2026-10-07 (M3.2 prompt drafted)
+**Version:** 2.2 | **Date:** 2026-10-07 (M3.3 and M4.1 prompts drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -945,3 +945,167 @@ A gentle-return day opens on the 10-minute version with the full session one tap
 
 ### STOP IF
 `signals` lacks a field this needs; the 10-minute version cannot be made the default without changing what the step runner does on other days; a string above would be untrue for some case (list it); or the work needs a backend change. Report instead of working around it.
+
+---
+
+## M3.3 — Key-Session Swap and Mark-Missed UI
+
+### STATUS
+READY (drafted 2026-10-07). Depends on M3.2 (complete). After it is live, the ND-15 switch is turned on (04-phases.md 2.4).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P3/M3.3. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+M2.4 built three endpoints that change this week's plan; nothing calls them yet. Each returns the same body as `POST /api/goal/reconcile`, and answers 409 `{ error, reason }` when not allowed (reasons in `backend/src/routes/goal.ts`, `ACTION_ERRORS`), including `carry_disabled` while `MISSED_SESSIONS_CARRY_ENABLED` is off:
+- `POST /api/goal/tasks/:taskId/mark-missed` (today only): carries today's priority-1 step, holds a key session for a swap offer, or drops; stores nothing for a hold or a drop.
+- `POST /api/goal/tasks/:taskId/swap` with `{ withTaskId, expected: { [taskId]: detailedSteps, [withTaskId]: detailedSteps } }`: an open swap of two open practice days this week, or the answer to a swap offer (`taskId` = the held key session, `withTaskId` = its receiving day). `expected` is each day's `detailedSteps` string exactly as last loaded.
+- `POST /api/goal/tasks/:taskId/carry-now`: the "just move the main step" answer to a held key session.
+Reconcile's `signals.swapOffer` (`missedTaskId`, `missedDate`, `receivingTaskId`, `receivingDate`, `offerUntil`) describes an open offer, and `signals.notice` is `swap_offer` then. Read the M2.4 report (`milestones/m2.4-mark-missed-and-swap.md`) for the exact behavior, and 04-phases.md M3.3 for two things only an action's response knows: when today's key session is marked missed, its `swapOffer` is not reported again by a later reconcile until tonight's close, so keep it from the response; and a drop caused by marking today missed is in that response's `carry.drops`. The wording for a day that is today is already decided there ("Today's session is set aside…").
+
+### OBJECTIVE
+A user can set today aside, answer a key-session swap offer, and swap today with another day this week, each with one calm line, refreshing in one round trip, and none of it visible while the switch is off.
+
+### READ FIRST
+- docs/features/missed-sessions/03-feature.md: sections 3 (core user actions), 9 (states), 10, 11 (RULE-6 and the clarifications), 12, AC-2, AC-5, AC-6, AC-12.
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-9, ND-14, ND-15, ND-17, ND-18), 2.4, section 3 (3.6, 3.7, 3.9, 3.11), P3 (M3.3 and its wording note).
+- docs/features/missed-sessions/milestones/m2.4-mark-missed-and-swap.md, m3.1-miss-notice.md, m3.2-short-on-time-and-gentle-return.md.
+- Design.md sections 4 (Dialog, Button) and 6 (Today).
+
+### INSPECT FIRST
+- `frontend/src/components/today/Today.tsx`, `Today.test.tsx`; `frontend/src/lib/today.ts` (`missNotice`, `shortOnTimeOffer`); `frontend/src/pages/Dashboard.tsx`.
+- `frontend/src/context/GoalContext.tsx` (`reconciliation`, `refreshGoal`); `frontend/src/lib/api.ts` (`reconcileGoal`, `ApiError` with `code`); `frontend/src/types/index.ts` (`Reconciliation`, `MissedSignals`).
+- `backend/src/routes/goal.ts` (the three actions and `ACTION_ERRORS`) and `backend/src/lib/reconcileCore.ts`.
+- `frontend/e2e/mockApi.ts` (the `reconcile` option) and `e2e/missedSessions.spec.ts`.
+
+### REQUIREMENTS
+R1. **API.** Add `markTodayMissed(taskId, token)`, `swapDays(taskId, withTaskId, expected, token)` and `carryNow(taskId, token)` to `frontend/src/lib/api.ts`, each returning the reconcile body and throwing `ApiError` with the HTTP status and the server's `reason` as `code` on failure.
+
+R2. **Apply a response.** `GoalContext` gains `applyReconciliation(body)`: it stores the body as `reconciliation` (as M3.1 does) and then reloads the goal with `refreshGoal()` (steps changed on the server). A later automatic reconcile replaces it as usual.
+
+R3. **Only when the switch is on.** Every control in this milestone renders only when `reconciliation.carry.enabled` is true. With the switch off nothing new appears and nothing changes.
+
+R4. **Swap offer (RULE-6, AC-6, ND-9).** When `signals.notice` is `swap_offer`, on Today's view of the offer's receiving day, show one line in the existing `Callout` and two buttons:
+- line, missed day before today: "{Day}'s key session didn't happen. Do it {When} instead?"
+- line, today set aside: "Today's key session is set aside. Do it {When} instead?"
+- `{Day}` follows M3.1's rule ("Yesterday" or the weekday); `{When}` is "today" when the receiving day is today, otherwise its weekday.
+- primary button "Swap the days": `swapDays(missedTaskId, receivingTaskId, expected)` with both days' current `detailedSteps`.
+- secondary button "Just move its main step": `carryNow(missedTaskId)`.
+After either, apply the response (R2) and show the result through the normal notice (a carry shows M3.1's `carried` line; a swap shows the receiving day's new session, with no extra line).
+
+R5. **Set today aside (AC-2, ND-14).** On Today's view of today, when it is an open practice day, not completed, and not already the source of a move: a quiet text button "Set today aside" under the main actions. It opens a `Dialog`: title "Set today's session aside?", body "Its most important step moves to the next practice day if it fits there. Nothing gets longer.", buttons "Set it aside" (calls `markTodayMissed`) and "Keep today". After the call, apply the response, then show the line for what happened, using 04-phases.md M3.3's wording for a day that is today:
+- carried: "Today's session is set aside. We moved its most important step to {Weekday}, so that day stays the same length."
+- dropped (from this response's `carry.drops`): "Today's session is set aside. Nothing needs making up: the plan carries on as it is."
+- held (a key session): the R4 swap offer for today, from this response's `signals.swapOffer`, kept on screen until the next automatic reconcile.
+`missNotice` handles a `carried` whose source is today (the "Today's session is set aside" line instead of "{Day}'s session didn't happen").
+
+R6. **Swap with another day.** On Today's view of today, when it is an open practice day, not completed, not the test day, and holds no moved step: a quiet text button "Swap with another day". It opens a `Dialog` listing the open practice days later this week that are not the test day, not completed, and hold no moved step (from their stored steps' `carriedFrom` and `swappedFrom` markers), each as a button "{Weekday}: {title}". Choosing one calls `swapDays(todayId, chosenId, expected)`, applies the response and closes the dialog. With no eligible day, the dialog says "No other day this week can be swapped." and offers "Close".
+
+R7. **Failures.** A 409 `changed`: refresh (reconcile, then goal) and say "Your plan changed. Here's the latest." Any other refusal or a network failure: "That didn't change. Please try again." beside the control; nothing else changes. Never show the server's `reason` or `error` text. A double click sends once.
+
+R8. **Dashboard agrees (ND-19).** The Dashboard shows the swap-offer line (no buttons; its "Begin today" leads to Today) and, after setting today aside, the decided line "Today's session is set aside. No catching up needed."
+
+R9. **Copy, accessibility, tone.** Only the strings above are added; none contains "missed", "behind", "failed" or "why". Every new control is at least 44×44 px; dialogs follow Design.md §4 (focus trapped, Escape closes, focus returns); no horizontal overflow at 360, 375, 390 and 412 px; axe clean (wait for the fade-in first: `settled` in `e2e/shellFixtures.ts`).
+
+R10. **Tests.**
+- api: each function's request (method, path, body, auth) and its `ApiError` with `code` on a 409.
+- GoalContext: `applyReconciliation` stores the body and reloads the goal.
+- Today: nothing new with `carry.enabled: false`; the swap offer (both line forms, `{When}` today and a weekday) and both answers; set today aside (dialog, keep, and the carried, dropped and held results); swap with another day (eligible list, empty list, choosing a day); `changed` and other failures; a double click sends once; nothing on a rest day, a completed day, or another selected day.
+- Dashboard: the swap-offer and set-aside lines.
+- e2e: extend `frontend/e2e/mockApi.ts` with options for the three endpoints (default: answer 409 `carry_disabled`, so existing specs are unchanged) and add cases to `e2e/missedSessions.spec.ts`: a swap offer answered by "Swap the days", setting today aside (carried), and swapping with another day, at 390 px, with axe and overflow at 360 and 412 px.
+
+### OUT OF SCOPE
+Any backend change; turning on `MISSED_SESSIONS_CARRY_ENABLED`; marking a past or future day; swapping across weeks or with rest or test days; an undo action; changes to the carry rules.
+
+### REGRESSION CHECKS
+R-2, R-3, R-4, R-10, R-11. Baseline: backend `npm test` 50 files / 504 tests; frontend `npm test` 496 tests, 0 failures; `npm run typecheck`, `npm run lint` (0 errors, 2 warnings), `npm run build` pass; CI green on the branch. Browser tests: `cd frontend && npx playwright test e2e/missedSessions.spec.ts` (own server on port 5174; set `E2E_PORT` if that port is busy; never reuse another server).
+
+### VALIDATION
+Repository commands only: the changed unit test files first, then `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then `missedSessions.spec.ts` on both projects. Push the branch and confirm CI passes.
+
+### DELIVERABLE
+The API functions, `applyReconciliation`, the three UIs, the Dashboard lines, tests for R10, and a report at `docs/features/missed-sessions/milestones/m3.3-swap-and-mark-missed-ui.md`: files changed, every user-facing string, evidence for R1-R10 with screenshots at 390 and 360 px, commands and results, and an updated release checklist for turning the switch on (the M3.1 checklist plus checks for the three actions). Do not commit or push to `main`.
+
+### DONE
+With the switch on, a user can set today aside, answer a swap offer either way, and swap today with another day, each refreshing in one round trip with one honest line; with the switch off nothing new shows; all checks and CI pass.
+
+### STOP IF
+An endpoint's behavior differs from the M2.4 report; a string above would be untrue for a case (list it); an action needs a backend change; or eligibility for "Swap with another day" cannot be decided from the stored steps. Report instead of working around it.
+
+---
+
+# 4 — P4 TEST DAY AND WEEK CLOSE
+
+## M4.1 — Late Test
+
+### STATUS
+READY (drafted 2026-10-07). Depends only on P1 (complete). Can run in parallel with P3; it touches different files except `Today.tsx` (coordinate by keeping your Today change to one self-contained card).
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P4/M4.1. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+RULE-7 and AC-8: a weekly test that was not logged on test day can be logged late, until the week is closed. Today, the result is only saved by the weekly review (`POST /api/goal/weeks/:weekNumber/review`, `backend/src/routes/goal.ts`), which also closes the week. ND-4 approved a small endpoint that logs the result **without** closing the week.
+
+Repository facts (verify, do not trust this prompt):
+- `RoadmapWeek.testResult` (Json, nullable) holds `{ value, passed, unit?, note? }`, checked by `validateWeeklyTestResult` (`backend/src/routes/goal.ts`). The week's test is `RoadmapWeek.test` (instructions, `passIf`).
+- **The review overwrites it.** When a review is submitted without a `testResult`, both review paths write `testResult: Prisma.DbNull` (about lines 1047 and 1120). A result logged late would be erased by the review that follows. M4.1 must fix that.
+- The frontend's `WeeklyReviewModal` (`frontend/src/components/review/`) collects the result in `ReviewTestResultStep`, starting from a local draft (`loadTestResultDraft`), not from what is stored.
+- Today shows a test-day card for `task.isTestDay` (benchmark instructions and pass mark) and a review-due card when the week is over (`isWeekReviewDue`).
+- The test day closes like any day (OD-1, `dayCloseInstant`); reconcile's `days` classify it.
+
+### OBJECTIVE
+After test day closes, a user who has not logged the test sees a calm card to take it and log the result, until they submit the weekly review; the late result is kept by the review and shown pre-filled in it.
+
+### READ FIRST
+- docs/features/missed-sessions/03-feature.md: RULE-7, UX-3, AC-8, section 12 (tone).
+- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-4), section 3, P4 (M4.1).
+- docs/decisions.md OD-1a (weekly test results).
+- Design.md section 6 and the review sections.
+
+### INSPECT FIRST
+- `backend/src/routes/goal.ts`: `validateWeeklyTestResult`, `POST /weeks/:weekNumber/review` (both writes of `testResult`), the M2.4 action pattern (auth, ownership, 404/409).
+- `frontend/src/components/review/WeeklyReviewModal.tsx`, `ReviewTestResultStep.tsx`, `frontend/src/lib/reviewDraft.ts`, `frontend/src/types/review.ts`.
+- `frontend/src/components/today/Today.tsx` (test-day card, review-due card), `frontend/src/lib/today.ts`, `frontend/src/lib/api.ts`.
+
+### REQUIREMENTS
+R1. **Endpoint (ND-4).** `PUT /api/goal/weeks/:weekNumber/test-result` with the `WeeklyTestResultInput` body, for the user's active goal only: validates with `validateWeeklyTestResult` (400 with its message), 404 when the week is not the user's, 409 `{ error, reason: 'week_closed' }` when the week's status is `completed`; otherwise stores `RoadmapWeek.testResult` and nothing else (no status change, no next week, no model call). Responds 200 `{ testResult }`. Repeating it overwrites the stored result (the latest wins).
+
+R2. **The review keeps it.** In both review paths, when the request has no `testResult`, keep the stored one instead of writing null. A `testResult` sent with the review still replaces it. Everything else the review does is unchanged.
+
+R3. **Pre-filled review.** `WeeklyReviewModal` starts the test-result step from the stored `testResult` of the week being reviewed when there is one, before falling back to the local draft.
+
+R4. **The late-test card (UX-3, AC-8).** On Today, when the current week's test day has closed (classified `missed` or `done` by reconcile, or its date is before today when reconcile is unavailable), the week's `testResult` is null, and the week is not completed: show one card, in place of nothing else:
+- title "This week's test is still open"
+- line "Take it when you can. Your result goes into this week's review." followed by the test's instructions and pass mark as the test-day card shows them
+- button "Log my result": opens the existing `ReviewTestResultStep` form in a `Dialog`; saving calls the R1 endpoint, then refreshes the goal so the card disappears.
+The card shows from the test day's close until the week is completed by its review. It never says "late", "missed", "behind" or "failed", and never implies the person failed.
+
+R5. **Frontend API.** `logWeeklyTestResult(weekNumber, result, token)` in `frontend/src/lib/api.ts`, throwing `ApiError` with status and `reason` as `code`.
+
+R6. **Old goals.** Plan v1 goals (no `RoadmapWeek.test`) never show the card; the endpoint answers 409 `not_plan_v2` for them.
+
+R7. **Accessibility.** The card and dialog follow Design.md (44px targets, focus trapped and returned, Escape closes), no overflow at 360-412 px, axe clean after the fade-in (`settled` in `e2e/shellFixtures.ts`).
+
+R8. **Tests.**
+- Backend (HTTP, in the `goalCompletion.test.ts` pattern): store, overwrite, 400 invalid, 404 other user's week, 409 closed week, 409 plan v1, no other field written; the review keeps a stored result when sent none and replaces it when sent one, in both paths.
+- Frontend: the card's show/hide conditions (before close, after close, logged, week completed, plan v1, a rest day today); logging a result (success hides the card; a failure keeps the form and says "That didn't save. Please try again."); the review modal pre-filled from the stored result.
+- e2e: a new `frontend/e2e/lateTest.spec.ts` (extend `mockApi.ts` backward compatibly for the new endpoint): the card after test day, logging a result, the card gone, at 390 px with axe and overflow at 360 and 412 px.
+
+### OUT OF SCOPE
+The week-close handoff and the weekly update (M4.2, blocked); holding targets or status for a missing test; reminders; any change to the missed-session carry rules or switch.
+
+### REGRESSION CHECKS
+R-3, R-5 (the weekly review still opens and saves, with and without a result), R-6, R-7. Baseline: backend `npm test` 50 files / 504 tests; frontend `npm test` 496 tests, 0 failures; `npm run typecheck`, `npm run lint` (0 errors, 2 warnings), `npm run build` pass; CI green on the branch. Browser tests: `cd frontend && npx playwright test e2e/lateTest.spec.ts` (own server on port 5174; set `E2E_PORT` if that port is busy).
+
+### VALIDATION
+Repository commands only: the changed test files first, then backend `npm test` and `npm run typecheck`, then frontend `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then `lateTest.spec.ts` on both projects. Push the branch and confirm CI passes.
+
+### DELIVERABLE
+The endpoint, the review fix, the pre-filled review, the card, tests for R8, and a report at `docs/features/missed-sessions/milestones/m4.1-late-test.md`: files changed, every user-facing string, evidence for R1-R8 (EV-7: the card shown in its window and gone after), commands and results. Do not commit or push to `main`.
+
+### DONE
+A user who did not log the week's test sees one calm card after test day until the review, can log the result without closing the week, and the review keeps and shows that result; old goals are unchanged; all checks and CI pass.
+
+### STOP IF
+The week's test or its result is stored somewhere other than `RoadmapWeek`; keeping a stored result in the review conflicts with another documented rule; the card's window cannot be decided from the stored data; or the work needs a schema change. Report instead of working around it.
