@@ -29,6 +29,8 @@ import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
+import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
+import { usePlanAction } from './usePlanAction';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
 
@@ -70,10 +72,18 @@ const Callout: React.FC<{ icon?: React.ReactNode; children: React.ReactNode }> =
   </div>
 );
 
-/** The one line about a day that didn't happen (missed sessions M3.1, M3.2; Feature Definition section 12). */
+/** The one line about a day that didn't happen (missed sessions M3.1-M3.3; Feature Definition section 12). */
 const missNoticeLine = (notice: MissNotice) =>
   notice.kind === 'gentle_return'
     ? "Welcome back. Today's a short one to ease in."
+    : notice.kind === 'swap_offer'
+    ? notice.day
+      ? `${notice.day}'s key session didn't happen. Do it ${notice.when} instead?`
+      : `Today's key session is set aside. Do it ${notice.when} instead?`
+    : notice.kind === 'set_aside'
+    ? notice.movedTo
+      ? `Today's session is set aside. We moved its most important step to ${notice.movedTo}, so that day stays the same length.`
+      : "Today's session is set aside. Nothing needs making up: the plan carries on as it is."
     : notice.kind === 'dropped'
     ? `${notice.day}'s session didn't happen. Nothing needs making up: the plan carries on as it is.`
     : notice.intoToday
@@ -266,6 +276,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const [actionError, setActionError] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
   const { toggleComplete, saveNote, finishFocus } = useTaskActions();
+  const planAction = usePlanAction();
   const stepsId = useId();
   const minimumId = useId();
   const intentionId = useId();
@@ -466,6 +477,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               {notice && (
                 <Callout>
                   <p className="text-text">{missNoticeLine(notice)}</p>
+                  {notice.kind === 'swap_offer' && <SwapOfferAnswers notice={notice} goal={goal} action={planAction} />}
                 </Callout>
               )}
 
@@ -548,6 +560,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               <p role="alert" className="mt-3 text-small text-danger empty:hidden">
                 {actionError ?? ''}
               </p>
+              {viewingToday && <TodayPlanActions goal={goal} action={planAction} now={now} timezone={timezone} />}
 
               {(done || task.isRestDay) && (
                 <div className="mt-8 rounded-card border border-border bg-background/50 p-5">

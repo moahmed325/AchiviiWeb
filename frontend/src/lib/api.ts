@@ -233,6 +233,45 @@ export async function reconcileGoal(token: string): Promise<import('../types').R
   return data;
 }
 
+/**
+ * The three plan-changing actions (missed sessions M2.4, M3.3). Each answers with the reconcile body. A refusal throws
+ * `ApiError` with the HTTP status and the server's `reason` as `code` (e.g. `changed`, `carry_disabled`); the server's
+ * text is for logs only and never shown.
+ */
+async function planAction(path: string, token: string, body?: unknown): Promise<import('../types').Reconciliation> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/tasks/${path}`, {
+    method: 'POST',
+    headers: {
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new ApiError(data.error || 'Failed to change the plan', response.status, typeof data.reason === 'string' ? data.reason : undefined);
+  }
+
+  return data;
+}
+
+/** Sets today's open practice day aside: carries its main step, holds a key session for a swap offer, or drops. */
+export function markTodayMissed(taskId: string, token: string) {
+  return planAction(`${encodeURIComponent(taskId)}/mark-missed`, token);
+}
+
+/** Swaps two open practice days this week, or answers a swap offer. `expected`: each day's `detailedSteps` as loaded. */
+export function swapDays(taskId: string, withTaskId: string, expected: Record<string, string>, token: string) {
+  return planAction(`${encodeURIComponent(taskId)}/swap`, token, { withTaskId, expected });
+}
+
+/** Answers a held key session's swap offer with "just move its main step". */
+export function carryNow(taskId: string, token: string) {
+  return planAction(`${encodeURIComponent(taskId)}/carry-now`, token);
+}
+
 export async function updateDailyTask(
   taskId: string,
   updates: { status?: 'pending' | 'completed' | 'skipped'; notes?: string; slotTime?: string; usedMinimumVersion?: boolean },

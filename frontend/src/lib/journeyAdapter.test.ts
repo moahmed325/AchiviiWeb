@@ -456,6 +456,8 @@ describe('journeyAdapter', () => {
       apiStatus: 'online' as const,
       reconciliation: null,
       refreshGoal: vi.fn(),
+      applyReconciliation: vi.fn(),
+      reloadPlan: vi.fn(),
       setActiveGoal: vi.fn(),
       updateActiveGoal: vi.fn(),
       resetGoal: vi.fn(),

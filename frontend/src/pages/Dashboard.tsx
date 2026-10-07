@@ -63,6 +63,8 @@ const statusLine = (s: { closing: boolean; isDone: boolean; isRest: boolean; not
   if (s.isDone) return plural(left, 'session', 'sessions') + ' left this week. Rest well tonight.';
   if (s.isRest) return 'A rest day is part of the plan. Let the work settle in.';
   if (s.notice?.kind === 'gentle_return') return "Welcome back. Today's a short one to ease in.";
+  if (s.notice?.kind === 'swap_offer') return (s.notice.day ? s.notice.day + "'s key session didn't happen." : "Today's key session is set aside.") + ' Do it ' + s.notice.when + ' instead?';
+  if (s.notice?.kind === 'set_aside') return "Today's session is set aside. No catching up needed.";
   if (s.notice?.kind === 'carried' && s.notice.intoToday) return s.notice.day + "'s most important step is part of today's session.";
   if (s.notice?.kind === 'dropped') return s.notice.day + ' slipped past. No catching up needed, just today.';
   if (s.practiceDays > 0 && s.practiceDone === 0) return 'A fresh week. One session at a time.';

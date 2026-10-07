@@ -215,3 +215,47 @@ describe('GoalProvider catches up on a new day (missed sessions M3.1 R3)', () =>
     expect(mocked.fetchActiveGoal).not.toHaveBeenCalled();
   });
 });
+
+describe('GoalProvider plan actions (missed sessions M3.3)', () => {
+  const BODY = {
+    applies: true,
+    goalId: 'g1',
+    asOf: '',
+    timezone: 'UTC',
+    days: [],
+    gap: null,
+    carry: { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [] },
+    signals: { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null },
+  } as const;
+
+  it('applyReconciliation stores the body, then reloads the goal without reconciling again', async () => {
+    const { result } = await loaded();
+    const after = { ...GOAL, rawGoal: 'Run a 10K, swapped' } as Goal;
+    mocked.fetchActiveGoal.mockResolvedValueOnce(after);
+    await act(() => result.current.applyReconciliation(structuredClone(BODY) as never));
+    expect(result.current.reconciliation).toEqual(BODY);
+    expect(result.current.activeGoal).toEqual(after);
+    expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(2);
+    expect(mocked.reconcileGoal).toHaveBeenCalledTimes(1);
+    expect(result.current.loadingGoal).toBe(false);
+  });
+
+  it('reloadPlan reconciles, then reloads the goal, without the loading state', async () => {
+    const { result } = await loaded();
+    const order: string[] = [];
+    const loading: boolean[] = [];
+    mocked.reconcileGoal.mockImplementation(async () => {
+      order.push('reconcile');
+      loading.push(result.current.loadingGoal);
+      return structuredClone(BODY) as never;
+    });
+    mocked.fetchActiveGoal.mockImplementation(async () => {
+      order.push('fetch');
+      return GOAL;
+    });
+    await act(() => result.current.reloadPlan());
+    expect(order).toEqual(['reconcile', 'fetch']);
+    expect(loading).toEqual([false]);
+    expect(result.current.reconciliation).toEqual(BODY);
+  });
+});

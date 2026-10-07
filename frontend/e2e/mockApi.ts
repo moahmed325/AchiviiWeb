@@ -109,7 +109,27 @@ export interface MockOptions {
   plan?: 'free' | 'pro';
   /** With `clarify`: `/api/goal/create` refuses with the server's 403 for a custom goal without Pro. */
   createProRequired?: boolean;
+  /**
+   * How the three plan actions answer (missed sessions M3.3): `POST /api/goal/tasks/:id/mark-missed`, `/swap` and
+   * `/carry-now`. Each defaults to 409 `carry_disabled`, as the backend answers while MISSED_SESSIONS_CARRY_ENABLED is
+   * off, so specs written before M3.3 are unchanged.
+   */
+  markMissed?: PlanActionAnswer;
+  swap?: PlanActionAnswer;
+  carryNow?: PlanActionAnswer;
 }
+
+/**
+ * A plan action's answer: the reconcile body on 200, or `{ error, reason }` on a refusal. With `goal`, a 200 also
+ * replaces the mocked goal, so the reload after it returns the plan as the backend changed it.
+ */
+export interface PlanActionAnswer {
+  status?: number;
+  body?: unknown;
+  goal?: Record<string, unknown>;
+}
+
+const CARRY_DISABLED: PlanActionAnswer = { status: 409, body: { error: 'This action is not available yet.', reason: 'carry_disabled' } };
 
 export interface TaskUpdate {
   taskId: string;
@@ -139,6 +159,8 @@ export interface MockCalls {
   resets: number;
   /** Every PATCH /api/goal/tasks/:id body, including failed ones. */
   taskUpdates: TaskUpdate[];
+  /** Every plan action request (M3.3), including refused ones. */
+  planActions: Array<{ action: 'mark-missed' | 'swap' | 'carry-now'; taskId: string; body: unknown }>;
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -148,7 +170,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [] };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [] };
   const {
     goal = null,
     signupStatus = 201,
@@ -172,9 +194,12 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     reconcile = { applies: false, reason: 'not_plan_v2' },
     plan = 'pro',
     createProRequired = false,
+    markMissed = CARRY_DISABLED,
+    swap = CARRY_DISABLED,
+    carryNow = CARRY_DISABLED,
   } = options;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
-  const saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
+  let saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
 
   // Supabase Auth (supabase-js against SUPABASE_URL): sign-in, sign-up and sign-out, with Supabase's own error shapes.
   await page.route(`${SUPABASE_URL}/auth/v1/**`, async (route) => {
@@ -258,6 +283,16 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     }
 
     if (path === '/api/goal/reconcile' && route.request().method() === 'POST') return json(route, 200, reconcile);
+
+    const actionMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)\/(mark-missed|swap|carry-now)$/);
+    if (actionMatch && route.request().method() === 'POST') {
+      const action = actionMatch[2] as 'mark-missed' | 'swap' | 'carry-now';
+      calls.planActions.push({ action, taskId: actionMatch[1], body: route.request().postDataJSON() ?? null });
+      const answer = action === 'mark-missed' ? markMissed : action === 'swap' ? swap : carryNow;
+      const status = answer.status ?? 200;
+      if (status === 200 && answer.goal) saved = structuredClone(answer.goal) as typeof saved;
+      return json(route, status, answer.body ?? {});
+    }
 
     const taskMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)$/);
     if (taskMatch && route.request().method() === 'PATCH') {

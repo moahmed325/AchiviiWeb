@@ -18,6 +18,13 @@ interface GoalContextType {
    */
   reconciliation: Reconciliation | null;
   refreshGoal: () => Promise<void>;
+  /**
+   * Keeps a plan action's response (missed sessions M3.3) as `reconciliation`, then reloads the goal, whose steps
+   * changed on the server. A later automatic reconcile replaces it as usual.
+   */
+  applyReconciliation: (body: Reconciliation) => Promise<void>;
+  /** Reconcile, then reload the goal, without the loading state, so the open screen stays as it is (M3.3 R7). */
+  reloadPlan: () => Promise<void>;
   setActiveGoal: (goal: Goal | null) => void;
   updateActiveGoal: (goal: Goal) => void;
   resetGoal: () => Promise<boolean>;
@@ -133,6 +140,25 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [token]);
 
+  const applyReconciliation = useCallback(
+    async (body: Reconciliation) => {
+      setReconciliation(body.applies ? body : null);
+      await refreshGoal();
+    },
+    [refreshGoal]
+  );
+
+  const reloadPlan = useCallback(async () => {
+    if (!token) return;
+    try {
+      const result = await reconcileGoal(token);
+      setReconciliation(result.applies ? result : null);
+    } catch (err) {
+      console.warn('Failed to reconcile goal:', err);
+    }
+    await refreshGoal();
+  }, [token, refreshGoal]);
+
   // Reset active goal
   const resetGoal = useCallback(async (): Promise<boolean> => {
     if (!token) return false;
@@ -167,6 +193,8 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
         apiStatus,
         reconciliation,
         refreshGoal,
+        applyReconciliation,
+        reloadPlan,
         setActiveGoal,
         updateActiveGoal,
         resetGoal,

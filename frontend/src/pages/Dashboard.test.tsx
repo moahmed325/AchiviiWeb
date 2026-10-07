@@ -184,3 +184,58 @@ describe('Dashboard: gentle-return line (missed sessions M3.2, ND-19)', () => {
     expect(screen.queryByText(WELCOME)).not.toBeInTheDocument();
   });
 });
+
+describe('Dashboard: swap offer and a day set aside (missed sessions M3.3, ND-19)', () => {
+  const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
+  const CARRY = { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [] };
+  const body = (signals: Partial<MissedSignals>, extra: Record<string, unknown> = {}) =>
+    ({ applies: true, goalId: 'g', days: [], carry: CARRY, signals: { ...NONE, ...signals }, ...extra }) as unknown as Reconciliation;
+  const key = (offset: number) => todayKey(new Date(Date.now() + offset * DAY_MS));
+  const weekday = (offset: number) =>
+    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(`${key(offset)}T00:00:00Z`).getUTCDay()];
+  const offer = (missedTaskId: string, missedOffset: number, receivingTaskId: string, receivingOffset: number) => ({
+    notice: 'swap_offer' as const,
+    swapOffer: { missedTaskId, missedDate: key(missedOffset), receivingTaskId, receivingDate: key(receivingOffset), offerUntil: '' },
+  });
+  const SET_ASIDE = "Today's session is set aside. No catching up needed.";
+  const calm = () => {
+    const text = document.body.textContent ?? '';
+    for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
+  };
+
+  beforeEach(() => vi.clearAllMocks());
+
+  it('says the swap-offer line, with no buttons; "Begin today" leads to Today', () => {
+    renderWith(buildGoal('pending'), body(offer('t1', -1, 't2', 0)));
+    expect(screen.getByText("Yesterday's key session didn't happen. Do it today instead?")).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Swap the days' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Just move its main step' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Begin today/i })).toHaveAttribute('href', '/');
+    calm();
+  });
+
+  it('says the set-aside form of the offer when today is the held day', () => {
+    renderWith(buildGoal('pending'), body(offer('t2', 0, 't3', 1)));
+    expect(screen.getByText(`Today's key session is set aside. Do it ${weekday(1)} instead?`)).toBeInTheDocument();
+  });
+
+  it('after setting today aside, carried or dropped, says the one decided line', () => {
+    const carried = body({ notice: 'carried', carried: [{ fromDate: key(0), fromTaskId: 't2', toDate: key(1), toTaskId: 't3', stepTitle: 'Lead' }] });
+    const { unmount } = renderWith(buildGoal('pending'), carried);
+    expect(screen.getByText(SET_ASIDE)).toBeInTheDocument();
+    calm();
+    unmount();
+    const dropped = body({}, {
+      days: [{ taskId: 't2', date: key(0), weekNumber: 4, dayNumber: 2, isKeySession: true, isTestDay: false, kind: 'missed' }],
+      carry: { ...CARRY, drops: [{ taskId: 't2', date: key(0), reason: 'high_load' }] },
+    });
+    renderWith(buildGoal('pending'), dropped);
+    expect(screen.getByText(SET_ASIDE)).toBeInTheDocument();
+  });
+
+  it('with the switch off, neither line', () => {
+    renderWith(buildGoal('pending'), body(offer('t1', -1, 't2', 0), { carry: { ...CARRY, enabled: false } }));
+    expect(screen.queryByText(/key session/)).not.toBeInTheDocument();
+    expect(screen.getByText('1 of 3 sessions done this week. Keep the rhythm.')).toBeInTheDocument();
+  });
+});
