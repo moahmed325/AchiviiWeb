@@ -4,6 +4,8 @@ Read this file before writing any frontend code, component or layout. It is the 
 
 **Precedence.** The visual direction lives in [`docs/product/visual-design-system.md`](docs/product/visual-design-system.md) (the VDS). If this file and the VDS ever disagree, **the VDS wins** and this file is corrected. Product and screen decisions live in [`docs/product/redesign-blueprint.md`](docs/product/redesign-blueprint.md) and [`docs/decisions.md`](docs/decisions.md).
 
+**What this file is.** Rules that hold for every screen, plus the few screen-level rules that are about structure (§6). It is not a changelog and not a copy deck: exact strings and per-feature behaviour live in the feature docs (`docs/features/<name>/03-feature.md`) and are pinned by tests. Where the code does not yet follow a rule here, it is listed in §11 rather than written into the rule. The redesign history that used to live here is in `docs/archive/redesign-v1/design-notes.md`.
+
 **Where things are.**
 
 | What | Where |
@@ -26,6 +28,7 @@ Read this file before writing any frontend code, component or layout. It is the 
 - **Light glass, only over imagery.** Backdrop blur and translucency are allowed when a component sits over an image or an atmospheric background (`Surface tone="glass"`). Never make every element glass. On mobile, avoid `backdrop-blur` over large moving images; use a pre-darkened image layer instead.
 - **Moderate radii.** Four named radii (see §2.4). Special cards can be almost rectangular.
 - **One botanical accent, one warm achievement tone.** `accent` (green) marks progress and focus; `achievement` (gold) marks milestones, destinations and premium. `caution` and `danger` are status colours only, never decoration.
+- **Gold is rare (VDS §2, §3).** It means "you've arrived": a milestone, the destination, a completed journey, premium. It is not the colour of routine actions, and the routine primary action is the off-white `primary` button (VDS §12). The `gold` button is for a next step that *is* an arrival (the code's own comment on `.btn-gold` says the same). Current exceptions are listed in §11.
 - **Massive typography and negative space.** Let headings be large and let sections breathe.
 - **The progression grammar.** Step ○, active ●, completed ✓, milestone ◆, destination ✦, via `StepMarker`. The ✦ mark is the destination and Coach sign, not a generic "AI" sparkle.
 - **One icon family.** lucide-react, stroke width 1.5, thin and geometric. Don't add a second icon set.
@@ -69,6 +72,9 @@ Tokens are named by **role, never by colour**, so a rebrand changes only the `@t
 | `accent-hover` | `#A8C8A9` | Hover of accent elements; **the focus ring**; accent text on dark |
 | `accent-on-inverse` | `#3F6B4E` | Any green text, icon or focus ring on `surface-inverse` |
 | `achievement` | `#C8A96B` | Milestones, destination, premium |
+| `achievement-hover` | `#DAC48B` | Hover of gold fills (`gold` button) |
+| `gold-bright` | `#F1DFB0` | Highlight stop in gold progress ornaments (marketing) |
+| `gold-deep` | `#9C8247` | Shadow stop in gold progress ornaments (marketing) |
 | `caution` | `#D9A05B` | Warnings, offline, "at risk" status |
 | `danger` | `#E0897A` | Errors, destructive actions |
 | `border` | `rgba(245,243,236,0.08)` | Default hairline; card and choice-card outlines |
@@ -89,6 +95,9 @@ WCAG ratios, measured from the token values. AA needs **4.5:1** for normal text 
 | `accent` | 7.18 | 6.72 | 6.22 |
 | `accent-hover` | 10.78 | 10.09 | 9.35 |
 | `achievement` | 8.76 | 8.20 | 7.59 |
+| `achievement-hover` | 11.49 | 10.75 | 9.96 |
+| `gold-bright` | 14.93 | 13.98 | 12.94 |
+| `gold-deep` | 5.34 | 5.00 | 4.63 |
 | `caution` | 8.56 | 8.01 | 7.42 |
 | `danger` | 7.53 | 7.05 | 6.53 |
 
@@ -114,6 +123,7 @@ On the light surface:
 | `achievement` on `surface-inverse` | 1.95 | **Fail** |
 | `accent-hover` on `surface-inverse` | 1.59 | **Fail** (this is why the focus ring switches, see §3) |
 | `text-on-inverse` on an `accent` fill | 7.18 | Pass |
+| `text-on-inverse` on an `achievement` fill (`gold` button) | 8.76 | Pass |
 | `text` on an `accent` fill | 2.47 | **Fail.** Use `text-on-inverse`. |
 
 Rules that follow from this:
@@ -176,14 +186,6 @@ Buttons, badges and segmented controls are pills (`rounded-full`). Use Tailwind'
 
 Write durations as `duration-(--duration-base)`. Under `prefers-reduced-motion: reduce`, the global base rule reduces every animation and transition to near-instant, so primitives need no extra work. Custom scroll-driven or JavaScript motion must check the preference itself.
 
-### 2.6 Legacy Elimination (Phase 12 Complete)
-
-All legacy remnants have been permanently eliminated from the codebase in Phase 12 (M12.2):
-- **Typography:** `Plus Jakarta Sans` and `JetBrains Mono` were completely removed from Google Fonts and `index.css`. The application exclusively uses `Geist` (`font-ui`) and `Geist Mono` (`font-ui-mono`).
-- **Radii:** The `--radius-xl/2xl/3xl` override in `index.css` was removed. All components use canonical VDS radii (`rounded-control`, `rounded-card`, `rounded-panel`, `rounded-full`).
-- **Colors:** The legacy mint token (`#07CB6C`) was completely eliminated (0 occurrences). All UI controls use semantic tokens (`accent`, `accent-hover`, `border-control`).
-- **Dead Code:** `SaaSBuilderModal.tsx`, `PlanV2Panel.tsx`, and obsolete blueprint images (5.4MB) were deleted.
-
 ---
 
 ## 3. Conventions
@@ -191,7 +193,7 @@ All legacy remnants have been permanently eliminated from the codebase in Phase 
 - **`ui-root`.** Put it on the outermost element of every migrated screen. It sets Geist, the text colour and the selection colour, overriding the legacy body font. `DialogContent` adds it to itself, because dialogs render in a portal outside the screen.
 - **`focus-ring`.** Every focusable element in a primitive has it. It draws a 2px outline in `var(--focus-ring-color)` with a 2px offset on `:focus-visible` only, overriding the legacy mint rule. Add it to any custom focusable element you build. Never remove an outline without replacing it.
 - **`focus-ring-inset`.** The same ring drawn 2px inside the element, for controls in a scrolling track that would clip an outer ring (`TabsTrigger` uses it). Prefer `focus-ring`, or padding on the track, wherever the ring fits.
-- **`--focus-ring-color`.** The one source for the ring colour: `accent-hover` by default, `accent-on-inverse` inside `.on-inverse`. Controls whose ring is drawn on a wrapper (choice cards, segmented tracks, the checkbox box) use `outline-(--focus-ring-color)`, so they adapt too. Never hard-code the ring colour.
+- **`--focus-ring-color`.** The one source for the ring colour: `accent-hover` by default, `accent-on-inverse` inside `.on-inverse`, and `achievement-hover` inside the gold-lit `.pathways-dialog`. Controls whose ring is drawn on a wrapper (choice cards, segmented tracks, the checkbox box) use `outline-(--focus-ring-color)`, so they adapt too. Never hard-code the ring colour.
 - **`on-inverse`.** Put it on any container with `surface-inverse` (`Surface tone="inverse"` does this for you). It switches the focus ring and `TextLink` to `accent-on-inverse`. **Only plain text and `TextLink` go inside it for now.** `Button`, `Badge`, `StepMarker`, fields and choice controls have no inverse variant yet; add one to the primitive (and to `/__ui`) before using it on a light surface.
 - **`tabular`.** Tabular figures for any changing number.
 - **Pathways.** Pathway data lives only in `lib/certifiedPresets.ts`, grouped by `PATHWAY_GROUPS`. Every in-app pathway gallery is `PathwayLibrary` (or its compact `PathwayStrip`, which opens `PathwaysExplorerModal`) from `components/pathways`, and every launch goes through `usePathwayLaunch`. Don't build another gallery or copy the launch state.
@@ -223,7 +225,7 @@ Use a primitive whenever one fits. Don't build another button, input, dialog or 
 
 | Prop | Values | Notes |
 |---|---|---|
-| `variant` | `primary` (default), `secondary`, `quiet`, `premium`, `danger` | One `primary` per view. `premium` is achievement gold. `danger` is for destructive actions. |
+| `variant` | `primary` (default), `secondary`, `quiet`, `premium`, `gold`, `danger` | One main action per view: a `primary` (off-white, the routine main action) or, when the next step is an arrival, a `gold` (filled gold with a sheen, `.btn-gold`). Never both. `premium` is a gold outline for premium offers. `danger` is for destructive actions. |
 | `size` | `sm` (44px), `md` (48px, default), `lg` (56px) | Every size meets the 44px touch target. |
 | `loading` | boolean | Shows a spinner and keeps the label and full opacity. The button stays focusable (it is **not** natively disabled, so focus isn't lost mid-save) and gets `aria-busy` and `aria-disabled`; clicks are ignored and a submit button doesn't submit. |
 | `disabled` | boolean | Native `disabled`. With `asChild`, the child gets `aria-disabled` and its clicks are blocked instead, because links can't be disabled natively. |
@@ -362,8 +364,6 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 - **`ProgressBar`** props: `value`, `max` (default 100), `label` (required; the accessible name, shown unless `hideLabel`), `showValue`, `valueText` (replaces the percentage and is announced), and `tone` (`accent` or `achievement`). Values outside the range are clamped.
 - **`StepMarker`** draws the progression grammar. `state` is `upcoming` ○, `active` ●, `completed` ✓, `milestone` ◆ or `destination` ✦; `size` is `sm`, `md` or `lg`. Each state has a distinct shape. It is decorative unless you pass `label`; pass one whenever the marker is the only thing showing the state.
 
-**Generation stages** (Phase 4, OD-8). The screen shows four stages: "Understanding your goal" (already complete on entry), "Choosing your method" (`search` until `method`, or until `plan` if `method` never arrives), "Building your 90-day journey" (completes on `method`, revealing the streamed name and why it was chosen; if `method` never arrives, do not invent a name and do not leave the stage pending), "Designing your first steps" (`plan` until `done`). Every in-flight stage maps onto a real event. No fake percentages, no timed fake stages, no invented durations. After 20 seconds with no new stream event, the active stage says "This is taking longer than usual. Still working (Ns)." N is whole seconds since this attempt started. After a slow event, N continues from that event's seconds until the next event. A failure keeps that screen: finished stages stay, and the error sits beneath them. Under `prefers-reduced-motion: reduce`, stages change without animation and every label stays visible.
-
 ### EmptyState, LoadingState, Skeleton, ErrorState
 
 ```tsx
@@ -400,30 +400,42 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 ---
 
-## 6. Today
+## 6. Screens
 
-`components/today/Today.tsx` is `/` for a signed-in user with a goal (OD-3, M5.3, M5.4). Visual level 1: minimal and immediate, one solid surface for the step, no dashboard of cards and no charts.
+Structural rules for the screens that have them. Exact copy, and which state shows when, belong to the feature docs and their tests.
 
-Today is where the step is done. `/dashboard` (`pages/Dashboard.tsx`, ND-19) is a read-only overview of the day and the week: it reads the same `lib/today.ts` helpers, so the two always agree, writes nothing itself, and links into Today for every action.
+### 6.1 Today
 
-- **Order (BP §09, §31):** your goal → Day N / 90 → today's step → duration → whyToday (when stored) → Start and Complete → progressive reveals → a glance at the week → the way onward (Roadmap, and the full day view until M5.8).
+`components/today/Today.tsx` is `/` for a signed-in user with a goal (OD-3). Visual level 1: minimal and immediate, one solid surface for the step, no dashboard of cards and no charts. `/dashboard` (`pages/Dashboard.tsx`, the Home tab, ND-19) is a read-only overview: it reads the same `lib/today.ts` helpers, so the two always agree, writes nothing itself, and links into Today for every action.
+
+- **Order (BP §09, §31):** your goal → Day N / 90 → today's step → duration → `whyToday` (when stored) → at most one notice line → the actions → progressive reveals → a glance at the week → the way onward (Roadmap, weekly review).
 - **The heading is the goal the user chose** (`rawGoal`, the page's one `h1`, ND-18). The stored 90-day outcome (`clarifiedOutcome`) sits beneath it in `text-small`, exactly as stored: never hidden, guessed at, rewritten or passed through `formatGoalTitle`.
-- **Day N / 90** is `text-numeral` with `tabular` figures, "/ 90" beside it, and "Week N · phase · theme" as stored. The number comes from `dayNumber()` in `lib/today.ts` (calendar days to `targetDate`, clamped to 1–90).
-- **The step:** the title as `h2`, "N min · at HH:MM", and `whyToday` when present (no fallback copy; omitted when empty). Then **Start** (the one primary button) and the complete toggle (secondary).
-- **Progressive reveal (BP §31):** session details are revealed on demand below the action buttons rather than dumped into a wall of copy:
-  - *How (the steps):* "Show the N steps" expands to show step number, title, duration, instructions, focus cue, timing ("Timing: "), output ("Output: "), pass mark ("Done when: ", never printing duplicate punctuation), and step-level resources (title, why reason, and link when a valid HTTP(S) URL is present). Empty fields omit their labels completely.
-  - *The 10-minute version (OD-9 short on time):* an opt-in reveal ("The 10-minute version"), closed by default, rendered only when `minimumVersion` is set. Shows title, duration, instructions and pass mark as stored. It is not the default path and not a second Start.
-  - *Implementation intention:* a quiet reveal rendered only when non-empty. Uses `parseIntention` to display a structured when / where / action grid or raw text.
-  - *Task resource:* a quiet reveal for `resourceTitle`, link, reason, and type badge. No YouTube iframes on Today (level 1 stays calm).
-  - *Notes:* blur and explicit Save, with status feedback.
-  - *Empty sections:* omitted entirely; no placeholder reveals.
-  - *Reduced motion:* reveals change state without animation; every opened label stays visible.
+- **Day N / 90** is `text-numeral` with `tabular` figures, "/ 90" beside it, and "Week N · phase · theme" as stored. The number comes from `dayNumber()` in `lib/today.ts`.
+- **The step:** the title as `h2`, "N min · at HH:MM", and `whyToday` when present (no fallback copy). Then **one main action** and the complete toggle (secondary). The main action is Start; on a gentle-return day it is "Start the 10-minute version", with the full session as a secondary button one tap away (missed sessions M3.2). Rest days have no Start.
+- **At most one notice line** (notice fatigue), in the quiet gold-ruled `Callout`, only on Today's view of today and never on a rest day. It comes from the reconcile signals through `missNotice` (`lib/today.ts`), which the Dashboard also uses. A line that belongs to an action (the short-on-time line) sits under the buttons, not in the `Callout`.
+- **Progressive reveal (BP §31):** details open on demand below the actions: the steps, the 10-minute version (closed by default, only when `minimumVersion` is set), the implementation intention, the task resource (no embedded video), and notes. Empty sections are omitted, never shown as placeholders. Under reduced motion, reveals change state without animation.
 - **Start stays in the first screen** at 390 × 844 with a normal-length title and `whyToday` present, above the bottom bar.
-- **The week glance** is seven equal cells in one bordered row: a `StepMarker` (completed, active for today, upcoming), or "Rest" on a rest day. The count says practice days only ("2 of 6 practice days done").
-- **Which day and which task** come from `lib/today.ts`, never from inline date code. Task dates are the user's local calendar dates, and "today" is read in the user's stored timezone (missed-sessions M1.1b, ND-1).
-- **Every task write goes through `useTaskActions`**, which puts the server's task back into `GoalContext`. A failed write shows "That didn't save. Try again." beside the control and changes nothing.
-- **PlanV2Panel:** `formatPassIf` in `lib/formatters.ts` tests for terminal punctuation (`[.!?]$`) to prevent duplicate periods on `/dashboard`.
+- **The week glance** is seven equal cells in one bordered row: a `StepMarker` (completed, active for today, upcoming), or "Rest" on a rest day. The count says practice days only.
+- **Which day and which task** come from `lib/today.ts`, never from inline date code. Task dates are the user's local calendar dates, and "today" is read in the user's stored timezone (ND-1).
+- **Every task write goes through `useTaskActions`**, which puts the server's task back into `GoalContext`. A failed write shows an error beside the control (`role="alert"`) and changes nothing; the UI never shows a fake saved or completed state.
+- **Completion** is reversible ("Mark not done"), keeps notes, and is quiet: a short confirmation and a glance at the next practice day (or, after the week's last practice day, the weekly review). No XP, confetti, streaks or levels (BP §18).
+- **Notes** keep focus wins (`• Focus win: …`) separate from free text; editing the free text never removes them (`parseTaskNotes` / `serializeTaskNotes`).
+- **States** (OD-9): loading, goal-load error (an alert with "Try again", never a push to onboarding), offline (a `role="status"` banner; writes fail visibly), rest day, key session, test day (pass marks through `formatPassIf`), review due, the closing stretch, and the missed-sessions notices. Each is honest about what the plan holds: no invented tasks, scores or completion.
 
+### 6.2 Focus mode
+
+`FocusSessionModal` and `components/focus/*` are a full-screen, level 1 execution surface.
+
+- **A calm start.** It opens on a start screen; the timer starts only when the user starts it.
+- **What it can start on.** `startWith: 'full'` (default) or `'minimum'` (the 10-minute version, when the task has one; otherwise the full session). Once in the 10-minute version there is no switch back inside Focus mode; offer the full session from the screen that opened it.
+- **Completion reports how it was done.** `onCompleteSession(reflection, { usedMinimumVersion })`, so a 10-minute completion is stored as such (ND-3).
+- **Keyboard.** Space starts, pauses and resumes (never while typing in a field); Escape closes; focus is trapped while open and returned to the trigger on close. Ctrl/Cmd+Enter saves the reflection.
+- **A failed save** keeps the modal and the reflection, announces the error (`role="alert"`) and turns the button into "Try again".
+- **Contrast.** Micro copy, hints and timer labels use `text-secondary` or stronger.
+
+### 6.3 Plan generation
+
+The generation screen (Phase 4, OD-8) shows four stages: "Understanding your goal" (already complete on entry), "Choosing your method" (`search` until `method`, or until `plan` if `method` never arrives), "Building your 90-day journey" (completes on `method`, revealing the streamed name and why it was chosen; if `method` never arrives, do not invent a name and do not leave the stage pending), "Designing your first steps" (`plan` until `done`). Every in-flight stage maps onto a real event. No fake percentages, no timed fake stages, no invented durations. After 20 seconds with no new stream event, the active stage says "This is taking longer than usual. Still working (Ns)." N is whole seconds since this attempt started. After a slow event, N continues from that event's seconds until the next event. A failure keeps that screen: finished stages stay, and the error sits beneath them. Under `prefers-reduced-motion: reduce`, stages change without animation and every label stays visible.
 
 ---
 
@@ -489,100 +501,46 @@ Premium never means inaccessible (VDS §29). Before a screen ships:
 
 ---
 
-## 10. Tooling
+## 10. Copy and tone
+
+Copy is part of the design. These rules hold on every screen; feature docs give the exact strings.
+
+- **Neutral and encouraging, never punitive.** Never use "missed", "behind" or "failed" in user-facing copy, never show a status label that judges the user, and never ask why something didn't happen (missed sessions AC-12). Tests assert this on every new line.
+- **Say what is true.** A line describes only what really happened or what the screen really offers: a move is reported only once it is stored, and "short" is said only where the 10-minute version is the default.
+- **Say what to do next.** Errors and notices end in an action or a reassurance ("Nothing needs making up"), not a diagnosis.
+- **One line, not a list.** One notice at a time on a screen; the most relevant wins.
+- **No generic marketing language** inside the app (§1).
+
+---
+
+## 11. Known deviations
+
+Places where the code does not yet follow this file or the VDS. They are listed so nobody copies them as patterns. Each needs a decision: change the code, or change the rule (in the VDS first).
+
+| Where | What | Rule |
+|---|---|---|
+| Today's Start, Dashboard's "Begin today", Roadmap (2), Pathways explorer, marketing nav, hero and final CTA | The `gold` button for routine or entry actions | Gold means arrival (§1, VDS §2, §12); the routine main action is `primary`. |
+| Today's "Done", "Key session", "Test day" and "Review due" badges | `Badge tone="achievement"` for routine status | Gold is rare (§1). |
+| `FocusSessionModal`, `focus/FocusHeader`, `FocusTimer`, `FocusCompletion`, `FocusStepRunner` | Hard-coded `rgba(...)` shadows, a `radial-gradient` glow, and raw `text-2xl`/`text-3xl`/`text-5xl`, `min-h-[48px]` | Tokens only (§2); type utilities (§2.3). |
+| Marketing sections (`Hero`, `FinalCta`, `Product`, `Premium`, `Pathways`, `MarketingNav`, `StaircaseScene`, `ScrollThread`) | Hard-coded colours and decorative gradients | Tokens only (§2). Marketing art may need a documented exception. |
+| Focus mode in the 10-minute version | The header and timer still show the full session's minutes | Say what is true (§10). |
+| Today and Dashboard on a gentle-return day | The step's duration shows the full session's minutes next to "Today's a short one" | Say what is true (§10). Open question from missed-sessions M3.2. |
+
+---
+
+## 12. Tooling
 
 Run from `frontend/`:
 
 | Command | What it does |
 |---|---|
-| `npm run lint` | ESLint (TypeScript, React Hooks, React Refresh) over the whole frontend. It exits non-zero until the pre-Phase-0 baseline (48 errors, 6 warnings in 14 unmigrated files) is fixed by the phases that own those screens. |
+| `npm run lint` | ESLint over the whole frontend. The baseline is 0 errors and 2 warnings (`react-hooks/exhaustive-deps` in `AchievementJourney.tsx` and `AchievementResults.tsx`); don't add to it. |
 | `npx eslint <paths>` | Lints only the files you touched. New and changed files must be clean. |
+| `npm run typecheck` | `tsc --noEmit` with the project's own TypeScript. |
 | `npm test` | Vitest with Testing Library, in jsdom. `npm run test:watch` for watch mode. |
 | `npm run build` | Type-check and production build. |
+| `node_modules/.bin/playwright test` | Browser tests in `e2e/` (desktop 1440×900 and mobile 390×844), against their own Vite server on port 5174 with a fake Supabase; sign in with `signIn` and mock the API with `mockApi` from `e2e/mockApi.ts`. Use the frontend's own binary: a bare `npx playwright` can resolve a second copy at the workspace root. |
 
-Put tests next to their component as `*.test.tsx`. Test behaviour through roles and accessible names (`getByRole('button', { name: 'Save' })`), not class names.
+CI (`.github/workflows/ci.yml`) runs type-check, lint, tests and build on every push; it does not run Playwright. Use the package scripts, not bare `npx tsc` or `npx vitest`, which can fetch a different version.
 
----
-
-## 11. Focus Mode & Deliberate Practice Runner (BP §32)
-
-Focus mode is a distraction-free, Level 1 execution surface designed for calm, immersive practice:
-
-- **Atmospheric Palette:** Built on `bg-background` and `bg-surface` with `border-border`. Free of neon glows, deleted mint `#07CB6C`, and arbitrary hex values.
-- **Timer Mechanics:** Monospace tabular countdown (`font-ui-mono tabular`), circular SVG elapsed-time indicator (`stroke-border` track, `stroke-accent` active progress). Controls: Start/Pause/Resume, Reset, Mute toggle, Step pills.
-- **Accessible Contrast:** In dark focus mode, all micro copy, badges, step hints, and elapsed indicators use `text-text-secondary` (`#A7A59E`, 7.5:1 ratio) to guarantee full WCAG 2.2 AA compliance.
-- **Deliberate Practice Step Runner:** Displays instructions, focus cues, timing, outputs, pass marks ("Done when:"), and collapsible tips.
-- **Session-Only Step Challenges (BP §43):** Step challenges are ephemeral tools to aid practice; they do not write to backend storage or persist past the session.
-- **Error-Resilient Reflection & Completion (R5, R6):** Reflection input utilizes `Field` and `Textarea` with multi-line safety (`Ctrl+Enter` or explicit button). If task write fails (`500` or network drop), the modal stays open, reflection text is preserved, an inline `role="alert"` announces the error, and the button becomes "Try again" for seamless recovery.
-- **Keyboard Shortcuts:** `Space` toggles pause/resume (strictly suppressed when typing in inputs/textareas); `Escape` exits focus mode. Focus trap is enforced while open and returned to the trigger on exit.
-
----
-
-## 12. Completion Interaction, Step Lighting, Next Step Preview & Notes (BP §31, VDS §20, OD-9)
-
-When today's deliberate practice step is completed:
-
-- **Calm Step Illumination (VDS §20):** Active step card enters an illuminated state (`border-accent/40 bg-surface/95 shadow-sm ring-1 ring-accent/20`) using botanical accent tokens. Accompanied by `<StepMarker state="completed" />` and `<Badge tone="accent">Done</Badge>`.
-- **Quiet Confirmation:** Reassuring, non-punitive confirmation (*"Step completed. Deliberate practice logged for today."*). Strictly NO XP popups, leveling bars, confetti animations, or streak fire emojis (BP §18).
-- **Next Step Preview (OD-9 "Done for today"):** A quiet glance at the next upcoming practice task in the week (day label e.g. *Tomorrow · Friday*, title, duration, whyToday snippet) with option to view that day's step. If completing the final practice day of the week, renders a bridge (*"Week N practice complete. Weekly review ready in the full day view."*) linking to `/dashboard`.
-- **Reversibility:** Completion remains fully reversible via "Mark not done", cleanly restoring the active state and removing the next step preview while preserving all notes.
-- **Structured Notes & Focus Wins (R-10):** Notes disclosure cleanly delineates captured session reflections (`• Focus win: ...`) as structured cards with botanical sparkles from free-form practice notes in the textarea. Auto-saves on blur and explicit button, preserves drafts across day selection in `WeekGlance`, and serialization guarantees focus wins are never wiped when editing freeform notes.
-
----
-
-## 13. OD-9 State Matrix & Error Resilience (BP §18, OD-9, ND-12)
-
-The application handles every state of the OD-9 matrix honestly, calmly, and without gamified shaming:
-
-- **Goal-Load Error & Route Protection (OD-9, ND-12):** When goal loading fails (`goalLoadFailed`), `/` renders an accessible error alert (`role="alert"`) with a primary `"Try again"` button calling `refreshGoal()`. The pathway library is suppressed. `ProtectedRoute` does not push the user to `/onboarding`. Onboarding Build guards against `POST /api/goal/create` while goal load failed, closing the `currentGoalId === null` duplicate create vulnerability.
-- **Rest Day State (OD-9):** Rest is presented as an intentional, designed part of the deliberate practice path: `<Badge>Rest day</Badge>`, purposeful copy (*"Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity."*), suppression of the Start (focus timer) button with a quiet "Log recovery complete" action, next practice step preview glance, and preserved completion lighting.
-- **Key Session State (OD-9):** Pivotal sessions are marked with `<Badge tone="accent">Key session</Badge>` and a dedicated guidance callout (*"This is your pivotal session for Week N. Focus on execution quality and adherence."*).
-- **Test Day State (OD-9):** Pulls test specifications from `currentRoadmapWeek(goal)?.test`: displays `<Badge tone="accent">Test day</Badge>`, test instructions, and benchmark criteria formatted via `formatPassIf`. Weekly benchmark scoring is strictly Phase 7; no fake score inputs, sliders, or pass/fail submit forms exist (OD-1a honesty rule).
-- **Recovery State (Yesterday Uncompleted) (OD-9, BP §18):** When yesterday's task was uncompleted, Today renders an encouraging recovery card (*"Yesterday's step wasn't completed. Here's how we can recover. Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward."*). Strictly NO red warning text, "missed", "failed", "behind", or streak-loss shaming.
-- **Review Due State (OD-9, R-12):** When all task dates in the current week have elapsed, Today renders a prominent review-due card (*"Week N is ready for review"*) linking to the review entry on `/dashboard`.
-- **Review Failed (503) State (OD-9):** Displays the exact server error message (*"Couldn't write next week right now. This week is unchanged; please try again."*), keeps reflection notes intact, provides a "Try again" button, and marks the error with `role="alert"`.
-- **Clamped Day 90 / After Week 12 State (OD-9, OD-2):** Day counter clamps at `90 / 90` with tabular figures. When no further tasks exist, renders an honest completion card (*"90-Day Journey Complete"*) linking to `/roadmap`, without inventing fake week 13 tasks or pretending Phase 9 goal completion exists (OD-1b).
-- **API Offline & Visible Failed Writes (OD-9, R-17):** Non-intrusive banner appears when `apiStatus === 'offline'` (*"Achivii is offline. You can view your plan, but changes cannot be saved until you reconnect."*). Any failed task write immediately renders a visible error alert (`role="alert"`: *"That didn't save. Please check your connection and try again."*). A failed write never leaves the UI in a fake completed or fake saved state.
-
----
-
-## 14. Complete Redesign Architecture (Phases 6–12 Integration)
-
-The redesign integrates all core product systems across Phases 0 through 12 into a unified, accessible, and high-performance application:
-
-### 14.1 Strategic Roadmap & Journey (Phase 6, VDS §9, §25)
-- **Three-Layer Architecture:**
-  - *Layer 1 (Immediate Orientation):* `JourneyHeader` with `Day N / 90`, tabular numerals, method badge, and back navigation.
-  - *Layer 2 (Emotional Ascent):* `DesktopStaircase` (viewports ≥ 768px) with 2–4 method phase landings, daily flights, and summit destination. `MobileVerticalJourney` (< 768px) replaces the wide staircase with a vertical ascending spine, auto-scrolling to the active step with `rounded-card` phase containers.
-  - *Layer 3 (Strategic Detail):* `StrategicRoadmap` collapsible method accordion with milestone deliverables and strict future honesty (zero fabricated tasks on unwritten future weeks).
-- **Days 85–90 Closing Stretch (OD-2 Option A):** Unlocked upon completing Week 12, guiding the user through final capstone preparation and Roman garden arrival.
-
-### 14.2 Weekly Review & Adaptation (Phase 7, BP §18, OD-1a)
-- **Analytical Level 3 Summary:** Tabular numeral metrics (`tabular-nums font-ui-mono`), practice sessions completed count (excluding rest days), and non-punitive momentum feedback.
-- **Benchmark Test Scoring:** Records actual benchmark criteria from `RoadmapWeek.testResult` without fake grading or video proof requirements.
-- **Adaptation Moment:** Displays server AI path rebuilds and encouraging phase-gate reinforcement copy. Unsubmitted reflections persist in `localStorage` draft storage with in-modal 503 retry resilience.
-
-### 14.3 Progress Analytics (Phase 8, ND-8 Option A)
-- **Dedicated Route (`/progress`):** Visual Level 3 typographic overview of total practice hours, adherence percentage, and milestone progress.
-- **Benchmark History & Adaptation Log:** Displays historical test results with target comparisons and weekly AI adaptation insights with zero gamified streaks or XP.
-
-### 14.4 Cinematic 90-Day Achievement (Phase 9, BP §28, VDS §14)
-- **Arrival Experience (`/achievement`):** Visual Level 4 transition to the Roman garden (`garden.webp`), computing verified 90-day deliberate practice sessions, adherence rate, benchmark test history, and capstone evaluation.
-- **Succession Safety (R-15):** Completed goals are permanently preserved in PostgreSQL history (`completedAt !== null`). "Begin another journey" safely archives active state and routes to onboarding to create a subsequent 90-day goal without data loss.
-
-### 14.5 Coach ✦ & Custom Journeys (Phase 10, BP §43, ND-10, ND-11)
-- **Coach ✦ Navigation:** Placed in the left rail and bottom bar with `Sparkles` icon and `text-achievement` gold accent. Opens `CoachModal` with honest companion positioning and realistic availability notice (zero mock chat or fake AI responses).
-- **Custom 90-Day Journeys:** Elevated with craft cards and available 100% free with zero paywalls, locks, or checkout flows.
-
-### 14.6 Mobile Ergonomics (Phase 11, BP §44–46, OD-5, VDS §28–29)
-- **Viewport Matrix:** Rigorously verified across 360px, 375px, 390px, and 412px viewports.
-- **Landscape Focus Mode:** Dynamic side-by-side grid (`landscape:grid-cols-12`) with timer on the left and scroll-contained step runner on the right.
-- **Safe Area Insets:** Applied `env(safe-area-inset-*)` padding across modal headers, footers, and bottom bars.
-
-### 14.7 Performance & Bundle Hygiene (Phase 12, BP §38–41, VDS §31–32)
-- **Bundle Splitting:** Secondary routes (`OnboardingPage`, `RoadmapPage`, `SignupPage`, `LoginPage`, `ProgressPage`, `AchievementPage`) code-split via `React.lazy` and `Suspense`.
-- **Vendor Isolation:** Separated `vendor-react`, `vendor-radix`, and `vendor-icons` for optimal long-term browser cacheability. Main entry bundle reduced by 39.4% to 370KB (107KB gzip) with 0 Rollup warnings.
-- **WebP Asset Pipeline:** Slashed asset footprint by >94% (>10MB saved), added explicit dimensions (`width`, `height`, `decoding="async"`), and guaranteed **CLS = 0.000** and **LCP < 1.0s**.
-
-
-
+Put tests next to their component as `*.test.tsx`. Test behaviour through roles and accessible names (`getByRole('button', { name: 'Save' })`), not class names. Browser tests that check layout cover 360, 375, 390 and 412 px for overflow and run axe.
