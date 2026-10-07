@@ -4,6 +4,7 @@ import { Check, TrendingUp } from 'lucide-react';
 import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
 import { dayNumber } from '../lib/today';
+import { V1_DEFAULT_PHASES } from '../lib/journeyAdapter';
 import { LoadingState, Skeleton, Button } from '../components/ui';
 import { WeekBreakdownList, BenchmarkResultsCard, AdaptationHistoryList } from '../components/progress';
 
@@ -45,11 +46,8 @@ export const ProgressPage: React.FC = () => {
     if (!activeGoal) return [];
     const roadmap = activeGoal.roadmap?.phases;
     if (roadmap && roadmap.length >= 2) return roadmap;
-    return [
-      { name: 'Foundation', startWeek: 1, endWeek: 4 },
-      { name: 'Development', startWeek: 5, endWeek: 8 },
-      { name: 'Performance', startWeek: 9, endWeek: 12 },
-    ];
+    // Same fixed phases as the Roadmap (OD-7), so both screens name the current phase alike.
+    return V1_DEFAULT_PHASES;
   }, [activeGoal]);
 
   const currentPhase = phases.find((phase) => currentWeek >= phase.startWeek && currentWeek <= phase.endWeek);
@@ -122,7 +120,10 @@ export const ProgressPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   {isComplete && <Check className="size-3.5 text-achievement" aria-hidden="true" />}
                   {isCurrent && <span className="size-2 rounded-full bg-achievement shadow-[0_0_10px_2px_rgba(200,169,107,0.38)]" aria-hidden="true" />}
-                  <span className={'text-small font-medium ' + (isCurrent ? 'text-text' : 'text-text-secondary')}>{phase.name}</span>
+                  <span className={'text-small font-medium ' + (isCurrent ? 'text-text' : 'text-text-secondary')}>
+                    {phase.name}
+                    <span className="sr-only">{isComplete ? ' (completed)' : isCurrent ? ' (current phase)' : ' (upcoming)'}</span>
+                  </span>
                 </div>
                 <p className="mt-1 text-micro text-text-secondary">Weeks {phase.startWeek}–{phase.endWeek}</p>
               </div>
@@ -132,7 +133,7 @@ export const ProgressPage: React.FC = () => {
       </section>
 
       <section className="mt-12 border-t border-border pt-6">
-        <button type="button" onClick={() => setShowDetails((value) => !value)} aria-expanded={showDetails} className="flex w-full items-center justify-between py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background">
+        <button type="button" onClick={() => setShowDetails((value) => !value)} aria-expanded={showDetails} className="flex min-h-11 w-full items-center justify-between py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background">
           <span className="text-small font-medium text-text">Detailed history</span>
           <span className="font-ui-mono text-micro uppercase tracking-[0.12em] text-text-secondary">{showDetails ? 'Hide' : 'View'}</span>
         </button>

@@ -43,7 +43,8 @@ test.afterEach(async ({}, testInfo) => {
 
 /**
  * Axe measures contrast as painted, so let the target and its ancestors finish fading in. Today has looping
- * animations elsewhere on the page, so waiting for every animation would never end.
+ * animations elsewhere on the page, so waiting for every animation would never end. The explorer has its own
+ * decorative loops (the destination star's glow), so loops are not waited for: they never finish.
  */
 const settled = (target: Locator) =>
   expect
@@ -52,7 +53,8 @@ const settled = (target: Locator) =>
         document.getAnimations().every((a) => {
           const node = (a.effect as KeyframeEffect | null)?.target;
           const related = node instanceof Node && (node.contains(el) || el.contains(node));
-          return !related || a.playState !== 'running';
+          const loops = a.effect?.getTiming().iterations === Infinity;
+          return !related || loops || a.playState !== 'running';
         }),
       ),
     )
@@ -117,13 +119,18 @@ test.describe('pathway library without a goal', () => {
     expect(await draftGoal(page)).toBe('Master Deep Work & Double Daily Output');
   });
 
-  test('a goal of your own stays free and opens onboarding without a preset (ND-6)', async ({ page }) => {
+  // ND-6 kept custom goals free only until payments existed; custom goals are now the Pro capability (ND-10, billing
+  // OD-3), so this no longer asserts free wording. What still holds: the route sits after the pathways (secondary)
+  // and opens onboarding on an empty goal, never a preset.
+  test('a goal of your own comes after the pathways and opens onboarding without a preset (ND-6)', async ({ page }) => {
     await mockApi(page);
     await page.addInitScript(() => localStorage.setItem('achivii_draft_goal', 'Run a 10K Under 50 Minutes'));
     await signIn(page);
     await page.goto('/');
-    const custom = page.getByRole('region', { name: 'Something else in mind?' });
-    await expect(custom).not.toContainText(/premium|locked|upgrade|paid|price/i);
+    const custom = page.getByRole('region', { name: 'Have something unique in mind?' });
+    const directions = page.getByRole('group', { name: 'Choose a direction' });
+    await expect(custom).toBeVisible();
+    expect((await custom.boundingBox())!.y).toBeGreaterThan((await directions.boundingBox())!.y);
     await custom.getByRole('button', { name: 'Describe my own goal' }).click();
     await expect(page).toHaveURL('/onboarding');
     await expectStep(page, 'goal');
@@ -159,7 +166,8 @@ test.describe('pathway library without a goal', () => {
 });
 
 test.describe('pathway library with a goal', () => {
-  // M5.3: the strip left Today; the shell's Pathways entry is how Today reaches the explorer. The strip stays on /dashboard.
+  // M5.3: the strip left Today; the shell's Pathways entry is how Today reaches the explorer. /dashboard is an overview
+  // again (ND-19, superseding OD-3) and has no strip either.
   test('Pathways from Today opens the explorer, and switching keeps the current goal until setup finishes', async ({ page }) => {
     const calls = await mockApi(page, { goal: GOAL, clarify: baseline.presetClarify });
     const deletes: string[] = [];
@@ -221,11 +229,24 @@ test.describe('pathway library with a goal', () => {
     await expect(page).toHaveURL('/');
   });
 
-  test('navigating to /dashboard redirects to / (dashboard strip retired)', async ({ page }) => {
+  test('/dashboard is the overview (ND-19), without the retired strip, and its Pathways entry opens the explorer', async ({
+    page,
+  }) => {
     await mockApi(page, { goal: GOAL });
     await signIn(page);
     await page.goto('/dashboard');
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/dashboard');
+    await expect(page.getByRole('main').getByText(CURRENT)).toBeVisible();
+    await expect(strip(page)).toHaveCount(0);
+
+    const opener = shellPathways(page);
+    await opener.click();
+    const dialog = explorer(page);
+    await expect(dialog.getByRole('radio', { name: CURRENT })).toBeChecked();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
+    await expect(page).toHaveURL('/dashboard');
   });
 
   test('the app navigation opens the same explorer', async ({ page }) => {
@@ -249,6 +270,14 @@ test.describe('pathway library with a goal', () => {
     await opener.click();
     const dialog = explorer(page);
     await expect(dialog.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
+    // The project's own size is restored after, so focus returns to the same shell control that opened the dialog.
+    const viewport = page.viewportSize()!;
+    for (const width of [390, 360]) {
+      await page.setViewportSize({ width, height: 800 });
+      await noOverflow(page);
+      await expectTapTarget(dialog.getByRole('tab', { name: 'Business' }));
+    }
+    await page.setViewportSize(viewport);
     await expectNoAxeViolations(page, dialog);
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
