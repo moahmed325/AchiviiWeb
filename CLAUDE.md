@@ -99,7 +99,8 @@ Backend is ESM with `NodeNext` resolution, so relative imports need the `.js` ex
 
 - Use the primitives from `components/ui` (Button, Field/Input, Dialog, Surface, Tabs, ProgressBar, StepMarker, states). Don't build another button, input, dialog or card; if a variant is missing, add it to the primitive and to `/__ui`.
 - Tokens are role-named in `@theme` in `src/index.css`. Never hard-code hex, font size, radius or shadow; add a token instead.
-- Dark only. No gradients or gradient text, one icon family (lucide-react, stroke 1.5), motion always has a reduced-motion path.
+- Dark only. No gradients or gradient text (the landing page's gold ramp is the one exception, ND-21), one icon family (lucide-react, stroke 1.5), motion always has a reduced-motion path.
+- Gold marks the way up and stays rare: at most one gold main action per screen, gold badges only for plan moments (done, key session, test day, review due), never decoration or small text (`Design.md` §1, ND-21).
 - `ui-root` on the outermost element of each screen; `focus-ring` on any custom focusable element; `cx()` for class merging; `className` on primitives is for layout only.
 - Pathway data lives only in `lib/certifiedPresets.ts`; galleries use `PathwayLibrary`/`PathwayStrip` and launches go through `usePathwayLaunch`.
 - Tests sit next to the component as `*.test.tsx` and query by role and accessible name, not class names.

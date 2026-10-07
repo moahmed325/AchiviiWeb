@@ -28,14 +28,17 @@ Read this file before writing any frontend code, component or layout. It is the 
 - **Light glass, only over imagery.** Backdrop blur and translucency are allowed when a component sits over an image or an atmospheric background (`Surface tone="glass"`). Never make every element glass. On mobile, avoid `backdrop-blur` over large moving images; use a pre-darkened image layer instead.
 - **Moderate radii.** Four named radii (see §2.4). Special cards can be almost rectangular.
 - **One botanical accent, one warm achievement tone.** `accent` (green) marks progress and focus; `achievement` (gold) marks milestones, destinations and premium. `caution` and `danger` are status colours only, never decoration.
-- **Gold is rare (VDS §2, §3).** It means "you've arrived": a milestone, the destination, a completed journey, premium. It is not the colour of routine actions, and the routine primary action is the off-white `primary` button (VDS §12). The `gold` button is for a next step that *is* an arrival (the code's own comment on `.btn-gold` says the same). Current exceptions are listed in §11.
+- **Gold marks the way up, and stays rare (VDS §2, §3, §12 as amended; `docs/decisions.md` ND-21).** It may mark the one main forward action on a screen (the `gold` button), the moments the plan marks (done, key session, test day, review due), milestones, the destination and premium. Everything else is not gold:
+  - **One gold action per screen,** never beside an off-white `primary`. Secondary and routine actions are never gold.
+  - **Not for decoration, and not for body or small text.** Gold text below display size is plain `text-achievement` on a dark surface.
+  - **The landing page** (`components/marketing`) may also use the gold ramp (`gold-bright` → `achievement` → `gold-deep`) in gradients and glows, gold gradient text for display headings (`.gold-text`, which falls back to plain text in forced-colours mode), and the slow `gold-breathe` glow. The app may not.
 - **Massive typography and negative space.** Let headings be large and let sections breathe.
 - **The progression grammar.** Step ○, active ●, completed ✓, milestone ◆, destination ✦, via `StepMarker`. The ✦ mark is the destination and Coach sign, not a generic "AI" sparkle.
 - **One icon family.** lucide-react, stroke width 1.5, thin and geometric. Don't add a second icon set.
 
 ### Don't
 
-- No purple-to-blue or rainbow gradients, and no gradient text (`bg-clip-text text-transparent`).
+- No purple-to-blue or rainbow gradients, and no gradient text (`bg-clip-text text-transparent`). The one exception is the landing page's gold display text (§1, ND-21).
 - No neon green, and no arbitrary saturated background tints.
 - No dashboards full of cards, and no charts that don't answer a user question.
 - No rockets or generic AI icons, and no ✦ used as decoration.
@@ -225,7 +228,7 @@ Use a primitive whenever one fits. Don't build another button, input, dialog or 
 
 | Prop | Values | Notes |
 |---|---|---|
-| `variant` | `primary` (default), `secondary`, `quiet`, `premium`, `gold`, `danger` | One main action per view: a `primary` (off-white, the routine main action) or, when the next step is an arrival, a `gold` (filled gold with a sheen, `.btn-gold`). Never both. `premium` is a gold outline for premium offers. `danger` is for destructive actions. |
+| `variant` | `primary` (default), `secondary`, `quiet`, `premium`, `gold`, `danger` | One main action per view: either a `primary` (off-white) or a `gold` (filled gold with a sheen, `.btn-gold`) for the main forward action (ND-21). Never both on one screen. `premium` is a gold outline for premium offers. `danger` is for destructive actions. |
 | `size` | `sm` (44px), `md` (48px, default), `lg` (56px) | Every size meets the 44px touch target. |
 | `loading` | boolean | Shows a spinner and keeps the label and full opacity. The button stays focusable (it is **not** natively disabled, so focus isn't lost mid-save) and gets `aria-busy` and `aria-disabled`; clicks are ignored and a submit button doesn't submit. |
 | `disabled` | boolean | Native `disabled`. With `asChild`, the child gets `aria-disabled` and its clicks are blocked instead, because links can't be disabled natively. |
@@ -303,7 +306,7 @@ All choice controls are native inputs, visually hidden. Keyboard, forms and scre
 | `radius` | `block`, `card` (default), `panel` |
 | `as` | `div` (default), `section`, `article`, `aside`, `li` |
 
-`Badge` is a short mono uppercase status label, with `tone` `neutral` (default), `accent`, `achievement`, `caution` or `danger`, and an optional `icon`. The text must name the state, because colour alone doesn't.
+`Badge` is a short mono uppercase status label, with `tone` `neutral` (default), `accent`, `achievement`, `caution` or `danger`, and an optional `icon`. The text must name the state, because colour alone doesn't. `achievement` is only for the moments the plan marks (done, key session, test day, review due) and for milestones, the destination and premium (ND-21).
 
 ### Dialog, SheetContent
 
@@ -519,10 +522,9 @@ Places where the code does not yet follow this file or the VDS. They are listed 
 
 | Where | What | Rule |
 |---|---|---|
-| Today's Start, Dashboard's "Begin today", Roadmap (2), Pathways explorer, marketing nav, hero and final CTA | The `gold` button for routine or entry actions | Gold means arrival (§1, VDS §2, §12); the routine main action is `primary`. |
-| Today's "Done", "Key session", "Test day" and "Review due" badges | `Badge tone="achievement"` for routine status | Gold is rare (§1). |
+| Today, when the week is due for review | The review card's `primary` "Start weekly review" can show on the same screen as the gold Start | One main action per screen (§1, §4). |
 | `FocusSessionModal`, `focus/FocusHeader`, `FocusTimer`, `FocusCompletion`, `FocusStepRunner` | Hard-coded `rgba(...)` shadows, a `radial-gradient` glow, and raw `text-2xl`/`text-3xl`/`text-5xl`, `min-h-[48px]` | Tokens only (§2); type utilities (§2.3). |
-| Marketing sections (`Hero`, `FinalCta`, `Product`, `Premium`, `Pathways`, `MarketingNav`, `StaircaseScene`, `ScrollThread`) | Hard-coded colours and decorative gradients | Tokens only (§2). Marketing art may need a documented exception. |
+| Marketing sections (`Hero`, `FinalCta`, `Product`, `Premium`, `Pathways`, `MarketingNav`, `StaircaseScene`, `ScrollThread`) | Hard-coded hex and `rgba(...)` values inside their gold gradients and glows | The gold ramp itself is allowed on the landing page (§1, ND-21), but through the tokens (`gold-bright`, `achievement`, `gold-deep`), not hard-coded values (§2). |
 | Focus mode in the 10-minute version | The header and timer still show the full session's minutes | Say what is true (§10). |
 | Today and Dashboard on a gentle-return day | The step's duration shows the full session's minutes next to "Today's a short one" | Say what is true (§10). Open question from missed-sessions M3.2. |
 

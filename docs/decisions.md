@@ -146,6 +146,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 | ND-19 | Keep the Dashboard as an overview beside Today | Product | Decided (A) | — |
 | ND-20 | Legacy billing columns on `users` (schema drift) | Technology | Decided (A) | — |
+| ND-21 | The gold accent system: what gold may mark | Design | Decided (A) | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1715,6 +1716,39 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Related.** PAY-1, missed-sessions M2.0.
 
+### ND-21 — The gold accent system: what gold may mark
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Design |
+| Needed by | — |
+| Raised | 2026-10-07 — `Design.md` review |
+| Decided | 2026-10-07 — Mo delegated the call ("do what you think is best"); recorded as the agent's recommendation |
+
+**Context.** VDS v1 (§2, §3, §12) reserves gold for achievement, "used very sparingly", and makes the main call to action solid off-white. On 2026-10-01 Mo redesigned the landing page around a "gold accent system" (`f67760f`): gold ramp tokens, a gold button with a sheen, gold display text, a breathing glow and a gold scroll thread, under the stated principle "Gold is the light at the top of the stairs… it marks everything that moves you toward the summit". The next day (`0dcd21c`, `e0d1c5b`) the `gold` button variant came into the app: Today's Start, the Dashboard's "Begin today", the Roadmap and the Pathways explorer, and Today's status badges (Done, Key session, Test day, Review due) moved to `achievement`. The VDS and `Design.md` were never updated, so the docs forbade what the app deliberately does.
+
+**Question.** Follow the VDS and revert the gold, or record the gold system as the current direction?
+
+**Options.**
+- **A — Record it, with limits.** Gold marks the way up: the one main forward action on a screen, the moments the plan marks (done, key session, test day, review due), milestones, the destination and premium. It stays rare everywhere else. The landing page gets a scoped exception for its gold ramp, display text and glow. Pros: matches deliberate, recent design work; no visual change; the docs stop contradicting the app. Cons: gold is more frequent than VDS v1 intended, so the limits must hold.
+- **B — Revert to VDS v1.** Off-white main actions and neutral or green badges. Pros: the original "very sparingly". Cons: undoes the owner's deliberate redesign of a week ago; a visible change on every screen.
+
+**Recommendation.** **A.** The gold system is newer than the VDS and was made on purpose; the docs were simply not updated. The limits keep it from becoming "gold everywhere".
+
+**Decision.** **A — the gold accent system is the current direction, within these limits:**
+* **One gold action per screen**, the main forward action, never beside a `primary`. Routine secondary actions are never gold.
+* **Gold status only for plan moments** (done, key session, test day, review due) and milestones, the destination and premium. Ordinary status uses `neutral`, `accent`, `caution` or `danger`.
+* **Not for decoration and not for body or small text.** Gold text below display size is `text-achievement` on a dark surface only.
+* **The landing page (`components/marketing`) may use** the gold ramp (`gold-bright`, `achievement`, `gold-deep`) in gradients and glows, gold gradient text for display headings (with the forced-colours fallback in `.gold-text`), and the slow `gold-breathe` glow. Not inside the app.
+
+**Consequences.**
+* VDS §2, §3 and §12 carry a dated amendment pointing here; the original v1 text stays for history.
+* `Design.md` §1, §4 and §11 state the limits; the gold rows leave its known-deviations list.
+* No code changes.
+
+**Related.** D-4, VDS §2, §3, §12, `Design.md` §1.
+
 ---
 
 # 5 — SUPERSEDED AND REJECTED
@@ -1759,6 +1793,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-09-27 | Phase 8 complete: ND-8 implemented and verified across M8.2–M8.5. Dedicated `/progress` route, shell navigation, completion metrics, phase milestones, benchmark results card, and adaptation history delivered with zero backend edits. Playwright suite `e2e/progress.spec.ts` passes 20/20 tests. Phase 8 marked COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next and blocked by OD-1b and OD-2. |
 | 2026-09-27 | Phase 9 M9.1: OD-1b Decided as Option B (explicit completion endpoint `POST /api/goal/complete` with closing-stretch arrival); named backend allowance approved for M9.2 (`completedAt DateTime?`, migration `add_goal_completed_status_and_timestamp`, and `GET /api/goal/active` update); canonical frontend contracts defined in `frontend/src/types/achievement.ts`. Phase 9 is IN PROGRESS. |
 | 2026-10-07 | ND-19 Decided (A): the Dashboard stays at `/dashboard` as an overview; OD-3 marked Superseded. ND-20 Decided (A): the six legacy billing columns on `users` are declared in `schema.prisma` as deprecated, with no migration. Both delegated by Mo to the agent's recommendation. |
+| 2026-10-07 | ND-21 Decided (A): the gold accent system (landing page and app, 2026-10-01/02) recorded as the current direction, with limits; VDS amended. Delegated by Mo to the agent's recommendation. |
 
 ### PAY-1 — Achivii Pro pricing
 

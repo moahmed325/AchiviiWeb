@@ -109,6 +109,8 @@ This keeps a subtle connection to the natural garden without making Achivii look
 
 ## Achievement accent
 
+> **Amended 2026-10-07 (`docs/decisions.md` ND-21).** Since the gold accent system (2026-10-01), gold marks the way up, not only arrival: the one main forward action on a screen, the moments the plan marks (done, key session, test day, review due), milestones, the destination and premium. It stays rare everywhere else: one gold action per screen, never decoration, never body or small text. The landing page may use the gold ramp, gold display text and a slow glow; the app may not. The v1 text below is kept for history.
+
 For major achievement moments:
 
 ### Warm stone / antique gold
@@ -132,6 +134,8 @@ The semantic system:
 ---
 
 # 3. Color philosophy
+
+> **Amended 2026-10-07 (ND-21):** "gold reserved for meaningful moments" now includes the main forward action on each screen; see §2.
 
 The site should mostly live in:
 
@@ -357,6 +361,8 @@ Glass appears primarily when a component sits **over an image or atmospheric env
 # 12. Buttons
 
 ### Primary CTA
+
+> **Amended 2026-10-07 (ND-21):** the main forward action on a screen may be the gold button (filled gold, dark text, a slow sheen on hover) instead of off-white; one per screen, never beside an off-white primary. Off-white stays the primary for everything else.
 
 Solid off-white with dark text.
 
