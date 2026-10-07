@@ -1,4 +1,4 @@
-import type { DailyTask, DetailedStep, Goal, RoadmapWeek } from '../types';
+import type { DailyTask, DetailedStep, Goal, Reconciliation, RoadmapWeek } from '../types';
 import { addDaysToDateKey, daysBetweenDateKeys, getLocalDateString } from './dateUtils';
 
 /**
@@ -143,13 +143,56 @@ export function findYesterdayTask(tasks: DailyTask[], now: Date, timezone?: stri
   return tasks.find((t) => t.date === yesterdayKey) ?? null;
 }
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** The weekday of a 'YYYY-MM-DD' date key ("Monday"), or null when the key cannot be read. */
+export function weekdayOf(dateKey: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : WEEKDAYS[date.getUTCDay()];
+}
+
 /**
- * Checks whether yesterday's scheduled practice task was left uncompleted (status === 'pending').
- * Rest days are not considered uncompleted practice.
+ * What the miss notice says (missed sessions M3.1, ND-16), read from the reconcile signals so Today and the
+ * Dashboard never disagree (ND-19). Data only: each screen writes its own words.
+ * - `day`: "Yesterday" when the day concerned is yesterday in the user's timezone, otherwise its weekday.
+ * - `carried`: `intoToday` when the step landed on today, otherwise `toWeekday` names the receiving day.
+ * Only `carried` and `dropped` are shown in M3.1; other kinds (M3.2, M3.3), a rest day today, a body for another
+ * goal, or a date that cannot be read give null.
  */
-export function isYesterdayPending(tasks: DailyTask[], now: Date, timezone?: string): boolean {
-  const yesterday = findYesterdayTask(tasks, now, timezone);
-  return Boolean(yesterday && !yesterday.isRestDay && yesterday.status === 'pending');
+export type MissNotice =
+  | { kind: 'carried'; day: string; intoToday: boolean; toWeekday: string }
+  | { kind: 'dropped'; day: string };
+
+export function missNotice(
+  reconciliation: Reconciliation | null,
+  goal: Pick<Goal, 'id' | 'dailyTasks'>,
+  now: Date,
+  timezone?: string
+): MissNotice | null {
+  // A body for another goal (an earlier one, before a reset) says nothing about this one.
+  if (!reconciliation || reconciliation.goalId !== goal.id) return null;
+  const signals = reconciliation.signals;
+  if (!signals) return null;
+  const today = todayKey(now, timezone);
+  // AC-5: a rest day never shows a miss line. The backend already returns none; the UI keeps that true.
+  if ((goal.dailyTasks || []).some((task) => task.date === today && task.isRestDay)) return null;
+  const dayLabel = (date: string) => (date === addDaysToDateKey(today, -1) ? 'Yesterday' : weekdayOf(date));
+
+  if (signals.notice === 'carried') {
+    const carried = signals.carried[0];
+    if (!carried) return null;
+    const day = dayLabel(carried.fromDate);
+    const toWeekday = weekdayOf(carried.toDate);
+    if (!day || !toWeekday) return null;
+    return { kind: 'carried', day, intoToday: carried.toDate === today, toWeekday };
+  }
+  if (signals.notice === 'dropped') {
+    const dropped = signals.dropped[0];
+    const day = dropped ? dayLabel(dropped.date) : null;
+    return day ? { kind: 'dropped', day } : null;
+  }
+  return null;
 }
 
 /**

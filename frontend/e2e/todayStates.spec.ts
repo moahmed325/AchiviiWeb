@@ -117,7 +117,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     await expect(page.locator('input[name="score"]')).toHaveCount(0);
   });
 
-  test('recovery: uncompleted yesterday task displays encouraging recovery guidance without punitive copy', async ({ page }) => {
+  test('recovery: yesterday left pending shows no generic callout and no punitive copy', async ({ page }) => {
     const base = shellGoal();
     const recoveryGoal = {
       ...base,
@@ -127,15 +127,56 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     await signIn(page);
     await page.goto('/');
 
-    await expect(page.getByText("Yesterday's step wasn't completed")).toBeVisible();
-    await expect(
-      page.getByText("Here's how we can recover. Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward.")
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toBeVisible();
+    await expect(page.getByText("Yesterday's step wasn't completed")).toHaveCount(0);
+    await expect(page.getByText(/didn't happen/)).toHaveCount(0);
 
     // No punitive copy
     await expect(page.getByText(/missed/i)).toHaveCount(0);
     await expect(page.getByText(/failed/i)).toHaveCount(0);
     await expect(page.getByText(/behind/i)).toHaveCount(0);
+  });
+
+  test('miss notice (M3.1): a step carried into today shows one calm line, no overflow at 360-412 px and no axe violations', async ({ page }) => {
+    const base = shellGoal();
+    const yesterday = base.dailyTasks.find((t) => t.id === 't2')!;
+    const today = base.dailyTasks.find((t) => t.id === 't3')!;
+    const goal = { ...base, dailyTasks: base.dailyTasks.map((t) => (t.id === 't2' ? { ...t, status: 'pending' as const } : t)) };
+    await mockApi(page, {
+      goal,
+      reconcile: {
+        applies: true,
+        goalId: base.id,
+        asOf: new Date().toISOString(),
+        timezone: 'UTC',
+        days: [],
+        gap: null,
+        carry: { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [] },
+        signals: {
+          carried: [{ fromDate: yesterday.date, fromTaskId: 't2', toDate: today.date, toTaskId: 't3', stepTitle: 'Draft the brief' }],
+          dropped: [],
+          swapOffer: null,
+          shortOnTime: false,
+          gentleReturn: null,
+          notice: 'carried',
+        },
+      },
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const stepCard = main(page).locator('section[aria-labelledby="step-heading"]');
+    const line = "Yesterday's session didn't happen. We moved its most important step into today, so today stays the same length.";
+    await expect(stepCard.getByText(line)).toBeVisible();
+    await expect(page.getByText(/session didn't happen/)).toHaveCount(1);
+    await expect(page.getByText(/missed|failed|behind/i)).toHaveCount(0);
+
+    for (const width of [390, 360, 375, 412]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
+      expect(await axeViolations(page), `axe at ${width}`).toEqual([]);
+    }
   });
 
   test('review due: when all week tasks are in the past, renders prominent review due card', async ({ page }) => {

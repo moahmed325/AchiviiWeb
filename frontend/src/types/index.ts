@@ -138,6 +138,50 @@ export interface ReconcileDay {
   kind: 'done' | 'missed' | 'rest' | 'planned';
 }
 
+/** A carry the backend planned or wrote (M2.2). Only the fields the UI reads are typed. */
+export interface ReconcileCarry {
+  fromTaskId: string;
+  fromDate: string;
+  toTaskId: string;
+  toDate: string;
+}
+
+/** Why a missed day's step was not carried (M2.2). Data, never shown to the user. */
+export type ReconcileDropReason =
+  | 'no_receiving_day'
+  | 'receiving_day_closed'
+  | 'receiving_day_done'
+  | 'receiving_day_taken'
+  | 'lost_to_later_miss'
+  | 'in_gap'
+  | 'high_load'
+  | 'does_not_fit'
+  | 'swap_unanswered'
+  | 'no_priority_step';
+
+/** The carry-forward plan in a plan v2 reconcile response (backend `ReconcileBody['carry']`). */
+export interface ReconcileCarryPlan {
+  /** Whether MISSED_SESSIONS_CARRY_ENABLED is on (ND-15). */
+  enabled: boolean;
+  carries: ReconcileCarry[];
+  drops: { taskId: string; date: string; reason: ReconcileDropReason }[];
+  held: { taskId: string; date: string; receivingTaskId: string; offerUntil: string }[];
+  alreadyCarried: ReconcileCarry[];
+  /** Carries this request actually stored. */
+  written: ReconcileCarry[];
+}
+
+/** Mirrors backend `MissedSignals` (lib/missedSignals.ts, M2.3). Derived on every call, never stored (ND-16). */
+export interface MissedSignals {
+  carried: { fromDate: string; fromTaskId: string; toDate: string; toTaskId: string; stepTitle: string }[];
+  dropped: { date: string; taskId: string; reason: ReconcileDropReason }[];
+  swapOffer: { missedTaskId: string; missedDate: string; receivingTaskId: string; receivingDate: string; offerUntil: string } | null;
+  shortOnTime: boolean;
+  gentleReturn: { gapLength: number; firstDate: string; lastDate: string } | null;
+  /** The one line to show, or null. */
+  notice: 'gentle_return' | 'swap_offer' | 'carried' | 'dropped' | null;
+}
+
 /** Response of `POST /api/goal/reconcile`. Only active plan v2 goals are classified. */
 export type ReconcileResult =
   | { applies: false; reason: 'no_active_goal' | 'not_plan_v2' }
@@ -148,7 +192,12 @@ export type ReconcileResult =
       timezone: string;
       days: ReconcileDay[];
       gap: { firstDate: string; lastDate: string; length: number; taskIds: string[] } | null;
+      carry: ReconcileCarryPlan;
+      signals: MissedSignals;
     };
+
+/** A plan v2 reconcile body (`applies: true`), as GoalContext keeps it. */
+export type Reconciliation = Extract<ReconcileResult, { applies: true }>;
 
 export interface DailyTask {
   id: string;

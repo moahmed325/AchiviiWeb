@@ -58,6 +58,11 @@ export interface MockOptions {
    * the mocked goal changes as the backend changes it, so a reload returns what was saved.
    */
   taskUpdateStatus?: number;
+  /**
+   * The body `POST /api/goal/reconcile` answers with (missed sessions, ND-6). Default `{ applies: false }`, as the
+   * backend answers without a plan v2 goal, so no spec depends on a failing or held request.
+   */
+  reconcile?: Record<string, unknown>;
 }
 
 export interface TaskUpdate {
@@ -118,6 +123,7 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     activeStatus,
     resetStatus = 200,
     taskUpdateStatus,
+    reconcile = { applies: false, reason: 'not_plan_v2' },
   } = options;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
   const saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
@@ -192,6 +198,8 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       if (activeStatus) return json(route, activeStatus, { error: 'Failed to fetch active goal' });
       return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : saved });
     }
+
+    if (path === '/api/goal/reconcile' && route.request().method() === 'POST') return json(route, 200, reconcile);
 
     const taskMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)$/);
     if (taskMatch && route.request().method() === 'PATCH') {

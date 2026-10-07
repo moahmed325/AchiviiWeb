@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../context/AuthContext';
 import { GoalProvider, useGoal } from '../../context/GoalContext';
 import * as api from '../../lib/api';
-import type { DailyTask, Goal } from '../../types';
+import type { DailyTask, Goal, MissedSignals } from '../../types';
 import { Today } from './Today';
 import { todayKey } from '../../lib/today';
 import { addDaysToDateKey } from '../../lib/dateUtils';
@@ -88,6 +88,7 @@ beforeEach(() => {
   mocked.fetchHealthCheck.mockResolvedValue({ status: 'ok', timestamp: '', service: 'api' });
   mocked.fetchCurrentUser.mockResolvedValue({ id: 'u1', email: 'mo@example.com', created_at: '' });
   mocked.fetchActiveGoal.mockResolvedValue(GOAL);
+  mocked.reconcileGoal.mockResolvedValue({ applies: false, reason: 'no_active_goal' });
   mocked.updateDailyTask.mockImplementation(async (id, updates) => ({ ...tasks.find((t) => t.id === id)!, ...updates }) as DailyTask);
 });
 
@@ -526,25 +527,135 @@ describe('Today', () => {
     expect(screen.queryByLabelText(/score/i)).not.toBeInTheDocument();
   });
 
-  it('renders reassuring non-punitive recovery card when yesterday task was uncompleted', async () => {
-    // Yesterday (t2) is pending
+  it('no longer shows the old generic recovery callout when yesterday was left pending', async () => {
+    // Yesterday (t2) is pending and reconcile says nothing (applies: false).
     const tasksWithYesterdayPending = tasks.map((t) => (t.id === 't2' ? { ...t, status: 'pending' as const } : t));
-    const goalWithPendingYesterday = { ...GOAL, dailyTasks: tasksWithYesterdayPending } as unknown as Goal;
-    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithPendingYesterday);
+    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: tasksWithYesterdayPending } as unknown as Goal);
     await renderToday();
 
-    // Reassuring recovery card is displayed
-    expect(screen.getByText("Yesterday's step wasn't completed")).toBeVisible();
-    expect(
-      screen.getByText(
-        "Here's how we can recover. Don't try to double up or rush. Focus entirely on today's step and keep your momentum forward."
-      )
-    ).toBeVisible();
-
-    // Strictly NO punitive copy
+    expect(screen.queryByText("Yesterday's step wasn't completed")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Here's how we can recover/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/didn't happen/)).not.toBeInTheDocument();
     expect(screen.queryByText(/missed/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/behind/i)).not.toBeInTheDocument();
+  });
+
+  describe('miss notice from reconcile (missed sessions M3.1)', () => {
+    const weekday = (offset: number) => new Date(`${isoDay(offset)}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+    const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
+    const reconciled = (signals: Partial<MissedSignals>) =>
+      mocked.reconcileGoal.mockResolvedValue({
+        applies: true,
+        goalId: 'g1',
+        asOf: new Date().toISOString(),
+        timezone: 'UTC',
+        days: [],
+        gap: null,
+        carry: { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [] },
+        signals: { ...NONE, ...signals },
+      });
+    const carriedFrom = (from: number, to: number) => ({ fromDate: isoDay(from), fromTaskId: 'x', toDate: isoDay(to), toTaskId: 'y', stepTitle: 'Lead' });
+    const lines = () => screen.queryAllByText(/session didn't happen/);
+    const expectCalmCopy = () => {
+      const text = document.body.textContent ?? '';
+      for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
+    };
+
+    it('carried into today, from yesterday', async () => {
+      reconciled({ notice: 'carried', carried: [carriedFrom(-1, 0)] });
+      await renderToday();
+      expect(
+        screen.getByText("Yesterday's session didn't happen. We moved its most important step into today, so today stays the same length."),
+      ).toBeVisible();
+      expect(lines()).toHaveLength(1);
+      expectCalmCopy();
+    });
+
+    it('carried to a later day, from an earlier weekday', async () => {
+      reconciled({ notice: 'carried', carried: [carriedFrom(-2, 1)] });
+      await renderToday();
+      expect(
+        screen.getByText(
+          `${weekday(-2)}'s session didn't happen. We moved its most important step to ${weekday(1)}, so that day stays the same length.`,
+        ),
+      ).toBeVisible();
+      expectCalmCopy();
+    });
+
+    it('carried into today from an earlier weekday', async () => {
+      reconciled({ notice: 'carried', carried: [carriedFrom(-2, 0)] });
+      await renderToday();
+      expect(
+        screen.getByText(`${weekday(-2)}'s session didn't happen. We moved its most important step into today, so today stays the same length.`),
+      ).toBeVisible();
+    });
+
+    it('dropped yesterday, and dropped on an earlier weekday; the reason is never shown', async () => {
+      reconciled({ notice: 'dropped', dropped: [{ date: isoDay(-1), taskId: 't2', reason: 'high_load' }] });
+      await renderToday();
+      expect(screen.getByText("Yesterday's session didn't happen. Nothing needs making up: the plan carries on as it is.")).toBeVisible();
+      expect(screen.queryByText(/high.load/i)).not.toBeInTheDocument();
+      expectCalmCopy();
+    });
+
+    it('dropped on an earlier weekday', async () => {
+      reconciled({ notice: 'dropped', dropped: [{ date: isoDay(-2), taskId: 't1', reason: 'does_not_fit' }] });
+      await renderToday();
+      expect(screen.getByText(`${weekday(-2)}'s session didn't happen. Nothing needs making up: the plan carries on as it is.`)).toBeVisible();
+    });
+
+    it('shows one line only, even when several days were carried or dropped', async () => {
+      reconciled({
+        notice: 'carried',
+        carried: [carriedFrom(-1, 0), carriedFrom(-2, 1)],
+        dropped: [{ date: isoDay(-1), taskId: 't2', reason: 'high_load' }],
+      });
+      await renderToday();
+      expect(lines()).toHaveLength(1);
+      expect(screen.getByText(/^Yesterday's session didn't happen\. We moved its most important step into today/)).toBeVisible();
+    });
+
+    it.each([
+      ['gentle_return', { notice: 'gentle_return', gentleReturn: { gapLength: 3, firstDate: isoDay(-4), lastDate: isoDay(-1) } }],
+      ['swap_offer', { notice: 'swap_offer', swapOffer: { missedTaskId: 't2', missedDate: isoDay(-1), receivingTaskId: 't3', receivingDate: isoDay(0), offerUntil: '' } }],
+      ['null', { notice: null, carried: [carriedFrom(-1, 0)] }],
+    ] as Array<[string, Partial<MissedSignals>]>)('shows nothing for %s', async (_, signals) => {
+      reconciled(signals);
+      await renderToday();
+      expect(lines()).toHaveLength(0);
+    });
+
+    it('shows nothing when reconcile fails', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mocked.reconcileGoal.mockRejectedValue(new Error('Failed to reconcile goal'));
+      await renderToday();
+      expect(lines()).toHaveLength(0);
+      warn.mockRestore();
+    });
+
+    it('shows nothing on a rest day', async () => {
+      reconciled({ notice: 'dropped', dropped: [{ date: isoDay(-1), taskId: 't2', reason: 'high_load' }] });
+      mocked.fetchActiveGoal.mockResolvedValueOnce({
+        ...GOAL,
+        dailyTasks: tasks.map((t) => (t.id === 't3' ? { ...t, isRestDay: true } : t)),
+      } as unknown as Goal);
+      await renderToday();
+      expect(screen.getByText("Today's rest")).toBeInTheDocument();
+      expect(lines()).toHaveLength(0);
+    });
+
+    it('belongs to today only, not to another selected day', async () => {
+      const user = userEvent.setup();
+      reconciled({ notice: 'carried', carried: [carriedFrom(-1, 0)] });
+      await renderToday();
+      expect(lines()).toHaveLength(1);
+      await user.click(screen.getByRole('button', { name: 'Show week' }));
+      const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
+      await user.click(days.find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!);
+      expect(screen.getByText("Thursday's step")).toBeInTheDocument();
+      expect(lines()).toHaveLength(0);
+    });
   });
 
   it('renders review due banner when all tasks of the week have passed', async () => {
