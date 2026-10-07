@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** IN PROGRESS (P1, P2, M3.1 and M3.2 complete; switch stays off until M3.3, see 2.4; next is M3.3; M4.2 is blocked, see 2.2)
+**Status:** IN PROGRESS (P1, P2, M3.1 to M3.3 and M4.1 complete; the switch can now be turned on, see 2.4 and the M3.3 release checklist; next is M3.4; M4.2 is blocked, see 2.2)
 **Version:** 1.5 (updated 2026-10-07: phase review, ND-9 to ND-16)
 **Date:** 2026-10-03
 **Feature Definition:** docs/features/missed-sessions/03-feature.md
@@ -110,7 +110,7 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Endpoint to log the test without closing the week (M4.1); week-close handoff extends the existing review route (M4.2). |
 | P5 | QA, Copy Audit & Regression | P1-P4 | None. |
 
-Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3 IN PROGRESS (M3.1, M3.2 complete); P4, P5 NOT STARTED (M4.1 can start any time, see 2.3).
+Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3 IN PROGRESS (M3.1 to M3.3 complete); P4 PARTIAL (M4.1 complete, M4.2 blocked); P5 NOT STARTED.
 
 ## 2.1 Dependency graph
 ```
@@ -305,7 +305,7 @@ Duplicate or lost steps on repeated or concurrent reconcile (ND-13 guard and tes
 
 # 8 — P3 TODAY EXPERIENCE
 
-**Status:** IN PROGRESS (M3.1, M3.2 complete)
+**Status:** IN PROGRESS (M3.1 to M3.3 complete)
 
 ## 8.1 Source
 UX-1, UX-2, UX-4, RULE-6 (UI), RULE-8 (UI), RULE-9, tone section, AC-1, AC-5, AC-6, AC-7, AC-10, AC-12. Finding F-3.
@@ -336,7 +336,7 @@ None, beyond fields P2 already exposes. Turning on `MISSED_SESSIONS_CARRY_ENABLE
 
 **M3.2 — Short-on-time and gentle-return. COMPLETE** (2026-10-07). Evidence: `milestones/m3.2-short-on-time-and-gentle-return.md`. UX-2 and UX-4, with the 10-minute version reachable in two taps or fewer.
 
-**M3.3 — Key-session swap and mark-missed UI.** Swap offered before carry-forward for a missed key session. Rest days never show a miss message. Use each action's response (the reconcile body) to refresh. Two things only that response knows (M2.4 report): when today's key session is marked missed, its `swapOffer` is not shown again on a reload until tonight's close, so keep it on screen from the response; and a drop caused by marking today missed appears in that response's `carry.drops` but becomes a `dropped` notice only after the close. **Wording when the day is today (decided 2026-10-07):** after "mark today missed", the day concerned is today, so M3.1's `{Day}` rule ("Yesterday" or a weekday) would read "Tuesday's session didn't happen" on that Tuesday. Extend the rule: when the day concerned is today, use these strings instead, and no others. Today, carried: "Today's session is set aside. We moved its most important step to {Weekday}, so that day stays the same length." Today, dropped: "Today's session is set aside. Nothing needs making up: the plan carries on as it is." Dashboard, either case: "Today's session is set aside. No catching up needed." Same copy rules as M3.1 (no "missed", "behind", "failed" or "why").
+**M3.3 — Key-session swap and mark-missed UI. COMPLETE** (2026-10-07). Evidence: `milestones/m3.3-swap-and-mark-missed-ui.md` (updated release checklist inside). Swap offered before carry-forward for a missed key session. Rest days never show a miss message. Use each action's response (the reconcile body) to refresh. Two things only that response knows (M2.4 report): when today's key session is marked missed, its `swapOffer` is not shown again on a reload until tonight's close, so keep it on screen from the response; and a drop caused by marking today missed appears in that response's `carry.drops` but becomes a `dropped` notice only after the close. **Wording when the day is today (decided 2026-10-07):** after "mark today missed", the day concerned is today, so M3.1's `{Day}` rule ("Yesterday" or a weekday) would read "Tuesday's session didn't happen" on that Tuesday. Extend the rule: when the day concerned is today, use these strings instead, and no others. Today, carried: "Today's session is set aside. We moved its most important step to {Weekday}, so that day stays the same length." Today, dropped: "Today's session is set aside. Nothing needs making up: the plan carries on as it is." Dashboard, either case: "Today's session is set aside. No catching up needed." Same copy rules as M3.1 (no "missed", "behind", "failed" or "why").
 
 **M3.4 — State coverage and accessibility.** Loading, error, offline, rest, key, test, review-due, and completed states still correct; axe and overflow checks at the existing widths. Add an `e2e` npm script in `frontend/package.json` that runs the existing Playwright config, so EV-5 can be run by a command.
 
@@ -353,7 +353,7 @@ Copy drifting punitive (Feature Definition R-4): add assertions for the new stri
 
 # 9 — P4 TEST DAY AND WEEK CLOSE
 
-**Status:** NOT STARTED (M4.1 ready, M4.2 BLOCKED)
+**Status:** PARTIAL (M4.1 complete, M4.2 BLOCKED)
 
 ## 9.1 Source
 RULE-7, RULE-9, UX-3, UX-5, UX-6, AC-8, AC-9, AC-11. Findings F-5, F-6.
@@ -363,9 +363,9 @@ Let a user take the weekly test late, and make an unlogged test flow honestly in
 
 ## 9.3 Milestones
 
-**M4.1 - Late test (ready; depends only on P1, can run any time).** A small backend endpoint logs the weekly test result into `RoadmapWeek.testResult` **without closing the week** (ND-4), reusing `validateWeeklyTestResult`. The weekly review must then keep a stored result when it is submitted without one (today it writes null in both review paths). On Today, a "Take the test now" card shows from the end of test day until the weekly review is submitted, because the existing review (`POST /weeks/:weekNumber/review`) is what closes the week today. After the review, the card is gone.
+**M4.1 - Late test. COMPLETE** (2026-10-07). Evidence: `milestones/m4.1-late-test.md`. A small backend endpoint logs the weekly test result into `RoadmapWeek.testResult` **without closing the week** (ND-4), reusing `validateWeeklyTestResult`. The weekly review must then keep a stored result when it is submitted without one (today it writes null in both review paths). On Today, a "Take the test now" card shows from the end of test day until the weekly review is submitted, because the existing review (`POST /weeks/:weekNumber/review`) is what closes the week today. After the review, the card is gone.
 
-**M4.2 — Week-close handoff (BLOCKED).** On the first open of a new week, if the test is unlogged, run the plan v2 weekly update with the test marked missing, target held, and sessions deciding status; feed it missed-day, dropped-step, and key-skipped counts; apply `retestFirst` after two far_behind weeks and the daily-time check. **Blocked until plan v2 build step 4 (weekly update, prompt 4) exists.** Do not build a substitute status engine in this feature.
+**M4.2 — Week-close handoff (BLOCKED).** On the first open of a new week, if the test is unlogged, run the plan v2 weekly update with the test marked missing, target held, and sessions deciding status; feed it missed-day, dropped-step, and key-skipped counts; apply `retestFirst` after two far_behind weeks and the daily-time check. **Blocked until plan v2 build step 4 (weekly update, prompt 4) exists.** Note from M4.1 review: `writeNextWeek` (`planV2.ts`, `lastWeekResult`) never reads `RoadmapWeek.testResult`; it only uses the test day's status and notes. The weekly update must read the stored result, whether logged late (M4.1) or with the review. Do not build a substitute status engine in this feature.
 
 ## 9.4 In scope / out of scope
 In scope: late test, handoff inputs. Out of scope: building the weekly update itself, checkpoint offers (owned by the weekly update).
@@ -439,9 +439,9 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M3.3 (key-session swap and mark-missed UI)**. M4.1 can be drafted at any time. M4.1 can be drafted at any time.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M3.4 (state coverage and accessibility)**; then turn the switch on (2.4). M4.1 can be drafted at any time. M4.1 can be drafted at any time.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1, P2, M3.1 and M3.2 COMPLETE; M3.3 and M4.1 PROMPTS READY
+**Status:** P1, P2, M3.1 to M3.3 and M4.1 COMPLETE; M3.4 PROMPT TO BE DRAFTED; switch can be turned on

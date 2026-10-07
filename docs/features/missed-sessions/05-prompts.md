@@ -951,7 +951,7 @@ A gentle-return day opens on the 10-minute version with the full session one tap
 ## M3.3 — Key-Session Swap and Mark-Missed UI
 
 ### STATUS
-READY (drafted 2026-10-07). Depends on M3.2 (complete). After it is live, the ND-15 switch is turned on (04-phases.md 2.4).
+COMPLETE (2026-10-07, commit `2dd47fc`). Report: `docs/features/missed-sessions/milestones/m3.3-swap-and-mark-missed-ui.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P3/M3.3. Implement only this milestone. Follow the operating contract in section 0.
@@ -1039,7 +1039,7 @@ An endpoint's behavior differs from the M2.4 report; a string above would be unt
 ## M4.1 — Late Test
 
 ### STATUS
-READY (drafted 2026-10-07). Depends only on P1 (complete). Can run in parallel with P3; it touches different files except `Today.tsx` (coordinate by keeping your Today change to one self-contained card).
+COMPLETE (2026-10-07, commit `62f5275`). Report: `docs/features/missed-sessions/milestones/m4.1-late-test.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P4/M4.1. Implement only this milestone. Follow the operating contract in section 0.
