@@ -10,7 +10,9 @@ import {
   isWeekReviewDue,
   isClosingStretchActive,
   missNotice,
+  movedDays,
   shortOnTimeOffer,
+  todayActions,
   parseIntention,
   parseSteps,
   parseTaskNotes,
@@ -299,7 +301,7 @@ describe('missNotice (missed sessions M3.1)', () => {
     expect(missNotice(body(signals), goal, late, 'UTC')).toEqual({ kind: 'dropped', day: 'Wednesday' });
   });
 
-  it('says nothing for gentle_return, swap_offer, null, no body, or another goal', () => {
+  it('says nothing for gentle_return, swap_offer (switch off), null, no body, or another goal', () => {
     const offer = { missedTaskId: 'tue', missedDate: '2026-09-22', receivingTaskId: 'wed', receivingDate: '2026-09-23', offerUntil: '' };
     expect(missNotice(body({ notice: 'gentle_return', gentleReturn: { gapLength: 3, firstDate: '2026-09-19', lastDate: '2026-09-22' } }), goal, wednesday, 'UTC')).toBeNull();
     expect(missNotice(body({ notice: 'swap_offer', swapOffer: offer }), goal, wednesday, 'UTC')).toBeNull();
@@ -314,6 +316,154 @@ describe('missNotice (missed sessions M3.1)', () => {
     expect(missNotice(body({ notice: 'carried', carried: [] }), goal, wednesday, 'UTC')).toBeNull();
     expect(missNotice(body({ notice: 'dropped', dropped: [] }), goal, wednesday, 'UTC')).toBeNull();
     expect(missNotice(body({ notice: 'dropped', dropped: [{ date: 'bad', taskId: 'x', reason: 'high_load' }] }), goal, wednesday, 'UTC')).toBeNull();
+  });
+});
+
+describe('missNotice: swap offer and a day set aside (missed sessions M3.3)', () => {
+  // Wednesday 2026-09-23 at noon UTC.
+  const wednesday = new Date('2026-09-23T12:00:00Z');
+  const goal = { id: 'g', dailyTasks: [...week, task({ id: 'fri', dayNumber: 5, date: '2026-09-25' })] } as Goal;
+  const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
+  const CARRY = { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [] };
+  const body = (signals: Partial<MissedSignals>, extra: Record<string, unknown> = {}) =>
+    ({ applies: true, goalId: 'g', days: [], carry: CARRY, signals: { ...NONE, ...signals }, ...extra }) as unknown as Reconciliation;
+  const off = (signals: Partial<MissedSignals>, extra: Record<string, unknown> = {}) =>
+    body(signals, { ...extra, carry: { ...((extra.carry as object) ?? CARRY), enabled: false } });
+  const offer = (missedTaskId: string, missedDate: string, receivingTaskId: string, receivingDate: string) => ({
+    notice: 'swap_offer' as const,
+    swapOffer: { missedTaskId, missedDate, receivingTaskId, receivingDate, offerUntil: '' },
+  });
+  const carried = (fromDate: string, toDate: string) => ({ fromDate, fromTaskId: 'wed', toDate, toTaskId: 'thu', stepTitle: 'Lead' });
+  const droppedToday = {
+    days: [{ taskId: 'wed', date: '2026-09-23', weekNumber: 1, dayNumber: 3, isKeySession: false, isTestDay: false, kind: 'missed' }],
+    carry: { ...CARRY, drops: [{ taskId: 'wed', date: '2026-09-23', reason: 'high_load' }] },
+  };
+
+  it('a swap offer: {Day} is "Yesterday" or the weekday, {When} is "today" or the receiving weekday', () => {
+    expect(missNotice(body(offer('tue', '2026-09-22', 'wed', '2026-09-23')), goal, wednesday, 'UTC')).toEqual({
+      kind: 'swap_offer', day: 'Yesterday', when: 'today', missedTaskId: 'tue', receivingTaskId: 'wed',
+    });
+    expect(missNotice(body(offer('mon', '2026-09-21', 'wed', '2026-09-23')), goal, wednesday, 'UTC')).toMatchObject({ day: 'Monday', when: 'today' });
+  });
+
+  it('a swap offer for today, set aside: no {Day}, {When} is the receiving weekday', () => {
+    expect(missNotice(body(offer('wed', '2026-09-23', 'thu', '2026-09-24')), goal, wednesday, 'UTC')).toEqual({
+      kind: 'swap_offer', day: null, when: 'Thursday', missedTaskId: 'wed', receivingTaskId: 'thu',
+    });
+  });
+
+  it('no swap offer with the switch off, for a receiving day already past, or for days not in the goal', () => {
+    expect(missNotice(off(offer('tue', '2026-09-22', 'wed', '2026-09-23')), goal, wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body(offer('mon', '2026-09-21', 'tue', '2026-09-22')), goal, wednesday, 'UTC')).toBeNull();
+    expect(missNotice(body(offer('elsewhere', '2026-09-22', 'wed', '2026-09-23')), goal, wednesday, 'UTC')).toBeNull();
+  });
+
+  it('a carry from today is "set aside", naming the day that got the step', () => {
+    expect(missNotice(body({ notice: 'carried', carried: [carried('2026-09-23', '2026-09-24')] }), goal, wednesday, 'UTC')).toEqual({
+      kind: 'set_aside',
+      movedTo: 'Thursday',
+    });
+    // It wins over an older carry listed first: it is the user's latest action.
+    const both = [carried('2026-09-22', '2026-09-23'), carried('2026-09-23', '2026-09-25')];
+    expect(missNotice(body({ notice: 'carried', carried: both }), goal, wednesday, 'UTC')).toEqual({ kind: 'set_aside', movedTo: 'Friday' });
+  });
+
+  it('today planned as missed and dropped is "set aside" with nothing moved, before the close', () => {
+    expect(missNotice(body({}, droppedToday), goal, wednesday, 'UTC')).toEqual({ kind: 'set_aside', movedTo: null });
+    // A drop of another day, or today not planned as missed, says nothing new.
+    expect(missNotice(body({}, { ...droppedToday, days: [] }), goal, wednesday, 'UTC')).toBeNull();
+  });
+
+  it('with the switch off, M3.1 is unchanged: a carry from today reads as before, a hand drop says nothing', () => {
+    expect(missNotice(off({ notice: 'carried', carried: [carried('2026-09-23', '2026-09-24')] }), goal, wednesday, 'UTC')).toEqual({
+      kind: 'carried', day: 'Wednesday', intoToday: false, toWeekday: 'Thursday',
+    });
+    expect(missNotice(off({}, droppedToday), goal, wednesday, 'UTC')).toBeNull();
+  });
+
+  it('never on a rest day, and the gentle return still comes first', () => {
+    const sunday = new Date('2026-09-27T12:00:00Z');
+    expect(missNotice(body(offer('thu', '2026-09-24', 'sun', '2026-09-27')), goal, sunday, 'UTC')).toBeNull();
+    const gentle = { notice: 'gentle_return' as const, gentleReturn: { gapLength: 3, firstDate: '2026-09-19', lastDate: '2026-09-22' } };
+    const withMinimum = { ...goal, dailyTasks: goal.dailyTasks!.map((t) => (t.id === 'wed' ? { ...t, minimumVersion: { stepNumber: 1 } } : t)) } as Goal;
+    expect(missNotice(body({ ...gentle, carried: [carried('2026-09-23', '2026-09-24')] }), withMinimum, wednesday, 'UTC')).toEqual({ kind: 'gentle_return' });
+  });
+});
+
+describe('movedDays and todayActions (missed sessions M3.3)', () => {
+  const wednesday = new Date('2026-09-23T12:00:00Z');
+  const steps = (marker?: Record<string, unknown>) => JSON.stringify([{ stepNumber: 1, title: 'Lead', ...marker }]);
+  const days = (overrides: Record<string, Partial<DailyTask>> = {}) => [
+    task({ id: 'mon', dayNumber: 1, date: '2026-09-21', status: 'completed', ...overrides.mon }),
+    task({ id: 'tue', dayNumber: 2, date: '2026-09-22', ...overrides.tue }),
+    task({ id: 'wed', dayNumber: 3, date: '2026-09-23', title: 'Tempo', ...overrides.wed }),
+    task({ id: 'thu', dayNumber: 4, date: '2026-09-24', title: 'Hills', ...overrides.thu }),
+    task({ id: 'fri', dayNumber: 5, date: '2026-09-25', title: 'Long run', ...overrides.fri }),
+    task({ id: 'sat', dayNumber: 6, date: '2026-09-26', title: 'Test', isTestDay: true, ...overrides.sat }),
+    task({ id: 'sun', dayNumber: 7, date: '2026-09-27', isRestDay: true, ...overrides.sun }),
+  ];
+  const goalWith = (overrides?: Record<string, Partial<DailyTask>>) => ({ id: 'g', currentWeek: 1, dailyTasks: days(overrides) }) as Goal;
+  const body = (extra: Record<string, unknown> = {}, enabled = true) =>
+    ({
+      applies: true,
+      goalId: 'g',
+      days: [],
+      carry: { enabled, carries: [], drops: [], held: [], alreadyCarried: [], written: [] },
+      signals: { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null },
+      ...extra,
+    }) as unknown as Reconciliation;
+  const ids = (list: DailyTask[]) => list.map((t) => t.id);
+
+  it('movedDays reads both markers: sources and swap holders are handled, every holder is holding', () => {
+    const { handled, holding } = movedDays([
+      { id: 'thu', detailedSteps: steps({ carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } }) },
+      { id: 'fri', detailedSteps: steps({ swappedFrom: { taskId: 'wed', date: '2026-09-23' } }) },
+      { id: 'sat', detailedSteps: 'not json' },
+    ]);
+    expect([...handled].sort()).toEqual(['fri', 'tue', 'wed']);
+    expect([...holding].sort()).toEqual(['fri', 'thu']);
+  });
+
+  it('an open practice day: both actions, and the open practice days later this week that are not the test day', () => {
+    const actions = todayActions(body(), goalWith(), wednesday, 'UTC');
+    expect(actions).toMatchObject({ canSetAside: true, canSwap: true });
+    expect(actions!.today.id).toBe('wed');
+    expect(ids(actions!.swapWith)).toEqual(['thu', 'fri']);
+  });
+
+  it('later days that are completed or touched by a move are not offered', () => {
+    const goal = goalWith({
+      thu: { status: 'completed' },
+      fri: { detailedSteps: steps({ carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } }) },
+    });
+    expect(todayActions(body(), goal, wednesday, 'UTC')!.swapWith).toEqual([]);
+  });
+
+  it('nothing with the switch off, for another goal, on a rest day, on a completed day, or without a body', () => {
+    expect(todayActions(body({}, false), goalWith(), wednesday, 'UTC')).toBeNull();
+    expect(todayActions(body({ goalId: 'other' }), goalWith(), wednesday, 'UTC')).toBeNull();
+    expect(todayActions(body(), goalWith(), new Date('2026-09-27T12:00:00Z'), 'UTC')).toBeNull();
+    expect(todayActions(body(), goalWith({ wed: { status: 'completed' } }), wednesday, 'UTC')).toBeNull();
+    expect(todayActions(null, goalWith(), wednesday, 'UTC')).toBeNull();
+  });
+
+  it('today already the source of a move, or already set aside: neither action', () => {
+    const carriedOut = goalWith({ thu: { detailedSteps: steps({ carriedFrom: { taskId: 'wed', date: '2026-09-23', replaced: [] } }) } });
+    expect(todayActions(body(), carriedOut, wednesday, 'UTC')).toMatchObject({ canSetAside: false, canSwap: false });
+    const missed = body({ days: [{ taskId: 'wed', date: '2026-09-23', kind: 'missed' }] });
+    expect(todayActions(missed, goalWith(), wednesday, 'UTC')).toMatchObject({ canSetAside: false, canSwap: false });
+    const held = body({ signals: { carried: [], dropped: [], swapOffer: { missedTaskId: 'wed', missedDate: '2026-09-23', receivingTaskId: 'thu', receivingDate: '2026-09-24', offerUntil: '' }, shortOnTime: false, gentleReturn: null, notice: 'swap_offer' } });
+    expect(todayActions(held, goalWith(), wednesday, 'UTC')).toMatchObject({ canSetAside: false, canSwap: false });
+  });
+
+  it('today holding a carried step: it can be set aside, not swapped', () => {
+    const holding = goalWith({ wed: { detailedSteps: steps({ carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } }) } });
+    expect(todayActions(body(), holding, wednesday, 'UTC')).toMatchObject({ canSetAside: true, canSwap: false });
+  });
+
+  it('the test day can be set aside, not swapped', () => {
+    const saturday = new Date('2026-09-26T12:00:00Z');
+    expect(todayActions(body(), goalWith(), saturday, 'UTC')).toMatchObject({ canSetAside: true, canSwap: false, swapWith: [] });
   });
 });
 

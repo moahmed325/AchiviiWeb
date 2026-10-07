@@ -159,12 +159,19 @@ export function weekdayOf(dateKey: string): string | null {
  * - `carried`: `intoToday` when the step landed on today, otherwise `toWeekday` names the receiving day.
  * - `gentle_return` (M3.2): only when today is an open practice day with a 10-minute version, because its line
  *   ("Today's a short one") is true only where that version is the default.
- * `swap_offer` (M3.3), a rest day today, a body for another goal, or a date that cannot be read give null.
+ * With the switch on (`carry.enabled`, ND-15), M3.3 adds two kinds; with it off they never appear:
+ * - `swap_offer`: a held key session can be done on its receiving day instead. `day` is null when the held day is
+ *   today (set aside); `when` is "today" or the receiving day's weekday.
+ * - `set_aside`: the day concerned is today (04-phases.md M3.3). `movedTo` names the day that got its main step,
+ *   or is null when nothing moved (a drop, known from `carry.drops` before tonight's close).
+ * A rest day today, a body for another goal, or a date that cannot be read give null.
  */
 export type MissNotice =
   | { kind: 'carried'; day: string; intoToday: boolean; toWeekday: string }
   | { kind: 'dropped'; day: string }
-  | { kind: 'gentle_return' };
+  | { kind: 'gentle_return' }
+  | { kind: 'swap_offer'; day: string | null; when: string; missedTaskId: string; receivingTaskId: string }
+  | { kind: 'set_aside'; movedTo: string | null };
 
 /** Today's task when it is an open practice day (not rest, not completed) with a 10-minute version. */
 function openTodayWithMinimum(goal: Pick<Goal, 'dailyTasks'>, today: string): DailyTask | null {
@@ -190,6 +197,31 @@ export function missNotice(
   if ((goal.dailyTasks || []).some((task) => task.date === today && task.isRestDay)) return null;
   const dayLabel = (date: string) => (date === addDaysToDateKey(today, -1) ? 'Yesterday' : weekdayOf(date));
 
+  if (signals.notice === 'gentle_return') {
+    return openTodayWithMinimum(goal, today) ? { kind: 'gentle_return' } : null;
+  }
+  if (reconciliation.carry?.enabled) {
+    const offer = signals.swapOffer;
+    if (signals.notice === 'swap_offer' && offer && offer.receivingDate >= today) {
+      const setAside = offer.missedDate === today;
+      const day = setAside ? null : dayLabel(offer.missedDate);
+      const when = offer.receivingDate === today ? 'today' : weekdayOf(offer.receivingDate);
+      // Both days must be in the loaded goal: answering sends their steps as loaded.
+      const tasks = goal.dailyTasks || [];
+      const known = tasks.some((t) => t.id === offer.missedTaskId) && tasks.some((t) => t.id === offer.receivingTaskId);
+      if ((setAside || day) && when && known) {
+        return { kind: 'swap_offer', day, when, missedTaskId: offer.missedTaskId, receivingTaskId: offer.receivingTaskId };
+      }
+      return null;
+    }
+    const fromToday = signals.carried.find((carried) => carried.fromDate === today);
+    if (fromToday) {
+      const movedTo = weekdayOf(fromToday.toDate);
+      return movedTo ? { kind: 'set_aside', movedTo } : null;
+    }
+    if (todayDropped(reconciliation, today)) return { kind: 'set_aside', movedTo: null };
+  }
+
   if (signals.notice === 'carried') {
     const carried = signals.carried[0];
     if (!carried) return null;
@@ -203,10 +235,84 @@ export function missNotice(
     const day = dropped ? dayLabel(dropped.date) : null;
     return day ? { kind: 'dropped', day } : null;
   }
-  if (signals.notice === 'gentle_return') {
-    return openTodayWithMinimum(goal, today) ? { kind: 'gentle_return' } : null;
-  }
   return null;
+}
+
+/** Today was planned as missed and dropped: by "Set today aside" (only that response knows, M2.4) or at its close. */
+function todayDropped(reconciliation: Reconciliation, today: string): boolean {
+  const day = (reconciliation.days || []).find((d) => d.date === today && d.kind === 'missed');
+  return Boolean(day && (reconciliation.carry?.drops || []).some((drop) => drop.taskId === day.taskId));
+}
+
+type MarkedStep = { carriedFrom?: { taskId?: unknown }; swappedFrom?: { taskId?: unknown } };
+
+/**
+ * The days a move already touched, read from the stored steps' markers (M2.2 `carriedFrom`, ND-18 `swappedFrom`):
+ * - `handled`: the source of a carry or a swap, or a day holding a swapped step (the backend's `handledTaskIds`).
+ * - `holding`: a day holding any moved step.
+ */
+export function movedDays(tasks: ReadonlyArray<Pick<DailyTask, 'id' | 'detailedSteps'>>): { handled: Set<string>; holding: Set<string> } {
+  const handled = new Set<string>();
+  const holding = new Set<string>();
+  for (const task of tasks) {
+    for (const step of parseSteps(task.detailedSteps) as MarkedStep[]) {
+      const carried = step?.carriedFrom && typeof step.carriedFrom.taskId === 'string' ? step.carriedFrom.taskId : null;
+      const swapped = step?.swappedFrom && typeof step.swappedFrom.taskId === 'string' ? step.swappedFrom.taskId : null;
+      if (carried) {
+        handled.add(carried);
+        holding.add(task.id);
+      }
+      if (swapped) {
+        handled.add(swapped);
+        handled.add(task.id);
+        holding.add(task.id);
+      }
+    }
+  }
+  return { handled, holding };
+}
+
+/**
+ * What a user may do to today's plan by hand (missed sessions M3.3, AC-2, ND-14), or null when nothing: the switch
+ * is off (ND-15), the body is for another goal, or today is not an open practice day.
+ * - `canSetAside`: today is not already the source of a move, and not already set aside (held or dropped).
+ * - `canSwap`: as above, and today is not the test day and holds no moved step.
+ * - `swapWith`: the open practice days later this week that are not the test day and no move has touched.
+ */
+export interface TodayActions {
+  today: DailyTask;
+  canSetAside: boolean;
+  canSwap: boolean;
+  swapWith: DailyTask[];
+}
+
+export function todayActions(
+  reconciliation: Reconciliation | null,
+  goal: Pick<Goal, 'id' | 'currentWeek' | 'dailyTasks'>,
+  now: Date,
+  timezone?: string
+): TodayActions | null {
+  if (!reconciliation || reconciliation.goalId !== goal.id || !reconciliation.carry?.enabled) return null;
+  const date = todayKey(now, timezone);
+  const week = currentWeekTasks(goal);
+  const today = week.find((task) => task.date === date);
+  if (!today || today.isRestDay || today.status === 'completed') return null;
+  const { handled, holding } = movedDays(week);
+  const setAside =
+    (reconciliation.days || []).some((d) => d.taskId === today.id && d.kind === 'missed') ||
+    reconciliation.signals?.swapOffer?.missedTaskId === today.id;
+  const canSetAside = !handled.has(today.id) && !setAside;
+  const canSwap = canSetAside && !today.isTestDay && !holding.has(today.id);
+  const swapWith = week.filter(
+    (task) =>
+      task.date > date &&
+      !task.isRestDay &&
+      !task.isTestDay &&
+      task.status !== 'completed' &&
+      !handled.has(task.id) &&
+      !holding.has(task.id),
+  );
+  return { today, canSetAside, canSwap, swapWith };
 }
 
 /**

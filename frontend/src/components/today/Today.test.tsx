@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../context/AuthContext';
 import { GoalProvider, useGoal } from '../../context/GoalContext';
 import * as api from '../../lib/api';
-import type { DailyTask, Goal, MissedSignals } from '../../types';
+import type { DailyTask, Goal, MissedSignals, Reconciliation } from '../../types';
 import { Today } from './Today';
 import { todayKey } from '../../lib/today';
 import { addDaysToDateKey } from '../../lib/dateUtils';
@@ -20,6 +20,9 @@ vi.mock('../../lib/api', async (importOriginal) => {
     reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
     updateDailyTask: vi.fn(),
     submitWeeklyReview: vi.fn(),
+    markTodayMissed: vi.fn(),
+    swapDays: vi.fn(),
+    carryNow: vi.fn(),
   };
 });
 
@@ -618,7 +621,6 @@ describe('Today', () => {
 
     it.each([
       ['gentle_return', { notice: 'gentle_return', gentleReturn: { gapLength: 3, firstDate: isoDay(-4), lastDate: isoDay(-1) } }],
-      ['swap_offer', { notice: 'swap_offer', swapOffer: { missedTaskId: 't2', missedDate: isoDay(-1), receivingTaskId: 't3', receivingDate: isoDay(0), offerUntil: '' } }],
       ['null', { notice: null, carried: [carriedFrom(-1, 0)] }],
     ] as Array<[string, Partial<MissedSignals>]>)('shows nothing for %s', async (_, signals) => {
       reconciled(signals);
@@ -1017,3 +1019,338 @@ describe('Today', () => {
 
 
 
+
+describe('Today: swap offer, set today aside, swap with another day (missed sessions M3.3)', () => {
+  const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
+  const CARRY = { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [] };
+  const body = (signals: Partial<MissedSignals> = {}, extra: Partial<Reconciliation> = {}): Reconciliation =>
+    ({ applies: true, goalId: 'g1', asOf: '', timezone: 'UTC', days: [], gap: null, carry: CARRY, signals: { ...NONE, ...signals }, ...extra }) as Reconciliation;
+  const weekday = (offset: number) =>
+    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(`${isoDay(offset)}T00:00:00Z`).getUTCDay()];
+  const offer = (missedTaskId: string, missedOffset: number, receivingTaskId: string, receivingOffset: number): Partial<MissedSignals> => ({
+    notice: 'swap_offer',
+    swapOffer: { missedTaskId, missedDate: isoDay(missedOffset), receivingTaskId, receivingDate: isoDay(receivingOffset), offerUntil: '' },
+  });
+  /** The goal with changes to some days (t1, t2 done; t3 today; t4-t6 later; t7 rest). */
+  const goalWith = (changes: Record<string, Partial<DailyTask>> = {}) =>
+    ({ ...GOAL, dailyTasks: tasks.map((t) => (changes[t.id] ? { ...t, ...changes[t.id] } : t)) }) as unknown as Goal;
+  const marked = (marker: Record<string, unknown>) => JSON.stringify([{ ...JSON.parse(STEPS)[0], ...marker }, JSON.parse(STEPS)[1]]);
+  const button = (name: string) => screen.queryByRole('button', { name });
+  const NEW = ['Swap the days', 'Just move its main step', 'Set today aside', 'Swap with another day'];
+  const expectCalm = () => {
+    const text = document.body.textContent ?? '';
+    for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
+  };
+  const SERVER_TEXT = 'This day has already been changed.';
+
+  it('with the switch off nothing new appears, even with a swap offer', async () => {
+    mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t2: { status: 'pending', isKeySession: true } }));
+    mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0), { carry: { ...CARRY, enabled: false } }));
+    await renderToday();
+    for (const name of NEW) expect(button(name)).not.toBeInTheDocument();
+    expect(screen.queryByText(/key session didn't happen/)).not.toBeInTheDocument();
+  });
+
+  describe('swap offer', () => {
+    beforeEach(() => {
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t2: { status: 'pending', isKeySession: true } }));
+    });
+
+    it('a day before today: "{Day}\'s key session didn\'t happen. Do it today instead?" with both answers', async () => {
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      await renderToday();
+      expect(screen.getByText("Yesterday's key session didn't happen. Do it today instead?")).toBeVisible();
+      expect(button('Swap the days')).toBeVisible();
+      expect(button('Just move its main step')).toBeVisible();
+      expectCalm();
+    });
+
+    it('an earlier weekday is named', async () => {
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'pending', isKeySession: true } }));
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t1', -2, 't3', 0)));
+      await renderToday();
+      expect(screen.getByText(`${weekday(-2)}'s key session didn't happen. Do it today instead?`)).toBeVisible();
+    });
+
+    it('"Swap the days" sends both days\' steps as loaded, applies the answer and reloads the goal', async () => {
+      const user = userEvent.setup();
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.swapDays.mockResolvedValue(body());
+      await renderToday();
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { title: 'Tempo intervals' } }));
+      await user.click(screen.getByRole('button', { name: 'Swap the days' }));
+      expect(mocked.swapDays).toHaveBeenCalledWith('t2', 't3', { t2: STEPS, t3: STEPS }, 't');
+      // The receiving day's new session, with no extra line.
+      expect(await screen.findByRole('region', { name: 'Tempo intervals' })).toBeInTheDocument();
+      expect(screen.queryByText(/key session didn't happen/)).not.toBeInTheDocument();
+      expect(button('Swap the days')).not.toBeInTheDocument();
+      expect(mocked.reconcileGoal).toHaveBeenCalledTimes(1);
+    });
+
+    it('"Just move its main step" carries now and shows the carried line', async () => {
+      const user = userEvent.setup();
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.carryNow.mockResolvedValue(
+        body({ notice: 'carried', carried: [{ fromDate: isoDay(-1), fromTaskId: 't2', toDate: isoDay(0), toTaskId: 't3', stepTitle: 'Warm up' }] }),
+      );
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Just move its main step' }));
+      expect(mocked.carryNow).toHaveBeenCalledWith('t2', 't');
+      expect(
+        await screen.findByText("Yesterday's session didn't happen. We moved its most important step into today, so today stays the same length."),
+      ).toBeVisible();
+      expect(button('Swap the days')).not.toBeInTheDocument();
+    });
+
+    it('a double click sends once', async () => {
+      const user = userEvent.setup();
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.swapDays.mockReturnValue(new Promise(() => {}));
+      await renderToday();
+      await user.dblClick(screen.getByRole('button', { name: 'Swap the days' }));
+      await user.click(screen.getByRole('button', { name: 'Just move its main step' }));
+      expect(mocked.swapDays).toHaveBeenCalledTimes(1);
+      expect(mocked.carryNow).not.toHaveBeenCalled();
+    });
+
+    it('a refusal says "That didn\'t change. Please try again." beside the answers, never the server text', async () => {
+      const user = userEvent.setup();
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.carryNow.mockRejectedValue(new api.ApiError(SERVER_TEXT, 409, 'already_handled'));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Just move its main step' }));
+      expect(await screen.findByText("That didn't change. Please try again.")).toBeVisible();
+      expect(screen.queryByText(SERVER_TEXT)).not.toBeInTheDocument();
+      expect(screen.queryByText(/already_handled/)).not.toBeInTheDocument();
+      // Nothing else changes.
+      expect(screen.getByText("Yesterday's key session didn't happen. Do it today instead?")).toBeVisible();
+      expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(1);
+    });
+
+    it('a 409 changed reconciles, reloads, and says "Your plan changed. Here\'s the latest."', async () => {
+      const user = userEvent.setup();
+      mocked.reconcileGoal.mockResolvedValueOnce(body(offer('t2', -1, 't3', 0)));
+      mocked.swapDays.mockRejectedValue(new api.ApiError('The plan changed since it was loaded.', 409, 'changed'));
+      await renderToday();
+      mocked.reconcileGoal.mockResolvedValue(body());
+      await user.click(screen.getByRole('button', { name: 'Swap the days' }));
+      expect(await screen.findByText("Your plan changed. Here's the latest.")).toBeVisible();
+      expect(mocked.reconcileGoal).toHaveBeenCalledTimes(2);
+      expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText(/since it was loaded/)).not.toBeInTheDocument();
+      expect(button('Swap the days')).not.toBeInTheDocument();
+    });
+
+    it('belongs to Today\'s view of today only', async () => {
+      const user = userEvent.setup();
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Show week' }));
+      await user.click(screen.getByRole('button', { name: /^Thu / }));
+      for (const name of NEW) expect(button(name)).not.toBeInTheDocument();
+      expect(screen.queryByText(/key session didn't happen/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('set today aside', () => {
+    beforeEach(() => {
+      mocked.reconcileGoal.mockResolvedValue(body());
+    });
+
+    it('opens a dialog; "Keep today" closes it, changes nothing, and returns focus', async () => {
+      const user = userEvent.setup();
+      await renderToday();
+      const trigger = screen.getByRole('button', { name: 'Set today aside' });
+      await user.click(trigger);
+      const dialog = screen.getByRole('dialog', { name: "Set today's session aside?" });
+      expect(within(dialog).getByText('Nothing gets longer.')).toBeVisible();
+      expect(within(dialog).getByRole('button', { name: 'Set it aside' })).toBeVisible();
+      await user.click(within(dialog).getByRole('button', { name: 'Keep today' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(mocked.markTodayMissed).not.toHaveBeenCalled();
+      await waitFor(() => expect(trigger).toHaveFocus());
+    });
+
+    it('Escape closes the dialog', async () => {
+      const user = userEvent.setup();
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Set today aside' }));
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(mocked.markTodayMissed).not.toHaveBeenCalled();
+    });
+
+    it('carried: "Today\'s session is set aside. We moved its most important step to {Weekday}…"', async () => {
+      const user = userEvent.setup();
+      mocked.markTodayMissed.mockResolvedValue(
+        body({ notice: 'carried', carried: [{ fromDate: isoDay(0), fromTaskId: 't3', toDate: isoDay(1), toTaskId: 't4', stepTitle: 'Warm up' }] }),
+      );
+      await renderToday();
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t4: { detailedSteps: marked({ carriedFrom: { taskId: 't3', date: isoDay(0), replaced: [] } }) } }));
+      await user.click(screen.getByRole('button', { name: 'Set today aside' }));
+      await user.click(screen.getByRole('button', { name: 'Set it aside' }));
+      expect(mocked.markTodayMissed).toHaveBeenCalledWith('t3', 't');
+      expect(
+        await screen.findByText(`Today's session is set aside. We moved its most important step to ${weekday(1)}, so that day stays the same length.`),
+      ).toBeVisible();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      // Today is now the source of a move: neither action again.
+      expect(button('Set today aside')).not.toBeInTheDocument();
+      expect(button('Swap with another day')).not.toBeInTheDocument();
+      expectCalm();
+    });
+
+    it('dropped (from the response\'s carry.drops): "Today\'s session is set aside. Nothing needs making up…"', async () => {
+      const user = userEvent.setup();
+      mocked.markTodayMissed.mockResolvedValue(
+        body({}, {
+          days: [{ taskId: 't3', date: isoDay(0), weekNumber: 1, dayNumber: 3, isKeySession: false, isTestDay: false, kind: 'missed' }],
+          carry: { ...CARRY, drops: [{ taskId: 't3', date: isoDay(0), reason: 'high_load' }] },
+        }),
+      );
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Set today aside' }));
+      await user.click(screen.getByRole('button', { name: 'Set it aside' }));
+      expect(await screen.findByText("Today's session is set aside. Nothing needs making up: the plan carries on as it is.")).toBeVisible();
+      expect(button('Set today aside')).not.toBeInTheDocument();
+      expectCalm();
+    });
+
+    it('held (a key session): the swap offer for today, kept from the response', async () => {
+      const user = userEvent.setup();
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { isKeySession: true } }));
+      mocked.markTodayMissed.mockResolvedValue(
+        body(offer('t3', 0, 't4', 1), {
+          days: [{ taskId: 't3', date: isoDay(0), weekNumber: 1, dayNumber: 3, isKeySession: true, isTestDay: false, kind: 'missed' }],
+        }),
+      );
+      mocked.swapDays.mockResolvedValue(body());
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Set today aside' }));
+      await user.click(screen.getByRole('button', { name: 'Set it aside' }));
+      expect(await screen.findByText(`Today's key session is set aside. Do it ${weekday(1)} instead?`)).toBeVisible();
+      expect(button('Set today aside')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Swap the days' }));
+      expect(mocked.swapDays).toHaveBeenCalledWith('t3', 't4', { t3: STEPS, t4: STEPS }, 't');
+    });
+
+    it('a refusal or a network failure says so in the dialog, which stays open; never the server text', async () => {
+      const user = userEvent.setup();
+      mocked.markTodayMissed.mockRejectedValueOnce(new api.ApiError(SERVER_TEXT, 409, 'already_handled'));
+      mocked.markTodayMissed.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Set today aside' }));
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await user.click(screen.getByRole('button', { name: 'Set it aside' }));
+        const dialog = screen.getByRole('dialog');
+        expect(await within(dialog).findByText("That didn't change. Please try again.")).toBeVisible();
+      }
+      expect(screen.queryByText(SERVER_TEXT)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+      expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(1);
+    });
+
+    it('a double click sends once', async () => {
+      const user = userEvent.setup();
+      mocked.markTodayMissed.mockReturnValue(new Promise(() => {}));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Set today aside' }));
+      await user.dblClick(screen.getByRole('button', { name: 'Set it aside' }));
+      expect(mocked.markTodayMissed).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('swap with another day', () => {
+    beforeEach(() => {
+      mocked.reconcileGoal.mockResolvedValue(body());
+    });
+
+    it('lists the open practice days later this week that are not the test day and no move has touched', async () => {
+      const user = userEvent.setup();
+      mocked.fetchActiveGoal.mockResolvedValue(
+        goalWith({
+          t4: { title: 'Hill repeats' },
+          t5: { isTestDay: true },
+          t6: { detailedSteps: marked({ carriedFrom: { taskId: 't2', date: isoDay(-1), replaced: [] } }) },
+        }),
+      );
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Swap with another day' }));
+      const dialog = screen.getByRole('dialog', { name: 'Swap with another day' });
+      const choices = within(dialog).getAllByRole('listitem').map((item) => item.textContent);
+      expect(choices).toEqual([`${weekday(1)}: Hill repeats`]);
+    });
+
+    it('choosing a day swaps it with today, applies the answer and closes the dialog', async () => {
+      const user = userEvent.setup();
+      const t5Steps = JSON.stringify([{ stepNumber: 1, title: 'Strides', durationMinutes: 30, instructions: '', focusCue: '' }]);
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t5: { title: 'Strides', detailedSteps: t5Steps } }));
+      mocked.swapDays.mockResolvedValue(body());
+      await renderToday();
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { title: 'Strides', detailedSteps: t5Steps }, t5: { title: 'Easy base run' } }));
+      await user.click(screen.getByRole('button', { name: 'Swap with another day' }));
+      await user.click(screen.getByRole('button', { name: `${weekday(2)}: Strides` }));
+      expect(mocked.swapDays).toHaveBeenCalledWith('t3', 't5', { t3: STEPS, t5: t5Steps }, 't');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(await screen.findByRole('region', { name: 'Strides' })).toBeInTheDocument();
+    });
+
+    it('with no eligible day: "No other day this week can be swapped." and "Close"', async () => {
+      const user = userEvent.setup();
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t4: { status: 'completed' }, t5: { isTestDay: true }, t6: { status: 'completed' } }));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Swap with another day' }));
+      const dialog = screen.getByRole('dialog', { name: 'Swap with another day' });
+      expect(within(dialog).getByText('No other day this week can be swapped.')).toBeVisible();
+      await user.click(within(dialog).getByRole('button', { name: 'Close' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(mocked.swapDays).not.toHaveBeenCalled();
+    });
+
+    it('a 409 changed closes the dialog, reloads, and says so', async () => {
+      const user = userEvent.setup();
+      mocked.swapDays.mockRejectedValue(new api.ApiError('The plan changed since it was loaded.', 409, 'changed'));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Swap with another day' }));
+      await user.click(screen.getByRole('button', { name: `${weekday(1)}: Session 4` }));
+      expect(await screen.findByText("Your plan changed. Here's the latest.")).toBeVisible();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(mocked.reconcileGoal).toHaveBeenCalledTimes(2);
+      expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(2);
+    });
+
+    it('not on the test day; set aside is still there', async () => {
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { isTestDay: true } }));
+      await renderToday();
+      expect(button('Swap with another day')).not.toBeInTheDocument();
+      expect(button('Set today aside')).toBeVisible();
+    });
+
+    it('today holding a carried step cannot be swapped', async () => {
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { detailedSteps: marked({ carriedFrom: { taskId: 't2', date: isoDay(-1), replaced: [] } }) } }));
+      await renderToday();
+      expect(button('Swap with another day')).not.toBeInTheDocument();
+      expect(button('Set today aside')).toBeVisible();
+    });
+  });
+
+  it.each([
+    ['a rest day', { t3: { isRestDay: true } }],
+    ['a completed day', { t3: { status: 'completed' as const } }],
+  ])('nothing on %s', async (_, changes) => {
+    mocked.fetchActiveGoal.mockResolvedValue(goalWith(changes as Record<string, Partial<DailyTask>>));
+    mocked.reconcileGoal.mockResolvedValue(body());
+    await renderToday();
+    for (const name of NEW) expect(button(name)).not.toBeInTheDocument();
+  });
+
+  it('nothing on another selected day', async () => {
+    const user = userEvent.setup();
+    mocked.reconcileGoal.mockResolvedValue(body());
+    await renderToday();
+    expect(button('Set today aside')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
+    await user.click(screen.getByRole('button', { name: /^Thu / }));
+    for (const name of NEW) expect(button(name)).not.toBeInTheDocument();
+  });
+});
