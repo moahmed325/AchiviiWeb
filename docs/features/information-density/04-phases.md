@@ -1,13 +1,13 @@
 # Achivii Core Experience — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** READY FOR IMPLEMENTATION PROMPT GENERATION
+**Status:** IN PROGRESS (checked 2026-10-08 against the milestone reports and git history): P1 to P4 COMPLETE (2026-09-30), P5 NOT STARTED.
 **Version:** 3.0
 **Date:** 2026-09-30
 **Problem Definition:** docs/features/information-density/01-problem.md
 **Solution Exploration:** docs/features/information-density/02-solution.md
 **Feature Definition:** docs/features/information-density/03-feature.md
-**Template:** docs/templates/04-phases.md
+**Template:** the old phases template (retired 2026-10-08; it is in git history)
 
 ---
 
@@ -80,7 +80,7 @@ No new general-purpose dashboard is authorized.
 | P4 | Progress — Evidence Experience | P1 | None |
 | P5 | Cross-Experience Polish, Accessibility & QA | P2, P3, P4 | None |
 
-All phases begin **NOT STARTED**.
+Status (2026-10-08): P1, P2, P3 and P4 COMPLETE (2026-09-30); P5 NOT STARTED. M4.1 has no report in `milestones/`; it shipped as commit `b8ab112` ("feat(progress): establish evidence-first hierarchy").
 
 ## 2.1 Dependency graph
 ```
@@ -227,7 +227,7 @@ Every phase uses this structure:
 
 # 6 — P1 DESIGN FOUNDATION & EXPERIENCE CONTRACT
 
-**Status:** NOT STARTED
+**Status:** COMPLETE (2026-09-30: M1.1, M1.2, M1.3; reports in `milestones/`)
 
 ## 6.1 Source
 Feature Definition UX-1…UX-6, RULE-1…RULE-10, N-1…N-12, AC-1…AC-24, R-1…R-10.
@@ -402,7 +402,7 @@ EV-3: visual foundation and reusable pattern specification.
 
 # 7 — P2 TODAY / EXECUTION EXPERIENCE
 
-**Status:** NOT STARTED
+**Status:** COMPLETE (2026-09-30: M2.1, M2.2, M2.3; reports in `milestones/`)
 
 ## 7.1 Source
 Feature Definition UX-1, FD-1, FD-4…FD-6, RULE-1…RULE-10, AC-1, AC-2, AC-4…AC-24, R-1…R-6, R-10…R-14.
@@ -492,7 +492,7 @@ Today.tsx, Today child components, Home.tsx, shared UI, relevant tests.
 
 # 8 — P3 JOURNEY / ORIENTATION EXPERIENCE
 
-**Status:** NOT STARTED
+**Status:** COMPLETE (2026-09-30: M3.1, M3.2, M3.3; reports in `milestones/`)
 
 ## 8.1 Source
 Feature Definition UX-2, FD-2, FD-4…FD-6, RULE-1…RULE-10, AC-3…AC-24, R-7, R-8, R-10…R-13.
@@ -570,7 +570,7 @@ RoadmapPage.tsx, JourneyHeader, DesktopStaircase, MobileVerticalJourney, Strateg
 ---
 # 9 — P4 PROGRESS / EVIDENCE EXPERIENCE
 
-**Status:** NOT STARTED
+**Status:** COMPLETE (2026-09-30: M4.1 as commit `b8ab112`, no report; M4.2, M4.3 reports in `milestones/`)
 
 ## 9.1 Source
 Feature Definition UX-3, FD-3, FD-4…FD-6, RULE-1…RULE-10, AC-3…AC-24, R-9…R-13.

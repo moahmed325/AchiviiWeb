@@ -3,7 +3,7 @@
 **Roadmap:** docs/features/information-density/04-phases.md
 **Feature:** docs/features/information-density/03-feature.md
 **Solution:** docs/features/information-density/02-solution.md
-**Template:** docs/templates/05-prompts.md
+**Template:** the old prompts template (retired 2026-10-08). Shared rules for implementing a milestone: `CLAUDE.md` ("Working on a milestone")
 
 # 0 — PURPOSE & OPERATING CONTRACT
 This document translates every roadmap milestone into a detailed, copy-paste-ready implementation prompt. The roadmap defines WHAT/WHY/ORDER; this document defines HOW an implementation agent should execute one approved milestone.

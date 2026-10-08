@@ -3,6 +3,7 @@
 **Status:** STUB. This file only records the work handed over from missed sessions (section "Moved here from missed sessions"). Fill in the rest of the brief with `docs/templates/01-brief.md` before planning.
 **Date:** 2026-10-08
 **Builds on:** `docs/architecture/plan-v2.md` (Weekly update, prompt 4)
+**Decisions:** `docs/features/weekly-update/decisions.md` (prefix WU)
 
 ## Moved here from missed sessions (M4.2)
 
