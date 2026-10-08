@@ -19,7 +19,7 @@ const QUESTIONS = [
   },
   {
     q: 'What happens if I miss a day?',
-    a: 'A missed day is information, not failure. Every week closes with a short review, and the next week is written from what you actually did.',
+    a: "A day that doesn't happen is information, not a verdict. Every week closes with a short review, and the next week is written from what you actually did.",
   },
   {
     q: 'What if my goal isn’t one of the pathways?',

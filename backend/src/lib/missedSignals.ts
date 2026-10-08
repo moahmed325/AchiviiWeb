@@ -2,7 +2,7 @@
  * Missed sessions, P2 / M2.3: week counts and the signals reconcile returns.
  * Pure: no database, no clock, no environment, no copy. Everything is derived from the classification, the open
  * gap, the carry plan and the stored `carriedFrom` markers; nothing new is stored (ND-2, ND-16).
- * See docs/features/missed-sessions/03-feature.md (OD-2, RULE-4, RULE-8, RULE-9, AC-5, AC-10) and 04-phases.md.
+ * See docs/archive/missed-sessions/03-feature.md (OD-2, RULE-4, RULE-8, RULE-9, AC-5, AC-10) and 04-phases.md.
  */
 import type { CarryPlan, CarriedEarlier, PlannedCarry } from './carryForward.js';
 import { dayCloseInstant, type DayClassification, type Gap } from './missedSessions.js';

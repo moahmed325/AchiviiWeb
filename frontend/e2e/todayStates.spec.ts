@@ -327,6 +327,35 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
       goal: { ...shellGoal(), status: 'completed', completedAt: new Date().toISOString() },
       ready: (page) => expect(page.getByRole('heading', { level: 1, name: 'COMPLETE' })).toBeVisible(),
     },
+    {
+      // Missed sessions P5 (R3b): the results tab, with a recorded final test, so the capstone and benchmark labels show.
+      name: 'completed goal, results tab',
+      goal: {
+        ...shellGoal(),
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        roadmapWeeks: [
+          { ...shellGoal().roadmapWeeks[0], status: 'completed', test: TEST, testResult: { value: 'Sent to Sam', passed: true, note: 'Replied the same day' } },
+          { ...shellGoal().roadmapWeeks[0], id: 'w2', weekNumber: 2, status: 'completed', test: TEST, testResult: null },
+          {
+            ...shellGoal().roadmapWeeks[0],
+            id: 'w12',
+            weekNumber: 12,
+            phase: 'Launch',
+            status: 'completed',
+            target: { kind: 'outcome', description: 'A live product with one paying user' },
+            test: { type: 'launch_check', instructions: 'Show the live product to one user who pays for it.', passIf: 'one user pays' },
+            testResult: { value: 'One paying user', passed: true },
+          },
+        ],
+      },
+      ready: async (page) => {
+        await page.getByRole('tab', { name: 'Your Results' }).click();
+        await expect(page.getByRole('heading', { level: 3, name: /launch_check/i })).toBeVisible();
+        await expect(page.getByText('Target Deliverable')).toBeVisible();
+        await expect(page.getByText('No test recorded')).toBeVisible();
+      },
+    },
   ];
 
   for (const { name, goal, options, ready, card } of cases) {

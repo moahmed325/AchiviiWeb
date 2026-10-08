@@ -1,10 +1,10 @@
 # Achivii Missed Sessions — IMPLEMENTATION PHASES
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
-**Status:** IN PROGRESS (P1, P2, M3.1 to M3.3 and M4.1 complete; the switch can now be turned on, see 2.4 and the M3.3 release checklist; next is M3.4; M4.2 is blocked, see 2.2)
+**Status:** COMPLETE (2026-10-08: P1-P3, M4.1 and P5 complete; M4.2 moved to the weekly-update feature, ND-19; archived to `docs/archive/missed-sessions/`)
 **Version:** 1.5 (updated 2026-10-07: phase review, ND-9 to ND-16)
 **Date:** 2026-10-03
-**Feature Definition:** docs/features/missed-sessions/03-feature.md
+**Feature Definition:** docs/archive/missed-sessions/03-feature.md
 **Plan source:** docs/architecture/plan-v2.md (Missed sessions, Week call, Weekly update)
 **Template:** docs/templates/04-phases.md
 
@@ -111,7 +111,7 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Endpoint to log the test without closing the week (M4.1); week-close handoff extends the existing review route (M4.2). |
 | P5 | QA, Copy Audit & Regression | P1-P4 | None. |
 
-Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3 COMPLETE; P4 PARTIAL (M4.1 complete, M4.2 blocked); P5 NOT STARTED.
+Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched on in production, ND-15); P3 COMPLETE; P4 COMPLETE (M4.1 complete, M4.2 moved to weekly-update, ND-19); P5 COMPLETE.
 
 ## 2.1 Dependency graph
 ```
@@ -126,8 +126,8 @@ P3 Today     P4 Test day & week close
         P5 — QA
 ```
 
-## 2.2 Blocked item
-**M4.2 (week-close handoff) is BLOCKED** by the plan v2 weekly update (prompt 4), which is not built (F-5). It covers AC-9, AC-11 and the status inputs. Everything else can ship without it. When the weekly update is built, M4.2 becomes unblocked and P4 can complete.
+## 2.2 Moved item (was: blocked item)
+**Moved to the weekly-update feature (ND-19, 2026-10-08); see M4.2 in section 9.** Before the move: **M4.2 (week-close handoff) was BLOCKED** by the plan v2 weekly update (prompt 4), which is not built (F-5). It covers AC-9, AC-11 and the status inputs. Everything else can ship without it. When the weekly update is built, M4.2 becomes unblocked and P4 can complete.
 
 ## 2.3 Ordering rationale
 Recognition comes first because every rule needs a trustworthy "was this day missed" answer. Rules are built before UI so the UI reads decided state instead of inventing it. The test day work is split so the part that does not need the weekly update can ship. M4.1 (late test) depends only on P1, so it can be run at any point, in parallel with P2 or P3.
@@ -354,7 +354,7 @@ Copy drifting punitive (Feature Definition R-4): add assertions for the new stri
 
 # 9 — P4 TEST DAY AND WEEK CLOSE
 
-**Status:** PARTIAL (M4.1 complete, M4.2 BLOCKED)
+**Status:** COMPLETE (M4.1 complete, M4.2 moved to weekly-update, ND-19)
 
 ## 9.1 Source
 RULE-7, RULE-9, UX-3, UX-5, UX-6, AC-8, AC-9, AC-11. Findings F-5, F-6.
@@ -366,7 +366,7 @@ Let a user take the weekly test late, and make an unlogged test flow honestly in
 
 **M4.1 - Late test. COMPLETE** (2026-10-07). Evidence: `milestones/m4.1-late-test.md`. A small backend endpoint logs the weekly test result into `RoadmapWeek.testResult` **without closing the week** (ND-4), reusing `validateWeeklyTestResult`. The weekly review must then keep a stored result when it is submitted without one (today it writes null in both review paths). On Today, a "Take the test now" card shows from the end of test day until the weekly review is submitted, because the existing review (`POST /weeks/:weekNumber/review`) is what closes the week today. After the review, the card is gone.
 
-**M4.2 — Week-close handoff (BLOCKED).** On the first open of a new week, if the test is unlogged, run the plan v2 weekly update with the test marked missing, target held, and sessions deciding status; feed it missed-day, dropped-step, and key-skipped counts; apply `retestFirst` after two far_behind weeks and the daily-time check. **Blocked until plan v2 build step 4 (weekly update, prompt 4) exists.** Note from M4.1 review: `writeNextWeek` (`planV2.ts`, `lastWeekResult`) never reads `RoadmapWeek.testResult`; it only uses the test day's status and notes. The weekly update must read the stored result, whether logged late (M4.1) or with the review. Do not build a substitute status engine in this feature.
+**M4.2 — Week-close handoff. MOVED to the weekly-update feature (ND-19, 2026-10-08; `docs/features/weekly-update/01-problem.md`).** Its scope goes with it: the week-close handoff on the first open of a new week; an unlogged test runs the weekly update with the test marked missing and the target held (AC-9); two far_behind weeks start the next week with a re-test and the daily-time check (`retestFirst`, AC-11); and `writeNextWeek` reads `RoadmapWeek.testResult`. Original text, kept for history: On the first open of a new week, if the test is unlogged, run the plan v2 weekly update with the test marked missing, target held, and sessions deciding status; feed it missed-day, dropped-step, and key-skipped counts; apply `retestFirst` after two far_behind weeks and the daily-time check. **Blocked until plan v2 build step 4 (weekly update, prompt 4) exists.** Note from M4.1 review: `writeNextWeek` (`planV2.ts`, `lastWeekResult`) never reads `RoadmapWeek.testResult`; it only uses the test day's status and notes. The weekly update must read the stored result, whether logged late (M4.1) or with the review. Do not build a substitute status engine in this feature.
 
 ## 9.4 In scope / out of scope
 In scope: late test, handoff inputs. Out of scope: building the weekly update itself, checkpoint offers (owned by the weekly update).
@@ -387,15 +387,15 @@ A missing test being treated as a failure of the person (RULE-7). Building a sta
 
 # 10 — P5 QA, COPY AUDIT AND REGRESSION
 
-**Status:** NOT STARTED
+**Status:** COMPLETE (2026-10-08). Evidence: `milestones/m5-close.md`.
 
 ## 10.1 Objective
 Prove the whole feature against the Feature Definition and the regression register.
 
 ## 10.2 Milestones
-**M5.1 — Acceptance walkthrough.** Walk AC-1 to AC-14 and record evidence; mark any AC that depends on M4.2 as deferred if it is still blocked.
-**M5.2 — Copy audit.** Search all new user-facing strings for "missed", "behind", "failed", and "why" prompts. All five Feature Definition copy situations match section 12. Additionally verify that preset prose in `run10k.ts`, `guitar.ts`, and `saas.ts` either matches implemented behavior or has been softened (ND-5 honesty).
-**M5.3 — Regression and old goals.** Run R-1 to R-11; confirm planVersion 1 goals behave exactly as before (AC-14).
+**M5.1 — Acceptance walkthrough. COMPLETE** (`milestones/m5-close.md` section 2; AC-9 and AC-11 moved, AC-14 retired by ND-21). Walk AC-1 to AC-14 and record evidence; mark any AC that depends on M4.2 as deferred if it is still blocked.
+**M5.2 — Copy audit. COMPLETE** (section 3; preset prose rewritten). Search all new user-facing strings for "missed", "behind", "failed", and "why" prompts. All five Feature Definition copy situations match section 12. Additionally verify that preset prose in `run10k.ts`, `guitar.ts`, and `saas.ts` either matches implemented behavior or has been softened (ND-5 honesty).
+**M5.3 — Regression and old goals. COMPLETE** (section 5; the old-goals part is retired by ND-21). Run R-1 to R-11; confirm planVersion 1 goals behave exactly as before (AC-14).
 
 ## 10.3 Exit criteria
 Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regressions. Open ND-n items recorded.
@@ -414,12 +414,12 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 | AC-6 Key session swap first | M2.2 (hold, ND-9), M2.4, M3.3 |
 | AC-7 10-minute version always counts | M2.0, M2.3, M3.2 |
 | AC-8 Late test card | M4.1 |
-| AC-9 Unlogged test at week close | M4.2 (blocked) |
+| AC-9 Unlogged test at week close | Moved to the weekly-update feature with M4.2 (ND-19) |
 | AC-10 Gap gentle-return | M2.2 (no carry, ND-11), M2.3, M3.2 |
-| AC-11 Two far_behind weeks re-test | M4.2 (blocked) |
+| AC-11 Two far_behind weeks re-test | Moved to the weekly-update feature with M4.2 (ND-19) |
 | AC-12 Copy rules | M3.1-M3.4, M5.2 |
 | AC-13 High-load dropped | M2.1, M2.2 |
-| AC-14 Old goals unchanged | M1.3, M5.3 |
+| AC-14 Old goals unchanged | Retired by docs/decisions.md ND-21 (plan v1 retired) |
 
 ---
 
@@ -440,9 +440,9 @@ Every AC has evidence or a recorded deferral tied to M4.2. No unresolved regress
 
 # HANDOFF CONTRACT
 
-The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. Next prompt: **M3.4 (state coverage and accessibility)**; then turn the switch on (2.4). M4.1 can be drafted at any time. M4.1 can be drafted at any time.
+The Implementation Prompt consumes **one milestone** from this file, the approved Feature Definition, and the current repository state. It must not reinterpret product direction or invent requirements. No further prompt: the feature is closed. M4.2 continues in the weekly-update feature.
 
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1, P2, P3 and M4.1 COMPLETE; switch ON in production; P5 PROMPT READY
+**Status:** COMPLETE and archived (2026-10-08). M4.2, AC-9 and AC-11 continue in the weekly-update feature.
