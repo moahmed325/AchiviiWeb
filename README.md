@@ -66,7 +66,7 @@ AchiviiWeb/
 │   │   │   │   ├── clarify.ts            # Goal clarification and follow-up questions
 │   │   │   │   ├── roadmap.ts            # Plan v2: method, phases, and each week's target and test
 │   │   │   │   ├── weekPlan.ts           # Plan v2: writes one week of daily tasks
-│   │   │   │   ├── goalDecomposer.ts     # Preset fixed-plan fallback; week adaptation for older (v1) goals
+│   │   │   │   ├── goalDecomposer.ts     # Goal clarification; week adaptation for older (v1) goals
 │   │   │   │   └── presets/              # 10 Certified Master Blueprints (VDOT, CAGED, Lean Startup, etc.)
 │   │   │   ├── research/             # Unsafe-goal screen, stated targets, safety clamps, basis badge
 │   │   │   ├── planV2.ts             # Writes the next week after each weekly review
@@ -212,7 +212,7 @@ npm run frontend
 | `DATABASE_URL` | Backend | **Yes** | PostgreSQL connection string. Must be a database with `pgvector` available. Use Supabase's session pooler URL. |
 | `SUPABASE_URL` | Backend | **Yes** | Supabase project URL, used to verify access tokens. |
 | `SUPABASE_ANON_KEY` | Backend | **Yes** | Supabase anon/publishable key. Never the service-role key. |
-| `GEMINI_API_KEY` | Backend | Recommended | Primary LLM provider via `@google/genai`. Without Gemini or Groq, a certified pathway falls back to its fixed plan and a custom goal gets a 503. |
+| `GEMINI_API_KEY` | Backend | Recommended | Primary LLM provider via `@google/genai`. Without Gemini or Groq, every new goal (certified pathway or custom) gets a 503 and nothing is saved. |
 | `GEMINI_MODEL` | Backend | Optional | Target Gemini model (defaults to `gemini-3.5-flash-lite`). |
 | `GROQ_API_KEY` | Backend | Optional | Fallback LLM provider when Gemini fails. |
 | `GROQ_MODEL` | Backend | Optional | Groq fallback model (defaults to `openai/gpt-oss-120b`). |
