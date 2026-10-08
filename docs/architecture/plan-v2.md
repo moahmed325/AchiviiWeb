@@ -16,7 +16,8 @@ Every decision below was agreed in chat before any code was written.
 Presets (guitar, chess, 10K and others) skip the method part of prompt 2: their method is fixed; their roadmap is
 built from their own routine and questions.
 
-Old goals (made before v2) keep working on the old code. New goals are flagged `planVersion: 2`.
+Plan v2 is the only plan model (docs/decisions.md ND-21). Every goal is created with `planVersion: 2`; plan v1 and
+its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`), never v1 behavior.
 
 ## Decisions
 
@@ -41,8 +42,8 @@ Old goals (made before v2) keep working on the old code. New goals are flagged `
   all weeks but is not the default.
 - Replaces: the old method call, the velocity table, the 12-week half of the old plan writer, the block menu.
 - `startingPoint` (today's level in the targets' metric) anchors week 1 and the progress bar.
-- Safety < 3 twice: custom goals get "try a smaller goal"; presets fall back to their fixed plan (v1). Only a goal
-  blocked by the safety screen gets no plan at all.
+- Safety < 3 twice: the goal gets no plan (422), custom goal and preset alike; there is no fixed-plan fallback
+  (ND-21). A goal blocked by the safety screen gets no plan either.
 - A number target of 0 is rejected: weeks with nothing countable yet mean deliverables for all 12 weeks.
 
 ### Week call

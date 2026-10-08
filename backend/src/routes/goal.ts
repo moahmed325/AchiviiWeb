@@ -6,16 +6,10 @@ import { normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
 import { handledTaskIds, parseStoredSteps, type CarriedStep } from '../lib/carryForward.js';
 import { carryEnabled, evaluate, loadReconcileGoal, runReconcile, type ReconcileGoal } from '../lib/reconcileCore.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
-import {
-  clarifyGoalWithAI,
-  adaptUpcomingWeekTasksWithAI,
-  UserRoutineInput,
-  PreviousWeekTaskSummary,
-} from '../lib/ai/goalDecomposer.js';
+import { clarifyGoalWithAI, UserRoutineInput } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
 import { isHighLoadGoal } from '../lib/highLoad.js';
-import { cleanBlocks, cleanWorkKinds } from '../lib/method/blocks.js';
-import { formatBasisBadge, type PlanGrounding } from '../lib/research/planGrounding.js';
+import { formatBasisBadge } from '../lib/research/planGrounding.js';
 import { applySafetyClamps } from '../lib/research/safetyClamps.js';
 import type { VelocityTable } from '../lib/research/types.js';
 import { generateRoadmap, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../lib/ai/roadmap.js';
@@ -48,11 +42,6 @@ function openPlanStream(res: Response, startedAt: number) {
   };
 }
 
-function asStringList(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === 'string');
-}
-
 function clampedTable(value: unknown, goalId?: string): VelocityTable | null {
   if (!value || typeof value !== 'object') return null;
   return applySafetyClamps(value as VelocityTable, { source: 'goal', goalId }).table;
@@ -71,34 +60,6 @@ function presentGoal<T extends Record<string, unknown>>(goal: T): T & { basis: R
       methodName: (goal.canonicalMethodName as string | null | undefined) ?? null,
       authority: (goal.canonicalAuthority as string | null | undefined) ?? null,
     }),
-  };
-}
-
-function groundingFromGoal(goal: {
-  id: string;
-  methodKind?: string | null;
-  methodConfidence?: string | null;
-  canonicalMethodName?: string | null;
-  canonicalAuthority?: string | null;
-  canonicalSourceUrl?: string | null;
-  teachings?: unknown;
-  workBlocks?: unknown;
-  allowedUrls?: unknown;
-  velocityTable?: unknown;
-}): PlanGrounding | undefined {
-  if (!goal.methodKind && !goal.methodConfidence) return undefined;
-  return {
-    methodKind: goal.methodKind ?? undefined,
-    methodConfidence: goal.methodConfidence ?? 'first_principles',
-    methodName: goal.canonicalMethodName ?? undefined,
-    authority: goal.canonicalAuthority ?? undefined,
-    sourceUrl: goal.canonicalSourceUrl ?? undefined,
-    teachings: asStringList(goal.teachings),
-    workKinds: cleanWorkKinds((goal.workBlocks as { kinds?: unknown } | null)?.kinds),
-    blocks: cleanBlocks((goal.workBlocks as { blocks?: unknown } | null)?.blocks),
-    assumptions: undefined,
-    allowedUrls: asStringList(goal.allowedUrls),
-    velocityTable: clampedTable(goal.velocityTable, goal.id),
   };
 }
 
@@ -937,7 +898,7 @@ goalRouter.put('/weeks/:weekNumber/test-result', async (req: Request, res: Respo
  * POST /api/goal/weeks/:weekNumber/review
  * Submits weekly review, computes adherence score against 85% target,
  * persists optional benchmark test results (OD-1a Option A),
- * and dynamically adapts/generates the next week's tasks.
+ * and writes the next week's tasks. A goal that is not plan v2 is refused (ND-21).
  */
 goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -973,255 +934,66 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       return;
     }
 
-    if (goal.planVersion === 2) {
-      const stored = readStoredRoadmap(goal);
-      const practice = goal.dailyTasks.filter((t) => !t.isRestDay);
-      const planned = practice.length || 1;
-      const completed = practice.filter((t) => t.status === 'completed').length;
-      const score = Math.round((completed / planned) * 100);
-      const nextWeek = weekNum + 1;
+    if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
 
-      let nextTasks: Awaited<ReturnType<typeof saveWeekTasks>> = [];
-      let written: WeekDayPlan[] | null = null;
-      if (nextWeek <= TOTAL_WEEKS) {
-        written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot));
-        if (!written) {
-          res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
-          return;
-        }
+    const stored = readStoredRoadmap(goal);
+    const practice = goal.dailyTasks.filter((t) => !t.isRestDay);
+    const planned = practice.length || 1;
+    const completed = practice.filter((t) => t.status === 'completed').length;
+    const score = Math.round((completed / planned) * 100);
+    const nextWeek = weekNum + 1;
+
+    let nextTasks: Awaited<ReturnType<typeof saveWeekTasks>> = [];
+    let written: WeekDayPlan[] | null = null;
+    if (nextWeek <= TOTAL_WEEKS) {
+      written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot));
+      if (!written) {
+        res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
+        return;
       }
-
-      const insight = `${completed} of ${practice.length} sessions done.`;
-      const review = await prisma.weeklyReview.upsert({
-        where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
-        update: { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score, reflection: reflection || '', aiAdaptationInsight: insight },
-        create: {
-          goalId: goal.id,
-          weekNumber: weekNum,
-          tasksPlanned: planned,
-          tasksCompleted: completed,
-          scorePercentage: score,
-          reflection: reflection || '',
-          aiAdaptationInsight: insight,
-        },
-      });
-      await prisma.roadmapWeek.update({
-        where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
-        data: {
-          status: 'completed',
-          executionScore: score,
-          reviewNotes: reflection || '',
-          // M4.1: a review sent without a result keeps the one logged earlier (PUT .../test-result).
-          ...(sanitizedTestResult ? { testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject } : {}),
-        },
-      });
-      if (written) {
-        nextTasks = await saveWeekTasks(goal.id, nextWeek, written);
-        await prisma.roadmapWeek.update({
-          where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } },
-          data: { status: 'active' },
-        });
-        await prisma.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek } });
-      }
-
-      const gate = stored ? phaseGate(stored, weekNum, score) : null;
-      res.json({
-        review,
-        scorePercentage: score,
-        nextWeekNumber: nextWeek <= TOTAL_WEEKS ? nextWeek : null,
-        nextWeekTasks: nextTasks,
-        isMilestoneCheckpoint: Boolean(gate),
-        milestoneGateTransition: gate,
-        testResult: sanitizedTestResult,
-      });
-      return;
     }
 
-    const weekTasks = goal.dailyTasks;
-    const activeTasks = weekTasks.filter(t => !t.isRestDay);
-    const plannedCount = activeTasks.length || 1;
-    const completedCount = activeTasks.filter(t => t.status === 'completed').length;
-    const scorePercentage = Math.round((completedCount / plannedCount) * 100);
-
-    // Record review
+    const insight = `${completed} of ${practice.length} sessions done.`;
     const review = await prisma.weeklyReview.upsert({
-      where: {
-        goalId_weekNumber: {
-          goalId: goal.id,
-          weekNumber: weekNum
-        }
-      },
-      update: {
-        tasksPlanned: plannedCount,
-        tasksCompleted: completedCount,
-        scorePercentage,
-        reflection: reflection || '',
-        aiAdaptationInsight: scorePercentage >= 85
-          ? 'Strong execution! Week paced for accelerated progression.'
-          : 'Pacing adapted with consolidation drills to lock in fundamentals.'
-      },
+      where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
+      update: { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score, reflection: reflection || '', aiAdaptationInsight: insight },
       create: {
         goalId: goal.id,
         weekNumber: weekNum,
-        tasksPlanned: plannedCount,
-        tasksCompleted: completedCount,
-        scorePercentage,
+        tasksPlanned: planned,
+        tasksCompleted: completed,
+        scorePercentage: score,
         reflection: reflection || '',
-        aiAdaptationInsight: scorePercentage >= 85
-          ? 'Strong execution! Week paced for accelerated progression.'
-          : 'Pacing adapted with consolidation drills to lock in fundamentals.'
-      }
-    });
-
-    // Mark current week as completed in roadmap
-    await prisma.roadmapWeek.update({
-      where: {
-        goalId_weekNumber: {
-          goalId: goal.id,
-          weekNumber: weekNum
-        }
+        aiAdaptationInsight: insight,
       },
+    });
+    await prisma.roadmapWeek.update({
+      where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
       data: {
         status: 'completed',
-        executionScore: scorePercentage,
+        executionScore: score,
         reviewNotes: reflection || '',
         // M4.1: a review sent without a result keeps the one logged earlier (PUT .../test-result).
         ...(sanitizedTestResult ? { testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject } : {}),
-      }
+      },
     });
-
-    // If next week exists (weekNum < 12), adapt & generate next week's daily tasks
-    let nextWeekTasks: any[] = [];
-    const nextWeekNum = weekNum + 1;
-
-    if (nextWeekNum <= 12) {
-      const nextWeekRoadmap = goal.roadmapWeeks.find(w => w.weekNumber === nextWeekNum);
-      const parsedRoutine: UserRoutineInput = JSON.parse(goal.routine || '{}');
-
-      // Calculate next week start date (7 days after weekNum start)
-      const nextWeekStart = new Date(goal.startDate);
-      nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + (nextWeekNum - 1) * 7);
-
-      // Build granular audit of previous week's tasks to ground AI generation against actual execution
-      const previousTasksAudit: PreviousWeekTaskSummary[] = weekTasks
-        .sort((a, b) => a.dayNumber - b.dayNumber)
-        .map(t => {
-          let stepTitles: string[] = [];
-          try {
-            const parsed = JSON.parse(t.detailedSteps || '[]');
-            if (Array.isArray(parsed)) {
-              stepTitles = parsed.map((s: any) => s.title || '').filter(Boolean);
-            }
-          } catch {}
-
-          return {
-            dayNumber: t.dayNumber,
-            dayOfWeek: t.dayOfWeek,
-            title: t.title,
-            isRestDay: t.isRestDay,
-            status: t.status,
-            notes: t.notes,
-            stepTitles
-          };
-        });
-
-      const adaptedTaskPlans = await adaptUpcomingWeekTasksWithAI(
-        goal.rawGoal,
-        nextWeekNum,
-        nextWeekRoadmap?.theme || `Week ${nextWeekNum}`,
-        nextWeekRoadmap?.objective || 'Accelerate mastery',
-        scorePercentage,
-        reflection || '',
-        parsedRoutine,
-        nextWeekStart,
-        previousTasksAudit,
-        groundingFromGoal(goal)
-      );
-
-      // Remove any existing placeholder tasks for next week
-      await prisma.dailyTask.deleteMany({
-        where: { goalId: goal.id, weekNumber: nextWeekNum }
-      });
-
-      // Insert adapted daily tasks
-      nextWeekTasks = await Promise.all(
-        adaptedTaskPlans.map((t, idx) => {
-          const taskDate = new Date(nextWeekStart);
-          taskDate.setUTCDate(taskDate.getUTCDate() + idx);
-          const dateStr = taskDate.toISOString().split('T')[0];
-
-          return prisma.dailyTask.create({
-            data: {
-              goalId: goal.id,
-              weekNumber: nextWeekNum,
-              dayNumber: (nextWeekNum - 1) * 7 + idx + 1,
-              date: dateStr,
-              dayOfWeek: t.dayOfWeek,
-              title: t.title,
-              isRestDay: t.isRestDay,
-              durationMinutes: t.durationMinutes,
-              slotTime: t.slotTime,
-              implementationIntention: t.implementationIntention,
-              detailedSteps: JSON.stringify(t.detailedSteps),
-              resourceTitle: t.resourceTitle || null,
-              resourceUrl: t.resourceUrl || null,
-              resourceType: t.resourceType || 'guide',
-              resourceWhy: t.resourceWhy || null,
-              status: 'pending'
-            }
-          });
-        })
-      );
-
-      // Advance active week
+    if (written) {
+      nextTasks = await saveWeekTasks(goal.id, nextWeek, written);
       await prisma.roadmapWeek.update({
-        where: {
-          goalId_weekNumber: {
-            goalId: goal.id,
-            weekNumber: nextWeekNum
-          }
-        },
-        data: { status: 'active' }
+        where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } },
+        data: { status: 'active' },
       });
-
-      await prisma.goal.update({
-        where: { id: goal.id },
-        data: { currentWeek: nextWeekNum }
-      });
+      await prisma.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek } });
     }
 
-    const isMilestoneCheckpoint = weekNum === 4 || weekNum === 8 || weekNum === 12;
-    let milestoneGateTransition = null;
-    if (weekNum === 4) {
-      milestoneGateTransition = {
-        completedPhase: 'Foundation',
-        nextPhase: 'Acceleration',
-        title: 'Phase 1 Foundation Milestone Gate Cleared!',
-        benchmarkMet: scorePercentage >= 85
-      };
-    } else if (weekNum === 8) {
-      milestoneGateTransition = {
-        completedPhase: 'Acceleration',
-        nextPhase: 'Mastery',
-        title: 'Phase 2 Acceleration Milestone Gate Cleared!',
-        benchmarkMet: scorePercentage >= 85
-      };
-    } else if (weekNum === 12) {
-      milestoneGateTransition = {
-        completedPhase: 'Mastery',
-        nextPhase: 'Graduated',
-        title: 'Phase 3 Mastery Capstone Verification Cleared!',
-        benchmarkMet: scorePercentage >= 85
-      };
-    }
-
+    const gate = stored ? phaseGate(stored, weekNum, score) : null;
     res.json({
       review,
-      scorePercentage,
-      nextWeekNumber: nextWeekNum <= 12 ? nextWeekNum : null,
-      nextWeekTasks,
-      isMilestoneCheckpoint,
-      milestoneGateTransition,
+      scorePercentage: score,
+      nextWeekNumber: nextWeek <= TOTAL_WEEKS ? nextWeek : null,
+      nextWeekTasks: nextTasks,
+      isMilestoneCheckpoint: Boolean(gate),
+      milestoneGateTransition: gate,
       testResult: sanitizedTestResult,
     });
   } catch (err: any) {

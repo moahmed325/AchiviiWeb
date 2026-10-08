@@ -392,52 +392,6 @@ describe('Desktop Journey Composition (M6.3)', () => {
     });
   });
 
-  describe('R4: v1 Preset Goal Support', () => {
-    it('renders Foundation, Acceleration, and Mastery phases for v1 goals', () => {
-      const mockRoadmapWeeks: RoadmapWeek[] = Array.from({ length: 12 }, (_, i) => ({
-        id: `rw-${i + 1}`,
-        goalId: 'goal-v1',
-        weekNumber: i + 1,
-        phase: i < 4 ? 'Foundation' : i < 8 ? 'Acceleration' : 'Mastery',
-        theme: `Phase Segment ${i + 1}`,
-        objective: `Focus objective ${i + 1}`,
-        keyMilestone: `Milestone ${i + 1}`,
-        targetIntensity: 70,
-        plannedMinutes: 180,
-        status: i + 1 < 5 ? 'completed' : i + 1 === 5 ? 'active' : 'pending',
-        created_at: '2026-09-01',
-      }));
-
-      const v1Goal: Goal = {
-        ...baseGoal,
-        planVersion: 1,
-        roadmap: null,
-        currentWeek: 5,
-        roadmapWeeks: mockRoadmapWeeks,
-        dailyTasks: createMockTasks(5),
-      };
-
-      const journey = toJourneyData(v1Goal);
-      expect(journey).not.toBeNull();
-      expect(journey?.phases).toHaveLength(3);
-      expect(journey?.phases[0].name).toBe('Foundation');
-      expect(journey?.phases[1].name).toBe('Acceleration');
-      expect(journey?.phases[2].name).toBe('Mastery');
-
-      render(
-        <MemoryRouter>
-          <DesktopStaircase journey={journey!} />
-          <StrategicRoadmap journey={journey!} />
-        </MemoryRouter>
-      );
-
-      // Verify all 3 fixed phases render
-      expect(screen.getAllByText(/Foundation/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/Acceleration/i).length).toBeGreaterThan(0);
-      expect(screen.getAllByText(/Mastery/i).length).toBeGreaterThan(0);
-    });
-  });
-
   describe('R4 & Accessibility: Integrated RoadmapPage', () => {
     it('renders main landmark with tabIndex=-1 and full desktop composition', () => {
       const goal: Goal = {

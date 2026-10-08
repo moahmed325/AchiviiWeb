@@ -53,7 +53,7 @@ describe('lateTestWeek (missed sessions M4.1)', () => {
     expect(lateTestWeek(goal({ status: 'completed' }), reconciled('missed'), SUN_NOON, 'UTC')).toBeNull();
   });
 
-  it('is null for old goals (plan v1, or no week test) and for a week without a test day', () => {
+  it('is null for a goal that is not plan v2, a week without a test, and a week without a test day', () => {
     expect(lateTestWeek(goal({}, { planVersion: 1 }), null, SUN_NOON, 'UTC')).toBeNull();
     expect(lateTestWeek(goal({}, { planVersion: undefined }), null, SUN_NOON, 'UTC')).toBeNull();
     expect(lateTestWeek(goal({ test: null }), null, SUN_NOON, 'UTC')).toBeNull();

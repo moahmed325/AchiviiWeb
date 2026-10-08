@@ -27,17 +27,7 @@ export const AchievementJourney: React.FC<AchievementJourneyProps> = ({
     return sorted.find((r) => r.reflection && r.reflection.trim() !== '') || sorted[0];
   }, [reviews]);
 
-  const phases = useMemo(() => {
-    if (goal.roadmap?.phases && goal.roadmap.phases.length > 0) {
-      return goal.roadmap.phases;
-    }
-    // Default 3 standard phases
-    return [
-      { name: 'Foundation', startWeek: 1, endWeek: 4, purpose: 'Build baseline discipline and foundational movement patterns.' },
-      { name: 'Acceleration', startWeek: 5, endWeek: 8, purpose: 'Progressive overload, density building, and volume expansion.' },
-      { name: 'Mastery', startWeek: 9, endWeek: 12, purpose: 'Peak intensity, capstone verification, and closing stretch arrival.' },
-    ];
-  }, [goal]);
+  const phases = useMemo(() => goal.roadmap?.phases ?? [], [goal]);
 
   return (
     <div className={cx('flex flex-col gap-8 text-left', className)}>

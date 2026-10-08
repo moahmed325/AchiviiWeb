@@ -157,7 +157,7 @@ export type ReconcileResult =
 
 /**
  * The reconcile response for the user's active goal (or null when there is none), at `now`.
- * Only plan v2 goals are classified; old goals get `applies: false` and nothing else (AC-14).
+ * Only plan v2 goals are classified; any other goal gets `applies: false` and nothing else (ND-21).
  * Days come back in date order, then day number.
  */
 export function buildReconcileResult(

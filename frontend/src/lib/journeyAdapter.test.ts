@@ -4,15 +4,20 @@ import {
   toJourneyData,
   calculateDayNumber,
   mapTaskToStep,
-  V1_DEFAULT_PHASES,
   useJourneyData,
 } from './journeyAdapter';
-import type { DailyTask, Goal, GoalRoadmap, RoadmapWeek } from '../types';
+import type { DailyTask, Goal, GoalRoadmap, RoadmapPhase } from '../types';
 import { useGoal } from '../context/GoalContext';
 
 vi.mock('../context/GoalContext', () => ({
   useGoal: vi.fn(),
 }));
+
+const THREE_PHASES: RoadmapPhase[] = [
+  { name: 'Foundation', startWeek: 1, endWeek: 4, purpose: 'Base' },
+  { name: 'Acceleration', startWeek: 5, endWeek: 8, purpose: 'Build' },
+  { name: 'Mastery', startWeek: 9, endWeek: 12, purpose: 'Peak' },
+];
 
 describe('journeyAdapter', () => {
   const baseGoal: Goal = {
@@ -28,6 +33,13 @@ describe('journeyAdapter', () => {
     answers: '{}',
     routine: '{}',
     planVersion: 2,
+    roadmap: {
+      finalGoal: 'Run 10 kilometers in under 50 minutes',
+      finalTest: '10K time trial',
+      startingPoint: { value: 0, description: 'Start' },
+      method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
+      phases: THREE_PHASES,
+    },
     created_at: '2026-09-01T00:00:00.000Z',
     updated_at: '2026-09-01T00:00:00.000Z',
   };
@@ -86,13 +98,12 @@ describe('journeyAdapter', () => {
       expect(toJourneyData(undefined)).toBeNull();
     });
 
-    it('derives correct top-level identity fields and planVersion', () => {
+    it('derives correct top-level identity fields', () => {
       const result = toJourneyData(baseGoal);
       expect(result).not.toBeNull();
       expect(result?.goalId).toBe('goal-test-1');
       expect(result?.rawGoal).toBe('Run a 10K in 50 Minutes');
       expect(result?.clarifiedOutcome).toBe('Run 10 kilometers in under 50 minutes');
-      expect(result?.planVersion).toBe(2);
     });
 
     it('computes 90-day progress metrics accurately', () => {
@@ -233,41 +244,11 @@ describe('journeyAdapter', () => {
       expect(result?.metrics.totalPhases).toBe(4);
     });
 
-    it('supports v1 goals with legacy fixed 3 phases and roadmapWeeks', () => {
-      const mockRoadmapWeeks: RoadmapWeek[] = Array.from({ length: 12 }, (_, i) => ({
-        id: `rw-${i + 1}`,
-        goalId: 'goal-v1',
-        weekNumber: i + 1,
-        phase: i < 4 ? 'Foundation' : i < 8 ? 'Acceleration' : 'Mastery',
-        theme: `Week ${i + 1} Focus`,
-        objective: `Run ${20 + i * 2} km total`,
-        keyMilestone: `Complete 1 long run`,
-        targetIntensity: 70,
-        plannedMinutes: 180,
-        status: i + 1 < 5 ? 'completed' : i + 1 === 5 ? 'active' : 'pending',
-        created_at: '2026-09-01',
-      }));
-
-      const v1Goal: Goal = {
-        ...baseGoal,
-        planVersion: 1,
-        roadmap: null,
-        currentWeek: 5,
-        roadmapWeeks: mockRoadmapWeeks,
-        dailyTasks: createMockTasks(5),
-      };
-
-      const result = toJourneyData(v1Goal);
+    it('gives a goal without a roadmap no phases instead of invented ones (ND-21)', () => {
+      const result = toJourneyData({ ...baseGoal, planVersion: 1, roadmap: null, currentWeek: 5 });
       expect(result).not.toBeNull();
-      expect(result?.planVersion).toBe(1);
-      expect(result?.phases).toHaveLength(3);
-      expect(result?.phases[0].name).toBe('Foundation');
-      expect(result?.phases[1].name).toBe('Acceleration');
-      expect(result?.phases[2].name).toBe('Mastery');
-      expect(result?.phases[0].status).toBe('completed');
-      expect(result?.phases[1].status).toBe('active');
-      expect(result?.phases[2].status).toBe('upcoming');
-      expect(result?.metrics.currentPhaseIndex).toBe(2);
+      expect(result?.phases).toEqual([]);
+      expect(result?.metrics.totalPhases).toBe(0);
     });
   });
 
@@ -282,7 +263,7 @@ describe('journeyAdapter', () => {
           finalTest: 'Test',
           startingPoint: { value: 0, description: 'Start' },
           method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
-          phases: V1_DEFAULT_PHASES,
+          phases: THREE_PHASES,
         },
       };
 
@@ -312,7 +293,7 @@ describe('journeyAdapter', () => {
 
   describe('R3: Closing Stretch (OD-2 Option A)', () => {
     it('constructs closing stretch with days 85-90 and proper defaults', () => {
-      const result = toJourneyData(baseGoal, '2026-09-01');
+      const result = toJourneyData({ ...baseGoal, roadmap: { ...baseGoal.roadmap!, finalTest: '' } }, '2026-09-01');
       expect(result?.closingStretch).toEqual({
         startDay: 85,
         endDay: 90,
@@ -430,7 +411,7 @@ describe('journeyAdapter', () => {
           finalTest: 'Test',
           startingPoint: { value: 0, description: '' },
           method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
-          phases: V1_DEFAULT_PHASES,
+          phases: THREE_PHASES,
         },
       };
 

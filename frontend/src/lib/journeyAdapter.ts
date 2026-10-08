@@ -16,15 +16,6 @@ import { dayNumber, todayKey } from './today';
 const DAY_MS = 1000 * 60 * 60 * 24;
 
 /**
- * Default fixed phases for v1 goals (Foundation, Acceleration, Mastery).
- */
-export const V1_DEFAULT_PHASES: RoadmapPhase[] = [
-  { name: 'Foundation', startWeek: 1, endWeek: 4, purpose: 'Establish baseline habits and foundational skills' },
-  { name: 'Acceleration', startWeek: 5, endWeek: 8, purpose: 'Increase volume, intensity, and progressive overload' },
-  { name: 'Mastery', startWeek: 9, endWeek: 12, purpose: 'Peak performance, integration, and final testing' },
-];
-
-/**
  * Calculates current calendar day (1–90) from goal dates.
  * Uses targetDate (91 - daysRemaining) clamped to [1, 90].
  * Falls back to startDate or created_at if targetDate is missing.
@@ -87,7 +78,7 @@ export function mapTaskToStep(task: DailyTask, currentDay: number, todayStr: str
 }
 
 /**
- * Pure normalization function that transforms any Goal (v1 or v2)
+ * Pure normalization function that transforms a plan v2 Goal
  * into the canonical JourneyData model.
  *
  * @param goal Active goal to normalize
@@ -112,14 +103,9 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
   const currentDay = calculateDayNumber(goal, now, timezone);
   const currentWeek = Math.min(12, Math.max(1, goal.currentWeek || 1));
 
-  const isV2 = Boolean(goal.planVersion === 2 && goal.roadmap);
-
-  // Phase count flexibility (OD-7):
-  // v2 goals have 2-4 method-named phases; v1 goals have 3 fixed phases
-  const rawPhases: RoadmapPhase[] =
-    isV2 && goal.roadmap?.phases && goal.roadmap.phases.length >= 2
-      ? goal.roadmap.phases
-      : V1_DEFAULT_PHASES;
+  // Phase count flexibility (OD-7): the roadmap has 2-4 method-named phases.
+  // A goal without a roadmap (not plan v2, ND-21) gets no phases rather than invented ones.
+  const rawPhases: RoadmapPhase[] = goal.roadmap?.phases ?? [];
 
   const allRoadmapWeeks: RoadmapWeek[] =
     (goal.roadmap && (goal.roadmap as unknown as { weeks?: RoadmapWeek[] }).weeks) || goal.roadmapWeeks || [];
@@ -156,7 +142,7 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
       }
 
       // Future Honesty (BP §43):
-      // For v2 goals, daily tasks exist ONLY for currentWeek.
+      // Daily tasks exist ONLY for currentWeek.
       // Future weeks must have empty days: [] and hasWrittenTasks: false.
       let days: JourneyStep[];
       let hasWrittenTasks: boolean;
@@ -262,7 +248,6 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
     finalTest: goal.roadmap?.finalTest || undefined,
     methodName: goal.roadmap?.method?.name || goal.canonicalMethodName || undefined,
     methodAuthor: goal.roadmap?.method?.creator || goal.canonicalAuthority || undefined,
-    planVersion: goal.planVersion === 2 ? 2 : 1,
     phases,
     closingStretch,
     metrics,

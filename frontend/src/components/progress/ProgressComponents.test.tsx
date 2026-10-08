@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type { DailyTask, Goal, RoadmapWeek } from '../../types';
+import type { DailyTask, Goal, GoalRoadmap, RoadmapWeek } from '../../types';
 import { CompletionOverview } from './CompletionOverview';
 import { PhaseMilestonesCard } from './PhaseMilestonesCard';
 import { WeekBreakdownList } from './WeekBreakdownList';
@@ -77,6 +77,18 @@ const createSampleWeeks = (): RoadmapWeek[] => [
   },
 ];
 
+const ROADMAP: GoalRoadmap = {
+  finalGoal: 'Run 10K under 50 minutes',
+  finalTest: '10K time trial',
+  startingPoint: { value: 0, description: '' },
+  method: { name: 'M', creator: 'C', summary: 'S', whyChosen: 'W', runnerUp: null, safety: 5, rules: [] },
+  phases: [
+    { name: 'Foundation', startWeek: 1, endWeek: 4, purpose: 'Base' },
+    { name: 'Acceleration', startWeek: 5, endWeek: 8, purpose: 'Build' },
+    { name: 'Mastery', startWeek: 9, endWeek: 12, purpose: 'Peak' },
+  ],
+};
+
 const createSampleGoal = (tasks: DailyTask[], weeks: RoadmapWeek[]): Goal =>
   ({
     id: 'g-1',
@@ -89,6 +101,8 @@ const createSampleGoal = (tasks: DailyTask[], weeks: RoadmapWeek[]): Goal =>
     currentWeek: 2,
     answers: '{}',
     routine: '{}',
+    planVersion: 2,
+    roadmap: ROADMAP,
     created_at: '',
     updated_at: '',
     roadmapWeeks: weeks,
@@ -128,7 +142,7 @@ describe('Progress Components (M8.2 — Completion and Milestones)', () => {
 
     render(<PhaseMilestonesCard goal={goal} />);
 
-    // Default phases rendered
+    // The roadmap's phases
     expect(screen.getByText('Foundation')).toBeInTheDocument();
     expect(screen.getByText('Acceleration')).toBeInTheDocument();
     expect(screen.getByText('Mastery')).toBeInTheDocument();

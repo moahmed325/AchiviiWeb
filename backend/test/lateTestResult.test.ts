@@ -4,7 +4,7 @@ import type { Server } from 'node:http';
 import { Prisma } from '@prisma/client';
 
 // Missed sessions M4.1 (ND-4, RULE-7): PUT /weeks/:weekNumber/test-result logs the week's test without closing the
-// week, and the weekly review keeps a stored result when it is submitted without one (both review paths).
+// week, and the weekly review keeps a stored result when it is submitted without one.
 // Prisma is replaced by a small in-memory store, so the endpoint and the review read and write the same rows.
 
 const store = vi.hoisted(() => ({
@@ -31,10 +31,6 @@ vi.mock('../src/lib/planV2.js', async () => {
     readStoredRoadmap: vi.fn().mockReturnValue(null),
     readRoutine: vi.fn().mockReturnValue({ preferredSlot: 'morning' }),
   };
-});
-vi.mock('../src/lib/ai/goalDecomposer.js', async () => {
-  const actual = await vi.importActual<typeof import('../src/lib/ai/goalDecomposer.js')>('../src/lib/ai/goalDecomposer.js');
-  return { ...actual, adaptUpcomingWeekTasksWithAI: vi.fn().mockResolvedValue([]) };
 });
 
 import { getAuthUser } from '../src/routes/auth.js';
@@ -216,12 +212,20 @@ describe('Late test result (missed sessions M4.1)', () => {
     });
   });
 
-  describe.each([
-    ['plan v2', 2],
-    ['plan v1', 1],
-  ])('the weekly review (%s path)', (_, planVersion) => {
+  describe('the weekly review', () => {
     beforeEach(() => {
-      store.goals = [goalFor(OWNER.id, 'g1', planVersion)];
+      store.goals = [goalFor(OWNER.id, 'g1', 2)];
+    });
+
+    it('409 not_plan_v2 for a goal that is not plan v2, and writes nothing (ND-21)', async () => {
+      store.goals = [goalFor(OWNER.id, 'g1', 1)];
+      weekRow('g1', 1).testResult = RESULT;
+      const res = await review(1, { reflection: 'Good week' });
+      expect(res.status).toBe(409);
+      expect((await res.json()).reason).toBe('not_plan_v2');
+      expect(store.prisma.weeklyReview.upsert).not.toHaveBeenCalled();
+      expect(store.prisma.roadmapWeek.update).not.toHaveBeenCalled();
+      expect(weekRow('g1', 1).status).toBe('active');
     });
 
     it('keeps a stored result when submitted without one, and still closes the week', async () => {
