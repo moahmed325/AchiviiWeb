@@ -1115,7 +1115,7 @@ The week's test or its result is stored somewhere other than `RoadmapWeek`; keep
 ## M3.4 — State Coverage and Accessibility (P3, listed here after M4.1)
 
 ### STATUS
-READY (drafted 2026-10-08). Depends on M3.1-M3.3 and M4.1 (complete). Closes P3.
+COMPLETE (2026-10-08, commits `ec09cb4`, `45557a9`). Report: `docs/features/missed-sessions/milestones/m3.4-state-coverage.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P3/M3.4. Implement only this milestone. Follow the operating contract in section 0.
@@ -1206,6 +1206,8 @@ R1. **Acceptance walkthrough (M5.1).** A table of AC-1 to AC-14: the evidence fo
 R2. **Copy audit (M5.2).** Search every user-facing string in the frontend, the preset prose and backend messages a user can see for "missed", "behind", "failed", "fail", "why" questions and status labels. Fix each one in the missed-sessions surface; for strings elsewhere, list them in the report (do not change unrelated product copy). Confirm the five Feature Definition section 12 situations match what the app says (or record which ones moved with M4.2).
 
 R3. **Honest preset prose.** Rewrite the three preset sentences so they describe the real behavior without "missed" (for example: "Sessions fit around work and family. If a day doesn't happen, its most important step moves to your next practice day, and no day gets longer."). Keep each sentence's other promises only if they are true; check `run10k.ts`'s "Never two rest days in a row" against `weekLayout`. If the same text is mirrored in `frontend/src/lib/certifiedPresets.ts`, update it there too.
+
+R3b. **Accessibility carry-over from M3.4.** `frontend/src/components/achievement/AchievementResults.tsx` uses `text-text-muted` for labels that fail the axe contrast check (M3.4 fixed the same labels on the closing stretch and `AchievementHero.tsx`). Give them `text-text-secondary` as M3.4 did, and cover the screen with an axe check if a browser test can reach it.
 
 R4. **Regression (M5.3).** Run R-1 to R-11 from the regression register with the commands available (unit, e2e, CI) and record the result for each; for anything only checkable in production, list the manual check and its outcome from the M3.3 release checklist if the owner has run it.
 
