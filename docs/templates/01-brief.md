@@ -13,6 +13,7 @@ This file has two parts. Part A is for the chat that writes the brief. Part B is
 - Write a brief when the problem or the direction is not settled yet.
 - **Skip it** when the direction is already decided somewhere else, for example in `docs/architecture/` or `docs/decisions.md`. The feature definition then links to that place instead.
 - Work handed over from another feature (a moved milestone, a carried-over item) goes in the "Handed over" section. A brief can start as only that section, marked `Status: STUB`.
+- Many features start from a **big** item in `docs/backlog.md`. List the items the brief solves in its header, and set each one to `MOVED → docs/features/<name>` in the backlog.
 
 ### How to work
 
@@ -49,6 +50,7 @@ This file has two parts. Part A is for the chat that writes the brief. Part B is
 **Status:** DRAFT | DIRECTION CHOSEN | STUB
 **Date:** YYYY-MM-DD
 **Links:** <related product, architecture or decision docs>
+**Solves:** <backlog items, e.g. B-8, or leave out>
 
 ## 1. The problem
 <One short paragraph: what is wrong, in plain words.>
