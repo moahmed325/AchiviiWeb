@@ -35,7 +35,7 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
-      # Missed-sessions carry-forward writes (ND-15, docs/features/missed-sessions/04-phases.md).
+      # Missed-sessions carry-forward writes (ND-15, docs/archive/missed-sessions/04-phases.md).
       # Unset or anything but the exact string "true" means off: reconcile reports what it
       # would move and writes nothing. Managed in the Render dashboard only (sync: false), so a
       # Blueprint sync can never overwrite it. Set it to "true" only after M3.1 (the notice that
