@@ -12,7 +12,7 @@
 ## Source-of-truth documents
 
 - `docs/features/billing/03-feature.md` — authoritative feature behavior, product decisions, acceptance criteria, constraints, and resolved/open decisions.
-- `docs/templates/04-phases.md` — roadmap structure and implementation discipline.
+- `CLAUDE.md` ("Working on a milestone") — the shared rules for implementing a milestone (the old phases template was retired on 2026-10-08).
 - `docs/decisions.md` — existing Achivii product/architecture decisions, including the prior decision that payments were deferred from the redesign.
 - `docs/product/visual-design-system.md` — existing visual rules.
 - `Design.md` / `docs/product/redesign-blueprint.md` — existing product/design context where relevant.
@@ -77,13 +77,15 @@ Every phase contains:
 
 | # | Phase | Status | Depends on | Decisions blocking start | Backend / architecture allowance |
 |---|---|---|---|---|---|
-| PHASE 0 | Billing foundation & provider contract | NOT STARTED | Feature definition | None for test-mode implementation; OD-2 blocks production pricing configuration | Configuration/contracts only; no unrelated architecture changes |
-| PHASE 1 | Subscription persistence & entitlement model | NOT STARTED | PHASE 0 | None | Prisma schema + migration for billing state |
-| PHASE 2 | Lemon Squeezy checkout & webhook integration | NOT STARTED | PHASE 1 | Provider store/test credentials; production payout onboarding is not required for test mode | Billing routes, provider integration, webhook processing |
-| PHASE 3 | Server-side Pro entitlement enforcement | NOT STARTED | PHASE 1 + PHASE 2 | None | Goal creation authorization and billing entitlement service only |
-| PHASE 4 | Billing UI & purchase journey | NOT STARTED | PHASE 2 + PHASE 3 | OD-2 exact production pricing before production-facing final copy | Billing pages/components/routes; no redesign of unrelated screens |
-| PHASE 5 | Subscription lifecycle & account management | NOT STARTED | PHASE 2 + PHASE 4 | None for provider-managed V1 | Lifecycle reconciliation/management endpoint as required |
-| PHASE 6 | Full validation, security, production readiness & launch | NOT STARTED | PHASES 0–5 | OD-2 and OD-8 must be resolved for production launch | Production configuration only; no new product scope |
+| PHASE 0 | Billing foundation & provider contract | BUILT (2026-09-29) | Feature definition | None for test-mode implementation; OD-2 blocks production pricing configuration | Configuration/contracts only; no unrelated architecture changes |
+| PHASE 1 | Subscription persistence & entitlement model | BUILT (2026-09-29) | PHASE 0 | None | Prisma schema + migration for billing state |
+| PHASE 2 | Lemon Squeezy checkout & webhook integration | BUILT (2026-09-29); M2.5 live test-mode check BLOCKED | PHASE 1 | Provider store/test credentials; production payout onboarding is not required for test mode | Billing routes, provider integration, webhook processing |
+| PHASE 3 | Server-side Pro entitlement enforcement | BUILT (2026-09-29; entry-point gate 2026-10-07) | PHASE 1 + PHASE 2 | None | Goal creation authorization and billing entitlement service only |
+| PHASE 4 | Billing UI & purchase journey | BUILT (2026-09-29/30) | PHASE 2 + PHASE 3 | OD-2 exact production pricing before production-facing final copy | Billing pages/components/routes; no redesign of unrelated screens |
+| PHASE 5 | Subscription lifecycle & account management | BUILT (2026-09-29) | PHASE 2 + PHASE 4 | None for provider-managed V1 | Lifecycle reconciliation/management endpoint as required |
+| PHASE 6 | Full validation, security, production readiness & launch | PARTIAL: rollback controls and legal pages built; launch not done | PHASES 0–5 | OD-2 and OD-8 must be resolved for production launch | Production configuration only; no new product scope |
+
+**Status check (2026-10-08).** This table said NOT STARTED for every phase, but the code was built on 2026-09-28 to 09-30 (commits `e9271ce` to `8c90838`, plus `046701c` on 2026-10-07). BUILT means the code and its tests exist; most milestones have no report, so they were not checked one by one. Open: M2.5 (`milestones/m2.5-test-mode-verification.md`) is BLOCKED until Lemon Squeezy test-mode credentials and webhook delivery are set up, and PHASE 6 (production launch) is not done.
 
 **Important:** Test-mode implementation may proceed before exact production prices and CBE payout onboarding are complete. Production launch may not.
 
@@ -335,7 +337,7 @@ Payment lifecycle validation must additionally use Lemon Squeezy test-mode event
 
 # PHASE 0 — BILLING FOUNDATION & PROVIDER CONTRACT
 
-**Status:** NOT STARTED
+**Status:** BUILT (2026-09-29; see the status check in section 1)
 
 ### Source
 
@@ -499,7 +501,7 @@ No new UI.
 
 # PHASE 1 — SUBSCRIPTION PERSISTENCE & ENTITLEMENT MODEL
 
-**Status:** NOT STARTED
+**Status:** BUILT (2026-09-29; see the status check in section 1)
 
 ### Source
 
@@ -647,7 +649,7 @@ None.
 
 # PHASE 2 — LEMON SQUEEZY CHECKOUT & WEBHOOK INTEGRATION
 
-**Status:** NOT STARTED
+**Status:** BUILT (2026-09-29; see the status check in section 1)
 
 ### Source
 
@@ -806,7 +808,7 @@ No new provider-hosted UI is implemented here.
 
 # PHASE 3 — SERVER-SIDE PRO ENTITLEMENT ENFORCEMENT
 
-**Status:** NOT STARTED
+**Status:** BUILT (2026-09-29; see the status check in section 1)
 
 ### Source
 
@@ -945,7 +947,7 @@ If a new frontend error state is added, it must use accessible error feedback.
 
 # PHASE 4 — BILLING UI & PURCHASE JOURNEY
 
-**Status:** NOT STARTED
+**Status:** BUILT (2026-09-29; see the status check in section 1)
 
 ### Source
 
@@ -1110,7 +1112,7 @@ Verify keyboard navigation, focus, status announcements, and accessible CTA name
 
 # PHASE 5 — SUBSCRIPTION LIFECYCLE & ACCOUNT MANAGEMENT
 
-**Status:** NOT STARTED
+**Status:** BUILT (2026-09-29; see the status check in section 1)
 
 ### Source
 
@@ -1255,7 +1257,7 @@ Verify status changes and management controls are accessible.
 
 # PHASE 6 — FULL VALIDATION, SECURITY, PRODUCTION READINESS & LAUNCH
 
-**Status:** NOT STARTED
+**Status:** PARTIAL (see the status check in section 1)
 
 ### Source
 

@@ -6,7 +6,7 @@
 - `docs/features/billing/03-feature.md` — what the payment feature must do.
 - `docs/features/billing/04-phases.md` — phase order, scope, milestones, exit criteria.
 - `docs/decisions.md` — decisions that must not be reversed.
-- `docs/templates/05-prompts.md` — prompt-generation/implementation discipline.
+- `CLAUDE.md` ("Working on a milestone") — the shared rules for implementing a milestone.
 - Repository code — current implementation truth.
 
 **Important:** This file is intentionally separate from the existing redesign `docs/archive/redesign-v1/prompts.md`. It prevents the payment implementation prompts from overwriting or contaminating the redesign execution system.
@@ -28,7 +28,7 @@ SOURCES OF TRUTH
 1. docs/features/billing/03-feature.md
 2. docs/features/billing/04-phases.md
 3. docs/decisions.md
-4. docs/templates/05-prompts.md
+4. CLAUDE.md ("Working on a milestone")
 5. Existing repository implementation
 
 The repository is the source of truth for what currently exists.
@@ -164,7 +164,7 @@ Read:
 - docs/features/billing/03-feature.md
 - docs/features/billing/04-phases.md
 - docs/decisions.md
-- docs/templates/05-prompts.md
+- CLAUDE.md ("Working on a milestone")
 
 Do not reintroduce Stripe.
 
