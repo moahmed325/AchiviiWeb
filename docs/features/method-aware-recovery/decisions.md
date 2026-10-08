@@ -53,3 +53,81 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** all five as drafted ("whatever you think is best, approved").
 **Why:** each keeps to the method and never guesses; the templates are refined by the eval (RULE-19) and by M1.2's review if a real method disagrees.
 **Changes:** `02-feature.md` approved; `reference/domain-templates.md` is the starting point for M1.2.
+
+### MR-9 — The profile is stored inside the goal's roadmap (2026-10-08)
+**Question:** where is the profile stored (M1.1 Q1)?
+**Decision:** under a `recovery` key inside `Goal.roadmap` (JSON). No migration. A missing or invalid profile reads as none, which means RULE-18 for the whole goal.
+**Why:** written once at creation, already sent by `GET /active`, no schema change.
+**Changes:** RULE-1, section 7.
+
+### MR-10 — A moved step may use the first later day that passes (2026-10-08)
+**Question:** a moved step cannot go to the next practice day because of a rest gap, order or a fixed step (M1.1 Q2). Missed sessions' ND-17 fixes one receiving day.
+**Decision:** for steps with a kind, the receiving day is the first later practice day of the same week, not the test day, that passes RULE-12 to RULE-14, judged against the week as written plus its stored markers. It is worked out the same way every time, so a step is never carried twice. If that day is closed, done or taken, the step goes to "no room" (as ND-17 drops it today). Steps without a kind keep ND-17 exactly.
+**Why:** keeps ND-17's guarantee (deterministic, never carried twice) while not giving up after one day.
+**Changes:** RULE-9.
+
+### MR-11 — A high-load step never continues (2026-10-08)
+**Question:** a step marked `highLoad` whose kind's action is continue (M1.1 Q3).
+**Decision:** it is treated as move: it moves if a day keeps the rest gap, otherwise it goes to "no room".
+**Why:** heavy work is never quietly stretched into the next session.
+**Changes:** RULE-7.
+
+### MR-12 — The "moved" line wins (2026-10-08)
+**Question:** a day's top step lets go but a lower step moved: which line shows (M1.1 Q4)?
+**Decision:** if anything moved, the moved line shows; otherwise the line follows the top step's action.
+**Why:** the person should hear about the change to their plan.
+**Changes:** RULE-15.
+
+### MR-13 — A 13th template, "General practice" (2026-10-08)
+**Question:** what does a custom goal that fits none of the 12 templates use (M1.1 Q5, e.g. sourdough baking)?
+**Decision:** a 13th template, General practice: practice session (move), review or reflection (let go), project work (continue), catch-all (move). It is also the default when no template matches.
+**Why:** a neutral template is better than forcing a wrong domain; safety does not depend on the template (RULE-7).
+**Changes:** templates reference; RULE-3, RULE-4.
+
+### MR-14 — Templates picked by keywords until the eval passes; old goals never block the review (2026-10-08)
+**Question:** how is the template picked before the eval passes, and for older custom goals; and what if making an old goal's profile fails (M1.1 Q6)?
+**Decision:** a keyword table over the clarify domain (when there is one), the goal text and the method name picks the template, with no model call; no match gives General practice. Until the eval passes, custom goals use that template unchanged. If an old goal's profile cannot be made at the weekly review, the week is written without kinds (RULE-18 for one more week) and the review does not fail.
+**Why:** no model call is needed to use a template unchanged; old goals must never block a review.
+**Changes:** RULE-1, RULE-3, RULE-19.
+
+### MR-15 — Rest-day steps have no kind; the 10-minute version takes its main step's kind (2026-10-08)
+**Question:** do the optional rest-day step and the 10-minute version need a kind (M1.1 Q7)?
+**Decision:** rest-day steps have none (a rest day is never a day that didn't happen). The 10-minute version takes the kind of the day's priority-1 step.
+**Why:** keeps tagging to the steps that recovery actually acts on.
+**Changes:** RULE-6.
+
+### MR-16 — Strict tagging at week 1 too, measured (2026-10-08)
+**Question:** strict tagging also applies to week 1 at goal creation, where two failures mean "Couldn't write your first week" (M1.1 Q8).
+**Decision:** keep it strict. M2.1 measures the failure rate on sample weeks; above 2%, Mo revisits this.
+**Why:** no guessed steps (MR-5), with a measured limit on the cost.
+**Changes:** RULE-6; M2.1.
+
+### MR-17 — A fixed step protects only its own place (2026-10-08)
+**Question:** "no step is carried onto a fixed step": the step's place, or the whole day (M1.1 Q9)?
+**Decision:** only its place. The fixed step is never replaced; the rest of the day can still receive a carry.
+**Why:** protects what is fixed without blocking the whole day.
+**Changes:** RULE-12.
+
+### MR-18 — The rest gap beats the order (2026-10-08)
+**Question:** a kind that is both hard and in order (strength): if keeping the order breaks the rest gap, which wins (M1.1 Q10)?
+**Decision:** the rest gap. The step that cannot keep both goes to "no room".
+**Why:** safety first.
+**Changes:** RULE-13, RULE-14.
+
+### MR-19 — The new counts are counted only (2026-10-08)
+**Question:** are let go, continued and no room shown anywhere or sent in the week prompt (M1.1 Q11)?
+**Decision:** counted only, in `weekCounts`, for the weekly update. No screen shows them. (No screen shows any skipped count today, so the review and progress need no change.)
+**Why:** the weekly update is their reader; nothing on screen needs them.
+**Changes:** RULE-17, AC-9.
+
+### MR-20 — Template fixes before building (2026-10-08)
+**Question:** M1.1 found templates that don't fit their pathways (Q12).
+**Decision:** fix them in M1.2: Strength's return rule goes back 1 or 2 weeks with lighter loads in the first week back; Writing's return never rereads (closed-door) and starts from a short note on what comes next; Content creation gets "Titles and thumbnails" (move, first in order); Language gets "Daily speaking" (let go); Building a product gets "Daily distribution sprint" (let go); steps that only work together (a chess game and its review) are written as one step.
+**Why:** each template must match its real method before code depends on it.
+**Changes:** templates reference; RULE-8.
+
+### MR-21 — Plan and wording fixes from M1.1 (2026-10-08)
+**Question:** M1.1's other findings (section 11 of its report).
+**Decision:** (1) the let-go line keeps today's drop wording ("Nothing needs making up: the plan carries on as it is."); (2) "Move now" stays the existing carry-now action, offered only when the held step's kind moves and its receiving day passes; no new action; (3) the Dashboard gets its own short line per action; (4) a goal "has deliverable targets" when its week-12 target is a deliverable; (5) the plan splits M1.3 into M1.3a and M1.3b and M3.1 into M3.1a and M3.1b; (6) unrelated problems go to `docs/backlog.md` (B-9 to B-14).
+**Why:** what the code really does; milestones one chat can finish.
+**Changes:** RULE-4, RULE-15, RULE-16, section 6; `03-phases.md`.
