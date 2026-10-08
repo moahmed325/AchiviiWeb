@@ -5,7 +5,7 @@ vi.mock('../src/lib/ai/gemini.js', () => ({
 }));
 
 import { generateStructuredContent } from '../src/lib/ai/gemini.js';
-import { generate12WeekPlanWithAI, adaptUpcomingWeekTasksWithAI } from '../src/lib/ai/goalDecomposer.js';
+import { adaptUpcomingWeekTasksWithAI } from '../src/lib/ai/goalDecomposer.js';
 import {
   formatSpineBlock,
   formatMethodologyNotes,
@@ -116,27 +116,6 @@ describe('Phase 3 — plan grounding', () => {
     expect(urls[2]).toBeUndefined();
     expect(urls[3]).toBeUndefined();
     expect(urls[4]).toBe('https://www.outsideonline.com/stone-skipping-kurt-steiner');
-  });
-
-  it('injects the spine into the plan prompt and strips bad URLs from the result', async () => {
-    mockLlm.mockImplementation(async (prompt: string) => {
-      expect(prompt).toMatch(/20 degrees/);
-      expect(prompt).toMatch(/PLAN SPINE — mandatory grounding/);
-      return { success: true, data: dummyPlan('https://invented.example/fake') };
-    });
-
-    const plan = await generate12WeekPlanWithAI(
-      'Get good at competitive stone skipping',
-      'Get good at competitive stone skipping',
-      {},
-      { dailyMinutes: 30, preferredSlot: 'evening', planVariant: 'steady' },
-      new Date('2026-10-01'),
-      { grounding }
-    );
-
-    expect(plan.initialTasks[1].title).toMatch(/Spin/i);
-    expect(plan.initialTasks[1].resourceUrl).toBeUndefined();
-    expect(plan.initialTasks[0].resourceUrl).toBe('https://en.wikipedia.org/wiki/Stone_skipping');
   });
 
   it('keeps a later week on the same teachings and drops a new link', async () => {

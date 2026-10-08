@@ -42,25 +42,6 @@ export function getGeminiClient(): GoogleGenAI | null {
 
 export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
-let llmCallCounter = 0;
-let embeddingCallCounter = 0;
-
-export function getLlmCallCount(): number {
-  return llmCallCounter;
-}
-
-export function resetLlmCallCount(): void {
-  llmCallCounter = 0;
-}
-
-export function getEmbeddingCallCount(): number {
-  return embeddingCallCounter;
-}
-
-export function resetEmbeddingCallCount(): void {
-  embeddingCallCounter = 0;
-}
-
 export interface StructuredOptions {
   /** JSON Schema that Gemini is held to. Groq only gets the prompt text. */
   responseSchema?: Record<string, unknown>;
@@ -79,8 +60,6 @@ export async function generateStructuredContent<T>(
   modelName: string = DEFAULT_GEMINI_MODEL,
   options: StructuredOptions = {}
 ): Promise<GenerationResult<T>> {
-  llmCallCounter++;
-
   const gemini = await tryGeminiStructured<T>(prompt, systemInstruction, modelName, options);
   if (gemini.success && gemini.data) return gemini;
   if (gemini.error) {
@@ -231,8 +210,6 @@ export async function generateTextContent(
   systemInstruction?: string,
   modelName: string = DEFAULT_GEMINI_MODEL
 ): Promise<GenerationResult<string>> {
-  llmCallCounter++;
-
   const gemini = await tryGeminiText(prompt, systemInstruction, modelName);
   if (gemini.success && gemini.data) return gemini;
   if (gemini.error) {
@@ -311,36 +288,4 @@ async function tryGeminiText(
       provider: 'deterministic',
     };
   }
-}
-
-export const DEFAULT_EMBEDDING_MODEL = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001';
-
-/**
- * Generates a 768-dimensional embedding vector for text using Gemini.
- * Uses gemini-embedding-001 with outputDimensionality: 768 (active supported model in @google/genai).
- */
-export async function generateEmbedding(
-  text: string,
-  modelName: string = DEFAULT_EMBEDDING_MODEL
-): Promise<number[]> {
-  embeddingCallCounter++;
-  const client = getGeminiClient();
-  if (!client) {
-    throw new Error('GEMINI_API_KEY is not configured');
-  }
-
-  const response = await client.models.embedContent({
-    model: modelName,
-    contents: text,
-    config: {
-      outputDimensionality: 768,
-    },
-  });
-
-  const values = (response as any).embedding?.values || (response as any).embeddings?.[0]?.values;
-  if (!values || !Array.isArray(values)) {
-    throw new Error('No embedding values returned from Gemini embedding API');
-  }
-
-  return values;
 }

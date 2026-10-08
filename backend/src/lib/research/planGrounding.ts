@@ -1,4 +1,4 @@
-import type { CanonResearchResult, VelocityTable } from './types.js';
+import type { VelocityTable } from './types.js';
 import { formatBlockLibrary, type WorkBlock, type WorkKind } from '../method/blocks.js';
 
 interface UrlBearingStep {
@@ -31,20 +31,6 @@ export interface PlanGrounding {
   workKinds?: WorkKind[];
   /** The method's best pieces of work for this person, highest impact first. */
   blocks?: WorkBlock[];
-}
-
-export function researchToGrounding(research: CanonResearchResult): PlanGrounding {
-  return {
-    methodKind: research.methodKind,
-    methodConfidence: research.methodConfidence,
-    methodName: research.methodName,
-    authority: research.authority,
-    sourceUrl: research.sourceUrl,
-    teachings: research.teachings ?? [],
-    assumptions: research.assumptions,
-    allowedUrls: research.allowedUrls ?? [],
-    velocityTable: research.velocityTable,
-  };
 }
 
 export function hasUsableSpine(grounding?: PlanGrounding | null): boolean {
@@ -183,7 +169,7 @@ function stripTaskUrls<T extends UrlBearingTask>(task: T, allowed: Set<string>):
   return next;
 }
 
-/** Drops any link that was not retrieved during research. */
+/** Drops any link that is not in the goal's stored allowed-URL list. */
 export function stripUnallowedUrls<T extends UrlBearingPlan>(plan: T, allowedUrls: string[]): T {
   const allowed = new Set(allowedUrls);
   return {

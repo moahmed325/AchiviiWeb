@@ -27,15 +27,12 @@ npx vitest run -t "daily limit"           # by test name
 npm run build                             # tsc -> dist/
 npx prisma migrate dev                    # new migration
 npx prisma migrate deploy                 # apply migrations (never `db push`, see below)
-npm run verify:pgvector                   # check extension, vector(768) column and indexes
-npm run ping:llm | test:groq | test:tavily   # live provider probes (need real keys)
-npm run research:capture|replay|velocity  # record/replay research fixtures in test/fixtures/research
-npm run eval:goals                        # live evaluation over a goal set
+npm run ping:llm | test:groq             # live provider probes (need real keys)
 ```
 
-Backend tests live in two places: `backend/test/*.test.ts` (engine and research logic) and next to the code in `backend/src/**/*.test.ts` (billing and routes).
+Backend tests live in two places: `backend/test/*.test.ts` (plan engine, safety and scheduling logic) and next to the code in `backend/src/**/*.test.ts` (billing and routes).
 
-Backend tests mock `lib/prisma.js` (`researchCache.test.ts` uses an in-memory stand-in for the `research_cache` table), so none need a database. In a fresh checkout run `npx prisma generate` first, or `tsc` reports missing Prisma types.
+Backend tests mock `lib/prisma.js`, so none need a database. In a fresh checkout run `npx prisma generate` first, or `tsc` reports missing Prisma types.
 
 Frontend (`cd frontend`):
 
@@ -55,10 +52,10 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 
 ## Database
 
-- Postgres with pgvector is required everywhere, local included. There is no SQLite mode: the research cache stores goal embeddings as `vector(768)`.
-- Always use `prisma migrate deploy`, never `prisma db push`. `db push` skips the migrations folder, which holds `CREATE EXTENSION vector` and the pgvector indexes, so cache matching breaks silently.
+- Postgres is required everywhere, local included; there is no SQLite mode. The database must allow the pgvector extension, because the migrations run `CREATE EXTENSION vector` for the `research_cache` table's `vector(768)` column.
+- Always use `prisma migrate deploy`, never `prisma db push`. `db push` skips the migrations folder, which holds `CREATE EXTENSION vector` and the raw-SQL indexes, so the database drifts from the migration history.
 - For Supabase use the session pooler connection string; the direct host is IPv6-only.
-- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview`, `ResearchCache` (`backend/prisma/schema.prisma`).
+- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview`, `ResearchCache` (`backend/prisma/schema.prisma`). No code reads or writes `ResearchCache` any more (the live research pipeline was removed); the table and its migrations stay until dropping them is decided separately.
 
 ## Backend architecture
 
@@ -66,15 +63,16 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 
 Auth: the frontend signs in with Supabase and sends the access token as `Authorization: Bearer`. `lib/supabaseAuth.ts` verifies it, and `routes/auth.ts` resolves it to a Prisma `User` by `auth_user_id`, linking an existing user by email the first time.
 
-Goal creation (`routes/goal.ts` -> `lib/ai/goalDecomposer.ts`), the "Golden Rail" pipeline:
+Goal creation (`POST /api/goal/create` in `routes/goal.ts`):
 
-1. **Clarify** (`lib/ai/clarify.ts`, `POST /api/goal/clarify`) produces a canonical key.
-2. **Preset match**: the 10 certified pathways in `lib/ai/presets/` (run10k, guitar, saas, spanish, recomp, youtube, book, deepwork, chess, speech) skip research and use fixed methods and velocity tables.
-3. **Research cache** (`lib/cache/researchCache.ts`): Tier 1 exact canonical key, Tier 2 cosine similarity on the embedding.
-4. **Live research** (`lib/research/`): Tavily queries, trust-tier ranking, safety filter, corroboration, velocity table, plan spine. `research/index.ts` is the public surface (`researchGoal`).
-5. **Deterministic safety clamps** (`research/safetyClamps.ts`) run in TypeScript regardless of model output (for example running volume ramps and calorie deficit bounds).
-6. **Plan generation** with schemas in `ai/planSchema.ts`, then post-processing: `taskRules.ts` (quality checks and polish), `scheduleRepair.ts`, and `planGrounding.ts` (`stripUnallowedUrls`: resource URLs may only come from verified research sources).
-7. If the model fails, `spineFallbackPlan.ts` builds a plan from the research spine. When nothing grounded is possible the API returns an honest 503 rather than a fabricated plan.
+1. **Clarify** (`lib/ai/clarify.ts`, `POST /api/goal/clarify`) turns the raw goal into a clarified outcome, a domain and follow-up questions.
+2. **Preset match** (`findPresetForGoal`): the 10 certified pathways in `lib/ai/presets/` (run10k, guitar, saas, spanish, recomp, youtube, book, deepwork, chess, speech) give the roadmap a fixed method. Any other goal is custom and needs Pro (`authorizeNewCustomGoal`).
+3. **Roadmap** (`lib/ai/roadmap.ts`, `generateRoadmap`): one model call picks the method (or keeps the preset's) and writes the phases and each of the 12 weeks' target and test. Goal text that matches the unsafe-framing rules in `research/safetyFilter.ts` (`screenQuery`) is refused with a 422 before any model call, and a method the model rates below 3 on safety is rejected. A number named in the goal (`research/statedTarget.ts`) must appear in the week-12 target.
+4. **One week at a time** (`lib/ai/weekPlan.ts`, `generateWeekPlan`): only week 1 is written at creation, polished and checked by `taskRules.ts` and `scheduleRepair.ts`; `highLoad.ts` marks strain steps. Each later week is written after the weekly review (`lib/planV2.ts`, `writeNextWeek`).
+5. **Deterministic safety clamps** (`research/safetyClamps.ts`, `applySafetyClamps`) run in TypeScript on a goal's stored velocity table whenever the goal is returned or used for planning, regardless of model output (running-volume ramps, calorie-deficit bounds, early-week lifting intensity).
+6. **Fallback**: if the roadmap or week 1 can't be written for a preset goal (and it wasn't refused as unsafe), `presetFixedPlan` in `ai/goalDecomposer.ts` saves the preset's fixed 12-week plan with no model call, as a v1 goal. A custom goal gets an honest 503 rather than a fabricated plan.
+
+Older v1 goals still adapt week by week through `adaptUpcomingWeekTasksWithAI` in `goalDecomposer.ts`. When such a goal has stored teachings, `research/planGrounding.ts` turns them into the prompt block and the allowed-URL filter, and `spineFallbackPlan.ts` writes the week if the model fails; `formatBasisBadge` labels what any goal's plan is based on. That is all `lib/research/` holds now: there is no live web search, research cache or embedding call.
 
 LLM providers: `lib/ai/gemini.ts` holds the cascade, **Gemini first, then Groq** (primary and backup models), then a miss. `groq.ts` tracks daily-limit 429s and skips Groq for a cooldown. `modelJson.ts` repairs and parses model JSON, `retry.ts` gives one retry.
 

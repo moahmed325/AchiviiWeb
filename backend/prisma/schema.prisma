@@ -191,11 +191,13 @@ model WeeklyReview {
   @@map("weekly_reviews")
 }
 
+// Unused: written and read only by the removed live research pipeline. Kept, with its
+// migrations, until dropping the table is decided separately.
 model ResearchCache {
   id                String   @id @default(uuid())
   canonicalKey      String   @unique          // e.g. "lang.japanese.jlpt_n3"
-  // pgvector column. Prisma Client cannot read or write Unsupported types, so all
-  // access to this field goes through raw SQL in lib/cache/researchCache.ts.
+  // pgvector column. Prisma Client cannot read or write Unsupported types; the removed
+  // cache code accessed it through raw SQL.
   outcomeEmbedding  Unsupported("vector(768)")?
   canonicalMethod   Json                      // { methodName, authority, sourceUrl, confidence, velocityTable, rawFindings }
   hitCount          Int      @default(1)

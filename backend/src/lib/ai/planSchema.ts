@@ -88,31 +88,6 @@ const taskSchema = {
   ],
 };
 
-const weekSchema = {
-  type: 'object',
-  properties: {
-    weekNumber: { type: 'integer' },
-    phase: { type: 'string', enum: ['Foundation', 'Acceleration', 'Mastery'] },
-    theme: { type: 'string' },
-    objective: { type: 'string' },
-    keyMilestone: { type: 'string' },
-    targetIntensity: { type: 'integer' },
-    plannedMinutes: { type: 'integer' },
-  },
-  required: ['weekNumber', 'phase', 'theme', 'objective', 'keyMilestone', 'targetIntensity', 'plannedMinutes'],
-};
-
-export const PLAN_RESPONSE_SCHEMA = {
-  type: 'object',
-  properties: {
-    clarifiedOutcome: { type: 'string' },
-    methodologyNotes: { type: 'string' },
-    weeks: { type: 'array', items: weekSchema, description: 'Exactly 12 weeks.' },
-    initialTasks: { type: 'array', items: taskSchema, description: 'Exactly 7 days.' },
-  },
-  required: ['clarifiedOutcome', 'methodologyNotes', 'weeks', 'initialTasks'],
-};
-
 export const WEEK_TASKS_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {

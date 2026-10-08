@@ -1,4 +1,4 @@
-import type { MetricDirection, VelocityTable, VelocityTarget } from './types.js';
+import type { MetricDirection, VelocityTarget } from './types.js';
 
 export interface StatedTarget {
   /** What the user wrote, for the retry reason. */
@@ -134,80 +134,4 @@ export function rowMatchesTarget(row: VelocityTarget, item: StatedTarget): boole
     const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return new RegExp(`(?:^|[^a-z])${escaped}(?:[^a-z]|$)`, 'i').test(blob(row));
   });
-}
-
-export function week12MeetsTarget(table: VelocityTable, item: StatedTarget): boolean {
-  const row = table.week12Targets.find((candidate) => rowMatchesTarget(candidate, item));
-  if (!row || !Number.isFinite(row.value)) return false;
-  return item.bound === 'at_most' ? row.value <= item.value : row.value >= item.value;
-}
-
-export function statedTargetFailures(table: VelocityTable, targets: StatedTarget[]): string[] {
-  return targets
-    .filter((item) => !week12MeetsTarget(table, item))
-    .map(
-      (item) =>
-        `Week 12 does not include the user's target (${item.phrase}). Practice or session minutes may be an extra line, but not the only line when the goal names a number.`
-    );
-}
-
-function easierStart(value: number, direction: MetricDirection): number {
-  if (direction === 'higher_is_harder') {
-    const start = Math.round(value * 0.5 * 10) / 10;
-    if (start > 0 && start < value) return start;
-    return value > 1 ? value - 1 : value / 2;
-  }
-  const start = Math.round(value * 1.2 * 10) / 10;
-  return start > value ? start : value + 1;
-}
-
-/**
- * Keeps every researched row, and forces week 12 to the number the user asked for
- * when research never included it.
- */
-export function enforceStatedTargets(table: VelocityTable, targets: StatedTarget[]): VelocityTable {
-  if (targets.length === 0) return table;
-
-  const week1 = table.week1Targets.map((row) => ({ ...row }));
-  const week12 = table.week12Targets.map((row) => ({ ...row }));
-  const notes: string[] = [];
-
-  for (const item of targets) {
-    const endIndex = week12.findIndex((row) => rowMatchesTarget(row, item));
-    if (endIndex >= 0) {
-      const end = week12[endIndex];
-      end.value = item.value;
-      end.direction = item.direction;
-      const start = week1.find((row) => row.metric === end.metric);
-      if (start) {
-        start.direction = item.direction;
-        start.unit = end.unit;
-        const easier = item.direction === 'higher_is_harder' ? start.value < end.value : start.value > end.value;
-        if (!easier) start.value = easierStart(item.value, item.direction);
-      }
-    } else {
-      const metric = item.unit;
-      week1.push({
-        metric,
-        value: easierStart(item.value, item.direction),
-        unit: item.unit,
-        direction: item.direction,
-      });
-      week12.push({
-        metric,
-        value: item.value,
-        unit: item.unit,
-        direction: item.direction,
-      });
-    }
-    notes.push(`Week 12 was set to the user's target (${item.phrase}) because the researched numbers did not include it.`);
-  }
-
-  const assumptions = [table.assumptions?.trim(), ...notes].filter(Boolean).join(' ');
-  return {
-    week1Targets: week1,
-    week12Targets: week12,
-    progressionFormula: table.progressionFormula?.trim() || 'Ramp from an easier start to the target named in the goal.',
-    assumptions,
-  };
 }

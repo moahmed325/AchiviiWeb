@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { applySafetyClamps, clampVelocityOnCacheHit } from '../src/lib/research/safetyClamps.js';
+import { applySafetyClamps } from '../src/lib/research/safetyClamps.js';
 import { formatBasisBadge, formatMethodologyNotes } from '../src/lib/research/planGrounding.js';
 import type { VelocityTable, VelocityTarget } from '../src/lib/research/types.js';
 
@@ -80,18 +80,6 @@ describe('Phase 4 — safety clamps', () => {
     expect(result.events).toHaveLength(0);
     expect(result.table.week12Targets[0].value).toBe(49);
   });
-
-  it('clamps a cached table on read without needing a fresh search', () => {
-    const method = clampVelocityOnCacheHit({
-      methodName: 'crash cut',
-      velocityTable: table(
-        target({ metric: 'calorie deficit', value: 1500, unit: 'kcal', direction: 'higher_is_harder' }),
-        target({ metric: 'calorie deficit', value: 1500, unit: 'kcal', direction: 'higher_is_harder' })
-      ),
-    });
-    expect(method.velocityTable.week1Targets[0].value).toBe(600);
-    expect(method.velocityTable.week12Targets[0].value).toBe(600);
-  });
 });
 
 describe('Phase 4 — honest basis', () => {
@@ -136,5 +124,22 @@ describe('Phase 4 — honest basis', () => {
       allowedUrls: [],
       velocityTable: null,
     })).toMatch(/No official program/);
+  });
+
+  it('labels a model-chosen method as recommended, never anchored, and names the runner-up', () => {
+    const grounding = {
+      methodKind: 'model_recommended',
+      methodConfidence: 'first_principles',
+      methodName: 'Keybr drills',
+      teachings: ['Type the home row without looking.'],
+      allowedUrls: [],
+      velocityTable: null,
+      whyChosen: 'They type 14 wpm and want 40.',
+      runnerUp: { name: 'Free typing tests only', whyNot: 'no structured drills' },
+    };
+    const badge = formatBasisBadge(grounding);
+    expect(badge?.anchored).toBe(false);
+    expect(badge?.label).toBe('Recommended method: Keybr drills');
+    expect(formatMethodologyNotes(grounding)).toContain('Runner-up: Free typing tests only');
   });
 });
