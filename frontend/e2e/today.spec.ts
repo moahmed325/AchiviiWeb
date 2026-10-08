@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shellGoal } from './shellFixtures';
+import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, settled, shellGoal } from './shellFixtures';
 
 /** M5.3: Today at `/` for the normal practice day (BP §09), built from the task data, every write through one path. */
 
@@ -173,7 +173,8 @@ test.describe('the practice day', () => {
     await stepRegion(page).getByRole('button', { name: "View Thursday's step" }).click();
     await expect(page.getByRole('region', { name: 'Session 4' })).toBeVisible();
 
-    // Axe scan passes on completed screen
+    // Axe scan passes on completed screen, once the fade-in has finished
+    await settled(page);
     expect(await axeViolations(page)).toEqual([]);
   });
 
@@ -330,9 +331,7 @@ test.describe('layout, keyboard and motion', () => {
     const widths = testInfo.project.name === 'desktop' ? [[1440, 900]] : [[390, 844], [360, 740]];
     for (const [width, height] of widths) {
       await page.setViewportSize({ width, height });
-      await page.waitForFunction(() =>
-        document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
-      );
+      await settled(page);
       expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
       const controls = main(page).locator('a, button').filter({ visible: true });
       for (const control of await controls.all()) {
