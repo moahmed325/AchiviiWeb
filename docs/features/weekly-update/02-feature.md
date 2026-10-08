@@ -1,6 +1,6 @@
 # Achivii Weekly Update — Feature Definition
 
-**Status:** APPROVED (2026-10-08)
+**Status:** APPROVED (2026-10-08). Paused until `docs/features/method-aware-recovery/` is done (WU-10).
 **Date:** 2026-10-08
 **Builds on:** `docs/features/weekly-update/01-brief.md`, `docs/architecture/plan-v2.md` (Weekly update, prompt 4)
 **Decisions:** `docs/features/weekly-update/decisions.md`
@@ -51,7 +51,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 **RULE-11 — Week 12.** Closing week 12 runs no update and writes no week; the closing stretch takes over as today.
 
-**RULE-12 — Every goal has a return rule (WU-4).** The rule says, for a break of a given length, the level to restart at (the last level reached, or one or two weeks of targets back) and what the first week back should include. It may have up to two lengths (for example "1-2 weeks away" and "3+ weeks away"). The 10 certified pathways have rules written by us from their real methods. Custom goals get one from the roadmap call, checked by code. A goal created before this feature gets one generated the first time it is needed; if that fails, "restart at the last level reached" is used.
+**RULE-12 — Every goal has a return rule (WU-4).** The rule is part of the goal's recovery profile (changed 2026-10-08, WU-10; `docs/features/method-aware-recovery/`). The rule says, for a break of a given length, the level to restart at (the last level reached, or one or two weeks of targets back) and what the first week back should include. It may have up to two lengths (for example "1-2 weeks away" and "3+ weeks away"). The 10 certified pathways have rules written by us from their real methods. Custom goals get one from the roadmap call, checked by code. A goal created before this feature gets one generated the first time it is needed; if that fails, "restart at the last level reached" is used.
 
 **RULE-13 — What counts as a break.** When a week closes automatically and the next week would already have ended too, that is a break. Shorter gaps are normal weeks; missed sessions handles the days.
 
