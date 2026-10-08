@@ -1,25 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import {
   clarifyGoalWithAI,
-  generate12WeekPlanWithAI,
-  adaptUpcomingWeekTasksWithAI
+  presetFixedPlan,
+  adaptUpcomingWeekTasksWithAI,
+  type UserRoutineInput
 } from '../src/lib/ai/goalDecomposer.js';
+import { findPresetForGoal } from '../src/lib/ai/presets/index.js';
+
+/** The preset's deterministic plan, which production serves when the v2 roadmap can't be written. */
+function presetPlan(rawGoal: string, clarifiedOutcome: string, routine: UserRoutineInput, startDate: Date) {
+  const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
+  if (!preset) throw new Error(`No preset for ${rawGoal}`);
+  return presetFixedPlan(preset, routine, startDate);
+}
 
 describe('Goal Decomposer & 12-Week Architecture', () => {
   it('honestly rejects custom goals when AI providers are unavailable without fabricating generic degraded content', async () => {
     await expect(clarifyGoalWithAI('Master watercolor landscape painting')).rejects.toThrow(
       'Unable to analyze your goal right now'
     );
-
-    await expect(
-      generate12WeekPlanWithAI(
-        'Master watercolor landscape painting',
-        'Paint 10 plein air watercolor landscapes in 90 days',
-        {},
-        { dailyMinutes: 45, preferredSlot: 'morning', planVariant: 'steady' },
-        new Date('2026-10-01')
-      )
-    ).rejects.toThrow('Unable to generate your 12-week plan right now');
   });
 
   it('correctly matches and clarifies guitarPreset for acoustic guitar goals', async () => {
@@ -86,10 +85,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates a full 12-week Deep Work plan with ultradian focus blocks and shutdown ritual gates', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Master deep work and double daily cognitive output',
       'Eliminate digital distractions, master 4 hours of daily unbroken deep work, and double high-leverage cognitive output',
-      { baseline: 'Scattered Multitasker' },
       {
         dailyMinutes: 60,
         preferredSlot: 'morning',
@@ -121,10 +119,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates a full 12-week Chess plan with Woodpecker tactical loops and rating milestone gates', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Climb from beginner to a 1200 chess rating',
       'Climb from beginner/unrated to a verified 1200+ Chess.com (or 1500+ Lichess) Rapid rating through deliberate tactical pattern recognition, blunder elimination, and fundamental endgame mechanics',
-      { baseline: 'Absolute Beginner (<600 Chess.com / Unrated)' },
       {
         dailyMinutes: 45,
         preferredSlot: 'evening',
@@ -161,10 +158,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates a full 12-week TED-style Speech plan with throughline framing and live keynote gates', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Deliver an unforgettable 15-minute TED-style speech',
       'Deliver an unforgettable 15-minute TED-style keynote speech from memory without slide crutches, captivating a live audience through a single throughline, emotional story beats, and authoritative stage presence',
-      { baseline: 'Stage Fright Novice' },
       {
         dailyMinutes: 45,
         preferredSlot: 'evening',
@@ -192,10 +188,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates a full 12-week Body Recomposition plan with mechanical tension and refeed gates', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Drop 5% body fat and build lean muscle',
       'Drop 5% body fat while preserving and building lean skeletal muscle mass through progressive overload and caloric deficit calibration',
-      { baseline: 'Beginner / Untrained' },
       {
         dailyMinutes: 60,
         preferredSlot: 'morning',
@@ -218,10 +213,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates a full 12-week Book writing plan with closed-door drafting and editing gates', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Write and publish a 30,000-word book',
       'Write, developmental-edit, and format a complete, polished 30,000-word non-fiction book manuscript ready for publishing',
-      { baseline: 'First-Time Aspiring Author' },
       {
         dailyMinutes: 60,
         preferredSlot: 'morning',
@@ -244,10 +238,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates a full 12-week YouTube plan with batching and 4-hour editing gates', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Launch a YouTube channel and publish 12 videos',
       'Launch an active YouTube channel, establish a weekly production pipeline, and publish 12 high-retention videos with custom packaging',
-      { baseline: 'Camera-Shy Beginner' },
       {
         dailyMinutes: 60,
         preferredSlot: 'afternoon',
@@ -270,10 +263,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates a full 12-week SaaS plan with vertical slice and monetization gates', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Build and ship a SaaS to first paying user',
       'Build, deploy, and launch a full-stack SaaS web application to production and acquire your first paying customer',
-      { baseline: 'Full-stack developer' },
       {
         dailyMinutes: 45,
         preferredSlot: 'morning',
@@ -290,10 +282,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates a full 12-week Spanish conversational plan with comprehensible input and verbal gates', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Hold a 15-minute conversational dialogue in Spanish',
       'Hold an unscripted 15-minute fluid conversational dialogue in Spanish with a native speaker without translation hesitation',
-      { baseline: 'Complete beginner (A0)' },
       {
         dailyMinutes: 30,
         preferredSlot: 'evening',
@@ -316,10 +307,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates 12 weeks with progressive overload and milestone gates at weeks 4, 8, and 12', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Master acoustic guitar campfire songs',
       'By Day 90, I will play 5 campfire songs fluently from memory without stopping',
-      { baseline: 'Complete beginner' },
       {
         dailyMinutes: 30,
         preferredSlot: 'morning',
@@ -367,10 +357,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('generates Minimal Viable plan with 4 active and 3 rest days obeying the 2-day rule', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Learn Spanish conversational fluency',
       'By Day 90, I will hold a 15-minute conversation with a native speaker',
-      {},
       {
         dailyMinutes: 45,
         preferredSlot: 'evening',
@@ -461,10 +450,9 @@ describe('Goal Decomposer & 12-Week Architecture', () => {
   });
 
   it('supports custom commitments and defaults to 60m evening routine for busy students and professionals', async () => {
-    const plan = await generate12WeekPlanWithAI(
+    const plan = presetPlan(
       'Learn full-stack web development',
       'By Day 90, I will build and ship a full-stack SaaS application',
-      {},
       {
         commitments: [
           { title: 'Gym Workout', time: '18:00 - 19:30' },

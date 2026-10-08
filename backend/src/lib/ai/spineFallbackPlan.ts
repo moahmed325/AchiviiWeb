@@ -1,10 +1,5 @@
-import type {
-  DailyTaskPlan,
-  DetailedStep,
-  PlanGenerationResult,
-  RoadmapWeekPlan,
-} from './goalDecomposer.js';
-import { formatMethodologyNotes, type PlanGrounding } from '../research/planGrounding.js';
+import type { DailyTaskPlan, DetailedStep } from './goalDecomposer.js';
+import type { PlanGrounding } from '../research/planGrounding.js';
 import type { VelocityTable } from '../research/types.js';
 import { asBlockStep, blocksForWeek, type WorkBlock } from '../method/blocks.js';
 import { polishWeekTasks } from './taskRules.js';
@@ -13,21 +8,9 @@ type PlanVariant = 'minimal' | 'steady' | 'accelerated';
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const MILESTONE_GATES: Record<number, string> = {
-  4: 'Phase 1 Foundation Milestone Gate: Mechanics & Posture Diagnostic',
-  8: 'Phase 2 Acceleration Milestone Gate: Tempo & Fluency Benchmark',
-  12: 'Phase 3 Mastery Capstone Verification & Final Proof of Achievement',
-};
-
-const INTENSITY = [60, 63, 66, 70, 75, 78, 81, 85, 90, 93, 96, 100];
-
 /** Same rest pattern as the certified presets: never two rest days in a row. */
 export function spineRestDayIndices(variant: PlanVariant): number[] {
   return variant === 'minimal' ? [2, 4, 6] : variant === 'accelerated' ? [6] : [3, 6];
-}
-
-function phaseFor(week: number): RoadmapWeekPlan['phase'] {
-  return week <= 4 ? 'Foundation' : week <= 8 ? 'Acceleration' : 'Mastery';
 }
 
 function shortTitle(text: string): string {
@@ -58,25 +41,6 @@ export function spineTargetsForWeek(table: VelocityTable | null, week: number): 
 function mainSourceUrl(grounding: PlanGrounding): string | undefined {
   if (grounding.sourceUrl && grounding.allowedUrls.includes(grounding.sourceUrl)) return grounding.sourceUrl;
   return grounding.allowedUrls[0];
-}
-
-export function buildSpineWeeks(grounding: PlanGrounding, dailyMins: number): RoadmapWeekPlan[] {
-  const teachings = grounding.teachings;
-  return Array.from({ length: 12 }, (_, index) => {
-    const week = index + 1;
-    const teaching = teachings[index % teachings.length];
-    const targets = spineTargetsForWeek(grounding.velocityTable, week);
-    return {
-      weekNumber: week,
-      phase: phaseFor(week),
-      theme: `${phaseFor(week)}: ${shortTitle(teaching)}`,
-      objective: targets ? `${teaching} Target this week: ${targets}.` : teaching,
-      keyMilestone:
-        MILESTONE_GATES[week] ?? (targets ? `Hit this week's target: ${targets}.` : `Complete every session of: ${shortTitle(teaching)}.`),
-      targetIntensity: INTENSITY[index],
-      plannedMinutes: dailyMins,
-    };
-  });
 }
 
 function splitMinutes(total: number, parts: number): number[] {
@@ -269,27 +233,4 @@ export function buildSpineWeekTasks(input: SpineWeekTasksInput): DailyTaskPlan[]
   }
 
   return tasks;
-}
-
-export function buildSpineFallbackPlan(input: {
-  grounding: PlanGrounding;
-  clarifiedOutcome: string;
-  dailyMins: number;
-  slotTime: string;
-  startDate: Date;
-  planVariant: PlanVariant;
-}): PlanGenerationResult {
-  return {
-    clarifiedOutcome: input.clarifiedOutcome,
-    methodologyNotes: `${formatMethodologyNotes(input.grounding)} Built directly from the sourced instructions.`.trim(),
-    weeks: buildSpineWeeks(input.grounding, input.dailyMins),
-    initialTasks: buildSpineWeekTasks({
-      grounding: input.grounding,
-      dailyMins: input.dailyMins,
-      slotTime: input.slotTime,
-      weekStartDate: input.startDate,
-      planVariant: input.planVariant,
-    }),
-    planSource: 'spine_fallback',
-  };
 }

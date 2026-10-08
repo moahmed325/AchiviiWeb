@@ -8,11 +8,10 @@
 [![Vitest](https://img.shields.io/badge/Vitest-5.0-729b1b.svg)](https://vitest.dev/)
 [![Gemini](https://img.shields.io/badge/Gemini-3.5_Flash_Lite-4285f4.svg)](https://ai.google.dev/)
 [![Groq](https://img.shields.io/badge/Groq-Fallback-f55036.svg)](https://groq.com/)
-[![Tavily](https://img.shields.io/badge/Tavily-Live_Canon_Research-4f46e5.svg)](https://tavily.com/)
 
 **Achivii** is an intelligent, full-stack deliberate practice platform engineered to transform open-ended human ambitions into concrete, high-velocity 90-day execution trajectories. 
 
-Unlike conventional to-do apps that generate generic, ungrounded task lists, Achivii synthesizes battle-tested cognitive and behavioral science—**The 12-Week Year** (Moran & Lennington), **Deliberate Practice** (K. Anders Ericsson), **Implementation Intentions** (Peter Gollwitzer)—with **The Golden Rail Pipeline**: real-time live research via Tavily Search, trust-tier domain authority ranking, dual-tier vector caching, deterministic safety clamps, and blazing fast structured LLM inference via Google Gemini, with Groq as the fallback.
+Unlike conventional to-do apps that generate generic, ungrounded task lists, Achivii synthesizes battle-tested cognitive and behavioral science—**The 12-Week Year** (Moran & Lennington), **Deliberate Practice** (K. Anders Ericsson), **Implementation Intentions** (Peter Gollwitzer)—with an adaptive plan engine: 10 certified pathways with fixed methods, a 12-week roadmap with a measurable target and test for every week, plans written one week at a time from your weekly results, deterministic safety clamps, and structured LLM inference via Google Gemini, with Groq as the fallback.
 
 ---
 
@@ -50,8 +49,9 @@ AchiviiWeb/
 │   └── vite.config.ts
 ├── backend/                      # Node.js + Express + TypeScript + Prisma ORM
 │   ├── prisma/
-│   │   ├── schema.prisma         # User, Subscription, WebhookEvent, Goal, RoadmapWeek, DailyTask, WeeklyReview, ResearchCache
-│   │   └── migrations/           # Includes CREATE EXTENSION vector and the pgvector indexes
+│   │   ├── schema.prisma         # User, Subscription, WebhookEvent, Goal, RoadmapWeek, DailyTask, WeeklyReview,
+│   │   │                         # ResearchCache (kept in the schema; no code uses it any more)
+│   │   └── migrations/           # Includes CREATE EXTENSION vector and the research_cache indexes
 │   ├── src/
 │   │   ├── routes/               # REST API endpoints:
 │   │   │   ├── auth.ts               # Supabase token verification and user profile
@@ -63,19 +63,19 @@ AchiviiWeb/
 │   │   │   ├── ai/
 │   │   │   │   ├── gemini.ts             # LLM cascade: Gemini primary, then Groq
 │   │   │   │   ├── groq.ts               # Groq fallback (openai/gpt-oss-120b, then gpt-oss-20b)
-│   │   │   │   ├── goalDecomposer.ts     # Plan generation & adaptation
-│   │   │   │   ├── weekPlan.ts, roadmap.ts   # Plan v2 roadmap and week calls
+│   │   │   │   ├── clarify.ts            # Goal clarification and follow-up questions
+│   │   │   │   ├── roadmap.ts            # Plan v2: method, phases, and each week's target and test
+│   │   │   │   ├── weekPlan.ts           # Plan v2: writes one week of daily tasks
+│   │   │   │   ├── goalDecomposer.ts     # Preset fixed-plan fallback; week adaptation for older (v1) goals
 │   │   │   │   └── presets/              # 10 Certified Master Blueprints (VDOT, CAGED, Lean Startup, etc.)
-│   │   │   ├── research/             # Tavily research, trust tiers, safety filter and clamps, plan spine
-│   │   │   ├── cache/
-│   │   │   │   └── researchCache.ts      # ResearchCache (Tier 1 exact match & Tier 2 vector cosine similarity)
+│   │   │   ├── research/             # Unsafe-goal screen, stated targets, safety clamps, basis badge
+│   │   │   ├── planV2.ts             # Writes the next week after each weekly review
 │   │   │   ├── billing/              # Entitlement, checkout, webhook handling
-│   │   │   ├── tavily.ts             # Tavily Search & Extract wrapper
 │   │   │   ├── timezone.ts           # IANA timezone conversion helpers (zero naive UTC splitting)
 │   │   │   └── prisma.ts             # Prisma ORM client singleton
 │   │   └── index.ts              # Express API server entry point
-│   ├── scripts/                  # Diagnostics (LLM ping, Tavily probe, pgvector verifier, cache demo, evals)
-│   ├── test/                     # Vitest unit tests for the engine and research pipeline
+│   ├── scripts/                  # Diagnostics (LLM ping, Groq probe, plan v2 live run)
+│   ├── test/                     # Vitest unit tests for the plan engine, safety and scheduling
 │   └── .env.example              # Backend environment configuration template
 ├── docs/                         # Project documentation (start at docs/README.md):
 │   ├── product/                  # Product blueprint and visual design system
@@ -99,7 +99,7 @@ Achivii runs cleanly across modern JavaScript runtimes without proprietary lock-
 - **Node.js**: `v18.0.0+` or `v20.0.0+` (LTS recommended)
 - **npm**: `v9.0.0+`
 - **Optional**: [Bun](https://bun.sh) (`v1.2+`) is supported for ultra-fast local script execution and test runs.
-- **Database**: **PostgreSQL with the `pgvector` extension**, in every environment including local development. The Golden Rail research cache matches goals using a `vector(768)` similarity search, which SQLite cannot represent — so there is no SQLite mode. [Supabase](https://supabase.com) is recommended, as pgvector ships ready to enable on the free tier.
+- **Database**: **PostgreSQL**, in every environment including local development; there is no SQLite mode. The database must allow the `pgvector` extension, because the migrations create it for the `research_cache` table (no code uses that table any more, but it stays in the schema). [Supabase](https://supabase.com) is recommended, as pgvector ships ready to enable on the free tier.
 
 ---
 
@@ -135,7 +135,7 @@ Configure your `backend/.env` file:
 PORT=5000
 CLIENT_ORIGIN="http://localhost:5173"
 
-# --- Database: PostgreSQL + pgvector (required in all environments) ---
+# --- Database: PostgreSQL with pgvector available (required in all environments) ---
 # Use Supabase's SESSION POOLER string, not "Direct connection" — the direct host
 # (db.[project-ref].supabase.co) is IPv6-only and unreachable from IPv4-only networks.
 DATABASE_URL="postgresql://postgres.[project-ref]:[PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres"
@@ -153,9 +153,6 @@ GROQ_API_KEY="gsk_..."
 GROQ_MODEL="openai/gpt-oss-120b"
 GROQ_BACKUP_MODEL="openai/gpt-oss-20b"
 
-# --- Live Canon Research: Tavily Search (Free tier: 1,000 queries/month) ---
-TAVILY_API_KEY="tvly-..."
-
 # --- Billing: Lemon Squeezy (test mode by default; see backend/.env.example) ---
 LEMON_SQUEEZY_ENVIRONMENT="test"
 ```
@@ -165,12 +162,8 @@ LEMON_SQUEEZY_ENVIRONMENT="test"
 ```bash
 # Applies the schema AND enables the pgvector extension.
 # Use migrate deploy rather than db push — db push ignores the migrations folder,
-# which would skip CREATE EXTENSION vector and leave cache matching broken.
+# which would skip CREATE EXTENSION vector and the raw-SQL indexes.
 npx prisma migrate deploy
-
-# Confirms the extension, the vector(768) column and both indexes are live,
-# and that the Tier 2 lookup actually hits the vector index.
-npm run verify:pgvector
 ```
 
 ---
@@ -219,67 +212,58 @@ npm run frontend
 | `DATABASE_URL` | Backend | **Yes** | PostgreSQL connection string. Must be a database with `pgvector` available. Use Supabase's session pooler URL. |
 | `SUPABASE_URL` | Backend | **Yes** | Supabase project URL, used to verify access tokens. |
 | `SUPABASE_ANON_KEY` | Backend | **Yes** | Supabase anon/publishable key. Never the service-role key. |
-| `GEMINI_API_KEY` | Backend | Recommended | Primary LLM provider via `@google/genai`. |
+| `GEMINI_API_KEY` | Backend | Recommended | Primary LLM provider via `@google/genai`. Without Gemini or Groq, a certified pathway falls back to its fixed plan and a custom goal gets a 503. |
 | `GEMINI_MODEL` | Backend | Optional | Target Gemini model (defaults to `gemini-3.5-flash-lite`). |
 | `GROQ_API_KEY` | Backend | Optional | Fallback LLM provider when Gemini fails. |
 | `GROQ_MODEL` | Backend | Optional | Groq fallback model (defaults to `openai/gpt-oss-120b`). |
-| `GROQ_BACKUP_MODEL` | Backend | Optional | Second Groq model with its own daily budget (defaults to `openai/gpt-oss-20b`). |
-| `TAVILY_API_KEY` | Backend | Recommended | Live web research engine for custom goal verification and canon synthesis. |
-| `LEMON_SQUEEZY_*` | Backend | For billing | Lemon Squeezy store, API key, webhook secret and variant IDs, with separate `TEST_` and `LIVE_` sets. See `backend/.env.example`. |
+| `GROQ_BACKUP_MODEL` | Backend | Optional | Second Groq model with its own daily budget (defaults to `openai/gpt-oss-20b`). || `LEMON_SQUEEZY_*` | Backend | For billing | Lemon Squeezy store, API key, webhook secret and variant IDs, with separate `TEST_` and `LIVE_` sets. See `backend/.env.example`. |
 | `VITE_API_BASE_URL` | Frontend | **Yes** | Base URL for backend API requests (e.g. `http://localhost:5000`). |
 | `VITE_SUPABASE_URL` | Frontend | **Yes** | Supabase project URL for the browser client. |
 | `VITE_SUPABASE_ANON_KEY` | Frontend | **Yes** | Supabase anon key for the browser client. |
 
 ---
 
-## 🌟 The Golden Rail Custom Goal Pipeline
+## 🌟 How a Goal Becomes a Plan
 
-Most AI goal platforms fail because they generate ungrounded, hallucinated routines from static model memory. Achivii's **Golden Rail Pipeline** subjects every custom goal to live, empirical canon research before writing a single task:
+Every goal, certified or custom, goes through the same plan v2 flow (`backend/src/routes/goal.ts`). There is no live web research step: the plan is built from the user's answers, a chosen method and the week-by-week results they log.
 
 ```
-[ Raw User Goal ] ──> ( Stage 1: Clarification & CanonicalKey )
+[ Raw User Goal ] ──> ( 1. Clarify: outcome, domain, follow-up questions )
                                 │
                                 v
-               [ Stage 1.5: ResearchCache Resolution ]
-                ├── Tier 1: Exact canonicalKey match? ────> ( Hit: Fast-forward to Stage 4 )
-                └── Tier 2: 768-dim Cosine Sim >= 0.88? ──> ( Hit: Alias Discovery & Fast-forward )
-                                │
-                                v (Miss)
-               [ Stage 2: Multi-Angle Tavily Live Search ]
-                ├── 2-3 Distinct queries executed in parallel
-                ├── Trust-tier ranking: HIGH / MEDIUM / LOW (deterministic heuristics)
-                └── Safety blacklist filter (crash diets, extreme risks)
+               [ 2. Preset match ]
+                ├── Certified pathway? ──> its fixed method is used
+                └── Custom goal ────────> needs Pro
                                 │
                                 v
-               [ Stage 3: Velocity Table Derivation ]
-                └── Extracts concrete Week 1 -> Week 12 metric progression
+               [ 3. Roadmap (one model call) ]
+                ├── Unsafe goal text is refused before any call (422)
+                ├── Method chosen for this person, rated on safety (< 3 is rejected)
+                └── 12 weeks: phases, a measurable target and a test for every week;
+                    a number named in the goal must be the week-12 target
                                 │
                                 v
-               [ Stage 4: Deterministic Safety Clamps (TypeScript) ]
+               [ 4. One week at a time ]
+                ├── Week 1 written now, checked and polished in code
+                └── Each later week written after the user logs that week's test
+                                │
+                                v
+               [ 5. Deterministic Safety Clamps (TypeScript) ]
                 ├── Running volume: Max 10% week-over-week ramp
                 ├── Caloric deficit: Clamped to 250 - 600 kcal/day
                 └── Resistance training: Zero 0-RIR / 100% 1RM in Weeks 1-3
-                                │
-                                v
-               [ Stage 5: Grounded 12-Week Roadmap Generation ]
-                ├── 3 evidence layers: Physiological, Cognitive, Adherence
-                ├── Implementation intentions + modality-specific micro-drills
-                └── Zero URL hallucinations: resourceUrl ONLY from verified Tavily sources
-                                │
-                                v
-               [ Stage 6 & 7: Confidence Badging & Cache Write ]
-                ├── Badges: "🛡️ Anchored to: {Method}" or "⚡ First-Principles"
-                └── Persists findings into ResearchCache for instant future reuse
 ```
 
+The safety clamps run on a goal's stored numbers whenever the goal is returned or used for planning, whatever the model produced.
+
 ### Honest Fallback Protection
-If both Gemini and Groq fail during custom goal generation, Achivii builds the plan from the verified research spine instead. When there is nothing grounded to build from, it does **not** fabricate a broken or degraded plan. Instead, the pipeline returns an explicit, honest HTTP 503 failure state with retry guidance, maintaining system integrity.
+If both Gemini and Groq fail while the roadmap or the first week is being written, a certified pathway falls back to its fixed, pre-written 12-week plan with no model call. A custom goal does **not** get a fabricated or degraded plan: the API returns an explicit, honest HTTP 503 with retry guidance.
 
 ---
 
 ## 🏆 The 10 Certified Master Pathways
 
-For popular mastery pursuits, Achivii provides 10 pre-engineered, evidence-backed master blueprints. These pathways bypass external search and load instantly with zero prompt drift:
+For popular mastery pursuits, Achivii provides 10 pre-engineered, evidence-backed master blueprints. Each pathway fixes the method the roadmap uses, and its pre-written 12-week plan is the fallback when the AI providers are unavailable:
 
 | # | Master Pathway | Canonical Methodology | Core Scientific Authority | Capstone Day 90 Metric |
 | :-: | :--- | :--- | :--- | :--- |
@@ -335,14 +319,11 @@ cd frontend && npx playwright test
 
 ### Diagnostic Scripts:
 ```bash
-# Test Tavily Search API, extraction & trust-tier heuristics
-npm run test:tavily --workspace=backend
+# Check that the primary LLM (Gemini) answers
+npm run ping:llm --workspace=backend
 
 # Test Groq structured JSON output (fallback provider)
 npm run test:groq --workspace=backend
-
-# Demo Phase 2 ResearchCache resolution (Tier 1 & Tier 2 vector matching)
-npm run demo:cache --workspace=backend
 ```
 
 ---

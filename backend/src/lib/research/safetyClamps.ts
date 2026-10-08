@@ -62,9 +62,9 @@ function isTable(value: unknown): value is VelocityTable {
 }
 
 /**
- * Hard caps on researched numbers. Clamp, do not drop the table.
+ * Hard caps on a goal's stored numbers. Clamp, do not drop the table.
  * Safe to run twice: a value already inside the cap is left alone.
- * Cache hits must call this on read — a row written before a rule existed is not trusted.
+ * Call it on read — a row written before a rule existed is not trusted.
  */
 export function applySafetyClamps(
   table: VelocityTable,
@@ -154,15 +154,4 @@ export function applySafetyClamps(
   }
 
   return { table: next, events };
-}
-
-/** Read-path clamp for a cached method object. Does not write the row back. */
-export function clampVelocityOnCacheHit<T extends { velocityTable?: unknown }>(
-  method: T,
-  cacheId?: string
-): T {
-  if (!method || !isTable(method.velocityTable)) return method;
-  const clamped = applySafetyClamps(method.velocityTable, { source: 'cache', goalId: cacheId });
-  if (clamped.events.length === 0) return method;
-  return { ...method, velocityTable: clamped.table };
 }
