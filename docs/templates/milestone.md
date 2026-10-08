@@ -34,13 +34,25 @@ Other chats are working on: <files or areas not to touch>.
 
 Fill in the Report section of the same file. Every requirement gets evidence (a test name, a command result, a screenshot). Never claim a check that was not run; say why it was not run.
 
+List every problem you noticed under "Problems found", even small ones and ones outside this milestone, with where you would put it. Do not fix problems outside the milestone, and do not edit the backlog; the review sorts them.
+
 ### Reviewing (main chat)
 
 Check the report against the code and CI. Then fill in the Review section and fold the results back:
 
 - set the milestone's row in `03-phases.md` to DONE (or what is true) with the date;
 - record any new decision in the feature's `decisions.md`, then edit the feature or plan files it changes;
-- if the report changes later milestones, edit them in `03-phases.md` now.
+- if the report changes later milestones, edit them in `03-phases.md` now;
+- **sort every problem found.** Each one goes to exactly one place:
+
+| The problem is... | It goes to... |
+|---|---|
+| needed for this milestone to be done, or caused by it | this milestone: verdict CHANGES NEEDED, fixed on the same branch before merge |
+| part of this feature, but later | a milestone in `03-phases.md` (an existing one, or a new one) |
+| urgent: users are hitting it now | a quick fix right away (see `docs/backlog.md`), then a DONE line in the backlog |
+| anything else | `docs/backlog.md`, sized small, big or owner |
+
+Nothing stays only in a report.
 
 ---
 
@@ -105,12 +117,18 @@ Check the report against the code and CI. Then fill in the Review section and fo
 | Command | Result | Baseline |
 |---|---|---|
 
-### Differences from the docs, open questions, carry-overs
-<Anything the docs got wrong, anything left undone, anything a later milestone must know.>
+### Differences from the docs
+<Anything the docs or the prompt got wrong, and what you did about it. Anything left undone.>
+
+### Problems found
+| Problem | Where | Suggested place |
+|---|---|---|
+| <what is wrong> | <file, screen or test> | this milestone / later in this feature / backlog small / backlog big / urgent |
 
 ## Review
 
 **Reviewed:** YYYY-MM-DD
 **Verdict:** ACCEPTED | CHANGES NEEDED
 <What was checked, what was fixed, and what was folded back: the status row, decisions recorded, later milestones changed.>
+**Problems sorted:** <each problem and where it went, e.g. "B-9 (backlog, small)", "added to M3.4". Or: none found.>
 ```
