@@ -1,6 +1,6 @@
 # Achivii Weekly Update — Feature Definition
 
-**Status:** DRAFT
+**Status:** APPROVED (2026-10-08)
 **Date:** 2026-10-08
 **Builds on:** `docs/features/weekly-update/01-brief.md`, `docs/architecture/plan-v2.md` (Weekly update, prompt 4)
 **Decisions:** `docs/features/weekly-update/decisions.md`
@@ -39,7 +39,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 **RULE-5 — Unlogged test (WU-3).** A week whose test was never logged is treated as "not logged", never as failed. The target is held, the sessions decide the status, and the next week's first practice day starts with that test. Its result shapes the following week like any test.
 
-**RULE-6 — Two hard weeks in a row.** When this week and last week are both `far_behind`, the next week starts with a re-test (`retestFirst`), and Today asks once whether the daily time still works. They can keep it or choose a shorter one from the existing daily-time options; a change applies from the next week written, not the current one. Code, not the model, decides `retestFirst` from the stored statuses.
+**RULE-6 — Two hard weeks in a row.** When this week and last week are both `far_behind`, the next week starts with a re-test (`retestFirst`), and Today asks once whether the daily time still works. They can keep it or choose a shorter one from the existing daily-time options (never fewer days a week, WU-7); a change applies from the next week written, not the current one. Code, not the model, decides `retestFirst` from the stored statuses.
 
 **RULE-7 — The words.** The update writes one sentence for the person (neutral and encouraging; says plainly when a target is held or lowered) and a short note for whoever writes next week's tasks. The sentence is checked by code for the forbidden words (section 6); a sentence that fails gets the neutral fallback. It is stored as the week's review insight, so the progress history shows it.
 
@@ -57,7 +57,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 **RULE-14 — The plan moves (WU-4).** After a break, the plan's remaining weeks move later on the calendar so the first week back starts on the day they return. The plan keeps its 12 weeks and their numbers. Everything that shows dates follows: the week dates, "Day N of 90" (break days are not counted), the end date, the closing stretch, the roadmap and progress screens.
 
-**RULE-15 — The limit (WU-5).** Moved days never go above 28 for a plan. When a break would go past it, Today offers a fresh plan from where they are, or keeping this plan; keeping it moves the plan only up to the limit.
+**RULE-15 — The limit (WU-5).** Moved days never go above 28 for a plan. When a break would go past it, Today offers a fresh plan from where they are, or keeping this plan; keeping it moves the plan only up to the limit, so the first week back is the week the calendar has reached after that move (WU-8). A fresh plan opens goal creation with this goal's text filled in and archives this goal; custom goals still need Pro (WU-9).
 
 **RULE-16 — The first week back.** The break's weekly update gets the break length and the return rule. Next week's target is the restart level from the rule, the remaining targets are spread over the weeks left (RULE-4 still applies), the first practice day is a re-test, and the week's tasks follow the rule's "first week back".
 
@@ -136,8 +136,3 @@ The weekly sentence itself is written by the model under RULE-7.
 ## 10. Other concerns
 - **Cost and speed:** one more model call per person per week. An automatic close happens while they wait on Today, so it needs the "getting ready" state; the week call already takes about 10 to 30 seconds.
 - **Providers:** the update uses the same Gemini-then-Groq cascade as the other calls.
-
-## For Mo to confirm before approval
-1. The daily-time check offers only a shorter daily time, not fewer days a week (changing days is "Later").
-2. Past the limit, "Keep going" moves the plan 28 days at most, so the first week back may be a later week than the one they left.
-3. "Start a fresh plan" opens goal creation with this goal's text filled in, and the old goal is archived (custom goals still need Pro).

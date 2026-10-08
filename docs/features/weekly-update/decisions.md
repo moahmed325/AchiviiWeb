@@ -41,3 +41,21 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** here, as the last phase, after the normal week close works.
 **Why:** without it, the first person back from a break gets a broken plan.
 **Changes:** scope (section 8).
+
+### WU-7 — The daily-time check only offers a shorter time (2026-10-08)
+**Question:** after two hard weeks, what can the person change?
+**Decision:** only the daily time, to a shorter one from the existing options. Fewer days a week is "Later".
+**Why:** changing practice days changes the week layout and the test day; the daily time only changes step minutes.
+**Changes:** RULE-6.
+
+### WU-8 — "Keep going" past the limit moves the plan 28 days at most (2026-10-08)
+**Question:** a break goes past the 4-week limit and they keep this plan. Where do they restart?
+**Decision:** the plan moves only up to the limit, so they restart at the week the calendar has reached after that move, at the return rule's level.
+**Why:** the limit has to mean something; the fresh-plan choice is there for anyone who wants a full restart.
+**Changes:** RULE-15.
+
+### WU-9 — A fresh plan reuses the goal's text and archives the old goal (2026-10-08)
+**Question:** what does "Start a fresh plan" do?
+**Decision:** opens goal creation with this goal's text filled in; creating the new goal archives the old one. Custom goals still need Pro.
+**Why:** least typing for the person, and one active goal at a time as today.
+**Changes:** RULE-15.
