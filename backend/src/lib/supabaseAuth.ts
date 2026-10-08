@@ -15,14 +15,16 @@ function getClient(): SupabaseClient | null {
 
 export async function verifySupabaseToken(
   token: string,
-): Promise<{ authUserId: string; email: string | null } | null> {
+): Promise<{ authUserId: string; email: string | null; timezone?: string } | null> {
   const supabase = getClient();
   if (!supabase || !token) return null;
 
   try {
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data.user) return null;
-    return { authUserId: data.user.id, email: data.user.email ?? null };
+    // The browser's IANA timezone, sent as user metadata at sign-up (frontend AuthContext). Checked by the caller.
+    const timezone = data.user.user_metadata?.timezone;
+    return { authUserId: data.user.id, email: data.user.email ?? null, ...(typeof timezone === 'string' ? { timezone } : {}) };
   } catch {
     return null;
   }

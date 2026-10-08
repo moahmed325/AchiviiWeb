@@ -102,11 +102,25 @@ export async function fetchHealthCheck(): Promise<HealthResponse> {
   return response.json();
 }
 
+/**
+ * The browser's IANA timezone, as `X-Client-Timezone`. The backend uses it only to correct a user still stored on the
+ * default UTC (missed sessions ND-1); a zone already set is never changed.
+ */
+export function clientTimezoneHeader(): Record<string, string> {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return zone ? { 'X-Client-Timezone': zone } : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function fetchCurrentUser(token: string): Promise<User> {
   const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
     headers: {
       'Accept': 'application/json',
       'Authorization': `Bearer ${token}`,
+      ...clientTimezoneHeader(),
     },
   });
 
@@ -222,6 +236,8 @@ export async function reconcileGoal(token: string): Promise<import('../types').R
     headers: {
       'Accept': 'application/json',
       'Authorization': `Bearer ${token}`,
+      // It can run before /api/auth/me on the first load, so it carries the zone too.
+      ...clientTimezoneHeader(),
     },
   });
 

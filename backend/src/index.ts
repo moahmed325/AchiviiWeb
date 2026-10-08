@@ -36,7 +36,8 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  // X-Client-Timezone: the browser's IANA zone, used to correct a user still on the default UTC (routes/auth.ts).
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Client-Timezone'],
 }));
 app.use('/api/billing/webhook', express.raw({ type: 'application/json' }), webhookRouter);
 app.use(express.json());
@@ -48,6 +49,6 @@ app.use('/api/goal', goalRouter);
 app.use('/api/billing', billingRouter);
 
 app.listen(PORT, () => {
-  console.log(`Ã°Å¸Å¡â‚¬ Achivii Backend API running on http://localhost:${PORT}`);
-  console.log(`  Ã¢â€â€Ã¢â€â‚¬ Health Check: http://localhost:${PORT}/api/health`);
+  console.log(`Achivii Backend API running on http://localhost:${PORT}`);
+  console.log(`  Health check: http://localhost:${PORT}/api/health`);
 });

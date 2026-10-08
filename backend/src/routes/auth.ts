@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { verifySupabaseToken } from '../lib/supabaseAuth.js';
+import { isValidTimezone } from '../lib/timezone.js';
 
 export const authRouter = Router();
 
@@ -18,9 +19,44 @@ const authUserSelect = {
   created_at: true,
 } as const;
 
+/** The default every user starts with (schema.prisma), and the zones that mean the same thing. */
+const DEFAULT_TIMEZONE = 'UTC';
+const UTC_ALIASES = /^(Etc\/)?(UTC|GMT|Universal|Zulu|UCT)$/i;
+
+/** A timezone worth storing: a valid IANA name that is not UTC itself. Anything else is ignored. */
+function usableTimezone(value: unknown): string | null {
+  const zone = Array.isArray(value) ? value[0] : value;
+  if (typeof zone !== 'string') return null;
+  const trimmed = zone.trim();
+  return trimmed && !UTC_ALIASES.test(trimmed) && isValidTimezone(trimmed) ? trimmed : null;
+}
+
+/**
+ * Every date in the app is the user's local calendar date (missed sessions ND-1), so a user left on the default UTC
+ * gets the wrong "today" and the wrong day close. When the stored zone is still that default, take the browser's zone
+ * (X-Client-Timezone) or the one sent at sign-up, once. A zone already set is never changed here, so travelling never
+ * moves anyone's days (Feature Definition section 10).
+ */
+async function correctDefaultTimezone(
+  user: AuthenticatedUser,
+  ...candidates: unknown[]
+): Promise<AuthenticatedUser> {
+  if (user.timezone !== DEFAULT_TIMEZONE) return user;
+  const zone = candidates.map(usableTimezone).find((value): value is string => value !== null);
+  if (!zone) return user;
+  try {
+    // Only while it is still the default, so two requests at once cannot overwrite each other.
+    await prisma.user.updateMany({ where: { id: user.id, timezone: DEFAULT_TIMEZONE }, data: { timezone: zone } });
+    return { ...user, timezone: zone };
+  } catch {
+    return user;
+  }
+}
+
 async function resolveSupabaseUser(
   authUserId: string,
   email: string | null,
+  signupTimezone?: string,
 ): Promise<AuthenticatedUser | null> {
   const linked = await prisma.user.findUnique({
     where: { auth_user_id: authUserId },
@@ -68,6 +104,8 @@ async function resolveSupabaseUser(
       data: {
         email: normalizedEmail,
         auth_user_id: authUserId,
+        // The zone the browser reported at sign-up; without a usable one the schema default (UTC) applies.
+        ...(usableTimezone(signupTimezone) ? { timezone: usableTimezone(signupTimezone)! } : {}),
       },
       select: authUserSelect,
     });
@@ -92,7 +130,9 @@ export async function getAuthUser(req: Request) {
   if (!supabaseIdentity) return null;
 
   try {
-    return await resolveSupabaseUser(supabaseIdentity.authUserId, supabaseIdentity.email);
+    const user = await resolveSupabaseUser(supabaseIdentity.authUserId, supabaseIdentity.email, supabaseIdentity.timezone);
+    if (!user) return null;
+    return await correctDefaultTimezone(user, req.headers['x-client-timezone'], supabaseIdentity.timezone);
   } catch {
     return null;
   }
