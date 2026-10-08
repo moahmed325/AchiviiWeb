@@ -1,5 +1,5 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
-**Version:** 2.2 | **Date:** 2026-10-07 (M3.3 and M4.1 prompts drafted)
+**Version:** 2.3 | **Date:** 2026-10-08 (M3.4 and P5 prompts drafted)
 **Roadmap:** docs/features/missed-sessions/04-phases.md
 **Feature:** docs/features/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
@@ -1109,3 +1109,122 @@ A user who did not log the week's test sees one calm card after test day until t
 
 ### STOP IF
 The week's test or its result is stored somewhere other than `RoadmapWeek`; keeping a stored result in the review conflicts with another documented rule; the card's window cannot be decided from the stored data; or the work needs a schema change. Report instead of working around it.
+
+---
+
+## M3.4 — State Coverage and Accessibility (P3, listed here after M4.1)
+
+### STATUS
+READY (drafted 2026-10-08). Depends on M3.1-M3.3 and M4.1 (complete). Closes P3.
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P3/M3.4. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+P3 added several states to Today and the Dashboard: the miss notice (carried, dropped), gentle return, short-on-time, the swap offer, "Set today aside", "Swap with another day", and M4.1's late-test card. Each milestone tested its own states. M3.4 proves that every Today state still works together, at every supported width, with a keyboard, with reduced motion and without axe violations, and that the browser tests can be run with one command and in CI. Since 2026-10-07 the browser tests sign in through a mocked Supabase (`signIn` and `mockApi` in `frontend/e2e/mockApi.ts`), start their own server on port 5174 (`E2E_PORT` to change it), and never reuse another server.
+
+### OBJECTIVE
+A complete, evidenced state matrix for Today (and the Dashboard where it mirrors Today), any gaps closed with tests or small fixes, an `npm run e2e` script, and a CI job that runs the Today browser tests on every push.
+
+### READ FIRST
+- docs/features/missed-sessions/04-phases.md: section 3 (3.6 tone, 3.9 accessibility), P3 (8.1-8.10), the regression register (R-3, R-4, R-10, R-11).
+- docs/features/missed-sessions/milestones/m3.1-miss-notice.md, m3.2-short-on-time-and-gentle-return.md, m3.3-swap-and-mark-missed-ui.md, m4.1-late-test.md.
+- Design.md sections 4 (primitives), 5 (shell), 6 (Today), 7 (mobile and touch), 9 (accessibility checklist).
+- `.github/workflows/ci.yml` and `CLAUDE.md` (commands).
+
+### INSPECT FIRST
+- `frontend/src/components/today/Today.tsx` and every component it renders (`PlanActions.tsx`, `LateTestCard`, `ClosingStretchView.tsx`, the focus and review entry points), `frontend/src/pages/Dashboard.tsx`.
+- `frontend/e2e/todayStates.spec.ts`, `today.spec.ts`, `missedSessions.spec.ts`, `lateTest.spec.ts`, `focus.spec.ts`, `weeklyReview.spec.ts`, `shellFixtures.ts` (`settled`, `axeViolations`, `documentOverflow`) and `mockApi.ts`.
+- `frontend/playwright.config.ts` and `frontend/package.json` scripts.
+
+### REQUIREMENTS
+R1. **State matrix.** In the report, list every Today state with where it is covered (unit test file and test name, e2e spec and test name): loading, load error, offline, no goal, ordinary practice day (to do, done), rest day, key session, test day, review due, late-test card, closing stretch (days 85-90), completed goal, carried notice (into today, to a later day), dropped notice, gentle return, short on time, swap offer (past day, today set aside), "Set today aside" (dialog, carried, dropped, held), "Swap with another day" (list, empty), a plan action that fails, another selected day, and the Dashboard's status line for each miss state. Every state has at least one unit test; every state a user can reach has at least one e2e case.
+
+R2. **Close the gaps.** For every state without an e2e case, add one (prefer extending `todayStates.spec.ts` or `missedSessions.spec.ts`). Each e2e state case checks: no horizontal overflow at 360, 375, 390 and 412 px, axe clean after the fade-in (`settled`), and every new control at least 44×44 px.
+
+R3. **Keyboard and focus.** One e2e case walks Today by keyboard on a day with the most controls (a swap offer plus "Set today aside"), asserting a sensible Tab order (primary action first, then secondary, then quiet actions) and that each dialog traps focus, closes on Escape and returns focus to its trigger.
+
+R4. **Reduced motion.** One e2e case with `reducedMotion: 'reduce'` loads Today in the busiest state and asserts that no finite animation runs longer than 0.01 ms and nothing is hidden waiting for an animation.
+
+R5. **One shared `settled`.** `shellFixtures.ts` exports `settled`; replace the local copies in the spec files with it (they are equivalent; confirm before replacing). No behavior change.
+
+R6. **`npm run e2e`.** Add `"e2e": "playwright test"` to `frontend/package.json` and mention it in `CLAUDE.md`'s frontend commands.
+
+R7. **CI job.** Add an `e2e` job to `.github/workflows/ci.yml`: install as the frontend job does, install Chromium for Playwright (`npx playwright install --with-deps chromium`, matching the config's `channel: 'chromium'`), then run the Today specs on both projects: `todayStates`, `today`, `missedSessions`, `lateTest`, `focus`, `weeklyReview`. Keep the full suite out of CI for now (it takes too long on one worker); upload the Playwright report as an artifact when the job fails. The job must pass on the branch.
+
+R8. **Fix only small, clear bugs.** If a state is wrong (overflow, a control under 44 px, an axe violation, a broken focus return), fix it when the fix is small and clearly correct, with a test; otherwise stop and describe it. No new copy; no behavior change.
+
+### OUT OF SCOPE
+Backend changes; new states or copy; the full e2e suite in CI; visual redesign; the Focus mode styling notes (gradient glow, hard-coded shadow colours) unless one causes an axe failure.
+
+### REGRESSION CHECKS
+R-1 to R-5, R-10, R-11. Baseline: backend `npm test` 52 files / 529 tests; frontend `npm test` 574 tests, 0 failures; `npm run typecheck`, `npm run lint` (0 errors, 2 warnings), `npm run build` pass; CI green.
+
+### VALIDATION
+Repository commands only: the changed unit tests first, then `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then `npm run e2e -- e2e/todayStates.spec.ts e2e/today.spec.ts e2e/missedSessions.spec.ts e2e/lateTest.spec.ts e2e/focus.spec.ts e2e/weeklyReview.spec.ts` on both projects, twice (to catch flakiness). Push the branch and confirm every CI job, including the new `e2e` job, is green.
+
+### DELIVERABLE
+The state matrix, the added tests and small fixes, the shared `settled`, the `e2e` script, the CI job, and a report at `docs/features/missed-sessions/milestones/m3.4-state-coverage.md`: the matrix (EV-5), screenshots at 390 and 360 px for every miss-related state (EV-6), commands and results, CI links. Do not commit or push to `main`.
+
+### DONE
+Every Today state is covered by unit and browser tests, passes axe and overflow checks at 360-412 px, works by keyboard and with reduced motion; the Today browser tests run with `npm run e2e` and in CI on every push; P3's exit criteria (04-phases.md 8.9) are met.
+
+### STOP IF
+A state cannot be reached in the app as built (list it); a fix would change behavior or copy; or the CI e2e job cannot run Chromium on GitHub's runners. Report instead of working around it.
+
+---
+
+# 5 — P5 QA, COPY AUDIT AND CLOSE
+
+## M5 — Acceptance, Copy Audit, Regression and Close (M5.1-M5.3)
+
+### STATUS
+READY (drafted 2026-10-08). Run after M3.4 is merged. Closes the missed-sessions feature.
+
+### ROLE
+You are the implementation agent for Achivii missed-sessions P5. Implement only this milestone. Follow the operating contract in section 0.
+
+### CONTEXT
+Missed sessions is built: P1 (recognition), P2 (carry-forward and actions, now switched on in production), P3 (Today experience) and M4.1 (late test). Two decisions shape the close (04-phases.md ND-19, docs/decisions.md ND-21): plan v1 is retired, so AC-14 ("old goals behave exactly as before") is recorded as retired, not tested; and M4.2 (week-close handoff) moves to a new weekly-update feature, taking AC-9 and AC-11 with it. Preset prose still makes promises the app does not keep: `backend/src/lib/ai/presets/run10k.ts` ("Missed Tuesday? It shifts automatically into an open weekend buffer."), `guitar.ts` ("missed days slide into weekend buffers") and `saas.ts` ("missed sessions shift seamlessly into weekend buffers"). Nothing moves into a weekend buffer; the real behavior is that a missed day's most important step moves to the next practice day if it fits, and nothing gets longer. That prose also uses "missed", against the copy rules.
+
+### OBJECTIVE
+Prove every acceptance criterion with evidence, make every user-facing string follow the copy rules and tell the truth, confirm no regression, and close the feature: update its status, move M4.2 to the new feature, and archive the docs.
+
+### READ FIRST
+- docs/features/missed-sessions/03-feature.md (all of it, especially sections 11, 12, 15).
+- docs/features/missed-sessions/04-phases.md (section 1.5, sections 4, 10, 11 and 12).
+- Every report in docs/features/missed-sessions/milestones/.
+- docs/README.md (feature folders and the archive rule) and docs/decisions.md ND-21.
+
+### INSPECT FIRST
+- Every frontend string shown for missed sessions (`frontend/src/lib/today.ts`, `components/today/*`, `pages/Dashboard.tsx`, the late-test card) and every backend message a user can see (`backend/src/routes/goal.ts`).
+- Preset prose in `backend/src/lib/ai/presets/*.ts` and anywhere the frontend shows pathway descriptions (`frontend/src/lib/certifiedPresets.ts`, the Pathways explorer), plus marketing copy that mentions missed days (`frontend/src/components/marketing`).
+
+### REQUIREMENTS
+R1. **Acceptance walkthrough (M5.1).** A table of AC-1 to AC-14: the evidence for each (test names, e2e cases, report sections, screenshots), with AC-9 and AC-11 marked "moved to the weekly-update feature (ND-19)" and AC-14 marked "retired by ND-21". Any AC without evidence gets a test, or is reported as a gap.
+
+R2. **Copy audit (M5.2).** Search every user-facing string in the frontend, the preset prose and backend messages a user can see for "missed", "behind", "failed", "fail", "why" questions and status labels. Fix each one in the missed-sessions surface; for strings elsewhere, list them in the report (do not change unrelated product copy). Confirm the five Feature Definition section 12 situations match what the app says (or record which ones moved with M4.2).
+
+R3. **Honest preset prose.** Rewrite the three preset sentences so they describe the real behavior without "missed" (for example: "Sessions fit around work and family. If a day doesn't happen, its most important step moves to your next practice day, and no day gets longer."). Keep each sentence's other promises only if they are true; check `run10k.ts`'s "Never two rest days in a row" against `weekLayout`. If the same text is mirrored in `frontend/src/lib/certifiedPresets.ts`, update it there too.
+
+R4. **Regression (M5.3).** Run R-1 to R-11 from the regression register with the commands available (unit, e2e, CI) and record the result for each; for anything only checkable in production, list the manual check and its outcome from the M3.3 release checklist if the owner has run it.
+
+R5. **Close the feature.** Update 04-phases.md (every phase's status; P4 "M4.1 complete, M4.2 moved to weekly-update"), 03-feature.md's status, and docs/decisions.md if a decision changed. Then follow docs/README.md to archive the feature: move `docs/features/missed-sessions/` to `docs/archive/missed-sessions/` with `git mv`, update every link to it in the repository (CLAUDE.md, docs, code comments that cite the path), and add a short "Moved to the weekly-update feature" note for M4.2 with its scope (week-close handoff, unlogged test held target, two far_behind weeks re-test, reading `RoadmapWeek.testResult` in `writeNextWeek`).
+
+### OUT OF SCOPE
+Building M4.2 or the weekly update; removing plan v1 code (a separate change); new features; unrelated copy outside the missed-sessions surface (list it instead).
+
+### REGRESSION CHECKS
+All of R-1 to R-11 (R1-R4 above). Baseline: backend `npm test` and frontend `npm test` as on main at the start; `npm run typecheck`, `npm run lint` (0 errors, 2 warnings), `npm run build`; `npm run e2e` for the Today specs; CI green.
+
+### VALIDATION
+Repository commands only: backend `npm test`, `npm run typecheck`; frontend `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, `npm run e2e` (Today specs); after the archive move, `git grep -n "features/missed-sessions"` returns nothing outside the archive. Push the branch and confirm CI is green.
+
+### DELIVERABLE
+The acceptance table, the copy fixes, the honest preset prose, the regression results, the status updates and the archived feature folder, with a closing report at `docs/archive/missed-sessions/milestones/m5-close.md`. Do not commit or push to `main`.
+
+### DONE
+Every AC has evidence or a recorded reason (moved or retired); no missed-sessions string breaks the copy rules or promises behavior the app lacks; R-1 to R-11 recorded; the feature's docs are archived with every link updated; CI green.
+
+### STOP IF
+An AC fails in the app as built; a copy fix would need a product decision (list it); or the archive move would break something other than links. Report instead of working around it.

@@ -146,6 +146,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-18 | What Today shows as "your goal" | Product | Decided (A) | 5 |
 | ND-19 | Keep the Dashboard as an overview beside Today | Product | Decided (A) | — |
 | ND-20 | Legacy billing columns on `users` (schema drift) | Technology | Decided (A) | — |
+| ND-21 | Retire plan v1 goals | Architecture | Decided (A) | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1719,6 +1720,34 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-21 — Retire plan v1 goals
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Architecture |
+| Needed by | — |
+| Raised | 2026-10-08 — missed-sessions release: a pathway goal silently became v1 when the AI keys were missing |
+| Decided | 2026-10-08 — Mo |
+
+**Context.** Plan v2 (roadmap plus one week at a time, `planVersion: 2`) is the only plan that gets the missed-sessions features, weekly targets and the late test. Plan v1 survived as the old path for goals created before plan v2 and, until commit `2ca4132`, as a silent fallback when the AI failed. Keeping both doubles every rule (AC-14 "old goals unchanged") and hid a production fault. There are no real users yet.
+
+**Question.** Keep plan v1 goals working, or remove them?
+
+**Options.**
+- **A — Remove them.** Delete every `planVersion = 1` goal (its weeks, tasks and reviews cascade) and remove the v1 code paths. Pros: one plan model, simpler code and tests, no silent second-class plans. Cons: irreversible for whoever has one; acceptable because there are no real users.
+- **B — Keep them.** Cons: two code paths forever for no users.
+
+**Decision.** **A — retire plan v1.** No new v1 goal can be created (since `2ca4132`); existing v1 goals are deleted in the database by the owner (SQL in the missed-sessions closing notes), and the v1 code paths are removed in a separate change.
+
+**Consequences.**
+* Missed sessions AC-14 ("old goals behave exactly as before") no longer applies once the data is gone; P5 records it as retired by ND-21, not as untested.
+* Code that only serves v1 (the v1 plan generator, v1 review adaptation, v1 fallbacks in the frontend) is removed; `planVersion` stays as a column until a later cleanup.
+
+**Related.** Missed sessions ND-2, AC-14; plan-v2.md.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 * **OD-3** — Superseded by **ND-19** on 2026-10-07.
@@ -1761,6 +1790,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-09-27 | Phase 8 complete: ND-8 implemented and verified across M8.2–M8.5. Dedicated `/progress` route, shell navigation, completion metrics, phase milestones, benchmark results card, and adaptation history delivered with zero backend edits. Playwright suite `e2e/progress.spec.ts` passes 20/20 tests. Phase 8 marked COMPLETE (awaiting Mo's review). Phase 9 (Achievement) is next and blocked by OD-1b and OD-2. |
 | 2026-09-27 | Phase 9 M9.1: OD-1b Decided as Option B (explicit completion endpoint `POST /api/goal/complete` with closing-stretch arrival); named backend allowance approved for M9.2 (`completedAt DateTime?`, migration `add_goal_completed_status_and_timestamp`, and `GET /api/goal/active` update); canonical frontend contracts defined in `frontend/src/types/achievement.ts`. Phase 9 is IN PROGRESS. |
 | 2026-10-07 | ND-19 Decided (A): the Dashboard stays at `/dashboard` as an overview; OD-3 marked Superseded. ND-20 Decided (A): the six legacy billing columns on `users` are declared in `schema.prisma` as deprecated, with no migration. Both delegated by Mo to the agent's recommendation. |
+| 2026-10-08 | ND-21 Decided (A) by Mo: plan v1 goals are retired; the silent v1 fallback was already removed (`2ca4132`). |
 
 ### PAY-1 — Achivii Pro pricing
 
