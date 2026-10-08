@@ -106,4 +106,18 @@ Backend is ESM with `NodeNext` resolution, so relative imports need the `.js` ex
 
 ## Docs
 
-`docs/README.md` explains the layout and rules. When docs disagree, trust in this order: `docs/product/redesign-blueprint.md` (product), `docs/product/visual-design-system.md` (visual), `docs/decisions.md`, the feature's `04-phases.md`, then code (authoritative for what is actually built). Each feature has one folder under `docs/features/<name>/` with fixed numbered files (`01-problem.md` ... `05-prompts.md`); finished features move to `docs/archive/`. Decisions are appended to `docs/decisions.md`; only the "Decision" line of an entry is binding.
+`docs/README.md` explains the layout and rules. When docs disagree, trust in this order: `docs/product/redesign-blueprint.md` (product), `docs/product/visual-design-system.md` (visual), `docs/decisions.md` and the feature's `decisions.md`, the feature's `02-feature.md`, its `03-phases.md`, then code (authoritative for what is actually built).
+
+Each feature has one folder under `docs/features/<name>/`: `01-brief.md` (problem and chosen direction, optional), `02-feature.md` (rules and acceptance criteria), `03-phases.md` (the plan and the only status table), `decisions.md` (the feature's decisions, with its own ID prefix such as `MS-1`) and `milestones/` (one file per milestone holding its prompt, report and review). Templates are in `docs/templates/`. Features started before 2026-10-08 keep the old layout (`01-problem.md` ... `05-prompts.md`) until they finish. Finished features move to `docs/archive/`. Decisions that affect the whole product go in `docs/decisions.md`; only the "Decision" line of an entry is binding.
+
+### Working on a milestone
+
+When you are given a milestone to implement:
+
+1. Your instructions are the **Prompt** section of the milestone file. Also read what it lists under "Read first". Do only that milestone.
+2. Run `git status` first and note anything already changed. Work on the branch you were given; never commit or push to `main`.
+3. Check the code before trusting the prompt or the docs. If they disagree in a way that changes the work, stop and report it.
+4. Stop and report, instead of working around it, when: a decision the work needs is not made; a schema migration or new dependency is needed that the prompt does not allow; unrelated refactoring is needed; or the scope would have to grow.
+5. Run the checks the prompt lists, using the repo's own scripts (see Commands). Compare with the baseline it gives.
+6. Write your results in the **Report** section of the same milestone file; screenshots go in `milestones/<id>-evidence/`. Give evidence for every requirement, and never claim a check you did not run.
+7. Do not edit `03-phases.md`, `02-feature.md` or any `decisions.md`; the reviewing chat updates them. Put anything they should change under "Differences from the docs" in your report.

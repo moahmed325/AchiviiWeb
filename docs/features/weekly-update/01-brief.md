@@ -1,6 +1,6 @@
-# Achivii Weekly Update — PROBLEM (handover stub)
+# Achivii Weekly Update — Brief
 
-**Status:** NOT STARTED. This file only records the work handed over from missed sessions. Write the full problem definition with `docs/templates/01-problem.md` before planning.
+**Status:** STUB. This file only records the work handed over from missed sessions (section "Moved here from missed sessions"). Fill in the rest of the brief with `docs/templates/01-brief.md` before planning.
 **Date:** 2026-10-08
 **Builds on:** `docs/architecture/plan-v2.md` (Weekly update, prompt 4)
 
