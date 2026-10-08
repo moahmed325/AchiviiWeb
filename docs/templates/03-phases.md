@@ -22,7 +22,7 @@ This file has two parts. Part A is for the chat that writes and updates the plan
 2. **A milestone is one piece of work one chat can finish and prove**, usually in one branch. If it needs two very different kinds of work (a migration and a new screen), split it.
 3. **The first milestone checks the code** when the feature touches code nobody has looked at closely yet. Its report lists what exists, what is wrong in the plan, and the questions for Mo. The answers become decisions, and the plan is fixed in place.
 4. **Order by what each step needs.** Logic before the screen that shows it. Anything that changes users' data in production ships switched off until the screen that explains it is live.
-5. **The last milestone proves the whole feature:** every acceptance criterion checked, every "must not break" item checked.
+5. **The last milestone proves the whole feature:** every acceptance criterion checked, every "must not break" item checked, and every problem from the feature's reports sorted (into a milestone that is done, or into `docs/backlog.md`). A feature never closes with problems left only in a report.
 6. **Only plan the near phases in detail.** Later phases can be a line each until the earlier ones finish. Reports change the plan, so detail written too early gets rewritten.
 
 ### How to keep it up to date
