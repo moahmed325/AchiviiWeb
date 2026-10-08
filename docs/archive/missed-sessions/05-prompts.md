@@ -1,7 +1,7 @@
 # Achivii Missed Sessions — IMPLEMENTATION PROMPTS
 **Version:** 2.3 | **Date:** 2026-10-08 (M3.4 and P5 prompts drafted)
-**Roadmap:** docs/features/missed-sessions/04-phases.md
-**Feature:** docs/features/missed-sessions/03-feature.md
+**Roadmap:** docs/archive/missed-sessions/04-phases.md
+**Feature:** docs/archive/missed-sessions/03-feature.md
 **Plan spec:** docs/architecture/plan-v2.md
 **Template:** docs/templates/05-prompts.md
 
@@ -13,8 +13,8 @@ You are an implementation agent working on Achivii. You are responsible only for
 
 ## Source-of-truth order
 1. Current repository: what exists now.
-2. docs/features/missed-sessions/03-feature.md: approved behavior and rules (RULE-n, AC-n).
-3. docs/features/missed-sessions/04-phases.md: milestone scope, regressions (R-n), findings (F-n).
+2. docs/archive/missed-sessions/03-feature.md: approved behavior and rules (RULE-n, AC-n).
+3. docs/archive/missed-sessions/04-phases.md: milestone scope, regressions (R-n), findings (F-n).
 4. docs/architecture/plan-v2.md and docs/decisions.md: persistent rules.
 
 If sources conflict, stop, name the discrepancy, and ask when it materially affects scope. Never silently invent requirements.
@@ -48,14 +48,14 @@ Milestone and status; objective; what was done and not done; files changed; evid
 ## M1.1 — Repository Verification (COMPLETE)
 
 ### STATUS
-COMPLETE (2026-10-03). Report: `docs/features/missed-sessions/milestones/m1.1-repository-verification.md`. Decisions ND-1 through ND-7 accepted and applied to the feature definition and phase definition.
+COMPLETE (2026-10-03). Report: `docs/archive/missed-sessions/milestones/m1.1-repository-verification.md`. Decisions ND-1 through ND-7 accepted and applied to the feature definition and phase definition.
 
 ---
 
 ## M1.1b — User-Timezone "Today" (COMPLETE, first draft kept for history)
 
 ### STATUS
-COMPLETE (2026-10-07). Report: `docs/features/missed-sessions/milestones/m1.1b-user-timezone-today.md`. This first draft was superseded by the second M1.1b prompt at the end of this file, which is the one that was implemented.
+COMPLETE (2026-10-07). Report: `docs/archive/missed-sessions/milestones/m1.1b-user-timezone-today.md`. This first draft was superseded by the second M1.1b prompt at the end of this file, which is the one that was implemented.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P1/M1.1b. This is the first code milestone.
@@ -69,9 +69,9 @@ The backend already has `backend/src/lib/timezone.ts` with tested helpers (`getZ
 Make `User.timezone` the single authoritative clock for "today" across the frontend and backend, so that M1.2 (day-close and classification) can rely on a correct day boundary.
 
 ### READ FIRST
-- docs/features/missed-sessions/03-feature.md (OD-1, ND-1, edge case on timezone/travel)
-- docs/features/missed-sessions/04-phases.md (M1.1b description, ND-1, section 1.5)
-- docs/features/missed-sessions/milestones/m1.1-repository-verification.md (section 4, day-boundary detail)
+- docs/archive/missed-sessions/03-feature.md (OD-1, ND-1, edge case on timezone/travel)
+- docs/archive/missed-sessions/04-phases.md (M1.1b description, ND-1, section 1.5)
+- docs/archive/missed-sessions/milestones/m1.1-repository-verification.md (section 4, day-boundary detail)
 
 ### INSPECT BEFORE EDITING
 Verify current state in the actual code, not from this prompt:
@@ -171,7 +171,7 @@ Run only commands from `package.json`:
 4. Updated `backend/src/routes/goal.ts` date-writing sites.
 5. Updated `backend/src/lib/ai/weekPlan.ts` `weekLayout`.
 6. Any backend test updates needed.
-7. Report: `docs/features/missed-sessions/milestones/m1.1b-user-timezone-today.md`.
+7. Report: `docs/archive/missed-sessions/milestones/m1.1b-user-timezone-today.md`.
 
 ### DONE
 M1.1b is complete when:
@@ -191,7 +191,7 @@ M1.1b is complete when:
 ## M1.2 — Day-Close and Classification (pure functions only)
 
 ### STATUS
-COMPLETE (2026-10-07). Report: `docs/features/missed-sessions/milestones/m1.2-day-close-classification.md`.
+COMPLETE (2026-10-07). Report: `docs/archive/missed-sessions/milestones/m1.2-day-close-classification.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P1/M1.2. Implement only this milestone. Follow the operating contract in section 0.
@@ -210,9 +210,9 @@ Repository facts (verify, do not trust this prompt):
 Pure, fully tested backend functions that compute each day's close instant, classify every task of a goal as done / missed / rest / planned at a given instant, and detect a gap. These satisfy AC-1, AC-5 and AC-14 at the logic level.
 
 ### READ FIRST
-- docs/features/missed-sessions/03-feature.md: section 6 (Missed / Done session, Gap), section 7 (lifecycle), section 10 (edge cases), RULE-5, RULE-8, OD-1, AC-1, AC-5, AC-10, AC-14.
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-1, ND-2), P1 (6.2-6.10), M1.2.
-- docs/features/missed-sessions/milestones/m1.1-repository-verification.md (R1, R2, R4, R9, R10) and m1.1b-user-timezone-today.md (section 4).
+- docs/archive/missed-sessions/03-feature.md: section 6 (Missed / Done session, Gap), section 7 (lifecycle), section 10 (edge cases), RULE-5, RULE-8, OD-1, AC-1, AC-5, AC-10, AC-14.
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-1, ND-2), P1 (6.2-6.10), M1.2.
+- docs/archive/missed-sessions/milestones/m1.1-repository-verification.md (R1, R2, R4, R9, R10) and m1.1b-user-timezone-today.md (section 4).
 
 ### INSPECT FIRST
 - `backend/src/lib/timezone.ts` and `backend/test/timezone.test.ts`.
@@ -266,7 +266,7 @@ R-7 (old goals: nothing in this milestone runs for them; no shared code path cha
 Use only repository-defined commands. Run the new and changed test files first (`cd backend && npx vitest run test/missedSessions.test.ts test/timezone.test.ts`, also under two `TZ` values), then `cd backend && npm test` and `cd backend && npx tsc --noEmit`.
 
 ### DELIVERABLE
-New module (for example `backend/src/lib/missedSessions.ts`), the R1 helper in `timezone.ts`, the `RoutineShape` type addition, tests for R8, and a report at `docs/features/missed-sessions/milestones/m1.2-day-close-classification.md`: files changed, evidence for R1-R8, the R5 partial-day limit, commands and results against the baseline, carry-overs for M1.3. Do not commit or push.
+New module (for example `backend/src/lib/missedSessions.ts`), the R1 helper in `timezone.ts`, the `RoutineShape` type addition, tests for R8, and a report at `docs/archive/missed-sessions/milestones/m1.2-day-close-classification.md`: files changed, evidence for R1-R8, the R5 partial-day limit, commands and results against the baseline, carry-overs for M1.3. Do not commit or push.
 
 ### DONE
 The day-close instant is correct for every R2 case, including DST; every task classifies as exactly one of done / missed / rest / planned; rest days are never missed; gaps of 3+ are detected across rest days and week boundaries; output does not depend on the server timezone; nothing is written; the backend suite and type check pass at the baseline.
@@ -279,7 +279,7 @@ The repository shows per-step completion data after all (then R5 needs a decisio
 ## M1.3 — Reconcile Endpoint
 
 ### STATUS
-COMPLETE (2026-10-07). Report: `docs/features/missed-sessions/milestones/m1.3-reconcile-endpoint.md`.
+COMPLETE (2026-10-07). Report: `docs/archive/missed-sessions/milestones/m1.3-reconcile-endpoint.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P1/M1.3. Implement only this milestone. Follow the operating contract in section 0.
@@ -298,9 +298,9 @@ Repository facts (verify, do not trust this prompt):
 A working, idempotent `POST /api/goal/reconcile` that returns the derived classification and open gap for the user's active plan v2 goal and writes nothing, plus a single call to it when the app loads. AC-1, AC-5 and AC-14 become true at the API level (EV-2).
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-6, ND-8), section 3.4 (idempotency), 3.8 (preservation), P1 (6.2-6.10), M1.3.
-- docs/features/missed-sessions/03-feature.md: AC-1, AC-5, AC-14, section 5 (misses are detected when the app is opened).
-- docs/features/missed-sessions/milestones/m1.2-day-close-classification.md (section 7, carry-overs).
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-6, ND-8), section 3.4 (idempotency), 3.8 (preservation), P1 (6.2-6.10), M1.3.
+- docs/archive/missed-sessions/03-feature.md: AC-1, AC-5, AC-14, section 5 (misses are detected when the app is opened).
+- docs/archive/missed-sessions/milestones/m1.2-day-close-classification.md (section 7, carry-overs).
 
 ### INSPECT FIRST
 - `backend/src/routes/goal.ts`: `GET /active`, `POST /complete`, `POST /weeks/:weekNumber/review` (auth, error and response style).
@@ -352,7 +352,7 @@ R-1 (auth and active-goal loading: a failing reconcile never breaks goal loading
 Repository commands only. Backend: the new test file first, then `npx vitest run --exclude test/researchCache.test.ts` (or `npm test` against a confirmed development database) and `npx tsc --noEmit`. Frontend: the changed test files first, then `npm test`, `npx tsc --noEmit`, `npm run lint`.
 
 ### DELIVERABLE
-The route, the pure response builder, the frontend `reconcileGoal` and its single call in `loadGoal`, tests for R8 and R9, and a report at `docs/features/missed-sessions/milestones/m1.3-reconcile-endpoint.md`: files changed, evidence for R1-R9, the two EV-2 response bodies, commands and results against the baseline, and carry-overs for P2 (where the writes go, and how idempotency must hold once they do). Do not commit or push.
+The route, the pure response builder, the frontend `reconcileGoal` and its single call in `loadGoal`, tests for R8 and R9, and a report at `docs/archive/missed-sessions/milestones/m1.3-reconcile-endpoint.md`: files changed, evidence for R1-R9, the two EV-2 response bodies, commands and results against the baseline, and carry-overs for P2 (where the writes go, and how idempotency must hold once they do). Do not commit or push.
 
 ### DONE
 `POST /api/goal/reconcile` returns the classification and gap for an active plan v2 goal, `applies: false` for everything else, writes nothing, and returns the same body when repeated; the app calls it once per load before fetching the goal, and a reconcile failure never affects loading; all validation is at the baseline or better.
@@ -363,21 +363,21 @@ The active goal cannot be found the same way `GET /active` finds it; `User.timez
 ## M1.1b — User-Timezone "Today" (COMPLETE, implemented version)
 
 ### STATUS
-COMPLETE (2026-10-07). Report: `docs/features/missed-sessions/milestones/m1.1b-user-timezone-today.md`.
+COMPLETE (2026-10-07). Report: `docs/archive/missed-sessions/milestones/m1.1b-user-timezone-today.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P1/M1.1b. Implement only this milestone. Follow the operating contract in section 0.
 
 ### CONTEXT
-M1.1 (docs/features/missed-sessions/milestones/m1.1-repository-verification.md) found that the app has no user-timezone day boundary. `DailyTask.date` is written as a UTC date string (`weekPlan.ts:52`, `date.toISOString().split('T')[0]`), the weekday comes from server-local `getDay()`, and the frontend decides "today" from the UTC date (`frontend/src/lib/today.ts`, `todayKey`). `backend/src/lib/timezone.ts` is tested but has no production importer. `User.timezone` is stored (default `UTC`) and sent by the frontend at sign-in (`AuthContext.tsx:92-97`) but ignored. Decision ND-1 (approved) makes `User.timezone` the single clock for "today", with `DailyTask.date` treated as the user's local calendar date.
+M1.1 (docs/archive/missed-sessions/milestones/m1.1-repository-verification.md) found that the app has no user-timezone day boundary. `DailyTask.date` is written as a UTC date string (`weekPlan.ts:52`, `date.toISOString().split('T')[0]`), the weekday comes from server-local `getDay()`, and the frontend decides "today" from the UTC date (`frontend/src/lib/today.ts`, `todayKey`). `backend/src/lib/timezone.ts` is tested but has no production importer. `User.timezone` is stored (default `UTC`) and sent by the frontend at sign-in (`AuthContext.tsx:92-97`) but ignored. Decision ND-1 (approved) makes `User.timezone` the single clock for "today", with `DailyTask.date` treated as the user's local calendar date.
 
 ### OBJECTIVE
 Make "today" mean the user's local calendar date everywhere it is computed, for the frontend and for the dates written to new goals, without changing existing stored rows.
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md (section 1.5, P1, M1.1b)
-- docs/features/missed-sessions/03-feature.md (OD-1, section 10 time-zone edge case)
-- docs/features/missed-sessions/milestones/m1.1-repository-verification.md (R1, R9, section 4)
+- docs/archive/missed-sessions/04-phases.md (section 1.5, P1, M1.1b)
+- docs/archive/missed-sessions/03-feature.md (OD-1, section 10 time-zone edge case)
+- docs/archive/missed-sessions/milestones/m1.1-repository-verification.md (R1, R9, section 4)
 
 ### INSPECT FIRST
 - `frontend/src/lib/today.ts` and every caller of `todayKey`, `isToday`, `findYesterdayTask`, `isYesterdayPending`, `isWeekReviewDue`.
@@ -421,7 +421,7 @@ The user's timezone cannot be reliably obtained on the frontend; making new-goal
 ## M2.0 — `usedMinimumVersion` Migration (ND-3)
 
 ### STATUS
-COMPLETE (2026-10-07, commit `1d219aa`). Report: `docs/features/missed-sessions/milestones/m2.0-used-minimum-version.md`. This is the only schema migration in the feature.
+COMPLETE (2026-10-07, commit `1d219aa`). Report: `docs/archive/missed-sessions/milestones/m2.0-used-minimum-version.md`. This is the only schema migration in the feature.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.0. Implement only this milestone. Follow the operating contract in section 0, including its stop condition on schema changes: this milestone **is** the one recorded schema decision (ND-3), and no other schema change is allowed.
@@ -441,9 +441,9 @@ Repository facts (verify, do not trust this prompt):
 Add `DailyTask.usedMinimumVersion` and set it correctly whenever a task's completion changes, so M2.3 can apply OD-2 from stored data.
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-3, and the validation baseline from P2 on), section 3 (rules), P2 (7.1-7.10), M2.0.
-- docs/features/missed-sessions/03-feature.md: OD-2, RULE-4, AC-7.
-- docs/features/missed-sessions/milestones/m1.1-repository-verification.md (R2, R10).
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-3, and the validation baseline from P2 on), section 3 (rules), P2 (7.1-7.10), M2.0.
+- docs/archive/missed-sessions/03-feature.md: OD-2, RULE-4, AC-7.
+- docs/archive/missed-sessions/milestones/m1.1-repository-verification.md (R2, R10).
 
 ### INSPECT FIRST
 - `backend/prisma/schema.prisma` (`DailyTask`) and two or three existing migrations.
@@ -482,7 +482,7 @@ R-2 (task completion still works and persists), R-4 (focus session and the 10-mi
 Repository commands only: `npx prisma generate`; the new and changed test files first; then backend `npx vitest run` and `npx tsc --noEmit`, frontend `npx vitest run`, `npx tsc --noEmit`, `npm run lint`, `npm run build`.
 
 ### DELIVERABLE
-The schema change, one migration folder, the PATCH rule, the frontend wiring, tests for R6, and a report at `docs/features/missed-sessions/milestones/m2.0-used-minimum-version.md`: files changed, the migration SQL, evidence for R1-R6, commands and results against the baseline, and a clear note that the migration is **not applied** and will be applied by `prisma migrate deploy` on the next Render deploy of `main`. Do not commit or push.
+The schema change, one migration folder, the PATCH rule, the frontend wiring, tests for R6, and a report at `docs/archive/missed-sessions/milestones/m2.0-used-minimum-version.md`: files changed, the migration SQL, evidence for R1-R6, commands and results against the baseline, and a clear note that the migration is **not applied** and will be applied by `prisma migrate deploy` on the next Render deploy of `main`. Do not commit or push.
 
 ### DONE
 The column exists in the schema and in exactly one new migration; a minimum-version completion from Focus mode stores `true`, every other completion stores `false`, un-completing clears it, other updates leave it alone; nothing visible changed; no database was touched; validation is at the baseline or better.
@@ -495,7 +495,7 @@ Another path completes the minimum version; the migration would need anything be
 ## M2.1 — High-Load Step Flag (ND-5)
 
 ### STATUS
-COMPLETE (2026-10-07, commit `d1f7cb6`). Report: `docs/features/missed-sessions/milestones/m2.1-high-load-flag.md`.
+COMPLETE (2026-10-07, commit `d1f7cb6`). Report: `docs/archive/missed-sessions/milestones/m2.1-high-load-flag.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.1. Implement only this milestone. Follow the operating contract in section 0.
@@ -514,9 +514,9 @@ Repository facts (verify, do not trust this prompt):
 Every plan v2 step written from now on carries an honest `highLoad` boolean, and one pure function answers "is this step high-load?" for any goal, including goals written before this milestone, so M2.2 can drop instead of carry.
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-5), section 3 (rules; 3.3 rules live in code, 3.8 preservation), P2 (7.1-7.10), M2.1.
-- docs/features/missed-sessions/03-feature.md: RULE-10, AC-13, OD-5, section 10 (edge case on high-load steps).
-- docs/features/missed-sessions/milestones/m1.1-repository-verification.md (R3, R11).
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-5), section 3 (rules; 3.3 rules live in code, 3.8 preservation), P2 (7.1-7.10), M2.1.
+- docs/archive/missed-sessions/03-feature.md: RULE-10, AC-13, OD-5, section 10 (edge case on high-load steps).
+- docs/archive/missed-sessions/milestones/m1.1-repository-verification.md (R3, R11).
 
 ### INSPECT FIRST
 - `backend/src/lib/ai/weekPlan.ts`: `WEEK_RESPONSE_SCHEMA`, `buildWeekPrompt`, `RawStep`, `toStep`, `rankSteps`, `keepTopSteps`, `testStepFor`, `checkWeekAnswer` (including how `minimumVersion` is built), `WeekCallInput`.
@@ -554,7 +554,7 @@ R-6 (week plan generation: existing `weekPlan.ts` rules and tests still pass), R
 Repository commands only: the new and changed test files first, then backend `npx vitest run` and `npx tsc --noEmit`. Run the frontend checks once to confirm nothing changed there.
 
 ### DELIVERABLE
-The type, schema, prompt line, normalization, goal-level stamping, the shared helpers, tests for R7, and a report at `docs/features/missed-sessions/milestones/m2.1-high-load-flag.md`: files changed, the exact prompt line added, evidence for R1-R7, commands and results against the baseline, and carry-overs for M2.2 (call `isHighLoadStep`, never read `step.highLoad` directly). Do not commit or push.
+The type, schema, prompt line, normalization, goal-level stamping, the shared helpers, tests for R7, and a report at `docs/archive/missed-sessions/milestones/m2.1-high-load-flag.md`: files changed, the exact prompt line added, evidence for R1-R7, commands and results against the baseline, and carry-overs for M2.2 (call `isHighLoadStep`, never read `step.highLoad` directly). Do not commit or push.
 
 ### DONE
 New plan v2 steps carry `highLoad` (true for every step of `run10k`/`recomp` goals, the model's honest answer otherwise); `isHighLoadStep` gives the right answer for old and new goals; nothing moves; no schema, route, UI or prose change; validation is at the baseline or better.
@@ -567,7 +567,7 @@ Steps reach the database through a path other than `generateWeekPlan` for plan v
 ## M2.2 — Carry-Forward
 
 ### STATUS
-COMPLETE (2026-10-07, commit `d666deb`; merged with `render.yaml` changed to `sync: false`). Report: `docs/features/missed-sessions/milestones/m2.2-carry-forward.md`. Ships **switched off** (ND-15).
+COMPLETE (2026-10-07, commit `d666deb`; merged with `render.yaml` changed to `sync: false`). Report: `docs/archive/missed-sessions/milestones/m2.2-carry-forward.md`. Ships **switched off** (ND-15).
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.2. Implement only this milestone. Follow the operating contract in section 0.
@@ -597,9 +597,9 @@ Repository facts (verify, do not trust this prompt):
 A pure carry planner and a guarded writer behind the switch, so that turning the switch on makes reconcile move exactly the steps the rules allow, once, without ever lengthening a day.
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-8 to ND-17), section 2.4 (release order), section 3 (rules, especially 3.4, 3.5, 3.11), P2 (7.1-7.10), M2.2.
-- docs/features/missed-sessions/03-feature.md: sections 6, 7, 10, 11 (with clarifications), AC-3, AC-4, AC-6, AC-13.
-- docs/features/missed-sessions/milestones/m1.2-day-close-classification.md, m1.3-reconcile-endpoint.md (section 7), m2.1-high-load-flag.md.
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-8 to ND-17), section 2.4 (release order), section 3 (rules, especially 3.4, 3.5, 3.11), P2 (7.1-7.10), M2.2.
+- docs/archive/missed-sessions/03-feature.md: sections 6, 7, 10, 11 (with clarifications), AC-3, AC-4, AC-6, AC-13.
+- docs/archive/missed-sessions/milestones/m1.2-day-close-classification.md, m1.3-reconcile-endpoint.md (section 7), m2.1-high-load-flag.md.
 
 ### INSPECT FIRST
 - `backend/src/lib/missedSessions.ts` (`classifyDays`, `findOpenGap`, `buildReconcileResult`, `ReconcileResult`), `backend/src/lib/highLoad.ts`, `backend/src/lib/timezone.ts`.
@@ -638,7 +638,7 @@ R-1 (goal loading: reconcile errors still never block it), R-2 (task completion 
 Repository commands only: the new and changed test files first, then backend `npx vitest run` and `npx tsc --noEmit`, then the frontend checks once.
 
 ### DELIVERABLE
-The planner, the writer behind the switch, the response field, the `render.yaml` entry, tests for R6, and a report at `docs/features/missed-sessions/milestones/m2.2-carry-forward.md`: files changed, evidence for R1-R6, EV-3 (the test list per case) and EV-4 (one week fixture before and after a miss, with the switch on and off), commands and results against the baseline, and carry-overs for M2.3 and M2.4. Do not commit or push to `main`.
+The planner, the writer behind the switch, the response field, the `render.yaml` entry, tests for R6, and a report at `docs/archive/missed-sessions/milestones/m2.2-carry-forward.md`: files changed, evidence for R1-R6, EV-3 (the test list per case) and EV-4 (one week fixture before and after a miss, with the switch on and off), commands and results against the baseline, and carry-overs for M2.3 and M2.4. Do not commit or push to `main`.
 
 ### DONE
 With the switch off, production behaves exactly as now apart from the extra `carry` field. With it on, each allowed carry is written once, guarded against concurrent requests, never lengthens a day, never lands on a test day, never moves a high-load step, never comes from an open gap, and never redirects a dropped step later; all validation is at the baseline or better.
@@ -651,7 +651,7 @@ A rule above conflicts with the Feature Definition or 04-phases.md as written; t
 ## M2.3 — Counting Rules and Signals
 
 ### STATUS
-COMPLETE (2026-10-07, commit `8966b75`). Report: `docs/features/missed-sessions/milestones/m2.3-counting-and-signals.md`.
+COMPLETE (2026-10-07, commit `8966b75`). Report: `docs/archive/missed-sessions/milestones/m2.3-counting-and-signals.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.3. Implement only this milestone. Follow the operating contract in section 0.
@@ -669,9 +669,9 @@ Repository facts (verify, do not trust this prompt):
 Make OD-2 true where key sessions are counted, expose the per-week counts M4.2 will need, and return a small, honest `signals` object from reconcile that P3 can render without any further logic.
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-3, ND-9, ND-11, ND-15, ND-16, ND-17), P2 (7.3, M2.3), P3 (8.3, 8.7) to see what the UI will need.
-- docs/features/missed-sessions/03-feature.md: sections 6, 8 (UX-1, UX-2, UX-4), 9, 11 (RULE-4, RULE-6, RULE-8, RULE-9), 12, OD-2, AC-7, AC-10.
-- docs/features/missed-sessions/milestones/m2.2-carry-forward.md (carry-overs for M2.3).
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-3, ND-9, ND-11, ND-15, ND-16, ND-17), P2 (7.3, M2.3), P3 (8.3, 8.7) to see what the UI will need.
+- docs/archive/missed-sessions/03-feature.md: sections 6, 8 (UX-1, UX-2, UX-4), 9, 11 (RULE-4, RULE-6, RULE-8, RULE-9), 12, OD-2, AC-7, AC-10.
+- docs/archive/missed-sessions/milestones/m2.2-carry-forward.md (carry-overs for M2.3).
 
 ### INSPECT FIRST
 - `backend/src/lib/carryForward.ts` (`CarryPlan`, `PlannedCarry`, `CarryDrop`, `HeldCarry`, `CarriedEarlier`), `backend/src/lib/missedSessions.ts`, `backend/src/routes/goal.ts` `POST /reconcile`.
@@ -712,7 +712,7 @@ R-5 (weekly review still opens and saves), R-6 (week plan generation and its tes
 Repository commands only: the new and changed test files first, then backend `npx vitest run` and `npx tsc --noEmit`, then the frontend checks once.
 
 ### DELIVERABLE
-The OD-2 change, the week-counts function, the `signals` field, tests for R6, and a report at `docs/features/missed-sessions/milestones/m2.3-counting-and-signals.md`: files changed, evidence for R1-R6, one example `signals` object for each notice type, commands and results against the baseline, and carry-overs for P3 (the exact fields to render) and M4.2 (the week counts). Do not commit or push to `main`.
+The OD-2 change, the week-counts function, the `signals` field, tests for R6, and a report at `docs/archive/missed-sessions/milestones/m2.3-counting-and-signals.md`: files changed, evidence for R1-R6, one example `signals` object for each notice type, commands and results against the baseline, and carry-overs for P3 (the exact fields to render) and M4.2 (the week counts). Do not commit or push to `main`.
 
 ### DONE
 A key session done only as the 10-minute version is reported to the week call as skipped; week counts are available and tested; reconcile returns signals that never claim a move that did not happen, pick at most one notice, and change nothing for old goals; validation is at the baseline or better.
@@ -725,7 +725,7 @@ Another code path decides "key done" (list it); a signal cannot be derived witho
 ## M2.4 — Mark Missed and Swap Actions
 
 ### STATUS
-COMPLETE (2026-10-07, commit `1a98c63`). Report: `docs/features/missed-sessions/milestones/m2.4-mark-missed-and-swap.md`. Completes P2.
+COMPLETE (2026-10-07, commit `1a98c63`). Report: `docs/archive/missed-sessions/milestones/m2.4-mark-missed-and-swap.md`. Completes P2.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P2/M2.4. Implement only this milestone. Follow the operating contract in section 0.
@@ -746,9 +746,9 @@ Repository facts (verify, do not trust this prompt):
 Three guarded, idempotent endpoints that let a user change this week's plan by hand, each returning the same body as reconcile so the client can refresh in one round trip, all off until the switch is on.
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-9 to ND-18), section 3 (3.4, 3.5, 3.8, 3.11), P2 (M2.4), P3 (M3.3, which will call these).
-- docs/features/missed-sessions/03-feature.md: section 3 (core user actions), 7, 10, 11 (RULE-6 and clarifications), AC-2, AC-6.
-- docs/features/missed-sessions/milestones/m2.2-carry-forward.md and m2.3-counting-and-signals.md (carry-overs).
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-2, ND-9 to ND-18), section 3 (3.4, 3.5, 3.8, 3.11), P2 (M2.4), P3 (M3.3, which will call these).
+- docs/archive/missed-sessions/03-feature.md: section 3 (core user actions), 7, 10, 11 (RULE-6 and clarifications), AC-2, AC-6.
+- docs/archive/missed-sessions/milestones/m2.2-carry-forward.md and m2.3-counting-and-signals.md (carry-overs).
 
 ### INSPECT FIRST
 - `backend/src/routes/goal.ts` (`POST /reconcile`, `PATCH /tasks/:taskId` for the auth and ownership pattern), `backend/src/lib/carryForward.ts`, `backend/src/lib/missedSignals.ts`, `backend/src/lib/missedSessions.ts`.
@@ -787,7 +787,7 @@ R-2 (task completion via `PATCH /tasks` untouched), R-6, R-7, and every M2.2 and
 Repository commands only: the new and changed test files first, then backend `npx vitest run` and `npx tsc --noEmit`, then the frontend checks once.
 
 ### DELIVERABLE
-The shared reconcile core, the three endpoints, the planner and signals changes, tests for R7, and a report at `docs/features/missed-sessions/milestones/m2.4-mark-missed-and-swap.md`: files changed, evidence for R1-R7, the request and response for each endpoint, commands and results against the baseline, and carry-overs for P3 (exactly what M3.3 calls and when). Do not commit or push to `main`.
+The shared reconcile core, the three endpoints, the planner and signals changes, tests for R7, and a report at `docs/archive/missed-sessions/milestones/m2.4-mark-missed-and-swap.md`: files changed, evidence for R1-R7, the request and response for each endpoint, commands and results against the baseline, and carry-overs for P3 (exactly what M3.3 calls and when). Do not commit or push to `main`.
 
 ### DONE
 Mark missed, swap and carry-now each apply the M2.2 rules, write once under concurrent or repeated requests, never carry a swapped day back, show a manual carry at once, change nothing for old goals, and write nothing while the switch is off; `POST /reconcile` is unchanged; validation is at the baseline or better; P2's exit criteria (04-phases.md 7.9) are met.
@@ -802,7 +802,7 @@ A rule above conflicts with the Feature Definition or 04-phases.md; an action ne
 ## M3.1 — Miss Notice
 
 ### STATUS
-COMPLETE (2026-10-07, commit `084682c`). Report: `docs/features/missed-sessions/milestones/m3.1-miss-notice.md`, including the release checklist for the ND-15 switch.
+COMPLETE (2026-10-07, commit `084682c`). Report: `docs/archive/missed-sessions/milestones/m3.1-miss-notice.md`, including the release checklist for the ND-15 switch.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P3/M3.1. Implement only this milestone. Follow the operating contract in section 0.
@@ -816,9 +816,9 @@ Scope of the notice in M3.1: only `carried` and `dropped`. `gentle_return` needs
 Today and the Dashboard show one calm, honest line about a missed day, taken from reconcile, and a tab left open overnight catches up on its own.
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-14 to ND-18), 2.4 (release order), section 3 (3.6 tone, 3.7 honesty, 3.9 accessibility, 3.11), P3 (8.1-8.10, M3.1, M3.3 notes).
-- docs/features/missed-sessions/03-feature.md: sections 8 (UX-1), 9, 12 (tone and copy), AC-1, AC-5, AC-12.
-- docs/features/missed-sessions/milestones/m2.3-counting-and-signals.md (the `signals` fields and examples) and m2.4-mark-missed-and-swap.md (what P3 calls).
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-14 to ND-18), 2.4 (release order), section 3 (3.6 tone, 3.7 honesty, 3.9 accessibility, 3.11), P3 (8.1-8.10, M3.1, M3.3 notes).
+- docs/archive/missed-sessions/03-feature.md: sections 8 (UX-1), 9, 12 (tone and copy), AC-1, AC-5, AC-12.
+- docs/archive/missed-sessions/milestones/m2.3-counting-and-signals.md (the `signals` fields and examples) and m2.4-mark-missed-and-swap.md (what P3 calls).
 - Design.md sections 5 and 6, and docs/decisions.md ND-19 (the Dashboard reads the same data as Today and never contradicts it).
 
 ### INSPECT FIRST
@@ -863,7 +863,7 @@ R-1 (goal loading), R-3 (every Today state), R-5, R-10 (no punitive copy), R-11 
 Repository commands only: the changed test files first, then frontend `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, and the Playwright specs you touched (`npx playwright test e2e/todayStates.spec.ts`). Push the branch and confirm CI passes.
 
 ### DELIVERABLE
-The types, the stored reconciliation, the new-day catch-up, the Today notice, the Dashboard line, tests for R8, and a report at `docs/features/missed-sessions/milestones/m3.1-miss-notice.md`: files changed, every user-facing string, evidence for R1-R8 (EV-5 tests, EV-6 screenshots at 390 and 360 px), commands and results, and a **release checklist** for turning the switch on: set `MISSED_SESSIONS_CARRY_ENABLED` to `true` in the Render dashboard, confirm in production that a closed, pending practice day's priority-1 step moves once and Today shows the `carried` line, and how to turn it off again. Do not commit or push to `main`.
+The types, the stored reconciliation, the new-day catch-up, the Today notice, the Dashboard line, tests for R8, and a report at `docs/archive/missed-sessions/milestones/m3.1-miss-notice.md`: files changed, every user-facing string, evidence for R1-R8 (EV-5 tests, EV-6 screenshots at 390 and 360 px), commands and results, and a **release checklist** for turning the switch on: set `MISSED_SESSIONS_CARRY_ENABLED` to `true` in the Render dashboard, confirm in production that a closed, pending practice day's priority-1 step moves once and Today shows the `carried` line, and how to turn it off again. Do not commit or push to `main`.
 
 ### DONE
 Today and the Dashboard show at most one honest line about a missed day, from reconcile, with the exact strings above; the old callout is gone; nothing claims a move that did not happen; a tab opened on a new day catches up; all checks and CI pass.
@@ -876,7 +876,7 @@ The backend response does not match `MissedSignals`; a string above cannot be ma
 ## M3.2 — Short-on-Time and Gentle Return
 
 ### STATUS
-COMPLETE (2026-10-07, commit `4e6f87a`). Report: `docs/features/missed-sessions/milestones/m3.2-short-on-time-and-gentle-return.md`.
+COMPLETE (2026-10-07, commit `4e6f87a`). Report: `docs/archive/missed-sessions/milestones/m3.2-short-on-time-and-gentle-return.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P3/M3.2. Implement only this milestone. Follow the operating contract in section 0.
@@ -894,9 +894,9 @@ Repository facts (verify, do not trust this prompt):
 On a gentle-return day the 10-minute version is the default and the full session is one tap away; after two missed days in a week the 10-minute version is offered prominently; both are honest and use the Feature Definition's own copy.
 
 ### READ FIRST
-- docs/features/missed-sessions/03-feature.md: section 8 (UX-2, UX-4), 11 (RULE-4, RULE-8, RULE-9 and the clarifications), 12 (copy), AC-7, AC-10, AC-12.
-- docs/features/missed-sessions/04-phases.md: section 3 (3.6 tone, 3.7 honesty, 3.9 accessibility), P3 (8.3, 8.7 M3.2, 8.10 notice fatigue).
-- docs/features/missed-sessions/milestones/m3.1-miss-notice.md and m2.3-counting-and-signals.md.
+- docs/archive/missed-sessions/03-feature.md: section 8 (UX-2, UX-4), 11 (RULE-4, RULE-8, RULE-9 and the clarifications), 12 (copy), AC-7, AC-10, AC-12.
+- docs/archive/missed-sessions/04-phases.md: section 3 (3.6 tone, 3.7 honesty, 3.9 accessibility), P3 (8.3, 8.7 M3.2, 8.10 notice fatigue).
+- docs/archive/missed-sessions/milestones/m3.1-miss-notice.md and m2.3-counting-and-signals.md.
 - Design.md sections 6 (Today), 11 and 12 (Focus mode).
 
 ### INSPECT FIRST
@@ -938,7 +938,7 @@ R-3 (every Today state), R-4 (Focus mode and the 10-minute version), R-10, R-11.
 Repository commands only: the changed unit test files first, then `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then the new e2e spec on both projects. Push the branch and confirm CI passes.
 
 ### DELIVERABLE
-The `startWith` option, the gentle-return and short-on-time UI, the Dashboard line, tests for R7, and a report at `docs/features/missed-sessions/milestones/m3.2-short-on-time-and-gentle-return.md`: files changed, every user-facing string, evidence for R1-R7 with screenshots at 390 and 360 px, commands and results. Do not commit or push to `main`.
+The `startWith` option, the gentle-return and short-on-time UI, the Dashboard line, tests for R7, and a report at `docs/archive/missed-sessions/milestones/m3.2-short-on-time-and-gentle-return.md`: files changed, every user-facing string, evidence for R1-R7 with screenshots at 390 and 360 px, commands and results. Do not commit or push to `main`.
 
 ### DONE
 A gentle-return day opens on the 10-minute version with the full session one tap away and the Feature Definition's welcome line; after two missed days in a week the 10-minute version is one tap away with its line; every other day is unchanged; all checks and CI pass.
@@ -951,7 +951,7 @@ A gentle-return day opens on the 10-minute version with the full session one tap
 ## M3.3 — Key-Session Swap and Mark-Missed UI
 
 ### STATUS
-COMPLETE (2026-10-07, commit `2dd47fc`). Report: `docs/features/missed-sessions/milestones/m3.3-swap-and-mark-missed-ui.md`.
+COMPLETE (2026-10-07, commit `2dd47fc`). Report: `docs/archive/missed-sessions/milestones/m3.3-swap-and-mark-missed-ui.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P3/M3.3. Implement only this milestone. Follow the operating contract in section 0.
@@ -967,9 +967,9 @@ Reconcile's `signals.swapOffer` (`missedTaskId`, `missedDate`, `receivingTaskId`
 A user can set today aside, answer a key-session swap offer, and swap today with another day this week, each with one calm line, refreshing in one round trip, and none of it visible while the switch is off.
 
 ### READ FIRST
-- docs/features/missed-sessions/03-feature.md: sections 3 (core user actions), 9 (states), 10, 11 (RULE-6 and the clarifications), 12, AC-2, AC-5, AC-6, AC-12.
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-9, ND-14, ND-15, ND-17, ND-18), 2.4, section 3 (3.6, 3.7, 3.9, 3.11), P3 (M3.3 and its wording note).
-- docs/features/missed-sessions/milestones/m2.4-mark-missed-and-swap.md, m3.1-miss-notice.md, m3.2-short-on-time-and-gentle-return.md.
+- docs/archive/missed-sessions/03-feature.md: sections 3 (core user actions), 9 (states), 10, 11 (RULE-6 and the clarifications), 12, AC-2, AC-5, AC-6, AC-12.
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-9, ND-14, ND-15, ND-17, ND-18), 2.4, section 3 (3.6, 3.7, 3.9, 3.11), P3 (M3.3 and its wording note).
+- docs/archive/missed-sessions/milestones/m2.4-mark-missed-and-swap.md, m3.1-miss-notice.md, m3.2-short-on-time-and-gentle-return.md.
 - Design.md sections 4 (Dialog, Button) and 6 (Today).
 
 ### INSPECT FIRST
@@ -1024,7 +1024,7 @@ R-2, R-3, R-4, R-10, R-11. Baseline: backend `npm test` 50 files / 504 tests; fr
 Repository commands only: the changed unit test files first, then `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then `missedSessions.spec.ts` on both projects. Push the branch and confirm CI passes.
 
 ### DELIVERABLE
-The API functions, `applyReconciliation`, the three UIs, the Dashboard lines, tests for R10, and a report at `docs/features/missed-sessions/milestones/m3.3-swap-and-mark-missed-ui.md`: files changed, every user-facing string, evidence for R1-R10 with screenshots at 390 and 360 px, commands and results, and an updated release checklist for turning the switch on (the M3.1 checklist plus checks for the three actions). Do not commit or push to `main`.
+The API functions, `applyReconciliation`, the three UIs, the Dashboard lines, tests for R10, and a report at `docs/archive/missed-sessions/milestones/m3.3-swap-and-mark-missed-ui.md`: files changed, every user-facing string, evidence for R1-R10 with screenshots at 390 and 360 px, commands and results, and an updated release checklist for turning the switch on (the M3.1 checklist plus checks for the three actions). Do not commit or push to `main`.
 
 ### DONE
 With the switch on, a user can set today aside, answer a swap offer either way, and swap today with another day, each refreshing in one round trip with one honest line; with the switch off nothing new shows; all checks and CI pass.
@@ -1039,7 +1039,7 @@ An endpoint's behavior differs from the M2.4 report; a string above would be unt
 ## M4.1 — Late Test
 
 ### STATUS
-COMPLETE (2026-10-07, commit `62f5275`). Report: `docs/features/missed-sessions/milestones/m4.1-late-test.md`.
+COMPLETE (2026-10-07, commit `62f5275`). Report: `docs/archive/missed-sessions/milestones/m4.1-late-test.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P4/M4.1. Implement only this milestone. Follow the operating contract in section 0.
@@ -1058,8 +1058,8 @@ Repository facts (verify, do not trust this prompt):
 After test day closes, a user who has not logged the test sees a calm card to take it and log the result, until they submit the weekly review; the late result is kept by the review and shown pre-filled in it.
 
 ### READ FIRST
-- docs/features/missed-sessions/03-feature.md: RULE-7, UX-3, AC-8, section 12 (tone).
-- docs/features/missed-sessions/04-phases.md: section 1.5 (ND-4), section 3, P4 (M4.1).
+- docs/archive/missed-sessions/03-feature.md: RULE-7, UX-3, AC-8, section 12 (tone).
+- docs/archive/missed-sessions/04-phases.md: section 1.5 (ND-4), section 3, P4 (M4.1).
 - docs/decisions.md OD-1a (weekly test results).
 - Design.md section 6 and the review sections.
 
@@ -1102,7 +1102,7 @@ R-3, R-5 (the weekly review still opens and saves, with and without a result), R
 Repository commands only: the changed test files first, then backend `npm test` and `npm run typecheck`, then frontend `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then `lateTest.spec.ts` on both projects. Push the branch and confirm CI passes.
 
 ### DELIVERABLE
-The endpoint, the review fix, the pre-filled review, the card, tests for R8, and a report at `docs/features/missed-sessions/milestones/m4.1-late-test.md`: files changed, every user-facing string, evidence for R1-R8 (EV-7: the card shown in its window and gone after), commands and results. Do not commit or push to `main`.
+The endpoint, the review fix, the pre-filled review, the card, tests for R8, and a report at `docs/archive/missed-sessions/milestones/m4.1-late-test.md`: files changed, every user-facing string, evidence for R1-R8 (EV-7: the card shown in its window and gone after), commands and results. Do not commit or push to `main`.
 
 ### DONE
 A user who did not log the week's test sees one calm card after test day until the review, can log the result without closing the week, and the review keeps and shows that result; old goals are unchanged; all checks and CI pass.
@@ -1115,7 +1115,7 @@ The week's test or its result is stored somewhere other than `RoadmapWeek`; keep
 ## M3.4 — State Coverage and Accessibility (P3, listed here after M4.1)
 
 ### STATUS
-COMPLETE (2026-10-08, commits `ec09cb4`, `45557a9`). Report: `docs/features/missed-sessions/milestones/m3.4-state-coverage.md`.
+COMPLETE (2026-10-08, commits `ec09cb4`, `45557a9`). Report: `docs/archive/missed-sessions/milestones/m3.4-state-coverage.md`.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P3/M3.4. Implement only this milestone. Follow the operating contract in section 0.
@@ -1127,8 +1127,8 @@ P3 added several states to Today and the Dashboard: the miss notice (carried, dr
 A complete, evidenced state matrix for Today (and the Dashboard where it mirrors Today), any gaps closed with tests or small fixes, an `npm run e2e` script, and a CI job that runs the Today browser tests on every push.
 
 ### READ FIRST
-- docs/features/missed-sessions/04-phases.md: section 3 (3.6 tone, 3.9 accessibility), P3 (8.1-8.10), the regression register (R-3, R-4, R-10, R-11).
-- docs/features/missed-sessions/milestones/m3.1-miss-notice.md, m3.2-short-on-time-and-gentle-return.md, m3.3-swap-and-mark-missed-ui.md, m4.1-late-test.md.
+- docs/archive/missed-sessions/04-phases.md: section 3 (3.6 tone, 3.9 accessibility), P3 (8.1-8.10), the regression register (R-3, R-4, R-10, R-11).
+- docs/archive/missed-sessions/milestones/m3.1-miss-notice.md, m3.2-short-on-time-and-gentle-return.md, m3.3-swap-and-mark-missed-ui.md, m4.1-late-test.md.
 - Design.md sections 4 (primitives), 5 (shell), 6 (Today), 7 (mobile and touch), 9 (accessibility checklist).
 - `.github/workflows/ci.yml` and `CLAUDE.md` (commands).
 
@@ -1164,7 +1164,7 @@ R-1 to R-5, R-10, R-11. Baseline: backend `npm test` 52 files / 529 tests; front
 Repository commands only: the changed unit tests first, then `npm test`, `npm run typecheck`, `npm run lint`, `npm run build`, then `npm run e2e -- e2e/todayStates.spec.ts e2e/today.spec.ts e2e/missedSessions.spec.ts e2e/lateTest.spec.ts e2e/focus.spec.ts e2e/weeklyReview.spec.ts` on both projects, twice (to catch flakiness). Push the branch and confirm every CI job, including the new `e2e` job, is green.
 
 ### DELIVERABLE
-The state matrix, the added tests and small fixes, the shared `settled`, the `e2e` script, the CI job, and a report at `docs/features/missed-sessions/milestones/m3.4-state-coverage.md`: the matrix (EV-5), screenshots at 390 and 360 px for every miss-related state (EV-6), commands and results, CI links. Do not commit or push to `main`.
+The state matrix, the added tests and small fixes, the shared `settled`, the `e2e` script, the CI job, and a report at `docs/archive/missed-sessions/milestones/m3.4-state-coverage.md`: the matrix (EV-5), screenshots at 390 and 360 px for every miss-related state (EV-6), commands and results, CI links. Do not commit or push to `main`.
 
 ### DONE
 Every Today state is covered by unit and browser tests, passes axe and overflow checks at 360-412 px, works by keyboard and with reduced motion; the Today browser tests run with `npm run e2e` and in CI on every push; P3's exit criteria (04-phases.md 8.9) are met.
@@ -1179,7 +1179,7 @@ A state cannot be reached in the app as built (list it); a fix would change beha
 ## M5 — Acceptance, Copy Audit, Regression and Close (M5.1-M5.3)
 
 ### STATUS
-READY (drafted 2026-10-08). Run after M3.4 is merged. Closes the missed-sessions feature.
+COMPLETE (2026-10-08). Report: `milestones/m5-close.md`. The feature is closed and archived.
 
 ### ROLE
 You are the implementation agent for Achivii missed-sessions P5. Implement only this milestone. Follow the operating contract in section 0.
@@ -1191,9 +1191,9 @@ Missed sessions is built: P1 (recognition), P2 (carry-forward and actions, now s
 Prove every acceptance criterion with evidence, make every user-facing string follow the copy rules and tell the truth, confirm no regression, and close the feature: update its status, move M4.2 to the new feature, and archive the docs.
 
 ### READ FIRST
-- docs/features/missed-sessions/03-feature.md (all of it, especially sections 11, 12, 15).
-- docs/features/missed-sessions/04-phases.md (section 1.5, sections 4, 10, 11 and 12).
-- Every report in docs/features/missed-sessions/milestones/.
+- docs/archive/missed-sessions/03-feature.md (all of it, especially sections 11, 12, 15).
+- docs/archive/missed-sessions/04-phases.md (section 1.5, sections 4, 10, 11 and 12).
+- Every report in docs/archive/missed-sessions/milestones/.
 - docs/README.md (feature folders and the archive rule) and docs/decisions.md ND-21.
 
 ### INSPECT FIRST

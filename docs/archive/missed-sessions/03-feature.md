@@ -1,6 +1,6 @@
 # Achivii Missed Sessions — FEATURE DEFINITION
 
-**Status:** IMPLEMENTATION IN PROGRESS (P1 Miss Recognition complete; P2 next)
+**Status:** COMPLETE (2026-10-08; archived). AC-9 and AC-11 moved to the weekly-update feature with M4.2 (04-phases.md ND-19); AC-14 retired by docs/decisions.md ND-21. Closing report: `milestones/m5-close.md`.
 **Version:** 1.2 (updated 2026-10-07: rule clarifications from the phase review, ND-9 to ND-12)
 **Date:** 2026-10-03
 **Builds on:** docs/architecture/plan-v2.md (Missed sessions, Week call, Weekly update), docs/product/redesign-blueprint.md (sections 18-19, Encouraging Intelligence / Adaptive System)
@@ -226,4 +226,4 @@ This Feature Definition defines **what missed-session handling must do and how i
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** IMPLEMENTATION IN PROGRESS
+**Status:** COMPLETE (archived)

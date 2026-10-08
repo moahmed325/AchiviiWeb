@@ -2,7 +2,7 @@
  * Missed sessions, P1 / M1.2: day-close, classification and gap detection.
  * Pure functions: no database, no network, no clock. `now` is always passed in, and nothing here
  * depends on the server's timezone. "Missed" is derived each time and never stored (ND-2).
- * See docs/features/missed-sessions/03-feature.md (OD-1, RULE-5, RULE-8) and milestones/m1.2-day-close-classification.md.
+ * See docs/archive/missed-sessions/03-feature.md (OD-1, RULE-5, RULE-8) and milestones/m1.2-day-close-classification.md.
  */
 import { normalizeTimezone, zonedWallTimeToInstant } from './timezone.js';
 

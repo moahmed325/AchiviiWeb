@@ -541,7 +541,7 @@ When generating or calibrating this 5-Song Acoustic Guitar blueprint:
       tag: 'REAL-LIFE PSYCHOLOGY',
       coreRule: 'Recognizable Riffs on Day 1 + 25-30m Sweet Spot + Zero-Guilt Buffers.',
       realWorldApplication:
-        'No boring chromatic scales. Day 1 teaches chords to real anthems people love. Short daily sessions fit around work, and missed days slide into weekend buffers without streak guilt.'
+        "No boring chromatic scales. Day 1 teaches chords to real anthems people love. Short daily sessions fit around work. If a day doesn't happen, its most important step moves to your next practice day if it fits, and no day gets longer."
     },
     proCoaching: {
       title: 'Veteran Teacher Ground Truth',

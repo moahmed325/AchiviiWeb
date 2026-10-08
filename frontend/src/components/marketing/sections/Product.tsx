@@ -7,7 +7,7 @@ import { useCountUp, useInView } from '../hooks';
 const POINTS = [
   { title: 'Sized to your day', body: 'The session fits the time and slot you chose, with a ten-minute version for the days life takes over.' },
   { title: 'The reason, not just the task', body: 'Every step says why it matters today, so it never feels like busywork.' },
-  { title: 'A plan that keeps up', body: 'A missed day is information, not failure. Each week is rewritten from what actually happened.' },
+  { title: 'A plan that keeps up', body: "A day that doesn't happen is information, not a verdict. Each week is rewritten from what actually happened." },
 ];
 
 const STEPS = [

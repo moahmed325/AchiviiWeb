@@ -39,7 +39,7 @@ features/<feature-name>/
 
 Not every feature has every file. Numbers show the order work happens in. Skip a number, never renumber.
 
-Current features: `billing`, `information-density`, `infra-migration`, `missed-sessions`, `research-pipeline`, `today-redesign`.
+Current features: `billing`, `information-density`, `infra-migration`, `research-pipeline`, `today-redesign`, `weekly-update`. Archived: `missed-sessions` (`docs/archive/missed-sessions/`).
 
 ## templates/
 Same numbering as a feature folder, so the match is obvious: `templates/03-feature.md` is the helper for writing a `03-feature.md`.

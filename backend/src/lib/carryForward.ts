@@ -3,7 +3,7 @@
  * Pure: no database, no clock, no environment. Given how every day is classified, the open gap, the tasks with
  * their stored steps, the goal and the user's local today, it decides which missed priority-1 steps move, where,
  * and which are dropped. `POST /reconcile` writes the result behind the ND-15 switch.
- * Rules: docs/features/missed-sessions/03-feature.md section 11 and 04-phases.md ND-9 to ND-18.
+ * Rules: docs/archive/missed-sessions/03-feature.md section 11 and 04-phases.md ND-9 to ND-18.
  */
 import type { DetailedStep } from './ai/goalDecomposer.js';
 import { isHighLoadStep } from './highLoad.js';

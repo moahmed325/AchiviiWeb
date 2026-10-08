@@ -85,7 +85,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {/* Adherence Card */}
           <div className="rounded-card border border-border-strong bg-surface/90 p-5 shadow-sm">
-            <span className="font-ui-mono text-micro uppercase tracking-wider text-text-muted">
+            <span className="font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
               Execution Adherence
             </span>
             <p className="mt-2 font-ui-mono text-numeral font-bold tabular-nums text-achievement">
@@ -100,7 +100,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
 
           {/* Sessions Card */}
           <div className="rounded-card border border-border-strong bg-surface/90 p-5 shadow-sm">
-            <span className="font-ui-mono text-micro uppercase tracking-wider text-text-muted">
+            <span className="font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
               Practice Sessions
             </span>
             <p className="mt-2 font-ui-mono text-numeral font-bold tabular-nums text-text">
@@ -115,7 +115,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
 
           {/* Practice Time Card */}
           <div className="rounded-card border border-border-strong bg-surface/90 p-5 shadow-sm">
-            <span className="font-ui-mono text-micro uppercase tracking-wider text-text-muted">
+            <span className="font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
               Total Practice Time
             </span>
             <p className="mt-2 font-ui-mono text-h1 font-bold tabular-nums text-text">
@@ -128,7 +128,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
 
           {/* Benchmarks Card */}
           <div className="rounded-card border border-border-strong bg-surface/90 p-5 shadow-sm">
-            <span className="font-ui-mono text-micro uppercase tracking-wider text-text-muted">
+            <span className="font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
               Milestone Gates
             </span>
             <p className="mt-2 font-ui-mono text-numeral font-bold tabular-nums text-accent-hover">
@@ -166,7 +166,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             {finalTestEval.targetDeliverable && (
               <div className="rounded-control border border-border bg-surface-elevated/70 p-3">
-                <span className="font-ui-mono text-micro text-text-muted">Target Deliverable</span>
+                <span className="font-ui-mono text-micro text-text-secondary">Target Deliverable</span>
                 <p className="mt-0.5 text-small font-medium text-text">
                   {finalTestEval.targetDeliverable}
                 </p>
@@ -174,7 +174,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
             )}
             {finalTestEval.passCriteria && (
               <div className="rounded-control border border-border bg-surface-elevated/70 p-3">
-                <span className="font-ui-mono text-micro text-text-muted">Pass Criteria</span>
+                <span className="font-ui-mono text-micro text-text-secondary">Pass Criteria</span>
                 <p className="mt-0.5 text-small font-medium text-text">
                   {finalTestEval.passCriteria}
                 </p>
@@ -242,7 +242,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-ui-mono text-micro uppercase text-text-muted">
+                        <span className="font-ui-mono text-micro uppercase text-text-secondary">
                           Week {item.weekNumber}
                         </span>
                         <span className="text-text-muted">·</span>
@@ -279,7 +279,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
                           {isPassed ? 'Benchmark achieved' : 'In progress · Reinforcing'}
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-elevated px-2.5 py-1 font-ui-mono text-micro text-text-muted">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-elevated px-2.5 py-1 font-ui-mono text-micro text-text-secondary">
                           No test recorded
                         </span>
                       )}
@@ -290,13 +290,13 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
                   <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-3 text-small">
                     {targetStr && (
                       <div>
-                        <span className="text-text-muted">Target: </span>
+                        <span className="text-text-secondary">Target: </span>
                         <span className="font-medium text-text">{targetStr}</span>
                       </div>
                     )}
                     {item.testResult && (
                       <div>
-                        <span className="text-text-muted">Recorded: </span>
+                        <span className="text-text-secondary">Recorded: </span>
                         <span className="font-ui-mono font-medium text-text">
                           {formatResultValue(item.testResult)}
                         </span>

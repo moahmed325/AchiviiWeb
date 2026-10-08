@@ -543,7 +543,7 @@ When generating or calibrating this SaaS Builder blueprint:
       tag: 'REAL-LIFE PSYCHOLOGY',
       coreRule: 'Boring Stack Mandate + 45-Minute Time-Boxed Sprints + Zero-Guilt Buffers.',
       realWorldApplication:
-        'Prevents framework rabbit holes and weekend burnout. 45-minute daily sprints fit around work and family, while missed sessions shift seamlessly into weekend buffers without streak shame.'
+        "Prevents framework rabbit holes and weekend burnout. 45-minute daily sprints fit around work and family. If a day doesn't happen, its most important step moves to your next practice day if it fits, and no day gets longer."
     },
     proCoaching: {
       title: 'Venture & Indie Hacker Ground Truth',
