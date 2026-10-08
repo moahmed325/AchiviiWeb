@@ -1,4 +1,4 @@
-# Domain templates (draft for Mo to check)
+# Domain templates
 
 Used by `docs/features/method-aware-recovery/02-feature.md` (RULE-2, RULE-3). Each template is a starting profile: its kinds of step, each kind's action, which kinds are **hard** (need a rest gap) or **in order**, the catch-all, and the return-after-a-break rule. Pathway profiles are these templates adjusted by us; custom goals' are adjusted by the profile call.
 

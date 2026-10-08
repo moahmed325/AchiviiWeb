@@ -1,6 +1,6 @@
 # Achivii Method-Aware Recovery — Feature Definition
 
-**Status:** DRAFT
+**Status:** APPROVED (2026-10-08)
 **Date:** 2026-10-08
 **Builds on:** `docs/features/method-aware-recovery/01-brief.md`; changes the recovery rules of `docs/archive/missed-sessions/03-feature.md`
 **Decisions:** `docs/features/method-aware-recovery/decisions.md`
@@ -156,10 +156,3 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 ## 10. Other concerns
 - **Cost and speed:** one more model call at custom goal creation (a few seconds). Pathways add none. The week call's answer grows by one short field per step.
 - **Providers:** Gemini holds the kind list as a schema; Groq does not, so RULE-6's code check is the real guard.
-
-## For Mo to check before approval
-1. **The 12 templates** (reference file): does each kind and action match how that thing is really done?
-2. **In-order kinds** (RULE-13): the next ones shift one session later, and the last one this week goes to next week's plan. OK?
-3. **No room this week** (RULE-9): a step that can't move without breaking a rule is not done this week and next week's plan takes it into account, rather than squeezing it in. OK?
-4. **Tag failure** (RULE-6): a week whose tags fail twice is not saved and the person is asked to try again, rather than tagging leftovers with the catch-all. Strict, but it means no step is ever guessed. OK?
-5. **The eval thresholds** (RULE-19): 22 of 24 templates right, 90% agreement, zero unsafe results.

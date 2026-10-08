@@ -47,3 +47,9 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** hand-write the correct profile for 20 to 30 varied custom goals and score the model against them; it goes live only when the score is good enough (threshold set in the feature definition).
 **Why:** measure instead of guessing.
 **Changes:** a milestone before release.
+
+### MR-8 — Feature definition approved as drafted (2026-10-08)
+**Question:** five points in the draft: the 12 templates, in-order kinds shifting one session later, "no room this week" going to next week's plan, strict tagging (two failures: the week is not saved), and the eval thresholds.
+**Decision:** all five as drafted ("whatever you think is best, approved").
+**Why:** each keeps to the method and never guesses; the templates are refined by the eval (RULE-19) and by M1.2's review if a real method disagrees.
+**Changes:** `02-feature.md` approved; `reference/domain-templates.md` is the starting point for M1.2.
