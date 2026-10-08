@@ -9,10 +9,8 @@ import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import {
   clarifyGoalWithAI,
   adaptUpcomingWeekTasksWithAI,
-  presetFixedPlan,
   UserRoutineInput,
   PreviousWeekTaskSummary,
-  type PlanGenerationResult,
 } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
 import { isHighLoadGoal } from '../lib/highLoad.js';
@@ -170,73 +168,6 @@ async function saveV2Goal(input: {
   return goal.id;
 }
 
-async function saveV1PresetGoal(input: {
-  userId: string;
-  rawGoal: string;
-  clarifiedOutcome: string;
-  plan: PlanGenerationResult;
-  answers: Record<string, string>;
-  routine: UserRoutineInput;
-  start: Date;
-  targetDate: Date;
-}): Promise<string> {
-  const { plan } = input;
-  await archiveActiveGoals(input.userId);
-  const goal = await prisma.goal.create({
-    data: {
-      userId: input.userId,
-      rawGoal: input.rawGoal,
-      clarifiedOutcome: plan.clarifiedOutcome || input.clarifiedOutcome,
-      methodologyNotes: plan.methodologyNotes || '',
-      status: 'active',
-      startDate: input.start,
-      targetDate: input.targetDate,
-      currentWeek: 1,
-      answers: JSON.stringify(input.answers),
-      routine: JSON.stringify(input.routine),
-      isGoldenRail: true,
-    },
-  });
-  await prisma.roadmapWeek.createMany({
-    data: plan.weeks.map((w) => ({
-      goalId: goal.id,
-      weekNumber: w.weekNumber,
-      phase: w.phase,
-      theme: w.theme,
-      objective: w.objective,
-      keyMilestone: w.keyMilestone,
-      targetIntensity: w.targetIntensity,
-      plannedMinutes: w.plannedMinutes,
-      status: w.weekNumber === 1 ? 'active' : 'pending',
-    })),
-  });
-  await prisma.dailyTask.createMany({
-    data: plan.initialTasks.map((t, idx) => {
-      const taskDate = new Date(input.start);
-      taskDate.setUTCDate(taskDate.getUTCDate() + idx);
-      return {
-        goalId: goal.id,
-        weekNumber: 1,
-        dayNumber: idx + 1,
-        date: taskDate.toISOString().split('T')[0],
-        dayOfWeek: t.dayOfWeek,
-        title: t.title,
-        isRestDay: t.isRestDay,
-        durationMinutes: t.durationMinutes,
-        slotTime: t.slotTime,
-        implementationIntention: t.implementationIntention,
-        detailedSteps: JSON.stringify(t.detailedSteps),
-        resourceTitle: t.resourceTitle || null,
-        resourceUrl: t.resourceUrl || null,
-        resourceType: t.resourceType || 'guide',
-        resourceWhy: t.resourceWhy || null,
-        status: 'pending',
-      };
-    }),
-  });
-  return goal.id;
-}
-
 export const goalRouter = Router();
 
 /**
@@ -382,20 +313,11 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         targetDate,
         isPreset: Boolean(preset),
       });
-    } else if (preset && (roadmapResult.ok || !roadmapResult.unsafe)) {
-      console.warn('[GoalRouter] v2 plan failed for a preset; using its fixed plan.');
-      send?.({ type: 'step', id: 'plan', label: 'Writing your first week' });
-      createdGoalId = await saveV1PresetGoal({
-        userId: user.id,
-        rawGoal,
-        clarifiedOutcome,
-        plan: presetFixedPlan(preset, routineInput, start),
-        answers: answers || {},
-        routine: routineInput,
-        start,
-        targetDate,
-      });
     } else {
+      // No silent v1 fallback, for presets either: a plan the AI could not write is an honest "try again", never an
+      // old-style plan without the plan v2 features (missed sessions, weekly targets). Logged so a missing or broken
+      // AI key shows up in the logs.
+      console.warn('[GoalRouter] Plan v2 could not be written:', roadmapResult.ok ? 'week 1 failed' : roadmapResult.reason);
       if (!roadmapResult.ok) fail(roadmapResult.unsafe || roadmapResult.lowSafety ? 422 : 503, roadmapResult.reason);
       else fail(503, "Couldn't write your first week right now. Please try again.");
       return;
