@@ -1,6 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { axeViolations, documentOverflow, settled, shellGoal } from './shellFixtures';
+import { expectCleanAt, shellGoal } from './shellFixtures';
 
 // Missed sessions M3.2: the gentle-return day and the short-on-time offer on Today (UX-2, UX-4, AC-10).
 // M3.3: the swap offer, setting today aside and swapping with another day (AC-2, AC-6). Signals and the switch
@@ -50,16 +50,6 @@ async function expectTouchTarget(page: Page, name: string) {
   expect(box, name).not.toBeNull();
   expect(box!.width, `${name} width`).toBeGreaterThanOrEqual(44);
   expect(box!.height, `${name} height`).toBeGreaterThanOrEqual(44);
-}
-
-async function expectCleanAt(page: Page, widths: number[]) {
-  for (const width of widths) {
-    await page.setViewportSize({ width, height: 844 });
-    expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
-    // Axe measures contrast: let the fade-in finish first, as todayStates.spec.ts does.
-    await settled(page);
-    expect(await axeViolations(page), `axe at ${width}`).toEqual([]);
-  }
 }
 
 test.describe('Missed sessions on Today (M3.2)', () => {
@@ -304,5 +294,279 @@ test.describe('Missed sessions on Today (M3.3)', () => {
     expect(calls.planActions).toEqual([
       { action: 'swap', taskId: 't3', body: { withTaskId: 't4', expected: { t3: base[2].detailedSteps, t4: base[3].detailedSteps } } },
     ]);
+  });
+});
+
+// M3.4: every remaining miss state, the Dashboard's status line for each, the keyboard order and reduced motion.
+// Each state checks overflow at 360, 375, 390 and 412 px, axe after the fade-in and 44x44 px for its controls.
+
+/** Every button inside `scope` is at least 44x44 px. */
+async function expectTargets(scope: Locator, label: string) {
+  for (const control of await scope.getByRole('button').all()) {
+    const box = await control.boundingBox();
+    const name = (await control.textContent())?.trim() ?? '';
+    expect(box, `${label}: ${name}`).not.toBeNull();
+    expect(box!.height, `${label}: ${name} height`).toBeGreaterThanOrEqual(44);
+    expect(box!.width, `${label}: ${name} width`).toBeGreaterThanOrEqual(44);
+  }
+}
+
+const carriedBody = (fromOffset: number, toOffset: number) =>
+  switchedOn({
+    notice: 'carried',
+    carried: [{ fromDate: isoDay(fromOffset), fromTaskId: 't2', toDate: isoDay(toOffset), toTaskId: 't4', stepTitle: 'Draft the brief' }],
+  });
+const droppedBody = (offset: number) =>
+  switchedOn({ notice: 'dropped', dropped: [{ date: isoDay(offset), taskId: 't2', reason: 'high_load' }] });
+const swapOfferBody = (missedTaskId: string, missedOffset: number, receivingTaskId: string, receivingOffset: number) =>
+  switchedOn({
+    notice: 'swap_offer',
+    swapOffer: { missedTaskId, missedDate: isoDay(missedOffset), receivingTaskId, receivingDate: isoDay(receivingOffset), offerUntil: '' },
+  });
+
+test.describe('Missed sessions: state coverage (M3.4)', () => {
+  test('carried to a later day, from yesterday', async ({ page }) => {
+    await mockApi(page, { goal: shellWith({ t2: { status: 'pending' } }), reconcile: carriedBody(-1, 1) });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(
+      stepCard(page).getByText(`Yesterday's session didn't happen. We moved its most important step to ${weekday(1)}, so that day stays the same length.`),
+    ).toBeVisible();
+    await expect(page.getByText(CALM)).toHaveCount(0);
+    await expectCleanAt(page);
+  });
+
+  test('dropped yesterday: nothing needs making up', async ({ page }) => {
+    await mockApi(page, { goal: shellWith({ t2: { status: 'pending' } }), reconcile: droppedBody(-1) });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(stepCard(page).getByText("Yesterday's session didn't happen. Nothing needs making up: the plan carries on as it is.")).toBeVisible();
+    await expect(page.getByText(CALM)).toHaveCount(0);
+    await expectCleanAt(page);
+  });
+
+  test('a swap offer for a key session set aside today, kept from the answer', async ({ page }) => {
+    const goal = shellWith({ t3: { isKeySession: true } });
+    const calls = await mockApi(page, {
+      goal,
+      reconcile: switchedOn(),
+      markMissed: { body: swapOfferBody('t3', 0, 't4', 1), goal },
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    await stepCard(page).getByRole('button', { name: 'Set today aside', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Set it aside', exact: true }).click();
+    const card = stepCard(page);
+    await expect(card.getByText(`Today's key session is set aside. Do it ${weekday(1)} instead?`)).toBeVisible();
+    await expect(card.getByRole('button', { name: 'Set today aside', exact: true })).toHaveCount(0);
+    await expectTouchTarget(page, 'Swap the days');
+    await expectTouchTarget(page, 'Just move its main step');
+    await expect(page.getByText(CALM)).toHaveCount(0);
+    expect(calls.planActions).toEqual([{ action: 'mark-missed', taskId: 't3', body: null }]);
+    await expectCleanAt(page);
+  });
+
+  test('setting today aside, dropped: "Nothing needs making up"', async ({ page }) => {
+    const goal = shellGoal();
+    await mockApi(page, {
+      goal,
+      reconcile: switchedOn(),
+      markMissed: {
+        body: switchedOn({}, {
+          days: [{ taskId: 't3', date: isoDay(0), weekNumber: 1, dayNumber: 3, isKeySession: false, isTestDay: false, kind: 'missed' }],
+          carry: { enabled: true, carries: [], drops: [{ taskId: 't3', date: isoDay(0), reason: 'high_load' }], held: [], alreadyCarried: [], written: [] },
+        }),
+        goal,
+      },
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await stepCard(page).getByRole('button', { name: 'Set today aside', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Set it aside', exact: true }).click();
+    await expect(stepCard(page).getByText("Today's session is set aside. Nothing needs making up: the plan carries on as it is.")).toBeVisible();
+    await expect(page.getByText(CALM)).toHaveCount(0);
+    await expectCleanAt(page);
+  });
+
+  test('"Set today aside" refused: the dialog stays open and says so, never the server text', async ({ page }) => {
+    const calls = await mockApi(page, {
+      goal: shellGoal(),
+      reconcile: switchedOn(),
+      markMissed: { status: 409, body: { error: 'Server text that must not show.', reason: 'already_handled' } },
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await stepCard(page).getByRole('button', { name: 'Set today aside', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: "Set today's session aside?" });
+    await dialog.getByRole('button', { name: 'Set it aside', exact: true }).click();
+    await expect(dialog.getByRole('alert')).toHaveText("That didn't change. Please try again.");
+    await expect(page.getByText('Server text that must not show.')).toHaveCount(0);
+    await expect(dialog).toBeVisible();
+    expect(calls.planActions).toHaveLength(1);
+    await expectCleanAt(page);
+  });
+
+  test('a swap offer whose answer fails says so beside the answers', async ({ page }) => {
+    const goal = shellWith({ t2: { status: 'pending', isKeySession: true } });
+    await mockApi(page, {
+      goal,
+      reconcile: swapOfferBody('t2', -1, 't3', 0),
+      swap: { status: 500, body: { error: 'Server text that must not show.' } },
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await stepCard(page).getByRole('button', { name: 'Swap the days', exact: true }).click();
+    await expect(stepCard(page).getByRole('alert')).toHaveText("That didn't change. Please try again.");
+    await expect(page.getByText('Server text that must not show.')).toHaveCount(0);
+    await expect(stepCard(page).getByRole('button', { name: 'Swap the days', exact: true })).toBeVisible();
+    await expectCleanAt(page);
+  });
+
+  test('swapping with another day when no day is open: the list says so and closes', async ({ page }) => {
+    const goal = shellWith({ t4: { status: 'completed' }, t5: { isTestDay: true }, t6: { status: 'completed' } });
+    await mockApi(page, { goal, reconcile: switchedOn() });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    const trigger = stepCard(page).getByRole('button', { name: 'Swap with another day', exact: true });
+    await trigger.click();
+    const dialog = page.getByRole('dialog', { name: 'Swap with another day' });
+    await expect(dialog.getByText('No other day this week can be swapped.')).toBeVisible();
+    await expect(dialog.getByRole('listitem')).toHaveCount(0);
+    await expectTargets(dialog, 'empty swap list');
+    await expectCleanAt(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
+
+  test('another selected day shows none of the miss controls', async ({ page }) => {
+    await mockApi(page, { goal: shellGoal(), reconcile: carriedBody(-1, 1) });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await main(page).getByRole('button', { name: 'Show week' }).click();
+    await main(page).getByRole('list').last().getByRole('button').nth(3).click();
+    await expect(main(page).getByRole('heading', { level: 2, name: 'Session 4' })).toBeVisible();
+    for (const name of ['Set today aside', 'Swap with another day', 'Swap the days', 'Just move its main step']) {
+      await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
+    }
+    await expect(page.getByText(/session didn't happen/)).toHaveCount(0);
+    await expectCleanAt(page);
+  });
+});
+
+test.describe('Dashboard status line for each miss state (M3.4, ND-19)', () => {
+  const MINIMUM_DAY = { t3: { minimumVersion: MINIMUM } };
+  const cases: Array<{ name: string; goal: () => ReturnType<typeof shellGoal>; reconcile: Record<string, unknown>; line: string }> = [
+    { name: 'carried into today', goal: () => shellWith({ t2: { status: 'pending' } }), reconcile: carriedBody(-1, 0), line: "Yesterday's most important step is part of today's session." },
+    { name: 'dropped yesterday', goal: () => shellWith({ t2: { status: 'pending' } }), reconcile: droppedBody(-1), line: 'Yesterday slipped past. No catching up needed, just today.' },
+    {
+      name: 'gentle return',
+      goal: () => shellWith({ ...MINIMUM_DAY, t1: { status: 'pending' }, t2: { status: 'pending' } }),
+      reconcile: switchedOn({ notice: 'gentle_return', gentleReturn: { gapLength: 3, firstDate: isoDay(-4), lastDate: isoDay(-1) } }),
+      line: WELCOME,
+    },
+    { name: 'a swap offer', goal: () => shellWith({ t2: { status: 'pending', isKeySession: true } }), reconcile: swapOfferBody('t2', -1, 't3', 0), line: "Yesterday's key session didn't happen. Do it today instead?" },
+    { name: 'today set aside', goal: () => shellWith({ t3: { status: 'pending' } }), reconcile: carriedBody(0, 1), line: "Today's session is set aside. No catching up needed." },
+  ];
+
+  for (const { name, goal, reconcile, line } of cases) {
+    test(`${name}: one calm line, no buttons, clean at 360-412 px`, async ({ page }) => {
+      await mockApi(page, { goal: goal(), reconcile });
+      await signIn(page);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto('/dashboard');
+      await expect(main(page).getByText(line)).toBeVisible();
+      await expect(page.getByText(CALM)).toHaveCount(0);
+      for (const label of ['Swap the days', 'Just move its main step', 'Set today aside', 'Swap with another day']) {
+        await expect(page.getByRole('button', { name: label, exact: true })).toHaveCount(0);
+      }
+      await expectCleanAt(page);
+    });
+  }
+});
+
+test.describe('Keyboard and reduced motion on the busiest Today (M3.4)', () => {
+  /** A key session left undone yesterday, offered for today: the swap answers, Start, and both quiet actions. */
+  const busy = () => shellWith({ t2: { status: 'pending', isKeySession: true, title: 'Interview three users' } });
+  const busyReconcile = () => swapOfferBody('t2', -1, 't3', 0);
+
+  test('Tab order is the primary answer, the secondary, Start, then the quiet actions; dialogs trap focus and return it', async ({ page }) => {
+    await mockApi(page, { goal: busy(), reconcile: busyReconcile() });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const card = stepCard(page);
+    const names = ['Swap the days', 'Just move its main step', 'Start', 'Mark complete', 'Set today aside', 'Swap with another day'];
+    for (const name of names) await expect(card.getByRole('button', { name, exact: true })).toBeVisible();
+
+    await card.getByRole('button', { name: names[0], exact: true }).focus();
+    const seen: string[] = [names[0]];
+    for (let i = 1; i < names.length; i += 1) {
+      await page.keyboard.press('Tab');
+      seen.push(await page.evaluate(() => document.activeElement?.textContent?.trim() ?? ''));
+    }
+    expect(seen).toEqual(names);
+
+    for (const trigger of ['Set today aside', 'Swap with another day']) {
+      const button = card.getByRole('button', { name: trigger, exact: true });
+      await button.focus();
+      await page.keyboard.press('Enter');
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      for (let i = 0; i < 6; i += 1) {
+        await page.keyboard.press('Tab');
+        expect(await dialog.evaluate((d) => d.contains(document.activeElement)), `${trigger}: Tab ${i} stays inside`).toBe(true);
+      }
+      for (let i = 0; i < 6; i += 1) {
+        await page.keyboard.press('Shift+Tab');
+        expect(await dialog.evaluate((d) => d.contains(document.activeElement)), `${trigger}: Shift+Tab ${i} stays inside`).toBe(true);
+      }
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(button, `${trigger} gets focus back`).toBeFocused();
+    }
+  });
+
+  test('with reduced motion nothing runs longer than 0.01 ms and nothing waits for an animation', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await mockApi(page, { goal: busy(), reconcile: busyReconcile() });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(stepCard(page).getByRole('button', { name: 'Swap the days', exact: true })).toBeVisible();
+
+    const longestFinite = () =>
+      page.evaluate(() =>
+        Math.max(0, ...document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => Number(a.effect?.getComputedTiming().endTime ?? 0))),
+      );
+    // After two frames: an animation of 0.01 ms is over by then, so nothing may still be hidden by one.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    const waiting = await page.evaluate(() =>
+      [...document.querySelectorAll('main#main, main#main *')]
+        .filter((el) => {
+          const style = getComputedStyle(el);
+          return style.animationName !== 'none' && (Number(style.opacity) < 1 || style.visibility === 'hidden');
+        })
+        .map((el) => `${el.tagName}.${el.className}`),
+    );
+    expect(await longestFinite(), 'longest finite animation (ms)').toBeLessThanOrEqual(0.01);
+    expect(waiting).toEqual([]);
+
+    // The dialog opens by the same rule.
+    await stepCard(page).getByRole('button', { name: 'Set today aside', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    expect(await longestFinite(), 'longest finite animation with the dialog open (ms)').toBeLessThanOrEqual(0.01);
+    await expect.poll(() => page.evaluate(() => Number(getComputedStyle(document.querySelector('[role="dialog"]')!).opacity))).toBe(1);
   });
 });

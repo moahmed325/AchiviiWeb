@@ -1,14 +1,8 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { axeViolations, documentOverflow, shellGoal, SHELL_GOAL_TITLE } from './shellFixtures';
+import { axeViolations, documentOverflow, expectCleanAt, settled, shellGoal, SHELL_GOAL_TITLE } from './shellFixtures';
 
 const main = (page: Page) => page.locator('main#main');
-
-/** Let Today's fade-in finish before axe measures contrast. Looping animations are ignored. */
-const settled = (page: Page) =>
-  page.waitForFunction(() =>
-    document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
-  );
 
 test.describe('OD-9 States on Today (M5.7)', () => {
   test('goal load failure: shows error alert, does not redirect to onboarding, retry reloads goal', async ({ page }) => {
@@ -247,5 +241,122 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     const alert = main(page).getByRole('alert');
     await expect(alert).toHaveText("That didn't save. Please check your connection and try again.");
     await expect(page.getByRole('button', { name: 'Mark complete' })).toBeVisible();
+  });
+});
+
+// M3.4: every Today state at the four phone widths: no horizontal overflow, axe clean after the fade-in, and every
+// button in the state's main card at least 44x44 px. The states above check their copy; these check the layout.
+test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
+  const isoDay = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+  const withTasks = (changes: Record<string, Record<string, unknown>>) => {
+    const base = shellGoal();
+    return { ...base, dailyTasks: base.dailyTasks.map((t) => (changes[t.id] ? { ...t, ...changes[t.id] } : t)) };
+  };
+  const TEST = { type: 'deliverable_check', instructions: 'Share the one-page brief with one person who might use it.', passIf: 'one person reads it and replies' };
+
+  /** Buttons inside `scope` that are at least 44x44 px. */
+  const expectTargets = async (scope: Locator, label: string) => {
+    for (const control of await scope.getByRole('button').all()) {
+      const box = await control.boundingBox();
+      const name = (await control.textContent())?.trim() || (await control.getAttribute('aria-label')) || '';
+      expect(box, `${label}: ${name}`).not.toBeNull();
+      expect(box!.height, `${label}: ${name} height`).toBeGreaterThanOrEqual(44);
+    }
+  };
+
+  interface Case {
+    name: string;
+    goal: Record<string, unknown> | null;
+    options?: Parameters<typeof mockApi>[1];
+    /** Waits for the state to show. */
+    ready: (page: Page) => Promise<void>;
+    /** The card whose buttons are measured; omitted for states with none. */
+    card?: (page: Page) => Locator;
+  }
+  const stepCard = (page: Page) => main(page).locator('section[aria-labelledby="step-heading"]');
+  const cases: Case[] = [
+    { name: 'load error', goal: shellGoal(), options: { activeStatus: 500 }, ready: (page) => expect(main(page).getByRole('alert')).toBeVisible(), card: (page) => main(page).getByRole('alert') },
+    { name: 'offline', goal: shellGoal(), options: { healthDown: true }, ready: (page) => expect(page.getByText(/Achivii is offline/)).toBeVisible(), card: stepCard },
+    { name: 'no goal', goal: null, ready: (page) => expect(page.getByRole('heading', { level: 1, name: 'Choose a pathway' })).toBeVisible() },
+    { name: 'ordinary day, to do', goal: shellGoal(), ready: (page) => expect(stepCard(page).getByRole('button', { name: 'Start', exact: true })).toBeVisible(), card: stepCard },
+    {
+      name: 'ordinary day, done',
+      goal: withTasks({ t3: { status: 'completed' } }),
+      ready: (page) => expect(stepCard(page).getByText('Step completed. Deliberate practice logged for today.')).toBeVisible(),
+      card: stepCard,
+    },
+    { name: 'rest day', goal: withTasks({ t3: { isRestDay: true } }), ready: (page) => expect(stepCard(page).getByText("Today's rest")).toBeVisible(), card: stepCard },
+    { name: 'key session', goal: withTasks({ t3: { isKeySession: true } }), ready: (page) => expect(stepCard(page).getByText('Key session')).toBeVisible(), card: stepCard },
+    {
+      name: 'test day',
+      goal: { ...withTasks({ t3: { isTestDay: true } }), roadmapWeeks: [{ weekNumber: 1, phase: 'Foundations', theme: 'Core architecture', test: TEST }] },
+      ready: (page) => expect(stepCard(page).getByText('Test day')).toBeVisible(),
+      card: stepCard,
+    },
+    {
+      name: 'review due',
+      goal: (() => {
+        const base = shellGoal();
+        return { ...base, dailyTasks: base.dailyTasks.map((t, i) => ({ ...t, date: isoDay(i - 10) })) };
+      })(),
+      ready: (page) => expect(page.getByRole('button', { name: 'Start weekly review' })).toBeVisible(),
+      card: (page) => page.locator('section[aria-labelledby="review-due-heading"]'),
+    },
+    {
+      name: 'late-test card',
+      goal: (() => {
+        const base = shellGoal();
+        return {
+          ...base,
+          planVersion: 2,
+          roadmapWeeks: base.roadmapWeeks.map((w) => ({ ...w, test: TEST, testResult: null })),
+          dailyTasks: base.dailyTasks.map((t) => ({ ...t, isTestDay: t.id === 't2' })),
+        };
+      })(),
+      ready: (page) => expect(page.getByRole('region', { name: "This week's test is still open" })).toBeVisible(),
+      card: (page) => page.getByRole('region', { name: "This week's test is still open" }),
+    },
+    {
+      name: 'closing stretch (days 85-90)',
+      goal: { ...shellGoal(), currentWeek: 12, targetDate: new Date(Date.now() - 5 * 86_400_000).toISOString(), dailyTasks: [] },
+      ready: (page) => expect(page.getByRole('heading', { level: 2, name: 'The Final Evaluation & Arrival' })).toBeVisible(),
+      card: (page) => main(page),
+    },
+    {
+      name: 'completed goal',
+      goal: { ...shellGoal(), status: 'completed', completedAt: new Date().toISOString() },
+      ready: (page) => expect(page.getByRole('heading', { level: 1, name: 'COMPLETE' })).toBeVisible(),
+    },
+  ];
+
+  for (const { name, goal, options, ready, card } of cases) {
+    test(`${name}`, async ({ page }) => {
+      await mockApi(page, { goal, ...options });
+      await signIn(page);
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto('/');
+      await ready(page);
+      if (card) await expectTargets(card(page), name);
+      await expectCleanAt(page);
+    });
+  }
+
+  test('loading: the skeleton is announced, fits the phone widths and passes axe', async ({ page }) => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    await mockApi(page, { goal: shellGoal() });
+    // Registered after mockApi's catch-all, so it runs first and holds the goal request until the gate opens.
+    await page.route('http://localhost:5000/api/goal/active', async (route) => {
+      await gate;
+      await route.fallback();
+    });
+    await signIn(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    await expect(page.getByRole('status').filter({ hasText: 'Loading your day' })).toBeAttached();
+    await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toHaveCount(0);
+    await expectCleanAt(page);
+    release();
+    await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toBeVisible();
   });
 });

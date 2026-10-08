@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { API, mockApi, signIn } from './mockApi';
 import { PRESET_GOAL, baseline, chooseOption, expectStep } from './onboardingFlow';
-import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shellGoal } from './shellFixtures';
+import { SHELL_GOAL_TITLE, STORED_OUTCOME, axeViolations, documentOverflow, shellGoal, settled } from './shellFixtures';
 
 /** M5.2: the ND-7 shell. A rail on desktop, a bottom bar on mobile, a minimal top bar on onboarding. */
 
@@ -19,7 +19,6 @@ const freePlan = (page: Page) =>
     }),
   );
 
-
 let consoleErrors: string[] = [];
 
 test.beforeEach(async ({ page }) => {
@@ -35,12 +34,6 @@ test.afterEach(async ({}, testInfo) => {
   if (/errors expected\]/.test(testInfo.title)) return;
   expect(consoleErrors).toEqual([]);
 });
-
-/** Let the page fade in before axe measures contrast. Looping animations elsewhere are ignored. */
-const settled = (page: Page) =>
-  page.waitForFunction(() =>
-    document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
-  );
 
 const expectTapTargets = async (controls: Locator) => {
   for (const control of await controls.all()) {

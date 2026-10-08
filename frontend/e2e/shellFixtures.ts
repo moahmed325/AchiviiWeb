@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 /**
  * A signed-in goal with a real first week, so `/`, `/dashboard` and `/roadmap` render their full content.
@@ -104,3 +104,16 @@ export const axeViolations = async (page: Page) => {
 
 export const documentOverflow = (page: Page) =>
   page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+
+/** The supported phone widths (Design.md section 7). */
+export const PHONE_WIDTHS = [390, 375, 360, 412];
+
+/** No horizontal overflow and no axe violations at each width, once the fade-in has finished (axe measures contrast). */
+export async function expectCleanAt(page: Page, widths: number[] = PHONE_WIDTHS) {
+  for (const width of widths) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
+    await settled(page);
+    expect(await axeViolations(page), `axe at ${width}`).toEqual([]);
+  }
+}

@@ -1,12 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
-
-/** Let Today's fade-in finish before axe measures contrast. Looping animations are ignored. */
-const settled = (page: Page) =>
-  page.waitForFunction(() =>
-    document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
-  );
+import { axeViolations, documentOverflow, shellGoal, settled } from './shellFixtures';
 
 /**
  * Milestone M7.2: Review Flow UI E2E Specs.
@@ -14,7 +8,6 @@ const settled = (page: Page) =>
  * reflection capture, non-punitive feedback copy, 503 retry resilience,
  * 44px tap targets, zero horizontal overflow, and zero axe accessibility violations.
  */
-
 
 let consoleErrors: string[] = [];
 

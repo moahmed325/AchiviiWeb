@@ -66,3 +66,33 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  # The Today browser tests (mocked API, fake Supabase; see frontend/playwright.config.ts) on desktop and mobile.
+  # The full suite stays out of CI for now: on one worker it takes too long.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install (as Vercel)
+        working-directory: frontend
+        run: npm install
+      # The config uses channel: 'chromium', so install Chromium itself, with the system libraries it needs.
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Today browser tests
+        working-directory: frontend
+        run: npm run e2e -- e2e/todayStates.spec.ts e2e/today.spec.ts e2e/missedSessions.spec.ts e2e/lateTest.spec.ts e2e/focus.spec.ts e2e/weeklyReview.spec.ts
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7

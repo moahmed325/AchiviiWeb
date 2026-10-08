@@ -111,7 +111,7 @@ Findings F-1, F-5, F-6 and F-7 above were **corrected** by M1.1. Where this sect
 | P4 | Test Day & Week Close | P1; M4.2 also needs plan v2 weekly update | Endpoint to log the test without closing the week (M4.1); week-close handoff extends the existing review route (M4.2). |
 | P5 | QA, Copy Audit & Regression | P1-P4 | None. |
 
-Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3 IN PROGRESS (M3.1 to M3.3 complete); P4 PARTIAL (M4.1 complete, M4.2 blocked); P5 NOT STARTED.
+Current status: P1 COMPLETE; P2 COMPLETE (carry writes switched off, ND-15); P3 COMPLETE; P4 PARTIAL (M4.1 complete, M4.2 blocked); P5 NOT STARTED.
 
 ## 2.1 Dependency graph
 ```
@@ -306,7 +306,7 @@ Duplicate or lost steps on repeated or concurrent reconcile (ND-13 guard and tes
 
 # 8 — P3 TODAY EXPERIENCE
 
-**Status:** IN PROGRESS (M3.1 to M3.3 complete)
+**Status:** COMPLETE (2026-10-08: M3.1 to M3.4)
 
 ## 8.1 Source
 UX-1, UX-2, UX-4, RULE-6 (UI), RULE-8 (UI), RULE-9, tone section, AC-1, AC-5, AC-6, AC-7, AC-10, AC-12. Finding F-3.
@@ -339,7 +339,7 @@ None, beyond fields P2 already exposes. Turning on `MISSED_SESSIONS_CARRY_ENABLE
 
 **M3.3 — Key-session swap and mark-missed UI. COMPLETE** (2026-10-07). Evidence: `milestones/m3.3-swap-and-mark-missed-ui.md` (updated release checklist inside). Swap offered before carry-forward for a missed key session. Rest days never show a miss message. Use each action's response (the reconcile body) to refresh. Two things only that response knows (M2.4 report): when today's key session is marked missed, its `swapOffer` is not shown again on a reload until tonight's close, so keep it on screen from the response; and a drop caused by marking today missed appears in that response's `carry.drops` but becomes a `dropped` notice only after the close. **Wording when the day is today (decided 2026-10-07):** after "mark today missed", the day concerned is today, so M3.1's `{Day}` rule ("Yesterday" or a weekday) would read "Tuesday's session didn't happen" on that Tuesday. Extend the rule: when the day concerned is today, use these strings instead, and no others. Today, carried: "Today's session is set aside. We moved its most important step to {Weekday}, so that day stays the same length." Today, dropped: "Today's session is set aside. Nothing needs making up: the plan carries on as it is." Dashboard, either case: "Today's session is set aside. No catching up needed." Same copy rules as M3.1 (no "missed", "behind", "failed" or "why").
 
-**M3.4 — State coverage and accessibility.** Loading, error, offline, rest, key, test, review-due, and completed states still correct; axe and overflow checks at the existing widths. Add an `e2e` npm script in `frontend/package.json` that runs the existing Playwright config, so EV-5 can be run by a command.
+**M3.4 — State coverage and accessibility. COMPLETE** (2026-10-08). Evidence: `milestones/m3.4-state-coverage.md` (state matrix, EV-5, EV-6); `npm run e2e`; CI `e2e` job. Loading, error, offline, rest, key, test, review-due, and completed states still correct; axe and overflow checks at the existing widths. Add an `e2e` npm script in `frontend/package.json` that runs the existing Playwright config, so EV-5 can be run by a command.
 
 ## 8.8 Regression checks
 R-3, R-4, R-5, R-10, R-11.
@@ -445,4 +445,4 @@ The Implementation Prompt consumes **one milestone** from this file, the approve
 **Core principle:**
 > **Adapt the journey, don't punish the person.**
 
-**Status:** P1, P2, M3.1 to M3.3 and M4.1 COMPLETE; switch ON in production; M3.4 and P5 PROMPTS READY (run M3.4 first)
+**Status:** P1, P2, P3 and M4.1 COMPLETE; switch ON in production; P5 PROMPT READY

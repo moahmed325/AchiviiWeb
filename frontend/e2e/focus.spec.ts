@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { shellGoal, axeViolations, documentOverflow } from './shellFixtures';
+import { shellGoal, axeViolations, documentOverflow, settled } from './shellFixtures';
 
 const MINIMUM_VERSION = {
   stepNumber: 1,
@@ -224,19 +224,22 @@ test.describe('Focus Mode', () => {
     await openToday(page);
     const modal = await openFocus(page);
 
-    // Start screen axe scan
+    // Start screen axe scan, once Today's fade-in behind the dialog has finished (axe measures contrast)
+    await settled(page);
     expect(await axeViolations(page)).toEqual([]);
 
     // Active stage axe scan, with help open
     await modal.getByRole('button', { name: 'Start focused session' }).click();
     await expect(modal.getByText('In flow')).toBeVisible();
     await modal.getByText('Need help?').click();
+    await settled(page);
     expect(await axeViolations(page)).toEqual([]);
 
     // Completion screen axe scan
     await modal.getByRole('button', { name: 'Done — next' }).click();
     await modal.getByRole('button', { name: 'Complete session' }).click();
     await expect(modal.getByRole('region', { name: 'Session complete' })).toBeVisible();
+    await settled(page);
     expect(await axeViolations(page)).toEqual([]);
   });
 

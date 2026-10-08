@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
+import { axeViolations, documentOverflow, shellGoal, settled } from './shellFixtures';
 
 /**
  * M6.4: the journey on phone widths (/roadmap below 768px).
@@ -9,7 +9,6 @@ import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
  * "You are here" card and a single gold rail of phase cards that open in place. The separate mobile vertical journey
  * and desktop staircase are no longer mounted on /roadmap.
  */
-
 
 let consoleErrors: string[] = [];
 
@@ -28,11 +27,6 @@ test.afterEach(async ({}, testInfo) => {
   if (/errors expected\]/.test(testInfo.title)) return;
   expect(consoleErrors).toEqual([]);
 });
-
-const settled = (page: Page) =>
-  page.waitForFunction(() =>
-    document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
-  );
 
 const contentOverflow = (page: Page) =>
   page.locator('[data-shell="content"]').evaluate((el) => el.scrollWidth - el.clientWidth);
