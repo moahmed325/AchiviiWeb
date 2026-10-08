@@ -100,7 +100,6 @@ export interface JourneyData {
   finalTest?: string;
   methodName?: string;
   methodAuthor?: string;
-  planVersion: number; // 1 or 2
   phases: JourneyPhase[];
   closingStretch: JourneyClosingStretch;
   metrics: JourneyProgressMetrics;

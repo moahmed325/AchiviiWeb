@@ -210,44 +210,6 @@ describe('MobileVerticalJourney (M6.4)', () => {
       expect(screen.getByText('Phase 3: Production & Debate')).toBeInTheDocument();
       expect(screen.getByText('Phase 4: Synthesis & Exam')).toBeInTheDocument();
     });
-
-    it('renders v1 preset goal with 3 fixed phases (Foundation, Acceleration, Mastery)', () => {
-      const mockRoadmapWeeks: RoadmapWeek[] = Array.from({ length: 12 }, (_, i) => ({
-        id: `rw-${i + 1}`,
-        goalId: 'goal-v1',
-        weekNumber: i + 1,
-        phase: i < 4 ? 'Foundation' : i < 8 ? 'Acceleration' : 'Mastery',
-        theme: `Phase Segment ${i + 1}`,
-        objective: `Focus objective ${i + 1}`,
-        keyMilestone: `Milestone ${i + 1}`,
-        targetIntensity: 70,
-        plannedMinutes: 180,
-        status: i + 1 < 5 ? 'completed' : i + 1 === 5 ? 'active' : 'pending',
-        created_at: '2026-09-01',
-      }));
-
-      const v1Goal: Goal = {
-        ...baseGoal,
-        planVersion: 1,
-        roadmap: null,
-        currentWeek: 5,
-        roadmapWeeks: mockRoadmapWeeks,
-        dailyTasks: createMockTasks(5),
-      };
-
-      const journey = toJourneyData(v1Goal);
-      expect(journey).not.toBeNull();
-
-      render(
-        <MemoryRouter>
-          <MobileVerticalJourney journey={journey!} />
-        </MemoryRouter>
-      );
-
-      expect(screen.getByText('Foundation')).toBeInTheDocument();
-      expect(screen.getByText('Acceleration')).toBeInTheDocument();
-      expect(screen.getByText('Mastery')).toBeInTheDocument();
-    });
   });
 
   describe('R2: "You Are Here" Auto-Positioning & Active Step Indication', () => {

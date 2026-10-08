@@ -4,7 +4,6 @@ import { Check, TrendingUp } from 'lucide-react';
 import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
 import { dayNumber } from '../lib/today';
-import { V1_DEFAULT_PHASES } from '../lib/journeyAdapter';
 import { LoadingState, Skeleton, Button } from '../components/ui';
 import { WeekBreakdownList, BenchmarkResultsCard, AdaptationHistoryList } from '../components/progress';
 
@@ -44,10 +43,8 @@ export const ProgressPage: React.FC = () => {
 
   const phases = useMemo(() => {
     if (!activeGoal) return [];
-    const roadmap = activeGoal.roadmap?.phases;
-    if (roadmap && roadmap.length >= 2) return roadmap;
-    // Same fixed phases as the Roadmap (OD-7), so both screens name the current phase alike.
-    return V1_DEFAULT_PHASES;
+    // The roadmap's own phases, as on the Roadmap (OD-7), so both screens name the current phase alike.
+    return activeGoal.roadmap?.phases ?? [];
   }, [activeGoal]);
 
   const currentPhase = phases.find((phase) => currentWeek >= phase.startWeek && currentWeek <= phase.endWeek);

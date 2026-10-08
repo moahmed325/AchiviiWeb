@@ -33,6 +33,19 @@ export const shellGoal = () => ({
   currentWeek: 1,
   answers: '{}',
   routine: '{}',
+  // Plan v2 is the only plan model (ND-21): the roadmap carries the phases the journey shows.
+  planVersion: 2,
+  roadmap: {
+    finalGoal: STORED_OUTCOME,
+    finalTest: '',
+    startingPoint: { value: null, description: '' },
+    method: { name: '', creator: '', summary: '', whyChosen: '', runnerUp: null, safety: 5, rules: [] },
+    phases: [
+      { name: 'Foundation', startWeek: 1, endWeek: 4, purpose: 'Establish baseline habits and foundational skills' },
+      { name: 'Acceleration', startWeek: 5, endWeek: 8, purpose: 'Increase volume, intensity, and progressive overload' },
+      { name: 'Mastery', startWeek: 9, endWeek: 12, purpose: 'Peak performance, integration, and final testing' },
+    ],
+  },
   created_at: `${isoDay(-2)}T00:00:00.000Z`,
   updated_at: `${isoDay(-2)}T00:00:00.000Z`,
   roadmapWeeks: [

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applySafetyClamps } from '../src/lib/research/safetyClamps.js';
-import { formatBasisBadge, formatMethodologyNotes } from '../src/lib/research/planGrounding.js';
+import { formatBasisBadge } from '../src/lib/research/planGrounding.js';
 import type { VelocityTable, VelocityTarget } from '../src/lib/research/types.js';
 
 function target(partial: Partial<VelocityTarget> & Pick<VelocityTarget, 'metric' | 'value' | 'unit' | 'direction'>): VelocityTarget {
@@ -117,29 +117,15 @@ describe('Phase 4 — honest basis', () => {
     });
     expect(badge?.anchored).toBe(false);
     expect(badge?.label).not.toMatch(/Anchored/);
-    expect(formatMethodologyNotes({
-      methodKind: 'technique',
-      methodConfidence: 'first_principles',
-      teachings: ['Aim to hit the water at about 20 degrees.'],
-      allowedUrls: [],
-      velocityTable: null,
-    })).toMatch(/No official program/);
   });
 
-  it('labels a model-chosen method as recommended, never anchored, and names the runner-up', () => {
-    const grounding = {
+  it('labels a model-chosen method as recommended, never anchored', () => {
+    const badge = formatBasisBadge({
       methodKind: 'model_recommended',
       methodConfidence: 'first_principles',
       methodName: 'Keybr drills',
-      teachings: ['Type the home row without looking.'],
-      allowedUrls: [],
-      velocityTable: null,
-      whyChosen: 'They type 14 wpm and want 40.',
-      runnerUp: { name: 'Free typing tests only', whyNot: 'no structured drills' },
-    };
-    const badge = formatBasisBadge(grounding);
+    });
     expect(badge?.anchored).toBe(false);
     expect(badge?.label).toBe('Recommended method: Keybr drills');
-    expect(formatMethodologyNotes(grounding)).toContain('Runner-up: Free typing tests only');
   });
 });

@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { Check, Circle, Minus } from 'lucide-react';
 import type { Goal, RoadmapWeek, RoadmapPhase, DailyTask } from '../../types';
-import { V1_DEFAULT_PHASES } from '../../lib/journeyAdapter';
 import { cx } from '../ui';
 
 interface PhaseMilestonesCardProps {
@@ -24,11 +23,7 @@ function derivePhases(goal: Goal): PhaseEntry[] {
   const weeks: RoadmapWeek[] = goal.roadmapWeeks || [];
   const tasks: DailyTask[] = goal.dailyTasks || [];
 
-  const isV2 = goal.planVersion === 2 && goal.roadmap;
-  const rawPhases: RoadmapPhase[] =
-    isV2 && goal.roadmap?.phases && goal.roadmap.phases.length >= 2
-      ? goal.roadmap.phases
-      : V1_DEFAULT_PHASES;
+  const rawPhases: RoadmapPhase[] = goal.roadmap?.phases ?? [];
 
   return rawPhases.map((phase) => {
     // Phase status

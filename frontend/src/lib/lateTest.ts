@@ -4,7 +4,7 @@ import { currentWeekTasks, todayKey } from './today';
 /**
  * Missed sessions M4.1 (RULE-7, UX-3, AC-8): the current week when its test is still open after test day, else null.
  * Shown from the test day's close until the week is completed by its review:
- * - plan v2 only (old goals have no `RoadmapWeek.test`);
+ * - plan v2 only: any other goal gets null (ND-21);
  * - the week has a test, no stored `testResult`, and is not completed;
  * - the test day has closed: reconcile classifies it `missed` or `done`, or, when reconcile has nothing for this
  *   goal, its date is before today in the user's timezone.

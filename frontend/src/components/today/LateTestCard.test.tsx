@@ -160,7 +160,7 @@ describe('Late-test card on Today (missed sessions M4.1)', () => {
   it.each([
     ['a result is logged', goal({ testResult: { value: 26, unit: 'min', passed: true } })],
     ['the week is completed', goal({ status: 'completed' })],
-    ['the goal is plan v1', goal({}, { planVersion: 1 })],
+    ['the goal is not plan v2', goal({}, { planVersion: 1 })],
     ['the week has no test (old goal)', goal({ test: null })],
   ])('is not shown when %s', async (_, g) => {
     mocked.fetchActiveGoal.mockResolvedValue(g);

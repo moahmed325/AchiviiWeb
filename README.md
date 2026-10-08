@@ -66,7 +66,7 @@ AchiviiWeb/
 │   │   │   │   ├── clarify.ts            # Goal clarification and follow-up questions
 │   │   │   │   ├── roadmap.ts            # Plan v2: method, phases, and each week's target and test
 │   │   │   │   ├── weekPlan.ts           # Plan v2: writes one week of daily tasks
-│   │   │   │   ├── goalDecomposer.ts     # Goal clarification; week adaptation for older (v1) goals
+│   │   │   │   ├── goalDecomposer.ts     # Shared plan types (DailyTaskPlan, DetailedStep); re-exports clarify
 │   │   │   │   └── presets/              # 10 Certified Master Blueprints (VDOT, CAGED, Lean Startup, etc.)
 │   │   │   ├── research/             # Unsafe-goal screen, stated targets, safety clamps, basis badge
 │   │   │   ├── planV2.ts             # Writes the next week after each weekly review
