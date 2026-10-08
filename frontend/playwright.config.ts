@@ -15,7 +15,8 @@ export default defineConfig({
   testIgnore: process.env.LIVE_API ? [] : ['live/**'],
   // One worker: parallel workers saturate the Vite dev server here and requests stall past the test timeout.
   workers: 1,
-  reporter: 'list',
+  // CI also writes the HTML report, which the e2e job uploads when it fails.
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: `http://localhost:${PORT}`,
     // Full Chromium in new headless mode, closer to a real browser than the headless shell.

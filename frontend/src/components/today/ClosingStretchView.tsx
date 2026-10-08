@@ -186,7 +186,7 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
       {/* 6-Day Approach Progress Indicator */}
       <div className="rounded-card border border-border bg-surface-elevated/50 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span className="font-ui-mono text-micro uppercase tracking-wider text-text-muted">
+          <span className="font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
             Closing Stretch Approach
           </span>
           <span className="font-ui-mono text-micro text-achievement">
@@ -206,7 +206,7 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
                     ? 'border-achievement bg-achievement/15 text-achievement font-semibold ring-1 ring-achievement/30'
                     : isDone
                     ? 'border-border bg-surface text-text'
-                    : 'border-border/60 bg-surface/40 text-text-muted'
+                    : 'border-border/60 bg-surface/40 text-text-secondary'
                 )}
               >
                 <div className="font-ui-mono text-micro uppercase">
@@ -277,7 +277,7 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
                 type="button"
                 onClick={() => handlePassedChange(true)}
                 className={cx(
-                  'focus-ring flex items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
+                  'focus-ring flex min-h-11 items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
                   testResult?.passed === true
                     ? 'border-accent bg-accent/10 text-accent font-semibold ring-1 ring-accent/30'
                     : 'border-border bg-surface hover:bg-surface-elevated text-text-secondary'
@@ -290,7 +290,7 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
                 type="button"
                 onClick={() => handlePassedChange(false)}
                 className={cx(
-                  'focus-ring flex items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
+                  'focus-ring flex min-h-11 items-center gap-2 rounded-control border px-3.5 py-2 text-small font-medium transition-colors cursor-pointer',
                   testResult?.passed === false
                     ? 'border-amber-500/50 bg-amber-500/10 text-amber-300 font-semibold ring-1 ring-amber-500/30'
                     : 'border-border bg-surface hover:bg-surface-elevated text-text-secondary'

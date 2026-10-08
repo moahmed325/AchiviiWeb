@@ -95,23 +95,23 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
           {/* Quick Highlight Stats Strip */}
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-control border border-border bg-surface-elevated/70 p-3 text-left">
-              <span className="font-ui-mono text-micro text-text-muted">Total Path</span>
+              <span className="font-ui-mono text-micro text-text-secondary">Total Path</span>
               <p className="font-ui-mono text-h3 font-semibold tabular-nums text-text">90 Days</p>
             </div>
             <div className="rounded-control border border-border bg-surface-elevated/70 p-3 text-left">
-              <span className="font-ui-mono text-micro text-text-muted">Practice Sessions</span>
+              <span className="font-ui-mono text-micro text-text-secondary">Practice Sessions</span>
               <p className="font-ui-mono text-h3 font-semibold tabular-nums text-text">
                 {summary.completedSessions}
               </p>
             </div>
             <div className="rounded-control border border-border bg-surface-elevated/70 p-3 text-left">
-              <span className="font-ui-mono text-micro text-text-muted">Execution Rate</span>
+              <span className="font-ui-mono text-micro text-text-secondary">Execution Rate</span>
               <p className="font-ui-mono text-h3 font-semibold tabular-nums text-achievement">
                 {summary.adherenceRate}%
               </p>
             </div>
             <div className="rounded-control border border-border bg-surface-elevated/70 p-3 text-left">
-              <span className="font-ui-mono text-micro text-text-muted">Benchmarks</span>
+              <span className="font-ui-mono text-micro text-text-secondary">Benchmarks</span>
               <p className="font-ui-mono text-h3 font-semibold tabular-nums text-accent-hover">
                 {summary.benchmarksAchieved}/{summary.totalBenchmarks}
               </p>

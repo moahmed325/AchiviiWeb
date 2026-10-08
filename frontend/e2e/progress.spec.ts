@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { axeViolations, documentOverflow, shellGoal } from './shellFixtures';
+import { axeViolations, documentOverflow, shellGoal, settled } from './shellFixtures';
 
 /**
  * Milestone M8.5: Dedicated Progress Page E2E Specs.
@@ -30,11 +30,6 @@ test.afterEach(async ({}, testInfo) => {
   if (/errors expected\]/.test(testInfo.title)) return;
   expect(consoleErrors).toEqual([]);
 });
-
-const settled = (page: Page) =>
-  page.waitForFunction(() =>
-    document.getAnimations().every((a) => a.playState !== 'running' || a.effect?.getTiming().iterations === Infinity),
-  );
 
 const expectTapTargets = async (controls: Locator) => {
   for (const control of await controls.all()) {

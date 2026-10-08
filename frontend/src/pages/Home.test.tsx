@@ -90,6 +90,29 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Run a 10K Under 50 Minutes' })).toBeVisible();
   });
 
+  it('shows the loading skeleton, announced as "Loading your day", while the goal loads (M3.4)', async () => {
+    let resolveGoal!: (goal: Goal) => void;
+    mocked.fetchActiveGoal.mockReturnValueOnce(new Promise<Goal>((resolve) => (resolveGoal = resolve)));
+
+    render(
+      <AuthProvider>
+        <GoalProvider>
+          <MemoryRouter>
+            <Home />
+          </MemoryRouter>
+        </GoalProvider>
+      </AuthProvider>
+    );
+
+    expect((await screen.findByText('Loading your day')).closest('[role="status"]')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    resolveGoal(MOCK_GOAL);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Run a 10K Under 50 Minutes' })).toBeVisible();
+    expect(screen.queryByText('Loading your day')).not.toBeInTheDocument();
+  });
+
   it('renders pathway library when active goal is genuinely null without error', async () => {
     mocked.fetchActiveGoal.mockResolvedValueOnce(null as unknown as Goal);
 

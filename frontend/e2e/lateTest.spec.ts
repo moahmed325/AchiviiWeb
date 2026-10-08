@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { mockApi, signIn } from './mockApi';
-import { axeViolations, documentOverflow, settled, shellGoal } from './shellFixtures';
+import { axeViolations, expectCleanAt, settled, shellGoal } from './shellFixtures';
 
 // Missed sessions M4.1 (RULE-7, UX-3, AC-8): after test day, the week's test can be logged without the review.
 // The mocked PUT /weeks/:n/test-result stores the result on the mocked goal, so a reload returns it.
@@ -21,16 +21,6 @@ function goalWithTest(testOffset: number) {
 }
 
 const card = (page: Page) => page.getByRole('region', { name: TITLE });
-
-async function expectCleanAt(page: Page, widths: number[]) {
-  for (const width of widths) {
-    await page.setViewportSize({ width, height: 844 });
-    expect(await documentOverflow(page), `overflow at ${width}`).toBeLessThanOrEqual(1);
-    // Axe measures contrast: let the fade-in finish first.
-    await settled(page);
-    expect(await axeViolations(page), `axe at ${width}`).toEqual([]);
-  }
-}
 
 test.describe('Late test on Today (M4.1)', () => {
   test('after test day: the card, logging a result, and the card gone after a reload', async ({ page }) => {
