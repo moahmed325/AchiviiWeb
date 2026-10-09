@@ -1,0 +1,66 @@
+THE PERSON
+Goal: Type 40 words per minute at 95% accuracy
+Their answers:
+- Where they are now: 14 wpm
+Time: 30 minutes a day on Monday, Tuesday, Wednesday, Friday, Saturday
+
+THE METHOD
+Keybr adaptive drills
+Rules (follow every one):
+- Hold 95% accuracy before adding speed
+
+THIS WEEK
+Week 1 of 12, phase "Accuracy": Learn every key without looking.
+Focus: Home row
+Target: Typing speed: 16 words per minute
+Weekly test: Take a 1-minute typing test on keybr.com. Pass if: 16 wpm at 95% accuracy
+
+
+THE DAYS (already decided; keep them)
+- Day 1 (Monday): practice
+- Day 2 (Tuesday): practice
+- Day 3 (Wednesday): practice
+- Day 4 (Thursday): rest
+- Day 5 (Friday): practice
+- Day 6 (Saturday): practice, TEST DAY
+- Day 7 (Sunday): rest
+
+WRITE THE WEEK
+- 7 days, dayNumber 1-7, exactly as listed above.
+- The test day's main step is the weekly test exactly as written above, titled "Weekly test: ...", with a
+  short warm-up before it (5 minutes or less) and a short step after it (5 minutes or less) that compares the
+  result with the target. The test day may be shorter than 30 minutes; do not pad it.
+- Mark 1-2 practice days (not the test day) as key sessions ("isKeySession": true): the hardest sessions that
+  matter most for the target. Put them mid-week.
+- Each practice day has:
+  - title: what they get done, e.g. "Hold a 3-minute conversation about your weekend", not "Speaking practice"
+  - whyToday: one sentence on how this day moves them toward the target
+  - 2-4 steps that each do something different, with minutes adding up to 30
+  - minimumVersion: one 10-minute step for days they can't do the full session. It must still move them
+    toward the target.
+- Each step has:
+  - title and instructions: specific enough to start without looking anything up
+  - minutes
+  - output: what they end up with
+  - doneWhen: the check that it's good enough
+  - focusCue and pitfall
+  - priority: 1 = most important today, no ties
+  - timing (optional): only when the step can't follow the previous one straight away
+  - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false
+  - kind: the id of the kind of step it is, from KINDS OF STEP below
+- No two practice days are the same. Most practice days include doing the real thing, not only preparing for it.
+- Only use equipment they have. Match their level. Never assign loads beyond what is safe for their level.
+- No steps for journaling, reflecting, or reading about the method. Breaks go inside a step's instructions,
+  never as their own step.
+- Rest days: "steps" is empty, or one light step of 15 minutes at most. "isKeySession": false.
+
+KINDS OF STEP (every practice-day step has exactly one "kind": one of these ids, written exactly)
+- practice_session: Practice session. Doing the skill itself.
+- review_or_reflection: Review or reflection. Looking back at recent practice to see what to change.
+- project_work: Project work. Working on a longer piece or project.
+- catch_all: Catch-all. Work that fits none of the other kinds.
+- weekly_test: Weekly test. The week's test, done exactly as written.
+- fixed_time_session: Fixed-time session. Something set for a time by others, such as a class, a group run or a call.
+- A step whose kind is practice_session or catch_all starts with its own short warm-up (5 minutes or less) inside its instructions, so it can be done on another day on its own.
+- Work that only makes sense together, such as a game and its review, is written as one step.
+- The weekly test step's kind is weekly_test. Use fixed_time_session only for something set for a time by others, such as a class, a group run or a call.

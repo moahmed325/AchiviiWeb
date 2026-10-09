@@ -205,6 +205,18 @@ describe('goal create and the profile call', () => {
     expect(savedRecovery()).toEqual(PATHWAY_PROFILES.ted_speech_15min);
   });
 
+  it('M2.1: the week call gets the profile the goal is saved with, on every path', async () => {
+    const weekInput = () => vi.mocked(generateWeekPlan).mock.calls.at(-1)![0];
+    await create(SOURDOUGH);
+    expect(weekInput().recovery).toEqual(RECOVERY_TEMPLATES.general);
+    await create(RUN_10K);
+    expect(weekInput().recovery).toEqual(PATHWAY_PROFILES.run10k);
+    process.env[SWITCH] = 'true';
+    await create(SOURDOUGH);
+    expect(weekInput().recovery).toEqual(modelProfile);
+    expect(weekInput().recovery).toEqual(db.goalCreate.mock.calls.at(-1)[0].data.roadmap.recovery);
+  });
+
   it('the stream sends the same events with the switch on: no new step', async () => {
     const { events: off } = await create(SOURDOUGH, number, true);
     process.env[SWITCH] = 'true';
