@@ -798,6 +798,13 @@ goalRouter.post('/complete', async (req: Request, res: Response): Promise<void> 
   }
 });
 
+/** The only task statuses a client may set through PATCH /api/goal/tasks/:taskId (B-11). */
+export const TASK_STATUSES = ['pending', 'completed'] as const;
+
+function isTaskStatus(value: unknown): value is (typeof TASK_STATUSES)[number] {
+  return typeof value === 'string' && (TASK_STATUSES as readonly string[]).includes(value);
+}
+
 /**
  * PATCH /api/goal/tasks/:taskId
  * Updates task completion status or notes.
@@ -812,6 +819,11 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
 
     const { taskId } = req.params;
     const { status, notes, slotTime, usedMinimumVersion } = req.body;
+
+    if (status !== undefined && !isTaskStatus(status)) {
+      res.status(400).json({ error: 'status must be "pending" or "completed".' });
+      return;
+    }
 
     if (usedMinimumVersion !== undefined && typeof usedMinimumVersion !== 'boolean') {
       res.status(400).json({ error: 'usedMinimumVersion must be a boolean.' });

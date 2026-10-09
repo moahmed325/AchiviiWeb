@@ -383,6 +383,12 @@ describe('journeyAdapter', () => {
       expect(step.status).toBe('completed');
     });
 
+    it('counts only completed as done; an unknown stored status is not done (B-11)', () => {
+      const legacy = { ...task, status: 'skipped' } as unknown as DailyTask;
+      expect(mapTaskToStep(legacy, 5, '2026-09-05').status).toBe('active');
+      expect(mapTaskToStep(legacy, 3, '2026-09-03').status).toBe('upcoming');
+    });
+
     it('marks today pending task as active', () => {
       const step = mapTaskToStep(task, 5, '2026-09-05');
       expect(step.status).toBe('active');
