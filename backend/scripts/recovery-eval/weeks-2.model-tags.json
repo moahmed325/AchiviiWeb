@@ -1,0 +1,446 @@
+[
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 1,
+    "stepNumber": 3,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "kind": "quality_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "kind": "quality_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 2,
+    "stepNumber": 3,
+    "kind": "quality_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 3,
+    "stepNumber": 3,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 5,
+    "stepNumber": 3,
+    "kind": "easy_session"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "kind": "strength_workout"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "kind": "mobility"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "kind": "strength_workout"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "kind": "mobility"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "kind": "strength_workout"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "kind": "mobility"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "kind": "strength_workout"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "kind": "mobility"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "kind": "review"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "kind": "daily_speaking"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 1,
+    "stepNumber": 3,
+    "kind": "new_material"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "kind": "review"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "kind": "daily_speaking"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 2,
+    "stepNumber": 3,
+    "kind": "conversation_or_listening"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "kind": "review"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "kind": "daily_speaking"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 3,
+    "stepNumber": 3,
+    "kind": "new_material"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "kind": "review"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "kind": "daily_speaking"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 5,
+    "stepNumber": 3,
+    "kind": "conversation_or_listening"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "kind": "new_topic"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "kind": "review"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "kind": "new_topic"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "kind": "practice_questions"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "kind": "new_topic"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "kind": "review"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "kind": "new_topic"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "kind": "practice_questions"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "kind": "titles_and_thumbnails"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "kind": "research_and_scripting"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "kind": "publishing"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "kind": "titles_and_thumbnails"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "kind": "guest_outreach"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "kind": "research_and_scripting"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "kind": "guest_outreach"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "kind": "catch_all"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "kind": "tactics_puzzles"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "kind": "opening_or_theory_study"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "kind": "tactics_puzzles"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "kind": "played_game_with_review"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "kind": "tactics_puzzles"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "kind": "opening_or_theory_study"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "kind": "tactics_puzzles"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "kind": "played_game_with_review"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "kind": "weekly_test"
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "kind": "weekly_test"
+  }
+]
