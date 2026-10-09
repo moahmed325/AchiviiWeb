@@ -1,0 +1,2408 @@
+{
+  "keywordTable": {
+    "right": 23,
+    "total": 26,
+    "misses": [
+      {
+        "goalId": "endurance-5",
+        "answer": "endurance",
+        "picked": "general"
+      },
+      {
+        "goalId": "strategy_games-2",
+        "answer": "strategy_games",
+        "picked": "general"
+      },
+      {
+        "goalId": "general-2",
+        "answer": "general",
+        "picked": "strategy_games"
+      }
+    ]
+  },
+  "run3": {
+    "goals": 26,
+    "templatesRight": 25,
+    "kindsAgree": 111,
+    "kindsTotal": 124,
+    "kindsMatched": 113,
+    "unsafe": [],
+    "sources": {
+      "model": 26,
+      "picked_template": 0,
+      "keyword_template": 0
+    },
+    "perGoal": [
+      {
+        "goalId": "endurance-1",
+        "templateRight": true,
+        "answerTemplate": "endurance",
+        "returnedTemplate": "endurance",
+        "kinds": [
+          {
+            "answerKind": "easy_session",
+            "answerAction": "let_go",
+            "returnedKind": "easy_session",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "quality_session",
+            "answerAction": "move",
+            "returnedKind": "quality_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "long_session",
+            "answerAction": "move",
+            "returnedKind": "long_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "strength_and_mobility",
+            "answerAction": "move",
+            "returnedKind": "strength_and_mobility",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "let_go",
+            "returnedKind": "catch_all",
+            "returnedAction": "let_go",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "endurance-5",
+        "templateRight": true,
+        "answerTemplate": "endurance",
+        "returnedTemplate": "endurance",
+        "kinds": [
+          {
+            "answerKind": "easy_session",
+            "answerAction": "let_go",
+            "returnedKind": "easy_session",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "quality_session",
+            "answerAction": "move",
+            "returnedKind": "quality_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "long_session",
+            "answerAction": "move",
+            "returnedKind": "long_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "strength_and_mobility",
+            "answerAction": "move",
+            "returnedKind": "strength_and_mobility",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "let_go",
+            "returnedKind": "catch_all",
+            "returnedAction": "let_go",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "strength-1",
+        "templateRight": true,
+        "answerTemplate": "strength",
+        "returnedTemplate": "strength",
+        "kinds": [
+          {
+            "answerKind": "strength_workout",
+            "answerAction": "move",
+            "returnedKind": "strength_workout",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "conditioning",
+            "answerAction": "let_go",
+            "returnedKind": "conditioning",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "nutrition_and_tracking",
+            "answerAction": "let_go",
+            "returnedKind": "nutrition_and_tracking",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "mobility",
+            "answerAction": "move",
+            "returnedKind": "mobility",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "strength-2",
+        "templateRight": true,
+        "answerTemplate": "strength",
+        "returnedTemplate": "strength",
+        "kinds": [
+          {
+            "answerKind": "strength_workout",
+            "answerAction": "move",
+            "returnedKind": "strength_workout",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "mobility",
+            "answerAction": "move",
+            "returnedKind": "mobility",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [
+          "conditioning",
+          "nutrition_and_tracking"
+        ],
+        "unsafe": []
+      },
+      {
+        "goalId": "language-3",
+        "templateRight": true,
+        "answerTemplate": "language",
+        "returnedTemplate": "language",
+        "kinds": [
+          {
+            "answerKind": "new_material",
+            "answerAction": "move",
+            "returnedKind": "new_material",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "daily_speaking",
+            "answerAction": "let_go",
+            "returnedKind": "daily_speaking",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "review",
+            "answerAction": "let_go",
+            "returnedKind": "review",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "conversation_or_listening",
+            "answerAction": "move",
+            "returnedKind": "conversation_or_listening",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "language-2",
+        "templateRight": true,
+        "answerTemplate": "language",
+        "returnedTemplate": "language",
+        "kinds": [
+          {
+            "answerKind": "new_material",
+            "answerAction": "move",
+            "returnedKind": "new_material",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "daily_speaking",
+            "answerAction": "let_go",
+            "returnedKind": "daily_speaking",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "review",
+            "answerAction": "let_go",
+            "returnedKind": "review",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "conversation_or_listening",
+            "answerAction": "move",
+            "returnedKind": "conversation_or_listening",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "instrument-1",
+        "templateRight": true,
+        "answerTemplate": "instrument",
+        "returnedTemplate": "instrument",
+        "kinds": [
+          {
+            "answerKind": "technique_drills",
+            "answerAction": "let_go",
+            "returnedKind": "technique_drills",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "new_piece_or_section",
+            "answerAction": "move",
+            "returnedKind": "new_piece_or_section",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "play_through_or_recording",
+            "answerAction": "move",
+            "returnedKind": "play_through_or_recording",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "instrument-3",
+        "templateRight": true,
+        "answerTemplate": "instrument",
+        "returnedTemplate": "instrument",
+        "kinds": [
+          {
+            "answerKind": "technique_drills",
+            "answerAction": "let_go",
+            "returnedKind": "technique_drills",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "new_piece_or_section",
+            "answerAction": "move",
+            "returnedKind": "new_piece_or_section",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "play_through_or_recording",
+            "answerAction": "move",
+            "returnedKind": "play_through_or_recording",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "writing-1",
+        "templateRight": true,
+        "answerTemplate": "writing",
+        "returnedTemplate": "writing",
+        "kinds": [
+          {
+            "answerKind": "drafting",
+            "answerAction": "continue",
+            "returnedKind": "drafting",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "outlining_and_planning",
+            "answerAction": "move",
+            "returnedKind": "outlining_and_planning",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "revising",
+            "answerAction": "continue",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "reading_and_research",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "writing-2",
+        "templateRight": true,
+        "answerTemplate": "writing",
+        "returnedTemplate": "writing",
+        "kinds": [
+          {
+            "answerKind": "drafting",
+            "answerAction": "continue",
+            "returnedKind": "drafting",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "outlining_and_planning",
+            "answerAction": "move",
+            "returnedKind": "outlining_and_planning",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "revising",
+            "answerAction": "continue",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "reading_and_research",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "product-5",
+        "templateRight": true,
+        "answerTemplate": "product",
+        "returnedTemplate": "product",
+        "kinds": [
+          {
+            "answerKind": "build_work",
+            "answerAction": "continue",
+            "returnedKind": "build_work",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "customer_conversations_and_outreach",
+            "answerAction": "move",
+            "returnedKind": "customer_conversations_and_outreach",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "daily_distribution_sprint",
+            "answerAction": "let_go",
+            "returnedKind": "daily_distribution_sprint",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "launch_or_shipping_step",
+            "answerAction": "move",
+            "returnedKind": "launch_or_shipping_step",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "learning",
+            "answerAction": "let_go",
+            "returnedKind": "learning",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "product-6",
+        "templateRight": true,
+        "answerTemplate": "product",
+        "returnedTemplate": "product",
+        "kinds": [
+          {
+            "answerKind": "build_work",
+            "answerAction": "continue",
+            "returnedKind": "build_work",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "customer_conversations_and_outreach",
+            "answerAction": "move",
+            "returnedKind": "customer_conversations_and_outreach",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "daily_distribution_sprint",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "launch_or_shipping_step",
+            "answerAction": "move",
+            "returnedKind": "launch_or_shipping_step",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "learning",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "exam-3",
+        "templateRight": true,
+        "answerTemplate": "exam",
+        "returnedTemplate": "exam",
+        "kinds": [
+          {
+            "answerKind": "new_topic",
+            "answerAction": "move",
+            "returnedKind": "new_topic",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "practice_questions",
+            "answerAction": "move",
+            "returnedKind": "practice_questions",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "review",
+            "answerAction": "let_go",
+            "returnedKind": "review",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "mock_exam",
+            "answerAction": "move",
+            "returnedKind": "mock_exam",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "exam-2",
+        "templateRight": true,
+        "answerTemplate": "exam",
+        "returnedTemplate": "exam",
+        "kinds": [
+          {
+            "answerKind": "new_topic",
+            "answerAction": "move",
+            "returnedKind": "new_topic",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "practice_questions",
+            "answerAction": "move",
+            "returnedKind": "practice_questions",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "review",
+            "answerAction": "let_go",
+            "returnedKind": "review",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "mock_exam",
+            "answerAction": "move",
+            "returnedKind": "mock_exam",
+            "returnedAction": "fixed",
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "speaking-1",
+        "templateRight": true,
+        "answerTemplate": "speaking",
+        "returnedTemplate": "speaking",
+        "kinds": [
+          {
+            "answerKind": "script_and_structure",
+            "answerAction": "move",
+            "returnedKind": "script_and_structure",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "rehearsal",
+            "answerAction": "move",
+            "returnedKind": "rehearsal",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "recorded_run_through",
+            "answerAction": "move",
+            "returnedKind": "recorded_run_through",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "voice_and_delivery_drills",
+            "answerAction": "let_go",
+            "returnedKind": "voice_and_delivery_drills",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "speaking-2",
+        "templateRight": true,
+        "answerTemplate": "speaking",
+        "returnedTemplate": "speaking",
+        "kinds": [
+          {
+            "answerKind": "script_and_structure",
+            "answerAction": "move",
+            "returnedKind": "script_and_structure",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "rehearsal",
+            "answerAction": "move",
+            "returnedKind": "rehearsal",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "recorded_run_through",
+            "answerAction": "move",
+            "returnedKind": "recorded_run_through",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "voice_and_delivery_drills",
+            "answerAction": "let_go",
+            "returnedKind": "voice_and_delivery_drills",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "creative-1",
+        "templateRight": true,
+        "answerTemplate": "creative",
+        "returnedTemplate": "creative",
+        "kinds": [
+          {
+            "answerKind": "fundamentals_drill",
+            "answerAction": "let_go",
+            "returnedKind": "fundamentals_drill",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "study_or_copy_work",
+            "answerAction": "move",
+            "returnedKind": "study_or_copy_work",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "project_piece",
+            "answerAction": "continue",
+            "returnedKind": "project_piece",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "creative-2",
+        "templateRight": true,
+        "answerTemplate": "creative",
+        "returnedTemplate": "creative",
+        "kinds": [
+          {
+            "answerKind": "fundamentals_drill",
+            "answerAction": "let_go",
+            "returnedKind": "fundamentals_drill",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "study_or_copy_work",
+            "answerAction": "move",
+            "returnedKind": "study_or_copy_work",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "project_piece",
+            "answerAction": "continue",
+            "returnedKind": "project_piece",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "habit-1",
+        "templateRight": true,
+        "answerTemplate": "habit",
+        "returnedTemplate": "habit",
+        "kinds": [
+          {
+            "answerKind": "daily_focus_block",
+            "answerAction": "let_go",
+            "returnedKind": "daily_focus_block",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "weekly_planning_or_review",
+            "answerAction": "move",
+            "returnedKind": "weekly_planning_or_review",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "let_go",
+            "returnedKind": "catch_all",
+            "returnedAction": "let_go",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "habit-2",
+        "templateRight": true,
+        "answerTemplate": "habit",
+        "returnedTemplate": "habit",
+        "kinds": [
+          {
+            "answerKind": "daily_focus_block",
+            "answerAction": "let_go",
+            "returnedKind": "daily_focus_block",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "weekly_planning_or_review",
+            "answerAction": "move",
+            "returnedKind": "weekly_planning_or_review",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "let_go",
+            "returnedKind": "catch_all",
+            "returnedAction": "let_go",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "content-1",
+        "templateRight": true,
+        "answerTemplate": "content",
+        "returnedTemplate": "content",
+        "kinds": [
+          {
+            "answerKind": "titles_and_thumbnails",
+            "answerAction": "move",
+            "returnedKind": "titles_and_thumbnails",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "research_and_scripting",
+            "answerAction": "continue",
+            "returnedKind": "research_and_scripting",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "filming",
+            "answerAction": "move",
+            "returnedKind": "filming",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "editing",
+            "answerAction": "continue",
+            "returnedKind": "editing",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "publishing",
+            "answerAction": "move",
+            "returnedKind": "publishing",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "learning_and_analytics",
+            "answerAction": "let_go",
+            "returnedKind": "learning_and_analytics",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "guest_outreach",
+            "answerAction": "move",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "content-2",
+        "templateRight": true,
+        "answerTemplate": "content",
+        "returnedTemplate": "content",
+        "kinds": [
+          {
+            "answerKind": "titles_and_thumbnails",
+            "answerAction": "move",
+            "returnedKind": "titles_and_thumbnails",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "research_and_scripting",
+            "answerAction": "continue",
+            "returnedKind": "research_and_scripting",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "filming",
+            "answerAction": "move",
+            "returnedKind": "filming",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "editing",
+            "answerAction": "continue",
+            "returnedKind": "editing",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "publishing",
+            "answerAction": "move",
+            "returnedKind": "publishing",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "learning_and_analytics",
+            "answerAction": "let_go",
+            "returnedKind": "learning_and_analytics",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "strategy_games-1",
+        "templateRight": true,
+        "answerTemplate": "strategy_games",
+        "returnedTemplate": "strategy_games",
+        "kinds": [
+          {
+            "answerKind": "tactics_puzzles",
+            "answerAction": "let_go",
+            "returnedKind": "tactics_puzzles",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "opening_or_theory_study",
+            "answerAction": "move",
+            "returnedKind": "opening_or_theory_study",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "played_game_with_review",
+            "answerAction": "move",
+            "returnedKind": "played_game_with_review",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "strategy_games-2",
+        "templateRight": true,
+        "answerTemplate": "strategy_games",
+        "returnedTemplate": "strategy_games",
+        "kinds": [
+          {
+            "answerKind": "opening_or_theory_study",
+            "answerAction": "move",
+            "returnedKind": "opening_or_theory_study",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "played_game_with_review",
+            "answerAction": "move",
+            "returnedKind": "played_game_with_review",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "mechanics_drills",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [
+          "tactics_puzzles"
+        ],
+        "unsafe": []
+      },
+      {
+        "goalId": "general-1",
+        "templateRight": true,
+        "answerTemplate": "general",
+        "returnedTemplate": "general",
+        "kinds": [
+          {
+            "answerKind": "practice_session",
+            "answerAction": "move",
+            "returnedKind": "practice_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "review_or_reflection",
+            "answerAction": "let_go",
+            "returnedKind": "review_or_reflection",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "project_work",
+            "answerAction": "continue",
+            "returnedKind": "project_work",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "starter_care",
+            "answerAction": "let_go",
+            "returnedKind": "starter_maintenance",
+            "returnedAction": "fixed",
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "general-2",
+        "templateRight": false,
+        "answerTemplate": "general",
+        "returnedTemplate": "exam",
+        "kinds": [
+          {
+            "answerKind": "practice_session",
+            "answerAction": "move",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "review_or_reflection",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "project_work",
+            "answerAction": "continue",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [
+          "new_topic",
+          "practice_questions",
+          "mock_exam",
+          "review"
+        ],
+        "unsafe": []
+      }
+    ],
+    "pass": {
+      "templates": true,
+      "actions": false,
+      "unsafe": true
+    },
+    "timing": {
+      "medianMs": 2163,
+      "slowestMs": 29424,
+      "slowestGoal": "creative-1"
+    },
+    "threw": [],
+    "failedChecks": []
+  },
+  "run4": {
+    "goals": 26,
+    "templatesRight": 25,
+    "kindsAgree": 111,
+    "kindsTotal": 124,
+    "kindsMatched": 113,
+    "unsafe": [],
+    "sources": {
+      "model": 26,
+      "picked_template": 0,
+      "keyword_template": 0
+    },
+    "perGoal": [
+      {
+        "goalId": "endurance-1",
+        "templateRight": true,
+        "answerTemplate": "endurance",
+        "returnedTemplate": "endurance",
+        "kinds": [
+          {
+            "answerKind": "easy_session",
+            "answerAction": "let_go",
+            "returnedKind": "easy_session",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "quality_session",
+            "answerAction": "move",
+            "returnedKind": "quality_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "long_session",
+            "answerAction": "move",
+            "returnedKind": "long_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "strength_and_mobility",
+            "answerAction": "move",
+            "returnedKind": "strength_and_mobility",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "let_go",
+            "returnedKind": "catch_all",
+            "returnedAction": "let_go",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "endurance-5",
+        "templateRight": true,
+        "answerTemplate": "endurance",
+        "returnedTemplate": "endurance",
+        "kinds": [
+          {
+            "answerKind": "easy_session",
+            "answerAction": "let_go",
+            "returnedKind": "easy_session",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "quality_session",
+            "answerAction": "move",
+            "returnedKind": "quality_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "long_session",
+            "answerAction": "move",
+            "returnedKind": "long_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "strength_and_mobility",
+            "answerAction": "move",
+            "returnedKind": "strength_and_mobility",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "let_go",
+            "returnedKind": "catch_all",
+            "returnedAction": "let_go",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "strength-1",
+        "templateRight": true,
+        "answerTemplate": "strength",
+        "returnedTemplate": "strength",
+        "kinds": [
+          {
+            "answerKind": "strength_workout",
+            "answerAction": "move",
+            "returnedKind": "strength_workout",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "conditioning",
+            "answerAction": "let_go",
+            "returnedKind": "conditioning",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "nutrition_and_tracking",
+            "answerAction": "let_go",
+            "returnedKind": "nutrition_and_tracking",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "mobility",
+            "answerAction": "move",
+            "returnedKind": "mobility",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "strength-2",
+        "templateRight": true,
+        "answerTemplate": "strength",
+        "returnedTemplate": "strength",
+        "kinds": [
+          {
+            "answerKind": "strength_workout",
+            "answerAction": "move",
+            "returnedKind": "strength_workout",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "mobility",
+            "answerAction": "move",
+            "returnedKind": "mobility",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [
+          "conditioning",
+          "nutrition_and_tracking"
+        ],
+        "unsafe": []
+      },
+      {
+        "goalId": "language-3",
+        "templateRight": true,
+        "answerTemplate": "language",
+        "returnedTemplate": "language",
+        "kinds": [
+          {
+            "answerKind": "new_material",
+            "answerAction": "move",
+            "returnedKind": "new_material",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "daily_speaking",
+            "answerAction": "let_go",
+            "returnedKind": "daily_speaking",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "review",
+            "answerAction": "let_go",
+            "returnedKind": "review",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "conversation_or_listening",
+            "answerAction": "move",
+            "returnedKind": "conversation_or_listening",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "language-2",
+        "templateRight": true,
+        "answerTemplate": "language",
+        "returnedTemplate": "language",
+        "kinds": [
+          {
+            "answerKind": "new_material",
+            "answerAction": "move",
+            "returnedKind": "new_material",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "daily_speaking",
+            "answerAction": "let_go",
+            "returnedKind": "daily_speaking",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "review",
+            "answerAction": "let_go",
+            "returnedKind": "review",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "conversation_or_listening",
+            "answerAction": "move",
+            "returnedKind": "conversation_or_listening",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "instrument-1",
+        "templateRight": true,
+        "answerTemplate": "instrument",
+        "returnedTemplate": "instrument",
+        "kinds": [
+          {
+            "answerKind": "technique_drills",
+            "answerAction": "let_go",
+            "returnedKind": "technique_drills",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "new_piece_or_section",
+            "answerAction": "move",
+            "returnedKind": "new_piece_or_section",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "play_through_or_recording",
+            "answerAction": "move",
+            "returnedKind": "play_through_or_recording",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "instrument-3",
+        "templateRight": true,
+        "answerTemplate": "instrument",
+        "returnedTemplate": "instrument",
+        "kinds": [
+          {
+            "answerKind": "technique_drills",
+            "answerAction": "let_go",
+            "returnedKind": "technique_drills",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "new_piece_or_section",
+            "answerAction": "move",
+            "returnedKind": "new_piece_or_section",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "play_through_or_recording",
+            "answerAction": "move",
+            "returnedKind": "play_through_or_recording",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "writing-1",
+        "templateRight": true,
+        "answerTemplate": "writing",
+        "returnedTemplate": "writing",
+        "kinds": [
+          {
+            "answerKind": "drafting",
+            "answerAction": "continue",
+            "returnedKind": "drafting",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "outlining_and_planning",
+            "answerAction": "move",
+            "returnedKind": "outlining_and_planning",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "revising",
+            "answerAction": "continue",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "reading_and_research",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "writing-2",
+        "templateRight": true,
+        "answerTemplate": "writing",
+        "returnedTemplate": "writing",
+        "kinds": [
+          {
+            "answerKind": "drafting",
+            "answerAction": "continue",
+            "returnedKind": "drafting",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "outlining_and_planning",
+            "answerAction": "move",
+            "returnedKind": "outlining_and_planning",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "revising",
+            "answerAction": "continue",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "reading_and_research",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "product-5",
+        "templateRight": true,
+        "answerTemplate": "product",
+        "returnedTemplate": "product",
+        "kinds": [
+          {
+            "answerKind": "build_work",
+            "answerAction": "continue",
+            "returnedKind": "build_work",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "customer_conversations_and_outreach",
+            "answerAction": "move",
+            "returnedKind": "customer_conversations_and_outreach",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "daily_distribution_sprint",
+            "answerAction": "let_go",
+            "returnedKind": "daily_distribution_sprint",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "launch_or_shipping_step",
+            "answerAction": "move",
+            "returnedKind": "launch_or_shipping_step",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "learning",
+            "answerAction": "let_go",
+            "returnedKind": "learning",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "product-6",
+        "templateRight": true,
+        "answerTemplate": "product",
+        "returnedTemplate": "product",
+        "kinds": [
+          {
+            "answerKind": "build_work",
+            "answerAction": "continue",
+            "returnedKind": "build_work",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "customer_conversations_and_outreach",
+            "answerAction": "move",
+            "returnedKind": "customer_conversations_and_outreach",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "daily_distribution_sprint",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "launch_or_shipping_step",
+            "answerAction": "move",
+            "returnedKind": "launch_or_shipping_step",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "learning",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "exam-3",
+        "templateRight": true,
+        "answerTemplate": "exam",
+        "returnedTemplate": "exam",
+        "kinds": [
+          {
+            "answerKind": "new_topic",
+            "answerAction": "move",
+            "returnedKind": "new_topic",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "practice_questions",
+            "answerAction": "move",
+            "returnedKind": "practice_questions",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "review",
+            "answerAction": "let_go",
+            "returnedKind": "review",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "mock_exam",
+            "answerAction": "move",
+            "returnedKind": "mock_exam",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "exam-2",
+        "templateRight": true,
+        "answerTemplate": "exam",
+        "returnedTemplate": "exam",
+        "kinds": [
+          {
+            "answerKind": "new_topic",
+            "answerAction": "move",
+            "returnedKind": "new_topic",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "practice_questions",
+            "answerAction": "move",
+            "returnedKind": "practice_questions",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "review",
+            "answerAction": "let_go",
+            "returnedKind": "review",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "mock_exam",
+            "answerAction": "move",
+            "returnedKind": "mock_exam",
+            "returnedAction": "fixed",
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "speaking-1",
+        "templateRight": true,
+        "answerTemplate": "speaking",
+        "returnedTemplate": "speaking",
+        "kinds": [
+          {
+            "answerKind": "script_and_structure",
+            "answerAction": "move",
+            "returnedKind": "script_and_structure",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "rehearsal",
+            "answerAction": "move",
+            "returnedKind": "rehearsal",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "recorded_run_through",
+            "answerAction": "move",
+            "returnedKind": "recorded_run_through",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "voice_and_delivery_drills",
+            "answerAction": "let_go",
+            "returnedKind": "voice_and_delivery_drills",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "speaking-2",
+        "templateRight": true,
+        "answerTemplate": "speaking",
+        "returnedTemplate": "speaking",
+        "kinds": [
+          {
+            "answerKind": "script_and_structure",
+            "answerAction": "move",
+            "returnedKind": "script_and_structure",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "rehearsal",
+            "answerAction": "move",
+            "returnedKind": "rehearsal",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "recorded_run_through",
+            "answerAction": "move",
+            "returnedKind": "recorded_run_through",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "voice_and_delivery_drills",
+            "answerAction": "let_go",
+            "returnedKind": "voice_and_delivery_drills",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "creative-1",
+        "templateRight": true,
+        "answerTemplate": "creative",
+        "returnedTemplate": "creative",
+        "kinds": [
+          {
+            "answerKind": "fundamentals_drill",
+            "answerAction": "let_go",
+            "returnedKind": "fundamentals_drill",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "study_or_copy_work",
+            "answerAction": "move",
+            "returnedKind": "study_or_copy_work",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "project_piece",
+            "answerAction": "continue",
+            "returnedKind": "project_piece",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "creative-2",
+        "templateRight": true,
+        "answerTemplate": "creative",
+        "returnedTemplate": "creative",
+        "kinds": [
+          {
+            "answerKind": "fundamentals_drill",
+            "answerAction": "let_go",
+            "returnedKind": "fundamentals_drill",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "study_or_copy_work",
+            "answerAction": "move",
+            "returnedKind": "study_or_copy_work",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "project_piece",
+            "answerAction": "continue",
+            "returnedKind": "project_piece",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "habit-1",
+        "templateRight": true,
+        "answerTemplate": "habit",
+        "returnedTemplate": "habit",
+        "kinds": [
+          {
+            "answerKind": "daily_focus_block",
+            "answerAction": "let_go",
+            "returnedKind": "daily_focus_block",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "weekly_planning_or_review",
+            "answerAction": "move",
+            "returnedKind": "weekly_planning_or_review",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "let_go",
+            "returnedKind": "catch_all",
+            "returnedAction": "let_go",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "habit-2",
+        "templateRight": true,
+        "answerTemplate": "habit",
+        "returnedTemplate": "habit",
+        "kinds": [
+          {
+            "answerKind": "daily_focus_block",
+            "answerAction": "let_go",
+            "returnedKind": "daily_focus_block",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "weekly_planning_or_review",
+            "answerAction": "move",
+            "returnedKind": "weekly_planning_or_review",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "let_go",
+            "returnedKind": "catch_all",
+            "returnedAction": "let_go",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "content-1",
+        "templateRight": true,
+        "answerTemplate": "content",
+        "returnedTemplate": "content",
+        "kinds": [
+          {
+            "answerKind": "titles_and_thumbnails",
+            "answerAction": "move",
+            "returnedKind": "titles_and_thumbnails",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "research_and_scripting",
+            "answerAction": "continue",
+            "returnedKind": "research_and_scripting",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "filming",
+            "answerAction": "move",
+            "returnedKind": "filming",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "editing",
+            "answerAction": "continue",
+            "returnedKind": "editing",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "publishing",
+            "answerAction": "move",
+            "returnedKind": "publishing",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "learning_and_analytics",
+            "answerAction": "let_go",
+            "returnedKind": "learning_and_analytics",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "guest_outreach",
+            "answerAction": "move",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "content-2",
+        "templateRight": true,
+        "answerTemplate": "content",
+        "returnedTemplate": "content",
+        "kinds": [
+          {
+            "answerKind": "titles_and_thumbnails",
+            "answerAction": "move",
+            "returnedKind": "titles_and_thumbnails",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "research_and_scripting",
+            "answerAction": "continue",
+            "returnedKind": "research_and_scripting",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "filming",
+            "answerAction": "move",
+            "returnedKind": "filming",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "editing",
+            "answerAction": "continue",
+            "returnedKind": "editing",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "publishing",
+            "answerAction": "move",
+            "returnedKind": "publishing",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "learning_and_analytics",
+            "answerAction": "let_go",
+            "returnedKind": "learning_and_analytics",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "strategy_games-1",
+        "templateRight": true,
+        "answerTemplate": "strategy_games",
+        "returnedTemplate": "strategy_games",
+        "kinds": [
+          {
+            "answerKind": "tactics_puzzles",
+            "answerAction": "let_go",
+            "returnedKind": "tactics_puzzles",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "opening_or_theory_study",
+            "answerAction": "move",
+            "returnedKind": "opening_or_theory_study",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "played_game_with_review",
+            "answerAction": "move",
+            "returnedKind": "played_game_with_review",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "strategy_games-2",
+        "templateRight": true,
+        "answerTemplate": "strategy_games",
+        "returnedTemplate": "strategy_games",
+        "kinds": [
+          {
+            "answerKind": "opening_or_theory_study",
+            "answerAction": "move",
+            "returnedKind": "opening_or_theory_study",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "played_game_with_review",
+            "answerAction": "move",
+            "returnedKind": "played_game_with_review",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "mechanics_drills",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [
+          "tactics_puzzles"
+        ],
+        "unsafe": []
+      },
+      {
+        "goalId": "general-1",
+        "templateRight": true,
+        "answerTemplate": "general",
+        "returnedTemplate": "general",
+        "kinds": [
+          {
+            "answerKind": "practice_session",
+            "answerAction": "move",
+            "returnedKind": "practice_session",
+            "returnedAction": "move",
+            "agrees": true
+          },
+          {
+            "answerKind": "review_or_reflection",
+            "answerAction": "let_go",
+            "returnedKind": "review_or_reflection",
+            "returnedAction": "let_go",
+            "agrees": true
+          },
+          {
+            "answerKind": "project_work",
+            "answerAction": "continue",
+            "returnedKind": "project_work",
+            "returnedAction": "continue",
+            "agrees": true
+          },
+          {
+            "answerKind": "starter_care",
+            "answerAction": "let_go",
+            "returnedKind": "starter_maintenance",
+            "returnedAction": "fixed",
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "continue",
+            "returnedKind": "catch_all",
+            "returnedAction": "continue",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [],
+        "unsafe": []
+      },
+      {
+        "goalId": "general-2",
+        "templateRight": false,
+        "answerTemplate": "general",
+        "returnedTemplate": "exam",
+        "kinds": [
+          {
+            "answerKind": "practice_session",
+            "answerAction": "move",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "review_or_reflection",
+            "answerAction": "let_go",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "project_work",
+            "answerAction": "continue",
+            "returnedKind": null,
+            "returnedAction": null,
+            "agrees": false
+          },
+          {
+            "answerKind": "catch_all",
+            "answerAction": "move",
+            "returnedKind": "catch_all",
+            "returnedAction": "move",
+            "agrees": true
+          }
+        ],
+        "extraKinds": [
+          "new_topic",
+          "practice_questions",
+          "mock_exam",
+          "review"
+        ],
+        "unsafe": []
+      }
+    ],
+    "pass": {
+      "templates": true,
+      "actions": false,
+      "unsafe": true
+    },
+    "timing": {
+      "medianMs": 2099,
+      "slowestMs": 15475,
+      "slowestGoal": "instrument-1"
+    },
+    "threw": [],
+    "failedChecks": []
+  },
+  "tags": {
+    "agree": 61,
+    "total": 67,
+    "misses": [
+      {
+        "goalId": "language-3",
+        "dayNumber": 1,
+        "stepNumber": 3,
+        "title": "Record a 30-second speaking drill",
+        "gold": "daily_speaking",
+        "model": "new_material"
+      },
+      {
+        "goalId": "language-3",
+        "dayNumber": 2,
+        "stepNumber": 3,
+        "title": "Simulate a 1-minute uninterrupted monologue",
+        "gold": "daily_speaking",
+        "model": "conversation_or_listening"
+      },
+      {
+        "goalId": "language-3",
+        "dayNumber": 3,
+        "stepNumber": 3,
+        "title": "Record a 45-second hobby monologue",
+        "gold": "daily_speaking",
+        "model": "new_material"
+      },
+      {
+        "goalId": "language-3",
+        "dayNumber": 5,
+        "stepNumber": 3,
+        "title": "Test run of the 1-minute monologue",
+        "gold": "daily_speaking",
+        "model": "conversation_or_listening"
+      },
+      {
+        "goalId": "content-1",
+        "dayNumber": 3,
+        "stepNumber": 2,
+        "title": "Draft outreach message template",
+        "gold": "guest_outreach",
+        "model": "research_and_scripting"
+      },
+      {
+        "goalId": "content-1",
+        "dayNumber": 5,
+        "stepNumber": 2,
+        "title": "Log outreach tracking status",
+        "gold": "guest_outreach",
+        "model": "catch_all"
+      }
+    ],
+    "pass": true
+  }
+}
