@@ -79,4 +79,33 @@ describe('Field', () => {
     );
     expect(screen.getByLabelText('Time of day')).toHaveValue('evening');
   });
+
+  describe('Textarea showCount', () => {
+    const Counted = ({ value, maxLength = 100 }: { value: string; maxLength?: number }) => (
+      <Field label="Notes">
+        <Textarea value={value} onChange={() => {}} maxLength={maxLength} showCount />
+      </Field>
+    );
+
+    it('shows no count while the text is well under the limit', () => {
+      render(<Counted value={'a'.repeat(79)} />);
+      expect(screen.getByLabelText('Notes')).toHaveAttribute('maxLength', '100');
+      expect(screen.queryByText(/characters/)).not.toBeInTheDocument();
+    });
+
+    it('shows the count from 80% of the limit and links it to the control', () => {
+      render(<Counted value={'a'.repeat(80)} />);
+      expect(screen.getByLabelText('Notes')).toHaveAccessibleDescription('80 of 100 characters');
+    });
+
+    it('says when the limit is reached', () => {
+      render(<Counted value={'a'.repeat(100)} />);
+      expect(screen.getByLabelText('Notes')).toHaveAccessibleDescription("100 of 100 characters. That's the limit.");
+    });
+
+    it('asks to shorten a saved text that is already over the limit', () => {
+      render(<Counted value={'a'.repeat(2500)} maxLength={2000} />);
+      expect(screen.getByLabelText('Notes')).toHaveAccessibleDescription('2,500 of 2,000 characters. Shorten it to add more.');
+    });
+  });
 });

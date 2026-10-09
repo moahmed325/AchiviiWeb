@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prisma } from '../src/lib/prisma.js';
 import { getAuthUser } from '../src/routes/auth.js';
-import { goalRouter, TASK_NOTES_MAX_LENGTH, TASK_STATUSES } from '../src/routes/goal.js';
+import { goalRouter, TASK_NOTES_HARD_MAX, TASK_NOTES_MAX_LENGTH, TASK_STATUSES } from '../src/routes/goal.js';
 
 vi.mock('../src/lib/prisma.js', () => ({
   prisma: {
@@ -286,13 +286,79 @@ describe('PATCH /api/goal/tasks/:taskId — usedMinimumVersion (M2.0, ND-3)', ()
         expect(updateData()).toHaveProperty('notes', null);
       });
 
-      it(`rejects a note longer than ${TASK_NOTES_MAX_LENGTH} characters with 400 and writes nothing`, async () => {
+      it(`rejects a new note longer than ${TASK_NOTES_MAX_LENGTH} characters with 400 and writes nothing`, async () => {
+        (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task());
+
         const res = await patch({ notes: 'x'.repeat(TASK_NOTES_MAX_LENGTH + 1) });
 
         expect(res.status).toBe(400);
         expect((await res.json()).error).toMatch(/notes/);
-        expect(prisma.dailyTask.findUnique).not.toHaveBeenCalled();
         expect(prisma.dailyTask.update).not.toHaveBeenCalled();
+      });
+
+      // Follow-up: a note saved before the limit existed must never stop a step being marked done.
+      describe('old long notes', () => {
+        const oldNote = 'o'.repeat(3000);
+        const focusWin = (text: string) => `
+• Focus win: ${text}`;
+
+        it('marks done a task whose old note is over the limit when the same note is sent back', async () => {
+          (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ notes: oldNote }));
+
+          const res = await patch({ status: 'completed', notes: oldNote });
+
+          expect(res.status).toBe(200);
+          expect(updateData()).toEqual(expect.objectContaining({ status: 'completed', notes: oldNote }));
+        });
+
+        it('marks done with a Focus win added to an old note over the limit', async () => {
+          (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ notes: oldNote }));
+          const notes = oldNote + focusWin('w'.repeat(TASK_NOTES_MAX_LENGTH));
+
+          const res = await patch({ status: 'completed', notes });
+
+          expect(res.status).toBe(200);
+          expect(updateData().notes).toBe(notes);
+        });
+
+        it('marks done with a Focus win that takes a note under the limit over it', async () => {
+          const stored = 'n'.repeat(1990);
+          (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ notes: stored }));
+          const notes = stored + focusWin('w'.repeat(TASK_NOTES_MAX_LENGTH));
+
+          const res = await patch({ status: 'completed', notes });
+
+          expect(res.status).toBe(200);
+          expect(updateData().notes).toBe(notes);
+        });
+
+        it('saves an edit that shortens an old long note but leaves it over the limit', async () => {
+          (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ notes: oldNote }));
+
+          const res = await patch({ notes: 'e'.repeat(2500) });
+
+          expect(res.status).toBe(200);
+        });
+
+        it('rejects adding more than one Focus win of text at once with 400', async () => {
+          (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ notes: oldNote }));
+
+          const res = await patch({ status: 'completed', notes: oldNote + 'x'.repeat(TASK_NOTES_MAX_LENGTH + 101) });
+
+          expect(res.status).toBe(400);
+          expect(prisma.dailyTask.update).not.toHaveBeenCalled();
+        });
+
+        it(`never grows a note past ${TASK_NOTES_HARD_MAX} characters, but still accepts it sent back unchanged`, async () => {
+          const huge = 'h'.repeat(TASK_NOTES_HARD_MAX - 100);
+          (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ notes: huge }));
+          const grown = await patch({ status: 'completed', notes: huge + focusWin('w'.repeat(500)) });
+          expect(grown.status).toBe(400);
+
+          (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ notes: huge }));
+          const unchanged = await patch({ status: 'completed', notes: huge });
+          expect(unchanged.status).toBe(200);
+        });
       });
 
       it.each([[1], [true], [{}], [['a note']]])('rejects a non-string note (%j) with 400 and writes nothing', async (value) => {

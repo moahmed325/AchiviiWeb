@@ -807,8 +807,29 @@ function isTaskStatus(value: unknown): value is (typeof TASK_STATUSES)[number] {
   return typeof value === 'string' && (TASK_STATUSES as readonly string[]).includes(value);
 }
 
-/** Longest note PATCH /api/goal/tasks/:taskId stores (B-29). */
+/** Longest new note PATCH /api/goal/tasks/:taskId stores (B-29); the frontend's note boxes use the same limit. */
 export const TASK_NOTES_MAX_LENGTH = 2000;
+
+/** How much one update may add to a note already near or over the limit: one Focus win line (B-29 follow-up). */
+const TASK_NOTES_MAX_GROWTH = TASK_NOTES_MAX_LENGTH + 100;
+
+/** No update may grow a note past this, so repeated additions cannot grow a row without end. */
+export const TASK_NOTES_HARD_MAX = 50_000;
+
+/**
+ * Whether `notes` may replace `stored` (B-29). Notes sent back unchanged always pass, so an old long note never stops
+ * a step being marked done. A changed note passes when it is within the limit, or, when a note is already saved, when
+ * it is at most one Focus win longer than that note (so an edit that shortens an old long note passes too) and under
+ * the hard maximum. Today saves the free text and the Focus wins as one string, so an edit is not always an append.
+ */
+export function notesWithinLimit(notes: string, stored: string | null): boolean {
+  if (notes === stored) return true;
+  if (notes.length <= TASK_NOTES_MAX_LENGTH) return true;
+  if (!stored) return false;
+  return notes.length <= stored.length + TASK_NOTES_MAX_GROWTH && notes.length <= TASK_NOTES_HARD_MAX;
+}
+
+const NOTES_ERROR = `notes must be text of at most ${TASK_NOTES_MAX_LENGTH} characters, or null.`;
 
 /** A 24-hour "HH:MM" time, 00:00 to 23:59 (B-29). */
 const SLOT_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -838,8 +859,8 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
       return;
     }
 
-    if (notes !== undefined && notes !== null && (typeof notes !== 'string' || notes.length > TASK_NOTES_MAX_LENGTH)) {
-      res.status(400).json({ error: `notes must be text of at most ${TASK_NOTES_MAX_LENGTH} characters, or null.` });
+    if (notes !== undefined && notes !== null && typeof notes !== 'string') {
+      res.status(400).json({ error: NOTES_ERROR });
       return;
     }
 
@@ -859,6 +880,11 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
     }
 
     if (task.goal.status !== 'active') return refuse(res, 'goal_not_active');
+
+    if (typeof notes === 'string' && !notesWithinLimit(notes, task.notes)) {
+      res.status(400).json({ error: NOTES_ERROR });
+      return;
+    }
 
     // Sending `completed` again for a task already done keeps the first completion as it was (B-29).
     const statusChanges = status !== undefined && status !== task.status;
