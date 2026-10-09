@@ -75,11 +75,11 @@
 ### P3 Recovery follows the kinds
 **M3.1a Carry: move, continue, let go, fixed.** RULE-9 (first later day that passes, MR-10), RULE-10 (continue marker), RULE-11, RULE-12, RULE-17's counts and RULE-18, behind `METHOD_RECOVERY_ENABLED`; the reconcile body says which rules ran; MR-26's warm-up line; MR-27 until M3.1b. Checks R-1.
 
-**M3.1b Carry: order and rest gaps.** RULE-13's shift in one transaction and RULE-14, with generated-week tests that no day gets longer and no rule is broken. Checks R-1.
+**M3.1b Carry: order and rest gaps.** RULE-13's shift in one transaction and RULE-14, with generated-week tests that no day gets longer and no rule is broken. Checks R-1. Carried over from the M3.1a review: remove MR-27's temporary `hard_waits` and `out_of_order` drops; the generated-week tests include a run10k or recomp week written before kinds (its untagged steps still drop as high-load under missed sessions' rules, RULE-18).
 
-**M3.2 Swap, set today aside and move now.** RULE-16 on the server, with the allowed swap days and actions sent in the reconcile body. Checks R-2.
+**M3.2 Swap, set today aside and move now.** RULE-16 on the server, with the allowed swap days and actions sent in the reconcile body. Checks R-2. Carried over from the M3.1a review: (1) swap must refuse a day holding a `continueFrom` marker (RULE-10; the swap route checks only `carriedFrom` and `swappedFrom` today); (2) with `METHOD_RECOVERY_ENABLED` on, "move now" re-plans a held key session and can answer 200 with nothing carried when the step does not move (let go, or a hard step under MR-27): it must refuse or say so.
 
-**M3.3 Today, Dashboard and Focus.** Section 6's lines (Today and Dashboard), choices from the server's list, the continue line in Today and Focus. Then Mo turns the switch on. Checks R-3, R-4, R-5, R-9, R-10.
+**M3.3 Today, Dashboard and Focus.** Section 6's lines (Today and Dashboard), choices from the server's list, the continue line in Today and Focus. Then Mo turns the switch on. Checks R-3, R-4, R-5, R-9, R-10. Carried over from the M3.1a review: (1) with the switch on, a let-go, fixed or continued day makes no drop and no carry, so `buildSignals` gives Today no line for it: the line must come from `carry.outcomes`; (2) the frontend types learn `carry.outcomes`, `continues`, `alreadyContinued`, `writtenContinues` and the step's `continueFrom`; (3) MR-26's warm-up line is stored as the first line of the instructions, followed by a newline: Today and Focus must show it on its own line (today the instructions render in one paragraph, so it runs into the next sentence).
 
 ### P4 Close
 **M4.1 Copy honesty, acceptance, regression and close.** Pathway and onboarding lines match each profile, including `presetAdherenceCopy.test.ts` (AC-13); `docs/architecture/plan-v2.md` describes profiles and kinds; every AC and R checked; Mo looks at O1 again (custom profiles); archive the feature. The weekly update then resumes (WU-10).
