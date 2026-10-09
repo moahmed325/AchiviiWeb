@@ -152,6 +152,68 @@ describe('checkRoadmapAnswer', () => {
     expect('value' in checkRoadmapAnswer(met, { statedTargets })).toBe(true);
   });
 
+  // B-21: run10k and exam answers planned a lighter week as a lower target ("Week 9's target (27) goes backwards").
+  it('still rejects a lighter week that lowers the target, and says to hold it instead', () => {
+    const dip = [16, 18, 20, 22, 24, 26, 28, 28, 27, 30, 35, 40];
+    const problem = reason(checkRoadmapAnswer(answer({}, dip), context, true));
+    expect(problem).toMatch(/Week 9's target \(27\) goes backwards from week 8 \(28\)/);
+    expect(problem).toMatch(/never go down: a lighter week keeps the previous week's target/);
+  });
+
+  it('accepts a lighter week that holds the previous target', () => {
+    const hold = [16, 18, 20, 22, 24, 26, 28, 28, 28, 30, 35, 40];
+    expect('value' in checkRoadmapAnswer(answer({}, hold), context)).toBe(true);
+  });
+
+  describe('a number the user named that the method does not count (B-21, guitar5songs)', () => {
+    const statedTargets = extractStatedTargets('Play 5 Iconic Guitar Songs from Memory');
+    const SWITCHES = [15, 20, 25, 30, 32, 35, 38, 40, 42, 45, 48, 50];
+
+    function switches(values = SWITCHES, finalGoal = 'Play 5 songs from memory with clean chord changes'): RawRoadmapAnswer {
+      const data = answer({ finalGoal, startingPoint: { value: 10, description: '10 switches a minute' } }, values);
+      for (const week of data.weeks as Array<{ target: Record<string, unknown> }>) {
+        week.target.metric = 'Clean chord switches per minute';
+        week.target.unit = 'switches';
+      }
+      return data;
+    }
+
+    it("names the user's number before the finalGoal check, so the retry is not told to use the method's unit", () => {
+      const problem = reason(checkRoadmapAnswer(switches(), { statedTargets }));
+      expect(problem).toMatch(/Week 12 must reach the number the user asked for: 5 songs/);
+      expect(problem).toMatch(/use deliverables for all 12 weeks and name it in week 12's/);
+      expect(problem).not.toMatch(/finalGoal/);
+    });
+
+    it("points a unit change at the user's unit", () => {
+      const data = switches();
+      const weeks = data.weeks as Array<{ target: Record<string, unknown> }>;
+      weeks[3].target = { kind: 'number', metric: 'Songs from memory', value: 1, unit: 'songs', direction: 'higher_is_better' };
+      const problem = reason(checkRoadmapAnswer(data, { statedTargets }));
+      expect(problem).toMatch(/every week must use "switches"/);
+      expect(problem).toMatch(/The user asked for 5 songs: count all 12 weeks in that unit, or use deliverables/);
+    });
+
+    it('accepts deliverables that name the number in week 12', () => {
+      const data = switches();
+      (data.weeks as Array<{ target: Record<string, unknown>; test: Record<string, unknown> }>).forEach((week, index) => {
+        week.target = { kind: 'deliverable', description: index === 11 ? 'Play 5 songs from memory' : `Song work ${index + 1}` };
+        week.test.type = 'video';
+      });
+      expect('value' in checkRoadmapAnswer(data, { statedTargets })).toBe(true);
+    });
+
+    it('accepts songs counted every week', () => {
+      const songs = [1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5];
+      const data = answer({ finalGoal: 'Play 5 songs from memory', startingPoint: { value: 0, description: 'no songs yet' } }, songs);
+      for (const week of data.weeks as Array<{ target: Record<string, unknown> }>) {
+        week.target.metric = 'Songs from memory';
+        week.target.unit = 'songs';
+      }
+      expect('value' in checkRoadmapAnswer(data, { statedTargets })).toBe(true);
+    });
+  });
+
   it('dedupes rules, caps them at 8, and rejects fewer than 5', () => {
     const many = Array.from({ length: 10 }, (_, i) => `Rule number ${i + 1}`);
     const result = checkRoadmapAnswer(answer({ rules: [...many, 'Rule number 1'] }), context);
@@ -226,6 +288,26 @@ describe('buildRoadmapPrompt', () => {
     expect(prompt).toContain('The method is fixed: VDOT by Jack Daniels.');
     expect(prompt).not.toContain('List 2 or 3 real');
   });
+
+  // B-21: "ease off before the final test" invited a lower target, which the climb check rejects.
+  it('lets steps shrink before the final test but never lets a target go down', () => {
+    const prompt = buildRoadmapPrompt(input);
+    expect(prompt).not.toContain('ease off');
+    expect(prompt).toContain('smaller again before the final test');
+    const flat = prompt.replace(/\s+/g, ' ');
+    expect(flat).toContain(
+      "A lighter week (a taper, a deload, a review week) or a harder test (a full mock exam after topic quizzes) keeps the previous week's target; it never lowers it.",
+    );
+    expect(flat).toContain("If their answer uses another measure (a 5K time for a 10K goal), convert it to the targets' metric.");
+  });
+
+  it("names the user's own number up front, and only when there is one", () => {
+    const statedTargets = extractStatedTargets('Play 5 Iconic Guitar Songs from Memory');
+    const prompt = buildRoadmapPrompt(input, undefined, statedTargets);
+    expect(prompt).toContain(`They named a number: "5 songs". Week 12's target must reach it.`);
+    expect(prompt).toContain('They named "5 songs": count every week in that unit, or use deliverables. Never another unit.');
+    expect(buildRoadmapPrompt(input)).not.toContain('They named');
+  });
 });
 
 describe('generateRoadmap', () => {
@@ -240,6 +322,13 @@ describe('generateRoadmap', () => {
     expect(result.ok).toBe(true);
     expect(mocked).toHaveBeenCalledTimes(2);
     expect(mocked.mock.calls[1][0]).toContain('YOUR PREVIOUS ANSWER WAS REJECTED: "safety" is 1');
+  });
+
+  it('puts a number from the goal into the first prompt (B-21)', async () => {
+    mocked.mockResolvedValue({ success: true, data: answer({ finalGoal: 'Type 50 words per minute' }, [...WPM.slice(0, 11), 50]) } as never);
+    const result = await generateRoadmap({ ...input, rawGoal: 'Type 50 words per minute' });
+    expect(result.ok).toBe(true);
+    expect(mocked.mock.calls[0][0]).toContain('They named a number: "50 words per minute"');
   });
 
   it('reports low safety, not a blocked goal, when both answers are too risky', async () => {

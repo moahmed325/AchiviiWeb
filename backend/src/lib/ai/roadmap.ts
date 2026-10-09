@@ -273,7 +273,20 @@ const OPEN_METHOD_BLOCK = `2. THE METHOD
    adding speed". Rules, not tasks. No motivation lines.
    Names: name a program or creator only if you are sure it exists. Never invent a person, program, or book.`;
 
-export function buildRoadmapPrompt(input: RoadmapInput, fixedMethod?: FixedMethod): string {
+/**
+ * A number the user named is checked in week 12 (`statedTargetMet`), so the model hears it up front, not only in a
+ * retry: a method's own metric (chord changes per minute for "5 songs") can never reach it.
+ */
+function statedTargetLines(statedTargets: StatedTarget[]): string {
+  if (statedTargets.length === 0) return '';
+  const phrases = statedTargets.map((item) => `"${item.phrase}"`).join(', ');
+  return `
+   They named a number: ${phrases}. Week 12's target must reach it. Count the weekly targets in that unit; if week 1
+   can't be counted in it yet, use deliverables for all 12 weeks and name it in week 12's (e.g. "${statedTargets[0].phrase} ...").
+   A method's own measure (speed, reps, a score) goes in the weekly tests, not in place of it.`;
+}
+
+export function buildRoadmapPrompt(input: RoadmapInput, fixedMethod?: FixedMethod, statedTargets: StatedTarget[] = []): string {
   return `Goal as typed: "${input.workingTitle}" (${input.domain})
 Time: ${input.dailyMinutes} minutes a day, ${input.activeDays} days a week, for 12 weeks.
 Their answers:
@@ -285,11 +298,12 @@ ${formatAnswerLines(input.answers)}
    Keep their ambition exactly. If their answer is vague ("get better"), make it concrete at the level they
    described, using a real, recognised marker for this domain when one exists (e.g. "Twitch Affiliate",
    "25 words per minute", "a loaf with an open crumb"). Never raise or lower it.
-   If the weekly targets are numbers, "finalGoal" states week 12's number.
+   If the weekly targets are numbers, "finalGoal" states week 12's number.${statedTargetLines(statedTargets)}
    "finalTest": how they prove it on day 90, in one sentence.
    "startingPoint": where they are today. When the targets are numbers, "value" is today's level in the same
    metric and unit as the targets (from their current-level answer; a cautious beginner value if they skipped it)
-   and "description" says it in words. When the targets are deliverables, leave "value" out.
+   and "description" says it in words. If their answer uses another measure (a 5K time for a 10K goal), convert it
+   to the targets' metric. When the targets are deliverables, leave "value" out.
 
 ${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
 
@@ -304,14 +318,21 @@ ${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
      or
        { "kind": "deliverable", "description" }, e.g. "one loaf with an even, open crumb".
      Use numbers whenever the goal can be counted and every week, week 1 included, has a count above 0 in that
-     unit. Otherwise use deliverables for all 12 weeks. Keep the same metric and unit every week.
+     unit. Otherwise use deliverables for all 12 weeks. Keep the same metric and unit every week, week 12 included,
+     even when the final test reports on another scale.${
+       statedTargets.length
+         ? `\n     They named ${statedTargets.map((item) => `"${item.phrase}"`).join(', ')}: count every week in that unit, or use deliverables. Never another unit.`
+         : ''
+     }
      "metric" names what is measured ("Typing speed", "5K time"); "unit" is its unit ("words per minute", "minutes").
    - "test": { "type": "typing_test" | "quiz" | "timer" | "count" | "photo" | "video", "instructions", "passIf" }.
      Prefer tests the app runs itself, then proof (photo, video), then a count. Use the same type every week.
    How the targets climb:
    - Week 1 starts just above where they are now: an early win, not a leap.
-   - Steps are small in weeks 1 to 3, larger in the middle, and ease off before the final test.
-   - Never go backwards. Week 12's target is the finalGoal.
+   - Steps are small in weeks 1 to 3, larger in the middle, and smaller again before the final test.
+   - Never go backwards: each week's target is at least as good as the week before. A lighter week (a taper, a
+     deload, a review week) or a harder test (a full mock exam after topic quizzes) keeps the previous week's target;
+     it never lowers it. Week 12's target is the finalGoal.
    - Realistic for ${input.dailyMinutes} minutes a day and ${input.activeDays} days a week.`;
 }
 
@@ -472,7 +493,7 @@ function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): string 
       return `Week ${i + 1} uses "${target.unit}" (${target.direction}); every week must use "${first.unit}" (${first.direction}).`;
     }
     if (i > 0 && !isBetterOrEqual(target.value, numbers[i - 1].value, first.direction)) {
-      return `Week ${i + 1}'s target (${target.value}) goes backwards from week ${i} (${numbers[i - 1].value}).`;
+      return `Week ${i + 1}'s target (${target.value}) goes backwards from week ${i} (${numbers[i - 1].value}). Targets may grow more slowly but never go down: a lighter week keeps the previous week's target. Keep "${first.unit}" for all 12 weeks.`;
     }
   }
   const end = numbers[numbers.length - 1].value;
@@ -567,19 +588,25 @@ export function checkRoadmapAnswer(
   };
   if (weeks[0].target.kind === 'deliverable') startingPoint.value = null;
 
-  const climbProblem = numberClimbFailure(weeks, startingPoint);
+  let climbProblem = numberClimbFailure(weeks, startingPoint);
+  // A unit change that drifts toward the user's own number: name that unit, not week 1's, as the way out.
+  if (climbProblem && context.statedTargets.length > 0 && /every week must use|use one kind/.test(climbProblem)) {
+    const phrases = context.statedTargets.map((item) => item.phrase).join(', ');
+    climbProblem = `${climbProblem} The user asked for ${phrases}: count all 12 weeks in that unit, or use deliverables for all 12 weeks and name it in week 12's.`;
+  }
   if (climbProblem && !lastAttempt) return { reason: climbProblem };
   if (climbProblem && /goes backwards|use one kind|every week must use|nothing to reach/.test(climbProblem)) return { reason: climbProblem };
 
   const week12 = weeks[TOTAL_WEEKS - 1].target;
-  if (!lastAttempt && week12.kind === 'number' && !numberMentioned(finalGoal, week12.value)) {
-    return { reason: `"finalGoal" must state week 12's target (${formatTarget(week12)}).` };
-  }
+  // Before the finalGoal check: its retry reason would otherwise anchor the model on the wrong unit.
   const missed = context.statedTargets.filter((item) => !statedTargetMet(week12, item));
   if (missed.length > 0) {
     return {
-      reason: `Week 12 must reach the number the user asked for: ${missed.map((item) => item.phrase).join(', ')}. Use that metric and unit for the weekly targets.`,
+      reason: `Week 12 must reach the number the user asked for: ${missed.map((item) => item.phrase).join(', ')}. Count all 12 weeks in that unit, or, if week 1 can't be counted in it yet, use deliverables for all 12 weeks and name it in week 12's.`,
     };
+  }
+  if (!lastAttempt && week12.kind === 'number' && !numberMentioned(finalGoal, week12.value)) {
+    return { reason: `"finalGoal" must state week 12's target (${formatTarget(week12)}).` };
   }
 
   const testTypes = new Set(weeks.map((week) => week.test.type));
@@ -633,7 +660,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
     `${input.rawGoal}. ${isSkippedAnswer(successAnswer) ? '' : successAnswer}`
   );
 
-  const prompt = buildRoadmapPrompt(input, fixedMethod) + (preset ? `\n\nMETHOD DETAIL\n${preset.expertPromptContext}` : '');
+  const prompt = buildRoadmapPrompt(input, fixedMethod, statedTargets) + (preset ? `\n\nMETHOD DETAIL\n${preset.expertPromptContext}` : '');
   let lowSafety = false;
   const roadmap = await generateWithOneRetry<RawRoadmapAnswer, Roadmap>(
     prompt,
