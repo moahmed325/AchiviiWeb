@@ -1,0 +1,626 @@
+[
+  {
+    "id": "endurance-1",
+    "template": "endurance",
+    "rawGoal": "Ride a 100 km cycling sportive",
+    "workingTitle": "Finish a 100 km road cycling sportive comfortably",
+    "domain": "Road cycling",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I ride 25 km on weekends"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Finishing the 100 km sportive without walking any hills"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "A road bike and an indoor trainer"
+      }
+    ]
+  },
+  {
+    "id": "endurance-2",
+    "template": "endurance",
+    "rawGoal": "Swim 1500 metres freestyle without stopping",
+    "workingTitle": "Swim 1500 m of continuous freestyle",
+    "domain": "Swimming",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I can swim 200 m before I need to stop"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Swimming 1500 m in one go"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "The pool is only open early mornings"
+      }
+    ]
+  },
+  {
+    "id": "strength-1",
+    "template": "strength",
+    "rawGoal": "Deadlift twice my bodyweight",
+    "workingTitle": "Deadlift 2x bodyweight with good form",
+    "domain": "Strength training",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I deadlift 1.3x my bodyweight for 5 reps"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "A clean single at twice my bodyweight"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "A full gym with a barbell"
+      }
+    ]
+  },
+  {
+    "id": "strength-2",
+    "template": "strength",
+    "rawGoal": "Do 10 strict pull-ups",
+    "workingTitle": "Do 10 strict pull-ups in one set",
+    "domain": "Calisthenics",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I can do 3 strict pull-ups"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "10 strict pull-ups with no kipping"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "A pull-up bar at home and resistance bands"
+      }
+    ]
+  },
+  {
+    "id": "language-1",
+    "template": "language",
+    "rawGoal": "Hold a 10-minute conversation in Japanese",
+    "workingTitle": "Hold a 10-minute everyday conversation in Japanese",
+    "domain": "Japanese language",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I know hiragana and some basic phrases"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Chatting with a tutor for 10 minutes without switching to English"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "I get nervous speaking"
+      }
+    ]
+  },
+  {
+    "id": "language-2",
+    "template": "language",
+    "rawGoal": "Chat with locals in Italian on my trip to Rome",
+    "workingTitle": "Order food and make small talk in Italian",
+    "domain": "Italian language",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "Complete beginner"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Getting through a dinner and a market visit in Italian"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "Busy weekdays"
+      }
+    ]
+  },
+  {
+    "id": "instrument-1",
+    "template": "instrument",
+    "rawGoal": "Play Clair de Lune on the piano",
+    "workingTitle": "Play Debussy's Clair de Lune from start to finish on the piano",
+    "domain": "Piano",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I played piano as a child and can read music slowly"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Playing the whole piece at a gentle tempo without stopping"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "A digital piano at home"
+      }
+    ]
+  },
+  {
+    "id": "instrument-2",
+    "template": "instrument",
+    "rawGoal": "Play along to 5 rock songs on the drums",
+    "workingTitle": "Play 5 rock songs on the drums along with the recordings",
+    "domain": "Drums",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I can keep a basic beat"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Playing 5 full songs along with the track without losing time"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "An electronic drum kit"
+      }
+    ]
+  },
+  {
+    "id": "writing-1",
+    "template": "writing",
+    "rawGoal": "Finish the first draft of my fantasy novel",
+    "workingTitle": "Finish a complete first draft of my fantasy novel",
+    "domain": "Fiction writing",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I have 12,000 words and a rough outline"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "A complete first draft I can start revising"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "I keep rewriting the first chapters"
+      }
+    ]
+  },
+  {
+    "id": "writing-2",
+    "template": "writing",
+    "rawGoal": "Write a feature-length screenplay",
+    "workingTitle": "Write a complete 100-page feature screenplay draft",
+    "domain": "Screenwriting",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I have the idea and the main characters"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "A finished first draft I can send to a reader"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "I lose momentum in the middle"
+      }
+    ]
+  },
+  {
+    "id": "product-1",
+    "template": "product",
+    "rawGoal": "Open an online shop for my handmade candles and get my first 20 orders",
+    "workingTitle": "Sell my handmade candles online and get 20 orders",
+    "domain": "Online store",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I make candles for friends but have no shop yet"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "20 orders from people I do not know"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "I am not sure how to find buyers"
+      }
+    ]
+  },
+  {
+    "id": "product-2",
+    "template": "product",
+    "rawGoal": "Build a browser extension that saves articles for later and get 100 users",
+    "workingTitle": "Build a read-later browser extension and reach 100 users",
+    "domain": "Software product",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I can code in JavaScript but have never released anything"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "100 people using the extension every week"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "I tend to keep polishing instead of releasing"
+      }
+    ]
+  },
+  {
+    "id": "exam-1",
+    "template": "exam",
+    "rawGoal": "Pass the AWS Solutions Architect Associate exam",
+    "workingTitle": "Pass the AWS Solutions Architect Associate certification",
+    "domain": "Cloud certification exam",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I use a few AWS services at work"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Passing the exam on the first try"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "Only evenings to study"
+      }
+    ]
+  },
+  {
+    "id": "exam-2",
+    "template": "exam",
+    "rawGoal": "Score 320 on the GRE",
+    "workingTitle": "Score at least 320 on the GRE General Test",
+    "domain": "GRE preparation",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "My diagnostic test score was 302"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "320 or higher on the real test"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "Quant word problems"
+      }
+    ]
+  },
+  {
+    "id": "speaking-1",
+    "template": "speaking",
+    "rawGoal": "Give a best man speech at my brother's wedding",
+    "workingTitle": "Deliver a confident 5-minute best man speech",
+    "domain": "Wedding speech",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I freeze up when I talk in front of groups"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Getting through the speech with laughs and no panic"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "Nerves"
+      }
+    ]
+  },
+  {
+    "id": "speaking-2",
+    "template": "speaking",
+    "rawGoal": "Present my thesis research in a 20-minute conference talk",
+    "workingTitle": "Present my research clearly in a 20-minute conference talk",
+    "domain": "Academic presenting",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I read from my slides and speak too fast"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "A clear talk on time with good answers to questions"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "Explaining technical details simply"
+      }
+    ]
+  },
+  {
+    "id": "creative-1",
+    "template": "creative",
+    "rawGoal": "Learn to draw realistic portraits in pencil",
+    "workingTitle": "Draw realistic pencil portraits from photos",
+    "domain": "Drawing",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I doodle but have no training"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "A portrait my family recognises straight away"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "Pencils and a sketchbook"
+      }
+    ]
+  },
+  {
+    "id": "creative-2",
+    "template": "creative",
+    "rawGoal": "Take portfolio-quality landscape photos",
+    "workingTitle": "Build a portfolio of 10 strong landscape photographs",
+    "domain": "Photography",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I shoot on auto mode"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "10 photos I would be proud to print"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "A mirrorless camera and a kit lens"
+      }
+    ]
+  },
+  {
+    "id": "habit-1",
+    "template": "habit",
+    "rawGoal": "Meditate for 20 minutes every day",
+    "workingTitle": "Build a daily 20-minute meditation habit",
+    "domain": "Meditation habit",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I meditate now and then for 5 minutes"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Meditating 20 minutes on most days without forcing it"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "I forget when my day gets busy"
+      }
+    ]
+  },
+  {
+    "id": "habit-2",
+    "template": "habit",
+    "rawGoal": "Journal every morning",
+    "workingTitle": "Build a daily morning journaling habit",
+    "domain": "Journaling habit",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I have started journals many times and stopped after a week"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Writing in my journal most mornings for the whole 90 days"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "Mornings are rushed"
+      }
+    ]
+  },
+  {
+    "id": "content-1",
+    "template": "content",
+    "rawGoal": "Start a podcast and publish 10 episodes",
+    "workingTitle": "Start an interview podcast and publish 10 episodes",
+    "domain": "Podcasting",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I have a microphone and a topic but no episodes"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "10 published episodes with steady listeners"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "Booking guests"
+      }
+    ]
+  },
+  {
+    "id": "content-2",
+    "template": "content",
+    "rawGoal": "Post 3 TikTok cooking videos a week and reach 5,000 followers",
+    "workingTitle": "Grow a TikTok cooking account to 5,000 followers",
+    "domain": "Short-form video",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I have 300 followers and post now and then"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "5,000 followers and a steady posting rhythm"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "A phone and a small kitchen"
+      }
+    ]
+  },
+  {
+    "id": "strategy_games-1",
+    "template": "strategy_games",
+    "rawGoal": "Reach 5 kyu in Go",
+    "workingTitle": "Reach a 5 kyu online rank in the game of Go",
+    "domain": "Go (board game)",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I am about 15 kyu online"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "A stable 5 kyu rank on an online Go server"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "I play fast and do not review my games"
+      }
+    ]
+  },
+  {
+    "id": "strategy_games-2",
+    "template": "strategy_games",
+    "rawGoal": "Reach Diamond rank in StarCraft II",
+    "workingTitle": "Reach Diamond league in StarCraft II ranked play",
+    "domain": "Real-time strategy games",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I am in Gold league"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "Getting promoted to Diamond"
+      },
+      {
+        "id": "obstacle",
+        "question": "What could stop you?",
+        "answer": "I tilt after losses"
+      }
+    ]
+  },
+  {
+    "id": "general-1",
+    "template": "general",
+    "rawGoal": "Bake sourdough bread at home",
+    "workingTitle": "Bake a good loaf of sourdough bread at home",
+    "domain": "Bread baking",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I have baked yeast bread a few times"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "An open, airy sourdough loaf I am proud of"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "An oven and a Dutch oven"
+      }
+    ]
+  },
+  {
+    "id": "general-2",
+    "template": "general",
+    "rawGoal": "Solve a Rubik's cube in under 30 seconds",
+    "workingTitle": "Solve a 3x3 Rubik's cube in under 30 seconds",
+    "domain": "Speedcubing",
+    "answers": [
+      {
+        "id": "current_level",
+        "question": "Where are you now?",
+        "answer": "I can solve it with the beginner method in about 2 minutes"
+      },
+      {
+        "id": "success",
+        "question": "In 90 days, what would make you say this worked?",
+        "answer": "An average under 30 seconds"
+      },
+      {
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "A speed cube"
+      }
+    ]
+  }
+]
