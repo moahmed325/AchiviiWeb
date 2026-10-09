@@ -113,7 +113,7 @@ Backend is ESM with `NodeNext` resolution, so relative imports need the `.js` ex
 
 `docs/README.md` explains the layout and rules. When docs disagree, trust in this order: `docs/product/redesign-blueprint.md` (product), `docs/product/visual-design-system.md` (visual), `docs/decisions.md` and the feature's `decisions.md`, the feature's `02-feature.md`, its `03-phases.md`, then code (authoritative for what is actually built).
 
-Each feature has one folder under `docs/features/<name>/`: `01-brief.md` (problem and chosen direction, optional), `02-feature.md` (rules and acceptance criteria), `03-phases.md` (the plan and the only status table), `decisions.md` (the feature's decisions, with its own ID prefix such as `MS-1`) and `milestones/` (one file per milestone holding its prompt, report and review). Templates are in `docs/templates/`. Features started before 2026-10-08 keep the old layout (`01-problem.md` ... `05-prompts.md`) until they finish. Finished features move to `docs/archive/`. Decisions that affect the whole product go in `docs/decisions.md`; only the "Decision" line of an entry is binding. Known problems and leftover work that no feature owns go in `docs/backlog.md` (`B-n`); small items are fixed as quick fixes (below), big ones become features.
+Each feature has one folder under `docs/features/<name>/`: `01-brief.md` (problem and chosen direction, optional), `02-feature.md` (rules and acceptance criteria), `03-phases.md` (the plan and the only status table), `decisions.md` (the feature's decisions, with its own ID prefix such as `MS-1`) and `milestones/` (one file per milestone holding its prompt, report and review). Templates are in `docs/templates/`. Features started before 2026-10-08 keep the old layout (`01-problem.md` ... `05-prompts.md`) until they finish. Finished features move to `docs/archive/`. Decisions that affect the whole product go in `docs/decisions.md`; only the "Decision" line of an entry is binding. Known problems and leftover work that no feature owns go in `docs/backlog.md` (`B-n`); small items are fixed as quick fixes (below), big ones become features. "Good to have" ideas that are not problems go in `docs/ideas.md` (`I-n`); no chat works on them until Mo picks one.
 
 ### Working on a milestone
 
@@ -126,7 +126,7 @@ When you are given a milestone to implement:
 5. Before changing anything, run the checks the prompt lists on your starting commit, using the repo's own scripts (see Commands); those numbers are your baseline. Run them again at the end and compare.
 6. Write your results in the **Report** section of the same milestone file; screenshots go in `milestones/<id>-evidence/`. Give evidence for every requirement, and never claim a check you did not run.
 7. Do not edit `03-phases.md`, `02-feature.md`, any `decisions.md` or `docs/backlog.md`; the reviewing chat updates them. Put anything they should change under "Differences from the docs" in your report.
-8. List every problem you notice under "Problems found" in your report, even outside the milestone, with where you would put it. Do not fix problems outside the milestone.
+8. List every problem you notice under "Problems found" in your report, even outside the milestone, with where you would put it. Do not fix problems outside the milestone. List any "good to have" idea that is not a problem under "Ideas"; do not build it or edit `docs/ideas.md` (the review copies the ones worth keeping).
 9. Keep the shared docs true. If your change makes `CLAUDE.md`, `Design.md` or a doc in `docs/architecture/` wrong, update it in the same branch and list it in your report.
 
 ### Quick fixes
@@ -135,4 +135,4 @@ A quick fix is a small item from `docs/backlog.md` (`B-n`), given to you as a sh
 
 - Fix only the backlog items named in the prompt, and name them in the commit message (`fix(today): show the 10-minute version's minutes (B-1)`).
 - Stop and report if the fix needs a product decision the prompt does not make, a change to stored data, or more than one branch of work. It then becomes a feature.
-- Report in your reply, not in a file: what changed and where, the evidence for "fixed", commands and results against the baseline, and any problems found.
+- Report in your reply, not in a file: what changed and where, the evidence for "fixed", commands and results against the baseline, any problems found, and any ideas (as in step 8).

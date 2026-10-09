@@ -39,6 +39,8 @@ If your change makes `CLAUDE.md`, `Design.md` or a doc in `docs/architecture/` w
 
 List every problem you noticed under "Problems found", even small ones and ones outside this milestone, with where you would put it. Do not fix problems outside the milestone, and do not edit the backlog; the review sorts them.
 
+List any "good to have" idea that is not a problem under "Ideas" (or write "none"). Do not build it, and do not edit `docs/ideas.md`; the review copies the ones worth keeping.
+
 ### Reviewing (main chat)
 
 When the report comes in, set the milestone's row in `03-phases.md` to IN REVIEW. Check the report against the code and CI, and check that `CLAUDE.md`, `Design.md` and the architecture docs still match what the code now does. Then fill in the Review section and fold the results back:
@@ -55,6 +57,8 @@ When the report comes in, set the milestone's row in `03-phases.md` to IN REVIEW
 | part of this feature, but later | a milestone in `03-phases.md` (an existing one, or a new one) |
 | urgent: users are hitting it now | a quick fix right away (see `docs/backlog.md`), then a DONE line in the backlog |
 | anything else | `docs/backlog.md`, sized small, big or owner |
+
+- **copy the ideas worth keeping** from the report's "Ideas" into `docs/ideas.md` (`I-n`, status OPEN); leave the rest out. Ideas are not sorted like problems: only Mo picks one to build.
 
 Nothing stays only in a report.
 
@@ -129,10 +133,16 @@ Nothing stays only in a report.
 |---|---|---|
 | <what is wrong> | <file, screen or test> | this milestone / later in this feature / backlog small / backlog big / urgent |
 
+### Ideas
+| Idea | Why it might be worth it |
+|---|---|
+| <a "good to have" that is not a problem> | <what it would give> |
+
 ## Review
 
 **Reviewed:** YYYY-MM-DD
 **Verdict:** ACCEPTED | CHANGES NEEDED
 <What was checked (code, CI, and that CLAUDE.md, Design.md and the architecture docs still match), what was fixed, and what was folded back: the status row, decisions recorded, later milestones changed.>
 **Problems sorted:** <each problem and where it went, e.g. "B-9 (backlog, small)", "added to M3.4". Or: none found.>
+**Ideas kept:** <the ideas copied into `docs/ideas.md`, e.g. "I-3". Or: none.>
 ```

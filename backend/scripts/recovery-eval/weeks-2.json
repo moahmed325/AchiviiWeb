@@ -1,0 +1,603 @@
+[
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "title": "Indoor spin warm-up and spin-up",
+    "instructions": "Mount your road bike on the indoor trainer. Pedal at an easy, conversational pace for 5 minutes, focusing on smooth circles.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "title": "Steady aerobic spin",
+    "instructions": "Maintain a steady, conversational cadence for 20 minutes on the trainer. Keep your upper body relaxed and core engaged.",
+    "durationMinutes": 20
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 1,
+    "stepNumber": 3,
+    "title": "Cooldown spin and stretch",
+    "instructions": "Drop resistance to the lowest setting and pedal easily for 5 minutes, followed by a quick standing quad and calf stretch off the bike.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "title": "Trainer warm-up and build",
+    "instructions": "Spend 5 minutes spinning easy on the trainer to warm up your legs and get comfortable.",
+    "durationMinutes": 5,
+    "highLoad": true
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "title": "Controlled hill simulation intervals",
+    "instructions": "Do 4 sets of 3-minute moderately hard efforts (simulating a hill climb) at a lower cadence of 70-80 RPM, with 2 minutes of easy spinning recovery between each set.",
+    "durationMinutes": 20,
+    "highLoad": true
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 2,
+    "stepNumber": 3,
+    "title": "Easy spin down",
+    "instructions": "Pedal easily with no added resistance for 5 minutes to flush out the legs.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "title": "Easy warm-up spin",
+    "instructions": "Pedal lightly on the indoor trainer for 5 minutes to wake up the legs.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "title": "High-cadence leg speed drills",
+    "instructions": "Alternate between 2 minutes of fast, light-resistance spinning (high RPM) and 2 minutes of normal cadence, repeating this cycle 4 times for a total of 16 minutes.",
+    "durationMinutes": 16
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 3,
+    "stepNumber": 3,
+    "title": "Steady aerobic finish",
+    "instructions": "Ride at your normal baseline conversational pace for 9 minutes to round out the 30-minute session.",
+    "durationMinutes": 9
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "title": "Easy conversational spin",
+    "instructions": "Spin on the trainer at an effortless, conversational pace for 15 minutes.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "title": "Short accelerations",
+    "instructions": "Perform three 30-second light gear increases to feel some tension, followed by 90 seconds of easy spinning after each.",
+    "durationMinutes": 6
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 5,
+    "stepNumber": 3,
+    "title": "Spin down and gear check",
+    "instructions": "Spin easy for 9 minutes while checking your bike fit, tire pressure, and ensuring your water bottle is ready for tomorrow.",
+    "durationMinutes": 9
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "title": "Pre-test warm-up",
+    "instructions": "Pedal easily for 5 minutes to prepare your muscles for the test ride.",
+    "durationMinutes": 2
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "title": "Weekly test: Complete a single weekend ride of at least the target distance.. Pass if: Completed 30 km without stopping to walk any hills.",
+    "instructions": "Ride 30 km continuously (outdoors or on your trainer) at a steady, sustainable, conversational pace without stopping to walk or quit on any incline.",
+    "durationMinutes": 26,
+    "highLoad": true
+  },
+  {
+    "goalId": "endurance-1",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "title": "Test review and cool-down",
+    "instructions": "Spin easy for 5 minutes, record your distance and time, and verify if you achieved the target without walking.",
+    "durationMinutes": 2
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "title": "Deadlift Volume Working Sets",
+    "instructions": "Begin with 5 minutes of dynamic mobility including cat-cows and bodyweight good mornings. Perform 2 gradual ramp-up warm-up sets, then complete 5 working sets of 5 reps at 1.35x bodyweight with 3 minutes rest between sets. Maintain neutral spine alignment, brace your core before every pull, and log your exact weight, reps, and perceived exertion after the final set.",
+    "durationMinutes": 25,
+    "highLoad": true
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "title": "Posterior Chain Mobility",
+    "instructions": "Spend 5 minutes performing static hamstrings and hip flexor stretches to maintain lower body mobility.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "title": "Core Bracing and Moderate Pulls",
+    "instructions": "Start with 5 minutes of core activation including planks and bird-dogs. Follow with moderate-load deadlift technique sets at 1.1x bodyweight for 3 sets of 5 reps, focusing on maximal core tension and neutral spine. Log your session details upon completion.",
+    "durationMinutes": 20,
+    "highLoad": true
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "title": "Thoracic Spine Mobility",
+    "instructions": "Perform 10 minutes of foam rolling and thoracic extension movements to keep the upper back supple.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "title": "Key Session Deadlift Volume",
+    "instructions": "Perform 5 minutes of dynamic leg swings and light deadlifts with an empty bar. Execute gradual ramp-up sets, then complete 5 working sets of 3 reps at 1.35x bodyweight, taking 3 full minutes of rest between sets. Record your working weight, reps, and RPE at the end.",
+    "durationMinutes": 25,
+    "highLoad": true
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "title": "Hip and Glute Mobility",
+    "instructions": "Spend 5 minutes stretching the glutes and hips to prevent post-workout tightness.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "title": "Prime and Prep Deadlifts",
+    "instructions": "Perform 5 minutes of dynamic warm-ups (hip circles, bodyweight squats). Complete 3 light ramp-up sets, followed by 3 working singles at 1.2x bodyweight to groove the pattern without fatigue. Log your pre-test readiness and perceived bar speed.",
+    "durationMinutes": 20,
+    "highLoad": true
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "title": "Lower Body Mobility",
+    "instructions": "Do 10 minutes of light stretching focusing on hamstrings and calves to ensure full range of motion for tomorrow.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "title": "Test Warm-Up",
+    "instructions": "Perform 5 minutes of dynamic mobility and gradual ramp-up sets to prepare for the test weight.",
+    "durationMinutes": 5,
+    "highLoad": true
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "title": "Weekly test: Record your heaviest working set from the side angle.. Pass if: Complete the required weight with clean form and no rounding of the lower back.",
+    "instructions": "Set up a camera from the side angle to record. Load the bar to 1.35x your bodyweight, brace your core, maintain a neutral spine, and execute a clean single working set. Stop immediately if any sharp pain occurs.",
+    "durationMinutes": 5,
+    "highLoad": true
+  },
+  {
+    "goalId": "strength-1",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "title": "Result Comparison",
+    "instructions": "Review the side-angle video, confirm form compliance, and compare the result against the week 1 target ratio.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "title": "Review school vocabulary flashcards",
+    "instructions": "Spend the first 5 minutes reviewing old school vocabulary cards for greetings, numbers, and basic nouns. Say every German word aloud before looking at the definition.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "title": "Shadow audio prompts for self-introduction",
+    "instructions": "Listen to a basic German audio lesson and repeat every phrase aloud immediately during the pauses, focusing on continuous flow rather than perfect grammar.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 1,
+    "stepNumber": 3,
+    "title": "Record a 30-second speaking drill",
+    "instructions": "Press record on your phone and speak for 30 continuous seconds about your name, origin, and profession in German without switching to English.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "title": "Warm up with school vocabulary retrieval",
+    "instructions": "Quickly review past verbs related to daily actions, recalling meanings before checking notes.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "title": "Practice daily routine sentences aloud",
+    "instructions": "Build and speak aloud simple sentences describing what you do in the morning, afternoon, and evening using basic school vocabulary.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 2,
+    "stepNumber": 3,
+    "title": "Simulate a 1-minute uninterrupted monologue",
+    "instructions": "Set a timer for 1 minute and speak continuously about your morning routine in German without pausing for English translations.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "title": "Review hobby and activity vocabulary",
+    "instructions": "Go through your vocabulary blocks for hobbies, sports, and free-time activities, speaking each item aloud.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "title": "Shadow German audio about leisure time",
+    "instructions": "Listen to a short audio track discussing leisure activities and shadow the speaker aloud.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 3,
+    "stepNumber": 3,
+    "title": "Record a 45-second hobby monologue",
+    "instructions": "Record a voice note describing what you like to do on weekends in German.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "title": "Review all core school vocabulary blocks",
+    "instructions": "Quickly cycle through all vocabulary blocks from this week, actively recalling definitions before checking references.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "title": "Draft and rehearse daily routine talking points",
+    "instructions": "Practice speaking aloud about your daily schedule, hobbies, and personal background, linking them together into a coherent flow.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 5,
+    "stepNumber": 3,
+    "title": "Test run of the 1-minute monologue",
+    "instructions": "Perform a practice run of tomorrow's test: record a full 60 seconds of continuous German speech about your daily routine.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "title": "Warm up with a quick vocabulary review",
+    "instructions": "Spend 3 minutes reviewing key routine verbs and nouns to prime your brain for German recall.",
+    "durationMinutes": 3
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "title": "Weekly test: Record a video of yourself speaking German continuously about your daily routine for 1 minute.",
+    "instructions": "Record a video of yourself speaking German continuously about your daily routine for 1 minute. Pass if: Spoke for at least 60 seconds without switching to English.",
+    "durationMinutes": 2
+  },
+  {
+    "goalId": "language-3",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "title": "Compare result with the target",
+    "instructions": "Review your video recording to verify that you spoke for 60 seconds straight without English, and log your result against the 1-minute target.",
+    "durationMinutes": 2
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "title": "Watch Professor Messer Security+ Video on CIA Triad",
+    "instructions": "Begin with a 2-minute mental review of basic IT concepts. Then watch the first video module covering Confidentiality, Integrity, and Availability, taking bullet-point notes.",
+    "durationMinutes": 20
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "title": "Review Notes and Identify Gaps",
+    "instructions": "Spend the remaining time reviewing your notes and highlighting terms you find unfamiliar or difficult to remember.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "title": "Watch Video on Security Control Types",
+    "instructions": "Start with a 2-minute review of yesterday's CIA triad notes. Watch the Professor Messer video covering preventive, detective, corrective, and deterrent controls, taking active notes.",
+    "durationMinutes": 18
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "title": "Domain 1 Practice Questions",
+    "instructions": "Complete 5 practice questions related to security controls and the CIA triad. Review every incorrect answer immediately.",
+    "durationMinutes": 12
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "title": "Watch AAA Framework Video",
+    "instructions": "Do a 2-minute mental recap of security controls. Watch the Professor Messer video detailing Authentication, Authorization, and Accounting concepts, noting key terms like MFA and SSO.",
+    "durationMinutes": 18
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "title": "AAA Concept Flashcard Review",
+    "instructions": "Create and review quick mental or physical flashcards for terms introduced in today's video.",
+    "durationMinutes": 12
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "title": "Watch Threat Intelligence Video",
+    "instructions": "Spend 2 minutes reviewing AAA concepts. Watch the Professor Messer video covering threat actors (APT, insiders, script kiddies) and threat intelligence sources, taking structured notes.",
+    "durationMinutes": 18
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "title": "Domain 1 Comprehensive Practice",
+    "instructions": "Complete 10 practice questions covering the entire week's worth of Domain 1 topics. Immediately review every missed question.",
+    "durationMinutes": 12
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "title": "Pre-Test Warm-Up",
+    "instructions": "Spend 3 minutes reviewing your high-level notes on the CIA triad and security controls to prime your memory.",
+    "durationMinutes": 3
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "title": "Weekly test: 20-Question Domain 1 Practice Quiz",
+    "instructions": "Take a timed 20-question practice quiz covering Domain 1 without using notes or pauses. Score yourself immediately afterwards.",
+    "durationMinutes": 20
+  },
+  {
+    "goalId": "exam-3",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "title": "Post-Test Evaluation",
+    "instructions": "Compare your test score against the 70% target. Document any missed questions in your review log for next week.",
+    "durationMinutes": 3
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "title": "Draft podcast title and tagline",
+    "instructions": "Spend the first 2 minutes brainstorming ideas. Then write down 3 potential podcast titles and a one-sentence tagline that explains who the show is for.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "title": "Outline episode structure",
+    "instructions": "Write out a simple 4-part structure for your episodes: intro, guest intro, main question, and outro.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "title": "Choose and configure podcast host",
+    "instructions": "Spend 2 minutes reviewing basic hosting options. Then select a podcast hosting platform, create your account, and enter your show title, description, and newly created tagline.",
+    "durationMinutes": 20
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "title": "Design basic podcast artwork",
+    "instructions": "Use a simple graphic design tool to create a square podcast cover image featuring your podcast title in clear, readable text.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "title": "Brainstorm potential guest names",
+    "instructions": "Open a spreadsheet or document and list the names of 5 people who have expertise in your topic or would make great interview subjects.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "title": "Draft outreach message template",
+    "instructions": "Write a short, friendly outreach message template that introduces your show, explains why they are a great fit, and asks for a short interview.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "title": "Personalize and send outreach messages",
+    "instructions": "Spend 2 minutes reviewing your guest list. Then take your outreach template, customize it with specific details for 3 different people on your list, and send the messages.",
+    "durationMinutes": 25
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "title": "Log outreach tracking status",
+    "instructions": "Update your guest tracking document to mark those 3 people as contacted along with today's date.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "title": "Warm-up: Open tracking and hosting dashboards",
+    "instructions": "Open your podcast hosting dashboard tab and your guest outreach tracking document in your browser.",
+    "durationMinutes": 3
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "title": "Weekly test: Count messages and verify hosting",
+    "instructions": "Count the number of outreach messages sent and verify hosting account setup.. Pass if: Podcast hosting is configured and at least 3 outreach messages have been sent.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "content-1",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "title": "Log test results",
+    "instructions": "Write down a one-sentence summary of your test result to close out the week.",
+    "durationMinutes": 2
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 1,
+    "stepNumber": 1,
+    "title": "Complete 5 life and death problems",
+    "instructions": "Set up a physical or online board with 5 basic tsumego problems. Before touching any stone or clicking, count to 5 slowly and trace the opponent's strongest reply in your head. Do not rush.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 1,
+    "stepNumber": 2,
+    "title": "Study basic corner enclosure theory",
+    "instructions": "Warm up by reviewing standard 3-4 point corner enclosures for 3 minutes. Then, spend 12 minutes studying Joseki variations to understand standard responses.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 2,
+    "stepNumber": 1,
+    "title": "Solve 5 tsumego problems",
+    "instructions": "Warm up your tactical vision by solving 5 easy-to-medium life and death problems, applying the 5-second rule before every move.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 2,
+    "stepNumber": 2,
+    "title": "Play and review one ranked game",
+    "instructions": "Start with a 3-minute warm-up of reviewing basic opening principles. Then play one online ranked game. Enforce the 5-second rule on every single move without exception. Immediately after the game, spend at least 10 minutes reviewing it by yourself using your own analysis without AI assistance.",
+    "durationMinutes": 20
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 3,
+    "stepNumber": 1,
+    "title": "Solve 5 tsumego problems",
+    "instructions": "Complete 5 life and death problems, strictly timing your 5-second pre-move pause.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 3,
+    "stepNumber": 2,
+    "title": "Study basic endgame point counting",
+    "instructions": "Warm up for 3 minutes by checking standard endgame shapes. Then spend 12 minutes studying basic point values of hane and connect moves.",
+    "durationMinutes": 15
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 5,
+    "stepNumber": 1,
+    "title": "Solve 5 tsumego problems",
+    "instructions": "Complete 5 tactics puzzles while consciously slowing down your impulse to play instantly.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 5,
+    "stepNumber": 2,
+    "title": "Play and review your second ranked game",
+    "instructions": "Spend 3 minutes warming up on opening principles. Play one online ranked game, strictly obeying the 5-second rule on every move. Immediately after, review the game by yourself for 10 minutes before checking any AI.",
+    "durationMinutes": 20
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 6,
+    "stepNumber": 1,
+    "title": "Weekly test warm-up",
+    "instructions": "Open your game history and logs from the week to prepare for the audit.",
+    "durationMinutes": 5
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 6,
+    "stepNumber": 2,
+    "title": "Weekly test: Count reviewed games",
+    "instructions": "Count the number of ranked games reviewed this week. Pass if at least 3 games are fully reviewed.",
+    "durationMinutes": 10
+  },
+  {
+    "goalId": "strategy_games-1",
+    "dayNumber": 6,
+    "stepNumber": 3,
+    "title": "Result comparison",
+    "instructions": "Compare your weekly test result with the target of 3 fully reviewed games and note your progress.",
+    "durationMinutes": 5
+  }
+]

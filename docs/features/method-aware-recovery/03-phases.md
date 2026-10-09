@@ -14,9 +14,9 @@
 | M1.3b | The custom profile call (off until the eval passes) | AC-2 | DONE 2026-10-09 | [m1.3b](milestones/m1.3b-profile-call.md) |
 | M2.1 | The week call tags every step | AC-3, AC-4 | DONE 2026-10-09 | [m2.1](milestones/m2.1-tag-steps.md) |
 | M2.2 | The eval | AC-11 | DONE 2026-10-09 (eval failed) | [m2.2](milestones/m2.2-eval.md) |
-| M2.3 | Tighter kinds, and the eval again | AC-3, AC-4, AC-11 | READY | [m2.3](milestones/m2.3-tighter-kinds.md) |
-| O1 | Mo: agree to switch on custom profiles once the eval has passed (M2.3 re-run; MR-14) | AC-2 | NOT STARTED | |
-| M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | NOT STARTED | |
+| M2.3 | Tighter kinds, and the eval again | AC-3, AC-4, AC-11 | DONE 2026-10-09 (eval missed by one kind) | [m2.3](milestones/m2.3-tighter-kinds.md) |
+| O1 | Mo: agree to switch on custom profiles once the eval has passed (M2.3 re-run; MR-14) | AC-2 | KEPT OFF 2026-10-09 (Mo); revisit at M4.1 | |
+| M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | READY | [m3.1a](milestones/m3.1a-carry-actions.md) |
 | M3.1b | Carry: order and rest gaps | AC-6 | NOT STARTED | |
 | M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | NOT STARTED | |
 | M3.3 | Today, Dashboard and Focus | AC-7, AC-8 | NOT STARTED | |
@@ -70,10 +70,10 @@
 
 **M2.2 The eval.** The 26 goals with hand-written profiles and tagged weeks, a script that scores the profile call and the tagging, and the recorded result against RULE-19, scored as MR-24 says. DONE: templates 25 of 26 and 0 unsafe in both runs, but actions 52% and 54% and tags 66%, so the eval failed (MR-25).
 
-**M2.3 Tighter kinds, and the eval again.** The profile call keeps a template kind's id when the kind keeps its job (RULE-3); every step on the test day is Weekly test (RULE-7); warm-ups, cool-downs and logging go inside the step they belong to (RULE-8). Then the M2.2 eval runs again with the same answers. Needed before M3.1a whatever the eval says. Checks R-6, R-7.
+**M2.3 Tighter kinds, and the eval again.** The profile call keeps a template kind's id when the kind keeps its job (RULE-3); every step on the test day is Weekly test (RULE-7); warm-ups, cool-downs and logging go inside the step they belong to (RULE-8). Then the M2.2 eval runs again with the same answers. Needed before M3.1a whatever the eval says. Checks R-6, R-7. DONE: tags 91% (pass), templates 25 of 26, 0 unsafe, actions 89.5% in both runs (one kind short), so custom profiles stay off (O1).
 
 ### P3 Recovery follows the kinds
-**M3.1a Carry: move, continue, let go, fixed.** RULE-9 (first later day that passes, MR-10), RULE-10 (continue marker), RULE-11, RULE-12, RULE-17's counts and RULE-18, behind `METHOD_RECOVERY_ENABLED`; the reconcile body says which rules ran. Checks R-1.
+**M3.1a Carry: move, continue, let go, fixed.** RULE-9 (first later day that passes, MR-10), RULE-10 (continue marker), RULE-11, RULE-12, RULE-17's counts and RULE-18, behind `METHOD_RECOVERY_ENABLED`; the reconcile body says which rules ran; MR-26's warm-up line; MR-27 until M3.1b. Checks R-1.
 
 **M3.1b Carry: order and rest gaps.** RULE-13's shift in one transaction and RULE-14, with generated-week tests that no day gets longer and no rule is broken. Checks R-1.
 
@@ -82,7 +82,7 @@
 **M3.3 Today, Dashboard and Focus.** Section 6's lines (Today and Dashboard), choices from the server's list, the continue line in Today and Focus. Then Mo turns the switch on. Checks R-3, R-4, R-5, R-9, R-10.
 
 ### P4 Close
-**M4.1 Copy honesty, acceptance, regression and close.** Pathway and onboarding lines match each profile, including `presetAdherenceCopy.test.ts` (AC-13); `docs/architecture/plan-v2.md` describes profiles and kinds; every AC and R checked; archive the feature. The weekly update then resumes (WU-10).
+**M4.1 Copy honesty, acceptance, regression and close.** Pathway and onboarding lines match each profile, including `presetAdherenceCopy.test.ts` (AC-13); `docs/architecture/plan-v2.md` describes profiles and kinds; every AC and R checked; Mo looks at O1 again (custom profiles); archive the feature. The weekly update then resumes (WU-10).
 
 ## 6. Risks
 - **Template quality.** A wrong action in a template affects every goal of that domain. Controlled by Mo's approval (MR-8, MR-20), per-template tests in M1.2 and the eval (M2.2).

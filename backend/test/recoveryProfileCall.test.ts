@@ -8,7 +8,9 @@ vi.mock('../src/lib/ai/gemini.js', () => ({
 import { generateStructuredContent } from '../src/lib/ai/gemini.js';
 import {
   buildProfilePrompt,
+  checkProfileAnswer,
   customProfilesEnabled,
+  templateIdReason,
   generateRecoveryProfile,
   type ProfileCallInput,
   type RawProfileAnswer,
@@ -36,7 +38,7 @@ const good = (overrides: Partial<RawProfileAnswer> = {}): RawProfileAnswer => ({
   kinds: [
     { id: 'seeing_drill', name: 'Seeing drill', description: 'A short exercise in seeing edges and shapes.', action: 'let_go', hard: false, inOrder: false, highLoad: false },
     { id: 'master_copy', name: 'Master copy', description: 'Copying a master drawing.', action: 'move', hard: false, inOrder: false, highLoad: false },
-    { id: 'portrait', name: 'Portrait', description: 'Working on your own portrait.', action: 'continue', hard: false, inOrder: false, highLoad: false },
+    { id: 'project_piece', name: 'Portrait', description: 'Working on your own portrait.', action: 'continue', hard: false, inOrder: false, highLoad: false },
     { id: 'catch_all', name: 'Catch-all', description: 'Anything else.', action: 'continue', hard: false, inOrder: false, highLoad: false },
   ],
   catchAll: 'catch_all',
@@ -73,7 +75,7 @@ describe('generateRecoveryProfile', () => {
     expect(result.source).toBe('model');
     expect(result.pickedTemplate).toBe('creative');
     expect(profileFailures(result.profile)).toEqual([]);
-    expect(result.profile.kinds.map((kind) => kind.id)).toEqual(['seeing_drill', 'master_copy', 'portrait', 'catch_all', 'weekly_test', 'fixed_time_session']);
+    expect(result.profile.kinds.map((kind) => kind.id)).toEqual(['seeing_drill', 'master_copy', 'project_piece', 'catch_all', 'weekly_test', 'fixed_time_session']);
     expect(result.profile.kinds.slice(-2).every((kind) => kind.action === 'fixed')).toBe(true);
     expect(generateStructuredContent).toHaveBeenCalledTimes(1);
   });
@@ -83,7 +85,7 @@ describe('generateRecoveryProfile', () => {
     const result = await generateRecoveryProfile(input());
     expect(result.source).toBe('model');
     expect(generateStructuredContent).toHaveBeenCalledTimes(2);
-    expect(prompts()[1]).toMatch(/YOUR PREVIOUS ANSWER WAS REJECTED: .*"portrait" is hard, so it cannot continue/);
+    expect(prompts()[1]).toMatch(/YOUR PREVIOUS ANSWER WAS REJECTED: .*"project_piece" is hard, so it cannot continue/);
   });
 
   it('two bad answers give the template the model picked, unchanged', async () => {
@@ -158,6 +160,59 @@ describe('the profile prompt', () => {
     expect(prompt).not.toMatch(/weekly_test|fixed_time_session/);
     // Size reported in the M1.3b report: well inside both providers' limits.
     expect(prompt.length).toBeLessThan(16000);
+  });
+});
+
+describe('template kind ids are kept (M2.3, RULE-3, MR-25)', () => {
+  /** Every kind renamed: the answer keeps none of the creative template's own ids (only the shared catch_all). */
+  const renamed = (): RawProfileAnswer => {
+    const answer = good();
+    (answer.kinds as Array<Record<string, unknown>>)[2].id = 'portrait';
+    return answer;
+  };
+
+  it('the prompt says a kind with the same job keeps the template id, a new kind gets a new id, a removed one is left out', () => {
+    const prompt = buildProfilePrompt(input());
+    expect(prompt).not.toMatch(/rename/);
+    expect(prompt).toContain('You may add or remove kinds, and change actions, flags, the rest gap and the return rule.');
+    expect(prompt).toContain(`Keep the template's kind ids: a kind that does the same job as one of the template's kinds keeps that kind's
+   "id" exactly (its "name" and "description" may be adjusted to this goal). Only a new kind, whose job none of the
+   template's kinds does, gets a new id. A template kind this method does not need is simply left out.`);
+  });
+
+  it('templateIdReason fires only when no id other than the catch-all is kept', () => {
+    expect(templateIdReason('creative', [{ id: 'seeing_drill' }, { id: 'catch_all' }])).toBe(
+      'No kind keeps an id of the "creative" template (fundamentals_drill, study_or_copy_work, project_piece). A kind that does the same job as a template kind keeps that kind\'s id; only a new kind gets a new id.'
+    );
+    expect(templateIdReason('creative', [{ id: 'seeing_drill' }, { id: 'project_piece' }])).toBeNull();
+    expect(templateIdReason('strength', [{ id: 'strength_workout' }])).toBeNull();
+  });
+
+  it('is a soft reason: it is retried once, and on the last attempt the answer is taken', async () => {
+    expect(checkProfileAnswer(renamed(), { deliverableGoal: false })).toEqual({ reason: expect.stringMatching(/^No kind keeps an id of the "creative" template/) });
+    expect('value' in checkProfileAnswer(renamed(), { deliverableGoal: false }, true)).toBe(true);
+
+    answers(renamed(), renamed());
+    const result = await generateRecoveryProfile(input());
+    expect(generateStructuredContent).toHaveBeenCalledTimes(2);
+    expect(prompts()[1]).toMatch(/YOUR PREVIOUS ANSWER WAS REJECTED: No kind keeps an id of the "creative" template/);
+    expect(result.source).toBe('model');
+    expect(result.profile.kinds.map((kind) => kind.id)).toContain('portrait');
+  });
+
+  it('a retry that keeps the ids is taken', async () => {
+    answers(renamed(), good());
+    const result = await generateRecoveryProfile(input());
+    expect(result.source).toBe('model');
+    expect(result.profile.kinds.map((kind) => kind.id)).toContain('project_piece');
+  });
+
+  it('does not rescue a hard failure: RULE-4 reasons still fail on the last attempt', () => {
+    const bad = renamed();
+    (bad.kinds as Array<Record<string, unknown>>)[2].hard = true;
+    const last = checkProfileAnswer(bad, { deliverableGoal: false }, true);
+    expect('reason' in last && last.reason).toMatch(/"portrait" is hard, so it cannot continue/);
+    expect('reason' in last && last.reason).not.toMatch(/No kind keeps an id/);
   });
 });
 

@@ -11,6 +11,7 @@ import {
   buildWeekPrompt,
   checkWeekAnswer,
   generateWeekPlan,
+  isSideStepTitle,
   resolveKind,
   weekLayout,
   weekResponseSchema,
@@ -240,6 +241,117 @@ describe('what code sets itself (RULE-7, MR-15)', () => {
       delete days[2].minimumVersion;
     });
     expect(value(checkWeekAnswer(derived, withProfile, true))[2].minimumVersion!.kind).toBe('practice_session');
+  });
+});
+
+describe('every test-day step is Weekly test (M2.3, RULE-7, MR-25)', () => {
+  it('with a profile, the warm-up and the review on the test day are weekly_test too, whatever the model wrote', () => {
+    const answer = week((days) => {
+      days[5].steps[0].kind = 'cardio';
+      delete days[5].steps[2].kind;
+    });
+    const testDay = value(checkWeekAnswer(answer, withProfile))[5];
+    expect(testDay.detailedSteps.map((s) => [s.title, s.kind])).toEqual([
+      ['Warm up on home row words', 'weekly_test'],
+      ['Weekly test: 1-minute typing test', 'weekly_test'],
+      ['Compare your result with 16 wpm', 'weekly_test'],
+    ]);
+    // Only the test step gets the test's pass mark and leads the day.
+    expect(testDay.detailedSteps.filter((s) => s.passMark === input.test.passIf).map((s) => s.title)).toEqual(['Weekly test: 1-minute typing test']);
+    expect(testDay.detailedSteps.find((s) => s.priority === 1)!.title).toBe('Weekly test: 1-minute typing test');
+    // Other days keep the model's kinds.
+    expect(value(checkWeekAnswer(answer, withProfile))[0].detailedSteps.map((s) => s.kind)).toEqual(['practice_session', 'project_work']);
+  });
+
+  it('with a profile, the steps kept beside a test step code adds are weekly_test', () => {
+    const noTest = week((days) => {
+      days[5].steps = [step('Drill six letters', 1, 15), step('Type sentence set six', 2, 15, 'project_work')];
+    });
+    const testDay = value(checkWeekAnswer(noTest, withProfile, true))[5];
+    expect(testDay.detailedSteps.every((s) => s.kind === 'weekly_test')).toBe(true);
+  });
+
+  it('without a profile the test day is untouched: no kinds, and the side steps keep their own pass marks', () => {
+    const testDay = value(checkWeekAnswer(week(), input))[5];
+    for (const s of testDay.detailedSteps) expect(s).not.toHaveProperty('kind');
+    expect(testDay.detailedSteps.map((s) => s.passMark)).toEqual(['95% accuracy or better', input.test.passIf, '95% accuracy or better']);
+  });
+});
+
+describe('warm-ups, cool-downs and logs stay inside their step (M2.3, RULE-8, MR-25)', () => {
+  const layout = weekLayout('steady', input.weekStart);
+
+  it('the prompt says so only with a profile, and keeps the test day\'s warm-up and result steps', () => {
+    const line = "- A warm-up, cool-down or log of a session is written inside that session's step (in its instructions), never as a step of its own. The test day keeps its short warm-up and result steps as described above.";
+    expect(buildWeekPrompt(withProfile, layout)).toContain(line);
+    expect(buildWeekPrompt(withProfile, layout)).toContain('- Every step on the test day, including its warm-up and the step after the test, has kind weekly_test.');
+    expect(buildWeekPrompt(input, layout)).not.toMatch(/cool-down|log of a session/);
+  });
+
+  it('isSideStepTitle: a warm-up, cool-down or log word first or last in the title', () => {
+    for (const title of [
+      'Warm-up tsumego',
+      'Warm up with routine vocabulary',
+      'Warmup drills',
+      'Easy indoor warm-up',
+      'Tactics puzzles warmup',
+      'Cool-down spin',
+      'Cooldown spin',
+      'Cool down walk',
+      'Log workout metrics',
+      'Logging your sets',
+      'Workout metrics logging',
+      'Update your training logs.',
+    ]) {
+      expect(isSideStepTitle(title), title).toBe(true);
+    }
+  });
+
+  it('isSideStepTitle: no false hit on ordinary titles', () => {
+    for (const title of [
+      'Dynamic warm-up and ramp-up pulls',
+      'Send the messages and log them',
+      'Logic puzzles',
+      'Design a logo',
+      'Write a blog post',
+      'Read the changelog',
+      'Login page wireframe',
+      'Steady conversational ride',
+      'Play and review a ranked online game',
+      'Hill resistance intervals',
+      'Easy recovery spin',
+      'Warmth and colour study',
+      'Drill 2 letters',
+    ]) {
+      expect(isSideStepTitle(title), title).toBe(false);
+    }
+  });
+
+  it('a practice-day warm-up or log step is a soft reason naming the step; it gives way on the last attempt', () => {
+    const answer = week((days) => {
+      days[0].steps = [step('Easy indoor warm-up', 2, 5), step('Drill 1 letters', 1, 15), step('Log your speed', 3, 10)];
+    });
+    expect(reason(checkWeekAnswer(answer, withProfile))).toBe(
+      'Day 1 step "Easy indoor warm-up" is a warm-up, cool-down or log on its own; write it inside the instructions of the step it belongs to. ' +
+        'Day 1 step "Log your speed" is a warm-up, cool-down or log on its own; write it inside the instructions of the step it belongs to.'
+    );
+    const last = value(checkWeekAnswer(answer, withProfile, true));
+    expect(last[0].detailedSteps.map((s) => s.title)).toEqual(['Easy indoor warm-up', 'Drill 1 letters', 'Log your speed']);
+  });
+
+  it("the test day's warm-up and review are not a reason (they are weekly_test)", () => {
+    const answer = week((days) => {
+      days[5].steps[0].title = 'Pre-test warm-up';
+      days[5].steps[2].title = 'Log your result';
+    });
+    expect('value' in checkWeekAnswer(answer, withProfile)).toBe(true);
+  });
+
+  it('without a profile the same week is accepted on the first attempt', () => {
+    const answer = week((days) => {
+      days[0].steps = [step('Easy indoor warm-up', 2, 5), step('Drill 1 letters', 1, 15), step('Log your speed', 3, 10)];
+    });
+    expect('value' in checkWeekAnswer(answer, input)).toBe(true);
   });
 });
 
