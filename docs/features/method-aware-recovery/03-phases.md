@@ -17,7 +17,7 @@
 | M2.3 | Tighter kinds, and the eval again | AC-3, AC-4, AC-11 | DONE 2026-10-09 (eval missed by one kind) | [m2.3](milestones/m2.3-tighter-kinds.md) |
 | O1 | Mo: agree to switch on custom profiles once the eval has passed (M2.3 re-run; MR-14) | AC-2 | KEPT OFF 2026-10-09 (Mo); revisit at M4.1 | |
 | M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | DONE 2026-10-10 | [m3.1a](milestones/m3.1a-carry-actions.md) |
-| M3.1b | Carry: order and rest gaps | AC-6 | NOT STARTED | |
+| M3.1b | Carry: order and rest gaps | AC-6 | READY | [m3.1b](milestones/m3.1b-order-and-rest-gaps.md) |
 | M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | NOT STARTED | |
 | M3.3 | Today, Dashboard and Focus | AC-7, AC-8 | NOT STARTED | |
 | O2 | Mo: turn on `METHOD_RECOVERY_ENABLED` in Render once M3.3 is live, then run the production checks | — | NOT STARTED | |
@@ -77,7 +77,7 @@
 
 **M3.1b Carry: order and rest gaps.** RULE-13's shift in one transaction and RULE-14, with generated-week tests that no day gets longer and no rule is broken. Checks R-1. Carried over from the M3.1a review: remove MR-27's temporary `hard_waits` and `out_of_order` drops; the generated-week tests include a run10k or recomp week written before kinds (its untagged steps still drop as high-load under missed sessions' rules, RULE-18).
 
-**M3.2 Swap, set today aside and move now.** RULE-16 on the server, with the allowed swap days and actions sent in the reconcile body. Checks R-2. Carried over from the M3.1a review: (1) swap must refuse a day holding a `continueFrom` marker (RULE-10; the swap route checks only `carriedFrom` and `swappedFrom` today); (2) with `METHOD_RECOVERY_ENABLED` on, "move now" re-plans a held key session and can answer 200 with nothing carried when the step does not move (let go, or a hard step under MR-27): it must refuse or say so.
+**M3.2 Swap, set today aside and move now.** RULE-16 on the server, with the allowed swap days and actions sent in the reconcile body. Checks R-2. Carried over from the M3.1a review: (1) swap must refuse a day holding a `continueFrom` marker (RULE-10; the swap route checks only `carriedFrom` and `swappedFrom` today); (2) with `METHOD_RECOVERY_ENABLED` on, "move now" re-plans a held key session and can answer 200 with nothing carried when the step does not move (let go, or a hard step under MR-27): it must refuse or say so. Carried over from the M3.1b prompt (MR-29): (3) next week picks up pushed-out steps: `writeNextWeek` is told which in-order steps were pushed past the week (`weekCounts.pushedOut` and which steps), so the next week starts from them instead of losing them.
 
 **M3.3 Today, Dashboard and Focus.** Section 6's lines (Today and Dashboard), choices from the server's list, the continue line in Today and Focus. Then Mo turns the switch on. Checks R-3, R-4, R-5, R-9, R-10. Carried over from the M3.1a review: (1) with the switch on, a let-go, fixed or continued day makes no drop and no carry, so `buildSignals` gives Today no line for it: the line must come from `carry.outcomes`; (2) the frontend types learn `carry.outcomes`, `continues`, `alreadyContinued`, `writtenContinues` and the step's `continueFrom`; (3) MR-26's warm-up line is stored as the first line of the instructions, followed by a newline: Today and Focus must show it on its own line (today the instructions render in one paragraph, so it runs into the next sentence).
 
