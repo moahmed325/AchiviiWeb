@@ -58,6 +58,8 @@ export interface DetailedStep {
   priority?: number;
   /** ND-5: physical strain (running, lifting); such a step is dropped, never carried. */
   highLoad?: boolean;
+  /** Method-aware recovery: the id of one of the goal's recovery kinds (`lib/recovery/profile.ts`). Nothing writes it yet (M2.1). */
+  kind?: string;
   layer?: TaskLayerType;
   layerReasoning?: string;
   challenge?: StepChallenge;
