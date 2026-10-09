@@ -505,21 +505,24 @@ interface ClimbProblem {
   reason: string;
   /** Refused even on the last attempt: a roadmap with it can't be tracked week to week. */
   hard: boolean;
-  /** A unit or kind problem, where the user's own number (if they named one) is the way out. */
-  unitProblem: boolean;
+  /**
+   * How to fix a unit or kind problem when the user named no number. When they did, their number is the way out
+   * (`statedTargetWayOut`) instead, so the reason never points at two different units.
+   */
+  fix?: string;
 }
 
 function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbProblem | null {
-  const hard = (reason: string, unitProblem = false): ClimbProblem => ({ reason, hard: true, unitProblem });
-  const soft = (reason: string): ClimbProblem => ({ reason, hard: false, unitProblem: false });
+  const hard = (reason: string, fix?: string): ClimbProblem => ({ reason, hard: true, fix });
+  const soft = (reason: string): ClimbProblem => ({ reason, hard: false });
   const targets = weeks.map((week) => week.target);
   const numbers = targets.filter((target): target is Extract<WeekTarget, { kind: 'number' }> => target.kind === 'number');
   if (numbers.length === 0) return null;
   if (numbers.length !== targets.length) {
     const deliverableWeeks = targets.flatMap((target, index) => (target.kind === 'deliverable' ? [index + 1] : []));
     return hard(
-      `Some weeks have a number target and some a deliverable (weeks ${deliverableWeeks.join(', ')}). Use one kind for all 12 weeks, never a mix: numbers only if week 1 already has a count above 0 in that unit; otherwise deliverables for all 12 weeks, with week 12's description naming the final number (e.g. "50 sales").`,
-      true
+      `Some weeks have a number target and some a deliverable (weeks ${deliverableWeeks.join(', ')}).`,
+      'Use one kind for all 12 weeks, never a mix: numbers only if week 1 already has a count above 0 in that unit; otherwise deliverables for all 12 weeks, with week 12\'s description naming the final number (e.g. "50 sales").'
     );
   }
   const first = numbers[0];
@@ -528,14 +531,14 @@ function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbPr
     const target = numbers[i];
     if (target.direction === 'higher_is_better' && target.value <= 0) {
       return hard(
-        `Week ${i + 1}'s target is ${target.value} ${target.unit}, which is nothing to reach. If the early weeks can't be counted in "${target.unit}" (no sales or users yet), use deliverable targets for all 12 weeks, with week 12's description naming the final number.`,
-        true
+        `Week ${i + 1}'s target is ${target.value} ${target.unit}, which is nothing to reach.`,
+        `If the early weeks can't be counted in "${target.unit}" (no sales or users yet), use deliverable targets for all 12 weeks, with week 12's description naming the final number.`
       );
     }
     if (unitKey(target.unit) !== unit || target.direction !== first.direction) {
       return hard(
-        `Week ${i + 1} uses "${target.unit}" (${target.direction}); every week must use "${first.unit}" (${first.direction}). Keep one metric and unit for all 12 weeks and restate week ${i + 1}'s target in "${first.unit}" (an exam keeps the same practice-test score every week).`,
-        true
+        `Week ${i + 1} uses "${target.unit}" (${target.direction}); every week must use "${first.unit}" (${first.direction}).`,
+        `Keep one metric and unit for all 12 weeks: restate week ${i + 1}'s target in "${first.unit}" (an exam, for example, keeps one practice-test score every week).`
       );
     }
     if (i > 0 && !isBetterOrEqual(target.value, numbers[i - 1].value, first.direction)) {
@@ -641,8 +644,9 @@ export function checkRoadmapAnswer(
   const climbProblem = numberClimbFailure(weeks, startingPoint);
   if (climbProblem && (climbProblem.hard || !lastAttempt)) {
     // A unit change or a mix that drifts toward the user's own number: name that unit, not week 1's, as the way out.
-    const wayOut = climbProblem.unitProblem && context.statedTargets.length > 0 ? ` ${statedTargetWayOut(context.statedTargets)}` : '';
-    return { reason: `${climbProblem.reason}${wayOut}` };
+    const fix =
+      climbProblem.fix !== undefined && context.statedTargets.length > 0 ? statedTargetWayOut(context.statedTargets) : climbProblem.fix;
+    return { reason: fix ? `${climbProblem.reason} ${fix}` : climbProblem.reason };
   }
 
   // One unit written two ways ("%" and "percent") is stored as week 1 wrote it.

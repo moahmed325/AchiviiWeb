@@ -194,6 +194,8 @@ describe('checkRoadmapAnswer', () => {
       expect(problem).toMatch(/every week must use "switches"/);
       expect(problem).toMatch(/The user asked for "5 songs"\. Fix it one of two ways, never a mix/);
       expect(problem).toMatch(/\(b\) deliverable targets for all 12 weeks, with week 12's description naming the number and unit/);
+      // Not also "restate it in switches": the reason never points at two different units.
+      expect(problem).not.toMatch(/restate/);
     });
 
     it('gives both ways out when week 12 misses the number', () => {
@@ -306,6 +308,15 @@ describe('checkRoadmapAnswer', () => {
       expect(problem).not.toMatch(/Use that metric and unit/);
     });
 
+    it('without a number in the goal, a mix still says to use one kind, and is refused on the last attempt', () => {
+      const data = deliverables([...BUILD, 'Template earning steadily'], { finalGoal: 'Sell my template' });
+      (data.weeks as Array<{ target: Record<string, unknown> }>)[11].target = {
+        kind: 'number', metric: 'Sales', value: 10, unit: 'sales', direction: 'higher_is_better',
+      };
+      const problem = reason(checkRoadmapAnswer(data, context, true));
+      expect(problem).toMatch(/\(weeks 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11\)\. Use one kind for all 12 weeks, never a mix/);
+    });
+
     it('rejects sales counted from 0 and points to deliverables', () => {
       const sales = [0, 0, 0, 1, 3, 6, 10, 15, 22, 30, 40, 50];
       const data = numbers(sales, { metric: 'Sales', unit: 'sales' }, { finalGoal: '50 sales', startingPoint: { value: 0, description: 'none' } });
@@ -351,7 +362,7 @@ describe('checkRoadmapAnswer', () => {
       (data.weeks as Array<{ target: Record<string, unknown> }>)[5].target.unit = 'questions';
       const problem = reason(checkRoadmapAnswer(data, context, true));
       expect(problem).toMatch(/Week 6 uses "questions"/);
-      expect(problem).toMatch(/restate week 6's target in "percent" \(an exam keeps the same practice-test score every week\)/);
+      expect(problem).toMatch(/restate week 6's target in "percent" \(an exam, for example, keeps one practice-test score every week\)/);
     });
 
     it('rejects a full mock exam week that lowers the score', () => {
