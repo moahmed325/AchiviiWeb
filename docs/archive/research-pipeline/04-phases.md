@@ -1,5 +1,7 @@
 # Best Possible Roadmap
 
+> **Archived 2026-10-09.** Replaced: the live research pipeline this plan describes was removed from the code on 2026-10-08 (commit `358a315`). Kept for history only.
+
 **Mission:** for any custom goal, find the best method we can honestly back, then build the user’s 12-week roadmap from that method.
 
 This file is the working plan from here on. `golden-rail-pipeline-spec.md` is still useful for *rules we must not break*. `phase-prompts.md` and the old Phase 1–7 list in `docs/archive/golden-rail-todo.md` are history. Do not follow them as the build order.
