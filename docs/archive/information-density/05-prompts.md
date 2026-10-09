@@ -1,8 +1,8 @@
 # Achivii — IMPLEMENTATION PROMPTS
 **Version:** 1.0 | **Date:** 2026-09-30
-**Roadmap:** docs/features/information-density/04-phases.md
-**Feature:** docs/features/information-density/03-feature.md
-**Solution:** docs/features/information-density/02-solution.md
+**Roadmap:** docs/archive/information-density/04-phases.md
+**Feature:** docs/archive/information-density/03-feature.md
+**Solution:** docs/archive/information-density/02-solution.md
 **Template:** the old prompts template (retired 2026-10-08). Shared rules for implementing a milestone: `CLAUDE.md` ("Working on a milestone")
 
 # 0 — PURPOSE & OPERATING CONTRACT

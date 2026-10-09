@@ -12,10 +12,8 @@ Where every feature stands. One row per feature; change a row only when a featur
 | `weekly-update` | PAUSED | `method-aware-recovery` done (WU-10) | Feature definition approved; no phases yet |
 | `checkpoints` | STUB | weekly-update (WU-2) | Brief to be written |
 | `billing` (old layout) | WAITING | Lemon Squeezy test-mode keys and webhook (M2.5); then launch (phase 6) | Code built 2026-09-29 |
-| `information-density` (old layout) | ASK MO | finish P5 or close | P1 to P4 done 2026-09-30 |
-| `today-redesign` (old layout) | ASK MO | finish or close | Phases marked complete with carry-overs |
 
-States: `IN PROGRESS` · `PAUSED` · `WAITING` (on something outside the code) · `STUB` (problem written down, not planned) · `PLANNED` · `ASK MO`.
+States: `IN PROGRESS` · `PAUSED` · `WAITING` (on something outside the code) · `STUB` (problem written down, not planned) · `PLANNED`.
 
 ## How it works
 
@@ -69,3 +67,5 @@ Other chats are working on: <files or areas not to touch>.
 | B-15 | 2026-10-09 | infra-migration 04-phases, "Deferred" (archived) | Account features not built: password recovery, email verification policy, sign-in with Google or other providers (OAuth), two-step sign-in (MFA). | big | OPEN |
 | B-16 | 2026-10-09 | infra-migration 04-phases, "Deferred" (archived) | Old Stripe columns are still in the schema. Decide with B-8 and B-14 whether to drop them (a schema change). | big | OPEN |
 | B-17 | 2026-10-09 | infra-migration 04-phases, "Deferred" (archived) | Decommission the old Render database now that the move to Supabase has run since 2026-09-30, after a final backup. | owner | OPEN |
+| B-18 | 2026-10-09 | information-density 04-phases, P5 (archived, not done) | No final cross-page check was done after the density redesign: Today, Journey and Progress were never compared for one consistent product language (type, spacing, disclosures), and Journey and Progress have had no responsive and accessibility pass at 360 to 412 px since (their e2e specs are not in CI, see B-7). Audit the three pages, fix small mismatches, and list anything bigger as new items. | small | OPEN |
+| B-19 | 2026-10-09 | information-density M3.2 report; today-redesign phase 3 (both archived) | The frontend production build warns that a JavaScript chunk is over 500 kB (last recorded 2026-09-30). Check it is still true, then split the bundle (for example lazy-load more routes) until the warning is gone. | small | OPEN |

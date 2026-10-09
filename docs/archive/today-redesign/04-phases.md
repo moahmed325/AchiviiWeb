@@ -1,5 +1,7 @@
 # ACHIVII — DASHBOARD / TODAY REDESIGN PHASES
 
+> **Archived 2026-10-09.** Closed by Mo: every phase complete; the carry-overs were settled by phase 3 and missed sessions M3.4. The bundle-size warning moved to `docs/backlog.md` as B-19.
+
 ### Focused redesign roadmap for the signed-in Today experience
 
 **Scope:** Visual and UX refinement of the current signed-in Today page at `/`.
