@@ -13,6 +13,7 @@ import {
 } from './ai/roadmap.js';
 import { activeDaysFor, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
 import { isHighLoadGoal } from './highLoad.js';
+import type { RecoveryProfile } from './recovery/profile.js';
 
 /** What `Goal.roadmap` holds for a v2 goal. The 12 weeks live in `RoadmapWeek` rows. */
 export interface StoredRoadmap {
@@ -22,11 +23,13 @@ export interface StoredRoadmap {
   method: ChosenMethod;
   phases: RoadmapPhase[];
   answers: PlanAnswer[];
+  /** Method-aware recovery (MR-9): the goal's checked recovery profile. Missing on goals created before it. */
+  recovery?: RecoveryProfile;
 }
 
-export function storedRoadmap(roadmap: Roadmap, answers: PlanAnswer[]): StoredRoadmap {
+export function storedRoadmap(roadmap: Roadmap, answers: PlanAnswer[], recovery?: RecoveryProfile | null): StoredRoadmap {
   const { weeks: _weeks, ...rest } = roadmap;
-  return { ...rest, answers };
+  return recovery ? { ...rest, answers, recovery } : { ...rest, answers };
 }
 
 function json<T>(value: T) {
