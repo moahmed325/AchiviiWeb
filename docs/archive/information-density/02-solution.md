@@ -2,7 +2,7 @@
 **Status:** READY FOR FEATURE DEFINITION
 **Version:** 1.0
 **Date:** 2026-09-30
-**Problem Definition:** docs/features/information-density/01-problem.md
+**Problem Definition:** docs/archive/information-density/01-problem.md
 **Problem Version:** 1.0
 
 ## 1. Problem Being Solved

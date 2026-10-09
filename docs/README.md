@@ -41,7 +41,7 @@ features/<feature-name>/
 
 Skip `01-brief.md` when the direction is already decided in `architecture/` or `decisions.md`; `02-feature.md` then links there. Numbers show the order work happens in.
 
-Features started before 2026-10-08 (`billing`, `information-density`, `today-redesign`) keep the old layout (`01-problem.md`, `02-solution.md`, `03-feature.md`, `04-phases.md`, `05-prompts.md`) until they finish. Current features also include `method-aware-recovery`, `weekly-update` and `checkpoints` (new layout). Archived: `missed-sessions`, `infra-migration`, `research-pipeline` (in `docs/archive/`). Where each current feature stands is in the Features table at the top of `docs/backlog.md`.
+Features started before 2026-10-08 (now only `billing`) keep the old layout (`01-problem.md`, `02-solution.md`, `03-feature.md`, `04-phases.md`, `05-prompts.md`) until they finish. Current features also include `method-aware-recovery`, `weekly-update` and `checkpoints` (new layout). Archived: `missed-sessions`, `infra-migration`, `research-pipeline`, `information-density`, `today-redesign` (in `docs/archive/`). Where each current feature stands is in the Features table at the top of `docs/backlog.md`.
 
 ### How a feature moves
 1. Write `01-brief.md` with Mo (or skip it), then `02-feature.md`. Record every decision in the feature's `decisions.md` as it is made.

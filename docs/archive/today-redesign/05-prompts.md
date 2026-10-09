@@ -2,7 +2,7 @@
 
 ### Agent prompts for the focused Today redesign
 
-These prompts execute `docs/features/today-redesign/04-phases.md` one phase at a time.
+These prompts execute `docs/archive/today-redesign/04-phases.md` one phase at a time.
 
 ## Shared instructions
 
@@ -13,7 +13,7 @@ Read first:
 - `docs/product/redesign-blueprint.md`
 - `docs/product/visual-design-system.md`
 - `docs/decisions.md`
-- `docs/features/today-redesign/04-phases.md`
+- `docs/archive/today-redesign/04-phases.md`
 
 The existing decision that Today lives at `/` is binding. Do not create another dashboard route.
 
@@ -71,7 +71,7 @@ PROPOSED HIERARCHY
 Do not code the redesign yet unless a tiny inspection-only change is required.
 
 DELIVERABLE
-Update `docs/features/today-redesign/04-phases.md` with any repository-specific findings,
+Update `docs/archive/today-redesign/04-phases.md` with any repository-specific findings,
 exact component boundaries, responsive considerations, and decisions required.
 If an existing decision must change, stop and identify the required decision-log update.
 
@@ -217,7 +217,7 @@ CHECK
 - existing tests/build/type-check
 
 DELIVERABLE
-Record evidence and any remaining carry-overs in `docs/features/today-redesign/04-phases.md`.
+Record evidence and any remaining carry-overs in `docs/archive/today-redesign/04-phases.md`.
 Do not claim completion if a required validation path was not actually checked.
 
 END

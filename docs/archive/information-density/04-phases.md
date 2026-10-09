@@ -1,12 +1,14 @@
 # Achivii Core Experience — IMPLEMENTATION PHASES
+
+> **Archived 2026-10-09.** Closed by Mo: P1 to P4 complete (2026-09-30); P5 (cross-page polish and checks) was not done and moved to `docs/backlog.md` as B-18. The bundle-size warning is B-19.
 ### Detailed roadmap, milestones, dependencies, evidence, and exit criteria
 
 **Status:** IN PROGRESS (checked 2026-10-08 against the milestone reports and git history): P1 to P4 COMPLETE (2026-09-30), P5 NOT STARTED.
 **Version:** 3.0
 **Date:** 2026-09-30
-**Problem Definition:** docs/features/information-density/01-problem.md
-**Solution Exploration:** docs/features/information-density/02-solution.md
-**Feature Definition:** docs/features/information-density/03-feature.md
+**Problem Definition:** docs/archive/information-density/01-problem.md
+**Solution Exploration:** docs/archive/information-density/02-solution.md
+**Feature Definition:** docs/archive/information-density/03-feature.md
 **Template:** the old phases template (retired 2026-10-08; it is in git history)
 
 ---

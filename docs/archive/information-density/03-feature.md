@@ -3,8 +3,8 @@
 **Status:** READY FOR PHASE DEFINITION
 **Version:** 1.0
 **Date:** 2026-09-30
-**Problem Definition:** docs/features/information-density/01-problem.md
-**Solution Exploration:** docs/features/information-density/02-solution.md
+**Problem Definition:** docs/archive/information-density/01-problem.md
+**Solution Exploration:** docs/archive/information-density/02-solution.md
 
 ## 1. Overview
 
