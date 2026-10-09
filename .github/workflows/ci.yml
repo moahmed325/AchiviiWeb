@@ -67,11 +67,17 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-  # The Today browser tests (mocked API, fake Supabase; see frontend/playwright.config.ts) on desktop and mobile.
-  # The full suite stays out of CI for now: on one worker it takes too long.
+  # Every browser test in frontend/e2e (mocked API, fake Supabase; see frontend/playwright.config.ts) on desktop
+  # and mobile, split across parallel shards. Each shard keeps one worker (parallel workers stall the Vite dev server).
+  # New specs are picked up without editing this file. e2e/live is never run here (it needs LIVE_API=1).
   e2e:
+    name: e2e (shard ${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -84,14 +90,14 @@ jobs:
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Today browser tests
+      - name: Browser tests
         working-directory: frontend
-        run: npm run e2e -- e2e/todayStates.spec.ts e2e/today.spec.ts e2e/missedSessions.spec.ts e2e/lateTest.spec.ts e2e/focus.spec.ts e2e/weeklyReview.spec.ts
+        run: npm run e2e -- --shard=${{ matrix.shard }}/3
       - name: Upload the Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-shard-${{ matrix.shard }}
           path: |
             frontend/playwright-report/
             frontend/test-results/

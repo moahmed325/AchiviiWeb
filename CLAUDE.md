@@ -43,7 +43,7 @@ npm run lint                             # whole frontend; baseline is 0 errors,
 npx eslint <changed files>               # files you touch must be lint-clean
 npm run build                            # tsc && vite build
 npm run e2e                              # same as npx playwright test: e2e/*.spec.ts, API mocked via e2e/mockApi.ts; starts Vite itself
-npm run e2e -- e2e/today.spec.ts          # args pass through; CI runs the Today specs (see .github/workflows/ci.yml)
+npm run e2e -- e2e/today.spec.ts          # args pass through; CI runs every e2e spec (not e2e/live), split into 3 shards (see .github/workflows/ci.yml)
 # e2e runs on port 5174 (E2E_PORT to change it) with a fake Supabase; sign in with signIn() from e2e/mockApi.ts
 npx playwright test e2e/today.spec.ts --project=mobile
 LIVE_API=1 npx playwright test e2e/live  # real backend on :5000, creates accounts
