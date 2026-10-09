@@ -194,19 +194,32 @@ Their answers:
        { "kind": "number", "metric", "value", "unit", "direction": "higher_is_better" | "lower_is_better" }
      or
        { "kind": "deliverable", "description" }, e.g. "one loaf with an even, open crumb".
-     Use numbers whenever the goal can be counted. Keep the same metric and unit every week.
+     Use numbers whenever the goal can be counted and every week, week 1 included, has a count above 0 in that
+     unit. Otherwise use deliverables for all 12 weeks. Never mix number weeks and deliverable weeks.
+     Keep the same metric and unit every week, week 12 included, even when the final test reports on another scale.
+     Counts that stay at 0 until late (sales, users, subscribers, customers, orders) can't be counted in week 1: use
+     deliverables for all 12 weeks, and make week 12's the number, e.g. "50 sales of the template".
+     Exams: one measure every week, e.g. metric "Practice test score", unit "percent".
    - "test": { "type": "typing_test" | "quiz" | "timer" | "count" | "photo" | "video", "instructions", "passIf" }.
      Prefer tests the app runs itself, then proof (photo, video), then a count. Use the same type every week.
    How the targets climb:
    - Week 1 starts just above where they are now: an early win, not a leap.
-   - Steps are small in weeks 1 to 3, larger in the middle, and ease off before the final test.
-   - Never go backwards. Week 12's target is the finalGoal.
+   - Steps are small in weeks 1 to 3, larger in the middle, and smaller again before the final test.
+   - Never go backwards: a lighter week (a taper, a deload, a review week) or a harder test keeps the previous
+     week's target. Week 12's target is the finalGoal.
+   - A target is what they can do on that week's test, not how much they train that week.
    - Realistic for ${dailyMinutes} minutes a day and ${activeDays} days a week.
 ```
 
-**Code checks:** 12 weeks; phases cover weeks 1-12 with no gaps; for numbers, the same metric and unit every week,
-never backwards, week 12 = final goal, week 1 a small step; safety < 3 → retry once with the reason; a number the
-user typed in the goal must appear in week 12.
+(Abridged; `buildRoadmapPrompt` in `backend/src/lib/ai/roadmap.ts` is the exact text. When the goal names a number,
+`research/statedTarget.ts`, the prompt names it too.)
+
+**Code checks:** 12 weeks; phases cover weeks 1-12 with no gaps; all 12 targets numbers or all deliverables, never a
+mix; for numbers, the same metric and unit every week ("%" and "percent" count as one), above 0, never backwards
+(flat is allowed), week 12 = final goal, week 1 a small step; safety < 3 → retry once with the reason; a number the
+user typed in the goal must appear in week 12 (as the number target, or named in a deliverable week 12). A mix, a
+unit change, a 0 target, a step backwards, low safety and a missed stated number are refused even on the last
+attempt; the other checks give way on it.
 
 ## Prompt 3: week call
 
