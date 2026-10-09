@@ -131,3 +131,9 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** (1) the let-go line keeps today's drop wording ("Nothing needs making up: the plan carries on as it is."); (2) "Move now" stays the existing carry-now action, offered only when the held step's kind moves and its receiving day passes; no new action; (3) the Dashboard gets its own short line per action; (4) a goal "has deliverable targets" when its week-12 target is a deliverable; (5) the plan splits M1.3 into M1.3a and M1.3b and M3.1 into M3.1a and M3.1b; (6) unrelated problems go to `docs/backlog.md` (B-9 to B-14).
 **Why:** what the code really does; milestones one chat can finish.
 **Changes:** RULE-4, RULE-15, RULE-16, section 6; `03-phases.md`.
+
+### MR-22 — The deliverable catch-all check applies only to profiles the model makes (2026-10-09)
+**Question:** RULE-4's "a goal whose week-12 target is a deliverable needs a continue catch-all" also fails our own pathway and template profiles when the model writes a deliverable week 12 (for example "deliver a 15-minute talk"), so those goals get no profile (M1.3a report).
+**Decision:** the check applies only to profiles the profile call makes (M1.3b). Pathway profiles and unchanged templates are saved without it.
+**Why:** ours were checked by hand against each method; the rule guards the model's output. Forcing continue would be wrong for speech.
+**Changes:** RULE-4; M1.3b (the create and review paths stop passing the deliverable fact for pathway and template profiles).

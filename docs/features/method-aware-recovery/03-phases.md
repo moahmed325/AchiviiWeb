@@ -11,7 +11,7 @@
 | M1.1 | Check the code | — | DONE 2026-10-08 | [m1.1](milestones/m1.1-check-the-code.md) |
 | M1.2 | Profile format, checks, templates, pathway profiles, keyword table | AC-1 (pathways), AC-4 (profile side) | DONE 2026-10-09 | [m1.2](milestones/m1.2-profiles-and-templates.md) |
 | M1.3a | Profiles stored at creation and for older goals (no model call) | AC-1 | DONE 2026-10-09 | [m1.3a](milestones/m1.3a-store-profiles.md) |
-| M1.3b | The custom profile call (off until the eval passes) | AC-2 | NOT STARTED | |
+| M1.3b | The custom profile call (off until the eval passes) | AC-2 | READY | [m1.3b](milestones/m1.3b-profile-call.md) |
 | M2.1 | The week call tags every step | AC-3, AC-4 | NOT STARTED | |
 | M2.2 | The eval | AC-11 | NOT STARTED | |
 | O1 | Mo: agree to switch on custom profiles once M2.2's eval has passed (MR-14) | AC-2 | NOT STARTED | |

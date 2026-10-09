@@ -40,7 +40,7 @@ When a day doesn't happen, the app does what the goal's method would do for that
 - every kind has one action, and there are 2 to 8 kinds plus the catch-all;
 - every hard kind's action is move, let go or fixed (never continue), and the rest gap is 0 to 2 days;
 - a kind the model marks high-load is hard;
-- for a goal whose week-12 target is a deliverable, the catch-all is continue (changed 2026-10-08, MR-21);
+- for a profile made by the profile call, when the goal's week-12 target is a deliverable, the catch-all is continue (changed 2026-10-08, MR-21; changed 2026-10-09, MR-22: pathway profiles and unchanged templates skip this check);
 - the return rule is in the checked format: one or two break lengths, each restarting at the last level or 1 to 2 weeks back, with a short "first week back" note.
 
 A failed profile gets one retry; if that fails, the chosen template is used unchanged, and if no template was chosen, the keyword table's template (MR-14). A half-made profile is never saved.
