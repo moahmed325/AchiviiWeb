@@ -6,6 +6,7 @@ import { prisma } from '../src/lib/prisma.js';
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { MOVED_WARM_UP_LINE } from '../src/lib/recovery/carry.js';
+import { RECONCILE_GOAL_SELECT } from '../src/lib/reconcileCore.js';
 import { PROFILE } from './methodProfile.js';
 
 // Method-aware recovery M3.1a: POST /api/goal/reconcile behind METHOD_RECOVERY_ENABLED, with carry writes still
@@ -231,10 +232,17 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     expect((await withSwitches(undefined, undefined)).body.carry.outcomes).toBeUndefined();
   });
 
-  it('loads the roadmap that holds the profile', async () => {
+  it('loads the roadmap only when the switch is on; off, the query is exactly as before', async () => {
     given(goal(tasks()));
-    await reconcile();
-    expect((prisma.goal.findFirst as any).mock.calls[0][0].select).toMatchObject({ roadmap: true });
+    await withSwitches(undefined, undefined);
+    const off = (prisma.goal.findFirst as any).mock.calls[0][0];
+    expect(off).toEqual({ where: { userId: user.id, status: 'active' }, select: RECONCILE_GOAL_SELECT });
+    expect(off.select).not.toHaveProperty('roadmap');
+    expect(Object.keys(RECONCILE_GOAL_SELECT).sort()).toEqual(['clarifiedOutcome', 'dailyTasks', 'id', 'planVersion', 'rawGoal', 'routine']);
+
+    await withSwitches('true', undefined);
+    const on = (prisma.goal.findFirst as any).mock.calls[1][0];
+    expect(on).toEqual({ where: { userId: user.id, status: 'active' }, select: { ...RECONCILE_GOAL_SELECT, roadmap: true } });
   });
 });
 

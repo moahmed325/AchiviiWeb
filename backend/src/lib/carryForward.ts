@@ -126,7 +126,8 @@ export function parseStoredSteps(detailedSteps: unknown): CarriedStep[] {
   }
 }
 
-function markerOf(step: CarriedStep): CarryMarker | null {
+/** The step's `carriedFrom` marker, or null. Shared with method-aware recovery (`recovery/carry.ts`). */
+export function markerOf(step: CarriedStep): CarryMarker | null {
   const marker = step.carriedFrom;
   return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
 }
@@ -136,21 +137,31 @@ function swapMarkerOf(step: CarriedStep): SwapMarker | null {
   return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
 }
 
+/** ND-18: the source of a stored `swappedFrom` marker, and every day that holds a `swappedFrom` step. */
+export function swappedTaskIds(tasks: ReadonlyArray<{ id: string; steps: readonly CarriedStep[] }>): Set<string> {
+  const swappedIds = new Set<string>();
+  for (const task of tasks) {
+    for (const step of task.steps) {
+      const swapped = swapMarkerOf(step);
+      if (swapped) {
+        swappedIds.add(swapped.taskId);
+        swappedIds.add(task.id);
+      }
+    }
+  }
+  return swappedIds;
+}
+
 /**
  * Days whose miss is already handled (ND-13, ND-14, ND-18): the source of a stored `carriedFrom` marker, the source
  * of a stored `swappedFrom` marker, or a day that holds a `swappedFrom` step.
  */
 export function handledTaskIds(tasks: ReadonlyArray<{ id: string; steps: readonly CarriedStep[] }>): Set<string> {
-  const handled = new Set<string>();
+  const handled = swappedTaskIds(tasks);
   for (const task of tasks) {
     for (const step of task.steps) {
       const carried = markerOf(step);
       if (carried) handled.add(carried.taskId);
-      const swapped = swapMarkerOf(step);
-      if (swapped) {
-        handled.add(swapped.taskId);
-        handled.add(task.id);
-      }
     }
   }
   return handled;
@@ -160,10 +171,11 @@ export function handledTaskIds(tasks: ReadonlyArray<{ id: string; steps: readonl
 const TEST_STEP = /^weekly test\b/i;
 
 const minutesOf = (steps: readonly DetailedStep[]) => steps.reduce((sum, step) => sum + Math.max(0, step.durationMinutes || 0), 0);
-const hasPriority = (step: DetailedStep): step is DetailedStep & { priority: number } =>
+export const hasPriority = (step: DetailedStep): step is DetailedStep & { priority: number } =>
   typeof step.priority === 'number' && Number.isFinite(step.priority);
 
-function byDate(a: DayClassification, b: DayClassification): number {
+/** Days in date order (week and day number break a tie). */
+export function byDate(a: DayClassification, b: DayClassification): number {
   return a.date === b.date ? a.weekNumber - b.weekNumber || a.dayNumber - b.dayNumber : a.date < b.date ? -1 : 1;
 }
 

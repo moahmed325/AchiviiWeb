@@ -14,9 +14,13 @@
  * Rules: docs/features/method-aware-recovery/02-feature.md section 4; decisions MR-10, MR-12, MR-17, MR-26, MR-27.
  */
 import {
+  byDate,
   fitCarriedStep,
   handledTaskIds,
+  hasPriority,
+  markerOf,
   planCarries,
+  swappedTaskIds,
   type CarriedStep,
   type CarryDrop,
   type CarryInput,
@@ -36,10 +40,11 @@ export type RecoveryRules = 'method' | 'missed_sessions';
 
 /**
  * What happened to a missed day. `held` is the key-session swap offer that stays as today (ND-9; M3.2 owns swaps).
- * For a day under missed sessions' rules, `moved` is a carry and `no_room` any drop; P3's lines for those stay as
- * today.
+ * `in_gap` is a day of the open gap (ND-11): nothing is carried or marked, the gentle return speaks for it, and it
+ * is in none of the RULE-17 counts. For a day under missed sessions' rules, `moved` is a carry and `no_room` any
+ * other drop; P3's lines for those stay as today.
  */
-export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held';
+export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap';
 
 export interface DayOutcome {
   taskId: string;
@@ -86,20 +91,14 @@ export interface RecoveryInput extends CarryInput {
   method?: { profile: RecoveryProfile | null };
 }
 
-const hasPriority = (step: CarriedStep): boolean => typeof step.priority === 'number' && Number.isFinite(step.priority);
 const byPriority = (a: CarriedStep, b: CarriedStep) => (a.priority as number) - (b.priority as number);
-
-function byDate(a: DayClassification, b: DayClassification): number {
-  return a.date === b.date ? a.weekNumber - b.weekNumber || a.dayNumber - b.dayNumber : a.date < b.date ? -1 : 1;
-}
 
 function continueMarkerOf(step: CarriedStep) {
   const marker = step.continueFrom;
   return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
 }
 
-const hasCarryMarker = (step: CarriedStep) =>
-  !!step.carriedFrom && typeof step.carriedFrom === 'object' && typeof step.carriedFrom.taskId === 'string';
+const hasCarryMarker = (step: CarriedStep) => markerOf(step) !== null;
 
 /** MR-26: the line goes first, once; the minutes do not change. */
 export function withWarmUpLine(instructions: unknown): string {
@@ -108,7 +107,12 @@ export function withWarmUpLine(instructions: unknown): string {
   return text.trim() ? `${MOVED_WARM_UP_LINE}\n${text}` : MOVED_WARM_UP_LINE;
 }
 
-/** Each step's recovery, or null when the day does not follow the new rules (RULE-18). */
+/**
+ * The day's own steps with their recovery, highest priority first, or null when the day does not follow the new
+ * rules (RULE-18): a step without a priority or a known kind, or no own step at all. A step carried onto the day
+ * (`carriedFrom`) is never carried again (ND-13, as `planCarries`), so it is left behind: it is not the day's move
+ * step, its top step or a continue source, and it counts for nothing.
+ */
 function methodSteps(task: CarryTask | undefined, profile: RecoveryProfile | null): Array<{ step: CarriedStep; recovery: StepRecovery }> | null {
   if (!profile || !task || task.steps.length === 0) return null;
   const out: Array<{ step: CarriedStep; recovery: StepRecovery }> = [];
@@ -116,9 +120,9 @@ function methodSteps(task: CarryTask | undefined, profile: RecoveryProfile | nul
     if (!hasPriority(step)) return null;
     const recovery = actionOf(step, profile);
     if (!recovery) return null;
-    out.push({ step, recovery });
+    if (!markerOf(step)) out.push({ step, recovery });
   }
-  return out.sort((a, b) => byPriority(a.step, b.step));
+  return out.length > 0 ? out.sort((a, b) => byPriority(a.step, b.step)) : null;
 }
 
 /**
@@ -134,16 +138,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   const ordered = [...input.days].sort(byDate);
   const taskById = new Map(input.tasks.map((task) => [task.id, task]));
   const handled = handledTaskIds(input.tasks);
-  const swapHandled = new Set<string>();
-  for (const task of input.tasks) {
-    for (const step of task.steps) {
-      const swapped = step.swappedFrom;
-      if (swapped && typeof swapped === 'object' && typeof swapped.taskId === 'string') {
-        swapHandled.add(swapped.taskId);
-        swapHandled.add(task.id);
-      }
-    }
-  }
+  const swapHandled = swappedTaskIds(input.tasks);
   const carrySources = new Set(legacy.alreadyCarried.map((carry) => carry.fromTaskId));
   const inGap = new Set(input.gap?.taskIds ?? []);
   const heldIds = new Set(legacy.held.map((held) => held.taskId));
@@ -331,7 +326,12 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     if (day.kind !== 'missed' && !carrySources.has(day.taskId)) continue;
     const moved = carrySources.has(day.taskId) || movedNow.has(day.taskId);
     const steps = stepsOf.get(day.taskId);
-    if (!steps || !(methodDays.has(day.taskId) || carrySources.has(day.taskId))) {
+    const rules: RecoveryRules = steps && (methodDays.has(day.taskId) || carrySources.has(day.taskId)) ? 'method' : 'missed_sessions';
+    if (!moved && inGap.has(day.taskId)) {
+      outcomes.push({ taskId: day.taskId, date: day.date, rules, outcome: 'in_gap', topStep: 'in_gap' });
+      continue;
+    }
+    if (!steps || rules === 'missed_sessions') {
       const outcome: RecoveryOutcome = moved ? 'moved' : heldIds.has(day.taskId) ? 'held' : 'no_room';
       outcomes.push({ taskId: day.taskId, date: day.date, rules: 'missed_sessions', outcome, topStep: outcome });
       continue;

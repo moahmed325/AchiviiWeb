@@ -175,17 +175,48 @@ describe('RULE-9 move (AC-5)', () => {
     expect(outcomeOf(plan, 'mon')).toEqual({ taskId: id('mon'), date: '2026-09-21', rules: 'method', outcome: 'moved', topStep: 'moved' });
   });
 
-  it('MR-26: the line is added once, even when the step moves again', () => {
+  it('MR-26: the line is added once', () => {
     expect(withWarmUpLine(withWarmUpLine('Play scales.'))).toBe(`${MOVED_WARM_UP_LINE}\nPlay scales.`);
+    expect(withWarmUpLine(`${MOVED_WARM_UP_LINE}\nPlay scales.`)).toBe(`${MOVED_WARM_UP_LINE}\nPlay scales.`);
     expect(withWarmUpLine('')).toBe(MOVED_WARM_UP_LINE);
-    // Mon's step was carried onto Tue; Tue is then missed and the carried step is its highest-priority move step.
-    const first = on(week({ mon: { kind: 'missed' } }));
-    const tueSteps = first.carries[0].steps.map((s) => (s.carriedFrom ? { ...s, priority: 1 } : s.title === 'tue practice' ? { ...s, priority: 2 } : s));
-    const plan = on(week({ mon: { kind: 'missed' }, tue: { kind: 'missed', steps: tueSteps, minutes: first.carries[0].durationMinutes } }, { today: '2026-09-23' }));
-    const again = plan.carries.find((c) => c.fromTaskId === id('tue'))!;
-    expect(again.step.title).toBe('mon practice');
-    expect(again.step.instructions).toBe(`${MOVED_WARM_UP_LINE}\nDo mon practice.`);
-    expect(again.step.durationMinutes).toBe(15);
+  });
+
+  it('MR-26: warm-up of another kind stays behind; the main step moves with the line and the same minutes', () => {
+    const mon = [step('mon main practice', 1, 15, 'practice'), step('Warm-up', 2, 15, 'review')];
+    const input = week({ mon: { kind: 'missed', steps: mon } });
+    const plan = on(input);
+    expect(plan.carries).toHaveLength(1);
+    expect(plan.carries[0].step).toMatchObject({ title: 'mon main practice', durationMinutes: 15, instructions: `${MOVED_WARM_UP_LINE}\nDo mon main practice.` });
+    expect(plan.carries.flatMap((c) => c.steps.map((s) => s.title))).not.toContain('Warm-up');
+    expect(plan.continues).toEqual([]);
+    expect(plan.drops).toEqual([]);
+    expect(plan.outcomes).toEqual([{ taskId: id('mon'), date: '2026-09-21', rules: 'method', outcome: 'moved', topStep: 'moved' }]);
+    const counts = weekCounts(1, { tasks: input.tasks.map((t) => ({ id: t.id, weekNumber: 1, isRestDay: t.isRestDay, isKeySession: false })), days: input.days, carry: plan });
+    expect(counts).toMatchObject({ letGo: 0, continued: 0, noRoom: 0 });
+  });
+
+  it('a carried step is never carried again: Mon\'s step on Wed stays when Wed (top step let go) is missed', () => {
+    const carried = step('mon practice', 2, 15, 'practice', {
+      instructions: `${MOVED_WARM_UP_LINE}\nDo mon practice.`,
+      carriedFrom: { taskId: id('mon'), date: '2026-09-21', replaced: [] },
+    });
+    const wed = [step('wed review', 1, 15, 'review'), carried];
+    const input = week({ mon: { kind: 'missed' }, tue: { kind: 'done' }, wed: { kind: 'missed', steps: wed } }, { today: '2026-09-24' });
+    const plan = on(input);
+    expect(plan.carries).toEqual([]);
+    expect(dropOf(plan, 'wed')).toBeUndefined();
+    expect(outcomeOf(plan, 'wed')).toEqual({ taskId: id('wed'), date: '2026-09-23', rules: 'method', outcome: 'let_go', topStep: 'let_go' });
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ outcome: 'moved' });
+    // Missed sessions never carries it again either (it moves Wed's own priority-1 step instead).
+    expect(planCarries(input).carries.map((c) => c.step.title)).toEqual(['wed review']);
+  });
+
+  it('a carried step is never the top step: a day holding only its carried step stays on missed sessions\' rules', () => {
+    const carried = step('mon practice', 1, 15, 'practice', { carriedFrom: { taskId: id('mon'), date: '2026-09-21', replaced: [] } });
+    const input = week({ mon: { kind: 'missed' }, tue: { kind: 'missed', steps: [carried] } }, { today: '2026-09-23' });
+    const plan = on(input);
+    expect(legacyFields(plan)).toEqual(planCarries(input));
+    expect(outcomeOf(plan, 'tue')).toMatchObject({ rules: 'missed_sessions', outcome: 'no_room' });
   });
 
   it('MR-26: the steps left behind are not moved and not counted', () => {
@@ -410,7 +441,29 @@ describe('what stays as today with the new rules', () => {
     expect(plan.carries).toEqual([]);
     expect(plan.continues).toEqual([]);
     expect(plan.drops).toEqual(planCarries(input).drops);
-    expect(plan.outcomes!.map((o) => o.outcome)).toEqual(['no_room', 'no_room', 'no_room']);
+    expect(plan.outcomes!.map((o) => o.outcome)).toEqual(['in_gap', 'in_gap', 'in_gap']);
+  });
+
+  it('days of the open gap get in_gap and are in none of the new counts', () => {
+    // A 3-day gap of tagged days whose top steps would be let go, continue and move.
+    const input = week(
+      {
+        mon: { kind: 'missed', steps: [step('mon review', 1, 20, 'review'), step('mon practice', 2, 10, 'practice')] },
+        tue: { kind: 'missed', steps: [step('tue drafting', 1, 20, 'drafting'), step('r', 2, 10, 'review')] },
+        wed: { kind: 'missed' },
+        fri: { steps: [step('fri drafting', 1, 20, 'drafting'), step('fri practice', 2, 10, 'practice')] },
+      },
+      { today: '2026-09-25' }
+    );
+    expect(input.gap?.length).toBe(3);
+    const plan = on(input);
+    expect(plan.outcomes).toEqual(
+      (['mon', 'tue', 'wed'] as Name[]).map((name, i) => ({ taskId: id(name), date: DATES[i], rules: 'method', outcome: 'in_gap', topStep: 'in_gap' }))
+    );
+    expect(plan.carries).toEqual([]);
+    expect(plan.continues).toEqual([]);
+    const tasks = input.tasks.map((t) => ({ id: t.id, weekNumber: 1, isRestDay: t.isRestDay, isKeySession: false }));
+    expect(weekCounts(1, { tasks, days: input.days, carry: plan })).toMatchObject({ letGo: 0, continued: 0, noRoom: 0, missed: 3 });
   });
 
   it('the key-session hold is kept as today', () => {
@@ -448,12 +501,12 @@ describe('RULE-17 counts (MR-19, MR-26)', () => {
     expect(base).not.toHaveProperty('letGo');
   });
 
-  it('a continued day counts once its marker is stored; the left-behind steps add nothing', () => {
+  it('a continued day counts from the planned outcome, written or not, once; the left-behind steps add nothing', () => {
     const input = week({ mon: { kind: 'missed', steps: [step('mon drafting', 1, 15, 'drafting'), step('mon drafting 2', 2, 15, 'drafting')] }, wed: { steps: [step('wed drafting', 1, 30, 'drafting')] } });
     const plan = on(input);
     const countable_ = countable(input);
-    expect(weekCounts(1, { tasks: countable_, days: input.days, carry: plan })).toMatchObject({ continued: 0, letGo: 0, noRoom: 0 });
-    expect(weekCounts(1, { tasks: countable_, days: input.days, carry: { ...plan, writtenContinues: plan.continues } })).toMatchObject({ continued: 1, letGo: 0, noRoom: 0 });
+    // Carry switch off (or a lost write): nothing is stored, and the day still counts as continued.
+    expect(weekCounts(1, { tasks: countable_, days: input.days, carry: plan })).toMatchObject({ continued: 1, letGo: 0, noRoom: 0 });
     const stored = store(input, plan);
     expect(weekCounts(1, { tasks: countable_, days: stored.days, carry: on(stored) })).toMatchObject({ continued: 1, letGo: 0, noRoom: 0 });
   });

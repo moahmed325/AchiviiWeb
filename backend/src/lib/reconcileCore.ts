@@ -14,15 +14,16 @@ import { readRoutine } from './planV2.js';
 import { planRecovery, type PlannedContinue, type RecoveryPlan } from './recovery/carry.js';
 import { readRecoveryProfile } from './recovery/profile.js';
 
-/** The fields reconcile reads. Unchanged from M2.2. */
+/**
+ * The fields reconcile reads (as in M2.2). With METHOD_RECOVERY_ENABLED on, `loadReconcileGoal` also reads
+ * `roadmap` for the recovery profile (M3.1a); with it off the query is exactly this.
+ */
 export const RECONCILE_GOAL_SELECT = {
   id: true,
   planVersion: true,
   routine: true,
   rawGoal: true,
   clarifiedOutcome: true,
-  /** Method-aware recovery (M3.1a): the profile under `recovery`, read only when METHOD_RECOVERY_ENABLED is on. */
-  roadmap: true,
   dailyTasks: {
     select: {
       id: true,
@@ -40,7 +41,8 @@ export const RECONCILE_GOAL_SELECT = {
   },
 } satisfies Prisma.GoalSelect;
 
-export type ReconcileGoal = Prisma.GoalGetPayload<{ select: typeof RECONCILE_GOAL_SELECT }>;
+/** `roadmap` is present only when it was loaded (the method switch was on). */
+export type ReconcileGoal = Prisma.GoalGetPayload<{ select: typeof RECONCILE_GOAL_SELECT }> & { roadmap?: Prisma.JsonValue };
 
 export interface ReconcileUser {
   id: string;
@@ -61,7 +63,9 @@ export function methodRecoveryEnabled(): boolean {
 }
 
 export function loadReconcileGoal(userId: string): Promise<ReconcileGoal | null> {
-  return prisma.goal.findFirst({ where: { userId, status: 'active' }, select: RECONCILE_GOAL_SELECT });
+  const where = { userId, status: 'active' };
+  if (methodRecoveryEnabled()) return prisma.goal.findFirst({ where, select: { ...RECONCILE_GOAL_SELECT, roadmap: true } });
+  return prisma.goal.findFirst({ where, select: RECONCILE_GOAL_SELECT });
 }
 
 export interface ReconcileOverrides {
