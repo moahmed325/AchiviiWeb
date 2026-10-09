@@ -157,7 +157,8 @@ describe('checkRoadmapAnswer', () => {
     const dip = [16, 18, 20, 22, 24, 26, 28, 28, 27, 30, 35, 40];
     const problem = reason(checkRoadmapAnswer(answer({}, dip), context, true));
     expect(problem).toMatch(/Week 9's target \(27\) goes backwards from week 8 \(28\)/);
-    expect(problem).toMatch(/never go down: a lighter week keeps the previous week's target/);
+    expect(problem).toMatch(/never goes down: a lighter, taper or harder-test week keeps the previous week's target/);
+    expect(problem).toMatch(/Set week 9 to at least 28 words per minute/);
   });
 
   it('accepts a lighter week that holds the previous target', () => {
@@ -181,7 +182,7 @@ describe('checkRoadmapAnswer', () => {
     it("names the user's number before the finalGoal check, so the retry is not told to use the method's unit", () => {
       const problem = reason(checkRoadmapAnswer(switches(), { statedTargets }));
       expect(problem).toMatch(/Week 12 must reach the number the user asked for: 5 songs/);
-      expect(problem).toMatch(/use deliverables for all 12 weeks and name it in week 12's/);
+      expect(problem).toMatch(/deliverable targets for all 12 weeks, with week 12's description naming the number and unit/);
       expect(problem).not.toMatch(/finalGoal/);
     });
 
@@ -191,7 +192,14 @@ describe('checkRoadmapAnswer', () => {
       weeks[3].target = { kind: 'number', metric: 'Songs from memory', value: 1, unit: 'songs', direction: 'higher_is_better' };
       const problem = reason(checkRoadmapAnswer(data, { statedTargets }));
       expect(problem).toMatch(/every week must use "switches"/);
-      expect(problem).toMatch(/The user asked for 5 songs: count all 12 weeks in that unit, or use deliverables/);
+      expect(problem).toMatch(/The user asked for "5 songs"\. Fix it one of two ways, never a mix/);
+      expect(problem).toMatch(/\(b\) deliverable targets for all 12 weeks, with week 12's description naming the number and unit/);
+    });
+
+    it('gives both ways out when week 12 misses the number', () => {
+      const problem = reason(checkRoadmapAnswer(switches(), { statedTargets }));
+      expect(problem).toMatch(/\(a\) number targets in "songs" for all 12 weeks, week 12 at 5 songs or more/);
+      expect(problem).toMatch(/\(b\) deliverable targets for all 12 weeks/);
     });
 
     it('accepts deliverables that name the number in week 12', () => {
@@ -212,6 +220,167 @@ describe('checkRoadmapAnswer', () => {
       }
       expect('value' in checkRoadmapAnswer(data, { statedTargets })).toBe(true);
     });
+  });
+
+  /** Rewrites the stub's number targets to one metric, unit and direction. */
+  function numbers(
+    values: number[],
+    target: { metric: string; unit: string; direction?: string },
+    overrides: Partial<RawRoadmapAnswer> = {}
+  ): RawRoadmapAnswer {
+    const data = answer(overrides, values);
+    for (const week of data.weeks as Array<{ target: Record<string, unknown> }>) {
+      week.target.metric = target.metric;
+      week.target.unit = target.unit;
+      week.target.direction = target.direction ?? 'higher_is_better';
+    }
+    return data;
+  }
+
+  /** Rewrites the stub to one deliverable per week. */
+  function deliverables(descriptions: string[], overrides: Partial<RawRoadmapAnswer> = {}): RawRoadmapAnswer {
+    const data = answer(overrides);
+    (data.weeks as Array<{ target: Record<string, unknown>; test: Record<string, unknown> }>).forEach((week, index) => {
+      week.target = { kind: 'deliverable', description: descriptions[index] };
+      week.test.type = 'photo';
+    });
+    return data;
+  }
+
+  describe('(a) endurance goals that plan a taper (B-21: swim 1500 m, 25 km hike, run10k)', () => {
+    const statedTargets = extractStatedTargets('Swim 1500 metres freestyle without stopping. Swimming 1500 m in one go');
+    const swim = { metric: 'Longest continuous swim', unit: 'metres' };
+    const start = { value: 300, description: 'About 300 m before I stop' };
+    const final = 'Swim 1500 metres freestyle without stopping';
+    const TAPER = [400, 500, 600, 700, 800, 900, 1000, 1150, 1300, 1450, 1200, 1500];
+
+    it('rejects a taper week that lowers the target, and says to hold it', () => {
+      const problem = reason(checkRoadmapAnswer(numbers(TAPER, swim, { finalGoal: final, startingPoint: start }), { statedTargets }, true));
+      expect(problem).toMatch(/Week 11's target \(1200\) goes backwards from week 10 \(1450\)/);
+      expect(problem).toMatch(/not how much they train that week/);
+      expect(problem).toMatch(/Set week 11 to at least 1450 metres/);
+    });
+
+    it('accepts the corrected answer, where the taper week holds the target', () => {
+      const held = [...TAPER];
+      held[10] = 1450;
+      expect('value' in checkRoadmapAnswer(numbers(held, swim, { finalGoal: final, startingPoint: start }), { statedTargets })).toBe(true);
+    });
+
+    it('says "at most" for a time that goes backwards (run10k)', () => {
+      const run = extractStatedTargets('Run a 10K Under 50 Minutes');
+      const minutes = [62, 61, 60, 58, 57, 56, 55, 54, 53, 51, 52, 50];
+      const data = numbers(minutes, { metric: '10K time', unit: 'minutes', direction: 'lower_is_better' }, {
+        finalGoal: 'Run a 10K in 50 minutes',
+        startingPoint: { value: 64, description: 'A 10K in about 64 minutes' },
+      });
+      const problem = reason(checkRoadmapAnswer(data, { statedTargets: run }));
+      expect(problem).toMatch(/Week 11's target \(52\) goes backwards from week 10 \(51\)/);
+      expect(problem).toMatch(/Set week 11 to at most 51 minutes/);
+      minutes[10] = 51;
+      expect('value' in checkRoadmapAnswer(numbers(minutes, { metric: '10K time', unit: 'minutes', direction: 'lower_is_better' }, {
+        finalGoal: 'Run a 10K in 50 minutes',
+        startingPoint: { value: 64, description: 'A 10K in about 64 minutes' },
+      }), { statedTargets: run })).toBe(true);
+    });
+  });
+
+  describe('(b) count goals whose number is 0 in the early weeks (B-21: 50 sales, 50 users)', () => {
+    const statedTargets = extractStatedTargets('Sell my Notion template and make 50 sales. 50 sales from people I do not know');
+    const BUILD = [
+      'Template outline', 'First working template', 'Template polished', 'Sales page drafted', 'Sales page live',
+      'Launch post published', '10 people asked for feedback', 'First outreach batch sent', 'Second outreach batch sent',
+      'Listing on two marketplaces', 'Referral offer live',
+    ];
+
+    it('rejects a mix of deliverable and number weeks and points to deliverables naming the number', () => {
+      const data = deliverables([...BUILD, '50 sales of the template'], { finalGoal: '50 sales of my Notion template' });
+      const weeks = data.weeks as Array<{ target: Record<string, unknown> }>;
+      [8, 9, 10, 11].forEach((index, step) => {
+        weeks[index].target = { kind: 'number', metric: 'Sales', value: [5, 15, 30, 50][step], unit: 'sales', direction: 'higher_is_better' };
+      });
+      const problem = reason(checkRoadmapAnswer(data, { statedTargets }, true));
+      expect(problem).toMatch(/Some weeks have a number target and some a deliverable \(weeks 1, 2, 3, 4, 5, 6, 7, 8\)/);
+      expect(problem).toMatch(/never a mix/);
+      expect(problem).toMatch(/\(b\) deliverable targets for all 12 weeks, with week 12's description naming the number and unit \(e\.g\. "50 sales \.\.\."\)/);
+      expect(problem).not.toMatch(/Use that metric and unit/);
+    });
+
+    it('rejects sales counted from 0 and points to deliverables', () => {
+      const sales = [0, 0, 0, 1, 3, 6, 10, 15, 22, 30, 40, 50];
+      const data = numbers(sales, { metric: 'Sales', unit: 'sales' }, { finalGoal: '50 sales', startingPoint: { value: 0, description: 'none' } });
+      const problem = reason(checkRoadmapAnswer(data, { statedTargets }, true));
+      expect(problem).toMatch(/nothing to reach/);
+      expect(problem).toMatch(/\(b\) deliverable targets for all 12 weeks/);
+    });
+
+    it('rejects all deliverables when week 12 does not name the number', () => {
+      const data = deliverables([...BUILD, 'Steady sales every week'], { finalGoal: 'Sell my Notion template' });
+      const problem = reason(checkRoadmapAnswer(data, { statedTargets }));
+      expect(problem).toMatch(/Week 12 must reach the number the user asked for: 50 sales/);
+      expect(problem).toMatch(/\(b\) deliverable targets for all 12 weeks/);
+    });
+
+    it('accepts the corrected answer: deliverables for all 12 weeks, week 12 naming 50 sales', () => {
+      const data = deliverables([...BUILD, '50 sales of the template'], { finalGoal: '50 sales of my Notion template' });
+      expect('value' in checkRoadmapAnswer(data, { statedTargets })).toBe(true);
+    });
+
+    it('accepts numbers throughout when week 1 can already be counted', () => {
+      const sales = [1, 2, 4, 6, 9, 13, 18, 24, 31, 38, 45, 50];
+      const data = numbers(sales, { metric: 'Sales', unit: 'sales' }, { finalGoal: '50 sales', startingPoint: { value: 0, description: 'none' } });
+      expect('value' in checkRoadmapAnswer(data, { statedTargets })).toBe(true);
+    });
+
+    it('takes "50 users" and "50 people" in the goal as one target, met by either', () => {
+      const users = extractStatedTargets('Build a recipe app and get 50 users. 50 people using it every week');
+      expect(users).toHaveLength(1);
+      const data = deliverables([...BUILD, '50 users cooking with the app'], { finalGoal: '50 users' });
+      expect('value' in checkRoadmapAnswer(data, { statedTargets: users })).toBe(true);
+    });
+  });
+
+  describe('(c) exam goals that switch units (B-21: AWS)', () => {
+    const exam = { metric: 'Practice test score', unit: 'percent' };
+    const SCORES = [45, 50, 54, 58, 62, 66, 70, 73, 76, 79, 82, 85];
+    const start = { value: 40, description: 'About 40% on a first practice test' };
+    const final = 'Score 85% on a full practice exam, then pass the AWS exam';
+
+    it('rejects a week in another unit and says to restate it in the first unit', () => {
+      const data = numbers(SCORES, exam, { finalGoal: final, startingPoint: start });
+      (data.weeks as Array<{ target: Record<string, unknown> }>)[5].target.unit = 'questions';
+      const problem = reason(checkRoadmapAnswer(data, context, true));
+      expect(problem).toMatch(/Week 6 uses "questions"/);
+      expect(problem).toMatch(/restate week 6's target in "percent" \(an exam keeps the same practice-test score every week\)/);
+    });
+
+    it('rejects a full mock exam week that lowers the score', () => {
+      const dip = [...SCORES];
+      dip[8] = 68;
+      const problem = reason(checkRoadmapAnswer(numbers(dip, exam, { finalGoal: final, startingPoint: start }), context, true));
+      expect(problem).toMatch(/Week 9's target \(68\) goes backwards from week 8 \(73\)/);
+      expect(problem).toMatch(/harder-test week keeps the previous week's target/);
+    });
+
+    it('accepts "%" and "percent" as one unit and stores week 1\'s spelling', () => {
+      const data = numbers(SCORES, exam, { finalGoal: final, startingPoint: start });
+      (data.weeks as Array<{ target: Record<string, unknown> }>)[11].target.unit = '%';
+      const result = checkRoadmapAnswer(data, context);
+      expect('value' in result).toBe(true);
+      if (!('value' in result)) return;
+      expect(result.value.weeks.every((week) => week.target.kind === 'number' && week.target.unit === 'percent')).toBe(true);
+    });
+  });
+
+  // B-27: "in one steady piece" was a stated target of "1 piece", so every roadmap for this goal failed.
+  it('accepts a rowing roadmap in metres for "row 10,000 m in one steady piece"', () => {
+    const statedTargets = extractStatedTargets('Row 10,000 metres on a rowing machine. Rowing 10,000 m in one steady piece');
+    const metres = [2500, 3000, 3500, 4000, 4750, 5500, 6250, 7000, 7750, 8500, 9250, 10000];
+    const data = numbers(metres, { metric: 'Longest continuous row', unit: 'metres' }, {
+      finalGoal: 'Row 10,000 m without stopping',
+      startingPoint: { value: 2000, description: '2,000 m before I stop' },
+    });
+    expect('value' in checkRoadmapAnswer(data, { statedTargets })).toBe(true);
   });
 
   it('dedupes rules, caps them at 8, and rejects fewer than 5', () => {
@@ -301,6 +470,20 @@ describe('buildRoadmapPrompt', () => {
     expect(flat).toContain("If their answer uses another measure (a 5K time for a 10K goal), convert it to the targets' metric.");
   });
 
+  it('says a target is the test result, so a taper week holds it (endurance)', () => {
+    const flat = buildRoadmapPrompt(input).replace(/\s+/g, ' ');
+    expect(flat).toContain('A target is what they can do on that week\'s test');
+    expect(flat).toContain('a taper or recovery week trains less but its target stays at the previous week\'s distance or time');
+  });
+
+  it('steers late counts to deliverables and exams to one measure, never a mix', () => {
+    const flat = buildRoadmapPrompt(input).replace(/\s+/g, ' ');
+    expect(flat).toContain('Never mix number weeks and deliverable weeks.');
+    expect(flat).toContain('Counts that stay at 0 until late (sales, users, subscribers, customers, orders) can\'t be counted in week 1');
+    expect(flat).toContain('make week 12\'s the number, e.g. "50 sales of the template"');
+    expect(flat).toContain('Exams: one measure every week, e.g. metric "Practice test score", unit "percent"');
+  });
+
   it("names the user's own number up front, and only when there is one", () => {
     const statedTargets = extractStatedTargets('Play 5 Iconic Guitar Songs from Memory');
     const prompt = buildRoadmapPrompt(input, undefined, statedTargets);
@@ -329,6 +512,40 @@ describe('generateRoadmap', () => {
     const result = await generateRoadmap({ ...input, rawGoal: 'Type 50 words per minute' });
     expect(result.ok).toBe(true);
     expect(mocked.mock.calls[0][0]).toContain('They named a number: "50 words per minute"');
+  });
+
+  it('sends a taper that goes backwards back with how to fix it, and takes the held answer (B-21)', async () => {
+    const dip = [16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 30, 40];
+    const held = [16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 34, 40];
+    mocked
+      .mockResolvedValueOnce({ success: true, data: answer({}, dip) } as never)
+      .mockResolvedValueOnce({ success: true, data: answer({}, held) } as never);
+    const result = await generateRoadmap(input);
+    expect(result.ok).toBe(true);
+    expect(mocked.mock.calls[1][0]).toContain(
+      "YOUR PREVIOUS ANSWER WAS REJECTED: Week 11's target (30) goes backwards from week 10 (34)."
+    );
+    expect(mocked.mock.calls[1][0]).toContain('Set week 11 to at least 34 words per minute');
+  });
+
+  it('does not ask a "row 10,000 m in one steady piece" roadmap for "1 piece" (B-27)', async () => {
+    const metres = [2500, 3000, 3500, 4000, 4750, 5500, 6250, 7000, 7750, 8500, 9250, 10000];
+    const data = answer({ finalGoal: 'Row 10,000 m without stopping', startingPoint: { value: 2000, description: '2,000 m' } }, metres);
+    for (const week of data.weeks as Array<{ target: Record<string, unknown> }>) {
+      week.target.metric = 'Longest continuous row';
+      week.target.unit = 'metres';
+    }
+    mocked.mockResolvedValue({ success: true, data } as never);
+    const result = await generateRoadmap({
+      ...input,
+      rawGoal: 'Row 10,000 m on an indoor rower',
+      workingTitle: 'Row 10,000 m continuously',
+      domain: 'Indoor rowing',
+      answers: [{ id: 'success', question: 'In 90 days?', answer: 'Rowing 10,000 m in one steady piece' }],
+    });
+    expect(result.ok).toBe(true);
+    expect(mocked).toHaveBeenCalledTimes(1);
+    expect(mocked.mock.calls[0][0]).not.toContain('1 piece');
   });
 
   it('reports low safety, not a blocked goal, when both answers are too risky', async () => {

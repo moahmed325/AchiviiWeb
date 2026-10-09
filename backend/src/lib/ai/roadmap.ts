@@ -286,6 +286,24 @@ function statedTargetLines(statedTargets: StatedTarget[]): string {
    A method's own measure (speed, reps, a score) goes in the weekly tests, not in place of it.`;
 }
 
+/** The two ways a roadmap can meet the user's own number, for a retry reason. */
+function statedTargetWayOut(statedTargets: StatedTarget[]): string {
+  const item = statedTargets[0];
+  const reach =
+    item.bound === 'at_most'
+      ? `${item.value} ${item.unit} or less`
+      : `${item.value} ${item.unit} or more, only if week 1 already has a count above 0 in it`;
+  const all = statedTargets.map((target) => `"${target.phrase}"`).join(', ');
+  return `The user asked for ${all}. Fix it one of two ways, never a mix: (a) number targets in "${item.unit}" for all 12 weeks, week 12 at ${reach}; or (b) deliverable targets for all 12 weeks, with week 12's description naming the number and unit (e.g. "${item.phrase} ..."). Not another unit.`;
+}
+
+/** "%" and "percent", "minute" and "minutes": one unit written two ways. */
+function unitKey(unit: string): string {
+  const lower = unit.toLowerCase().trim();
+  if (lower === '%' || /^percent(age)?s?$/.test(lower)) return 'percent';
+  return lower.replace(/s$/, '');
+}
+
 export function buildRoadmapPrompt(input: RoadmapInput, fixedMethod?: FixedMethod, statedTargets: StatedTarget[] = []): string {
   return `Goal as typed: "${input.workingTitle}" (${input.domain})
 Time: ${input.dailyMinutes} minutes a day, ${input.activeDays} days a week, for 12 weeks.
@@ -318,8 +336,13 @@ ${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
      or
        { "kind": "deliverable", "description" }, e.g. "one loaf with an even, open crumb".
      Use numbers whenever the goal can be counted and every week, week 1 included, has a count above 0 in that
-     unit. Otherwise use deliverables for all 12 weeks. Keep the same metric and unit every week, week 12 included,
-     even when the final test reports on another scale.${
+     unit. Otherwise use deliverables for all 12 weeks. Never mix number weeks and deliverable weeks.
+     Keep the same metric and unit every week, week 12 included, even when the final test reports on another scale.
+     Counts that stay at 0 until late (sales, users, subscribers, customers, orders) can't be counted in week 1: use
+     deliverables for all 12 weeks (what gets built, launched or sent each week), and make week 12's the number,
+     e.g. "50 sales of the template".
+     Exams: one measure every week, e.g. metric "Practice test score", unit "percent"; topic quizzes and full mock
+     exams both report that same percent. Never switch to questions, topics or hours.${
        statedTargets.length
          ? `\n     They named ${statedTargets.map((item) => `"${item.phrase}"`).join(', ')}: count every week in that unit, or use deliverables. Never another unit.`
          : ''
@@ -333,6 +356,9 @@ ${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
    - Never go backwards: each week's target is at least as good as the week before. A lighter week (a taper, a
      deload, a review week) or a harder test (a full mock exam after topic quizzes) keeps the previous week's target;
      it never lowers it. Week 12's target is the finalGoal.
+   - A target is what they can do on that week's test (the longest distance in one go, the best time, the score),
+     not how much they train that week. For distance and endurance goals, a taper or recovery week trains less but
+     its target stays at the previous week's distance or time.
    - Realistic for ${input.dailyMinutes} minutes a day and ${input.activeDays} days a week.`;
 }
 
@@ -475,40 +501,64 @@ function statedTargetMet(week12: WeekTarget, item: StatedTarget): boolean {
  * Number targets: one unit and direction all 12 weeks, never backwards, week 1 a small step from the
  * starting point. Returns the first problem, or null.
  */
-function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): string | null {
+interface ClimbProblem {
+  reason: string;
+  /** Refused even on the last attempt: a roadmap with it can't be tracked week to week. */
+  hard: boolean;
+  /** A unit or kind problem, where the user's own number (if they named one) is the way out. */
+  unitProblem: boolean;
+}
+
+function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbProblem | null {
+  const hard = (reason: string, unitProblem = false): ClimbProblem => ({ reason, hard: true, unitProblem });
+  const soft = (reason: string): ClimbProblem => ({ reason, hard: false, unitProblem: false });
   const targets = weeks.map((week) => week.target);
   const numbers = targets.filter((target): target is Extract<WeekTarget, { kind: 'number' }> => target.kind === 'number');
   if (numbers.length === 0) return null;
   if (numbers.length !== targets.length) {
-    return 'Some weeks have a number target and some a deliverable. Use one kind for all 12 weeks.';
+    const deliverableWeeks = targets.flatMap((target, index) => (target.kind === 'deliverable' ? [index + 1] : []));
+    return hard(
+      `Some weeks have a number target and some a deliverable (weeks ${deliverableWeeks.join(', ')}). Use one kind for all 12 weeks, never a mix: numbers only if week 1 already has a count above 0 in that unit; otherwise deliverables for all 12 weeks, with week 12's description naming the final number (e.g. "50 sales").`,
+      true
+    );
   }
   const first = numbers[0];
-  const unit = first.unit.toLowerCase();
+  const unit = unitKey(first.unit);
   for (let i = 0; i < numbers.length; i++) {
     const target = numbers[i];
     if (target.direction === 'higher_is_better' && target.value <= 0) {
-      return `Week ${i + 1}'s target is ${target.value} ${target.unit}, which is nothing to reach. If the early weeks can't be counted in "${target.unit}", use deliverable targets for all 12 weeks.`;
+      return hard(
+        `Week ${i + 1}'s target is ${target.value} ${target.unit}, which is nothing to reach. If the early weeks can't be counted in "${target.unit}" (no sales or users yet), use deliverable targets for all 12 weeks, with week 12's description naming the final number.`,
+        true
+      );
     }
-    if (target.unit.toLowerCase() !== unit || target.direction !== first.direction) {
-      return `Week ${i + 1} uses "${target.unit}" (${target.direction}); every week must use "${first.unit}" (${first.direction}).`;
+    if (unitKey(target.unit) !== unit || target.direction !== first.direction) {
+      return hard(
+        `Week ${i + 1} uses "${target.unit}" (${target.direction}); every week must use "${first.unit}" (${first.direction}). Keep one metric and unit for all 12 weeks and restate week ${i + 1}'s target in "${first.unit}" (an exam keeps the same practice-test score every week).`,
+        true
+      );
     }
     if (i > 0 && !isBetterOrEqual(target.value, numbers[i - 1].value, first.direction)) {
-      return `Week ${i + 1}'s target (${target.value}) goes backwards from week ${i} (${numbers[i - 1].value}). Targets may grow more slowly but never go down: a lighter week keeps the previous week's target. Keep "${first.unit}" for all 12 weeks.`;
+      const previous = numbers[i - 1].value;
+      const bound = first.direction === 'higher_is_better' ? 'at least' : 'at most';
+      return hard(
+        `Week ${i + 1}'s target (${target.value}) goes backwards from week ${i} (${previous}). A target is what they can do on the weekly test, not how much they train that week, so it never goes down: a lighter, taper or harder-test week keeps the previous week's target. Set week ${i + 1} to ${bound} ${previous} ${first.unit} and keep every later week ${bound} the week before. Keep "${first.unit}" for all 12 weeks.`
+      );
     }
   }
   const end = numbers[numbers.length - 1].value;
   if (end === first.value && numbers.length > 1) {
-    return 'The targets never move from week 1 to week 12. They must climb from where the person is to the goal.';
+    return soft('The targets never move from week 1 to week 12. They must climb from where the person is to the goal.');
   }
   if (start.value === null) {
-    return '"startingPoint.value" is missing. Give today\'s level in the same metric and unit as the targets.';
+    return soft('"startingPoint.value" is missing. Give today\'s level in the same metric and unit as the targets.');
   }
   if (!isBetterOrEqual(first.value, start.value, first.direction)) {
-    return `Week 1's target (${first.value}) is below the starting point (${start.value}). Week 1 starts just above where they are now.`;
+    return soft(`Week 1's target (${first.value}) is below the starting point (${start.value}). Week 1 starts just above where they are now.`);
   }
   const climb = Math.abs(end - start.value);
   if (climb > 0 && Math.abs(first.value - start.value) > climb * MAX_WEEK1_SHARE) {
-    return `Week 1 (${first.value}) jumps too far from the starting point (${start.value}) toward week 12 (${end}). Week 1 is an early win, not a leap.`;
+    return soft(`Week 1 (${first.value}) jumps too far from the starting point (${start.value}) toward week 12 (${end}). Week 1 is an early win, not a leap.`);
   }
   return null;
 }
@@ -588,21 +638,25 @@ export function checkRoadmapAnswer(
   };
   if (weeks[0].target.kind === 'deliverable') startingPoint.value = null;
 
-  let climbProblem = numberClimbFailure(weeks, startingPoint);
-  // A unit change that drifts toward the user's own number: name that unit, not week 1's, as the way out.
-  if (climbProblem && context.statedTargets.length > 0 && /every week must use|use one kind/.test(climbProblem)) {
-    const phrases = context.statedTargets.map((item) => item.phrase).join(', ');
-    climbProblem = `${climbProblem} The user asked for ${phrases}: count all 12 weeks in that unit, or use deliverables for all 12 weeks and name it in week 12's.`;
+  const climbProblem = numberClimbFailure(weeks, startingPoint);
+  if (climbProblem && (climbProblem.hard || !lastAttempt)) {
+    // A unit change or a mix that drifts toward the user's own number: name that unit, not week 1's, as the way out.
+    const wayOut = climbProblem.unitProblem && context.statedTargets.length > 0 ? ` ${statedTargetWayOut(context.statedTargets)}` : '';
+    return { reason: `${climbProblem.reason}${wayOut}` };
   }
-  if (climbProblem && !lastAttempt) return { reason: climbProblem };
-  if (climbProblem && /goes backwards|use one kind|every week must use|nothing to reach/.test(climbProblem)) return { reason: climbProblem };
+
+  // One unit written two ways ("%" and "percent") is stored as week 1 wrote it.
+  const firstTarget = weeks[0].target;
+  if (firstTarget.kind === 'number') {
+    for (const week of weeks) if (week.target.kind === 'number') week.target.unit = firstTarget.unit;
+  }
 
   const week12 = weeks[TOTAL_WEEKS - 1].target;
   // Before the finalGoal check: its retry reason would otherwise anchor the model on the wrong unit.
   const missed = context.statedTargets.filter((item) => !statedTargetMet(week12, item));
   if (missed.length > 0) {
     return {
-      reason: `Week 12 must reach the number the user asked for: ${missed.map((item) => item.phrase).join(', ')}. Count all 12 weeks in that unit, or, if week 1 can't be counted in it yet, use deliverables for all 12 weeks and name it in week 12's.`,
+      reason: `Week 12 must reach the number the user asked for: ${missed.map((item) => item.phrase).join(', ')}. ${statedTargetWayOut(missed)}`,
     };
   }
   if (!lastAttempt && week12.kind === 'number' && !numberMentioned(finalGoal, week12.value)) {
