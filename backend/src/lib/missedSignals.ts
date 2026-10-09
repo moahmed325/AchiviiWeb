@@ -5,6 +5,7 @@
  * See docs/archive/missed-sessions/03-feature.md (OD-2, RULE-4, RULE-8, RULE-9, AC-5, AC-10) and 04-phases.md.
  */
 import type { CarryPlan, CarriedEarlier, PlannedCarry } from './carryForward.js';
+import type { ContinuedEarlier, DayOutcome, PlannedContinue } from './recovery/carry.js';
 import { dayCloseInstant, type DayClassification, type Gap } from './missedSessions.js';
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -30,6 +31,15 @@ export interface WeekCounts {
   missed: number;
   carried: number;
   dropped: number;
+  /**
+   * Method-aware recovery (RULE-17, MR-19, MR-26), present only when the plan carries method outcomes (the method
+   * switch is on). One per missed day that followed the new rules, by its highest-priority step's outcome; the steps
+   * MR-26 leaves behind add nothing. Counted only: no screen shows them.
+   */
+  letGo?: number;
+  /** Only a stored continue marker counts, as `carried` counts only stored carries. */
+  continued?: number;
+  noRoom?: number;
 }
 
 /**
@@ -44,7 +54,12 @@ export function weekCounts(
   input: {
     tasks: readonly CountableTask[];
     days: readonly DayClassification[];
-    carry: Pick<CarryPlan, 'drops' | 'alreadyCarried'> & { written?: readonly PlannedCarry[] };
+    carry: Pick<CarryPlan, 'drops' | 'alreadyCarried'> & {
+      written?: readonly PlannedCarry[];
+      outcomes?: readonly DayOutcome[];
+      alreadyContinued?: readonly ContinuedEarlier[];
+      writtenContinues?: readonly PlannedContinue[];
+    };
   }
 ): WeekCounts {
   const kindOf = new Map(input.days.map((day) => [day.taskId, day.kind]));
@@ -54,8 +69,22 @@ export function weekCounts(
   const byMinimum = (task: CountableTask) => task.usedMinimumVersion === true;
   const keys = practice.filter((task) => task.isKeySession);
   const sources = new Set([...input.carry.alreadyCarried, ...(input.carry.written ?? [])].map((carry) => carry.fromTaskId));
+  const outcomes = input.carry.outcomes;
+  let method: Pick<WeekCounts, 'letGo' | 'continued' | 'noRoom'> = {};
+  if (outcomes) {
+    const counted = outcomes.filter((day) => day.rules === 'method' && ids.has(day.taskId));
+    const continuedFrom = new Set(
+      [...(input.carry.alreadyContinued ?? []), ...(input.carry.writtenContinues ?? [])].map((item) => item.fromTaskId)
+    );
+    method = {
+      letGo: counted.filter((day) => day.topStep === 'let_go').length,
+      continued: counted.filter((day) => day.topStep === 'continued' && continuedFrom.has(day.taskId)).length,
+      noRoom: counted.filter((day) => day.topStep === 'no_room').length,
+    };
+  }
 
   return {
+    ...method,
     practicePlanned: practice.length,
     practiceDone: done.length,
     doneByMinimum: done.filter(byMinimum).length,

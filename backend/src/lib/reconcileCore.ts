@@ -8,9 +8,11 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { getZonedDateString } from './timezone.js';
 import { buildReconcileResult, findOpenGap, type DayClassification, type ReconcileResult } from './missedSessions.js';
-import { parseStoredSteps, planCarries, type CarryPlan, type CarryTask, type PlannedCarry } from './carryForward.js';
+import { parseStoredSteps, type CarriedStep, type CarryTask, type PlannedCarry } from './carryForward.js';
 import { buildSignals, type MissedSignals } from './missedSignals.js';
 import { readRoutine } from './planV2.js';
+import { planRecovery, type PlannedContinue, type RecoveryPlan } from './recovery/carry.js';
+import { readRecoveryProfile } from './recovery/profile.js';
 
 /** The fields reconcile reads. Unchanged from M2.2. */
 export const RECONCILE_GOAL_SELECT = {
@@ -19,6 +21,8 @@ export const RECONCILE_GOAL_SELECT = {
   routine: true,
   rawGoal: true,
   clarifiedOutcome: true,
+  /** Method-aware recovery (M3.1a): the profile under `recovery`, read only when METHOD_RECOVERY_ENABLED is on. */
+  roadmap: true,
   dailyTasks: {
     select: {
       id: true,
@@ -48,6 +52,14 @@ export function carryEnabled(): boolean {
   return process.env.MISSED_SESSIONS_CARRY_ENABLED === 'true';
 }
 
+/**
+ * Method-aware recovery (M3.1a, 03-phases.md section 3): missed days follow their steps' kinds only when this is
+ * exactly 'true'. Read per request. Off until M3.3 is live (O2); writes still need `carryEnabled()`.
+ */
+export function methodRecoveryEnabled(): boolean {
+  return process.env.METHOD_RECOVERY_ENABLED === 'true';
+}
+
 export function loadReconcileGoal(userId: string): Promise<ReconcileGoal | null> {
   return prisma.goal.findFirst({ where: { userId, status: 'active' }, select: RECONCILE_GOAL_SELECT });
 }
@@ -64,13 +76,16 @@ export interface Evaluation {
   /** The result as reported: classification (with `asMissed` applied) and gap. */
   result: Extract<ReconcileResult, { applies: true }>;
   tasks: CarryTask[];
-  plan: CarryPlan;
+  plan: RecoveryPlan;
   now: Date;
   today: string;
   sleepTime: unknown;
 }
 
-/** Pure given the loaded goal and `now`: classification, overrides, gap and the carry plan. */
+/**
+ * Pure given the loaded goal, `now` and the method switch: classification, overrides, gap and the carry plan.
+ * With METHOD_RECOVERY_ENABLED off the plan is exactly missed sessions' (`planCarries`).
+ */
 export function evaluate(
   goal: ReconcileGoal | null,
   user: ReconcileUser,
@@ -92,31 +107,51 @@ export function evaluate(
     ? days.map((day) => (day.taskId === overrides.asNotKey ? { ...day, isKeySession: false } : day))
     : days;
   const tasks: CarryTask[] = goal.dailyTasks.map((task) => ({ ...task, steps: parseStoredSteps(task.detailedSteps) }));
-  const plan = planCarries({ days: planDays, gap, tasks, goal, today, timezone: base.timezone, sleepTime });
+  const method = methodRecoveryEnabled() ? { profile: readRecoveryProfile(goal.roadmap) } : undefined;
+  const plan = planRecovery({ days: planDays, gap, tasks, goal, today, timezone: base.timezone, sleepTime, ...(method ? { method } : {}) });
   return { applies: true, goal, result: { ...base, days, gap }, tasks, plan, now, today, sleepTime };
 }
 
 /**
  * ND-13: one compare-and-set per receiving day; only `count === 1` is written. A lost race is skipped, not retried.
+ * A carry and a continue marker (RULE-10) that land on the same day share that day's one write.
  */
-export async function writeCarries(goal: ReconcileGoal, plan: CarryPlan): Promise<PlannedCarry[]> {
+export async function writeRecovery(
+  goal: ReconcileGoal,
+  plan: RecoveryPlan
+): Promise<{ written: PlannedCarry[]; writtenContinues: PlannedContinue[] }> {
   const stored = new Map(goal.dailyTasks.map((task) => [task.id, task]));
-  const written: PlannedCarry[] = [];
-  for (const carry of plan.carries) {
-    const receiving = stored.get(carry.toTaskId)!;
+  const rows = new Map<string, { steps: CarriedStep[]; durationMinutes: number }>();
+  for (const carry of plan.carries) rows.set(carry.toTaskId, { steps: carry.steps, durationMinutes: carry.durationMinutes });
+  for (const item of plan.continues ?? []) {
+    if (!rows.has(item.toTaskId)) rows.set(item.toTaskId, { steps: item.steps, durationMinutes: item.durationMinutes });
+  }
+
+  const done = new Set<string>();
+  for (const [taskId, row] of rows) {
+    const receiving = stored.get(taskId)!;
     const { count } = await prisma.dailyTask.updateMany({
       where: { id: receiving.id, goalId: goal.id, status: receiving.status, detailedSteps: receiving.detailedSteps },
-      data: { detailedSteps: JSON.stringify(carry.steps), durationMinutes: carry.durationMinutes },
+      data: { detailedSteps: JSON.stringify(row.steps), durationMinutes: row.durationMinutes },
     });
-    if (count === 1) written.push(carry);
+    if (count === 1) done.add(taskId);
   }
-  return written;
+  return {
+    written: plan.carries.filter((carry) => done.has(carry.toTaskId)),
+    writtenContinues: (plan.continues ?? []).filter((item) => done.has(item.toTaskId)),
+  };
+}
+
+/** The carries `writeRecovery` stored. */
+export async function writeCarries(goal: ReconcileGoal, plan: RecoveryPlan): Promise<PlannedCarry[]> {
+  return (await writeRecovery(goal, plan)).written;
 }
 
 export type ReconcileBody =
   | Extract<ReconcileResult, { applies: false }>
   | (Extract<ReconcileResult, { applies: true }> & {
-      carry: CarryPlan & { enabled: boolean; written: PlannedCarry[] };
+      /** With METHOD_RECOVERY_ENABLED on, also `outcomes`, `continues`, `alreadyContinued` and `writtenContinues`. */
+      carry: RecoveryPlan & { enabled: boolean; written: PlannedCarry[]; writtenContinues?: PlannedContinue[] };
       signals: MissedSignals;
     });
 
@@ -132,8 +167,12 @@ export async function runReconcile(
   const { result, plan, today, sleepTime } = evaluation;
 
   const enabled = carryEnabled();
-  const written = enabled ? await writeCarries(evaluation.goal, plan) : [];
+  const { written, writtenContinues } = enabled
+    ? await writeRecovery(evaluation.goal, plan)
+    : { written: [] as PlannedCarry[], writtenContinues: [] as PlannedContinue[] };
   // M2.3: derived signals for P3 (ND-16); only stored carries count as moved.
   const signals = buildSignals({ days: result.days, gap: result.gap, plan, written, now, today, timezone: result.timezone, sleepTime });
-  return { ...result, carry: { enabled, ...plan, written }, signals };
+  // The method fields appear only when the method switch is on, so with it off the body is exactly as before.
+  const carry = plan.outcomes ? { enabled, ...plan, written, writtenContinues } : { enabled, ...plan, written };
+  return { ...result, carry, signals };
 }

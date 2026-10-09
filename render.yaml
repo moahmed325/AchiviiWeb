@@ -47,6 +47,13 @@ services:
       # to "true" only after M2.2's eval has passed and Mo has agreed (O1).
       - key: CUSTOM_RECOVERY_PROFILES_ENABLED
         sync: false
+      # Method-aware recovery: a missed day's steps follow their kinds' actions (M3.1a, docs/features/
+      # method-aware-recovery). Unset or anything but the exact string "true" means off: every missed day
+      # follows missed sessions' rules exactly as before. Carry writes still need MISSED_SESSIONS_CARRY_ENABLED.
+      # It stays off until M3.3 is live; then Mo switches it on in the Render dashboard (O2). Managed in the
+      # dashboard only (sync: false), so a Blueprint sync never overwrites it.
+      - key: METHOD_RECOVERY_ENABLED
+        sync: false
       # Lemon Squeezy stays in Test Mode until live onboarding is complete.
       # Paste the matching test-mode values from backend/.env when Render prompts
       # during Blueprint creation; never commit their values.

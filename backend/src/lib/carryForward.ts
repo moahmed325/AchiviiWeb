@@ -26,7 +26,17 @@ export interface SwapMarker {
   date: string;
 }
 
-export type CarriedStep = DetailedStep & { carriedFrom?: CarryMarker; swappedFrom?: SwapMarker };
+/**
+ * Method-aware recovery RULE-10 (M3.1a): stored on the next step of a continue kind when a day with that kind did
+ * not happen. It names that day; the screen builds "Pick up where {Weekday} stopped." from it. Written once, with
+ * the same guard as a carry; a carry never replaces the step holding it.
+ */
+export interface ContinueMarker {
+  taskId: string;
+  date: string;
+}
+
+export type CarriedStep = DetailedStep & { carriedFrom?: CarryMarker; swappedFrom?: SwapMarker; continueFrom?: ContinueMarker };
 
 /** A task as the planner sees it: classification fields plus its parsed steps and planned minutes. */
 export interface CarryTask extends ClassifiableTask {
@@ -44,7 +54,11 @@ export type DropReason =
   | 'high_load'
   | 'does_not_fit'
   | 'swap_unanswered'
-  | 'no_priority_step';
+  | 'no_priority_step'
+  /** Method-aware recovery (MR-27, until M3.1b): a hard step that would move waits for the rest-gap check. */
+  | 'hard_waits'
+  /** Method-aware recovery (MR-27, until M3.1b): an in-order step whose receiving day is not before the next step of its kind. */
+  | 'out_of_order';
 
 export interface PlannedCarry {
   fromTaskId: string;
@@ -161,7 +175,9 @@ function byDate(a: DayClassification, b: DayClassification): number {
  */
 export function fitCarriedStep(
   receiving: { steps: readonly CarriedStep[]; durationMinutes: number },
-  carried: CarriedStep
+  carried: CarriedStep,
+  /** Method-aware recovery (RULE-10, RULE-12): steps that must never be replaced. Missed sessions passes none. */
+  isProtected?: (step: CarriedStep) => boolean
 ): { steps: CarriedStep[]; replaced: DetailedStep[]; durationMinutes: number } | null {
   const steps = receiving.steps;
   if (steps.length === 0 || !steps.every(hasPriority)) return null;
@@ -172,7 +188,7 @@ export function fitCarriedStep(
   // Never longer than the steps were, nor than the day's planned minutes.
   const limit = receiving.durationMinutes > 0 ? Math.min(before, receiving.durationMinutes) : before;
   const removable = steps
-    .filter((step) => (step.priority as number) > 1 && !TEST_STEP.test(step.title ?? ''))
+    .filter((step) => (step.priority as number) > 1 && !TEST_STEP.test(step.title ?? '') && !isProtected?.(step))
     .sort((a, b) => (b.priority as number) - (a.priority as number));
   const carriedMinutes = Math.max(0, carried.durationMinutes || 0);
 
