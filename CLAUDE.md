@@ -118,14 +118,15 @@ When you are given a milestone to implement:
 2. Run `git status` first and note anything already changed. Work on the branch you were given; never commit or push to `main`.
 3. Check the code before trusting the prompt or the docs. If they disagree in a way that changes the work, stop and report it.
 4. Stop and report, instead of working around it, when: a decision the work needs is not made; a schema migration or new dependency is needed that the prompt does not allow; unrelated refactoring is needed; or the scope would have to grow.
-5. Run the checks the prompt lists, using the repo's own scripts (see Commands). Compare with the baseline it gives.
+5. Before changing anything, run the checks the prompt lists on your starting commit, using the repo's own scripts (see Commands); those numbers are your baseline. Run them again at the end and compare.
 6. Write your results in the **Report** section of the same milestone file; screenshots go in `milestones/<id>-evidence/`. Give evidence for every requirement, and never claim a check you did not run.
 7. Do not edit `03-phases.md`, `02-feature.md`, any `decisions.md` or `docs/backlog.md`; the reviewing chat updates them. Put anything they should change under "Differences from the docs" in your report.
 8. List every problem you notice under "Problems found" in your report, even outside the milestone, with where you would put it. Do not fix problems outside the milestone.
+9. Keep the shared docs true. If your change makes `CLAUDE.md`, `Design.md` or a doc in `docs/architecture/` wrong, update it in the same branch and list it in your report.
 
 ### Quick fixes
 
-A quick fix is a small item from `docs/backlog.md` (`B-n`), given to you as a short prompt instead of a milestone file. Follow steps 2 to 5 and 8 above, and also:
+A quick fix is a small item from `docs/backlog.md` (`B-n`), given to you as a short prompt instead of a milestone file. Follow steps 2 to 5, 8 and 9 above, and also:
 
 - Fix only the backlog items named in the prompt, and name them in the commit message (`fix(today): show the 10-minute version's minutes (B-1)`).
 - Stop and report if the fix needs a product decision the prompt does not make, a change to stored data, or more than one branch of work. It then becomes a feature.

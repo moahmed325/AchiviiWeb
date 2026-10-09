@@ -15,9 +15,10 @@ Name the file after its row in `03-phases.md`: `m3.2-short-on-time.md`. Screensh
 3. **Requirements are numbered 1, 2, 3.** Each one is a thing that can be shown to work. Name the feature IDs it serves (`RULE-4`, `AC-10`, `MS-12`).
 4. **Put exact copy in quotes** and say it is exact.
 5. **Out of scope** names the nearby work the chat might be tempted to do, and which milestone owns it.
-6. **Checks** lists the `R-` items from `03-phases.md` section 4 and today's baseline numbers (test counts, lint warnings), so the chat can tell whether it broke something.
+6. **Checks** lists the `R-` items from `03-phases.md` section 4 and the commands to run. Do not copy test counts into the prompt: they change with every merge. The implementing chat measures the baseline on its starting commit before changing anything.
 7. **Stop if** lists only what is special to this milestone. The general stop rules are in `CLAUDE.md`.
 8. Aim for 60 to 120 lines. If it needs much more, the milestone is probably two milestones.
+9. Set the milestone's row in `03-phases.md` to READY and link this file.
 
 ### Starting the work (launcher)
 
@@ -32,15 +33,18 @@ Other chats are working on: <files or areas not to touch>.
 
 ### Writing the report (implementing chat)
 
-Fill in the Report section of the same file. Every requirement gets evidence (a test name, a command result, a screenshot). Never claim a check that was not run; say why it was not run.
+Before changing anything, run the checks on your starting commit and keep the numbers: that is your baseline. Then fill in the Report section of the same file. Every requirement gets evidence (a test name, a command result, a screenshot). Never claim a check that was not run; say why it was not run.
+
+If your change makes `CLAUDE.md`, `Design.md` or a doc in `docs/architecture/` wrong, update it in the same branch and list it under "Files changed".
 
 List every problem you noticed under "Problems found", even small ones and ones outside this milestone, with where you would put it. Do not fix problems outside the milestone, and do not edit the backlog; the review sorts them.
 
 ### Reviewing (main chat)
 
-Check the report against the code and CI. Then fill in the Review section and fold the results back:
+When the report comes in, set the milestone's row in `03-phases.md` to IN REVIEW. Check the report against the code and CI, and check that `CLAUDE.md`, `Design.md` and the architecture docs still match what the code now does. Then fill in the Review section and fold the results back:
 
 - set the milestone's row in `03-phases.md` to DONE (or what is true) with the date;
+- if an owner step comes next (a switch to turn on, a production check), tell Mo, and record its result in its row when it is done;
 - record any new decision in the feature's `decisions.md`, then edit the feature or plan files it changes;
 - if the report changes later milestones, edit them in `03-phases.md` now;
 - **sort every problem found.** Each one goes to exactly one place:
@@ -62,7 +66,6 @@ Nothing stays only in a report.
 # M<X.Y> — <name>
 
 **Feature:** docs/features/<feature>/02-feature.md
-**Status:** READY | IN PROGRESS | DONE | PARTIAL | BLOCKED
 **Branch:** <branch name>
 **Prompt written:** YYYY-MM-DD
 
@@ -88,7 +91,7 @@ Nothing stays only in a report.
 
 ### Checks
 - Must not break: <R ids from 03-phases.md section 4>
-- Baseline: <today's numbers: backend tests, frontend tests, lint warnings, build, CI>
+- Run: <the commands, e.g. backend `npm test`, frontend `npm test`, `npm run lint`, `npm run build`, the e2e specs that matter>. Measure them on your starting commit first; that is the baseline.
 
 ### Done when
 <What can be shown: the behavior, the tests, the checks passing.>
@@ -100,6 +103,7 @@ Nothing stays only in a report.
 
 **Final state:** DONE | PARTIAL | BLOCKED
 **Date:** YYYY-MM-DD
+**Started from:** <commit>
 
 ### Summary
 <What now works, in a few bullets.>
@@ -129,6 +133,6 @@ Nothing stays only in a report.
 
 **Reviewed:** YYYY-MM-DD
 **Verdict:** ACCEPTED | CHANGES NEEDED
-<What was checked, what was fixed, and what was folded back: the status row, decisions recorded, later milestones changed.>
+<What was checked (code, CI, and that CLAUDE.md, Design.md and the architecture docs still match), what was fixed, and what was folded back: the status row, decisions recorded, later milestones changed.>
 **Problems sorted:** <each problem and where it went, e.g. "B-9 (backlog, small)", "added to M3.4". Or: none found.>
 ```

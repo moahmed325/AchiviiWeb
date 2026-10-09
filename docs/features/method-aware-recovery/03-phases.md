@@ -14,10 +14,12 @@
 | M1.3b | The custom profile call (off until the eval passes) | AC-2 | NOT STARTED | |
 | M2.1 | The week call tags every step | AC-3, AC-4 | NOT STARTED | |
 | M2.2 | The eval | AC-11 | NOT STARTED | |
+| O1 | Mo: agree to switch on custom profiles once M2.2's eval has passed (MR-14) | AC-2 | NOT STARTED | |
 | M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | NOT STARTED | |
 | M3.1b | Carry: order and rest gaps | AC-6 | NOT STARTED | |
 | M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | NOT STARTED | |
 | M3.3 | Today, Dashboard and Focus | AC-7, AC-8 | NOT STARTED | |
+| O2 | Mo: turn on `METHOD_RECOVERY_ENABLED` in Render once M3.3 is live, then run the production checks | — | NOT STARTED | |
 | M4.1 | Copy honesty, acceptance, regression and close | AC-12, AC-13, all | NOT STARTED | |
 
 ## 2. Order

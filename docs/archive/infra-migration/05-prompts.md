@@ -40,7 +40,7 @@ STOP.
 
 ### W2 — Execute
 ```text
-Implement ONLY the assigned milestone in docs/features/infra-migration/04-phases.md.
+Implement ONLY the assigned milestone in docs/archive/infra-migration/04-phases.md.
 Read actual files before editing.
 Stay within scope and preserve all protected data/contracts.
 Run the relevant validation immediately after the change.
@@ -278,12 +278,12 @@ Keep these details during P2-P4 even though the overall migration is simplified:
 Phase: {{PHASE}}
 Milestone: {{MILESTONE}}
 
-Implement ONLY this milestone from docs/features/infra-migration/04-phases.md.
+Implement ONLY this milestone from docs/archive/infra-migration/04-phases.md.
 
 Read first:
-- docs/features/infra-migration/03-feature.md
-- docs/features/infra-migration/04-phases.md
-- docs/features/infra-migration/reference/migration-brief.md
+- docs/archive/infra-migration/03-feature.md
+- docs/archive/infra-migration/04-phases.md
+- docs/archive/infra-migration/reference/migration-brief.md
 - relevant repository code/tests
 
 Before editing:
