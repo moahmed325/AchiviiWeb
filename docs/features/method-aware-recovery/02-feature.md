@@ -86,7 +86,7 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 **RULE-18 — Old steps keep today's behavior (MR-6).** A step without a kind, written before this feature, follows missed sessions' current rules, until the goal's next week is written.
 
 ### Measured before switch-on
-**RULE-19 — The eval (MR-7).** A set of 26 custom goals (2 per template), each with a hand-written correct profile, and 6 written weeks with correct tags. The profile call must pick the right template for at least 24 of 26, agree on actions for at least 90% of the kinds, and produce **zero** unsafe results (a hard kind that continues, a high-load step that is not hard, a test that is not fixed). Tagging must agree on at least 90% of steps. Until it passes, custom goals use their keyword-picked template unchanged (MR-14).
+**RULE-19 — The eval (MR-7, scored per MR-24).** A set of 26 custom goals (2 per template), each with a hand-written correct profile, and 6 written weeks with correct tags. The profile call must pick the right template for at least 24 of 26, agree on actions for at least 90% of the kinds, and produce **zero** unsafe results (a hard kind that continues, a high-load step that is not hard, a test that is not fixed). Tagging must agree on at least 90% of steps. Until it passes, custom goals use their keyword-picked template unchanged (MR-14).
 
 ## 5. States and edge cases
 | Situation | What happens |

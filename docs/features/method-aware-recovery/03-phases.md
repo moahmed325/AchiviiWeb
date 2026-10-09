@@ -13,7 +13,7 @@
 | M1.3a | Profiles stored at creation and for older goals (no model call) | AC-1 | DONE 2026-10-09 | [m1.3a](milestones/m1.3a-store-profiles.md) |
 | M1.3b | The custom profile call (off until the eval passes) | AC-2 | DONE 2026-10-09 | [m1.3b](milestones/m1.3b-profile-call.md) |
 | M2.1 | The week call tags every step | AC-3, AC-4 | DONE 2026-10-09 | [m2.1](milestones/m2.1-tag-steps.md) |
-| M2.2 | The eval | AC-11 | NOT STARTED | |
+| M2.2 | The eval | AC-11 | READY | [m2.2](milestones/m2.2-eval.md) |
 | O1 | Mo: agree to switch on custom profiles once M2.2's eval has passed (MR-14) | AC-2 | NOT STARTED | |
 | M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | NOT STARTED | |
 | M3.1b | Carry: order and rest gaps | AC-6 | NOT STARTED | |
@@ -67,7 +67,7 @@
 ### P2 Tagging
 **M2.1 The week call tags every step.** DONE. The kind list as a fixed menu, the hard code check and retry (RULE-6, MR-15, MR-16), the overrides (RULE-7), movable steps that stand alone (RULE-8); measures the tag failure rate on sample weeks. Updates the prompt fixture on purpose. Checks R-6, R-7.
 
-**M2.2 The eval.** The 26 goals with hand-written profiles and tagged weeks, a script that scores the profile call and the tagging, and the recorded result against RULE-19.
+**M2.2 The eval.** The 26 goals with hand-written profiles and tagged weeks, a script that scores the profile call and the tagging, and the recorded result against RULE-19, scored as MR-24 says.
 
 ### P3 Recovery follows the kinds
 **M3.1a Carry: move, continue, let go, fixed.** RULE-9 (first later day that passes, MR-10), RULE-10 (continue marker), RULE-11, RULE-12, RULE-17's counts and RULE-18, behind `METHOD_RECOVERY_ENABLED`; the reconcile body says which rules ran. Checks R-1.
