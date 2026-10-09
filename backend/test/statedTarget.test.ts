@@ -23,4 +23,40 @@ describe('stated targets in the goal text', () => {
     expect(extractStatedTargets('Build a 12 week meditation practice')).toEqual([]);
     expect(extractStatedTargets('Build a mindfulness meditation practice to reduce stress')).toEqual([]);
   });
+
+  // B-27: "row 10,000 m in one steady piece" was read as a target of "1 piece", so every roadmap failed.
+  it('does not read "in one piece" and similar phrases as a count of one', () => {
+    expect(extractStatedTargets('Row 10,000 m in one steady piece')).toEqual([]);
+    expect(extractStatedTargets('Read the whole book in one sitting')).toEqual([]);
+    expect(extractStatedTargets('Finish the essay in one go')).toEqual([]);
+    expect(extractStatedTargets('Hike 25 km in one day')).toEqual([]);
+    expect(extractStatedTargets('Do 10 strict pull-ups in one set').map((item) => item.phrase)).toEqual(['10 pull-ups']);
+  });
+
+  it('still finds real targets, including a count of one', () => {
+    expect(extractStatedTargets('Write one book')[0]).toMatchObject({ value: 1, unit: 'book' });
+    expect(extractStatedTargets('Play 5 songs')[0]).toMatchObject({ value: 5, unit: 'songs' });
+    expect(extractStatedTargets('Make 50 sales from my Notion template')[0]).toMatchObject({ value: 50, unit: 'sales' });
+    expect(extractStatedTargets('Get 50 users for my recipe app')[0]).toMatchObject({ value: 50, unit: 'users' });
+    expect(extractStatedTargets('Do 3 sets of 10 pull-ups').map((item) => item.phrase)).toEqual(['3 sets', '10 pull-ups']);
+  });
+
+  it('takes a unit of measure right after the number, not a word after it', () => {
+    expect(extractStatedTargets('Swim 1500 metres freestyle without stopping').map((item) => item.phrase)).toEqual(['1500 metres']);
+    expect(extractStatedTargets('Chatting with a tutor for 10 minutes without switching to English').map((item) => item.phrase)).toEqual([
+      '10 minutes',
+    ]);
+  });
+
+  it('never takes a connecting word as the unit', () => {
+    expect(extractStatedTargets('Playing the melodies of 5 standards cleanly').map((item) => item.unit)).not.toContain('cleanly');
+    expect(extractStatedTargets('Playing 5 full songs along with the track').map((item) => item.phrase)).toEqual(['5 songs']);
+  });
+
+  it('treats one number named two ways as one target, met in either unit', () => {
+    const targets = extractStatedTargets('Get 100 users. 100 people using the extension every week');
+    expect(targets).toHaveLength(1);
+    expect(targets[0].phrase).toBe('100 users');
+    expect(targets[0].aliases).toEqual(expect.arrayContaining(['users', 'people']));
+  });
 });
