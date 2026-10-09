@@ -24,7 +24,7 @@ jobs:
       # Install exactly as Render does (render.yaml buildCommand), so CI tests what ships.
       - name: Install (as Render)
         working-directory: backend
-        run: npm install --include=dev
+        run: npm ci --include=dev
       # Package scripts use the installed binaries; a bare npx could download a newer TypeScript or Vitest.
       - name: Tool versions
         working-directory: backend
@@ -50,7 +50,7 @@ jobs:
       # Install exactly as Vercel does (vercel.json installCommand), so CI tests what ships.
       - name: Install (as Vercel)
         working-directory: frontend
-        run: npm install
+        run: npm ci
       - name: Tool versions
         working-directory: frontend
         run: npm exec --no -- tsc --version && npm exec --no -- vitest --version
@@ -85,7 +85,7 @@ jobs:
           node-version: 22
       - name: Install (as Vercel)
         working-directory: frontend
-        run: npm install
+        run: npm ci
       # The config uses channel: 'chromium', so install Chromium itself, with the system libraries it needs.
       - name: Install Chromium
         working-directory: frontend

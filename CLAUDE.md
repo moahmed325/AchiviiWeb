@@ -18,6 +18,8 @@ npm run frontend            # Vite on :5173 (the e2e and CORS defaults expect 51
 npm run build               # build both workspaces
 ```
 
+The root `package-lock.json` is the only lockfile and is committed. CI, Vercel and Render install with `npm ci`, so they get exactly what it pins and fail if it is out of date. To change a dependency, run `npm install` at the repo root and commit `package-lock.json` with the `package.json` change.
+
 Backend (`cd backend`):
 
 ```bash
