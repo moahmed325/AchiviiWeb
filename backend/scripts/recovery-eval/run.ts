@@ -163,7 +163,7 @@ async function profiles(goals: EvalGoal[]): Promise<void> {
 // weeks: week 1 for 6 goals with their answer profile; steps and the model's kinds in separate files (MR-24 point 1).
 
 /** Six goals on six templates: strength-1 has a high-load kind, strategy_games-1 a game-and-review step. */
-export const WEEK_GOALS = ['endurance-1', 'strength-1', 'language-1', 'exam-1', 'content-1', 'strategy_games-1'];
+export const WEEK_GOALS = ['endurance-1', 'strength-1', 'language-3', 'exam-3', 'content-1', 'strategy_games-1'];
 const WEEK_CALLS = 3;
 /** A fixed Monday, so the week's layout is the same on every run. */
 const WEEK_START = new Date('2026-10-12T00:00:00Z');
