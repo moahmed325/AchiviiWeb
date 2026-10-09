@@ -9,8 +9,8 @@
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
 | M1.1 | Check the code | — | DONE 2026-10-08 | [m1.1](milestones/m1.1-check-the-code.md) |
-| M1.2 | Profile format, checks, templates, pathway profiles, keyword table | AC-1 (pathways), AC-4 (profile side) | NOT STARTED | [m1.2](milestones/m1.2-profiles-and-templates.md) |
-| M1.3a | Profiles stored at creation and for older goals (no model call) | AC-1 | NOT STARTED | |
+| M1.2 | Profile format, checks, templates, pathway profiles, keyword table | AC-1 (pathways), AC-4 (profile side) | DONE 2026-10-09 | [m1.2](milestones/m1.2-profiles-and-templates.md) |
+| M1.3a | Profiles stored at creation and for older goals (no model call) | AC-1 | NOT STARTED | [m1.3a](milestones/m1.3a-store-profiles.md) |
 | M1.3b | The custom profile call (off until the eval passes) | AC-2 | NOT STARTED | |
 | M2.1 | The week call tags every step | AC-3, AC-4 | NOT STARTED | |
 | M2.2 | The eval | AC-11 | NOT STARTED | |
@@ -56,7 +56,7 @@
 
 **M1.1 Check the code.** DONE. Its findings became MR-9 to MR-21.
 
-**M1.2 Profile format, checks, templates and pathway profiles.** Pure code and tests, nothing wired in: the profile type with the return-rule format; the RULE-4 checks; RULE-5's two added kinds; the 13 templates from `reference/domain-templates.md`; the 10 pathway profiles; the keyword table that picks a template (MR-14); the checked reader for a stored profile (MR-9); `actionOf` for a step, including RULE-7's overrides and MR-11. Covers RULE-2, RULE-4, RULE-5, RULE-7 (pure part). Checks R-6, R-7.
+**M1.2 Profile format, checks, templates and pathway profiles.** DONE (`backend/src/lib/recovery/`). Pure code and tests, nothing wired in: the profile type with the return-rule format; the RULE-4 checks; RULE-5's two added kinds; the 13 templates from `reference/domain-templates.md`; the 10 pathway profiles; the keyword table that picks a template (MR-14); the checked reader for a stored profile (MR-9); `actionOf` for a step, including RULE-7's overrides and MR-11. Covers RULE-2, RULE-4, RULE-5, RULE-7 (pure part). Checks R-6, R-7.
 
 **M1.3a Profiles stored at creation and for older goals.** Pathway goals and custom goals (keyword template) are saved with a profile under `recovery` in `Goal.roadmap`; an older goal gets one just before its next week is written, and a failure never blocks the review (MR-14). No model call. Covers RULE-1, RULE-2. Checks R-5, R-6, R-8.
 
