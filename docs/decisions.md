@@ -164,7 +164,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | Raised | 2026-09-23 — blueprint and framework setup |
 | Decided | 2026-09-23 — Mo |
 
-**Context.** Several older planning documents exist or existed (`Design.md`, `TODO.md`, `docs/features/research-pipeline/04-phases.md`, `golden-rail-pipeline-spec.md`, `docs/architecture/plan-v2.md`, and the old root `phases.md` and `prompts.md`, which Mo has since removed). Agents need one unambiguous authority.
+**Context.** Several older planning documents exist or existed (`Design.md`, `TODO.md`, `docs/archive/research-pipeline/04-phases.md`, `golden-rail-pipeline-spec.md`, `docs/architecture/plan-v2.md`, and the old root `phases.md` and `prompts.md`, which Mo has since removed). Agents need one unambiguous authority.
 
 **Decision.** The redesign's sources of truth are `docs/product/redesign-blueprint.md` (product) and `docs/product/visual-design-system.md` (visuals). `docs/features/billing/04-phases.md`, `docs/archive/redesign-v1/prompts.md` and `docs/decisions.md` implement them. On conflict:
 * the blueprint and design system win on product and visuals;

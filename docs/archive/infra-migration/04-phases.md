@@ -1,8 +1,10 @@
 # ACHIVII INFRASTRUCTURE MIGRATION — PHASES
 
+> **Archived 2026-10-09.** Complete: every phase closed on 2026-09-30. The deferred work at the bottom moved to `docs/backlog.md` (B-15 to B-17).
+
 **Goal:** Move Achivii production PostgreSQL from Render to the fresh Supabase project, then migrate custom scrypt/JWT authentication to Supabase Auth without changing user identity or billing behavior.
 
-**Source of truth:** `docs/features/infra-migration/03-feature.md`, migration brief, repository code/tests.
+**Source of truth:** `docs/archive/infra-migration/03-feature.md`, migration brief, repository code/tests.
 
 **Current position:** Migration closeout is complete. P0-P4 are complete; Supabase PostgreSQL serves production DB traffic, Supabase Auth is authoritative, and legacy JWT/scrypt authentication is retired. Live authenticated browser verification remains waived per the owner’s explicit instruction.
 

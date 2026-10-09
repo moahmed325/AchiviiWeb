@@ -41,7 +41,7 @@ features/<feature-name>/
 
 Skip `01-brief.md` when the direction is already decided in `architecture/` or `decisions.md`; `02-feature.md` then links there. Numbers show the order work happens in.
 
-Features started before 2026-10-08 (`billing`, `information-density`, `infra-migration`, `research-pipeline`, `today-redesign`) keep the old layout (`01-problem.md`, `02-solution.md`, `03-feature.md`, `04-phases.md`, `05-prompts.md`) until they finish. Current features also include `method-aware-recovery`, `weekly-update` (paused) and `checkpoints` (new layout). Archived: `missed-sessions` (`docs/archive/missed-sessions/`).
+Features started before 2026-10-08 (`billing`, `information-density`, `today-redesign`) keep the old layout (`01-problem.md`, `02-solution.md`, `03-feature.md`, `04-phases.md`, `05-prompts.md`) until they finish. Current features also include `method-aware-recovery`, `weekly-update` and `checkpoints` (new layout). Archived: `missed-sessions`, `infra-migration`, `research-pipeline` (in `docs/archive/`). Where each current feature stands is in the Features table at the top of `docs/backlog.md`.
 
 ### How a feature moves
 1. Write `01-brief.md` with Mo (or skip it), then `02-feature.md`. Record every decision in the feature's `decisions.md` as it is made.
@@ -50,7 +50,7 @@ Features started before 2026-10-08 (`billing`, `information-density`, `infra-mig
 4. When every milestone is done and every problem is sorted, move the folder to `archive/`.
 
 ## backlog.md
-The one list of known problems that no feature owns yet. Problems found during a milestone are sorted at review: into that milestone, a later milestone of the same feature, or the backlog. Each backlog item is **small** (fixed on the quick-fix track: one short prompt, one branch, one review), **big** (becomes a new feature, starting at `01-brief.md` or `02-feature.md`) or **owner** (something Mo does by hand). The file explains the sizes, statuses and the quick-fix prompt.
+Two things: a short **Features** table saying where every current feature stands (in progress, paused, waiting, stub), and the one list of known problems that no feature owns yet. Problems found during a milestone are sorted at review: into that milestone, a later milestone of the same feature, or the backlog. Each backlog item is **small** (fixed on the quick-fix track: one short prompt, one branch, one review), **big** (becomes a new feature, starting at `01-brief.md` or `02-feature.md`) or **owner** (something Mo does by hand). The file explains the sizes, statuses and the quick-fix prompt.
 
 
 

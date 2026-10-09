@@ -20,15 +20,18 @@ This file has two parts. Part A is for the chat that writes and updates the plan
 
 1. **Phases are groups of milestones that share one goal**, for example "recognise a missed day" or "show it on Today". Usually 2 to 5 phases.
 2. **A milestone is one piece of work one chat can finish and prove**, usually in one branch. If it needs two very different kinds of work (a migration and a new screen), split it.
-3. **The first milestone checks the code** when the feature touches code nobody has looked at closely yet. Its report lists what exists, what is wrong in the plan, and the questions for Mo. The answers become decisions, and the plan is fixed in place.
+3. **The first milestone checks the code** when the feature touches code nobody has looked at closely yet. Its report lists what exists, what is wrong in the plan, and the questions for Mo, mostly as tables of facts with file paths, not long prose. The answers become decisions, and the plan is fixed in place.
 4. **Order by what each step needs.** Logic before the screen that shows it. Anything that changes users' data in production ships switched off until the screen that explains it is live.
 5. **The last milestone proves the whole feature:** every acceptance criterion checked, every "must not break" item checked, and every problem from the feature's reports sorted (into a milestone that is done, or into `docs/backlog.md`). A feature never closes with problems left only in a report.
-6. **Only plan the near phases in detail.** Later phases can be a line each until the earlier ones finish. Reports change the plan, so detail written too early gets rewritten.
+6. **Plan the owner steps too.** Anything only Mo can do (turn on a switch in Render, run a production check, run a database command, set up an outside account) gets its own row in the status table, with an ID like `O1` and "Mo" in the What column, placed where it must happen. Its result is recorded in the row (and in the review of the milestone before it), so going live is tracked like any other step.
+7. **Only plan the near phases in detail.** Later phases can be a line each until the earlier ones finish. Reports change the plan, so detail written too early gets rewritten.
 
 ### How to keep it up to date
 
-- **Status lives in one place:** the status table in section 1. Each milestone file has its own status too. Nothing else in the feature tracks status.
-- **When a milestone finishes:** set its row to DONE with the date, and link its report. That is the only change, unless the report changes the plan.
+- **Status lives in one place:** the status table in section 1. Milestone files have no status line; a report says how its work ended ("Final state") and a review gives a verdict, but the table is what counts. Only Mo's main chat changes the table.
+- **When a prompt is written:** set the row to READY and link the milestone file.
+- **When the report comes in:** set the row to IN REVIEW.
+- **When the review accepts it:** set the row to DONE with the date. That is the only change, unless the report changes the plan.
 - **When a report changes the plan:** record the decision in `decisions.md`, then edit the plan in place (add, split, move or drop milestones) and name the decision. Never add "corrections" or "findings" sections that contradict text above them.
 - **When work moves to another feature:** set the row to MOVED, link where it went, and record the decision.
 
@@ -38,11 +41,13 @@ This file has two parts. Part A is for the chat that writes and updates the plan
 - **No copies.** Do not restate the feature's rules, `CLAUDE.md`, `Design.md` or the decisions. Cite them by ID (`RULE-3`, `AC-7`, `MS-12`).
 - **Feature rules only in section 3.** List only the rules for building this feature that are not already in `CLAUDE.md` (for example "carry writes stay behind the switch").
 - **No file lists or step-by-step coding instructions.** They go in the milestone file, written when the milestone starts and checked against the code then.
-- **IDs:** phases `P1`, `P2`; milestones `M1.1`, `M1.2` (a milestone added later between two others gets a letter: `M1.1b`); checks `R-1`, `R-2`. Never renumber.
+- **IDs:** phases `P1`, `P2`; milestones `M1.1`, `M1.2` (a milestone added later between two others gets a letter: `M1.1b`); owner steps `O1`, `O2`; checks `R-1`, `R-2`. Never renumber.
 
 ### Statuses
 
-`NOT STARTED` · `IN PROGRESS` · `DONE` · `BLOCKED` (say by what) · `MOVED` (say where) · `DROPPED` (say why)
+`NOT STARTED` · `READY` (prompt written) · `IN PROGRESS` · `IN REVIEW` (report in) · `DONE` · `BLOCKED` (say by what) · `MOVED` (say where) · `DROPPED` (say why)
+
+The whole feature: `PLANNED` · `IN PROGRESS` · `PAUSED` (say why and until what, with the decision) · `DONE`. When it changes, also update the feature's row in the Features table of `docs/backlog.md`.
 
 ### Ready to start the first milestone when
 
@@ -58,7 +63,7 @@ This file has two parts. Part A is for the chat that writes and updates the plan
 ```markdown
 # <Feature name> — Phases
 
-**Status:** PLANNED | IN PROGRESS | DONE (YYYY-MM-DD)
+**Status:** PLANNED | IN PROGRESS | PAUSED (why, until what) | DONE (YYYY-MM-DD)
 **Feature:** docs/features/<name>/02-feature.md
 **Decisions:** docs/features/<name>/decisions.md
 
@@ -67,8 +72,9 @@ This file has two parts. Part A is for the chat that writes and updates the plan
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
 | M1.1 | Check the code | — | DONE 2026-10-03 | [m1.1](milestones/m1.1-check-the-code.md) |
-| M1.2 | <short name> | AC-1, AC-5 | IN PROGRESS | [m1.2](milestones/m1.2-short-name.md) |
+| M1.2 | <short name> | AC-1, AC-5 | IN REVIEW | [m1.2](milestones/m1.2-short-name.md) |
 | M2.1 | <short name> | AC-3 | NOT STARTED | |
+| O1 | Mo: <turn on the switch in Render, then run the production checks> | — | NOT STARTED | |
 
 ## 2. Order
 <One line per phase: its goal and what it waits for. Add a small diagram only if the order branches.>
