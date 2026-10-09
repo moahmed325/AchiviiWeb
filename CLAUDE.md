@@ -20,6 +20,8 @@ npm run build               # build both workspaces
 
 The root `package-lock.json` is the only lockfile and is committed. CI, Vercel and Render install with `npm ci`, so they get exactly what it pins and fail if it is out of date. To change a dependency, run `npm install` at the repo root and commit `package-lock.json` with the `package.json` change.
 
+Node 22 everywhere, pinned as `"engines": { "node": "22.x" }` (major only). Vercel reads the root `package.json`; Render reads `backend/package.json`, because its `rootDir` is `backend` and it can't see the root. CI's `setup-node` reads the same two files (`node-version-file`) and fails if they differ, so change both together. Vercel builds from the root `vercel.json` (`cd frontend && npm ci`); there is no other Vercel config.
+
 Backend (`cd backend`):
 
 ```bash
@@ -82,7 +84,7 @@ LLM providers: `lib/ai/gemini.ts` holds the cascade: **Gemini only**, then a mis
 
 Plan v2 (`lib/planV2.ts`, `ai/weekPlan.ts`, `ai/roadmap.ts`, spec in `docs/architecture/plan-v2.md`): weekly targets that adapt. Each week the user logs a weekly test (`POST /api/goal/weeks/:weekNumber/review`), the remaining targets are updated, and the next week is written. Plan v2 is the only plan model (ND-21): every goal is created with `planVersion: 2` and plan v1 code is gone. Endpoints that need a roadmap refuse a goal that is not v2 with `409 not_plan_v2` (weekly review, test result, reconcile and the missed-session actions); the frontend gives such a goal no phases and no late-test card. Don't add v1 branches back. The `planVersion` column and its default of 1 stay in the schema for now.
 
-Missed sessions (`lib/missedSessions.ts`, `lib/carryForward.ts`, `POST /api/goal/reconcile`): carry-forward writes happen only when `MISSED_SESSIONS_CARRY_ENABLED` is exactly `true`. It is unset by default (`sync: false` in `render.yaml`, managed in the Render dashboard) and stays off until the notice that explains a moved step is live (ND-15); never turn it on from code or tests.
+Missed sessions (`lib/missedSessions.ts`, `lib/carryForward.ts`, `POST /api/goal/reconcile`): carry-forward writes happen only when `MISSED_SESSIONS_CARRY_ENABLED` is exactly `true`. It is on in production (the notice that explains a moved step shipped in missed sessions M3.1). It is managed in the Render dashboard only (`sync: false` in `render.yaml`, so unset means off) and is the kill switch (ND-15); never turn it on or off from code or tests.
 
 Billing (`lib/billing/`, `config/billing.ts`): Lemon Squeezy, test mode by default, selected by `LEMON_SQUEEZY_ENVIRONMENT` with separate `_TEST_` / `_LIVE_` variables. Custom (non-preset) goals are a Pro entitlement (`goalAuthorization.ts`, `entitlement.ts`). Webhooks are deduplicated through `WebhookEvent`.
 

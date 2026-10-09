@@ -5,6 +5,9 @@
     "backend",
     "frontend"
   ],
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "npm run dev --workspace=frontend -- --port 3000",
     "frontend": "npm run dev --workspace=frontend",
