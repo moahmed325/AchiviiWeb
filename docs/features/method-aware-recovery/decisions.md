@@ -137,3 +137,9 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** the check applies only to profiles the profile call makes (M1.3b). Pathway profiles and unchanged templates are saved without it.
 **Why:** ours were checked by hand against each method; the rule guards the model's output. Forcing continue would be wrong for speech.
 **Changes:** RULE-4; M1.3b (the create and review paths stop passing the deliverable fact for pathway and template profiles).
+
+### MR-23 — Gemini only (2026-10-09)
+**Question:** RULE-6 and section 10 describe Groq, which ND-22 removed.
+**Decision:** the feature's model calls (profile and week) run on Gemini only. RULE-6's code check stays: Gemini can still drop the schema after an error.
+**Why:** ND-22.
+**Changes:** RULE-6; section 10.

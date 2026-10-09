@@ -48,7 +48,7 @@ A failed profile gets one retry; if that fails, the chosen template is used unch
 **RULE-5 — Two kinds are always there.** Code adds **Weekly test** (fixed) and **Fixed-time session** (fixed: a class, a group run, a call) to every profile.
 
 ### Tagging
-**RULE-6 — Every step gets a kind (MR-3, MR-5).** The week call tags each practice-day step with one of the goal's kinds, offered as a fixed list. Code checks every tag whichever model answered (Gemini can drop the schema after an error; Groq never enforces it). A missing or unknown kind is a hard failure that does not relax on the last attempt; the week call retries once with the reason, and if that fails the week is not saved and the person is asked to try again, at the weekly review and at goal creation alike (MR-16; M2.1 measures the rate). Rest-day steps have no kind; the 10-minute version takes the kind of the day's priority-1 step (changed 2026-10-08, MR-15).
+**RULE-6 — Every step gets a kind (MR-3, MR-5).** The week call tags each practice-day step with one of the goal's kinds, offered as a fixed list. Code checks every tag on every answer (Gemini can drop the schema after an error) (changed 2026-10-09, MR-23). A missing or unknown kind is a hard failure that does not relax on the last attempt; the week call retries once with the reason, and if that fails the week is not saved and the person is asked to try again, at the weekly review and at goal creation alike (MR-16; M2.1 measures the rate). Rest-day steps have no kind; the 10-minute version takes the kind of the day's priority-1 step (changed 2026-10-08, MR-15).
 
 **RULE-7 — Code overrides the tag where safety needs it.** The test step is always Weekly test. A step marked `highLoad` counts as hard whatever its kind. A goal-level high-load goal (`run10k`, `body_recomposition_90day`) with a profile uses its kinds instead of making every step high-load. A `highLoad` step whose kind would continue is treated as move (changed 2026-10-08, MR-11).
 
@@ -137,7 +137,7 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 ## 7. Data and system changes
 - **Profile:** under `recovery` in `Goal.roadmap` (JSON, no migration, MR-9), read by a checked reader that returns none when missing or invalid.
 - **Step kind:** a new field in each step of `DailyTask.detailedSteps` (JSON, no migration).
-- **Profile call:** a new model call at goal creation for custom goals, through the same Gemini-then-Groq cascade, with the profile as a schema.
+- **Profile call:** a new model call at goal creation for custom goals, through the same Gemini call as the others (Gemini only, ND-22), with the profile as a schema.
 - **Week call:** the kind list as a fixed menu in the schema; code checks the kind on every step.
 - **Carry, swap, mark today missed, move now:** follow RULES 9 to 16. The order shift (RULE-13) writes several days in one transaction, each day guarded as today.
 - **Switch:** `METHOD_RECOVERY_ENABLED` chooses the new rules; with it off, every step follows today's rules (`03-phases.md` section 3).
@@ -169,4 +169,4 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 
 ## 10. Other concerns
 - **Cost and speed:** one more model call at custom goal creation (a few seconds). Pathways add none. The week call's answer grows by one short field per step.
-- **Providers:** Gemini holds the kind list as a schema; Groq does not, so RULE-6's code check is the real guard.
+- **Providers:** Gemini only (ND-22). Gemini holds the kind list as a schema, but can drop it after an error, so RULE-6's code check is the real guard.

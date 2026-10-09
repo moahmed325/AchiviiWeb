@@ -135,4 +135,4 @@ The weekly sentence itself is written by the model under RULE-7.
 
 ## 10. Other concerns
 - **Cost and speed:** one more model call per person per week. An automatic close happens while they wait on Today, so it needs the "getting ready" state; the week call already takes about 10 to 30 seconds.
-- **Providers:** the update uses the same Gemini-then-Groq cascade as the other calls.
+- **Providers:** the update uses the same Gemini call as the others (Gemini only, ND-22).

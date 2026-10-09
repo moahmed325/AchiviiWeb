@@ -147,6 +147,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-19 | Keep the Dashboard as an overview beside Today | Product | Decided (A) | — |
 | ND-20 | Legacy billing columns on `users` (schema drift) | Technology | Decided (A) | — |
 | ND-21 | Retire plan v1 goals | Architecture | Decided (A) | — |
+| ND-22 | Gemini only; no fallback model for now | Architecture | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1746,6 +1747,29 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Related.** Missed sessions ND-2, AC-14; plan-v2.md.
 
+### ND-22 — Gemini only; no fallback model for now
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Architecture |
+| Needed by | — |
+| Raised | 2026-10-09 — method-aware recovery M2.1: Groq, the fallback provider, could not write a week (B-22) and its backup model failed JSON validation (B-23) |
+| Decided | 2026-10-09 — Mo |
+
+**Context.** Every model call went Gemini first, then Groq (`openai/gpt-oss-120b`, then `gpt-oss-20b`). Groq caps an answer at 3,072 tokens and spends about 2,100 on hidden reasoning, so a week's JSON was cut off and failed "Day N is missing". The fallback never really worked for weeks.
+
+**Question.** Fix Groq, or remove it?
+
+**Decision.** **Remove Groq.** Gemini is the only provider (`lib/ai/gemini.ts`); if it fails after its own retries and the one retry with the reason, the call misses and the person gets the honest "Please try again". A better second model will be added later in the marked slot in `gemini.ts`.
+
+**Consequences.**
+* `groq.ts`, `npm run test:groq` and `GROQ_API_KEY` are gone (commit `3edac07`). Mo deletes `GROQ_API_KEY` from the Render dashboard.
+* A Gemini outage means no goal can be created and no next week written until it returns.
+* Backlog B-22 and B-23 are dropped.
+
+**Related.** ND-21; method-aware recovery MR-23; plan-v2.md.
+
 ---
 
 # 5 — SUPERSEDED AND REJECTED
@@ -1791,6 +1815,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-09-27 | Phase 9 M9.1: OD-1b Decided as Option B (explicit completion endpoint `POST /api/goal/complete` with closing-stretch arrival); named backend allowance approved for M9.2 (`completedAt DateTime?`, migration `add_goal_completed_status_and_timestamp`, and `GET /api/goal/active` update); canonical frontend contracts defined in `frontend/src/types/achievement.ts`. Phase 9 is IN PROGRESS. |
 | 2026-10-07 | ND-19 Decided (A): the Dashboard stays at `/dashboard` as an overview; OD-3 marked Superseded. ND-20 Decided (A): the six legacy billing columns on `users` are declared in `schema.prisma` as deprecated, with no migration. Both delegated by Mo to the agent's recommendation. |
 | 2026-10-08 | ND-21 Decided (A) by Mo: plan v1 goals are retired; the silent v1 fallback was already removed (`2ca4132`). |
+| 2026-10-09 | ND-22 Decided by Mo: Groq removed; Gemini is the only provider until a better second model is added (`3edac07`). |
 
 ### PAY-1 — Achivii Pro pricing
 
