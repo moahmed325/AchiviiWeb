@@ -83,7 +83,7 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
 - Types: `typing_test`, `quiz`, `timer`, `count`, `photo`, `video`. No `link` (the model cannot open links).
 - Timer and count are judged by code. Photo and video are judged by prompt 5.
 - Proof judge: pass / fail / unsure, always with a reason. On unsure, the user decides with "what to look for".
-  If Gemini is out of quota (the Groq models cannot see images), the proof is stored and judged later.
+  If Gemini is out of quota (there is no fallback provider), the proof is stored and judged later.
 - Files: Cloudflare R2 with signed upload URLs; Postgres stores only the key.
 
 ### Process

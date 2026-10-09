@@ -154,8 +154,8 @@ export const WEEK_RESPONSE_SCHEMA = {
 
 /**
  * The response schema for one week call (RULE-6). Without a profile it is `WEEK_RESPONSE_SCHEMA`, unchanged. With
- * one, every step requires `kind`, a fixed menu of the profile's kind ids. Gemini may drop the schema and Groq never
- * enforces it, so `checkWeekAnswer` checks every kind too.
+ * one, every step requires `kind`, a fixed menu of the profile's kind ids. Gemini may drop the schema, so
+ * `checkWeekAnswer` checks every kind too.
  */
 export function weekResponseSchema(recovery?: RecoveryProfile | null): typeof WEEK_RESPONSE_SCHEMA {
   if (!recovery) return WEEK_RESPONSE_SCHEMA;

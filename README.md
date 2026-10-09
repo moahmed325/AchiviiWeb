@@ -7,11 +7,10 @@
 [![Prisma](https://img.shields.io/badge/Prisma-6.4-2d3748.svg)](https://www.prisma.io/)
 [![Vitest](https://img.shields.io/badge/Vitest-5.0-729b1b.svg)](https://vitest.dev/)
 [![Gemini](https://img.shields.io/badge/Gemini-3.5_Flash_Lite-4285f4.svg)](https://ai.google.dev/)
-[![Groq](https://img.shields.io/badge/Groq-Fallback-f55036.svg)](https://groq.com/)
 
 **Achivii** is an intelligent, full-stack deliberate practice platform engineered to transform open-ended human ambitions into concrete, high-velocity 90-day execution trajectories. 
 
-Unlike conventional to-do apps that generate generic, ungrounded task lists, Achivii synthesizes battle-tested cognitive and behavioral science—**The 12-Week Year** (Moran & Lennington), **Deliberate Practice** (K. Anders Ericsson), **Implementation Intentions** (Peter Gollwitzer)—with an adaptive plan engine: 10 certified pathways with fixed methods, a 12-week roadmap with a measurable target and test for every week, plans written one week at a time from your weekly results, deterministic safety clamps, and structured LLM inference via Google Gemini, with Groq as the fallback.
+Unlike conventional to-do apps that generate generic, ungrounded task lists, Achivii synthesizes battle-tested cognitive and behavioral science—**The 12-Week Year** (Moran & Lennington), **Deliberate Practice** (K. Anders Ericsson), **Implementation Intentions** (Peter Gollwitzer)—with an adaptive plan engine: 10 certified pathways with fixed methods, a 12-week roadmap with a measurable target and test for every week, plans written one week at a time from your weekly results, deterministic safety clamps, and structured LLM inference via Google Gemini.
 
 ---
 
@@ -61,8 +60,7 @@ AchiviiWeb/
 │   │   │   └── health.ts             # Health check & database probe endpoint
 │   │   ├── lib/
 │   │   │   ├── ai/
-│   │   │   │   ├── gemini.ts             # LLM cascade: Gemini primary, then Groq
-│   │   │   │   ├── groq.ts               # Groq fallback (openai/gpt-oss-120b, then gpt-oss-20b)
+│   │   │   │   ├── gemini.ts             # LLM cascade: Gemini only for now
 │   │   │   │   ├── clarify.ts            # Goal clarification and follow-up questions
 │   │   │   │   ├── roadmap.ts            # Plan v2: method, phases, and each week's target and test
 │   │   │   │   ├── weekPlan.ts           # Plan v2: writes one week of daily tasks
@@ -74,7 +72,7 @@ AchiviiWeb/
 │   │   │   ├── timezone.ts           # IANA timezone conversion helpers (zero naive UTC splitting)
 │   │   │   └── prisma.ts             # Prisma ORM client singleton
 │   │   └── index.ts              # Express API server entry point
-│   ├── scripts/                  # Diagnostics (LLM ping, Groq probe, plan v2 live run)
+│   ├── scripts/                  # Diagnostics (LLM ping, plan v2 live run)
 │   ├── test/                     # Vitest unit tests for the plan engine, safety and scheduling
 │   └── .env.example              # Backend environment configuration template
 ├── docs/                         # Project documentation (start at docs/README.md):
@@ -148,11 +146,6 @@ SUPABASE_ANON_KEY="your-supabase-anon-key"
 GEMINI_API_KEY="AIzaSy..."
 GEMINI_MODEL="gemini-3.5-flash-lite"
 
-# --- Fallback LLM Engine: Groq (Optional) ---
-GROQ_API_KEY="gsk_..."
-GROQ_MODEL="openai/gpt-oss-120b"
-GROQ_BACKUP_MODEL="openai/gpt-oss-20b"
-
 # --- Billing: Lemon Squeezy (test mode by default; see backend/.env.example) ---
 LEMON_SQUEEZY_ENVIRONMENT="test"
 ```
@@ -212,11 +205,9 @@ npm run frontend
 | `DATABASE_URL` | Backend | **Yes** | PostgreSQL connection string. Must be a database with `pgvector` available. Use Supabase's session pooler URL. |
 | `SUPABASE_URL` | Backend | **Yes** | Supabase project URL, used to verify access tokens. |
 | `SUPABASE_ANON_KEY` | Backend | **Yes** | Supabase anon/publishable key. Never the service-role key. |
-| `GEMINI_API_KEY` | Backend | Recommended | Primary LLM provider via `@google/genai`. Without Gemini or Groq, every new goal (certified pathway or custom) gets a 503 and nothing is saved. |
+| `GEMINI_API_KEY` | Backend | Recommended | Primary LLM provider via `@google/genai`. Without Gemini, every new goal (certified pathway or custom) gets a 503 and nothing is saved. |
 | `GEMINI_MODEL` | Backend | Optional | Target Gemini model (defaults to `gemini-3.5-flash-lite`). |
-| `GROQ_API_KEY` | Backend | Optional | Fallback LLM provider when Gemini fails. |
-| `GROQ_MODEL` | Backend | Optional | Groq fallback model (defaults to `openai/gpt-oss-120b`). |
-| `GROQ_BACKUP_MODEL` | Backend | Optional | Second Groq model with its own daily budget (defaults to `openai/gpt-oss-20b`). || `LEMON_SQUEEZY_*` | Backend | For billing | Lemon Squeezy store, API key, webhook secret and variant IDs, with separate `TEST_` and `LIVE_` sets. See `backend/.env.example`. |
+| `LEMON_SQUEEZY_*` | Backend | For billing | Lemon Squeezy store, API key, webhook secret and variant IDs, with separate `TEST_` and `LIVE_` sets. See `backend/.env.example`. |
 | `VITE_API_BASE_URL` | Frontend | **Yes** | Base URL for backend API requests (e.g. `http://localhost:5000`). |
 | `VITE_SUPABASE_URL` | Frontend | **Yes** | Supabase project URL for the browser client. |
 | `VITE_SUPABASE_ANON_KEY` | Frontend | **Yes** | Supabase anon key for the browser client. |
@@ -257,7 +248,7 @@ Every goal, certified or custom, goes through the same plan v2 flow (`backend/sr
 The safety clamps run on a goal's stored numbers whenever the goal is returned or used for planning, whatever the model produced.
 
 ### Honest Fallback Protection
-If both Gemini and Groq fail while the roadmap or the first week is being written, a certified pathway falls back to its fixed, pre-written 12-week plan with no model call. A custom goal does **not** get a fabricated or degraded plan: the API returns an explicit, honest HTTP 503 with retry guidance.
+If Gemini fails while the roadmap or the first week is being written (there is no fallback provider for now), no goal gets a fabricated or degraded plan, certified pathway or custom: the API returns an explicit, honest HTTP 503 with retry guidance and saves nothing.
 
 ---
 
@@ -321,9 +312,6 @@ cd frontend && npx playwright test
 ```bash
 # Check that the primary LLM (Gemini) answers
 npm run ping:llm --workspace=backend
-
-# Test Groq structured JSON output (fallback provider)
-npm run test:groq --workspace=backend
 ```
 
 ---

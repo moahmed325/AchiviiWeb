@@ -14,7 +14,6 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:groq": "tsx scripts/test-groq-stage1.ts",
     "ping:llm": "tsx scripts/ping-llm.ts"
   },
   "dependencies": {

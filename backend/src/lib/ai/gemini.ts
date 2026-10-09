@@ -1,10 +1,4 @@
 import { GoogleGenAI } from '@google/genai';
-import {
-  generateGroqStructuredContent,
-  generateGroqTextContent,
-  getGroqApiKey,
-  groqModelsToTry,
-} from './groq.js';
 import { parseModelJson } from './modelJson.js';
 
 export interface GenerationUsage {
@@ -20,7 +14,7 @@ export interface GenerationResult<T = string> {
   usage?: GenerationUsage;
   error?: string;
   isFallback: boolean;
-  provider?: 'groq' | 'gemini' | 'deterministic';
+  provider?: 'gemini' | 'deterministic';
 }
 
 /**
@@ -43,15 +37,16 @@ export function getGeminiClient(): GoogleGenAI | null {
 export const DEFAULT_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
 export interface StructuredOptions {
-  /** JSON Schema that Gemini is held to. Groq only gets the prompt text. */
+  /** JSON Schema that Gemini is held to. */
   responseSchema?: Record<string, unknown>;
   temperature?: number;
 }
 
 /**
- * Generates structured JSON using the tiered provider cascade:
- * 1. Primary: Gemini (gemini-3.5-flash-lite) — 1M context, ~500 free RPD, enough for 12-week JSON.
- * 2. Fallback: Groq openai/gpt-oss-120b, then openai/gpt-oss-20b (separate daily budgets).
+ * Generates structured JSON using the provider cascade:
+ * 1. Gemini (gemini-3.5-flash-lite) — 1M context, ~500 free RPD, enough for 12-week JSON. Busy and rate-limit
+ *    errors are retried, and a schema the API rejects is retried without it.
+ * 2. No fallback provider for now (Groq was removed). A second provider goes here.
  * 3. Caller handles a total miss.
  */
 export async function generateStructuredContent<T>(
@@ -63,30 +58,7 @@ export async function generateStructuredContent<T>(
   const gemini = await tryGeminiStructured<T>(prompt, systemInstruction, modelName, options);
   if (gemini.success && gemini.data) return gemini;
   if (gemini.error) {
-    console.warn('[LLM:Cascade] Gemini failed, falling back to Groq:', gemini.error);
-  }
-
-  if (getGroqApiKey()) {
-    for (const groqModel of groqModelsToTry()) {
-      const groqResult = await generateGroqStructuredContent<T>(
-        prompt,
-        systemInstruction,
-        groqModel,
-        0,
-        options.temperature ?? 0,
-        options.responseSchema
-      );
-      if (groqResult.success && groqResult.data) {
-        return {
-          success: true,
-          data: groqResult.data,
-          usage: groqResult.usage,
-          isFallback: true,
-          provider: 'groq',
-        };
-      }
-      console.warn(`[LLM:Cascade] Groq ${groqModel} failed:`, groqResult.error);
-    }
+    console.warn('[LLM:Cascade] Gemini failed:', gemini.error);
   }
 
   return {
@@ -94,7 +66,7 @@ export async function generateStructuredContent<T>(
     data: null,
     isFallback: true,
     provider: 'deterministic',
-    error: gemini.error || 'Neither GROQ_API_KEY nor GEMINI_API_KEY produced a result',
+    error: gemini.error || 'GEMINI_API_KEY produced no result',
   };
 }
 
@@ -203,7 +175,7 @@ async function generateGeminiWithRetry(
 }
 
 /**
- * Generates natural language text using the provider cascade (Gemini -> Groq -> miss).
+ * Generates natural language text using the provider cascade (Gemini -> miss).
  */
 export async function generateTextContent(
   prompt: string,
@@ -213,22 +185,7 @@ export async function generateTextContent(
   const gemini = await tryGeminiText(prompt, systemInstruction, modelName);
   if (gemini.success && gemini.data) return gemini;
   if (gemini.error) {
-    console.warn('[LLM:Cascade] Gemini text failed, falling back to Groq:', gemini.error);
-  }
-
-  if (getGroqApiKey()) {
-    for (const groqModel of groqModelsToTry()) {
-      const groqResult = await generateGroqTextContent(prompt, systemInstruction, groqModel);
-      if (groqResult.success && groqResult.data) {
-        return {
-          success: true,
-          data: groqResult.data,
-          usage: groqResult.usage,
-          isFallback: true,
-          provider: 'groq',
-        };
-      }
-    }
+    console.warn('[LLM:Cascade] Gemini text failed:', gemini.error);
   }
 
   return {
@@ -236,7 +193,7 @@ export async function generateTextContent(
     data: null,
     isFallback: true,
     provider: 'deterministic',
-    error: gemini.error || 'Neither GROQ_API_KEY nor GEMINI_API_KEY produced a result',
+    error: gemini.error || 'GEMINI_API_KEY produced no result',
   };
 }
 
