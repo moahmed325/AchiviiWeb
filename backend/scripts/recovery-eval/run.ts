@@ -4,15 +4,16 @@
  *
  *   npx tsx scripts/recovery-eval/run.ts roadmaps [--only id,id]   live roadmaps -> roadmaps.json
  *   npx tsx scripts/recovery-eval/run.ts profiles --run 1           the real profile call, timed -> profiles.run-1.json
- *   npx tsx scripts/recovery-eval/run.ts weeks                      week 1 for 6 goals -> weeks.json, weeks.model-tags.json
- *   npx tsx scripts/recovery-eval/run.ts score                      no model calls -> score.json
+ *   npx tsx scripts/recovery-eval/run.ts weeks [--set 2]            week 1 for 6 goals -> weeks.json (set 2: weeks-2.json, tags to pending/)
+ *   npx tsx scripts/recovery-eval/run.ts weeks --set 2 --save-model-tags   once weeks-2.gold-tags.json is committed
+ *   npx tsx scripts/recovery-eval/run.ts score [--round 2]          no model calls -> score.json (round 2: runs 3-4, set 2 -> score-2.json)
  *
  * Each command saves its raw results as JSON next to this script, so the review can re-score them without new calls.
  * The order is MR-24's: goals and roadmaps, then the hand-written answers (answers.json), then the profile runs.
  */
 import dotenv from 'dotenv';
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { EVAL_DIR, goalSetProblems, loadGoals, readJson, type EvalGoal } from './goals.js';
 import type { Roadmap } from '../../src/lib/ai/roadmap.js';
@@ -113,14 +114,7 @@ async function roadmaps(goals: EvalGoal[]): Promise<void> {
 // profiles: the real profile call on each goal, timed (MR-24 points 1, 2, 7).
 
 function answersCommitted(): boolean {
-  try {
-    const file = path.join(EVAL_DIR, 'answers.json');
-    execFileSync('git', ['ls-files', '--error-unmatch', file], { cwd: EVAL_DIR, stdio: 'ignore' });
-    execFileSync('git', ['diff', '--quiet', 'HEAD', '--', file], { cwd: EVAL_DIR, stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
+  return committedUnchanged('answers.json');
 }
 
 async function profiles(goals: EvalGoal[]): Promise<void> {
@@ -133,6 +127,13 @@ async function profiles(goals: EvalGoal[]): Promise<void> {
   if (!answersCommitted()) {
     console.error('answers.json must be committed, unchanged, before any profile call runs (MR-24).');
     process.exit(1);
+  }
+  try {
+    execFileSync('git', ['ls-files', '--error-unmatch', path.join(EVAL_DIR, `profiles.run-${run}.json`)], { cwd: EVAL_DIR, stdio: 'ignore' });
+    console.error(`profiles.run-${run}.json is already committed; a recorded run is never written over. Use a new --run.`);
+    process.exit(1);
+  } catch {
+    // Not committed yet: this run may be written.
   }
   const { generateRecoveryProfile } = await import('../../src/lib/recovery/profileCall.js');
   const { isDeliverableTarget, profileFailures } = await import('../../src/lib/recovery/index.js');
@@ -173,9 +174,69 @@ function asProfile(answer: EvalAnswer): RecoveryProfile {
   return { ...answer.profile, kinds: answer.profile.kinds.map(({ aliases: _aliases, ...kind }) => kind) };
 }
 
+/**
+ * M2.3: which set of weeks. Set 1 is M2.2's (`weeks.json`, its model tags written straight away). From set 2 the
+ * model's tags go to a git-ignored `pending/` folder first, and `--save-model-tags` copies them next to the steps
+ * only once the gold tags are committed and unchanged, so `git log` shows the gold tags came first (MR-24 point 1).
+ */
+function weekFiles(set: number) {
+  const base = set === 1 ? 'weeks' : `weeks-${set}`;
+  return { steps: `${base}.json`, gold: `${base}.gold-tags.json`, model: `${base}.model-tags.json`, pending: path.join('pending', `${base}.model-tags.json`) };
+}
+
+function weekSet(): number {
+  const index = process.argv.indexOf('--set');
+  const set = index > 0 ? Number(process.argv[index + 1]) : 1;
+  if (!Number.isInteger(set) || set < 1) {
+    console.error('--set takes a whole number: 1 is M2.2\'s weeks, 2 is M2.3\'s.');
+    process.exit(1);
+  }
+  return set;
+}
+
+function committedUnchanged(name: string): boolean {
+  try {
+    const file = path.join(EVAL_DIR, name);
+    execFileSync('git', ['ls-files', '--error-unmatch', file], { cwd: EVAL_DIR, stdio: 'ignore' });
+    execFileSync('git', ['diff', '--quiet', 'HEAD', '--', file], { cwd: EVAL_DIR, stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** `weeks --set N --save-model-tags`: the model's tags join the repo only after the gold tags are committed. */
+function saveModelTags(set: number): void {
+  const files = weekFiles(set);
+  if (!committedUnchanged(files.gold)) {
+    console.error(`${files.gold} must be committed, unchanged, before the model's tags are saved to the repo (MR-24).`);
+    process.exit(1);
+  }
+  if (!existsSync(path.join(EVAL_DIR, files.pending))) {
+    console.error(`No ${files.pending}: run "weeks --set ${set}" first.`);
+    process.exit(1);
+  }
+  copyFileSync(path.join(EVAL_DIR, files.pending), path.join(EVAL_DIR, files.model));
+  console.log(`Saved ${files.model}.`);
+}
+
 async function weeks(): Promise<void> {
+  const set = weekSet();
+  if (process.argv.includes('--save-model-tags')) {
+    if (set === 1) {
+      console.error('Set 1 (M2.2) already has its model tags.');
+      process.exit(1);
+    }
+    saveModelTags(set);
+    return;
+  }
   if (!answersCommitted()) {
     console.error('answers.json must be committed, unchanged, before the weeks are written (MR-24).');
+    process.exit(1);
+  }
+  const files = weekFiles(set);
+  if (existsSync(path.join(EVAL_DIR, files.steps))) {
+    console.error(`${files.steps} already exists; a set's weeks are written once. Use a new --set.`);
     process.exit(1);
   }
   const { generateWeekPlan } = await import('../../src/lib/ai/weekPlan.js');
@@ -231,8 +292,14 @@ async function weeks(): Promise<void> {
     // Only counts are printed, never kinds: the gold tags are written from weeks.json alone.
     console.log(`${goalId}: ${count} practice-day steps`);
   }
-  writeJson('weeks.json', steps);
-  writeJson('weeks.model-tags.json', tags);
+  writeJson(files.steps, steps);
+  if (set === 1) {
+    writeJson(files.model, tags);
+  } else {
+    mkdirSync(path.join(EVAL_DIR, 'pending'), { recursive: true });
+    writeJson(files.pending, tags);
+    console.log(`\nSteps in ${files.steps}. The model's tags are in ${files.pending} (git-ignored): write and commit ${files.gold} from the steps alone, then run "weeks --set ${set} --save-model-tags".`);
+  }
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -244,7 +311,22 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 
+/**
+ * M2.3: round 1 is M2.2's (profile runs 1-2, week set 1, `score.json`, unchanged); round 2 is M2.3's (runs 3-4,
+ * week set 2, `score-2.json`). The scoring itself (`score.ts`) is the same for both.
+ */
+const SCORE_ROUNDS: Record<number, { runs: number[]; weekSet: number; out: string }> = {
+  1: { runs: [1, 2], weekSet: 1, out: 'score.json' },
+  2: { runs: [3, 4], weekSet: 2, out: 'score-2.json' },
+};
+
 async function score(goals: EvalGoal[]): Promise<void> {
+  const roundIndex = process.argv.indexOf('--round');
+  const round = SCORE_ROUNDS[roundIndex > 0 ? Number(process.argv[roundIndex + 1]) : 1];
+  if (!round) {
+    console.error(`--round takes ${Object.keys(SCORE_ROUNDS).join(' or ')}.`);
+    process.exit(1);
+  }
   const { pickTemplate } = await import('../../src/lib/recovery/index.js');
   const answers = readJson<EvalAnswer[]>('answers.json');
   const roadmapList = readJson<RoadmapEntry[]>('roadmaps.json');
@@ -256,7 +338,7 @@ async function score(goals: EvalGoal[]): Promise<void> {
   console.log(`Keyword table alone: right template ${keywordTable.right} of ${keywordTable.total}`);
   for (const miss of keywordTable.misses) console.log(`    ${miss.goalId}: answer ${miss.answer}, picked ${miss.picked}`);
 
-  for (const run of [1, 2]) {
+  for (const run of round.runs) {
     let results: Array<ProfileRunResult & { error?: string }>;
     try {
       results = readJson(`profiles.run-${run}.json`);
@@ -285,9 +367,9 @@ async function score(goals: EvalGoal[]): Promise<void> {
   }
 
   try {
-    const steps = readJson<WeekStep[]>('weeks.json');
-    const gold = readJson<StepTag[]>('weeks.gold-tags.json');
-    const model = readJson<StepTag[]>('weeks.model-tags.json');
+    const steps = readJson<WeekStep[]>(weekFiles(round.weekSet).steps);
+    const gold = readJson<StepTag[]>(weekFiles(round.weekSet).gold);
+    const model = readJson<StepTag[]>(weekFiles(round.weekSet).model);
     const tags = scoreTags(steps, gold, model);
     out.tags = tags;
     console.log(`\n== Tags\nAgree: ${tags.agree} of ${tags.total} (${((100 * tags.agree) / tags.total).toFixed(1)}%, needs 90%)`);
@@ -295,7 +377,7 @@ async function score(goals: EvalGoal[]): Promise<void> {
   } catch (err) {
     console.log(`\nTags not scored: ${String(err)}`);
   }
-  writeJson('score.json', out);
+  writeJson(round.out, out);
 }
 
 const goals = loadGoals();

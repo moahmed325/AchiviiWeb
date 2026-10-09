@@ -213,7 +213,8 @@ function kindsBlock(recovery: RecoveryProfile): string {
       ? `- A step whose kind is ${orList(standalone)} starts with its own short warm-up (5 minutes or less) inside its instructions, so it can be done on another day on its own.`
       : '',
     '- Work that only makes sense together, such as a game and its review, is written as one step.',
-    `- The weekly test step's kind is ${WEEKLY_TEST_KIND.id}. Use fixed_time_session only for something set for a time by others, such as a class, a group run or a call.`,
+    "- A warm-up, cool-down or log of a session is written inside that session's step (in its instructions), never as a step of its own. The test day keeps its short warm-up and result steps as described above.",
+    `- Every step on the test day, including its warm-up and the step after the test, has kind ${WEEKLY_TEST_KIND.id}. Use fixed_time_session only for something set for a time by others, such as a class, a group run or a call.`,
   ].filter(Boolean);
   return ['', '', 'KINDS OF STEP (every practice-day step has exactly one "kind": one of these ids, written exactly)', ...lines, ...rules].join(NL);
 }
@@ -386,6 +387,19 @@ function signature(task: DailyTaskPlan): string {
 }
 
 const TEST_STEP = /^weekly test\b/i;
+
+/**
+ * RULE-8, MR-25: a practice-day step that is only a warm-up, cool-down or log, judged by the title's first or last
+ * words ("Warm-up tsumego", "Easy indoor warm-up", "Log workout metrics", "Workout metrics logging"). A title that
+ * names one inside real work ("Dynamic warm-up and ramp-up pulls", "Send the messages and log them") is not one.
+ */
+const SIDE_STEP_START = /^(?:warm(?:ing)?[\s-]?ups?|cool(?:ing)?[\s-]?downs?|log(?:s|ging)?)\b/i;
+const SIDE_STEP_END = /\b(?:warm[\s-]?ups?|cool[\s-]?downs?|log(?:s|ging)?)[.!]?$/i;
+
+export function isSideStepTitle(title: string): boolean {
+  const trimmed = title.trim();
+  return SIDE_STEP_START.test(trimmed) || SIDE_STEP_END.test(trimmed);
+}
 /** A pause is part of a step's instructions, not a step of its own. */
 const BREAK_STEP = /\b(break|breather)\b|^rest\b/i;
 
@@ -471,12 +485,12 @@ export function checkWeekAnswer(
         return { reason: `${label} is the test day; its main step must be titled "Weekly test: ..." and run the weekly test as written.` };
       }
       if (!hasTest) steps = [testStepFor(input.test, Math.round(input.dailyMinutes / 2)), ...keepTopSteps(steps, MAX_STEPS - 1)];
-      // RULE-7: the test step is always Weekly test, whatever the model tagged.
-      steps = steps.map((step) =>
-        TEST_STEP.test(step.title)
-          ? { ...(recovery ? (cleanStep(step) as ParsedStep) : step), priority: 0, passMark: input.test.passIf, ...(recovery ? { kind: WEEKLY_TEST_KIND.id } : {}) }
-          : step
-      );
+      // RULE-7: the test step is always Weekly test, whatever the model tagged; with a profile, so is every other step
+      // on the test day, such as its warm-up and its review (MR-25). Without a profile, only the test step changes.
+      steps = steps.map((step) => {
+        const tagged = recovery ? { ...(cleanStep(step) as ParsedStep), kind: WEEKLY_TEST_KIND.id } : step;
+        return TEST_STEP.test(step.title) ? { ...tagged, priority: 0, passMark: input.test.passIf } : tagged;
+      });
     }
 
     if (steps.length === 0 || (steps.length < MIN_STEPS && !lastAttempt)) {
@@ -491,6 +505,14 @@ export function checkWeekAnswer(
         kindFailures.push(`${label} step "${step.title}" has ${wrote}; use one of: ${recovery.kinds.map((kind) => kind.id).join(', ')}.`);
       }
       steps = steps.map((step) => cleanStep(step) as ParsedStep);
+      // RULE-8, MR-25: a warm-up, cool-down or log belongs inside its session's step. Soft: gives way on the last attempt.
+      if (!slot.isTestDay) {
+        for (const step of steps) {
+          if (isSideStepTitle(step.title)) {
+            soft.push(`${label} step "${step.title}" is a warm-up, cool-down or log on its own; write it inside the instructions of the step it belongs to.`);
+          }
+        }
+      }
     }
 
     const title = text(raw.title);

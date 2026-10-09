@@ -158,7 +158,10 @@ ${TEMPLATE_IDS.map(describeTemplate).join('\n\n')}
 WRITE THE PROFILE
 1. "template": the id of the template closest to this goal and method. Use "general" only when none fits.
 2. Start from that template and adjust it so it matches what this method really does when a day doesn't happen.
-   You may rename, add or remove kinds, and change actions, flags, the rest gap and the return rule.
+   You may add or remove kinds, and change actions, flags, the rest gap and the return rule.
+   Keep the template's kind ids: a kind that does the same job as one of the template's kinds keeps that kind's
+   "id" exactly (its "name" and "description" may be adjusted to this goal). Only a new kind, whose job none of the
+   template's kinds does, gets a new id. A template kind this method does not need is simply left out.
 3. Rules every profile must follow:
    - "kinds": 2 to 8 kinds plus one catch-all kind. Each has a snake_case "id", a short "name", a one-sentence
      "description" of what the step looks like, one "action" (move, continue, let_go or fixed), and "hard",
@@ -205,12 +208,26 @@ function isAddedKind(raw: RawKind): boolean {
 }
 
 /**
+ * RULE-3, MR-25 (soft): a reason when none of the answer's kind ids is one of the chosen template's own kind ids,
+ * which means the model renamed every kind. Null when at least one id is kept. The catch-all is left out of the
+ * comparison: every template has `catch_all`, so keeping it says nothing about the template's own kinds.
+ */
+export function templateIdReason(template: TemplateId, kinds: Array<Pick<RecoveryKind, 'id'>>): string | null {
+  const own = RECOVERY_TEMPLATES[template];
+  const templateIds = own.kinds.map((kind) => kind.id).filter((id) => !ADDED_IDS.has(id) && id !== own.catchAll);
+  if (kinds.some((kind) => templateIds.includes(kind.id))) return null;
+  return `No kind keeps an id of the "${template}" template (${templateIds.join(', ')}). A kind that does the same job as a template kind keeps that kind's id; only a new kind gets a new id.`;
+}
+
+/**
  * Turns the model's answer into a profile and checks it (RULE-4, with the deliverable fact, MR-22). Kinds the
- * model wrote for Weekly test or Fixed-time session are dropped; code adds both (RULE-5).
+ * model wrote for Weekly test or Fixed-time session are dropped; code adds both (RULE-5). The template-id reason
+ * (RULE-3) is soft: it gives way on the last attempt; the RULE-4 reasons never do.
  */
 export function checkProfileAnswer(
   data: RawProfileAnswer,
-  facts: { deliverableGoal: boolean }
+  facts: { deliverableGoal: boolean },
+  lastAttempt = false
 ): { value: RecoveryProfile } | { reason: string } {
   if (!isTemplateId(data.template)) return { reason: `"template" must be one of: ${TEMPLATE_IDS.join(', ')}.` };
   const rawKinds = Array.isArray(data.kinds) ? (data.kinds as RawKind[]) : [];
@@ -241,6 +258,8 @@ export function checkProfileAnswer(
     returnRule,
   });
   const reasons = profileFailures(profile, { deliverableGoal: facts.deliverableGoal });
+  const idReason = lastAttempt ? null : templateIdReason(data.template, kinds);
+  if (idReason) reasons.push(idReason);
   return reasons.length > 0 ? { reason: reasons.slice(0, 8).join(' ') } : { value: profile };
 }
 
@@ -253,9 +272,9 @@ export async function generateRecoveryProfile(input: ProfileCallInput): Promise<
       buildProfilePrompt(input),
       SYSTEM,
       PROFILE_RESPONSE_SCHEMA,
-      (data) => {
+      (data, lastAttempt) => {
         if (isTemplateId(data?.template)) pickedTemplate = data.template;
-        return checkProfileAnswer(data ?? {}, { deliverableGoal });
+        return checkProfileAnswer(data ?? {}, { deliverableGoal }, lastAttempt);
       },
       'Recovery profile'
     );
