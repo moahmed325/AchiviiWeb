@@ -122,6 +122,8 @@ export interface RunScore {
   templatesRight: number;
   kindsAgree: number;
   kindsTotal: number;
+  /** Answer kinds that found a returned kind (context only: RULE-19 counts an unmatched kind as a disagreement). */
+  kindsMatched: number;
   unsafe: Array<{ goalId: string; reason: string }>;
   sources: Record<ProfileCallSource, number>;
   perGoal: ProfileScore[];
@@ -146,6 +148,7 @@ export function scoreRun(answers: EvalAnswer[], results: Array<Pick<ProfileRunRe
     templatesRight,
     kindsAgree,
     kindsTotal: kinds.length,
+    kindsMatched: kinds.filter((kind) => kind.returnedKind !== null).length,
     unsafe,
     sources,
     perGoal,

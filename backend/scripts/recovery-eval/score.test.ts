@@ -111,6 +111,7 @@ describe('scoreRun and scoreTemplatePicks', () => {
     expect(run.templatesRight).toBe(1);
     expect(run.kindsTotal).toBe(10);
     expect(run.kindsAgree).toBe(9);
+    expect(run.kindsMatched).toBe(10);
     expect(new Set(run.unsafe.map((item) => item.goalId))).toEqual(new Set(['b']));
     expect(run.sources).toEqual({ model: 1, picked_template: 1, keyword_template: 0 });
     expect(run.pass).toEqual({ templates: false, actions: true, unsafe: false });

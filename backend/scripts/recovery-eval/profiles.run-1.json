@@ -1,0 +1,2027 @@
+[
+  {
+    "goalId": "endurance-1",
+    "source": "model",
+    "pickedTemplate": "endurance",
+    "profile": {
+      "version": 1,
+      "template": "endurance",
+      "kinds": [
+        {
+          "id": "easy_ride",
+          "name": "Easy ride",
+          "description": "An easy, conversational-pace indoor trainer spin or outdoor ride.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "interval_session",
+          "name": "Interval session",
+          "description": "A structured trainer workout focused on threshold or climbing resistance.",
+          "action": "move",
+          "hard": true,
+          "inOrder": false,
+          "highLoad": true
+        },
+        {
+          "id": "long_ride",
+          "name": "Long ride",
+          "description": "The weekend distance-building ride targeting weekly mileage goals.",
+          "action": "move",
+          "hard": true,
+          "inOrder": false,
+          "highLoad": true
+        },
+        {
+          "id": "strength_and_mobility",
+          "name": "Strength and mobility",
+          "description": "Core and flexibility work to prevent lower back and knee strain.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Logistics, bike maintenance, or nutrition prep that fits none of the other kinds.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 1,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "back 1 week"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 2 weeks"
+          }
+        ],
+        "firstWeekBack": "Easy rides only, with no interval sessions or long distance pushes."
+      }
+    },
+    "ms": 2472,
+    "failures": []
+  },
+  {
+    "goalId": "endurance-5",
+    "source": "model",
+    "pickedTemplate": "endurance",
+    "profile": {
+      "version": 1,
+      "template": "endurance",
+      "kinds": [
+        {
+          "id": "technique_drills",
+          "name": "Technique drills",
+          "description": "Short drills focusing on proper form and stroke rate between 20 and 24 spm.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "easy_row",
+          "name": "Easy row",
+          "description": "An easier, comfortable continuous rowing session below the weekly target distance.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "target_distance_row",
+          "name": "Target distance row",
+          "description": "The scheduled continuous rowing session aiming for the current week's distance.",
+          "action": "move",
+          "hard": true,
+          "inOrder": true,
+          "highLoad": true
+        },
+        {
+          "id": "mobility_and_hydration",
+          "name": "Mobility and hydration",
+          "description": "Stretching, recovery and hydration planning to protect joints and lower back.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other rowing recovery kinds.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 1,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "back 1 week"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 2 weeks"
+          }
+        ],
+        "firstWeekBack": "Easy technique sessions only, rebuilding continuous distance gradually without increasing weekly total distance by more than 10 percent."
+      }
+    },
+    "ms": 2220,
+    "failures": []
+  },
+  {
+    "goalId": "strength-1",
+    "source": "model",
+    "pickedTemplate": "strength",
+    "profile": {
+      "version": 1,
+      "template": "strength",
+      "kinds": [
+        {
+          "id": "strength_workout",
+          "name": "Strength workout",
+          "description": "A heavy resistance training session from the program focusing on deadlifts and supporting lifts.",
+          "action": "move",
+          "hard": true,
+          "inOrder": true,
+          "highLoad": true
+        },
+        {
+          "id": "conditioning",
+          "name": "Conditioning",
+          "description": "Low-impact cardio or walking to support recovery.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "nutrition_and_tracking",
+          "name": "Nutrition and tracking",
+          "description": "Planning, logging, or checking food intake, protein goals, and recovery metrics.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "mobility",
+          "name": "Mobility",
+          "description": "Stretching or mobility work targeting the posterior chain and hips.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other strength training kinds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 1,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "back 1 week"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 2 weeks"
+          }
+        ],
+        "firstWeekBack": "Loads about 10% lighter than the restart week."
+      }
+    },
+    "ms": 1888,
+    "failures": []
+  },
+  {
+    "goalId": "strength-2",
+    "source": "model",
+    "pickedTemplate": "strength",
+    "profile": {
+      "version": 1,
+      "template": "strength",
+      "kinds": [
+        {
+          "id": "armstrong_workout",
+          "name": "Armstrong workout",
+          "description": "The scheduled daily pull-up training session including pyramids and max effort sets.",
+          "action": "move",
+          "hard": true,
+          "inOrder": true,
+          "highLoad": true
+        },
+        {
+          "id": "recovery_and_mobility",
+          "name": "Recovery and mobility",
+          "description": "Stretching and shoulder mobility work to support upper body recovery.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "logging_and_review",
+          "name": "Logging and review",
+          "description": "Recording set counts, total reps completed, and reviewing form adherence.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other kinds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 1,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "back 1 week"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 2 weeks"
+          }
+        ],
+        "firstWeekBack": "Loads and rep counts start slightly reduced before resuming normal progression."
+      }
+    },
+    "ms": 1944,
+    "failures": []
+  },
+  {
+    "goalId": "language-3",
+    "source": "model",
+    "pickedTemplate": "language",
+    "profile": {
+      "version": 1,
+      "template": "language",
+      "kinds": [
+        {
+          "id": "new_material",
+          "name": "New material",
+          "description": "A new Pimsleur lesson, phrase set or grammar point.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "daily_speaking",
+          "name": "Daily speaking",
+          "description": "Speaking aloud during audio prompts every day.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "active_recall",
+          "name": "Active recall",
+          "description": "Actively recalling words before looking at reference sheets.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "conversation_or_listening",
+          "name": "Conversation or listening practice",
+          "description": "A conversation, a role-play or a focused listening session.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other kinds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts with a review of the last two weeks' material and active recall drills."
+      }
+    },
+    "ms": 1941,
+    "failures": []
+  },
+  {
+    "goalId": "language-2",
+    "source": "model",
+    "pickedTemplate": "language",
+    "profile": {
+      "version": 1,
+      "template": "language",
+      "kinds": [
+        {
+          "id": "new_audio_lesson",
+          "name": "New audio lesson",
+          "description": "Listening to and speaking aloud along with the next audio lesson in the Pimsleur program.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "spoken_practice",
+          "name": "Spoken practice and repetition",
+          "description": "Practicing active verbal responses and pronunciation drills out loud.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "accuracy_review",
+          "name": "Accuracy review",
+          "description": "Reviewing previous audio lessons when retention or accuracy drops below 80 percent.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "roleplay_simulation",
+          "name": "Roleplay simulation",
+          "description": "Simulating dinner ordering or market transactions entirely in spoken Italian.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts with a review of the last two weeks of audio lessons to rebuild spoken momentum."
+      }
+    },
+    "ms": 1971,
+    "failures": []
+  },
+  {
+    "goalId": "instrument-1",
+    "source": "model",
+    "pickedTemplate": "instrument",
+    "profile": {
+      "version": 1,
+      "template": "instrument",
+      "kinds": [
+        {
+          "id": "technique_drills",
+          "name": "Technique drills",
+          "description": "Short daily drills focusing on finger independence and metronome discipline.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "new_piece_or_section",
+          "name": "New piece or section",
+          "description": "Learning a new section hands separately at a slow tempo.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "play_through_or_recording",
+          "name": "Play-through or recording",
+          "description": "Playing the piece from start to end without stopping at a gentle tempo.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "General piano practice or stretching breaks that fit none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "last level"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 1 week"
+          }
+        ],
+        "firstWeekBack": "Pieces at a slower tempo first."
+      }
+    },
+    "ms": 1792,
+    "failures": []
+  },
+  {
+    "goalId": "instrument-3",
+    "source": "model",
+    "pickedTemplate": "instrument",
+    "profile": {
+      "version": 1,
+      "template": "instrument",
+      "kinds": [
+        {
+          "id": "warm_up_and_scales",
+          "name": "Warm-up and scales",
+          "description": "Daily warm-up with long tones, scales, and finger drills before playing tunes.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "new_standard_section",
+          "name": "New standard section",
+          "description": "Learning a new phrase or section of a jazz standard slowly with a metronome.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "phrase_isolation_drill",
+          "name": "Phrase isolation drill",
+          "description": "Isolating difficult phrases and repeating them five times cleanly for tone and finger transitions.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "full_tune_play_through",
+          "name": "Full tune play-through",
+          "description": "Playing a jazz standard from start to finish to test continuity and clean execution.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Practice tasks or listening exercises that fit none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "last level"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 1 week"
+          }
+        ],
+        "firstWeekBack": "Pieces are played at a slower tempo first to rebuild embouchure and finger control."
+      }
+    },
+    "ms": 2292,
+    "failures": []
+  },
+  {
+    "goalId": "writing-1",
+    "source": "model",
+    "pickedTemplate": "writing",
+    "profile": {
+      "version": 1,
+      "template": "writing",
+      "kinds": [
+        {
+          "id": "drafting",
+          "name": "Drafting",
+          "description": "Writing raw new words of the fantasy novel daily without editing.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "outlining_and_planning",
+          "name": "Outlining and planning",
+          "description": "Structuring chapters and planning the next narrative beats.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "log_and_track",
+          "name": "Log and track",
+          "description": "Logging the daily word count immediately after each session.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "drafting",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "The first session starts from a short note on what comes next; never reread earlier pages."
+      }
+    },
+    "ms": 1630,
+    "failures": []
+  },
+  {
+    "goalId": "writing-2",
+    "source": "model",
+    "pickedTemplate": "writing",
+    "profile": {
+      "version": 1,
+      "template": "writing",
+      "kinds": [
+        {
+          "id": "drafting",
+          "name": "Drafting",
+          "description": "Writing new script pages while maintaining forward momentum without editing.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "outlining_and_planning",
+          "name": "Outlining and planning",
+          "description": "Structuring milestones and planning scene sequences for upcoming acts.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "logging_and_review",
+          "name": "Logging progress",
+          "description": "Recording session word counts and progress metrics at the end of the day.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Screenwriting tasks that fit none of the other specific kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "The first session starts from a short note on what comes next; never reread earlier pages."
+      }
+    },
+    "ms": 1873,
+    "failures": []
+  },
+  {
+    "goalId": "product-5",
+    "source": "model",
+    "pickedTemplate": "product",
+    "profile": {
+      "version": 1,
+      "template": "product",
+      "kinds": [
+        {
+          "id": "build_work",
+          "name": "Build work",
+          "description": "Building the product: template setup, database configuration and page design.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "customer_outreach",
+          "name": "Customer conversations and outreach",
+          "description": "Reaching out to potential users and engaging with communities.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "launch_step",
+          "name": "Launch or shipping step",
+          "description": "A specific launch milestone such as publishing the Gumroad page or running a discount.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "General product work that fits none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts by re-planning the remaining build steps and reviewing current feedback."
+      }
+    },
+    "ms": 1870,
+    "failures": []
+  },
+  {
+    "goalId": "product-6",
+    "source": "model",
+    "pickedTemplate": "product",
+    "profile": {
+      "version": 1,
+      "template": "product",
+      "kinds": [
+        {
+          "id": "build_work",
+          "name": "Build work",
+          "description": "Building the product through backend and frontend coding sessions.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "customer_outreach",
+          "name": "Customer outreach",
+          "description": "Sharing the public URL and talking to potential users or collecting feedback.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "distribution_sprint",
+          "name": "Distribution sprint",
+          "description": "Short daily push to share the product or post updates.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "shipping_milestone",
+          "name": "Shipping milestone",
+          "description": "Deploying updates to a live environment or releasing a requested feature.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Product-related tasks that fit none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts by re-planning the remaining build and keeping sessions strictly to 30 minutes."
+      }
+    },
+    "ms": 4510,
+    "failures": []
+  },
+  {
+    "goalId": "exam-3",
+    "source": "model",
+    "pickedTemplate": "exam",
+    "profile": {
+      "version": 1,
+      "template": "exam",
+      "kinds": [
+        {
+          "id": "new_topic",
+          "name": "New topic",
+          "description": "Covering a new video module or syllabus objective for the first time.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "practice_questions",
+          "name": "Practice questions",
+          "description": "Working through domain practice questions and reviewing missed answers.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "review",
+          "name": "Review",
+          "description": "Reviewing study notes and addressing knowledge gaps.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "mock_exam",
+          "name": "Mock exam",
+          "description": "Simulating full exam conditions during a weekly practice test.",
+          "action": "move",
+          "hard": true,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Study activities that fit none of the other kinds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts with a review of the last two study domains."
+      }
+    },
+    "ms": 2171,
+    "failures": []
+  },
+  {
+    "goalId": "exam-2",
+    "source": "model",
+    "pickedTemplate": "exam",
+    "profile": {
+      "version": 1,
+      "template": "exam",
+      "kinds": [
+        {
+          "id": "new_topic_or_lesson",
+          "name": "New topic or lesson",
+          "description": "Studying a new GRE video lesson or concept for the first time.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "practice_and_word_problems",
+          "name": "Practice and word problems",
+          "description": "Working through Magoosh practice questions with a heavy emphasis on quant word problems.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "vocabulary_review",
+          "name": "Vocabulary review",
+          "description": "Reviewing dedicated flashcards for vocabulary retention.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "error_log_analysis",
+          "name": "Error log analysis",
+          "description": "Reviewing incorrect answers immediately and maintaining the error log.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other GRE preparation kinds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts with a review of the last two topics and resumes regular daily study."
+      }
+    },
+    "ms": 1762,
+    "failures": []
+  },
+  {
+    "goalId": "speaking-1",
+    "source": "model",
+    "pickedTemplate": "speaking",
+    "profile": {
+      "version": 1,
+      "template": "speaking",
+      "kinds": [
+        {
+          "id": "script_and_structure",
+          "name": "Script and structure",
+          "description": "Writing or shaping the talk: its message, structure or opening.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "rehearsal",
+          "name": "Rehearsal",
+          "description": "Practising the talk out loud for the full 30-minute allotment.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "recorded_run_through",
+          "name": "Recorded run-through",
+          "description": "Delivering the whole talk on video and reviewing physical tics and pacing.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "voice_and_delivery_drills",
+          "name": "Voice and delivery drills",
+          "description": "Short drills for voice projection, pace, pause and gestures.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts with a recorded run-through."
+      }
+    },
+    "ms": 1988,
+    "failures": []
+  },
+  {
+    "goalId": "speaking-2",
+    "source": "model",
+    "pickedTemplate": "speaking",
+    "profile": {
+      "version": 1,
+      "template": "speaking",
+      "kinds": [
+        {
+          "id": "script_and_structure",
+          "name": "Script and structure",
+          "description": "Shaping the talk, stripping away jargon, and outlining core message points.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "rehearsal",
+          "name": "Rehearsal",
+          "description": "Practising the talk out loud with a timer and visual cues.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "recorded_run_through",
+          "name": "Recorded run-through",
+          "description": "Delivering the talk on video to monitor pacing and review delivery.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "voice_and_delivery_drills",
+          "name": "Voice and delivery drills",
+          "description": "Short drills for pacing, pauses, and handling tough questions.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Additional preparation work that fits none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts with a recorded run-through."
+      }
+    },
+    "ms": 2188,
+    "failures": []
+  },
+  {
+    "goalId": "creative-1",
+    "source": "model",
+    "pickedTemplate": "creative",
+    "profile": {
+      "version": 1,
+      "template": "creative",
+      "kinds": [
+        {
+          "id": "structural_layout",
+          "name": "Structural layout",
+          "description": "Spending the first minutes of each session on structural layout before adding details.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "feature_study",
+          "name": "Feature study",
+          "description": "Detailed studies of facial features or head constructions from reference photos.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "value_and_rendering",
+          "name": "Value and rendering",
+          "description": "Practicing smooth gradients and rendering shadow values for realistic depth.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "reference_drawing",
+          "name": "Reference drawing",
+          "description": "Drawing full portraits from reference photos focusing on correct proportions and likeness.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "review_and_analysis",
+          "name": "Review and analysis",
+          "description": "Reviewing finished drawings against the reference photo to identify proportion errors.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Drawing practice and sketching that fits none of the other specific kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts with foundational structural layout drills before returning to full portraits."
+      }
+    },
+    "ms": 2092,
+    "failures": []
+  },
+  {
+    "goalId": "creative-2",
+    "source": "model",
+    "pickedTemplate": "creative",
+    "profile": {
+      "version": 1,
+      "template": "creative",
+      "kinds": [
+        {
+          "id": "technical_shoot",
+          "name": "Technical shoot",
+          "description": "Shooting landscape photos focusing on camera settings and exposure.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "composition_shoot",
+          "name": "Composition shoot",
+          "description": "Shooting landscape photos applying specific compositional rules.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "portfolio_curation",
+          "name": "Portfolio curation",
+          "description": "Selecting, reviewing, and refining candidate landscape photos.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other photography kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Starts with fundamental technical review and camera setup practice."
+      }
+    },
+    "ms": 1841,
+    "failures": []
+  },
+  {
+    "goalId": "habit-1",
+    "source": "model",
+    "pickedTemplate": "habit",
+    "profile": {
+      "version": 1,
+      "template": "habit",
+      "kinds": [
+        {
+          "id": "daily_meditation_session",
+          "name": "Daily meditation session",
+          "description": "The daily meditation session attached to an existing trigger.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "duration_expansion_review",
+          "name": "Duration expansion review",
+          "description": "Reviewing the current week duration increment and planning the trigger.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other kinds.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Shorter sessions starting back at a reduced duration of 5 minutes to rebuild the daily habit loop."
+      }
+    },
+    "ms": 6345,
+    "failures": []
+  },
+  {
+    "goalId": "habit-2",
+    "source": "model",
+    "pickedTemplate": "habit",
+    "profile": {
+      "version": 1,
+      "template": "habit",
+      "kinds": [
+        {
+          "id": "morning_journaling",
+          "name": "Morning journaling session",
+          "description": "Writing in the journal anchored to the morning routine.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_planning_or_review",
+          "name": "Weekly planning or review",
+          "description": "Planning the coming week or reviewing the last one.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other kinds.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Shorter focus blocks and immediate resumption of the morning anchor."
+      }
+    },
+    "ms": 19696,
+    "failures": []
+  },
+  {
+    "goalId": "content-1",
+    "source": "model",
+    "pickedTemplate": "content",
+    "profile": {
+      "version": 1,
+      "template": "content",
+      "kinds": [
+        {
+          "id": "outreach_and_booking",
+          "name": "Outreach and booking",
+          "description": "Reaching out to potential guests and securing interview bookings.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "scripting_and_preparation",
+          "name": "Scripting and preparation",
+          "description": "Researching guests and outlining interview questions.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "recording",
+          "name": "Recording",
+          "description": "Recording solo test sessions or guest interviews with clear audio.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "editing_and_publishing",
+          "name": "Editing and publishing",
+          "description": "Editing audio simply, uploading, and publishing episodes on schedule.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Administrative work or tasks that fit none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "last level"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 1 week"
+          }
+        ],
+        "firstWeekBack": "Finishes the episode in progress without perfectionism."
+      }
+    },
+    "ms": 2261,
+    "failures": []
+  },
+  {
+    "goalId": "content-2",
+    "source": "model",
+    "pickedTemplate": "content",
+    "profile": {
+      "version": 1,
+      "template": "content",
+      "kinds": [
+        {
+          "id": "recipe_planning_and_hooks",
+          "name": "Recipe planning and hooks",
+          "description": "Choosing simple recipes and writing high-retention hooks for the first 3 seconds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "batch_filming",
+          "name": "Batch filming",
+          "description": "Recording multiple cooking videos within a 30-minute time window using stable phone lighting.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "editing_and_publishing",
+          "name": "Editing and publishing",
+          "description": "Editing the recorded footage and publishing the scheduled TikTok video.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "analytics_review",
+          "name": "Analytics review",
+          "description": "Reviewing weekly views and viewer retention to see which recipe styles perform best.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work related to the account that fits none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "any",
+            "restart": "last level"
+          }
+        ],
+        "firstWeekBack": "Finishes the next pending cooking video in progress before moving to new batches."
+      }
+    },
+    "ms": 1959,
+    "failures": []
+  },
+  {
+    "goalId": "strategy_games-1",
+    "source": "model",
+    "pickedTemplate": "strategy_games",
+    "profile": {
+      "version": 1,
+      "template": "strategy_games",
+      "kinds": [
+        {
+          "id": "tactics_puzzles",
+          "name": "Life and death problems",
+          "description": "Solve at least 5 life and death or tesuji problems per practice session.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "theory_study",
+          "name": "Go theory study",
+          "description": "Study positional judgment, joseki, or endgame efficiency.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "played_game_with_review",
+          "name": "Played game with its review",
+          "description": "Play a game considering every move and review it for at least 10 minutes before checking an AI.",
+          "action": "move",
+          "hard": true,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Go practice work that fits none of the other kinds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "last level"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 1 week"
+          }
+        ],
+        "firstWeekBack": "Mostly puzzles and game review with a focus on slowing down."
+      }
+    },
+    "ms": 1676,
+    "failures": []
+  },
+  {
+    "goalId": "strategy_games-2",
+    "source": "model",
+    "pickedTemplate": "strategy_games",
+    "profile": {
+      "version": 1,
+      "template": "strategy_games",
+      "kinds": [
+        {
+          "id": "mechanics_drill",
+          "name": "Mechanics drill",
+          "description": "Practicing baseline mechanical habits like spending resources and eliminating supply blocks.",
+          "action": "let_go",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "ladder_session",
+          "name": "Ladder session",
+          "description": "Playing a ranked match while prioritizing internal benchmarks and mandatory reset breaks.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "match_review",
+          "name": "Match review",
+          "description": "Reviewing recent ladder games to assess benchmark performance rather than win-loss outcomes.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Work that fits none of the other kinds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "last level"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 1 week"
+          }
+        ],
+        "firstWeekBack": "Mostly mechanics drills and match reviews without heavy ladder grinding."
+      }
+    },
+    "ms": 1837,
+    "failures": []
+  },
+  {
+    "goalId": "general-1",
+    "source": "model",
+    "pickedTemplate": "product",
+    "profile": {
+      "version": 1,
+      "template": "product",
+      "kinds": [
+        {
+          "id": "starter_feeding",
+          "name": "Starter feeding",
+          "description": "Maintain a consistent daily feeding schedule for the sourdough starter.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "dough_preparation",
+          "name": "Dough preparation",
+          "description": "Measure ingredients by weight and execute autolyse, mixing, and levain builds.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "fermentation_and_folding",
+          "name": "Fermentation and folding",
+          "description": "Perform stretch-and-fold sets and monitor bulk fermentation timing and volume increase.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "shaping_and_baking",
+          "name": "Shaping and baking",
+          "description": "Shape, score, and bake the loaf using a Dutch oven with steam and temperature controls.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "General baking tasks and cleanup that fit none of the other kinds.",
+          "action": "continue",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "last level"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 1 week"
+          }
+        ],
+        "firstWeekBack": "Starts by refreshing the starter for a few days before attempting a full bake."
+      }
+    },
+    "ms": 1859,
+    "failures": []
+  },
+  {
+    "goalId": "general-2",
+    "source": "model",
+    "pickedTemplate": "general",
+    "profile": {
+      "version": 1,
+      "template": "general",
+      "kinds": [
+        {
+          "id": "solve_practice",
+          "name": "Solve practice",
+          "description": "Timed speed solves using a proper timer to track progress toward the sub-30 goal.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "algorithm_learning",
+          "name": "Algorithm learning",
+          "description": "Learning new CFOP, F2L, OLL, or PLL algorithms in small, manageable batches.",
+          "action": "move",
+          "hard": false,
+          "inOrder": true
+        },
+        {
+          "id": "f2l_targeted_drill",
+          "name": "F2L targeted drill",
+          "description": "Dedicated practice focusing on smooth F2L pair insertion and look-ahead without pauses.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "catch_all",
+          "name": "Catch-all",
+          "description": "Cube maintenance, cleaning, or other speedcubing activities that fit no other kind.",
+          "action": "move",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "weekly_test",
+          "name": "Weekly test",
+          "description": "The week's test, done exactly as written.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        },
+        {
+          "id": "fixed_time_session",
+          "name": "Fixed-time session",
+          "description": "Something set for a time by others, such as a class, a group run or a call.",
+          "action": "fixed",
+          "hard": false,
+          "inOrder": false
+        }
+      ],
+      "catchAll": "catch_all",
+      "restGapDays": 0,
+      "returnRule": {
+        "breaks": [
+          {
+            "length": "1-2 weeks",
+            "restart": "last level"
+          },
+          {
+            "length": "3+ weeks",
+            "restart": "back 1 week"
+          }
+        ],
+        "firstWeekBack": "Starts with a short practice session focusing on smooth turning and slow solves before timing."
+      }
+    },
+    "ms": 1784,
+    "failures": []
+  }
+]
