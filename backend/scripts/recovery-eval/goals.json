@@ -24,26 +24,26 @@
     ]
   },
   {
-    "id": "endurance-2",
+    "id": "endurance-5",
     "template": "endurance",
-    "rawGoal": "Swim 1500 metres freestyle without stopping",
-    "workingTitle": "Swim 1500 m of continuous freestyle",
-    "domain": "Swimming",
+    "rawGoal": "Row 10,000 metres on a rowing machine without stopping",
+    "workingTitle": "Row 10,000 m continuously on an indoor rower",
+    "domain": "Indoor rowing",
     "answers": [
       {
         "id": "current_level",
         "question": "Where are you now?",
-        "answer": "I can swim 200 m before I need to stop"
+        "answer": "I can row 2,000 m before I stop"
       },
       {
         "id": "success",
         "question": "In 90 days, what would make you say this worked?",
-        "answer": "Swimming 1500 m in one go"
+        "answer": "Rowing the full distance without a break"
       },
       {
-        "id": "obstacle",
-        "question": "What could stop you?",
-        "answer": "The pool is only open early mornings"
+        "id": "equipment",
+        "question": "What do you have to work with?",
+        "answer": "A rowing machine at my gym"
       }
     ]
   },
@@ -96,26 +96,26 @@
     ]
   },
   {
-    "id": "language-1",
+    "id": "language-3",
     "template": "language",
-    "rawGoal": "Hold a 10-minute conversation in Japanese",
-    "workingTitle": "Hold a 10-minute everyday conversation in Japanese",
-    "domain": "Japanese language",
+    "rawGoal": "Have a 15-minute conversation in German",
+    "workingTitle": "Hold a 15-minute everyday conversation in German",
+    "domain": "German language",
     "answers": [
       {
         "id": "current_level",
         "question": "Where are you now?",
-        "answer": "I know hiragana and some basic phrases"
+        "answer": "I did one year of German at school"
       },
       {
         "id": "success",
         "question": "In 90 days, what would make you say this worked?",
-        "answer": "Chatting with a tutor for 10 minutes without switching to English"
+        "answer": "Talking with a German colleague for 15 minutes in German"
       },
       {
         "id": "obstacle",
         "question": "What could stop you?",
-        "answer": "I get nervous speaking"
+        "answer": "I forget words when I speak"
       }
     ]
   },
@@ -168,26 +168,26 @@
     ]
   },
   {
-    "id": "instrument-2",
+    "id": "instrument-3",
     "template": "instrument",
-    "rawGoal": "Play along to 5 rock songs on the drums",
-    "workingTitle": "Play 5 rock songs on the drums along with the recordings",
-    "domain": "Drums",
+    "rawGoal": "Play 5 jazz standards on the saxophone",
+    "workingTitle": "Play 5 jazz standards on the alto saxophone",
+    "domain": "Saxophone",
     "answers": [
       {
         "id": "current_level",
         "question": "Where are you now?",
-        "answer": "I can keep a basic beat"
+        "answer": "I can play a few scales"
       },
       {
         "id": "success",
         "question": "In 90 days, what would make you say this worked?",
-        "answer": "Playing 5 full songs along with the track without losing time"
+        "answer": "Playing the melodies of 5 standards cleanly"
       },
       {
         "id": "equipment",
         "question": "What do you have to work with?",
-        "answer": "An electronic drum kit"
+        "answer": "An alto saxophone and a practice mute"
       }
     ]
   },
@@ -240,69 +240,69 @@
     ]
   },
   {
-    "id": "product-1",
+    "id": "product-5",
     "template": "product",
-    "rawGoal": "Open an online shop for my handmade candles and get my first 20 orders",
-    "workingTitle": "Sell my handmade candles online and get 20 orders",
-    "domain": "Online store",
+    "rawGoal": "Turn my Notion budget template into a product people buy on Gumroad",
+    "workingTitle": "Sell my Notion budget template on Gumroad",
+    "domain": "Digital product",
     "answers": [
       {
         "id": "current_level",
         "question": "Where are you now?",
-        "answer": "I make candles for friends but have no shop yet"
+        "answer": "I use Notion daily but have never sold anything"
       },
       {
         "id": "success",
         "question": "In 90 days, what would make you say this worked?",
-        "answer": "20 orders from people I do not know"
+        "answer": "Strangers buying it and leaving good reviews"
       },
       {
         "id": "obstacle",
         "question": "What could stop you?",
-        "answer": "I am not sure how to find buyers"
+        "answer": "Getting people to see it"
       }
     ]
   },
   {
-    "id": "product-2",
+    "id": "product-6",
     "template": "product",
-    "rawGoal": "Build a browser extension that saves articles for later and get 100 users",
-    "workingTitle": "Build a read-later browser extension and reach 100 users",
+    "rawGoal": "Build a recipe-planning web app that people use every week",
+    "workingTitle": "Build a recipe-planning web app with steady weekly users",
     "domain": "Software product",
     "answers": [
       {
         "id": "current_level",
         "question": "Where are you now?",
-        "answer": "I can code in JavaScript but have never released anything"
+        "answer": "I know some Python and React"
       },
       {
         "id": "success",
         "question": "In 90 days, what would make you say this worked?",
-        "answer": "100 people using the extension every week"
+        "answer": "Real people using it every week and asking for features"
       },
       {
         "id": "obstacle",
         "question": "What could stop you?",
-        "answer": "I tend to keep polishing instead of releasing"
+        "answer": "I keep adding features instead of getting users"
       }
     ]
   },
   {
-    "id": "exam-1",
+    "id": "exam-3",
     "template": "exam",
-    "rawGoal": "Pass the AWS Solutions Architect Associate exam",
-    "workingTitle": "Pass the AWS Solutions Architect Associate certification",
-    "domain": "Cloud certification exam",
+    "rawGoal": "Pass the CompTIA Security+ exam",
+    "workingTitle": "Pass the CompTIA Security+ certification exam",
+    "domain": "IT certification exam",
     "answers": [
       {
         "id": "current_level",
         "question": "Where are you now?",
-        "answer": "I use a few AWS services at work"
+        "answer": "I work in IT support"
       },
       {
         "id": "success",
         "question": "In 90 days, what would make you say this worked?",
-        "answer": "Passing the exam on the first try"
+        "answer": "Passing on the first attempt"
       },
       {
         "id": "obstacle",
