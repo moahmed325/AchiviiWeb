@@ -23,13 +23,13 @@ The root `package-lock.json` is the only lockfile and is committed. CI, Vercel a
 Backend (`cd backend`):
 
 ```bash
-npm test                                  # vitest run (node env; GEMINI/GROQ keys are blanked in vitest.config.ts)
+npm test                                  # vitest run (node env; the GEMINI key is blanked in vitest.config.ts)
 npx vitest run test/safetyClamps.test.ts  # one file
 npx vitest run -t "daily limit"           # by test name
 npm run build                             # tsc -> dist/
 npx prisma migrate dev                    # new migration
 npx prisma migrate deploy                 # apply migrations (never `db push`, see below)
-npm run ping:llm | test:groq             # live provider probes (need real keys)
+npm run ping:llm                          # live provider probe (needs a real key)
 ```
 
 Backend tests live in two places: `backend/test/*.test.ts` (plan engine, safety and scheduling logic) and next to the code in `backend/src/**/*.test.ts` (billing and routes).
@@ -78,7 +78,7 @@ Goal creation (`POST /api/goal/create` in `routes/goal.ts`):
 
 `goalDecomposer.ts` now only holds the shared plan types (`DailyTaskPlan`, `DetailedStep`, `UserRoutineInput`) and re-exports `clarifyGoalWithAI`. `lib/research/` holds the unsafe-goal screen, stated targets, safety clamps and `formatBasisBadge` (`planGrounding.ts`); there is no live web search, research cache or embedding call.
 
-LLM providers: `lib/ai/gemini.ts` holds the cascade, **Gemini first, then Groq** (primary and backup models), then a miss. `groq.ts` tracks daily-limit 429s and skips Groq for a cooldown. `modelJson.ts` repairs and parses model JSON, `retry.ts` gives one retry.
+LLM providers: `lib/ai/gemini.ts` holds the cascade: **Gemini only**, then a miss. Gemini retries busy and rate-limit errors, and retries once without the schema if the API rejects it. There is no fallback provider for now (Groq was removed); a second provider would go in the cascade. `modelJson.ts` repairs and parses model JSON, `retry.ts` gives one retry.
 
 Plan v2 (`lib/planV2.ts`, `ai/weekPlan.ts`, `ai/roadmap.ts`, spec in `docs/architecture/plan-v2.md`): weekly targets that adapt. Each week the user logs a weekly test (`POST /api/goal/weeks/:weekNumber/review`), the remaining targets are updated, and the next week is written. Plan v2 is the only plan model (ND-21): every goal is created with `planVersion: 2` and plan v1 code is gone. Endpoints that need a roadmap refuse a goal that is not v2 with `409 not_plan_v2` (weekly review, test result, reconcile and the missed-session actions); the frontend gives such a goal no phases and no late-test card. Don't add v1 branches back. The `planVersion` column and its default of 1 stay in the schema for now.
 

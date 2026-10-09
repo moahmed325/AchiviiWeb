@@ -29,11 +29,9 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
-      # AI providers, required for plan v2. Without one, a pathway goal silently falls back to its v1 plan and a
-      # custom goal fails. Gemini first, Groq as the fallback (backend/src/lib/ai/gemini.ts).
+      # The AI provider, required for plan v2. Without it, goal create answers 503 for pathways and custom goals
+      # alike (ND-21). Gemini only for now; there is no fallback provider (backend/src/lib/ai/gemini.ts).
       - key: GEMINI_API_KEY
-        sync: false
-      - key: GROQ_API_KEY
         sync: false
       # Missed-sessions carry-forward writes (ND-15, docs/archive/missed-sessions/04-phases.md).
       # Unset or anything but the exact string "true" means off: reconcile reports what it

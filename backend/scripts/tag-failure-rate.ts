@@ -6,9 +6,9 @@
  * - "kind failed": any practice-day step whose kind is missing or not one of the profile's ids (the test step is
  *   exempt: code tags it), counted from the raw answer, so other reasons cannot hide it;
  * - "checked": what `checkWeekAnswer` said (accepted, or its first reason).
- * Not run in CI. Needs GEMINI_API_KEY or GROQ_API_KEY in backend/.env.
+ * Not run in CI. Needs GEMINI_API_KEY in backend/.env.
  *
- *   npx tsx scripts/tag-failure-rate.ts [--only run10k,exam] [--groq] [--no-profile]
+ *   npx tsx scripts/tag-failure-rate.ts [--only run10k,exam] [--no-profile]
  * --no-profile writes the same weeks without a profile (today's week call): a baseline for the other reasons.
  */
 import dotenv from 'dotenv';
@@ -18,17 +18,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-// --groq measures the fallback provider alone (it enforces no schema): the Gemini key is hidden for this run only.
-if (process.argv.includes('--groq')) {
-  if (!process.env.GROQ_API_KEY) {
-    console.error('--groq needs GROQ_API_KEY in backend/.env.');
-    process.exit(1);
-  }
-  process.env.GEMINI_API_KEY = '';
-}
-
-if (!process.env.GEMINI_API_KEY && !process.env.GROQ_API_KEY) {
-  console.error('No GEMINI_API_KEY or GROQ_API_KEY in backend/.env: nothing measured.');
+if (!process.env.GEMINI_API_KEY) {
+  console.error('No GEMINI_API_KEY in backend/.env: nothing measured.');
   process.exit(1);
 }
 
