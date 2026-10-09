@@ -13,7 +13,7 @@ import {
 } from './ai/roadmap.js';
 import { activeDaysFor, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
 import { isHighLoadGoal } from './highLoad.js';
-import type { RecoveryProfile } from './recovery/profile.js';
+import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
 
 /** What `Goal.roadmap` holds for a v2 goal. The 12 weeks live in `RoadmapWeek` rows. */
 export interface StoredRoadmap {
@@ -119,7 +119,9 @@ export async function writeNextWeek(
   goal: Goal & { roadmapWeeks: RoadmapWeekRow[] },
   finishedWeek: number,
   finishedTasks: DailyTask[],
-  slotTime: string
+  slotTime: string,
+  /** M2.1: the goal's profile; when not given it is read from the stored roadmap. Null: no kinds (RULE-18). */
+  recovery?: RecoveryProfile | null
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
   const next = goal.roadmapWeeks.find((week) => week.weekNumber === finishedWeek + 1);
@@ -145,6 +147,7 @@ export async function writeNextWeek(
     test: next.test as unknown as WeekTest,
     weekStart: weekStartFor(goal.startDate, next.weekNumber),
     highLoadGoal: isHighLoadGoal(goal),
+    recovery: recovery === undefined ? readRecoveryProfile(goal.roadmap) : recovery,
     lastWeek: done?.target
       ? {
           target: done.target as unknown as WeekTarget,

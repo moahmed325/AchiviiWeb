@@ -1,5 +1,6 @@
 import type { DailyTaskPlan, DetailedStep } from './goalDecomposer.js';
 import { generateWithOneRetry } from './retry.js';
+import { WEEKLY_TEST_KIND, type RecoveryProfile } from '../recovery/profile.js';
 import { fitStepMinutes } from './scheduleRepair.js';
 import { dayQualityFailures, polishDays } from './taskRules.js';
 import {
@@ -95,11 +96,16 @@ export interface WeekCallInput {
   weekStart: Date;
   lastWeek?: LastWeekSummary;
   retestFirst?: boolean;
-  /** ND-5: a physical preset goal (`isHighLoadGoal`); every practice step is then high-load. */
+  /** ND-5: a physical preset goal (`isHighLoadGoal`); every practice step is then high-load, unless the goal has a profile. */
   highLoadGoal?: boolean;
+  /**
+   * Method-aware recovery (M2.1, RULE-6): the goal's checked recovery profile. With one, every practice-day step must
+   * carry one of its kind ids, or the week is not saved. Without one, the week call is exactly as before.
+   */
+  recovery?: RecoveryProfile | null;
 }
 
-const WEEK_SYSTEM = `You write one week of daily practice for a person following a 90-day plan. The goal, the method and this week's
+export const WEEK_SYSTEM = `You write one week of daily practice for a person following a 90-day plan. The goal, the method and this week's
 target are already decided. Do not change them. Every day must move the person toward this week's target.
 Respond with one JSON object that matches the schema.`;
 
@@ -146,6 +152,23 @@ export const WEEK_RESPONSE_SCHEMA = {
   required: ['days'],
 };
 
+/**
+ * The response schema for one week call (RULE-6). Without a profile it is `WEEK_RESPONSE_SCHEMA`, unchanged. With
+ * one, every step requires `kind`, a fixed menu of the profile's kind ids. Gemini may drop the schema and Groq never
+ * enforces it, so `checkWeekAnswer` checks every kind too.
+ */
+export function weekResponseSchema(recovery?: RecoveryProfile | null): typeof WEEK_RESPONSE_SCHEMA {
+  if (!recovery) return WEEK_RESPONSE_SCHEMA;
+  const schema = structuredClone(WEEK_RESPONSE_SCHEMA);
+  const stepItems = schema.properties.days.items.properties.steps.items as {
+    properties: Record<string, unknown>;
+    required: string[];
+  };
+  stepItems.properties.kind = { type: 'string', enum: recovery.kinds.map((kind) => kind.id) };
+  stepItems.required = [...stepItems.required, 'kind'];
+  return schema;
+}
+
 function dayLines(layout: DayLayout[]): string {
   return layout
     .map((day) => `- Day ${day.dayNumber} (${day.dayOfWeek}): ${day.isRestDay ? 'rest' : day.isTestDay ? 'practice, TEST DAY' : 'practice'}`)
@@ -171,7 +194,38 @@ function lastWeekBlock(input: WeekCallInput): string {
   return lines.join('\n');
 }
 
+const NL = '\n';
+
+const HIGH_LOAD_LINE =
+  '  - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false';
+
+/**
+ * RULE-6, RULE-8, MR-20: the kinds as the week writer sees them: id, name and description, never the action. Steps
+ * of a move kind carry their own warm-up; work that only makes sense together is one step.
+ */
+const orList = (items: string[]) => (items.length > 1 ? `${items.slice(0, -1).join(', ')} or ${items[items.length - 1]}` : items[0] ?? '');
+
+function kindsBlock(recovery: RecoveryProfile): string {
+  const lines = recovery.kinds.map((kind) => `- ${kind.id}: ${kind.name}. ${kind.description}`);
+  const standalone = recovery.kinds.filter((kind) => kind.action === 'move' && kind.id !== WEEKLY_TEST_KIND.id).map((kind) => kind.id);
+  const rules = [
+    standalone.length
+      ? `- A step whose kind is ${orList(standalone)} starts with its own short warm-up (5 minutes or less) inside its instructions, so it can be done on another day on its own.`
+      : '',
+    '- Work that only makes sense together, such as a game and its review, is written as one step.',
+    `- The weekly test step's kind is ${WEEKLY_TEST_KIND.id}. Use fixed_time_session only for something set for a time by others, such as a class, a group run or a call.`,
+  ].filter(Boolean);
+  return ['', '', 'KINDS OF STEP (every practice-day step has exactly one "kind": one of these ids, written exactly)', ...lines, ...rules].join(NL);
+}
+
 export function buildWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string {
+  const prompt = buildBaseWeekPrompt(input, layout);
+  if (!input.recovery) return prompt;
+  const withKindLine = prompt.replace(HIGH_LOAD_LINE, [HIGH_LOAD_LINE, '  - kind: the id of the kind of step it is, from KINDS OF STEP below'].join(NL));
+  return withKindLine + kindsBlock(input.recovery);
+}
+
+function buildBaseWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string {
   const method = input.method.creator ? `${input.method.name} by ${input.method.creator}` : input.method.name;
   const activeNames = layout.filter((day) => !day.isRestDay).map((day) => day.dayOfWeek).join(', ');
   return `THE PERSON
@@ -235,6 +289,7 @@ interface RawStep {
   priority?: unknown;
   timing?: unknown;
   highLoad?: unknown;
+  kind?: unknown;
 }
 
 interface RawDay {
@@ -259,8 +314,25 @@ function int(value: unknown): number | null {
   return typeof parsed === 'number' && Number.isFinite(parsed) ? Math.round(parsed) : null;
 }
 
-function toStep(raw: RawStep, stepNumber: number): DetailedStep & { priority: number } {
+/** A step whose kind could not be matched to the profile, with what the model wrote (for the reason). */
+type ParsedStep = DetailedStep & { priority: number; badKind?: string };
+
+/**
+ * RULE-6: the profile's kind id for what the model wrote: an exact id, or an exact name (case-insensitive) mapped to
+ * its id. Null when it matches neither.
+ */
+export function resolveKind(value: unknown, recovery: RecoveryProfile): string | null {
+  const written = text(value);
+  if (!written) return null;
+  const byId = recovery.kinds.find((kind) => kind.id === written);
+  if (byId) return byId.id;
+  const byName = recovery.kinds.find((kind) => kind.name.toLowerCase() === written.toLowerCase());
+  return byName ? byName.id : null;
+}
+
+function toStep(raw: RawStep, stepNumber: number, recovery?: RecoveryProfile | null): ParsedStep {
   const timing = text(raw.timing);
+  const kind = recovery ? resolveKind(raw.kind, recovery) : null;
   return {
     stepNumber,
     title: text(raw.title),
@@ -274,7 +346,15 @@ function toStep(raw: RawStep, stepNumber: number): DetailedStep & { priority: nu
     priority: int(raw.priority) ?? Number.MAX_SAFE_INTEGER,
     // ND-5: only a real boolean counts; a missing or odd value is never a reason to retry.
     highLoad: raw.highLoad === true,
+    ...(kind ? { kind } : recovery ? { badKind: text(raw.kind) } : {}),
   };
+}
+
+/** Removes the parsing-only field, and on rest days the kind too (MR-15). */
+function cleanStep<T extends ParsedStep | DetailedStep>(step: T, keepKind = true): DetailedStep {
+  const { badKind: _bad, ...clean } = step as ParsedStep;
+  if (!keepKind) delete clean.kind;
+  return clean;
 }
 
 /** Keeps the model's order, and turns its priorities into 1..n with no ties. */
@@ -346,6 +426,9 @@ export function checkWeekAnswer(
   const rawDays = Array.isArray(data.days) ? (data.days as RawDay[]) : [];
   const soft: string[] = [];
   const days: WeekDayPlan[] = [];
+  const recovery = input.recovery ?? null;
+  /** RULE-6: hard reasons; they never give way on the last attempt (MR-5, MR-16). */
+  const kindFailures: string[] = [];
 
   for (const slot of layout) {
     const numbered = rawDays.some((day) => int(day?.dayNumber) !== null);
@@ -354,14 +437,14 @@ export function checkWeekAnswer(
     if (!raw) return { reason: `Day ${slot.dayNumber} is missing. Return all 7 days.` };
     const label = `Day ${slot.dayNumber}`;
     let steps = (Array.isArray(raw.steps) ? (raw.steps as RawStep[]) : [])
-      .map((step, index) => toStep(step ?? {}, index + 1))
+      .map((step, index) => toStep(step ?? {}, index + 1, recovery))
       .filter((step) => step.title);
     const work = steps.filter((step) => !BREAK_STEP.test(step.title));
     if (!slot.isRestDay && work.length > 0) steps = work;
 
     if (slot.isRestDay) {
       const light = keepTopSteps(steps, 1).map((step) => ({
-        ...step,
+        ...(cleanStep(step, false) as ParsedStep),
         durationMinutes: Math.min(REST_STEP_MAX_MINUTES, step.durationMinutes || REST_STEP_MAX_MINUTES),
       }));
       days.push({
@@ -388,8 +471,11 @@ export function checkWeekAnswer(
         return { reason: `${label} is the test day; its main step must be titled "Weekly test: ..." and run the weekly test as written.` };
       }
       if (!hasTest) steps = [testStepFor(input.test, Math.round(input.dailyMinutes / 2)), ...keepTopSteps(steps, MAX_STEPS - 1)];
+      // RULE-7: the test step is always Weekly test, whatever the model tagged.
       steps = steps.map((step) =>
-        TEST_STEP.test(step.title) ? { ...step, priority: 0, passMark: input.test.passIf } : step
+        TEST_STEP.test(step.title)
+          ? { ...(recovery ? (cleanStep(step) as ParsedStep) : step), priority: 0, passMark: input.test.passIf, ...(recovery ? { kind: WEEKLY_TEST_KIND.id } : {}) }
+          : step
       );
     }
 
@@ -397,6 +483,15 @@ export function checkWeekAnswer(
       return { reason: `${label} is a practice day and needs 2 to 4 steps; got ${steps.length}.` };
     }
     steps = keepTopSteps(steps, MAX_STEPS);
+
+    if (recovery) {
+      for (const step of steps) {
+        if (step.kind) continue;
+        const wrote = step.badKind ? `kind "${step.badKind}"` : 'no kind';
+        kindFailures.push(`${label} step "${step.title}" has ${wrote}; use one of: ${recovery.kinds.map((kind) => kind.id).join(', ')}.`);
+      }
+      steps = steps.map((step) => cleanStep(step) as ParsedStep);
+    }
 
     const title = text(raw.title);
     if (!title) return { reason: `${label} has no title.` };
@@ -419,6 +514,13 @@ export function checkWeekAnswer(
 
     const written = steps.reduce((sum, step) => sum + step.durationMinutes, 0);
     const minutes = slot.isTestDay && written > 0 && written < input.dailyMinutes ? written : input.dailyMinutes;
+    const detailedSteps = fitStepMinutes(rankSteps(steps), minutes);
+    // MR-15: the 10-minute version takes the kind of the day's priority-1 step.
+    const leadKind = recovery ? detailedSteps.find((step) => step.priority === 1)?.kind : undefined;
+    if (recovery) {
+      const { kind: _ignored, ...rest } = minimumVersion;
+      minimumVersion = leadKind ? { ...rest, kind: leadKind } : rest;
+    }
 
     days.push({
       dayNumber: slot.dayNumber,
@@ -429,13 +531,15 @@ export function checkWeekAnswer(
       durationMinutes: minutes,
       slotTime: input.slotTime,
       implementationIntention: `At ${input.slotTime}: ${title}.`,
-      detailedSteps: fitStepMinutes(rankSteps(steps), minutes),
+      detailedSteps,
       isKeySession: raw.isKeySession === true && !slot.isTestDay,
       isTestDay: slot.isTestDay,
       whyToday: whyToday || input.focus,
       minimumVersion,
     });
   }
+
+  if (kindFailures.length > 0) return { reason: kindFailures.slice(0, 8).join(' ') };
 
   const candidates = days.filter((day) => !day.isRestDay && !day.isTestDay);
   const marked = candidates.filter((day) => day.isKeySession);
@@ -458,7 +562,8 @@ export function checkWeekAnswer(
   const polished = polishDays(days);
   soft.push(...dayQualityFailures(polished));
   if (soft.length > 0 && !lastAttempt) return { reason: soft.slice(0, 8).join(' ') };
-  return { value: input.highLoadGoal ? polished.map(markHighLoad) : polished };
+  // RULE-7: with a profile the kinds decide; the goal-level marking is only for goals without one.
+  return { value: input.highLoadGoal && !recovery ? polished.map(markHighLoad) : polished };
 }
 
 /** ND-5: on a physical preset goal every practice step and the 10-minute version are high-load, whatever the model said. */
@@ -477,7 +582,7 @@ export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPla
   return generateWithOneRetry<RawWeekAnswer, WeekDayPlan[]>(
     buildWeekPrompt(input, layout),
     WEEK_SYSTEM,
-    WEEK_RESPONSE_SCHEMA,
+    weekResponseSchema(input.recovery),
     (data, lastAttempt) => checkWeekAnswer(data, input, lastAttempt),
     `Week ${input.weekNumber}`
   );

@@ -315,6 +315,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         test: first.test,
         weekStart: start,
         highLoadGoal: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
+        recovery,
       });
     }
 
@@ -1006,8 +1007,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     let written: WeekDayPlan[] | null = null;
     if (nextWeek <= TOTAL_WEEKS) {
       // M1.3a (RULE-1, MR-14): an older goal gets its recovery profile here; never blocks the review.
-      await ensureRecoveryProfile(goal);
-      written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot));
+      const recovery = await ensureRecoveryProfile(goal);
+      written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot), recovery);
       if (!written) {
         res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
         return;

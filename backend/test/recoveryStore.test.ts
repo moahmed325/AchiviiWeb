@@ -255,6 +255,23 @@ describe('the weekly review gives an older goal its profile (RULE-1, MR-14)', ()
     expect(console.warn).toHaveBeenCalledWith('[Recovery] No profile saved for goal', 'g-old', ['the catch-all kind is missing.']);
   });
 
+  it('M2.1: the week call gets the profile just made, the one the goal already had, or none', async () => {
+    db.goalUpdate.mockResolvedValue({});
+    const passed = () => vi.mocked(writeNextWeek).mock.calls.at(-1)![4];
+    await review(olderGoal());
+    expect(passed()).toEqual(PATHWAY_PROFILES.run10k);
+
+    await review(olderGoal({ roadmap: { ...storedRoadmap, recovery: RECOVERY_TEMPLATES.general } }));
+    expect(passed()).toEqual(RECOVERY_TEMPLATES.general);
+
+    db.goalUpdate.mockImplementation(async (args: { data: Record<string, unknown> }) => {
+      if ('roadmap' in args.data) throw new Error('write failed');
+      return {};
+    });
+    await review(olderGoal());
+    expect(passed()).toBeNull();
+  });
+
   it('does not rewrite a profile the goal already has', async () => {
     db.goalUpdate.mockResolvedValue({});
     const { status } = await review(olderGoal({ roadmap: { ...storedRoadmap, recovery: RECOVERY_TEMPLATES.general } }));
