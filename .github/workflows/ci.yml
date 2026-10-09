@@ -18,9 +18,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      # Node comes from "engines" in backend/package.json, the file Render reads (rootDir backend).
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: backend/package.json
+      # Render reads backend/package.json and Vercel the root one, so both must pin the same Node.
+      - name: Same Node pin for Render and Vercel
+        run: |
+          node -e "const r=require('./package.json').engines.node, b=require('./backend/package.json').engines.node; if (r!==b) { console.error('engines.node differs: package.json '+r+', backend/package.json '+b); process.exit(1) }"
       # Install exactly as Render does (render.yaml buildCommand), so CI tests what ships.
       - name: Install (as Render)
         working-directory: backend
@@ -44,9 +49,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      # Node comes from "engines" in the root package.json, the file Vercel reads.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
       # Install exactly as Vercel does (vercel.json installCommand), so CI tests what ships.
       - name: Install (as Vercel)
         working-directory: frontend
@@ -80,9 +86,10 @@ jobs:
         shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
+      # Node comes from "engines" in the root package.json, the file Vercel reads.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: package.json
       - name: Install (as Vercel)
         working-directory: frontend
         run: npm ci
