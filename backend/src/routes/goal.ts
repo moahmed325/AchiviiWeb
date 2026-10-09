@@ -24,6 +24,9 @@ import {
   storedRoadmap,
   writeNextWeek,
 } from '../lib/planV2.js';
+import { isDeliverableTarget, makeGoalProfile } from '../lib/recovery/forGoal.js';
+import type { RecoveryProfile } from '../lib/recovery/profile.js';
+import { ensureRecoveryProfile } from '../lib/recovery/store.js';
 
 function wantsPlanStream(req: Request): boolean {
   return (req.headers.accept || '').includes('text/event-stream');
@@ -100,6 +103,8 @@ async function saveV2Goal(input: {
   start: Date;
   targetDate: Date;
   isPreset: boolean;
+  /** Method-aware recovery (M1.3a): saved under `recovery` when it passed the checks. */
+  recovery?: RecoveryProfile | null;
 }): Promise<string> {
   const { roadmap } = input;
   await archiveActiveGoals(input.userId);
@@ -119,7 +124,7 @@ async function saveV2Goal(input: {
       canonicalMethodName: roadmap.method.name,
       canonicalAuthority: roadmap.method.creator || null,
       planVersion: 2,
-      roadmap: JSON.parse(JSON.stringify(storedRoadmap(roadmap, input.answerList))),
+      roadmap: JSON.parse(JSON.stringify(storedRoadmap(roadmap, input.answerList, input.recovery))),
     },
   });
   await prisma.roadmapWeek.createMany({
@@ -127,6 +132,28 @@ async function saveV2Goal(input: {
   });
   await prisma.dailyTask.createMany({ data: dailyTaskRows(goal.id, 1, input.week1) });
   return goal.id;
+}
+
+/**
+ * Method-aware recovery (M1.3a, RULE-2 to RULE-4): the profile a new goal is saved with, with no model call, or
+ * null when it fails the checks (logged; the goal is then saved without one, RULE-18). Never throws.
+ */
+function recoveryProfileAtCreate(input: { presetId?: string; domain: string | null; goalText: string; roadmap: Roadmap }): RecoveryProfile | null {
+  try {
+    const week12 = input.roadmap.weeks.find((week) => week.weekNumber === 12) ?? input.roadmap.weeks[input.roadmap.weeks.length - 1];
+    const result = makeGoalProfile({
+      presetId: input.presetId,
+      domain: input.domain,
+      goalText: input.goalText,
+      methodName: input.roadmap.method?.name,
+      deliverableGoal: isDeliverableTarget(week12?.target),
+    });
+    if ('profile' in result) return result.profile;
+    console.warn('[Recovery] No profile saved at goal create:', result.reasons);
+  } catch (err) {
+    console.warn('[Recovery] Could not make a profile at goal create:', err);
+  }
+  return null;
 }
 
 export const goalRouter = Router();
@@ -262,6 +289,12 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
 
     let createdGoalId: string;
     if (roadmapResult.ok && week1) {
+      const recovery = recoveryProfileAtCreate({
+        presetId: preset?.id,
+        domain: typeof domain === 'string' ? domain : null,
+        goalText: `${rawGoal} ${clarifiedOutcome}`,
+        roadmap: roadmapResult.roadmap,
+      });
       createdGoalId = await saveV2Goal({
         userId: user.id,
         rawGoal,
@@ -273,6 +306,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         start,
         targetDate,
         isPreset: Boolean(preset),
+        recovery,
       });
     } else {
       // No silent v1 fallback, for presets either: a plan the AI could not write is an honest "try again", never an
@@ -946,6 +980,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     let nextTasks: Awaited<ReturnType<typeof saveWeekTasks>> = [];
     let written: WeekDayPlan[] | null = null;
     if (nextWeek <= TOTAL_WEEKS) {
+      // M1.3a (RULE-1, MR-14): an older goal gets its recovery profile here; never blocks the review.
+      await ensureRecoveryProfile(goal);
       written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot));
       if (!written) {
         res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
