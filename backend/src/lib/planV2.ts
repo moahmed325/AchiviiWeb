@@ -176,8 +176,11 @@ export function phaseGate(stored: StoredRoadmap, weekNumber: number, scorePercen
   };
 }
 
+/** Replaces a week's tasks. Delete and create run in one transaction, so a failure leaves the old week in place (B-13). */
 export async function saveWeekTasks(goalId: string, weekNumber: number, days: WeekDayPlan[]) {
-  await prisma.dailyTask.deleteMany({ where: { goalId, weekNumber } });
-  await prisma.dailyTask.createMany({ data: dailyTaskRows(goalId, weekNumber, days) });
+  await prisma.$transaction(async (tx) => {
+    await tx.dailyTask.deleteMany({ where: { goalId, weekNumber } });
+    await tx.dailyTask.createMany({ data: dailyTaskRows(goalId, weekNumber, days) });
+  });
   return prisma.dailyTask.findMany({ where: { goalId, weekNumber }, orderBy: { dayNumber: 'asc' } });
 }

@@ -78,6 +78,7 @@ const UiPreviewPage: React.FC = () => {
   const [slot, setSlot] = useState<string | undefined>('evening');
   const [level, setLevel] = useState<string | undefined>();
   const [showPassword, setShowPassword] = useState(false);
+  const [countedNote, setCountedNote] = useState('Near the limit, the box shows how many characters are left to use.'.padEnd(85, '.'));
   const [retrying, setRetrying] = useState(false);
 
   const retry = () => {
@@ -204,6 +205,9 @@ const UiPreviewPage: React.FC = () => {
             </Field>
             <Field label="What does success look like on day 90?" className="sm:col-span-2">
               <Textarea placeholder="Twelve videos published, and a routine I can keep." />
+            </Field>
+            <Field label="Notes with a limit (showCount, maxLength 100)" className="sm:col-span-2">
+              <Textarea rows={3} value={countedNote} onChange={(e) => setCountedNote(e.target.value)} maxLength={100} showCount />
             </Field>
           </div>
         </Block>

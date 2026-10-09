@@ -201,6 +201,19 @@ describe('Today', () => {
     );
   });
 
+  it('limits a new note to 2,000 characters and shows the count near the limit (B-29)', async () => {
+    const user = userEvent.setup();
+    await renderToday();
+    await user.click(screen.getByRole('button', { name: 'Notes' }));
+    const box = screen.getByLabelText('Notes for this step');
+    expect(box).toHaveAttribute('maxLength', '2000');
+    expect(screen.queryByText(/of 2,000 characters/)).not.toBeInTheDocument();
+
+    await user.click(box);
+    await user.paste('x'.repeat(2000));
+    expect(box).toHaveAccessibleDescription("2,000 of 2,000 characters. That's the limit.");
+  });
+
   it("choosing another day shows that day's step", async () => {
     const user = userEvent.setup();
     await renderToday();

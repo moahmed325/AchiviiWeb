@@ -255,6 +255,8 @@ An inline, underlined link inside running text, in `accent-hover` (and `accent-o
 
 `Input`, `Textarea` (default 4 rows, resizable vertically) and `Select` take every native prop. `Select` is native on purpose, because the platform picker is the most usable on mobile. All three are 16px, at least 48px tall, and bordered in `border-control`.
 
+`Textarea` takes `showCount` with `maxLength` and a controlled `value`: from 80% of the limit it shows "1,650 of 2,000 characters" under the control (and says when the limit is reached), linked to it as a description. With `showCount`, `className` goes to the wrapper. The step-note boxes on Today and in Focus use it with the backend's 2,000-character note limit.
+
 `Input` takes `trailing` for one control inside its right edge, typically an `IconButton` that shows or hides a password:
 
 ```tsx

@@ -99,9 +99,46 @@ export const Input: React.FC<InputProps> = ({ className, trailing, ...props }) =
   );
 };
 
-export const Textarea: React.FC<React.ComponentProps<'textarea'>> = ({ className, rows = 4, ...props }) => {
-  const wiring = useFieldControl(props);
-  return <textarea {...props} {...wiring} rows={rows} className={cx(control, 'min-h-28 resize-y px-4 py-3 leading-relaxed', className)} />;
+/** Share of `maxLength` at which `showCount` starts showing the count. */
+const COUNT_FROM = 0.8;
+
+export interface TextareaProps extends React.ComponentProps<'textarea'> {
+  /**
+   * With `maxLength` and a controlled `value`: shows "N of max characters" under the control once the text is near the
+   * limit (80%), linked to the control as a description. `className` then goes to the wrapper.
+   */
+  showCount?: boolean;
+}
+
+export const Textarea: React.FC<TextareaProps> = ({ className, rows = 4, showCount = false, ...props }) => {
+  const countId = useId();
+  const max = showCount ? (props.maxLength ?? 0) : 0;
+  const length = typeof props.value === 'string' ? props.value.length : 0;
+  const counting = max > 0 && length >= max * COUNT_FROM;
+  const wiring = useFieldControl({
+    ...props,
+    'aria-describedby': [props['aria-describedby'], counting ? countId : undefined].filter(Boolean).join(' ') || undefined,
+  });
+  const textarea = (
+    <textarea
+      {...props}
+      {...wiring}
+      rows={rows}
+      className={cx(control, 'min-h-28 resize-y px-4 py-3 leading-relaxed', showCount ? undefined : className)}
+    />
+  );
+  if (!showCount) return textarea;
+  return (
+    <div className={cx('flex flex-col', className)}>
+      {textarea}
+      {counting && (
+        <p id={countId} className="tabular mt-2 text-right text-small text-text-secondary">
+          {`${length.toLocaleString('en-US')} of ${max.toLocaleString('en-US')} characters`}
+          {length === max ? ". That's the limit." : length > max ? '. Shorten it to add more.' : ''}
+        </p>
+      )}
+    </div>
+  );
 };
 
 /** Native select: the platform picker is the most usable option on mobile. `className` goes to the wrapper. */

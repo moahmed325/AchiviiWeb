@@ -19,6 +19,7 @@ import {
   parseTaskNotes,
   selectTodayTask,
   serializeTaskNotes,
+  TASK_NOTES_MAX_LENGTH,
   weekProgress,
   type MissNotice,
 } from '../../lib/today';
@@ -754,6 +755,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                     <Textarea
                       rows={3}
                       value={freeformValue}
+                      maxLength={TASK_NOTES_MAX_LENGTH}
+                      showCount
                       placeholder="Reps, times, what felt hard, what clicked."
                       onChange={(event) => setDrafts((prev) => ({ ...prev, [task.id]: event.target.value }))}
                       onBlur={onSaveNote}

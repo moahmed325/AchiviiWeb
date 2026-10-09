@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react';
 import { Button, Textarea } from '../ui';
+import { TASK_NOTES_MAX_LENGTH } from '../../lib/today';
 
 interface FocusCompletionProps {
   dayNumber: number;
@@ -29,7 +30,7 @@ export const FocusCompletion: React.FC<FocusCompletionProps> = ({
       <p className="text-base text-text-secondary leading-relaxed">Take a breath. Leave a note only if it helps.</p>
     </div>    <div className="mt-7 text-left space-y-2">
       <label htmlFor="reflectionInput" className="text-small font-medium text-text">One thing to remember <span className="text-text-secondary font-normal">(optional)</span></label>
-      <Textarea id="reflectionInput" value={reflectionNote} onChange={(e) => onReflectionChange(e.target.value)} placeholder="What mattered today?" rows={3} className="w-full resize-none text-small" onKeyDown={(e) => {
+      <Textarea id="reflectionInput" value={reflectionNote} onChange={(e) => onReflectionChange(e.target.value)} placeholder="What mattered today?" rows={3} maxLength={TASK_NOTES_MAX_LENGTH} showCount className="w-full" onKeyDown={(e) => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onSave(); }
       }} />
     </div>
