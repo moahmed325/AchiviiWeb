@@ -39,6 +39,58 @@ const HORIZON = new Set(['week', 'weeks', 'day', 'days', 'month', 'months', 'yea
 /** Sits between the number and the noun: "200 common Italian words", "20 consecutive push-ups". */
 const MODIFIERS = new Set(['common', 'simple', 'basic', 'good', 'full', 'clean', 'consecutive', 'straight', 'unbroken', 'daily']);
 
+/**
+ * Words that follow a count but are never the thing counted: "100 users using it", "5 songs along with the track",
+ * "5 standards cleanly" (an adverb).
+ */
+const NOT_A_UNIT = /^(?:the|on|for|with|without|and|per|in|to|a|along|using|from|into|onto|after|before|while|through|[a-z]+ly)$/;
+
+const MEASURES = new Set([
+  'metres',
+  'meters',
+  'metre',
+  'meter',
+  'kilometres',
+  'kilometers',
+  'miles',
+  'mile',
+  'minutes',
+  'minute',
+  'hours',
+  'hour',
+  'seconds',
+  'lbs',
+  'pounds',
+]);
+
+/** A time frame right after a measure makes it practice time: "a day", "every day", "per week", "daily". */
+const PRACTICE_FRAME = /^\s*(?:(?:a|an|every|each|per)\s+(?:day|week|night|morning|evening|session)|(?:on\s+)?most\s+days|daily|weekly|nightly)\b/i;
+
+/** Generic words for people: "100 people" names the same number as "100 users". */
+const PEOPLE = new Set(['people', 'persons', 'person', 'folks']);
+
+/**
+ * "In one steady piece", "in one sitting", "in one set": "one" says how, not how many (B-27). Only a count of
+ * one is skipped, so "3 sets" or "10 sessions" stay targets.
+ */
+const ONE_IS_A_MANNER = new Set([
+  'piece',
+  'sitting',
+  'session',
+  'take',
+  'attempt',
+  'try',
+  'shot',
+  'breath',
+  'stretch',
+  'block',
+  'set',
+  'effort',
+  'row',
+  'push',
+  'pass',
+]);
+
 function numberToken(raw: string): number | null {
   const word = NUMBER_WORDS[raw.toLowerCase()];
   if (word) return word;
@@ -86,6 +138,19 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
     const key = `${item.bound}:${item.value}:${item.unit}`;
     if (used.has(key)) return;
     used.add(key);
+    // The goal and the success answer often name one number two ways ("100 users" ... "100 people using it", "5 song"
+    // ... "5 songs"): that is one target, met in either unit. Two different things that share a number ("10 pounds"
+    // and "10 pull-ups") stay two targets.
+    const same = found.find(
+      (other) =>
+        other.bound === item.bound &&
+        other.value === item.value &&
+        (PEOPLE.has(other.unit) || PEOPLE.has(item.unit) || other.aliases.includes(item.unit))
+    );
+    if (same) {
+      same.aliases = [...new Set([...same.aliases, ...item.aliases])];
+      return;
+    }
     found.push(item);
   };
 
@@ -112,8 +177,17 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
     if (!value) continue;
     const words = match[0].split(/\s+/).slice(1).map((word) => word.toLowerCase());
     if (/words?\s+per\s+minute|\bwpm\b/i.test(match[0])) continue;
-    const noun = [...words].reverse().find((word) => !MODIFIERS.has(word) && !/^(the|on|for|with|and|per|in|to|a)$/.test(word));
+    // A unit of measure right after the number is the unit, whatever follows: "1500 metres freestyle".
+    const noun = MEASURES.has(words[0])
+      ? words[0]
+      : [...words].reverse().find((word) => !MODIFIERS.has(word) && !NOT_A_UNIT.test(word));
     if (!noun || HORIZON.has(noun) || HORIZON.has(words[0])) continue;
+    if (value === 1 && ONE_IS_A_MANNER.has(noun)) continue;
+    // "20 minutes every day", "2 hours per week": how long they practise, not a result to reach by week 12.
+    if (MEASURES.has(words[0]) && noun === words[0]) {
+      const afterUnit = goal.slice(match.index ?? 0).replace(/^\S+\s+\S+/, '');
+      if (PRACTICE_FRAME.test(afterUnit)) continue;
+    }
     const at = match.index ?? 0;
     const before = goal.slice(Math.max(0, at - 16), at);
     if (/\b(?:under|below|less than|sub-?)\s*$/i.test(before)) continue;
