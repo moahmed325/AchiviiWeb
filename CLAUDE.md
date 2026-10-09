@@ -20,7 +20,7 @@ npm run build               # build both workspaces
 
 The root `package-lock.json` is the only lockfile and is committed. CI, Vercel and Render install with `npm ci`, so they get exactly what it pins and fail if it is out of date. To change a dependency, run `npm install` at the repo root and commit `package-lock.json` with the `package.json` change.
 
-Node 22 everywhere, pinned as `"engines": { "node": "22.x" }` (major only). Vercel reads the root `package.json`; Render reads `backend/package.json`, because its `rootDir` is `backend` and it can't see the root. CI's `setup-node` reads the same two files (`node-version-file`) and fails if they differ, so change both together. Vercel builds from the root `vercel.json` (`cd frontend && npm ci`); there is no other Vercel config.
+Node 22 everywhere, pinned as `"engines": { "node": "22.x" }` (major only). Vercel reads the root `package.json`; Render reads `backend/package.json`, because its `rootDir` is `backend` (it installs from the root lockfile, but takes the Node version from the package.json in its rootDir). CI's `setup-node` reads the same two files (`node-version-file`) and fails if they differ, so change both together. Vercel builds from the root `vercel.json` (`cd frontend && npm ci`); there is no other Vercel config.
 
 Backend (`cd backend`):
 

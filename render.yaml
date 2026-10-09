@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     rootDir: backend
-    # Node 22 comes from "engines" in backend/package.json (Render can't see files outside rootDir).
+    # Node 22 comes from "engines" in backend/package.json (Render takes the Node version from the package.json in rootDir).
     # A NODE_VERSION set in the Render dashboard would override it, so leave that unset.
     # migrate deploy (not db push) — db push skips the migrations folder entirely, which
     # would silently omit CREATE EXTENSION vector and the pgvector indexes in production.
