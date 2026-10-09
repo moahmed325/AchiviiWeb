@@ -481,7 +481,8 @@ type ActionReason =
   | 'changed'
   | 'not_plan_v2'
   | 'carry_disabled'
-  | 'week_closed';
+  | 'week_closed'
+  | 'goal_not_active';
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -497,6 +498,7 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   not_plan_v2: 'This plan does not support this action.',
   carry_disabled: 'This action is not available yet.',
   week_closed: 'This week has already been reviewed.',
+  goal_not_active: 'This goal is no longer active.',
 };
 
 function refuse(res: Response, reason: ActionReason): void {
@@ -805,9 +807,15 @@ function isTaskStatus(value: unknown): value is (typeof TASK_STATUSES)[number] {
   return typeof value === 'string' && (TASK_STATUSES as readonly string[]).includes(value);
 }
 
+/** Longest note PATCH /api/goal/tasks/:taskId stores (B-29). */
+export const TASK_NOTES_MAX_LENGTH = 2000;
+
+/** A 24-hour "HH:MM" time, 00:00 to 23:59 (B-29). */
+const SLOT_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 /**
  * PATCH /api/goal/tasks/:taskId
- * Updates task completion status or notes.
+ * Updates task completion status, notes or slot time. `notes` and `slotTime` accept null to clear them (B-29).
  */
 goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -830,6 +838,16 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
       return;
     }
 
+    if (notes !== undefined && notes !== null && (typeof notes !== 'string' || notes.length > TASK_NOTES_MAX_LENGTH)) {
+      res.status(400).json({ error: `notes must be text of at most ${TASK_NOTES_MAX_LENGTH} characters, or null.` });
+      return;
+    }
+
+    if (slotTime !== undefined && slotTime !== null && (typeof slotTime !== 'string' || !SLOT_TIME.test(slotTime))) {
+      res.status(400).json({ error: 'slotTime must be a time as "HH:MM" (00:00 to 23:59), or null.' });
+      return;
+    }
+
     const task = await prisma.dailyTask.findUnique({
       where: { id: taskId },
       include: { goal: true }
@@ -840,14 +858,19 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
       return;
     }
 
+    if (task.goal.status !== 'active') return refuse(res, 'goal_not_active');
+
+    // Sending `completed` again for a task already done keeps the first completion as it was (B-29).
+    const statusChanges = status !== undefined && status !== task.status;
+
     const updated = await prisma.dailyTask.update({
       where: { id: taskId },
       data: {
         ...(status ? { status } : {}),
-        completedAt: status === 'completed' ? new Date() : status === 'pending' ? null : task.completedAt,
+        completedAt: !statusChanges ? task.completedAt : status === 'completed' ? new Date() : null,
         // ND-3: the flag describes the current completion, so it is rewritten only when
         // status changes, and is true only for a minimum completion of a task that has one.
-        ...(status
+        ...(statusChanges
           ? { usedMinimumVersion: status === 'completed' && usedMinimumVersion === true && task.minimumVersion != null }
           : {}),
         ...(notes !== undefined ? { notes } : {}),
