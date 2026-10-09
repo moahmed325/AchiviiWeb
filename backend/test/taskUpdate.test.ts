@@ -203,6 +203,58 @@ describe('PATCH /api/goal/tasks/:taskId — usedMinimumVersion (M2.0, ND-3)', ()
     expect(prisma.dailyTask.findUnique).not.toHaveBeenCalled();
   });
 
+  // B-11: only the known statuses are stored.
+  describe('status validation (B-11)', () => {
+    const statusError = { error: 'status must be "pending" or "completed".' };
+
+    it.each([['skipped'], ['done'], ['COMPLETED'], ['']])('rejects the status %j with 400 and writes nothing', async (value) => {
+      const res = await patch({ status: value });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual(statusError);
+      expect(prisma.dailyTask.findUnique).not.toHaveBeenCalled();
+      expect(prisma.dailyTask.update).not.toHaveBeenCalled();
+    });
+
+    it.each([[1], [true], [null], [{}], [['completed']]])('rejects a non-string status (%j) with 400 and writes nothing', async (value) => {
+      const res = await patch({ status: value, notes: 'should not be saved' });
+
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual(statusError);
+      expect(prisma.dailyTask.findUnique).not.toHaveBeenCalled();
+      expect(prisma.dailyTask.update).not.toHaveBeenCalled();
+    });
+
+    it('accepts pending', async () => {
+      (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ status: 'completed', completedAt: earlier }));
+
+      const res = await patch({ status: 'pending' });
+
+      expect(res.status).toBe(200);
+      expect(updateData()).toEqual(expect.objectContaining({ status: 'pending', completedAt: null }));
+    });
+
+    it('accepts completed', async () => {
+      (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task());
+
+      const res = await patch({ status: 'completed' });
+
+      expect(res.status).toBe(200);
+      expect(updateData()).toEqual(expect.objectContaining({ status: 'completed', completedAt: expect.any(Date) }));
+    });
+
+    it('still accepts a request without status', async () => {
+      (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task({ status: 'completed', completedAt: earlier }));
+
+      const res = await patch({ notes: 'Short on time.', slotTime: '18:00' });
+
+      expect(res.status).toBe(200);
+      const data = updateData();
+      expect(data).not.toHaveProperty('status');
+      expect(data).toEqual(expect.objectContaining({ notes: 'Short on time.', slotTime: '18:00', completedAt: earlier }));
+    });
+  });
+
   it('sets completedAt to now on completion, as before', async () => {
     (prisma.dailyTask.findUnique as any).mockResolvedValueOnce(task());
     const before = Date.now();

@@ -51,7 +51,7 @@ export function calculateDayNumber(
 export function mapTaskToStep(task: DailyTask, currentDay: number, todayStr: string): JourneyStep {
   let status: JourneyStatus;
 
-  if (task.status === 'completed' || task.status === 'skipped') {
+  if (task.status === 'completed') {
     status = 'completed';
   } else {
     // pending task

@@ -212,7 +212,7 @@ export interface DailyTask {
   durationMinutes: number;
   slotTime?: string;
   isRestDay: boolean;
-  status: 'pending' | 'completed' | 'skipped';
+  status: 'pending' | 'completed';
   completedAt?: string;
   notes?: string;
   /** v2: a 10-minute minimum version for low-time/low-energy days. */
