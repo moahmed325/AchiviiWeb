@@ -59,7 +59,7 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 
 **RULE-9 — Move.** The day's highest-priority step of a move kind goes to the first later practice day of the same week, not the test day, that passes RULE-12 to RULE-14, judged against the week as written plus its stored markers. It fits as today (it replaces that day's lowest-priority steps; the day never gets longer). The receiving day is worked out the same way every time, so a step is never carried twice; if that day is closed, done or taken, or no day passes, the step is not done this week ("no room", counted by RULE-17) (changed 2026-10-08, MR-10). Steps without a kind keep missed sessions' one fixed receiving day (ND-17). Code puts "Start with an easy 5-minute warm-up and end with 5 easy minutes." first in every moved step's instructions; the steps left behind are not moved and not counted (changed 2026-10-09, MR-26).
 
-**RULE-10 — Continue.** Nothing moves. The next session this week that has a step of the same kind gets a marker on that step, shown as a line at the top: "Pick up where {Weekday} stopped." The words are built on screen from the marker; the step's text and the day's length do not change. A day holding a continue marker cannot be swapped, and a carry never replaces the marked step. If there is no later step of that kind this week, the count tells the weekly update (RULE-17).
+**RULE-10 — Continue.** Nothing moves. The next session this week that has a step of the same kind gets a marker on that step, shown as a line at the top: "Pick up where {Weekday} stopped." The words are built on screen from the marker; the step's text and the day's length do not change. A day holding a continue marker cannot be swapped, and a carry never replaces the marked step. If there is no later step of that kind this week, the count tells the weekly update (RULE-17). The marker goes on the next session this week that has the kind; if that session is closed or already marked, it counts as no room (changed 2026-10-10, MR-27, MR-28).
 
 **RULE-11 — Let go.** Nothing moves and nothing is added.
 
@@ -69,7 +69,7 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 
 **RULE-14 — Keep the rest gap.** After any carry, swap or "move now", two hard steps are never closer than the rest gap. Two hard steps never share a day unless they did in the week as written. The gap is counted in calendar days, including last week's days.
 
-**RULE-15 — One line.** Today and the Dashboard show one line for the day that didn't happen: the moved line if anything moved, otherwise the line for the action of that day's highest-priority step (section 6) (changed 2026-10-08, MR-12).
+**RULE-15 — One line.** Today and the Dashboard show one line for the day that didn't happen: the moved line if anything moved, otherwise the line for the action of that day's highest-priority step (section 6) (changed 2026-10-08, MR-12). The reconcile body gives each missed day this line as its `outcome` (MR-28).
 
 ### Person's actions
 **RULE-16 — Only allowed choices are offered.**
@@ -80,7 +80,7 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 - **Key-session swap offer:** as today, only when the key session's main step is a move kind.
 
 ### Counting
-**RULE-17 — Honest counts.** The week's counts (`weekCounts`) add: let go, continued, and no room. They are counted only, for the weekly update; no screen shows them (changed 2026-10-08, MR-19). Sessions done still count only what was done (completion is per day, ND-8), and no screen calls a let-go or continued step "skipped".
+**RULE-17 — Honest counts.** The week's counts (`weekCounts`) add: let go, continued, and no room, one per missed day by its highest-priority step's planned outcome; days of the open gap and steps left behind add nothing (changed 2026-10-10, MR-26, MR-28). They are counted only, for the weekly update; no screen shows them (changed 2026-10-08, MR-19). Sessions done still count only what was done (completion is per day, ND-8), and no screen calls a let-go or continued step "skipped".
 
 ### Steps from before this feature
 **RULE-18 — Old steps keep today's behavior (MR-6).** A step without a kind, written before this feature, follows missed sessions' current rules, until the goal's next week is written.
@@ -142,6 +142,7 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 - **Carry, swap, mark today missed, move now:** follow RULES 9 to 16. The order shift (RULE-13) writes several days in one transaction, each day guarded as today.
 - **Switch:** `METHOD_RECOVERY_ENABLED` chooses the new rules; with it off, every step follows today's rules (`03-phases.md` section 3).
 - **Counts:** `weekCounts` adds the RULE-17 counts.
+- **Reconcile body (switch on only):** `carry.outcomes` (each missed day's `rules`, `outcome` and `topStep`, MR-28), `carry.continues`, `carry.alreadyContinued` and `carry.writtenContinues`; a continued step stores `continueFrom: { taskId, date }` in `DailyTask.detailedSteps` (no migration).
 - **Presets:** each of the 10 carries its profile. A keyword table picks templates for custom goals until the eval passes.
 - **Docs:** `docs/architecture/plan-v2.md` describes profiles and kinds.
 

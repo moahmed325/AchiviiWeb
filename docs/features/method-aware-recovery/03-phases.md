@@ -16,7 +16,7 @@
 | M2.2 | The eval | AC-11 | DONE 2026-10-09 (eval failed) | [m2.2](milestones/m2.2-eval.md) |
 | M2.3 | Tighter kinds, and the eval again | AC-3, AC-4, AC-11 | DONE 2026-10-09 (eval missed by one kind) | [m2.3](milestones/m2.3-tighter-kinds.md) |
 | O1 | Mo: agree to switch on custom profiles once the eval has passed (M2.3 re-run; MR-14) | AC-2 | KEPT OFF 2026-10-09 (Mo); revisit at M4.1 | |
-| M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | READY | [m3.1a](milestones/m3.1a-carry-actions.md) |
+| M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | DONE 2026-10-10 | [m3.1a](milestones/m3.1a-carry-actions.md) |
 | M3.1b | Carry: order and rest gaps | AC-6 | NOT STARTED | |
 | M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | NOT STARTED | |
 | M3.3 | Today, Dashboard and Focus | AC-7, AC-8 | NOT STARTED | |
@@ -73,7 +73,7 @@
 **M2.3 Tighter kinds, and the eval again.** The profile call keeps a template kind's id when the kind keeps its job (RULE-3); every step on the test day is Weekly test (RULE-7); warm-ups, cool-downs and logging go inside the step they belong to (RULE-8). Then the M2.2 eval runs again with the same answers. Needed before M3.1a whatever the eval says. Checks R-6, R-7. DONE: tags 91% (pass), templates 25 of 26, 0 unsafe, actions 89.5% in both runs (one kind short), so custom profiles stay off (O1).
 
 ### P3 Recovery follows the kinds
-**M3.1a Carry: move, continue, let go, fixed.** RULE-9 (first later day that passes, MR-10), RULE-10 (continue marker), RULE-11, RULE-12, RULE-17's counts and RULE-18, behind `METHOD_RECOVERY_ENABLED`; the reconcile body says which rules ran; MR-26's warm-up line; MR-27 until M3.1b. Checks R-1.
+**M3.1a Carry: move, continue, let go, fixed.** DONE (`recovery/carry.ts`, `planRecovery`; MR-28). RULE-9 (first later day that passes, MR-10), RULE-10 (continue marker), RULE-11, RULE-12, RULE-17's counts and RULE-18, behind `METHOD_RECOVERY_ENABLED`; the reconcile body says which rules ran; MR-26's warm-up line; MR-27 until M3.1b. Checks R-1.
 
 **M3.1b Carry: order and rest gaps.** RULE-13's shift in one transaction and RULE-14, with generated-week tests that no day gets longer and no rule is broken. Checks R-1. Carried over from the M3.1a review: remove MR-27's temporary `hard_waits` and `out_of_order` drops; the generated-week tests include a run10k or recomp week written before kinds (its untagged steps still drop as high-load under missed sessions' rules, RULE-18).
 
