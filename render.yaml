@@ -42,6 +42,12 @@ services:
       # explains a moved step) is live; setting it back is the kill switch.
       - key: MISSED_SESSIONS_CARRY_ENABLED
         sync: false
+      # Method-aware recovery: the custom profile call (M1.3b, docs/features/method-aware-recovery).
+      # Unset or anything but the exact string "true" means off: custom goals keep their keyword-picked
+      # template and no profile call is made. Managed in the Render dashboard only (sync: false). Set it
+      # to "true" only after M2.2's eval has passed and Mo has agreed (O1).
+      - key: CUSTOM_RECOVERY_PROFILES_ENABLED
+        sync: false
       # Lemon Squeezy stays in Test Mode until live onboarding is complete.
       # Paste the matching test-mode values from backend/.env when Render prompts
       # during Blueprint creation; never commit their values.

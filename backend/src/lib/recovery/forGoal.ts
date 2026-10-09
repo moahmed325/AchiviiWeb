@@ -1,8 +1,8 @@
 /**
  * Method-aware recovery, M1.3a: the profile a goal is saved with, with no model call (RULE-2, RULE-3, RULE-4).
  * Pure. A certified pathway gets its hand-written profile; any other goal gets the keyword table's template
- * unchanged (MR-13, MR-14). The profile is returned only when it passes the checks, with the deliverable fact
- * from the goal's week-12 target (MR-21); otherwise the reasons, and the goal is saved without one (RULE-18).
+ * unchanged (MR-13, MR-14). Both were checked by hand, so they are checked without the deliverable fact (MR-22);
+ * only a profile the profile call makes gets that check (`profileCall.ts`).
  */
 import { profileFailures, type RecoveryProfile } from './profile.js';
 import { profileForPathway } from './pathways.js';
@@ -16,8 +16,6 @@ export interface GoalProfileInput {
   domain?: string | null;
   goalText: string;
   methodName?: string | null;
-  /** The goal's week-12 target is a deliverable. */
-  deliverableGoal: boolean;
 }
 
 export type GoalProfileResult = { profile: RecoveryProfile } | { reasons: string[] };
@@ -31,6 +29,6 @@ export function makeGoalProfile(input: GoalProfileInput): GoalProfileResult {
   const profile =
     (input.presetId ? profileForPathway(input.presetId) : null) ??
     templateProfile(pickTemplate({ domain: input.domain, goalText: input.goalText, methodName: input.methodName }));
-  const reasons = profileFailures(profile, { deliverableGoal: input.deliverableGoal });
+  const reasons = profileFailures(profile);
   return reasons.length > 0 ? { reasons } : { profile };
 }

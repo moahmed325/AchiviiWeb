@@ -154,24 +154,25 @@ describe('goal create saves a checked profile (RULE-2, RULE-3, RULE-4)', () => {
     expect(savedRecovery()).toEqual(RECOVERY_TEMPLATES.creative);
   });
 
-  it('the week-12 target reaches the check: a deliverable keeps a continue catch-all, fails a move one', async () => {
-    await create({ rawGoal: 'Get much better this year', clarifiedOutcome: 'Get much better this year', domain: 'Drawing' }, deliverable);
-    expect(savedRecovery()).toEqual(RECOVERY_TEMPLATES.creative);
-    expect(makeGoalProfile).toHaveBeenLastCalledWith(expect.objectContaining({ deliverableGoal: true }));
+  it('MR-22: a deliverable week 12 does not stop a pathway or template profile (no deliverable check)', async () => {
+    await create({ rawGoal: 'Run a 10K under 50 minutes', clarifiedOutcome: 'Finish a 10 km race in under 50:00' }, deliverable);
+    expect(savedRecovery()).toEqual(PATHWAY_PROFILES.run10k);
 
     db.goalCreate.mockClear();
     const { status } = await create({ rawGoal: 'Bake sourdough bread at home', clarifiedOutcome: 'Bake sourdough bread at home' }, deliverable);
     expect(status).toBe(201);
-    expect(savedRecovery()).toBeUndefined();
+    expect(savedRecovery()).toEqual(RECOVERY_TEMPLATES.general);
+    expect(makeGoalProfile).not.toHaveBeenCalledWith(expect.objectContaining({ deliverableGoal: expect.anything() }));
   });
 
   it('a failing profile is not saved, is logged, and creation still succeeds', async () => {
-    const { status, body } = await create({ rawGoal: 'Bake sourdough bread at home', clarifiedOutcome: 'Bake sourdough bread at home' }, deliverable);
+    vi.mocked(makeGoalProfile).mockReturnValueOnce({ reasons: ['the rest gap must be 0, 1 or 2 days.'] });
+    const { status, body } = await create({ rawGoal: 'Bake sourdough bread at home', clarifiedOutcome: 'Bake sourdough bread at home' });
     expect(status).toBe(201);
     expect(body.goal.id).toBe('g1');
     expect(db.goalCreate).toHaveBeenCalledTimes(1);
     expect(savedRecovery()).toBeUndefined();
-    expect(console.warn).toHaveBeenCalledWith('[Recovery] No profile saved at goal create:', [expect.stringMatching(/catch-all must continue/)]);
+    expect(console.warn).toHaveBeenCalledWith('[Recovery] No profile saved at goal create:', ['the rest gap must be 0, 1 or 2 days.']);
   });
 
   it('an error while making the profile never fails creation', async () => {
@@ -235,15 +236,23 @@ describe('the weekly review gives an older goal its profile (RULE-1, MR-14)', ()
     expect(vi.mocked(writeNextWeek).mock.calls[0][0]).toMatchObject({ roadmap: storedRoadmap });
   });
 
-  it('gives a custom older goal the keyword template, with the deliverable fact from the week-12 row', async () => {
+  it('gives a custom older goal the keyword template, with no deliverable check (MR-22) and no profile call (MR-14)', async () => {
     db.goalUpdate.mockResolvedValue({});
     await review(olderGoal({ rawGoal: 'Draw a portrait', clarifiedOutcome: 'Draw a realistic portrait' }, deliverable));
     expect(roadmapWrites()[0][0].data.roadmap.recovery).toEqual(RECOVERY_TEMPLATES.creative);
 
     db.goalUpdate.mockClear();
     await review(olderGoal({ rawGoal: 'Bake sourdough bread', clarifiedOutcome: 'Bake sourdough bread at home' }, deliverable));
+    expect(roadmapWrites()[0][0].data.roadmap.recovery).toEqual(RECOVERY_TEMPLATES.general);
+  });
+
+  it('a profile that fails its checks at the review is not saved and is logged', async () => {
+    db.goalUpdate.mockResolvedValue({});
+    vi.mocked(makeGoalProfile).mockReturnValueOnce({ reasons: ['the catch-all kind is missing.'] });
+    const { status } = await review(olderGoal());
+    expect(status).toBe(200);
     expect(roadmapWrites()).toHaveLength(0);
-    expect(console.warn).toHaveBeenCalledWith('[Recovery] No profile saved for goal', 'g-old', [expect.stringMatching(/catch-all must continue/)]);
+    expect(console.warn).toHaveBeenCalledWith('[Recovery] No profile saved for goal', 'g-old', ['the catch-all kind is missing.']);
   });
 
   it('does not rewrite a profile the goal already has', async () => {

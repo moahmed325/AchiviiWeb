@@ -24,7 +24,8 @@ import {
   storedRoadmap,
   writeNextWeek,
 } from '../lib/planV2.js';
-import { isDeliverableTarget, makeGoalProfile } from '../lib/recovery/forGoal.js';
+import { makeGoalProfile } from '../lib/recovery/forGoal.js';
+import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
 import { ensureRecoveryProfile } from '../lib/recovery/store.js';
 
@@ -135,21 +136,42 @@ async function saveV2Goal(input: {
 }
 
 /**
- * Method-aware recovery (M1.3a, RULE-2 to RULE-4): the profile a new goal is saved with, with no model call, or
- * null when it fails the checks (logged; the goal is then saved without one, RULE-18). Never throws.
+ * Method-aware recovery (RULE-2 to RULE-4): the profile a new goal is saved with, made after the roadmap and before
+ * week 1. A pathway gets its own profile. A custom goal gets the profile call when `CUSTOM_RECOVERY_PROFILES_ENABLED`
+ * is on (M1.3b), otherwise its keyword template unchanged (MR-14). Pathway and template profiles are checked without
+ * the deliverable fact (MR-22). Null when it fails (logged; the goal is then saved without one, RULE-18). Never throws.
  */
-function recoveryProfileAtCreate(input: { presetId?: string; domain: string | null; goalText: string; roadmap: Roadmap }): RecoveryProfile | null {
-  try {
-    const week12 = input.roadmap.weeks.find((week) => week.weekNumber === 12) ?? input.roadmap.weeks[input.roadmap.weeks.length - 1];
-    const result = makeGoalProfile({
-      presetId: input.presetId,
-      domain: input.domain,
-      goalText: input.goalText,
-      methodName: input.roadmap.method?.name,
-      deliverableGoal: isDeliverableTarget(week12?.target),
-    });
+async function recoveryProfileAtCreate(input: {
+  presetId?: string;
+  domain: string | null;
+  goalText: string;
+  answers: PlanAnswer[];
+  roadmap: Roadmap;
+}): Promise<RecoveryProfile | null> {
+  const keywordProfile = () => {
+    const result = makeGoalProfile({ presetId: input.presetId, domain: input.domain, goalText: input.goalText, methodName: input.roadmap.method?.name });
     if ('profile' in result) return result.profile;
     console.warn('[Recovery] No profile saved at goal create:', result.reasons);
+    return null;
+  };
+  try {
+    if (input.presetId || !customProfilesEnabled()) return keywordProfile();
+    try {
+      const { method, phases, weeks } = input.roadmap;
+      const result = await generateRecoveryProfile({
+        goalText: input.goalText,
+        domain: input.domain,
+        answers: input.answers,
+        method: { name: method.name, summary: method.summary, rules: method.rules },
+        phases,
+        weeklyTargets: [...weeks].sort((a, b) => a.weekNumber - b.weekNumber).map((week) => week.target),
+      });
+      if (result.source !== 'model') console.warn('[Recovery] Profile call fell back to a template:', result.source);
+      return result.profile;
+    } catch (err) {
+      console.warn('[Recovery] Profile call failed at goal create:', err);
+      return keywordProfile();
+    }
   } catch (err) {
     console.warn('[Recovery] Could not make a profile at goal create:', err);
   }
@@ -264,10 +286,19 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
     });
 
     let week1: WeekDayPlan[] | null = null;
+    let recovery: RecoveryProfile | null = null;
     if (roadmapResult.ok) {
       const { roadmap } = roadmapResult;
       send?.({ type: 'step', id: 'method', label: roadmap.method.name, detail: roadmap.method.whyChosen });
       send?.({ type: 'step', id: 'plan', label: 'Writing your first week' });
+      // Before week 1, so the week call can use the kinds (M2.1). No stream event of its own.
+      recovery = await recoveryProfileAtCreate({
+        presetId: preset?.id,
+        domain: typeof domain === 'string' ? domain : null,
+        goalText: `${rawGoal} ${clarifiedOutcome}`,
+        answers: answerList,
+        roadmap,
+      });
       const first = roadmap.weeks[0];
       week1 = await generateWeekPlan({
         finalGoal: roadmap.finalGoal,
@@ -289,12 +320,6 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
 
     let createdGoalId: string;
     if (roadmapResult.ok && week1) {
-      const recovery = recoveryProfileAtCreate({
-        presetId: preset?.id,
-        domain: typeof domain === 'string' ? domain : null,
-        goalText: `${rawGoal} ${clarifiedOutcome}`,
-        roadmap: roadmapResult.roadmap,
-      });
       createdGoalId = await saveV2Goal({
         userId: user.id,
         rawGoal,
