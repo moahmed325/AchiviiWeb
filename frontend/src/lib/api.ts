@@ -290,7 +290,12 @@ export function carryNow(taskId: string, token: string) {
 
 export async function updateDailyTask(
   taskId: string,
-  updates: { status?: 'pending' | 'completed'; notes?: string; slotTime?: string; usedMinimumVersion?: boolean },
+  updates: {
+    status?: import('../types').DailyTask['status'];
+    notes?: string | null;
+    slotTime?: string | null;
+    usedMinimumVersion?: boolean;
+  },
   token: string
 ): Promise<import('../types').DailyTask> {
   const response = await fetch(`${API_BASE_URL}/api/goal/tasks/${taskId}`, {

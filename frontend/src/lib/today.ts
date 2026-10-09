@@ -86,6 +86,9 @@ export interface ParsedTaskNotes {
   focusWins: string[];
 }
 
+/** Longest note a user can type, matching the backend's TASK_NOTES_MAX_LENGTH (B-29). */
+export const TASK_NOTES_MAX_LENGTH = 2000;
+
 /** Parses stored task notes, separating structured focus wins ("• Focus win: ...") from free-form practice notes. */
 export function parseTaskNotes(notes?: string | null): ParsedTaskNotes {
   if (!notes || !notes.trim()) {

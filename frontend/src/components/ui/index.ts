@@ -4,6 +4,7 @@ export type { ButtonProps, ButtonVariant, ButtonSize, IconButtonProps } from './
 export { TextLink } from './TextLink';
 export type { TextLinkProps } from './TextLink';
 export { Field, Input, Textarea, Select } from './Field';
+export type { TextareaProps } from './Field';
 export type { FieldProps, InputProps } from './Field';
 export { Checkbox, ChoiceGroup, ChoiceCard, SegmentedControl } from './Choice';
 export type { CheckboxProps, ChoiceGroupProps, ChoiceCardProps, SegmentedControlProps, SegmentedOption } from './Choice';
