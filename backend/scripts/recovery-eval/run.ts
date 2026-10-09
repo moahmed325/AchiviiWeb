@@ -3,7 +3,7 @@
  * Not run in CI; every command but `score` makes live Gemini calls and needs GEMINI_API_KEY in backend/.env.
  *
  *   npx tsx scripts/recovery-eval/run.ts roadmaps [--only id,id]   live roadmaps -> roadmaps.json
- *   npx tsx scripts/recovery-eval/run.ts profiles --run 1           the real profile call, timed -> profiles.run-1.json
+ *   npx tsx scripts/recovery-eval/run.ts profiles --run 1 [--only id,id]   the real profile call, timed -> profiles.run-1.json
  *   npx tsx scripts/recovery-eval/run.ts weeks [--set 2]            week 1 for 6 goals -> weeks.json (set 2: weeks-2.json, tags to pending/)
  *   npx tsx scripts/recovery-eval/run.ts weeks --set 2 --save-model-tags   once weeks-2.gold-tags.json is committed
  *   npx tsx scripts/recovery-eval/run.ts score [--round 2]          no model calls -> score.json (round 2: runs 3-4, set 2 -> score-2.json)
@@ -138,8 +138,23 @@ async function profiles(goals: EvalGoal[]): Promise<void> {
   const { generateRecoveryProfile } = await import('../../src/lib/recovery/profileCall.js');
   const { isDeliverableTarget, profileFailures } = await import('../../src/lib/recovery/index.js');
   const roadmapList = readJson<RoadmapEntry[]>('roadmaps.json');
-  const results: Array<ProfileRunResult & { error?: string }> = [];
+  type RunEntry = ProfileRunResult & { error?: string; rerun?: boolean };
+  // M2.3: `--only id,id` reruns those goals (after a rate limit, 429) and keeps the rest of the run; each is marked rerun.
+  let previous: RunEntry[] = [];
+  if (only.length) {
+    try {
+      previous = readJson<RunEntry[]>(`profiles.run-${run}.json`);
+    } catch {
+      previous = [];
+    }
+  }
+  const results: RunEntry[] = [];
   for (const goal of goals) {
+    if (only.length && !only.includes(goal.id)) {
+      const kept = previous.find((item) => item.goalId === goal.id);
+      if (kept) results.push(kept);
+      continue;
+    }
     const entry = roadmapList.find((item) => item.goalId === goal.id);
     if (!entry) throw new Error(`No roadmap for ${goal.id}: run "roadmaps" first.`);
     const started = performance.now();
@@ -149,7 +164,7 @@ async function profiles(goals: EvalGoal[]): Promise<void> {
       // MR-22: only a model-made profile is checked with the deliverable fact.
       const deliverableGoal = result.source === 'model' ? isDeliverableTarget(entry.profileInput.weeklyTargets[11]) : undefined;
       const failures = profileFailures(result.profile, { deliverableGoal });
-      results.push({ goalId: goal.id, source: result.source, pickedTemplate: result.pickedTemplate, profile: result.profile, ms, failures });
+      results.push({ goalId: goal.id, source: result.source, pickedTemplate: result.pickedTemplate, profile: result.profile, ms, failures, ...(only.length ? { rerun: true } : {}) });
       console.log(`${goal.id}: ${result.source} ${result.profile.template} in ${(ms / 1000).toFixed(1)} s${failures.length ? ` FAILS CHECKS: ${failures.join(' ')}` : ''}`);
     } catch (err) {
       const ms = Math.round(performance.now() - started);
@@ -158,6 +173,7 @@ async function profiles(goals: EvalGoal[]): Promise<void> {
     }
     writeJson(`profiles.run-${run}.json`, results);
   }
+  writeJson(`profiles.run-${run}.json`, results);
 }
 
 // ---------------------------------------------------------------------------------------------------------------
