@@ -63,6 +63,12 @@ const MEASURES = new Set([
   'pounds',
 ]);
 
+/** A time frame right after a measure makes it practice time: "a day", "every day", "per week", "daily". */
+const PRACTICE_FRAME = /^\s*(?:(?:a|an|every|each|per)\s+(?:day|week|night|morning|evening|session)|(?:on\s+)?most\s+days|daily|weekly|nightly)\b/i;
+
+/** Generic words for people: "100 people" names the same number as "100 users". */
+const PEOPLE = new Set(['people', 'persons', 'person', 'folks']);
+
 /**
  * "In one steady piece", "in one sitting", "in one set": "one" says how, not how many (B-27). Only a count of
  * one is skipped, so "3 sets" or "10 sessions" stay targets.
@@ -132,9 +138,15 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
     const key = `${item.bound}:${item.value}:${item.unit}`;
     if (used.has(key)) return;
     used.add(key);
-    // The goal and the success answer often name one number two ways ("100 users" ... "100 people using it"):
-    // that is one target, met in either unit, not two that week 12 must both reach.
-    const same = found.find((other) => other.bound === item.bound && other.value === item.value);
+    // The goal and the success answer often name one number two ways ("100 users" ... "100 people using it", "5 song"
+    // ... "5 songs"): that is one target, met in either unit. Two different things that share a number ("10 pounds"
+    // and "10 pull-ups") stay two targets.
+    const same = found.find(
+      (other) =>
+        other.bound === item.bound &&
+        other.value === item.value &&
+        (PEOPLE.has(other.unit) || PEOPLE.has(item.unit) || other.aliases.includes(item.unit))
+    );
     if (same) {
       same.aliases = [...new Set([...same.aliases, ...item.aliases])];
       return;
@@ -171,6 +183,11 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
       : [...words].reverse().find((word) => !MODIFIERS.has(word) && !NOT_A_UNIT.test(word));
     if (!noun || HORIZON.has(noun) || HORIZON.has(words[0])) continue;
     if (value === 1 && ONE_IS_A_MANNER.has(noun)) continue;
+    // "20 minutes every day", "2 hours per week": how long they practise, not a result to reach by week 12.
+    if (MEASURES.has(words[0]) && noun === words[0]) {
+      const afterUnit = goal.slice(match.index ?? 0).replace(/^\S+\s+\S+/, '');
+      if (PRACTICE_FRAME.test(afterUnit)) continue;
+    }
     const at = match.index ?? 0;
     const before = goal.slice(Math.max(0, at - 16), at);
     if (/\b(?:under|below|less than|sub-?)\s*$/i.test(before)) continue;
