@@ -55,8 +55,8 @@ flowchart TD
     end
 
     subgraph Server["Backend (Node.js + Express + TypeScript)"]
-        H[POST /api/goals/clarify]
-        I[POST /api/goals/generate-plan]
+        H[POST /api/goal/clarify]
+        I[POST /api/goal/create]
         J[PATCH /api/goal/tasks/:taskId]
         K[Gemini 2.5 Flash API]
         L[(Database: User, Goal, DailyTask, RoadmapWeek)]

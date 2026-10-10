@@ -74,3 +74,21 @@ describe('updateDailyTask refusals (B-34)', () => {
     await expect(refusal).rejects.toMatchObject({ status: 502, code: undefined, message: 'Failed to update task' });
   });
 });
+
+describe('a success whose body is not JSON (B-34)', () => {
+  const notJson = () => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>ok</html>', { status: 200 })));
+
+  it('planAction throws ApiError with the fallback message', async () => {
+    notJson();
+    const reply200 = markTodayMissed('t3', 'token-1');
+    await expect(reply200).rejects.toBeInstanceOf(ApiError);
+    await expect(reply200).rejects.toMatchObject({ status: 200, code: undefined, message: 'Failed to change the plan' });
+  });
+
+  it('updateDailyTask throws ApiError with the fallback message', async () => {
+    notJson();
+    const reply200 = updateDailyTask('t3', { status: 'completed' }, 'token-1');
+    await expect(reply200).rejects.toBeInstanceOf(ApiError);
+    await expect(reply200).rejects.toMatchObject({ status: 200, code: undefined, message: 'Failed to update task' });
+  });
+});
