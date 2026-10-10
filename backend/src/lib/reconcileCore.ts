@@ -116,9 +116,14 @@ export function evaluate(
   return { applies: true, goal, result: { ...base, days, gap }, tasks, plan, now, today, sleepTime };
 }
 
+/** Thrown inside a shift's transaction when one day's guard fails, so the whole shift rolls back. */
+class ShiftGuardLost extends Error {}
+
 /**
  * ND-13: one compare-and-set per receiving day; only `count === 1` is written. A lost race is skipped, not retried.
- * A carry and a continue marker (RULE-10) that land on the same day share that day's one write.
+ * A carry and a continue marker (RULE-10) that land on the same day share that day's one write. An order shift
+ * (RULE-13) writes its receiving day and every shifted day in one transaction, each guarded the same way; if any
+ * guard fails, nothing of the shift is written.
  */
 export async function writeRecovery(
   goal: ReconcileGoal,
@@ -127,18 +132,47 @@ export async function writeRecovery(
   const stored = new Map(goal.dailyTasks.map((task) => [task.id, task]));
   const rows = new Map<string, { steps: CarriedStep[]; durationMinutes: number }>();
   for (const carry of plan.carries) rows.set(carry.toTaskId, { steps: carry.steps, durationMinutes: carry.durationMinutes });
+  for (const shift of plan.shifts ?? []) for (const row of shift.rows) rows.set(row.taskId, row);
   for (const item of plan.continues ?? []) {
     if (!rows.has(item.toTaskId)) rows.set(item.toTaskId, { steps: item.steps, durationMinutes: item.durationMinutes });
   }
-
-  const done = new Set<string>();
-  for (const [taskId, row] of rows) {
+  const shiftOf = new Map<string, string[]>();
+  for (const shift of plan.shifts ?? []) {
+    const days = [shift.receivingTaskId, ...shift.rows.map((row) => row.taskId)];
+    for (const taskId of days) shiftOf.set(taskId, days);
+  }
+  const guarded = (taskId: string) => {
     const receiving = stored.get(taskId)!;
-    const { count } = await prisma.dailyTask.updateMany({
+    const row = rows.get(taskId)!;
+    return {
       where: { id: receiving.id, goalId: goal.id, status: receiving.status, detailedSteps: receiving.detailedSteps },
       data: { detailedSteps: JSON.stringify(row.steps), durationMinutes: row.durationMinutes },
-    });
-    if (count === 1) done.add(taskId);
+    };
+  };
+
+  const done = new Set<string>();
+  const tried = new Set<string>();
+  for (const taskId of rows.keys()) {
+    if (tried.has(taskId)) continue;
+    const group = shiftOf.get(taskId);
+    if (!group) {
+      tried.add(taskId);
+      const { count } = await prisma.dailyTask.updateMany(guarded(taskId));
+      if (count === 1) done.add(taskId);
+      continue;
+    }
+    for (const day of group) tried.add(day);
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const day of group) {
+          const { count } = await tx.dailyTask.updateMany(guarded(day));
+          if (count !== 1) throw new ShiftGuardLost();
+        }
+      });
+      for (const day of group) done.add(day);
+    } catch (error) {
+      if (!(error instanceof ShiftGuardLost)) throw error;
+    }
   }
   return {
     written: plan.carries.filter((carry) => done.has(carry.toTaskId)),
@@ -154,7 +188,7 @@ export async function writeCarries(goal: ReconcileGoal, plan: RecoveryPlan): Pro
 export type ReconcileBody =
   | Extract<ReconcileResult, { applies: false }>
   | (Extract<ReconcileResult, { applies: true }> & {
-      /** With METHOD_RECOVERY_ENABLED on, also `outcomes`, `continues`, `alreadyContinued` and `writtenContinues`. */
+      /** With METHOD_RECOVERY_ENABLED on, also `outcomes`, `continues`, `alreadyContinued`, `writtenContinues` and `shifts`. */
       carry: RecoveryPlan & { enabled: boolean; written: PlannedCarry[]; writtenContinues?: PlannedContinue[] };
       signals: MissedSignals;
     });

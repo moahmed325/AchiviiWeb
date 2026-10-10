@@ -7,7 +7,7 @@ import { profileFailures, type RecoveryProfile } from '../src/lib/recovery/profi
 import { PROFILE } from './methodProfile.js';
 
 // Method-aware recovery M3.1a: the carry planner follows each step's action (RULE-9 to RULE-12, RULE-17, RULE-18,
-// MR-10, MR-12, MR-17, MR-26, MR-27). Pure: the reconcile wiring and the switch are in methodReconcile.test.ts.
+// MR-10, MR-12, MR-17, MR-26, MR-27; M3.1b removed MR-27's hard and in-order drops). Pure: the reconcile wiring and the switch are in methodReconcile.test.ts.
 
 const CUSTOM = { rawGoal: 'Type 40 words per minute', clarifiedOutcome: 'Type 40 wpm at 95% accuracy' };
 
@@ -307,32 +307,19 @@ describe('RULE-9 the receiving day search (MR-10, MR-17)', () => {
   });
 });
 
-describe('MR-27 until M3.1b', () => {
-  it('a hard step that would move goes to no room', () => {
+describe('MR-27 is replaced in M3.1b (the order and rest-gap cases are in methodOrderGap.test.ts)', () => {
+  it('a hard step moves when the rest gap allows, with the warm-up line', () => {
     const mon = [step('mon heavy', 1, 15, 'heavy'), step('mon review', 2, 15, 'review')];
     const plan = on(week({ mon: { kind: 'missed', steps: mon } }));
-    expect(plan.carries).toEqual([]);
-    expect(dropOf(plan, 'mon')).toBe('hard_waits');
-    expect(outcomeOf(plan, 'mon')).toMatchObject({ outcome: 'no_room', topStep: 'no_room' });
+    expect(plan.carries.map((c) => [c.step.title, c.toTaskId])).toEqual([['mon heavy', id('tue')]]);
+    expect(plan.carries[0].step.instructions.split('\n')[0]).toBe(MOVED_WARM_UP_LINE);
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ outcome: 'moved', topStep: 'moved' });
   });
 
-  it('a high-load step is hard whatever its kind, and a high-load continue step moves (MR-11), so it waits too', () => {
-    const highLoad = on(week({ mon: { kind: 'missed', steps: [step('mon run', 1, 15, 'practice', { highLoad: true }), step('r', 2, 15, 'review')] } }));
-    expect(dropOf(highLoad, 'mon')).toBe('hard_waits');
-    const continueHigh = on(week({ mon: { kind: 'missed', steps: [step('mon draft', 1, 15, 'drafting', { highLoad: true }), step('r', 2, 15, 'review')] } }));
-    expect(dropOf(continueHigh, 'mon')).toBe('hard_waits');
-    expect(continueHigh.continues).toEqual([]);
-  });
-
-  it('an in-order step moves only to a day before the next step of its kind', () => {
-    const lesson = (tag: string) => [step(`${tag} lesson`, 1, 15, 'lesson'), step(`${tag} review`, 2, 10, 'review'), step(`${tag} extra`, 3, 5, 'general')];
-    const blocked = on(week({ mon: { kind: 'missed', steps: lesson('mon') }, tue: { steps: lesson('tue') } }));
-    expect(blocked.carries).toEqual([]);
-    expect(dropOf(blocked, 'mon')).toBe('out_of_order');
-    expect(outcomeOf(blocked, 'mon')).toMatchObject({ outcome: 'no_room' });
-
-    const allowed = on(week({ mon: { kind: 'missed', steps: lesson('mon') }, wed: { steps: lesson('wed') } }));
-    expect(allowed.carries.map((c) => [c.step.title, c.toTaskId])).toEqual([['mon lesson', id('tue')]]);
+  it('a high-load continue step moves (MR-11) and is hard', () => {
+    const plan = on(week({ mon: { kind: 'missed', steps: [step('mon draft', 1, 15, 'drafting', { highLoad: true }), step('r', 2, 15, 'review')] } }));
+    expect(plan.carries.map((c) => [c.step.title, c.toTaskId])).toEqual([['mon draft', id('tue')]]);
+    expect(plan.continues).toEqual([]);
   });
 });
 
@@ -495,7 +482,7 @@ describe('RULE-17 counts (MR-19, MR-26)', () => {
     const legacy = planCarries(input);
     const base = weekCounts(1, { tasks: countable(input), days: input.days, carry: legacy });
     const counts = weekCounts(1, { tasks: countable(input), days: input.days, carry: plan });
-    expect(counts).toEqual({ ...base, dropped: counts.dropped, letGo: 1, continued: 0, noRoom: 1 });
+    expect(counts).toEqual({ ...base, dropped: counts.dropped, letGo: 1, continued: 0, noRoom: 1, pushedOut: 0 });
     expect(counts.practiceDone).toBe(base.practiceDone);
     expect(counts.missed).toBe(base.missed);
     expect(base).not.toHaveProperty('letGo');
@@ -512,8 +499,9 @@ describe('RULE-17 counts (MR-19, MR-26)', () => {
   });
 
   it('a moved session counted as no room is counted once, however many steps it left behind', () => {
+    // Its receiving day (Tue) is done, so the session is no room.
     const mon = [step('mon warm-up', 1, 5, 'heavy'), step('mon main', 2, 20, 'heavy'), step('mon cool-down', 3, 5, 'heavy')];
-    const input = week({ mon: { kind: 'missed', steps: mon } });
+    const input = week({ mon: { kind: 'missed', steps: mon }, tue: { kind: 'done' } }, { today: '2026-09-23' });
     expect(weekCounts(1, { tasks: countable(input), days: input.days, carry: on(input) })).toMatchObject({ noRoom: 1, letGo: 0, continued: 0 });
   });
 });
