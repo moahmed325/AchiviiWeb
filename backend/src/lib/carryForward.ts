@@ -15,11 +15,6 @@ export interface CarryMarker {
   date: string;
   /** The receiving day's steps this carry replaced (ND-10). */
   replaced: DetailedStep[];
-  /**
-   * Method-aware recovery RULE-13 (M3.1b): when this carry took the place of the next step of its in-order kind, the
-   * step that was pushed past the week by that shift, as written. Not done this week (counted as `pushedOut`).
-   */
-  pushedOut?: DetailedStep;
 }
 
 /**
@@ -42,9 +37,10 @@ export interface ContinueMarker {
 }
 
 /**
- * Method-aware recovery RULE-13 (M3.1b): stored on a step of an in-order kind that moved one session later because
- * an earlier step of its kind took its place. It names the day it came from and the steps it replaced there. Such a
- * step is never carried or shifted again (ND-13, as `carriedFrom`), and the day holding it receives no carry.
+ * Method-aware recovery RULE-20 (M3.1c, MR-30): stored on a step of an in-order move kind that a reorder placed on
+ * another session of its week. `taskId` and `date` name the day the step was **written** on (its origin, kept however
+ * often it moves; with its title it is the step's identity), and `replaced` the steps it replaced on its new day. Such
+ * a step is never carried by an ordinary carry (ND-13); only a later reorder moves it again.
  */
 export interface ShiftMarker {
   taskId: string;
@@ -52,11 +48,24 @@ export interface ShiftMarker {
   replaced: DetailedStep[];
 }
 
+/**
+ * Method-aware recovery RULE-20 (M3.1c): a step of an in-order move kind that a reorder took off its session and that
+ * found no later session this week, as written, with the day it was written on. Next week starts with it (M3.1d).
+ * Stored on the first missed step of the kind's queue that week, inside `detailedSteps`, so the list survives the
+ * write (`toNextWeek` on that step). Once listed, a step is never placed again that week.
+ */
+export interface NextWeekRecord {
+  taskId: string;
+  date: string;
+  step: DetailedStep;
+}
+
 export type CarriedStep = DetailedStep & {
   carriedFrom?: CarryMarker;
   swappedFrom?: SwapMarker;
   continueFrom?: ContinueMarker;
   shiftedFrom?: ShiftMarker;
+  toNextWeek?: NextWeekRecord[];
 };
 
 /** A task as the planner sees it: classification fields plus its parsed steps and planned minutes. */
@@ -75,12 +84,7 @@ export type DropReason =
   | 'high_load'
   | 'does_not_fit'
   | 'swap_unanswered'
-  | 'no_priority_step'
-  /**
-   * Method-aware recovery (RULE-13, M3.1b): an in-order step reached the day of the next step of its kind, and one
-   * link of the shift failed (a day closed, done or taken, longer, a protected step, or the rest gap, MR-18).
-   */
-  | 'shift_blocked';
+  | 'no_priority_step';
 
 export interface PlannedCarry {
   fromTaskId: string;

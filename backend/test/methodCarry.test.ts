@@ -163,14 +163,13 @@ describe('RULE-18: switch off, no profile, steps without kinds give exactly toda
 });
 
 describe('RULE-9 move (AC-5)', () => {
-  it('moves the highest-priority move step to the next practice day, with the warm-up line first and the same minutes', () => {
+  it('moves the highest-priority move step to the next practice day, with the same minutes (no warm-up line on a step that is not physical, MR-31)', () => {
     const plan = on(week({ mon: { kind: 'missed' } }));
     expect(plan.carries).toHaveLength(1);
     const carry = plan.carries[0];
     expect(carry).toMatchObject({ fromTaskId: id('mon'), toTaskId: id('tue') });
     expect(carry.step).toMatchObject({ title: 'mon practice', durationMinutes: 15, kind: 'practice', carriedFrom: { taskId: id('mon'), date: '2026-09-21' } });
-    expect(carry.step.instructions).toBe(`${MOVED_WARM_UP_LINE}\nDo mon practice.`);
-    expect(carry.step.instructions.split('\n')[0]).toBe(MOVED_WARM_UP_LINE);
+    expect(carry.step.instructions).toBe('Do mon practice.');
     expect(carry.durationMinutes).toBeLessThanOrEqual(30);
     expect(outcomeOf(plan, 'mon')).toEqual({ taskId: id('mon'), date: '2026-09-21', rules: 'method', outcome: 'moved', topStep: 'moved' });
   });
@@ -181,12 +180,12 @@ describe('RULE-9 move (AC-5)', () => {
     expect(withWarmUpLine('')).toBe(MOVED_WARM_UP_LINE);
   });
 
-  it('MR-26: warm-up of another kind stays behind; the main step moves with the line and the same minutes', () => {
+  it('MR-26: warm-up of another kind stays behind; the main step moves with the same minutes', () => {
     const mon = [step('mon main practice', 1, 15, 'practice'), step('Warm-up', 2, 15, 'review')];
     const input = week({ mon: { kind: 'missed', steps: mon } });
     const plan = on(input);
     expect(plan.carries).toHaveLength(1);
-    expect(plan.carries[0].step).toMatchObject({ title: 'mon main practice', durationMinutes: 15, instructions: `${MOVED_WARM_UP_LINE}\nDo mon main practice.` });
+    expect(plan.carries[0].step).toMatchObject({ title: 'mon main practice', durationMinutes: 15, instructions: 'Do mon main practice.' });
     expect(plan.carries.flatMap((c) => c.steps.map((s) => s.title))).not.toContain('Warm-up');
     expect(plan.continues).toEqual([]);
     expect(plan.drops).toEqual([]);
@@ -482,7 +481,7 @@ describe('RULE-17 counts (MR-19, MR-26)', () => {
     const legacy = planCarries(input);
     const base = weekCounts(1, { tasks: countable(input), days: input.days, carry: legacy });
     const counts = weekCounts(1, { tasks: countable(input), days: input.days, carry: plan });
-    expect(counts).toEqual({ ...base, dropped: counts.dropped, letGo: 1, continued: 0, noRoom: 1, pushedOut: 0 });
+    expect(counts).toEqual({ ...base, dropped: counts.dropped, letGo: 1, continued: 0, noRoom: 1, toNextWeek: 0 });
     expect(counts.practiceDone).toBe(base.practiceDone);
     expect(counts.missed).toBe(base.missed);
     expect(base).not.toHaveProperty('letGo');
