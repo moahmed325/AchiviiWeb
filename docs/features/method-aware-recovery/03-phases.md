@@ -18,7 +18,7 @@
 | O1 | Mo: agree to switch on custom profiles once the eval has passed (M2.3 re-run; MR-14) | AC-2 | KEPT OFF 2026-10-09 (Mo); revisit at M4.1 | |
 | M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | DONE 2026-10-10 | [m3.1a](milestones/m3.1a-carry-actions.md) |
 | M3.1b | Carry: order and rest gaps | AC-6 | DONE 2026-10-10 | [m3.1b](milestones/m3.1b-order-and-rest-gaps.md) |
-| M3.1c | In-order steps never lost inside the week; easy first hard session back; warm-up line only on physical steps | AC-14, AC-15 | NOT STARTED | |
+| M3.1c | In-order steps never lost inside the week; easy first hard session back; warm-up line only on physical steps | AC-14, AC-15 | READY | [m3.1c](milestones/m3.1c-in-order-never-lost.md) |
 | M3.1d | Next week starts with what wasn't done | AC-14 | NOT STARTED | |
 | M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | NOT STARTED | |
 | M3.3 | Today, Dashboard and Focus | AC-7, AC-8 | NOT STARTED | |
