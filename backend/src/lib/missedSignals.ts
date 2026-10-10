@@ -5,7 +5,7 @@
  * See docs/archive/missed-sessions/03-feature.md (OD-2, RULE-4, RULE-8, RULE-9, AC-5, AC-10) and 04-phases.md.
  */
 import type { CarryPlan, CarriedEarlier, PlannedCarry } from './carryForward.js';
-import type { DayOutcome, PlannedShift } from './recovery/carry.js';
+import type { DayOutcome, PlannedReorder } from './recovery/carry.js';
 import { dayCloseInstant, type DayClassification, type Gap } from './missedSessions.js';
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -41,11 +41,11 @@ export interface WeekCounts {
   continued?: number;
   noRoom?: number;
   /**
-   * RULE-13 (M3.1b), present with the other three: the in-order steps pushed past the week by an order shift, one per
-   * shift, by the missed day that started it. Counted from the planned shift, or from the stored carry's
-   * `carriedFrom.pushedOut` once it is written. Nothing reads it yet; next week picks them up in M3.2 (MR-29).
+   * RULE-17, RULE-20 (M3.1c, MR-30 (6)), present with the other three: the steps of in-order move kinds this week
+   * that no session of the week holds, so next week starts with them (M3.1d). Counted from the plan's reorders, which
+   * are worked out from the stored week every time, so the count is the same before and after the write.
    */
-  pushedOut?: number;
+  toNextWeek?: number;
 }
 
 /**
@@ -63,7 +63,7 @@ export function weekCounts(
     carry: Pick<CarryPlan, 'drops' | 'alreadyCarried'> & {
       written?: readonly PlannedCarry[];
       outcomes?: readonly DayOutcome[];
-      shifts?: readonly PlannedShift[];
+      reorders?: readonly Pick<PlannedReorder, 'weekNumber' | 'toNextWeek'>[];
     };
   }
 ): WeekCounts {
@@ -75,7 +75,7 @@ export function weekCounts(
   const keys = practice.filter((task) => task.isKeySession);
   const sources = new Set([...input.carry.alreadyCarried, ...(input.carry.written ?? [])].map((carry) => carry.fromTaskId));
   const outcomes = input.carry.outcomes;
-  let method: Pick<WeekCounts, 'letGo' | 'continued' | 'noRoom' | 'pushedOut'> = {};
+  let method: Pick<WeekCounts, 'letGo' | 'continued' | 'noRoom' | 'toNextWeek'> = {};
   if (outcomes) {
     // Gap days have their own outcome (`in_gap`), so they are in none of these.
     const counted = outcomes.filter((day) => day.rules === 'method' && ids.has(day.taskId));
@@ -83,10 +83,7 @@ export function weekCounts(
       letGo: counted.filter((day) => day.topStep === 'let_go').length,
       continued: counted.filter((day) => day.topStep === 'continued').length,
       noRoom: counted.filter((day) => day.topStep === 'no_room').length,
-      // A shift is planned only until it is stored, then its carry holds the pushed-out step: never both.
-      pushedOut:
-        (input.carry.shifts ?? []).filter((shift) => ids.has(shift.missedTaskId)).length +
-        input.carry.alreadyCarried.filter((carry) => ids.has(carry.fromTaskId) && carry.step.carriedFrom?.pushedOut).length,
+      toNextWeek: (input.carry.reorders ?? []).filter((reorder) => reorder.weekNumber === weekNumber).reduce((sum, reorder) => sum + reorder.toNextWeek.length, 0),
     };
   }
 

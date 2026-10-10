@@ -11,7 +11,7 @@ import { buildReconcileResult, findOpenGap, type DayClassification, type Reconci
 import { parseStoredSteps, type CarriedStep, type CarryTask, type PlannedCarry } from './carryForward.js';
 import { buildSignals, type MissedSignals } from './missedSignals.js';
 import { readRoutine } from './planV2.js';
-import { planRecovery, type PlannedContinue, type RecoveryPlan } from './recovery/carry.js';
+import { planRecovery, type PlannedContinue, type PlannedEasyStart, type PlannedReorder, type RecoveryPlan } from './recovery/carry.js';
 import { readRecoveryProfile } from './recovery/profile.js';
 
 /**
@@ -116,31 +116,33 @@ export function evaluate(
   return { applies: true, goal, result: { ...base, days, gap }, tasks, plan, now, today, sleepTime };
 }
 
-/** Thrown inside a shift's transaction when one day's guard fails, so the whole shift rolls back. */
-class ShiftGuardLost extends Error {}
+/** Thrown inside the reorder transaction when one day's guard fails, so every reordered day rolls back. */
+class ReorderGuardLost extends Error {}
+
+export interface WrittenRecovery {
+  written: PlannedCarry[];
+  writtenContinues: PlannedContinue[];
+  /** RULE-20: the reorders whose days were stored (all of this run's, or none). */
+  writtenReorders: PlannedReorder[];
+  /** RULE-21: the easy line, when it was stored. */
+  writtenEasyStart: PlannedEasyStart | null;
+}
 
 /**
- * ND-13: one compare-and-set per receiving day; only `count === 1` is written. A lost race is skipped, not retried.
- * A carry and a continue marker (RULE-10) that land on the same day share that day's one write. An order shift
- * (RULE-13) writes its receiving day and every shifted day in one transaction, each guarded the same way; if any
- * guard fails, nothing of the shift is written.
+ * ND-13: one compare-and-set per changed day; only `count === 1` is written. A lost race is skipped, not retried.
+ * Every entry of the plan for one day carries that day's whole new row, so a carry, a continue marker (RULE-10), a
+ * reorder (RULE-20) and the easy line (RULE-21) on the same day share its one write. Every day of this run's
+ * reorders (and anything else landing on those days) is written in one transaction, each day guarded the same way;
+ * if any guard fails, none of them is written.
  */
-export async function writeRecovery(
-  goal: ReconcileGoal,
-  plan: RecoveryPlan
-): Promise<{ written: PlannedCarry[]; writtenContinues: PlannedContinue[] }> {
+export async function writeRecovery(goal: ReconcileGoal, plan: RecoveryPlan): Promise<WrittenRecovery> {
   const stored = new Map(goal.dailyTasks.map((task) => [task.id, task]));
   const rows = new Map<string, { steps: CarriedStep[]; durationMinutes: number }>();
   for (const carry of plan.carries) rows.set(carry.toTaskId, { steps: carry.steps, durationMinutes: carry.durationMinutes });
-  for (const shift of plan.shifts ?? []) for (const row of shift.rows) rows.set(row.taskId, row);
-  for (const item of plan.continues ?? []) {
-    if (!rows.has(item.toTaskId)) rows.set(item.toTaskId, { steps: item.steps, durationMinutes: item.durationMinutes });
-  }
-  const shiftOf = new Map<string, string[]>();
-  for (const shift of plan.shifts ?? []) {
-    const days = [shift.receivingTaskId, ...shift.rows.map((row) => row.taskId)];
-    for (const taskId of days) shiftOf.set(taskId, days);
-  }
+  for (const reorder of plan.reorders ?? []) for (const row of reorder.rows) rows.set(row.taskId, row);
+  for (const item of plan.continues ?? []) rows.set(item.toTaskId, { steps: item.steps, durationMinutes: item.durationMinutes });
+  if (plan.easyStart) rows.set(plan.easyStart.taskId, { steps: plan.easyStart.steps, durationMinutes: plan.easyStart.durationMinutes });
+  const reorderDays = new Set((plan.reorders ?? []).flatMap((reorder) => reorder.rows.map((row) => row.taskId)));
   const guarded = (taskId: string) => {
     const receiving = stored.get(taskId)!;
     const row = rows.get(taskId)!;
@@ -151,32 +153,30 @@ export async function writeRecovery(
   };
 
   const done = new Set<string>();
-  const tried = new Set<string>();
-  for (const taskId of rows.keys()) {
-    if (tried.has(taskId)) continue;
-    const group = shiftOf.get(taskId);
-    if (!group) {
-      tried.add(taskId);
-      const { count } = await prisma.dailyTask.updateMany(guarded(taskId));
-      if (count === 1) done.add(taskId);
-      continue;
-    }
-    for (const day of group) tried.add(day);
+  if (reorderDays.size > 0) {
     try {
       await prisma.$transaction(async (tx) => {
-        for (const day of group) {
-          const { count } = await tx.dailyTask.updateMany(guarded(day));
-          if (count !== 1) throw new ShiftGuardLost();
+        for (const taskId of reorderDays) {
+          const { count } = await tx.dailyTask.updateMany(guarded(taskId));
+          if (count !== 1) throw new ReorderGuardLost();
         }
       });
-      for (const day of group) done.add(day);
+      for (const taskId of reorderDays) done.add(taskId);
     } catch (error) {
-      if (!(error instanceof ShiftGuardLost)) throw error;
+      if (!(error instanceof ReorderGuardLost)) throw error;
     }
   }
+  for (const taskId of rows.keys()) {
+    if (reorderDays.has(taskId)) continue;
+    const { count } = await prisma.dailyTask.updateMany(guarded(taskId));
+    if (count === 1) done.add(taskId);
+  }
+  const reordersStored = reorderDays.size > 0 && [...reorderDays].every((taskId) => done.has(taskId));
   return {
     written: plan.carries.filter((carry) => done.has(carry.toTaskId)),
     writtenContinues: (plan.continues ?? []).filter((item) => done.has(item.toTaskId)),
+    writtenReorders: reordersStored ? (plan.reorders ?? []).filter((reorder) => reorder.rows.length > 0) : [],
+    writtenEasyStart: plan.easyStart && done.has(plan.easyStart.taskId) ? plan.easyStart : null,
   };
 }
 
@@ -188,8 +188,11 @@ export async function writeCarries(goal: ReconcileGoal, plan: RecoveryPlan): Pro
 export type ReconcileBody =
   | Extract<ReconcileResult, { applies: false }>
   | (Extract<ReconcileResult, { applies: true }> & {
-      /** With METHOD_RECOVERY_ENABLED on, also `outcomes`, `continues`, `alreadyContinued`, `writtenContinues` and `shifts`. */
-      carry: RecoveryPlan & { enabled: boolean; written: PlannedCarry[]; writtenContinues?: PlannedContinue[] };
+      /**
+       * With METHOD_RECOVERY_ENABLED on, also `outcomes`, `continues`, `alreadyContinued`, `reorders`, `easyStart`
+       * and what was stored of them: `writtenContinues`, `writtenReorders`, `writtenEasyStart`.
+       */
+      carry: RecoveryPlan & { enabled: boolean; written: PlannedCarry[] } & Partial<Omit<WrittenRecovery, 'written'>>;
       signals: MissedSignals;
     });
 
@@ -205,12 +208,13 @@ export async function runReconcile(
   const { result, plan, today, sleepTime } = evaluation;
 
   const enabled = carryEnabled();
-  const { written, writtenContinues } = enabled
+  const stored: WrittenRecovery = enabled
     ? await writeRecovery(evaluation.goal, plan)
-    : { written: [] as PlannedCarry[], writtenContinues: [] as PlannedContinue[] };
+    : { written: [], writtenContinues: [], writtenReorders: [], writtenEasyStart: null };
+  const { written, ...writtenMethod } = stored;
   // M2.3: derived signals for P3 (ND-16); only stored carries count as moved.
   const signals = buildSignals({ days: result.days, gap: result.gap, plan, written, now, today, timezone: result.timezone, sleepTime });
   // The method fields appear only when the method switch is on, so with it off the body is exactly as before.
-  const carry = plan.outcomes ? { enabled, ...plan, written, writtenContinues } : { enabled, ...plan, written };
+  const carry = plan.outcomes ? { enabled, ...plan, written, ...writtenMethod } : { enabled, ...plan, written };
   return { ...result, carry, signals };
 }
