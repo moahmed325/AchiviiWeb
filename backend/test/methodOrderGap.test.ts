@@ -364,14 +364,36 @@ describe('RULE-13 the order shift', () => {
     expect(rowOf(plan, '2-wed')!.find((s) => s.title === 'wed drafting')!.continueFrom).toEqual({ taskId: '2-mon', date: '2026-09-21' });
   });
 
-  it('strength cannot keep both order and rest gap: the rest gap wins and the session is no room (MR-18)', () => {
-    // Strength A missed on Mon, B on Tue (today), C on Fri; Wed holds intervals (hard), a day after Tue.
+  it('MR-29: Mon/Wed/Fri strength with a gap of 2, Mon missed: the shift keeps the written slots, so it goes through', () => {
     const input = weeks(
       {
         '2-mon': { kind: 'missed', steps: day('Strength A', 'strength') },
-        '2-tue': { steps: day('Strength B', 'strength') },
-        '2-wed': { steps: day('intervals', 'heavy') },
+        '2-wed': { steps: day('Strength B', 'strength') },
         '2-fri': { steps: day('Strength C', 'strength') },
+      },
+      { today: '2026-09-22' }
+    );
+    const plan = on(input, profileWith(2));
+    // Tue (no hard step, 1 day before Wed's strength) fails the gap; Wed is the next strength day.
+    expect(plan.carries.map((c) => [c.step.title, c.toTaskId])).toEqual([['Strength A', '2-wed']]);
+    expect(plan.shifts![0].steps.map((s) => [s.stepTitle, s.toTaskId])).toEqual([
+      ['Strength B', '2-fri'],
+      ['Strength C', null],
+    ]);
+    expect(rowOf(plan, '2-wed')![0].title).toBe('Strength A');
+    expect(rowOf(plan, '2-fri')![0].title).toBe('Strength B');
+    expect(plan.carries[0].step.carriedFrom!.pushedOut).toMatchObject({ title: 'Strength C' });
+    expect(outcomeOf(plan, '2-mon')).toMatchObject({ outcome: 'moved' });
+  });
+
+  it('MR-29: a hard step landing on a day that had no hard step, within the gap, still blocks the shift (MR-18)', () => {
+    // Lesson 3 is high-load (hard); Tue's Lesson 4 is not, and Wed holds intervals a day later.
+    const input = weeks(
+      {
+        '2-mon': { kind: 'missed', steps: day('Lesson 3', 'lesson', { highLoad: true }) },
+        '2-tue': { steps: day('Lesson 4', 'lesson') },
+        '2-wed': { steps: day('intervals', 'heavy') },
+        '2-fri': { steps: day('Lesson 5', 'lesson') },
       },
       { today: '2026-09-22' }
     );
@@ -380,12 +402,16 @@ describe('RULE-13 the order shift', () => {
     expect(plan.shifts).toEqual([]);
     expect(dropOf(plan, '2-mon')).toBe('shift_blocked');
     expect(outcomeOf(plan, '2-mon')).toMatchObject({ outcome: 'no_room' });
-    // Without the intervals day, the shift happens.
-    const free = on(weeks({ '2-mon': { kind: 'missed', steps: day('Strength A', 'strength') }, '2-tue': { steps: day('Strength B', 'strength') }, '2-fri': { steps: day('Strength C', 'strength') } }, { today: '2026-09-22' }));
-    expect(free.shifts![0].steps.map((s) => [s.stepTitle, s.toTaskId])).toEqual([
-      ['Strength B', '2-fri'],
-      ['Strength C', null],
-    ]);
+    // Without the intervals day, the same shift goes through.
+    const free = on(weeks({ '2-mon': { kind: 'missed', steps: day('Lesson 3', 'lesson', { highLoad: true }) }, '2-tue': { steps: day('Lesson 4', 'lesson') }, '2-fri': { steps: day('Lesson 5', 'lesson') } }, { today: '2026-09-22' }));
+    expect(free.carries.map((c) => c.toTaskId)).toEqual(['2-tue']);
+  });
+
+  it('MR-29: a shifted hard step still never shares a day with a hard step that stays there', () => {
+    const wed = [step('Strength B', 1, 15, 'strength'), step('wed intervals', 2, 15, 'heavy')];
+    const plan = on(weeks({ '2-mon': { kind: 'missed', steps: day('Strength A', 'strength') }, '2-wed': { steps: wed }, '2-fri': { steps: day('Strength C', 'strength') } }, { today: '2026-09-22' }));
+    expect(dropOf(plan, '2-mon')).toBe('shift_blocked');
+    expect(plan.shifts).toEqual([]);
   });
 });
 
@@ -533,7 +559,8 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
           if (IN_ORDER.includes(k) && used.has(k)) k = 'general';
           used.add(k);
           const title = IN_ORDER.includes(k) ? `${k} #${++sequence[k]}` : `${week}-${name} ${k} ${i}`;
-          const extra: Partial<CarriedStep> = random() < 0.1 ? { highLoad: true } : {};
+          // A few steps are flagged high-load whatever their kind (MR-11, RULE-7).
+          const extra: Partial<CarriedStep> = random() < 0.03 ? { highLoad: true } : {};
           // A few steps landed by an earlier swap (ND-18); the marker must survive every plan.
           if (random() < 0.05) extra.swappedFrom = { taskId: `${week}-${pick(['mon', 'tue', 'wed', 'fri'] as const)}`, date: dateOf(week, 0) };
           // Sessions of one in-order kind are mostly the same length, as in written weeks; a few are not.
@@ -592,7 +619,10 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
       }
     }
 
-    // The rest gap: no moved hard step has another hard step within the gap, on a day that is done or open.
+    // The rest gap (MR-29): no moved hard step has another hard step within the gap, on a day that is done or open,
+    // unless both days already held a hard step that close in the week as written. Never on the same day.
+    const hardOf = (s: CarriedStep) => (actionOf(s, profile) ? isHard(s) : s.highLoad === true);
+    const writtenHard = (taskId: string) => original.get(taskId)!.steps.some(hardOf);
     const movedNow = (s: CarriedStep) =>
       (s.carriedFrom && plan.carries.some((c) => c.fromTaskId === s.carriedFrom!.taskId && c.step.title === s.title)) ||
       (s.shiftedFrom && (plan.shifts ?? []).some((sh) => sh.steps.some((m) => m.stepTitle === s.title)));
@@ -602,8 +632,9 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
       for (const { task: other, step: s } of placed) {
         if (s === moved || !counts(kindOf.get(other.id)!.kind)) continue;
         const distance = Math.abs(Date.parse(other.date) - Date.parse(task.date)) / 86_400_000;
-        const hard = actionOf(s, profile) ? isHard(s) : s.highLoad === true;
-        if (hard) expect(distance, `${moved.title} on ${task.date} vs ${s.title} on ${other.date}`).toBeGreaterThan(profile.restGapDays);
+        if (!hardOf(s)) continue;
+        const wasThatClose = distance > 0 && writtenHard(task.id) && writtenHard(other.id);
+        if (!wasThatClose) expect(distance, `${moved.title} on ${task.date} vs ${s.title} on ${other.date}`).toBeGreaterThan(profile.restGapDays);
       }
     }
 
@@ -643,6 +674,7 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
 
   it('2000 tagged two-week goals, planned and then replanned after the writes', () => {
     let shifts = 0;
+    let hardShifts = 0;
     let hardMoves = 0;
     let carries = 0;
     for (let run = 0; run < 2000; run++) {
@@ -651,6 +683,7 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
       const plan = on(input, profile);
       check(input, plan, profile);
       shifts += plan.shifts!.length;
+      hardShifts += plan.shifts!.filter((sh) => profile.kinds.find((k) => k.id === sh.kind)?.hard).length;
       carries += plan.carries.length;
       hardMoves += plan.carries.filter((c) => actionOf(c.step, profile)?.hard).length;
 
@@ -664,8 +697,9 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
       expect(again.continues).toEqual([]);
     }
     // The generator exercises every path.
-    expect(shifts).toBeGreaterThan(15);
-    expect(hardMoves).toBeGreaterThan(20);
+    expect(shifts).toBeGreaterThan(40);
+    expect(hardShifts).toBeGreaterThan(25);
+    expect(hardMoves).toBeGreaterThan(60);
     expect(carries).toBeGreaterThan(200);
   });
 

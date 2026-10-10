@@ -357,20 +357,25 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
    * RULE-14: no moved hard step has another hard step within the rest gap, in full calendar days, on its own day or
    * any other day of the goal (last week included). Only days that are done or still open count: a missed day's
    * steps did not happen, and that includes the moved step's own missed day. `proposed` holds the rows being tried.
+   * A moved step marked `sameDayOnly` adds no new closeness (it took a hard step's place, MR-29), so only its own day
+   * is checked: it still never shares that day with another hard step.
    */
-  const restGapHolds = (proposed: ReadonlyMap<string, CarriedStep[]>, moved: ReadonlyArray<{ taskId: string; step: CarriedStep }>) => {
+  const restGapHolds = (
+    proposed: ReadonlyMap<string, CarriedStep[]>,
+    moved: ReadonlyArray<{ taskId: string; step: CarriedStep; sameDayOnly?: boolean }>
+  ) => {
     // A day being tried is also checked against any carry planned onto it this run and any carried or shifted step
     // stored on it (a fit may trim those, but such a day takes nothing), so one run decides as a replan would.
     const view = (taskId: string) => {
       const rows = [proposed.get(taskId), accepted.get(taskId)?.steps, legacyRows.get(taskId)].filter((row): row is CarriedStep[] => !!row);
       return rows.length > 0 ? [...rows.flat(), ...rowOf(taskId).filter(isMarkedMove)] : rowOf(taskId);
     };
-    for (const { taskId, step } of moved) {
+    for (const { taskId, step, sameDayOnly } of moved) {
       if (!isHard(step)) continue;
       const at = dayNumberOf(dateOf.get(taskId)!);
       for (const day of ordered) {
         if (day.kind !== 'done' && day.kind !== 'planned') continue;
-        if (Math.abs(dayNumberOf(day.date) - at) > restGap) continue;
+        if (Math.abs(dayNumberOf(day.date) - at) > (sameDayOnly ? 0 : restGap)) continue;
         if (view(day.taskId).some((other) => other !== step && isHard(other))) return false;
       }
     }
@@ -474,12 +479,13 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
    * RULE-13: `carried` takes the place of the next step of its kind on `kindDays[0]`, that step takes the place of the
    * next one on `kindDays[1]`, and so on; the last one is pushed past the week. Every link must fit its day (never
    * longer, nothing fixed, continue-marked, swapped or in-order trimmed, MR-17), every day after the first must be open and not taken,
-   * and the rest gap must hold for every step that moves; otherwise null and nothing of the shift happens (MR-18).
+   * and the rest gap must hold for every step that lands on a day with no hard step before (MR-29; on a day that had one,
+   * only "never share the day" is checked); otherwise null and nothing of the shift happens (MR-18).
    */
   function planShift(missed: DayClassification, kind: string, kindDays: DayClassification[], carried: CarriedStep) {
     const canTrim = (step: CarriedStep) => !isProtected(step) && !isMarkedMove(step) && actionOf(step, profile) !== null;
     const proposed = new Map<string, CarriedStep[]>();
-    const moved: Array<{ taskId: string; step: CarriedStep }> = [];
+    const moved: Array<{ taskId: string; step: CarriedStep; sameDayOnly: boolean }> = [];
     const rows: PlannedShift['rows'] = [];
     const steps: ShiftedStep[] = [];
     let receiving: { steps: CarriedStep[]; replaced: DetailedStep[]; durationMinutes: number } | null = null;
@@ -502,7 +508,9 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
         return placed;
       });
       proposed.set(day.taskId, row);
-      moved.push({ taskId: day.taskId, step: placed! });
+      // MR-29: a step landing on a day that already had a hard step (in the rows the search reads) makes nothing
+      // closer than the week already was, so only a day that had none is checked against the rest gap.
+      moved.push({ taskId: day.taskId, step: placed!, sameDayOnly: rowOf(day.taskId).some(isHard) });
       if (index === 0) receiving = { steps: row, replaced: fit.replaced, durationMinutes: fit.durationMinutes };
       else {
         rows.push({ taskId: day.taskId, steps: row, durationMinutes: fit.durationMinutes });
