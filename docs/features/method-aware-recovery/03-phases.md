@@ -17,7 +17,7 @@
 | M2.3 | Tighter kinds, and the eval again | AC-3, AC-4, AC-11 | DONE 2026-10-09 (eval missed by one kind) | [m2.3](milestones/m2.3-tighter-kinds.md) |
 | O1 | Mo: agree to switch on custom profiles once the eval has passed (M2.3 re-run; MR-14) | AC-2 | KEPT OFF 2026-10-09 (Mo); revisit at M4.1 | |
 | M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | DONE 2026-10-10 | [m3.1a](milestones/m3.1a-carry-actions.md) |
-| M3.1b | Carry: order and rest gaps | AC-6 | READY | [m3.1b](milestones/m3.1b-order-and-rest-gaps.md) |
+| M3.1b | Carry: order and rest gaps | AC-6 | DONE 2026-10-10 | [m3.1b](milestones/m3.1b-order-and-rest-gaps.md) |
 | M3.1c | In-order steps never lost inside the week; easy first hard session back; warm-up line only on physical steps | AC-14, AC-15 | NOT STARTED | |
 | M3.1d | Next week starts with what wasn't done | AC-14 | NOT STARTED | |
 | M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | NOT STARTED | |
@@ -78,7 +78,7 @@
 ### P3 Recovery follows the kinds
 **M3.1a Carry: move, continue, let go, fixed.** DONE (`recovery/carry.ts`, `planRecovery`; MR-28). RULE-9 (first later day that passes, MR-10), RULE-10 (continue marker), RULE-11, RULE-12, RULE-17's counts and RULE-18, behind `METHOD_RECOVERY_ENABLED`; the reconcile body says which rules ran; MR-26's warm-up line; MR-27 until M3.1b. Checks R-1.
 
-**M3.1b Carry: order and rest gaps.** RULE-13's shift in one transaction and RULE-14, with generated-week tests that no day gets longer and no rule is broken. Checks R-1. Carried over from the M3.1a review: remove MR-27's temporary `hard_waits` and `out_of_order` drops; the generated-week tests include a run10k or recomp week written before kinds (its untagged steps still drop as high-load under missed sessions' rules, RULE-18).
+**M3.1b Carry: order and rest gaps.** DONE (`planShift`, `restGapHolds`, one-transaction shift write; MR-29). RULE-13's shift in one transaction and RULE-14, with generated-week tests that no day gets longer and no rule is broken. Checks R-1. Carried over from the M3.1a review: remove MR-27's temporary `hard_waits` and `out_of_order` drops; the generated-week tests include a run10k or recomp week written before kinds (its untagged steps still drop as high-load under missed sessions' rules, RULE-18).
 
 **M3.1c In-order steps never lost inside the week (MR-30, MR-31).** RULE-20 inside the week: an in-order move kind's remaining sessions this week hold, in order, the steps not done yet (missed days, days of a break, a lower-priority step left behind, a moved or shifted step missed again, then the ones as written); this replaces M3.1b's one-step shift, reusing its markers, one-transaction write and generated weeks. Steps that don't fit are recorded for next week (`toNextWeek`, replacing `pushedOut`). RULE-21's easy line on the first hard step after a break. MR-26's warm-up line only on physical steps (MR-31). Checks R-1, R-2.
 
