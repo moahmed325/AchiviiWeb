@@ -12,3 +12,4 @@
 
 | ID | Date | Source | Idea | Why it might be worth it | Status |
 |---|---|---|---|---|---|
+| I-1 | 2026-10-10 | Mo, method-aware recovery review (MR-30) | Describe each task with a few yes/no questions (does it build on the last one? does it strain the body? is it tied to a time or a date? can it be cut short?) instead of picking one kind with one action; code works out the recovery from the answers. | Fewer wrong kinds from the model, and new task types (timed processes, deadlines, ongoing work in order) fit without adding kinds or actions. | OPEN |
