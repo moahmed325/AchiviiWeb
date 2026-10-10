@@ -33,9 +33,7 @@ export async function fetchBillingEntitlement(token: string): Promise<BillingEnt
   const response = await fetch(`${API_BASE_URL}/api/billing/entitlement`, {
     headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
   });
-  const data = await response.json();
-  if (!response.ok) throw new ApiError(data.error || 'Unable to load billing status', response.status);
-  return data;
+  return readJson(response, 'Unable to load billing status');
 }
 
 export interface BillingAccountState {
@@ -51,9 +49,7 @@ export async function fetchBillingAccountState(token: string): Promise<BillingAc
   const response = await fetch(`${API_BASE_URL}/api/billing/account`, {
     headers: { Accept: 'application/json', Authorization: `Bearer ${token}` },
   });
-  const data = await response.json();
-  if (!response.ok) throw new ApiError(data.error || 'Unable to load billing status', response.status);
-  return data;
+  return readJson(response, 'Unable to load billing status');
 }
 export async function startProCheckout(token: string, interval: 'monthly' | 'yearly'): Promise<{ checkoutUrl: string }> {
   const response = await fetch(`${API_BASE_URL}/api/billing/checkout`, {
@@ -65,8 +61,7 @@ export async function startProCheckout(token: string, interval: 'monthly' | 'yea
     },
     body: JSON.stringify({ interval }),
   });
-  const data = await response.json();
-  if (!response.ok) throw new ApiError(data.error || 'Unable to start checkout', response.status);
+  const data = await readJson<{ checkoutUrl?: unknown }>(response, 'Unable to start checkout');
   if (typeof data.checkoutUrl !== 'string') throw new ApiError('Checkout response was invalid', 502);
   return { checkoutUrl: data.checkoutUrl };
 }
@@ -218,10 +213,7 @@ export async function fetchActiveGoal(token: string): Promise<import('../types')
     },
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to fetch active goal');
-  }
+  const data = await readJson<{ activeGoal: import('../types').Goal | null }>(response, 'Failed to fetch active goal');
 
   return data.activeGoal;
 }
@@ -241,12 +233,7 @@ export async function reconcileGoal(token: string): Promise<import('../types').R
     },
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to reconcile goal');
-  }
-
-  return data;
+  return readJson(response, 'Failed to reconcile goal');
 }
 
 /**
@@ -340,12 +327,7 @@ export async function submitWeeklyReview(
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to submit weekly review');
-  }
-
-  return data;
+  return readJson(response, 'Failed to submit weekly review');
 }
 
 /**
@@ -366,9 +348,7 @@ export async function logWeeklyTestResult(
     body: JSON.stringify(result),
   });
 
-  const data = await response.json();
-  if (!response.ok) throw new ApiError(data.error || 'Failed to save the test result', response.status, data.reason);
-  return data;
+  return readJson(response, 'Failed to save the test result');
 }
 
 export async function resetActiveGoal(token: string): Promise<boolean> {
@@ -379,10 +359,7 @@ export async function resetActiveGoal(token: string): Promise<boolean> {
     },
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to reset goal');
-  }
+  const data = await readJson<{ success: boolean }>(response, 'Failed to reset goal');
 
   return data.success;
 }
@@ -400,10 +377,7 @@ export async function completeGoal(
     body: JSON.stringify(payload || {}),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to complete goal');
-  }
+  const data = await readJson<{ goal: Goal; activeGoal: Goal }>(response, 'Failed to complete goal');
 
   return data.goal || data.activeGoal;
 }
