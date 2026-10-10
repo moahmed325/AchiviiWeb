@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, carryNow, markTodayMissed, swapDays } from './api';
+import { ApiError, carryNow, markTodayMissed, swapDays, updateDailyTask } from './api';
 
 // Missed sessions M3.3 R1: the three plan actions (backend M2.4) answer with the reconcile body.
 const BODY = { applies: true, goalId: 'g1', signals: { notice: null } };
@@ -56,5 +56,39 @@ describe('plan actions (missed sessions M3.3)', () => {
   it('a refusal without a reason or a JSON body still throws ApiError', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Bad gateway', { status: 502 })));
     await expect(markTodayMissed('t3', 'token-1')).rejects.toMatchObject({ status: 502, code: undefined });
+  });
+});
+
+describe('updateDailyTask refusals (B-34)', () => {
+  it('a 409 goal_not_active throws ApiError with the status, the reason as code and the server text', async () => {
+    reply(409, { error: 'This goal is not active.', reason: 'goal_not_active' });
+    const refusal = updateDailyTask('t3', { status: 'completed' }, 'token-1');
+    await expect(refusal).rejects.toBeInstanceOf(ApiError);
+    await expect(refusal).rejects.toMatchObject({ status: 409, code: 'goal_not_active', message: 'This goal is not active.' });
+  });
+
+  it('an error body that is not JSON still throws ApiError with the fallback message', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Bad gateway', { status: 502 })));
+    const refusal = updateDailyTask('t3', { notes: 'x' }, 'token-1');
+    await expect(refusal).rejects.toBeInstanceOf(ApiError);
+    await expect(refusal).rejects.toMatchObject({ status: 502, code: undefined, message: 'Failed to update task' });
+  });
+});
+
+describe('a success whose body is not JSON (B-34)', () => {
+  const notJson = () => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>ok</html>', { status: 200 })));
+
+  it('planAction throws ApiError with the fallback message', async () => {
+    notJson();
+    const reply200 = markTodayMissed('t3', 'token-1');
+    await expect(reply200).rejects.toBeInstanceOf(ApiError);
+    await expect(reply200).rejects.toMatchObject({ status: 200, code: undefined, message: 'Failed to change the plan' });
+  });
+
+  it('updateDailyTask throws ApiError with the fallback message', async () => {
+    notJson();
+    const reply200 = updateDailyTask('t3', { status: 'completed' }, 'token-1');
+    await expect(reply200).rejects.toBeInstanceOf(ApiError);
+    await expect(reply200).rejects.toMatchObject({ status: 200, code: undefined, message: 'Failed to update task' });
   });
 });

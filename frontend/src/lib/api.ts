@@ -250,6 +250,21 @@ export async function reconcileGoal(token: string): Promise<import('../types').R
 }
 
 /**
+ * Reads a JSON reply. A refusal throws `ApiError` with the server's `error` text (or `fallbackMessage`), the status
+ * and a string `reason` as `code`; a success whose body is not JSON throws `ApiError` with `fallbackMessage` (B-34).
+ */
+async function readJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const data: { error?: string; reason?: unknown } | undefined = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    throw new ApiError(data?.error || fallbackMessage, response.status, typeof data?.reason === 'string' ? data.reason : undefined);
+  }
+  if (data === undefined) {
+    throw new ApiError(fallbackMessage, response.status);
+  }
+  return data as T;
+}
+
+/**
  * The three plan-changing actions (missed sessions M2.4, M3.3). Each answers with the reconcile body. A refusal throws
  * `ApiError` with the HTTP status and the server's `reason` as `code` (e.g. `changed`, `carry_disabled`); the server's
  * text is for logs only and never shown.
@@ -265,12 +280,7 @@ async function planAction(path: string, token: string, body?: unknown): Promise<
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new ApiError(data.error || 'Failed to change the plan', response.status, typeof data.reason === 'string' ? data.reason : undefined);
-  }
-
-  return data;
+  return readJson(response, 'Failed to change the plan');
 }
 
 /** Sets today's open practice day aside: carries its main step, holds a key session for a swap offer, or drops. */
@@ -307,11 +317,7 @@ export async function updateDailyTask(
     body: JSON.stringify(updates),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to update task');
-  }
-
+  const data = await readJson<{ task: import('../types').DailyTask }>(response, 'Failed to update task');
   return data.task;
 }
 
