@@ -15,6 +15,11 @@ export interface CarryMarker {
   date: string;
   /** The receiving day's steps this carry replaced (ND-10). */
   replaced: DetailedStep[];
+  /**
+   * Method-aware recovery RULE-13 (M3.1b): when this carry took the place of the next step of its in-order kind, the
+   * step that was pushed past the week by that shift, as written. Not done this week (counted as `pushedOut`).
+   */
+  pushedOut?: DetailedStep;
 }
 
 /**
@@ -36,7 +41,23 @@ export interface ContinueMarker {
   date: string;
 }
 
-export type CarriedStep = DetailedStep & { carriedFrom?: CarryMarker; swappedFrom?: SwapMarker; continueFrom?: ContinueMarker };
+/**
+ * Method-aware recovery RULE-13 (M3.1b): stored on a step of an in-order kind that moved one session later because
+ * an earlier step of its kind took its place. It names the day it came from and the steps it replaced there. Such a
+ * step is never carried or shifted again (ND-13, as `carriedFrom`), and the day holding it receives no carry.
+ */
+export interface ShiftMarker {
+  taskId: string;
+  date: string;
+  replaced: DetailedStep[];
+}
+
+export type CarriedStep = DetailedStep & {
+  carriedFrom?: CarryMarker;
+  swappedFrom?: SwapMarker;
+  continueFrom?: ContinueMarker;
+  shiftedFrom?: ShiftMarker;
+};
 
 /** A task as the planner sees it: classification fields plus its parsed steps and planned minutes. */
 export interface CarryTask extends ClassifiableTask {
@@ -55,10 +76,11 @@ export type DropReason =
   | 'does_not_fit'
   | 'swap_unanswered'
   | 'no_priority_step'
-  /** Method-aware recovery (MR-27, until M3.1b): a hard step that would move waits for the rest-gap check. */
-  | 'hard_waits'
-  /** Method-aware recovery (MR-27, until M3.1b): an in-order step whose receiving day is not before the next step of its kind. */
-  | 'out_of_order';
+  /**
+   * Method-aware recovery (RULE-13, M3.1b): an in-order step reached the day of the next step of its kind, and one
+   * link of the shift failed (a day closed, done or taken, longer, a protected step, or the rest gap, MR-18).
+   */
+  | 'shift_blocked';
 
 export interface PlannedCarry {
   fromTaskId: string;
