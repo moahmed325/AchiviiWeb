@@ -57,7 +57,7 @@ flowchart TD
     subgraph Server["Backend (Node.js + Express + TypeScript)"]
         H[POST /api/goals/clarify]
         I[POST /api/goals/generate-plan]
-        J[PATCH /api/goals/tasks/:taskId/complete]
+        J[PATCH /api/goal/tasks/:taskId]
         K[Gemini 2.5 Flash API]
         L[(Database: User, Goal, DailyTask, RoadmapWeek)]
     end
@@ -330,8 +330,10 @@ When all steps are finished or the countdown timer reaches `00:00`:
 4. Prompts for an optional **Quick Reflection Note** (*"What was your breakthrough today?"*).
 5. Submits the completion payload to the backend:
    ```typescript
-   PATCH /api/goals/tasks/:taskId/complete
-   Body: { reflectionNotes: string, actualDurationMinutes: number }
+   PATCH /api/goal/tasks/:taskId
+   Body: { status?: 'pending' | 'completed', notes?: string | null, slotTime?: string | null, usedMinimumVersion?: boolean }
+   // Focus mode sends status 'completed', the notes with the reflection added as a "Focus win" line,
+   // and usedMinimumVersion: true only for a 10-minute-version completion.
    ```
 6. Updates daily completion status, increments current streak, and syncs the full 90-day roadmap.
 

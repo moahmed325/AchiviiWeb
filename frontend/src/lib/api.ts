@@ -307,9 +307,9 @@ export async function updateDailyTask(
     body: JSON.stringify(updates),
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || 'Failed to update task');
+    throw new ApiError(data.error || 'Failed to update task', response.status, typeof data.reason === 'string' ? data.reason : undefined);
   }
 
   return data.task;

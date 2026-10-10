@@ -41,7 +41,7 @@ Backend tests mock `lib/prisma.js`, so none need a database. In a fresh checkout
 Frontend (`cd frontend`):
 
 ```bash
-npm test                                 # vitest + Testing Library in jsdom (src/**/*.test.{ts,tsx})
+npm test                                 # vitest + Testing Library in jsdom (src/**/*.test.{ts,tsx}); at most 6 workers (vitest.config.ts, B-36)
 npx vitest run src/components/ui/Button.test.tsx
 npm run lint                             # whole frontend; baseline is 0 errors, 2 warnings
 npx eslint <changed files>               # files you touch must be lint-clean
