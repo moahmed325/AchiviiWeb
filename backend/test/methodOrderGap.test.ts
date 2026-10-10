@@ -3,7 +3,7 @@ import { planCarries, swappedTaskIds, type CarriedStep, type CarryInput, type Ca
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { EASY_START_LINE, MOVED_WARM_UP_LINE, planRecovery, takePlace, withEasyLine, withWarmUpLine, type RecoveryPlan } from '../src/lib/recovery/carry.js';
-import { inOrderQueue } from '../src/lib/recovery/inOrder.js';
+import { inOrderMoveKinds, inOrderQueue } from '../src/lib/recovery/inOrder.js';
 import { actionOf, profileFailures, withFixedKinds, type RecoveryKind, type RecoveryProfile } from '../src/lib/recovery/profile.js';
 
 // Method-aware recovery M3.1b and M3.1c: the rest gap (RULE-14), in-order steps never lost (RULE-20: the reorder, the
@@ -532,6 +532,39 @@ describe('RULE-20 the in-order queue (M3.1c)', () => {
     expect(reorderOf(plan)!.rows.map((r) => r.taskId).sort()).toEqual(['2-mon', '2-tue', '2-wed']);
   });
 
+  it('only the week holding today and the week before: a lesson missed in week 2 adds nothing to week 4\'s body', () => {
+    // Weeks 1 and 2 as usual, then weeks 3 and 4 (copies of week 1's practice days); today is week 4's Tuesday.
+    const base = weeks(
+      { '2-mon': { kind: 'missed', steps: lesson(3) }, '2-tue': { kind: 'done', steps: lesson(4) }, '2-wed': { kind: 'done', steps: lesson(5) } },
+      { today: '2026-09-23' }
+    );
+    const shift = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+    const today = shift('2026-09-15', 21);
+    const later = [3, 4].flatMap((week) =>
+      base.tasks
+        .filter((t) => t.weekNumber === 1)
+        .map((t) => {
+          const date = shift(t.date, (week - 1) * 7);
+          return { task: { ...t, id: `${week}${t.id.slice(1)}`, date, weekNumber: week, status: date < today ? 'completed' : 'pending' }, kind: (t.isRestDay ? 'rest' : date < today ? 'done' : 'planned') as DayKind };
+        })
+    );
+    const days = [
+      ...base.days.map((d) => (d.kind === 'planned' ? { ...d, kind: 'done' as const } : d)),
+      ...later.map(({ task, kind }) => ({ taskId: task.id, date: task.date, weekNumber: task.weekNumber, dayNumber: task.dayNumber, isKeySession: false, isTestDay: task.isTestDay, kind })),
+    ];
+    const input: CarryInput = { ...base, today, days, gap: findOpenGap(days), tasks: [...base.tasks, ...later.map(({ task }) => task)] };
+    const plan = on(input);
+    expect(plan.reorders).toEqual([]);
+    // Week 2's day keeps what it had before M3.1c: its lesson's next session is done, so no room.
+    expect(outcomeOf(plan, '2-mon')).toMatchObject({ rules: 'method', outcome: 'no_room', topStep: 'no_room' });
+    expect(dropOf(plan, '2-mon')).toBe('receiving_day_done');
+    expect(weekCounts(2, { tasks: countable(input), days: input.days, carry: plan })).toMatchObject({ toNextWeek: 0 });
+    // In week 3 (the week before), the same day is still listed for next week.
+    const inWeek3 = on({ ...input, today: shift(today, -7) });
+    expect(inWeek3.reorders!.map((r) => r.weekNumber)).toEqual([2]);
+    expect(nextWeek(inWeek3)).toEqual(['Lesson 3']);
+  });
+
   it('the in-order kind of each week is reordered on its own (last week\'s missed lesson goes to its own list)', () => {
     const input = weeks({ '1-fri': { kind: 'missed', steps: lesson(1) }, '2-mon': { kind: 'missed', steps: lesson(3) }, '2-tue': { steps: lesson(4) } }, { today: '2026-09-22' });
     const plan = on(input);
@@ -571,9 +604,41 @@ describe('RULE-20 the in-order queue (M3.1c)', () => {
       expect(reorderOf(plan)).toMatchObject({ waits: 'not_tagged', rows: [] });
     });
 
-    it('a day with two steps of the kind', () => {
+    it('a day the reorder uses with two steps of the kind', () => {
       const plan = on(lessonWeek({ '2-wed': { steps: [step('Lesson 5', 1, 15, 'lesson'), step('Lesson 5b', 2, 15, 'lesson')] } }));
       expect(reorderOf(plan)).toMatchObject({ waits: 'two_in_a_day', rows: [] });
+    });
+
+    it('a done day with two lessons does not stop the reorder (only the days it uses count)', () => {
+      const input = weeks(
+        { '2-mon': { kind: 'done', steps: [step('Lesson 1', 1, 15, 'lesson'), step('Lesson 2', 2, 15, 'lesson')] }, '2-tue': { kind: 'missed', steps: lesson(3) }, '2-wed': { steps: lesson(4) } },
+        { today: '2026-09-23' }
+      );
+      const plan = on(input);
+      expect(reorderOf(plan)!.waits).toBeNull();
+      expect(holds(plan)).toEqual([['2-wed', 'Lesson 3']]);
+      expect(nextWeek(plan)).toEqual(['Lesson 4']);
+    });
+
+    it('a session whose only step is its lesson, too short for the missed one: never left empty (`only_step`)', () => {
+      const input = weeks(
+        {
+          '2-mon': { kind: 'missed', steps: [step('Lesson 4', 1, 20, 'lesson'), step('L4 review', 2, 10, 'review')] },
+          '2-tue': { steps: [step('Lesson 5', 1, 15, 'lesson')] },
+          '2-wed': { steps: lesson(6) },
+        },
+        { today: '2026-09-22' }
+      );
+      const plan = on(input);
+      expect(reorderOf(plan)).toMatchObject({ waits: 'only_step', rows: [] });
+      expect(holds(plan)).toEqual([
+        ['2-tue', 'Lesson 5'],
+        ['2-wed', 'Lesson 6'],
+      ]);
+      expect(nextWeek(plan)).toEqual(['Lesson 4']);
+      expect(outcomeOf(plan, '2-mon')).toMatchObject({ outcome: 'next_week', topStep: 'next_week' });
+      expect(store(input, plan).tasks.find((t) => t.id === '2-tue')!.steps.map((s) => s.title)).toEqual(['Lesson 5']);
+      expectStable(store(input, plan));
     });
   });
 });
@@ -803,7 +868,7 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
   }
 
   /** A random two-week goal: every step tagged; days before today are done or missed, with breaks now and then. */
-  function generate(goal: CarryInput['goal'] = CUSTOM) {
+  function generate(goal: CarryInput['goal'] = CUSTOM, options: { breaks?: boolean } = {}) {
     const todayIndex = 7 + Math.floor(random() * 7);
     const today = dateOf(2, todayIndex - 7);
     const sequence: Record<string, number> = { lesson: 0, strength: 0 };
@@ -816,7 +881,7 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
         const isTest = name === 'sat';
         let kind: DayKind;
         if (absolute < todayIndex) {
-          if (breakLeft === 0 && random() < 0.1) breakLeft = 3;
+          if (options.breaks !== false && breakLeft === 0 && random() < 0.1) breakLeft = 3;
           kind = breakLeft > 0 ? 'missed' : random() < 0.5 ? 'missed' : 'done';
           if (breakLeft > 0) breakLeft -= 1;
         } else kind = random() < 0.1 ? 'done' : 'planned';
@@ -845,6 +910,7 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
       ...(plan.easyStart ? [plan.easyStart.taskId] : []),
     ]);
     const isHard = (s: CarriedStep) => actionOf(s, profile)?.hard ?? false;
+    const inOrder = [...inOrderMoveKinds(profile)];
 
     for (const taskId of changed) {
       const before = original.get(taskId)!;
@@ -855,6 +921,8 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
       const sum = now.steps.reduce((total, s) => total + s.durationMinutes, 0);
       expect(sum).toBeLessThanOrEqual(before.steps.reduce((total, s) => total + s.durationMinutes, 0));
       expect(now.durationMinutes).toBeLessThanOrEqual(before.durationMinutes);
+      // Never a day left with no steps.
+      if (before.steps.length > 0) expect(now.steps.length, `${taskId} left empty`).toBeGreaterThan(0);
       // No fixed or continue-marked step replaced, and the minutes of every kept step unchanged.
       for (const s of before.steps) {
         if (actionOf(s, profile)?.action === 'fixed' || s.continueFrom) expect(now.steps.map((x) => x.title)).toContain(s.title);
@@ -868,7 +936,7 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
 
     // An ordinary carry never moves an in-order move step, nor a step that already moved (ND-13).
     for (const carry of plan.carries) {
-      expect(IN_ORDER).not.toContain(carry.step.kind);
+      expect(inOrder).not.toContain(carry.step.kind);
       const source = original.get(carry.fromTaskId)!.steps.find((s) => s.title === carry.step.title)!;
       expect(source.carriedFrom ?? source.shiftedFrom).toBeUndefined();
     }
@@ -897,7 +965,7 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
 
     // RULE-20: every in-order step of a week is on a day of that week (done, missed or open) or listed for next week;
     // a step placed this run left no live copy behind on another open day; and the steps not done yet are in order.
-    for (const k of IN_ORDER) {
+    for (const k of inOrder) {
       for (const week of [1, 2]) {
         const written = new Set(input.tasks.filter((t) => t.weekNumber === week).flatMap((t) => t.steps.filter((s) => s.kind === k).map((s) => s.title)));
         for (const t of input.tasks.filter((x) => x.weekNumber === week)) for (const s of t.steps) for (const r of s.toNextWeek ?? []) if (r.step.kind === k) written.add(r.step.title);
@@ -973,6 +1041,31 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
     expect(totals.hardMoves).toBeGreaterThan(10);
     expect(totals.carries).toBeGreaterThan(30);
     expect(totals.easy).toBeGreaterThan(100);
+  });
+
+  it('3500 two-week goals whose profile has no in-order move kinds: ordinary carries, hard ones included, keep every rule', () => {
+    const totals = { hardMoves: 0, carries: 0 };
+    for (let run = 0; run < 3500; run++) {
+      const base = profileWith(Math.floor(random() * 3));
+      const profile: RecoveryProfile = { ...base, kinds: base.kinds.map((k) => ({ ...k, inOrder: false })) };
+      expect(inOrderMoveKinds(profile).size).toBe(0);
+      // No breaks: a break carries nothing (ND-11), and this run is about ordinary carries.
+      const input = generate(CUSTOM, { breaks: false });
+      const plan = on(input, profile);
+      expect(plan.reorders).toEqual([]);
+      check(input, plan, profile);
+      totals.carries += plan.carries.length;
+      totals.hardMoves += plan.carries.filter((c) => actionOf(c.step, profile)?.hard).length;
+      const stored = store(input, plan);
+      const again = on(stored, profile);
+      check(stored, again, profile);
+      const handled = new Set(plan.carries.map((c) => c.fromTaskId));
+      expect(again.carries.filter((c) => handled.has(c.fromTaskId))).toEqual([]);
+      expect(again.continues).toEqual([]);
+    }
+    // Near M3.1b's 296 carries and 124 hard moves (2000 goals with in-order kinds then).
+    expect(totals.carries).toBeGreaterThan(450);
+    expect(totals.hardMoves).toBeGreaterThan(100);
   });
 
   it('300 weeks lived day by day (missed days, breaks, steps missed twice): what was done is in order, and done plus next week is every step', () => {

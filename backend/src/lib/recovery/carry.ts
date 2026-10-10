@@ -116,9 +116,11 @@ export interface ReorderSession {
  * `held`: a key session waits for its swap answer (ND-9) on a day of the kind, or on one of its sessions. `still_open`:
  * a day before today with a step of the kind has not closed yet. `swapped`: a session holds a step that landed by a
  * swap (ND-18, never replaced). `not_tagged`: a day of the queue has a step without a kind (RULE-18). `two_in_a_day`:
- * a day holds two steps of the kind. `carried_by_missed_sessions`: a session receives a missed-sessions carry this run.
+ * a day the reorder uses holds two steps of the kind. `carried_by_missed_sessions`: a session receives a
+ * missed-sessions carry this run. `only_step`: a session that cannot take the next step safely would have to give up
+ * its own step, and that step is its day's only one; a reorder never leaves a day empty.
  */
-export type ReorderWait = 'held' | 'still_open' | 'swapped' | 'not_tagged' | 'two_in_a_day' | 'carried_by_missed_sessions';
+export type ReorderWait = 'held' | 'still_open' | 'swapped' | 'not_tagged' | 'two_in_a_day' | 'carried_by_missed_sessions' | 'only_step';
 
 /**
  * RULE-20 for one in-order move kind in one week: its remaining sessions hold, in order, the steps not done yet;
@@ -292,6 +294,13 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   const queuedKinds = inOrderMoveKinds(profile);
 
   const ordered = [...input.days].sort(byDate);
+  // RULE-20 acts on the week holding today and the week before it (whose list M3.1d hands to next week). Older weeks
+  // keep what they had before M3.1c: their in-order steps follow the ordinary move rules.
+  const todayWeek =
+    ordered.find((day) => day.date === input.today)?.weekNumber ??
+    [...ordered].reverse().find((day) => day.date < input.today)?.weekNumber ??
+    ordered[0]?.weekNumber;
+  const queuedWeeks = new Set(todayWeek === undefined ? [] : [todayWeek, todayWeek - 1]);
   const taskById = new Map(input.tasks.map((task) => [task.id, task]));
   const handled = handledTaskIds(input.tasks);
   const swapHandled = swappedTaskIds(input.tasks);
@@ -302,7 +311,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   // Which days follow the new rules: every step known, priorities present.
   const stepsOf = new Map<string, DayStep[]>();
   for (const day of ordered) {
-    const steps = methodSteps(taskById.get(day.taskId), profile, queuedKinds);
+    const steps = methodSteps(taskById.get(day.taskId), profile, queuedWeeks.has(day.weekNumber) ? queuedKinds : new Set());
     if (steps) stepsOf.set(day.taskId, steps);
   }
   const methodDays = new Set(ordered.filter((day) => day.kind === 'missed' && !handled.has(day.taskId) && stepsOf.has(day.taskId)).map((day) => day.taskId));
@@ -480,6 +489,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
 
   for (const queue of inOrderQueue({ days: ordered, tasks: input.tasks, profile, today: input.today })) {
     const { kind, weekNumber } = queue;
+    if (!queuedWeeks.has(weekNumber)) continue;
     const weekDays = ordered.filter((day) => day.weekNumber === weekNumber && day.kind !== 'rest' && !day.isTestDay);
     const ofKind = (taskId: string) => rowOf(taskId).filter((step) => step.kind === kind);
     const sessionDays = weekDays.filter((day) => day.kind === 'planned' && day.date >= input.today && ofKind(day.taskId).length > 0);
@@ -488,7 +498,8 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     const queueDays = [...queue.steps.flatMap((item) => (item.at ? [item.at] : [])), ...sessionDays];
 
     let waits: ReorderWait | null = null;
-    if (weekDays.some((day) => ofKind(day.taskId).length > 1)) waits = 'two_in_a_day';
+    const usedDays = [...queue.steps.flatMap((item) => (item.status === 'missed' && item.at ? [item.at] : [])), ...sessionDays];
+    if (usedDays.some((day) => ofKind(day.taskId).length > 1)) waits = 'two_in_a_day';
     else if (queue.steps.some((item) => item.status === 'still_open')) waits = 'still_open';
     else if (queueDays.some((day) => heldIds.has(day.taskId)) || sessionDays.some((day) => heldReceiving.has(day.taskId))) waits = 'held';
     else if (queueDays.some((day) => !followsMethod(rowOf(day.taskId), profile))) waits = 'not_tagged';
@@ -505,6 +516,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
       left = queue.steps.filter((item) => item.status === 'missed');
     } else {
       let next = 0;
+      let onlyStep = false;
       for (const day of sessionDays) {
         const row = rowNow(day.taskId);
         const current = row.find((step) => step.kind === kind)!;
@@ -536,19 +548,32 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
           next += 1;
         } else {
           // MR-30 (5): it cannot take the next step safely, so it gives its own step up (that step stays in the queue,
-          // in its place) and the next session is tried. The day only gets shorter.
+          // in its place) and the next session is tried. The day only gets shorter, but never empty: when that step is
+          // the day's only one, the whole kind waits this run instead.
           const kept = row.filter((step) => step !== current);
+          if (kept.length === 0) {
+            onlyStep = true;
+            break;
+          }
           const limit = minutesNow(day.taskId);
           rows.set(day.taskId, { steps: renumber(kept), durationMinutes: limit > 0 ? Math.min(limit, minutesOf(kept)) : minutesOf(kept) });
           sessions.push({ taskId: day.taskId, date: day.date, holds: null, changed: true });
         }
       }
       left = placeable.slice(next);
+      if (onlyStep) {
+        waits = 'only_step';
+        rows.clear();
+        sessions = keptSessions(sessionDays, kind);
+        left = queue.steps.filter((item) => item.status === 'missed');
+      }
       // A step taken off its session with no later session left is stored nowhere else, so its record goes on the
       // first missed step of the queue (a missed day exists whenever anything moved), next to any records there.
       const records = left.filter((item) => item.status === 'session').map((item) => ({ taskId: item.origin.taskId, date: item.origin.date, step: asWritten(item.step) }));
       const head = placeable[0];
-      if (records.length > 0 && (head?.status !== 'missed' || !head.at)) {
+      if (onlyStep) {
+        // Nothing changes for the kind this run.
+      } else if (records.length > 0 && (head?.status !== 'missed' || !head.at)) {
         // Cannot happen (a change needs a missed step); keep the stored rows rather than lose a step.
         rows.clear();
         sessions = keptSessions(sessionDays, kind);
@@ -604,10 +629,14 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     // before the next session of its kind, never on or after it.
     const nextOfKind = kind?.inOrder ? practiceLater.find((day) => rowOf(day.taskId).some((step) => step.kind === kind.id)) : undefined;
 
-    // RULE-9: the first later practice day that passes.
-    let found: { receiving: DayClassification; fit: NonNullable<ReturnType<typeof fitCarriedStep>> } | null = null;
+    // RULE-9: the first later practice day that passes. Reaching the next session of an in-order kind ends the search
+    // on that day: closed, done or taken is that reason, open is no room (nothing is ever placed after it).
+    let found: { receiving: DayClassification; fit: NonNullable<ReturnType<typeof fitCarriedStep>> | null } | null = null;
     for (const day of practiceLater) {
-      if (day === nextOfKind) break;
+      if (day === nextOfKind) {
+        found = { receiving: day, fit: null };
+        break;
+      }
       const fit = fitCarriedStep({ steps: rowOf(day.taskId), durationMinutes: minutesNow(day.taskId) }, carried, isProtected);
       if (!fit) continue;
       const placed = fit.steps.find((step) => step.carriedFrom === marker)!;
@@ -628,6 +657,10 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     const closed = closedReason(receiving);
     if (closed) {
       drop(missed, closed);
+      continue;
+    }
+    if (!fit) {
+      drop(missed, 'no_receiving_day');
       continue;
     }
     const steps = fit.steps.map((step) => (step.carriedFrom === marker ? { ...step, carriedFrom: { ...marker, replaced: fit.replaced } } : step));
