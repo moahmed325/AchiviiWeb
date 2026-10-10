@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planCarries, type CarriedStep, type CarryInput, type CarryTask } from '../src/lib/carryForward.js';
+import { planCarries, swappedTaskIds, type CarriedStep, type CarryInput, type CarryTask } from '../src/lib/carryForward.js';
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { MOVED_WARM_UP_LINE, planRecovery, takePlace, type RecoveryPlan } from '../src/lib/recovery/carry.js';
@@ -389,6 +389,70 @@ describe('RULE-13 the order shift', () => {
   });
 });
 
+describe('M3.1b review: swap markers survive (ND-18)', () => {
+  const SWAP = { taskId: '1-fri', date: '2026-09-18' };
+
+  it('a lesson holding swappedFrom on the next-of-kind day blocks the shift', () => {
+    const input = weeks(
+      {
+        '2-mon': { kind: 'missed', steps: day('Lesson 3', 'lesson') },
+        '2-tue': { steps: day('Lesson 4', 'lesson', { swappedFrom: SWAP }) },
+        '2-wed': { steps: day('Lesson 5', 'lesson') },
+      },
+      { today: '2026-09-22' }
+    );
+    const plan = on(input);
+    expect(plan.carries).toEqual([]);
+    expect(plan.shifts).toEqual([]);
+    expect(dropOf(plan, '2-mon')).toBe('shift_blocked');
+    expect(swappedTaskIds(store(input, plan).tasks)).toEqual(swappedTaskIds(input.tasks));
+  });
+
+  it('a swapped step is never trimmed by a carry: the search moves on', () => {
+    const tue = [step('tue practice', 1, 15, 'practice'), step('swapped review', 2, 15, 'review', { swappedFrom: SWAP })];
+    const input = weeks({ '2-mon': { kind: 'missed', steps: day('mon drill', 'practice') }, '2-tue': { steps: tue } }, { today: '2026-09-22' });
+    const plan = on(input);
+    expect(plan.carries.map((c) => [c.step.title, c.toTaskId])).toEqual([['mon drill', '2-wed']]);
+    const after = store(input, plan);
+    expect(after.tasks.find((t) => t.id === '2-tue')!.steps).toEqual(tue);
+    expect(swappedTaskIds(after.tasks)).toEqual(swappedTaskIds(input.tasks));
+  });
+
+  it('a swapped step is never trimmed by a shift', () => {
+    const wed = [step('Lesson 5', 1, 5, 'lesson'), step('swapped review', 2, 25, 'review', { swappedFrom: SWAP })];
+    const plan = on(weeks({ '2-mon': { kind: 'missed', steps: day('Lesson 3', 'lesson') }, '2-tue': { steps: day('Lesson 4', 'lesson') }, '2-wed': { steps: wed } }, { today: '2026-09-22' }));
+    expect(dropOf(plan, '2-mon')).toBe('shift_blocked');
+    expect(plan.shifts).toEqual([]);
+  });
+});
+
+describe('M3.1b review: a carry or shift never trims an in-order step', () => {
+  it('a drill carried onto a day whose lowest-priority step is a lesson moves on to the next day', () => {
+    const tue = [step('tue practice', 1, 15, 'practice'), step('Lesson 4', 2, 15, 'lesson')];
+    const input = weeks({ '2-mon': { kind: 'missed', steps: day('mon drill', 'practice') }, '2-tue': { steps: tue } }, { today: '2026-09-22' });
+    const plan = on(input);
+    expect(plan.carries.map((c) => [c.step.title, c.toTaskId])).toEqual([['mon drill', '2-wed']]);
+    expect(store(input, plan).tasks.find((t) => t.id === '2-tue')!.steps).toEqual(tue);
+    // Missed sessions' planner is unchanged: without the switch it still replaces the lesson.
+    expect(planCarries(input).carries[0].replaced.map((s) => s.title)).toEqual(['Lesson 4']);
+  });
+
+  it('a drill fits without removing the lesson when another step can make room', () => {
+    const tue = [step('tue practice', 1, 10, 'practice'), step('Lesson 4', 2, 10, 'lesson'), step('tue review', 3, 15, 'review')];
+    const plan = on(weeks({ '2-mon': { kind: 'missed', steps: day('mon drill', 'practice') }, '2-tue': { steps: tue } }, { today: '2026-09-22' }));
+    expect(plan.carries[0]).toMatchObject({ toTaskId: '2-tue' });
+    expect(plan.carries[0].replaced.map((s) => s.title)).toEqual(['tue review']);
+    expect(plan.carries[0].steps.map((s) => s.title)).toContain('Lesson 4');
+  });
+
+  it('a shift never trims a step of another in-order kind', () => {
+    const wed = [step('Lesson 5', 1, 5, 'lesson'), step('Strength B', 2, 25, 'strength')];
+    const plan = on(weeks({ '2-mon': { kind: 'missed', steps: day('Lesson 3', 'lesson') }, '2-tue': { steps: day('Lesson 4', 'lesson') }, '2-wed': { steps: wed } }, { today: '2026-09-22' }));
+    expect(dropOf(plan, '2-mon')).toBe('shift_blocked');
+    expect(plan.shifts).toEqual([]);
+  });
+});
+
 describe('takePlace', () => {
   it('keeps the place and priority of the step it replaces', () => {
     const row = [step('a', 2, 10, 'general'), step('Lesson 4', 1, 10, 'lesson'), step('c', 3, 10, 'review')];
@@ -469,7 +533,12 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
           if (IN_ORDER.includes(k) && used.has(k)) k = 'general';
           used.add(k);
           const title = IN_ORDER.includes(k) ? `${k} #${++sequence[k]}` : `${week}-${name} ${k} ${i}`;
-          steps.push(step(title, i + 1, 5 * (1 + Math.floor(random() * 5)), k, random() < 0.1 ? { highLoad: true } : {}));
+          const extra: Partial<CarriedStep> = random() < 0.1 ? { highLoad: true } : {};
+          // A few steps landed by an earlier swap (ND-18); the marker must survive every plan.
+          if (random() < 0.05) extra.swappedFrom = { taskId: `${week}-${pick(['mon', 'tue', 'wed', 'fri'] as const)}`, date: dateOf(week, 0) };
+          // Sessions of one in-order kind are mostly the same length, as in written weeks; a few are not.
+          const minutes = IN_ORDER.includes(k) && random() < 0.9 ? 15 : 5 * (1 + Math.floor(random() * 5));
+          steps.push(step(title, i + 1, minutes, k, extra));
         }
         // Shuffle priorities: the written order stays, so in-order numbering is by day, not by priority.
         const priorities = steps.map((_, i) => i + 1).sort(() => random() - 0.5);
@@ -548,6 +617,23 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
       expect(new Set(seen).size).toBe(seen.length);
     }
 
+    // No in-order step ever disappears, unless it is the one pushed past the week.
+    const pushed = new Set((plan.shifts ?? []).flatMap((sh) => sh.steps.filter((m) => m.toTaskId === null).map((m) => m.stepTitle)));
+    const titlesAfter = new Set(after.tasks.flatMap((t) => t.steps.map((s) => s.title)));
+    for (const t of input.tasks) {
+      for (const s of t.steps) {
+        if (IN_ORDER.includes(s.kind as string) && !pushed.has(s.title)) expect(titlesAfter.has(s.title), `${s.title} disappeared`).toBe(true);
+      }
+    }
+
+    // Swap markers survive: every swapped step is still there with its marker, and the swapped days are the same.
+    for (const t of input.tasks) {
+      for (const s of t.steps) {
+        if (s.swappedFrom) expect(after.tasks.find((x) => x.id === t.id)!.steps.some((x) => x.title === s.title && x.swappedFrom?.taskId === s.swappedFrom!.taskId)).toBe(true);
+      }
+    }
+    expect(swappedTaskIds(after.tasks)).toEqual(swappedTaskIds(input.tasks));
+
     // The pushed-out count is one per shift.
     if ((plan.shifts ?? []).length > 0) {
       const total = [1, 2].reduce((sum, w) => sum + (weekCounts(w, { tasks: countable(input), days: input.days, carry: plan }).pushedOut ?? 0), 0);
@@ -578,7 +664,7 @@ describe('generated weeks (AC-6): no carry or shift breaks the order or the rest
       expect(again.continues).toEqual([]);
     }
     // The generator exercises every path.
-    expect(shifts).toBeGreaterThan(20);
+    expect(shifts).toBeGreaterThan(15);
     expect(hardMoves).toBeGreaterThan(20);
     expect(carries).toBeGreaterThan(200);
   });

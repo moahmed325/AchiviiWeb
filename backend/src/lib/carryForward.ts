@@ -154,7 +154,8 @@ export function markerOf(step: CarriedStep): CarryMarker | null {
   return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
 }
 
-function swapMarkerOf(step: CarriedStep): SwapMarker | null {
+/** The step's `swappedFrom` marker, or null. Shared with method-aware recovery (`recovery/carry.ts`). */
+export function swapMarkerOf(step: CarriedStep): SwapMarker | null {
   const marker = step.swappedFrom;
   return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
 }

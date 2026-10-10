@@ -21,6 +21,7 @@ import {
   hasPriority,
   markerOf,
   planCarries,
+  swapMarkerOf,
   swappedTaskIds,
   type CarriedStep,
   type CarryMarker,
@@ -340,7 +341,11 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   const legacyRows = new Map(carries.map((carry) => [carry.toTaskId, carry.steps]));
   const dateOf = new Map(ordered.map((day) => [day.taskId, day.date]));
 
-  const isProtected = (step: CarriedStep) => !!continueMarkerOf(step) || actionOf(step, profile)?.action === 'fixed';
+  // Never replaced: a fixed step (MR-17), a continue-marked step (RULE-10) or a step that landed by a swap (ND-18).
+  const isKept = (step: CarriedStep) => !!continueMarkerOf(step) || actionOf(step, profile)?.action === 'fixed' || swapMarkerOf(step) !== null;
+  const inOrderKinds = new Set((profile?.kinds ?? []).filter((item) => item.inOrder).map((item) => item.id));
+  // Never trimmed to make room: those, and any step of an in-order kind (RULE-13: a carry never removes a lesson).
+  const isProtected = (step: CarriedStep) => isKept(step) || (typeof step.kind === 'string' && inOrderKinds.has(step.kind));
   // RULE-14: hard by the step's kind (high-load included), or for a step without a known kind by today's test.
   const isHard = (step: CarriedStep) => {
     const recovery = actionOf(step, profile);
@@ -468,11 +473,11 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   /**
    * RULE-13: `carried` takes the place of the next step of its kind on `kindDays[0]`, that step takes the place of the
    * next one on `kindDays[1]`, and so on; the last one is pushed past the week. Every link must fit its day (never
-   * longer, nothing fixed or continue-marked replaced, MR-17), every day after the first must be open and not taken,
+   * longer, nothing fixed, continue-marked, swapped or in-order trimmed, MR-17), every day after the first must be open and not taken,
    * and the rest gap must hold for every step that moves; otherwise null and nothing of the shift happens (MR-18).
    */
   function planShift(missed: DayClassification, kind: string, kindDays: DayClassification[], carried: CarriedStep) {
-    const canTrim = (step: CarriedStep) => !isProtected(step) && !isMarkedMove(step) && step.kind !== kind && actionOf(step, profile) !== null;
+    const canTrim = (step: CarriedStep) => !isProtected(step) && !isMarkedMove(step) && actionOf(step, profile) !== null;
     const proposed = new Map<string, CarriedStep[]>();
     const moved: Array<{ taskId: string; step: CarriedStep }> = [];
     const rows: PlannedShift['rows'] = [];
@@ -485,7 +490,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     for (const [index, day] of kindDays.entries()) {
       if (index > 0 && closedReason(day)) return null;
       const displaced = nextOfKind(day.taskId, kind);
-      if (!displaced || isProtected(displaced) || isMarkedMove(displaced)) return null;
+      if (!displaced || isKept(displaced) || isMarkedMove(displaced)) return null;
       const fit = takePlace({ steps: rowOf(day.taskId), durationMinutes: storedMinutes(day.taskId) }, displaced, incoming, canTrim);
       if (!fit) return null;
       const arriving = incoming;
