@@ -46,6 +46,8 @@ export interface ShiftMarker {
   taskId: string;
   date: string;
   replaced: DetailedStep[];
+  /** M3.1d: the step's number on the day it was written, so its written order survives a move to next week. */
+  stepNumber?: number;
 }
 
 /**

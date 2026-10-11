@@ -288,6 +288,12 @@ WRITE THE WEEK
 sessions, not the test day; minutes add up; unique priorities per day; no identical practice days;
 `minimumVersion` ≤ 10 minutes; rest steps ≤ 15 minutes; the existing vague-title and filler-step checks.
 
+**Method-aware recovery (only with `METHOD_RECOVERY_ENABLED` on):** a goal with a recovery profile also gets the
+`KINDS OF STEP` block (every step tags a kind, M2.1), and from M3.1d a `WHERE THEY ARE` block when last week hands
+something on: per in-order kind, the steps not done yet (which code will place, where the person is and how far
+behind), unfinished continue work, and moved steps that found no room. Nothing in it is checked; after the call,
+code places the carried steps itself (`lib/recovery/handoff.ts`, RULE-20, MR-32).
+
 ## Prompt 4: weekly update (after each weekly test, weeks 1-11)
 
 **System**

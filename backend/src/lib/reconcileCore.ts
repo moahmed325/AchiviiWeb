@@ -13,6 +13,7 @@ import { buildSignals, type MissedSignals } from './missedSignals.js';
 import { readRoutine } from './planV2.js';
 import { planRecovery, type PlannedContinue, type PlannedEasyStart, type PlannedReorder, type RecoveryPlan } from './recovery/carry.js';
 import { readRecoveryProfile } from './recovery/profile.js';
+import { methodRecoveryEnabled } from './recovery/switch.js';
 
 /**
  * The fields reconcile reads (as in M2.2). With METHOD_RECOVERY_ENABLED on, `loadReconcileGoal` also reads
@@ -54,13 +55,8 @@ export function carryEnabled(): boolean {
   return process.env.MISSED_SESSIONS_CARRY_ENABLED === 'true';
 }
 
-/**
- * Method-aware recovery (M3.1a, 03-phases.md section 3): missed days follow their steps' kinds only when this is
- * exactly 'true'. Read per request. Off until M3.3 is live (O2); writes still need `carryEnabled()`.
- */
-export function methodRecoveryEnabled(): boolean {
-  return process.env.METHOD_RECOVERY_ENABLED === 'true';
-}
+/** Method-aware recovery's switch (M3.1a); its own module since M3.1d, re-exported here for its callers. */
+export { methodRecoveryEnabled };
 
 export function loadReconcileGoal(userId: string): Promise<ReconcileGoal | null> {
   const where = { userId, status: 'active' };
