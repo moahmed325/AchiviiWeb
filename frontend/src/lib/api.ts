@@ -377,8 +377,8 @@ export async function completeGoal(
     body: JSON.stringify(payload || {}),
   });
 
-  const data = await readJson<{ goal: Goal; activeGoal: Goal }>(response, 'Failed to complete goal');
+  const data = await readJson<{ goal?: Goal; activeGoal?: Goal }>(response, 'Failed to complete goal');
 
-  return data.goal || data.activeGoal;
+  return (data.goal || data.activeGoal) as Goal;
 }
 
