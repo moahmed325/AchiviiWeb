@@ -80,12 +80,12 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 - **Key-session swap offer:** as today, only when the key session's main step is a move kind.
 
 ### Counting
-**RULE-17 — Honest counts.** The week's counts (`weekCounts`) add: let go, continued, and no room, one per missed day by its highest-priority step's planned outcome; days of the open gap and steps left behind add nothing (changed 2026-10-10, MR-26, MR-28). They are counted only, for the weekly update; no screen shows them (changed 2026-10-08, MR-19). Sessions done still count only what was done (completion is per day, ND-8), and no screen calls a let-go or continued step "skipped". `toNextWeek` counts the in-order steps handed to next week (RULE-20). The week writer is told which moved steps found no room this week (changed 2026-10-10, MR-30).
+**RULE-17 — Honest counts.** The week's counts (`weekCounts`) add: let go, continued, and no room, one per missed day by its highest-priority step's planned outcome; days of the open gap and steps left behind add nothing (changed 2026-10-10, MR-26, MR-28). They are counted only, for the weekly update; no screen shows them (changed 2026-10-08, MR-19). Sessions done still count only what was done (completion is per day, ND-8), and no screen calls a let-go or continued step "skipped". `toNextWeek` counts the in-order steps handed to next week (RULE-20). The week writer is told which moved steps found no room this week, and where the person is in each in-order sequence (changed 2026-10-10, MR-30; changed 2026-10-11, MR-32).
 
 ### Order across breaks and weeks
-**RULE-20 — In-order steps are never lost (MR-30).** For an in-order kind whose action is move, the week's remaining sessions of that kind (today or later, not done, not the test day) keep their days but hold, in order, the steps of the kind not done yet: first those not done earlier this week (a missed day, a day of a break, a lower-priority step left behind, a moved or shifted step missed again), then the ones as written. No day gets longer, a fixed, continue-marked or swapped step is never replaced, and the rest gap holds as MR-29 says; when rules clash, safety first, then order, then keep going. The steps that do not fit this week go to next week: the week writer is told them in order and starts that kind with them. The writer is also told the moved steps of other kinds that found no room, and each must appear in the new week. Code checks both (one retry with the reason, as RULE-6). An in-order kind whose action is continue keeps its continue marker (RULE-10); if the work is not finished by the week's end, the week writer is told too.
+**RULE-20 — In-order steps are never lost (MR-30).** For an in-order kind whose action is move, the week's remaining sessions of that kind (today or later, not done, not the test day) keep their days but hold, in order, the steps of the kind not done yet: first those not done earlier this week (a missed day, a day of a break, a lower-priority step left behind, a moved or shifted step missed again), then the ones as written. No day gets longer, a fixed, continue-marked or swapped step is never replaced, and the rest gap holds as MR-29 says; when rules clash, safety first, then order, then keep going. The steps that do not fit this week go to next week, and next week continues from where the person is (MR-32): code places them, in order, in the new week's first sessions of that kind; those that do not fit wait inside the new week and are carried again, so nothing piles up and nothing is skipped. The writer is told which steps code places, where the person is in each sequence and how far behind the plan, and writes any further step of the kind to continue after them. No check can fail the week. Moved steps of other kinds that found no room are told to the writer; code places a non-hard one in next week's first session of its kind when it fits, and a hard one is information only. At a phase change, carried steps continue if their kind is still in the profile, otherwise they are let go. In the plan's final week nothing is carried (section 6). An in-order kind whose action is continue keeps its continue marker (RULE-10); if the work is not finished by the week's end, the writer is told (told, not placed or checked).
 
-**RULE-21 — An easy first hard session after a break (MR-31).** After an open gap (several days in a row, ND-11), code puts "First hard session after a few days off: keep the effort easy today." first in the instructions of the first hard step on the first open practice day this week after the gap that has a hard step, once.
+**RULE-21 — An easy first hard session after a break (MR-31).** After an open gap (several days in a row, ND-11), code puts "First hard session after a few days off: keep the effort easy today." first in the instructions of the first hard step on the first open practice day this week after the gap that has a hard step, once. When the test day comes first after the gap and its test step is hard, the line goes on the test step (changed 2026-10-11, MR-32).
 
 ### Steps from before this feature
 **RULE-18 — Old steps keep today's behavior (MR-6).** A step without a kind, written before this feature, follows missed sessions' current rules, until the goal's next week is written.
@@ -128,8 +128,9 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 | Continue | "{Day}'s session didn't happen. {Weekday}'s session picks up where you left off." |
 | Let go (today's drop wording, kept, MR-21) | "{Day}'s session didn't happen. Nothing needs making up: the plan carries on as it is." |
 | Fixed | "{Day}'s session didn't happen. It was set for that day, so the plan carries on as it is." |
-| No room this week | "{Day}'s session didn't happen. There's no room for it this week without making a day longer, so next week's plan includes it." (changed 2026-10-10, MR-30) |
+| No room this week | "{Day}'s session didn't happen. There's no room for it this week without making a day longer, so next week's plan takes it into account." (changed 2026-10-11, MR-32: the writer is always told; code places it when it fits) |
 | In order, to next week (MR-30) | "{Day}'s session didn't happen. There's no room for it this week, so next week starts with it." |
+| Final week, no room (MR-32) | "{Day}'s session didn't happen. This was the plan's last week, so it's left out." |
 | First hard session after a break, in Focus and Today (MR-31) | "First hard session after a few days off: keep the effort easy today." |
 | Continued step, in Focus and Today | "Pick up where {Weekday} stopped." |
 
@@ -140,7 +141,8 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 | Moved | "{Day}'s most important step moved to {Weekday}." (into today: today's wording, unchanged) |
 | Continue | "{Day}'s work picks up again on {Weekday}." |
 | Let go or fixed | "{Day} slipped past. No catching up needed, just today." (today's wording, unchanged) |
-| No room this week | "{Day} slipped past. Next week's plan includes it." (changed 2026-10-10, MR-30) |
+| No room this week | "{Day} slipped past. Next week's plan takes it into account." (changed 2026-10-11, MR-32) |
+| Final week, no room | "{Day} slipped past. This was the plan's last week." |
 | In order, to next week | "{Day} slipped past. Next week starts with it." |
 
 ## 7. Data and system changes
@@ -176,8 +178,8 @@ These apply to each step of a day that closed undone, or was set aside. Missed s
 - **AC-11** The eval meets RULE-19's thresholds before custom profiles are switched on, and the results are recorded. (RULE-19)
 - **AC-12** Missed sessions' guarantees and all existing tests still pass. (section 7)
 - **AC-13** Pathway and onboarding lines about missed days match each pathway's profile. (section 6)
-- **AC-14** Generated weeks with missed days, breaks and steps missed twice show that no in-order step is ever lost: each is done this week in order or handed to next week, and next week's first steps of that kind are those steps; every moved step that found no room appears in next week. (RULE-20)
-- **AC-15** After a break, the first hard step back carries the easy line once; a moved step carries the warm-up line only when it is physical. (RULE-21, RULE-9)
+- **AC-14** Generated weeks with missed days, breaks and steps missed twice show that no in-order step is ever lost: each is done this week in order or handed to next week, and next week's first sessions of that kind hold those steps (placed by code), with the rest waiting in order; nothing is carried out of the final week. (RULE-20, MR-32)
+- **AC-15** After a break, the first hard step back carries the easy line once, the test step included when the test day comes first; a moved step carries the warm-up line only when it is physical. (RULE-21, RULE-9)
 
 ## 10. Other concerns
 - **Cost and speed:** one more model call at custom goal creation (a few seconds). Pathways add none. The week call's answer grows by one short field per step.

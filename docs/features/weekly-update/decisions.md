@@ -65,3 +65,7 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** pause the weekly update and build `docs/features/method-aware-recovery/` first. The return-after-a-break rule (RULE-12) becomes part of that feature's recovery profile (MR-2). The weekly update resumes when it is done.
 **Why:** the break rule and day-level recovery need the same per-goal knowledge; build it once, first.
 **Changes:** status (paused); RULE-12.
+
+## Notes from method-aware recovery (not decisions)
+- **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on.
+- **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that.
