@@ -345,12 +345,14 @@ function methodLine(
           break;
         }
         const origin = originOf(step, day);
-        const session = rows.find(
+        const holding = rows.filter(
           (row) =>
             row.id !== day.taskId &&
             dateOf.get(row.id)! > day.date &&
             row.steps.some((held) => shiftMarkerOf(held)?.taskId === origin.taskId && held.title === step.title)
         );
+        // A session that closed may still hold a copy (it was missed too and the step moved on): the open one names the day.
+        const session = holding.find((row) => ctx.isOpen(dateOf.get(row.id)!)) ?? holding[0];
         if (session) {
           line = towards(day, 'moved_in_order', session.id);
           break;
@@ -377,10 +379,11 @@ function methodLine(
     return drop ? { kind: 'dropped', taskId: day.taskId, date: day.date, toTaskId: null, toDate: null } : null;
   };
 
-  // Set aside today (ND-14): nothing about it is stored when nothing moves, so only the action's answer has it.
+  // Set aside today (ND-14): nothing about it is stored when nothing moves, so only the action's answer has it. A day
+  // set aside today never answers with another day's line: without a line of its own, there is none.
   const setAside = ctx.practice.find((day) => day.date === input.today && day.kind === 'missed');
   const todayLine = receiving.find((line) => line.date === input.today) ?? (setAside ? notMoved(setAside) : null);
-  if (todayLine) return todayLine;
+  if (todayLine || setAside) return todayLine;
   if (receiving.length > 0) return receiving[0];
   return ctx.latestClosed?.kind === 'missed' ? notMoved(ctx.latestClosed) : null;
 }

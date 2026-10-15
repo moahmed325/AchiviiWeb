@@ -360,8 +360,7 @@ function writtenRows(stored: WrittenRecovery): Map<string, { steps: CarriedStep[
  * M3.2: the evaluation as the next request will see it: this one when nothing was stored, otherwise the goal re-read
  * with the stored rows (same overrides), so `carry.choices` agree with what the routes will check.
  */
-function afterWrites(evaluation: Evaluation, user: ReconcileUser, stored: WrittenRecovery): Evaluation {
-  const rows = writtenRows(stored);
+function afterWrites(evaluation: Evaluation, user: ReconcileUser, rows: ReadonlyMap<string, { steps: CarriedStep[]; durationMinutes: number }>): Evaluation {
   if (rows.size === 0) return evaluation;
   const goal: ReconcileGoal = {
     ...evaluation.goal,
@@ -397,8 +396,8 @@ export async function runReconcile(
   const { written, ...writtenMethod } = stored;
   // M2.3: derived signals for P3 (ND-16); only stored carries count as moved. M3.3: with the method switch on, the
   // method line reads the steps as stored after this run's writes.
-  const rows = plan.outcomes ? writtenRows(stored) : null;
-  const storedSteps = rows ? evaluation.tasks.map((task) => ({ id: task.id, steps: rows.get(task.id)?.steps ?? task.steps })) : undefined;
+  const rows = writtenRows(stored);
+  const storedSteps = plan.outcomes ? evaluation.tasks.map((task) => ({ id: task.id, steps: rows.get(task.id)?.steps ?? task.steps })) : undefined;
   const signals = buildSignals({
     days: result.days,
     gap: result.gap,
@@ -412,7 +411,7 @@ export async function runReconcile(
   });
   // The method fields appear only when the method switch is on, so with it off the body is exactly as before.
   const carry = plan.outcomes
-    ? { enabled, ...plan, written, ...writtenMethod, choices: enabled ? planChoices(afterWrites(evaluation, user, stored), user, plan.held) : NO_CHOICES }
+    ? { enabled, ...plan, written, ...writtenMethod, choices: enabled ? planChoices(afterWrites(evaluation, user, rows), user, plan.held) : NO_CHOICES }
     : { enabled, ...plan, written };
   return { ...result, carry, signals };
 }

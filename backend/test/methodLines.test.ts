@@ -26,6 +26,9 @@ vi.mock('../src/routes/auth.js', () => ({
 
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
+import { buildSignals } from '../src/lib/missedSignals.js';
+import type { DayClassification } from '../src/lib/missedSessions.js';
+import type { DayOutcome } from '../src/lib/recovery/carry.js';
 
 const CARRY = 'MISSED_SESSIONS_CARRY_ENABLED';
 const METHOD = 'METHOD_RECOVERY_ENABLED';
@@ -366,5 +369,59 @@ describe('M3.3 the miss line with method-aware recovery', () => {
       const set = await post('/tasks/tue/mark-missed');
       expect(set.body.signals.line).toEqual(line('let_go', ['tue', TUE]));
     });
+  });
+});
+
+describe('M3.3 review: buildSignals picks the line from exactly these markers', () => {
+  // Thu 2026-09-24 10:00 UTC, bedtime 23:00: Mon to Wed have closed, Thu (today) and Fri are open.
+  const NOW = new Date('2026-09-24T10:00:00Z');
+  const THU = '2026-09-24';
+  const FRI = '2026-09-25';
+  const dayOf = (taskId: string, date: string, dayNumber: number, kind: DayClassification['kind']): DayClassification => ({
+    taskId, date, weekNumber: 1, dayNumber, isKeySession: false, isTestDay: false, kind,
+  });
+  const shifted = (title: string, from: [string, string]) => ({ ...step(title, 1, 20, 'lesson'), shiftedFrom: { taskId: from[0], date: from[1], replaced: [] } });
+  const signalsOf = (days: DayClassification[], outcomes: DayOutcome[], stored: Array<{ id: string; steps: any[] }>, alreadyCarried: any[] = []) =>
+    buildSignals({
+      days,
+      gap: null,
+      plan: { carries: [], drops: [], held: [], alreadyCarried, outcomes },
+      written: [],
+      stored,
+      now: NOW,
+      today: THU,
+      timezone: 'UTC',
+      sleepTime: '23:00',
+    });
+
+  it('moved in order: a closed session still holding a copy is passed over for the open one', () => {
+    // Mon's Lesson 3 was reordered onto Wed; Wed was missed too and the lesson moved on to Fri. Both name Mon.
+    const days = [dayOf('mon', MON, 1, 'missed'), dayOf('tue', TUE, 2, 'done'), dayOf('wed', WED, 3, 'missed'), dayOf('thu', THU, 4, 'planned'), dayOf('fri', FRI, 5, 'planned')];
+    const outcomes: DayOutcome[] = [{ taskId: 'mon', date: MON, rules: 'method', outcome: 'moved', topStep: 'moved' }];
+    const stored = [
+      { id: 'mon', steps: lesson('Lesson 3') },
+      { id: 'tue', steps: lesson('Lesson 4') },
+      { id: 'wed', steps: [shifted('Lesson 3', ['mon', MON])] },
+      { id: 'thu', steps: lesson('Lesson 5') },
+      { id: 'fri', steps: [shifted('Lesson 3', ['mon', MON])] },
+    ];
+    expect(signalsOf(days, outcomes, stored).line).toEqual(line('moved_in_order', ['mon', MON], ['fri', FRI]));
+  });
+
+  it('set aside today without a line of its own: no line, never another day\'s', () => {
+    // Today is set aside and planned as moved, but nothing it names is stored; Monday's carry to Friday is still open.
+    const days = [dayOf('mon', MON, 1, 'missed'), dayOf('thu', THU, 4, 'missed'), dayOf('fri', FRI, 5, 'planned')];
+    const outcomes: DayOutcome[] = [
+      { taskId: 'mon', date: MON, rules: 'method', outcome: 'moved', topStep: 'moved' },
+      { taskId: 'thu', date: THU, rules: 'method', outcome: 'moved', topStep: 'moved' },
+    ];
+    const stored = [{ id: 'mon', steps: day('mon practice', 'practice') }, { id: 'thu', steps: day('thu practice', 'practice') }, { id: 'fri', steps: day('fri practice', 'practice') }];
+    const carry = { fromTaskId: 'mon', fromDate: MON, toTaskId: 'fri', toDate: FRI, step: step('mon practice', 1, 15, 'practice') };
+    const signals = signalsOf(days, outcomes, stored, [carry]);
+    expect(signals.line).toBeNull();
+    expect(signals.notice).toBeNull();
+    // Without today set aside, Monday's line shows.
+    const open = signalsOf([days[0], dayOf('thu', THU, 4, 'planned'), days[2]], outcomes.slice(0, 1), stored, [carry]);
+    expect(open.line).toEqual(line('moved', ['mon', MON], ['fri', FRI]));
   });
 });
