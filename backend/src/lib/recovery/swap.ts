@@ -8,7 +8,8 @@
  * - a day holding a step placed by a reorder (`shiftedFrom`) or a continue marker (RULE-10): any switch state;
  * - with a valid profile, a fixed step on either day (RULE-12, MR-17), a step of an in-order kind coming after a later
  *   one of its kind (RULE-13, RULE-20), or two hard steps closer than the rest gap (RULE-14, MR-29). Order and rest gap
- *   are refused only for a breach the swap creates: what the week already holds does not block a swap that keeps it.
+ *   are refused only for a breach the swap creates or makes worse: what the week already holds does not block a swap
+ *   that keeps it, and a rest-gap closeness may stay or widen but never narrow.
  * Steps without a kind (RULE-18) are never fixed or in order; they are hard as the carry planner reads them.
  */
 import type { CarriedStep, CarryTask } from '../carryForward.js';
@@ -94,20 +95,24 @@ export function methodSwapRefusal(week: SwapWeek, aId: string, bId: string): Swa
     }
   }
 
-  // RULE-14: a hard step that changes day is never closer than the rest gap to another hard step on a done or open
-  // day, unless they were that close already. Steps of one day move together, so their closeness stays as written.
+  // RULE-14: a hard step that changes day never ends within the rest gap of another hard step on a done or open day
+  // unless it was at least that close already (M3.2 review: a swap may keep or widen the writer's closeness, never
+  // narrow it). Steps of one day move together, so their closeness stays as written.
   const gap = profile.restGapDays ?? 0;
   const hard = steps.filter((placed) => isHardStep(placed.step, profile, week.goal));
-  const close = (x: Placed, y: Placed, swapped: boolean) => {
+  /** The calendar days between two hard steps when both days count for rest, or null. */
+  const distance = (x: Placed, y: Placed, swapped: boolean) => {
     const dx = swapped ? after(x.from) : x.from;
     const dy = swapped ? after(y.from) : y.from;
-    return countsForRest(dx) && countsForRest(dy) && Math.abs(dayNumberOf(dx.date) - dayNumberOf(dy.date)) <= gap;
+    return countsForRest(dx) && countsForRest(dy) ? Math.abs(dayNumberOf(dx.date) - dayNumberOf(dy.date)) : null;
   };
   for (const x of hard) {
     if (x.from !== a && x.from !== b) continue;
     for (const y of hard) {
       if (y === x || y.from === x.from) continue;
-      if (close(x, y, true) && !close(x, y, false)) return 'rest_gap';
+      const swappedDistance = distance(x, y, true);
+      const before = distance(x, y, false);
+      if (swappedDistance !== null && swappedDistance <= gap && (before === null || swappedDistance < before)) return 'rest_gap';
     }
   }
   return null;

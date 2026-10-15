@@ -253,6 +253,19 @@ describe('M3.2 person actions with method-aware recovery', () => {
       expect(stepsOf('wed')[0]).toMatchObject({ title: 'Lesson 4' });
     });
 
+    it('M3.2 review: refused when it narrows a closeness the writer left within the rest gap; allowed when it widens it', async () => {
+      // Rest gap 2: hard Mon (done) and Wed are two days apart (the writer's own closeness). Wed's step onto Tue
+      // narrows it to one.
+      const gap2 = { ...PROFILE, restGapDays: 2 };
+      seed({ mon: { status: 'completed', steps: day('intervals', 'heavy') }, wed: { steps: day('tempo', 'heavy') } }, gap2);
+      at(TUE);
+      expect(await swap('wed', 'tue')).toMatchObject({ status: 409, body: { reason: 'rest_gap' } });
+      expect(await swap('tue', 'wed')).toMatchObject({ status: 409, body: { reason: 'rest_gap' } });
+      expect((await reconcile()).body.carry.choices.today).toEqual({ taskId: 'tue', setAside: true, swapWith: ['fri'] });
+      // Wed's step onto Fri widens it (four days from Mon).
+      expect((await swap('wed', 'fri')).status).toBe(200);
+    });
+
     it('refused when it creates a rest-gap breach (rest_gap), counting a done day', async () => {
       seed({ mon: { status: 'completed' }, tue: { steps: day('intervals', 'heavy') }, fri: { steps: day('long run', 'heavy') } });
       at(TUE);
@@ -369,9 +382,59 @@ describe('M3.2 person actions with method-aware recovery', () => {
       expect(store.rows).toEqual(before);
       expect(store.prisma.dailyTask.updateMany).not.toHaveBeenCalled();
     });
+
+    it.each([
+      ['steps without kinds (RULE-18)', (s: Step[]) => s.map(({ kind: _k, ...rest }) => rest as Step), PROFILE],
+      ['no valid profile', (s: Step[]) => s, null],
+    ])('M3.2 review: a held day with %s keeps today\'s carry-now: 200 even when its step drops', async (_name, tag, profile) => {
+      // Mon's lead is not high-load (so it is held, ND-9), a lower step is; Tue is one 30-minute step, so nothing fits.
+      const mon = tag([step('mon lead', 1, 15, 'practice'), step('mon sprints', 2, 10, 'heavy', { highLoad: true }), step('mon extra', 3, 5, 'general')]);
+      const tue = tag([step('tue block', 1, 30, 'practice')]);
+      seed({ mon: { key: true, steps: mon }, tue: { steps: tue } }, profile);
+      at(TUE);
+      expect((await reconcile()).body.carry.held.map((h: any) => h.taskId)).toEqual(['mon']);
+      const answer = await post('/tasks/mon/carry-now');
+      expect(answer.status).toBe(200);
+      expect(answer.body.carry.written).toEqual([]);
+      expect(answer.body.carry.drops).toContainEqual({ taskId: 'mon', date: '2026-09-21', reason: 'does_not_fit' });
+      // The same answer as with the method switch off.
+      method(false);
+      seed({ mon: { key: true, steps: mon }, tue: { steps: tue } }, profile);
+      expect((await post('/tasks/mon/carry-now')).status).toBe(200);
+    });
   });
 
   describe('carry.choices', () => {
+    it('M3.2 review: with the carry switch off nothing is offered', async () => {
+      delete process.env[CARRY];
+      seed({ mon: { key: true } });
+      at(TUE);
+      const { body } = await reconcile();
+      expect(body.carry.enabled).toBe(false);
+      expect(body.carry.held.map((h: any) => h.taskId)).toEqual(['mon']);
+      expect(body.carry.choices).toEqual({ today: null, held: [] });
+    });
+
+    it('M3.2 review: one body, one hold, even when this run stores a marker that releases the hold next time', async () => {
+      // Mon (missed) has a continue step: its marker goes on Wed's draft. Tue (missed, key) is held for Wed, its receiving
+      // day. Once the marker is stored, Wed can no longer be swapped, so the next request no longer holds Tue.
+      seed({
+        mon: { steps: [step('mon draft', 1, 15, 'drafting'), step('mon notes', 2, 10, 'review')] },
+        tue: { key: true },
+        wed: { steps: day('wed draft', 'drafting') },
+      });
+      at('2026-09-23T10:00:00Z');
+      const { body } = await reconcile();
+      expect(body.carry.writtenContinues.map((c: any) => [c.fromTaskId, c.toTaskId])).toEqual([['mon', 'wed']]);
+      expect(body.carry.held.map((h: any) => h.taskId)).toEqual(['tue']);
+      expect(body.carry.choices.held.map((h: any) => h.taskId)).toEqual(['tue']);
+      expect(body.signals.swapOffer).toMatchObject({ missedTaskId: 'tue', receivingTaskId: 'wed' });
+      // The next request sees the stored marker: the offer is gone and Tue follows its kind (see the report).
+      const next = await reconcile();
+      expect(next.body.carry.held).toEqual([]);
+      expect(next.body.carry.choices.held).toEqual([]);
+    });
+
     it('today: set aside, and only the days that pass; the route agrees', async () => {
       seed({ mon: { status: 'completed' }, wed: { steps: day('class', 'fixed_time_session') } });
       at(TUE);

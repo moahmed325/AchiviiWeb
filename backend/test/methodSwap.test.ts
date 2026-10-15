@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { evaluate, planChoices, type ReconcileGoal } from '../src/lib/reconcileCore.js';
 import type { RecoveryPlan } from '../src/lib/recovery/carry.js';
 import { holdRefusal, markerRefusal, methodSwapRefusal } from '../src/lib/recovery/swap.js';
-import { closeDays, closeSteps, noFixed, orderBreaks, randomWeek, stepsIn, subset, swapped, type Row } from './methodWeeks.js';
+import { closeDays, narrowedSteps, noFixed, orderBreaks, randomWeek, stepsIn, subset, swapped, type Row } from './methodWeeks.js';
 
 // Method-aware recovery M3.2: the swap check (RULE-12 to RULE-14), the hold and move now (RULE-16), and generated
 // weeks (AC-6, AC-8): every swap the choices offer keeps fixed steps, order and the rest gap, and every move-now keeps
@@ -79,7 +79,7 @@ describe('the swap check', () => {
           const keeps =
             noFixed(a, other) &&
             subset(orderBreaks(after), orderBreaks(week.rows)).length === 0 &&
-            subset(closeSteps(after, week.profile, week.today), closeSteps(week.rows, week.profile, week.today)).length === 0;
+            narrowedSteps(week.rows, after, week.profile, week.today).length === 0;
           const open = today.setAside && !other.isRestDay && !other.isTestDay && other.status !== 'completed' && !a.isTestDay;
           if (today.swapWith.includes(other.id)) {
             offered += 1;

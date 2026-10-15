@@ -167,14 +167,22 @@ export function closeDays(rows: readonly Row[], profile: RecoveryProfile, today:
   return out;
 }
 
-/** RULE-14 for a swap: pairs of hard steps (by title) on counted days closer than the rest gap. */
-export function closeSteps(rows: readonly Row[], profile: RecoveryProfile, today: string): Set<string> {
+/** Calendar days between every pair of hard steps (by title) on two different counted days. */
+function hardDistances(rows: readonly Row[], profile: RecoveryProfile, today: string): Map<string, number> {
   const hard = rows.filter((row) => counts(row, today)).flatMap((row) => stepsIn(row).filter((s) => isHard(s, profile)).map((s) => ({ row, title: s.title })));
-  const out = new Set<string>();
+  const out = new Map<string, number>();
   for (const x of hard)
-    for (const y of hard)
-      if (x.title < y.title && x.row.id !== y.row.id && Math.abs(dayCount(x.row.date) - dayCount(y.row.date)) <= profile.restGapDays) out.add(`${x.title}~${y.title}`);
+    for (const y of hard) if (x.title < y.title && x.row.id !== y.row.id) out.set(`${x.title}~${y.title}`, Math.abs(dayCount(x.row.date) - dayCount(y.row.date)));
   return out;
+}
+
+/**
+ * RULE-14 for a swap (M3.2 review): pairs of hard steps that end within the rest gap and closer than before (or that
+ * were not both on counted days before). A swap may keep or widen a closeness, never narrow it.
+ */
+export function narrowedSteps(before: readonly Row[], after: readonly Row[], profile: RecoveryProfile, today: string): string[] {
+  const was = hardDistances(before, profile, today);
+  return [...hardDistances(after, profile, today)].filter(([pair, d]) => d <= profile.restGapDays && !(was.has(pair) && was.get(pair)! <= d)).map(([pair]) => pair);
 }
 
 export const subset = (a: Set<string>, b: Set<string>) => [...a].filter((item) => !b.has(item));

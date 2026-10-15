@@ -8,6 +8,7 @@ import {
   carryEnabled,
   evaluate,
   loadReconcileGoal,
+  followsNewRules,
   methodRefusal,
   moveNowTarget,
   openSwapRefusal,
@@ -603,13 +604,13 @@ goalRouter.post('/tasks/:taskId/carry-now', async (req: Request, res: Response):
     const overrides = isOpenToday ? { asMissed: task.id } : {};
     const held = evaluate(goal, user, now, overrides);
     if (!held.applies || !held.plan.held.some((item) => item.taskId === task.id)) return refuse(res, 'not_held');
-    // M3.2 (RULE-16, MR-21 (2)): with the method switch on, "move now" is done only when it really moves the step.
-    if (held.method) {
-      const moving = evaluate(goal, user, now, { ...overrides, asNotKey: task.id });
-      if (!moving.applies || moveNowTarget(moving, task.id) === null) return refuse(res, 'would_not_move');
-    }
+    // M3.2 (RULE-16, MR-21 (2)): with the method switch on, "move now" on a day that follows the new rules is done
+    // only when it really moves the step. A day under missed sessions' rules (RULE-18) keeps today's carry-now.
+    const moving = evaluate(goal, user, now, { ...overrides, asNotKey: task.id });
+    if (!moving.applies) return refuse(res, 'not_plan_v2');
+    if (followsNewRules(held, task.id) && moveNowTarget(moving, task.id) === null) return refuse(res, 'would_not_move');
 
-    res.json(await runReconcile(goal, user, now, { ...overrides, asNotKey: task.id }));
+    res.json(await runReconcile(goal, user, now, moving.overrides, moving));
   } catch (err: any) {
     console.error('[GoalRouter] Carry now error:', err);
     res.status(500).json({ error: 'Failed to update the plan.' });
