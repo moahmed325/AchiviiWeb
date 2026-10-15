@@ -329,6 +329,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     (item) => !methodDays.has(item.taskId) || (stepsOf.get(item.taskId)![0].recovery.action === 'move' && holdRefusal(swapWeek, item.taskId, item.receivingTaskId) === null)
   );
   const heldIds = new Set(held.map((item) => item.taskId));
+  const heldReceiving = new Set(held.map((item) => item.receivingTaskId));
   // The open gap stays exactly as missed sessions decides it.
   const active = ordered.filter((day) => methodDays.has(day.taskId) && !inGap.has(day.taskId) && !heldIds.has(day.taskId));
 
@@ -416,6 +417,9 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     if (marker) continue; // Written once: its own marker is already counted; another day's means no room.
     if (latestOnStep.get(`${target.taskId}#${stepIndex}`) !== missed) continue;
     if (isClosed(target)) continue;
+    // M3.2 review (Mo): a held offer's receiving day never takes a continue marker, so the offer stays open; the
+    // continue is no room, as for a closed or already-marked session (RULE-10).
+    if (heldReceiving.has(target.taskId)) continue;
     // A day that receives a missed-sessions carry in this run is written by that carry alone.
     if (carries.some((carry) => carry.toTaskId === target.taskId)) continue;
     const next = [...rowOf(target.taskId)];
@@ -477,7 +481,6 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   const reorderRowIds = new Map<PlannedReorder, string[]>();
   /** `${kind}\0${key}` → where a step of the queue ends after this run: on a session, or listed for next week. */
   const queueEnd = new Map<string, 'session' | 'next_week' | 'left_out'>();
-  const heldReceiving = new Set(held.map((item) => item.receivingTaskId));
   const legacyTargets = new Set(carries.map((carry) => carry.toTaskId));
   const canTrim = (step: CarriedStep) => !isProtected(step) && !isMarkedMove(step) && actionOf(step, profile) !== null;
   const refOf = (item: QueueItem): ReorderStep => ({ taskId: item.origin.taskId, date: item.origin.date, title: item.title });

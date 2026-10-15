@@ -80,6 +80,8 @@ interface DaySpec {
   status?: string;
   key?: boolean;
   minutes?: number;
+  /** Overrides the week's rest days (Thu and Sun). */
+  rest?: boolean;
 }
 
 function seed(spec: Partial<Record<Id, DaySpec>> = {}, profile: unknown = PROFILE) {
@@ -95,7 +97,7 @@ function seed(spec: Partial<Record<Id, DaySpec>> = {}, profile: unknown = PROFIL
   };
   store.rows = DAYS.map(([id, date], index) => {
     const s = spec[id] ?? {};
-    const isRestDay = id === 'thu' || id === 'sun';
+    const isRestDay = s.rest ?? (id === 'thu' || id === 'sun');
     const isTestDay = id === 'sat';
     const steps = s.steps ?? (isRestDay ? [] : isTestDay ? [step('Weekly test: 1-minute test', 1, 20, 'weekly_test')] : day(`${id} practice`, 'practice'));
     return {
@@ -415,24 +417,30 @@ describe('M3.2 person actions with method-aware recovery', () => {
       expect(body.carry.choices).toEqual({ today: null, held: [] });
     });
 
-    it('M3.2 review: one body, one hold, even when this run stores a marker that releases the hold next time', async () => {
-      // Mon (missed) has a continue step: its marker goes on Wed's draft. Tue (missed, key) is held for Wed, its receiving
-      // day. Once the marker is stored, Wed can no longer be swapped, so the next request no longer holds Tue.
+    it("M3.2 review (Mo): a held offer's receiving day never takes a continue marker; the continue is no room and the offer stays", async () => {
+      // Thursday is a practice day here. Wed (missed, key) is held for Thu, its receiving day. Tue (missed) has a
+      // continue step whose next session of the kind is Thu: no marker goes there, and Tue's continue is no room.
       seed({
-        mon: { steps: [step('mon draft', 1, 15, 'drafting'), step('mon notes', 2, 10, 'review')] },
-        tue: { key: true },
-        wed: { steps: day('wed draft', 'drafting') },
+        mon: { status: 'completed' },
+        tue: { steps: [step('tue draft', 1, 15, 'drafting'), step('tue notes', 2, 10, 'review')] },
+        wed: { key: true },
+        thu: { rest: false, steps: day('thu draft', 'drafting') },
       });
-      at('2026-09-23T10:00:00Z');
+      at('2026-09-24T10:00:00Z');
       const { body } = await reconcile();
-      expect(body.carry.writtenContinues.map((c: any) => [c.fromTaskId, c.toTaskId])).toEqual([['mon', 'wed']]);
-      expect(body.carry.held.map((h: any) => h.taskId)).toEqual(['tue']);
-      expect(body.carry.choices.held.map((h: any) => h.taskId)).toEqual(['tue']);
-      expect(body.signals.swapOffer).toMatchObject({ missedTaskId: 'tue', receivingTaskId: 'wed' });
-      // The next request sees the stored marker: the offer is gone and Tue follows its kind (see the report).
+      expect(body.carry.continues).toEqual([]);
+      expect(body.carry.writtenContinues).toEqual([]);
+      expect(stepsOf('thu').some((s) => s.continueFrom)).toBe(false);
+      expect(body.carry.outcomes.find((o: any) => o.taskId === 'tue')).toMatchObject({ rules: 'method', outcome: 'no_room', topStep: 'no_room' });
+      expect(body.carry.held.map((h: any) => [h.taskId, h.receivingTaskId])).toEqual([['wed', 'thu']]);
+      expect(body.carry.choices.held.map((h: any) => h.taskId)).toEqual(['wed']);
+      expect(body.signals.swapOffer).toMatchObject({ missedTaskId: 'wed', receivingTaskId: 'thu' });
+      // The next request still holds Wed, and answering the offer swaps.
       const next = await reconcile();
-      expect(next.body.carry.held).toEqual([]);
-      expect(next.body.carry.choices.held).toEqual([]);
+      expect(next.body.carry.held.map((h: any) => h.taskId)).toEqual(['wed']);
+      expect(next.body.carry.choices.held.map((h: any) => h.taskId)).toEqual(['wed']);
+      expect((await swap('wed', 'thu')).status).toBe(200);
+      expect(stepsOf('thu')[0]).toMatchObject({ title: 'wed practice', swappedFrom: { taskId: 'wed' } });
     });
 
     it('today: set aside, and only the days that pass; the route agrees', async () => {
