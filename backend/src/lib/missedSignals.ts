@@ -4,8 +4,10 @@
  * gap, the carry plan and the stored `carriedFrom` markers; nothing new is stored (ND-2, ND-16).
  * See docs/archive/missed-sessions/03-feature.md (OD-2, RULE-4, RULE-8, RULE-9, AC-5, AC-10) and 04-phases.md.
  */
-import type { CarryPlan, CarriedEarlier, PlannedCarry } from './carryForward.js';
+import { markerOf, type CarriedStep, type CarryPlan, type CarriedEarlier, type PlannedCarry } from './carryForward.js';
 import type { DayOutcome, PlannedReorder } from './recovery/carry.js';
+import { originOf } from './recovery/inOrder.js';
+import { continueMarkerOf, shiftMarkerOf } from './recovery/rules.js';
 import { dayCloseInstant, type DayClassification, type Gap } from './missedSessions.js';
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -132,7 +134,26 @@ export interface GentleReturnSignal {
   lastDate: string;
 }
 
-export type NoticeKind = 'gentle_return' | 'swap_offer' | 'carried' | 'dropped';
+/** `method` (M3.3) only when the plan carries method outcomes: the line is a day that followed the new rules. */
+export type NoticeKind = 'gentle_return' | 'swap_offer' | 'carried' | 'dropped' | 'method';
+
+/**
+ * Method-aware recovery (M3.3, RULE-15, MR-35): which line a missed day gets. `carried` and `dropped` are a day under
+ * missed sessions' rules (RULE-18), whose lines stay as they are; the others are a day that followed the new rules, by
+ * its outcome. `moved` is a carry (`carriedFrom`), `moved_in_order` a step a reorder placed on a later session
+ * (`shiftedFrom`), `continued` a continue marker (`continueFrom`).
+ */
+export type LineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
+
+export interface LineSignal {
+  kind: LineKind;
+  /** The day that didn't happen (today when it was set aside). */
+  taskId: string;
+  date: string;
+  /** The receiving day, for `carried`, `moved`, `moved_in_order` and `continued`; otherwise null. */
+  toTaskId: string | null;
+  toDate: string | null;
+}
 
 export interface MissedSignals {
   carried: CarriedSignal[];
@@ -142,12 +163,22 @@ export interface MissedSignals {
   gentleReturn: GentleReturnSignal | null;
   /** The one line P3 shows (notice fatigue, 04-phases.md 8.10), or null. */
   notice: NoticeKind | null;
+  /**
+   * M3.3: present only when the plan carries method outcomes (the method switch is on). The missed day the line is
+   * about and what happened to it, when `notice` is `carried`, `dropped` or `method`; otherwise null.
+   */
+  line?: LineSignal | null;
 }
 
 export interface SignalInput {
   days: readonly DayClassification[];
   gap: Gap | null;
-  plan: CarryPlan;
+  plan: CarryPlan & { outcomes?: readonly DayOutcome[] };
+  /**
+   * M3.3: every day's steps as stored after this run's writes. The method lines that name a receiving day are read
+   * from their stored markers, so they last until that day closes. Read only when `plan.outcomes` is present.
+   */
+  stored?: ReadonlyArray<{ id: string; steps: readonly CarriedStep[] }>;
   /** Carries this request actually wrote (M2.2 `carry.written`). */
   written: readonly PlannedCarry[];
   now: Date;
@@ -239,6 +270,12 @@ export function buildSignals(input: SignalInput): MissedSignals {
       : null;
 
   const restDay = today?.kind === 'rest';
+  if (input.plan.outcomes) {
+    const line = methodLine(input, input.plan.outcomes, { stored, practice, latestClosed, isOpen: (date) => nowMs < closeOf(date) });
+    const lineNotice: NoticeKind | null = line ? (line.kind === 'carried' || line.kind === 'dropped' ? line.kind : 'method') : null;
+    const notice: NoticeKind | null = gentleReturn ? 'gentle_return' : restDay ? null : swapOffer ? 'swap_offer' : lineNotice;
+    return { carried, dropped, swapOffer, shortOnTime, gentleReturn, notice, line: notice === lineNotice ? line : null };
+  }
   const notice: NoticeKind | null = gentleReturn
     ? 'gentle_return'
     : restDay
@@ -252,4 +289,101 @@ export function buildSignals(input: SignalInput): MissedSignals {
             : null;
 
   return { carried, dropped, swapOffer, shortOnTime, gentleReturn, notice };
+}
+
+const NOT_MOVED: ReadonlySet<string> = new Set(['let_go', 'fixed', 'no_room', 'next_week', 'left_out']);
+
+const byPriority = (a: CarriedStep, b: CarriedStep) =>
+  (typeof a.priority === 'number' ? a.priority : Infinity) - (typeof b.priority === 'number' ? b.priority : Infinity);
+
+/**
+ * M3.3 (RULE-15, MR-12, MR-35 (1), (2)): the one method line, or null. A line naming a receiving day (a carry, a
+ * reorder's session, a continue marker) is read from the stored markers and lasts until that day closes; among them
+ * the most recent missed day wins. Every other line shows only while its day is the most recent closed practice day.
+ * A day set aside today comes first, as missed sessions' set-aside line does. A day under missed sessions' rules keeps
+ * its carried or dropped line.
+ */
+function methodLine(
+  input: SignalInput,
+  outcomes: readonly DayOutcome[],
+  ctx: {
+    stored: ReadonlyArray<CarriedEarlier | PlannedCarry>;
+    practice: readonly DayClassification[];
+    latestClosed: DayClassification | undefined;
+    isOpen: (date: string) => boolean;
+  }
+): LineSignal | null {
+  const outcomeOf = new Map(outcomes.map((item) => [item.taskId, item]));
+  const dateOf = new Map(input.days.map((day) => [day.taskId, day.date]));
+  const rows = [...(input.stored ?? [])]
+    .filter((row) => dateOf.has(row.id))
+    .sort((a, b) => (dateOf.get(a.id)! < dateOf.get(b.id)! ? -1 : dateOf.get(a.id)! > dateOf.get(b.id)! ? 1 : 0));
+  const towards = (from: { taskId: string; date: string }, kind: LineKind, toTaskId: string | undefined): LineSignal | null => {
+    const toDate = toTaskId === undefined ? undefined : dateOf.get(toTaskId);
+    return toTaskId !== undefined && toDate !== undefined && ctx.isOpen(toDate) ? { kind, taskId: from.taskId, date: from.date, toTaskId, toDate } : null;
+  };
+
+  const receiving: LineSignal[] = [];
+  const carryOf = new Map<string, CarriedEarlier | PlannedCarry>();
+  for (const move of ctx.stored) if (!carryOf.has(move.fromTaskId)) carryOf.set(move.fromTaskId, move);
+  for (const [fromTaskId, move] of carryOf) {
+    if (outcomeOf.get(fromTaskId)?.rules === 'method') continue;
+    const line = towards({ taskId: fromTaskId, date: move.fromDate }, 'carried', move.toTaskId);
+    if (line) receiving.push(line);
+  }
+  for (const day of outcomes) {
+    if (day.rules !== 'method') continue;
+    if (day.outcome === 'moved') {
+      // MR-12: the day's highest-priority step that moved names the day: a carry (`carriedFrom`), or a step a reorder
+      // placed on a later session (RULE-20), whose `shiftedFrom` names the day the step was written on.
+      const carry = carryOf.get(day.taskId);
+      const own = [...(rows.find((row) => row.id === day.taskId)?.steps ?? [])].filter((step) => markerOf(step) === null).sort(byPriority);
+      let line: LineSignal | null = null;
+      for (const step of own) {
+        if (carry && carry.step.title === step.title) {
+          line = towards(day, 'moved', carry.toTaskId);
+          break;
+        }
+        const origin = originOf(step, day);
+        const holding = rows.filter(
+          (row) =>
+            row.id !== day.taskId &&
+            dateOf.get(row.id)! > day.date &&
+            row.steps.some((held) => shiftMarkerOf(held)?.taskId === origin.taskId && held.title === step.title)
+        );
+        // A session that closed may still hold a copy (it was missed too and the step moved on): the open one names the day.
+        const session = holding.find((row) => ctx.isOpen(dateOf.get(row.id)!)) ?? holding[0];
+        if (session) {
+          line = towards(day, 'moved_in_order', session.id);
+          break;
+        }
+      }
+      // A stored carry whose step cannot be found on its day still names its day.
+      if (!line && carry) line = towards(day, 'moved', carry.toTaskId);
+      if (line) receiving.push(line);
+    } else if (day.outcome === 'continued') {
+      const session = rows.find((row) => row.steps.some((held) => continueMarkerOf(held)?.taskId === day.taskId));
+      const line = session ? towards(day, 'continued', session.id) : null;
+      if (line) receiving.push(line);
+    }
+  }
+  receiving.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+  /** The line of a day that names no receiving day: its method outcome, or missed sessions' drop. */
+  const notMoved = (day: DayClassification): LineSignal | null => {
+    const outcome = outcomeOf.get(day.taskId);
+    if (outcome?.rules === 'method' && NOT_MOVED.has(outcome.outcome)) {
+      return { kind: outcome.outcome as LineKind, taskId: day.taskId, date: day.date, toTaskId: null, toDate: null };
+    }
+    const drop = input.plan.drops.some((item) => item.taskId === day.taskId);
+    return drop ? { kind: 'dropped', taskId: day.taskId, date: day.date, toTaskId: null, toDate: null } : null;
+  };
+
+  // Set aside today (ND-14): nothing about it is stored when nothing moves, so only the action's answer has it. A day
+  // set aside today never answers with another day's line: without a line of its own, there is none.
+  const setAside = ctx.practice.find((day) => day.date === input.today && day.kind === 'missed');
+  const todayLine = receiving.find((line) => line.date === input.today) ?? (setAside ? notMoved(setAside) : null);
+  if (todayLine || setAside) return todayLine;
+  if (receiving.length > 0) return receiving[0];
+  return ctx.latestClosed?.kind === 'missed' ? notMoved(ctx.latestClosed) : null;
 }

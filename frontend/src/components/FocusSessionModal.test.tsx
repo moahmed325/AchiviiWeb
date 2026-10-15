@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
 import { FocusSessionModal } from './FocusSessionModal';
 import type { DailyTask } from '../types';
 import '@testing-library/jest-dom/vitest';
@@ -30,6 +30,19 @@ describe('FocusSessionModal', () => {
     expect(screen.getByText('Warm-up Run and Cadence Drills')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /start focused session/i })).toBeInTheDocument();
     expect(playSessionStart).not.toHaveBeenCalled();
+  });
+
+  it('a continued step shows "Pick up where {Weekday} stopped." and its stored first lines on their own lines, on the start screen and in the runner (M3.3)', () => {
+    const EASY = 'First hard session after a few days off: keep the effort easy today.';
+    const WARM = 'Start with an easy 5-minute warm-up and end with 5 easy minutes.';
+    const steps = JSON.parse(sampleTask.detailedSteps!);
+    steps[0] = { ...steps[0], instructions: `${EASY}\n${WARM}\nJog easily.`, continueFrom: { taskId: 'task-0', date: '2026-09-22' } };
+    renderOpen({ ...sampleTask, detailedSteps: JSON.stringify(steps) });
+    const lines = ['Pick up where Tuesday stopped.', EASY, WARM, 'Jog easily.'];
+    for (const text of lines) expect(screen.getByText(text).tagName).toBe('P');
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+    const runner = screen.getByRole('article', { name: 'Current step' });
+    for (const text of lines) expect(within(runner).getByText(text).tagName).toBe('P');
   });
 
   it('starts the timer only after the user starts', () => {

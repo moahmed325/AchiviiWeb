@@ -1367,3 +1367,204 @@ describe('Today: swap offer, set today aside, swap with another day (missed sess
     for (const name of NEW) expect(button(name)).not.toBeInTheDocument();
   });
 });
+
+describe('Today with method-aware recovery (M3.3)', () => {
+  const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null, line: null };
+  const CHOICES = { today: { taskId: 't3', setAside: true, swapWith: ['t4'] }, held: [] };
+  const CARRY = { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [], outcomes: [], choices: CHOICES };
+  const body = (signals: Partial<MissedSignals> = {}, carry: Record<string, unknown> = {}): Reconciliation =>
+    ({ applies: true, goalId: 'g1', asOf: '', timezone: 'UTC', days: [], gap: null, carry: { ...CARRY, ...carry }, signals: { ...NONE, ...signals } }) as Reconciliation;
+  const weekday = (offset: number) =>
+    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(`${isoDay(offset)}T00:00:00Z`).getUTCDay()];
+  /** The server's line for the day `from` days from today, naming the day `to` days from today. */
+  const line = (kind: string, from: number, to: number | null): Partial<MissedSignals> => ({
+    notice: kind === 'carried' || kind === 'dropped' ? (kind as 'carried' | 'dropped') : 'method',
+    line: { kind: kind as never, taskId: 'x', date: isoDay(from), toTaskId: to === null ? null : 'y', toDate: to === null ? null : isoDay(to) },
+  });
+  const goalWith = (changes: Record<string, Partial<DailyTask>> = {}) =>
+    ({ ...GOAL, dailyTasks: tasks.map((t) => (changes[t.id] ? { ...t, ...changes[t.id] } : t)) }) as unknown as Goal;
+  const button = (name: string) => screen.queryByRole('button', { name });
+  const expectCalm = () => {
+    const text = document.body.textContent ?? '';
+    for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i, /skipped/i]) expect(text).not.toMatch(word);
+  };
+
+  // Section 6's second sentences, word for word; `to` is the receiving day (0 is today) or null.
+  const OUTCOMES: Array<[string, number | null, () => string]> = [
+    ['moved', 1, () => `We moved its most important step to ${weekday(1)}, so that day stays the same length.`],
+    ['moved', 0, () => 'We moved its most important step into today, so today stays the same length.'],
+    ['moved_in_order', 1, () => `We moved it to ${weekday(1)}, and the next ones follow on.`],
+    ['moved_in_order', 0, () => 'We moved it into today, and the next ones follow on.'],
+    ['continued', 1, () => `${weekday(1)}'s session picks up where you left off.`],
+    ['continued', 0, () => "Today's session picks up where you left off."],
+    ['let_go', null, () => 'Nothing needs making up: the plan carries on as it is.'],
+    ['fixed', null, () => 'It was set for that day, so the plan carries on as it is.'],
+    ['no_room', null, () => "There's no room for it this week without making a day longer, so next week's plan takes it into account."],
+    ['next_week', null, () => "There's no room for it this week, so next week starts with it."],
+    ['left_out', null, () => "This was the plan's last week, so it's left out."],
+  ];
+
+  describe('the miss line, exact words (section 6, AC-7)', () => {
+    it.each(OUTCOMES)('%s (to %s): yesterday and an earlier weekday', async (kind, to, rest) => {
+      mocked.reconcileGoal.mockResolvedValue(body(line(kind, -1, to)));
+      const { unmount } = render(
+        <AuthProvider>
+          <GoalProvider>
+            <MemoryRouter>
+              <Harness />
+            </MemoryRouter>
+          </GoalProvider>
+        </AuthProvider>,
+      );
+      expect(await screen.findByText(`Yesterday's session didn't happen. ${rest()}`)).toBeVisible();
+      expect(screen.queryAllByText(/session didn't happen/)).toHaveLength(1);
+      expectCalm();
+      unmount();
+      mocked.reconcileGoal.mockResolvedValue(body(line(kind, -2, to)));
+      await renderToday();
+      expect(await screen.findByText(`${weekday(-2)}'s session didn't happen. ${rest()}`)).toBeVisible();
+    });
+
+    it.each(OUTCOMES.filter(([, to]) => to !== 0))('%s (to %s): set aside today', async (kind, to, rest) => {
+      mocked.reconcileGoal.mockResolvedValue(body(line(kind, 0, to)));
+      await renderToday();
+      expect(await screen.findByText(`Today's session is set aside. ${rest()}`)).toBeVisible();
+      expectCalm();
+    });
+
+    it("a day under missed sessions' rules keeps its lines", async () => {
+      mocked.reconcileGoal.mockResolvedValue(body(line('dropped', -1, null)));
+      await renderToday();
+      expect(await screen.findByText("Yesterday's session didn't happen. Nothing needs making up: the plan carries on as it is.")).toBeVisible();
+    });
+
+    it('set aside with nothing stored: the line comes from the action\'s answer; a reload without it shows none', async () => {
+      const user = userEvent.setup();
+      mocked.reconcileGoal.mockResolvedValue(body());
+      mocked.markTodayMissed.mockResolvedValue(body(line('fixed', 0, null)));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Set today aside' }));
+      await user.click(screen.getByRole('button', { name: 'Set it aside' }));
+      expect(await screen.findByText("Today's session is set aside. It was set for that day, so the plan carries on as it is.")).toBeVisible();
+    });
+
+    it('no line when the server sends none, and none with the carry switch off for a day set aside', async () => {
+      mocked.reconcileGoal.mockResolvedValue(body({ notice: 'method', line: null }));
+      const { unmount } = render(
+        <AuthProvider>
+          <GoalProvider>
+            <MemoryRouter>
+              <Harness />
+            </MemoryRouter>
+          </GoalProvider>
+        </AuthProvider>,
+      );
+      await screen.findByRole('heading', { level: 1 });
+      expect(screen.queryByText(/didn't happen|set aside\./)).not.toBeInTheDocument();
+      unmount();
+      mocked.reconcileGoal.mockResolvedValue(body(line('let_go', 0, null), { enabled: false, choices: { today: null, held: [] } }));
+      await renderToday();
+      expect(screen.queryByText(/set aside\./)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("choices from the server's carry.choices (RULE-16, AC-8)", () => {
+    it('set aside only when allowed; swap only when the server names a day', async () => {
+      mocked.reconcileGoal.mockResolvedValue(body({}, { choices: { today: { taskId: 't3', setAside: true, swapWith: [] }, held: [] } }));
+      const { unmount } = render(
+        <AuthProvider>
+          <GoalProvider>
+            <MemoryRouter>
+              <Harness />
+            </MemoryRouter>
+          </GoalProvider>
+        </AuthProvider>,
+      );
+      await screen.findByRole('heading', { level: 1 });
+      expect(button('Set today aside')).toBeVisible();
+      expect(button('Swap with another day')).not.toBeInTheDocument();
+      unmount();
+      mocked.reconcileGoal.mockResolvedValue(body({}, { choices: { today: { taskId: 't3', setAside: false, swapWith: [] }, held: [] } }));
+      await renderToday();
+      expect(button('Set today aside')).not.toBeInTheDocument();
+      expect(button('Swap with another day')).not.toBeInTheDocument();
+    });
+
+    it('the swap list offers exactly the server\'s days', async () => {
+      const user = userEvent.setup();
+      // t4 and t6 are open practice days the browser would offer; the server allows only t6.
+      mocked.reconcileGoal.mockResolvedValue(body({}, { choices: { today: { taskId: 't3', setAside: true, swapWith: ['t6'] }, held: [] } }));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Swap with another day' }));
+      const dialog = screen.getByRole('dialog', { name: 'Swap with another day' });
+      expect(within(dialog).getAllByRole('listitem').map((item) => item.textContent)).toEqual([`${weekday(3)}: Session 6`]);
+    });
+
+    it('nothing when the server offers nothing for today', async () => {
+      mocked.reconcileGoal.mockResolvedValue(body({}, { choices: { today: null, held: [] } }));
+      await renderToday();
+      expect(button('Set today aside')).not.toBeInTheDocument();
+      expect(button('Swap with another day')).not.toBeInTheDocument();
+    });
+
+    it('"Just move its main step" only when the held day\'s step would move', async () => {
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t2: { status: 'pending', isKeySession: true } }));
+      const offer = { notice: 'swap_offer' as const, swapOffer: { missedTaskId: 't2', missedDate: isoDay(-1), receivingTaskId: 't3', receivingDate: isoDay(0), offerUntil: '' } };
+      mocked.reconcileGoal.mockResolvedValue(body(offer, { choices: { today: null, held: [{ taskId: 't2', receivingTaskId: 't3', moveNowTaskId: null }] } }));
+      const { unmount } = render(
+        <AuthProvider>
+          <GoalProvider>
+            <MemoryRouter>
+              <Harness />
+            </MemoryRouter>
+          </GoalProvider>
+        </AuthProvider>,
+      );
+      expect(await screen.findByText("Yesterday's key session didn't happen. Do it today instead?")).toBeVisible();
+      expect(button('Swap the days')).toBeVisible();
+      expect(button('Just move its main step')).not.toBeInTheDocument();
+      unmount();
+      mocked.reconcileGoal.mockResolvedValue(body(offer, { choices: { today: null, held: [{ taskId: 't2', receivingTaskId: 't3', moveNowTaskId: 't4' }] } }));
+      await renderToday();
+      expect(await screen.findByRole('button', { name: 'Just move its main step' })).toBeVisible();
+    });
+
+    it.each(['fixed_step', 'out_of_order', 'rest_gap', 'holds_carry', 'holds_continue', 'would_not_move'])('a %s refusal is a quiet failure', async (code) => {
+      const user = userEvent.setup();
+      mocked.reconcileGoal.mockResolvedValue(body());
+      mocked.swapDays.mockRejectedValue(new api.ApiError('Server words.', 409, code));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Swap with another day' }));
+      await user.click(screen.getByRole('button', { name: `${weekday(1)}: Session 4` }));
+      expect(await screen.findByText("That didn't change. Please try again.")).toBeVisible();
+      expect(screen.queryByText('Server words.')).not.toBeInTheDocument();
+      expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('step instructions (RULE-10, RULE-21, MR-26)', () => {
+    const EASY = 'First hard session after a few days off: keep the effort easy today.';
+    const WARM = 'Start with an easy 5-minute warm-up and end with 5 easy minutes.';
+
+    it('the continue line and the stored first lines each show on their own line; the rest as stored', async () => {
+      const user = userEvent.setup();
+      const steps = JSON.stringify([
+        { stepNumber: 1, title: 'Draft chapter', durationMinutes: 20, instructions: `${EASY}\n${WARM}\nWrite the next scene.`, focusCue: '', continueFrom: { taskId: 't1', date: isoDay(-2) } },
+        { stepNumber: 2, title: 'Notes', durationMinutes: 10, instructions: 'List three ideas.', focusCue: '' },
+      ]);
+      const minimumVersion = { stepNumber: 1, title: 'Short version: Draft chapter', durationMinutes: 10, instructions: `${EASY}\nWrite one paragraph.`, focusCue: '', pitfallToAvoid: '' };
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { detailedSteps: steps, minimumVersion } }));
+      mocked.reconcileGoal.mockResolvedValue(body());
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Show the 2 steps' }));
+      const first = screen.getByText('Draft chapter').closest('li')!;
+      const lines = [`Pick up where ${weekday(-2)} stopped.`, EASY, WARM, 'Write the next scene.'];
+      for (const text of lines) expect(within(first).getByText(text).tagName).toBe('P');
+      expect(within(first).queryByText(new RegExp(`stopped\\. ${EASY}`))).not.toBeInTheDocument();
+      expect(screen.getByText('List three ideas.')).toBeVisible();
+      await user.click(screen.getByRole('button', { name: 'The 10-minute version' }));
+      expect(screen.getByText('Write one paragraph.').tagName).toBe('P');
+      expect(screen.getAllByText(EASY)).toHaveLength(2);
+    });
+  });
+});

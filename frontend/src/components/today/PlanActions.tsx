@@ -3,14 +3,15 @@ import type { DailyTask, Goal, Reconciliation } from '../../types';
 import { useGoal } from '../../context/GoalContext';
 import { carryNow, markTodayMissed, swapDays } from '../../lib/api';
 import type { PlanAction, Place } from './usePlanAction';
-import { todayActions, weekdayOf, type MissNotice } from '../../lib/today';
+import { moveNowOffered, todayActions, weekdayOf, type MissNotice } from '../../lib/today';
 import { Button, Dialog, DialogClose, DialogContent, Spinner, cx } from '../ui';
 
 /*
  * Missed sessions M3.3: the swap offer's answers, "Set today aside" and "Swap with another day" (AC-2, AC-6, ND-14).
  * Each action answers with the reconcile body, which the goal context keeps before it reloads the goal, so the
  * notice line above shows what happened. Nothing here renders while the switch is off (ND-15): `missNotice` gives
- * no swap offer and `todayActions` gives null then.
+ * no swap offer and `todayActions` gives null then. With the method switch on, the server's `carry.choices` decide
+ * what is offered (method-aware recovery RULE-16, M3.3).
  */
 
 const Failure: React.FC<{ action: PlanAction; at: Place }> = ({ action, at }) =>
@@ -29,6 +30,7 @@ export const SwapOfferAnswers: React.FC<{
   goal: Goal;
   action: PlanAction;
 }> = ({ notice, goal, action }) => {
+  const { reconciliation } = useGoal();
   const missed = (goal.dailyTasks || []).find((task) => task.id === notice.missedTaskId);
   const receiving = (goal.dailyTasks || []).find((task) => task.id === notice.receivingTaskId);
   if (!missed || !receiving) return null;
@@ -43,14 +45,16 @@ export const SwapOfferAnswers: React.FC<{
         >
           Swap the days
         </Button>
-        <Button
-          variant="secondary"
-          loading={action.busy === 'offer-carry'}
-          onClick={() => action.run('offer', 'offer-carry', (token) => carryNow(missed.id, token))}
-          className="w-full sm:w-auto"
-        >
-          Just move its main step
-        </Button>
+        {moveNowOffered(reconciliation, missed.id) && (
+          <Button
+            variant="secondary"
+            loading={action.busy === 'offer-carry'}
+            onClick={() => action.run('offer', 'offer-carry', (token) => carryNow(missed.id, token))}
+            className="w-full sm:w-auto"
+          >
+            Just move its main step
+          </Button>
+        )}
       </div>
       <Failure action={action} at="offer" />
     </>

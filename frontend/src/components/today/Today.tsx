@@ -32,6 +32,7 @@ import { LateTestCard } from './LateTestCard';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
+import { StepInstructions } from './StepInstructions';
 import { usePlanAction } from './usePlanAction';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
@@ -74,9 +75,38 @@ const Callout: React.FC<{ icon?: React.ReactNode; children: React.ReactNode }> =
   </div>
 );
 
+/**
+ * Method-aware recovery M3.3 (section 6, MR-35 (3)): what follows "{Day}'s session didn't happen." (or "Today's
+ * session is set aside.") for a day that followed the new rules.
+ */
+const recoveryOutcomeLine = (notice: Extract<MissNotice, { kind: 'recovery' }>) => {
+  switch (notice.outcome) {
+    case 'moved':
+      return notice.intoToday
+        ? 'We moved its most important step into today, so today stays the same length.'
+        : `We moved its most important step to ${notice.toWeekday}, so that day stays the same length.`;
+    case 'moved_in_order':
+      return notice.intoToday ? 'We moved it into today, and the next ones follow on.' : `We moved it to ${notice.toWeekday}, and the next ones follow on.`;
+    case 'continued':
+      return `${notice.intoToday ? 'Today' : notice.toWeekday}'s session picks up where you left off.`;
+    case 'let_go':
+      return 'Nothing needs making up: the plan carries on as it is.';
+    case 'fixed':
+      return 'It was set for that day, so the plan carries on as it is.';
+    case 'no_room':
+      return "There's no room for it this week without making a day longer, so next week's plan takes it into account.";
+    case 'next_week':
+      return "There's no room for it this week, so next week starts with it.";
+    case 'left_out':
+      return "This was the plan's last week, so it's left out.";
+  }
+};
+
 /** The one line about a day that didn't happen (missed sessions M3.1-M3.3; Feature Definition section 12). */
 const missNoticeLine = (notice: MissNotice) =>
-  notice.kind === 'gentle_return'
+  notice.kind === 'recovery'
+    ? `${notice.day ? `${notice.day}'s session didn't happen.` : "Today's session is set aside."} ${recoveryOutcomeLine(notice)}`
+    : notice.kind === 'gentle_return'
     ? "Welcome back. Today's a short one to ease in."
     : notice.kind === 'swap_offer'
     ? notice.day
@@ -621,7 +651,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                             </p>
                             {step.durationMinutes ? <span className="tabular shrink-0 text-small text-text-secondary">{step.durationMinutes} min</span> : null}
                           </div>
-                          {step.instructions && <p className="mt-2 text-small text-text-secondary">{step.instructions}</p>}
+                          <StepInstructions step={step} className="mt-2 text-small text-text-secondary" />
                           {step.timing && <Line label="Timing">{step.timing}</Line>}
                           {step.focusCue && <Line label="Focus">{step.focusCue}</Line>}
                           {step.output && <Line label="Output">{step.output}</Line>}
@@ -666,7 +696,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                           <span className="tabular shrink-0 text-small text-text-secondary">{task.minimumVersion.durationMinutes} min</span>
                         ) : null}
                       </div>
-                      {task.minimumVersion.instructions && <p className="mt-2 text-small text-text-secondary">{task.minimumVersion.instructions}</p>}
+                      <StepInstructions step={task.minimumVersion} className="mt-2 text-small text-text-secondary" />
                       {task.minimumVersion.passMark && <Line label="Done when">{task.minimumVersion.passMark}</Line>}
                     </div>
                   </Disclosure>

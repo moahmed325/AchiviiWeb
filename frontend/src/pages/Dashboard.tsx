@@ -52,6 +52,27 @@ const dayStateLabel: Record<DayState, string> = { completed: 'completed', today:
 
 const plural = (n: number, one: string, many: string) => n + ' ' + (n === 1 ? one : many);
 
+/** Method-aware recovery M3.3 (section 6, MR-35 (3)): the Dashboard's short line for a day that followed the new rules. */
+const recoveryStatus = (n: Extract<MissNotice, { kind: 'recovery' }>) => {
+  if (!n.day) return "Today's session is set aside. No catching up needed.";
+  switch (n.outcome) {
+    case 'moved':
+    case 'moved_in_order':
+      return n.intoToday ? n.day + "'s most important step is part of today's session." : n.day + "'s most important step moved to " + n.toWeekday + '.';
+    case 'continued':
+      return n.intoToday ? n.day + "'s work picks up again today." : n.day + "'s work picks up again on " + n.toWeekday + '.';
+    case 'let_go':
+    case 'fixed':
+      return n.day + ' slipped past. No catching up needed, just today.';
+    case 'no_room':
+      return n.day + " slipped past. Next week's plan takes it into account.";
+    case 'next_week':
+      return n.day + ' slipped past. Next week starts with it.';
+    case 'left_out':
+      return n.day + " slipped past. This was the plan's last week.";
+  }
+};
+
 /**
  * One plain sentence about where the week stands, built only from real task state and the same reconcile signals
  * Today reads (ND-19, missed sessions M3.1). Not a chat message and not styled as the Coach.
@@ -67,6 +88,7 @@ const statusLine = (s: { closing: boolean; isDone: boolean; isRest: boolean; not
   if (s.notice?.kind === 'set_aside') return "Today's session is set aside. No catching up needed.";
   if (s.notice?.kind === 'carried' && s.notice.intoToday) return s.notice.day + "'s most important step is part of today's session.";
   if (s.notice?.kind === 'dropped') return s.notice.day + ' slipped past. No catching up needed, just today.';
+  if (s.notice?.kind === 'recovery') return recoveryStatus(s.notice);
   if (s.practiceDays > 0 && s.practiceDone === 0) return 'A fresh week. One session at a time.';
   if (s.practiceDays > 0 && left === 1) return 'One session left this week. Finish it and the week is yours.';
   if (s.practiceDays > 0) return s.practiceDone + ' of ' + s.practiceDays + ' sessions done this week. Keep the rhythm.';

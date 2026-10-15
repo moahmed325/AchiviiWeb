@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, ExternalLink } from 'lucide-react';
 import { Button } from '../ui';
 import type { DetailedStep } from '../../types';
+import { StepInstructions } from '../today/StepInstructions';
 
 interface FocusStepRunnerProps {
   currentStep?: DetailedStep;
@@ -44,7 +45,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
 
       <div className="space-y-5">
         <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text leading-tight">{currentStep.title}</h3>
-        <p className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-xl">{currentStep.instructions}</p>
+        <StepInstructions step={currentStep} className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-xl" />
 
         {currentStep.passMark && (
           <p className="text-small text-text-secondary pl-3 border-l-2 border-achievement/50">

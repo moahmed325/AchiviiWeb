@@ -1,0 +1,22 @@
+import React from 'react';
+import { stepLines, type StepText } from '../../lib/stepLines';
+
+/**
+ * A step's instructions in Today and Focus (method-aware recovery M3.3). With no lead line it is the one paragraph
+ * it always was. Otherwise the continue line (RULE-10) and the stored easy and warm-up lines (RULE-21, MR-26) each
+ * get their own line above the rest, in the same text style. `className` is the paragraph's own style.
+ */
+export const StepInstructions: React.FC<{
+  step: StepText;
+  className: string;
+}> = ({ step, className }) => {
+  const { lead, body } = stepLines(step);
+  if (lead.length === 0) return body ? <p className={className}>{body}</p> : null;
+  return (
+    <div className={className}>
+      {[...lead, ...(body ? [body] : [])].map((line, index) => (
+        <p key={index}>{line}</p>
+      ))}
+    </div>
+  );
+};
