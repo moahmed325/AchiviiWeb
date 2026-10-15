@@ -24,6 +24,7 @@ What Achivii should be. Changes rarely.
 How a system works today. One file per system, updated when the system changes.
 - `custom-goal-engine.md`: custom goal and 90-day execution engine.
 - `plan-v2.md`: plan v2 spec (weekly targets, week call, weekly update, missed sessions).
+- `ai-model-limits-and-costs.md`: the Gemini model, free limits, what paying costs and when to upgrade.
 
 ## features/
 Every feature gets **one folder** with the same fixed layout. The folder name is the feature name, so file names never repeat it.
