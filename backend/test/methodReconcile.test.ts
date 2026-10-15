@@ -209,8 +209,10 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     const off = await withSwitches(undefined, undefined);
     given(make());
     const on = await withSwitches('true', undefined);
-    const { outcomes, continues, alreadyContinued, writtenContinues, reorders, easyStart, writtenReorders, writtenEasyStart, ...carry } = on.body.carry;
+    const { outcomes, continues, alreadyContinued, writtenContinues, reorders, easyStart, writtenReorders, writtenEasyStart, choices, ...carry } = on.body.carry;
     expect({ ...on.body, carry }).toEqual(off.body);
+    // M3.2: without the new rules only today's swap checks apply.
+    expect(choices).toEqual({ today: { taskId: 'tue', setAside: true, swapWith: ['wed'] }, held: [] });
     expect(reorders).toEqual([]);
     expect(easyStart).toBeNull();
     expect(writtenReorders).toEqual([]);

@@ -7,7 +7,9 @@
  * A missed day follows the new rules only when the goal has a valid profile and every step of the day has a known
  * kind and a priority (RULE-18, MR-6). Every other day keeps exactly what missed sessions' planner (`planCarries`)
  * decides for it, run on the same input. What stays as today for every day: the open gap (ND-11), handled days
- * (ND-13, ND-18), receiving days before today counted as closed, and the key-session hold (ND-9).
+ * (ND-13, ND-18), and receiving days before today counted as closed. The key-session hold (ND-9) stays as today only
+ * for days under missed sessions' rules; a day that follows the new rules is held only when its priority-1 step moves
+ * and its swap with the receiving day passes RULE-12 to RULE-14 (RULE-16, M3.2, `swap.ts`).
  *
  * M3.1b: a moved hard step keeps the rest gap (RULE-14). M3.1c: a step of an in-order move kind is never lost
  * (RULE-20): the week's remaining sessions of its kind hold, in order, the steps not done yet, and the rest go to next
@@ -32,14 +34,14 @@ import {
   type CarryTask,
   type DropReason,
   type PlannedCarry,
-  type ShiftMarker,
 } from '../carryForward.js';
 import type { DetailedStep } from '../ai/goalDecomposer.js';
 import { TOTAL_WEEKS } from '../ai/roadmap.js';
-import { isHighLoadStep } from '../highLoad.js';
 import type { DayClassification } from '../missedSessions.js';
 import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, originOf, stepKey, type QueueItem } from './inOrder.js';
 import { actionOf, type RecoveryProfile, type StepRecovery } from './profile.js';
+import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf } from './rules.js';
+import { holdRefusal } from './swap.js';
 
 /** MR-26, MR-31: put first in a moved step's instructions, once, when the step is physical. */
 export const MOVED_WARM_UP_LINE = 'Start with an easy 5-minute warm-up and end with 5 easy minutes.';
@@ -54,7 +56,7 @@ export const PHYSICAL_TEMPLATES: ReadonlySet<string> = new Set(['endurance', 'st
 export type RecoveryRules = 'method' | 'missed_sessions';
 
 /**
- * What happened to a missed day. `held` is the key-session swap offer that stays as today (ND-9; M3.2 owns swaps).
+ * What happened to a missed day. `held` is a key session waiting for its swap answer (ND-9, RULE-16).
  * `in_gap` is a day of the open gap (ND-11): nothing is carried or marked, the gentle return speaks for it, and it
  * is in none of the RULE-17 counts (its in-order steps still join the queue, RULE-20). `next_week` is a day whose
  * in-order step got no session this week: next week starts with it (MR-30). `left_out` is the same in the plan's final
@@ -171,22 +173,10 @@ export interface RecoveryInput extends CarryInput {
 
 const byPriority = (a: CarriedStep, b: CarriedStep) => (a.priority as number) - (b.priority as number);
 
-function continueMarkerOf(step: CarriedStep) {
-  const marker = step.continueFrom;
-  return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
-}
-
-/** The step's `shiftedFrom` marker (RULE-20), or null. */
-export function shiftMarkerOf(step: CarriedStep): ShiftMarker | null {
-  const marker = step.shiftedFrom;
-  return marker && typeof marker === 'object' && typeof marker.taskId === 'string' ? marker : null;
-}
+export { shiftMarkerOf };
 
 /** A step that came from another day by a carry or a reorder: never carried by an ordinary carry (ND-13). */
 const isMarkedMove = (step: CarriedStep) => markerOf(step) !== null || shiftMarkerOf(step) !== null;
-
-/** A 'YYYY-MM-DD' date as a whole day count, for calendar-day distances. */
-const dayNumberOf = (date: string) => Math.round(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
 
 const minutesOf = (steps: readonly CarriedStep[]) => steps.reduce((sum, step) => sum + Math.max(0, step.durationMinutes || 0), 0);
 
@@ -323,7 +313,6 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   const swapHandled = swappedTaskIds(input.tasks);
   const carrySources = new Set(legacy.alreadyCarried.map((carry) => carry.fromTaskId));
   const inGap = new Set(input.gap?.taskIds ?? []);
-  const heldIds = new Set(legacy.held.map((held) => held.taskId));
 
   // Which days follow the new rules: every step known, priorities present.
   const stepsOf = new Map<string, DayStep[]>();
@@ -332,7 +321,15 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     if (steps) stepsOf.set(day.taskId, steps);
   }
   const methodDays = new Set(ordered.filter((day) => day.kind === 'missed' && !handled.has(day.taskId) && stepsOf.has(day.taskId)).map((day) => day.taskId));
-  // The open gap and the key-session hold stay exactly as missed sessions decides them.
+  // RULE-16 (M3.2, MR-28 (3)): a key session following the new rules is held for its swap offer only when its
+  // priority-1 step moves and its swap with the receiving day passes RULE-12 to RULE-14; otherwise it is an ordinary
+  // missed day. Days under missed sessions' rules (RULE-18) keep today's hold.
+  const swapWeek = { days: input.days, tasks: input.tasks, profile, goal: input.goal };
+  const held = legacy.held.filter(
+    (item) => !methodDays.has(item.taskId) || (stepsOf.get(item.taskId)![0].recovery.action === 'move' && holdRefusal(swapWeek, item.taskId, item.receivingTaskId) === null)
+  );
+  const heldIds = new Set(held.map((item) => item.taskId));
+  // The open gap stays exactly as missed sessions decides it.
   const active = ordered.filter((day) => methodDays.has(day.taskId) && !inGap.has(day.taskId) && !heldIds.has(day.taskId));
 
   // Missed sessions' decisions, kept for every other day (and the gap drops and holds of method days). A step that
@@ -346,7 +343,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     else carries.push(carry);
   }
   const legacyCarries = [...carries];
-  const claimed = new Set<string>([...carries.map((carry) => carry.toTaskId), ...legacy.held.map((held) => held.receivingTaskId)]);
+  const claimed = new Set<string>([...carries.map((carry) => carry.toTaskId), ...held.map((item) => item.receivingTaskId)]);
   // A day holding a carried step receives no other carry (ND-13). A reorder's steps do not take a day: a reorder never
   // trims anything but its own kind's step, and an ordinary carry never trims an in-order step.
   const storedTaken = new Set(input.tasks.filter((task) => task.steps.some((step) => markerOf(step) !== null)).map((task) => task.id));
@@ -434,15 +431,12 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   const dateOf = new Map(ordered.map((day) => [day.taskId, day.date]));
 
   // Never replaced: a fixed step (MR-17), a continue-marked step (RULE-10) or a step that landed by a swap (ND-18).
-  const isKept = (step: CarriedStep) => !!continueMarkerOf(step) || actionOf(step, profile)?.action === 'fixed' || swapMarkerOf(step) !== null;
+  const isKept = (step: CarriedStep) => !!continueMarkerOf(step) || isFixedStep(step, profile) || swapMarkerOf(step) !== null;
   const inOrderKinds = new Set((profile?.kinds ?? []).filter((item) => item.inOrder).map((item) => item.id));
   // Never trimmed to make room: those, and any step of an in-order kind (a carry or a reorder never removes a lesson).
   const isProtected = (step: CarriedStep) => isKept(step) || (typeof step.kind === 'string' && inOrderKinds.has(step.kind));
   // RULE-14: hard by the step's kind (high-load included), or for a step without a known kind by today's test.
-  const isHard = (step: CarriedStep) => {
-    const recovery = actionOf(step, profile);
-    return recovery ? recovery.hard : isHighLoadStep(step, input.goal);
-  };
+  const isHard = (step: CarriedStep) => isHardStep(step, profile, input.goal);
   // MR-31 (2): the warm-up line only on a hard step, or on any step of an endurance or strength goal.
   const isPhysical = (step: CarriedStep) => isHard(step) || PHYSICAL_TEMPLATES.has(profile?.template ?? '');
   const restGap = profile?.restGapDays ?? 0;
@@ -468,7 +462,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
       if (!isHard(step)) continue;
       const at = dayNumberOf(dateOf.get(taskId)!);
       for (const day of ordered) {
-        if (day.kind !== 'done' && day.kind !== 'planned') continue;
+        if (!countsForRest(day)) continue;
         if (Math.abs(dayNumberOf(day.date) - at) > (sameDayOnly ? 0 : restGap)) continue;
         if (view(day.taskId).some((other) => other !== step && isHard(other))) return false;
       }
@@ -483,7 +477,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   const reorderRowIds = new Map<PlannedReorder, string[]>();
   /** `${kind}\0${key}` → where a step of the queue ends after this run: on a session, or listed for next week. */
   const queueEnd = new Map<string, 'session' | 'next_week' | 'left_out'>();
-  const heldReceiving = new Set(legacy.held.map((held) => held.receivingTaskId));
+  const heldReceiving = new Set(held.map((item) => item.receivingTaskId));
   const legacyTargets = new Set(carries.map((carry) => carry.toTaskId));
   const canTrim = (step: CarriedStep) => !isProtected(step) && !isMarkedMove(step) && actionOf(step, profile) !== null;
   const refOf = (item: QueueItem): ReorderStep => ({ taskId: item.origin.taskId, date: item.origin.date, title: item.title });
@@ -812,5 +806,5 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   }
 
   drops.sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? -1 : 1));
-  return { carries: finalCarries, drops, held: legacy.held, alreadyCarried: legacy.alreadyCarried, continues, alreadyContinued, outcomes, reorders, easyStart };
+  return { carries: finalCarries, drops, held, alreadyCarried: legacy.alreadyCarried, continues, alreadyContinued, outcomes, reorders, easyStart };
 }

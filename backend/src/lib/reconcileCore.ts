@@ -8,12 +8,14 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { getZonedDateString } from './timezone.js';
 import { buildReconcileResult, findOpenGap, type DayClassification, type ReconcileResult } from './missedSessions.js';
-import { parseStoredSteps, type CarriedStep, type CarryTask, type PlannedCarry } from './carryForward.js';
+import { handledTaskIds, markerOf, parseStoredSteps, type CarriedStep, type CarryTask, type PlannedCarry } from './carryForward.js';
 import { buildSignals, type MissedSignals } from './missedSignals.js';
 import { readRoutine } from './planV2.js';
 import { planRecovery, type PlannedContinue, type PlannedEasyStart, type PlannedReorder, type RecoveryPlan } from './recovery/carry.js';
 import { describeDay, type DayText } from './recovery/dayText.js';
-import { readRecoveryProfile } from './recovery/profile.js';
+import { originOf } from './recovery/inOrder.js';
+import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
+import { markerRefusal, methodSwapRefusal, type SwapRefusal } from './recovery/swap.js';
 import { methodRecoveryEnabled } from './recovery/switch.js';
 
 /**
@@ -93,6 +95,10 @@ export interface Evaluation {
   now: Date;
   today: string;
   sleepTime: unknown;
+  /** The overrides this evaluation was made with. */
+  overrides: ReconcileOverrides;
+  /** Present only when METHOD_RECOVERY_ENABLED was on: the goal's profile, null when missing or invalid (RULE-18). */
+  method?: { profile: RecoveryProfile | null };
 }
 
 /**
@@ -122,7 +128,112 @@ export function evaluate(
   const tasks: CarryTask[] = goal.dailyTasks.map((task) => ({ ...task, steps: parseStoredSteps(task.detailedSteps) }));
   const method = methodRecoveryEnabled() ? { profile: readRecoveryProfile(goal.roadmap) } : undefined;
   const plan = planRecovery({ days: planDays, gap, tasks, goal, today, timezone: base.timezone, sleepTime, ...(method ? { method } : {}) });
-  return { applies: true, goal, result: { ...base, days, gap }, tasks, plan, now, today, sleepTime };
+  return { applies: true, goal, result: { ...base, days, gap }, tasks, plan, now, today, sleepTime, overrides, ...(method ? { method } : {}) };
+}
+
+/**
+ * Why two days may not be swapped as an open swap (not an offer answer). Missed sessions' checks first, in the swap
+ * route's order (ND-18); then, in any switch state, a day holding a reorder's step or a continue marker (M3.2); then,
+ * with METHOD_RECOVERY_ENABLED on, RULE-12 to RULE-14 (`methodSwapRefusal`).
+ */
+export type OpenSwapRefusal = 'rest_day' | 'test_day' | 'completed' | 'not_open' | 'holds_carry' | 'already_handled' | SwapRefusal;
+
+/** M3.2: the one check behind the swap route's open swap and `carry.choices.today.swapWith`. */
+export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string): OpenSwapRefusal | null {
+  const handled = handledTaskIds(evaluation.tasks);
+  const kindOf = new Map(evaluation.result.days.map((day) => [day.taskId, day.kind]));
+  const taskOf = new Map(evaluation.goal.dailyTasks.map((task) => [task.id, task]));
+  const stepsOf = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
+  for (const id of [aId, bId]) {
+    const day = taskOf.get(id);
+    if (!day) return 'not_open';
+    if (day.isRestDay) return 'rest_day';
+    if (day.isTestDay) return 'test_day';
+    if (day.status === 'completed') return 'completed';
+    if (kindOf.get(id) !== 'planned' || day.date < evaluation.today) return 'not_open';
+    const steps = stepsOf.get(id) ?? [];
+    if (steps.some((step) => step.carriedFrom && typeof step.carriedFrom === 'object')) return 'holds_carry';
+    const marker = markerRefusal(steps);
+    if (marker) return marker;
+    if (handled.has(id)) return 'already_handled';
+  }
+  return methodRefusal(evaluation, aId, bId);
+}
+
+/** M3.2: RULE-12 to RULE-14 for any pair, only when the method switch was on for this evaluation. */
+export function methodRefusal(evaluation: Evaluation, aId: string, bId: string): SwapRefusal | null {
+  if (!evaluation.method) return null;
+  const week = { days: evaluation.result.days, tasks: evaluation.tasks, profile: evaluation.method.profile, goal: evaluation.goal };
+  return methodSwapRefusal(week, aId, bId);
+}
+
+/**
+ * RULE-16 (M3.2): where "move now" puts a held key session's step, from an evaluation made with `asNotKey` for it: the
+ * day its carry lands on, or, for a step of an in-order move kind, the session a reorder gives it. Null when its
+ * priority-1 step does not move.
+ */
+export function moveNowTarget(evaluation: Evaluation, taskId: string): string | null {
+  const carry = evaluation.plan.carries.find((item) => item.fromTaskId === taskId);
+  if (carry) return carry.toTaskId;
+  const task = evaluation.tasks.find((item) => item.id === taskId);
+  const top = [...(task?.steps ?? [])]
+    .filter((step) => typeof step.priority === 'number' && markerOf(step) === null)
+    .sort((a, b) => (a.priority as number) - (b.priority as number))[0];
+  if (!task || !top) return null;
+  const origin = originOf(top, { taskId: task.id, date: task.date });
+  for (const reorder of evaluation.plan.reorders ?? []) {
+    if (reorder.kind !== top.kind) continue;
+    const session = reorder.sessions.find(
+      (item) => item.changed && item.taskId !== taskId && item.holds?.taskId === origin.taskId && item.holds.title === top.title
+    );
+    if (session) return session.taskId;
+  }
+  return null;
+}
+
+/**
+ * RULE-16 (M3.2): what the person may do, sent in the reconcile body with METHOD_RECOVERY_ENABLED on. M3.3 reads it
+ * instead of working the choices out on screen. Every entry is checked by the same functions the routes use.
+ */
+export interface PlanChoices {
+  /** Today's open practice day, or null (no day today, a rest day, or done). */
+  today: {
+    taskId: string;
+    /** "Set today aside": not when today is already handled or set aside. */
+    setAside: boolean;
+    /** The open practice days later this week that today may swap with (`openSwapRefusal`); none once set aside. */
+    swapWith: string[];
+  } | null;
+  /** Each key session held for its swap offer (ND-9, RULE-16). */
+  held: Array<{
+    taskId: string;
+    receivingTaskId: string;
+    /** Where "move now" (carry-now) puts its step, or null when it would not move: carry-now then refuses. */
+    moveNowTaskId: string | null;
+  }>;
+}
+
+export function planChoices(evaluation: Evaluation, user: ReconcileUser): PlanChoices {
+  const { goal, today, now, overrides } = evaluation;
+  const handled = handledTaskIds(evaluation.tasks);
+  const kindOf = new Map(evaluation.result.days.map((day) => [day.taskId, day.kind]));
+  const task = goal.dailyTasks.find((item) => item.date === today);
+  let todayChoices: PlanChoices['today'] = null;
+  if (task && !task.isRestDay && task.status !== 'completed') {
+    const setAside = kindOf.get(task.id) === 'planned' && !handled.has(task.id);
+    const swapWith = setAside
+      ? goal.dailyTasks
+          .filter((day) => day.weekNumber === task.weekNumber && day.date > today)
+          .filter((day) => openSwapRefusal(evaluation, task.id, day.id) === null)
+          .map((day) => day.id)
+      : [];
+    todayChoices = { taskId: task.id, setAside, swapWith };
+  }
+  const held = evaluation.plan.held.map((item) => {
+    const moving = evaluate(goal, user, now, { ...overrides, asNotKey: item.taskId });
+    return { taskId: item.taskId, receivingTaskId: item.receivingTaskId, moveNowTaskId: moving.applies ? moveNowTarget(moving, item.taskId) : null };
+  });
+  return { today: todayChoices, held };
 }
 
 /** Thrown inside the reorder transaction when one day's guard fails, so every reordered day rolls back. */
@@ -212,11 +323,34 @@ export type ReconcileBody =
   | (Extract<ReconcileResult, { applies: true }> & {
       /**
        * With METHOD_RECOVERY_ENABLED on, also `outcomes`, `continues`, `alreadyContinued`, `reorders`, `easyStart`
-       * and what was stored of them: `writtenContinues`, `writtenReorders`, `writtenEasyStart`.
+       * and what was stored of them: `writtenContinues`, `writtenReorders`, `writtenEasyStart`; and `choices` (M3.2),
+       * worked out from the plan as stored after this run's writes.
        */
-      carry: RecoveryPlan & { enabled: boolean; written: PlannedCarry[] } & Partial<Omit<WrittenRecovery, 'written'>>;
+      carry: RecoveryPlan & { enabled: boolean; written: PlannedCarry[]; choices?: PlanChoices } & Partial<Omit<WrittenRecovery, 'written'>>;
       signals: MissedSignals;
     });
+
+/**
+ * M3.2: the evaluation as the next request will see it: this one when nothing was stored, otherwise the goal re-read
+ * with the stored rows (same overrides), so `carry.choices` agree with what the routes will check.
+ */
+function afterWrites(evaluation: Evaluation, user: ReconcileUser, stored: WrittenRecovery): Evaluation {
+  const rows = new Map<string, { steps: CarriedStep[]; durationMinutes: number }>();
+  for (const carry of stored.written) rows.set(carry.toTaskId, carry);
+  for (const reorder of stored.writtenReorders) for (const row of reorder.rows) rows.set(row.taskId, row);
+  for (const item of stored.writtenContinues) rows.set(item.toTaskId, item);
+  if (stored.writtenEasyStart) rows.set(stored.writtenEasyStart.taskId, stored.writtenEasyStart);
+  if (rows.size === 0) return evaluation;
+  const goal: ReconcileGoal = {
+    ...evaluation.goal,
+    dailyTasks: evaluation.goal.dailyTasks.map((task) => {
+      const row = rows.get(task.id);
+      return row ? { ...task, detailedSteps: JSON.stringify(row.steps), durationMinutes: row.durationMinutes } : task;
+    }),
+  };
+  const again = evaluate(goal, user, evaluation.now, evaluation.overrides);
+  return again.applies ? again : evaluation;
+}
 
 /** Classify, plan, write behind the switch, and build the reconcile body. */
 export async function runReconcile(
@@ -237,6 +371,8 @@ export async function runReconcile(
   // M2.3: derived signals for P3 (ND-16); only stored carries count as moved.
   const signals = buildSignals({ days: result.days, gap: result.gap, plan, written, now, today, timezone: result.timezone, sleepTime });
   // The method fields appear only when the method switch is on, so with it off the body is exactly as before.
-  const carry = plan.outcomes ? { enabled, ...plan, written, ...writtenMethod } : { enabled, ...plan, written };
+  const carry = plan.outcomes
+    ? { enabled, ...plan, written, ...writtenMethod, choices: planChoices(afterWrites(evaluation, user, stored), user) }
+    : { enabled, ...plan, written };
   return { ...result, carry, signals };
 }

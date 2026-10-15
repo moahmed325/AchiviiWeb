@@ -576,12 +576,25 @@ describe('RULE-20 the in-order queue (M3.1c)', () => {
 
   describe('the kind waits, and nothing changes (nothing is lost: the missed steps stay listed)', () => {
     it('a key session waiting for its swap answer (ND-9)', () => {
-      const input = lessonWeek({ '2-mon': { kind: 'missed', key: true, steps: lesson(3) } });
+      // M3.2 (RULE-16): held only because its swap with Tue keeps the order (Tue holds no lesson).
+      const input = lessonWeek({ '2-mon': { kind: 'missed', key: true, steps: lesson(3) }, '2-tue': {} });
       const plan = on(input);
       expect(reorderOf(plan)).toMatchObject({ waits: 'held', rows: [] });
       expect(nextWeek(plan)).toEqual(['Lesson 3']);
       expect(outcomeOf(plan, '2-mon')).toMatchObject({ outcome: 'held' });
       expect(plan.held.map((h) => h.taskId)).toEqual(['2-mon']);
+    });
+
+    it('M3.2: a key session whose swap would break the order is not held, and the kind reorders', () => {
+      const plan = on(lessonWeek({ '2-mon': { kind: 'missed', key: true, steps: lesson(3) } }));
+      expect(plan.held).toEqual([]);
+      expect(reorderOf(plan)).toMatchObject({ waits: null });
+      expect(holds(plan)).toEqual([
+        ['2-tue', 'Lesson 3'],
+        ['2-wed', 'Lesson 4'],
+        ['2-fri', 'Lesson 5'],
+      ]);
+      expect(outcomeOf(plan, '2-mon')).toMatchObject({ outcome: 'moved' });
     });
 
     it('a day before today that has not closed yet', () => {
