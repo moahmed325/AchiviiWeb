@@ -20,7 +20,7 @@
 | M3.1b | Carry: order and rest gaps | AC-6 | DONE 2026-10-10 | [m3.1b](milestones/m3.1b-order-and-rest-gaps.md) |
 | M3.1c | In-order steps never lost inside the week; easy first hard session back; warm-up line only on physical steps | AC-14, AC-15 | DONE 2026-10-11 | [m3.1c](milestones/m3.1c-in-order-never-lost.md) |
 | M3.1d | Next week continues from where the person is | AC-14, AC-15 | DONE 2026-10-15 | [m3.1d](milestones/m3.1d-next-week-continues.md) |
-| M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | NOT STARTED | |
+| M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | PROMPT WRITTEN 2026-10-15 | [m3.2](milestones/m3.2-person-actions.md) |
 | M3.3 | Today, Dashboard and Focus | AC-7, AC-8 | NOT STARTED | |
 | O2 | Mo: turn on `METHOD_RECOVERY_ENABLED` in Render once M3.3 is live, then run the production checks | — | NOT STARTED | |
 | M4.1 | Copy honesty, acceptance, regression and close | AC-12, AC-13, all | NOT STARTED | |
