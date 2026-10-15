@@ -1,4 +1,4 @@
-import type { DailyTask, DetailedStep, Goal, Reconciliation, RoadmapWeek } from '../types';
+import type { DailyTask, DetailedStep, Goal, ReconcileLineKind, Reconciliation, RoadmapWeek } from '../types';
 import { addDaysToDateKey, daysBetweenDateKeys, getLocalDateString } from './dateUtils';
 
 /**
@@ -167,6 +167,10 @@ export function weekdayOf(dateKey: string): string | null {
  *   today (set aside); `when` is "today" or the receiving day's weekday.
  * - `set_aside`: the day concerned is today (04-phases.md M3.3). `movedTo` names the day that got its main step,
  *   or is null when nothing moved (a drop, known from `carry.drops` before tonight's close).
+ * With the method switch on (method-aware recovery M3.3, `signals.line` present), the server's line decides:
+ * - a day under missed sessions' rules keeps `carried`, `dropped` and `set_aside` exactly as above;
+ * - a day that followed the new rules gives `recovery`: `outcome` is what happened (RULE-15), `day` is null when the
+ *   day is today (set aside), and `toWeekday` names the receiving day of `moved`, `moved_in_order` and `continued`.
  * A rest day today, a body for another goal, or a date that cannot be read give null.
  */
 export type MissNotice =
@@ -174,7 +178,13 @@ export type MissNotice =
   | { kind: 'dropped'; day: string }
   | { kind: 'gentle_return' }
   | { kind: 'swap_offer'; day: string | null; when: string; missedTaskId: string; receivingTaskId: string }
-  | { kind: 'set_aside'; movedTo: string | null };
+  | { kind: 'set_aside'; movedTo: string | null }
+  | { kind: 'recovery'; day: string | null; outcome: RecoveryLine; intoToday: boolean; toWeekday: string | null };
+
+/** What happened to a day that followed the new rules, as its line says it (section 6). */
+export type RecoveryLine = Exclude<ReconcileLineKind, 'carried' | 'dropped'>;
+
+const NAMES_A_DAY: ReadonlySet<ReconcileLineKind> = new Set(['carried', 'moved', 'moved_in_order', 'continued']);
 
 /** Today's task when it is an open practice day (not rest, not completed) with a 10-minute version. */
 function openTodayWithMinimum(goal: Pick<Goal, 'dailyTasks'>, today: string): DailyTask | null {
@@ -217,13 +227,16 @@ export function missNotice(
       }
       return null;
     }
-    const fromToday = signals.carried.find((carried) => carried.fromDate === today);
-    if (fromToday) {
-      const movedTo = weekdayOf(fromToday.toDate);
-      return movedTo ? { kind: 'set_aside', movedTo } : null;
+    if (signals.line === undefined) {
+      const fromToday = signals.carried.find((carried) => carried.fromDate === today);
+      if (fromToday) {
+        const movedTo = weekdayOf(fromToday.toDate);
+        return movedTo ? { kind: 'set_aside', movedTo } : null;
+      }
+      if (todayDropped(reconciliation, today)) return { kind: 'set_aside', movedTo: null };
     }
-    if (todayDropped(reconciliation, today)) return { kind: 'set_aside', movedTo: null };
   }
+  if (signals.line !== undefined) return lineNotice(reconciliation, today, dayLabel);
 
   if (signals.notice === 'carried') {
     const carried = signals.carried[0];
@@ -239,6 +252,26 @@ export function missNotice(
     return day ? { kind: 'dropped', day } : null;
   }
   return null;
+}
+
+/**
+ * Method-aware recovery M3.3 (RULE-15, MR-35): the server's one line. A day set aside today shows only with the carry
+ * switch on, as before; nothing about it is stored when nothing moved, so after a reload the server sends no line.
+ */
+function lineNotice(reconciliation: Reconciliation, today: string, dayLabel: (date: string) => string | null): MissNotice | null {
+  const { notice, line } = reconciliation.signals;
+  if (!line || (notice !== 'carried' && notice !== 'dropped' && notice !== 'method')) return null;
+  const setAside = line.date === today;
+  if (setAside && !reconciliation.carry?.enabled) return null;
+  const toWeekday = line.toDate ? weekdayOf(line.toDate) : null;
+  if (NAMES_A_DAY.has(line.kind) && !toWeekday) return null;
+  const day = setAside ? null : dayLabel(line.date);
+  if (!setAside && !day) return null;
+  const intoToday = line.toDate === today;
+
+  if (line.kind === 'carried') return day ? { kind: 'carried', day, intoToday, toWeekday: toWeekday! } : { kind: 'set_aside', movedTo: toWeekday };
+  if (line.kind === 'dropped') return day ? { kind: 'dropped', day } : { kind: 'set_aside', movedTo: null };
+  return { kind: 'recovery', day, outcome: line.kind, intoToday, toWeekday };
 }
 
 /** Today was planned as missed and dropped: by "Set today aside" (only that response knows, M2.4) or at its close. */
@@ -281,6 +314,9 @@ export function movedDays(tasks: ReadonlyArray<Pick<DailyTask, 'id' | 'detailedS
  * - `canSetAside`: today is not already the source of a move, and not already set aside (held or dropped).
  * - `canSwap`: as above, and today is not the test day and holds no moved step.
  * - `swapWith`: the open practice days later this week that are not the test day and no move has touched.
+ * With the method switch on, the server sends what is allowed (`carry.choices`, RULE-16, MR-34) and this reads only
+ * that: "Set today aside" when `setAside`, "Swap with another day" only when `swapWith` names a day, listing exactly
+ * those days (MR-35 (4)).
  */
 export interface TodayActions {
   today: DailyTask;
@@ -300,6 +336,14 @@ export function todayActions(
   const week = currentWeekTasks(goal);
   const today = week.find((task) => task.date === date);
   if (!today || today.isRestDay || today.status === 'completed') return null;
+  const choices = reconciliation.carry.choices;
+  if (choices) {
+    if (!choices.today || choices.today.taskId !== today.id) return null;
+    const tasks = goal.dailyTasks || [];
+    // Only days in the loaded goal: a swap sends both days' steps as loaded.
+    const swapWith = choices.today.swapWith.flatMap((id) => tasks.filter((task) => task.id === id));
+    return { today, canSetAside: choices.today.setAside, canSwap: swapWith.length > 0, swapWith };
+  }
   const { handled, holding } = movedDays(week);
   const setAside =
     (reconciliation.days || []).some((d) => d.taskId === today.id && d.kind === 'missed') ||
@@ -316,6 +360,17 @@ export function todayActions(
       !holding.has(task.id),
   );
   return { today, canSetAside, canSwap, swapWith };
+}
+
+/**
+ * Whether the held key session's offer shows "Just move its main step" (RULE-16, MR-34). Without `carry.choices`
+ * (method switch off) it always shows, as before; with them, only when that held day's step would move.
+ */
+export function moveNowOffered(reconciliation: Reconciliation | null, missedTaskId: string): boolean {
+  const choices = reconciliation?.carry?.choices;
+  if (!choices) return true;
+  const held = choices.held.find((item) => item.taskId === missedTaskId);
+  return Boolean(held && held.moveNowTaskId !== null);
 }
 
 /**

@@ -125,6 +125,10 @@ export interface DetailedStep {
   resourceUrl?: string;
   resourceType?: ResourceType;
   resourceWhy?: string;
+  /** Method-aware recovery RULE-10: the step picks up where this missed day stopped. Stored inside `detailedSteps`. */
+  continueFrom?: { taskId: string; date: string };
+  /** RULE-20: a reorder placed this step here; the day it was written on. Stored inside `detailedSteps`. */
+  shiftedFrom?: { taskId: string; date: string; replaced?: unknown[]; stepNumber?: number };
 }
 
 /** One day as `POST /api/goal/reconcile` classifies it (missed sessions M1.2/M1.3). Derived, never stored. */
@@ -169,6 +173,62 @@ export interface ReconcileCarryPlan {
   alreadyCarried: ReconcileCarry[];
   /** Carries this request actually stored. */
   written: ReconcileCarry[];
+  /*
+   * Method-aware recovery: the fields below are present only when METHOD_RECOVERY_ENABLED is on (backend
+   * `RecoveryPlan`, `WrittenRecovery`, `PlanChoices`). Only what the UI reads is typed in detail. The week counts
+   * (RULE-17) are never shown (AC-9).
+   */
+  outcomes?: ReconcileDayOutcome[];
+  continues?: ReconcileContinue[];
+  alreadyContinued?: ReconcileContinue[];
+  writtenContinues?: ReconcileContinue[];
+  reorders?: unknown[];
+  writtenReorders?: unknown[];
+  easyStart?: unknown;
+  writtenEasyStart?: unknown;
+  /** RULE-16 (M3.2): what the person may do. With the carry switch off it is `{ today: null, held: [] }`. */
+  choices?: ReconcileChoices;
+}
+
+/** What happened to a missed day (backend `RecoveryOutcome`, RULE-15). */
+export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'left_out';
+
+export interface ReconcileDayOutcome {
+  taskId: string;
+  date: string;
+  rules: 'method' | 'missed_sessions';
+  outcome: RecoveryOutcome;
+  topStep: RecoveryOutcome;
+}
+
+/** A continue marker planned, stored earlier, or written (RULE-10). */
+export interface ReconcileContinue {
+  fromTaskId: string;
+  fromDate: string;
+  toTaskId: string;
+  toDate: string;
+  stepTitle: string;
+}
+
+export interface ReconcileChoices {
+  /** Today's open practice day, or null. */
+  today: { taskId: string; setAside: boolean; swapWith: string[] } | null;
+  /** Each key session held for its swap offer; `moveNowTaskId` is null when "move now" would not move it. */
+  held: { taskId: string; receivingTaskId: string; moveNowTaskId: string | null }[];
+}
+
+/**
+ * The miss line's day and what happened to it (backend `LineSignal`, M3.3). `carried` and `dropped` are a day under
+ * missed sessions' rules; the others follow its method outcome. `toDate` names the receiving day, when there is one.
+ */
+export type ReconcileLineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
+
+export interface ReconcileLine {
+  kind: ReconcileLineKind;
+  taskId: string;
+  date: string;
+  toTaskId: string | null;
+  toDate: string | null;
 }
 
 /** Mirrors backend `MissedSignals` (lib/missedSignals.ts, M2.3). Derived on every call, never stored (ND-16). */
@@ -178,8 +238,10 @@ export interface MissedSignals {
   swapOffer: { missedTaskId: string; missedDate: string; receivingTaskId: string; receivingDate: string; offerUntil: string } | null;
   shortOnTime: boolean;
   gentleReturn: { gapLength: number; firstDate: string; lastDate: string } | null;
-  /** The one line to show, or null. */
-  notice: 'gentle_return' | 'swap_offer' | 'carried' | 'dropped' | null;
+  /** The one line to show, or null. `method` (M3.3) only with METHOD_RECOVERY_ENABLED on. */
+  notice: 'gentle_return' | 'swap_offer' | 'carried' | 'dropped' | 'method' | null;
+  /** M3.3: present only with METHOD_RECOVERY_ENABLED on; the line's day when `notice` is carried, dropped or method. */
+  line?: ReconcileLine | null;
 }
 
 /** Response of `POST /api/goal/reconcile`. Only active plan v2 goals are classified. */

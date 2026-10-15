@@ -6,6 +6,7 @@ import { FocusTimer } from './focus/FocusTimer';
 import { FocusStepRunner } from './focus/FocusStepRunner';
 import { FocusCompletion } from './focus/FocusCompletion';
 import { Button } from './ui';
+import { StepInstructions } from './today/StepInstructions';
 
 /** ND-3: tells the caller whether the session was completed through the 10-minute version. */
 export interface FocusCompletionOptions {
@@ -222,7 +223,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
               <div className="space-y-4">
                 <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-achievement">Focus session</p>
                 <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text">{task.title}</h2>
-                {currentStep && <p className="text-base text-text-secondary max-w-xl mx-auto leading-relaxed">{currentStep.instructions}</p>}
+                {currentStep && <StepInstructions step={currentStep} className="text-base text-text-secondary max-w-xl mx-auto leading-relaxed" />}
               </div>
               <Button
                 variant="primary"

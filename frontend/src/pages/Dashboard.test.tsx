@@ -239,3 +239,52 @@ describe('Dashboard: swap offer and a day set aside (missed sessions M3.3, ND-19
     expect(screen.getByText('1 of 3 sessions done this week. Keep the rhythm.')).toBeInTheDocument();
   });
 });
+
+describe('Dashboard: method-aware recovery lines (M3.3, section 6, AC-7)', () => {
+  const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null, line: null };
+  const CARRY = { enabled: true, carries: [], drops: [], held: [], alreadyCarried: [], written: [], outcomes: [], choices: { today: null, held: [] } };
+  const key = (offset: number) => todayKey(new Date(Date.now() + offset * DAY_MS));
+  const weekday = (offset: number) => new Date(`${key(offset)}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+  const body = (kind: string, from: number, to: number | null) =>
+    ({
+      applies: true,
+      goalId: 'g',
+      days: [],
+      carry: CARRY,
+      signals: {
+        ...NONE,
+        notice: 'method',
+        line: { kind, taskId: 'x', date: key(from), toTaskId: to === null ? null : 'y', toDate: to === null ? null : key(to) },
+      },
+    }) as unknown as Reconciliation;
+
+  // [kind, receiving day (0 = today) or null, the line for {Day}]
+  const LINES: Array<[string, number | null, (day: string) => string]> = [
+    ['moved', 1, (day) => `${day}'s most important step moved to ${weekday(1)}.`],
+    ['moved', 0, (day) => `${day}'s most important step is part of today's session.`],
+    ['moved_in_order', 1, (day) => `${day}'s most important step moved to ${weekday(1)}.`],
+    ['moved_in_order', 0, (day) => `${day}'s most important step is part of today's session.`],
+    ['continued', 1, (day) => `${day}'s work picks up again on ${weekday(1)}.`],
+    ['continued', 0, (day) => `${day}'s work picks up again today.`],
+    ['let_go', null, (day) => `${day} slipped past. No catching up needed, just today.`],
+    ['fixed', null, (day) => `${day} slipped past. No catching up needed, just today.`],
+    ['no_room', null, (day) => `${day} slipped past. Next week's plan takes it into account.`],
+    ['next_week', null, (day) => `${day} slipped past. Next week starts with it.`],
+    ['left_out', null, (day) => `${day} slipped past. This was the plan's last week.`],
+  ];
+
+  it.each(LINES)('%s (to %s): yesterday and an earlier weekday', (kind, to, words) => {
+    const { unmount } = renderWith(buildGoal('pending'), body(kind, -1, to));
+    expect(screen.getByText(words('Yesterday'))).toBeInTheDocument();
+    unmount();
+    renderWith(buildGoal('pending'), body(kind, -2, to));
+    expect(screen.getByText(words(weekday(-2)))).toBeInTheDocument();
+    const text = document.body.textContent ?? '';
+    for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i, /skipped/i]) expect(text).not.toMatch(word);
+  });
+
+  it.each(LINES.filter(([, to]) => to !== 0))('%s (to %s): set aside today', (kind, to) => {
+    renderWith(buildGoal('pending'), body(kind, 0, to));
+    expect(screen.getByText("Today's session is set aside. No catching up needed.")).toBeInTheDocument();
+  });
+});
