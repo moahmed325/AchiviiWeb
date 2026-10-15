@@ -13,7 +13,8 @@
  *
  * M3.1d (MR-32): next week continues from the steps not done. A step handed on (placed in a later week, or stored there
  * as a `toNextWeek` record) keeps its identity, so a week ignores any step whose identity also appears in a later week:
- * it is counted once, in the latest week that holds it (logic check finding 9).
+ * it is counted once, in the latest week that holds it (logic check finding 9). A step done anywhere is done: when any
+ * copy of it is on a done day, in any week (its original included), no week lists it (M3.1d review).
  */
 import { hasPriority, markerOf, swapMarkerOf, type CarriedStep, type CarryTask } from '../carryForward.js';
 import type { DayClassification } from '../missedSessions.js';
@@ -77,6 +78,11 @@ export interface KindQueue {
   steps: QueueItem[];
   /** M3.1d: the identities (`stepKey`) of this week's steps of the kind that a later week holds. Present only when any. */
   handedOn?: string[];
+  /**
+   * M3.1d review: identities of copies on open days whose step is already done elsewhere (a review handed the day on,
+   * then the person did it). Present only when any; the reorder fills or empties those sessions.
+   */
+  doneElsewhere?: string[];
 }
 
 /** The step's number on the day it was written: kept in its `shiftedFrom` marker when M3.1d moved it (else its own). */
@@ -109,8 +115,10 @@ export function inOrderQueue(input: {
     .sort((a, b) => (a.date === b.date ? a.dayNumber - b.dayNumber : a.date < b.date ? -1 : 1));
   const weeks = [...new Set(days.map((day) => day.weekNumber))].sort((a, b) => a - b);
 
-  // M3.1d: the latest week holding each identity of each kind, as a live copy or a record.
+  // M3.1d: the latest week holding each identity of each kind, as a live copy or a record; and every identity with a
+  // copy on a done day.
   const latestWeek = new Map<string, number>();
+  const doneAnywhere = new Set<string>();
   const seen = (kind: string, key: string, weekNumber: number) => {
     const at = `${kind}\u0000${key}`;
     latestWeek.set(at, Math.max(latestWeek.get(at) ?? weekNumber, weekNumber));
@@ -121,7 +129,11 @@ export function inOrderQueue(input: {
         const origin = markerDay(record);
         if (origin && record.step && typeof record.step.kind === 'string' && kinds.has(record.step.kind)) seen(record.step.kind, stepKey(origin, record.step.title), day.weekNumber);
       }
-      if (typeof step.kind === 'string' && kinds.has(step.kind)) seen(step.kind, stepKey(originOf(step, day), step.title), day.weekNumber);
+      if (typeof step.kind === 'string' && kinds.has(step.kind)) {
+        const key = stepKey(originOf(step, day), step.title);
+        seen(step.kind, key, day.weekNumber);
+        if (day.kind === 'done') doneAnywhere.add(`${step.kind}\u0000${key}`);
+      }
     }
   }
   const laterWeekHolds = (kind: string, key: string, weekNumber: number) => (latestWeek.get(`${kind}\u0000${key}`) ?? weekNumber) > weekNumber;
@@ -147,6 +159,13 @@ export function inOrderQueue(input: {
         }
       }
 
+      const doneElsewhere = new Set<string>();
+      for (const key of [...live.keys(), ...listed.keys()]) {
+        if (!doneAnywhere.has(`${kind}\u0000${key}`)) continue;
+        if (live.get(key)?.at.kind === 'planned') doneElsewhere.add(key);
+        live.delete(key);
+        listed.delete(key);
+      }
       const handedOn = new Set<string>();
       for (const key of [...live.keys(), ...listed.keys()]) {
         if (!laterWeekHolds(kind, key, weekNumber)) continue;
@@ -166,7 +185,15 @@ export function inOrderQueue(input: {
         onDays.push({ key, origin: copy.origin, title: copy.step.title, step: copy.step, status, at: copy.at });
       }
       const steps = [...onDays, ...listed.values()].sort(byWritten);
-      if (steps.length > 0 || handedOn.size > 0) queues.push({ weekNumber, kind, steps, ...(handedOn.size > 0 ? { handedOn: [...handedOn] } : {}) });
+      if (steps.length > 0 || handedOn.size > 0 || doneElsewhere.size > 0) {
+        queues.push({
+          weekNumber,
+          kind,
+          steps,
+          ...(handedOn.size > 0 ? { handedOn: [...handedOn] } : {}),
+          ...(doneElsewhere.size > 0 ? { doneElsewhere: [...doneElsewhere] } : {}),
+        });
+      }
     }
   }
   return queues;

@@ -17,6 +17,7 @@ import type { DetailedStep } from '../ai/goalDecomposer.js';
 import { hasPriority, markerOf, type CarriedStep, type NextWeekRecord } from '../carryForward.js';
 import { GAP_MIN_DAYS, type DayClassification } from '../missedSessions.js';
 import { asWritten, keepRecords, PHYSICAL_TEMPLATES, renumber, shiftMarkerOf, takePlace, withoutEasyLine, withWarmUpLine } from './carry.js';
+import { describeDay } from './dayText.js';
 import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, writtenNumber } from './inOrder.js';
 import { actionOf, type RecoveryProfile } from './profile.js';
 
@@ -81,7 +82,8 @@ const kindName = (profile: RecoveryProfile, id: string) => profile.kinds.find((k
 
 /**
  * The days of every run of `GAP_MIN_DAYS` or more practice days in a row not done (ND-11, RULE-8): nothing was carried
- * out of them. Rest days neither count nor break a run.
+ * out of them. As `findOpenGap`: rest days neither count nor break a run, the test day counts, and a run can start in
+ * the week before (M3.1d review). `days` are in date order, rest days already left out.
  */
 function gapDays(practice: readonly HandoffTask[]): Set<string> {
   const out = new Set<string>();
@@ -103,7 +105,13 @@ function gapDays(practice: readonly HandoffTask[]): Set<string> {
  * week is being written, so the week has ended. `previous` is the profile the finished week was written with (by
  * default the goal's profile now); a step whose kind is no longer an in-order move kind of `profile` is let go.
  */
-export function weekHandoff(input: { tasks: readonly HandoffTask[]; profile: RecoveryProfile; previous?: RecoveryProfile | null }): WeekHandoff {
+export function weekHandoff(input: {
+  tasks: readonly HandoffTask[];
+  profile: RecoveryProfile;
+  previous?: RecoveryProfile | null;
+  /** The week before the finished one (or its last days), only to find a break that started there. */
+  weekBefore?: readonly HandoffTask[];
+}): WeekHandoff {
   const profile = input.profile;
   const previous = input.previous ?? profile;
   const tasks = [...input.tasks].sort(byDay);
@@ -146,7 +154,7 @@ export function weekHandoff(input: { tasks: readonly HandoffTask[]; profile: Rec
 
   // Moved steps of other kinds that found no room (MR-32 (3)): a missed day outside a gap, under the new rules, whose
   // highest-priority move step (not in order, not already moved, MR-28 (2)) has no carry from it.
-  const gap = gapDays(practice);
+  const gap = gapDays([...(input.weekBefore ?? []), ...tasks].filter((task) => !task.isRestDay).sort(byDay));
   const carrySources = new Set(tasks.flatMap((task) => task.steps.flatMap((step) => (markerOf(step) ? [markerOf(step)!.taskId] : []))));
   const queued = inOrderMoveKinds(previous);
   const noRoom: NoRoomMove[] = [];
@@ -174,6 +182,11 @@ export interface PlacedDay {
   isTestDay: boolean;
   durationMinutes: number;
   detailedSteps: DetailedStep[];
+  /** The day's text, rebuilt when code changes its priority-1 step (`describeDay`). */
+  title?: string;
+  minimumVersion?: DetailedStep | null;
+  implementationIntention?: string;
+  whyToday?: string;
 }
 
 export interface HandoffPlacement<T extends PlacedDay> {
@@ -182,8 +195,8 @@ export interface HandoffPlacement<T extends PlacedDay> {
   placed: Array<{ kind: string; title: string; date: string }>;
   /**
    * Carried steps that wait inside the new week, stored as records, by kind, in order. `no_session`: the writer wrote no
-   * step of the kind; `sessions_full`: every session of the kind was used (or gave its step up); `only_step`: a session
-   * could not take the next step and its step was its day's only one, so the kind stopped there.
+   * step of the kind; `only_step`: at least one session could not take the next step and kept its step because it was
+   * its day's only one; `sessions_full`: every other case (every session was used, or gave its step up).
    */
   waiting: Array<{ kind: string; title: string; why: 'no_session' | 'sessions_full' | 'only_step' }>;
   /** Sessions that gave their own step up so the order holds (MR-30 (5)). */
@@ -197,8 +210,9 @@ export interface HandoffPlacement<T extends PlacedDay> {
  * the new week's steps of that kind on practice days (not the test day, not rest), in date then row order, take the
  * carried steps in order, each in the step's place. A session that cannot take the next step (no fit, or the rest gap)
  * gives its own step up so nothing comes before the step not done (MR-30 (5)), unless that step is its day's only one:
- * then the kind stops there and the sessions left keep the steps written for them. The steps left wait, stored in order
- * as `toNextWeek` records on the new week's first step of the kind (its first practice step when it has none).
+ * then that session keeps its step and the next session is tried (M3.1d review). The steps left wait, stored in order
+ * as `toNextWeek` records on the new week's first step of the kind (its first practice step when it has none). A day
+ * whose priority-1 step changed gets a title, 10-minute version and intention that describe its new step.
  * `lastWeek` is the finished week, for the rest gap (MR-29 (2): only days that were done count).
  */
 export function placeHandoff<T extends PlacedDay>(input: {
@@ -283,7 +297,7 @@ export function placeHandoff<T extends PlacedDay>(input: {
     const written = (step: CarriedStep) => step.kind === kind && !shiftMarkerOf(step);
     const slots = practiceIndexes.flatMap((at) => rows[at].steps.filter(written).map((step) => ({ at, title: step.title })));
     let next = 0;
-    let stopped = false;
+    let keptOnly = false;
     for (const slot of slots) {
       const item = carried[next];
       if (!item) break;
@@ -298,15 +312,16 @@ export function placeHandoff<T extends PlacedDay>(input: {
       }
       const kept = rows[slot.at].steps.filter((step) => step !== current);
       if (kept.length === 0) {
-        stopped = true;
-        break;
+        // Never a day left empty: this session keeps its step, and the next one is tried.
+        keptOnly = true;
+        continue;
       }
       const limit = rows[slot.at].durationMinutes;
       const minutes = kept.reduce((sum, step) => sum + Math.max(0, step.durationMinutes || 0), 0);
       rows[slot.at] = { steps: keepRecords(rows[slot.at].steps, renumber(kept), 0), durationMinutes: limit > 0 ? Math.min(limit, minutes) : minutes };
       gaveUp.push({ kind, date: input.days[slot.at].date, title: current.title });
     }
-    const why = stopped ? 'only_step' : slots.length === 0 ? 'no_session' : 'sessions_full';
+    const why = slots.length === 0 ? 'no_session' : keptOnly ? 'only_step' : 'sessions_full';
     for (const item of carried.slice(next)) {
       waiting.push({ kind, title: item.title, why });
       records.push({ kind, record: { taskId: item.taskId, date: item.date, step: asWritten(item.step) } });
@@ -341,11 +356,19 @@ export function placeHandoff<T extends PlacedDay>(input: {
     };
   }
 
-  const days = input.days.map((day, index) =>
-    rows[index].steps === day.detailedSteps && rows[index].durationMinutes === day.durationMinutes
-      ? day
-      : { ...day, detailedSteps: rows[index].steps, durationMinutes: rows[index].durationMinutes }
-  );
+  const days = input.days.map((day, index) => {
+    if (rows[index].steps === day.detailedSteps && rows[index].durationMinutes === day.durationMinutes) return day;
+    const changed = { ...day, detailedSteps: rows[index].steps, durationMinutes: rows[index].durationMinutes };
+    const text = describeDay(day, day.detailedSteps as CarriedStep[], rows[index].steps);
+    if (!text) return changed;
+    return {
+      ...changed,
+      title: text.title,
+      minimumVersion: text.minimumVersion,
+      ...(text.implementationIntention !== undefined ? { implementationIntention: text.implementationIntention } : {}),
+      ...(text.whyToday !== undefined ? { whyToday: text.whyToday } : {}),
+    };
+  });
   return { days, placed, waiting, gaveUp, noRoomPlaced };
 }
 

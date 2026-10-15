@@ -174,6 +174,25 @@ describe('writeNextWeek with the method switch on (M3.1d)', () => {
     expect((result[0].detailedSteps[0] as CarriedStep).shiftedFrom).toMatchObject({ taskId: 't2', date: '2026-09-22' });
   });
 
+  it('logs one line per kind whose steps wait, with why (M3.1d review fix 5)', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    // No lesson session at all: both carried lessons wait, no_session.
+    vi.mocked(generateWeekPlan).mockResolvedValue(written().map((d) => ({ ...d, detailedSteps: [step(`Day ${d.dayNumber} notes`, 1, 30, otherKind)] })));
+    await writeNextWeek(goal(LANGUAGE), 1, finished(), '19:30');
+    expect(info).toHaveBeenCalledWith(`[Recovery] Handoff wait: goal g1 week 2 kind ${lessonKind} waiting 2 no_session`);
+    info.mockClear();
+    // One lesson session: Lesson 2 is placed, Lesson 3 waits, sessions_full.
+    vi.mocked(generateWeekPlan).mockResolvedValue(written().slice(0, 2));
+    await writeNextWeek(goal(LANGUAGE), 1, finished(), '19:30');
+    expect(info).toHaveBeenCalledWith(`[Recovery] Handoff wait: goal g1 week 2 kind ${lessonKind} waiting 1 sessions_full`);
+    info.mockClear();
+    // Everything placed: no line.
+    vi.mocked(generateWeekPlan).mockResolvedValue(written());
+    await writeNextWeek(goal(LANGUAGE), 1, finished(), '19:30');
+    expect(info).not.toHaveBeenCalled();
+    info.mockRestore();
+  });
+
   it('nothing to say: the input has no new field and the week comes back as written', async () => {
     vi.mocked(generateWeekPlan).mockResolvedValue(written());
     n = 0;

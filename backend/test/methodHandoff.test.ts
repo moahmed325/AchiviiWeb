@@ -256,6 +256,19 @@ describe('what the finished week hands on (requirement 2)', () => {
     ).toHaveLength(2);
   });
 
+  it('a break across the week change (sick Friday to Tuesday): its days are not told as no-room moves (ND-11)', () => {
+    // Week 1: Friday and the Saturday test not done. Week 2 (finished): Monday and Tuesday not done, then back.
+    const weekBefore = storedWeek(1, { fri: { done: false }, sat: { done: false } });
+    const tasks = storedWeek(2, { mon: { done: false, steps: day('Grammar drill', 'practice') }, tue: { done: false, steps: day('Verb drill', 'practice') } });
+    // Seen alone, two days are not a break: both would be told.
+    expect(weekHandoff({ tasks, profile: PROFILE }).noRoom.map((m) => m.title)).toEqual(['Grammar drill', 'Verb drill']);
+    // With the week before, Friday to Tuesday is one break of four practice days: nothing is told or placed.
+    expect(weekHandoff({ tasks, profile: PROFILE, weekBefore }).noRoom).toEqual([]);
+    // A break that ended before the week change does not reach into it.
+    const ended = storedWeek(1, { tue: { done: false }, wed: { done: false }, fri: { done: false } });
+    expect(weekHandoff({ tasks, profile: PROFILE, weekBefore: ended }).noRoom).toHaveLength(2);
+  });
+
   it('continue work picked up by a later session that was done is finished', () => {
     const tasks = storedWeek(1, {
       mon: { done: false, steps: day('Draft A', 'drafting') },
@@ -389,10 +402,29 @@ describe('code places the carried steps (requirement 3, MR-32 (1), (2))', () => 
       lastWeek: last,
     });
     expect(result.placed).toEqual([]);
-    expect(result.gaveUp).toEqual([]);
+    // Monday's lesson is its day's only step: it is kept, and Wednesday is tried (it gives its lesson up).
+    expect(result.gaveUp).toEqual([{ kind: 'lesson', date: '2026-09-23', title: 'Lesson B' }]);
     expect(result.waiting).toEqual([{ kind: 'lesson', title: 'Lesson 4', why: 'only_step' }]);
     expect(titles(result.days, 'mon')).toEqual(['Lesson A']);
+    expect(titles(result.days, 'wed')).toEqual(['Group call']);
     expect(stepOf(result.days, 'mon', 'Lesson A').toNextWeek!.map((r) => r.step.title)).toEqual(['Lesson 4']);
+  });
+
+  it("a session whose only step is too short is skipped, not the end: Tuesday keeps its step, Wednesday and Friday hold 4 and 5, and 6 waits", () => {
+    const last = storedWeek(1, {
+      wed: { done: false, steps: [step('Lesson 4', 1, 15, 'lesson'), step('Lesson 5', 2, 10, 'lesson'), step('wed review', 3, 5, 'review')] },
+      fri: { done: false, steps: [step('Lesson 6', 1, 15, 'lesson'), step('fri review', 2, 15, 'review')] },
+    });
+    const days = writtenWeek(2, { tue: [step('Lesson A', 1, 10, 'lesson')], wed: day('Lesson B', 'lesson'), fri: day('Lesson C', 'lesson') });
+    const result = placeHandoff({ days, handoff: weekHandoff({ tasks: last, profile: PROFILE }), profile: PROFILE, lastWeek: last });
+    expect(titles(result.days, 'tue')).toEqual(['Lesson A']);
+    expect(result.placed).toEqual([
+      { kind: 'lesson', title: 'Lesson 4', date: '2026-09-23' },
+      { kind: 'lesson', title: 'Lesson 5', date: '2026-09-25' },
+    ]);
+    expect(result.gaveUp).toEqual([]);
+    expect(result.waiting).toEqual([{ kind: 'lesson', title: 'Lesson 6', why: 'only_step' }]);
+    expect(recordsIn(result.days)).toEqual(['Lesson 6']);
   });
 
   it('no session of the kind: every carried step waits, on the first practice step', () => {
@@ -487,6 +519,50 @@ describe('code places the carried steps (requirement 3, MR-32 (1), (2))', () => 
     expect(blocked.placed).toEqual([]);
     expect(blocked.gaveUp).toEqual([{ kind: 'strength', date: '2026-09-21', title: 'Strength light' }]);
     expect(blocked.waiting).toEqual([{ kind: 'strength', title: 'Strength 4', why: 'sessions_full' }]);
+  });
+});
+
+describe('the day describes its step (M3.1d review fix 1)', () => {
+  /** The writer's week, with day text that names its own lesson. */
+  const withText = () =>
+    writtenWeek(2, { mon: day('Lesson A', 'lesson'), wed: day('Lesson B', 'lesson') }).map((d, index) =>
+      d.isRestDay || d.isTestDay
+        ? d
+        : {
+            ...d,
+            title: index === 0 ? 'Learn Lesson A' : `Day ${index + 1}`,
+            implementationIntention: index === 0 ? 'At 19:30: Learn Lesson A.' : `At 19:30: Day ${index + 1}.`,
+            whyToday: index === 0 ? 'Lesson A opens the week.' : 'Keeps you moving.',
+            minimumVersion: { ...d.detailedSteps[0], stepNumber: 1, title: `Short version: ${d.detailedSteps[0].title}`, durationMinutes: 10 },
+          }
+    );
+
+  it('a placed step at priority 1 gives the day its title, 10-minute version and intention; a "why today" naming the old step is cleared', () => {
+    const last = lessonsFourToNineNotDone();
+    const result = placeHandoff({ days: withText(), handoff: weekHandoff({ tasks: last, profile: PROFILE }), profile: PROFILE, lastWeek: last });
+    const mon = result.days[0];
+    expect(mon.title).toBe('Lesson 4');
+    expect(mon.implementationIntention).toBe('At 19:30: Lesson 4.');
+    expect(mon.whyToday).toBe('');
+    expect(mon.minimumVersion).toEqual({ ...lesson(4)[0], stepNumber: 1, title: 'Short version: Lesson 4', durationMinutes: 10, priority: undefined });
+    expect(mon.minimumVersion).not.toHaveProperty('shiftedFrom');
+    expect(mon.minimumVersion!.kind).toBe('lesson');
+    // Wednesday's "why today" does not name Lesson B, so it stays; its intention had no lesson title to replace.
+    const wed = result.days[2];
+    expect(wed).toMatchObject({ title: 'Lesson 5', whyToday: 'Keeps you moving.', implementationIntention: 'At 19:30: Lesson 5.' });
+    // A day whose priority-1 step did not change keeps its text.
+    expect(result.days[1]).toMatchObject({ title: 'Day 2', implementationIntention: 'At 19:30: Day 2.', whyToday: 'Keeps you moving.' });
+  });
+
+  it('a session that gives its step up describes the step that is now first', () => {
+    const last = storedWeek(1, { fri: { done: false, steps: [step('Lesson 4', 1, 25, 'lesson'), step('fri review', 2, 5, 'review')] } });
+    const days = withText().map((d, i) =>
+      i === 0 ? { ...d, detailedSteps: [step('Lesson A', 1, 10, 'lesson'), step('Group call', 2, 10, 'fixed_time_session'), step('Strength A', 3, 10, 'strength')] } : d
+    );
+    const result = placeHandoff({ days, handoff: weekHandoff({ tasks: last, profile: PROFILE }), profile: PROFILE, lastWeek: last });
+    expect(result.gaveUp.map((g) => g.title)).toEqual(['Lesson A']);
+    expect(result.days[0]).toMatchObject({ title: 'Group call', implementationIntention: 'At 19:30: Group call.', whyToday: '' });
+    expect(result.days[0].minimumVersion).toMatchObject({ title: 'Short version: Group call', kind: 'fixed_time_session', durationMinutes: 10 });
   });
 });
 
@@ -727,14 +803,14 @@ describe('a step handed on is no longer listed in last week (requirement 7, logi
     const queues = inOrderQueue({ ...input, profile: PROFILE });
     const week1 = queues.find((q) => q.weekNumber === 1)!;
     expect(week1.steps).toEqual([]);
-    expect(week1.handedOn).toHaveLength(2);
-    // Lesson 4 is done in week 2; Lesson 5 is listed there, once.
+    // Lesson 4 is done in week 2, so it is done (M3.1d review); Lesson 5 is handed on and listed there, once.
+    expect(week1.handedOn).toHaveLength(1);
     expect(queues.find((q) => q.weekNumber === 2)!.steps.map((s) => [s.title, s.status])).toEqual([['Lesson 5', 'next_week']]);
 
     const plan = planRecovery({ ...input, method: { profile: PROFILE } });
     expect(plan.reorders!.find((r) => r.weekNumber === 1)).toBeUndefined();
     expect(plan.outcomes!.filter((o) => o.taskId.startsWith('1-')).map((o) => [o.taskId, o.outcome])).toEqual([
-      ['1-wed', 'next_week'],
+      ['1-wed', 'moved'],
       ['1-fri', 'next_week'],
     ]);
     expect(weekCounts(1, { tasks: countable(input), days: input.days, carry: plan }).toNextWeek).toBe(0);
@@ -763,6 +839,31 @@ describe('a step handed on is no longer listed in last week (requirement 7, logi
     expect(reorder.rows).toEqual([]);
     expect(reorder.sessions).toEqual([{ taskId: '1-fri', date: '2026-09-18', holds: { taskId: '1-fri', date: '2026-09-18', title: 'Lesson 5' }, changed: false }]);
     expect(reorder.toNextWeek.map((s) => s.title)).toEqual(['Lesson 4']);
+  });
+});
+
+describe('a step done anywhere is done (M3.1d review fix 2)', () => {
+  // The review was sent on Thursday of week 1: Friday's Lesson 9 was handed on to Monday of week 2. Then the person did
+  // Friday after all. Today is Monday of week 2.
+  const nine = { ...lesson(9)[0], shiftedFrom: { taskId: '1-fri', date: '2026-09-18', replaced: [], stepNumber: 1 } };
+  const monday = (steps: CarriedStep[], wed?: CarriedStep[]) =>
+    carryInput(1, { '1-fri': { kind: 'done', steps: lesson(9) }, '2-mon': { kind: 'planned', steps }, ...(wed ? { '2-wed': { kind: 'planned' as const, steps: wed } } : {}) }, '2026-09-21');
+
+  it('Friday done: Monday no longer holds Lesson 9; it takes the next step not done', () => {
+    const input = monday([nine, ...lesson(9).slice(1)], lesson(10));
+    expect(inOrderQueue({ ...input, profile: PROFILE }).flatMap((q) => q.steps.map((s) => s.title))).toEqual(['Lesson 10']);
+    const plan = planRecovery({ ...input, method: { profile: PROFILE } });
+    const rows = plan.reorders!.flatMap((r) => r.rows);
+    expect(rows.find((r) => r.taskId === '2-mon')!.steps[0].title).toBe('Lesson 10');
+    // Wednesday had Lesson 10 and has nothing left to take: it gives its copy up (its other steps stay).
+    expect(rows.find((r) => r.taskId === '2-wed')!.steps.map((s) => s.title)).toEqual(['Lesson 10 review', 'Lesson 10 extra']);
+  });
+
+  it('nothing left to take: the copy is given up, unless it is the day\'s only step', () => {
+    const plan = planRecovery({ ...monday([nine, ...lesson(9).slice(1)]), method: { profile: PROFILE } });
+    expect(plan.reorders!.flatMap((r) => r.rows).find((r) => r.taskId === '2-mon')!.steps.map((s) => s.title)).toEqual(['Lesson 9 review', 'Lesson 9 extra']);
+    const only = planRecovery({ ...monday([nine]), method: { profile: PROFILE } });
+    expect((only.reorders ?? []).flatMap((r) => r.rows).find((r) => r.taskId === '2-mon')).toBeUndefined();
   });
 });
 

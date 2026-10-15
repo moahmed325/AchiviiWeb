@@ -537,10 +537,18 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     } else {
       let next = 0;
       let onlyStep = false;
+      const queuedKeys = new Set(queue.steps.map((item) => item.key));
       for (const day of sessionDays) {
         const row = rowNow(day.taskId);
         const current = row.find((step) => step.kind === kind)!;
         const item = placeable[next];
+        // M3.1d review: a session holding a copy of a step already done elsewhere (a review handed its open day on, then
+        // the person did that day) with nothing left to take keeps it when it is its day's only step.
+        const currentKey = stepKey(originOf(current, day), current.title);
+        if (!item && !queuedKeys.has(currentKey) && row.length === 1) {
+          sessions.push({ taskId: day.taskId, date: day.date, holds: { taskId: originOf(current, day).taskId, date: originOf(current, day).date, title: current.title }, changed: false });
+          continue;
+        }
         if (item && item.key === stepKey(originOf(current, day), current.title)) {
           sessions.push({ taskId: day.taskId, date: day.date, holds: refOf(item), changed: false });
           next += 1;
