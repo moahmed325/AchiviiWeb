@@ -3,8 +3,19 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import { normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
-import { handledTaskIds, parseStoredSteps, type CarriedStep } from '../lib/carryForward.js';
-import { carryEnabled, evaluate, loadReconcileGoal, runReconcile, type ReconcileGoal } from '../lib/reconcileCore.js';
+import { handledTaskIds, parseStoredSteps } from '../lib/carryForward.js';
+import {
+  carryEnabled,
+  evaluate,
+  loadReconcileGoal,
+  followsNewRules,
+  methodRefusal,
+  moveNowTarget,
+  openSwapRefusal,
+  runReconcile,
+  type ReconcileGoal,
+} from '../lib/reconcileCore.js';
+import { markerRefusal } from '../lib/recovery/swap.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import { clarifyGoalWithAI, UserRoutineInput } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
@@ -483,7 +494,12 @@ type ActionReason =
   | 'not_plan_v2'
   | 'carry_disabled'
   | 'week_closed'
-  | 'goal_not_active';
+  | 'goal_not_active'
+  | 'holds_continue'
+  | 'fixed_step'
+  | 'out_of_order'
+  | 'rest_gap'
+  | 'would_not_move';
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -500,6 +516,12 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   carry_disabled: 'This action is not available yet.',
   week_closed: 'This week has already been reviewed.',
   goal_not_active: 'This goal is no longer active.',
+  // M3.2 (RULE-10, RULE-12 to RULE-14, RULE-16). No screen shows these yet.
+  holds_continue: 'A day that picks up where another day stopped cannot be swapped.',
+  fixed_step: 'A day with a fixed step cannot be swapped.',
+  out_of_order: 'This swap would put steps out of order.',
+  rest_gap: 'This swap would put two hard sessions too close together.',
+  would_not_move: 'This step cannot be moved this week.',
 };
 
 function refuse(res: Response, reason: ActionReason): void {
@@ -531,7 +553,6 @@ async function actionGoal(res: Response, user: { id: string }, taskIds: string[]
   return { goal, tasks: tasks as ReconcileGoal['dailyTasks'] };
 }
 
-const hasCarriedStep = (steps: CarriedStep[]) => steps.some((step) => step.carriedFrom && typeof step.carriedFrom === 'object');
 
 /**
  * POST /api/goal/tasks/:taskId/mark-missed
@@ -583,8 +604,13 @@ goalRouter.post('/tasks/:taskId/carry-now', async (req: Request, res: Response):
     const overrides = isOpenToday ? { asMissed: task.id } : {};
     const held = evaluate(goal, user, now, overrides);
     if (!held.applies || !held.plan.held.some((item) => item.taskId === task.id)) return refuse(res, 'not_held');
+    // M3.2 (RULE-16, MR-21 (2)): with the method switch on, "move now" on a day that follows the new rules is done
+    // only when it really moves the step. A day under missed sessions' rules (RULE-18) keeps today's carry-now.
+    const moving = evaluate(goal, user, now, { ...overrides, asNotKey: task.id });
+    if (!moving.applies) return refuse(res, 'not_plan_v2');
+    if (followsNewRules(held, task.id) && moveNowTarget(moving, task.id) === null) return refuse(res, 'would_not_move');
 
-    res.json(await runReconcile(goal, user, now, { ...overrides, asNotKey: task.id }));
+    res.json(await runReconcile(goal, user, now, moving.overrides, moving));
   } catch (err: any) {
     console.error('[GoalRouter] Carry now error:', err);
     res.status(500).json({ error: 'Failed to update the plan.' });
@@ -671,18 +697,15 @@ goalRouter.post('/tasks/:taskId/swap', async (req: Request, res: Response): Prom
     if (!evaluation.applies) return refuse(res, 'not_plan_v2');
     const offer = evaluation.plan.held.some((held) => held.taskId === a.id && held.receivingTaskId === b.id);
 
+    // M3.2: one check for the route and `carry.choices`. A day holding a reorder's step or a continue marker is refused
+    // in any switch state; with the method switch on, so is any pair that breaks RULE-12 to RULE-14.
     if (!offer) {
-      const handled = handledTaskIds(evaluation.tasks);
-      const kindOf = new Map(evaluation.result.days.map((day) => [day.taskId, day.kind]));
+      const refusal = openSwapRefusal(evaluation, a.id, b.id);
+      if (refusal) return refuse(res, refusal);
+    } else {
       const stepsOf = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
-      for (const day of [a, b]) {
-        if (day.isRestDay) return refuse(res, 'rest_day');
-        if (day.isTestDay) return refuse(res, 'test_day');
-        if (day.status === 'completed') return refuse(res, 'completed');
-        if (kindOf.get(day.id) !== 'planned' || day.date < evaluation.today) return refuse(res, 'not_open');
-        if (hasCarriedStep(stepsOf.get(day.id) ?? [])) return refuse(res, 'holds_carry');
-        if (handled.has(day.id)) return refuse(res, 'already_handled');
-      }
+      const refusal = markerRefusal(stepsOf.get(a.id) ?? [], stepsOf.get(b.id) ?? []) ?? methodRefusal(evaluation, a.id, b.id);
+      if (refusal) return refuse(res, refusal);
     }
     if (expectedMap[a.id] !== a.detailedSteps || expectedMap[b.id] !== b.detailedSteps) return refuse(res, 'changed');
 

@@ -209,8 +209,10 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     const off = await withSwitches(undefined, undefined);
     given(make());
     const on = await withSwitches('true', undefined);
-    const { outcomes, continues, alreadyContinued, writtenContinues, reorders, easyStart, writtenReorders, writtenEasyStart, ...carry } = on.body.carry;
+    const { outcomes, continues, alreadyContinued, writtenContinues, reorders, easyStart, writtenReorders, writtenEasyStart, choices, ...carry } = on.body.carry;
     expect({ ...on.body, carry }).toEqual(off.body);
+    // M3.2 review: with the carry switch off every action answers carry_disabled, so nothing is offered.
+    expect(choices).toEqual({ today: null, held: [] });
     expect(reorders).toEqual([]);
     expect(easyStart).toBeNull();
     expect(writtenReorders).toEqual([]);
