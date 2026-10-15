@@ -103,6 +103,12 @@ export interface WeekCallInput {
    * carry one of its kind ids, or the week is not saved. Without one, the week call is exactly as before.
    */
   recovery?: RecoveryProfile | null;
+  /**
+   * Method-aware recovery M3.1d (RULE-20, MR-32): where the person is, from last week (`handoffBrief` in
+   * `recovery/handoff.ts`). Given only when `METHOD_RECOVERY_ENABLED` is on and there is something to say; told, never
+   * checked. Without it the prompt is exactly as before.
+   */
+  whereTheyAre?: string[];
 }
 
 export const WEEK_SYSTEM = `You write one week of daily practice for a person following a 90-day plan. The goal, the method and this week's
@@ -223,7 +229,13 @@ export function buildWeekPrompt(input: WeekCallInput, layout: DayLayout[]): stri
   const prompt = buildBaseWeekPrompt(input, layout);
   if (!input.recovery) return prompt;
   const withKindLine = prompt.replace(HIGH_LOAD_LINE, [HIGH_LOAD_LINE, '  - kind: the id of the kind of step it is, from KINDS OF STEP below'].join(NL));
-  return withKindLine + kindsBlock(input.recovery);
+  return withKindLine + kindsBlock(input.recovery) + whereTheyAreBlock(input);
+}
+
+/** M3.1d: what last week hands on. Code places the carried steps after the answer; nothing here is checked. */
+function whereTheyAreBlock(input: WeekCallInput): string {
+  if (!input.whereTheyAre?.length) return '';
+  return ['', '', 'WHERE THEY ARE (from last week; code acts on this after you answer, nothing here is checked)', ...input.whereTheyAre].join(NL);
 }
 
 function buildBaseWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string {

@@ -12,7 +12,9 @@ import { parseStoredSteps, type CarriedStep, type CarryTask, type PlannedCarry }
 import { buildSignals, type MissedSignals } from './missedSignals.js';
 import { readRoutine } from './planV2.js';
 import { planRecovery, type PlannedContinue, type PlannedEasyStart, type PlannedReorder, type RecoveryPlan } from './recovery/carry.js';
+import { describeDay, type DayText } from './recovery/dayText.js';
 import { readRecoveryProfile } from './recovery/profile.js';
+import { methodRecoveryEnabled } from './recovery/switch.js';
 
 /**
  * The fields reconcile reads (as in M2.2). With METHOD_RECOVERY_ENABLED on, `loadReconcileGoal` also reads
@@ -41,8 +43,17 @@ export const RECONCILE_GOAL_SELECT = {
   },
 } satisfies Prisma.GoalSelect;
 
-/** `roadmap` is present only when it was loaded (the method switch was on). */
-export type ReconcileGoal = Prisma.GoalGetPayload<{ select: typeof RECONCILE_GOAL_SELECT }> & { roadmap?: Prisma.JsonValue };
+/**
+ * With METHOD_RECOVERY_ENABLED on, each day's text is loaded too, so a reordered day's title and 10-minute version can
+ * follow its new priority-1 step (M3.1d review).
+ */
+const METHOD_DAY_TEXT = { title: true, minimumVersion: true, implementationIntention: true, whyToday: true } as const;
+
+/** `roadmap` and the days' text are present only when they were loaded (the method switch was on). */
+export type ReconcileGoal = Omit<Prisma.GoalGetPayload<{ select: typeof RECONCILE_GOAL_SELECT }>, 'dailyTasks'> & {
+  dailyTasks: Array<Prisma.GoalGetPayload<{ select: typeof RECONCILE_GOAL_SELECT }>['dailyTasks'][number] & DayText>;
+  roadmap?: Prisma.JsonValue;
+};
 
 export interface ReconcileUser {
   id: string;
@@ -54,17 +65,15 @@ export function carryEnabled(): boolean {
   return process.env.MISSED_SESSIONS_CARRY_ENABLED === 'true';
 }
 
-/**
- * Method-aware recovery (M3.1a, 03-phases.md section 3): missed days follow their steps' kinds only when this is
- * exactly 'true'. Read per request. Off until M3.3 is live (O2); writes still need `carryEnabled()`.
- */
-export function methodRecoveryEnabled(): boolean {
-  return process.env.METHOD_RECOVERY_ENABLED === 'true';
-}
+/** Method-aware recovery's switch (M3.1a); its own module since M3.1d, re-exported here for its callers. */
+export { methodRecoveryEnabled };
 
 export function loadReconcileGoal(userId: string): Promise<ReconcileGoal | null> {
   const where = { userId, status: 'active' };
-  if (methodRecoveryEnabled()) return prisma.goal.findFirst({ where, select: { ...RECONCILE_GOAL_SELECT, roadmap: true } });
+  if (methodRecoveryEnabled()) {
+    const dailyTasks = { ...RECONCILE_GOAL_SELECT.dailyTasks, select: { ...RECONCILE_GOAL_SELECT.dailyTasks.select, ...METHOD_DAY_TEXT } };
+    return prisma.goal.findFirst({ where, select: { ...RECONCILE_GOAL_SELECT, dailyTasks, roadmap: true } });
+  }
   return prisma.goal.findFirst({ where, select: RECONCILE_GOAL_SELECT });
 }
 
@@ -146,9 +155,22 @@ export async function writeRecovery(goal: ReconcileGoal, plan: RecoveryPlan): Pr
   const guarded = (taskId: string) => {
     const receiving = stored.get(taskId)!;
     const row = rows.get(taskId)!;
+    // A reordered day whose priority-1 step changed describes its new step (M3.1d review).
+    const text = reorderDays.has(taskId) ? describeDay(receiving, parseStoredSteps(receiving.detailedSteps), row.steps) : null;
     return {
       where: { id: receiving.id, goalId: goal.id, status: receiving.status, detailedSteps: receiving.detailedSteps },
-      data: { detailedSteps: JSON.stringify(row.steps), durationMinutes: row.durationMinutes },
+      data: {
+        detailedSteps: JSON.stringify(row.steps),
+        durationMinutes: row.durationMinutes,
+        ...(text
+          ? {
+              title: text.title,
+              minimumVersion: text.minimumVersion as unknown as Prisma.InputJsonValue,
+              ...(text.implementationIntention !== undefined ? { implementationIntention: text.implementationIntention } : {}),
+              ...(text.whyToday !== undefined ? { whyToday: text.whyToday || null } : {}),
+            }
+          : {}),
+      },
     };
   };
 

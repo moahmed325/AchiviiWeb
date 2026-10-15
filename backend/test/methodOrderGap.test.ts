@@ -915,8 +915,14 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
     for (const taskId of changed) {
       const before = original.get(taskId)!;
       const now = after.tasks.find((t) => t.id === taskId)!;
-      // Nothing on the test day or a rest day.
-      expect(before.isTestDay || before.isRestDay).toBe(false);
+      // Nothing on a rest day. On the test day only RULE-21's easy line on its test step, when the test day is the
+      // first day back (M3.1d, MR-32 (5)).
+      expect(before.isRestDay).toBe(false);
+      if (before.isTestDay) {
+        expect(plan.easyStart?.taskId).toBe(taskId);
+        expect(plan.easyStart!.stepTitle).toMatch(/^Weekly test/);
+        expect(now.steps).toEqual(before.steps.map((s) => (s.title === plan.easyStart!.stepTitle ? { ...s, instructions: withEasyLine(s.instructions) } : s)));
+      }
       // No day longer than written.
       const sum = now.steps.reduce((total, s) => total + s.durationMinutes, 0);
       expect(sum).toBeLessThanOrEqual(before.steps.reduce((total, s) => total + s.durationMinutes, 0));

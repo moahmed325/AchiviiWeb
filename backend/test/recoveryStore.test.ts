@@ -14,6 +14,7 @@ const db = vi.hoisted(() => ({
   weeksCreateMany: vi.fn(),
   weekUpdate: vi.fn(),
   tasksCreateMany: vi.fn(),
+  tasksFindMany: vi.fn(),
   reviewUpsert: vi.fn(),
 }));
 
@@ -27,7 +28,7 @@ vi.mock('../src/lib/prisma.js', () => ({
       update: db.goalUpdate,
     },
     roadmapWeek: { createMany: db.weeksCreateMany, update: db.weekUpdate },
-    dailyTask: { createMany: db.tasksCreateMany },
+    dailyTask: { createMany: db.tasksCreateMany, findMany: db.tasksFindMany },
     weeklyReview: { upsert: db.reviewUpsert },
   },
 }));
@@ -299,5 +300,46 @@ describe('the weekly review gives an older goal its profile (RULE-1, MR-14)', ()
     expect(failedMake).toEqual(baseline);
     expect(writeNextWeek).toHaveBeenCalledTimes(3);
     expect(console.warn).toHaveBeenCalledWith('[Recovery] Could not save a profile for goal', 'g-old', expect.any(Error));
+  });
+});
+
+describe('M3.1d review: the review passes the week before to the handoff only with the method switch on', () => {
+  const reviewWeek2 = async () => {
+    db.goalUpdate.mockResolvedValue({});
+    db.goalFindFirst.mockResolvedValue(olderGoal({ roadmap: { ...storedRoadmap, recovery: PATHWAY_PROFILES.run10k } }));
+    db.reviewUpsert.mockResolvedValue({ id: 'rev-2', scorePercentage: 100 });
+    db.weekUpdate.mockResolvedValue({});
+    vi.mocked(writeNextWeek).mockResolvedValue([{ dayNumber: 1, title: 'Day', isRestDay: false }] as never);
+    vi.mocked(saveWeekTasks).mockResolvedValue([] as never);
+    const res = await fetch(`${baseUrl}/api/goal/weeks/2/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+      body: JSON.stringify({ reflection: 'Fine' }),
+    });
+    return res.status;
+  };
+  const weekBeforePassed = () => vi.mocked(writeNextWeek).mock.calls.at(-1)![5];
+
+  it('off: no extra read, and the week call gets no week before', async () => {
+    vi.stubEnv('METHOD_RECOVERY_ENABLED', '');
+    expect(await reviewWeek2()).toBe(200);
+    expect(db.tasksFindMany).not.toHaveBeenCalled();
+    expect(weekBeforePassed()).toEqual([]);
+    vi.unstubAllEnvs();
+  });
+
+  it('on: reads week 1 and passes it; a failed read never fails the review', async () => {
+    vi.stubEnv('METHOD_RECOVERY_ENABLED', 'true');
+    const week1 = [{ id: 'w1-fri', weekNumber: 1 }];
+    db.tasksFindMany.mockResolvedValueOnce(week1);
+    expect(await reviewWeek2()).toBe(200);
+    expect(db.tasksFindMany).toHaveBeenCalledWith({ where: { goalId: 'g-old', weekNumber: 1 }, orderBy: { dayNumber: 'asc' } });
+    expect(weekBeforePassed()).toEqual(week1);
+
+    db.tasksFindMany.mockRejectedValueOnce(new Error('db down'));
+    expect(await reviewWeek2()).toBe(200);
+    expect(weekBeforePassed()).toEqual([]);
+    expect(console.warn).toHaveBeenCalledWith('[GoalRouter] Could not read the week before for the handoff:', expect.any(Error));
+    vi.unstubAllEnvs();
   });
 });

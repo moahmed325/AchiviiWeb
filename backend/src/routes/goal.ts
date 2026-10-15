@@ -28,6 +28,7 @@ import { makeGoalProfile } from '../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
 import { ensureRecoveryProfile } from '../lib/recovery/store.js';
+import { methodRecoveryEnabled } from '../lib/recovery/switch.js';
 
 function wantsPlanStream(req: Request): boolean {
   return (req.headers.accept || '').includes('text/event-stream');
@@ -1069,7 +1070,17 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     if (nextWeek <= TOTAL_WEEKS) {
       // M1.3a (RULE-1, MR-14): an older goal gets its recovery profile here; never blocks the review.
       const recovery = await ensureRecoveryProfile(goal);
-      written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot), recovery);
+      // M3.1d review: with the method switch on, the week before too, so a break across the week change is seen. Never
+      // fails the review: without it, the handoff only sees this week.
+      let weekBefore: Awaited<ReturnType<typeof prisma.dailyTask.findMany>> = [];
+      if (methodRecoveryEnabled() && weekNum > 1) {
+        try {
+          weekBefore = await prisma.dailyTask.findMany({ where: { goalId: goal.id, weekNumber: weekNum - 1 }, orderBy: { dayNumber: 'asc' } });
+        } catch (err) {
+          console.warn('[GoalRouter] Could not read the week before for the handoff:', err);
+        }
+      }
+      written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot), recovery, weekBefore);
       if (!written) {
         res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
         return;

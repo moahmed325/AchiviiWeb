@@ -295,7 +295,10 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
 
     await withSwitches('true', undefined);
     const on = (prisma.goal.findFirst as any).mock.calls[1][0];
-    expect(on).toEqual({ where: { userId: user.id, status: 'active' }, select: { ...RECONCILE_GOAL_SELECT, roadmap: true } });
+    // M3.1d review: with the switch on, the days' text is loaded too (a reordered day's title follows its new step).
+    const dayText = { title: true, minimumVersion: true, implementationIntention: true, whyToday: true };
+    const dailyTasks = { ...RECONCILE_GOAL_SELECT.dailyTasks, select: { ...RECONCILE_GOAL_SELECT.dailyTasks.select, ...dayText } };
+    expect(on).toEqual({ where: { userId: user.id, status: 'active' }, select: { ...RECONCILE_GOAL_SELECT, dailyTasks, roadmap: true } });
   });
 
   it('M3.1c: a reorder writes every changed day in one transaction, each guarded, and a replan writes nothing', async () => {
@@ -349,6 +352,39 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     expect(again.body.carry.carries).toEqual([]);
     expect(again.body.carry.reorders[0].toNextWeek.map((s: any) => s.title)).toEqual(['Lesson 6']);
     expect(again.body.carry.outcomes).toEqual(body.carry.outcomes);
+  });
+
+  it('M3.1d review: a reordered day whose priority-1 step changed writes its new title, 10-minute version, intention and why-today, under the same guard', async () => {
+    const rows = lessonTasks().map((row) => {
+      const lesson = JSON.parse(row.detailedSteps)[0].title as string;
+      return {
+        ...row,
+        title: `Learn ${lesson}`,
+        implementationIntention: `At 19:30: Learn ${lesson}.`,
+        whyToday: row.id === 'wed' ? 'A steady day.' : `${lesson} builds on the last one.`,
+        minimumVersion: { title: `Short version: ${lesson}` },
+      };
+    });
+    given(goal(rows));
+    const { committed } = fakeTransaction([1, 1, 1, 1]);
+    await withSwitches('true', 'true');
+    const data = (id: string) => committed.find((args) => args.where.id === id)!.data;
+    expect(committed.map((args) => args.where.id)).toEqual(['tue', 'wed', 'fri', 'mon']);
+    expect(data('tue')).toMatchObject({
+      title: 'Lesson 3',
+      implementationIntention: 'At 19:30: Lesson 3.',
+      whyToday: null,
+      minimumVersion: { title: 'Short version: Lesson 3', kind: 'lesson', durationMinutes: 10, stepNumber: 1 },
+    });
+    expect(data('tue').minimumVersion).not.toHaveProperty('shiftedFrom');
+    // Wednesday's why-today does not name Lesson 4: kept (not written).
+    expect(data('wed')).toMatchObject({ title: 'Lesson 4', implementationIntention: 'At 19:30: Lesson 4.' });
+    expect(data('wed')).not.toHaveProperty('whyToday');
+    expect(data('fri')).toMatchObject({ title: 'Lesson 5' });
+    // Monday only gains its next-week record: its priority-1 step is the same, so its text is not written.
+    expect(Object.keys(data('mon')).sort()).toEqual(['detailedSteps', 'durationMinutes']);
+    // Same guard as before.
+    expect(committed.map((args) => Object.keys(args.where).sort())).toEqual(Array(4).fill(['detailedSteps', 'goalId', 'id', 'status']));
   });
 
   it('M3.1c: when one guard of a reorder fails, every reordered day rolls back and nothing of it is written', async () => {
