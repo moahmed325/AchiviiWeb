@@ -21,3 +21,10 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** in the week call, a breach that the week's stored test itself holds is logged as `[Safety]` with outcome `test_text` and not refused (on the test step for any rule the test breaks; elsewhere only for a sentence copied from it). New roadmaps cannot store such a test: the roadmap refuses a week test that breaks any rule the week call checks, in every week. Fixing stored tests on older goals belongs to the feature.
 **Why:** a refusal there leaves the person stuck at the review for good; the log shows which goals hold such a test.
 **Changes:** `backend/src/lib/ai/weekPlan.ts` (`safetyBreaches`), `roadmap.ts`; CLAUDE.md step 6.
+
+### PSL-4 — The limit numbers, step load and no switch (2026-10-17)
+**Question:** `02-feature.md` section 4 proposed every limit number; section 7 adds load fields to stored steps; should the limits have an on/off switch?
+**Decision:** (1) All the numbers in `02-feature.md` section 4's table, as proposed: running distance target +10% a week or +1 km; running time target at most 2% faster a week; lift load target +5% a week or +2.5 kg; body weight loss at most 1% a week, gain at most 0.5%; body fat at most 0.5 points a week; deficit 250 to 600 kcal a day; daily intake never below 1,200 kcal; running total +10% on the base week or +10 minutes / +1 km; longest run at most 50% of the week; at most 2 hard runs a week; weeks 1 to 3 lifting as PSL-2; base week = last week's planned total, or what was done when under 70% of it. (2) High-load steps store an optional `load` (additive keys in the stored step JSON, no migration). (3) No switch: the limits are always on.
+**Why (Mo):** agreed as proposed; a safety rule should not be possible to turn off.
+**Changes:** `02-feature.md` sections 4, 5 and 7 (status APPROVED).
+
