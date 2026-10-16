@@ -303,7 +303,7 @@ Core Non-Negotiable Rules:
         "Every working set is taken within 1–3 reps of technical failure with a controlled 3-second eccentric phase, triggering mechanosensitive mTOR signaling while fat stores supply the energy deficit."
     },
     socialAdherence: {
-      title: "High-Satiety Food Volumetrics & Weekend Buffer",
+      title: "High-Satiety Food Volumetrics & Weekend Calorie Budget",
       subtitle: "Dr. Barbara Rolls & James Clear",
       tag: "Behavioral Adherence",
       coreRule: "Never rely on willpower in an aggressive deficit; crowd out hunger with low-caloric-density bulk.",

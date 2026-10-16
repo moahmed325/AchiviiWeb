@@ -10,6 +10,8 @@ const pillars = () =>
     const triad = preset.evidenceTriad;
     if (!triad) return [];
     return [triad.science, triad.socialAdherence, triad.proCoaching].flatMap((pillar) => [
+      { id: preset.id, field: 'title', text: pillar.title },
+      { id: preset.id, field: 'subtitle', text: pillar.subtitle },
       { id: preset.id, field: 'coreRule', text: pillar.coreRule },
       { id: preset.id, field: 'realWorldApplication', text: pillar.realWorldApplication },
     ]);
@@ -30,7 +32,7 @@ const kindOf = (pathway: string, id: string): RecoveryKind => {
 const RUN10K =
   "If a run doesn't happen, an easy run is let go, and a workout or long run moves to a later day only when it fits with enough rest around it. Nothing piles up and no day gets longer.";
 const GUITAR =
-  "If a day doesn't happen, short drills are let go, new song sections keep their order (the one you didn't get to comes first in your next learning session), and a play-through moves to a later day. No day gets longer.";
+  "If a day doesn't happen, short drills are let go, new song sections keep their order (the one you didn't get to comes first in your next learning session), and a play-through moves to a later day when it fits. No day gets longer.";
 const SAAS =
   "If a day doesn't happen, your next build session picks up where you left off, customer and launch steps move to a later day when they fit, and the daily share-it push is let go. No day gets longer.";
 
