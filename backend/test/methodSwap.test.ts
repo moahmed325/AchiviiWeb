@@ -45,9 +45,16 @@ describe('the swap check', () => {
 
   it('markers: a reorder step is holds_carry, a continue marker holds_continue, a carried step is left to the route', () => {
     const at = { taskId: 'x', date: '2026-09-20' };
-    expect(markerRefusal([{ title: 'a', shiftedFrom: { ...at, replaced: [] } } as never])).toBe('holds_carry');
-    expect(markerRefusal([], [{ title: 'a', continueFrom: at } as never])).toBe('holds_continue');
-    expect(markerRefusal([{ title: 'a', carriedFrom: { ...at, replaced: [] } } as never])).toBeNull();
+    expect(markerRefusal([[{ title: 'a', shiftedFrom: { ...at, replaced: [] } } as never]])).toBe('holds_carry');
+    expect(markerRefusal([[], [{ title: 'a', continueFrom: at } as never]])).toBe('holds_continue');
+    expect(markerRefusal([[{ title: 'a', carriedFrom: { ...at, replaced: [] } } as never]])).toBeNull();
+  });
+
+  it('B-50: a continue marker whose day is done does not hold the day; a reorder step still does', () => {
+    const at = { taskId: 'x', date: '2026-09-20' };
+    expect(markerRefusal([[{ title: 'a', continueFrom: at } as never]], new Set(['x']))).toBeNull();
+    expect(markerRefusal([[{ title: 'a', continueFrom: at } as never]], new Set(['y']))).toBe('holds_continue');
+    expect(markerRefusal([[{ title: 'a', shiftedFrom: { ...at, replaced: [] } } as never]], new Set(['x']))).toBe('holds_carry');
   });
 
   it('without a profile only missed sessions\' checks apply', () => {

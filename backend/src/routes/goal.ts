@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
 import { normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
-import { handledTaskIds, parseStoredSteps } from '../lib/carryForward.js';
+import { handledTaskIds, parseStoredSteps, type CarriedStep } from '../lib/carryForward.js';
 import {
   carryEnabled,
   evaluate,
@@ -15,7 +15,8 @@ import {
   runReconcile,
   type ReconcileGoal,
 } from '../lib/reconcileCore.js';
-import { markerRefusal } from '../lib/recovery/swap.js';
+import { doneDayIds, markerRefusal } from '../lib/recovery/swap.js';
+import { easyLineAfterSwap } from '../lib/recovery/easyStart.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import { clarifyGoalWithAI, UserRoutineInput } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
@@ -704,7 +705,7 @@ goalRouter.post('/tasks/:taskId/swap', async (req: Request, res: Response): Prom
       if (refusal) return refuse(res, refusal);
     } else {
       const stepsOf = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
-      const refusal = markerRefusal(stepsOf.get(a.id) ?? [], stepsOf.get(b.id) ?? []) ?? methodRefusal(evaluation, a.id, b.id);
+      const refusal = markerRefusal([stepsOf.get(a.id) ?? [], stepsOf.get(b.id) ?? []], doneDayIds(evaluation.result.days)) ?? methodRefusal(evaluation, a.id, b.id);
       if (refusal) return refuse(res, refusal);
     }
     if (expectedMap[a.id] !== a.detailedSteps || expectedMap[b.id] !== b.detailedSteps) return refuse(res, 'changed');
@@ -714,16 +715,50 @@ goalRouter.post('/tasks/:taskId/swap', async (req: Request, res: Response): Prom
     const rowB = rows.find((row) => row.id === b.id);
     if (!rowA || !rowB) return refuse(res, 'changed');
 
+    const contentA = swapContent(rowB, offer);
+    const contentB = swapContent(rowA, offer);
+    // B-49 (MR-35 (5)): with the method switch on, RULE-21's easy line follows the swap onto the first hard step back,
+    // once. Another open day that loses the line is written in the same transaction, guarded as it was loaded.
+    const easyRows = new Map<string, CarriedStep[]>();
+    if (evaluation.method) {
+      const before = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
+      const after = new Map(before);
+      after.set(a.id, parseStoredSteps(contentA.detailedSteps as string | null));
+      after.set(b.id, parseStoredSteps(contentB.detailedSteps as string | null));
+      const changes = easyLineAfterSwap({
+        days: evaluation.result.days,
+        gap: evaluation.result.gap,
+        today: evaluation.today,
+        profile: evaluation.method.profile,
+        swapped: [a.id, b.id],
+        before,
+        after,
+      });
+      for (const [taskId, steps] of changes) easyRows.set(taskId, steps);
+    }
+    if (easyRows.has(a.id)) contentA.detailedSteps = JSON.stringify(easyRows.get(a.id));
+    if (easyRows.has(b.id)) contentB.detailedSteps = JSON.stringify(easyRows.get(b.id));
+    const others = [...easyRows.keys()]
+      .filter((taskId) => taskId !== a.id && taskId !== b.id)
+      .map((taskId) => goal.dailyTasks.find((task) => task.id === taskId)!);
+
     try {
       await prisma.$transaction(async (tx) => {
-        const writes: Array<[SwapRow, SwapRow]> = [
-          [rowA, rowB],
-          [rowB, rowA],
+        const writes: Array<[SwapRow, Prisma.DailyTaskUpdateManyMutationInput]> = [
+          [rowA, contentA],
+          [rowB, contentB],
         ];
-        for (const [target, source] of writes) {
+        for (const [target, data] of writes) {
           const { count } = await tx.dailyTask.updateMany({
             where: { id: target.id, goalId: goal.id, status: target.status, detailedSteps: expectedMap[target.id] as string },
-            data: swapContent(source, offer),
+            data,
+          });
+          if (count !== 1) throw new SwapConflict();
+        }
+        for (const other of others) {
+          const { count } = await tx.dailyTask.updateMany({
+            where: { id: other.id, goalId: goal.id, status: other.status, detailedSteps: other.detailedSteps },
+            data: { detailedSteps: JSON.stringify(easyRows.get(other.id)) },
           });
           if (count !== 1) throw new SwapConflict();
         }

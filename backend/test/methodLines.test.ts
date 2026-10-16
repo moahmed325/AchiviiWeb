@@ -362,6 +362,45 @@ describe('M3.3 the miss line with method-aware recovery', () => {
       expect((await reconcile()).signals.line).toEqual(line('moved', ['tue', TUE], ['wed', WED]));
     });
 
+    it('B-50: continue, then today is done: no line names the marked day; the marker stays stored', async () => {
+      seed({ mon: { status: 'completed' }, tue: { steps: [step('tue draft', 1, 20, 'drafting'), step('tue notes', 2, 10, 'review')] }, wed: { steps: day('wed draft', 'drafting') } });
+      at(TUE);
+      const set = await post('/tasks/tue/mark-missed');
+      expect(set.body.signals.line).toEqual(line('continued', ['tue', TUE], ['wed', WED]));
+      expect(stepsOf('wed')[0]).toMatchObject({ continueFrom: { taskId: 'tue', date: TUE } });
+      const stored = row('wed').detailedSteps;
+      complete('tue');
+      const body = await reconcile();
+      expect(body.signals.line).toBeNull();
+      expect(body.carry.outcomes.find((o: any) => o.taskId === 'tue')).toBeUndefined();
+      // The next day, when the marked day is today ("picks up again today"): still nothing.
+      at(WED);
+      expect((await reconcile()).signals.line).toBeNull();
+      expect(row('wed').detailedSteps).toBe(stored);
+    });
+
+    it('B-50: in-order reorder, then today is done: no line names the session, and the queue does not count the copy', async () => {
+      seed({ mon: { status: 'completed' }, tue: { steps: lesson('Lesson 1') }, wed: { steps: lesson('Lesson 2') }, fri: { steps: lesson('Lesson 3') } });
+      at(TUE);
+      const set = await post('/tasks/tue/mark-missed');
+      expect(set.body.signals.line).toEqual(line('moved_in_order', ['tue', TUE], ['wed', WED]));
+      expect(stepsOf('wed')[0]).toMatchObject({ title: 'Lesson 1', shiftedFrom: { taskId: 'tue' } });
+      expect(stepsOf('fri')[0]).toMatchObject({ title: 'Lesson 2', shiftedFrom: { taskId: 'wed' } });
+      complete('tue');
+      const body = await reconcile();
+      expect(body.signals.line).toBeNull();
+      // MR-33 (2): Lesson 1 is done (a copy is on a done day), so no session holds it and the queue does not count it:
+      // Wednesday takes the next lesson not done, and Lesson 3 is not lost. (Lesson 3 stays listed for next week and
+      // Friday gives its lesson up: listed steps are never placed again; reported with B-50.)
+      expect(stepsOf('wed')[0]).toMatchObject({ title: 'Lesson 2' });
+      expect(['wed', 'fri'].flatMap((id) => stepsOf(id)).some((s) => s.title === 'Lesson 1')).toBe(false);
+      const lesson3 = (r: any) => r.title === 'Lesson 3';
+      expect(['wed', 'fri'].flatMap((id) => stepsOf(id)).some(lesson3) || body.carry.reorders.some((r: any) => r.toNextWeek.some(lesson3))).toBe(true);
+      expect(body.carry.reorders.flatMap((r: any) => [...r.toNextWeek, ...r.sessions.map((x: any) => x.holds)]).some((x: any) => x?.title === 'Lesson 1')).toBe(false);
+      at(WED);
+      expect((await reconcile()).signals.line).toBeNull();
+    });
+
     it('comes before yesterday\'s line, even one naming a receiving day', async () => {
       seed({ mon: { steps: [step('mon draft', 1, 20, 'drafting'), step('mon notes', 2, 10, 'review')] }, tue: { steps: letGo('tue talk') }, wed: { steps: day('wed draft', 'drafting') } });
       at(TUE);

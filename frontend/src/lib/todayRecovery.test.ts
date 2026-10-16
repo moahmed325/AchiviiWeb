@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DailyTask, Goal, MissedSignals, Reconciliation } from '../types';
 import { missNotice, moveNowOffered, todayActions } from './today';
-import { EASY_START_LINE, MOVED_WARM_UP_LINE, continueLine, stepLines } from './stepLines';
+import { EASY_START_LINE, MOVED_WARM_UP_LINE, continueLine, doneTaskIds, stepLines, withoutDoneCopies } from './stepLines';
 
 // Method-aware recovery M3.3: the server's line (`signals.line`) and choices (`carry.choices`), read with the method
 // switch on; with it off (no `line`, no `choices`) everything stays as missed sessions built it (today.test.ts).
@@ -122,6 +122,27 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
     expect(continueLine({ continueFrom: { date: '2026-09-22' } })).toBe('Pick up where Tuesday stopped.');
     expect(continueLine({ continueFrom: { date: 'bad' } })).toBeNull();
     expect(continueLine({})).toBeNull();
+  });
+
+  it('B-50: no continue line when the day the marker names is done; the line while it is open', () => {
+    const marked = { instructions: 'Write on.', continueFrom: { taskId: 'tue', date: '2026-09-22' } };
+    const done = doneTaskIds([{ id: 'tue', status: 'completed' }, { id: 'wed', status: 'pending' }]);
+    expect([...done]).toEqual(['tue']);
+    expect(continueLine(marked, done)).toBeNull();
+    expect(stepLines(marked, done)).toEqual({ lead: [], body: 'Write on.' });
+    expect(continueLine(marked, doneTaskIds([{ id: 'tue', status: 'pending' }]))).toBe('Pick up where Tuesday stopped.');
+    expect(stepLines(marked)).toEqual({ lead: ['Pick up where Tuesday stopped.'], body: 'Write on.' });
+    expect(doneTaskIds(undefined).size).toBe(0);
+  });
+
+  it("B-50: a reorder's copy whose day is done is not shown, unless it is the day's only step", () => {
+    const done = doneTaskIds([{ id: 'tue', status: 'completed' }]);
+    const copy = { title: 'Lesson 1', shiftedFrom: { taskId: 'tue', date: '2026-09-22' } };
+    const own: { title: string; shiftedFrom?: { taskId: string; date: string } } = { title: 'Lesson 2' };
+    const open = { title: 'Lesson 0', shiftedFrom: { taskId: 'mon', date: '2026-09-21' } };
+    expect(withoutDoneCopies([copy, own, open], done)).toEqual([own, open]);
+    expect(withoutDoneCopies([copy], done)).toEqual([copy]);
+    expect(withoutDoneCopies([copy, own], new Set())).toEqual([copy, own]);
   });
 
   it('the easy and warm-up lines, alone or stacked, come off the top; nothing else changes', () => {

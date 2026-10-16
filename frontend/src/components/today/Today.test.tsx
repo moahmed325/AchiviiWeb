@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../../context/AuthContext';
@@ -1553,7 +1553,8 @@ describe('Today with method-aware recovery (M3.3)', () => {
         { stepNumber: 2, title: 'Notes', durationMinutes: 10, instructions: 'List three ideas.', focusCue: '' },
       ]);
       const minimumVersion = { stepNumber: 1, title: 'Short version: Draft chapter', durationMinutes: 10, instructions: `${EASY}\nWrite one paragraph.`, focusCue: '', pitfallToAvoid: '' };
-      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { detailedSteps: steps, minimumVersion } }));
+      // The continued day is open (missed), so its continue line shows (B-50).
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'pending' }, t3: { detailedSteps: steps, minimumVersion } }));
       mocked.reconcileGoal.mockResolvedValue(body());
       await renderToday();
       await user.click(screen.getByRole('button', { name: 'Show the 2 steps' }));
@@ -1565,6 +1566,30 @@ describe('Today with method-aware recovery (M3.3)', () => {
       await user.click(screen.getByRole('button', { name: 'The 10-minute version' }));
       expect(screen.getByText('Write one paragraph.').tagName).toBe('P');
       expect(screen.getAllByText(EASY)).toHaveLength(2);
+    });
+
+    it('B-50: no continue line on Today or in Focus when the day it names is done; shown while that day is open', async () => {
+      const user = userEvent.setup();
+      const steps = JSON.stringify([
+        { stepNumber: 1, title: 'Draft chapter', durationMinutes: 20, instructions: 'Write the next scene.', focusCue: '', continueFrom: { taskId: 't1', date: isoDay(-2) } },
+      ]);
+      const pickUp = `Pick up where ${weekday(-2)} stopped.`;
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'completed' }, t3: { detailedSteps: steps } }));
+      mocked.reconcileGoal.mockResolvedValue(body());
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Show the 1 step' }));
+      expect(screen.getByText('Write the next scene.')).toBeVisible();
+      expect(screen.queryByText(pickUp)).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Start' }));
+      expect(screen.queryByText(pickUp)).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(within(screen.getByRole('article', { name: 'Current step' })).queryByText(pickUp)).not.toBeInTheDocument();
+      cleanup();
+
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'pending' }, t3: { detailedSteps: steps } }));
+      await renderToday();
+      await user.click(screen.getByRole('button', { name: 'Show the 1 step' }));
+      expect(screen.getByText(pickUp)).toBeVisible();
     });
   });
 });

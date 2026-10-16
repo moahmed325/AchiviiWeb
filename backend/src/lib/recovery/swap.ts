@@ -29,12 +29,19 @@ export interface SwapWeek {
   goal: GoalText;
 }
 
-/** Any switch state: a day holding a reorder's step or a continue marker is never swapped (RULE-10, RULE-20). */
-export function markerRefusal(...rows: ReadonlyArray<readonly CarriedStep[]>): SwapRefusal | null {
+/**
+ * Any switch state: a day holding a reorder's step or a continue marker is never swapped (RULE-10, RULE-20). B-50
+ * (Mo): a continue marker whose day is in `done` is ignored, so it does not hold the day.
+ */
+export function markerRefusal(rows: ReadonlyArray<readonly CarriedStep[]>, done: ReadonlySet<string> = new Set()): SwapRefusal | null {
   if (rows.some((steps) => steps.some((step) => shiftMarkerOf(step) !== null))) return 'holds_carry';
-  if (rows.some((steps) => steps.some((step) => continueMarkerOf(step) !== null))) return 'holds_continue';
+  if (rows.some((steps) => steps.some((step) => { const marker = continueMarkerOf(step); return marker !== null && !done.has(marker.taskId); }))) return 'holds_continue';
   return null;
 }
+
+/** The ids of the days classified done, for `markerRefusal`. */
+export const doneDayIds = (days: readonly DayClassification[]): ReadonlySet<string> =>
+  new Set(days.filter((day) => day.kind === 'done').map((day) => day.taskId));
 
 interface Placed {
   step: CarriedStep;
@@ -124,5 +131,5 @@ export function methodSwapRefusal(week: SwapWeek, aId: string, bId: string): Swa
  */
 export function holdRefusal(week: SwapWeek, taskId: string, receivingTaskId: string): SwapRefusal | null {
   const stepsOf = new Map(week.tasks.map((task) => [task.id, task.steps]));
-  return markerRefusal(stepsOf.get(taskId) ?? [], stepsOf.get(receivingTaskId) ?? []) ?? methodSwapRefusal(week, taskId, receivingTaskId);
+  return markerRefusal([stepsOf.get(taskId) ?? [], stepsOf.get(receivingTaskId) ?? []], doneDayIds(week.days)) ?? methodSwapRefusal(week, taskId, receivingTaskId);
 }
