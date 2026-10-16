@@ -531,8 +531,8 @@ When generating or calibrating this 10K Runner blueprint:
       title: 'Busy Human Adherence Engine',
       subtitle: 'Designed for 40-Hour Workweeks & Real Friction',
       tag: 'REAL-LIFE PSYCHOLOGY',
-      coreRule: 'High-Density 35-45m Sessions + 2-Day Rule + Zero-Guilt Buffers.',
-      realWorldApplication: "Sessions fit around work, commute, and family. If a run doesn't happen, nothing piles up: there is no catching up, and no day gets longer. Never two rest days in a row."
+      coreRule: 'High-Density 35-45m Sessions + 2-Day Rule + Nothing Piles Up.',
+      realWorldApplication: "Sessions fit around work, commute, and family. If a run doesn't happen, an easy run is let go, and a workout or long run moves to a later day only when it fits with enough rest around it. Nothing piles up and no day gets longer. Never two rest days in a row."
     },
     proCoaching: {
       title: 'Elite Coach Ground Truth',

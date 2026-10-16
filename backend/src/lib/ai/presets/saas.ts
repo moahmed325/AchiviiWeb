@@ -541,9 +541,9 @@ When generating or calibrating this SaaS Builder blueprint:
       title: 'Solo Founder Adherence Engine',
       subtitle: 'Designed for 9-to-5 Builders & Real Fatigue',
       tag: 'REAL-LIFE PSYCHOLOGY',
-      coreRule: 'Boring Stack Mandate + 45-Minute Time-Boxed Sprints + Zero-Guilt Buffers.',
+      coreRule: 'Boring Stack Mandate + 45-Minute Time-Boxed Sprints + Nothing Piles Up.',
       realWorldApplication:
-        "Prevents framework rabbit holes and weekend burnout. 45-minute daily sprints fit around work and family. If a day doesn't happen, its most important step moves to your next practice day if it fits, and no day gets longer."
+        "Prevents framework rabbit holes and weekend burnout. 45-minute daily sprints fit around work and family. If a day doesn't happen, your next build session picks up where you left off, customer and launch steps move to a later day when they fit, and the daily share-it push is let go. No day gets longer."
     },
     proCoaching: {
       title: 'Venture & Indie Hacker Ground Truth',

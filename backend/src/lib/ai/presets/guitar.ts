@@ -539,9 +539,9 @@ When generating or calibrating this 5-Song Acoustic Guitar blueprint:
       title: 'Busy Human Adherence Engine',
       subtitle: 'Designed for 9-to-5 Adults & Real Friction',
       tag: 'REAL-LIFE PSYCHOLOGY',
-      coreRule: 'Recognizable Riffs on Day 1 + 25-30m Sweet Spot + Zero-Guilt Buffers.',
+      coreRule: 'Recognizable Riffs on Day 1 + 25-30m Sweet Spot + Nothing Piles Up.',
       realWorldApplication:
-        "No boring chromatic scales. Day 1 teaches chords to real anthems people love. Short daily sessions fit around work. If a day doesn't happen, its most important step moves to your next practice day if it fits, and no day gets longer."
+        "No boring chromatic scales. Day 1 teaches chords to real anthems people love. Short daily sessions fit around work. If a day doesn't happen, short drills are let go, new song sections keep their order (the one you didn't get to comes first in your next learning session), and a play-through moves to a later day. No day gets longer."
     },
     proCoaching: {
       title: 'Veteran Teacher Ground Truth',
