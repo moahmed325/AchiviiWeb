@@ -9,7 +9,7 @@
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
 | M1.1 | Check the code | — | DONE 2026-10-17 | [m1.1](milestones/m1.1-check-the-code.md) |
-| M1.2a | Server week close, the migration, the review-route guard (B-59) | AC-7, AC-16 (failed write), AC-17, AC-19 (part) | NOT STARTED | |
+| M1.2a | Server week close, the migration, the review-route guard (B-59) | AC-7, AC-16 (failed write), AC-17, AC-19 (part) | READY | [m1.2a](milestones/m1.2a-server-week-close.md) |
 | M1.2b | The close in the app: before reconcile, "getting ready", the test card, the line once | AC-6 | NOT STARTED | |
 | M1.3 | Moved days in every date | — | MOVED to M1.4 (WU-30) | |
 | M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | NOT STARTED | |
