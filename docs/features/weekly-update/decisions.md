@@ -132,6 +132,24 @@ How this log works: `docs/templates/decisions.md`.
 **Why (Mo):** the update changes targets for every user, so it needs a kill switch; RULE-4 rejections and fallbacks are cheap to measure early; stored data must never need rewriting.
 **Changes:** RULE-18 (new); section 5; section 7; AC-19; `03-phases.md` (eval milestone, O row).
 
+### WU-22 — Weekly tests are light (2026-10-17)
+**Question:** the update reads a weekly test every week. Is that test part of a normal session, or an exam? (The roadmap call writes each goal's test from the pathway's method; no pathway has a fixed one.)
+**Decision:** each of the 10 pathways gets a hand-written weekly test, as its own milestone before the update call. For run10k, recomp, speech and spanish it is the lighter version (run10k: log the week's long run as written; recomp: morning weight and waist tape; speech: record the week's section and count filler words; spanish: a 1 to 2 minute timed voice note), with the big test only in weeks 4, 8 and 12. The roadmap call gets a general rule for custom goals: the test is part of a normal session, needs no special tools and is short. Existing goals keep their stored tests. Live goals that may already have a hard weekly test are backlog B-58.
+**Why (Mo):** weekly tests should feel light; a weekly all-out run fights run10k's mostly-easy method; the update is only as good as the results people actually log.
+**Changes:** RULE-19 (new); section 7; AC-20; `03-phases.md` (its own milestone before the update call); `docs/backlog.md` B-58.
+
+### WU-23 — Safety wins over the final goal; the switch stays off until checkpoints (2026-10-17)
+**Question:** for someone steadily behind, holds push the gap into week 12, and RULE-10 (high-load goals rise one safe step at a time) clashes with WU-15 (week 12 is the final goal). And should the update run in production before checkpoints exists?
+**Decision:** (1) Safety wins: for a high-load goal (`run10k`, `recomp`) whose final goal is more than one safe step above week 11's target, week 12 takes the highest safe step, and the sentence says so honestly, for example "Week 12 aims at 7 km, a safe step. Your 10 km goal is the next step." (the next plan, I-10). It is the only case where week 12 is not the final goal. (2) `WEEKLY_UPDATE_ENABLED` stays off in production until the checkpoints feature ships (its `O` row waits on it), because week 12 = final goal is only honest once a week-8 checkpoint can offer a realistic day-90 target (I-9).
+**Why (Mo):** an unsafe jump is never acceptable; turning the update on before checkpoints moves the impossible climb into one visible last week.
+**Changes:** RULE-4; RULE-10; AC-8; `03-phases.md` (the O row waits on checkpoints).
+
+### WU-24 — A fresh plan copies the text only (2026-10-17)
+**Question:** should "Start a fresh plan" after a long break carry over the person's level?
+**Decision:** not in this feature. It stays as WU-9 (the goal's text, old goal archived). Carrying the level over is built once with the day-90 next plan (`docs/ideas.md` I-10), which shares the mechanism and its pricing (I-11).
+**Why (Mo):** carrying the level needs per-pathway baseline mappings and a pricing decision before billing is live.
+**Changes:** RULE-15.
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
