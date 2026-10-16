@@ -3,7 +3,13 @@ import { generateWithOneRetry } from './retry.js';
 import { WEEKLY_TEST_KIND, type RecoveryProfile } from '../recovery/profile.js';
 import { fitStepMinutes } from './scheduleRepair.js';
 import { dayQualityFailures, polishDays } from './taskRules.js';
-import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits } from './safetyScan.js';
+import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyHit } from './safetyScan.js';
+import {
+  CALORIE_DEFICIT_MAX,
+  CALORIE_DEFICIT_MIN,
+  EARLY_WEEK_MAX_1RM_PERCENT,
+  EARLY_WEEK_MIN_RIR,
+} from '../research/safetyClamps.js';
 import {
   formatAnswerLines,
   formatTarget,
@@ -237,15 +243,15 @@ function safetyLimitsBlock(input: WeekCallInput): string {
   const lines = [
     '',
     '',
-    'SAFETY LIMITS (these override the method and the target; a week that breaks one is not saved)',
+    'SAFETY LIMITS (these override the method and the target; a week whose steps break the calorie or the weeks 1 to 3 lifting limits is not saved)',
     '- Running: this week at most 10% more than last week.',
     '- At most 2 hard runs this week (intervals, tempo, race pace).',
-    '- Calorie deficit: 250 to 600 kcal a day, never more.',
+    `- Calorie deficit: ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more.`,
   ];
   if (input.weekNumber <= EARLY_WEEKS) {
     lines.push(
-      '- Weeks 1 to 3: no lift above 80% of 1RM, at least 3 reps in reserve, nothing to failure, no max or 1RM test.',
-      "- In weeks 1 to 3 this overrides the method's RIR range: at least 3 reps in reserve."
+      `- Weeks 1 to 3: no lift above ${EARLY_WEEK_MAX_1RM_PERCENT}% of 1RM, at least ${EARLY_WEEK_MIN_RIR} reps in reserve, nothing to failure, no max or 1RM test.`,
+      `- In weeks 1 to 3 this overrides the method's RIR range: at least ${EARLY_WEEK_MIN_RIR} reps in reserve.`
     );
   }
   return lines.join(NL);
@@ -636,12 +642,19 @@ export function checkWeekAnswer(
  */
 export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAttempt = false): string[] {
   const reasons: string[] = [];
+  // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
+  // says is logged, never refused, or that week could never be written.
+  const testText = textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
+  /** On the test step a rule the test itself breaks is allowed; elsewhere only a sentence copied from the test. */
+  const fromTest = (hit: SafetyHit, testStep: boolean) =>
+    testText.some((item) => item.rule === hit.rule && (testStep || hit.matched.includes(item.matched) || item.matched.includes(hit.matched)));
   for (const day of days) {
     const steps = [...day.detailedSteps, ...(day.minimumVersion ? [day.minimumVersion] : [])];
     for (const step of steps) {
       if (!input.highLoadGoal && step.highLoad !== true) continue;
       const name = step === day.minimumVersion ? `Day ${day.dayNumber} 10-minute version "${step.title}"` : `Day ${day.dayNumber} step "${step.title}"`;
       for (const hit of stepSafetyHits(step, input.weekNumber)) {
+        const allowed = fromTest(hit, step !== day.minimumVersion && TEST_STEP.test(step.title));
         logSafetyHit({
           goalId: input.goalId ?? null,
           week: input.weekNumber,
@@ -649,9 +662,9 @@ export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAt
           rule: hit.rule,
           step: name,
           matched: hit.matched,
-          outcome: lastAttempt ? 'failed' : 'retry',
+          outcome: allowed ? 'test_text' : lastAttempt ? 'failed' : 'retry',
         });
-        reasons.push(`SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`);
+        if (!allowed) reasons.push(`SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`);
       }
     }
   }
