@@ -19,3 +19,5 @@ At weeks 4 and 8 someone may be so far off pace that the final goal is out of re
 3. What does the person see and choose, and what happens if they ignore the offer?
 4. How do the screens that assume 90 days show a 97-day plan?
 5. Someone far behind on an in-order sequence (a carried lesson can wait weeks, method-aware recovery M3.1d) still gets week 12 = the final goal (weekly update RULE-4). Should being behind on a sequence count toward "out of reach"? (weekly update WU-12)
+6. Mo's direction (2026-10-17), not decided yet: keep the 90-day promise, give an honest forecast at weeks 4 and 8 only when clearly behind, and let the person choose once between the full goal and a realistic day-90 target; no extensions and never an open-ended plan (`docs/ideas.md` I-9). This would replace plan-v2's 1-week extension (question 1).
+7. What happens on day 90 and after: a celebration of what they reached and a new plan from their real level (I-10), and which parts are Pro (I-11). Is that this feature or its own?

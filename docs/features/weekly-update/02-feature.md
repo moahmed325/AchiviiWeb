@@ -1,6 +1,6 @@
 # Achivii Weekly Update — Feature Definition
 
-**Status:** APPROVED (2026-10-08). Resumed 2026-10-17: `docs/archive/method-aware-recovery/` is done (WU-10); updated for it (WU-11, WU-12) and for the logic check of 2026-10-17 (`logic-check-2026-10-17.md`, WU-13 to WU-20).
+**Status:** APPROVED (2026-10-08). Resumed 2026-10-17: `docs/archive/method-aware-recovery/` is done (WU-10); updated for it (WU-11, WU-12), for the logic check of 2026-10-17 (`logic-check-2026-10-17.md`, WU-13 to WU-20) and for the switch and migration (WU-21).
 **Date:** 2026-10-08
 **Builds on:** `docs/features/weekly-update/01-brief.md`, `docs/architecture/plan-v2.md` (Weekly update, prompt 4), `docs/archive/method-aware-recovery/` (recovery profile, return rule, next-week handoff)
 **Decisions:** `docs/features/weekly-update/decisions.md`
@@ -12,7 +12,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 ## 2. User journey
 1. **Normal week.** The person does the test on test day and submits the weekly review. The weekly update runs, next week is written, and the review's last step shows the update's sentence and next week's target.
-2. **Review skipped.** The week's last day closes. The next time they open the app, Today first offers to log the week's test if it wasn't logged, then the app closes the week by itself, runs the update and writes the new week. If they come back a few days late, the new week starts the day they return. Today shows the update's sentence once, then the new week.
+2. **Review skipped.** The week's last day closes. The next time they open the app, Today first offers to log the week's test if it wasn't logged (anything else they do skips it), then the app closes the week by itself, runs the update and writes the new week. If they come back a few days late, the new week starts the day they return. Today shows the update's sentence once, then the new week.
 3. **Test not logged.** The target is held. The new week's first practice day starts with the test they did not log.
 4. **Two hard weeks in a row.** The new week starts with a re-test, and Today asks once whether their daily time still works.
 5. **Back from a break** (more than a week away). The app follows the goal's return rule: it picks the level to restart at, moves the plan's dates so the first week back starts today, and writes that week. Today says welcome back and when the plan now ends.
@@ -47,7 +47,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 **RULE-7 — The words.** The update writes one sentence for the person (neutral and encouraging; says plainly when a target is held or lowered) and a short note for whoever writes next week's tasks. The sentence is checked by code for the forbidden words (section 6); a sentence that fails gets the neutral fallback. It is stored as the week's review insight, so the progress history shows it. When the target is held because a kind is a week behind (RULE-4), the sentence says so in plain words and names the kind, for example "…so you can catch up on new material". The name is the kind's `name` from the goal's recovery profile, in lower case (written by us for pathways and templates; the copy milestone checks each one reads well in this sentence and, if some do not, adds a list of plain words then, with no new stored field). A name the profile call wrote that fails the copy check is left out: "…so you can catch up".
 
-**RULE-8 — How a week closes (WU-1).** A week closes when the review is submitted, or automatically on the first app open after its last day has closed (the missed-sessions day close: bedtime plus 2 hours, never later than 04:00, in the person's time zone). Any screen that loads the goal starts the automatic close, not only Today (WU-20); that screen shows the "getting ready" state, and Today shows the sentence once. **The test first (WU-14):** when the week's test was not logged, the open that would close the week first shows Today's "Log last week's test" card, with Skip. Logging or skipping closes the week at once. The card does not block the app: the rest of the app works while it waits, but the new week is not written until they answer. If they neither log nor skip, the week closes as unlogged at that day's close, and that day is a day the new week was not yet written (RULE-13), never missed. An automatic close saves no reflection. After a week has closed, its late-test card and its review are no longer offered.
+**RULE-8 — How a week closes (WU-1).** A week closes when the review is submitted, or automatically on the first app open after its last day has closed (the missed-sessions day close: bedtime plus 2 hours, never later than 04:00, in the person's time zone). Any screen that loads the goal starts the automatic close, not only Today (WU-20); that screen shows the "getting ready" state, and Today shows the sentence once. **The test first (WU-14, changed 2026-10-17):** when the week's test was not logged and the goal is loaded on Today, Today first shows a "Log last week's test" card. Logging the result closes the week with it. Any other action counts as Skip: tapping Skip, dismissing the card or going to another screen closes the week at once as unlogged and writes the new week, so today stays a practice day. When the goal is loaded on another screen, no card is shown and the week closes as unlogged. A test they did but didn't log is covered by RULE-5's re-test. An automatic close saves no reflection. After a week has closed, its late-test card and its review are no longer offered.
 
 **RULE-9 — Close once, all or nothing.** Two tabs, a repeat request or a review racing an automatic close still close the week once. The update's targets, the week's close and the new week's tasks are saved together or not at all. If the new week cannot be written, nothing is saved, the person sees an honest "try again", and the next open tries again. Days spent waiting on a failed write do not count toward a short gap or a break: both are measured to the first open that tried to close the week, not to the write that worked (WU-20).
 
@@ -69,6 +69,8 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 **RULE-16 — The first week back.** The break's weekly update gets the break length and the return rule. Next week's target is the restart level from the rule, the remaining targets are spread over the weeks left (RULE-4 still applies, with the restart level as the lower bound, WU-16), the first practice day is a re-test, and the week's tasks follow the rule's "first week back". "Back 1 week" or "back 2 weeks" never goes before week 1's target: week 1 is the lowest restart level (WU-20).
 
+**RULE-18 — The switch (WU-21).** Everything in this feature acts only when `WEEKLY_UPDATE_ENABLED` is exactly `true`, read per request (`sync: false` in `render.yaml`, so unset means off; off by default; managed in the Render dashboard only, never turned on or off from code or tests). Off means exactly today's behaviour: the review writes next week with the targets as planned, nothing closes a week automatically, no update call runs and no date moves.
+
 **RULE-17 — Close first, then missed sessions (WU-17).** On an open that closes a week, the close (update, handoff, any move and the new week's tasks, RULE-9) runs and is saved first; reconcile then runs on the plan as stored, with its shipped scope (the week holding today and the week before it, method-aware recovery RULE-20, M3.1d). This is the same order as a review submitted on time followed by the next open, so when nobody was away the carry result is exactly today's. Reconcile never writes into gap days a move took out of the plan, into days not offered, or into jumped weeks.
 
 ## 5. States and edge cases
@@ -79,7 +81,8 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 | App opened 1 day late | The new week keeps its dates; the day that passed is not offered, never missed. |
 | App opened 4 days late | The plan moves 4 days (counted toward 28); the new week starts today at the same level; no re-test. |
 | App opened 4 days late, 26 days already moved | The plan moves 2 days; the other 2 days are not offered. |
-| Test card shown, they neither log nor skip | The week closes as unlogged at that day's close; that day is never missed. |
+| Test card shown, they dismiss it or go to another screen | Counts as Skip: the week closes as unlogged at once and the new week is written; today is a practice day. |
+| `WEEKLY_UPDATE_ENABLED` off | Exactly today's behaviour: targets as planned, no automatic close, no moved dates. |
 | Week writing fails on every open for 8 days | The gap is counted to the first open that tried, so it is not a break. |
 | Opened on the roadmap screen, not Today | The close still runs; that screen shows "getting ready". |
 | App opened before the last day has closed (e.g. 01:00 after a late session) | Nothing closes yet. |
@@ -104,7 +107,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 ## 6. Screens and copy
 - **Weekly review, last step:** the update's sentence replaces the session count; next week's target is shown when it changed.
-- **Today, before an automatic close with no logged test:** one card to log last week's test, with Skip (WU-14).
+- **Today, before an automatic close with no logged test:** one card to log last week's test, with Skip; any other action skips it (WU-14).
 - **Today, after a short gap that moved the plan:** one line with the new end date.
 - **Today, after an automatic close:** a short "getting ready" state while the week is written, then the sentence once, dismissible.
 - **Today, re-test weeks:** the first practice day's re-test step uses the normal step layout.
@@ -131,6 +134,8 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 The weekly sentence itself is written by the model under RULE-7.
 
 ## 7. Data and system changes
+- **The switch (RULE-18):** `WEEKLY_UPDATE_ENABLED` in `render.yaml` (`sync: false`) and `backend/.env.example`.
+- **One migration for the whole feature (WU-21):** decided in review after M1.1; it only adds fields (nullable or with a default), so existing goals work without rewriting stored data.
 - **Week close on the server.** A way to close a week automatically that is safe to call repeatedly, runs before reconcile (RULE-17) and starts whenever the app loads the goal (WU-20), used by Today on open; the review keeps closing weeks as today.
 - **The weekly update call** (prompt 4) with its code checks, and the week call receiving the coach's note and `retestFirst`.
 - **Stored per week:** the update's status (for trend and `retestFirst`).
@@ -152,7 +157,7 @@ The weekly sentence itself is written by the model under RULE-7.
 - **AC-3** No screen shows a status, and no update sentence uses a forbidden word. (RULE-3, RULE-7)
 - **AC-4** A week with no logged test holds the target (except before week 12), its re-test result is stored as that week's late result, and the next week's first practice day starts with that test; Today shows the "Test not logged" line. (RULE-5)
 - **AC-5** Two `far_behind` weeks in a row give a re-test first and one daily-time check; a shorter time applies from the next written week. (RULE-6)
-- **AC-6** A week whose review was skipped closes on the first open after its last day closed, from any screen, after the test card when the test wasn't logged (the card never blocks the app; unanswered, the week closes as unlogged at the day's close), and Today shows the new week and the sentence once. (RULE-8)
+- **AC-6** A week whose review was skipped closes on the first open after its last day closed, from any screen. When the test wasn't logged and the goal loads on Today, the test card comes first; logging closes the week with the result, and any other action (Skip, dismissing, another screen) closes it at once as unlogged, so today stays a practice day. Today shows the new week and the sentence once. (RULE-8)
 - **AC-7** Repeated or simultaneous closes close once; a failed week write saves nothing and shows "try again". (RULE-9)
 - **AC-8** For running and recomp goals, raised targets stay within the safety limits and rise at most one step. (RULE-10)
 - **AC-9** Every plan v2 goal has a return rule: the presets' are written, custom goals get one from their template or the profile call, older goals get one at their next weekly review, and a goal with no readable profile restarts at the last level reached. (RULE-12)
@@ -165,6 +170,7 @@ The weekly sentence itself is written by the model under RULE-7.
 - **AC-16** Days that passed before a week was written are never counted as missed; a 2 to 6 day gap moves the plan (within the limit) with no re-test; days spent on a failed week write count toward neither a gap nor a break. (RULE-9, RULE-13)
 - **AC-17** At a normal week change with nobody away, reconcile's carry result is the same as before this feature; on a closing open, the close is saved before reconcile runs. (RULE-17)
 - **AC-18** After a break, targets in the first week back are never below the restart level and never before week 1's; the break length counts from the last done step; the week the break started in does not trigger RULE-6. (RULE-6, RULE-13, RULE-16)
+- **AC-19** With `WEEKLY_UPDATE_ENABLED` unset or anything but `true`, the review, Today, the dates and every missed-sessions body behave exactly as before this feature; the migration's new fields are empty or default on existing goals and nothing reads them. (RULE-18)
 
 ## 10. Other concerns
 - **Cost and speed:** one more model call per person per week. An automatic close happens while they wait on Today, so it needs the "getting ready" state; the week call already takes about 10 to 30 seconds.

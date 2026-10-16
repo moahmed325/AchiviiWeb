@@ -86,9 +86,9 @@ How this log works: `docs/templates/decisions.md`.
 
 ### WU-14 — Log the test before an automatic close (2026-10-17)
 **Question:** logic check finding 2: someone who did the test on the week's last day and opens the app the next morning finds the week closed, the test lost and a re-test planned.
-**Decision:** when the week's test was not logged, the open that would close the week first shows a "Log last week's test" card with Skip on Today. Logging or skipping closes the week at once. The card never blocks the app: the rest of the app works while it waits, and the new week is written only after an answer. If they neither log nor skip, the week closes as unlogged at that day's close, and that day is not offered (WU-13), never missed.
-**Why (Mo):** the update should get the real result; one card is cheap; nothing may hold the app hostage.
-**Changes:** section 2; RULE-8; section 6 (card and copy); AC-6.
+**Decision:** when the week's test was not logged and the goal loads on Today, Today first shows a "Log last week's test" card. Logging the result closes the week with it. Any other action counts as Skip: tapping Skip, dismissing the card or going to another screen closes the week at once as unlogged and writes the new week, so today stays a practice day. On another screen no card is shown and the week closes as unlogged. RULE-5's re-test covers a test they did but didn't log. *(Changed 2026-10-17 by Mo: the first version waited for an answer until the day's close, which could cost a whole practice day.)*
+**Why (Mo):** the update should get the real result when it's easy to give, but a lost practice day is worse than a re-test; nothing may hold the app hostage.
+**Changes:** section 2; RULE-8; section 5; section 6 (card and copy); AC-6.
 
 ### WU-15 — Week 12 keeps the final goal over every hold (2026-10-17)
 **Question:** logic check finding 3: when week 11 is `far_behind` or its test was not logged, the hold says week 12 equals week 11's target and RULE-4 says week 12 is the final goal, so every answer is rejected.
@@ -125,6 +125,12 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** (1) RULE-6's daily-time question is asked only when a shorter option exists, and again each time a new run of two hard weeks starts (after a week that was not `far_behind`). (2) Week 1's target is the lowest restart level. (3) For deliverable targets, code checks the count, that the kind stays a deliverable, that the last week's text is the final goal's and that a held week's text is this week's exactly; "lower" and "backwards" in words are told to the model and not checked. (4) Any screen that loads the goal starts the automatic close; that screen shows "getting ready", Today shows the sentence once. (5) Days spent waiting on a failed week write count toward neither a short gap nor a break: both are measured to the first open that tried to close the week (stored per goal).
 **Why (Mo):** each closes a gap the logic check found without changing the feature's direction.
 **Changes:** RULE-4; RULE-6; RULE-8; RULE-9; RULE-16; section 5; section 7; AC-6; AC-16; AC-18.
+
+### WU-21 — A switch, an eval before any automatic close, one additive migration (2026-10-17)
+**Question:** how is the feature turned on safely, checked before it acts on its own, and stored?
+**Decision:** (1) Everything in the feature acts only when `WEEKLY_UPDATE_ENABLED` is exactly `true`, read per request, `sync: false` in `render.yaml` (unset means off), off by default, managed in the Render dashboard only and never turned on or off from code or tests. Off means exactly today's behaviour: targets as planned, no automatic close, no update call, no moved dates. Turning it on in production is an `O` row for Mo in `03-phases.md`. (2) An eval milestone runs the update call on recorded weeks right after the update call milestone, before any automatic close is built. (3) The feature gets one schema migration in total, decided in review after the check-the-code milestone; it only adds fields (nullable or with a default), so existing goals work without rewriting stored data.
+**Why (Mo):** the update changes targets for every user, so it needs a kill switch; RULE-4 rejections and fallbacks are cheap to measure early; stored data must never need rewriting.
+**Changes:** RULE-18 (new); section 5; section 7; AC-19; `03-phases.md` (eval milestone, O row).
 
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
