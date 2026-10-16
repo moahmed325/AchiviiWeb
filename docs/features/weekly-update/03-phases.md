@@ -8,14 +8,15 @@
 
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
-| M1.1 | Check the code | — | READY | [m1.1](milestones/m1.1-check-the-code.md) |
-| M1.2 | Server week close, test card, the migration | AC-6, AC-7, AC-16 (failed write), AC-17, AC-19 (part) | NOT STARTED | |
-| M1.3 | Moved days in every date | AC-11 | NOT STARTED | |
-| M1.4 | Gaps: days not offered, short gaps move the plan | AC-16 | NOT STARTED | |
+| M1.1 | Check the code | — | DONE 2026-10-17 | [m1.1](milestones/m1.1-check-the-code.md) |
+| M1.2a | Server week close, the migration, the review-route guard (B-59) | AC-7, AC-16 (failed write), AC-17, AC-19 (part) | NOT STARTED | |
+| M1.2b | The close in the app: before reconcile, "getting ready", the test card, the line once | AC-6 | NOT STARTED | |
+| M1.3 | Moved days in every date | — | MOVED to M1.4 (WU-30) | |
+| M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | NOT STARTED | |
 | M1.5 | Breaks, dates only, and the first-week-back note | AC-9 (part), AC-10 (dates), AC-12, AC-18 (length) | NOT STARTED | |
 | O1 | Mo: turn on `WEEK_CLOSE_ENABLED` in Render, then run the P1 production checks | — | NOT STARTED | |
 | M2.1 | Light weekly tests: 10 pathways and the custom-goal rule | AC-20 | NOT STARTED | |
-| M3.1 | The update call and its checks, on the review path | AC-1, AC-2, AC-3, AC-8, AC-13, AC-15 | NOT STARTED | |
+| M3.1 | The update call and its checks, on the review path (needs B-62) | AC-1, AC-2, AC-3, AC-8, AC-13, AC-15 | NOT STARTED | |
 | M3.2 | Eval of the update call on recorded weeks | AC-2, AC-3, AC-8 (measured) | NOT STARTED | |
 | M3.3 | The update in the automatic close; unlogged test; two hard weeks | AC-1, AC-4, AC-5 | NOT STARTED | |
 | M3.4 | Break restart | AC-9, AC-10, AC-18 | NOT STARTED | |
@@ -26,7 +27,7 @@
 
 - **P1 Week close** (`WEEK_CLOSE_ENABLED`): a skipped review no longer leaves next week unwritten; gaps and breaks move dates; no target changes. Needs M1.1. Ends with O1.
 - **P2 Light weekly tests**: new goals get light tests (no switch, goal creation). Needs M1.1; can run between P1 milestones; must finish before M3.1.
-- **P3 Weekly update** (`WEEKLY_UPDATE_ENABLED`): targets follow the person. Needs P1 and P2. M3.2's eval comes before M3.3 puts the update inside the automatic close.
+- **P3 Weekly update** (`WEEKLY_UPDATE_ENABLED`): targets follow the person. Needs P1, P2 and `docs/backlog.md` B-62 (real safety limits, WU-29). M3.2's eval comes before M3.3 puts the update inside the automatic close.
 - **P4 Close**: copy, every acceptance criterion in the three switch states, docs. Needs P3. O2 waits on the `checkpoints` feature.
 
 ## 3. Rules for this feature
@@ -35,13 +36,15 @@
 - P1 never changes a target and makes no model call except the week call the review already makes (WU-25).
 - One migration for the whole feature, in M1.2, shape decided in M1.1's review; it only adds fields, nullable or with a default (WU-21).
 - The close is saved before reconcile runs (RULE-17); with nobody away, reconcile's results are unchanged (R-2).
+- Who closes a week is decided inside the all-or-nothing save by a conditional update on the week's status, never by a read before it (WU-27).
+- A move shifts the stored `startDate` and `targetDate`; past days are read only from their stored rows (WU-26).
 
 ## 4. Must not break
 
 | ID | What | How to check |
 |---|---|---|
 | R-1 | Missed sessions: reconcile, carry, swap, mark missed, carry-now, signals, with both switches off and with each recovery switch state | Backend `npm test` (missed-sessions, carry, recovery and reconcile tests); e2e `today` specs |
-| R-2 | Carry at a normal week change with nobody away, reading the week before (method-aware recovery RULE-20, M3.1d) | Reconcile tests across the week change give the same body with `WEEK_CLOSE_ENABLED` on and off |
+| R-2 | Carry at a normal week change with nobody away, reading the week before (method-aware recovery RULE-20, M3.1d) | Reconcile tests across the week change give the same body with `WEEK_CLOSE_ENABLED` on and off, both for an on-time review and for a review or close on the morning after the week ended (WU-30) |
 | R-3 | The weekly review writes next week as today when `WEEKLY_UPDATE_ENABLED` is off | Review-route and `writeNextWeek` tests; e2e review spec |
 | R-4 | Late test: `PUT /weeks/:weekNumber/test-result` and Today's late-test card | `lateTestResult` tests; `LateTestCard` tests |
 | R-5 | Day numbers, the closing stretch from day 85, roadmap, progress and achievement screens with 0 moved days | Frontend `npm test`; e2e journey and progress specs |
@@ -56,13 +59,15 @@
 
 **M1.1 Check the code.** Read only. Maps the review path, goal loading and reconcile order, every date worked out from `Goal.startDate`, missed sessions around a week with no tasks yet, the late-test card, the safety limits for high-load goals, and how switches are read; proposes the one migration. Done when the report answers its questions with file paths and Mo has decided the storage and any plan changes.
 
-**M1.2 Server week close.** The automatic close behind `WEEK_CLOSE_ENABLED`: safe to repeat and all or nothing (RULE-9), saved before reconcile (RULE-17), started by any screen that loads the goal (RULE-8), the first-attempt date stored (RULE-9), the test card with any other action counting as Skip (WU-14), the "getting ready" state and the neutral line. Includes the migration. Covers AC-6, AC-7, AC-17. Checks R-1 to R-4, R-7.
+**M1.2a Server week close.** First the review route's guard (B-59, every switch state): a conditional update on the week's status and all writes in one transaction after the model call (WU-27). Then, behind `WEEK_CLOSE_ENABLED`, a close endpoint that is safe to repeat and all or nothing (RULE-9), acts only on an `active` week whose last day has closed (RULE-8), records the first-attempt date, can answer "due, test not logged" without closing (for M1.2b's card), writes the week as the review does with the targets as planned, upserts the review row with the neutral line, and logs one `[WeekClose]` line per close. Includes the one migration (M1.1 report section 8, plus `closeLineSeenAt`). Covers AC-7, AC-17, the failed-write part of AC-16, the switch-off part of AC-19. Checks R-1 to R-4, R-7.
 
-**M1.3 Moved days in every date.** Every date on the server and in the app accounts for moved days; with 0 moved days nothing changes. Covers AC-11. Checks R-1, R-5, R-7.
+**M1.2b The close in the app.** `GoalContext` calls the close before reconcile (RULE-17); "getting ready" on the loading views; the test card on Today with any other action counting as Skip and a closed tab bringing it back (WU-14, WU-28); the neutral line once (`closeLineSeenAt`). Covers AC-6. Checks R-1, R-3, R-4, R-5, R-7.
 
-**M1.4 Gaps.** Days not offered (never missed, nothing carried, no status effect), short gaps moving the plan within the 28-day limit, and "not offered" when the limit is used up (RULE-13, WU-13). Covers AC-16. Checks R-1, R-2, R-7.
+**M1.3** Moved into M1.4 (WU-30).
 
-**M1.5 Breaks, dates only.** Break detection and length (RULE-13, WU-18), the plan moving (RULE-14), the limit with the choice card, jumped weeks and the text-only fresh plan (RULE-15, WU-19, WU-24), the welcome-back line, and the return rule's "first week back" note to the week writer (WU-25). How a high-load goal's first week back stays safe with only this switch on is decided before this prompt (WU-25 (6)). Covers AC-12 and the date parts of AC-9, AC-10, AC-18. Checks R-1, R-3, R-5, R-6, R-7.
+**M1.4 Moved dates and gaps.** A move shifts `startDate` and `targetDate` (WU-26); days not offered (never missed, nothing carried, no status effect; the day kind decided in this prompt, WU-28) and short gaps moving the plan within the 28-day limit, with "not offered" when the limit is used up (RULE-13, WU-13). Covers AC-11, AC-16. Checks R-1, R-2, R-5, R-7.
+
+**M1.5 Breaks, dates only.** Break detection and length (RULE-13, WU-18), the plan moving (RULE-14), the limit with the choice card, jumped weeks and the text-only fresh plan (RULE-15, WU-19, WU-24), the welcome-back line, and the return rule's "first week back" note to the week writer (WU-25). For a high-load goal's first week back: the writer's note and the easy line on every hard step (WU-29). Covers AC-12 and the date parts of AC-9, AC-10, AC-18. Checks R-1, R-3, R-5, R-6, R-7.
 
 **O1.** Mo turns on `WEEK_CLOSE_ENABLED` in Render after a P1 release checklist (written in M1.5's review), then records the production checks here.
 
@@ -72,7 +77,7 @@
 
 ### P3 Weekly update
 
-**M3.1 The update call.** Prompt 4 with its code checks (RULE-4 with WU-11, WU-15, WU-16's bound left to M3.4, WU-23, deliverables), the status stored, the sentence and its fallback, the coach's note to the week writer, on the review path only.
+**M3.1 The update call.** Needs B-62's safety limits (WU-29). Wires `weekCounts` into the update's inputs (RULE-2, WU-30). Prompt 4 with its code checks (RULE-4 with WU-11, WU-15, WU-16's bound left to M3.4, WU-23, deliverables), the status stored, the sentence and its fallback, the coach's note to the week writer, on the review path only.
 **M3.2 Eval.** The update call on recorded weeks: rejections, fallbacks, safety, wording.
 **M3.3 The update in the automatic close.** Plus the unlogged test and re-test (RULE-5, WU-17) and two hard weeks with the daily-time question (RULE-6, WU-20).
 **M3.4 Break restart.** The return rule's restart level, the re-test first, the restart level as lower bound, week 1 as the floor, the week a break started in left out of RULE-6 (RULE-16, WU-16, WU-18).
@@ -84,5 +89,5 @@
 ## 6. Risks
 
 - **Waiting on Today.** An automatic close writes a week while the person waits (10 to 30 seconds). Controlled by the "getting ready" state and by RULE-9's retry on the next open.
-- **Dates in many places.** A missed spot shows a wrong day after a move. M1.1 lists every place; M1.3 lands the plumbing before anything moves a date.
-- **Safety limits don't cover plan v2.** `safetyClamps.ts` acts only on the goal's stored velocity table, not on roadmap targets or week sessions. RULE-10 needs its own check in M3.1; the close-only first week back is WU-25 (6).
+- **Dates in many places.** Controlled by WU-26: a move shifts the two stored dates, which M1.1 found are read only for today's day number and new weeks.
+- **No safety limits act on plan v2 today** (B-62, a safety issue outside this feature). P3 waits for it (WU-29); P1 changes no target, and a high-load first week back is held down by WU-29 (1).
