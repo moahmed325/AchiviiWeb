@@ -8,7 +8,7 @@ Where every feature stands. One row per feature; change a row only when a featur
 
 | Feature | State | Waiting on | Notes |
 |---|---|---|---|
-| `weekly-update` | PLANNED | — | Resumes (WU-10: method-aware recovery done 2026-10-16, archived). Feature definition approved; no phases yet. After it ships: whole-product logic audit (B-46) |
+| `weekly-update` | IN PROGRESS | — | Resumed 2026-10-17 (WU-10); plan in `03-phases.md` (M1.1 next). Two switches (WU-25): `WEEK_CLOSE_ENABLED` can go live after P1 (O1); `WEEKLY_UPDATE_ENABLED` stays off until `checkpoints` ships (WU-23, O2). After it ships: whole-product logic audit (B-46) |
 | `checkpoints` | STUB | weekly-update (WU-2) | Brief to be written |
 | `billing` (old layout) | WAITING | Lemon Squeezy test-mode keys and webhook (M2.5); then launch (phase 6) | Code built 2026-09-29 |
 

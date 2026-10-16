@@ -1,6 +1,6 @@
 # Achivii Weekly Update — Feature Definition
 
-**Status:** APPROVED (2026-10-08). Resumed 2026-10-17: `docs/archive/method-aware-recovery/` is done (WU-10); updated for it (WU-11, WU-12), for the logic check of 2026-10-17 (`logic-check-2026-10-17.md`, WU-13 to WU-20) for the switch and migration (WU-21), and for light weekly tests, safety before the final goal and the fresh plan (WU-22 to WU-24).
+**Status:** APPROVED (2026-10-08). Resumed 2026-10-17: `docs/archive/method-aware-recovery/` is done (WU-10); updated for it (WU-11, WU-12), for the logic check of 2026-10-17 (`logic-check-2026-10-17.md`, WU-13 to WU-20) for the switch and migration (WU-21), for light weekly tests, safety before the final goal and the fresh plan (WU-22 to WU-24), and for two switches (WU-25). Plan: `03-phases.md`.
 **Date:** 2026-10-08
 **Builds on:** `docs/features/weekly-update/01-brief.md`, `docs/architecture/plan-v2.md` (Weekly update, prompt 4), `docs/archive/method-aware-recovery/` (recovery profile, return rule, next-week handoff)
 **Decisions:** `docs/features/weekly-update/decisions.md`
@@ -71,7 +71,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 **RULE-17 — Close first, then missed sessions (WU-17).** On an open that closes a week, the close (update, handoff, any move and the new week's tasks, RULE-9) runs and is saved first; reconcile then runs on the plan as stored, with its shipped scope (the week holding today and the week before it, method-aware recovery RULE-20, M3.1d). This is the same order as a review submitted on time followed by the next open, so when nobody was away the carry result is exactly today's. Reconcile never writes into gap days a move took out of the plan, into days not offered, or into jumped weeks.
 
-**RULE-18 — The switch (WU-21).** Everything in this feature acts only when `WEEKLY_UPDATE_ENABLED` is exactly `true`, read per request (`sync: false` in `render.yaml`, so unset means off; off by default; managed in the Render dashboard only, never turned on or off from code or tests). Off means exactly today's behaviour: the review writes next week with the targets as planned, nothing closes a week automatically, no update call runs and no date moves.
+**RULE-18 — Two switches (WU-21, WU-25).** `WEEK_CLOSE_ENABLED` turns on the week close: the automatic close (RULE-8, RULE-9, RULE-17) with its test card, days not offered and short gaps (RULE-13), moved dates (RULE-14), and the date side of breaks (RULE-13 to RULE-15: the move, the length, the limit, the choice card, jumped weeks, the text-only fresh plan, the welcome-back line), plus passing the return rule's "first week back" note to the week writer. With only it on, a closing week is written exactly as the review writes it today, targets stay as planned, no update call runs, and the close shows the neutral line ("Next week is ready. Your targets stay as planned."). `WEEKLY_UPDATE_ENABLED` turns on everything that changes targets or adds a test: the update call and its checks (RULE-1 to RULE-7, RULE-10, RULE-11, WU-11, WU-15, WU-23), the unlogged-test re-test (RULE-5), two hard weeks (RULE-6), and the break restart (RULE-16: restart level, re-test first, the restart level as lower bound). It acts only when `WEEK_CLOSE_ENABLED` is also on, on the review path and in the automatic close alike. Each switch is on only when exactly `true`, is read per request, is `sync: false` in `render.yaml` (unset means off), is off by default, and is managed in the Render dashboard only, never turned on or off from code or tests. Both off means exactly today's behaviour: the review writes next week with the targets as planned, nothing closes a week automatically, no update call runs and no date moves. RULE-19 is behind neither switch.
 
 **RULE-19 — Light weekly tests (WU-22).** A weekly test is part of a normal session, needs no special tools and is short. Each of the 10 pathways has a hand-written weekly test; for run10k, recomp, speech and spanish it is the lighter version (run10k: log the week's long run as written; recomp: morning weight and waist tape; speech: record the week's section of the talk and count filler words; spanish: a 1 to 2 minute timed voice note), with the big test (a time trial, a body-fat estimate, the full talk, a longer conversation) only in weeks 4, 8 and 12. The roadmap call tells custom goals the same general rule. Existing goals keep their stored tests. This applies at goal creation in every switch state; it is not behind RULE-18.
 
@@ -84,7 +84,9 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 | App opened 4 days late | The plan moves 4 days (counted toward 28); the new week starts today at the same level; no re-test. |
 | App opened 4 days late, 26 days already moved | The plan moves 2 days; the other 2 days are not offered. |
 | Test card shown, they dismiss it or go to another screen | Counts as Skip: the week closes as unlogged at once and the new week is written; today is a practice day. |
-| `WEEKLY_UPDATE_ENABLED` off | Exactly today's behaviour: targets as planned, no automatic close, no moved dates. |
+| Both switches off | Exactly today's behaviour: targets as planned, no automatic close, no moved dates. |
+| Only `WEEK_CLOSE_ENABLED` on | Weeks close automatically and gaps and breaks move dates; targets stay as planned; no re-test, no restart level; the neutral line shows. |
+| Only `WEEKLY_UPDATE_ENABLED` on | Nothing changes: it acts only with `WEEK_CLOSE_ENABLED` on. |
 | Week writing fails on every open for 8 days | The gap is counted to the first open that tried, so it is not a break. |
 | Opened on the roadmap screen, not Today | The close still runs; that screen shows "getting ready". |
 | App opened before the last day has closed (e.g. 01:00 after a late session) | Nothing closes yet. |
@@ -137,7 +139,7 @@ The weekly sentence itself is written by the model under RULE-7.
 
 ## 7. Data and system changes
 - **Roadmap call and pathways (RULE-19):** each pathway carries its hand-written weekly test (with the weeks 4, 8 and 12 versions where they differ), and the roadmap prompt gives custom goals the light-test rule. Stored tests of existing goals are not changed.
-- **The switch (RULE-18):** `WEEKLY_UPDATE_ENABLED` in `render.yaml` (`sync: false`) and `backend/.env.example`.
+- **The switches (RULE-18):** `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED` in `render.yaml` (`sync: false`) and `backend/.env.example`.
 - **One migration for the whole feature (WU-21):** decided in review after M1.1; it only adds fields (nullable or with a default), so existing goals work without rewriting stored data.
 - **Week close on the server.** A way to close a week automatically that is safe to call repeatedly, runs before reconcile (RULE-17) and starts whenever the app loads the goal (WU-20), used by Today on open; the review keeps closing weeks as today.
 - **The weekly update call** (prompt 4) with its code checks, and the week call receiving the coach's note and `retestFirst`.
@@ -173,7 +175,7 @@ The weekly sentence itself is written by the model under RULE-7.
 - **AC-16** Days that passed before a week was written are never counted as missed; a 2 to 6 day gap moves the plan (within the limit) with no re-test; days spent on a failed week write count toward neither a gap nor a break. (RULE-9, RULE-13)
 - **AC-17** At a normal week change with nobody away, reconcile's carry result is the same as before this feature; on a closing open, the close is saved before reconcile runs. (RULE-17)
 - **AC-18** After a break, targets in the first week back are never below the restart level and never before week 1's; the break length counts from the last done step; the week the break started in does not trigger RULE-6. (RULE-6, RULE-13, RULE-16)
-- **AC-19** With `WEEKLY_UPDATE_ENABLED` unset or anything but `true`, the review, Today, the dates and every missed-sessions body behave exactly as before this feature; the migration's new fields are empty or default on existing goals and nothing reads them. (RULE-18)
+- **AC-19** With both switches unset or anything but `true`, the review, Today, the dates and every missed-sessions body behave exactly as before this feature. With only `WEEK_CLOSE_ENABLED` on, weeks close automatically and dates move, but every target stays as planned and no update call runs. `WEEKLY_UPDATE_ENABLED` alone changes nothing. The migration's new fields are empty or default on existing goals and nothing reads them while both are off. (RULE-18)
 - **AC-20** A new goal on any of the 10 pathways gets the pathway's hand-written weekly test; run10k, recomp, speech and spanish have the light test in every week except 4, 8 and 12; a custom goal's test follows the light-test rule; existing goals' stored tests are unchanged. (RULE-19)
 
 ## 10. Other concerns
