@@ -1,6 +1,6 @@
 /**
  * Method-aware recovery, M1.2: the 13 domain templates, exactly as in
- * docs/features/method-aware-recovery/reference/domain-templates.md (MR-13, MR-20).
+ * docs/archive/method-aware-recovery/reference/domain-templates.md (MR-13, MR-20).
  * Each template already holds the two kinds code adds (RULE-5) and passes `profileFailures`.
  */
 import { withFixedKinds, type RecoveryAction, type RecoveryKind, type RecoveryProfile, type ReturnRule, type TemplateId } from './profile.js';

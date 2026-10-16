@@ -41,7 +41,7 @@ services:
       # only (sync: false), so a Blueprint sync can never overwrite it; setting it back is the kill switch.
       - key: MISSED_SESSIONS_CARRY_ENABLED
         sync: false
-      # Method-aware recovery: the custom profile call (M1.3b, docs/features/method-aware-recovery).
+      # Method-aware recovery: the custom profile call (M1.3b, docs/archive/method-aware-recovery).
       # Unset or anything but the exact string "true" means off: custom goals keep their keyword-picked
       # template and no profile call is made. Managed in the Render dashboard only (sync: false). Set it
       # to "true" only after M2.2's eval has passed and Mo has agreed (O1).

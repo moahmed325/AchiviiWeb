@@ -2,7 +2,7 @@
  * Method-aware recovery, M1.2: the 10 certified pathways' hand-written profiles (RULE-2), keyed by preset id.
  * Each is its domain template. M1.2 read every preset's method text (`lib/ai/presets/*.ts`) and found no place
  * where the method needs the template changed (the misfits M1.1 found were fixed in the templates, MR-20); the
- * reasons are recorded in docs/features/method-aware-recovery/milestones/m1.2-profiles-and-templates.md.
+ * reasons are recorded in docs/archive/method-aware-recovery/milestones/m1.2-profiles-and-templates.md.
  */
 import type { RecoveryProfile, TemplateId } from './profile.js';
 import { templateProfile } from './templates.js';

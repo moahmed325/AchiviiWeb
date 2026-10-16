@@ -1,8 +1,8 @@
 # Achivii Method-Aware Recovery — Phases
 
-**Status:** IN PROGRESS
-**Feature:** docs/features/method-aware-recovery/02-feature.md
-**Decisions:** docs/features/method-aware-recovery/decisions.md
+**Status:** DONE 2026-10-16
+**Feature:** docs/archive/method-aware-recovery/02-feature.md
+**Decisions:** docs/archive/method-aware-recovery/decisions.md
 
 ## 1. Status
 
@@ -23,7 +23,7 @@
 | M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | DONE 2026-10-15 | [m3.2](milestones/m3.2-person-actions.md) |
 | M3.3 | Today, Dashboard and Focus | AC-7, AC-8 | DONE 2026-10-15 | [m3.3](milestones/m3.3-today-dashboard-focus.md) |
 | O2 | Mo: turn on `METHOD_RECOVERY_ENABLED` in Render once M3.3 is live (MR-36, MR-37 as changed; B-49, B-52 and B-55 done; B-53 and B-54 do not block it), then run the production checks | — | DONE 2026-10-16 (Mo: on in production; production checks looked fine, no step-by-step results recorded) | |
-| M4.1 | Copy honesty, acceptance, regression and close | AC-12, AC-13, all | READY | [m4.1](milestones/m4.1-copy-acceptance-close.md) |
+| M4.1 | Copy honesty, acceptance, regression and close | AC-12, AC-13, all | DONE 2026-10-16 | [m4.1](milestones/m4.1-copy-acceptance-close.md) |
 
 ## 2. Order
 - **P1 Profiles:** every goal has a checked recovery profile. Nothing the person sees changes. M1.3a needs M1.2; M1.3b needs M1.3a.

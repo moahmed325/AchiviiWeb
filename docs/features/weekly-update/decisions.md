@@ -62,7 +62,7 @@ How this log works: `docs/templates/decisions.md`.
 
 ### WU-10 — Paused for method-aware recovery (2026-10-08)
 **Question:** missed sessions' recovery treats every task the same. Fix that first, or build the weekly update on top of it?
-**Decision:** pause the weekly update and build `docs/features/method-aware-recovery/` first. The return-after-a-break rule (RULE-12) becomes part of that feature's recovery profile (MR-2). The weekly update resumes when it is done.
+**Decision:** pause the weekly update and build `docs/archive/method-aware-recovery/` first. The return-after-a-break rule (RULE-12) becomes part of that feature's recovery profile (MR-2). The weekly update resumes when it is done.
 **Why:** the break rule and day-level recovery need the same per-goal knowledge; build it once, first.
 **Changes:** status (paused); RULE-12.
 

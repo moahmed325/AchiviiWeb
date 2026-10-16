@@ -85,7 +85,7 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
 - Reminders before sessions: a later phase.
 
 ### Recovery profiles and step kinds
-Spec: `docs/features/method-aware-recovery/02-feature.md`. Code: `backend/src/lib/recovery/`. Code decides every
+Spec: `docs/archive/method-aware-recovery/02-feature.md`. Code: `backend/src/lib/recovery/`. Code decides every
 action; the model only tags steps (and, when switched on, writes a custom profile).
 - **Profile.** Every plan v2 goal stores a checked profile under `recovery` in `Goal.roadmap`: 2 to 8 kinds plus a
   catch-all, Weekly test and Fixed-time session; each kind has one action and may be hard or in order; a rest gap

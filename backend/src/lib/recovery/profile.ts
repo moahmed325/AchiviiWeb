@@ -3,7 +3,7 @@
  * checked reader (MR-9) and `actionOf` (RULE-7, RULE-18, MR-11).
  * Pure: no database, no clock, no environment, no model call. Nothing calls this yet (M1.3a stores it, M2.1 tags
  * steps with it, M3.1a acts on it).
- * Rules: docs/features/method-aware-recovery/02-feature.md section 4 and reference/domain-templates.md.
+ * Rules: docs/archive/method-aware-recovery/02-feature.md section 4 and reference/domain-templates.md.
  */
 import type { DetailedStep } from '../ai/goalDecomposer.js';
 

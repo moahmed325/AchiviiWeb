@@ -2,7 +2,7 @@
 
 **Status:** DIRECTION CHOSEN
 **Date:** 2026-10-08
-**Links:** `docs/archive/missed-sessions/03-feature.md` (the recovery rules this changes), `docs/architecture/plan-v2.md`, `docs/features/weekly-update/02-feature.md` (paused for this, WU-10), `docs/features/method-aware-recovery/decisions.md`
+**Links:** `docs/archive/missed-sessions/03-feature.md` (the recovery rules this changes), `docs/architecture/plan-v2.md`, `docs/features/weekly-update/02-feature.md` (paused for this, WU-10), `docs/archive/method-aware-recovery/decisions.md`
 
 ## 1. The problem
 When a day doesn't happen, the app treats every task the same way: move the most important step to the next open day, offer a swap for key sessions, and let the person swap days or move a step. It never asks what kind of task the step is, or what the goal's method says about doing it on another day. So the app can follow its own rules perfectly and still do something the method would never allow: harmful (injury risk), wasteful (broken order or timing) or pointless (making up a habit).

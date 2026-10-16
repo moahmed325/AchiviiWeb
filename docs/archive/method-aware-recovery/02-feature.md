@@ -2,9 +2,9 @@
 
 **Status:** APPROVED (2026-10-08)
 **Date:** 2026-10-08
-**Builds on:** `docs/features/method-aware-recovery/01-brief.md`; changes the recovery rules of `docs/archive/missed-sessions/03-feature.md`
-**Decisions:** `docs/features/method-aware-recovery/decisions.md`
-**Reference:** `docs/features/method-aware-recovery/reference/domain-templates.md`
+**Builds on:** `docs/archive/method-aware-recovery/01-brief.md`; changes the recovery rules of `docs/archive/missed-sessions/03-feature.md`
+**Decisions:** `docs/archive/method-aware-recovery/decisions.md`
+**Reference:** `docs/archive/method-aware-recovery/reference/domain-templates.md`
 
 ## 1. Summary
 When a day doesn't happen, the app does what the goal's method would do for that kind of task: move it, continue it, let it go or leave it fixed, while keeping order and rest. Every goal gets a recovery profile from its method when it is created, every step is tagged with a kind from that profile when its week is written, and code applies the rules.

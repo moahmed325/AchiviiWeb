@@ -14,7 +14,7 @@
  * M3.1b: a moved hard step keeps the rest gap (RULE-14). M3.1c: a step of an in-order move kind is never lost
  * (RULE-20): the week's remaining sessions of its kind hold, in order, the steps not done yet, and the rest go to next
  * week; after an open gap the first hard step back gets the easy line (RULE-21); the warm-up line goes only on
- * physical steps (MR-31). Rules: docs/features/method-aware-recovery/02-feature.md section 4; decisions MR-10, MR-12,
+ * physical steps (MR-31). Rules: docs/archive/method-aware-recovery/02-feature.md section 4; decisions MR-10, MR-12,
  * MR-17, MR-18, MR-26, MR-28 to MR-31.
  */
 import {

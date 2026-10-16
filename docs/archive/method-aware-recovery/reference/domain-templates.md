@@ -1,6 +1,6 @@
 # Domain templates
 
-Used by `docs/features/method-aware-recovery/02-feature.md` (RULE-2, RULE-3, RULE-4). Each template is a starting profile: its kinds of step, each kind's action, which kinds are **hard** (need a rest gap) or **in order**, the catch-all, the rest gap, and the return-after-a-break rule. Pathway profiles are these templates adjusted by us; custom goals use them unchanged until the eval passes (MR-14), then adjusted by the profile call.
+Used by `docs/archive/method-aware-recovery/02-feature.md` (RULE-2, RULE-3, RULE-4). Each template is a starting profile: its kinds of step, each kind's action, which kinds are **hard** (need a rest gap) or **in order**, the catch-all, the rest gap, and the return-after-a-break rule. Pathway profiles are these templates adjusted by us; custom goals use them unchanged until the eval passes (MR-14), then adjusted by the profile call.
 
 Actions: **move** (to the first later day that passes the rules), **continue** (the next session of that kind picks up where this one stopped), **let go** (not made up), **fixed** (never moved or swapped).
 
