@@ -55,6 +55,37 @@ describe('FocusSessionModal', () => {
     expect(within(screen.getByRole('article', { name: 'Current step' })).queryByText('Pick up where Tuesday stopped.')).not.toBeInTheDocument();
   });
 
+  it('B-52: a moved step from a done day is left out; the title, timer and 10-minute version follow the day as shown', () => {
+    const steps = [
+      { stepNumber: 1, title: 'Tempo run', durationMinutes: 20, instructions: 'Run at tempo.', focusCue: '', pitfallToAvoid: '', priority: 1, carriedFrom: { taskId: 'task-0', date: '2026-09-23', replaced: [] } },
+      { stepNumber: 2, title: 'Strides', durationMinutes: 8, instructions: 'Six easy strides.', focusCue: '', pitfallToAvoid: '', priority: 2 },
+      { stepNumber: 3, title: 'Stretch', durationMinutes: 2, instructions: 'Stretch calves.', focusCue: '', pitfallToAvoid: '', priority: 3 },
+    ];
+    const task = {
+      ...sampleTask,
+      title: 'Tempo run',
+      detailedSteps: JSON.stringify(steps),
+      minimumVersion: { stepNumber: 1, title: 'Short version: Tempo run', durationMinutes: 10, instructions: 'Ten minutes at tempo.', focusCue: '', pitfallToAvoid: '' },
+    };
+    render(<FocusSessionModal task={task} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneTaskIds={new Set(['task-0'])} />);
+    expect(screen.getByRole('heading', { name: 'Strides' })).toBeInTheDocument();
+    expect(screen.queryByText('Run at tempo.')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+    expect(screen.getByText('10:00')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /do the minimum/i }));
+    expect(screen.getByText('Six easy strides.')).toBeInTheDocument();
+    expect(screen.queryByText('Ten minutes at tempo.')).not.toBeInTheDocument();
+    cleanup();
+
+    // The source day still open: the day as stored.
+    render(<FocusSessionModal task={task} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneTaskIds={new Set()} />);
+    expect(screen.getByRole('heading', { name: 'Tempo run' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+    expect(screen.getByText('30:00')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument();
+  });
+
   it('starts the timer only after the user starts', () => {
     renderOpen();
     fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));

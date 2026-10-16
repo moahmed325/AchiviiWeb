@@ -144,6 +144,7 @@ export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string
   const kindOf = new Map(evaluation.result.days.map((day) => [day.taskId, day.kind]));
   const taskOf = new Map(evaluation.goal.dailyTasks.map((task) => [task.id, task]));
   const stepsOf = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
+  const done = doneDayIds(evaluation.result.days);
   for (const id of [aId, bId]) {
     const day = taskOf.get(id);
     if (!day) return 'not_open';
@@ -152,8 +153,9 @@ export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string
     if (day.status === 'completed') return 'completed';
     if (kindOf.get(id) !== 'planned' || day.date < evaluation.today) return 'not_open';
     const steps = stepsOf.get(id) ?? [];
-    if (steps.some((step) => markerOf(step) !== null)) return 'holds_carry';
-    const marker = markerRefusal([steps], doneDayIds(evaluation.result.days));
+    // B-52 (MR-37): a moved step whose source day is done is ignored, so it does not hold the day, in any switch state.
+    if (steps.some((step) => { const carried = markerOf(step); return carried !== null && !done.has(carried.taskId); })) return 'holds_carry';
+    const marker = markerRefusal([steps], done);
     if (marker) return marker;
     if (handled.has(id)) return 'already_handled';
   }

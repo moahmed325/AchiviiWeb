@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DailyTask, Goal, MissedSignals, Reconciliation } from '../types';
 import { missNotice, moveNowOffered, todayActions } from './today';
-import { EASY_START_LINE, MOVED_WARM_UP_LINE, continueLine, doneTaskIds, stepLines, withoutDoneCopies } from './stepLines';
+import { EASY_START_LINE, MOVED_WARM_UP_LINE, continueLine, doneTaskIds, stepLines, visibleDay, visibleSteps } from './stepLines';
 
 // Method-aware recovery M3.3: the server's line (`signals.line`) and choices (`carry.choices`), read with the method
 // switch on; with it off (no `line`, no `choices`) everything stays as missed sessions built it (today.test.ts).
@@ -140,9 +140,103 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
     const copy = { title: 'Lesson 1', shiftedFrom: { taskId: 'tue', date: '2026-09-22' } };
     const own: { title: string; shiftedFrom?: { taskId: string; date: string } } = { title: 'Lesson 2' };
     const open = { title: 'Lesson 0', shiftedFrom: { taskId: 'mon', date: '2026-09-21' } };
-    expect(withoutDoneCopies([copy, own, open], done)).toEqual([own, open]);
-    expect(withoutDoneCopies([copy], done)).toEqual([copy]);
-    expect(withoutDoneCopies([copy, own], new Set())).toEqual([copy, own]);
+    expect(visibleSteps([copy, own, open], done)).toEqual([own, open]);
+    expect(visibleSteps([copy], done)).toEqual([copy]);
+    expect(visibleSteps([copy, own], new Set())).toEqual([copy, own]);
+  });
+
+  describe('B-52 (MR-37): visibleDay, the day as the person sees it', () => {
+    const step = (stepNumber: number, title: string, durationMinutes: number, extra: Record<string, unknown> = {}) => ({
+      stepNumber,
+      title,
+      durationMinutes,
+      instructions: `Do ${title}.`,
+      focusCue: '',
+      pitfallToAvoid: '',
+      priority: stepNumber,
+      ...extra,
+    });
+    const moved = (stepNumber: number, extra: Record<string, unknown> = {}) =>
+      step(stepNumber, 'Tempo run', 25, { kind: 'hard_run', carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] }, ...extra });
+    const day = (steps: unknown[], extra: Partial<DailyTask> = {}) => ({
+      title: 'Easy base run',
+      detailedSteps: JSON.stringify(steps),
+      durationMinutes: 45,
+      implementationIntention: 'At 19:30: Easy base run.',
+      minimumVersion: step(1, 'Short version: Easy base run', 10),
+      whyToday: 'Easy miles build the base.',
+      ...extra,
+    });
+    const done = doneTaskIds([{ id: 'tue', status: 'completed' }]);
+
+    it('a moved step from a done day is hidden and its minutes come off; the stored text stays', () => {
+      const task = day([step(1, 'Easy run', 20, { kind: 'easy_run' }), moved(2)]);
+      const shown = visibleDay(task, done);
+      expect(shown.steps.map((s) => s.title)).toEqual(['Easy run']);
+      expect(shown.durationMinutes).toBe(20);
+      expect(shown.title).toBe('Easy base run');
+      expect(shown.minimumVersion).toBe(task.minimumVersion);
+      expect(shown.implementationIntention).toBe(task.implementationIntention);
+      expect(shown.whyToday).toBe(task.whyToday);
+      expect(shown.detailedSteps).toBe(task.detailedSteps);
+    });
+
+    it('when the hidden step led the day, the title, 10-minute version, intention and why today come from the next step', () => {
+      const task = day([moved(1), step(2, 'Strides', 15, { kind: 'drills' }), step(3, 'Stretch', 5)], {
+        title: 'Tempo run',
+        implementationIntention: 'At 19:30: Tempo run.',
+        minimumVersion: step(1, 'Short version: Tempo run', 10),
+        whyToday: 'The tempo run builds speed.',
+      });
+      const shown = visibleDay(task, done);
+      expect(shown.steps.map((s) => s.title)).toEqual(['Strides', 'Stretch']);
+      expect(shown.durationMinutes).toBe(20);
+      expect(shown.title).toBe('Strides');
+      expect(shown.minimumVersion).toEqual({
+        stepNumber: 1,
+        title: 'Short version: Strides',
+        durationMinutes: 10,
+        instructions: 'Do Strides.',
+        focusCue: '',
+        pitfallToAvoid: '',
+        kind: 'drills',
+      });
+      expect(shown.implementationIntention).toBe('At 19:30: Strides.');
+      expect(shown.whyToday).toBe('');
+    });
+
+    it("the 10-minute version keeps a short step's own minutes, as describeDay does", () => {
+      const shown = visibleDay(day([moved(1), step(2, 'Drills', 8)], { title: 'Tempo run' }), done);
+      expect(shown.minimumVersion).toMatchObject({ title: 'Short version: Drills', durationMinutes: 8 });
+    });
+
+    it("the day's only step stays shown, with the stored text and minutes", () => {
+      const task = day([moved(1)], { title: 'Tempo run', durationMinutes: 25 });
+      const shown = visibleDay(task, done);
+      expect(shown.steps).toHaveLength(1);
+      expect(shown.title).toBe('Tempo run');
+      expect(shown.durationMinutes).toBe(25);
+    });
+
+    it('a source day that is not done changes nothing', () => {
+      const task = day([moved(1), step(2, 'Strides', 15)], { title: 'Tempo run' });
+      const shown = visibleDay(task, doneTaskIds([{ id: 'tue', status: 'pending' }]));
+      expect(shown.steps.map((s) => s.title)).toEqual(['Tempo run', 'Strides']);
+      expect(shown.durationMinutes).toBe(45);
+      expect(shown.title).toBe('Tempo run');
+      expect(shown.minimumVersion).toBe(task.minimumVersion);
+    });
+
+    it("a B-50 copy whose day is done is read the same way", () => {
+      const copy = step(1, 'Lesson 1', 20, { kind: 'lesson', shiftedFrom: { taskId: 'tue', date: '2026-09-22' } });
+      const task = day([copy, step(2, 'Review', 10, { kind: 'review' })], { title: 'Lesson 1', implementationIntention: 'At 19:30: Lesson 1.' });
+      const shown = visibleDay(task, done);
+      expect(shown.steps.map((s) => s.title)).toEqual(['Review']);
+      expect(shown.durationMinutes).toBe(25);
+      expect(shown.title).toBe('Review');
+      expect(shown.minimumVersion).toMatchObject({ title: 'Short version: Review', durationMinutes: 10, kind: 'review' });
+      expect(shown.implementationIntention).toBe('At 19:30: Review.');
+    });
   });
 
   it('the easy and warm-up lines, alone or stacked, come off the top; nothing else changes', () => {

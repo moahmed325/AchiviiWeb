@@ -1281,7 +1281,9 @@ describe('Today: swap offer, set today aside, swap with another day (missed sess
     it('lists the open practice days later this week that are not the test day and no move has touched', async () => {
       const user = userEvent.setup();
       mocked.fetchActiveGoal.mockResolvedValue(
+        // t2 is open (missed): a carry from a done day would be ignored (B-52).
         goalWith({
+          t2: { status: 'pending' },
           t4: { title: 'Hill repeats' },
           t5: { isTestDay: true },
           t6: { detailedSteps: marked({ carriedFrom: { taskId: 't2', date: isoDay(-1), replaced: [] } }) },
@@ -1340,7 +1342,9 @@ describe('Today: swap offer, set today aside, swap with another day (missed sess
     });
 
     it('today holding a carried step cannot be swapped', async () => {
-      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { detailedSteps: marked({ carriedFrom: { taskId: 't2', date: isoDay(-1), replaced: [] } }) } }));
+      mocked.fetchActiveGoal.mockResolvedValue(
+        goalWith({ t2: { status: 'pending' }, t3: { detailedSteps: marked({ carriedFrom: { taskId: 't2', date: isoDay(-1), replaced: [] } }) } }),
+      );
       await renderToday();
       expect(button('Swap with another day')).not.toBeInTheDocument();
       expect(button('Set today aside')).toBeVisible();
@@ -1590,6 +1594,47 @@ describe('Today with method-aware recovery (M3.3)', () => {
       await renderToday();
       await user.click(screen.getByRole('button', { name: 'Show the 1 step' }));
       expect(screen.getByText(pickUp)).toBeVisible();
+    });
+
+    it('B-52: a moved step from a done day is hidden on Today and in Focus; the day reads from the next step', async () => {
+      const user = userEvent.setup();
+      const steps = JSON.stringify([
+        { stepNumber: 1, title: 'Tempo run', durationMinutes: 20, instructions: `${WARM}\nRun at tempo.`, focusCue: '', priority: 1, carriedFrom: { taskId: 't1', date: isoDay(-2), replaced: [] } },
+        { stepNumber: 2, title: 'Strides', durationMinutes: 8, instructions: 'Six easy strides.', focusCue: '', priority: 2 },
+        { stepNumber: 3, title: 'Stretch', durationMinutes: 2, instructions: 'Stretch calves.', focusCue: '', priority: 3 },
+      ]);
+      const stored = {
+        title: 'Tempo run',
+        detailedSteps: steps,
+        implementationIntention: 'At 19:30: Tempo run.',
+        minimumVersion: { stepNumber: 1, title: 'Short version: Tempo run', durationMinutes: 10, instructions: 'Ten minutes at tempo.', focusCue: '', pitfallToAvoid: '' },
+      };
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'completed' }, t3: stored }));
+      mocked.reconcileGoal.mockResolvedValue(body());
+      await renderToday();
+      expect(screen.getByRole('heading', { level: 2, name: 'Strides' })).toBeInTheDocument();
+      expect(screen.getByText('10 min · at 19:30')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Show the 2 steps' }));
+      expect(screen.queryByText('Run at tempo.')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Six easy strides.')[0]).toBeVisible();
+      await user.click(screen.getByRole('button', { name: 'The 10-minute version' }));
+      expect(screen.getByText('Short version: Strides')).toBeVisible();
+      expect(screen.queryByText('Ten minutes at tempo.')).not.toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Implementation intention' }));
+      expect(screen.getByText('At 19:30: Strides.')).toBeVisible();
+      await user.click(screen.getByRole('button', { name: 'Start' }));
+      expect(within(screen.getByRole('dialog')).getByRole('heading', { level: 2, name: 'Strides' })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /start focused session/i }));
+      expect(screen.getByText('10:00')).toBeInTheDocument();
+      cleanup();
+
+      // The source day still open: the day as stored, the moved step shown.
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'pending' }, t3: stored }));
+      await renderToday();
+      expect(screen.getByRole('heading', { level: 2, name: 'Tempo run' })).toBeInTheDocument();
+      expect(screen.getByText('30 min · at 19:30')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Show the 3 steps' }));
+      expect(screen.getByText('Run at tempo.')).toBeVisible();
     });
   });
 });

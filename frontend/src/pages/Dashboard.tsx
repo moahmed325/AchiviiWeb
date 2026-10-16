@@ -12,13 +12,13 @@ import {
   isToday,
   isWeekReviewDue,
   missNotice,
-  parseSteps,
   selectTodayTask,
   weekProgress,
   type MissNotice,
 } from '../lib/today';
 import type { DailyTask } from '../types';
 import { Badge, Button, LoadingState, Skeleton, StepMarker } from '../components/ui';
+import { doneTaskIds, visibleDay } from '../lib/stepLines';
 
 export const DashboardSkeleton: React.FC = () => (
   <main id="main" className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
@@ -151,7 +151,10 @@ export const Dashboard: React.FC = () => {
   if (!activeGoal) return null;
 
   const tasks = currentWeekTasks(activeGoal);
-  const task = selectTodayTask(tasks, now, undefined, timezone);
+  // B-50, B-52: today and the next day read as Today shows them (`visibleDay`): steps from a done day hidden.
+  const doneDays = doneTaskIds(activeGoal.dailyTasks);
+  const stored = selectTodayTask(tasks, now, undefined, timezone);
+  const task = stored ? visibleDay(stored, doneDays) : null;
   const week = currentRoadmapWeek(activeGoal);
   const day = dayNumber(activeGoal, now, timezone);
   const { practiceDays, practiceDone } = weekProgress(tasks);
@@ -162,7 +165,7 @@ export const Dashboard: React.FC = () => {
   const stagger = (ms: number): React.CSSProperties => ({ animationDelay: ms + 'ms' });
 
   const status = statusLine({ closing: isClosingStretchActive(activeGoal, now, timezone), isDone, isRest, notice: missNotice(reconciliation ?? null, activeGoal, now, timezone), practiceDone, practiceDays });
-  const steps = parseSteps(task?.detailedSteps);
+  const steps = task?.steps ?? [];
   const previewSteps = steps.slice(0, 3);
   const moreSteps = steps.length - previewSteps.length;
   const showSteps = Boolean(task) && !isDone && !isRest && previewSteps.length > 0;
@@ -179,7 +182,8 @@ export const Dashboard: React.FC = () => {
       : task?.whyToday;
   const cta = isDone ? 'Review today' : isRest ? 'See today' : 'Begin today';
 
-  const later = tasks.find((t) => t.dayNumber > (task?.dayNumber ?? 0) && !t.isRestDay && t.status === 'pending');
+  const laterStored = tasks.find((t) => t.dayNumber > (task?.dayNumber ?? 0) && !t.isRestDay && t.status === 'pending');
+  const later = laterStored ? visibleDay(laterStored, doneDays) : null;
   const nextPhase = journey?.phases.find((phase) => phase.startWeek > currentWeek);
   const cells: ComingUpItem[] = [];
   if (later) {
