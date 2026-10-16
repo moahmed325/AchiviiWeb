@@ -18,3 +18,4 @@ At weeks 4 and 8 someone may be so far off pace that the final goal is out of re
 2. How does "out of reach" get decided: by the model, by code from the trend, or both?
 3. What does the person see and choose, and what happens if they ignore the offer?
 4. How do the screens that assume 90 days show a 97-day plan?
+5. Someone far behind on an in-order sequence (a carried lesson can wait weeks, method-aware recovery M3.1d) still gets week 12 = the final goal (weekly update RULE-4). Should being behind on a sequence count toward "out of reach"? (weekly update WU-12)

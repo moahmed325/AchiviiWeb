@@ -1,8 +1,8 @@
 # Achivii Weekly Update — Feature Definition
 
-**Status:** APPROVED (2026-10-08). Paused until `docs/archive/method-aware-recovery/` is done (WU-10).
+**Status:** APPROVED (2026-10-08). Resumed 2026-10-17: `docs/archive/method-aware-recovery/` is done (WU-10); updated for it (WU-11, WU-12).
 **Date:** 2026-10-08
-**Builds on:** `docs/features/weekly-update/01-brief.md`, `docs/architecture/plan-v2.md` (Weekly update, prompt 4)
+**Builds on:** `docs/features/weekly-update/01-brief.md`, `docs/architecture/plan-v2.md` (Weekly update, prompt 4), `docs/archive/method-aware-recovery/` (recovery profile, return rule, next-week handoff)
 **Decisions:** `docs/features/weekly-update/decisions.md`
 
 ## 1. Summary
@@ -27,21 +27,23 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 **Break:** the app was not opened for long enough that a whole week passed after the current week ended (RULE-13).
 **Return rule:** how this goal's method says to come back after a break. Every goal has one.
 **Moved days:** how many days breaks have pushed this plan later in total. At most 28.
+**In-order kind:** a kind of step in the goal's recovery profile whose steps are done in written order and move when missed (new lessons, new topics, a new piece, strength workouts). **Steps behind:** how many of its steps are not done yet, from the finished week's handoff (MR-32).
+**A week behind:** an in-order kind whose steps behind are at least the number of sessions of that kind in the finished week, and at least 2 (WU-11).
 
 ## 4. Rules
 **RULE-1 — One update per week.** Every week from 1 to 11 gets exactly one weekly update when it closes. Week 12 has none (RULE-11).
 
-**RULE-2 — What the update reads.** This week's target and its stored test result (`RoadmapWeek.testResult`, whether logged with the review or late), sessions done and planned, key sessions done and skipped (a key session done only as the 10-minute version counts as skipped), 10-minute versions used, missed and dropped days (`weekCounts`), the person's note if any, the last 3 weeks (target, result, sessions, status), the weeks left with their current targets, and any break (RULE-13).
+**RULE-2 — What the update reads.** This week's target and its stored test result (`RoadmapWeek.testResult`, whether logged with the review or late), sessions done and planned, key sessions done and skipped (a key session done only as the 10-minute version counts as skipped), 10-minute versions used, missed and dropped days (`weekCounts`), the person's note if any, the last 3 weeks (target, result, sessions, status), the weeks left with their current targets, any break (RULE-13), and, for each in-order kind, where the person is (the first step not done), how many steps behind that is, and the kind's name (WU-11). The position comes from the finished week's handoff (`weekHandoff`, MR-32), which exists only when `METHOD_RECOVERY_ENABLED` is on; with it off the update reads no position.
 
 **RULE-3 — Status stays inside.** The status is stored for the next updates (trend, RULE-6) and never shown: no label, colour or wording that means "behind" or "failed".
 
-**RULE-4 — Target rules, checked by code.** The update returns a target for every week left. Code rejects the answer if: the count is wrong; the metric, unit or kind changes; a target is below what they just achieved, or goes backwards; a target is above the final goal before the last week; the last week is not the final goal; or the status is `far_behind` and next week's target is not this week's. Deliverable targets follow the same rules in words: held means next week repeats this week's deliverable. A rejected answer gets one retry; if that fails too, the targets stay as they were and next week gets the neutral note.
+**RULE-4 — Target rules, checked by code.** The update returns a target for every week left. Code rejects the answer if: the count is wrong; the metric, unit or kind changes; a target is below what they just achieved, or goes backwards; a target is above the final goal before the last week; the last week is not the final goal; or the status is `far_behind` and next week's target is not this week's; or any in-order kind is a week behind and next week's target is higher than this week's (WU-11). That last check never applies when next week is week 12, which always keeps the final goal; it only blocks a raise, so a lower target another rule allows still passes, and later weeks are spread as usual. Being a week behind is not part of the status: it does not make the week `far_behind` and cannot start RULE-6's re-test on its own. Deliverable targets follow the same rules in words: held means next week repeats this week's deliverable. A rejected answer gets one retry; if that fails too, the targets stay as they were and next week gets the neutral note.
 
 **RULE-5 — Unlogged test (WU-3).** A week whose test was never logged is treated as "not logged", never as failed. The target is held, the sessions decide the status, and the next week's first practice day starts with that test. Its result shapes the following week like any test.
 
 **RULE-6 — Two hard weeks in a row.** When this week and last week are both `far_behind`, the next week starts with a re-test (`retestFirst`), and Today asks once whether the daily time still works. They can keep it or choose a shorter one from the existing daily-time options (never fewer days a week, WU-7); a change applies from the next week written, not the current one. Code, not the model, decides `retestFirst` from the stored statuses.
 
-**RULE-7 — The words.** The update writes one sentence for the person (neutral and encouraging; says plainly when a target is held or lowered) and a short note for whoever writes next week's tasks. The sentence is checked by code for the forbidden words (section 6); a sentence that fails gets the neutral fallback. It is stored as the week's review insight, so the progress history shows it.
+**RULE-7 — The words.** The update writes one sentence for the person (neutral and encouraging; says plainly when a target is held or lowered) and a short note for whoever writes next week's tasks. The sentence is checked by code for the forbidden words (section 6); a sentence that fails gets the neutral fallback. It is stored as the week's review insight, so the progress history shows it. When the target is held because a kind is a week behind (RULE-4), the sentence says so in plain words and names the kind, for example "…so you can catch up on new material". The name is the kind's `name` from the goal's recovery profile, in lower case (written by us for pathways and templates; the copy milestone checks each one reads well in this sentence and, if some do not, adds a list of plain words then, with no new stored field). A name the profile call wrote that fails the copy check is left out: "…so you can catch up".
 
 **RULE-8 — How a week closes (WU-1).** A week closes when the review is submitted, or automatically on the first app open after its last day has closed (the missed-sessions day close: bedtime plus 2 hours, never later than 04:00, in the person's time zone). An automatic close saves no reflection. After a week has closed, its late-test card and its review are no longer offered.
 
@@ -51,7 +53,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 
 **RULE-11 — Week 12.** Closing week 12 runs no update and writes no week; the closing stretch takes over as today.
 
-**RULE-12 — Every goal has a return rule (WU-4).** The rule is part of the goal's recovery profile (changed 2026-10-08, WU-10; `docs/archive/method-aware-recovery/`). The rule says, for a break of a given length, the level to restart at (the last level reached, or one or two weeks of targets back) and what the first week back should include. It may have up to two lengths (for example "1-2 weeks away" and "3+ weeks away"). The 10 certified pathways have rules written by us from their real methods. Custom goals get one from the roadmap call, checked by code. A goal created before this feature gets one generated the first time it is needed; if that fails, "restart at the last level reached" is used.
+**RULE-12 — Every goal has a return rule (WU-4).** The rule is the `returnRule` of the goal's recovery profile (WU-10, WU-12; `docs/archive/method-aware-recovery/`, MR-2), already built and checked by code (`backend/src/lib/recovery/profile.ts`). It says, for a break of a given length, the level to restart at (`last level`, `back 1 week` or `back 2 weeks`) and a note on what the first week back should include. It has one rule for any length, or two ("1-2 weeks" then "3+ weeks"). The 10 certified pathways have profiles written by us from their real methods. A custom goal gets its profile from a keyword-picked template, or from the profile call when `CUSTOM_RECOVERY_PROFILES_ENABLED` is on. A goal created before method-aware recovery gets one at its next weekly review (`ensureRecoveryProfile`). A goal with no readable profile when a break is closed uses "restart at the last level reached".
 
 **RULE-13 — What counts as a break.** When a week closes automatically and the next week would already have ended too, that is a break. Shorter gaps are normal weeks; missed sessions handles the days.
 
@@ -75,6 +77,9 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 | Week 12 closes | No update; closing stretch. |
 | Week ends, then away 10 days | A break: return rule, the plan moves 10 days, the first week back starts today. |
 | Away 6 weeks, nothing moved before | Past the limit: fresh plan or keep going (moves 28 days). |
+| A kind is a week behind and the test went well | Next week's target is held, not raised; later weeks are spread as usual; the sentence says they're catching up on that kind. |
+| A kind is a week behind and next week is week 12 | Week 12 keeps the final goal; no hold. |
+| A kind is one step behind | Not a week behind; a good test raises the target as usual. |
 | Rest day is the day they return | The first week back still starts today; today is a rest day only if the week layout says so. |
 | Goal is not plan v2 | Refused with `not_plan_v2`, as everywhere (ND-21). |
 
@@ -106,8 +111,8 @@ The weekly sentence itself is written by the model under RULE-7.
 - **Week close on the server.** A way to close a week automatically that is safe to call repeatedly, used by Today on open; the review keeps closing weeks as today.
 - **The weekly update call** (prompt 4) with its code checks, and the week call receiving the coach's note and `retestFirst`.
 - **Stored per week:** the update's status (for trend and `retestFirst`).
-- **Stored per goal:** the return rule and the moved days. The routine's daily minutes can change (RULE-6).
-- **Roadmap call:** also returns the return rule for custom goals. Each certified preset carries its own rule.
+- **The update's inputs:** the in-order position from the finished week's handoff (`weekHandoff` in `backend/src/lib/recovery/handoff.ts`, the same position the week writer is told as `whereTheyAre`).
+- **Stored per goal:** the moved days. The return rule is already stored, in the recovery profile (`Goal.roadmap.recovery`). The routine's daily minutes can change (RULE-6).
 - **Dates:** every place that derives a date from `Goal.startDate` (`weekStartFor`, Today's day number, the journey adapter) also accounts for moved days.
 
 **Must not break:** missed sessions (reconcile, carry, swap, mark today missed, late test), the weekly review flow, the closing stretch, Pro gating, goal creation.
@@ -115,7 +120,7 @@ The weekly sentence itself is written by the model under RULE-7.
 ## 8. Scope
 **In scope:** everything above.
 **Out of scope:** checkpoint offers at weeks 4 and 8 (WU-2, `docs/features/checkpoints/01-brief.md`); changing the days per week; letting the person edit targets; reminders; photo and video tests.
-**Later:** checkpoints; changing practice days after two hard weeks.
+**Later:** checkpoints; changing practice days after two hard weeks; the week writer avoiding a day that keeps getting missed (WU-12); adding sessions of a kind whose backlog is long (WU-12, `docs/ideas.md` I-7); counting only the kinds a weekly test measures (WU-11, I-8).
 
 ## 9. Acceptance criteria
 - **AC-1** Each week 1 to 11 runs exactly one update when it closes, and the update sees the stored test result however it was logged. (RULE-1, RULE-2)
@@ -126,12 +131,13 @@ The weekly sentence itself is written by the model under RULE-7.
 - **AC-6** A week whose review was skipped closes on the first open after its last day closed, and Today shows the new week and the sentence once. (RULE-8)
 - **AC-7** Repeated or simultaneous closes close once; a failed week write saves nothing and shows "try again". (RULE-9)
 - **AC-8** For running and recomp goals, raised targets stay within the safety limits and rise at most one step. (RULE-10)
-- **AC-9** Every plan v2 goal has a return rule: the presets' are written, custom goals get one from the roadmap call, older goals get one when needed with a safe default. (RULE-12)
+- **AC-9** Every plan v2 goal has a return rule: the presets' are written, custom goals get one from their template or the profile call, older goals get one at their next weekly review, and a goal with no readable profile restarts at the last level reached. (RULE-12)
 - **AC-10** After a break, the first week back starts today, at the rule's restart level, with a re-test first. (RULE-13, RULE-16)
 - **AC-11** After a break, every screen with dates (Today, roadmap, progress, closing stretch) shows the moved dates, and "Day N of 90" skips the break. (RULE-14)
 - **AC-12** Moved days never pass 28; past it, Today offers the two choices and both work. (RULE-15)
 - **AC-13** Week 12 closes into the closing stretch with no update. (RULE-11)
 - **AC-14** Everything under "Must not break" still passes its tests. (section 7)
+- **AC-15** When an in-order kind is a week behind, next week's target is never higher than this week's, except when next week is week 12; one step behind does not block a raise; the sentence names the kind in plain words. With `METHOD_RECOVERY_ENABLED` off, nothing is held for this reason. (RULE-2, RULE-4, RULE-7)
 
 ## 10. Other concerns
 - **Cost and speed:** one more model call per person per week. An automatic close happens while they wait on Today, so it needs the "getting ready" state; the week call already takes about 10 to 30 seconds.
