@@ -4,7 +4,7 @@ import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/mi
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { MOVED_WARM_UP_LINE, planRecovery, takePlace, withWarmUpLine, type RecoveryPlan } from '../src/lib/recovery/carry.js';
 import { EASY_START_LINE, withEasyLine } from '../src/lib/recovery/easyStart.js';
-import { inOrderMoveKinds, inOrderQueue } from '../src/lib/recovery/inOrder.js';
+import { doneStepsOf, inOrderMoveKinds, inOrderQueue, isDoneCopy, originOf, stepKey } from '../src/lib/recovery/inOrder.js';
 import { actionOf, profileFailures, withFixedKinds, type RecoveryKind, type RecoveryProfile } from '../src/lib/recovery/profile.js';
 
 // Method-aware recovery M3.1b and M3.1c: the rest gap (RULE-14), in-order steps never lost (RULE-20: the reorder, the
@@ -1091,6 +1091,8 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
   it('300 weeks lived day by day (missed days, breaks, steps missed twice): what was done is in order, and done plus next week is every step', () => {
     let runs = 0;
     let missedTwice = 0;
+    let fromDoneDay = 0;
+    let ignored = 0;
     for (let run = 0; run < 300; run++) {
       const profile = profileWith(Math.floor(random() * 3));
       const sequence: Record<string, number> = { lesson: 0, strength: 0 };
@@ -1107,6 +1109,19 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
 
       let breakLeft = 0;
       for (let index = 0; index <= 7; index++) {
+        // B-55 (MR-36, MR-37): every step the helper ignores was done: its identity is on a done day (MR-33 (2)).
+        const doneSteps = doneStepsOf(input.days, input.tasks);
+        const doneKeys = new Set([...doneSteps.values()].flatMap((keys) => [...keys]));
+        const kindOf = new Map(input.days.map((d) => [d.taskId, d.kind]));
+        for (const t of input.tasks) {
+          const at = { taskId: t.id, date: t.date };
+          for (const s of t.steps) {
+            if ([s.shiftedFrom?.taskId, s.carriedFrom?.taskId].some((from) => from !== undefined && kindOf.get(from) === 'done')) fromDoneDay += 1;
+            if (!isDoneCopy(s, at, doneSteps)) continue;
+            ignored += 1;
+            expect(doneKeys.has(stepKey(originOf(s, at), s.title)), `${t.id} ignores ${s.title}, which was never done`).toBe(true);
+          }
+        }
         const today = dateOf(2, index);
         input = { ...input, today, gap: findOpenGap(input.days) };
         const plan = on(input, profile);
@@ -1142,6 +1157,9 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
     }
     expect(runs).toBe(300);
     expect(missedTwice).toBeGreaterThan(70);
+    // B-55: copies whose marker names a done day are common here (sessions give their step up, then are done).
+    expect(fromDoneDay).toBeGreaterThan(100);
+    expect(ignored).toBeLessThan(fromDoneDay);
   });
 
   it('run10k weeks written before kinds: missed sessions\' plan, untagged steps drop as high_load (RULE-18)', () => {

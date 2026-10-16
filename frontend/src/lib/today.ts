@@ -1,5 +1,6 @@
 import type { DailyTask, DetailedStep, Goal, ReconcileLineKind, Reconciliation, RoadmapWeek } from '../types';
 import { addDaysToDateKey, daysBetweenDateKeys, getLocalDateString } from './dateUtils';
+import { doneDaysOf, fromDoneDay, type DoneDays } from './stepLines';
 
 /**
  * Today's date key ('YYYY-MM-DD') in the user's timezone (ND-1, missed-sessions M1.1b).
@@ -280,17 +281,17 @@ function todayDropped(reconciliation: Reconciliation, today: string): boolean {
   return Boolean(day && (reconciliation.carry?.drops || []).some((drop) => drop.taskId === day.taskId));
 }
 
-type MarkedStep = { carriedFrom?: { taskId?: unknown }; swappedFrom?: { taskId?: unknown } };
+type MarkedStep = { title?: unknown; carriedFrom?: { taskId?: unknown }; swappedFrom?: { taskId?: unknown } };
 
 /**
  * The days a move already touched, read from the stored steps' markers (M2.2 `carriedFrom`, ND-18 `swappedFrom`):
  * - `handled`: the source of a carry or a swap, or a day holding a swapped step (the backend's `handledTaskIds`).
- * - `holding`: a day holding any moved step. B-52 (MR-37): a carried step whose source day is in `done` (completed) is
- *   ignored, so it does not hold its day.
+ * - `holding`: a day holding any moved step. B-52, B-55 (MR-37): a carried step whose source day is done and still
+ *   holds it (`fromDoneDay`, as the backend's `holds_carry` reads `isDoneCopy`) is ignored, so it does not hold its day.
  */
 export function movedDays(
   tasks: ReadonlyArray<Pick<DailyTask, 'id' | 'detailedSteps'>>,
-  done: ReadonlySet<string> = new Set(),
+  done: DoneDays = new Map(),
 ): { handled: Set<string>; holding: Set<string> } {
   const handled = new Set<string>();
   const holding = new Set<string>();
@@ -300,7 +301,7 @@ export function movedDays(
       const swapped = step?.swappedFrom && typeof step.swappedFrom.taskId === 'string' ? step.swappedFrom.taskId : null;
       if (carried) {
         handled.add(carried);
-        if (!done.has(carried)) holding.add(task.id);
+        if (!fromDoneDay(step, task.id, done)) holding.add(task.id);
       }
       if (swapped) {
         handled.add(swapped);
@@ -348,8 +349,7 @@ export function todayActions(
     const swapWith = choices.today.swapWith.flatMap((id) => tasks.filter((task) => task.id === id));
     return { today, canSetAside: choices.today.setAside, canSwap: swapWith.length > 0, swapWith };
   }
-  const done = new Set((goal.dailyTasks || []).filter((task) => task.status === 'completed').map((task) => task.id));
-  const { handled, holding } = movedDays(week, done);
+  const { handled, holding } = movedDays(week, doneDaysOf(goal.dailyTasks));
   const setAside =
     (reconciliation.days || []).some((d) => d.taskId === today.id && d.kind === 'missed') ||
     reconciliation.signals?.swapOffer?.missedTaskId === today.id;

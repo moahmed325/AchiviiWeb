@@ -81,6 +81,8 @@ describe('Dashboard', () => {
       title: 'Lesson 1',
       detailedSteps: JSON.stringify([withPriority(1, 'Lesson 1', 20, { shiftedFrom: fromMonday }), withPriority(2, 'Lesson review', 10)]),
     };
+    // Monday was set aside (both steps moved on) and then done anyway: it still holds them (B-55).
+    days[0] = { ...days[0], status: 'completed', detailedSteps: JSON.stringify([withPriority(1, 'Hill repeats', 12), withPriority(2, 'Lesson 1', 20)]) };
     renderWith(goal);
 
     expect(screen.getByRole('heading', { level: 2, name: 'Warm up jog' })).toBeInTheDocument();
@@ -90,6 +92,21 @@ describe('Dashboard', () => {
     expect(within(steps).queryByText('Hill repeats')).not.toBeInTheDocument();
     expect(within(steps).getAllByRole('listitem')).toHaveLength(2);
     expect(within(screen.getByRole('region', { name: 'Coming up' })).getByText('Wednesday · Lesson review')).toBeInTheDocument();
+  });
+
+  it('B-55: a done day that no longer holds the step (it gave it up) hides nothing', () => {
+    const goal = buildGoal('pending');
+    const days = goal.dailyTasks!;
+    const fromMonday = { taskId: 't1', date: days[0].date, replaced: [] };
+    days[0] = { ...days[0], status: 'completed', detailedSteps: JSON.stringify([{ ...step(1, 'Review', 10), priority: 1 }]) };
+    days[1] = {
+      ...days[1],
+      title: 'Hill repeats',
+      detailedSteps: JSON.stringify([{ ...step(1, 'Hill repeats', 12), priority: 1, carriedFrom: fromMonday }, { ...step(2, 'Warm up jog', 10), priority: 2 }]),
+    };
+    renderWith(goal);
+    expect(screen.getByRole('heading', { level: 2, name: 'Hill repeats' })).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Inside this session' })).getAllByRole('listitem')).toHaveLength(2);
   });
 
   it('shows what is coming up without inventing anything', () => {

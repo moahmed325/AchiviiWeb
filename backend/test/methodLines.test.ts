@@ -29,6 +29,7 @@ import { goalRouter } from '../src/routes/goal.js';
 import { buildSignals } from '../src/lib/missedSignals.js';
 import type { DayClassification } from '../src/lib/missedSessions.js';
 import type { DayOutcome } from '../src/lib/recovery/carry.js';
+import { doneStepsOf } from '../src/lib/recovery/inOrder.js';
 
 const CARRY = 'MISSED_SESSIONS_CARRY_ENABLED';
 const METHOD = 'METHOD_RECOVERY_ENABLED';
@@ -468,6 +469,7 @@ describe('M3.3 review: buildSignals picks the line from exactly these markers', 
   const signalsOf = (days: DayClassification[], outcomes: DayOutcome[], stored: Array<{ id: string; steps: any[] }>, alreadyCarried: any[] = []) =>
     buildSignals({
       days,
+      doneSteps: doneStepsOf(days, stored),
       gap: null,
       plan: { carries: [], drops: [], held: [], alreadyCarried, outcomes },
       written: [],

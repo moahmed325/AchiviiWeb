@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react';
 import { FocusSessionModal } from './FocusSessionModal';
+import { doneDaysOf } from '../lib/stepLines';
 import type { DailyTask } from '../types';
 import '@testing-library/jest-dom/vitest';
 
@@ -48,7 +49,7 @@ describe('FocusSessionModal', () => {
   it('B-50: no continue line on the start screen or in the runner when the day it names is done', () => {
     const steps = JSON.parse(sampleTask.detailedSteps!);
     steps[0] = { ...steps[0], instructions: 'Jog easily.', continueFrom: { taskId: 'task-0', date: '2026-09-22' } };
-    render(<FocusSessionModal task={{ ...sampleTask, detailedSteps: JSON.stringify(steps) }} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneTaskIds={new Set(['task-0'])} />);
+    render(<FocusSessionModal task={{ ...sampleTask, detailedSteps: JSON.stringify(steps) }} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneDays={doneDaysOf([{ id: 'task-0', status: 'completed', detailedSteps: '[]' }])} />);
     expect(screen.getByText('Jog easily.')).toBeInTheDocument();
     expect(screen.queryByText('Pick up where Tuesday stopped.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
@@ -67,7 +68,9 @@ describe('FocusSessionModal', () => {
       detailedSteps: JSON.stringify(steps),
       minimumVersion: { stepNumber: 1, title: 'Short version: Tempo run', durationMinutes: 10, instructions: 'Ten minutes at tempo.', focusCue: '', pitfallToAvoid: '' },
     };
-    render(<FocusSessionModal task={task} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneTaskIds={new Set(['task-0'])} />);
+    // The source day is done and still holds the step (set aside, then done anyway).
+    const holds = doneDaysOf([{ id: 'task-0', status: 'completed', detailedSteps: JSON.stringify([{ title: 'Tempo run' }]) }]);
+    render(<FocusSessionModal task={task} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneDays={holds} />);
     expect(screen.getByRole('heading', { name: 'Strides' })).toBeInTheDocument();
     expect(screen.queryByText('Run at tempo.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
@@ -79,10 +82,18 @@ describe('FocusSessionModal', () => {
     cleanup();
 
     // The source day still open: the day as stored.
-    render(<FocusSessionModal task={task} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneTaskIds={new Set()} />);
+    render(<FocusSessionModal task={task} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneDays={new Map()} />);
     expect(screen.getByRole('heading', { name: 'Tempo run' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
     expect(screen.getByText('30:00')).toBeInTheDocument();
+    expect(screen.getByText('Step 1 of 3')).toBeInTheDocument();
+    cleanup();
+
+    // B-55: the source day is done but gave the step up (it no longer holds it): the step was never done, so it shows.
+    const gaveUp = doneDaysOf([{ id: 'task-0', status: 'completed', detailedSteps: JSON.stringify([{ title: 'Easy run' }]) }]);
+    render(<FocusSessionModal task={task} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneDays={gaveUp} />);
+    expect(screen.getByRole('heading', { name: 'Tempo run' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
     expect(screen.getByText('Step 1 of 3')).toBeInTheDocument();
   });
 

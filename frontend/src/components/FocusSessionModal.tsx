@@ -7,7 +7,7 @@ import { FocusStepRunner } from './focus/FocusStepRunner';
 import { FocusCompletion } from './focus/FocusCompletion';
 import { Button } from './ui';
 import { StepInstructions } from './today/StepInstructions';
-import { visibleDay } from '../lib/stepLines';
+import { visibleDay, type DoneDays } from '../lib/stepLines';
 
 /** ND-3: tells the caller whether the session was completed through the 10-minute version. */
 export interface FocusCompletionOptions {
@@ -29,7 +29,7 @@ export interface FocusSessionModalProps {
    * The goal's done days: a continue line, a reorder's copy or a moved step whose day is done is not shown, and the
    * session shows the day as `visibleDay` does (B-50, B-52).
    */
-  doneTaskIds?: ReadonlySet<string>;
+  doneDays?: DoneDays;
 }
 
 interface FocusSessionContentProps {
@@ -40,7 +40,7 @@ interface FocusSessionContentProps {
   onClose: () => void;
   onCompleteSession: (reflectionNotes?: string, options?: FocusCompletionOptions) => Promise<void> | void;
   startWith: 'full' | 'minimum';
-  doneTaskIds?: ReadonlySet<string>;
+  doneDays?: DoneDays;
 }
 
 const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
@@ -51,7 +51,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
   onClose,
   onCompleteSession,
   startWith,
-  doneTaskIds,
+  doneDays,
 }) => {
   // Timer & UI State initialized cleanly on mount
   const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
@@ -231,7 +231,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
               <div className="space-y-4">
                 <p className="text-micro font-ui-mono uppercase tracking-[0.2em] text-achievement">Focus session</p>
                 <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight text-text">{task.title}</h2>
-                {currentStep && <StepInstructions step={currentStep} doneTaskIds={doneTaskIds} className="text-base text-text-secondary max-w-xl mx-auto leading-relaxed" />}
+                {currentStep && <StepInstructions step={currentStep} doneDays={doneDays} className="text-base text-text-secondary max-w-xl mx-auto leading-relaxed" />}
               </div>
               <Button
                 variant="primary"
@@ -272,7 +272,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
                   setShowTips(false);
                 }}
                 isMinimumVersion={isMinimumVersion}
-                doneTaskIds={doneTaskIds}
+                doneDays={doneDays}
               />
             </div>
           )
@@ -301,10 +301,10 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   onClose,
   onCompleteSession,
   startWith = 'full',
-  doneTaskIds,
+  doneDays,
 }) => {
   // The day as shown (B-50, B-52): its steps, minutes and text. The session only shows it; completing goes by id.
-  const { steps, ...shown } = useMemo(() => visibleDay(task, doneTaskIds ?? new Set()), [task, doneTaskIds]);
+  const { steps, ...shown } = useMemo(() => visibleDay(task, doneDays ?? new Map()), [task, doneDays]);
 
   // Total duration in seconds (fallback to 30 min)
   const totalDurationSeconds = (shown.durationMinutes || 30) * 60;
@@ -321,7 +321,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
       onClose={onClose}
       onCompleteSession={onCompleteSession}
       startWith={startWith}
-      doneTaskIds={doneTaskIds}
+      doneDays={doneDays}
     />
   );
 };

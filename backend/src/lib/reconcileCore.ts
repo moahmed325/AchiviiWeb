@@ -13,7 +13,7 @@ import { buildSignals, type MissedSignals } from './missedSignals.js';
 import { readRoutine } from './planV2.js';
 import { planRecovery, type PlannedContinue, type PlannedEasyStart, type PlannedReorder, type RecoveryPlan } from './recovery/carry.js';
 import { describeDay, type DayText } from './recovery/dayText.js';
-import { followsMethod, originOf } from './recovery/inOrder.js';
+import { doneStepsOf, followsMethod, isDoneCopy, originOf } from './recovery/inOrder.js';
 import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
 import { doneDayIds, markerRefusal, methodSwapRefusal, type SwapRefusal } from './recovery/swap.js';
 import { methodRecoveryEnabled } from './recovery/switch.js';
@@ -145,6 +145,7 @@ export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string
   const taskOf = new Map(evaluation.goal.dailyTasks.map((task) => [task.id, task]));
   const stepsOf = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
   const done = doneDayIds(evaluation.result.days);
+  const doneSteps = doneStepsOf(evaluation.result.days, evaluation.tasks);
   for (const id of [aId, bId]) {
     const day = taskOf.get(id);
     if (!day) return 'not_open';
@@ -153,8 +154,10 @@ export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string
     if (day.status === 'completed') return 'completed';
     if (kindOf.get(id) !== 'planned' || day.date < evaluation.today) return 'not_open';
     const steps = stepsOf.get(id) ?? [];
-    // B-52 (MR-37): a moved step whose source day is done is ignored, so it does not hold the day, in any switch state.
-    if (steps.some((step) => { const carried = markerOf(step); return carried !== null && !done.has(carried.taskId); })) return 'holds_carry';
+    // B-52, B-55 (MR-37): a moved step whose source day is done and still holds it is ignored (`isDoneCopy`), so it
+    // does not hold the day, in any switch state.
+    const at = { taskId: id, date: day.date };
+    if (steps.some((step) => markerOf(step) !== null && !isDoneCopy(step, at, doneSteps))) return 'holds_carry';
     const marker = markerRefusal([steps], done);
     if (marker) return marker;
     if (handled.has(id)) return 'already_handled';
@@ -402,6 +405,7 @@ export async function runReconcile(
   const storedSteps = plan.outcomes ? evaluation.tasks.map((task) => ({ id: task.id, steps: rows.get(task.id)?.steps ?? task.steps })) : undefined;
   const signals = buildSignals({
     days: result.days,
+    doneSteps: doneStepsOf(result.days, evaluation.tasks),
     gap: result.gap,
     plan,
     written,

@@ -3,6 +3,7 @@ import { ArrowRight, ExternalLink } from 'lucide-react';
 import { Button } from '../ui';
 import type { DetailedStep } from '../../types';
 import { StepInstructions } from '../today/StepInstructions';
+import type { DoneDays } from '../../lib/stepLines';
 
 interface FocusStepRunnerProps {
   currentStep?: DetailedStep;
@@ -18,12 +19,12 @@ interface FocusStepRunnerProps {
   onUseMinimumVersion: () => void;
   isMinimumVersion: boolean;
   /** The goal's done days: a continue line whose day is done is not shown (B-50). */
-  doneTaskIds?: ReadonlySet<string>;
+  doneDays?: DoneDays;
 }
 
 export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
   currentStep, currentStepIndex, totalSteps, onNextStep, onCompleteFallback, fallbackTitle,
-  minimumVersion, onUseMinimumVersion, isMinimumVersion, doneTaskIds,
+  minimumVersion, onUseMinimumVersion, isMinimumVersion, doneDays,
 }) => {
   if (!currentStep) return (
     <section className="max-w-xl mx-auto p-6 sm:p-8 rounded-2xl bg-surface border border-accent/20 shadow-[0_16px_50px_rgba(199,167,92,0.08)] text-center">
@@ -47,7 +48,7 @@ export const FocusStepRunner: React.FC<FocusStepRunnerProps> = ({
 
       <div className="space-y-5">
         <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text leading-tight">{currentStep.title}</h3>
-        <StepInstructions step={currentStep} doneTaskIds={doneTaskIds} className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-xl" />
+        <StepInstructions step={currentStep} doneDays={doneDays} className="text-base sm:text-lg text-text-secondary leading-relaxed max-w-xl" />
 
         {currentStep.passMark && (
           <p className="text-small text-text-secondary pl-3 border-l-2 border-achievement/50">

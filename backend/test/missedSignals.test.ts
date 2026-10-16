@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildReconcileResult } from '../src/lib/missedSessions.js';
 import { parseStoredSteps, planCarries, type CarryPlan } from '../src/lib/carryForward.js';
 import { buildSignals, weekCounts, type SignalInput } from '../src/lib/missedSignals.js';
+import { doneStepsOf } from '../src/lib/recovery/inOrder.js';
 
 // Missed sessions M2.3: week counts (OD-2) and the reconcile signals (ND-16). User timezone UTC, bedtime 23:00,
 // so the day dated D closes at 01:00 UTC on D+1.
@@ -77,6 +78,7 @@ function reconcileAt(tasks: Row[], now: string, written: 'none' | 'all' = 'none'
   });
   const signalInput: SignalInput = {
     days: result.days,
+    doneSteps: doneStepsOf(result.days, tasks.map((t) => ({ id: t.id, steps: parseStoredSteps(t.detailedSteps) }))),
     gap: result.gap,
     plan,
     written: written === 'all' ? plan.carries : [],

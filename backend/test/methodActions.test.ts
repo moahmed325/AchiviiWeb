@@ -312,10 +312,16 @@ describe('M3.2 person actions with method-aware recovery', () => {
     it.each([true, false])('B-52: a moved step whose source day is done does not hold the day (switch on: %s)', async (on) => {
       method(on);
       const moved = { carriedFrom: { taskId: 'mon', date: '2026-09-21', replaced: [] } };
-      seed({ mon: { status: 'completed' }, wed: { steps: day('draft', 'drafting', moved) } });
+      // B-55: the done source day still holds the step (set aside, then done anyway).
+      seed({ mon: { status: 'completed', steps: day('draft', 'drafting') }, wed: { steps: day('draft', 'drafting', moved) } });
       at(TUE);
       if (on) expect((await reconcile()).body.carry.choices.today.swapWith).toContain('wed');
       expect((await swap('tue', 'wed')).status).toBe(200);
+
+      // B-55: the source day is done but no longer holds the step (it gave it up): the step was never done, still refused.
+      seed({ mon: { status: 'completed' }, wed: { steps: day('draft', 'drafting', moved) } });
+      if (on) expect((await reconcile()).body.carry.choices.today.swapWith).not.toContain('wed');
+      expect(await swap('tue', 'wed')).toMatchObject({ status: 409, body: { reason: 'holds_carry' } });
 
       // The source day not done: still refused.
       seed({ wed: { steps: day('draft', 'drafting', moved) } });
