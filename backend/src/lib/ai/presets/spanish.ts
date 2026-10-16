@@ -542,7 +542,7 @@ When generating or calibrating this Spoken Spanish blueprint:
       title: 'The Busy Communicator Adherence Engine',
       subtitle: 'Designed for Working Adults & Commute Routines',
       tag: 'REAL-LIFE PSYCHOLOGY',
-      coreRule: 'Commute-Friendly 30m Audio Sprints + Day 1 Spoken Wins + Zero-Guilt Buffers.',
+      coreRule: 'Commute-Friendly 30m Audio Sprints + Day 1 Spoken Wins + Nothing Piles Up.',
       realWorldApplication:
         'Eliminates app addiction and screen fatigue. Hands-free audio shadowing fits into walking, driving, or morning routines. Daily spoken voice notes deliver immediate proof of communication ability.'
     },

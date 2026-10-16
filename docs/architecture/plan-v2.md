@@ -53,7 +53,7 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
 - Each practice day has a 10-minute `minimumVersion`.
 - Each step has a unique `priority` (1 = most important that day).
 - Rest days: optionally one light step of 15 minutes at most.
-- The user can swap today with another day in the week, or mark today missed. They cannot edit numbers.
+- The user can swap today with another day in the week, or set today aside. They cannot edit numbers.
 - Code, not the model, decides which days are practice, rest and test (from the days-a-week choice), fits step
   minutes, ranks priorities, and picks key sessions when the model marks none or too many.
 - The test day may be shorter than the daily time; it is never padded. Break steps are dropped (breaks belong in a
@@ -71,13 +71,48 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
   extension. At most 2 extensions per plan; beyond that, re-run the questions and start a revised plan.
 
 ### Missed sessions
-- No pile-up: only the missed day's priority-1 step moves to the next practice day, replacing that day's
-  lowest-priority step. The day never gets longer.
+- No pile-up: a day that doesn't happen never makes another day longer, and the test day is protected. A moved
+  step replaces the receiving day's lowest-priority steps.
+- What moves depends on the step's kind (see "Recovery profiles and step kinds" below). A step without a kind, a
+  goal without a valid profile, or the method switch off follows missed sessions' rules: only the day's
+  priority-1 step moves, to one fixed receiving day (the next practice day), and a high-load step is dropped,
+  not moved.
+- Carry writes happen only when `MISSED_SESSIONS_CARRY_ENABLED` is exactly `true` (ND-15).
 - The 10-minute minimum version is always available.
 - Two far_behind weeks in a row → the next week starts with a re-test (`retestFirst`), and the app checks whether
   their daily time is realistic.
 - Tone: neutral and encouraging, never firm. After a miss, one line that moves forward; never ask why.
 - Reminders before sessions: a later phase.
+
+### Recovery profiles and step kinds
+Spec: `docs/features/method-aware-recovery/02-feature.md`. Code: `backend/src/lib/recovery/`. Code decides every
+action; the model only tags steps (and, when switched on, writes a custom profile).
+- **Profile.** Every plan v2 goal stores a checked profile under `recovery` in `Goal.roadmap`: 2 to 8 kinds plus a
+  catch-all, Weekly test and Fixed-time session; each kind has one action and may be hard or in order; a rest gap
+  of 0 to 2 days; a return rule. A pathway gets its hand-written profile (its domain template). A custom goal
+  gets one of the 13 templates, picked by keywords and used unchanged; the profile call that adjusts it runs only
+  when `CUSTOM_RECOVERY_PROFILES_ENABLED` is exactly `true` (off). An older goal gets its profile at its next
+  weekly review.
+- **Kinds.** The week call tags every practice-day step with a kind from the profile's menu; a missing or unknown
+  kind fails the week (one retry). Code makes every test-day step Weekly test and a `highLoad` step hard. Rest-day
+  steps have no kind; the 10-minute version takes the kind of the day's priority-1 step.
+- **Actions.** Move: the day's highest-priority step of a move kind goes to the first later practice day this week
+  (not the test day) where it fits, or it has no room this week; then the week writer is told, and a non-hard
+  step takes next week's first session of its kind when it fits (a hard one is only told, MR-32). Continue:
+  nothing moves; the next session of that kind gets a "Pick up where {Weekday} stopped." marker. Let go: nothing
+  moves. Fixed: nothing moves, and no swap, carry or move-now ever moves it.
+- **In-order kinds.** Steps of an in-order move kind are never lost: for the week holding today and the week
+  before it, the remaining sessions of the kind hold the steps not done yet, in order (older weeks keep the
+  ordinary move rules). What does not fit goes to next week, where code places it in the first
+  sessions of the kind and tells the week writer where the person is. Nothing is carried out of week 12.
+- **Rest gap.** A carry, swap or move-now never puts two hard steps closer than the profile's rest gap, and never
+  makes a closeness that is already there smaller, counted in calendar days over every done or open day of the
+  goal. A hard step that takes the place of a hard step is only checked for sharing that day (MR-29).
+- **After a break.** The first hard step back starts with "First hard session after a few days off: keep the effort
+  easy today." once (RULE-21). A moved physical step starts with a short warm-up line.
+- **Switches.** All of this runs only when `METHOD_RECOVERY_ENABLED` is exactly `true` (on in production since
+  2026-10-16). Off, the plan and the reconcile body are exactly missed sessions'. Writes still need
+  `MISSED_SESSIONS_CARRY_ENABLED`. Both are set in the Render dashboard only, never from code or tests.
 
 ### In-app tests
 - Types: `typing_test`, `quiz`, `timer`, `count`, `photo`, `video`. No `link` (the model cannot open links).
