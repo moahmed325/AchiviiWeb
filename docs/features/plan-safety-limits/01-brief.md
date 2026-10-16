@@ -24,6 +24,8 @@ The app writes running, weight-loss and lifting plans with no number checked by 
 - **Fact:** `isHighLoadGoal` is true only for the run10k and recomp pathways, recognised from the goal text (`lib/highLoad.ts`). A custom running or cutting goal is not a high-load goal; only the model's own `highLoad` flag on each step marks it.
 - **Fact:** the recomp pathway's own method allows 1 to 3 reps in reserve and a 250 to 500 kcal deficit (`ai/presets/recomp.ts:25, 36, 97-127`). The old weeks 1 to 3 limit was at least 3 reps in reserve, so the two disagree.
 - **Guess:** most run10k roadmaps use a time target ("10K time", minutes, lower is better), not weekly distance. If so, a ramp limit on targets would rarely fire for run10k, and the real load sits in the sessions. A sample of stored roadmaps would settle this.
+- **Fact (B-63 report):** preset text that reaches the prompts conflicts with the limits: recomp's framework description "close to muscular failure (1–3 Reps in Reserve)" (`ai/presets/recomp.ts:41`, roadmap prompt), its rule 1 "1–3 RIR" (`recomp.ts:287`, roadmap METHOD DETAIL, often copied into `method.rules`), and a quiz option "high-rep failure focus" (`recomp.ts:75`, both prompts when chosen). Recomp's capabilities, weekly themes and guidance lines say 1–2 RIR (UI only). Run10k's text has no clear conflict.
+- **Fact (B-63, PSL-3):** stored weekly tests on older goals were never checked; the stopgap logs a breach that comes from them as `test_text` and does not refuse it.
 - **Guess:** no one has been hurt or complained yet. Nothing in the logs or reports says either way.
 
 ## 4. How bad it is, and why now

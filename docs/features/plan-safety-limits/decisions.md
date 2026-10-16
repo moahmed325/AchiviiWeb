@@ -15,3 +15,9 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** at least 3 reps in reserve in weeks 1 to 3, for the stopgap and as the starting number for the feature (`01-brief.md` section 9, question 6). From week 4 the method's own range applies (recomp: 1 to 3).
 **Why (Mo):** 3 is inside recomp's own 1 to 3 range, the easy end while the body adapts, so it tightens the start without contradicting the method.
 **Changes:** `01-brief.md` sections 9 and 10.
+
+### PSL-3 — The stored weekly test is logged, not refused (2026-10-17)
+**Question:** B-63 review: the test day runs the roadmap's test as written, and a goal stored before B-63 may hold a week 2 or 3 test that breaks a limit ("Test your 1RM squat"). Refusing it would fail that week's call on every review. What happens?
+**Decision:** in the week call, a breach that the week's stored test itself holds is logged as `[Safety]` with outcome `test_text` and not refused (on the test step for any rule the test breaks; elsewhere only for a sentence copied from it). New roadmaps cannot store such a test: the roadmap refuses a week test that breaks any rule the week call checks, in every week. Fixing stored tests on older goals belongs to the feature.
+**Why:** a refusal there leaves the person stuck at the review for good; the log shows which goals hold such a test.
+**Changes:** `backend/src/lib/ai/weekPlan.ts` (`safetyBreaches`), `roadmap.ts`; CLAUDE.md step 6.
