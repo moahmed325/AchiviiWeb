@@ -22,7 +22,7 @@
 | M3.1d | Next week continues from where the person is | AC-14, AC-15 | DONE 2026-10-15 | [m3.1d](milestones/m3.1d-next-week-continues.md) |
 | M3.2 | Swap, set today aside and move now follow the rules | AC-6, AC-8 (server) | DONE 2026-10-15 | [m3.2](milestones/m3.2-person-actions.md) |
 | M3.3 | Today, Dashboard and Focus | AC-7, AC-8 | DONE 2026-10-15 | [m3.3](milestones/m3.3-today-dashboard-focus.md) |
-| O2 | Mo: turn on `METHOD_RECOVERY_ENABLED` in Render once M3.3 is live (MR-36, MR-37 as changed; B-49, B-52 and B-55 done; B-53 and B-54 do not block it), then run the production checks | — | NOT STARTED | |
+| O2 | Mo: turn on `METHOD_RECOVERY_ENABLED` in Render once M3.3 is live (MR-36, MR-37 as changed; B-49, B-52 and B-55 done; B-53 and B-54 do not block it), then run the production checks | — | DONE 2026-10-16 (Mo: on in production; production checks looked fine, no step-by-step results recorded) | |
 | M4.1 | Copy honesty, acceptance, regression and close | AC-12, AC-13, all | NOT STARTED | |
 
 ## 2. Order
