@@ -13,13 +13,14 @@ const db = vi.hoisted(() => ({
   goalUpdate: vi.fn(),
   weeksCreateMany: vi.fn(),
   weekUpdate: vi.fn(),
+  weekUpdateMany: vi.fn(),
   tasksCreateMany: vi.fn(),
   tasksFindMany: vi.fn(),
   reviewUpsert: vi.fn(),
 }));
 
-vi.mock('../src/lib/prisma.js', () => ({
-  prisma: {
+vi.mock('../src/lib/prisma.js', () => {
+  const prisma: any = {
     goal: {
       create: db.goalCreate,
       updateMany: db.goalUpdateMany,
@@ -27,11 +28,14 @@ vi.mock('../src/lib/prisma.js', () => ({
       findFirst: db.goalFindFirst,
       update: db.goalUpdate,
     },
-    roadmapWeek: { createMany: db.weeksCreateMany, update: db.weekUpdate },
+    roadmapWeek: { createMany: db.weeksCreateMany, update: db.weekUpdate, updateMany: db.weekUpdateMany },
     dailyTask: { createMany: db.tasksCreateMany, findMany: db.tasksFindMany },
     weeklyReview: { upsert: db.reviewUpsert },
-  },
-}));
+  };
+  // Weekly update M1.2a: the review saves in one transaction, on the same mocks.
+  prisma.$transaction = async (fn: (tx: unknown) => unknown) => fn(prisma);
+  return { prisma };
+});
 
 vi.mock('../src/routes/auth.js', () => ({
   getAuthUser: vi.fn(),
@@ -211,6 +215,7 @@ async function review(goal: object) {
   db.goalFindFirst.mockResolvedValue(goal);
   db.reviewUpsert.mockResolvedValue({ id: 'rev-1', scorePercentage: 100 });
   db.weekUpdate.mockResolvedValue({});
+  db.weekUpdateMany.mockResolvedValue({ count: 1 });
   vi.mocked(writeNextWeek).mockResolvedValue([{ dayNumber: 1, title: 'Day', isRestDay: false }] as never);
   vi.mocked(saveWeekTasks).mockResolvedValue([] as never);
   const res = await fetch(`${baseUrl}/api/goal/weeks/1/review`, {
@@ -306,9 +311,12 @@ describe('the weekly review gives an older goal its profile (RULE-1, MR-14)', ()
 describe('M3.1d review: the review passes the week before to the handoff only with the method switch on', () => {
   const reviewWeek2 = async () => {
     db.goalUpdate.mockResolvedValue({});
-    db.goalFindFirst.mockResolvedValue(olderGoal({ roadmap: { ...storedRoadmap, recovery: PATHWAY_PROFILES.run10k } }));
+    // Week 2 is the open week (weekly update M1.2a: only the open week can be reviewed).
+    const weeks = [1, 2, 3].map((weekNumber) => ({ id: `rw-${weekNumber}`, weekNumber, status: weekNumber === 2 ? 'active' : weekNumber === 1 ? 'completed' : 'pending' }));
+    db.goalFindFirst.mockResolvedValue(olderGoal({ roadmap: { ...storedRoadmap, recovery: PATHWAY_PROFILES.run10k }, currentWeek: 2, roadmapWeeks: weeks }));
     db.reviewUpsert.mockResolvedValue({ id: 'rev-2', scorePercentage: 100 });
     db.weekUpdate.mockResolvedValue({});
+    db.weekUpdateMany.mockResolvedValue({ count: 1 });
     vi.mocked(writeNextWeek).mockResolvedValue([{ dayNumber: 1, title: 'Day', isRestDay: false }] as never);
     vi.mocked(saveWeekTasks).mockResolvedValue([] as never);
     const res = await fetch(`${baseUrl}/api/goal/weeks/2/review`, {

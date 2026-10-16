@@ -29,18 +29,15 @@ import { activeDaysFor, generateWeekPlan, slotTimeFor, type PlanVariant, type We
 import {
   dailyTaskRows,
   phaseGate,
-  readRoutine,
   readStoredRoadmap,
   roadmapWeekRows,
-  saveWeekTasks,
   storedRoadmap,
-  writeNextWeek,
 } from '../lib/planV2.js';
 import { makeGoalProfile } from '../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
-import { ensureRecoveryProfile } from '../lib/recovery/store.js';
-import { methodRecoveryEnabled } from '../lib/recovery/switch.js';
+import { AUTO_CLOSE_INSIGHT, logWeekClose, saveWeekClose, weekCloseDue, weekScore, writeWeekAfter } from '../lib/weekClose/close.js';
+import { weekCloseEnabled } from '../lib/weekClose/switch.js';
 
 function wantsPlanStream(req: Request): boolean {
   return (req.headers.accept || '').includes('text/event-stream');
@@ -1116,67 +1113,34 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
 
     if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
 
+    // B-59, WU-27 (every switch state): only the open week can be reviewed, and before any model call.
+    const week = goal.roadmapWeeks.find((w) => w.weekNumber === weekNum);
+    if (weekNum !== goal.currentWeek || week?.status !== 'active') return refuse(res, 'week_closed');
+
+    const startedAt = Date.now();
     const stored = readStoredRoadmap(goal);
-    const practice = goal.dailyTasks.filter((t) => !t.isRestDay);
-    const planned = practice.length || 1;
-    const completed = practice.filter((t) => t.status === 'completed').length;
-    const score = Math.round((completed / planned) * 100);
+    const { sessions, completed, score } = weekScore(goal.dailyTasks);
     const nextWeek = weekNum + 1;
 
-    let nextTasks: Awaited<ReturnType<typeof saveWeekTasks>> = [];
-    let written: WeekDayPlan[] | null = null;
-    if (nextWeek <= TOTAL_WEEKS) {
-      // M1.3a (RULE-1, MR-14): an older goal gets its recovery profile here; never blocks the review.
-      const recovery = await ensureRecoveryProfile(goal);
-      // M3.1d review: with the method switch on, the week before too, so a break across the week change is seen. Never
-      // fails the review: without it, the handoff only sees this week.
-      let weekBefore: Awaited<ReturnType<typeof prisma.dailyTask.findMany>> = [];
-      if (methodRecoveryEnabled() && weekNum > 1) {
-        try {
-          weekBefore = await prisma.dailyTask.findMany({ where: { goalId: goal.id, weekNumber: weekNum - 1 }, orderBy: { dayNumber: 'asc' } });
-        } catch (err) {
-          console.warn('[GoalRouter] Could not read the week before for the handoff:', err);
-        }
-      }
-      written = await writeNextWeek(goal, weekNum, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot), recovery, weekBefore);
-      if (!written) {
-        res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
-        return;
-      }
+    const next = await writeWeekAfter(goal, weekNum);
+    if (!next) {
+      res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
+      return;
     }
 
-    const insight = `${completed} of ${practice.length} sessions done.`;
-    const review = await prisma.weeklyReview.upsert({
-      where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
-      update: { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score, reflection: reflection || '', aiAdaptationInsight: insight },
-      create: {
-        goalId: goal.id,
-        weekNumber: weekNum,
-        tasksPlanned: planned,
-        tasksCompleted: completed,
-        scorePercentage: score,
-        reflection: reflection || '',
-        aiAdaptationInsight: insight,
-      },
+    const saved = await saveWeekClose({
+      goal,
+      weekNumber: weekNum,
+      by: 'review',
+      written: next.written,
+      reflection,
+      testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject | null,
+      insight: `${completed} of ${sessions} sessions done.`,
     });
-    await prisma.roadmapWeek.update({
-      where: { goalId_weekNumber: { goalId: goal.id, weekNumber: weekNum } },
-      data: {
-        status: 'completed',
-        executionScore: score,
-        reviewNotes: reflection || '',
-        // M4.1: a review sent without a result keeps the one logged earlier (PUT .../test-result).
-        ...(sanitizedTestResult ? { testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject } : {}),
-      },
-    });
-    if (written) {
-      nextTasks = await saveWeekTasks(goal.id, nextWeek, written);
-      await prisma.roadmapWeek.update({
-        where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } },
-        data: { status: 'active' },
-      });
-      await prisma.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek } });
-    }
+    // Another close won inside the save (WU-27): nothing of this request was saved.
+    if (!saved) return refuse(res, 'week_closed');
+    logWeekClose(goal, weekNum, 'review', new Date(), user.timezone, startedAt);
+    const { review, nextTasks } = saved;
 
     const gate = stored ? phaseGate(stored, weekNum, score) : null;
     res.json({
@@ -1191,6 +1155,104 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
   } catch (err: any) {
     console.error('[GoalRouter] Weekly review error:', err);
     res.status(500).json({ error: 'Failed to process weekly review.' });
+  }
+});
+
+/**
+ * POST /api/goal/close-week (weekly update M1.2a, RULE-8, RULE-9, behind WEEK_CLOSE_ENABLED)
+ * Closes the open week once its last day has closed, exactly as the review would but with no reflection. Safe to
+ * repeat: who closes the week is decided inside the save (WU-27). `{ mode: 'check' }` only says whether a close is due.
+ */
+goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized.' });
+      return;
+    }
+    // RULE-18: off means nothing closes a week automatically; nothing is read or written.
+    if (!weekCloseEnabled()) {
+      res.json({ due: false });
+      return;
+    }
+
+    const found = await prisma.goal.findFirst({
+      where: { userId: user.id, status: 'active' },
+      include: { roadmapWeeks: { orderBy: { weekNumber: 'asc' } } },
+    });
+    if (!found) {
+      res.status(404).json({ error: 'Active goal not found.' });
+      return;
+    }
+    if (found.planVersion !== 2) return refuse(res, 'not_plan_v2');
+
+    const weekNum = found.currentWeek;
+    const week = found.roadmapWeeks.find((w) => w.weekNumber === weekNum);
+    if (week?.status !== 'active') {
+      res.json({ due: false });
+      return;
+    }
+    const weekTasks = await prisma.dailyTask.findMany({ where: { goalId: found.id, weekNumber: weekNum }, orderBy: { dayNumber: 'asc' } });
+    const now = new Date();
+    if (!weekCloseDue(found, weekTasks, now, user.timezone)) {
+      res.json({ due: false });
+      return;
+    }
+    const goal = { ...found, dailyTasks: weekTasks };
+
+    // RULE-9: the first open that tried to close this week, kept across failed tries and racing requests.
+    if (found.closeTriedWeek !== weekNum || !found.closeTriedAt) {
+      await prisma.goal.updateMany({
+        where: { id: goal.id, OR: [{ closeTriedWeek: null }, { closeTriedWeek: { not: weekNum } }, { closeTriedAt: null }] },
+        data: { closeTriedAt: now, closeTriedWeek: weekNum },
+      });
+    }
+
+    if (req.body?.mode === 'check') {
+      res.json({ due: true, weekNumber: weekNum, testLogged: week.testResult !== null && week.testResult !== undefined });
+      return;
+    }
+
+    const startedAt = Date.now();
+    const lastWeek = weekNum >= TOTAL_WEEKS;
+    const next = await writeWeekAfter(goal, weekNum);
+    if (!next) {
+      res.status(503).json({ error: "Couldn't get your next week ready. Please try again." });
+      return;
+    }
+    const saved = await saveWeekClose({
+      goal,
+      weekNumber: weekNum,
+      by: 'auto',
+      written: next.written,
+      // RULE-11: week 12 closes with no review row.
+      ...(lastWeek ? {} : { insight: AUTO_CLOSE_INSIGHT }),
+      now,
+    });
+    // Lost the race (WU-27): another close saved this week; nothing of this request was saved.
+    if (!saved) {
+      res.json({ due: false, alreadyClosed: true, weekNumber: weekNum });
+      return;
+    }
+    logWeekClose(goal, weekNum, 'auto', now, user.timezone, startedAt);
+
+    const { score } = weekScore(weekTasks);
+    const stored = readStoredRoadmap(goal);
+    const gate = stored ? phaseGate(stored, weekNum, score) : null;
+    res.json({
+      due: true,
+      closedBy: 'auto',
+      review: saved.review,
+      scorePercentage: score,
+      nextWeekNumber: lastWeek ? null : weekNum + 1,
+      nextWeekTasks: saved.nextTasks,
+      isMilestoneCheckpoint: Boolean(gate),
+      milestoneGateTransition: gate,
+      testResult: week.testResult ?? null,
+    });
+  } catch (err: any) {
+    console.error('[GoalRouter] Week close error:', err);
+    res.status(500).json({ error: 'Failed to close the week.' });
   }
 });
 

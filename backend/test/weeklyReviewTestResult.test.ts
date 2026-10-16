@@ -6,8 +6,11 @@ import { prisma } from '../src/lib/prisma.js';
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter, validateWeeklyTestResult } from '../src/routes/goal.js';
 
-vi.mock('../src/lib/prisma.js', () => ({
-  prisma: {
+vi.mock('../src/lib/prisma.js', async () => {
+  const { vi } = await import('vitest');
+  const prisma: any = {
+    // Weekly update M1.2a: the review saves in one transaction that starts with a conditional close of the week.
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(prisma)),
     goal: {
       findFirst: vi.fn(),
       update: vi.fn(),
@@ -17,13 +20,15 @@ vi.mock('../src/lib/prisma.js', () => ({
     },
     roadmapWeek: {
       update: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 1 }),
     },
     dailyTask: {
       create: vi.fn(),
       deleteMany: vi.fn(),
     },
-  },
-}));
+  };
+  return { prisma };
+});
 
 vi.mock('../src/routes/auth.js', () => ({
   getAuthUser: vi.fn(),
@@ -69,6 +74,7 @@ describe('Weekly Review Test Result Storage & Validation (Milestone M7.5 — OD-
 
   beforeEach(() => {
     vi.clearAllMocks();
+    (prisma.roadmapWeek.updateMany as any).mockResolvedValue({ count: 1 });
   });
 
   describe('validateWeeklyTestResult unit checks', () => {
@@ -165,12 +171,13 @@ describe('Weekly Review Test Result Storage & Validation (Milestone M7.5 — OD-
       const json = await res.json();
       expect(json.testResult).toEqual({ value: 10, unit: 'km', passed: true, note: 'Felt strong' });
 
-      // Verify Prisma roadmapWeek.update was called with the persisted JSON object
-      expect(prisma.roadmapWeek.update).toHaveBeenCalledWith(
+      // Verify the week's conditional close (weekly update M1.2a) stored the JSON object
+      expect(prisma.roadmapWeek.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { goalId_weekNumber: { goalId: 'goal-v2-101', weekNumber: 1 } },
+          where: { goalId: 'goal-v2-101', weekNumber: 1, status: 'active' },
           data: expect.objectContaining({
             status: 'completed',
+            closedBy: 'review',
             testResult: { value: 10, unit: 'km', passed: true, note: 'Felt strong' },
           }),
         })
@@ -209,13 +216,13 @@ describe('Weekly Review Test Result Storage & Validation (Milestone M7.5 — OD-
       expect(json.testResult).toBeNull();
 
       // M4.1: the week is closed, and its testResult is not touched (a result logged earlier is kept)
-      expect(prisma.roadmapWeek.update).toHaveBeenCalledWith(
+      expect(prisma.roadmapWeek.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { goalId_weekNumber: { goalId: 'goal-v2-101', weekNumber: 1 } },
+          where: { goalId: 'goal-v2-101', weekNumber: 1, status: 'active' },
           data: expect.objectContaining({ status: 'completed' }),
         })
       );
-      const closing = (prisma.roadmapWeek.update as any).mock.calls[0][0];
+      const closing = (prisma.roadmapWeek.updateMany as any).mock.calls[0][0];
       expect(closing.data).not.toHaveProperty('testResult');
       expect(Object.values(closing.data)).not.toContain(Prisma.DbNull);
     });
@@ -242,6 +249,7 @@ describe('Weekly Review Test Result Storage & Validation (Milestone M7.5 — OD-
 
       // Verify Prisma was never updated
       expect(prisma.roadmapWeek.update).not.toHaveBeenCalled();
+      expect(prisma.roadmapWeek.updateMany).not.toHaveBeenCalled();
     });
 
     it('3b. Submitting malformed testResult with empty value returns HTTP 400', async () => {
@@ -263,6 +271,7 @@ describe('Weekly Review Test Result Storage & Validation (Milestone M7.5 — OD-
       const json = await res.json();
       expect(json.error).toMatch(/value.*empty/i);
       expect(prisma.roadmapWeek.update).not.toHaveBeenCalled();
+      expect(prisma.roadmapWeek.updateMany).not.toHaveBeenCalled();
     });
 
     it('4. Unauthorized request (no token or invalid user) returns HTTP 401', async () => {

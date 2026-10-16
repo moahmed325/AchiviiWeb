@@ -1,4 +1,4 @@
-import type { DailyTask, Goal, RoadmapWeek as RoadmapWeekRow } from '@prisma/client';
+import type { DailyTask, Goal, Prisma, RoadmapWeek as RoadmapWeekRow } from '@prisma/client';
 import { prisma } from './prisma.js';
 import {
   formatTarget,
@@ -229,11 +229,19 @@ export function phaseGate(stored: StoredRoadmap, weekNumber: number, scorePercen
   };
 }
 
-/** Replaces a week's tasks. Delete and create run in one transaction, so a failure leaves the old week in place (B-13). */
-export async function saveWeekTasks(goalId: string, weekNumber: number, days: WeekDayPlan[]) {
-  await prisma.$transaction(async (tx) => {
-    await tx.dailyTask.deleteMany({ where: { goalId, weekNumber } });
-    await tx.dailyTask.createMany({ data: dailyTaskRows(goalId, weekNumber, days) });
-  });
+/**
+ * Replaces a week's tasks. Delete and create run in one transaction, so a failure leaves the old week in place (B-13).
+ * Given a caller's transaction (`tx`, weekly update M1.2a), they run inside it instead and commit with it.
+ */
+export async function saveWeekTasks(goalId: string, weekNumber: number, days: WeekDayPlan[], tx?: Prisma.TransactionClient) {
+  const replace = async (client: Prisma.TransactionClient) => {
+    await client.dailyTask.deleteMany({ where: { goalId, weekNumber } });
+    await client.dailyTask.createMany({ data: dailyTaskRows(goalId, weekNumber, days) });
+  };
+  if (tx) {
+    await replace(tx);
+    return tx.dailyTask.findMany({ where: { goalId, weekNumber }, orderBy: { dayNumber: 'asc' } });
+  }
+  await prisma.$transaction(replace);
   return prisma.dailyTask.findMany({ where: { goalId, weekNumber }, orderBy: { dayNumber: 'asc' } });
 }

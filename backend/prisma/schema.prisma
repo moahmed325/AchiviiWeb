@@ -108,6 +108,10 @@ model Goal {
   canonicalKey        String?   // hierarchical domain key, e.g. "lang.japanese.jlpt_n3"
   planVersion         Int       @default(1) // 2 = roadmap + one week at a time (docs/architecture/plan-v2.md)
   roadmap             Json?     // v2: { finalGoal, finalTest, startingPoint, method, phases }
+  // Weekly update (docs/features/weekly-update, WU-21: one additive migration)
+  movedDays           Int       @default(0) // RULE-14/15: days gaps and breaks pushed the plan later, max 28
+  closeTriedAt        DateTime? // RULE-9: the first open that tried to close week `closeTriedWeek`
+  closeTriedWeek      Int?
 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   roadmapWeeks     RoadmapWeek[]
@@ -133,6 +137,15 @@ model RoadmapWeek {
   target          Json?    // v2: { kind: "number", metric, value, unit, direction } | { kind: "deliverable", description }
   test            Json?    // v2: { type, instructions, passIf }
   testResult      Json?
+  // Weekly update (WU-21)
+  closedBy        String?   // 'review' | 'auto' | 'jumped'
+  closedAt        DateTime?
+  jumped          Boolean   @default(false) // RULE-15
+  breakDays       Int?      // on the first week back: the break's length in days (RULE-13)
+  updateStatus    String?   // 'on_track' | 'a_bit_behind' | 'far_behind' (RULE-3), never shown
+  retestOfWeek    Int?      // RULE-5: this week's first day re-tests that week
+  dailyTimeAskedAt DateTime? // RULE-6
+  closeLineSeenAt DateTime? // WU-28: the close's line was shown once
   created_at      DateTime @default(now())
 
   goal            Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
@@ -166,6 +179,7 @@ model DailyTask {
   whyToday                String?
   minimumVersion          Json?     // v2: the 10-minute step for days the full session won't happen
   usedMinimumVersion      Boolean   @default(false) // ND-3: completed only through the 10-minute version
+  notOffered              Boolean   @default(false) // WU-13: passed before its week was written; never missed
   created_at              DateTime  @default(now())
 
   goal                    Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)

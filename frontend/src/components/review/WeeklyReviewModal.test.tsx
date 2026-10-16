@@ -801,4 +801,38 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
       expect(screen.getByLabelText('Your result')).toHaveValue('Completed 4 sets');
     });
   });
+
+  it('a week already closed (409 week_closed) says the review is saved, and reloads the goal on close (B-59)', async () => {
+    const user = userEvent.setup();
+    const goal = createSampleGoal(createSampleTasks(5, 6));
+    const onClose = vi.fn();
+    const onWeekClosed = vi.fn();
+    const onGoalUpdated = vi.fn();
+    mockedApi.submitWeeklyReview.mockRejectedValueOnce(
+      Object.assign(new Error('This week has already been reviewed.'), { status: 409, code: 'week_closed' })
+    );
+
+    render(
+      <WeeklyReviewModal
+        isOpen={true}
+        onClose={onClose}
+        goal={goal}
+        token="test-token"
+        onGoalUpdated={onGoalUpdated}
+        onWeekClosed={onWeekClosed}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent("This week's review is already saved.");
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(onGoalUpdated).not.toHaveBeenCalled();
+    expect(onWeekClosed).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onWeekClosed).toHaveBeenCalledTimes(1);
+    expect(mockedApi.submitWeeklyReview).toHaveBeenCalledTimes(1);
+  });
 });
