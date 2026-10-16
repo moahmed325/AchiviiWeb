@@ -16,7 +16,8 @@
 import type { DetailedStep } from '../ai/goalDecomposer.js';
 import { hasPriority, markerOf, type CarriedStep, type NextWeekRecord } from '../carryForward.js';
 import { GAP_MIN_DAYS, type DayClassification } from '../missedSessions.js';
-import { asWritten, keepRecords, PHYSICAL_TEMPLATES, renumber, shiftMarkerOf, takePlace, withoutEasyLine, withWarmUpLine } from './carry.js';
+import { asWritten, keepRecords, PHYSICAL_TEMPLATES, renumber, shiftMarkerOf, takePlace, withWarmUpLine } from './carry.js';
+import { withoutEasyLine } from './easyStart.js';
 import { describeDay } from './dayText.js';
 import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, writtenNumber } from './inOrder.js';
 import { actionOf, type RecoveryProfile } from './profile.js';

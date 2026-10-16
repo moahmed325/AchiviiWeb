@@ -33,6 +33,18 @@ export function doneTaskIds(tasks: readonly { id: string; status?: string | null
 }
 
 /**
+ * B-50 (Mo): a reorder's copy (`shiftedFrom`) whose day is done was done there, so it is not shown; the day's only
+ * step stays (MR-33 (2): a day is never left empty). Nothing stored changes.
+ */
+export function withoutDoneCopies<T extends { shiftedFrom?: { taskId?: unknown } | null }>(steps: T[], done: ReadonlySet<string>): T[] {
+  const kept = steps.filter((step) => {
+    const from = step.shiftedFrom?.taskId;
+    return !(typeof from === 'string' && done.has(from));
+  });
+  return kept.length > 0 ? kept : steps;
+}
+
+/**
  * The continue line for a step marked by RULE-10, or null. B-50 (Mo): when the day the marker names is done, the work
  * was picked up there, so the marker is ignored (it stays stored).
  */

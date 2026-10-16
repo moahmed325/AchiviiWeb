@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { prisma } from '../src/lib/prisma.js';
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
-import { EASY_START_LINE } from '../src/lib/recovery/carry.js';
+import { EASY_START_LINE } from '../src/lib/recovery/easyStart.js';
 import { RECONCILE_GOAL_SELECT } from '../src/lib/reconcileCore.js';
 import { PROFILE } from './methodProfile.js';
 

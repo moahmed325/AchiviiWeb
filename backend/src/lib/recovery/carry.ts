@@ -47,9 +47,6 @@ import { holdRefusal } from './swap.js';
 /** MR-26, MR-31: put first in a moved step's instructions, once, when the step is physical. */
 export const MOVED_WARM_UP_LINE = 'Start with an easy 5-minute warm-up and end with 5 easy minutes.';
 
-/** RULE-21's line and its helpers live in `easyStart.ts` since B-49; kept here for their callers. */
-export { EASY_START_LINE, withEasyLine, withoutEasyLine };
-
 /** MR-31 (2): a goal whose profile is one of these templates moves physical steps whatever their kind. */
 export const PHYSICAL_TEMPLATES: ReadonlySet<string> = new Set(['endurance', 'strength']);
 

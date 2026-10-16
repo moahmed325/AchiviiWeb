@@ -15,7 +15,7 @@ import { planRecovery, type PlannedContinue, type PlannedEasyStart, type Planned
 import { describeDay, type DayText } from './recovery/dayText.js';
 import { followsMethod, originOf } from './recovery/inOrder.js';
 import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
-import { markerRefusal, methodSwapRefusal, type SwapRefusal } from './recovery/swap.js';
+import { doneDayIds, markerRefusal, methodSwapRefusal, type SwapRefusal } from './recovery/swap.js';
 import { methodRecoveryEnabled } from './recovery/switch.js';
 
 /**
@@ -153,7 +153,7 @@ export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string
     if (kindOf.get(id) !== 'planned' || day.date < evaluation.today) return 'not_open';
     const steps = stepsOf.get(id) ?? [];
     if (steps.some((step) => markerOf(step) !== null)) return 'holds_carry';
-    const marker = markerRefusal(steps);
+    const marker = markerRefusal([steps], doneDayIds(evaluation.result.days));
     if (marker) return marker;
     if (handled.has(id)) return 'already_handled';
   }

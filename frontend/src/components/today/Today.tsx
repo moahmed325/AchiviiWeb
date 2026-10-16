@@ -1,4 +1,4 @@
-import React, { useId, useState } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, ChevronDown, Clock, ExternalLink, Flag, Map as MapIcon, Play, X } from 'lucide-react';
 import type { DailyTask, Goal } from '../../types';
@@ -33,7 +33,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
 import { StepInstructions } from './StepInstructions';
-import { doneTaskIds } from '../../lib/stepLines';
+import { doneTaskIds, withoutDoneCopies } from '../../lib/stepLines';
 import { usePlanAction } from './usePlanAction';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
@@ -317,10 +317,10 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const notesId = useId();
 
   const tasks = currentWeekTasks(goal);
-  // B-50: a continue line whose day is done is not shown.
-  const doneDays = doneTaskIds(goal.dailyTasks);
+  // B-50: a continue line or a reorder's copy whose day is done is not shown.
+  const doneDays = useMemo(() => doneTaskIds(goal.dailyTasks), [goal.dailyTasks]);
   const task = selectTodayTask(tasks, now, selectedId, timezone);
-  const steps = parseSteps(task?.detailedSteps);
+  const steps = withoutDoneCopies(parseSteps(task?.detailedSteps), doneDays);
   const intention = parseIntention(task?.implementationIntention);
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now, timezone);

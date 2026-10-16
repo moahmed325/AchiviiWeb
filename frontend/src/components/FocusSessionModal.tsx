@@ -7,6 +7,7 @@ import { FocusStepRunner } from './focus/FocusStepRunner';
 import { FocusCompletion } from './focus/FocusCompletion';
 import { Button } from './ui';
 import { StepInstructions } from './today/StepInstructions';
+import { withoutDoneCopies } from '../lib/stepLines';
 
 /** ND-3: tells the caller whether the session was completed through the 10-minute version. */
 export interface FocusCompletionOptions {
@@ -304,11 +305,11 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
     if (!task.detailedSteps) return [];
     try {
       const parsed = JSON.parse(task.detailedSteps);
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) ? withoutDoneCopies(parsed, doneTaskIds ?? new Set()) : [];
     } catch {
       return [];
     }
-  }, [task.detailedSteps]);
+  }, [task.detailedSteps, doneTaskIds]);
 
   // Total duration in seconds (fallback to 30 min)
   const totalDurationSeconds = useMemo(() => {

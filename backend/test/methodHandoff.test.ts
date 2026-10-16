@@ -3,7 +3,8 @@ import type { CarriedStep, CarryInput, CarryTask } from '../src/lib/carryForward
 import { buildWeekPrompt, weekLayout, type WeekCallInput } from '../src/lib/ai/weekPlan.js';
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
-import { EASY_START_LINE, MOVED_WARM_UP_LINE, planRecovery } from '../src/lib/recovery/carry.js';
+import { MOVED_WARM_UP_LINE, planRecovery } from '../src/lib/recovery/carry.js';
+import { EASY_START_LINE } from '../src/lib/recovery/easyStart.js';
 import { handoffBrief, hasHandoff, placeHandoff, weekHandoff, type HandoffTask, type PlacedDay, type WeekHandoff } from '../src/lib/recovery/handoff.js';
 import { inOrderQueue } from '../src/lib/recovery/inOrder.js';
 import { actionOf, withFixedKinds, type RecoveryKind, type RecoveryProfile } from '../src/lib/recovery/profile.js';

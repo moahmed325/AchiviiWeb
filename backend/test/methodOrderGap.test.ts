@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { planCarries, swappedTaskIds, type CarriedStep, type CarryInput, type CarryTask } from '../src/lib/carryForward.js';
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
-import { EASY_START_LINE, MOVED_WARM_UP_LINE, planRecovery, takePlace, withEasyLine, withWarmUpLine, type RecoveryPlan } from '../src/lib/recovery/carry.js';
+import { MOVED_WARM_UP_LINE, planRecovery, takePlace, withWarmUpLine, type RecoveryPlan } from '../src/lib/recovery/carry.js';
+import { EASY_START_LINE, withEasyLine } from '../src/lib/recovery/easyStart.js';
 import { inOrderMoveKinds, inOrderQueue } from '../src/lib/recovery/inOrder.js';
 import { actionOf, profileFailures, withFixedKinds, type RecoveryKind, type RecoveryProfile } from '../src/lib/recovery/profile.js';
 

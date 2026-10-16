@@ -292,13 +292,21 @@ describe('M3.2 person actions with method-aware recovery', () => {
     it.each([true, false])('refused on a day holding a continueFrom or shiftedFrom step (switch on: %s)', async (on) => {
       method(on);
       const marker = { taskId: 'mon', date: '2026-09-21' };
-      seed({ mon: { status: 'completed' }, wed: { steps: day('draft', 'drafting', { continueFrom: marker }) } });
+      seed({ wed: { steps: day('draft', 'drafting', { continueFrom: marker }) } });
       at(TUE);
       expect(await swap('tue', 'wed')).toMatchObject({ status: 409, body: { reason: 'holds_continue' } });
       expect(await swap('wed', 'tue')).toMatchObject({ status: 409, body: { reason: 'holds_continue' } });
       seed({ mon: { status: 'completed' }, wed: { steps: day('Lesson 3', 'lesson', { shiftedFrom: { ...marker, replaced: [] } }) } });
       expect(await swap('tue', 'wed')).toMatchObject({ status: 409, body: { reason: 'holds_carry' } });
       expect(store.prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it.each([true, false])('B-50: a continue marker whose day is done does not hold the day (switch on: %s)', async (on) => {
+      method(on);
+      seed({ mon: { status: 'completed' }, wed: { steps: day('draft', 'drafting', { continueFrom: { taskId: 'mon', date: '2026-09-21' } }) } });
+      at(TUE);
+      const answer = await swap('tue', 'wed');
+      expect(answer.status).toBe(200);
     });
 
     it('switch off: answering an offer onto a day holding a continue marker is refused (holds_continue)', async () => {

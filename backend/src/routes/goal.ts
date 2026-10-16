@@ -15,7 +15,7 @@ import {
   runReconcile,
   type ReconcileGoal,
 } from '../lib/reconcileCore.js';
-import { markerRefusal } from '../lib/recovery/swap.js';
+import { doneDayIds, markerRefusal } from '../lib/recovery/swap.js';
 import { easyLineAfterSwap } from '../lib/recovery/easyStart.js';
 import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import { clarifyGoalWithAI, UserRoutineInput } from '../lib/ai/goalDecomposer.js';
@@ -705,7 +705,7 @@ goalRouter.post('/tasks/:taskId/swap', async (req: Request, res: Response): Prom
       if (refusal) return refuse(res, refusal);
     } else {
       const stepsOf = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
-      const refusal = markerRefusal(stepsOf.get(a.id) ?? [], stepsOf.get(b.id) ?? []) ?? methodRefusal(evaluation, a.id, b.id);
+      const refusal = markerRefusal([stepsOf.get(a.id) ?? [], stepsOf.get(b.id) ?? []], doneDayIds(evaluation.result.days)) ?? methodRefusal(evaluation, a.id, b.id);
       if (refusal) return refuse(res, refusal);
     }
     if (expectedMap[a.id] !== a.detailedSteps || expectedMap[b.id] !== b.detailedSteps) return refuse(res, 'changed');
