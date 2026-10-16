@@ -3,6 +3,13 @@ import { generateWithOneRetry } from './retry.js';
 import { WEEKLY_TEST_KIND, type RecoveryProfile } from '../recovery/profile.js';
 import { fitStepMinutes } from './scheduleRepair.js';
 import { dayQualityFailures, polishDays } from './taskRules.js';
+import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyHit } from './safetyScan.js';
+import {
+  CALORIE_DEFICIT_MAX,
+  CALORIE_DEFICIT_MIN,
+  EARLY_WEEK_MAX_1RM_PERCENT,
+  EARLY_WEEK_MIN_RIR,
+} from '../research/safetyClamps.js';
 import {
   formatAnswerLines,
   formatTarget,
@@ -109,6 +116,8 @@ export interface WeekCallInput {
    * checked. Without it the prompt is exactly as before.
    */
   whereTheyAre?: string[];
+  /** B-63: only for the `[Safety]` log line; logged as null when not given. */
+  goalId?: string;
 }
 
 export const WEEK_SYSTEM = `You write one week of daily practice for a person following a 90-day plan. The goal, the method and this week's
@@ -225,8 +234,31 @@ function kindsBlock(recovery: RecoveryProfile): string {
   return ['', '', 'KINDS OF STEP (every practice-day step has exactly one "kind": one of these ids, written exactly)', ...lines, ...rules].join(NL);
 }
 
+/**
+ * B-63 (PSL-1, PSL-2): the old limits, told to high-load goals until plan-safety-limits lands. In weeks 1 to 3 it says
+ * plainly that it overrides the method's reps-in-reserve range. Without a high-load goal the prompt is unchanged.
+ */
+function safetyLimitsBlock(input: WeekCallInput): string {
+  if (!input.highLoadGoal) return '';
+  const lines = [
+    '',
+    '',
+    'SAFETY LIMITS (these override the method and the target; a week whose steps break the calorie or the weeks 1 to 3 lifting limits is not saved)',
+    '- Running: this week at most 10% more than last week.',
+    '- At most 2 hard runs this week (intervals, tempo, race pace).',
+    `- Calorie deficit: ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more.`,
+  ];
+  if (input.weekNumber <= EARLY_WEEKS) {
+    lines.push(
+      `- Weeks 1 to 3: no lift above ${EARLY_WEEK_MAX_1RM_PERCENT}% of 1RM, at least ${EARLY_WEEK_MIN_RIR} reps in reserve, nothing to failure, no max or 1RM test.`,
+      `- In weeks 1 to 3 this overrides the method's RIR range: at least ${EARLY_WEEK_MIN_RIR} reps in reserve.`
+    );
+  }
+  return lines.join(NL);
+}
+
 export function buildWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string {
-  const prompt = buildBaseWeekPrompt(input, layout);
+  const prompt = buildBaseWeekPrompt(input, layout) + safetyLimitsBlock(input);
   if (!input.recovery) return prompt;
   const withKindLine = prompt.replace(HIGH_LOAD_LINE, [HIGH_LOAD_LINE, '  - kind: the id of the kind of step it is, from KINDS OF STEP below'].join(NL));
   return withKindLine + kindsBlock(input.recovery) + whereTheyAreBlock(input);
@@ -573,7 +605,11 @@ export function checkWeekAnswer(
     });
   }
 
-  if (kindFailures.length > 0) return { reason: kindFailures.slice(0, 8).join(' ') };
+  // B-63 (PSL-1): a safety breach is a hard reason too; a second breach fails the week.
+  const safetyFailures = safetyBreaches(days, input, lastAttempt);
+  if (safetyFailures.length > 0 || kindFailures.length > 0) {
+    return { reason: [...safetyFailures, ...kindFailures].slice(0, 8).join(' ') };
+  }
 
   const candidates = days.filter((day) => !day.isRestDay && !day.isTestDay);
   const marked = candidates.filter((day) => day.isKeySession);
@@ -598,6 +634,41 @@ export function checkWeekAnswer(
   if (soft.length > 0 && !lastAttempt) return { reason: soft.slice(0, 8).join(' ') };
   // RULE-7: with a profile the kinds decide; the goal-level marking is only for goals without one.
   return { value: input.highLoadGoal && !recovery ? polished.map(markHighLoad) : polished };
+}
+
+/**
+ * B-63: the breaches in the high-load steps (a step of a high-load goal, or any step flagged highLoad), the
+ * 10-minute version included, as retry reasons. Each hit is logged once as a `[Safety]` line.
+ */
+export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAttempt = false): string[] {
+  const reasons: string[] = [];
+  // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
+  // says is logged, never refused, or that week could never be written.
+  const testText = textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
+  /** On the test step a rule the test itself breaks is allowed; elsewhere only a sentence copied from the test. */
+  const fromTest = (hit: SafetyHit, testStep: boolean) =>
+    testText.some((item) => item.rule === hit.rule && (testStep || hit.matched.includes(item.matched) || item.matched.includes(hit.matched)));
+  for (const day of days) {
+    const steps = [...day.detailedSteps, ...(day.minimumVersion ? [day.minimumVersion] : [])];
+    for (const step of steps) {
+      if (!input.highLoadGoal && step.highLoad !== true) continue;
+      const name = step === day.minimumVersion ? `Day ${day.dayNumber} 10-minute version "${step.title}"` : `Day ${day.dayNumber} step "${step.title}"`;
+      for (const hit of stepSafetyHits(step, input.weekNumber)) {
+        const allowed = fromTest(hit, step !== day.minimumVersion && TEST_STEP.test(step.title));
+        logSafetyHit({
+          goalId: input.goalId ?? null,
+          week: input.weekNumber,
+          attempt: lastAttempt ? 2 : 1,
+          rule: hit.rule,
+          step: name,
+          matched: hit.matched,
+          outcome: allowed ? 'test_text' : lastAttempt ? 'failed' : 'retry',
+        });
+        if (!allowed) reasons.push(`SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`);
+      }
+    }
+  }
+  return reasons;
 }
 
 /** ND-5: on a physical preset goal every practice step and the 10-minute version are high-load, whatever the model said. */
