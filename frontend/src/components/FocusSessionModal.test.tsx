@@ -45,6 +45,16 @@ describe('FocusSessionModal', () => {
     for (const text of lines) expect(within(runner).getByText(text).tagName).toBe('P');
   });
 
+  it('B-50: no continue line on the start screen or in the runner when the day it names is done', () => {
+    const steps = JSON.parse(sampleTask.detailedSteps!);
+    steps[0] = { ...steps[0], instructions: 'Jog easily.', continueFrom: { taskId: 'task-0', date: '2026-09-22' } };
+    render(<FocusSessionModal task={{ ...sampleTask, detailedSteps: JSON.stringify(steps) }} dayNumber={3} isOpen onClose={vi.fn()} onCompleteSession={vi.fn()} doneTaskIds={new Set(['task-0'])} />);
+    expect(screen.getByText('Jog easily.')).toBeInTheDocument();
+    expect(screen.queryByText('Pick up where Tuesday stopped.')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));
+    expect(within(screen.getByRole('article', { name: 'Current step' })).queryByText('Pick up where Tuesday stopped.')).not.toBeInTheDocument();
+  });
+
   it('starts the timer only after the user starts', () => {
     renderOpen();
     fireEvent.click(screen.getByRole('button', { name: /start focused session/i }));

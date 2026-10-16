@@ -27,16 +27,26 @@ export interface StepText {
   continueFrom?: { taskId?: unknown; date?: unknown } | null;
 }
 
-/** The continue line for a step marked by RULE-10, or null. */
-export function continueLine(step: StepText): string | null {
+/** The ids of the days that are done, for `continueLine`. */
+export function doneTaskIds(tasks: readonly { id: string; status?: string | null }[] | null | undefined): ReadonlySet<string> {
+  return new Set((tasks ?? []).filter((task) => task.status === 'completed').map((task) => task.id));
+}
+
+/**
+ * The continue line for a step marked by RULE-10, or null. B-50 (Mo): when the day the marker names is done, the work
+ * was picked up there, so the marker is ignored (it stays stored).
+ */
+export function continueLine(step: StepText, done: ReadonlySet<string> = new Set()): string | null {
+  const from = step.continueFrom?.taskId;
+  if (typeof from === 'string' && done.has(from)) return null;
   const date = step.continueFrom?.date;
   const weekday = typeof date === 'string' ? weekdayOf(date) : null;
   return weekday ? `Pick up where ${weekday} stopped.` : null;
 }
 
-export function stepLines(step: StepText): StepLines {
+export function stepLines(step: StepText, done?: ReadonlySet<string>): StepLines {
   const lead: string[] = [];
-  const pickUp = continueLine(step);
+  const pickUp = continueLine(step, done);
   if (pickUp) lead.push(pickUp);
   let body = typeof step.instructions === 'string' ? step.instructions : '';
   for (const line of STORED_LEADS) {

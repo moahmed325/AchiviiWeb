@@ -41,13 +41,14 @@ import type { DayClassification } from '../missedSessions.js';
 import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, originOf, stepKey, type QueueItem } from './inOrder.js';
 import { actionOf, type RecoveryProfile, type StepRecovery } from './profile.js';
 import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf } from './rules.js';
+import { EASY_START_LINE, easyLineTarget, hasEasyLine, withEasyLine, withoutEasyLine } from './easyStart.js';
 import { holdRefusal } from './swap.js';
 
 /** MR-26, MR-31: put first in a moved step's instructions, once, when the step is physical. */
 export const MOVED_WARM_UP_LINE = 'Start with an easy 5-minute warm-up and end with 5 easy minutes.';
 
-/** RULE-21, MR-31 (1): put first in the first hard step back after an open gap, once. */
-export const EASY_START_LINE = 'First hard session after a few days off: keep the effort easy today.';
+/** RULE-21's line and its helpers live in `easyStart.ts` since B-49; kept here for their callers. */
+export { EASY_START_LINE, withEasyLine, withoutEasyLine };
 
 /** MR-31 (2): a goal whose profile is one of these templates moves physical steps whatever their kind. */
 export const PHYSICAL_TEMPLATES: ReadonlySet<string> = new Set(['endurance', 'strength']);
@@ -251,18 +252,6 @@ export function withWarmUpLine(instructions: unknown): string {
   if (text.startsWith(MOVED_WARM_UP_LINE) || text.startsWith(`${EASY_START_LINE}\n${MOVED_WARM_UP_LINE}`)) return text;
   if (text.startsWith(EASY_START_LINE)) return `${EASY_START_LINE}\n${withFirstLine(MOVED_WARM_UP_LINE, text.slice(EASY_START_LINE.length).replace(/^\n/, ''))}`;
   return withFirstLine(MOVED_WARM_UP_LINE, text);
-}
-
-/** RULE-21: the easy line goes first, once; the minutes do not change. */
-export function withEasyLine(instructions: unknown): string {
-  const text = textOf(instructions);
-  return text.startsWith(EASY_START_LINE) ? text : withFirstLine(EASY_START_LINE, text);
-}
-
-/** A step that a reorder moves leaves RULE-21's line behind: it belongs to the first day back, not to the step. */
-export function withoutEasyLine(instructions: unknown): unknown {
-  if (typeof instructions !== 'string' || !instructions.startsWith(EASY_START_LINE)) return instructions;
-  return instructions.slice(EASY_START_LINE.length).replace(/^\n/, '');
 }
 
 interface DayStep {
@@ -721,26 +710,13 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   // when the test day is the first open practice day back, its hard test step takes the line; otherwise the test day
   // is skipped as before.
   let easyStart: PlannedEasyStart | null = null;
-  const gap = input.gap;
-  const todayDay = ordered.find((day) => day.date === input.today);
-  if (gap && todayDay) {
-    const openBack = ordered.filter(
-      (day) => day.weekNumber === todayDay.weekNumber && day.date > gap.lastDate && day.date >= input.today && day.kind === 'planned'
-    );
-    const backDays = openBack.filter((day, index) => !day.isTestDay || index === 0);
-    const isTestStep = (step: CarriedStep) => step.priority === 0 || /^weekly test\b/i.test(textOf(step.title));
-    for (const day of backDays) {
-      const row = rowOf(day.taskId);
-      if (!followsMethod(row, profile)) continue;
-      const index = row.findIndex((step) => actionOf(step, profile)!.hard && (!day.isTestDay || isTestStep(step)));
-      if (index < 0) continue;
-      const target = row[index];
-      if (textOf(target.instructions).startsWith(EASY_START_LINE)) break;
-      const steps = row.map((step, i) => (i === index ? { ...step, instructions: withEasyLine(step.instructions) } : step));
-      stage(day.taskId, steps, minutesNow(day.taskId));
-      easyStart = { taskId: day.taskId, date: day.date, stepTitle: target.title, steps, durationMinutes: minutesNow(day.taskId) };
-      break;
-    }
+  const easyTarget = easyLineTarget({ days: ordered, gap: input.gap, today: input.today, profile }, rowOf);
+  if (easyTarget && !hasEasyLine(rowOf(easyTarget.day.taskId)[easyTarget.index])) {
+    const { day, index } = easyTarget;
+    const row = rowOf(day.taskId);
+    const steps = row.map((step, i) => (i === index ? { ...step, instructions: withEasyLine(step.instructions) } : step));
+    stage(day.taskId, steps, minutesNow(day.taskId));
+    easyStart = { taskId: day.taskId, date: day.date, stepTitle: row[index].title, steps, durationMinutes: minutesNow(day.taskId) };
   }
 
   // Each changed row is written whole, so every plan entry for a day carries that day's final row.

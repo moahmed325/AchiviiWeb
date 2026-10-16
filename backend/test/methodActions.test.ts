@@ -3,6 +3,7 @@ import express from 'express';
 import type { Server } from 'node:http';
 import { Prisma } from '@prisma/client';
 import { PROFILE } from './methodProfile.js';
+import { EASY_START_LINE } from '../src/lib/recovery/easyStart.js';
 import { randomWeek } from './methodWeeks.js';
 
 // Method-aware recovery M3.2: swap, set today aside and move now follow RULE-16 on the server, and the reconcile body
@@ -503,6 +504,109 @@ describe('M3.2 person actions with method-aware recovery', () => {
       expect(body.carry.held).toEqual([]);
       expect(body.carry.outcomes.find((o: any) => o.taskId === 'tue')).toMatchObject({ outcome: 'let_go' });
       expect(body.signals.swapOffer ?? null).toBeNull();
+    });
+  });
+
+  describe('B-49: after a swap, the first hard step back after a gap carries the easy line, once (RULE-21, MR-35 (5))', () => {
+    // Mon to Wed missed (an open gap of three), today Thu is an open practice day, Sat the test day, Sun a practice day.
+    const THU = '2026-09-24T10:00:00Z';
+    const OPEN = ['thu', 'fri', 'sat', 'sun'];
+    const easy = (id: string) => stepsOf(id).filter((s) => String(s.instructions).startsWith(EASY_START_LINE)).map((s) => s.title);
+    /** Every step in the week that carries the line, as [day, title]. */
+    const lines = () => OPEN.flatMap((id) => easy(id).map((title) => [id, title]));
+    const back = (spec: Partial<Record<Id, DaySpec>>, profile: unknown = { ...PROFILE, restGapDays: 0 }) =>
+      seed({ thu: { rest: false, steps: day('thu practice', 'practice') }, sun: { rest: false, steps: day('sun practice', 'practice') }, ...spec }, profile);
+
+    it("today without a hard step swapped with Friday's hard step: the hard step now on today has the line, Friday has none", async () => {
+      back({ fri: { steps: day('fri intervals', 'heavy') } });
+      at(THU);
+      await reconcile();
+      expect(lines()).toEqual([['fri', 'fri intervals']]);
+      expect((await swap('thu', 'fri')).status).toBe(200);
+      expect(lines()).toEqual([['thu', 'fri intervals']]);
+      expect(stepsOf('thu')[0].instructions).toBe(`${EASY_START_LINE}\nDo fri intervals.`);
+      // A later reconcile does not add it a second time.
+      await reconcile();
+      await reconcile();
+      expect(lines()).toEqual([['thu', 'fri intervals']]);
+      expect(stepsOf('thu')[0].instructions).toBe(`${EASY_START_LINE}\nDo fri intervals.`);
+    });
+
+    it('the same swap before any reconcile wrote the line: added once, on the step now on today', async () => {
+      back({ fri: { steps: day('fri intervals', 'heavy') } });
+      at(THU);
+      expect((await swap('thu', 'fri')).status).toBe(200);
+      expect(lines()).toEqual([['thu', 'fri intervals']]);
+    });
+
+    it('a hard step swapped onto today ahead of the line moves the line onto it; never on two steps', async () => {
+      back({ fri: { steps: day('fri intervals', 'heavy') }, sun: { rest: false, steps: day('sun hills', 'heavy') } });
+      at(THU);
+      await reconcile();
+      expect(lines()).toEqual([['fri', 'fri intervals']]);
+      expect((await swap('thu', 'sun')).status).toBe(200);
+      expect(lines()).toEqual([['thu', 'sun hills']]);
+      expect(stepsOf('fri')[0].instructions).toBe('Do fri intervals.');
+      await reconcile();
+      expect(lines()).toEqual([['thu', 'sun hills']]);
+    });
+
+    it('the hard step holding the line swapped later: the line goes to the new first hard step back, not with it', async () => {
+      back({ thu: { rest: false, steps: day('thu intervals', 'heavy') }, fri: { steps: day('fri hills', 'heavy') } });
+      at(THU);
+      await reconcile();
+      expect(lines()).toEqual([['thu', 'thu intervals']]);
+      expect((await swap('thu', 'sun')).status).toBe(200);
+      expect(lines()).toEqual([['fri', 'fri hills']]);
+      expect(stepsOf('sun')[0].instructions).toBe('Do thu intervals.');
+    });
+
+    it('a swap that touches neither the day holding the line nor the first hard day back leaves the line where it is', async () => {
+      back({ fri: { steps: day('fri intervals', 'heavy') } });
+      at(THU);
+      await reconcile();
+      const fri = row('fri').detailedSteps;
+      vi.mocked(store.prisma.dailyTask.updateMany).mockClear();
+      expect((await swap('thu', 'sun')).status).toBe(200);
+      expect(row('fri').detailedSteps).toBe(fri);
+      expect(lines()).toEqual([['fri', 'fri intervals']]);
+      expect(stepsOf('thu')[0].title).toBe('sun practice');
+    });
+
+    it('no open gap: a swap never adds the line', async () => {
+      back({ mon: { status: 'completed' }, tue: { status: 'completed' }, wed: { status: 'completed' }, fri: { steps: day('fri intervals', 'heavy') } });
+      at(THU);
+      await reconcile();
+      expect((await swap('thu', 'fri')).status).toBe(200);
+      expect(lines()).toEqual([]);
+    });
+
+    it('the line write is in the swap transaction: a day that changed meanwhile writes nothing (409 changed)', async () => {
+      back({ fri: { steps: day('fri intervals', 'heavy') }, sun: { rest: false, steps: day('sun hills', 'heavy') } });
+      at(THU);
+      await reconcile();
+      const before = structuredClone(store.rows);
+      const findMany = store.prisma.dailyTask.findMany.getMockImplementation()!;
+      // Friday changes after the route loaded it, before the swap writes.
+      store.prisma.dailyTask.findMany.mockImplementationOnce(async (args: any) => {
+        row('fri').detailedSteps = JSON.stringify(day('fri changed', 'heavy'));
+        before.find((r: any) => r.id === 'fri').detailedSteps = row('fri').detailedSteps;
+        return findMany(args);
+      });
+      expect(await swap('thu', 'sun')).toMatchObject({ status: 409, body: { reason: 'changed' } });
+      expect(store.rows).toEqual(before);
+    });
+
+    it('switch off: the swap writes exactly the two days, the line where it was', async () => {
+      method(false);
+      back({ fri: { steps: day('fri intervals', 'heavy').map((s, i) => (i === 0 ? { ...s, instructions: `${EASY_START_LINE}\nDo fri intervals.` } : s)) }, sun: { rest: false, steps: day('sun hills', 'heavy') } });
+      at(THU);
+      const thu = row('thu').detailedSteps;
+      const sun = row('sun').detailedSteps;
+      const fri = row('fri').detailedSteps;
+      expect((await swap('thu', 'sun')).status).toBe(200);
+      expect([row('thu').detailedSteps, row('sun').detailedSteps, row('fri').detailedSteps]).toEqual([sun, thu, fri]);
+      expect(lines()).toEqual([['fri', 'fri intervals']]);
     });
   });
 
