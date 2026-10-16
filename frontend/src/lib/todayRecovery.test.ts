@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DailyTask, Goal, MissedSignals, Reconciliation } from '../types';
 import { missNotice, moveNowOffered, todayActions } from './today';
-import { EASY_START_LINE, MOVED_WARM_UP_LINE, continueLine, doneTaskIds, stepLines, visibleDay, visibleSteps } from './stepLines';
+import { EASY_START_LINE, MOVED_WARM_UP_LINE, continueLine, doneDaysOf, stepLines, visibleDay, visibleSteps } from './stepLines';
 
 // Method-aware recovery M3.3: the server's line (`signals.line`) and choices (`carry.choices`), read with the method
 // switch on; with it off (no `line`, no `choices`) everything stays as missed sessions built it (today.test.ts).
@@ -126,23 +126,67 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
 
   it('B-50: no continue line when the day the marker names is done; the line while it is open', () => {
     const marked = { instructions: 'Write on.', continueFrom: { taskId: 'tue', date: '2026-09-22' } };
-    const done = doneTaskIds([{ id: 'tue', status: 'completed' }, { id: 'wed', status: 'pending' }]);
-    expect([...done]).toEqual(['tue']);
+    const done = doneDaysOf([{ id: 'tue', status: 'completed', detailedSteps: '[]' }, { id: 'wed', status: 'pending', detailedSteps: '[]' }]);
+    expect([...done.keys()]).toEqual(['tue']);
     expect(continueLine(marked, done)).toBeNull();
     expect(stepLines(marked, done)).toEqual({ lead: [], body: 'Write on.' });
-    expect(continueLine(marked, doneTaskIds([{ id: 'tue', status: 'pending' }]))).toBe('Pick up where Tuesday stopped.');
+    expect(continueLine(marked, doneDaysOf([{ id: 'tue', status: 'pending', detailedSteps: '[]' }]))).toBe('Pick up where Tuesday stopped.');
     expect(stepLines(marked)).toEqual({ lead: ['Pick up where Tuesday stopped.'], body: 'Write on.' });
-    expect(doneTaskIds(undefined).size).toBe(0);
+    expect(doneDaysOf(undefined).size).toBe(0);
   });
 
-  it("B-50: a reorder's copy whose day is done is not shown, unless it is the day's only step", () => {
-    const done = doneTaskIds([{ id: 'tue', status: 'completed' }]);
+  it("B-50: a reorder's copy whose day is done (still holding it) is not shown, unless it is the day's only step", () => {
+    // Tuesday was set aside (Lesson 1 moved on to Wednesday) and then done anyway: it still holds Lesson 1.
+    const done = doneDaysOf([{ id: 'tue', status: 'completed', detailedSteps: JSON.stringify([{ title: 'Lesson 1' }, { title: 'Review' }]) }]);
     const copy = { title: 'Lesson 1', shiftedFrom: { taskId: 'tue', date: '2026-09-22' } };
     const own: { title: string; shiftedFrom?: { taskId: string; date: string } } = { title: 'Lesson 2' };
     const open = { title: 'Lesson 0', shiftedFrom: { taskId: 'mon', date: '2026-09-21' } };
-    expect(visibleSteps([copy, own, open], done)).toEqual([own, open]);
-    expect(visibleSteps([copy], done)).toEqual([copy]);
-    expect(visibleSteps([copy, own], new Set())).toEqual([copy, own]);
+    expect(visibleSteps([copy, own, open], 'wed', done)).toEqual([own, open]);
+    expect(visibleSteps([copy], 'wed', done)).toEqual([copy]);
+    expect(visibleSteps([copy, own], 'wed', new Map())).toEqual([copy, own]);
+  });
+
+  describe('B-55 (MR-36, MR-37 as changed): hidden only when the done source day still holds the same step', () => {
+    const lesson = (title: string, priority: number, extra: Record<string, unknown> = {}) => ({
+      stepNumber: priority, title, durationMinutes: 20, instructions: `Do ${title}.`, focusCue: '', pitfallToAvoid: '', priority, kind: 'lesson', ...extra,
+    });
+    const fromTue = { shiftedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } };
+    // Tuesday gave Lesson 2 up (it moved on to Friday, naming Tuesday) and was done with its review.
+    const gaveUp = doneDaysOf([{ id: 'tue', status: 'completed', detailedSteps: JSON.stringify([lesson('Review', 1, { kind: 'review' })]) }]);
+    const friday = {
+      id: 'fri',
+      title: 'Lesson 2',
+      detailedSteps: JSON.stringify([lesson('Lesson 2', 1, fromTue), lesson('Fri notes', 2)]),
+      durationMinutes: 40,
+      implementationIntention: 'At 19:30: Lesson 2.',
+    };
+
+    it('a session gives its in-order step up, then is done: the later copy is shown', () => {
+      const steps = JSON.parse(friday.detailedSteps);
+      expect(visibleSteps(steps, 'fri', gaveUp)).toEqual(steps);
+      const shown = visibleDay(friday, gaveUp);
+      expect(shown.steps.map((s) => s.title)).toEqual(['Lesson 2', 'Fri notes']);
+      expect(shown.title).toBe('Lesson 2');
+      expect(shown.durationMinutes).toBe(40);
+    });
+
+    it('B-50, B-52: set aside, then done anyway, still holding the step: the copy and the moved step are hidden', () => {
+      const holds = doneDaysOf([{ id: 'tue', status: 'completed', detailedSteps: JSON.stringify([lesson('Lesson 2', 1), lesson('Tempo run', 2)]) }]);
+      expect(visibleDay(friday, holds).steps.map((s) => s.title)).toEqual(['Fri notes']);
+      const moved = lesson('Tempo run', 1, { carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } });
+      expect(visibleSteps([moved, lesson('Fri notes', 2)], 'fri', holds).map((s) => s.title)).toEqual(['Fri notes']);
+      expect(visibleSteps([moved, lesson('Fri notes', 2)], 'fri', gaveUp).map((s) => s.title)).toEqual(['Tempo run', 'Fri notes']);
+    });
+
+    it('matches by the day the step was written on, as the backend does', () => {
+      // Tuesday held Monday's Lesson 3 as a copy; it moved on to Friday still naming Monday, and Tuesday was done.
+      const fromMon = { shiftedFrom: { taskId: 'mon', date: '2026-09-21', replaced: [] } };
+      const copy = lesson('Lesson 3', 1, { ...fromMon, carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } });
+      const holds = doneDaysOf([{ id: 'tue', status: 'completed', detailedSteps: JSON.stringify([lesson('Lesson 3', 1, fromMon)]) }]);
+      const sameTitleOtherDay = doneDaysOf([{ id: 'tue', status: 'completed', detailedSteps: JSON.stringify([lesson('Lesson 3', 1)]) }]);
+      expect(visibleSteps([copy, lesson('Fri notes', 2)], 'fri', holds)).toHaveLength(1);
+      expect(visibleSteps([copy, lesson('Fri notes', 2)], 'fri', sameTitleOtherDay)).toHaveLength(2);
+    });
   });
 
   describe('B-52 (MR-37): visibleDay, the day as the person sees it', () => {
@@ -159,6 +203,7 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
     const moved = (stepNumber: number, extra: Record<string, unknown> = {}) =>
       step(stepNumber, 'Tempo run', 25, { kind: 'hard_run', carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] }, ...extra });
     const day = (steps: unknown[], extra: Partial<DailyTask> = {}) => ({
+      id: 'wed',
       title: 'Easy base run',
       detailedSteps: JSON.stringify(steps),
       durationMinutes: 45,
@@ -167,7 +212,8 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
       whyToday: 'Easy miles build the base.',
       ...extra,
     });
-    const done = doneTaskIds([{ id: 'tue', status: 'completed' }]);
+    // Tuesday was set aside (its steps moved on) and then done anyway: it still holds them (B-55).
+    const done = doneDaysOf([{ id: 'tue', status: 'completed', detailedSteps: JSON.stringify([{ title: 'Tempo run' }, { title: 'Lesson 1' }]) }]);
 
     it('a moved step from a done day is hidden and its minutes come off; the stored text stays', () => {
       const task = day([step(1, 'Easy run', 20, { kind: 'easy_run' }), moved(2)]);
@@ -220,7 +266,7 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
 
     it('a source day that is not done changes nothing', () => {
       const task = day([moved(1), step(2, 'Strides', 15)], { title: 'Tempo run' });
-      const shown = visibleDay(task, doneTaskIds([{ id: 'tue', status: 'pending' }]));
+      const shown = visibleDay(task, doneDaysOf([{ id: 'tue', status: 'pending', detailedSteps: JSON.stringify([{ title: 'Tempo run' }]) }]));
       expect(shown.steps.map((s) => s.title)).toEqual(['Tempo run', 'Strides']);
       expect(shown.durationMinutes).toBe(45);
       expect(shown.title).toBe('Tempo run');

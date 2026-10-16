@@ -28,36 +28,67 @@ export interface StepText {
   continueFrom?: { taskId?: unknown; date?: unknown } | null;
 }
 
-/** The ids of the days that are done, for `continueLine`. */
-export function doneTaskIds(tasks: readonly { id: string; status?: string | null }[] | null | undefined): ReadonlySet<string> {
-  return new Set((tasks ?? []).filter((task) => task.status === 'completed').map((task) => task.id));
-}
-
 /** The markers that say where a step came from. */
 interface CameFrom {
-  shiftedFrom?: { taskId?: unknown } | null;
-  carriedFrom?: { taskId?: unknown } | null;
+  title?: unknown;
+  shiftedFrom?: { taskId?: unknown; date?: unknown } | null;
+  carriedFrom?: { taskId?: unknown; date?: unknown } | null;
+  swappedFrom?: unknown;
 }
 
 /**
- * B-50 (MR-36): a reorder's copy (`shiftedFrom`) whose day is done was done there. B-52 (MR-37): a moved step
- * (`carriedFrom`) whose day is done was done there too, in every switch state.
+ * B-55: the days that are done, by id, each with the identities (`stepKey`) of the steps it holds. Built once from the
+ * goal's days (`doneDaysOf`) and passed wherever the screen asks about a done day.
  */
-export function fromDoneDay(step: CameFrom, done: ReadonlySet<string>): boolean {
-  return [step.shiftedFrom?.taskId, step.carriedFrom?.taskId].some((from) => typeof from === 'string' && done.has(from));
+export type DoneDays = ReadonlyMap<string, ReadonlySet<string>>;
+
+const markerDay = (marker: unknown): string | null => {
+  if (!marker || typeof marker !== 'object') return null;
+  const { taskId, date } = marker as { taskId?: unknown; date?: unknown };
+  return typeof taskId === 'string' && typeof date === 'string' ? taskId : null;
+};
+
+/**
+ * A step's identity, as backend `originOf` and `stepKey` (`recovery/inOrder.ts`) build it: the day it was written on
+ * (its `shiftedFrom`, else `carriedFrom`, else `swappedFrom` marker's day, else the day holding it) plus its title.
+ */
+export function stepKey(step: CameFrom, dayId: string): string {
+  const origin = markerDay(step.shiftedFrom) ?? markerDay(step.carriedFrom) ?? markerDay(step.swappedFrom) ?? dayId;
+  return `${origin}\u0000${typeof step.title === 'string' ? step.title : ''}`;
+}
+
+/** The completed days and the steps each holds as stored (B-55). */
+export function doneDaysOf(tasks: readonly Pick<DailyTask, 'id' | 'status' | 'detailedSteps'>[] | null | undefined): DoneDays {
+  const done = new Map<string, Set<string>>();
+  for (const task of tasks ?? []) {
+    if (task.status !== 'completed') continue;
+    done.set(task.id, new Set((parseSteps(task.detailedSteps) as CameFrom[]).map((step) => stepKey(step, task.id))));
+  }
+  return done;
 }
 
 /**
- * The steps shown: a step from a done day (`fromDoneDay`) is not shown, but the day's only steps stay (MR-33 (2): a
- * day is never left empty). Nothing stored changes.
+ * B-50 (MR-36): a reorder's copy (`shiftedFrom`); B-52 (MR-37): a moved step (`carriedFrom`), in every switch state.
+ * B-55: ignored only when a day its markers name is done and still holds that same step (same `stepKey`); a session
+ * that gave its step up and was then done with its other steps does not make that step done. Mirrors backend
+ * `isDoneCopy` (`recovery/inOrder.ts`); keep the two the same.
  */
-export function visibleSteps<T extends CameFrom>(steps: T[], done: ReadonlySet<string>): T[] {
-  const kept = steps.filter((step) => !fromDoneDay(step, done));
+export function fromDoneDay(step: CameFrom, dayId: string, done: DoneDays): boolean {
+  const key = stepKey(step, dayId);
+  return [step.shiftedFrom?.taskId, step.carriedFrom?.taskId].some((from) => typeof from === 'string' && done.get(from)?.has(key) === true);
+}
+
+/**
+ * The steps shown on day `dayId`: a step from a done day (`fromDoneDay`) is not shown, but the day's only steps stay
+ * (MR-33 (2): a day is never left empty). Nothing stored changes.
+ */
+export function visibleSteps<T extends CameFrom>(steps: T[], dayId: string, done: DoneDays): T[] {
+  const kept = steps.filter((step) => !fromDoneDay(step, dayId, done));
   return kept.length > 0 ? kept : steps;
 }
 
 /** The day fields `visibleDay` reads and may change. */
-type DayFields = Pick<DailyTask, 'title' | 'detailedSteps' | 'durationMinutes' | 'implementationIntention'> &
+type DayFields = Pick<DailyTask, 'id' | 'title' | 'detailedSteps' | 'durationMinutes' | 'implementationIntention'> &
   Partial<Pick<DailyTask, 'minimumVersion' | 'whyToday'>>;
 
 /** A step as stored, with the fields the backend adds inside `detailedSteps`. */
@@ -76,9 +107,9 @@ const replaceAll = (text: string, from: string, to: string) => (from ? text.spli
  * old step cleared). Otherwise the stored text is kept. Screen only: nothing stored changes, and actions still send
  * the day as stored.
  */
-export function visibleDay<T extends DayFields>(task: T, done: ReadonlySet<string>): T & { steps: DetailedStep[] } {
+export function visibleDay<T extends DayFields>(task: T, done: DoneDays): T & { steps: DetailedStep[] } {
   const stored = parseSteps(task.detailedSteps) as StoredStep[];
-  const steps = visibleSteps(stored, done);
+  const steps = visibleSteps(stored, task.id, done);
   if (steps.length === stored.length) return { ...task, steps };
 
   const hidden = stored.filter((step) => !steps.includes(step));
@@ -110,7 +141,7 @@ export function visibleDay<T extends DayFields>(task: T, done: ReadonlySet<strin
  * The continue line for a step marked by RULE-10, or null. B-50 (Mo): when the day the marker names is done, the work
  * was picked up there, so the marker is ignored (it stays stored).
  */
-export function continueLine(step: StepText, done: ReadonlySet<string> = new Set()): string | null {
+export function continueLine(step: StepText, done: DoneDays = new Map()): string | null {
   const from = step.continueFrom?.taskId;
   if (typeof from === 'string' && done.has(from)) return null;
   const date = step.continueFrom?.date;
@@ -118,7 +149,7 @@ export function continueLine(step: StepText, done: ReadonlySet<string> = new Set
   return weekday ? `Pick up where ${weekday} stopped.` : null;
 }
 
-export function stepLines(step: StepText, done?: ReadonlySet<string>): StepLines {
+export function stepLines(step: StepText, done?: DoneDays): StepLines {
   const lead: string[] = [];
   const pickUp = continueLine(step, done);
   if (pickUp) lead.push(pickUp);

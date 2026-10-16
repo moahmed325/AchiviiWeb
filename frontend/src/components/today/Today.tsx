@@ -32,7 +32,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
 import { StepInstructions } from './StepInstructions';
-import { doneTaskIds, visibleDay } from '../../lib/stepLines';
+import { doneDaysOf, visibleDay } from '../../lib/stepLines';
 import { usePlanAction } from './usePlanAction';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
@@ -318,7 +318,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const tasks = currentWeekTasks(goal);
   // B-50, B-52: a continue line, a reorder's copy or a moved step whose day is done is not shown; the day reads as
   // `visibleDay` shows it (its minutes, and its text when the hidden step led it). Actions still use `task` as stored.
-  const doneDays = useMemo(() => doneTaskIds(goal.dailyTasks), [goal.dailyTasks]);
+  const doneDays = useMemo(() => doneDaysOf(goal.dailyTasks), [goal.dailyTasks]);
   const task = selectTodayTask(tasks, now, selectedId, timezone);
   const shown = task ? visibleDay(task, doneDays) : null;
   const steps = shown?.steps ?? [];
@@ -656,7 +656,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                             </p>
                             {step.durationMinutes ? <span className="tabular shrink-0 text-small text-text-secondary">{step.durationMinutes} min</span> : null}
                           </div>
-                          <StepInstructions step={step} doneTaskIds={doneDays} className="mt-2 text-small text-text-secondary" />
+                          <StepInstructions step={step} doneDays={doneDays} className="mt-2 text-small text-text-secondary" />
                           {step.timing && <Line label="Timing">{step.timing}</Line>}
                           {step.focusCue && <Line label="Focus">{step.focusCue}</Line>}
                           {step.output && <Line label="Output">{step.output}</Line>}
@@ -701,7 +701,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                           <span className="tabular shrink-0 text-small text-text-secondary">{shown.minimumVersion.durationMinutes} min</span>
                         ) : null}
                       </div>
-                      <StepInstructions step={shown.minimumVersion} doneTaskIds={doneDays} className="mt-2 text-small text-text-secondary" />
+                      <StepInstructions step={shown.minimumVersion} doneDays={doneDays} className="mt-2 text-small text-text-secondary" />
                       {shown.minimumVersion.passMark && <Line label="Done when">{shown.minimumVersion.passMark}</Line>}
                     </div>
                   </Disclosure>
@@ -845,7 +845,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           onClose={() => setFocusOpen(false)}
           onCompleteSession={onFinishFocus}
           startWith={focusStart}
-          doneTaskIds={doneDays}
+          doneDays={doneDays}
         />
       )}
 

@@ -18,7 +18,7 @@ import {
 } from '../lib/today';
 import type { DailyTask } from '../types';
 import { Badge, Button, LoadingState, Skeleton, StepMarker } from '../components/ui';
-import { doneTaskIds, visibleDay } from '../lib/stepLines';
+import { doneDaysOf, visibleDay } from '../lib/stepLines';
 
 export const DashboardSkeleton: React.FC = () => (
   <main id="main" className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
@@ -152,7 +152,7 @@ export const Dashboard: React.FC = () => {
 
   const tasks = currentWeekTasks(activeGoal);
   // B-50, B-52: today and the next day read as Today shows them (`visibleDay`): steps from a done day hidden.
-  const doneDays = doneTaskIds(activeGoal.dailyTasks);
+  const doneDays = doneDaysOf(activeGoal.dailyTasks);
   const stored = selectTodayTask(tasks, now, undefined, timezone);
   const task = stored ? visibleDay(stored, doneDays) : null;
   const week = currentRoadmapWeek(activeGoal);

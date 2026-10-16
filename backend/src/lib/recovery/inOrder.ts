@@ -49,6 +49,35 @@ export function originOf(step: CarriedStep, day: StepOrigin): StepOrigin {
 /** A step's identity: the day it was written on and its title. */
 export const stepKey = (origin: StepOrigin, title: unknown) => `${origin.taskId}\u0000${typeof title === 'string' ? title : ''}`;
 
+/** B-55: the identities (`stepKey`) of the steps each done day holds, by day id. */
+export type DoneSteps = ReadonlyMap<string, ReadonlySet<string>>;
+
+/** The `DoneSteps` of the days classified done, with their steps as stored. */
+export function doneStepsOf(
+  days: readonly Pick<DayClassification, 'taskId' | 'date' | 'kind'>[],
+  tasks: ReadonlyArray<{ id: string; steps: readonly CarriedStep[] }>
+): DoneSteps {
+  const stepsOf = new Map(tasks.map((task) => [task.id, task.steps]));
+  const done = new Map<string, Set<string>>();
+  for (const day of days) {
+    if (day.kind !== 'done') continue;
+    const origin = { taskId: day.taskId, date: day.date };
+    done.set(day.taskId, new Set((stepsOf.get(day.taskId) ?? []).map((step) => stepKey(originOf(step, origin), step.title))));
+  }
+  return done;
+}
+
+/**
+ * MR-36, MR-37 as changed by B-55: a moved step (`carriedFrom`) or a reorder's copy (`shiftedFrom`) on `day` is ignored
+ * only when a day its markers name is done and still holds that same step (same `stepKey`). A session that gave its
+ * step up and was then done with its other steps does not make the given-up step done. Per step: only the screen keeps
+ * a day's only steps (MR-33). Mirrored on screen by `fromDoneDay` in frontend `lib/stepLines.ts`; keep the two the same.
+ */
+export function isDoneCopy(step: CarriedStep, day: StepOrigin, done: DoneSteps): boolean {
+  const key = stepKey(originOf(step, day), step.title);
+  return [step.shiftedFrom?.taskId, markerOf(step)?.taskId].some((from) => typeof from === 'string' && done.get(from)?.has(key) === true);
+}
+
 /**
  * Where a step not done yet is now. `missed`: on a day that closed undone. `session`: on an open day dated today or
  * later. `still_open`: on a day before today that has not closed yet. `next_week`: listed for next week.

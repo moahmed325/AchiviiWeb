@@ -6,7 +6,7 @@
  */
 import { markerOf, type CarriedStep, type CarryPlan, type CarriedEarlier, type PlannedCarry } from './carryForward.js';
 import type { DayOutcome, PlannedReorder } from './recovery/carry.js';
-import { originOf } from './recovery/inOrder.js';
+import { isDoneCopy, originOf, type DoneSteps } from './recovery/inOrder.js';
 import { continueMarkerOf, shiftMarkerOf } from './recovery/rules.js';
 import { dayCloseInstant, type DayClassification, type Gap } from './missedSessions.js';
 
@@ -173,6 +173,8 @@ export interface MissedSignals {
 export interface SignalInput {
   days: readonly DayClassification[];
   gap: Gap | null;
+  /** B-55: the steps each done day holds (`doneStepsOf`), so a stored carry is ignored only when its source still holds it. */
+  doneSteps: DoneSteps;
   plan: CarryPlan & { outcomes?: readonly DayOutcome[] };
   /**
    * M3.3: every day's steps as stored after this run's writes. The method lines that name a receiving day are read
@@ -219,10 +221,11 @@ export function buildSignals(input: SignalInput): MissedSignals {
   const today = ordered.find((day) => day.date === input.today) ?? null;
   const todayOpenPractice = today !== null && today.kind === 'planned';
 
-  // Carried: stored carries, from the moment they are stored until the receiving day closes (ND-18). B-52 (MR-37): a
-  // carry whose source day is done was done there, so it names no receiving day, in any switch state.
+  // Carried: stored carries, from the moment they are stored until the receiving day closes (ND-18). B-52, B-55
+  // (MR-37): a carry whose source day is done and still holds the step was done there (`isDoneCopy`), so it names no
+  // receiving day, in any switch state.
   const stored: Array<CarriedEarlier | PlannedCarry> = [...input.written, ...input.plan.alreadyCarried].filter(
-    (move) => dayById.get(move.fromTaskId)?.kind !== 'done'
+    (move) => !isDoneCopy(move.step, { taskId: move.toTaskId, date: move.toDate }, input.doneSteps)
   );
   const seen = new Set<string>();
   const carried: CarriedSignal[] = [];

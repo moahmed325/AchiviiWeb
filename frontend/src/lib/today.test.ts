@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DailyTask, Goal, MissedSignals, Reconciliation } from '../types';
+import { doneDaysOf } from './stepLines';
 import {
   currentRoadmapWeek,
   currentWeekTasks,
@@ -461,12 +462,21 @@ describe('movedDays and todayActions (missed sessions M3.3)', () => {
     expect(todayActions(body(), holding, wednesday, 'UTC')).toMatchObject({ canSetAside: true, canSwap: false });
   });
 
-  it('B-52 (MR-37): a carried step whose source day is done does not hold its day; one from an open day still does', () => {
+  it('B-52, B-55 (MR-37): a carried step whose source day is done and still holds it does not hold its day; one from an open day still does', () => {
     const fromMon = steps({ carriedFrom: { taskId: 'mon', date: '2026-09-21', replaced: [] } });
-    const ignored = todayActions(body(), goalWith({ wed: { detailedSteps: fromMon }, fri: { detailedSteps: fromMon } }), wednesday, 'UTC');
+    // Monday was set aside (its Lead moved on) and then done anyway: it still holds Lead.
+    const monHolds = { detailedSteps: steps() };
+    const ignored = todayActions(body(), goalWith({ mon: monHolds, wed: { detailedSteps: fromMon }, fri: { detailedSteps: fromMon } }), wednesday, 'UTC');
     expect(ignored).toMatchObject({ canSetAside: true, canSwap: true });
     expect(ids(ignored!.swapWith)).toEqual(['thu', 'fri']);
-    expect(movedDays([{ id: 'wed', detailedSteps: fromMon }], new Set(['mon'])).holding.size).toBe(0);
+    const done = doneDaysOf([{ id: 'mon', status: 'completed', detailedSteps: steps() }]);
+    expect(movedDays([{ id: 'wed', detailedSteps: fromMon }], done).holding.size).toBe(0);
+
+    // B-55: Monday is done but no longer holds Lead (it gave it up): Lead was never done, so it still holds its day.
+    const gaveUp = todayActions(body(), goalWith({ wed: { detailedSteps: fromMon }, fri: { detailedSteps: fromMon } }), wednesday, 'UTC');
+    expect(gaveUp).toMatchObject({ canSetAside: true, canSwap: false });
+    expect(ids(gaveUp!.swapWith)).toEqual(['thu']);
+    expect(movedDays([{ id: 'wed', detailedSteps: fromMon }], doneDaysOf([{ id: 'mon', status: 'completed', detailedSteps: '[]' }])).holding.size).toBe(1);
 
     const fromTue = steps({ carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } });
     const held = todayActions(body(), goalWith({ wed: { detailedSteps: fromTue }, fri: { detailedSteps: fromTue } }), wednesday, 'UTC');

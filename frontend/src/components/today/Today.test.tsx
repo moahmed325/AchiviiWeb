@@ -1609,7 +1609,9 @@ describe('Today with method-aware recovery (M3.3)', () => {
         implementationIntention: 'At 19:30: Tempo run.',
         minimumVersion: { stepNumber: 1, title: 'Short version: Tempo run', durationMinutes: 10, instructions: 'Ten minutes at tempo.', focusCue: '', pitfallToAvoid: '' },
       };
-      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'completed' }, t3: stored }));
+      // The source day was set aside (Tempo run moved on) and then done anyway: it still holds Tempo run (B-55).
+      const holds = { status: 'completed' as const, detailedSteps: JSON.stringify([{ stepNumber: 1, title: 'Tempo run', durationMinutes: 20, instructions: 'Run at tempo.', focusCue: '', priority: 1 }]) };
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: holds, t3: stored }));
       mocked.reconcileGoal.mockResolvedValue(body());
       await renderToday();
       expect(screen.getByRole('heading', { level: 2, name: 'Strides' })).toBeInTheDocument();
@@ -1635,6 +1637,13 @@ describe('Today with method-aware recovery (M3.3)', () => {
       expect(screen.getByText('30 min · at 19:30')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Show the 3 steps' }));
       expect(screen.getByText('Run at tempo.')).toBeVisible();
+      cleanup();
+
+      // B-55: the source day is done but gave Tempo run up (it no longer holds it): the step was never done, so it shows.
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'completed', detailedSteps: '[]' }, t3: stored }));
+      await renderToday();
+      expect(screen.getByRole('heading', { level: 2, name: 'Tempo run' })).toBeInTheDocument();
+      expect(screen.getByText('30 min · at 19:30')).toBeInTheDocument();
     });
   });
 });
