@@ -26,8 +26,9 @@ export interface FocusSessionModalProps {
    */
   startWith?: 'full' | 'minimum';
   /**
-   * The goal's done days: a continue line, a reorder's copy or a moved step whose day is done is not shown, and the
-   * session shows the day as `visibleDay` does (B-50, B-52).
+   * The goal's done days and the steps each holds (`doneDaysOf`): a continue line whose day is done, and a reorder's
+   * copy or a moved step whose day is done and still holds it, are not shown; the session shows the day as
+   * `visibleDay` does (B-50, B-52, B-55).
    */
   doneDays?: DoneDays;
 }
