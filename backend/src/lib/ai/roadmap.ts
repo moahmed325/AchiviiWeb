@@ -3,6 +3,7 @@ import { generateWithOneRetry } from './retry.js';
 import { extractStatedTargets, rowMatchesTarget, type StatedTarget } from '../research/statedTarget.js';
 import { screenQuery } from '../research/safetyFilter.js';
 import type { VelocityTarget } from '../research/types.js';
+import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, maxOrFailureHits } from './safetyScan.js';
 
 export const TEST_TYPES = ['typing_test', 'quiz', 'timer', 'count', 'photo', 'video'] as const;
 export type TestType = (typeof TEST_TYPES)[number];
@@ -634,6 +635,27 @@ export function checkRoadmapAnswer(
     const phase = phases.find((item) => weekNumber >= item.startWeek && weekNumber <= item.endWeek)!;
     weeks.push({ weekNumber, phase: phase.name, focus: text(raw.focus) || phase.purpose, target, test });
   }
+
+  // B-63 (PSL-1): weeks 1 to 3's test is never a max test or to failure, or every week call would fail on it. Hard.
+  const testBreaches: string[] = [];
+  for (const week of weeks.slice(0, EARLY_WEEKS)) {
+    for (const hit of maxOrFailureHits(`${week.test.instructions}
+${week.test.passIf}`)) {
+      logSafetyHit({
+        goalId: null,
+        week: week.weekNumber,
+        attempt: lastAttempt ? 2 : 1,
+        rule: hit.rule,
+        step: `Week ${week.weekNumber} test`,
+        matched: hit.matched,
+        outcome: lastAttempt ? 'failed' : 'retry',
+      });
+      testBreaches.push(
+        `SAFETY: week ${week.weekNumber}'s test says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; use a test with reps in reserve instead.`
+      );
+    }
+  }
+  if (testBreaches.length > 0) return { reason: testBreaches.slice(0, 8).join(' ') };
 
   const startingPoint: StartingPoint = {
     value: num(data.startingPoint?.value),

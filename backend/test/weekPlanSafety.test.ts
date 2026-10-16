@@ -1,0 +1,306 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../src/lib/ai/gemini.js', () => ({
+  generateStructuredContent: vi.fn(),
+}));
+
+import { readFileSync } from 'node:fs';
+import { generateStructuredContent } from '../src/lib/ai/gemini.js';
+import {
+  buildWeekPrompt,
+  checkWeekAnswer,
+  generateWeekPlan,
+  weekLayout,
+  type RawWeekAnswer,
+  type WeekCallInput,
+} from '../src/lib/ai/weekPlan.js';
+import { checkRoadmapAnswer, presetMethod, type RawRoadmapAnswer } from '../src/lib/ai/roadmap.js';
+import { textSafetyHits } from '../src/lib/ai/safetyScan.js';
+import { recompPreset } from '../src/lib/ai/presets/recomp.js';
+
+/** B-63 (PSL-1, PSL-2): the week call's safety stopgap. */
+
+const input: WeekCallInput = {
+  finalGoal: 'Squat 100 kg for 5 reps',
+  answers: [{ id: 'current_level', question: 'Squat?', answer: '70 kg for 5' }],
+  dailyMinutes: 30,
+  planVariant: 'steady',
+  slotTime: '19:30',
+  method: { name: 'Linear progression', creator: '', rules: ['Add 2.5 kg a session while form holds'] },
+  weekNumber: 1,
+  totalWeeks: 12,
+  phase: { name: 'Base', purpose: 'Groove the lifts.' },
+  focus: 'Squat form',
+  target: { kind: 'number', metric: 'Squat', value: 72.5, unit: 'kg for 5', direction: 'higher_is_better' },
+  test: { type: 'count', instructions: 'Squat 72.5 kg for 5 reps with 3 reps in reserve', passIf: '5 clean reps at 72.5 kg' },
+  weekStart: new Date('2026-09-21T12:00:00Z'),
+  highLoadGoal: true,
+};
+
+function step(title: string, priority: number, minutes = 15, extra: Record<string, unknown> = {}) {
+  return {
+    title,
+    instructions: `Do ${title.toLowerCase()} with a 3-second lowering phase and full depth.`,
+    minutes,
+    output: 'Sets and reps written down',
+    doneWhen: 'Every set done with clean form',
+    focusCue: 'Brace before each rep',
+    pitfall: 'Rushing the descent',
+    priority,
+    highLoad: true,
+    ...extra,
+  };
+}
+
+/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest, day 6 the test. `lead` is day 1's first step. */
+function week(lead: Record<string, unknown> = {}): RawWeekAnswer {
+  const days: Array<Record<string, unknown>> = Array.from({ length: 7 }, (_, index) => {
+    const dayNumber = index + 1;
+    if (dayNumber === 4 || dayNumber === 7) return { dayNumber, isKeySession: false, title: 'Rest', whyToday: 'Recover.', steps: [] };
+    const steps =
+      dayNumber === 6
+        ? [step('Warm up with empty bar squats', 2, 5), step('Weekly test: squat 72.5 kg for 5', 1, 15), step('Compare your result with 72.5 kg', 3, 5)]
+        : [step(`Back squat block ${dayNumber}`, 1, 15, dayNumber === 1 ? lead : {}), step(`Romanian deadlift block ${dayNumber}`, 2, 15)];
+    return {
+      dayNumber,
+      isKeySession: dayNumber === 3,
+      title: `Squat session ${dayNumber} at a steady load`,
+      whyToday: 'Builds the squat toward 72.5 kg.',
+      steps,
+      minimumVersion: step(`Goblet squats, set ${dayNumber}`, 1, 10),
+    };
+  });
+  return { days };
+}
+
+const reason = (result: ReturnType<typeof checkWeekAnswer>) => ('reason' in result ? result.reason : '');
+const PREFIX = 'Do back squats with a 3-second lowering phase and full depth. ';
+const withText = (instructions: string) => week({ instructions: PREFIX + instructions });
+
+let warn: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+  vi.mocked(generateStructuredContent).mockReset();
+  warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+afterEach(() => warn.mockRestore());
+
+const safetyLines = () =>
+  warn.mock.calls.filter((call) => call[0] === '[Safety]').map((call) => JSON.parse(call[1] as string) as Record<string, unknown>);
+
+describe('safety scan: safe wording never counts', () => {
+  const safe = [
+    'Stop 3 reps before failure on every set.',
+    'Never train to failure this week.',
+    'No max test this week.',
+    'Keep it under 80% of 1RM.',
+    'Leave 3 reps in reserve.',
+    'Work at RIR 3-4.',
+    'Hold a 300-500 kcal deficit.',
+    'Avoid AMRAP sets.',
+  ];
+  it.each(safe)('passes "%s" in week 1', (text) => {
+    expect(textSafetyHits(text, 1)).toEqual([]);
+    expect(reason(checkWeekAnswer(withText(text), input))).toBe('');
+  });
+
+  it('ignores the pitfall field', () => {
+    expect(reason(checkWeekAnswer(week({ pitfall: 'Training to failure in week 1' }), input))).toBe('');
+  });
+});
+
+describe('safety scan: breaches count in week 1', () => {
+  const breaches: Array<[string, string]> = [
+    ['Eat at an 800 kcal deficit today.', 'deficit_over_600'],
+    ['Run a deficit of 700 kcal.', 'deficit_over_600'],
+    ['Hold a 500-700 kcal deficit.', 'deficit_over_600'],
+    ['Work up to 85% of 1RM.', 'over_80_percent_1rm'],
+    ['Stay under 90% 1RM.', 'over_80_percent_1rm'],
+    ['Three sets at RIR 1-2.', 'rir_below_3'],
+    ['Three sets at RIR 1-3.', 'rir_below_3'],
+    ['Leave 2 reps in reserve.', 'rir_below_3'],
+    ['Stop 1 rep short of failure.', 'rir_below_3'],
+    ['Last set to failure.', 'to_failure'],
+    ['Keep going until failure.', 'to_failure'],
+    ['Finish with an AMRAP set.', 'to_failure'],
+    ['Do a 1RM test on the squat.', 'max_test'],
+    ['Test your 1RM.', 'max_test'],
+    ['Test your max on the bench.', 'max_test'],
+    ['Max out on the deadlift.', 'max_test'],
+    ['Work up to a max single.', 'max_test'],
+    ['Find your true max.', 'max_test'],
+  ];
+  it.each(breaches)('refuses "%s" (%s)', (text, rule) => {
+    expect(textSafetyHits(text, 1).map((hit) => hit.rule)).toContain(rule);
+    const why = reason(checkWeekAnswer(withText(text), input));
+    expect(why).toMatch(/^SAFETY: Day 1 step "Back squat block 1" says/);
+    expect(why).toContain('The limit is');
+  });
+});
+
+describe('safety scan: week 4 and later', () => {
+  const week4 = { ...input, weekNumber: 4 };
+  it.each(['Three sets at RIR 1.', 'Last set to failure.', 'Work up to 85% of 1RM.'])('allows "%s"', (text) => {
+    expect(reason(checkWeekAnswer(withText(text), week4))).toBe('');
+  });
+  it('still refuses an 800 kcal deficit', () => {
+    expect(reason(checkWeekAnswer(withText('Eat at an 800 kcal deficit today.'), week4))).toMatch(/250 to 600 kcal/);
+  });
+});
+
+describe('safety scan: which steps are checked', () => {
+  const custom: WeekCallInput = { ...input, highLoadGoal: false };
+  it('passes "to failure" on a custom goal step not flagged highLoad', () => {
+    expect(reason(checkWeekAnswer(week({ instructions: `${PREFIX}Push-ups to failure.`, highLoad: false }), custom))).toBe('');
+  });
+  it('refuses the same step flagged highLoad', () => {
+    expect(reason(checkWeekAnswer(week({ instructions: `${PREFIX}Push-ups to failure.`, highLoad: true }), custom))).toMatch(/^SAFETY/);
+  });
+  it('checks the 10-minute version and the test step', () => {
+    const answer = week();
+    const day2 = (answer.days as Array<Record<string, unknown>>)[1];
+    day2.minimumVersion = step('Goblet squats to failure', 1, 10);
+    expect(reason(checkWeekAnswer(answer, input))).toMatch(/Day 2 10-minute version "Goblet squats to failure"/);
+    const testDay = (week().days as Array<Record<string, unknown>>);
+    (testDay[5].steps as Array<Record<string, unknown>>)[1].instructions = `${PREFIX}Test your 1RM squat.`;
+    expect(reason(checkWeekAnswer({ days: testDay }, input))).toMatch(/Day 6 step "Weekly test/);
+  });
+  it('is a hard reason: the last attempt still refuses', () => {
+    expect(reason(checkWeekAnswer(withText('Last set to failure.'), input, true))).toMatch(/^SAFETY/);
+  });
+});
+
+describe('safety limits in the week prompt', () => {
+  const HIGH_LOAD_LINE =
+    '  - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false';
+  const layout = weekLayout('steady', input.weekStart);
+  const OVERRIDE = "In weeks 1 to 3 this overrides the method's RIR range: at least 3 reps in reserve.";
+
+  it('leaves the prompt unchanged without a high-load goal', () => {
+    const before = readFileSync(new URL('./fixtures/weekPrompt.before-m2.1.txt', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    const typing: WeekCallInput = {
+      finalGoal: 'Type 40 words per minute at 95% accuracy',
+      answers: [{ id: 'current_level', question: 'Speed?', answer: '14 wpm' }],
+      dailyMinutes: 30,
+      planVariant: 'steady',
+      slotTime: '19:30',
+      method: { name: 'Keybr adaptive drills', creator: '', rules: ['Hold 95% accuracy before adding speed'] },
+      weekNumber: 1,
+      totalWeeks: 12,
+      phase: { name: 'Accuracy', purpose: 'Learn every key without looking.' },
+      focus: 'Home row',
+      target: { kind: 'number', metric: 'Typing speed', value: 16, unit: 'words per minute', direction: 'higher_is_better' },
+      test: { type: 'typing_test', instructions: 'Take a 1-minute typing test on keybr.com', passIf: '16 wpm at 95% accuracy' },
+      weekStart: new Date('2026-09-21T12:00:00Z'),
+      highLoadGoal: false,
+    };
+    const prompt = buildWeekPrompt(typing, layout);
+    expect(prompt).not.toContain('SAFETY LIMITS');
+    expect(prompt.split('\n').filter((line) => line !== HIGH_LOAD_LINE).join('\n')).toBe(before);
+  });
+
+  it('tells the real recomp week 1 the limits and the override, next to the method\'s own range', () => {
+    const recomp: WeekCallInput = {
+      ...input,
+      method: { name: presetMethod(recompPreset).name, creator: '', rules: [...recompPreset.capabilities] },
+    };
+    const prompt = buildWeekPrompt(recomp, layout);
+    expect(prompt).toContain('RIR 1–3');
+    expect(prompt).toContain('SAFETY LIMITS');
+    expect(prompt).toContain('Calorie deficit: 250 to 600 kcal a day, never more.');
+    expect(prompt).toContain('At most 2 hard runs this week');
+    expect(prompt).toContain('at most 10% more than last week');
+    expect(prompt).toContain(OVERRIDE);
+    const week4 = buildWeekPrompt({ ...recomp, weekNumber: 4 }, layout);
+    expect(week4).toContain('SAFETY LIMITS');
+    expect(week4).not.toContain(OVERRIDE);
+    expect(week4).not.toContain('Weeks 1 to 3');
+  });
+});
+
+describe('[Safety] log line', () => {
+  it('is written once per hit with the goal, week, attempt, rule, step, sentence and outcome', () => {
+    checkWeekAnswer(withText('Warm up well. Last set to failure. Then stretch.'), { ...input, goalId: 'goal-1' });
+    expect(safetyLines()).toEqual([
+      {
+        goalId: 'goal-1',
+        week: 1,
+        attempt: 1,
+        rule: 'to_failure',
+        step: 'Day 1 step "Back squat block 1"',
+        matched: 'Last set to failure.',
+        outcome: 'retry',
+      },
+    ]);
+  });
+
+  it('logs null without a goal id, clips the sentence, and says failed on the last attempt', () => {
+    checkWeekAnswer(withText(`Last set to failure ${'and keep pushing '.repeat(10)}`), input, true);
+    const [line] = safetyLines();
+    expect(line.goalId).toBeNull();
+    expect(line.attempt).toBe(2);
+    expect(line.outcome).toBe('failed');
+    expect((line.matched as string).length).toBeLessThanOrEqual(120);
+  });
+
+  it('fails the week when the second answer still breaks a limit', async () => {
+    vi.mocked(generateStructuredContent).mockResolvedValue({ success: true, data: withText('Last set to failure.') } as never);
+    expect(await generateWeekPlan(input)).toBeNull();
+    expect(safetyLines().map((line) => line.outcome)).toEqual(['retry', 'failed']);
+  });
+
+  it('accepts the retry when the second answer is safe', async () => {
+    vi.mocked(generateStructuredContent)
+      .mockResolvedValueOnce({ success: true, data: withText('Last set to failure.') } as never)
+      .mockResolvedValueOnce({ success: true, data: withText('Stop 3 reps before failure.') } as never);
+    expect(await generateWeekPlan(input)).not.toBeNull();
+  });
+});
+
+describe('roadmap: weeks 1 to 3 tests', () => {
+  function roadmap(testWeek: number, instructions: string): RawRoadmapAnswer {
+    const values = [72.5, 75, 77.5, 80, 82.5, 85, 87.5, 90, 92.5, 95, 97.5, 100];
+    return {
+      finalGoal: 'Squat 100 kg for 5 reps',
+      finalTest: 'Squat 100 kg for 5 reps.',
+      startingPoint: { value: 70, description: '70 kg for 5.' },
+      candidates: [
+        { name: 'Linear progression', creator: '', summary: 'Add load each session.', strengths: 'Simple.', weaknesses: 'Stalls.' },
+        { name: 'Texas method', creator: '', summary: 'Weekly cycle.', strengths: 'Lasts.', weaknesses: 'Complex.' },
+      ],
+      chosen: 'Linear progression',
+      whyChosen: 'A novice lifter.',
+      runnerUp: { name: 'Texas method', whyLost: 'Too complex.' },
+      safety: 4,
+      rules: ['Add 2.5 kg a session', 'Full depth', 'Brace every rep', 'Rest 3 minutes', 'Same test every week'],
+      phases: [
+        { name: 'Base', startWeek: 1, endWeek: 4, purpose: 'Groove.' },
+        { name: 'Build', startWeek: 5, endWeek: 10, purpose: 'Add load.' },
+        { name: 'Peak', startWeek: 11, endWeek: 12, purpose: 'Test.' },
+      ],
+      weeks: values.map((value, index) => ({
+        weekNumber: index + 1,
+        phase: 'whatever',
+        focus: `Focus ${index + 1}`,
+        target: { kind: 'number', metric: 'Squat', value, unit: 'kg for 5', direction: 'higher_is_better' },
+        test: {
+          type: 'count',
+          instructions: index + 1 === testWeek ? instructions : `Squat ${value} kg for 5 with 3 reps in reserve`,
+          passIf: `5 clean reps at ${value} kg`,
+        },
+      })),
+    };
+  }
+  const context = { statedTargets: [] };
+
+  it('refuses a 1RM test in week 2, on the last attempt too, and logs it', () => {
+    const result = checkRoadmapAnswer(roadmap(2, 'Test your 1RM squat'), context, true);
+    expect('reason' in result && result.reason).toMatch(/^SAFETY: week 2's test says "Test your 1RM squat"/);
+    expect(safetyLines()).toEqual([
+      { goalId: null, week: 2, attempt: 2, rule: 'max_test', step: 'Week 2 test', matched: 'Test your 1RM squat', outcome: 'failed' },
+    ]);
+  });
+
+  it('allows the same test in week 4', () => {
+    expect('value' in checkRoadmapAnswer(roadmap(4, 'Test your 1RM squat'), context)).toBe(true);
+  });
+});
