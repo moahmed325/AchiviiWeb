@@ -309,6 +309,21 @@ describe('M3.2 person actions with method-aware recovery', () => {
       expect(answer.status).toBe(200);
     });
 
+    it.each([true, false])('B-52: a moved step whose source day is done does not hold the day (switch on: %s)', async (on) => {
+      method(on);
+      const moved = { carriedFrom: { taskId: 'mon', date: '2026-09-21', replaced: [] } };
+      seed({ mon: { status: 'completed' }, wed: { steps: day('draft', 'drafting', moved) } });
+      at(TUE);
+      if (on) expect((await reconcile()).body.carry.choices.today.swapWith).toContain('wed');
+      expect((await swap('tue', 'wed')).status).toBe(200);
+
+      // The source day not done: still refused.
+      seed({ wed: { steps: day('draft', 'drafting', moved) } });
+      if (on) expect((await reconcile()).body.carry.choices.today.swapWith).not.toContain('wed');
+      expect(await swap('tue', 'wed')).toMatchObject({ status: 409, body: { reason: 'holds_carry' } });
+      expect(await swap('wed', 'tue')).toMatchObject({ status: 409, body: { reason: 'holds_carry' } });
+    });
+
     it('switch off: answering an offer onto a day holding a continue marker is refused (holds_continue)', async () => {
       method(false);
       seed({ mon: { key: true }, tue: { steps: day('draft', 'drafting', { continueFrom: { taskId: 'x', date: '2026-09-20' } }) } });

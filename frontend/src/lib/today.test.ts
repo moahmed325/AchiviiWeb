@@ -461,6 +461,19 @@ describe('movedDays and todayActions (missed sessions M3.3)', () => {
     expect(todayActions(body(), holding, wednesday, 'UTC')).toMatchObject({ canSetAside: true, canSwap: false });
   });
 
+  it('B-52 (MR-37): a carried step whose source day is done does not hold its day; one from an open day still does', () => {
+    const fromMon = steps({ carriedFrom: { taskId: 'mon', date: '2026-09-21', replaced: [] } });
+    const ignored = todayActions(body(), goalWith({ wed: { detailedSteps: fromMon }, fri: { detailedSteps: fromMon } }), wednesday, 'UTC');
+    expect(ignored).toMatchObject({ canSetAside: true, canSwap: true });
+    expect(ids(ignored!.swapWith)).toEqual(['thu', 'fri']);
+    expect(movedDays([{ id: 'wed', detailedSteps: fromMon }], new Set(['mon'])).holding.size).toBe(0);
+
+    const fromTue = steps({ carriedFrom: { taskId: 'tue', date: '2026-09-22', replaced: [] } });
+    const held = todayActions(body(), goalWith({ wed: { detailedSteps: fromTue }, fri: { detailedSteps: fromTue } }), wednesday, 'UTC');
+    expect(held).toMatchObject({ canSetAside: true, canSwap: false });
+    expect(ids(held!.swapWith)).toEqual(['thu']);
+  });
+
   it('the test day can be set aside, not swapped', () => {
     const saturday = new Date('2026-09-26T12:00:00Z');
     expect(todayActions(body(), goalWith(), saturday, 'UTC')).toMatchObject({ canSetAside: true, canSwap: false, swapWith: [] });

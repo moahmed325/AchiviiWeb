@@ -285,9 +285,13 @@ type MarkedStep = { carriedFrom?: { taskId?: unknown }; swappedFrom?: { taskId?:
 /**
  * The days a move already touched, read from the stored steps' markers (M2.2 `carriedFrom`, ND-18 `swappedFrom`):
  * - `handled`: the source of a carry or a swap, or a day holding a swapped step (the backend's `handledTaskIds`).
- * - `holding`: a day holding any moved step.
+ * - `holding`: a day holding any moved step. B-52 (MR-37): a carried step whose source day is in `done` (completed) is
+ *   ignored, so it does not hold its day.
  */
-export function movedDays(tasks: ReadonlyArray<Pick<DailyTask, 'id' | 'detailedSteps'>>): { handled: Set<string>; holding: Set<string> } {
+export function movedDays(
+  tasks: ReadonlyArray<Pick<DailyTask, 'id' | 'detailedSteps'>>,
+  done: ReadonlySet<string> = new Set(),
+): { handled: Set<string>; holding: Set<string> } {
   const handled = new Set<string>();
   const holding = new Set<string>();
   for (const task of tasks) {
@@ -296,7 +300,7 @@ export function movedDays(tasks: ReadonlyArray<Pick<DailyTask, 'id' | 'detailedS
       const swapped = step?.swappedFrom && typeof step.swappedFrom.taskId === 'string' ? step.swappedFrom.taskId : null;
       if (carried) {
         handled.add(carried);
-        holding.add(task.id);
+        if (!done.has(carried)) holding.add(task.id);
       }
       if (swapped) {
         handled.add(swapped);
@@ -344,7 +348,8 @@ export function todayActions(
     const swapWith = choices.today.swapWith.flatMap((id) => tasks.filter((task) => task.id === id));
     return { today, canSetAside: choices.today.setAside, canSwap: swapWith.length > 0, swapWith };
   }
-  const { handled, holding } = movedDays(week);
+  const done = new Set((goal.dailyTasks || []).filter((task) => task.status === 'completed').map((task) => task.id));
+  const { handled, holding } = movedDays(week, done);
   const setAside =
     (reconciliation.days || []).some((d) => d.taskId === today.id && d.kind === 'missed') ||
     reconciliation.signals?.swapOffer?.missedTaskId === today.id;

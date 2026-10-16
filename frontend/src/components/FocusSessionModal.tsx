@@ -7,7 +7,7 @@ import { FocusStepRunner } from './focus/FocusStepRunner';
 import { FocusCompletion } from './focus/FocusCompletion';
 import { Button } from './ui';
 import { StepInstructions } from './today/StepInstructions';
-import { withoutDoneCopies } from '../lib/stepLines';
+import { visibleDay } from '../lib/stepLines';
 
 /** ND-3: tells the caller whether the session was completed through the 10-minute version. */
 export interface FocusCompletionOptions {
@@ -25,7 +25,10 @@ export interface FocusSessionModalProps {
    * had been used. Without a `minimumVersion` it falls back to the full session. Default `'full'`.
    */
   startWith?: 'full' | 'minimum';
-  /** The goal's done days: a continue line whose day is done is not shown (B-50). */
+  /**
+   * The goal's done days: a continue line, a reorder's copy or a moved step whose day is done is not shown, and the
+   * session shows the day as `visibleDay` does (B-50, B-52).
+   */
   doneTaskIds?: ReadonlySet<string>;
 }
 
@@ -300,29 +303,18 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   startWith = 'full',
   doneTaskIds,
 }) => {
-  // Parse steps
-  const steps: DetailedStep[] = useMemo(() => {
-    if (!task.detailedSteps) return [];
-    try {
-      const parsed = JSON.parse(task.detailedSteps);
-      return Array.isArray(parsed) ? withoutDoneCopies(parsed, doneTaskIds ?? new Set()) : [];
-    } catch {
-      return [];
-    }
-  }, [task.detailedSteps, doneTaskIds]);
+  // The day as shown (B-50, B-52): its steps, minutes and text. The session only shows it; completing goes by id.
+  const { steps, ...shown } = useMemo(() => visibleDay(task, doneTaskIds ?? new Set()), [task, doneTaskIds]);
 
   // Total duration in seconds (fallback to 30 min)
-  const totalDurationSeconds = useMemo(() => {
-    const mins = task.durationMinutes || 30;
-    return mins * 60;
-  }, [task.durationMinutes]);
+  const totalDurationSeconds = (shown.durationMinutes || 30) * 60;
 
   if (!isOpen) return null;
 
   return (
     <FocusSessionContent
       key={task.id}
-      task={task}
+      task={shown}
       dayNumber={dayNumber}
       steps={steps}
       totalDurationSeconds={totalDurationSeconds}

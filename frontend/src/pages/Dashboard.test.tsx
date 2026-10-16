@@ -65,6 +65,33 @@ describe('Dashboard', () => {
     expect(screen.getByRole('link', { name: /Begin today/i })).toHaveAttribute('href', '/');
   });
 
+  it("B-50, B-52: steps from a done day are left out of today's card and the later day's title", () => {
+    const goal = buildGoal('pending');
+    const days = goal.dailyTasks!;
+    const fromMonday = { taskId: 't1', date: days[0].date };
+    const withPriority = (n: number, title: string, minutes: number, extra: Record<string, unknown> = {}) => ({ ...step(n, title, minutes), priority: n, ...extra });
+    days[1] = {
+      ...days[1],
+      title: 'Hill repeats',
+      whyToday: 'Hill repeats build strength.',
+      detailedSteps: JSON.stringify([withPriority(1, 'Hill repeats', 12, { carriedFrom: { ...fromMonday, replaced: [] } }), withPriority(2, 'Warm up jog', 10), withPriority(3, 'Four tempo reps', 8)]),
+    };
+    days[2] = {
+      ...days[2],
+      title: 'Lesson 1',
+      detailedSteps: JSON.stringify([withPriority(1, 'Lesson 1', 20, { shiftedFrom: fromMonday }), withPriority(2, 'Lesson review', 10)]),
+    };
+    renderWith(goal);
+
+    expect(screen.getByRole('heading', { level: 2, name: 'Warm up jog' })).toBeInTheDocument();
+    expect(screen.queryByText('Hill repeats build strength.')).not.toBeInTheDocument();
+    expect(screen.getByText('18 min · 2 steps · at 07:00')).toBeInTheDocument();
+    const steps = screen.getByRole('list', { name: 'Inside this session' });
+    expect(within(steps).queryByText('Hill repeats')).not.toBeInTheDocument();
+    expect(within(steps).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(screen.getByRole('region', { name: 'Coming up' })).getByText('Wednesday · Lesson review')).toBeInTheDocument();
+  });
+
   it('shows what is coming up without inventing anything', () => {
     renderWith(buildGoal('pending'));
 

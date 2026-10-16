@@ -15,7 +15,6 @@ import {
   missNotice,
   shortOnTimeOffer,
   parseIntention,
-  parseSteps,
   parseTaskNotes,
   selectTodayTask,
   serializeTaskNotes,
@@ -33,7 +32,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
 import { StepInstructions } from './StepInstructions';
-import { doneTaskIds, withoutDoneCopies } from '../../lib/stepLines';
+import { doneTaskIds, visibleDay } from '../../lib/stepLines';
 import { usePlanAction } from './usePlanAction';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
@@ -317,16 +316,19 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const notesId = useId();
 
   const tasks = currentWeekTasks(goal);
-  // B-50: a continue line or a reorder's copy whose day is done is not shown.
+  // B-50, B-52: a continue line, a reorder's copy or a moved step whose day is done is not shown; the day reads as
+  // `visibleDay` shows it (its minutes, and its text when the hidden step led it). Actions still use `task` as stored.
   const doneDays = useMemo(() => doneTaskIds(goal.dailyTasks), [goal.dailyTasks]);
   const task = selectTodayTask(tasks, now, selectedId, timezone);
-  const steps = withoutDoneCopies(parseSteps(task?.detailedSteps), doneDays);
-  const intention = parseIntention(task?.implementationIntention);
+  const shown = task ? visibleDay(task, doneDays) : null;
+  const steps = shown?.steps ?? [];
+  const intention = parseIntention(shown?.implementationIntention);
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now, timezone);
   const journeyPercent = Math.min(100, Math.max(2, Math.round((day / 90) * 100)));
   const done = task?.status === 'completed';
   const nextTask = task ? findNextTask(tasks, task.id) : null;
+  const shownNext = nextTask ? visibleDay(nextTask, doneDays) : null;
   const parsedNotes = parseTaskNotes(task?.notes);
   const focusWins = parsedNotes.focusWins;
   const draft = task ? drafts[task.id] : undefined;
@@ -476,7 +478,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           className={cx('dash-card animate-rise-in relative mt-10 p-6 sm:p-10', done && 'today-done')}
           style={stagger(160)}
         >
-          {task ? (
+          {task && shown ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <Eyebrow gold className="mr-1">
@@ -499,18 +501,18 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               </div>
 
               <h2 id="step-heading" className="mt-6 max-w-[24ch] break-words text-h2 text-text">
-                {task.title}
+                {shown.title}
               </h2>
               <p className="tabular mt-4 inline-flex items-center gap-2 text-small text-text-secondary">
                 <Clock aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0 text-achievement" />
-                {task.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
+                {shown.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
               </p>
               {task.isRestDay && (
                 <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">
                   Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity.
                 </p>
               )}
-              {task.whyToday?.trim() ? <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">{task.whyToday}</p> : null}
+              {shown.whyToday?.trim() ? <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">{shown.whyToday}</p> : null}
 
               {notice && (
                 <Callout>
@@ -602,16 +604,16 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
 
               {(done || task.isRestDay) && (
                 <div className="mt-8 rounded-card border border-border bg-background/50 p-5">
-                  {nextTask ? (
+                  {nextTask && shownNext ? (
                     <div>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-ui-mono text-micro uppercase text-achievement">
                           {nextTask.dayNumber === task.dayNumber + 1 ? `Tomorrow · ${nextTask.dayOfWeek}` : `Next practice · ${nextTask.dayOfWeek}`}
                         </span>
-                        <span className="tabular font-ui-mono text-micro text-text-secondary">{nextTask.durationMinutes || 30} min</span>
+                        <span className="tabular font-ui-mono text-micro text-text-secondary">{shownNext.durationMinutes || 30} min</span>
                       </div>
-                      <h3 className="mt-2 text-body font-medium text-text">{nextTask.title}</h3>
-                      {nextTask.whyToday ? <p className="mt-1 line-clamp-2 text-small text-text-secondary">{nextTask.whyToday}</p> : null}
+                      <h3 className="mt-2 text-body font-medium text-text">{shownNext.title}</h3>
+                      {shownNext.whyToday ? <p className="mt-1 line-clamp-2 text-small text-text-secondary">{shownNext.whyToday}</p> : null}
                       <div className="-mb-2 mt-3 flex items-center justify-end">
                         <Button
                           variant="quiet"
@@ -685,7 +687,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   </Disclosure>
                 )}
 
-                {task.minimumVersion && (
+                {shown.minimumVersion && (
                   <Disclosure
                     id={minimumId}
                     open={showMinimum}
@@ -694,13 +696,13 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   >
                     <div className="rounded-card border border-border bg-background/40 p-4">
                       <div className="flex items-baseline justify-between gap-3">
-                        <h3 className="text-small font-medium text-text">{task.minimumVersion.title}</h3>
-                        {task.minimumVersion.durationMinutes ? (
-                          <span className="tabular shrink-0 text-small text-text-secondary">{task.minimumVersion.durationMinutes} min</span>
+                        <h3 className="text-small font-medium text-text">{shown.minimumVersion.title}</h3>
+                        {shown.minimumVersion.durationMinutes ? (
+                          <span className="tabular shrink-0 text-small text-text-secondary">{shown.minimumVersion.durationMinutes} min</span>
                         ) : null}
                       </div>
-                      <StepInstructions step={task.minimumVersion} doneTaskIds={doneDays} className="mt-2 text-small text-text-secondary" />
-                      {task.minimumVersion.passMark && <Line label="Done when">{task.minimumVersion.passMark}</Line>}
+                      <StepInstructions step={shown.minimumVersion} doneTaskIds={doneDays} className="mt-2 text-small text-text-secondary" />
+                      {shown.minimumVersion.passMark && <Line label="Done when">{shown.minimumVersion.passMark}</Line>}
                     </div>
                   </Disclosure>
                 )}

@@ -401,6 +401,51 @@ describe('M3.3 the miss line with method-aware recovery', () => {
       expect((await reconcile()).signals.line).toBeNull();
     });
 
+    it('B-52: moved, then today is done: no line names the receiving day, today or on it; the moved step stays stored', async () => {
+      seed({ mon: { status: 'completed' } });
+      at(TUE);
+      const set = await post('/tasks/tue/mark-missed');
+      expect(set.body.signals.line).toEqual(line('moved', ['tue', TUE], ['wed', WED]));
+      expect(stepsOf('wed').some((s) => (s.carriedFrom as any)?.taskId === 'tue')).toBe(true);
+      const stored = row('wed').detailedSteps;
+      complete('tue');
+      const body = await reconcile();
+      expect(body.signals.line).toBeNull();
+      expect(body.signals.notice).toBeNull();
+      expect(body.signals.carried).toEqual([]);
+      at(WED);
+      expect((await reconcile()).signals.line).toBeNull();
+      expect(row('wed').detailedSteps).toBe(stored);
+    });
+
+    it("B-52: a missed sessions' carry (steps without kinds), then today is done: no carried line", async () => {
+      seed({ mon: { status: 'completed' }, tue: { steps: [step('tue run', 1, 15), step('tue extra', 2, 10)] } });
+      at(TUE);
+      const set = await post('/tasks/tue/mark-missed');
+      expect(set.body.signals.line).toMatchObject({ kind: 'carried', taskId: 'tue' });
+      expect(set.body.signals.carried).toHaveLength(1);
+      complete('tue');
+      const body = await reconcile();
+      expect(body.signals.line).toBeNull();
+      expect(body.signals.carried).toEqual([]);
+    });
+
+    it('B-52, switch off: the carry names its day while today is open, and nothing once today is done', async () => {
+      delete process.env[METHOD];
+      seed({ mon: { status: 'completed' } });
+      at(TUE);
+      const set = await post('/tasks/tue/mark-missed');
+      expect(set.body.signals.notice).toBe('carried');
+      expect(set.body.signals.carried).toMatchObject([{ fromTaskId: 'tue', toTaskId: 'wed' }]);
+      expect((await reconcile()).signals.notice).toBe('carried');
+      const stored = row('wed').detailedSteps;
+      complete('tue');
+      const body = await reconcile();
+      expect(body.signals.notice).toBeNull();
+      expect(body.signals.carried).toEqual([]);
+      expect(row('wed').detailedSteps).toBe(stored);
+    });
+
     it('comes before yesterday\'s line, even one naming a receiving day', async () => {
       seed({ mon: { steps: [step('mon draft', 1, 20, 'drafting'), step('mon notes', 2, 10, 'review')] }, tue: { steps: letGo('tue talk') }, wed: { steps: day('wed draft', 'drafting') } });
       at(TUE);

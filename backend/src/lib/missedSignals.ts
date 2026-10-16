@@ -219,8 +219,11 @@ export function buildSignals(input: SignalInput): MissedSignals {
   const today = ordered.find((day) => day.date === input.today) ?? null;
   const todayOpenPractice = today !== null && today.kind === 'planned';
 
-  // Carried: stored carries, from the moment they are stored until the receiving day closes (ND-18).
-  const stored: Array<CarriedEarlier | PlannedCarry> = [...input.written, ...input.plan.alreadyCarried];
+  // Carried: stored carries, from the moment they are stored until the receiving day closes (ND-18). B-52 (MR-37): a
+  // carry whose source day is done was done there, so it names no receiving day, in any switch state.
+  const stored: Array<CarriedEarlier | PlannedCarry> = [...input.written, ...input.plan.alreadyCarried].filter(
+    (move) => dayById.get(move.fromTaskId)?.kind !== 'done'
+  );
   const seen = new Set<string>();
   const carried: CarriedSignal[] = [];
   for (const move of stored) {
@@ -305,7 +308,7 @@ const byPriority = (a: CarriedStep, b: CarriedStep) =>
  */
 function methodLine(
   input: SignalInput,
-  outcomes: readonly DayOutcome[],
+  allOutcomes: readonly DayOutcome[],
   ctx: {
     stored: ReadonlyArray<CarriedEarlier | PlannedCarry>;
     practice: readonly DayClassification[];
@@ -313,6 +316,10 @@ function methodLine(
     isOpen: (date: string) => boolean;
   }
 ): LineSignal | null {
+  // B-50, B-52 (MR-36, MR-37): a source day that is done names no receiving day; its moved step, reorder copy or
+  // continue marker is ignored. A carry source keeps its outcome while the marker is stored, so it is left out here.
+  const doneIds = new Set(input.days.filter((day) => day.kind === 'done').map((day) => day.taskId));
+  const outcomes = allOutcomes.filter((item) => !doneIds.has(item.taskId));
   const outcomeOf = new Map(outcomes.map((item) => [item.taskId, item]));
   const dateOf = new Map(input.days.map((day) => [day.taskId, day.date]));
   const rows = [...(input.stored ?? [])]
