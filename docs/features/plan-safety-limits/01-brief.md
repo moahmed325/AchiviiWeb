@@ -1,6 +1,6 @@
 # Plan safety limits — Brief
 
-**Status:** DRAFT
+**Status:** DIRECTION CHOSEN
 **Date:** 2026-10-17
 **Links:** `docs/backlog.md` B-62; `docs/features/weekly-update/decisions.md` WU-23, WU-25 (6), WU-29; weekly-update M1.1 report section 7 (`docs/features/weekly-update/milestones/m1.1-check-the-code.md`); `docs/decisions.md` ND-5, ND-21; `docs/architecture/plan-v2.md`
 **Solves:** B-62
@@ -49,7 +49,7 @@ Targets clamped in code (A), and sessions checked through structured load fields
 Put the numbers in the roadmap and week prompts and check nothing. **Lost:** this is guidance, not a limit. It's the same "told, not checked" gap WU-29 already flags. It's only good as a stopgap (below).
 
 ## 7. Chosen direction
-Not chosen yet. I recommend C, with the stopgap below shipped first. Agreed by Mo on —.
+Option C: limits on both the roadmap targets and the week sessions, through one shared limits module, after the stopgap (B-63, shipped 2026-10-17). It is the only option that limits both what the plan aims for and what a day asks, and the weekly update needs the same module for its "highest safe step" (WU-23). Mo left the choice to the review chat on 2026-10-17 ("do what you think is best"). The numbers in section 9 are not decided: the feature definition proposes them and Mo confirms each one before any milestone starts.
 
 ## 8. Limits
 **In scope:** run10k and recomp; custom goals whose steps are high-load (see question 2); the 12 roadmap targets; every week the week call writes; a single limits module the weekly update can call.
@@ -64,7 +64,9 @@ Not chosen yet. I recommend C, with the stopgap below shipped first. Agreed by M
 5. **Calories.** Deficit 250 to 600 kcal a day as before, or 250 to 500 to match the recomp method? A floor on daily intake (for example never below 1,500 kcal for men and 1,200 for women; that needs sex or weight, which we don't ask for), or a cap on rate of loss (for example at most 1% of body weight a week)?
 6. **Lifting, weeks 1 to 3.** At most 80% of 1RM as before? Reps in reserve: at least 3 in weeks 1 to 3, the method's range from week 4 (decided, PSL-2). A cap on weekly hard sets per muscle (the method says 10 to 20)?
 7. **When a limit is broken:** code lowers the number (targets: yes), the model retries, or the week fails with the honest 503? For sessions I recommend retry, then a code fix where there is a number, else fail.
-8. **Goals already stored:** clamp their roadmap targets on read too (like the old clamps), or only from the next write?
+8. **Goals already stored:** clamp their roadmap targets on read too (like the old clamps), or only from the next write? Their stored weekly tests too (PSL-3)?
+9. **The stopgap's false alarms:** after a week or two in production, read the `[Safety]` lines (outcomes `retry`, `failed`, `test_text`) and fix any pattern that refuses safe wording. A known risk: "max out" can match a non-physical test ("Max out your score"); the roadmap check runs on every goal.
+10. **What the old run10k targets are:** sample stored run10k and recomp roadmaps (time or distance targets, kcal or not) before setting the target limits (section 3, first Guess).
 
 ## 10. Stopgap for live run10k and recomp users (a quick fix, within days)
 **Recommended:** one quick fix in `backend/src/lib/ai/weekPlan.ts`, plus the weeks 1 to 3 test check in `roadmap.ts` (no `planV2.ts`, no `routes/goal.ts`). Because both the create and review paths call `generateWeekPlan`, it protects every week written from the day it ships, including the next week of every existing run10k and recomp goal.
