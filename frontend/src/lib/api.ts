@@ -332,7 +332,7 @@ export async function submitWeeklyReview(
 
 /**
  * Missed sessions M4.1 (ND-4): logs the week's test result without closing the week (`PUT .../test-result`).
- * Throws `ApiError` with the status and the server's `reason` as `code` (`week_closed`, `not_plan_v2`).
+ * Throws `ApiError` with the status and the server's `reason` as `code` (`week_closed`, `week_not_open`, `not_plan_v2`).
  */
 export async function logWeeklyTestResult(
   weekNumber: number,

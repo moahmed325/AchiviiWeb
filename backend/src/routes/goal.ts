@@ -978,7 +978,7 @@ function parseWeekNumber(raw: string | undefined): number | null {
 /** B-67: answers 400 and returns null for a bad week number, before any goal is read. */
 function weekNumberOr400(req: Request, res: Response): number | null {
   const week = parseWeekNumber(req.params.weekNumber);
-  if (week === null) res.status(400).json({ error: 'Week number must be 1 to 12.' });
+  if (week === null) res.status(400).json({ error: `Week number must be 1 to ${TOTAL_WEEKS}.` });
   return week;
 }
 
