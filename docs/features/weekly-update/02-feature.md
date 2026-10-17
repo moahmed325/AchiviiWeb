@@ -83,6 +83,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 | App opened 1 day late | The new week keeps its dates; the day that passed is not offered, never missed. |
 | App opened 4 days late | The plan moves 4 days (counted toward 28); the new week starts today at the same level; no re-test. |
 | App opened 4 days late, 26 days already moved | The plan moves 2 days; the other 2 days are not offered. |
+| A review open in another tab when the week closes automatically | Its reflection is saved onto that week and the modal says so (WU-31). |
 | Test card shown, they dismiss it or go to another screen | Counts as Skip: the week closes as unlogged at once and the new week is written; today is a practice day. |
 | Both switches off | Exactly today's behaviour: targets as planned, no automatic close, no moved dates. |
 | Only `WEEK_CLOSE_ENABLED` on | Weeks close automatically and gaps and breaks move dates; targets stay as planned; no re-test, no restart level; the neutral line shows. |
@@ -126,6 +127,7 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 | Writing the new week | "Getting your next week ready…" |
 | Test not logged before the close | "Did you do last week's test? Log your result to shape next week." Buttons: "Log result", "Skip" |
 | Short gap moved the plan | "Your next week starts today. Your plan now ends on {date}." |
+| A review sent after the week closed automatically | "This week had already closed. Your reflection is saved." |
 | Week could not be written | "Couldn't get your next week ready. Please try again." Button: "Try again" |
 | Update failed, neutral note | "Next week is ready. Your targets stay as planned." |
 | Test not logged | "Last week's test wasn't logged, so we're holding your target. This week starts with a quick re-test so we can adjust." |

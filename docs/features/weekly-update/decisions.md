@@ -186,6 +186,12 @@ How this log works: `docs/templates/decisions.md`.
 **Why:** facts from M1.1's report.
 **Changes:** RULE-2; RULE-8; RULE-11; `03-phases.md`.
 
+### WU-31 — A review that loses to an automatic close keeps its reflection (2026-10-17)
+**Question:** M1.2a review: a review modal open in one tab while another tab's load closes the week automatically gets 409 `week_closed`; the typed reflection was cleared and the modal said "already saved", though the automatic close saved none.
+**Decision:** when the week was closed automatically (`closedBy: 'auto'`) and has no reflection yet, the modal saves the typed reflection onto that week through a small endpoint (behind `WEEK_CLOSE_ENABLED`, only for that case, safe to repeat) and says exactly "This week had already closed. Your reflection is saved." Any other `week_closed` keeps M1.2a's message. Built in M1.2b.
+**Why (Mo):** losing what someone wrote feels bad, and the fix is small.
+**Changes:** section 5; section 6 (copy); `03-phases.md` (M1.2b).
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
