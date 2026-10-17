@@ -28,15 +28,13 @@ import { generateRoadmap, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../
 import { activeDaysFor, generateWeekPlan, slotTimeFor, type PlanVariant, type WeekDayPlan } from '../lib/ai/weekPlan.js';
 import {
   dailyTaskRows,
-  phaseGate,
-  readStoredRoadmap,
   roadmapWeekRows,
   storedRoadmap,
 } from '../lib/planV2.js';
 import { makeGoalProfile } from '../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
-import { AUTO_CLOSE_INSIGHT, logWeekClose, saveWeekClose, weekCloseDue, weekScore, writeWeekAfter } from '../lib/weekClose/close.js';
+import { AUTO_CLOSE_INSIGHT, closeAnswer, logWeekClose, saveWeekClose, weekCloseDue, weekScore, writeWeekAfter } from '../lib/weekClose/close.js';
 import { weekCloseEnabled } from '../lib/weekClose/switch.js';
 
 function wantsPlanStream(req: Request): boolean {
@@ -1118,9 +1116,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     if (weekNum !== goal.currentWeek || week?.status !== 'active') return refuse(res, 'week_closed');
 
     const startedAt = Date.now();
-    const stored = readStoredRoadmap(goal);
-    const { sessions, completed, score } = weekScore(goal.dailyTasks);
-    const nextWeek = weekNum + 1;
+    const { sessions, completed } = weekScore(goal.dailyTasks);
 
     const next = await writeWeekAfter(goal, weekNum);
     if (!next) {
@@ -1140,18 +1136,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     // Another close won inside the save (WU-27): nothing of this request was saved.
     if (!saved) return refuse(res, 'week_closed');
     logWeekClose(goal, weekNum, 'review', new Date(), user.timezone, startedAt);
-    const { review, nextTasks } = saved;
-
-    const gate = stored ? phaseGate(stored, weekNum, score) : null;
-    res.json({
-      review,
-      scorePercentage: score,
-      nextWeekNumber: nextWeek <= TOTAL_WEEKS ? nextWeek : null,
-      nextWeekTasks: nextTasks,
-      isMilestoneCheckpoint: Boolean(gate),
-      milestoneGateTransition: gate,
-      testResult: sanitizedTestResult,
-    });
+    res.json(closeAnswer(goal, weekNum, saved, sanitizedTestResult));
   } catch (err: any) {
     console.error('[GoalRouter] Weekly review error:', err);
     res.status(500).json({ error: 'Failed to process weekly review.' });
@@ -1235,21 +1220,7 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
       return;
     }
     logWeekClose(goal, weekNum, 'auto', now, user.timezone, startedAt);
-
-    const { score } = weekScore(weekTasks);
-    const stored = readStoredRoadmap(goal);
-    const gate = stored ? phaseGate(stored, weekNum, score) : null;
-    res.json({
-      due: true,
-      closedBy: 'auto',
-      review: saved.review,
-      scorePercentage: score,
-      nextWeekNumber: lastWeek ? null : weekNum + 1,
-      nextWeekTasks: saved.nextTasks,
-      isMilestoneCheckpoint: Boolean(gate),
-      milestoneGateTransition: gate,
-      testResult: week.testResult ?? null,
-    });
+    res.json({ due: true, closedBy: 'auto', ...closeAnswer(goal, weekNum, saved, week.testResult ?? null) });
   } catch (err: any) {
     console.error('[GoalRouter] Week close error:', err);
     res.status(500).json({ error: 'Failed to close the week.' });

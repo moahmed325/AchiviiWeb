@@ -4,7 +4,7 @@ import { TOTAL_WEEKS } from '../ai/roadmap.js';
 import { slotTimeFor, type WeekDayPlan } from '../ai/weekPlan.js';
 import { dayCloseInstant } from '../missedSessions.js';
 import { getZonedDateString, normalizeTimezone } from '../timezone.js';
-import { readRoutine, saveWeekTasks, weekStartFor, writeNextWeek } from '../planV2.js';
+import { phaseGate, readRoutine, readStoredRoadmap, saveWeekTasks, weekStartFor, writeNextWeek } from '../planV2.js';
 import { ensureRecoveryProfile } from '../recovery/store.js';
 import { methodRecoveryEnabled } from '../recovery/switch.js';
 
@@ -84,6 +84,7 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
   const nextWeek = weekNumber + 1;
   const closedAt = input.now ?? new Date();
 
+  // About eight round trips after the model call; Prisma's default of 5 s is too tight for a slow database.
   return prisma.$transaction(async (tx) => {
     const won = await tx.roadmapWeek.updateMany({
       where: { goalId: goal.id, weekNumber, status: 'active' },
@@ -116,7 +117,26 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
       await tx.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek } });
     }
     return { review, nextTasks };
-  });
+  }, { timeout: 15_000 });
+}
+
+/**
+ * The answer to a saved close, the review's shape (R-3): the same fields for a review and an automatic close, so the
+ * two can't drift. `testResult` is what the review was sent, or the week's stored result for an automatic close.
+ */
+export function closeAnswer(goal: ClosingGoal, weekNumber: number, saved: SavedClose, testResult: unknown) {
+  const { score } = weekScore(goal.dailyTasks);
+  const stored = readStoredRoadmap(goal);
+  const gate = stored ? phaseGate(stored, weekNumber, score) : null;
+  return {
+    review: saved.review,
+    scorePercentage: score,
+    nextWeekNumber: weekNumber + 1 <= TOTAL_WEEKS ? weekNumber + 1 : null,
+    nextWeekTasks: saved.nextTasks,
+    isMilestoneCheckpoint: Boolean(gate),
+    milestoneGateTransition: gate,
+    testResult,
+  };
 }
 
 /**
@@ -141,6 +161,8 @@ export function weekCloseDue(
 export function gapDays(goalStart: Date, closedWeek: number, now: Date, timezone?: string | null): number {
   const start = weekStartFor(goalStart, closedWeek + 1);
   if (isNaN(start.getTime())) return 0;
+  // Relies on Goal.startDate being the local start date stored at UTC midnight (resolveGoalStart), as weekLayout reads
+  // it too; this must change if that ever changes (M1.4 shifts startDate).
   const plannedStart = start.toISOString().slice(0, 10);
   const today = getZonedDateString(now, normalizeTimezone(timezone));
   const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${plannedStart}T00:00:00Z`)) / 86_400_000);

@@ -350,6 +350,30 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     expect(closed.weeks[0].closedBy).toBe('auto');
   });
 
+  it('a close and a review answer with the same fields for the same week (closeAnswer)', async () => {
+    seed(1);
+    const reviewed = await review(1, { reflection: '' });
+    db.reset();
+    closeOn();
+    seed(1);
+    const closed = await closeWeek();
+    const { due, closedBy, ...shared } = closed.body;
+    expect({ due, closedBy }).toEqual({ due: true, closedBy: 'auto' });
+    expect(Object.keys(shared)).toEqual(Object.keys(reviewed.body));
+    const withoutReview = ({ review: _review, ...rest }: Record<string, unknown>) => rest;
+    expect(withoutReview(shared)).toEqual(withoutReview(reviewed.body));
+    const { id: _a, aiAdaptationInsight: _b, ...reviewRow } = reviewed.body.review;
+    const { id: _c, aiAdaptationInsight: _d, ...closeRow } = shared.review;
+    expect(closeRow).toEqual(reviewRow);
+  });
+
+  it('the save runs with a 15 s transaction timeout', async () => {
+    closeOn();
+    seed(1);
+    await closeWeek();
+    expect(db.prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), { timeout: 15_000 });
+  });
+
   it('check mode answers due, the week and whether its test is logged, and closes nothing', async () => {
     closeOn();
     seed(1);
