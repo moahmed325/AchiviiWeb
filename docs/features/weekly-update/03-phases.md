@@ -12,7 +12,7 @@
 | M1.2a | Server week close, the migration, the review-route guard (B-59) | AC-7, AC-16 (failed write), AC-17, AC-19 (part) | DONE 2026-10-17 | [m1.2a](milestones/m1.2a-server-week-close.md) |
 | M1.2b | The close in the app: before reconcile, "getting ready", the test card, the line once | AC-6 | DONE 2026-10-17 | [m1.2b](milestones/m1.2b-close-in-the-app.md) |
 | M1.3 | Moved days in every date | — | MOVED to M1.4 (WU-30) | |
-| M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | READY | [m1.4](milestones/m1.4-moved-dates-and-gaps.md) |
+| M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | DONE 2026-10-17 | [m1.4](milestones/m1.4-moved-dates-and-gaps.md) |
 | M1.5 | Breaks, dates only, and the first-week-back note | AC-9 (part), AC-10 (dates), AC-12, AC-18 (length) | NOT STARTED | |
 | O1 | Mo: turn on `WEEK_CLOSE_ENABLED` in Render, then run the P1 production checks | — | NOT STARTED | |
 | M2.1 | Light weekly tests: 10 pathways and the custom-goal rule | AC-20 | NOT STARTED | |
