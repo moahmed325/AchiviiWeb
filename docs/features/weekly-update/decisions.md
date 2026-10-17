@@ -198,6 +198,12 @@ How this log works: `docs/templates/decisions.md`.
 **Why (Mo):** an accidental Esc shouldn't throw away a result; "Skip" stays one tap away.
 **Changes:** RULE-8; CLAUDE.md and Design.md (M1.2b).
 
+### WU-33 — Not-offered days, gaps of 7 or more, and the score (2026-10-17)
+**Question:** M1.4's prompt: which day kind a not-offered day gets (WU-28 (1)), what M1.4 does with a gap of 7 days or more before M1.5 exists, and how a week's score treats days the person never saw.
+**Decision:** (1) A not-offered day gets its own kind, `not_offered`. Every consumer treats it like `rest`, except that the in-order queue counts its steps as not done, so they queue into the days left. (2) M1.4 moves the plan for any gap of 2 days or more (up to the 28-day limit), 7+ included, as RULE-14 does for breaks. M1.5 adds what a break adds on top. Because a 7+ day break would otherwise get a full-load first week back (WU-29, a safety point for run10k and recomp), `WEEK_CLOSE_ENABLED` (O1) stays off until M1.5 is merged as well as P1's other milestones. (3) A week's score leaves not-offered days out of the planned count. A week whose every day is not offered has no score: `executionScore` stays empty, the review row stores 0 of 0 (its columns can't be empty), and every screen shows it as not counted, never 0%, with no benchmark line. (4) The "plan now ends on {date}" line is stored with `{date}` as written; the app fills it in the viewer's locale, like its other dates, with the year only when it isn't this year.
+**Why (Mo):** a day nobody was shown can't be missed or lower a score; moving dates for every gap keeps one rule; the safety point means no automatic close before breaks are handled.
+**Changes:** RULE-13; `03-phases.md` (M1.4, O1); M1.4's prompt.
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
