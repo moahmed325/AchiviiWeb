@@ -359,6 +359,31 @@ describe('reconcile with days not offered (RULE-17, WU-33 (1))', () => {
     }
   });
 
+  it('a day not offered holding the queue records stays not offered: no miss, no line, no signal, no swap or carry-now choice', async () => {
+    closeOn();
+    seed({ movedDays: 28, startDate: shifted(START, 28), targetDate: shifted(TARGET, 28) });
+    expect((await closeWeek('2026-11-06T08:00:00Z')).status).toBe(200);
+    expect((await reconcile('2026-11-06T08:01:00Z')).status).toBe(200);
+    // The run stored the leftovers' records on Monday's lesson (the queue's first step), a day not offered.
+    const monday = db.tasksOf(3).find((t) => t.date === '2026-11-02')!;
+    expect(monday.notOffered).toBe(true);
+    expect(monday.detailedSteps).toContain('toNextWeek');
+
+    // The next open (Saturday), Friday done: Monday is still not offered, and nothing about it is offered or said.
+    db.tasksOf(3).find((t) => t.date === '2026-11-06')!.status = 'completed';
+    const { body } = await reconcile('2026-11-07T08:00:00Z');
+    const notOffered = db.tasksOf(3).filter((t) => t.notOffered && !t.isRestDay).map((t) => t.id);
+    expect(body.days.filter((d: { taskId: string }) => notOffered.includes(d.taskId)).map((d: { kind: string }) => d.kind)).toEqual(['not_offered', 'not_offered', 'not_offered']);
+    expect(body.gap).toBeNull();
+    expect(body.carry.outcomes.filter((o: { taskId: string }) => notOffered.includes(o.taskId))).toEqual([]);
+    expect(body.signals.line ?? null).toBeNull();
+    expect(body.signals.dropped).toEqual([]);
+    expect(body.signals.swapOffer).toBeNull();
+    expect(body.carry.held).toEqual([]);
+    expect(body.carry.choices.held).toEqual([]);
+    expect((body.carry.choices.today?.swapWith ?? []).filter((id: string) => notOffered.includes(id))).toEqual([]);
+  });
+
   it('classifyDays, findOpenGap and weekCounts: a day not offered is like a rest day', () => {
     const now = new Date('2026-10-10T12:00:00Z');
     const task = (id: string, date: string, over: Record<string, unknown> = {}) => ({

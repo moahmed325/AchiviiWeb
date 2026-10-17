@@ -1674,4 +1674,26 @@ describe('Today after a move (weekly update M1.4)', () => {
     // Six practice days less the two not offered.
     expect(screen.getByText('0 of 4 practice days done')).toBeInTheDocument();
   });
+
+  // The review's change 2: tapping a day not offered opens what a rest day opens, never a step with a done action (its
+  // in-order steps were queued onto later days). Change 1: one holding the queue's toNextWeek records reads the same.
+  it('tapping a day not offered (even one holding toNextWeek records) opens the rest-day view', async () => {
+    const records = JSON.stringify([
+      { stepNumber: 1, title: 'Lesson 100', durationMinutes: 20, instructions: 'Do it.', priority: 1, kind: 'lesson', toNextWeek: [{ taskId: 't1', date: isoDay(-2), step: { title: 'Lesson 104', kind: 'lesson' } }] },
+    ]);
+    mocked.fetchActiveGoal.mockResolvedValue({ ...MOVED_GOAL, dailyTasks: moved.map((t, i) => (i === 0 ? { ...t, title: 'Lesson 100', detailedSteps: records } : t)) } as unknown as Goal);
+    await renderToday();
+    const days = screen.getAllByRole('button', { hidden: true, name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d/ });
+    expect(days[0]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
+    await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
+    const card = screen.getByRole('region', { name: 'Lesson 100' });
+    expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
+    expect(within(card).getByText('Rest day')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Log recovery complete' })).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
+    expect(within(card).queryByText('Do it.')).not.toBeInTheDocument();
+  });
 });

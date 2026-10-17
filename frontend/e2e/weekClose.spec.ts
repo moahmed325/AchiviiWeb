@@ -166,4 +166,42 @@ test.describe('The week close in the app (M1.2b)', () => {
     expect(reflection).toEqual({ reflection: 'Kept it small' });
     await evidence(page, info, 'lost-race');
   });
+
+  // Weekly update M1.4 (RULE-13, RULE-14, section 6, WU-33 (4)): back 4 days after week 2 should have started, the
+  // close moves the plan 4 days, so week 2 starts today; Today shows the line with the moved end date and today's step.
+  test('a 4-day gap: the plan moves, the line names the new end date, today is week 2 day 1', async ({ page }, info) => {
+    const iso = (offset: number) => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() + offset);
+      return date.toISOString().slice(0, 10);
+    };
+    const moved = after();
+    // Week 2 starts today (plan day 8), so "Day 8 of 90": the end is 83 days on, and day 90 the day before it.
+    const goal = {
+      ...moved,
+      startDate: `${iso(-7)}T00:00:00.000Z`,
+      targetDate: `${iso(83)}T00:00:00.000Z`,
+      dailyTasks: moved.dailyTasks.map((t, index) => ({ ...t, date: iso(index), title: index === 0 ? 'Write the one-page product brief' : t.title })),
+      weeklyReviews: moved.weeklyReviews.map((r) => ({ ...r, aiAdaptationInsight: 'Your next week starts today. Your plan now ends on {date}.' })),
+    };
+    await mockApi(page, { goal: before(), closeWeek: { check: { due: true, weekNumber: 1, testLogged: true }, goalAfterClose: goal } });
+    await signIn(page);
+    await page.goto('/');
+
+    const end = await page.evaluate((key) => {
+      const [y, m, d] = key.split('-').map(Number);
+      const date = new Date(Date.UTC(y, m - 1, d));
+      return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC', ...(y === new Date().getFullYear() ? {} : { year: 'numeric' }) });
+    }, iso(82));
+    await expect(page.getByText(`Your next week starts today. Your plan now ends on ${end}.`)).toBeVisible();
+    await expect(page.getByText('{date}', { exact: false })).toHaveCount(0);
+    await expect(page.getByLabel('Day 8 of 90')).toBeVisible();
+    const step = page.getByRole('region', { name: 'Write the one-page product brief' });
+    await expect(step.getByText("Today's step")).toBeVisible();
+    await settled(page);
+    expect(await axeViolations(page), 'axe with the moved-plan line').toEqual([]);
+    if (process.env.EVIDENCE) {
+      await page.screenshot({ path: `../docs/features/weekly-update/milestones/m1.4-evidence/moved-line-${info.project.name}.png`, scale: 'css' });
+    }
+  });
 });

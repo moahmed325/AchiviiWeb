@@ -344,8 +344,11 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   // B-50, B-52: a continue line, a reorder's copy or a moved step whose day is done is not shown; the day reads as
   // `visibleDay` shows it (its minutes, and its text when the hidden step led it). Actions still use `task` as stored.
   const doneDays = useMemo(() => doneDaysOf(goal.dailyTasks), [goal.dailyTasks]);
-  const task = selectTodayTask(tasks, now, selectedId, timezone);
-  const shown = task ? visibleDay(task, doneDays) : null;
+  const selected = selectTodayTask(tasks, now, selectedId, timezone);
+  // Weekly update M1.4 (WU-13, WU-33): a day not offered opens exactly as a rest day does: no steps, no 10-minute
+  // version, no Start (its in-order steps were queued onto later days, so doing it here would do them twice).
+  const task = selected?.notOffered && !selected.isRestDay ? { ...selected, isRestDay: true } : selected;
+  const shown = task ? (task.notOffered ? { ...visibleDay(task, doneDays), steps: [], minimumVersion: null, durationMinutes: 0 } : visibleDay(task, doneDays)) : null;
   const steps = shown?.steps ?? [];
   const intention = parseIntention(shown?.implementationIntention);
   const week = currentRoadmapWeek(goal);

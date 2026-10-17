@@ -522,5 +522,8 @@ describe('journeyAdapter after a move (weekly update M1.4)', () => {
     const step = mapTaskToStep(day(15, { notOffered: true }), 17, '2026-10-11');
     expect(step.isRestDay).toBe(true);
     expect(mapTaskToStep(day(16), 17, '2026-10-11').isRestDay).toBe(false);
+    // One holding the in-order queue's toNextWeek records reads the same (review change 1).
+    const records = JSON.stringify([{ stepNumber: 1, title: 'Lesson 100', kind: 'lesson', toNextWeek: [{ taskId: 'd15', date: '2026-10-09', step: { title: 'Lesson 104' } }] }]);
+    expect(mapTaskToStep(day(15, { notOffered: true, detailedSteps: records }), 17, '2026-10-11')).toMatchObject({ isRestDay: true, status: 'active' });
   });
 });
