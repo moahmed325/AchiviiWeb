@@ -191,7 +191,7 @@ test.describe('The week close in the app (M1.2b)', () => {
     const end = await page.evaluate((key) => {
       const [y, m, d] = key.split('-').map(Number);
       const date = new Date(Date.UTC(y, m - 1, d));
-      return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC', ...(y === new Date().getFullYear() ? {} : { year: 'numeric' }) });
+      return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC', ...(y === new Date().getUTCFullYear() ? {} : { year: 'numeric' }) });
     }, iso(82));
     await expect(page.getByText(`Your next week starts today. Your plan now ends on ${end}.`)).toBeVisible();
     await expect(page.getByText('{date}', { exact: false })).toHaveCount(0);

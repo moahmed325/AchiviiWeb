@@ -8,7 +8,8 @@ export const PLAN_END_TOKEN = '{date}';
 
 /**
  * The plan's end as it is now: day 90, `targetDate` minus one day, read as a UTC date (it is stored at UTC midnight).
- * In the viewer's locale like the app's other dates, with the year only when it isn't this year. Null when unreadable.
+ * In the viewer's locale like the app's other dates, with the year only when it isn't this year (both years read in
+ * UTC). Null when unreadable.
  * `locale` is for tests; the app passes none (the viewer's own).
  */
 export function planEndLabel(goal: Pick<Goal, 'targetDate'>, now: Date, locale?: string): string | null {
@@ -16,7 +17,8 @@ export function planEndLabel(goal: Pick<Goal, 'targetDate'>, now: Date, locale?:
   if (Number.isNaN(target.getTime())) return null;
   const end = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate() - 1));
   const options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', timeZone: 'UTC' };
-  if (end.getUTCFullYear() !== now.getFullYear()) options.year = 'numeric';
+  // Review fix 5: both years on one clock (UTC), as the end date is read.
+  if (end.getUTCFullYear() !== now.getUTCFullYear()) options.year = 'numeric';
   return end.toLocaleDateString(locale, options);
 }
 

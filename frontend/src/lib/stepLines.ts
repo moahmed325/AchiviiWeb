@@ -58,10 +58,11 @@ export function stepKey(step: CameFrom, dayId: string): string {
 }
 
 /** The completed days and the steps each holds as stored (B-55). */
-export function doneDaysOf(tasks: readonly Pick<DailyTask, 'id' | 'status' | 'detailedSteps'>[] | null | undefined): DoneDays {
+export function doneDaysOf(tasks: readonly Pick<DailyTask, 'id' | 'status' | 'detailedSteps' | 'notOffered'>[] | null | undefined): DoneDays {
   const done = new Map<string, Set<string>>();
   for (const task of tasks ?? []) {
-    if (task.status !== 'completed') continue;
+    // Weekly update M1.4: a day not offered is never done, as the backend never classifies it done (`classifyDays`).
+    if (task.status !== 'completed' || task.notOffered) continue;
     done.set(task.id, new Set((parseSteps(task.detailedSteps) as CameFrom[]).map((step) => stepKey(step, task.id))));
   }
   return done;

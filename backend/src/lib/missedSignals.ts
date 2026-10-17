@@ -21,6 +21,8 @@ export interface CountableTask {
   isKeySession: boolean;
   /** M2.0 (ND-3): the day was completed only through the 10-minute version. */
   usedMinimumVersion?: boolean | null;
+  /** Weekly update WU-13 (M1.4): the day passed before its week was written. */
+  notOffered?: boolean;
 }
 
 export interface WeekCounts {
@@ -71,7 +73,7 @@ export function weekCounts(
 ): WeekCounts {
   const kindOf = new Map(input.days.map((day) => [day.taskId, day.kind]));
   // WU-13, WU-33: days not offered count for nothing here, like rest days.
-  const practice = input.tasks.filter((task) => task.weekNumber === weekNumber && !task.isRestDay && kindOf.get(task.id) !== 'not_offered');
+  const practice = input.tasks.filter((task) => task.weekNumber === weekNumber && !task.isRestDay && task.notOffered !== true && kindOf.get(task.id) !== 'not_offered');
   const ids = new Set(practice.map((task) => task.id));
   const done = practice.filter((task) => kindOf.get(task.id) === 'done');
   const byMinimum = (task: CountableTask) => task.usedMinimumVersion === true;

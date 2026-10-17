@@ -1691,9 +1691,38 @@ describe('Today after a move (weekly update M1.4)', () => {
     const card = screen.getByRole('region', { name: 'Lesson 100' });
     expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
     expect(within(card).getByText('Rest day')).toBeInTheDocument();
-    expect(within(card).getByRole('button', { name: 'Log recovery complete' })).toBeInTheDocument();
+    // Review fix 1: nothing to complete on a day not offered.
+    expect(within(card).queryByRole('button', { name: 'Log recovery complete' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Mark not done' })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
     expect(within(card).queryByText('Do it.')).not.toBeInTheDocument();
+  });
+
+  // Review fix 1: a day not offered that was marked complete (before the fix) never hides the step the queue moved from
+  // it, and shows no practice text or completion button.
+  it('a completed day not offered does not hide its moved step; its rest view has no practice text', async () => {
+    const lesson = { stepNumber: 1, title: 'Lesson 100', durationMinutes: 20, instructions: 'Do lesson 100.', priority: 1, kind: 'lesson' };
+    const days = moved.map((t, i) =>
+      i === 0
+        ? { ...t, status: 'completed' as const, title: 'Lesson 100', detailedSteps: JSON.stringify([lesson]), whyToday: 'Why Monday matters', implementationIntention: 'When: 7am | Where: desk | Action: lesson' }
+        : i === 2
+          ? { ...t, detailedSteps: JSON.stringify([{ ...lesson, shiftedFrom: { taskId: t.id.replace(/\d+$/, '1'), date: moved[0].date, replaced: [] } }, { stepNumber: 2, title: 'Review notes', durationMinutes: 10, instructions: 'Read them.', priority: 2, kind: 'notes' }]) }
+          : t,
+    );
+    mocked.fetchActiveGoal.mockResolvedValue({ ...MOVED_GOAL, dailyTasks: days } as unknown as Goal);
+    await renderToday();
+    // Today (Wednesday) still shows the lesson moved from Monday.
+    expect(within(screen.getByRole('region', { name: 'Easy base run' })).getByText('Lesson 100')).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
+    await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
+    const card = screen.getByRole('region', { name: 'Lesson 100' });
+    expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
+    expect(within(card).queryByText('Why Monday matters')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Implementation intention/ })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: /Mark not done|Log recovery complete|Mark complete/ })).not.toBeInTheDocument();
+    expect(within(card).queryByText('Rest logged')).not.toBeInTheDocument();
   });
 });

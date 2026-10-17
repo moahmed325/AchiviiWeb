@@ -24,6 +24,14 @@ describe('the plan end in the moved-plan line', () => {
     expect(planEndLabel(goal, NOW, 'en-US')).toBe('December 23');
   });
 
+  it('compares years on one clock near New Year (UTC), whatever the device time zone', () => {
+    const march = { targetDate: '2027-03-02T00:00:00.000Z' } as Pick<Goal, 'targetDate'>;
+    // Just after midnight UTC on 1 January 2027 (still 2026 in the Americas): this year is 2027, so no year.
+    expect(planEndLabel(march, new Date('2027-01-01T00:30:00Z'), 'en-US')).toBe('March 1');
+    // Just before it: still 2026, so the year shows.
+    expect(planEndLabel(march, new Date('2026-12-31T23:30:00Z'), 'en-US')).toBe('March 1, 2027');
+  });
+
   it('reads the stored date as a UTC date, so no time zone shifts it', () => {
     // 1 January at UTC midnight is still 31 December the evening before in New York; day 90 must stay 31 December.
     const newYear = { targetDate: '2027-01-01T00:00:00.000Z' } as Pick<Goal, 'targetDate'>;

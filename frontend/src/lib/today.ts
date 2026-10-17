@@ -19,6 +19,14 @@ export function isRestLike(task: Pick<DailyTask, 'isRestDay' | 'notOffered'>): b
   return Boolean(task.isRestDay || task.notOffered);
 }
 
+/**
+ * Weekly update M1.4 (review fix 1): a day not offered as Today shows it, a rest day with no practice in it: no steps,
+ * no 10-minute version, no minutes, no why-today or intention. Actions read the stored task (`useTaskActions`).
+ */
+export function notOfferedAsRest<T extends DailyTask>(task: T): T {
+  return { ...task, isRestDay: true, detailedSteps: '[]', minimumVersion: null, durationMinutes: 0, whyToday: null, implementationIntention: '' };
+}
+
 export function isToday(task: Pick<DailyTask, 'date'>, now: Date, timezone?: string): boolean {
   return task.date === todayKey(now, timezone);
 }

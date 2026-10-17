@@ -30,6 +30,27 @@ export const AUTO_CLOSE_INSIGHT = 'Next week is ready. Your targets stay as plan
  */
 export const MOVED_INSIGHT = 'Your next week starts today. Your plan now ends on {date}.';
 
+/**
+ * M1.4 review fix 3: the line when the limit let the plan move only part of the gap (0 < days < gap), so the week did
+ * not start today. `{date}` is stored as written, as above.
+ */
+export const PARTIAL_MOVE_INSIGHT = 'Your plan now ends on {date}.';
+
+/** M1.4 review fix 2: a review of a week whose every practice day was not offered (no score). */
+export const NOT_OFFERED_WEEK_INSIGHT = 'No practice days were offered this week.';
+
+/** The automatic close's line (section 6): the neutral line, or the moved-plan line when the plan moved. */
+export function autoCloseInsight(move: WeekMove | null): string {
+  if (!move || move.days <= 0) return AUTO_CLOSE_INSIGHT;
+  return move.days < move.gap ? PARTIAL_MOVE_INSIGHT : MOVED_INSIGHT;
+}
+
+/** The review's own line: "N of M sessions done.", or the not-offered line for a week with no score. */
+export function reviewInsight(tasks: readonly DailyTask[]): string {
+  const { sessions, completed, score } = weekScore(tasks);
+  return score === null ? NOT_OFFERED_WEEK_INSIGHT : `${completed} of ${sessions} sessions done.`;
+}
+
 /** RULE-15 (WU-5): moved days never go above this for a plan. */
 export const MOVE_LIMIT_DAYS = 28;
 

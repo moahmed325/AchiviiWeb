@@ -14,6 +14,7 @@ import {
   isClosingStretchActive,
   isRestLike,
   missNotice,
+  notOfferedAsRest,
   shortOnTimeOffer,
   parseIntention,
   parseTaskNotes,
@@ -345,16 +346,17 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   // `visibleDay` shows it (its minutes, and its text when the hidden step led it). Actions still use `task` as stored.
   const doneDays = useMemo(() => doneDaysOf(goal.dailyTasks), [goal.dailyTasks]);
   const selected = selectTodayTask(tasks, now, selectedId, timezone);
-  // Weekly update M1.4 (WU-13, WU-33): a day not offered opens exactly as a rest day does: no steps, no 10-minute
-  // version, no Start (its in-order steps were queued onto later days, so doing it here would do them twice).
-  const task = selected?.notOffered && !selected.isRestDay ? { ...selected, isRestDay: true } : selected;
-  const shown = task ? (task.notOffered ? { ...visibleDay(task, doneDays), steps: [], minimumVersion: null, durationMinutes: 0 } : visibleDay(task, doneDays)) : null;
+  // Weekly update M1.4 (WU-13, WU-33): a day not offered opens as a rest day does, with nothing to start or complete
+  // (its in-order steps were queued onto later days, so doing it here would do them twice).
+  const task = selected?.notOffered ? notOfferedAsRest(selected) : selected;
+  const shown = task ? visibleDay(task, doneDays) : null;
   const steps = shown?.steps ?? [];
   const intention = parseIntention(shown?.implementationIntention);
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now, timezone);
   const journeyPercent = Math.min(100, Math.max(2, Math.round((day / 90) * 100)));
-  const done = task?.status === 'completed';
+  // A day not offered is never done here (the server never classifies it done).
+  const done = task?.status === 'completed' && !task.notOffered;
   const nextTask = task ? findNextTask(tasks, task.id) : null;
   const shownNext = nextTask ? visibleDay(nextTask, doneDays) : null;
   const parsedNotes = parseTaskNotes(task?.notes);
@@ -629,16 +631,18 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                     Start the 10-minute version
                   </Button>
                 )}
-                <Button
-                  variant={task.isRestDay && !done ? 'primary' : 'secondary'}
-                  size={task.isRestDay ? 'lg' : 'md'}
-                  loading={busy}
-                  onClick={onToggle}
-                  leadingIcon={done ? <Check aria-hidden="true" strokeWidth={1.5} className="size-4" /> : undefined}
-                  className="w-full sm:w-auto"
-                >
-                  {done ? 'Mark not done' : task.isRestDay ? 'Log recovery complete' : 'Mark complete'}
-                </Button>
+                {!task.notOffered && (
+                  <Button
+                    variant={task.isRestDay && !done ? 'primary' : 'secondary'}
+                    size={task.isRestDay ? 'lg' : 'md'}
+                    loading={busy}
+                    onClick={onToggle}
+                    leadingIcon={done ? <Check aria-hidden="true" strokeWidth={1.5} className="size-4" /> : undefined}
+                    className="w-full sm:w-auto"
+                  >
+                    {done ? 'Mark not done' : task.isRestDay ? 'Log recovery complete' : 'Mark complete'}
+                  </Button>
+                )}
               </div>
               {shortOnTime && <p className="mt-3 text-small text-text-secondary">The 10-minute version still counts toward this week.</p>}
               <p role="alert" className="mt-3 text-small text-danger empty:hidden">

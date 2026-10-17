@@ -22,7 +22,7 @@ import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
-import { AUTO_CLOSE_INSIGHT, MOVED_INSIGHT, planWeekMove, weekScore } from '../src/lib/weekClose/close.js';
+import { AUTO_CLOSE_INSIGHT, MOVED_INSIGHT, NOT_OFFERED_WEEK_INSIGHT, PARTIAL_MOVE_INSIGHT, planWeekMove, weekScore } from '../src/lib/weekClose/close.js';
 import { classifyDays, findOpenGap } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { weekHandoff } from '../src/lib/recovery/handoff.js';
@@ -227,8 +227,18 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
     expect(db.state.reviews[0].aiAdaptationInsight).toBe(moved > 0 ? MOVED_INSIGHT : AUTO_CLOSE_INSIGHT);
   });
 
-  it('the line is exact', () => {
+  it('the lines are exact', () => {
     expect(MOVED_INSIGHT).toBe('Your next week starts today. Your plan now ends on {date}.');
+    expect(PARTIAL_MOVE_INSIGHT).toBe('Your plan now ends on {date}.');
+    expect(NOT_OFFERED_WEEK_INSIGHT).toBe('No practice days were offered this week.');
+  });
+
+  it('a full move within the limit keeps the moved-plan line (24 moved, a 4-day gap moves all 4)', async () => {
+    seed({ movedDays: 24, startDate: shifted(START, 24), targetDate: shifted(TARGET, 24) });
+    expect((await closeWeek('2026-11-02T08:00:00Z')).status).toBe(200);
+    expect(db.goal().movedDays).toBe(28);
+    expect(notOfferedDates()).toEqual([]);
+    expect(db.state.reviews[0].aiAdaptationInsight).toBe(MOVED_INSIGHT);
   });
 
   it('the limit (RULE-15): 26 already moved and a 4-day gap moves 2; the other 2 days are not offered', async () => {
@@ -238,7 +248,8 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
     expect(db.goal()).toMatchObject({ movedDays: 28, startDate: shifted(START, 28), targetDate: shifted(TARGET, 28) });
     expect(week3()[0].date).toBe('2026-11-02');
     expect(notOfferedDates()).toEqual(['2026-11-02', '2026-11-03']);
-    expect(db.state.reviews[0].aiAdaptationInsight).toBe(MOVED_INSIGHT);
+    // Review fix 3: a part move means the week didn't start today, so only the end date is said.
+    expect(db.state.reviews[0].aiAdaptationInsight).toBe(PARTIAL_MOVE_INSIGHT);
   });
 
   it('the limit used up: 28 moved moves nothing; the whole gap is not offered and the line stays neutral', async () => {
@@ -403,6 +414,9 @@ describe('reconcile with days not offered (RULE-17, WU-33 (1))', () => {
     expect(findOpenGap(days)).toBeNull();
     const counts = weekCounts(3, { days, tasks: tasks.map((t) => ({ ...t, usedMinimumVersion: false })), carry: { alreadyCarried: [], drops: [] } } as never);
     expect(counts).toMatchObject({ practicePlanned: 3, practiceDone: 0, missed: 2, keySessions: 0 });
+    // Review fix 4: the stored flag alone leaves a day out, whatever the day list says.
+    const byFlag = weekCounts(3, { days: days.map((d) => ({ ...d, kind: 'missed' as const })), tasks: tasks.map((t) => ({ ...t, usedMinimumVersion: false })), carry: { alreadyCarried: [], drops: [] } } as never);
+    expect(byFlag).toMatchObject({ practicePlanned: 3, missed: 3 });
   });
 
   it('the handoff: days not offered count as not done for the queue only, never as a gap or no room', () => {
@@ -449,5 +463,13 @@ describe('the score (WU-33 (3))', () => {
     expect(db.week(2)).toMatchObject({ status: 'completed', executionScore: null });
     expect(db.state.reviews[0]).toMatchObject({ tasksPlanned: 0, tasksCompleted: 0, scorePercentage: 0 });
     expect(res.body).toMatchObject({ scorePercentage: 0, isMilestoneCheckpoint: true, milestoneGateTransition: { completedPhase: 'Base', benchmarkMet: null } });
+  });
+
+  it('a review of such a week saves "No practice days were offered this week.", not "0 of 0 sessions done." (review fix 2)', async () => {
+    seed({}, { notOffered: true });
+    const res = await reviewWeek2(atGap(0));
+    expect(res.status).toBe(200);
+    expect(res.body.review).toMatchObject({ tasksPlanned: 0, tasksCompleted: 0, scorePercentage: 0, aiAdaptationInsight: NOT_OFFERED_WEEK_INSIGHT });
+    expect(db.week(2).executionScore).toBeNull();
   });
 });

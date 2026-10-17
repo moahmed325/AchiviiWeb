@@ -34,7 +34,7 @@ import {
 import { makeGoalProfile } from '../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
-import { AUTO_CLOSE_INSIGHT, MOVED_INSIGHT, closeAnswer, logWeekClose, saveWeekClose, weekCloseDue, weekScore, writeWeekAfter } from '../lib/weekClose/close.js';
+import { autoCloseInsight, closeAnswer, logWeekClose, reviewInsight, saveWeekClose, weekCloseDue, writeWeekAfter } from '../lib/weekClose/close.js';
 import { weekCloseEnabled } from '../lib/weekClose/switch.js';
 
 function wantsPlanStream(req: Request): boolean {
@@ -1143,7 +1143,6 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     if (weekNum !== goal.currentWeek || week?.status !== 'active') return refuse(res, 'week_closed');
 
     const startedAt = Date.now();
-    const { sessions, completed } = weekScore(goal.dailyTasks);
 
     // B-61: the week writer is told the result sent with this review, which is saved only after the call.
     const writerGoal = sanitizedTestResult
@@ -1164,7 +1163,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       reflection,
       testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject | null,
       // M1.4 (section 6): a late review that moves the plan keeps its own insight and answer.
-      insight: `${completed} of ${sessions} sessions done.`,
+      insight: reviewInsight(goal.dailyTasks),
       move: next.move,
       now,
     });
@@ -1247,7 +1246,7 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
       by: 'auto',
       written: next.written,
       // RULE-11: week 12 closes with no review row. M1.4 (section 6): a close that moved the plan says so.
-      ...(lastWeek ? {} : { insight: next.move && next.move.days > 0 ? MOVED_INSIGHT : AUTO_CLOSE_INSIGHT }),
+      ...(lastWeek ? {} : { insight: autoCloseInsight(next.move) }),
       move: next.move,
       now,
     });

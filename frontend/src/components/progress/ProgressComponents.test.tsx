@@ -393,7 +393,7 @@ describe('Progress after days not offered (weekly update M1.4)', () => {
       month: 'long',
       day: 'numeric',
       timeZone: 'UTC',
-      ...(new Date().getFullYear() === 2026 ? {} : { year: 'numeric' }),
+      ...(new Date().getUTCFullYear() === 2026 ? {} : { year: 'numeric' }),
     });
     expect(screen.getByText(`Your next week starts today. Your plan now ends on ${end}.`)).toBeInTheDocument();
     expect(screen.queryByText(/\{date\}/)).not.toBeInTheDocument();
