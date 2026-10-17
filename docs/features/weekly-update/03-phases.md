@@ -13,7 +13,8 @@
 | M1.2b | The close in the app: before reconcile, "getting ready", the test card, the line once | AC-6 | DONE 2026-10-17 | [m1.2b](milestones/m1.2b-close-in-the-app.md) |
 | M1.3 | Moved days in every date | — | MOVED to M1.4 (WU-30) | |
 | M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | DONE 2026-10-17 | [m1.4](milestones/m1.4-moved-dates-and-gaps.md) |
-| M1.5 | Breaks, dates only, and the first-week-back note | AC-9 (part), AC-10 (dates), AC-12, AC-18 (length) | NOT STARTED | |
+| M1.5a | Breaks: the length, the first-week-back note, the high-load hold, welcome back | AC-9 (part), AC-10 (dates), AC-18 (length) | READY | [m1.5a](milestones/m1.5a-breaks-first-week-back.md) |
+| M1.5b | Past the limit: the choice card, jumped weeks, the fresh plan | AC-12 | NOT STARTED | |
 | O1 | Mo: turn on `WEEK_CLOSE_ENABLED` in Render, then run the P1 production checks | — | NOT STARTED | |
 | M2.1 | Light weekly tests: 10 pathways and the custom-goal rule | AC-20 | NOT STARTED | |
 | M3.1 | The update call and its checks, on the review path (needs B-62) | AC-1, AC-2, AC-3, AC-8, AC-13, AC-15 | NOT STARTED | |
@@ -67,9 +68,11 @@
 
 **M1.4 Moved dates and gaps.** A move shifts `startDate` and `targetDate` (WU-26); days not offered (never missed, nothing carried, no status effect; the day kind decided in this prompt, WU-28) and short gaps moving the plan within the 28-day limit, with "not offered" when the limit is used up (RULE-13, WU-13). Covers AC-11, AC-16. Checks R-1, R-2, R-5, R-7.
 
-**M1.5 Breaks, dates only.** Break detection and length (RULE-13, WU-18), the plan moving (RULE-14), the limit with the choice card, jumped weeks and the text-only fresh plan (RULE-15, WU-19, WU-24), the welcome-back line, and the return rule's "first week back" note to the week writer (WU-25). For a high-load goal's first week back: the writer's note and the easy line on every hard step (WU-29). Covers AC-12 and the date parts of AC-9, AC-10, AC-18. Checks R-1, R-3, R-5, R-6, R-7.
+**M1.5a Breaks: the first week back.** Split from M1.5 (WU-35). Break detection and length (RULE-13, WU-18), stored as `breakDays`; the return rule's "first week back" note to the week writer (WU-25 (3)); for a high-load goal, the writer's note and the first-week-back line on every hard high-load step (WU-29, WU-35); the welcome-back line. Covers the date parts of AC-9, AC-10, AC-18. Checks R-1, R-2, R-3, R-5, R-7.
 
-**O1.** Not before M1.5 is merged (WU-33: until then a 7+ day break gets a full-load first week back). Mo turns on `WEEK_CLOSE_ENABLED` in Render after a P1 release checklist (written in M1.5's review), then records the production checks here. The checklist includes: the backend (with M1.2a's migration) is deployed before the switch is turned on; a frontend that ships first gets 404 from `/close-week`, which it treats as nothing due (M1.2b review); the `[WeekClose]` log lines show closes by `auto` with their `gapDays`.
+**M1.5b Past the limit.** The choice card when a break goes past the 28-day limit, "Keep going" with jumped weeks (RULE-15, WU-8, WU-19), and the text-only fresh plan (WU-9, WU-24). Its prompt decides what a screen other than Today does while the choice waits, and what happens when the limit's move lands past week 12. The P1 release checklist for O1 is written in its review. Covers AC-12. Checks R-1, R-5, R-6, R-7.
+
+**O1.** Not before M1.5a and M1.5b are merged (WU-33: until then a 7+ day break gets a full-load first week back; WU-35). Mo turns on `WEEK_CLOSE_ENABLED` in Render after a P1 release checklist (written in M1.5b's review), then records the production checks here. The checklist includes: the backend (with M1.2a's migration) is deployed before the switch is turned on; a frontend that ships first gets 404 from `/close-week`, which it treats as nothing due (M1.2b review); the `[WeekClose]` log lines show closes by `auto` with their `gapDays`.
 
 ### P2 Light weekly tests
 
