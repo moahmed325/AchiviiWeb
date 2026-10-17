@@ -9,7 +9,7 @@
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
 | M1.1 | Check the code | — | DONE 2026-10-17 | [m1.1](milestones/m1.1-check-the-code.md) |
-| M1.2a | Server week close, the migration, the review-route guard (B-59) | AC-7, AC-16 (failed write), AC-17, AC-19 (part) | READY | [m1.2a](milestones/m1.2a-server-week-close.md) |
+| M1.2a | Server week close, the migration, the review-route guard (B-59) | AC-7, AC-16 (failed write), AC-17, AC-19 (part) | DONE 2026-10-17 | [m1.2a](milestones/m1.2a-server-week-close.md) |
 | M1.2b | The close in the app: before reconcile, "getting ready", the test card, the line once | AC-6 | NOT STARTED | |
 | M1.3 | Moved days in every date | — | MOVED to M1.4 (WU-30) | |
 | M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | NOT STARTED | |
@@ -61,7 +61,7 @@
 
 **M1.2a Server week close.** First the review route's guard (B-59, every switch state): a conditional update on the week's status and all writes in one transaction after the model call (WU-27). Then, behind `WEEK_CLOSE_ENABLED`, a close endpoint that is safe to repeat and all or nothing (RULE-9), acts only on an `active` week whose last day has closed (RULE-8), records the first-attempt date, can answer "due, test not logged" without closing (for M1.2b's card), writes the week as the review does with the targets as planned, upserts the review row with the neutral line, and logs one `[WeekClose]` line per close. Includes the one migration (M1.1 report section 8, plus `closeLineSeenAt`). Covers AC-7, AC-17, the failed-write part of AC-16, the switch-off part of AC-19. Checks R-1 to R-4, R-7.
 
-**M1.2b The close in the app.** `GoalContext` calls the close before reconcile (RULE-17); "getting ready" on the loading views; the test card on Today with any other action counting as Skip and a closed tab bringing it back (WU-14, WU-28); the neutral line once (`closeLineSeenAt`). Covers AC-6. Checks R-1, R-3, R-4, R-5, R-7.
+**M1.2b The close in the app.** `GoalContext` calls the close before reconcile (RULE-17); "getting ready" on the loading views; the test card on Today with any other action counting as Skip and a closed tab bringing it back (WU-14, WU-28); the neutral line once (`closeLineSeenAt`). A review open in another tab when the automatic close wins: the person's typed reflection must not be lost, and the modal must not say the review was saved (M1.2a review). Covers AC-6. Checks R-1, R-3, R-4, R-5, R-7.
 
 **M1.3** Moved into M1.4 (WU-30).
 
