@@ -108,7 +108,20 @@ export function readRoutine(goal: Pick<Goal, 'routine'>): Required<Pick<RoutineS
   };
 }
 
-function lastWeekResult(testDay: DailyTask | undefined): string {
+/** The logged `RoadmapWeek.testResult` as a line for the week writer, or null when none is stored in a usable shape. */
+function loggedResult(testResult: unknown, testDayNote: string | undefined): string | null {
+  if (!testResult || typeof testResult !== 'object' || Array.isArray(testResult)) return null;
+  const { value, passed, unit, note } = testResult as Record<string, unknown>;
+  if ((typeof value !== 'string' && typeof value !== 'number') || String(value).trim() === '' || typeof passed !== 'boolean') return null;
+  const amount = typeof unit === 'string' && unit.trim() ? `${String(value).trim()} ${unit.trim()}` : String(value).trim();
+  const theirNote = typeof note === 'string' && note.trim() ? note.trim() : testDayNote;
+  return `test logged: ${amount}, ${passed ? 'passed' : 'not passed'}${theirNote ? `; their note: "${theirNote}"` : ''}`;
+}
+
+/** B-61: the logged result first (the review's or a late test's), then the test day's notes. */
+function lastWeekResult(testDay: DailyTask | undefined, testResult: unknown): string {
+  const logged = loggedResult(testResult, testDay?.notes?.trim() || undefined);
+  if (logged) return logged;
   if (!testDay) return 'no test day this week';
   if (testDay.status !== 'completed') return 'the weekly test was not done';
   return testDay.notes?.trim() ? `test done; their note: "${testDay.notes.trim()}"` : 'test done, score not logged';
@@ -193,7 +206,7 @@ export async function writeNextWeek(
     lastWeek: done?.target
       ? {
           target: done.target as unknown as WeekTarget,
-          result: lastWeekResult(finishedTasks.find((task) => task.isTestDay)),
+          result: lastWeekResult(finishedTasks.find((task) => task.isTestDay), done.testResult),
           done: practice.filter((task) => task.status === 'completed').length,
           planned: practice.length,
           keySessionsSkipped: practice

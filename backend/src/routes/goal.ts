@@ -495,7 +495,8 @@ type ActionReason =
   | 'fixed_step'
   | 'out_of_order'
   | 'rest_gap'
-  | 'would_not_move';
+  | 'would_not_move'
+  | 'week_not_open';
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -518,6 +519,8 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   out_of_order: 'This swap would put steps out of order.',
   rest_gap: 'This swap would put two hard sessions too close together.',
   would_not_move: 'This step cannot be moved this week.',
+  // B-68: a test result for a week that is still pending.
+  week_not_open: "That week hasn't started yet.",
 };
 
 function refuse(res: Response, reason: ActionReason): void {
@@ -965,6 +968,20 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
   }
 });
 
+/** B-67: a week number from the path, a whole number from 1 to 12 written as digits; null for anything else. */
+function parseWeekNumber(raw: string | undefined): number | null {
+  if (typeof raw !== 'string' || !/^\d{1,2}$/.test(raw)) return null;
+  const week = Number(raw);
+  return week >= 1 && week <= TOTAL_WEEKS ? week : null;
+}
+
+/** B-67: answers 400 and returns null for a bad week number, before any goal is read. */
+function weekNumberOr400(req: Request, res: Response): number | null {
+  const week = parseWeekNumber(req.params.weekNumber);
+  if (week === null) res.status(400).json({ error: `Week number must be 1 to ${TOTAL_WEEKS}.` });
+  return week;
+}
+
 export interface WeeklyTestResultInput {
   value: string | number;
   passed: boolean;
@@ -1037,19 +1054,19 @@ goalRouter.put('/weeks/:weekNumber/test-result', async (req: Request, res: Respo
     const user = await actionUser(req, res);
     if (!user) return;
 
+    const weekNumber = weekNumberOr400(req, res);
+    if (weekNumber === null) return;
+
     const validation = validateWeeklyTestResult(req.body);
     if (!validation.valid) {
       res.status(400).json({ error: validation.error });
       return;
     }
 
-    const weekNumber = Number(req.params.weekNumber);
-    const goal = Number.isInteger(weekNumber)
-      ? await prisma.goal.findFirst({
-          where: { userId: user.id, status: 'active' },
-          select: { planVersion: true, roadmapWeeks: { where: { weekNumber }, select: { id: true, status: true } } },
-        })
-      : null;
+    const goal = await prisma.goal.findFirst({
+      where: { userId: user.id, status: 'active' },
+      select: { planVersion: true, roadmapWeeks: { where: { weekNumber }, select: { id: true, status: true } } },
+    });
     const week = goal?.roadmapWeeks[0];
     if (!goal || !week) {
       res.status(404).json({ error: 'Week not found.' });
@@ -1057,6 +1074,8 @@ goalRouter.put('/weeks/:weekNumber/test-result', async (req: Request, res: Respo
     }
     if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
     if (week.status === 'completed') return refuse(res, 'week_closed');
+    // B-68: only the open week takes a result (a late test is logged while its week is still active).
+    if (week.status !== 'active') return refuse(res, 'week_not_open');
 
     await prisma.roadmapWeek.update({
       where: { id: week.id },
@@ -1083,7 +1102,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       return;
     }
 
-    const weekNum = parseInt(req.params.weekNumber, 10);
+    const weekNum = weekNumberOr400(req, res);
+    if (weekNum === null) return;
     const { reflection, testResult } = req.body;
 
     let sanitizedTestResult: WeeklyTestResultInput | null = null;
@@ -1118,7 +1138,11 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     const startedAt = Date.now();
     const { sessions, completed } = weekScore(goal.dailyTasks);
 
-    const next = await writeWeekAfter(goal, weekNum);
+    // B-61: the week writer is told the result sent with this review, which is saved only after the call.
+    const writerGoal = sanitizedTestResult
+      ? { ...goal, roadmapWeeks: goal.roadmapWeeks.map((w) => (w.weekNumber === weekNum ? { ...w, testResult: sanitizedTestResult as unknown as Prisma.JsonValue } : w)) }
+      : goal;
+    const next = await writeWeekAfter(writerGoal, weekNum);
     if (!next) {
       res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
       return;
