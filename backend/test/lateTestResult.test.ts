@@ -10,8 +10,10 @@ import { Prisma } from '@prisma/client';
 const store = vi.hoisted(() => ({
   goals: [] as any[],
   prisma: {
+    // Weekly update M1.2a: the review saves in one transaction; the store has no rollback, none of these tests fail inside it.
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn((store as any).prisma)),
     goal: { findFirst: vi.fn(), update: vi.fn() },
-    roadmapWeek: { update: vi.fn() },
+    roadmapWeek: { update: vi.fn(), updateMany: vi.fn() },
     weeklyReview: { upsert: vi.fn() },
     dailyTask: { create: vi.fn(), deleteMany: vi.fn() },
   },
@@ -95,6 +97,14 @@ function updateWeek(args: any) {
   return { ...row };
 }
 
+/** The review's conditional close (weekly update M1.2a): only a row still in the asked status changes. */
+function updateWeeks(args: any) {
+  const row = weekRow(args.where.goalId, args.where.weekNumber);
+  if (!row || (args.where.status && row.status !== args.where.status)) return { count: 0 };
+  for (const [key, value] of Object.entries(args.data)) row[key] = value === Prisma.DbNull ? null : value;
+  return { count: 1 };
+}
+
 describe('Late test result (missed sessions M4.1)', () => {
   let server: Server;
   let baseUrl: string;
@@ -120,6 +130,7 @@ describe('Late test result (missed sessions M4.1)', () => {
     store.goals = [goalFor(OWNER.id, 'g1', 2), goalFor(OTHER.id, 'g2', 2)];
     store.prisma.goal.findFirst.mockImplementation(async (args: any) => findFirst(args));
     store.prisma.roadmapWeek.update.mockImplementation(async (args: any) => updateWeek(args));
+    store.prisma.roadmapWeek.updateMany.mockImplementation(async (args: any) => updateWeeks(args));
     store.prisma.weeklyReview.upsert.mockImplementation(async () => ({ id: 'rev', aiAdaptationInsight: 'x' }));
     store.prisma.goal.update.mockImplementation(async () => ({}));
     store.prisma.dailyTask.deleteMany.mockImplementation(async () => ({ count: 0 }));

@@ -54,6 +54,15 @@ services:
       # dashboard only (sync: false), so a Blueprint sync never overwrites it.
       - key: METHOD_RECOVERY_ENABLED
         sync: false
+      # Weekly update: the week close (docs/features/weekly-update, RULE-18, M1.2a). Unset or anything but the
+      # exact string "true" means off: only the weekly review closes a week, exactly as before. Managed in the
+      # dashboard only (sync: false), so a Blueprint sync never overwrites it; setting it back is the kill switch.
+      - key: WEEK_CLOSE_ENABLED
+        sync: false
+      # Weekly update: the update call and everything that changes targets (RULE-18). Acts only when
+      # WEEK_CLOSE_ENABLED is also "true". Unset or anything but "true" means off. Dashboard only (sync: false).
+      - key: WEEKLY_UPDATE_ENABLED
+        sync: false
       # Lemon Squeezy stays in Test Mode until live onboarding is complete.
       # Paste the matching test-mode values from backend/.env when Render prompts
       # during Blueprint creation; never commit their values.

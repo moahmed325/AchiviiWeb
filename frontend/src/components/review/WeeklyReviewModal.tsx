@@ -24,6 +24,8 @@ export interface WeeklyReviewModalProps {
   token: string;
   onGoalUpdated: (goal: Goal) => void;
   onMilestoneGate?: (gate: MilestoneGateTransition) => void;
+  /** B-59: the week was already closed (another tab, or the automatic close); called when the modal closes. */
+  onWeekClosed?: () => void;
   apiStatus?: 'online' | 'offline' | 'checking';
 }
 
@@ -44,6 +46,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   token,
   onGoalUpdated,
   onMilestoneGate,
+  onWeekClosed,
   apiStatus,
 }) => {
   const currentWeekNum = goal.currentWeek || 1;
@@ -77,6 +80,8 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  // B-59: the server answered 409 `week_closed`; nothing is left to submit, and the goal is reloaded on close.
+  const [weekClosed, setWeekClosed] = useState(false);
   const [adaptationData, setAdaptationData] = useState<WeeklyReviewResponse | null>(null);
   const [updatedGoal, setUpdatedGoal] = useState<Goal | null>(null);
 
@@ -195,7 +200,11 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
         (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) ||
         (err instanceof Error && /network|offline|failed to fetch/i.test(err.message));
 
-      if (isNetworkError) {
+      if ((err as { code?: unknown } | null)?.code === 'week_closed') {
+        setWeekClosed(true);
+        setReviewError("This week's review is already saved.");
+        if (goal?.id) clearReviewDraft(goal.id, currentWeekNum);
+      } else if (isNetworkError) {
         setReviewError("You're offline. Reconnect to submit your weekly review.");
       } else {
         const message = err instanceof Error ? err.message : '';
@@ -215,6 +224,15 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
     }
   };
 
+  const handleClose = () => {
+    onClose();
+    if (weekClosed) {
+      setWeekClosed(false);
+      setReviewError(null);
+      onWeekClosed?.();
+    }
+  };
+
   const handleOpenChange = (open: boolean) => {
     if (open) return;
     if (isSubmitting) return;
@@ -222,7 +240,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
     if (step === 'adaptation') {
       handleFinish();
     } else {
-      onClose();
+      handleClose();
     }
   };
 
@@ -248,7 +266,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
             <>
               <Button
                 variant="quiet"
-                onClick={onClose}
+                onClick={handleClose}
                 disabled={isSubmitting}
                 className="min-h-[44px]"
               >
@@ -256,13 +274,15 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
               </Button>
               <Button
                 variant="primary"
-                onClick={handleSubmit}
+                onClick={weekClosed ? handleClose : handleSubmit}
                 disabled={isSubmitting || !token}
                 loading={isSubmitting}
                 className="min-h-[44px]"
-                trailingIcon={!isSubmitting && <ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                trailingIcon={!isSubmitting && !weekClosed && <ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
               >
-                {reviewError
+                {weekClosed
+                  ? 'Done'
+                  : reviewError
                   ? 'Try again'
                   : currentWeekNum >= 12
                   ? 'Enter Closing Stretch'
