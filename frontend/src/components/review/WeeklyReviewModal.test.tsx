@@ -868,6 +868,19 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
       await submitWith('Long runs felt easier');
       expect(await screen.findByRole('alert')).toHaveTextContent("This week's review is already saved.");
       expect(mockedApi.saveClosedWeekReflection).toHaveBeenCalledTimes(1);
+      // Refused for good: the draft goes.
+      expect(loadReviewDraft('g-1', 1)).toBe('');
+    });
+
+    it.each([
+      ['a network error', new TypeError('Failed to fetch')],
+      ['a 503', Object.assign(new Error('Failed to save the reflection'), { status: 503 })],
+    ])('%s while saving the reflection keeps the draft (review fix 1)', async (_name, failure) => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockedApi.saveClosedWeekReflection.mockRejectedValueOnce(failure);
+      await submitWith('Long runs felt easier');
+      expect(await screen.findByRole('alert')).toHaveTextContent("This week's review is already saved.");
+      expect(loadReviewDraft('g-1', 1)).toBe('Long runs felt easier');
     });
 
     it('with nothing typed there is nothing to save: the M1.2a message', async () => {

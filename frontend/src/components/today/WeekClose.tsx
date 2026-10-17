@@ -25,8 +25,9 @@ export const GettingReady: React.FC = () => (
 /**
  * The test first (WU-14): a close is due and the week's test isn't logged, so Today shows only this card. "Log result"
  * opens the test entry, and saving the result closes the week with it. Anything else is Skip and closes the week at
- * once as unlogged: "Skip", dismissing the card or the entry, or going to another screen (AppShell). Only the first
- * answer sends a close (`answerHeldClose`). Closing the tab answers nothing, so the card shows again on the next open.
+ * once as unlogged: "Skip" (on the card or the entry), dismissing the card, or going to another screen (AppShell).
+ * Dismissing the entry goes back to the card (WU-32). Only the first answer sends a close (`answerHeldClose`). Closing
+ * the tab answers nothing, so the card shows again on the next open.
  */
 export const WeekTestFirst: React.FC<{ goal: Goal; weekNumber: number }> = ({ goal, weekNumber }) => {
   const { token } = useAuth();
@@ -40,8 +41,15 @@ export const WeekTestFirst: React.FC<{ goal: Goal; weekNumber: number }> = ({ go
   const skip = () => {
     if (!saving) void answerHeldClose();
   };
+  // WU-32: Esc, the ✕ or a tap outside the entry goes back to the card; on the card itself it is Skip.
   const onOpenChange = (open: boolean) => {
-    if (!open) skip();
+    if (open || saving) return;
+    if (entry) {
+      setEntry(false);
+      setError(null);
+    } else {
+      skip();
+    }
   };
 
   const onSave = async () => {

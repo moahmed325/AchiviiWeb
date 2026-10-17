@@ -11,6 +11,7 @@ import {
 } from '../lib/api';
 import { useAuth } from './AuthContext';
 import { todayKey } from '../lib/today';
+import { openWeekEnded } from '../lib/weekClose';
 
 interface GoalContextType {
   activeGoal: Goal | null;
@@ -89,6 +90,13 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // The held week (WU-14) and whether an answer to it is running, so Skip and Log never both send a close.
   const held = useRef<number | null>(null);
   const answering = useRef(false);
+  // How many close calls are running, so "getting ready" stays up until the last ends (review fix 3).
+  const closesRunning = useRef(0);
+  // The goal as last set, for `reloadPlan`'s "has the open week ended" read (review fix 4).
+  const goalRef = useRef<Goal | null>(null);
+  useEffect(() => {
+    goalRef.current = activeGoal;
+  }, [activeGoal]);
 
   // Health check on initial mount
   useEffect(() => {
@@ -134,8 +142,13 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  /** The close call itself, shown as "getting ready" until the load after it ends. A failure never stops the load. */
+  /**
+   * The close call itself, shown as "getting ready" until the load after it ends: the caller calls `endClose` then.
+   * Closes are counted, so one that ends first never hides another still running (review fix 3). A failure never
+   * stops the load.
+   */
   const runClose = useCallback(async (t: string) => {
+    closesRunning.current += 1;
     setClosingWeek(true);
     try {
       await closeWeek(t);
@@ -143,6 +156,10 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('Failed to close the week:', err);
       if (closeFailedOnServer(err)) setCloseFailed(true);
     }
+  }, []);
+  const endClose = useCallback(() => {
+    closesRunning.current = Math.max(0, closesRunning.current - 1);
+    if (closesRunning.current === 0) setClosingWeek(false);
   }, []);
 
   /**
@@ -152,17 +169,20 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * reconcile.
    */
   const closeThenLoad = useCallback(
-    async (t: string, clearOnFailure: boolean) => {
-      setCloseFailed(false);
+    async (t: string, clearOnFailure: boolean, check = true) => {
       let due: { weekNumber: number; testLogged: boolean } | null = null;
-      try {
-        const check = await closeWeek(t, 'check');
-        if (check.due && 'testLogged' in check) due = { weekNumber: check.weekNumber, testLogged: check.testLogged };
-      } catch (err) {
-        console.warn('Failed to check the week close:', err);
-        if (closeFailedOnServer(err)) setCloseFailed(true);
+      if (check) {
+        setCloseFailed(false);
+        try {
+          const answer = await closeWeek(t, 'check');
+          if (answer.due && 'testLogged' in answer) due = { weekNumber: answer.weekNumber, testLogged: answer.testLogged };
+        } catch (err) {
+          console.warn('Failed to check the week close:', err);
+          if (closeFailedOnServer(err)) setCloseFailed(true);
+        }
       }
 
+      let closing = false;
       try {
         // Read after the answer: someone who left Today meanwhile gets no card (any other screen counts as Skip).
         if (due && !due.testLogged && onToday()) {
@@ -176,17 +196,26 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           held.current = null;
         }
-        if (due) await runClose(t);
+        if (due) {
+          closing = true;
+          await runClose(t);
+        }
         await reconcileAndFetch(t, true, clearOnFailure);
       } finally {
-        setClosingWeek(false);
+        if (closing) endClose();
       }
     },
-    [reconcileAndFetch, runClose]
+    [reconcileAndFetch, runClose, endClose]
   );
 
   // Fetch active goal when token changes
   const loadGoal = useCallback(async () => {
+    // Review fix 2: while the test card waits or its answer runs, a new token or a new date reloads nothing; the
+    // card's answer reloads the plan. Signing out still clears everything.
+    if (token && (held.current !== null || answering.current)) {
+      setGoalLoadedFor(token);
+      return;
+    }
     held.current = null;
     setHeldClose(null);
     if (!token) {
@@ -262,27 +291,30 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const reloadPlan = useCallback(async () => {
     // While the test card waits, reconcile waits too (RULE-17); the card's answer reloads the plan.
     if (!token || held.current !== null) return;
-    await closeThenLoad(token, false);
-  }, [token, closeThenLoad]);
+    // Review fix 4: a plan action's reload asks the server only once the open week's last day has passed.
+    await closeThenLoad(token, false, openWeekEnded(goalRef.current, new Date(), timezone));
+  }, [token, timezone, closeThenLoad]);
 
   const answerHeldClose = useCallback(
     async (before?: () => Promise<void>) => {
       if (!token || held.current === null || answering.current) return false;
       answering.current = true;
+      let closing = false;
       try {
         if (before) await before();
         held.current = null;
         setHeldClose(null);
         setCloseFailed(false);
+        closing = true;
         await runClose(token);
         await reconcileAndFetch(token, true, false);
         return true;
       } finally {
-        setClosingWeek(false);
+        if (closing) endClose();
         answering.current = false;
       }
     },
-    [token, runClose, reconcileAndFetch]
+    [token, runClose, endClose, reconcileAndFetch]
   );
 
   const retryClose = useCallback(async () => {

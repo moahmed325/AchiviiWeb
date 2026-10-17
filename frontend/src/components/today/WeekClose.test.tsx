@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useNavigate, type NavigateFunction } from 'react-router-dom';
 import { AuthProvider } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { GoalProvider } from '../../context/GoalContext';
 import * as api from '../../lib/api';
 import { todayKey } from '../../lib/today';
@@ -223,14 +224,62 @@ describe('the test card (WU-14, WU-28)', () => {
     expect(calls).toEqual(['close:check', 'fetch', 'test-result', 'close', 'reconcile', 'fetch']);
   });
 
-  it('dismissing the entry counts as Skip', async () => {
+  it('Escape on the entry goes back to the card (WU-32); Escape on the card is still Skip', async () => {
     const user = userEvent.setup();
     renderApp();
     await user.click(within(await card()).getByRole('button', { name: 'Log result' }));
     await screen.findByRole('dialog', { name: "Log last week's test" });
     await user.keyboard('{Escape}');
+    expect(await card()).toBeVisible();
+    expect(closes()).toBe(0);
+    await user.keyboard('{Escape}');
     await screen.findByRole('heading', { level: 1, name: 'Run a 10K' });
     expect(calls).toEqual(['close:check', 'fetch', 'close', 'reconcile', 'fetch']);
+  });
+
+  it('a tap outside the entry goes back to the card (WU-32)', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(within(await card()).getByRole('button', { name: 'Log result' }));
+    await screen.findByRole('dialog', { name: "Log last week's test" });
+    // Radix closes a dialog on a pointer down and click outside its content; it listens a tick after the content mounts.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 10)));
+    const overlay = document.querySelector<HTMLElement>('[data-state="open"].fixed.inset-0')!;
+    fireEvent.pointerDown(overlay);
+    fireEvent.pointerUp(overlay);
+    fireEvent.click(overlay);
+    expect(await card()).toBeVisible();
+    expect(closes()).toBe(0);
+  });
+
+  it("the entry's Skip closes the week as unlogged", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(within(await card()).getByRole('button', { name: 'Log result' }));
+    const entry = await screen.findByRole('dialog', { name: "Log last week's test" });
+    await user.click(within(entry).getByRole('button', { name: 'Skip' }));
+    await screen.findByRole('heading', { level: 1, name: 'Run a 10K' });
+    expect(calls).toEqual(['close:check', 'fetch', 'close', 'reconcile', 'fetch']);
+  });
+
+  it('a new token while the card is open keeps the card and the typed result, and sends no second close (review fix 2)', async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await user.click(within(await card()).getByRole('button', { name: 'Log result' }));
+    const entry = await screen.findByRole('dialog', { name: "Log last week's test" });
+    await user.type(within(entry).getByLabelText('Your result'), '26');
+    const authCalls = vi.mocked(supabase!.auth.onAuthStateChange).mock.calls;
+    const onChange = authCalls[authCalls.length - 1][0];
+    await act(async () => onChange('TOKEN_REFRESHED', { access_token: 't2' } as never));
+    await waitFor(() => expect(mocked.fetchCurrentUser).toHaveBeenCalledWith('t2'));
+    expect(screen.getByRole('dialog', { name: "Log last week's test" })).toBeVisible();
+    expect(within(entry).getByLabelText('Your result')).toHaveValue('26');
+    expect(calls).toEqual(['close:check', 'fetch']);
+
+    await user.click(within(entry).getByRole('button', { name: 'Save result' }));
+    await screen.findByRole('heading', { level: 1, name: 'Run a 10K' });
+    expect(calls).toEqual(['close:check', 'fetch', 'test-result', 'close', 'reconcile', 'fetch']);
+    expect(mocked.closeWeek).toHaveBeenLastCalledWith('t2');
   });
 
   it('a result that fails to save keeps the entry open and closes nothing; Skip still works', async () => {
