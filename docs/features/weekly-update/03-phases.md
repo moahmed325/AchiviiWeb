@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | M1.1 | Check the code | — | DONE 2026-10-17 | [m1.1](milestones/m1.1-check-the-code.md) |
 | M1.2a | Server week close, the migration, the review-route guard (B-59) | AC-7, AC-16 (failed write), AC-17, AC-19 (part) | DONE 2026-10-17 | [m1.2a](milestones/m1.2a-server-week-close.md) |
-| M1.2b | The close in the app: before reconcile, "getting ready", the test card, the line once | AC-6 | READY | [m1.2b](milestones/m1.2b-close-in-the-app.md) |
+| M1.2b | The close in the app: before reconcile, "getting ready", the test card, the line once | AC-6 | DONE 2026-10-17 | [m1.2b](milestones/m1.2b-close-in-the-app.md) |
 | M1.3 | Moved days in every date | — | MOVED to M1.4 (WU-30) | |
 | M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | NOT STARTED | |
 | M1.5 | Breaks, dates only, and the first-week-back note | AC-9 (part), AC-10 (dates), AC-12, AC-18 (length) | NOT STARTED | |
@@ -69,7 +69,7 @@
 
 **M1.5 Breaks, dates only.** Break detection and length (RULE-13, WU-18), the plan moving (RULE-14), the limit with the choice card, jumped weeks and the text-only fresh plan (RULE-15, WU-19, WU-24), the welcome-back line, and the return rule's "first week back" note to the week writer (WU-25). For a high-load goal's first week back: the writer's note and the easy line on every hard step (WU-29). Covers AC-12 and the date parts of AC-9, AC-10, AC-18. Checks R-1, R-3, R-5, R-6, R-7.
 
-**O1.** Mo turns on `WEEK_CLOSE_ENABLED` in Render after a P1 release checklist (written in M1.5's review), then records the production checks here.
+**O1.** Mo turns on `WEEK_CLOSE_ENABLED` in Render after a P1 release checklist (written in M1.5's review), then records the production checks here. The checklist includes: the backend (with M1.2a's migration) is deployed before the switch is turned on; a frontend that ships first gets 404 from `/close-week`, which it treats as nothing due (M1.2b review); the `[WeekClose]` log lines show closes by `auto` with their `gapDays`.
 
 ### P2 Light weekly tests
 

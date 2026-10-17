@@ -192,6 +192,12 @@ How this log works: `docs/templates/decisions.md`.
 **Why (Mo):** losing what someone wrote feels bad, and the fix is small.
 **Changes:** section 5; section 6 (copy); `03-phases.md` (M1.2b).
 
+### WU-32 — Dismissing the result entry goes back to the card (2026-10-17)
+**Question:** M1.2b review: WU-14 makes dismissing count as Skip, so Esc or a tap outside the result entry closed the week unlogged and lost the result being typed, which is easy to do by accident.
+**Decision:** in the result entry, Esc, the ✕ or a tap outside goes back to the test card and sends nothing; the entry keeps its "Skip" button. Dismissing the card itself is still Skip (WU-14), and going to another screen still is too.
+**Why (Mo):** an accidental Esc shouldn't throw away a result; "Skip" stays one tap away.
+**Changes:** RULE-8; CLAUDE.md and Design.md (M1.2b).
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
