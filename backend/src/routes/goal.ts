@@ -1160,7 +1160,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     // Another close won inside the save (WU-27): nothing of this request was saved.
     if (!saved) return refuse(res, 'week_closed');
     logWeekClose(goal, weekNum, 'review', new Date(), user.timezone, startedAt);
-    res.json(closeAnswer(goal, weekNum, saved, sanitizedTestResult));
+    // B-61: the answer shows the result the week writer was told: the one sent, else the stored (late) one, which the save keeps.
+    res.json(closeAnswer(goal, weekNum, saved, sanitizedTestResult ?? week.testResult ?? null));
   } catch (err: any) {
     console.error('[GoalRouter] Weekly review error:', err);
     res.status(500).json({ error: 'Failed to process weekly review.' });
