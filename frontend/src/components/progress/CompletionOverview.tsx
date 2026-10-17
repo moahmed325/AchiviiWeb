@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { Goal, DailyTask, RoadmapWeek } from '../../types';
 import { cx } from '../ui';
+import { isRestLike } from '../../lib/today';
 
 interface CompletionOverviewProps {
   goal: Goal;
@@ -31,7 +32,7 @@ function deriveMetrics(goal: Goal): CompletionMetrics {
   const currentWeek = Math.min(12, Math.max(1, goal.currentWeek || 1));
 
   // Active practice = non-rest days
-  const activeTasks = tasks.filter((t) => !t.isRestDay);
+  const activeTasks = tasks.filter((t) => !isRestLike(t));
   const completedActive = activeTasks.filter((t) => t.status === 'completed').length;
   const totalPlannedActive = activeTasks.length;
 

@@ -16,6 +16,7 @@ import { ReviewTestResultStep } from './ReviewTestResultStep';
 import { ReviewReflectionStep } from './ReviewReflectionStep';
 import { AdaptationMomentStep } from './AdaptationMomentStep';
 import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
+import { isRestLike } from '../../lib/today';
 
 export interface WeeklyReviewModalProps {
   isOpen: boolean;
@@ -54,10 +55,13 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   const activeWeek = roadmapWeeks.find((w) => w.weekNumber === currentWeekNum);
   const tasks = goal.dailyTasks || [];
   const currentWeekTasks = tasks.filter((t) => t.weekNumber === currentWeekNum);
-  const activeDaysThisWeek = currentWeekTasks.filter((t) => !t.isRestDay);
+  const activeDaysThisWeek = currentWeekTasks.filter((t) => !isRestLike(t));
   const completedDaysThisWeek = activeDaysThisWeek.filter((t) => t.status === 'completed');
-  const weekScorePercent =
-    activeDaysThisWeek.length > 0
+  // WU-33 (3): a week whose every practice day was not offered has no score (shown as not counted, never 0%).
+  const notCounted = activeDaysThisWeek.length === 0 && currentWeekTasks.some((t) => t.notOffered);
+  const weekScorePercent = notCounted
+    ? null
+    : activeDaysThisWeek.length > 0
       ? Math.round((completedDaysThisWeek.length / activeDaysThisWeek.length) * 100)
       : 0;
 
@@ -157,7 +161,8 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
           return {
             ...w,
             status: 'completed' as const,
-            executionScore: response.scorePercentage,
+            // WU-33 (3): a review row of 0 planned has no score; the week keeps none.
+            executionScore: response.review?.tasksPlanned === 0 ? undefined : response.scorePercentage,
             testResult: response.testResult ?? testResult ?? w.testResult,
           };
         }

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Sparkles, MessageSquareText, Award } from 'lucide-react';
 import type { Goal, RoadmapWeek, WeeklyReview } from '../../types';
 import { cx } from '../ui';
+import { fillPlanEnd } from '../../lib/weekClose';
 
 interface AdaptationHistoryListProps {
   goal: Goal;
@@ -46,8 +47,11 @@ function deriveAdaptationHistory(goal: Goal): AdaptationEntry[] {
 
     // Skip weeks with zero adaptation data to show
     const reflection = review?.reflection || week.reviewNotes || null;
-    const aiInsight = review?.aiAdaptationInsight || null;
-    const hasScore = week.executionScore != null || review?.scorePercentage != null;
+    // M1.4 (WU-33 (4)): the moved-plan line's `{date}` is filled in here too.
+    const aiInsight = review?.aiAdaptationInsight ? fillPlanEnd(review.aiAdaptationInsight, goal) : null;
+    // WU-33 (3): a review row of 0 planned (every day not offered) is not counted: no percentage, never 0%.
+    const notCounted = review?.tasksPlanned === 0;
+    const hasScore = !notCounted && (week.executionScore != null || review?.scorePercentage != null);
 
     if (!reflection && !aiInsight && !hasScore) continue;
 
@@ -62,7 +66,7 @@ function deriveAdaptationHistory(goal: Goal): AdaptationEntry[] {
       weekNumber: week.weekNumber,
       phase: week.phase,
       theme: week.theme,
-      executionScore: review?.scorePercentage ?? week.executionScore ?? null,
+      executionScore: notCounted ? null : review?.scorePercentage ?? week.executionScore ?? null,
       reflection,
       aiAdaptationInsight: aiInsight,
       isMilestoneGate: isLastWeekOfPhase,

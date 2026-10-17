@@ -18,6 +18,8 @@ export const PhaseGateOutcomeCard: React.FC<PhaseGateOutcomeCardProps> = ({
   className,
 }) => {
   const { benchmarkMet, completedPhase, nextPhase } = gate;
+  // WU-33 (3): a week with no score (every day not offered) has no benchmark, so no benchmark line is shown.
+  if (benchmarkMet === null) return null;
 
   return (
     <div

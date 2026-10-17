@@ -7,7 +7,8 @@ export interface MilestoneGateTransition {
   title: string;
   completedPhase: string;
   nextPhase: string;
-  benchmarkMet: boolean;
+  /** WU-33 (3): null when the week has no score; no benchmark line is shown. */
+  benchmarkMet: boolean | null;
 }
 
 export interface MilestoneGateModalProps {

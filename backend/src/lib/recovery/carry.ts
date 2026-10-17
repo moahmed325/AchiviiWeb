@@ -37,7 +37,7 @@ import {
 } from '../carryForward.js';
 import type { DetailedStep } from '../ai/goalDecomposer.js';
 import { TOTAL_WEEKS } from '../ai/roadmap.js';
-import type { DayClassification } from '../missedSessions.js';
+import { isRestLike, type DayClassification } from '../missedSessions.js';
 import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, originOf, stepKey, type QueueItem } from './inOrder.js';
 import { actionOf, type RecoveryProfile, type StepRecovery } from './profile.js';
 import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf } from './rules.js';
@@ -376,7 +376,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     const kinds = [...new Set(stepsOf.get(missed.taskId)!.filter((s) => s.recovery.action === 'continue').map((s) => s.step.kind as string))];
     for (const kind of kinds) {
       for (const day of laterInWeek(missed)) {
-        if (day.kind === 'rest' || day.isTestDay) continue;
+        if (isRestLike(day) || day.isTestDay) continue;
         const steps = taskById.get(day.taskId)?.steps ?? [];
         const ofKind = steps
           .map((step, index) => ({ step, index }))
@@ -490,7 +490,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   for (const queue of inOrderQueue({ days: ordered, tasks: input.tasks, profile, today: input.today })) {
     const { kind, weekNumber } = queue;
     if (!queuedWeeks.has(weekNumber)) continue;
-    const weekDays = ordered.filter((day) => day.weekNumber === weekNumber && day.kind !== 'rest' && !day.isTestDay);
+    const weekDays = ordered.filter((day) => day.weekNumber === weekNumber && !isRestLike(day) && !day.isTestDay);
     const ofKind = (taskId: string) => rowOf(taskId).filter((step) => step.kind === kind);
     const sessionDays = weekDays.filter((day) => day.kind === 'planned' && day.date >= input.today && ofKind(day.taskId).length > 0);
     const placeable = queue.steps.filter((item) => item.status === 'missed' || item.status === 'session');
@@ -641,7 +641,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     const marker: CarryMarker = { taskId: missed.taskId, date: missed.date, replaced: [] };
     const carried: CarriedStep = { ...content, instructions: isPhysical(content) ? withWarmUpLine(content.instructions) : content.instructions, carriedFrom: marker };
     const kind = profile!.kinds.find((item) => item.id === mover.step.kind);
-    const practiceLater = laterInWeek(missed).filter((day) => day.kind !== 'rest' && !day.isTestDay);
+    const practiceLater = laterInWeek(missed).filter((day) => !isRestLike(day) && !day.isTestDay);
     // RULE-13 for an in-order kind that is not a move kind (a high-load continue step moves, MR-11): it lands only
     // before the next session of its kind, never on or after it.
     const nextOfKind = kind?.inOrder ? practiceLater.find((day) => rowOf(day.taskId).some((step) => step.kind === kind.id)) : undefined;

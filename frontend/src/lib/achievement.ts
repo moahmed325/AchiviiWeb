@@ -1,4 +1,5 @@
 import type { Goal, DailyTask, RoadmapWeek, AchievementSummary, FinalTestEvaluation } from '../types';
+import { isRestLike } from './today';
 
 /**
  * Derives verified, real achievement summary metrics from stored goal records.
@@ -12,7 +13,7 @@ export function computeAchievementSummary(goal: Goal): AchievementSummary {
   const totalDays = 90;
 
   // Active practice = non-rest days
-  const activeTasks = tasks.filter((t) => !t.isRestDay);
+  const activeTasks = tasks.filter((t) => !isRestLike(t));
   const completedSessions = activeTasks.filter((t) => t.status === 'completed').length;
   const totalPlannedSessions = activeTasks.length;
 

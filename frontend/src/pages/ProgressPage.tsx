@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, TrendingUp } from 'lucide-react';
 import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
-import { dayNumber } from '../lib/today';
+import { dayNumber, isRestLike } from '../lib/today';
 import { LoadingState, Skeleton, Button } from '../components/ui';
 import { WeekBreakdownList, BenchmarkResultsCard, AdaptationHistoryList } from '../components/progress';
 
@@ -36,8 +36,8 @@ export const ProgressPage: React.FC = () => {
   const progress = useMemo(() => {
     if (!activeGoal) return { completed: 0, planned: 0, percent: 0 };
     const tasks = activeGoal.dailyTasks || [];
-    const planned = tasks.filter((task) => !task.isRestDay && task.weekNumber <= currentWeek).length;
-    const completed = tasks.filter((task) => !task.isRestDay && task.weekNumber <= currentWeek && task.status === 'completed').length;
+    const planned = tasks.filter((task) => !isRestLike(task) && task.weekNumber <= currentWeek).length;
+    const completed = tasks.filter((task) => !isRestLike(task) && task.weekNumber <= currentWeek && task.status === 'completed').length;
     return { completed, planned, percent: planned ? Math.round((completed / planned) * 100) : 0 };
   }, [activeGoal, currentWeek]);
 

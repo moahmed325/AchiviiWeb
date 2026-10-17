@@ -1649,3 +1649,80 @@ describe('Today with method-aware recovery (M3.3)', () => {
     });
   });
 });
+
+// Weekly update M1.4 (RULE-14, AC-11, WU-13, WU-33): after a move, "Day N" leaves the moved days out, and a day not
+// offered is shown like a rest day: never "not done", never counted as a practice day.
+describe('Today after a move (weekly update M1.4)', () => {
+  // Week 3 (plan days 15 to 21), today is its third day (day 17); Mon and Tue were not offered.
+  const moved = tasks.map((t, index) => ({ ...t, weekNumber: 3, dayNumber: 15 + index, status: 'pending' as const, notOffered: index < 2 }));
+  const MOVED_GOAL = { ...GOAL, currentWeek: 3, targetDate: `${isoDay(91 - 17)}T00:00:00.000Z`, roadmapWeeks: [{ weekNumber: 3, phase: 'Aerobic base', theme: 'Easy miles' }], dailyTasks: moved } as unknown as Goal;
+
+  it('Day N follows the moved end date', async () => {
+    mocked.fetchActiveGoal.mockResolvedValue(MOVED_GOAL);
+    await renderToday();
+    expect(screen.getByLabelText('Day 17 of 90')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Easy base run' })).toBeInTheDocument();
+  });
+
+  it('days not offered read as rest days in the week and are not counted as practice days', async () => {
+    mocked.fetchActiveGoal.mockResolvedValue(MOVED_GOAL);
+    await renderToday();
+    const days = screen.getAllByRole('button', { hidden: true, name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d/ });
+    expect(days[0]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
+    expect(days[1]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
+    expect(days[2]).toHaveAccessibleName(expect.stringMatching(/, today, to do$/));
+    // Six practice days less the two not offered.
+    expect(screen.getByText('0 of 4 practice days done')).toBeInTheDocument();
+  });
+
+  // The review's change 2: tapping a day not offered opens what a rest day opens, never a step with a done action (its
+  // in-order steps were queued onto later days). Change 1: one holding the queue's toNextWeek records reads the same.
+  it('tapping a day not offered (even one holding toNextWeek records) opens the rest-day view', async () => {
+    const records = JSON.stringify([
+      { stepNumber: 1, title: 'Lesson 100', durationMinutes: 20, instructions: 'Do it.', priority: 1, kind: 'lesson', toNextWeek: [{ taskId: 't1', date: isoDay(-2), step: { title: 'Lesson 104', kind: 'lesson' } }] },
+    ]);
+    mocked.fetchActiveGoal.mockResolvedValue({ ...MOVED_GOAL, dailyTasks: moved.map((t, i) => (i === 0 ? { ...t, title: 'Lesson 100', detailedSteps: records } : t)) } as unknown as Goal);
+    await renderToday();
+    const days = screen.getAllByRole('button', { hidden: true, name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d/ });
+    expect(days[0]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
+    await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
+    const card = screen.getByRole('region', { name: 'Lesson 100' });
+    expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
+    expect(within(card).getByText('Rest day')).toBeInTheDocument();
+    // Review fix 1: nothing to complete on a day not offered.
+    expect(within(card).queryByRole('button', { name: 'Log recovery complete' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Mark not done' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
+    expect(within(card).queryByText('Do it.')).not.toBeInTheDocument();
+  });
+
+  // Review fix 1: a day not offered that was marked complete (before the fix) never hides the step the queue moved from
+  // it, and shows no practice text or completion button.
+  it('a completed day not offered does not hide its moved step; its rest view has no practice text', async () => {
+    const lesson = { stepNumber: 1, title: 'Lesson 100', durationMinutes: 20, instructions: 'Do lesson 100.', priority: 1, kind: 'lesson' };
+    const days = moved.map((t, i) =>
+      i === 0
+        ? { ...t, status: 'completed' as const, title: 'Lesson 100', detailedSteps: JSON.stringify([lesson]), whyToday: 'Why Monday matters', implementationIntention: 'When: 7am | Where: desk | Action: lesson' }
+        : i === 2
+          ? { ...t, detailedSteps: JSON.stringify([{ ...lesson, shiftedFrom: { taskId: t.id.replace(/\d+$/, '1'), date: moved[0].date, replaced: [] } }, { stepNumber: 2, title: 'Review notes', durationMinutes: 10, instructions: 'Read them.', priority: 2, kind: 'notes' }]) }
+          : t,
+    );
+    mocked.fetchActiveGoal.mockResolvedValue({ ...MOVED_GOAL, dailyTasks: days } as unknown as Goal);
+    await renderToday();
+    // Today (Wednesday) still shows the lesson moved from Monday.
+    expect(within(screen.getByRole('region', { name: 'Easy base run' })).getByText('Lesson 100')).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
+    await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
+    const card = screen.getByRole('region', { name: 'Lesson 100' });
+    expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
+    expect(within(card).queryByText('Why Monday matters')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Implementation intention/ })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: /Mark not done|Log recovery complete|Mark complete/ })).not.toBeInTheDocument();
+    expect(within(card).queryByText('Rest logged')).not.toBeInTheDocument();
+  });
+});

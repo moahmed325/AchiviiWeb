@@ -352,3 +352,58 @@ describe('Progress Components (M8.2 — Completion and Milestones)', () => {
     expect(screen.getByText('Play 5 sets unbroken without pausing')).toBeInTheDocument();
   });
 });
+
+// Weekly update M1.4 (WU-33 (3), (4)): a week whose every practice day was not offered has no score, shown as not
+// counted (no percentage, never 0%); the moved-plan line's {date} is filled in.
+describe('Progress after days not offered (weekly update M1.4)', () => {
+  const notOfferedTasks = (): DailyTask[] =>
+    createSampleTasks().map((t) => (t.weekNumber === 2 && !t.isRestDay ? { ...t, notOffered: true, status: 'pending' } : t));
+  const closedWeeks = (): RoadmapWeek[] =>
+    createSampleWeeks().map((w) => (w.weekNumber === 2 ? { ...w, status: 'completed', executionScore: undefined } : w));
+
+  it('WeekBreakdownList shows no score for a week with every practice day not offered, and counts no sessions', () => {
+    const goal = { ...createSampleGoal(notOfferedTasks(), closedWeeks()), currentWeek: 3 };
+    render(<WeekBreakdownList goal={goal} />);
+    expect(screen.getByText('100%')).toBeInTheDocument(); // week 1
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+  });
+
+  it('AdaptationHistoryList: a 0-of-0 review is not counted, and the moved-plan line has its date', () => {
+    const goal = {
+      ...createSampleGoal(notOfferedTasks(), closedWeeks()),
+      currentWeek: 3,
+      targetDate: '2026-12-24T00:00:00.000Z',
+      weeklyReviews: [
+        {
+          id: 'wr-2',
+          goalId: 'g-1',
+          weekNumber: 2,
+          tasksPlanned: 0,
+          tasksCompleted: 0,
+          scorePercentage: 0,
+          reflection: '',
+          aiAdaptationInsight: 'Your next week starts today. Your plan now ends on {date}.',
+          created_at: '',
+        },
+      ],
+    } as Goal;
+    render(<AdaptationHistoryList goal={goal} />);
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    const end = new Date(Date.UTC(2026, 11, 23)).toLocaleDateString(undefined, {
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+      ...(new Date().getUTCFullYear() === 2026 ? {} : { year: 'numeric' }),
+    });
+    expect(screen.getByText(`Your next week starts today. Your plan now ends on ${end}.`)).toBeInTheDocument();
+    expect(screen.queryByText(/\{date\}/)).not.toBeInTheDocument();
+  });
+
+  it('PhaseMilestonesCard leaves days not offered out of a phase score', () => {
+    const tasks = notOfferedTasks();
+    const goal = { ...createSampleGoal(tasks, closedWeeks()), currentWeek: 5 };
+    render(<PhaseMilestonesCard goal={goal} />);
+    // Foundation: week 1's 5 sessions done, week 2's not offered: 100%, not 50%.
+    expect(screen.getByText('100% execution')).toBeInTheDocument();
+  });
+});

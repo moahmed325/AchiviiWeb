@@ -38,6 +38,8 @@ export const RECONCILE_GOAL_SELECT = {
       isRestDay: true,
       isKeySession: true,
       isTestDay: true,
+      // WU-13 (M1.4): a day not offered is classified `not_offered`, never missed.
+      notOffered: true,
       detailedSteps: true,
       durationMinutes: true,
     },

@@ -11,7 +11,7 @@ import type {
 } from '../types/journey';
 import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
-import { dayNumber, todayKey } from './today';
+import { dayNumber, isRestLike, todayKey } from './today';
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -69,7 +69,8 @@ export function mapTaskToStep(task: DailyTask, currentDay: number, todayStr: str
     title: task.title,
     durationMinutes: task.durationMinutes,
     status,
-    isRestDay: Boolean(task.isRestDay),
+    // WU-33: a day not offered is shown like a rest day.
+    isRestDay: isRestLike(task),
     isKeySession: Boolean(task.isKeySession),
     isTestDay: Boolean(task.isTestDay),
     whyToday: task.whyToday || null,

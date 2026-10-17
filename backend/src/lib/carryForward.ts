@@ -7,7 +7,7 @@
  */
 import type { DetailedStep } from './ai/goalDecomposer.js';
 import { isHighLoadStep } from './highLoad.js';
-import { dayCloseInstant, type ClassifiableTask, type DayClassification, type Gap } from './missedSessions.js';
+import { dayCloseInstant, isRestLike, type ClassifiableTask, type DayClassification, type Gap } from './missedSessions.js';
 
 /** ND-13: stored on a carried step, so the move is auditable, reversible and never made twice. */
 export interface CarryMarker {
@@ -297,7 +297,7 @@ export function planCarries(input: CarryInput): CarryPlan {
     const from = ordered[index];
     for (const day of ordered.slice(index + 1)) {
       if (day.weekNumber !== from.weekNumber) continue;
-      if (day.kind !== 'rest' && !day.isTestDay) return day;
+      if (!isRestLike(day) && !day.isTestDay) return day;
     }
     return null;
   };

@@ -34,7 +34,7 @@ import {
 import { makeGoalProfile } from '../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
-import { AUTO_CLOSE_INSIGHT, closeAnswer, logWeekClose, saveWeekClose, weekCloseDue, weekScore, writeWeekAfter } from '../lib/weekClose/close.js';
+import { autoCloseInsight, closeAnswer, logWeekClose, reviewInsight, saveWeekClose, weekCloseDue, writeWeekAfter } from '../lib/weekClose/close.js';
 import { weekCloseEnabled } from '../lib/weekClose/switch.js';
 
 function wantsPlanStream(req: Request): boolean {
@@ -1143,13 +1143,13 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     if (weekNum !== goal.currentWeek || week?.status !== 'active') return refuse(res, 'week_closed');
 
     const startedAt = Date.now();
-    const { sessions, completed } = weekScore(goal.dailyTasks);
 
     // B-61: the week writer is told the result sent with this review, which is saved only after the call.
     const writerGoal = sanitizedTestResult
       ? { ...goal, roadmapWeeks: goal.roadmapWeeks.map((w) => (w.weekNumber === weekNum ? { ...w, testResult: sanitizedTestResult as unknown as Prisma.JsonValue } : w)) }
       : goal;
-    const next = await writeWeekAfter(writerGoal, weekNum);
+    const now = new Date();
+    const next = await writeWeekAfter(writerGoal, weekNum, { now, timezone: user.timezone });
     if (!next) {
       res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
       return;
@@ -1162,11 +1162,14 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       written: next.written,
       reflection,
       testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject | null,
-      insight: `${completed} of ${sessions} sessions done.`,
+      // M1.4 (section 6): a late review that moves the plan keeps its own insight and answer.
+      insight: reviewInsight(goal.dailyTasks),
+      move: next.move,
+      now,
     });
     // Another close won inside the save (WU-27): nothing of this request was saved.
     if (!saved) return refuse(res, 'week_closed');
-    logWeekClose(goal, weekNum, 'review', new Date(), user.timezone, startedAt);
+    logWeekClose(goal, weekNum, 'review', now, user.timezone, startedAt);
     // B-61: the answer shows the result the week writer was told: the one sent, else the stored (late) one, which the save keeps.
     res.json(closeAnswer(goal, weekNum, saved, sanitizedTestResult ?? week.testResult ?? null));
   } catch (err: any) {
@@ -1232,7 +1235,7 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
 
     const startedAt = Date.now();
     const lastWeek = weekNum >= TOTAL_WEEKS;
-    const next = await writeWeekAfter(goal, weekNum);
+    const next = await writeWeekAfter(goal, weekNum, { now, timezone: user.timezone });
     if (!next) {
       res.status(503).json({ error: "Couldn't get your next week ready. Please try again." });
       return;
@@ -1242,8 +1245,9 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
       weekNumber: weekNum,
       by: 'auto',
       written: next.written,
-      // RULE-11: week 12 closes with no review row.
-      ...(lastWeek ? {} : { insight: AUTO_CLOSE_INSIGHT }),
+      // RULE-11: week 12 closes with no review row. M1.4 (section 6): a close that moved the plan says so.
+      ...(lastWeek ? {} : { insight: autoCloseInsight(next.move) }),
+      move: next.move,
       now,
     });
     // Lost the race (WU-27): another close saved this week; nothing of this request was saved.
