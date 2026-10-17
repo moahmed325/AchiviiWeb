@@ -6,6 +6,7 @@ import { PhaseGateOutcomeCard } from './PhaseGateOutcomeCard';
 import type { DailyTask, WeekTarget, WeeklyTestResult } from '../../types';
 import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
 import { formatTarget } from '../../lib/formatters';
+import { isRestLike } from '../../lib/today';
 
 export interface AdaptationMomentStepProps {
   currentWeekNumber: number;
@@ -39,7 +40,7 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
   onContinue,
 }) => {
   const isClosingStretch = nextWeekNumber === null;
-  const plannedSessions = nextWeekTasks ? nextWeekTasks.filter((t) => !t.isRestDay).length : 0;
+  const plannedSessions = nextWeekTasks ? nextWeekTasks.filter((t) => !isRestLike(t)).length : 0;
 
   return (
     <div className="space-y-5 motion-safe:animate-rise-in text-left">

@@ -471,3 +471,56 @@ describe('journeyAdapter', () => {
     });
   });
 });
+
+// Weekly update M1.4 (RULE-14, AC-11, WU-26): a move shifts startDate and targetDate, so "Day N" skips the moved days
+// and lines up with the plan index the journey compares it with; a day not offered is shown like a rest day.
+describe('journeyAdapter after a move (weekly update M1.4)', () => {
+  // Moved 4 days: week 3 (plan days 15 to 21) starts on Friday 2026-10-09 instead of Monday 2026-10-05.
+  const MOVED = 4;
+  const day = (n: number, over: Partial<DailyTask> = {}): DailyTask => ({
+    id: `d${n}`,
+    goalId: 'g',
+    weekNumber: Math.ceil(n / 7),
+    dayNumber: n,
+    date: new Date(Date.UTC(2026, 8, 21 + MOVED * (n > 14 ? 1 : 0) + n - 1)).toISOString().slice(0, 10),
+    dayOfWeek: 'Day',
+    title: `Session ${n}`,
+    detailedSteps: '[]',
+    implementationIntention: '',
+    durationMinutes: 30,
+    isRestDay: false,
+    status: n <= 14 ? 'completed' : 'pending',
+    created_at: '',
+    ...over,
+  });
+  const goal = {
+    id: 'g',
+    status: 'active',
+    currentWeek: 3,
+    planVersion: 2,
+    startDate: '2026-09-25T00:00:00.000Z', // 2026-09-21 + 4
+    targetDate: '2026-12-24T00:00:00.000Z', // 2026-12-20 + 4
+    roadmap: { phases: [{ name: 'Base', startWeek: 1, endWeek: 12, purpose: '' }] },
+    roadmapWeeks: [],
+    dailyTasks: [...Array.from({ length: 21 }, (_, i) => day(i + 1))],
+  } as unknown as Goal;
+
+  it('"Day N" leaves the moved days out: the first day back is plan day 15', () => {
+    expect(calculateDayNumber(goal, new Date('2026-10-09T12:00:00Z'), 'UTC')).toBe(15);
+    // The startDate fallback (no targetDate) follows the move the same way.
+    expect(calculateDayNumber({ startDate: goal.startDate }, new Date('2026-10-09T12:00:00Z'))).toBe(15);
+  });
+
+  it("the journey marks today's step active and the steps after it upcoming", () => {
+    const data = toJourneyData(goal, '2026-10-09', 'UTC')!;
+    const steps = data.phases[0].weeks[2].days;
+    expect(steps.find((s) => s.dayNumber === 15)!.status).toBe('active');
+    expect(steps.find((s) => s.dayNumber === 16)!.status).toBe('upcoming');
+  });
+
+  it('a day not offered is shown as a rest day, never as a step to do', () => {
+    const step = mapTaskToStep(day(15, { notOffered: true }), 17, '2026-10-11');
+    expect(step.isRestDay).toBe(true);
+    expect(mapTaskToStep(day(16), 17, '2026-10-11').isRestDay).toBe(false);
+  });
+});

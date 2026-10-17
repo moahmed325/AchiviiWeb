@@ -5,7 +5,8 @@ import type { WeekTarget, WeekTest } from '../../types';
 import { formatTarget, formatPassIf } from '../../lib/formatters';
 
 export interface ReviewSummaryCardProps {
-  scorePercentage: number;
+  /** WU-33 (3): null when the week has no practice day left to count (every day not offered): shown as not counted. */
+  scorePercentage: number | null;
   completedSessions: number;
   totalActiveSessions: number;
   theme?: string;
@@ -26,8 +27,9 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
   target,
   test,
 }) => {
+  const notCounted = scorePercentage === null;
   const isEmptyWeek = completedSessions === 0;
-  const isHighCompletion = scorePercentage >= 80;
+  const isHighCompletion = scorePercentage !== null && scorePercentage >= 80;
 
   return (
     <div className="rounded-card border border-border bg-surface p-5 text-center sm:p-6">
@@ -38,22 +40,24 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
       <div
         className={cx(
           'mt-1 font-ui-mono text-numeral tabular-nums',
-          isEmptyWeek
+          notCounted || isEmptyWeek
             ? 'text-text-secondary'
             : isHighCompletion
             ? 'text-accent'
             : 'text-caution'
         )}
       >
-        {scorePercentage}%
+        {notCounted ? 'Not counted' : `${scorePercentage}%`}
       </div>
 
       <div className="mt-1 text-small text-text-secondary">
-        {completedSessions} of {totalActiveSessions} practice session{totalActiveSessions === 1 ? '' : 's'} completed
+        {notCounted
+          ? 'No practice days were offered this week.'
+          : `${completedSessions} of ${totalActiveSessions} practice session${totalActiveSessions === 1 ? '' : 's'} completed`}
       </div>
 
       <div className="mt-3 text-small">
-        {isEmptyWeek ? (
+        {notCounted ? null : isEmptyWeek ? (
           <p className="font-medium text-text-secondary">
             This week had no logged practice. Every week is a chance to reset your pace and adapt.
           </p>

@@ -61,7 +61,8 @@ export function roadmapWeekRows(goalId: string, roadmap: Roadmap, dailyMinutes: 
   }));
 }
 
-export function dailyTaskRows(goalId: string, weekNumber: number, days: WeekDayPlan[]) {
+/** `notOfferedBefore` (WU-13, M1.4): every row dated before this local date ('YYYY-MM-DD') is stored not offered. */
+export function dailyTaskRows(goalId: string, weekNumber: number, days: WeekDayPlan[], notOfferedBefore?: string) {
   return days.map((day) => ({
     goalId,
     weekNumber,
@@ -80,6 +81,7 @@ export function dailyTaskRows(goalId: string, weekNumber: number, days: WeekDayP
     whyToday: day.whyToday || null,
     minimumVersion: day.minimumVersion ? json(day.minimumVersion) : undefined,
     status: 'pending',
+    ...(notOfferedBefore && day.date < notOfferedBefore ? { notOffered: true } : {}),
   }));
 }
 
@@ -181,7 +183,8 @@ export async function writeNextWeek(
   if (!stored || !next?.target || !next.test) return null;
 
   const routine = readRoutine(goal);
-  const practice = finishedTasks.filter((task) => !task.isRestDay);
+  // WU-13: a day not offered is not part of how the week went (never missed, no status effect).
+  const practice = finishedTasks.filter((task) => !task.isRestDay && !task.notOffered);
   const phase = stored.phases.find((item) => item.name === next.phase) ?? { name: next.phase, purpose: '' };
   const profile = recovery === undefined ? readRecoveryProfile(goal.roadmap) : recovery;
   const handOn = methodRecoveryEnabled() && profile ? readHandoff(finishedTasks, weekBefore, profile, readRecoveryProfile(goal.roadmap) ?? profile) : null;
@@ -229,7 +232,8 @@ export async function writeNextWeek(
   }
 }
 
-export function phaseGate(stored: StoredRoadmap, weekNumber: number, scorePercentage: number) {
+/** WU-33 (3): a week with no score (`null`, every day not offered) reports no benchmark (`benchmarkMet: null`). */
+export function phaseGate(stored: StoredRoadmap, weekNumber: number, scorePercentage: number | null) {
   const index = stored.phases.findIndex((phase) => phase.endWeek === weekNumber);
   if (index < 0) return null;
   const phase = stored.phases[index];
@@ -238,7 +242,7 @@ export function phaseGate(stored: StoredRoadmap, weekNumber: number, scorePercen
     completedPhase: phase.name,
     nextPhase: nextPhase?.name ?? 'Graduated',
     title: nextPhase ? `${phase.name} complete` : 'Final week complete',
-    benchmarkMet: scorePercentage >= 80,
+    benchmarkMet: scorePercentage === null ? null : scorePercentage >= 80,
   };
 }
 
@@ -246,10 +250,16 @@ export function phaseGate(stored: StoredRoadmap, weekNumber: number, scorePercen
  * Replaces a week's tasks. Delete and create run in one transaction, so a failure leaves the old week in place (B-13).
  * Given a caller's transaction (`tx`, weekly update M1.2a), they run inside it instead and commit with it.
  */
-export async function saveWeekTasks(goalId: string, weekNumber: number, days: WeekDayPlan[], tx?: Prisma.TransactionClient) {
+export async function saveWeekTasks(
+  goalId: string,
+  weekNumber: number,
+  days: WeekDayPlan[],
+  tx?: Prisma.TransactionClient,
+  options: { notOfferedBefore?: string } = {}
+) {
   const replace = async (client: Prisma.TransactionClient) => {
     await client.dailyTask.deleteMany({ where: { goalId, weekNumber } });
-    await client.dailyTask.createMany({ data: dailyTaskRows(goalId, weekNumber, days) });
+    await client.dailyTask.createMany({ data: dailyTaskRows(goalId, weekNumber, days, options.notOfferedBefore) });
   };
   if (tx) {
     await replace(tx);

@@ -7,6 +7,7 @@ import { getZonedDateString, normalizeTimezone } from '../timezone.js';
 import { phaseGate, readRoutine, readStoredRoadmap, saveWeekTasks, weekStartFor, writeNextWeek } from '../planV2.js';
 import { ensureRecoveryProfile } from '../recovery/store.js';
 import { methodRecoveryEnabled } from '../recovery/switch.js';
+import { weekCloseEnabled } from './switch.js';
 
 /**
  * Weekly update M1.2a (RULE-9, WU-27): the one way a week closes, by the weekly review or automatically. The week after
@@ -23,21 +24,89 @@ export type ClosingGoal = Goal & { roadmapWeeks: RoadmapWeek[]; dailyTasks: Dail
 /** RULE-18: the line an automatic close saves while targets stay as planned (02-feature.md section 6). */
 export const AUTO_CLOSE_INSIGHT = 'Next week is ready. Your targets stay as planned.';
 
-/** Practice days done out of practice days, as the review has always scored a week. */
+/**
+ * Section 6, WU-33 (4): the line an automatic close saves when it moved the plan. `{date}` is stored as written; the app
+ * fills in the plan's end in the viewer's locale.
+ */
+export const MOVED_INSIGHT = 'Your next week starts today. Your plan now ends on {date}.';
+
+/** RULE-15 (WU-5): moved days never go above this for a plan. */
+export const MOVE_LIMIT_DAYS = 28;
+
+/** RULE-13 (WU-13): a gap of this many days or more moves the plan. */
+export const MOVE_FROM_GAP_DAYS = 2;
+
+/**
+ * Practice days done out of practice days, as the review has always scored a week. WU-33 (3): days not offered are
+ * left out. A week whose every practice day was not offered has no score (`score: null`, `planned: 0`); a week with
+ * no practice day at all keeps the old count (planned 1, score 0), so nothing changes without days not offered.
+ */
 export function weekScore(tasks: readonly DailyTask[]) {
   const practice = tasks.filter((t) => !t.isRestDay);
-  const planned = practice.length || 1;
-  const completed = practice.filter((t) => t.status === 'completed').length;
-  return { sessions: practice.length, planned, completed, score: Math.round((completed / planned) * 100) };
+  const offered = practice.filter((t) => !t.notOffered);
+  const completed = offered.filter((t) => t.status === 'completed').length;
+  if (offered.length === 0 && practice.length > 0) return { sessions: 0, planned: 0, completed, score: null };
+  const planned = offered.length || 1;
+  return { sessions: offered.length, planned, completed, score: Math.round((completed / planned) * 100) };
+}
+
+/**
+ * RULE-13, RULE-14 (WU-13, WU-26, WU-33 (2)): how the close of `closedWeek` moves the plan. Null with
+ * `WEEK_CLOSE_ENABLED` off (RULE-18: no gap, no move, no days not offered) and for week 12, which has no week after it.
+ * - `gap`: days from the new week's planned start to the local date of the first open that tried to close this week
+ *   (`closeTriedAt` when `closeTriedWeek` is this week, else `now`), so days spent on failed writes never count (RULE-9).
+ * - `days`: for a gap of 2 or more, `min(gap, 28 - movedDays)`; else 0.
+ * - `writtenOn`: the person's local date now. Every row of the new week dated before it is not offered.
+ */
+export interface WeekMove {
+  gap: number;
+  days: number;
+  startDate: Date;
+  targetDate: Date;
+  movedDays: number;
+  writtenOn: string;
+}
+
+export function planWeekMove(
+  goal: Pick<Goal, 'startDate' | 'targetDate' | 'movedDays' | 'closeTriedAt' | 'closeTriedWeek'>,
+  closedWeek: number,
+  now: Date,
+  timezone?: string | null
+): WeekMove | null {
+  if (!weekCloseEnabled() || closedWeek + 1 > TOTAL_WEEKS) return null;
+  const firstTry = goal.closeTriedWeek === closedWeek && goal.closeTriedAt && goal.closeTriedAt.getTime() <= now.getTime() ? goal.closeTriedAt : now;
+  const gap = gapDays(goal.startDate, closedWeek, firstTry, timezone);
+  const moved = Math.max(0, goal.movedDays ?? 0);
+  const days = gap >= MOVE_FROM_GAP_DAYS ? Math.max(0, Math.min(gap, MOVE_LIMIT_DAYS - moved)) : 0;
+  return {
+    gap,
+    days,
+    startDate: shiftDays(goal.startDate, days),
+    targetDate: shiftDays(goal.targetDate, days),
+    movedDays: moved + days,
+    writtenOn: getZonedDateString(now, normalizeTimezone(timezone)),
+  };
+}
+
+function shiftDays(date: Date, days: number): Date {
+  const shifted = new Date(date);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted;
 }
 
 /**
  * Writes the week after `weekNumber` exactly as the review always has: the goal's recovery profile (its own write, never
  * blocking), the week before with the method switch on, then `writeNextWeek`. `null` when the week could not be written;
- * `written: null` for week 12, which has no week after it.
+ * `written: null` for week 12, which has no week after it. With `WEEK_CLOSE_ENABLED` on, the move is worked out first
+ * (`planWeekMove`) and the week is written from the moved start; nothing is saved here.
  */
-export async function writeWeekAfter(goal: ClosingGoal, weekNumber: number): Promise<{ written: WeekDayPlan[] | null } | null> {
-  if (weekNumber + 1 > TOTAL_WEEKS) return { written: null };
+export async function writeWeekAfter(
+  goal: ClosingGoal,
+  weekNumber: number,
+  context: { now?: Date; timezone?: string | null } = {}
+): Promise<{ written: WeekDayPlan[] | null; move: WeekMove | null } | null> {
+  if (weekNumber + 1 > TOTAL_WEEKS) return { written: null, move: null };
+  const move = planWeekMove(goal, weekNumber, context.now ?? new Date(), context.timezone);
   // M1.3a (RULE-1, MR-14): an older goal gets its recovery profile here; never blocks the close.
   const recovery = await ensureRecoveryProfile(goal);
   // M3.1d review: with the method switch on, the week before too, so a break across the week change is seen. Never
@@ -50,8 +119,10 @@ export async function writeWeekAfter(goal: ClosingGoal, weekNumber: number): Pro
       console.warn('[GoalRouter] Could not read the week before for the handoff:', err);
     }
   }
-  const written = await writeNextWeek(goal, weekNumber, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot), recovery, weekBefore);
-  return written ? { written } : null;
+  // WU-26: the week is dated from the moved start, so it starts on the day they came back (or as near as the limit allows).
+  const writerGoal = move && move.days > 0 ? { ...goal, startDate: move.startDate } : goal;
+  const written = await writeNextWeek(writerGoal, weekNumber, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot), recovery, weekBefore);
+  return written ? { written, move } : null;
 }
 
 export interface WeekCloseInput {
@@ -65,6 +136,8 @@ export interface WeekCloseInput {
   testResult?: Prisma.InputJsonObject | null;
   /** The review row's insight; the review row is not written when this is undefined (RULE-11: week 12 closed automatically). */
   insight?: string;
+  /** From `writeWeekAfter`: the move and the days not offered, saved only by the request that wins. */
+  move?: WeekMove | null;
   now?: Date;
 }
 
@@ -75,10 +148,11 @@ export interface SavedClose {
 
 /**
  * Saves a close all or nothing. Null when the closing week was no longer `active` (another close won): nothing is saved.
- * Week N closed, the review row, week N+1's tasks, week N+1 active and `currentWeek` commit together.
+ * Week N closed, the review row, week N+1's tasks (with the days not offered), week N+1 active, `currentWeek` and the
+ * move (`startDate`, `targetDate`, `movedDays`) commit together. Week N's stored rows don't change.
  */
 export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose | null> {
-  const { goal, weekNumber, by, written } = input;
+  const { goal, weekNumber, by, written, move } = input;
   const { planned, completed, score } = weekScore(goal.dailyTasks);
   const reflection = input.reflection || '';
   const nextWeek = weekNumber + 1;
@@ -100,7 +174,8 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
     });
     if (won.count === 0) return null;
 
-    const reviewFields = { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score, reflection, aiAdaptationInsight: input.insight ?? '' };
+    // WU-33 (3): a week with no score stores 0 of 0 here, because these columns can't be empty.
+    const reviewFields = { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score ?? 0, reflection, aiAdaptationInsight: input.insight ?? '' };
     const review =
       input.insight === undefined
         ? null
@@ -112,9 +187,10 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
 
     let nextTasks: DailyTask[] = [];
     if (written && nextWeek <= TOTAL_WEEKS) {
-      nextTasks = await saveWeekTasks(goal.id, nextWeek, written, tx);
+      nextTasks = await saveWeekTasks(goal.id, nextWeek, written, tx, move ? { notOfferedBefore: move.writtenOn } : undefined);
       await tx.roadmapWeek.update({ where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } }, data: { status: 'active' } });
-      await tx.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek } });
+      const moved = move && move.days > 0 ? { startDate: move.startDate, targetDate: move.targetDate, movedDays: move.movedDays } : {};
+      await tx.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek, ...moved } });
     }
     return { review, nextTasks };
   }, { timeout: 15_000 });
@@ -130,7 +206,8 @@ export function closeAnswer(goal: ClosingGoal, weekNumber: number, saved: SavedC
   const gate = stored ? phaseGate(stored, weekNumber, score) : null;
   return {
     review: saved.review,
-    scorePercentage: score,
+    // WU-33 (3): 0 for a week with no score, as its review row stores it; the row's `tasksPlanned` of 0 says not counted.
+    scorePercentage: score ?? 0,
     nextWeekNumber: weekNumber + 1 <= TOTAL_WEEKS ? weekNumber + 1 : null,
     nextWeekTasks: saved.nextTasks,
     isMilestoneCheckpoint: Boolean(gate),

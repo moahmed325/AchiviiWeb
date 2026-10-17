@@ -12,6 +12,7 @@ import {
   isToday,
   isWeekReviewDue,
   isClosingStretchActive,
+  isRestLike,
   missNotice,
   shortOnTimeOffer,
   parseIntention,
@@ -183,11 +184,11 @@ const PathwayNotice: React.FC = () => {
 const dayLabel = (task: DailyTask, now: Date, timezone?: string) => `${task.dayOfWeek.slice(0, 3)} ${task.date.slice(8)}${isToday(task, now, timezone) ? ', today' : ''}`;
 
 const dayState = (task: DailyTask, now: Date, timezone?: string) =>
-  task.status === 'completed' ? 'done' : task.isRestDay ? 'rest day' : isToday(task, now, timezone) ? 'to do' : 'not done';
+  task.status === 'completed' ? 'done' : isRestLike(task) ? 'rest day' : isToday(task, now, timezone) ? 'to do' : 'not done';
 
 /** Which `dash-day` mark a day gets. Shape carries the state as well as colour. */
 const markState = (task: DailyTask, now: Date, timezone?: string) =>
-  task.status === 'completed' ? 'completed' : task.isRestDay ? 'rest' : isToday(task, now, timezone) ? 'today' : 'upcoming';
+  task.status === 'completed' ? 'completed' : isRestLike(task) ? 'rest' : isToday(task, now, timezone) ? 'today' : 'upcoming';
 
 const DayMark: React.FC<{ task: DailyTask; now: Date; timezone?: string }> = ({ task, now, timezone }) => {
   const state = markState(task, now, timezone);

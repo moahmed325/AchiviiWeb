@@ -139,7 +139,8 @@ export interface ReconcileDay {
   dayNumber: number;
   isKeySession: boolean;
   isTestDay: boolean;
-  kind: 'done' | 'missed' | 'rest' | 'planned';
+  /** `not_offered` (weekly update WU-33): the day passed before its week was written; shown like a rest day. */
+  kind: 'done' | 'missed' | 'rest' | 'planned' | 'not_offered';
 }
 
 /** A carry the backend planned or wrote (M2.2). Only the fields the UI reads are typed. */
@@ -274,6 +275,8 @@ export interface DailyTask {
   durationMinutes: number;
   slotTime?: string;
   isRestDay: boolean;
+  /** Weekly update WU-13: the day passed before its week was written. Never missed; shown like a rest day. */
+  notOffered?: boolean;
   status: 'pending' | 'completed';
   completedAt?: string;
   notes?: string;
@@ -430,7 +433,8 @@ export interface WeeklyReviewResponse {
     title: string;
     completedPhase: string;
     nextPhase: string;
-    benchmarkMet: boolean;
+    /** WU-33 (3): null for a week with no score (every day not offered): no benchmark. */
+    benchmarkMet: boolean | null;
   } | null;
   testResult?: import('./review').WeeklyTestResult | null;
 }

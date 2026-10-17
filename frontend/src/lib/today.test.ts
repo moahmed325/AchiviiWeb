@@ -629,3 +629,23 @@ describe('gentle_return and short on time (missed sessions M3.2)', () => {
     expect(shortOnTimeOffer(null, goalWith(), wednesday, 'UTC')).toBe(false);
   });
 });
+
+// Weekly update M1.4 (WU-13, WU-33): a day not offered is shown and counted like a rest day.
+describe('days not offered (weekly update M1.4)', () => {
+  const day = (id: string, date: string, over: Partial<DailyTask> = {}) =>
+    ({ id, date, weekNumber: 3, dayNumber: 15, dayOfWeek: 'Monday', title: id, isRestDay: false, status: 'pending', ...over }) as DailyTask;
+  const NOW = new Date('2026-10-12T12:00:00Z');
+
+  it('isRestLike, weekProgress and isWeekReviewDue leave them out', async () => {
+    const { isRestLike, weekProgress, isWeekReviewDue, selectTodayTask, dayNumber } = await import('./today');
+    const week = [day('a', '2026-10-09', { notOffered: true }), day('b', '2026-10-10', { notOffered: true }), day('c', '2026-10-13'), day('d', '2026-10-14', { status: 'completed' })];
+    expect(week.map(isRestLike)).toEqual([true, true, false, false]);
+    expect(weekProgress(week)).toEqual({ practiceDays: 2, practiceDone: 1 });
+    expect(isWeekReviewDue(week, NOW, 'UTC')).toBe(false);
+    expect(isWeekReviewDue(week.map((t) => (t.id === 'c' ? { ...t, status: 'completed' as const } : t)), NOW, 'UTC')).toBe(true);
+    // No row for today: the first pending day that was offered, not a day not offered.
+    expect(selectTodayTask(week, NOW, undefined, 'UTC')?.id).toBe('c');
+    // "Day N of 90" is read from the moved targetDate: 12 days moved means 12 fewer days counted.
+    expect(dayNumber({ targetDate: '2026-12-20T00:00:00.000Z' }, NOW, 'UTC') - dayNumber({ targetDate: '2027-01-01T00:00:00.000Z' }, NOW, 'UTC')).toBe(12);
+  });
+});

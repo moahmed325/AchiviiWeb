@@ -210,7 +210,10 @@ export function inOrderQueue(input: {
           continue;
         }
         if (listed.has(key)) continue;
-        const status: QueueStatus = copy.at.kind === 'missed' ? 'missed' : copy.at.date >= input.today ? 'session' : 'still_open';
+        // WU-33 (1): the one exception to "like rest": a day not offered holds its steps as not done, so they queue like a
+        // missed day's into the days left (and the queue's records may sit on them, as on a missed day's).
+        const status: QueueStatus =
+          copy.at.kind === 'missed' || copy.at.kind === 'not_offered' ? 'missed' : copy.at.date >= input.today ? 'session' : 'still_open';
         onDays.push({ key, origin: copy.origin, title: copy.step.title, step: copy.step, status, at: copy.at });
       }
       const steps = [...onDays, ...listed.values()].sort(byWritten);

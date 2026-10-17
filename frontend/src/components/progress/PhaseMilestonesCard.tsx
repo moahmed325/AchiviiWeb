@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Check, Circle, Minus } from 'lucide-react';
 import type { Goal, RoadmapWeek, RoadmapPhase, DailyTask } from '../../types';
 import { cx } from '../ui';
+import { isRestLike } from '../../lib/today';
 
 interface PhaseMilestonesCardProps {
   goal: Goal;
@@ -48,7 +49,7 @@ function derivePhases(goal: Goal): PhaseEntry[] {
     let executionScore: number | null = null;
     if (status === 'completed') {
       const phaseTasks = tasks.filter(
-        (t) => t.weekNumber >= phase.startWeek && t.weekNumber <= phase.endWeek && !t.isRestDay,
+        (t) => t.weekNumber >= phase.startWeek && t.weekNumber <= phase.endWeek && !isRestLike(t),
       );
       const completedCount = phaseTasks.filter((t) => t.status === 'completed').length;
       if (phaseTasks.length > 0) {

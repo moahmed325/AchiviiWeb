@@ -31,6 +31,8 @@ export interface HandoffTask {
   dayOfWeek?: string;
   status: string;
   isRestDay: boolean;
+  /** WU-13 (M1.4): the day passed before its week was written. */
+  notOffered?: boolean;
   isKeySession: boolean;
   isTestDay: boolean;
   steps: CarriedStep[];
@@ -123,7 +125,8 @@ export function weekHandoff(input: {
     dayNumber: task.dayNumber,
     isKeySession: task.isKeySession,
     isTestDay: task.isTestDay,
-    kind: task.isRestDay ? 'rest' : isDone(task) ? 'done' : 'missed',
+    // WU-33 (1): a day not offered keeps its kind, so only the in-order queue reads its steps (as not done).
+    kind: task.isRestDay ? 'rest' : task.notOffered === true ? 'not_offered' : isDone(task) ? 'done' : 'missed',
   }));
 
   // In-order move kinds (requirement 2).
@@ -138,7 +141,8 @@ export function weekHandoff(input: {
   }
   carried.sort((a, b) => profile.kinds.findIndex((k) => k.id === a.kind) - profile.kinds.findIndex((k) => k.id === b.kind));
 
-  const practice = tasks.filter((task) => !task.isRestDay && !task.isTestDay);
+  // WU-33 (1): a day not offered is like a rest day for continue work and moves that found no room.
+  const practice = tasks.filter((task) => !task.isRestDay && !task.isTestDay && task.notOffered !== true);
   const dayName = (task: HandoffTask) => task.dayOfWeek ?? task.date;
 
   // Continue work not finished: a missed day's step of a continue kind after the kind's last done day (RULE-10).
@@ -155,7 +159,7 @@ export function weekHandoff(input: {
 
   // Moved steps of other kinds that found no room (MR-32 (3)): a missed day outside a gap, under the new rules, whose
   // highest-priority move step (not in order, not already moved, MR-28 (2)) has no carry from it.
-  const gap = gapDays([...(input.weekBefore ?? []), ...tasks].filter((task) => !task.isRestDay).sort(byDay));
+  const gap = gapDays([...(input.weekBefore ?? []), ...tasks].filter((task) => !task.isRestDay && task.notOffered !== true).sort(byDay));
   const carrySources = new Set(tasks.flatMap((task) => task.steps.flatMap((step) => (markerOf(step) ? [markerOf(step)!.taskId] : []))));
   const queued = inOrderMoveKinds(previous);
   const noRoom: NoRoomMove[] = [];

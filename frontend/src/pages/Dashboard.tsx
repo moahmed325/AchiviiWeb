@@ -9,6 +9,7 @@ import {
   currentWeekTasks,
   dayNumber,
   isClosingStretchActive,
+  isRestLike,
   isToday,
   isWeekReviewDue,
   missNotice,
@@ -44,7 +45,7 @@ type DayState = 'completed' | 'today' | 'rest' | 'upcoming';
 
 const dayStateOf = (task: DailyTask, now: Date, timezone?: string): DayState => {
   if (task.status === 'completed') return 'completed';
-  if (task.isRestDay) return 'rest';
+  if (isRestLike(task)) return 'rest';
   if (isToday(task, now, timezone)) return 'today';
   return 'upcoming';
 };

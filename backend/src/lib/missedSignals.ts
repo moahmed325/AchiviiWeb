@@ -8,7 +8,7 @@ import { markerOf, type CarriedStep, type CarryPlan, type CarriedEarlier, type P
 import type { DayOutcome, PlannedReorder } from './recovery/carry.js';
 import { isDoneCopy, originOf, type DoneSteps } from './recovery/inOrder.js';
 import { continueMarkerOf, shiftMarkerOf } from './recovery/rules.js';
-import { dayCloseInstant, type DayClassification, type Gap } from './missedSessions.js';
+import { dayCloseInstant, isRestLike, type DayClassification, type Gap } from './missedSessions.js';
 
 // ---------------------------------------------------------------------------------------------------------------
 // Week counts (for M4.2)
@@ -70,7 +70,8 @@ export function weekCounts(
   }
 ): WeekCounts {
   const kindOf = new Map(input.days.map((day) => [day.taskId, day.kind]));
-  const practice = input.tasks.filter((task) => task.weekNumber === weekNumber && !task.isRestDay);
+  // WU-13, WU-33: days not offered count for nothing here, like rest days.
+  const practice = input.tasks.filter((task) => task.weekNumber === weekNumber && !task.isRestDay && kindOf.get(task.id) !== 'not_offered');
   const ids = new Set(practice.map((task) => task.id));
   const done = practice.filter((task) => kindOf.get(task.id) === 'done');
   const byMinimum = (task: CountableTask) => task.usedMinimumVersion === true;
@@ -217,7 +218,8 @@ export function buildSignals(input: SignalInput): MissedSignals {
   };
   const ordered = [...input.days].sort(byDate);
   const dayById = new Map(ordered.map((day) => [day.taskId, day]));
-  const practice = ordered.filter((day) => day.kind !== 'rest');
+  // WU-33: a day not offered is like a rest day: never the latest closed day, never missed.
+  const practice = ordered.filter((day) => !isRestLike(day));
   const today = ordered.find((day) => day.date === input.today) ?? null;
   const todayOpenPractice = today !== null && today.kind === 'planned';
 
@@ -275,7 +277,7 @@ export function buildSignals(input: SignalInput): MissedSignals {
       ? { gapLength: gap.length, firstDate: gap.firstDate, lastDate: gap.lastDate }
       : null;
 
-  const restDay = today?.kind === 'rest';
+  const restDay = today !== null && isRestLike(today);
   if (input.plan.outcomes) {
     const line = methodLine(input, input.plan.outcomes, { stored, practice, latestClosed, isOpen: (date) => nowMs < closeOf(date) });
     const lineNotice: NoticeKind | null = line ? (line.kind === 'carried' || line.kind === 'dropped' ? line.kind : 'method') : null;

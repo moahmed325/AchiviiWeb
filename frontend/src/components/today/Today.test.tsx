@@ -1649,3 +1649,29 @@ describe('Today with method-aware recovery (M3.3)', () => {
     });
   });
 });
+
+// Weekly update M1.4 (RULE-14, AC-11, WU-13, WU-33): after a move, "Day N" leaves the moved days out, and a day not
+// offered is shown like a rest day: never "not done", never counted as a practice day.
+describe('Today after a move (weekly update M1.4)', () => {
+  // Week 3 (plan days 15 to 21), today is its third day (day 17); Mon and Tue were not offered.
+  const moved = tasks.map((t, index) => ({ ...t, weekNumber: 3, dayNumber: 15 + index, status: 'pending' as const, notOffered: index < 2 }));
+  const MOVED_GOAL = { ...GOAL, currentWeek: 3, targetDate: `${isoDay(91 - 17)}T00:00:00.000Z`, roadmapWeeks: [{ weekNumber: 3, phase: 'Aerobic base', theme: 'Easy miles' }], dailyTasks: moved } as unknown as Goal;
+
+  it('Day N follows the moved end date', async () => {
+    mocked.fetchActiveGoal.mockResolvedValue(MOVED_GOAL);
+    await renderToday();
+    expect(screen.getByLabelText('Day 17 of 90')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Easy base run' })).toBeInTheDocument();
+  });
+
+  it('days not offered read as rest days in the week and are not counted as practice days', async () => {
+    mocked.fetchActiveGoal.mockResolvedValue(MOVED_GOAL);
+    await renderToday();
+    const days = screen.getAllByRole('button', { hidden: true, name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d/ });
+    expect(days[0]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
+    expect(days[1]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
+    expect(days[2]).toHaveAccessibleName(expect.stringMatching(/, today, to do$/));
+    // Six practice days less the two not offered.
+    expect(screen.getByText('0 of 4 practice days done')).toBeInTheDocument();
+  });
+});

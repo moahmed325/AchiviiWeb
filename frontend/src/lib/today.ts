@@ -11,6 +11,14 @@ export function todayKey(now: Date, timezone?: string): string {
   return getLocalDateString(now, timezone) || now.toISOString().split('T')[0];
 }
 
+/**
+ * Weekly update WU-13, WU-33: a day not offered (it passed before its week was written) is shown and counted like a
+ * rest day: never missed, never something to complete.
+ */
+export function isRestLike(task: Pick<DailyTask, 'isRestDay' | 'notOffered'>): boolean {
+  return Boolean(task.isRestDay || task.notOffered);
+}
+
 export function isToday(task: Pick<DailyTask, 'date'>, now: Date, timezone?: string): boolean {
   return task.date === todayKey(now, timezone);
 }
@@ -28,7 +36,7 @@ export function selectTodayTask(tasks: DailyTask[], now: Date, selectedId?: stri
     const selected = tasks.find((t) => t.id === selectedId);
     if (selected) return selected;
   }
-  return tasks.find((t) => isToday(t, now, timezone)) ?? tasks.find((t) => t.status === 'pending') ?? tasks[0];
+  return tasks.find((t) => isToday(t, now, timezone)) ?? tasks.find((t) => t.status === 'pending' && !t.notOffered) ?? tasks[0];
 }
 
 /** Calendar days until `targetDate`, counted down from 90, clamped to 1–90. */
@@ -76,9 +84,9 @@ export function currentRoadmapWeek(goal: Pick<Goal, 'currentWeek' | 'roadmapWeek
   return weeks.find((w) => w.weekNumber === (goal.currentWeek || 1)) ?? weeks[0];
 }
 
-/** Practice days only: rest days are part of the plan, not something to complete. */
+/** Practice days only: rest days (and days not offered) are part of the plan, not something to complete. */
 export function weekProgress(tasks: DailyTask[]): { practiceDays: number; practiceDone: number } {
-  const practice = tasks.filter((t) => !t.isRestDay);
+  const practice = tasks.filter((t) => !isRestLike(t));
   return { practiceDays: practice.length, practiceDone: practice.filter((t) => t.status === 'completed').length };
 }
 
@@ -138,7 +146,7 @@ export function findNextTask(tasks: DailyTask[], currentTaskId: string): DailyTa
   const currentIndex = tasks.findIndex((t) => t.id === currentTaskId);
   if (currentIndex === -1) return null;
   const subsequent = tasks.slice(currentIndex + 1);
-  return subsequent.find((t) => !t.isRestDay) ?? null;
+  return subsequent.find((t) => !isRestLike(t)) ?? null;
 }
 
 /** Finds the task scheduled for yesterday (the calendar day before today in the user's timezone). */
@@ -405,7 +413,7 @@ export function isWeekReviewDue(tasks: DailyTask[], now: Date, timezone?: string
   const today = todayKey(now, timezone);
   if (tasks.every((t) => t.date < today)) return true;
 
-  const activePracticeTasks = tasks.filter((t) => !t.isRestDay);
+  const activePracticeTasks = tasks.filter((t) => !isRestLike(t));
   if (activePracticeTasks.length > 0 && activePracticeTasks.every((t) => t.status === 'completed')) {
     return true;
   }
@@ -430,7 +438,7 @@ export function isClosingStretchActive(goal: Goal, now: Date, timezone?: string)
   const currentWeek = goal.currentWeek ?? 1;
   if (currentWeek >= 12) {
     const week12Tasks = (goal.dailyTasks || []).filter((t) => t.weekNumber === 12);
-    const activeTasks = week12Tasks.filter((t) => !t.isRestDay);
+    const activeTasks = week12Tasks.filter((t) => !isRestLike(t));
     const allDone = activeTasks.length > 0 && activeTasks.every((t) => t.status === 'completed');
     const reviewed = Boolean(goal.weeklyReviews?.some((r) => r.weekNumber === 12));
     if (allDone || reviewed) {

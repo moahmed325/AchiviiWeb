@@ -16,9 +16,19 @@ export interface ClassifiableTask {
   isRestDay: boolean;
   isKeySession: boolean;
   isTestDay: boolean;
+  /** WU-13 (M1.4): the day passed before its week was written. Optional so older callers and fixtures still fit. */
+  notOffered?: boolean;
 }
 
-export type DayKind = 'done' | 'missed' | 'rest' | 'planned';
+/** WU-33 (1): `not_offered` is a day that passed before its week was written. */
+export type DayKind = 'done' | 'missed' | 'rest' | 'planned' | 'not_offered';
+
+/**
+ * WU-33 (1): every consumer treats a day not offered like a rest day (never missed, never a gap day, never a carry
+ * source or target, no miss line, no swap, nothing in `weekCounts`). Only the in-order queue (`inOrderQueue`) reads
+ * its steps, as not done.
+ */
+export const isRestLike = (day: Pick<DayClassification, 'kind'>) => day.kind === 'rest' || day.kind === 'not_offered';
 
 export interface DayClassification {
   taskId: string;
@@ -86,6 +96,8 @@ export function dayCloseInstant(date: string, sleepTime: unknown, timezone?: unk
 /**
  * Classifies every task at `now` (ND-2: derived, never stored).
  * - rest: a rest day, whatever its status or time (RULE-5).
+ * - not_offered: a practice day stored `notOffered` (WU-13, WU-33): it passed before its week was written, whatever its
+ *   status or time. Read in every switch state; only the week close (behind `WEEK_CLOSE_ENABLED`) stores it.
  * - done: a practice day marked completed, closed or not. Completion is stored per day, so this is the only
  *   signal; the 10-minute version is stored the same way and counts (RULE-4).
  * - missed: a practice day whose day has closed and that is not completed.
@@ -111,6 +123,7 @@ export function classifyDays(
   return tasks.map((task) => {
     let kind: DayKind;
     if (task.isRestDay) kind = 'rest';
+    else if (task.notOffered === true) kind = 'not_offered';
     else if (task.status === 'completed') kind = 'done';
     else if (isDateKey(task.date) && closeOf(task.date) <= nowMs) kind = 'missed';
     else kind = 'planned';
@@ -127,7 +140,7 @@ export function classifyDays(
 }
 
 /**
- * RULE-8: the open gap, if any. Walks the days in date order; rest days neither count nor break a run,
+ * RULE-8: the open gap, if any. Walks the days in date order; rest days and days not offered neither count nor break a run,
  * and runs continue across week boundaries. A done day breaks the run; open (planned) days are after every
  * closed day, so the run that remains is the one ending at the most recent closed practice day.
  * Returns it when it is at least GAP_MIN_DAYS long, otherwise null.

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { Goal, RoadmapWeek, DailyTask } from '../../types';
 import { cx } from '../ui';
+import { isRestLike } from '../../lib/today';
 
 interface WeekBreakdownListProps {
   goal: Goal;
@@ -28,7 +29,8 @@ function deriveWeeks(goal: Goal): WeekEntry[] {
   for (let wNum = 1; wNum <= totalWeeks; wNum++) {
     const roadmapWeek = weeks.find((w) => w.weekNumber === wNum);
     const weekTasks = tasks.filter((t) => t.weekNumber === wNum);
-    const activeTasks = weekTasks.filter((t) => !t.isRestDay);
+    // WU-33: days not offered count like rest days; a week with none left has no score (not counted, never 0%).
+    const activeTasks = weekTasks.filter((t) => !isRestLike(t));
     const completedCount = activeTasks.filter((t) => t.status === 'completed').length;
 
     let status: 'completed' | 'active' | 'upcoming';
