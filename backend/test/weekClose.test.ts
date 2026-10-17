@@ -467,3 +467,85 @@ describe('gapDays (WU-30 log line)', () => {
     expect(gapDays(new Date('invalid'), 1, new Date(), 'UTC')).toBe(0);
   });
 });
+
+describe('the close line and a late reflection (weekly update M1.2b, WU-28, WU-31)', () => {
+  const lineSeen = (weekNumber = 1) => post(`/weeks/${weekNumber}/close-line-seen`);
+  const reflect = (weekNumber = 1, reflection: unknown = 'It went well') => post(`/weeks/${weekNumber}/reflection`, { reflection });
+  const closedAuto = async () => {
+    vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
+    seed(1);
+    expect((await closeWeek()).body).toMatchObject({ due: true, closedBy: 'auto' });
+  };
+
+  describe.each([[''], ['TRUE'], ['1']])('with WEEK_CLOSE_ENABLED=%j', (value) => {
+    it('both refuse and read nothing (RULE-18)', async () => {
+      await closedAuto();
+      vi.stubEnv('WEEK_CLOSE_ENABLED', value);
+      vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
+      const before = snapshot();
+      vi.mocked(db.prisma.goal.findFirst).mockClear();
+      for (const answer of [await lineSeen(), await reflect()]) {
+        expect(answer).toEqual({ status: 409, body: { error: 'This action is not available yet.', reason: 'week_close_disabled' } });
+      }
+      expect(db.prisma.goal.findFirst).not.toHaveBeenCalled();
+      expect(db.state).toEqual(before);
+    });
+  });
+
+  it('records the line as seen once; a repeat keeps the first time', async () => {
+    await closedAuto();
+    expect(db.week(1).closeLineSeenAt ?? null).toBeNull();
+    const first = await lineSeen();
+    expect(first).toEqual({ status: 200, body: { closeLineSeenAt: new Date(MORNING_AFTER).toISOString() } });
+    vi.setSystemTime(new Date('2026-09-28T09:00:00Z'));
+    const again = await lineSeen();
+    expect(again).toEqual({ status: 200, body: { closeLineSeenAt: new Date(MORNING_AFTER).toISOString() } });
+    expect(db.week(1).closeLineSeenAt).toEqual(new Date(MORNING_AFTER));
+  });
+
+  it('the line: refuses a week the review closed, an open week and a week that is not there', async () => {
+    vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
+    seed(2);
+    const before = snapshot();
+    expect(await lineSeen(1)).toEqual({ status: 409, body: { error: 'This week did not close on its own.', reason: 'not_auto_closed' } });
+    expect((await lineSeen(2)).body.reason).toBe('not_auto_closed');
+    expect((await lineSeen(13)).status).toBe(400);
+    db.state.weeks = db.state.weeks.filter((w) => w.weekNumber !== 5);
+    expect((await lineSeen(5)).status).toBe(404);
+    expect(db.state.goals).toEqual(before.goals);
+    expect(db.state.weeks.every((w) => (w.closeLineSeenAt ?? null) === null)).toBe(true);
+  });
+
+  it('only the signed-in person goal: another person closed week is never touched', async () => {
+    await closedAuto();
+    db.state.goals[0].userId = 'someone-else';
+    expect((await lineSeen()).status).toBe(404);
+    expect((await reflect()).status).toBe(404);
+    expect(db.week(1).closeLineSeenAt ?? null).toBeNull();
+    expect(db.week(1).reviewNotes).toBe('');
+  });
+
+  it('saves a lost review reflection onto the week closed automatically, and its review row; a repeat is fine', async () => {
+    await closedAuto();
+    expect(db.week(1).reviewNotes).toBe('');
+    expect(await reflect(1, 'Typed in the other tab')).toEqual({ status: 200, body: { reflection: 'Typed in the other tab' } });
+    expect(db.week(1).reviewNotes).toBe('Typed in the other tab');
+    expect(db.state.reviews[0]).toMatchObject({ weekNumber: 1, reflection: 'Typed in the other tab', aiAdaptationInsight: AUTO_CLOSE_INSIGHT });
+    expect(await reflect(1, 'Typed in the other tab')).toEqual({ status: 200, body: { reflection: 'Typed in the other tab' } });
+    // A second, different reflection never replaces the first.
+    expect(await reflect(1, 'Something else')).toEqual({ status: 409, body: { error: 'This week already has a reflection.', reason: 'reflection_saved' } });
+    expect(db.week(1).reviewNotes).toBe('Typed in the other tab');
+    expect(db.state.reviews[0].reflection).toBe('Typed in the other tab');
+  });
+
+  it('the reflection: refuses a week the review closed, an open week, and an empty reflection', async () => {
+    vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
+    seed(2);
+    const before = snapshot();
+    expect(await reflect(1)).toEqual({ status: 409, body: { error: 'This week did not close on its own.', reason: 'not_auto_closed' } });
+    expect((await reflect(2)).body.reason).toBe('not_auto_closed');
+    expect((await reflect(1, '   ')).status).toBe(400);
+    expect((await reflect(1, 42)).status).toBe(400);
+    expect(db.state).toEqual(before);
+  });
+});

@@ -123,6 +123,13 @@ export interface MockOptions {
    * week answers 409 `week_closed`, as the backend does.
    */
   testResultStatus?: number;
+  /**
+   * `POST /api/goal/close-week` (weekly update M1.2b). Omitted: `{ due: false }` to every call, as the backend answers
+   * while WEEK_CLOSE_ENABLED is off, so specs written before M1.2b are unchanged. Given: check mode answers `check` until
+   * a close works; a close waits `closeDelayMs`, then answers `closeStatus` with the server's 503 text, or saves
+   * `goalAfterClose` as the goal and answers `{ due: true, closedBy: 'auto' }`.
+   */
+  closeWeek?: { check: Record<string, unknown>; goalAfterClose: Record<string, unknown>; closeStatus?: number; closeDelayMs?: number };
 }
 
 /**
@@ -169,6 +176,12 @@ export interface MockCalls {
   planActions: Array<{ action: 'mark-missed' | 'swap' | 'carry-now'; taskId: string; body: unknown }>;
   /** Every PUT /api/goal/weeks/:weekNumber/test-result request, including failed ones. */
   testResults: Array<{ weekNumber: number; body: unknown }>;
+  /** Every POST /api/goal/close-week, by mode (M1.2b). */
+  closeWeek: Array<'check' | 'close'>;
+  /** Every POST /api/goal/weeks/:weekNumber/close-line-seen, by week (M1.2b). */
+  closeLineSeen: number[];
+  /** POST /api/goal/reconcile. */
+  reconcile: number;
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -178,7 +191,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [] };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [], closeWeek: [], closeLineSeen: [], reconcile: 0 };
   const {
     goal = null,
     signupStatus = 201,
@@ -206,7 +219,9 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     swap = CARRY_DISABLED,
     carryNow = CARRY_DISABLED,
     testResultStatus,
+    closeWeek,
   } = options;
+  let weekClosed = false;
   // The goal as the "server" holds it: task writes change this copy, never the caller's fixture.
   let saved = goal ? (structuredClone(goal) as Record<string, unknown> & { dailyTasks?: unknown[] }) : null;
 
@@ -291,7 +306,32 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       return json(route, 200, { activeGoal: goalAfterCreate && calls.create.length > 0 ? goalAfterCreate : saved });
     }
 
-    if (path === '/api/goal/reconcile' && route.request().method() === 'POST') return json(route, 200, reconcile);
+    if (path === '/api/goal/reconcile' && route.request().method() === 'POST') {
+      calls.reconcile += 1;
+      return json(route, 200, reconcile);
+    }
+
+    if (path === '/api/goal/close-week' && route.request().method() === 'POST') {
+      const mode = route.request().postDataJSON()?.mode === 'check' ? 'check' : 'close';
+      calls.closeWeek.push(mode);
+      if (!closeWeek || weekClosed) return json(route, 200, { due: false });
+      if (mode === 'check') return json(route, 200, closeWeek.check);
+      await wait(closeWeek.closeDelayMs ?? 0);
+      if (closeWeek.closeStatus) return json(route, closeWeek.closeStatus, { error: "Couldn't get your next week ready. Please try again." });
+      weekClosed = true;
+      saved = structuredClone(closeWeek.goalAfterClose) as typeof saved;
+      return json(route, 200, { due: true, closedBy: 'auto' });
+    }
+
+    const lineSeenMatch = path.match(/^\/api\/goal\/weeks\/(\d+)\/close-line-seen$/);
+    if (lineSeenMatch && route.request().method() === 'POST') {
+      const weekNumber = Number(lineSeenMatch[1]);
+      calls.closeLineSeen.push(weekNumber);
+      const week = ((saved?.roadmapWeeks ?? []) as Array<Record<string, unknown>>).find((w) => w.weekNumber === weekNumber);
+      if (!week || week.closedBy !== 'auto') return json(route, 409, { error: 'This week did not close on its own.', reason: 'not_auto_closed' });
+      week.closeLineSeenAt ??= new Date().toISOString();
+      return json(route, 200, { closeLineSeenAt: week.closeLineSeenAt });
+    }
 
     const actionMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)\/(mark-missed|swap|carry-now)$/);
     if (actionMatch && route.request().method() === 'POST') {

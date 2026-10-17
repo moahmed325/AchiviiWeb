@@ -8,6 +8,7 @@ import { loadReviewDraft, loadTestResultDraft } from '../../lib/reviewDraft';
 
 vi.mock('../../lib/api', () => ({
   submitWeeklyReview: vi.fn(),
+  saveClosedWeekReflection: vi.fn(),
 }));
 
 const mockedApi = vi.mocked(api);
@@ -834,5 +835,45 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onWeekClosed).toHaveBeenCalledTimes(1);
     expect(mockedApi.submitWeeklyReview).toHaveBeenCalledTimes(1);
+  });
+
+  describe('a review that lost to an automatic close (weekly update M1.2b, WU-31)', () => {
+    const closed = () => Object.assign(new Error('This week has already been reviewed.'), { status: 409, code: 'week_closed' });
+    const submitWith = async (reflection: string) => {
+      const user = userEvent.setup();
+      const onWeekClosed = vi.fn();
+      const onClose = vi.fn();
+      mockedApi.submitWeeklyReview.mockRejectedValueOnce(closed());
+      render(
+        <WeeklyReviewModal isOpen={true} onClose={onClose} goal={createSampleGoal(createSampleTasks(5, 6))} token="test-token" onGoalUpdated={vi.fn()} onWeekClosed={onWeekClosed} />
+      );
+      if (reflection) await user.type(screen.getByLabelText('What worked? What could be better?'), reflection);
+      await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+      return { user, onWeekClosed, onClose };
+    };
+
+    it('saves the typed reflection onto the closed week and says so', async () => {
+      mockedApi.saveClosedWeekReflection.mockResolvedValueOnce({ reflection: 'Long runs felt easier' });
+      const { user, onWeekClosed } = await submitWith('Long runs felt easier');
+      expect(await screen.findByRole('alert')).toHaveTextContent('This week had already closed. Your reflection is saved.');
+      expect(mockedApi.saveClosedWeekReflection).toHaveBeenCalledWith(1, 'Long runs felt easier', 'test-token');
+      expect(loadReviewDraft('g-1', 1)).toBe('');
+      await user.click(screen.getByRole('button', { name: 'Done' }));
+      expect(onWeekClosed).toHaveBeenCalledTimes(1);
+    });
+
+    it('a week the review closed (or one that already has a reflection) keeps the M1.2a message', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockedApi.saveClosedWeekReflection.mockRejectedValueOnce(Object.assign(new Error('This week did not close on its own.'), { status: 409, code: 'not_auto_closed' }));
+      await submitWith('Long runs felt easier');
+      expect(await screen.findByRole('alert')).toHaveTextContent("This week's review is already saved.");
+      expect(mockedApi.saveClosedWeekReflection).toHaveBeenCalledTimes(1);
+    });
+
+    it('with nothing typed there is nothing to save: the M1.2a message', async () => {
+      await submitWith('');
+      expect(await screen.findByRole('alert')).toHaveTextContent("This week's review is already saved.");
+      expect(mockedApi.saveClosedWeekReflection).not.toHaveBeenCalled();
+    });
   });
 });

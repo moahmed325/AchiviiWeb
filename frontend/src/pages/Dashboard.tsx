@@ -19,6 +19,7 @@ import {
 import type { DailyTask } from '../types';
 import { Badge, Button, LoadingState, Skeleton, StepMarker } from '../components/ui';
 import { doneDaysOf, visibleDay } from '../lib/stepLines';
+import { GettingReady } from '../components/today/WeekClose';
 
 export const DashboardSkeleton: React.FC = () => (
   <main id="main" className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
@@ -136,10 +137,11 @@ const EmptyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 export const Dashboard: React.FC = () => {
-  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, reconciliation } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, reconciliation, closingWeek } = useGoal();
   const journey = useJourneyData();
   const timezone = useUserTimezone();
   const [now] = React.useState(() => new Date());
+  if (closingWeek) return <GettingReady />;
   if (loadingGoal) return <DashboardSkeleton />;
   if (goalLoadFailed && !activeGoal) return (
     <EmptyShell>

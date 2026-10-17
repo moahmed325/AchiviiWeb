@@ -9,7 +9,12 @@ import { useTaskActions } from './useTaskActions';
 
 vi.mock('../../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../lib/api')>();
-  return { ...actual, fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }), updateDailyTask: vi.fn() };
+  return {
+    ...actual,
+    // Weekly update M1.2b: the load asks to close a week first; the switch-off answer, so no test reaches the network.
+    closeWeek: vi.fn(async () => ({ due: false as const })),
+    fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }), updateDailyTask: vi.fn(),
+  };
 });
 
 const mocked = vi.mocked(api);

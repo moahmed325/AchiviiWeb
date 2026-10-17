@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
@@ -21,10 +21,15 @@ interface AppShellProps {
 export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => {
   const { pathname } = useLocation();
   const { token } = useAuth();
-  const { activeGoal } = useGoal();
+  const { activeGoal, heldClose, answerHeldClose } = useGoal();
   const [pathwaysOpen, setPathwaysOpen] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
   const mode = shellMode(pathname, Boolean(token), previewPath);
+
+  // WU-14: going to another screen while Today's test card waits counts as Skip (GoalProvider sits above the router).
+  useEffect(() => {
+    if (heldClose && pathname !== '/') void answerHeldClose();
+  }, [pathname, heldClose, answerHeldClose]);
 
   if (mode === 'chromeless') {
     return <div className="flex min-h-[100dvh] w-full flex-col overscroll-contain bg-background text-text">{children}</div>;

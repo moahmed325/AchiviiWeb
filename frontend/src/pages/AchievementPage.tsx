@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useGoal } from '../context/GoalContext';
 import { AchievementScreen } from '../components/achievement';
+import { GettingReady } from '../components/today/WeekClose';
 import type { Goal } from '../types';
 
 interface AchievementPageProps {
@@ -17,8 +18,10 @@ export const AchievementPage: React.FC<AchievementPageProps> = ({
   goal: propGoal,
   onBeginAnotherJourney,
 }) => {
-  const { activeGoal, loadingGoal } = useGoal();
+  const { activeGoal, loadingGoal, closingWeek } = useGoal();
   const goal = propGoal ?? activeGoal;
+
+  if (closingWeek && !propGoal) return <GettingReady />;
 
   if (loadingGoal && !goal) {
     return (

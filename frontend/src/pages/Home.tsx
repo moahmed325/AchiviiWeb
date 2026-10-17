@@ -7,13 +7,14 @@ import { CustomGoalGate } from '../components/billing';
 import { Button, Surface } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 import { Today, TodaySkeleton } from '../components/today/Today';
+import { GettingReady, WeekTestFirst } from '../components/today/WeekClose';
 
 const AchievementPage = React.lazy(() => import('./AchievementPage'));
 
 
 export const Home: React.FC = () => {
   const { user, token, loading: authLoading } = useAuth();
-  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus, closingWeek, heldClose } = useGoal();
   const { startPathway, startCustomGoal } = usePathwayLaunch();
   const [retrying, setRetrying] = useState(false);
 
@@ -25,6 +26,11 @@ export const Home: React.FC = () => {
       setRetrying(false);
     }
   };
+
+  // Weekly update M1.2b (RULE-8): the close call is writing the next week.
+  if (token && closingWeek) {
+    return <GettingReady />;
+  }
 
   if (token && (authLoading || loadingGoal)) {
     return <TodaySkeleton />;
@@ -91,6 +97,11 @@ export const Home: React.FC = () => {
           <AchievementPage goal={activeGoal} />
         </React.Suspense>
       );
+    }
+
+    // WU-14: a close waits for last week's test; Today shows only the card until it is answered.
+    if (heldClose) {
+      return <WeekTestFirst goal={activeGoal} weekNumber={heldClose.weekNumber} />;
     }
 
     return <Today goal={activeGoal} />;
