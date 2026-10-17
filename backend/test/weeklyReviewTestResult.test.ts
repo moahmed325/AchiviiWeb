@@ -227,6 +227,32 @@ describe('Weekly Review Test Result Storage & Validation (Milestone M7.5 — OD-
       expect(Object.values(closing.data)).not.toContain(Prisma.DbNull);
     });
 
+    it('2b. A review without testResult answers with the stored late result the week writer was told (B-61)', async () => {
+      const late = { value: 31, unit: 'minutes', passed: true };
+      const goalWithLate = {
+        ...mockGoalV2,
+        roadmapWeeks: mockGoalV2.roadmapWeeks.map((w: { weekNumber: number }) => (w.weekNumber === 1 ? { ...w, testResult: late } : w)),
+      };
+      (getAuthUser as any).mockResolvedValueOnce(mockUser);
+      (prisma.goal.findFirst as any).mockResolvedValueOnce(goalWithLate);
+      (prisma.weeklyReview.upsert as any).mockResolvedValueOnce({
+        id: 'rev-2b',
+        scorePercentage: 100,
+        reflection: 'Logged the test late.',
+        aiAdaptationInsight: '2 of 2 sessions done.',
+      });
+      (prisma.goal.update as any).mockResolvedValueOnce(goalWithLate);
+
+      const res = await fetch(`${baseUrl}/api/goal/weeks/1/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid-jwt-token' },
+        body: JSON.stringify({ reflection: 'Logged the test late.' }),
+      });
+
+      expect(res.status).toBe(200);
+      expect((await res.json()).testResult).toEqual(late);
+    });
+
     it('3. Submitting malformed testResult returns HTTP 400 with descriptive error', async () => {
       (getAuthUser as any).mockResolvedValueOnce(mockUser);
 
