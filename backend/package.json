@@ -13,7 +13,6 @@
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
