@@ -318,6 +318,11 @@ export interface RoadmapWeek {
   target?: WeekTarget | null;
   test?: WeekTest | null;
   testResult?: import('./review').WeeklyTestResult | null;
+  /** Weekly update (WU-21, M1.2a): who closed the week and when; null while it is open. */
+  closedBy?: 'review' | 'auto' | 'jumped' | null;
+  closedAt?: string | null;
+  /** WU-28: when the automatic close's line was dismissed; it never shows again once set. */
+  closeLineSeenAt?: string | null;
   created_at: string;
 }
 
@@ -405,6 +410,15 @@ export interface CreateGoalResponse {
   roadmapWeeks: RoadmapWeek[];
   dailyTasks: DailyTask[];
 }
+
+/**
+ * Weekly update M1.2a/M1.2b: what `POST /api/goal/close-week` answers. Not due (switch off, nothing due, or a lost
+ * race); due in check mode; or a close, which also carries the review's answer fields.
+ */
+export type CloseWeekAnswer =
+  | { due: false; alreadyClosed?: boolean; weekNumber?: number }
+  | { due: true; weekNumber: number; testLogged: boolean; closedBy?: undefined }
+  | ({ due: true; closedBy: 'auto' } & WeeklyReviewResponse);
 
 export interface WeeklyReviewResponse {
   review: WeeklyReview;

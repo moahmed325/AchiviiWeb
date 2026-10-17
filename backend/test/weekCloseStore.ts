@@ -26,7 +26,8 @@ function matches(row: Row, where: Row = {}): boolean {
       if ('in' in cond) return (cond.in as unknown[]).includes(row[key]);
       return matches(row[key] ?? {}, cond);
     }
-    return row[key] === cond;
+    // Prisma reads a field that was never written as null.
+    return cond === null ? (row[key] ?? null) === null : row[key] === cond;
   });
 }
 
@@ -122,6 +123,11 @@ db.prisma = {
       if (found) apply(found, update);
       else db.state.reviews.push({ id: `rev-${++nextId}`, ...structuredClone(create) });
       return structuredClone(found ?? db.state.reviews.at(-1)!);
+    }),
+    updateMany: vi.fn(async ({ where, data }: Row) => {
+      const rows = db.state.reviews.filter((r) => matches(r, where));
+      rows.forEach((r) => apply(r, data));
+      return { count: rows.length };
     }),
   },
   dailyTask: {

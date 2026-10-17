@@ -4,11 +4,17 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { AuthProvider } from './AuthContext';
 import { GoalProvider, useGoal } from './GoalContext';
 import * as api from '../lib/api';
+import { supabase } from '../lib/supabase';
 import type { Goal, ReconcileResult } from '../types';
 
 vi.mock('../lib/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../lib/api')>();
-  return { ...actual, fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), reconcileGoal: vi.fn() };
+  return {
+    ...actual,
+    // Weekly update M1.2b: the load asks to close a week first; the switch-off answer, so no test reaches the network.
+    closeWeek: vi.fn(async () => ({ due: false as const })),
+    fetchHealthCheck: vi.fn(), fetchCurrentUser: vi.fn(), fetchActiveGoal: vi.fn(), reconcileGoal: vi.fn(),
+  };
 });
 
 const mocked = vi.mocked(api);
@@ -257,5 +263,199 @@ describe('GoalProvider plan actions (missed sessions M3.3)', () => {
     expect(order).toEqual(['reconcile', 'fetch']);
     expect(loading).toEqual([false]);
     expect(result.current.reconciliation).toEqual(BODY);
+  });
+});
+
+describe('GoalProvider closes a finished week first (weekly update M1.2b, RULE-17)', () => {
+  const V2 = { ...GOAL, roadmapWeeks: [{ weekNumber: 1, status: 'active', test: { type: 'timer', instructions: 'Run', passIf: '' } }] } as unknown as Goal;
+  let order: string[];
+  const answer = (check: Awaited<ReturnType<typeof api.closeWeek>>, close?: () => Promise<Awaited<ReturnType<typeof api.closeWeek>>>) =>
+    mocked.closeWeek.mockImplementation(async (_t, mode) => {
+      order.push(mode === 'check' ? 'close:check' : 'close');
+      if (mode === 'check') return check;
+      return close ? close() : ({ due: true, closedBy: 'auto' } as never);
+    });
+
+  beforeEach(() => {
+    order = [];
+    mocked.reconcileGoal.mockImplementation(async () => {
+      order.push('reconcile');
+      return { applies: false, reason: 'no_active_goal' };
+    });
+    mocked.fetchActiveGoal.mockImplementation(async () => {
+      order.push('fetch');
+      return V2;
+    });
+  });
+  afterEach(() => window.history.pushState({}, '', '/'));
+
+  it('switch off ({ due: false }): the check, then reconcile, then the fetch; nothing held, nothing shown', async () => {
+    answer({ due: false });
+    const { result } = await loaded();
+    expect(order).toEqual(['close:check', 'reconcile', 'fetch']);
+    expect(mocked.closeWeek).toHaveBeenCalledWith('t', 'check');
+    expect(result.current).toMatchObject({ closingWeek: false, heldClose: null, closeFailed: false });
+  });
+
+  it('due with the test logged: close, then reconcile, then the fetch; "getting ready" while the close runs', async () => {
+    let release!: () => void;
+    const closing = new Promise<void>((resolve) => (release = resolve));
+    answer({ due: true, weekNumber: 1, testLogged: true }, async () => {
+      await closing;
+      return { due: true, closedBy: 'auto' } as never;
+    });
+    const hook = renderHook(() => useGoal(), { wrapper });
+    await waitFor(() => expect(hook.result.current.closingWeek).toBe(true));
+    expect(order).toEqual(['close:check', 'close']);
+    await act(async () => release());
+    await waitFor(() => expect(hook.result.current.activeGoal).not.toBeNull());
+    expect(order).toEqual(['close:check', 'close', 'reconcile', 'fetch']);
+    expect(hook.result.current.closingWeek).toBe(false);
+  });
+
+  it('due, test not logged, on Today: held; the goal is fetched without reconcile; one answer runs the close', async () => {
+    answer({ due: true, weekNumber: 1, testLogged: false });
+    const { result } = await loaded();
+    expect(result.current.heldClose).toEqual({ weekNumber: 1 });
+    expect(order).toEqual(['close:check', 'fetch']);
+    expect(result.current.reconciliation).toBeNull();
+
+    // A plan reload waits for the card (reconcile waits, RULE-17).
+    await act(() => result.current.reloadPlan());
+    expect(order).toEqual(['close:check', 'fetch']);
+
+    let answers: boolean[] = [];
+    await act(async () => {
+      answers = await Promise.all([result.current.answerHeldClose(), result.current.answerHeldClose()]);
+    });
+    expect(answers.sort()).toEqual([false, true]);
+    expect(order).toEqual(['close:check', 'fetch', 'close', 'reconcile', 'fetch']);
+    expect(result.current.heldClose).toBeNull();
+  });
+
+  it('a failing log keeps the card and sends no close', async () => {
+    answer({ due: true, weekNumber: 1, testLogged: false });
+    const { result } = await loaded();
+    await act(async () => {
+      await expect(result.current.answerHeldClose(async () => Promise.reject(new Error('offline')))).rejects.toThrow('offline');
+    });
+    expect(result.current.heldClose).toEqual({ weekNumber: 1 });
+    expect(order).toEqual(['close:check', 'fetch']);
+  });
+
+  it('on any other screen the week closes at once, with no card', async () => {
+    window.history.pushState({}, '', '/dashboard');
+    answer({ due: true, weekNumber: 1, testLogged: false });
+    const { result } = await loaded();
+    expect(order).toEqual(['close:check', 'close', 'reconcile', 'fetch']);
+    expect(result.current.heldClose).toBeNull();
+  });
+
+  it('a 503 never stops the load: reconcile and the fetch run, and closeFailed is set until a retry works', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let fail = true;
+    answer({ due: true, weekNumber: 1, testLogged: true }, async () => {
+      if (fail) throw new api.ApiError("Couldn't get your next week ready. Please try again.", 503);
+      return { due: true, closedBy: 'auto' } as never;
+    });
+    const { result } = await loaded();
+    expect(order).toEqual(['close:check', 'close', 'reconcile', 'fetch']);
+    expect(result.current.closeFailed).toBe(true);
+    expect(result.current.goalLoadFailed).toBe(false);
+
+    fail = false;
+    order = [];
+    await act(() => result.current.retryClose());
+    expect(order).toEqual(['close:check', 'close', 'reconcile', 'fetch']);
+    expect(result.current.closeFailed).toBe(false);
+    warn.mockRestore();
+  });
+
+  it('a 4xx or an unreachable server is not a failed close: the load goes on and nothing is shown', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocked.closeWeek.mockRejectedValueOnce(new api.ApiError('Active goal not found.', 404));
+    const first = await loaded();
+    expect(first.result.current.closeFailed).toBe(false);
+    first.unmount();
+    mocked.closeWeek.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const second = await loaded();
+    expect(second.result.current.closeFailed).toBe(false);
+    expect(mocked.reconcileGoal).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it('a plan reload (M3.3) asks for a close only once the open week has ended, then reconciles and fetches (review fix 4)', async () => {
+    const day = (offset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + offset);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const withLastDay = (offset: number) =>
+      ({ ...V2, dailyTasks: [-6, -3, offset].map((o, i) => ({ id: `t${i}`, weekNumber: 1, date: day(o) })) }) as unknown as Goal;
+    answer({ due: false });
+
+    mocked.fetchActiveGoal.mockImplementation(async () => {
+      order.push('fetch');
+      return withLastDay(0);
+    });
+    const open = await loaded();
+    order = [];
+    await act(() => open.result.current.reloadPlan());
+    expect(order).toEqual(['reconcile', 'fetch']);
+    open.unmount();
+
+    mocked.fetchActiveGoal.mockImplementation(async () => {
+      order.push('fetch');
+      return withLastDay(-1);
+    });
+    const ended = await loaded();
+    order = [];
+    await act(() => ended.result.current.reloadPlan());
+    expect(order).toEqual(['close:check', 'reconcile', 'fetch']);
+  });
+
+  it('two overlapping closes: "getting ready" stays until the last one ends (review fix 3)', async () => {
+    const releases: Array<() => void> = [];
+    answer({ due: true, weekNumber: 1, testLogged: true }, () => new Promise((resolve) => releases.push(() => resolve({ due: true, closedBy: 'auto' } as never))));
+    const hook = renderHook(() => useGoal(), { wrapper });
+    await waitFor(() => expect(releases).toHaveLength(1));
+    let retry!: Promise<void>;
+    act(() => {
+      retry = hook.result.current.retryClose();
+    });
+    await waitFor(() => expect(releases).toHaveLength(2));
+    expect(hook.result.current.closingWeek).toBe(true);
+
+    // The first close ends first: its reconcile and fetch run, and "getting ready" stays.
+    await act(async () => releases[0]());
+    await waitFor(() => expect(order.filter((o) => o === 'fetch')).toHaveLength(1));
+    expect(hook.result.current.closingWeek).toBe(true);
+
+    await act(async () => {
+      releases[1]();
+      await retry;
+    });
+    expect(hook.result.current.closingWeek).toBe(false);
+  });
+
+  it('a new token while the close is held reloads nothing and keeps the hold (review fix 2)', async () => {
+    answer({ due: true, weekNumber: 1, testLogged: false });
+    const { result } = await loaded();
+    expect(result.current.heldClose).toEqual({ weekNumber: 1 });
+    order = [];
+    const authCalls = vi.mocked(supabase!.auth.onAuthStateChange).mock.calls;
+    const onChange = authCalls[authCalls.length - 1][0];
+    await act(async () => onChange('TOKEN_REFRESHED', { access_token: 't2' } as never));
+    await waitFor(() => expect(result.current.goalLoadedFor).toBe('t2'));
+    expect(order).toEqual([]);
+    expect(result.current.heldClose).toEqual({ weekNumber: 1 });
+  });
+
+  it('refreshGoal stays fetch-only', async () => {
+    answer({ due: false });
+    const { result } = await loaded();
+    order = [];
+    await act(() => result.current.refreshGoal());
+    expect(order).toEqual(['fetch']);
   });
 });

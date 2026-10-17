@@ -382,3 +382,47 @@ export async function completeGoal(
   return (data.goal || data.activeGoal) as Goal;
 }
 
+
+/**
+ * Weekly update M1.2b (RULE-8, RULE-17): `POST /api/goal/close-week`. `{ mode: 'check' }` only says whether a close is
+ * due (and whether the week's test is logged); without it a due week closes. Throws `ApiError` with the status (503
+ * when the next week could not be written).
+ */
+export async function closeWeek(token: string, mode?: 'check'): Promise<import('../types').CloseWeekAnswer> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/close-week`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...clientTimezoneHeader(),
+    },
+    body: JSON.stringify(mode ? { mode } : {}),
+  });
+
+  return readJson(response, "Couldn't get your next week ready. Please try again.");
+}
+
+/** Weekly update M1.2b (WU-28): the automatic close's line was shown; no device shows it again. */
+export async function markCloseLineSeen(weekNumber: number, token: string): Promise<{ closeLineSeenAt: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/close-line-seen`, {
+    method: 'POST',
+    headers: { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+  });
+
+  return readJson(response, 'Failed to save');
+}
+
+/**
+ * Weekly update M1.2b (WU-31): a review that lost to an automatic close saves its typed reflection onto that week.
+ * Refused (`ApiError`, `code` `not_auto_closed` or `reflection_saved`) unless the week closed on its own with none yet.
+ */
+export async function saveClosedWeekReflection(weekNumber: number, reflection: string, token: string): Promise<{ reflection: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/weeks/${weekNumber}/reflection`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ reflection }),
+  });
+
+  return readJson(response, 'Failed to save the reflection');
+}

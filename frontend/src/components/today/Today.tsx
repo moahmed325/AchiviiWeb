@@ -22,12 +22,15 @@ import {
   weekProgress,
   type MissNotice,
 } from '../../lib/today';
-import { Badge, Button, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
+import { Badge, Button, ErrorState, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
 import { FocusSessionModal, type FocusCompletionOptions } from '../FocusSessionModal';
 import { BasisBadge } from '../BasisBadge';
 import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
 import { LateTestCard } from './LateTestCard';
+import { CLOSE_FAILED } from './WeekClose';
+import { closeLineWeek } from '../../lib/weekClose';
+import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
@@ -307,6 +310,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const [noteSaved, setNoteSaved] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
+  const [retryingClose, setRetryingClose] = useState(false);
   const { toggleComplete, saveNote, finishFocus } = useTaskActions();
   const planAction = usePlanAction();
   const stepsId = useId();
@@ -314,6 +318,26 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const intentionId = useId();
   const resourceId = useId();
   const notesId = useId();
+
+  // Weekly update M1.2b (WU-28): the automatic close's line, once. Dismissing it hides it here at once and records it
+  // on the server, so no device shows it again; if that save fails, the next load shows it again.
+  const closeLine = closeLineWeek(goal);
+  const dismissCloseLine = (weekNumber: number) => {
+    const seenAt = new Date().toISOString();
+    goalContext.updateActiveGoal({
+      ...goal,
+      roadmapWeeks: goal.roadmapWeeks?.map((w) => (w.weekNumber === weekNumber ? { ...w, closeLineSeenAt: seenAt } : w)),
+    });
+    if (token) markCloseLineSeen(weekNumber, token).catch((err) => console.warn('Failed to save the close line as seen:', err));
+  };
+  const retryClose = async () => {
+    setRetryingClose(true);
+    try {
+      await goalContext.retryClose();
+    } finally {
+      setRetryingClose(false);
+    }
+  };
 
   const tasks = currentWeekTasks(goal);
   // B-50, B-52: a continue line, a reorder's copy or a moved step whose day is done is not shown; the day reads as
@@ -441,6 +465,22 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           </div>
         </div>
       </header>
+
+      {/* Weekly update M1.2b (RULE-9): the close couldn't write next week; the plan shows as stored. */}
+      {goalContext.closeFailed && <ErrorState className="relative mt-10" title={CLOSE_FAILED} onRetry={retryClose} retrying={retryingClose} />}
+
+      {closeLine && (
+        <Callout>
+          <div className="flex items-center justify-between gap-3">
+            <p role="status">{closeLine.line}</p>
+            <IconButton
+              label="Dismiss"
+              icon={<X aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+              onClick={() => dismissCloseLine(closeLine.weekNumber)}
+            />
+          </div>
+        </Callout>
+      )}
 
       {reviewDue && (
         <section

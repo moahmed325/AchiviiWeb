@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { Goal, WeeklyReviewResponse, WeeklyTestResult } from '../../types';
-import { submitWeeklyReview } from '../../lib/api';
+import { saveClosedWeekReflection, submitWeeklyReview } from '../../lib/api';
 import {
   clearReviewDraft,
   loadReviewDraft,
@@ -201,9 +201,25 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
         (err instanceof Error && /network|offline|failed to fetch/i.test(err.message));
 
       if ((err as { code?: unknown } | null)?.code === 'week_closed') {
+        // WU-31: when the week closed on its own (another tab's load), the typed reflection is saved onto it. The
+        // server saves it only for a week closed automatically with no reflection yet; anything else is M1.2a's case.
+        let reflectionSaved = false;
+        // The draft goes once the reflection is saved, refused for good, or empty; a network error or a 5xx keeps it.
+        let draftDone = !reflection.trim();
+        if (reflection.trim()) {
+          try {
+            await saveClosedWeekReflection(currentWeekNum, reflection, token);
+            reflectionSaved = true;
+            draftDone = true;
+          } catch (saveErr) {
+            console.warn('The reflection was not saved onto the closed week:', saveErr);
+            const code = (saveErr as { code?: unknown } | null)?.code;
+            draftDone = code === 'not_auto_closed' || code === 'reflection_saved';
+          }
+        }
         setWeekClosed(true);
-        setReviewError("This week's review is already saved.");
-        if (goal?.id) clearReviewDraft(goal.id, currentWeekNum);
+        setReviewError(reflectionSaved ? 'This week had already closed. Your reflection is saved.' : "This week's review is already saved.");
+        if (draftDone && goal?.id) clearReviewDraft(goal.id, currentWeekNum);
       } else if (isNetworkError) {
         setReviewError("You're offline. Reconnect to submit your weekly review.");
       } else {

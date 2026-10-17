@@ -496,7 +496,10 @@ type ActionReason =
   | 'out_of_order'
   | 'rest_gap'
   | 'would_not_move'
-  | 'week_not_open';
+  | 'week_not_open'
+  | 'week_close_disabled'
+  | 'not_auto_closed'
+  | 'reflection_saved';
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -521,6 +524,10 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   would_not_move: 'This step cannot be moved this week.',
   // B-68: a test result for a week that is still pending.
   week_not_open: "That week hasn't started yet.",
+  // Weekly update M1.2b (WU-28, WU-31): the close's line and a late reflection.
+  week_close_disabled: 'This action is not available yet.',
+  not_auto_closed: 'This week did not close on its own.',
+  reflection_saved: 'This week already has a reflection.',
 };
 
 function refuse(res: Response, reason: ActionReason): void {
@@ -1249,6 +1256,95 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
   } catch (err: any) {
     console.error('[GoalRouter] Week close error:', err);
     res.status(500).json({ error: 'Failed to close the week.' });
+  }
+});
+
+/** The active goal's week `weekNumber`, for the two endpoints below. Null when answered (401, 409, 404). */
+async function closedWeekOf(req: Request, res: Response, weekNumber: number) {
+  const user = await actionUser(req, res);
+  if (!user) return null;
+  // RULE-18: off means nothing is read or written.
+  if (!weekCloseEnabled()) {
+    refuse(res, 'week_close_disabled');
+    return null;
+  }
+  const goal = await prisma.goal.findFirst({
+    where: { userId: user.id, status: 'active' },
+    select: { id: true, planVersion: true, roadmapWeeks: { where: { weekNumber } } },
+  });
+  const week = goal?.roadmapWeeks[0];
+  if (!goal || !week) {
+    res.status(404).json({ error: 'Week not found.' });
+    return null;
+  }
+  if (goal.planVersion !== 2) {
+    refuse(res, 'not_plan_v2');
+    return null;
+  }
+  return { goal, week };
+}
+
+/**
+ * POST /api/goal/weeks/:weekNumber/close-line-seen (weekly update M1.2b, WU-28, behind WEEK_CLOSE_ENABLED)
+ * Records that the automatic close's line was shown, so no device shows it again. Only a week closed automatically;
+ * safe to repeat (the first time is kept).
+ */
+goalRouter.post('/weeks/:weekNumber/close-line-seen', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const weekNumber = weekNumberOr400(req, res);
+    if (weekNumber === null) return;
+    const found = await closedWeekOf(req, res, weekNumber);
+    if (!found) return;
+    const { week } = found;
+    if (week.closedBy !== 'auto') return refuse(res, 'not_auto_closed');
+
+    const seenAt = new Date();
+    await prisma.roadmapWeek.updateMany({ where: { id: week.id, closedBy: 'auto', closeLineSeenAt: null }, data: { closeLineSeenAt: seenAt } });
+    res.json({ closeLineSeenAt: week.closeLineSeenAt ?? seenAt });
+  } catch (err: any) {
+    console.error('[GoalRouter] Close line seen error:', err);
+    res.status(500).json({ error: 'Failed to save.' });
+  }
+});
+
+/**
+ * POST /api/goal/weeks/:weekNumber/reflection (weekly update M1.2b, WU-31, behind WEEK_CLOSE_ENABLED)
+ * A review that lost to an automatic close keeps its typed reflection: saved onto the week (and its review row) only
+ * when the week closed automatically with no reflection yet. Safe to repeat with the same text.
+ */
+goalRouter.post('/weeks/:weekNumber/reflection', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const weekNumber = weekNumberOr400(req, res);
+    if (weekNumber === null) return;
+    const reflection = typeof req.body?.reflection === 'string' ? req.body.reflection : '';
+    if (!reflection.trim()) {
+      res.status(400).json({ error: 'A reflection is required.' });
+      return;
+    }
+    const found = await closedWeekOf(req, res, weekNumber);
+    if (!found) return;
+    const { goal, week } = found;
+    if (week.closedBy !== 'auto') return refuse(res, 'not_auto_closed');
+    if (week.reviewNotes === reflection) {
+      res.json({ reflection });
+      return;
+    }
+
+    const empty = [{ reviewNotes: null }, { reviewNotes: '' }];
+    const saved = await prisma.$transaction(async (tx) => {
+      const won = await tx.roadmapWeek.updateMany({ where: { id: week.id, closedBy: 'auto', OR: empty }, data: { reviewNotes: reflection } });
+      if (won.count === 0) return false;
+      await tx.weeklyReview.updateMany({
+        where: { goalId: goal.id, weekNumber, OR: [{ reflection: null }, { reflection: '' }] },
+        data: { reflection },
+      });
+      return true;
+    });
+    if (!saved) return refuse(res, 'reflection_saved');
+    res.json({ reflection });
+  } catch (err: any) {
+    console.error('[GoalRouter] Late reflection error:', err);
+    res.status(500).json({ error: 'Failed to save the reflection.' });
   }
 });
 

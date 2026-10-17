@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
+import { GettingReady } from './today/WeekClose';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,8 +14,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireGoal = true,
 }) => {
   const { user, token, loading: authLoading } = useAuth();
-  const { activeGoal, loadingGoal, goalLoadFailed } = useGoal();
+  const { activeGoal, loadingGoal, goalLoadFailed, closingWeek } = useGoal();
   const location = useLocation();
+
+  // Weekly update M1.2b (RULE-8, WU-20 (4)): any screen that loads the goal shows the close writing the next week.
+  if (token && closingWeek) return <GettingReady />;
 
   // While either auth or goal is resolving, show a calm minimal loading state
   if (authLoading || (token && loadingGoal)) {
