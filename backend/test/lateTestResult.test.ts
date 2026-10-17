@@ -36,6 +36,7 @@ vi.mock('../src/lib/planV2.js', async () => {
 });
 
 import { getAuthUser } from '../src/routes/auth.js';
+import { writeNextWeek } from '../src/lib/planV2.js';
 import { goalRouter } from '../src/routes/goal.js';
 
 const OWNER = { id: 'u1', email: 'u1@achivii.com' };
@@ -144,7 +145,7 @@ describe('Late test result (missed sessions M4.1)', () => {
       body: JSON.stringify(body),
     });
 
-  const review = (weekNumber: number, body: Record<string, unknown>) =>
+  const review = (weekNumber: number | string, body: Record<string, unknown>) =>
     fetch(`${baseUrl}/api/goal/weeks/${weekNumber}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
@@ -196,8 +197,6 @@ describe('Late test result (missed sessions M4.1)', () => {
       store.goals = store.goals.filter((g) => g.userId === OWNER.id);
       expect((await put(1, RESULT)).status).toBe(404);
       vi.mocked(getAuthUser).mockResolvedValue(OWNER as any);
-      expect((await put(13, RESULT)).status).toBe(404);
-      expect((await put('abc', RESULT)).status).toBe(404);
       expect(store.prisma.roadmapWeek.update).not.toHaveBeenCalled();
       expect(weekRow('g1', 1).testResult).toBeNull();
     });
@@ -207,6 +206,21 @@ describe('Late test result (missed sessions M4.1)', () => {
       expect(res.status).toBe(409);
       expect(await res.json()).toEqual({ error: 'This week has already been reviewed.', reason: 'week_closed' });
       expect(store.prisma.roadmapWeek.update).not.toHaveBeenCalled();
+    });
+
+    it('409 week_not_open for a week that is still pending, and nothing is written (B-68)', async () => {
+      const res = await put(2, RESULT);
+      expect(res.status).toBe(409);
+      expect(await res.json()).toEqual({ error: "That week hasn't started yet.", reason: 'week_not_open' });
+      expect(store.prisma.roadmapWeek.update).not.toHaveBeenCalled();
+      expect(weekRow('g1', 2).testResult).toBeNull();
+    });
+
+    it('the active week is still accepted, also when it is not the current week (a late test) (B-68)', async () => {
+      store.goals[0].currentWeek = 2;
+      const res = await put(1, RESULT);
+      expect(res.status).toBe(200);
+      expect(weekRow('g1', 1).testResult).toEqual(RESULT);
     });
 
     it('409 not_plan_v2 for an old goal', async () => {
@@ -261,6 +275,43 @@ describe('Late test result (missed sessions M4.1)', () => {
       expect((await res.json()).testResult).toEqual({ value: 24, unit: 'min', passed: true });
       expect(weekRow('g1', 1).testResult).toEqual({ value: 24, unit: 'min', passed: true });
     });
+  });
+
+  describe('the week number (B-67)', () => {
+    const BAD = ['abc', '2abc', '0', '13', '1.5', '-1', '01x', ' 1'];
+
+    it('the test-result route answers 400 for each bad value, before any goal is read', async () => {
+      for (const bad of BAD) {
+        const res = await put(encodeURIComponent(bad), RESULT);
+        expect(res.status, bad).toBe(400);
+        expect(await res.json()).toEqual({ error: 'Week number must be 1 to 12.' });
+      }
+      expect(store.prisma.goal.findFirst).not.toHaveBeenCalled();
+      expect(store.prisma.roadmapWeek.update).not.toHaveBeenCalled();
+    });
+
+    it('the review route answers 400 for each bad value, before any goal is read', async () => {
+      for (const bad of BAD) {
+        const res = await review(encodeURIComponent(bad), { reflection: '' });
+        expect(res.status, bad).toBe(400);
+        expect(await res.json()).toEqual({ error: 'Week number must be 1 to 12.' });
+      }
+      expect(store.prisma.goal.findFirst).not.toHaveBeenCalled();
+      expect(writeNextWeek).not.toHaveBeenCalled();
+    });
+
+    it('a good value still works on both routes', async () => {
+      expect((await put('1', RESULT)).status).toBe(200);
+      expect((await review('1', { reflection: '' })).status).toBe(200);
+    });
+  });
+
+  it('the review tells the week writer the result it was sent, before that result is saved (B-61)', async () => {
+    store.goals = [goalFor(OWNER.id, 'g1', 2)];
+    const sent = { value: 24, unit: 'min', passed: true };
+    expect((await review(1, { reflection: '', testResult: sent })).status).toBe(200);
+    const writerGoal = vi.mocked(writeNextWeek).mock.calls[0][0] as any;
+    expect(writerGoal.roadmapWeeks.find((w: any) => w.weekNumber === 1).testResult).toEqual(sent);
   });
 
   it('end to end: logged late, then reviewed without a result, the result survives', async () => {
