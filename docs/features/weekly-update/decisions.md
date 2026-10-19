@@ -221,6 +221,36 @@ How this log works: `docs/templates/decisions.md`.
 **Why:** the line describes that week; it is wrong a week later.
 **Changes:** M1.5a review fixes (`ac4cad8`); CLAUDE.md.
 
+### WU-37 — Past the limit: how far the plan moves, when the card shows (2026-10-19)
+**Question:** logic check 2026-10-19 findings 1 to 3: with the limit, the week the calendar reaches usually starts days ago (RULE-14 says the first week back starts today); M1.5a writes a week wholly in the past that closes again as another break; the card would offer a fresh plan after 8 days away.
+**Decision:** (1) When a break goes past the limit, "Keep going" moves the plan by the most days within the room (`28 − movedDays`) that make a week start on the first try's local date: the largest `d ≤ room` with `gap − d` a multiple of 7. If no such `d` exists (the room is smaller than `gap mod 7`), the plan moves by the room and the passed days of the week holding that date are not offered (M1.4). The weeks between the closing week and the week holding that date are jumped (WU-19); that week is the first week back. (2) No week wholly in the past is ever written: while the choice waits nothing is written, and "Keep going" writes the week holding the first try's date. (3) The choice card shows only when at least one whole week would be jumped (overflow = gap − room of 7 days or more). Below that, a break keeps M1.4's partial move with days not offered and M1.5a's welcome-back line.
+**Why (Mo, logic check recommendations):** a first week back should be a whole week starting today; a week in the past must never close again; a fresh plan is too much to offer after a week away.
+**Changes:** RULE-14, RULE-15, section 5; M1.5b's prompt.
+
+### WU-38 — While the choice waits; past week 12 (2026-10-19)
+**Question:** logic check findings 4 and 5: what other screens do while the choice waits (counting another screen as "Keep going" can't be undone), and what "Keep going" means when the move lands past week 12.
+**Decision:** (1) While a choice waits nothing closes and reconcile does not run; any screen that loads the goal sends the person to Today, which shows only the card. Closing the tab brings the card back on the next open; the gap still counts from the first try (RULE-9). A weekly review sent while a choice waits is refused (409 `choice_needed`) before any model call, saves nothing, and the app reloads the goal so the card shows. (2) When the week holding the first try's date (after the most the limit allows) is past week 12, the card offers "Start a fresh plan" or "Do my final week". "Do my final week" jumps every week up to 11 and starts week 12 on that date, moving past the 28-day limit if needed: the only case where `movedDays` passes 28.
+**Why (Mo, logic check recommendations):** the person's choice is not to be made for them; a plan whose dates have passed still has a final week worth doing.
+**Changes:** RULE-8, RULE-15, section 5, section 6; M1.5b's prompt.
+
+### WU-39 — No test card after a break (2026-10-19)
+**Question:** logic check finding 6: after weeks away Today asks "Did you do last week's test?" about a week long gone, whose test day often fell after the break started.
+**Decision:** a close that is a break (gap of 7 days or more, RULE-13) shows no test card, on any screen, and closes as unlogged (RULE-5's re-test covers it, M3.3). This changes M1.5a's break path too; it is built in M1.5b.
+**Why (Mo, logic check recommendation):** "last week" is wrong after a break, and the result would be stale.
+**Changes:** RULE-8; M1.5b's prompt.
+
+### WU-40 — Jumped weeks on screen; the lines (2026-10-19)
+**Question:** logic check findings 7 and 8 and a smaller point: how jumped weeks look, what the welcome-back line says after a jump, and the fresh-plan copy promising the person's level (WU-24 carries only the text).
+**Decision:** (1) A jumped week is stored `jumped: true`, `status: 'completed'`, `closedBy: 'jumped'`, `closedAt`, with no tasks and no review row. Roadmap, Progress and the journey show it muted with the label "Paused", no score and no benchmark line, and leave it out of any average or count of weeks done. (2) "Keep going" saves "Welcome back. Your plan picks up at week {n} and now ends on {date}." on the closing week's review row (`{n}` written in, `{date}` as written, filled by `fillPlanEnd`). "Do my final week" saves "Welcome back. Your final week starts today and ends on {date}.". (3) The card's copy: "Welcome back. This break is longer than your plan can move. Start a fresh 12-week plan, or keep going with this one." Buttons "Start a fresh plan", "Keep going". Past week 12: "Welcome back. Your plan's dates have passed. Start a fresh 12-week plan, or do your final week now." Buttons "Start a fresh plan", "Do my final week". (4) "Start a fresh plan" opens goal creation with the goal's text filled in, as switching goal does; creating it archives the old goal (WU-9); nothing closes the old week, and leaving goal creation brings the card back. A custom goal still needs Pro; "Keep going" needs nothing.
+**Why (Mo, logic check recommendations):** no word that means missed; the person should know the weeks were skipped; the copy must not promise what WU-24 doesn't do.
+**Changes:** section 6; M1.5b's prompt.
+
+### WU-41 — A light test in a high-load first week back (2026-10-19)
+**Question:** logic check finding 9: a first week back can land on a big-test week (4 or 8, more likely with jumps); the stored test may be a time trial or a max test; B-63's scan refuses those only in weeks 1 to 3, and a sentence copied from the stored test is only logged.
+**Decision:** in a first week back of a high-load goal (WU-35 (4)), with `WEEK_CLOSE_ENABLED` on: the FIRST WEEK BACK block tells the writer that this week's test is a light version (no time trial, no max test, nothing to failure), and the weeks 1 to 3 rules of `ai/safetyScan.ts` apply to that week's steps, with a sentence copied from the stored test refused, not just logged (one retry, then the existing 503). The stored test and target do not change. Built in M1.5b.
+**Why (Mo, logic check recommendation):** a time trial after weeks off is the injury risk WU-29 exists to stop.
+**Changes:** RULE-16 note; M1.5b's prompt.
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
