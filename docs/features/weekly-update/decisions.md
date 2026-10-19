@@ -215,6 +215,12 @@ How this log works: `docs/templates/decisions.md`.
 **Why:** a smaller milestone is easier to check; RULE-21's words are wrong on the second hard step of a week, and its swap rule would strip the line; "3+ weeks" means 21 days.
 **Changes:** `03-phases.md` (M1.5a, M1.5b, O1); WU-29 (1) (the line's wording); M1.5a's prompt.
 
+### WU-36 — The first-week-back line belongs to the week (2026-10-19)
+**Question:** M1.5a review: a step handed on out of the first week back kept "First week back: keep the effort easy today." in the next week.
+**Decision:** a step holds the line exactly when the day it lands on is in a first week back of a high-load goal and the step takes it; anywhere else the line is removed (`lineForDay`). Today only the handoff moves a step into another week; reconcile's carry, reorder and swap stay inside one week, so they need nothing. Whether the goal is high-load is worked out once per close (`goalLoad`).
+**Why:** the line describes that week; it is wrong a week later.
+**Changes:** M1.5a review fixes (`ac4cad8`); CLAUDE.md.
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
