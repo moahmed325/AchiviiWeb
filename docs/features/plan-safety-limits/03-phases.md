@@ -8,8 +8,8 @@
 
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
-| M1.1 | Check the code | — | READY | [m1.1](milestones/m1.1-check-the-code.md) |
-| O1 | Mo: run a read-only query on production that counts run10k and recomp roadmaps by week 1 target metric and unit (the query is written in M1.1's report) | — | NOT STARTED | |
+| M1.1 | Check the code | — | DONE 2026-10-19 | [m1.1](milestones/m1.1-check-the-code.md) |
+| O1 | Mo: run a read-only query on production that counts run10k and recomp roadmaps by week 1 target metric and unit (the query is written in M1.1's report) | — | READY: both read-only queries (O1 and B-58) are in M1.1's report, section 5; M1.2 does not wait for the results | [m1.1](milestones/m1.1-check-the-code.md) |
 | M1.2 | The limits module, target families and safe steps at roadmap time | AC-1, AC-2, AC-3 (server), AC-10 (targets), AC-11 | NOT STARTED | |
 | M1.3 | Older goals on read, and the honest week 12 line | AC-3 (screen), AC-9 | NOT STARTED | |
 | M2.1 | High-load steps carry their load | AC-4 | NOT STARTED | |
@@ -49,19 +49,19 @@ Weekly-update M3.1 (RULE-10, WU-23, WU-29) waits for this feature's P2.
 
 **M1.1 Check the code.** Facts, as tables with file paths: where targets are written and read (roadmap, `presentGoal`, the week input, the journey and roadmap views); how a week's planned and done steps can be read back per goal (task status, stored steps); the metrics and units the roadmap model writes for physical goals (from tests and fixtures), and the read-only query O1 runs to count them in production; where week 12's target shows on screen; what of `safetyClamps.ts` and its tests is still used. Questions for Mo where the code disagrees with `02-feature.md`. Done when the report answers each and the plan is fixed in place.
 
-**M1.2 The limits module.** One module holds every number in PSL-4 and the target families; a function gives the next safe step for a target; the roadmap check lowers breaching targets and re-checks later weeks (RULE-2), and week 12 below a stated number is accepted at the highest safe step (RULE-3); each lowered target logs `[Safety]`. Covers AC-1, AC-2, AC-3 (server), AC-10 (targets), AC-11 (the function). Checks R-5, R-6, R-7. Done when tests show each family lowered at one step past the limit and left alone at it.
+**M1.2 The limits module.** One module holds every number in PSL-4 and the target families; a function gives the next safe step for a target; the roadmap check lowers breaching targets and re-checks later weeks (RULE-2), and week 12 below a stated number is accepted at the highest safe step (RULE-3); each lowered target logs `[Safety]`. The check runs inside `checkRoadmapAnswer` after the unit is unified, on the model's 12 targets before `withPathwayTests` copies them, with the stated-target and `finalGoal` checks as PSL-11 (Q2); the families as PSL-10; the deficit as PSL-6; no starting point as PSL-11 (Q14); the model's values kept as PSL-11 (Q15). `statedTarget.ts` widened (PSL-5). Covers AC-1, AC-2, AC-3 (server), AC-10 (targets), AC-11 (the function). Checks R-5, R-6, R-7. Done when tests show each family lowered at one step past the limit and left alone at it.
 
-**M1.3 Older goals and the honest line.** Older goals' targets are lowered on read for the week writer and the plan views, stored data unchanged (RULE-9); the week 12 line from section 6 shows where week 12's target shows. Touches `planV2.ts` and `routes/goal.ts` (section 3). Covers AC-3 (screen), AC-9. Checks R-1, R-2, R-7. Done when a stored over-steep goal shows lowered targets and an unchanged row, with screenshots of the line on desktop and mobile.
+**M1.3 Older goals and the honest line.** Older goals' targets are lowered on read for the week writer and the plan views, stored data unchanged (RULE-9), in `presentGoal` and `writeNextWeek` with the text rebuilt as PSL-7; a stored split-pathway goal is checked on weeks 4, 8 and 12 only (PSL-11, Q1); the screens are PSL-9's; the week 12 line from section 6 shows where week 12's target shows. Touches `planV2.ts` and `routes/goal.ts` (section 3). Covers AC-3 (screen), AC-9. Checks R-1, R-2, R-7. Done when a stored over-steep goal shows lowered targets and an unchanged row, with screenshots of the line on desktop and mobile.
 
 ### P2 Weeks
 **Goal:** a week's running, lifting and calorie steps stay inside the numbers.
 
-**M2.1 Load on high-load steps.** The week call asks for and stores `load` on high-load steps of physical goals (`02-feature.md` section 7); a missing load is a retry reason, kept on the last attempt with the text scan deciding (RULE-4). Covers AC-4. Checks R-1, R-3, R-6.
+**M2.1 Load on high-load steps.** The week call asks for and stores `load` on high-load steps of physical goals (`02-feature.md` section 7); a missing load is a retry reason, kept on the last attempt with the text scan deciding (RULE-4). Which steps carry load: PSL-8. `load` is added to the parse (`toStep` in `weekPlan.ts`); the two 10-minute-version fallbacks (`weekPlan.ts` and `recovery/dayText.ts`) and the light-week swap must not copy a full step's `load`; when code rescales minutes, `runMinutes` scales too (PSL-11, Q10). Covers AC-4. Checks R-1, R-3, R-6.
 
-**M2.2 Week limits.** The running total against the base week with the allowance, longest run, hard runs, deficit, intake and weeks 1 to 3 lifting (RULE-5); one retry then no week (RULE-6); the first week back held to the last done total (RULE-7); `writeNextWeek` passes last week's planned and done load and the goal id (B-64). Covers AC-5, AC-6, AC-7, AC-10 (weeks). Checks R-1 to R-4, R-6.
+**M2.2 Week limits.** The running total against the base week with the allowance, longest run, hard runs, deficit, intake and weeks 1 to 3 lifting (RULE-5); one retry then no week (RULE-6); the first week back held to the last done total (RULE-7); `writeNextWeek` passes last week's planned and done load and the goal id (B-64), counted as PSL-11 (Q8, Q9); the first week back reads older weeks (PSL-11, Q13); the prompt's running line is built from the limits module (PSL-11, Q17). Covers AC-5, AC-6, AC-7, AC-10 (weeks). Checks R-1 to R-4, R-6.
 
 ### P3 Close
-**M3.1 Acceptance, regression and close.** Every AC and R row checked; O2's findings sorted; the velocity-table clamps retired (RULE-1) and what of B-63's scan stays decided (RULE-8); CLAUDE.md step 6 rewritten; every problem from the reports in a milestone or `docs/backlog.md`. Covers AC-8 and all.
+**M3.1 Acceptance, regression and close.** Every AC and R row checked; O2's findings sorted; the velocity-table clamps retired (RULE-1; move the live `formatBasisBadge` tests out of `safetyClamps.test.ts` first, M1.1 report) and what of B-63's scan stays decided (RULE-8); CLAUDE.md step 6 rewritten; every problem from the reports in a milestone or `docs/backlog.md`. Covers AC-8 and all.
 
 ## 6. Risks
 - **More failed weeks.** Hard limits on model output mean more retries and some 503s, most likely on recomp. Controlled by narrow checks, the retry reason naming the number, and O2's log read before close.

@@ -19,7 +19,7 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 
 ## 3. Words we use
 **Physical goal:** a goal on the run10k or recomp pathway; or a goal whose targets are in a limited family (below); or a goal with any step flagged high-load.
-**Target family:** what a number target measures, read from its metric and unit: running distance, running time, lift load, body weight, body fat, calorie deficit. Any other target has no family and no target limit.
+**Target family:** what a number target measures, read from its metric and unit: running distance, running time, lift load, body weight, body fat, calorie deficit. Pace (min/km, lower) is running time; continuous running minutes (higher) uses the running distance rule in minutes; a time or minutes target is running only on run10k or when the metric names a run. Waist, cumulative weight lost, % of 1RM and RIR targets have no family (PSL-10). Any other target has no family and no target limit.
 **Safe step:** the largest change from one week's target to the next that the limits allow.
 **Load:** the numbers on a high-load step that code reads (section 7).
 **Running total:** a week's running, in km when every run gives km, otherwise in minutes.
@@ -30,11 +30,11 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 
 **RULE-1 — One limits module.** Every limit lives in one place and is used by the roadmap, the week call and the weekly update. The numbers in the table below are the only limit numbers in code; `safetyClamps.ts`'s velocity-table clamps are retired with it.
 
-**RULE-2 — Targets climb by safe steps.** For a number target in a family, each week's target is at most one safe step beyond the week before; week 1 is checked against the starting point. Code lowers a breaching target to the safe step and re-checks the following weeks from it. A target that gets easier is never changed.
+**RULE-2 — Targets climb by safe steps.** For a number target in a family, each week's target is at most one safe step beyond the week before; week 1 is checked against the starting point. Code lowers a breaching target to the safe step and re-checks the following weeks from it. A target that gets easier is never changed. A deficit target above 600 kcal is lowered to 600; one below 250 is left alone (PSL-6). New goals are checked on the model's 12 targets before light weeks copy them; a stored split-pathway goal is checked on weeks 4, 8 and 12 only, four safe steps apart (PSL-11).
 
-**RULE-3 — Safety wins over the stated number.** When lowering leaves week 12 below a number the person named in the goal (`statedTarget.ts`), week 12 keeps the highest safe step, the stated-target check accepts it, and the plan shows the honest line from section 6 (as WU-23 does for the weekly update).
+**RULE-3 — Safety wins over the stated number.** When lowering leaves week 12 below a number the person named in the goal (`statedTarget.ts`), week 12 keeps the highest safe step, the stated-target check accepts it, and the plan shows the honest line from section 6 (as WU-23 does for the weekly update). `statedTarget.ts` is widened to read kg, km, lb, percent, "lose N" and "in N minutes" (PSL-5).
 
-**RULE-4 — Physical steps carry their load.** On a physical goal, every high-load step returns its load as numbers next to its text. A missing load on a high-load step is a retry reason; on the last attempt the step is kept and RULE-8's text scan decides.
+**RULE-4 — Physical steps carry their load.** On a physical goal, every step the model flags `highLoad` and every step of a run or lift kind returns its load as numbers next to its text, and so does the test step of a running goal; other steps (warm-ups, food logging) need none (PSL-8). A missing load on such a step is a retry reason; on the last attempt the step is kept and RULE-8's text scan decides.
 
 **RULE-5 — Week limits.** A week of a physical goal is checked as a whole: its running total against the base week (with the allowance), its longest run, its hard runs, and every step's deficit, intake, % of 1RM and reps in reserve. Week 1 of a goal has no base week; only the per-step and per-week counts apply.
 
@@ -44,7 +44,7 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 
 **RULE-8 — The text scan stays.** B-63's scan of step text runs as well, for any limit a load number did not cover. The roadmap's week tests are checked by the same rules (B-63). A breach that the week's stored test itself holds is logged, not refused (PSL-3).
 
-**RULE-9 — Older goals.** A goal stored before this feature is checked on read: what the week writer is told and what the plan shows use the lowered targets, and nothing stored is rewritten. Their stored weeks have no load, so their first base week comes from the text scan only (told, not counted).
+**RULE-9 — Older goals.** A goal stored before this feature is checked on read: what the week writer is told and what the plan shows use the lowered targets, and nothing stored is rewritten. Lowering happens in `presentGoal` and `writeNextWeek`; `objective` and `passIf` are rebuilt from the lowered target, a pathway's test is refilled from the preset, and a model-written test on an older custom goal stays as stored (PSL-7). Their stored weeks have no load, so their first base week comes from the text scan only (told, not counted).
 
 **RULE-10 — Every action is logged.** Each lowered target and each breach writes one `[Safety]` line (goal, week, rule, the number or sentence, the outcome), as B-63 does.
 
@@ -70,9 +70,9 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 |---|---|
 | Target with no family ("chess rating", deliverables) | No target limit; the week's step limits still apply when its steps are high-load. |
 | Mixed metric and unit the families can't read | No family; logged once as `[Safety]` `unknown_family`, never refused. |
-| Starting point missing (person skipped the level question) | Week 1 is checked against the roadmap's cautious beginner value. |
+| Starting point missing (person skipped the level question) | Week 1 is checked against the roadmap's cautious beginner value. If the roadmap still has no starting point (accepted on its last attempt), week 1 is not checked, `[Safety]` logs `no_start`, and the check runs from week 2 (PSL-11). |
 | A custom goal with no high-load step and no family | Nothing in this feature applies. |
-| Recomp with a stated "lose 10 kg" | Weight steps of 1% a week; week 12 shows the honest line if 10 kg is out of reach. |
+| Recomp with a stated "lose 10 kg" (read since PSL-5) | Weight steps of 1% a week; week 12 shows the honest line if 10 kg is out of reach. |
 | Person did 0 runs last week, no break | Base week is 0 done, so the running total may be at most the allowance (10 minutes or 1 km). |
 | Week 12 test day | Week limits apply; a max test is allowed from week 4. |
 | Steps moved by carry-forward or the handoff | Already checked in their own week; moving never adds load to a day (missed-sessions rules). |
@@ -80,7 +80,7 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 | Kill switch | None: limits are always on, like the stopgap (PSL-4). |
 
 ## 6. Screens and copy
-No new screen. One line where week 12's target shows (the roadmap and journey views) when RULE-3 lowered it.
+No new screen. One line where week 12's target shows when RULE-3 lowered it: the Roadmap page (the current week's target when it is week 12, and the Destination), Today's closing stretch (Summit Target), and the review's next-week target when week 12 is next (PSL-9). The journey components are not mounted.
 
 **Copy rules:** plain, calm, no blame; never "unsafe" or "dangerous" about the person's goal; name the safe number and the goal.
 
@@ -91,8 +91,8 @@ No new screen. One line where week 12's target shows (the roadmap and journey vi
 
 ## 7. Data and system changes
 - **Step load:** a high-load step stores an optional `load` next to its text: `runMinutes`, `runKm`, `hardRun` (yes/no), `kcalDeficit`, `kcalIntake`, `percent1RM`, `rir`, `toFailure` (yes/no), `maxTest` (yes/no). Additive keys in the stored step JSON; no migration. Older steps have none. Agreed as a change to stored data (PSL-4).
-- **Targets:** lowered targets are stored as lowered for new goals; the original model value is kept on the roadmap for the log and the honest line. Older goals are lowered on read only (RULE-9).
-- **Week call input:** gets last week's planned and done load (from stored steps and task status) and the goal id for the log (B-64).
+- **Targets:** lowered targets are stored as lowered for new goals; the original model value is kept on the roadmap for the log and the honest line, as `{ week, model, safe }` entries under an additive key in `Goal.roadmap`; `RoadmapWeek.target` keeps its shape (PSL-11). Older goals are lowered on read only (RULE-9).
+- **Week call input:** gets last week's planned and done load (from stored steps and task status) and the goal id for the log (B-64). Done counts completed, offered days (the 10-minute version's load when it was used; carried copies once); planned counts every offered practice day (PSL-11).
 - **Logs:** `[Safety]` lines as RULE-10.
 
 **Must not break:** R-7 (week prompt fixture only on purpose, `taskRules`, `highLoad`); the honest 503s and nothing saved; method-aware recovery's rest gaps, easy line and handoff; carry-forward never makes a day longer; the stated-target rule for goals without a family; B-63's tests.

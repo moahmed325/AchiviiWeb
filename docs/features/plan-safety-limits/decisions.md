@@ -28,3 +28,45 @@ How this log works: `docs/templates/decisions.md`.
 **Why (Mo):** agreed as proposed; a safety rule should not be possible to turn off.
 **Changes:** `02-feature.md` sections 4, 5 and 7 (status APPROVED).
 
+
+### PSL-5 — The stated-target reader is widened in M1.2 (2026-10-19)
+**Question:** M1.1 Q3: `extractStatedTargets` (`backend/src/lib/research/statedTarget.ts`) reads nothing from "lose 10 kg", "squat 100 kg", "run 5 km" or "15% body fat", and reads "lose 10 pounds" and "5 km in 25 minutes" with the wrong bound, so RULE-3's honest line would almost never show. Fix it here or in the backlog?
+**Decision:** in M1.2. The reader learns two-letter units (kg, km, lb), percent, "lose N", and "in N minutes" as an at-most time, with tests for each phrase above. The scope of M1.2 grows by this.
+**Why (Mo):** RULE-3 and AC-3 depend on it for every physical goal except a 10K time.
+**Changes:** `02-feature.md` RULE-3; `03-phases.md` M1.2.
+
+### PSL-6 — A calorie-deficit target is held to the range (2026-10-19)
+**Question:** M1.1 Q6: the deficit limit is a range (250 to 600 kcal a day), not a step size. What does RULE-2 do with a deficit target?
+**Decision:** a deficit target above 600 is lowered to 600; one below 250 is left alone (easier is never changed).
+**Why (Mo):** agreed as recommended.
+**Changes:** `02-feature.md` RULE-2.
+
+### PSL-7 — Older goals: lower the number, rebuild only code-written text (2026-10-19)
+**Question:** M1.1 Q7: the target number is also stored as text (`RoadmapWeek.objective`, `keyMilestone`, `test.passIf`, `test.instructions`, `Goal.roadmap.finalGoal`/`finalTest`, `Goal.clarifiedOutcome`). What does RULE-9's lowering on read change?
+**Decision:** lower in `presentGoal` and `writeNextWeek` only. Rebuild `objective` and `passIf` from the lowered target with `formatTarget`; on a pathway, refill the test from the preset template. A model-written test on an older custom goal stays as stored, even if it names the old number. `finalGoal` and `clarifiedOutcome` keep the person's goal; the honest line says the rest. Nothing stored is rewritten.
+**Why (Mo):** a small wording mismatch on older custom goals is better than rewriting text code did not write.
+**Changes:** `02-feature.md` RULE-9; `03-phases.md` M1.3.
+
+### PSL-8 — Load is required only on run and lift steps (2026-10-19)
+**Question:** M1.1 Q11: `isHighLoadStep` counts every step of a run10k or recomp goal (warm-ups, food logging), and the stored `highLoad` flag depends on goal age. Which steps must carry `load` (RULE-4)?
+**Decision:** steps the model flags `highLoad` and steps of a run or lift kind. Not every step of a pathway goal: a "log your meals" or warm-up step needs no load. The test step on a running goal gives its load whatever its flag (Q9, PSL-11).
+**Why (Mo):** otherwise ordinary steps cause retries.
+**Changes:** `02-feature.md` RULE-4; `03-phases.md` M2.1.
+
+### PSL-9 — Where the honest week 12 line shows (2026-10-19)
+**Question:** M1.1 Q12: section 6 names "the roadmap and journey views"; the journey components are not mounted.
+**Decision:** the Roadmap page (the current week's target when it is week 12, and the Destination), Today's closing stretch (days 85 to 90, the Summit Target), and the review's next-week target when week 12 is next.
+**Why (Mo):** these are the screens in use that show week 12's target.
+**Changes:** `02-feature.md` section 6; `03-phases.md` M1.3.
+
+### PSL-10 — The target families (2026-10-19)
+**Question:** M1.1 Q4, Q5, Q16: pace, continuous running minutes, waist, cumulative weight lost, % of 1RM and RIR targets fit no family as written.
+**Decision:** (1) Pace (min/km, lower) is the running time family. (2) Continuous running minutes (higher) uses the running distance rule in minutes (+10% or +10 minutes). (3) A time or minutes target counts as running only on run10k or when the metric names a run; otherwise `unknown_family`. (4) Waist and cumulative weight lost: no family, logged `unknown_family`. (5) Body fat in `%` or `percent` is the body fat family (percentage points). (6) % of 1RM and RIR targets: no family; RULE-5 covers them on steps.
+**Why (Mo):** agreed as recommended.
+**Changes:** `02-feature.md` sections 3 and 5.
+
+### PSL-11 — M1.1's other answers, as recommended (2026-10-19)
+**Question:** M1.1 report section 8, Q1, Q2, Q8 to Q10, Q13 to Q15, Q17.
+**Decision:** as the report recommends: (Q1) new goals are checked on the model's 12 targets inside `checkRoadmapAnswer`, so light weeks copy the lowered values; a stored split-pathway goal is checked on weeks 4, 8 and 12 only, with four safe steps between each (start→4, 4→8, 8→12). (Q2) the check runs after the unit is unified (`roadmap.ts:691`), the stated-target check accepts a number the lowering alone put out of reach, the `finalGoal` mention check is skipped when week 12 was lowered, and `[Safety]` is logged only for the accepted answer. (Q8) done load counts completed, offered days: their steps' load, or the 10-minute version's when `usedMinimumVersion`; `carriedFrom`/`shiftedFrom` copies count once (`isDoneCopy`'s rule); planned is the same over every offered practice day. (Q9) a step with `load.runMinutes` or `load.runKm` is a run, `load.hardRun` decides hard runs, not the kind; a code-made test step on a running goal counts its minutes as running. (Q10) when code rescales a step's minutes, `load.runMinutes` scales by the same ratio. (Q13) the first week back reads older weeks by `goalId`/`weekNumber` in `writeWeekAfter`; a week without load falls back to running kinds' minutes, else the text scan only. (Q14) with no starting point, week 1 is not checked, `[Safety]` logs `no_start`, and the check runs from week 2. (Q15) `RoadmapWeek.target` keeps its shape; the model's original values go under an additive key in `Goal.roadmap` (`{ week, model, safe }` entries). (Q17) M2.2 builds the prompt's running line from the limits module.
+**Why (Mo):** agreed as recommended.
+**Changes:** `02-feature.md` sections 5 and 7; `03-phases.md` M1.2, M1.3, M2.2.
