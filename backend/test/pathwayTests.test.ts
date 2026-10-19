@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../src/lib/ai/gemini.js', () => ({
   generateStructuredContent: vi.fn(),
 }));
+vi.mock('../src/lib/prisma.js', () => ({ prisma: {} }));
 
 import { generateStructuredContent } from '../src/lib/ai/gemini.js';
 import {
@@ -34,6 +35,8 @@ import {
   type CertifiedPresetBlueprint,
 } from '../src/lib/ai/presets/index.js';
 import { extractStatedTargets } from '../src/lib/research/statedTarget.js';
+import { lastWeekResult } from '../src/lib/planV2.js';
+import type { DailyTask } from '@prisma/client';
 
 /** Weekly update M2.1 (RULE-19, WU-43): the pathways' hand-written weekly tests and light weeks. */
 
@@ -391,5 +394,72 @@ describe('the week prompt (requirement 5)', () => {
     expect(lightTestSession({ light: true }, 'body fat', recompPreset.title)).toBe(preset('recomp').weeklyTests!.light!.session);
     expect(lightTestSession({}, 'run a 10k', 'Run a 10K')).toBeUndefined();
     expect(lightTestSession({ light: true }, 'learn to bake sourdough', 'Bake sourdough')).toBeUndefined();
+  });
+});
+
+describe("M2.1 review: a pathway's model tests are not checked, a custom goal's still are (fix 1)", () => {
+  const mocked = vi.mocked(generateStructuredContent);
+  beforeEach(() => mocked.mockReset());
+
+  /** Week 2's model test breaks B-63's scan (any week: an 800 kcal deficit); week 3's is another type. */
+  function badTests(raw: RawRoadmapAnswer): RawRoadmapAnswer {
+    const weeks = (raw.weeks as Array<{ test: { type: string; instructions: string; passIf: string } }>).map((week, index) => ({
+      ...week,
+      test:
+        index === 1
+          ? { ...week.test, instructions: 'Hold an 800 kcal deficit all week.' }
+          : index === 2
+            ? { ...week.test, type: 'video' }
+            : week.test,
+    }));
+    return { ...raw, weeks };
+  }
+
+  it("a pathway answer with a breaking test and mixed types passes, first time, with the pathway's tests", async () => {
+    mocked.mockResolvedValue({ success: true, data: badTests(rawAnswer(CLIMBS.run10k, preset('run10k'))) } as never);
+    const result = await generateRoadmap(roadmapInput);
+    if (!result.ok) throw new Error(result.reason);
+    expect(mocked).toHaveBeenCalledTimes(1);
+    expect(result.roadmap.weeks[1].test.instructions).toBe(preset('run10k').weeklyTests!.light!.instructions);
+    expect(new Set(result.roadmap.weeks.map((week) => week.test.type))).toEqual(new Set(['timer']));
+  });
+
+  it('the same answers for a custom goal are still refused: the scan, and one test type', () => {
+    const method = preset('run10k');
+    const scan = badTests(rawAnswer(CLIMBS.run10k, method));
+    const custom = { statedTargets: [], fixedMethod: presetMethod(method) };
+    const scanVerdict = checkRoadmapAnswer(scan, custom);
+    expect('reason' in scanVerdict ? scanVerdict.reason : '').toMatch(/^SAFETY: week 2's test says "Hold an 800 kcal deficit all week\."/);
+    const mixed = rawAnswer(CLIMBS.run10k, method);
+    (mixed.weeks as Array<{ test: { type: string } }>)[2].test.type = 'video';
+    const typeVerdict = checkRoadmapAnswer(mixed, custom);
+    expect('reason' in typeVerdict ? typeVerdict.reason : '').toMatch(/Use the same test type every week/);
+    expect('value' in checkRoadmapAnswer(scan, { ...custom, pathwayTests: true })).toBe(true);
+    expect('value' in checkRoadmapAnswer(mixed, { ...custom, pathwayTests: true })).toBe(true);
+  });
+});
+
+describe("M2.1 review: last week's light test is done, never passed (fix 2)", () => {
+  const testDay = (over: Partial<DailyTask> = {}) => ({ isTestDay: true, status: 'completed', notes: null, ...over }) as DailyTask;
+
+  it('a logged light test reads "light test done", with the note when there is one', () => {
+    expect(lastWeekResult(testDay(), { value: 'Done', passed: true, note: 'Legs heavy' }, true)).toBe('light test done; their note: "Legs heavy"');
+    expect(lastWeekResult(testDay(), { value: 'Done', passed: true }, true)).toBe('light test done');
+  });
+
+  it('an unlogged light test keeps the old texts; a test without light is as before', () => {
+    expect(lastWeekResult(testDay({ status: 'pending' }), null, true)).toBe('the weekly test was not done');
+    expect(lastWeekResult(testDay(), null, true)).toBe('test done, score not logged');
+    expect(lastWeekResult(testDay(), { value: 26, unit: 'min', passed: true }, false)).toBe('test logged: 26 min, passed');
+  });
+
+  it('in the week prompt: no "passed" after a light week', () => {
+    const result = lastWeekResult(testDay(), { value: 'Done', passed: true, note: 'Easy' }, true);
+    const prompt = buildWeekPrompt(
+      { ...weekInput, weekNumber: 3, lastWeek: { target: weekInput.target, lightTest: true, result, done: 4, planned: 5, keySessionsSkipped: [] } },
+      weekLayout('steady', weekInput.weekStart)
+    );
+    expect(prompt).toContain('Light test (not a check of the target): light test done; their note: "Easy". Sessions done: 4 of 5.');
+    expect(prompt).not.toMatch(/passed/);
   });
 });

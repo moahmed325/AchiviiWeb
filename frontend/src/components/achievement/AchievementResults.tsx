@@ -8,7 +8,7 @@ import {
   extractFinalTestEvaluation,
 } from '../../lib/achievement';
 import { cx } from '../ui';
-import { isLightTest, nextCheckLine } from '../../lib/lightTest';
+import { isLightTest, weekTargetText } from '../../lib/lightTest';
 
 interface AchievementResultsProps {
   goal: Goal;
@@ -233,7 +233,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
             {benchmarkItems.map((item) => {
               // M2.1: a light week shows its next check, and a logged light test as "Done", never against the target.
               const light = isLightTest(item.test);
-              const targetStr = light && item.target ? nextCheckLine(item.weekNumber, item.target) : formatTarget(item.target);
+              const targetStr = item.target ? weekTargetText(item.weekNumber, item.target, item.test, formatTarget) : null;
               const hasResult = item.testResult != null;
               const isPassed = item.testResult?.passed === true;
 

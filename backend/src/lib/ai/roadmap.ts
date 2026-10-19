@@ -578,6 +578,11 @@ function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbPr
 export interface RoadmapCheckContext {
   statedTargets: StatedTarget[];
   fixedMethod?: FixedMethod;
+  /**
+   * M2.1 review: the goal's pathway has hand-written tests (`weeklyTests`), which replace the model's after the check
+   * (`withPathwayTests`). The model's tests are then not scanned and not held to one type: they are thrown away.
+   */
+  pathwayTests?: boolean;
 }
 
 /**
@@ -647,7 +652,7 @@ export function checkRoadmapAnswer(
   // B-63 (PSL-1): no week's test breaks a limit the week call checks (the same rules, by week), or that week's call
   // would fail on its own test every time. Hard.
   const testBreaches: string[] = [];
-  for (const week of weeks) {
+  for (const week of context.pathwayTests ? [] : weeks) {
     for (const hit of textSafetyHits(`${week.test.instructions}\n${week.test.passIf}`, week.weekNumber)) {
       logSafetyHit({
         goalId: null,
@@ -698,7 +703,7 @@ export function checkRoadmapAnswer(
   }
 
   const testTypes = new Set(weeks.map((week) => week.test.type));
-  if (testTypes.size > 1 && !lastAttempt) {
+  if (testTypes.size > 1 && !lastAttempt && !context.pathwayTests) {
     return { reason: `Weekly tests use ${[...testTypes].join(', ')}. Use the same test type every week.` };
   }
 
@@ -808,7 +813,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
     ROADMAP_SYSTEM,
     ROADMAP_RESPONSE_SCHEMA,
     (data, lastAttempt) => {
-      const verdict = checkRoadmapAnswer(data, { statedTargets, fixedMethod }, lastAttempt);
+      const verdict = checkRoadmapAnswer(data, { statedTargets, fixedMethod, pathwayTests: Boolean(preset?.weeklyTests) }, lastAttempt);
       lowSafety = 'reason' in verdict && verdict.reason.startsWith('"safety" is');
       return verdict;
     },

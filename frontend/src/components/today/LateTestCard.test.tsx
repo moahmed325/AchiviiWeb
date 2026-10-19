@@ -247,4 +247,38 @@ describe('Late-test card on Today (missed sessions M4.1)', () => {
     expect(mocked.logWeeklyTestResult).toHaveBeenCalledWith(1, { value: 'Done', passed: true, note: 'Felt easy' }, 't');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
+
+  it('a light week: a note typed then cancelled is gone when the entry opens again, and not saved', async () => {
+    const user = userEvent.setup();
+    const light = { test: { type: 'timer', instructions: "Run this week's long run as written.", passIf: 'Done as written', light: true } } as Partial<RoadmapWeek>;
+    mocked.fetchActiveGoal.mockResolvedValue(goal(light));
+    mocked.logWeeklyTestResult.mockResolvedValue({ testResult: { value: 'Done', passed: true } });
+    await renderToday();
+
+    await user.click(screen.getByRole('button', { name: 'Log my result' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Log my result' });
+    await user.type(within(dialog).getByLabelText(/Note/), 'Not this one');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    await user.click(screen.getByRole('button', { name: 'Log my result' }));
+    dialog = await screen.findByRole('dialog', { name: 'Log my result' });
+    expect(within(dialog).getByLabelText(/Note/)).toHaveValue('');
+    await user.click(within(dialog).getByRole('button', { name: 'I did it' }));
+    expect(mocked.logWeeklyTestResult).toHaveBeenCalledWith(1, { value: 'Done', passed: true }, 't');
+  });
+
+  it('a number result typed then cancelled is gone when the entry opens again', async () => {
+    const user = userEvent.setup();
+    await renderToday();
+    await user.click(screen.getByRole('button', { name: 'Log my result' }));
+    let dialog = await screen.findByRole('dialog', { name: 'Log my result' });
+    await user.type(within(dialog).getByLabelText('Your result'), '26');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await user.click(screen.getByRole('button', { name: 'Log my result' }));
+    dialog = await screen.findByRole('dialog', { name: 'Log my result' });
+    expect(within(dialog).getByLabelText('Your result')).toHaveValue('');
+    expect(within(dialog).getByRole('button', { name: 'Save result' })).toBeDisabled();
+  });
 });

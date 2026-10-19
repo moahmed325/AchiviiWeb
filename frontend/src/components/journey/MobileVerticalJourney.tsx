@@ -12,8 +12,7 @@ import {
   Zap,
 } from 'lucide-react';
 import type { JourneyData, JourneyPhase, JourneyStep, JourneyWeek } from '../../types/journey';
-import { formatTarget } from '../../lib/formatters';
-import { isLightTest, nextCheckLine, weekTestText } from '../../lib/lightTest';
+import { isLightTest, weekTargetText, weekTestText } from '../../lib/lightTest';
 
 export interface MobileVerticalJourneyProps {
   journey: JourneyData;
@@ -242,13 +241,8 @@ export const MobileVerticalJourney: React.FC<MobileVerticalJourneyProps> = ({ jo
                               <div className="flex items-center gap-1.5 text-xs text-text-secondary">
                                 <Target className="size-3.5 text-accent shrink-0" aria-hidden="true" />
                                 <span>
-                                  {isLightTest(week.test) ? (
-                                    nextCheckLine(week.weekNumber, week.target)
-                                  ) : (
-                                    <>
-                                      <strong className="text-text font-medium">Target:</strong> {formatTarget(week.target)}
-                                    </>
-                                  )}
+                                  {!isLightTest(week.test) && <strong className="text-text font-medium">Target: </strong>}
+                                  {weekTargetText(week.weekNumber, week.target, week.test)}
                                 </span>
                               </div>
                             )}

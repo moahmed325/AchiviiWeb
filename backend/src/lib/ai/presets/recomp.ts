@@ -282,13 +282,13 @@ export const recompPreset: CertifiedPresetBlueprint = {
     measured: {
       type: 'count',
       instructions:
-        'In the morning, before eating, weigh yourself, measure your waist at the navel with a tape, and work out your body-fat estimate the same way you did at the start (for example, the tape-measure method from your waist and neck). Log the number for your target: {target}',
+        'Weigh yourself at the same time of day as your other weigh-ins (first thing in the morning, before eating, is best), measure your waist at the navel with a tape, and work out your body-fat estimate the same way you did at the start (for example, the tape-measure method from your waist and neck). Log the number for your target: {target}',
     },
     light: {
       type: 'count',
       instructions:
-        'In the morning, before eating, weigh yourself and measure your waist at the navel with a tape. Write both down; one week on its own is just noise.',
-      session: 'the morning weigh-in',
+        'Weigh yourself at the same time of day as your other weigh-ins (first thing in the morning, before eating, is best) and measure your waist at the navel with a tape. Write both down; one week on its own is just noise.',
+      session: 'the weigh-in',
     },
   },
   expertPromptContext: `

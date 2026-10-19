@@ -35,7 +35,12 @@ export const LateTestCard: React.FC<{ goal: Goal; now: Date; timezone?: string }
   const onOpenChange = (next: boolean) => {
     if (saving) return;
     setOpen(next);
-    if (!next) setError(null);
+    if (!next) {
+      // M2.1 review: a closed entry keeps nothing; a cancelled note or result is never saved later.
+      setError(null);
+      setResult(null);
+      setNote('');
+    }
   };
 
   const onSave = async () => {

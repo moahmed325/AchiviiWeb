@@ -3,7 +3,7 @@ import { Check, Clock, Minus } from 'lucide-react';
 import type { Goal, RoadmapWeek, WeekTarget, WeekTest } from '../../types';
 import type { WeeklyTestResult } from '../../types/review';
 import { cx } from '../ui';
-import { isLightTest, nextCheckLine } from '../../lib/lightTest';
+import { isLightTest, weekTargetText } from '../../lib/lightTest';
 
 interface BenchmarkResultsCardProps {
   goal: Goal;
@@ -133,7 +133,7 @@ export const BenchmarkResultsCard: React.FC<BenchmarkResultsCardProps> = ({ goal
       <div className="space-y-2">
         {benchmarks.map((entry) => {
           const light = isLightTest(entry.test);
-          const targetStr = light && entry.target ? nextCheckLine(entry.weekNumber, entry.target) : formatTarget(entry.target);
+          const targetStr = entry.target ? weekTargetText(entry.weekNumber, entry.target, entry.test, formatTarget) : null;
 
           return (
             <div

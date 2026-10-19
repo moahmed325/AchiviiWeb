@@ -30,9 +30,17 @@ export function lightTestResult(note: string): WeeklyTestResult {
   return trimmed ? { value: LIGHT_DONE_VALUE, passed: true, note: trimmed } : { value: LIGHT_DONE_VALUE, passed: true };
 }
 
-/** A week's target as the Roadmap and Progress show it: the next check in a light week, else as before. */
-export function weekTargetText(weekNumber: number, target: WeekTarget, test: WeekTest | null | undefined): string {
-  return isLightTest(test) ? nextCheckLine(weekNumber, target) : formatTarget(target);
+/**
+ * A week's target as a screen shows it: the next check in a light week, else as before. `format` is the screen's own
+ * target text for any other week (Progress and Achievement keep theirs).
+ */
+export function weekTargetText(
+  weekNumber: number,
+  target: WeekTarget,
+  test: WeekTest | null | undefined,
+  format: (target: WeekTarget) => string | null = formatTarget
+): string {
+  return isLightTest(test) ? nextCheckLine(weekNumber, target) : format(target) ?? '';
 }
 
 /** A week's test in one line: a light test by its instructions (its pass mark is only "Done as written"), else as before. */
