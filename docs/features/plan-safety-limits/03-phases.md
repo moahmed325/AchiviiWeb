@@ -1,6 +1,6 @@
 # Plan Safety Limits — Phases
 
-**Status:** PLANNED
+**Status:** IN PROGRESS
 **Feature:** docs/features/plan-safety-limits/02-feature.md
 **Decisions:** docs/features/plan-safety-limits/decisions.md
 
@@ -8,7 +8,7 @@
 
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
-| M1.1 | Check the code | — | NOT STARTED | |
+| M1.1 | Check the code | — | READY | [m1.1](milestones/m1.1-check-the-code.md) |
 | O1 | Mo: run a read-only query on production that counts run10k and recomp roadmaps by week 1 target metric and unit (the query is written in M1.1's report) | — | NOT STARTED | |
 | M1.2 | The limits module, target families and safe steps at roadmap time | AC-1, AC-2, AC-3 (server), AC-10 (targets), AC-11 | NOT STARTED | |
 | M1.3 | Older goals on read, and the honest week 12 line | AC-3 (screen), AC-9 | NOT STARTED | |
