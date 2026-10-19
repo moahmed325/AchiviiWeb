@@ -15,7 +15,7 @@
 | M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | DONE 2026-10-17 | [m1.4](milestones/m1.4-moved-dates-and-gaps.md) |
 | M1.5a | Breaks: the length, the first-week-back note, the high-load hold, welcome back | AC-9 (part), AC-10 (dates), AC-18 (length) | DONE 2026-10-19 | [m1.5a](milestones/m1.5a-breaks-first-week-back.md) |
 | M1.5b | Past the limit: the choice card, jumped weeks, the fresh plan | AC-12 | DONE 2026-10-19 | [m1.5b](milestones/m1.5b-past-the-limit.md) |
-| O1 | Mo: turn on `WEEK_CLOSE_ENABLED` in Render, then run the P1 production checks | — | NOT STARTED | |
+| O1 | Mo: turn on `WEEK_CLOSE_ENABLED` in Render, then run the P1 production checks | — | IN PROGRESS: on in production since 2026-10-19 (checklist steps 1 to 5 done: B-66 no rows; `e43d905` deployed, CI green; other switches as listed; own goal unchanged mid-week). Step 6, a week of logs, open until 2026-10-26 | [m1.5b checklist](milestones/m1.5b-past-the-limit.md) |
 | M2.1 | Light weekly tests: 10 pathways and the custom-goal rule | AC-20 | NOT STARTED | |
 | M3.1 | The update call and its checks, on the review path (needs B-62) | AC-1, AC-2, AC-3, AC-8, AC-13, AC-15 | NOT STARTED | |
 | M3.2 | Eval of the update call on recorded weeks | AC-2, AC-3, AC-8 (measured) | NOT STARTED | |
