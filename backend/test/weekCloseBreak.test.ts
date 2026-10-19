@@ -357,7 +357,13 @@ describe('the note to the week writer (WU-25 (3), WU-29 (1))', () => {
     const prompt = promptOf(input);
     expect(prompt.endsWith(firstWeekBackBlock(input))).toBe(true);
     const { firstWeekBack: _ignored, ...withoutBreak } = input;
-    expect(promptOf(withoutBreak)).toBe(prompt.slice(0, prompt.length - firstWeekBackBlock(input).length));
+    // M1.5b review fix 1 (WU-41): a high-load first week back also asks for a light version on the test day.
+    expect(prompt).toContain("The test day's main step is a light version of the weekly test above (see FIRST WEEK BACK)");
+    expect(promptOf(withoutBreak)).toBe(
+      prompt.slice(0, prompt.length - firstWeekBackBlock(input).length).replace('a light version of the weekly test above (see FIRST WEEK BACK)', 'the weekly test exactly as written above')
+    );
+    // A first week back of a goal that is not high-load keeps the test-day line as written.
+    expect(promptOf({ ...input, firstWeekBack: { ...input.firstWeekBack!, highLoad: false } })).toContain("The test day's main step is the weekly test exactly as written above");
     expect(promptOf({ ...withoutBreak, recovery: null })).not.toContain('FIRST WEEK BACK');
     expect(promptOf({ ...input, recovery: null }).endsWith(firstWeekBackBlock(input))).toBe(true);
   });

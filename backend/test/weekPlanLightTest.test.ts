@@ -5,13 +5,24 @@ vi.mock('../src/lib/ai/gemini.js', () => ({
 }));
 
 import { generateStructuredContent } from '../src/lib/ai/gemini.js';
-import { checkWeekAnswer, generateWeekPlan, type RawWeekAnswer, type WeekCallInput } from '../src/lib/ai/weekPlan.js';
+import {
+  LIGHT_TEST_STEP,
+  buildWeekPrompt,
+  checkWeekAnswer,
+  generateWeekPlan,
+  weekLayout,
+  type RawWeekAnswer,
+  type WeekCallInput,
+  type WeekDayPlan,
+} from '../src/lib/ai/weekPlan.js';
 import { textSafetyHits, timeTrialHits } from '../src/lib/ai/safetyScan.js';
 
 /**
  * Weekly update M1.5b (WU-41): in a first week back of a high-load goal the weekly test is a light version. The week is
  * scanned with the weeks 1 to 3 rules and the time-trial rule, whatever its number, and a sentence copied from the stored
- * test is refused, not let through (one retry, then the week fails). Everywhere else the scan is exactly B-63's.
+ * test is refused, not let through (one retry). Review fix 1: on the last attempt a refusal only on the test step gives
+ * the fixed light step instead of failing the week; a refusal elsewhere still fails it. Everywhere else the scan is
+ * exactly B-63's.
  */
 
 const TIME_TRIAL_TEST = { type: 'run' as const, instructions: 'Run a 5K time trial at race effort.', passIf: 'Under 27 minutes' };
@@ -50,28 +61,59 @@ function step(title: string, priority: number, minutes = 15, extra: Record<strin
   };
 }
 
-/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest; day 6 runs the weekly test as `testText` says. */
-function week(testText: string): RawWeekAnswer {
+/** Steady: days 1-3 and 5-6 practice, 4 and 7 rest; day 6 runs the weekly test as `testText` says (left out when null). */
+function week(testText: string | null, options: { highLoad?: boolean; day1?: string } = {}): RawWeekAnswer {
+  const flag = { highLoad: options.highLoad ?? true };
   const days: Array<Record<string, unknown>> = Array.from({ length: 7 }, (_, index) => {
     const dayNumber = index + 1;
     if (dayNumber === 4 || dayNumber === 7) return { dayNumber, isKeySession: false, title: 'Rest', whyToday: 'Recover.', steps: [] };
     const steps =
       dayNumber === 6
-        ? [step('Warm up with an easy jog', 2, 10), step('Weekly test: 5K', 1, 30, { instructions: testText }), step('Cool down with a walk', 3, 5)]
-        : [step(`Easy run ${dayNumber}`, 1, 30), step(`Strides ${dayNumber}`, 2, 10)];
+        ? [
+            step('Warm up with an easy jog', 2, 10, flag),
+            ...(testText === null ? [step('Steady 5K run', 1, 30, flag)] : [step('Weekly test: 5K', 1, 30, { instructions: testText, ...flag })]),
+            step('Cool down with a walk', 3, 5, flag),
+          ]
+        : [step(`Easy run ${dayNumber}`, 1, 30, { ...flag, ...(dayNumber === 1 && options.day1 ? { instructions: options.day1 } : {}) }), step(`Strides ${dayNumber}`, 2, 10, flag)];
     return {
       dayNumber,
       isKeySession: dayNumber === 3,
       title: `Run session ${dayNumber} at an easy effort`,
       whyToday: 'Builds the aerobic base toward the 10K.',
       steps,
-      minimumVersion: step(`Easy jog ${dayNumber}`, 1, 10),
+      minimumVersion: step(`Easy jog ${dayNumber}`, 1, 10, flag),
     };
   });
   return { days };
 }
 
 const reason = (result: ReturnType<typeof checkWeekAnswer>) => ('reason' in result ? result.reason : '');
+const valueOf = (result: ReturnType<typeof checkWeekAnswer>) => {
+  if (!('value' in result)) throw new Error(`refused: ${result.reason}`);
+  return result.value;
+};
+const testStepOf = (days: WeekDayPlan[]) => days.find((day) => day.isTestDay)!.detailedSteps.find((s) => s.title.startsWith('Weekly test'))!;
+/** A saved week as the model would write it, to scan it again. */
+const asRaw = (days: WeekDayPlan[]): RawWeekAnswer => ({
+  days: days.map((day) => ({
+    dayNumber: day.dayNumber,
+    isKeySession: day.isKeySession,
+    title: day.title,
+    whyToday: day.whyToday || 'Recover.',
+    steps: day.detailedSteps.map((s) => ({
+      title: s.title,
+      instructions: s.instructions,
+      minutes: s.durationMinutes,
+      output: s.output,
+      doneWhen: s.passMark,
+      focusCue: s.focusCue,
+      pitfall: s.pitfallToAvoid,
+      priority: s.priority,
+      highLoad: s.highLoad,
+    })),
+    ...(day.minimumVersion ? { minimumVersion: { title: day.minimumVersion.title, instructions: day.minimumVersion.instructions, minutes: 10, highLoad: true } } : {}),
+  })),
+});
 let warn: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   vi.mocked(generateStructuredContent).mockReset();
@@ -112,10 +154,15 @@ describe('the week call in a first week back (M1.5b, WU-41)', () => {
     expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([['time_trial', 'retry']]);
   });
 
-  it('a high-load first week back refuses a copied stored max test, also in week 8', () => {
-    const result = checkWeekAnswer(week('Test your 1RM squat. Rest 3 minutes between attempts.'), { ...input, test: MAX_TEST, ...back(true) }, true);
-    expect(reason(result)).toMatch(/SAFETY: Day 6 step "Weekly test: 5K"/);
-    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([['max_test', 'failed']]);
+  it('a high-load first week back refuses a copied stored max test, also in week 8; the last attempt gets the light step', () => {
+    const copied = week('Test your 1RM squat. Rest 3 minutes between attempts.');
+    expect(reason(checkWeekAnswer(copied, { ...input, test: MAX_TEST, ...back(true) }, false))).toMatch(/SAFETY: Day 6 step "Weekly test: 5K"/);
+    const last = checkWeekAnswer(copied, { ...input, test: MAX_TEST, ...back(true) }, true);
+    expect(testStepOf(valueOf(last))).toMatchObject(LIGHT_TEST_STEP);
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([
+      ['max_test', 'retry'],
+      ['max_test', 'light_test'],
+    ]);
   });
 
   it('a light version of the test passes', () => {
@@ -142,11 +189,59 @@ describe('the week call in a first week back (M1.5b, WU-41)', () => {
     expect(safetyLines().map((line) => line.outcome)).toEqual(['test_text']);
   });
 
-  it('one retry, then the week fails (the route answers its existing 503)', async () => {
+  it('review fix 1: the stored time trial copied on both attempts gives a saved week holding the fixed light step', async () => {
     vi.mocked(generateStructuredContent).mockResolvedValue({ success: true, data: week('Run a 5K time trial at race effort.') } as never);
-    expect(await generateWeekPlan({ ...input, ...back(true) })).toBeNull();
+    const days = await generateWeekPlan({ ...input, ...back(true) });
     expect(generateStructuredContent).toHaveBeenCalledTimes(2);
+    expect(days).not.toBeNull();
+    expect(testStepOf(days!)).toMatchObject({
+      title: 'Weekly test: an easy version',
+      instructions: "First week back: do this week's test at an easy, comfortable effort, never all-out. Note what you did and how it felt.",
+      passMark: 'No pass mark this week; just log what you did.',
+    });
+    expect(safetyLines().map((line) => line.outcome)).toEqual(['retry', 'light_test']);
+    // The swapped week is safe: scanning it again as a light week finds nothing.
+    warn.mockClear();
+    expect(checkWeekAnswer(asRaw(days!), { ...input, ...back(true) }, false)).toHaveProperty('value');
+    expect(safetyLines()).toEqual([]);
+  });
+
+  it('review fix 1: a model that leaves out the test step gets the fixed light step (an ordinary week gets the stored test as before)', () => {
+    expect(testStepOf(valueOf(checkWeekAnswer(week(null), { ...input, ...back(true) }, true)))).toMatchObject(LIGHT_TEST_STEP);
+    const ordinary = testStepOf(valueOf(checkWeekAnswer(week(null), { ...input, weekNumber: 5 }, true)));
+    expect(ordinary).toMatchObject({ instructions: TIME_TRIAL_TEST.instructions, passMark: TIME_TRIAL_TEST.passIf });
+  });
+
+  it('review fix 1: a non-test step that breaks a rule on both attempts still fails the week (the 503)', async () => {
+    vi.mocked(generateStructuredContent).mockResolvedValue({ success: true, data: week('Run 5K at an easy effort.', { day1: 'Last set to failure.' }) } as never);
+    expect(await generateWeekPlan({ ...input, ...back(true) })).toBeNull();
     expect(safetyLines().map((line) => line.outcome)).toEqual(['retry', 'failed']);
+  });
+
+  it('review fix 1: a test-step refusal next to another refusal still fails the week', () => {
+    const result = checkWeekAnswer(week('Run a 5K time trial at race effort.', { day1: 'Last set to failure.' }), { ...input, ...back(true) }, true);
+    expect(reason(result)).toMatch(/Day 6 step "Weekly test: 5K"/);
+    expect(safetyLines().map((line) => line.outcome)).toEqual(['failed', 'failed']);
+  });
+
+  it('review fix 1: the test-day line asks for a light version only in a high-load first week back', () => {
+    const layout = weekLayout('steady', input.weekStart);
+    expect(buildWeekPrompt({ ...input, ...back(true) }, layout)).toContain('a light version of the weekly test above (see FIRST WEEK BACK)');
+    for (const other of [input, { ...input, ...back(false) }]) {
+      const prompt = buildWeekPrompt(other, layout);
+      expect(prompt).toContain("The test day's main step is the weekly test exactly as written above");
+      expect(prompt).not.toContain('a light version of the weekly test above');
+    }
+  });
+
+  it('review fix 2: a custom goal high-load only through its profile has every step scanned in its first week back', () => {
+    const custom = { ...input, highLoadGoal: false, test: MAX_TEST, ...back(true) };
+    const copied = week('Test your 1RM squat. Rest 3 minutes between attempts.', { highLoad: false });
+    expect(reason(checkWeekAnswer(copied, custom, false))).toMatch(/SAFETY: Day 6 step "Weekly test: 5K"/);
+    // An ordinary week of the same goal scans only flagged steps, as before.
+    warn.mockClear();
+    expect(checkWeekAnswer(copied, { ...custom, firstWeekBack: undefined, weekNumber: 2 }, false)).toHaveProperty('value');
+    expect(safetyLines()).toEqual([]);
   });
 
   it('the retry is accepted when it writes the light version', async () => {

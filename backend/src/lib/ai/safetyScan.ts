@@ -197,8 +197,11 @@ export interface SafetyLogLine {
   rule: SafetyRule;
   step: string;
   matched: string;
-  /** `test_text`: the sentence is the roadmap's own weekly test, which the week must run as written; logged, not refused. */
-  outcome: 'retry' | 'failed' | 'test_text';
+  /**
+   * `test_text`: the sentence is the roadmap's own weekly test, which the week must run as written; logged, not refused.
+   * `light_test` (M1.5b, WU-41): on the last attempt of a light week the test step was replaced by the fixed light step.
+   */
+  outcome: 'retry' | 'failed' | 'test_text' | 'light_test';
 }
 
 /** PSL-1 (3): one line per hit, so the false-alarm rate can be checked in production. */

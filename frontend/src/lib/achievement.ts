@@ -23,12 +23,12 @@ export function computeAchievementSummary(goal: Goal): AchievementSummary {
       ? Math.min(100, Math.max(0, Math.round((completedSessions / totalPlannedSessions) * 100)))
       : 0;
 
-  // Completed weeks count
-  const completedWeeks = weeks.filter((w) => w.status === 'completed').length;
+  // Completed weeks count. Weekly update M1.5b (WU-40 (1)): a jumped week is never a week done.
+  const completedWeeks = weeks.filter((w) => w.status === 'completed' && !w.jumped).length;
   const totalWeeks = Math.max(12, weeks.length);
 
-  // Benchmarks from roadmapWeeks
-  const weeksWithTests = weeks.filter((w) => w.test != null || w.testResult != null);
+  // Benchmarks from roadmapWeeks. M1.5b: a jumped week had no test to run, so it is no benchmark.
+  const weeksWithTests = weeks.filter((w) => !w.jumped && (w.test != null || w.testResult != null));
   const benchmarksAchieved = weeks.filter((w) => w.testResult?.passed === true).length;
   const totalBenchmarks = weeksWithTests.length;
 

@@ -94,7 +94,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [pendingChoice, setPendingChoice] = useState<GoalContextType['pendingChoice']>(null);
   const [closeFailed, setCloseFailed] = useState(false);
   // M1.5b: the choice whose close failed on the server, so "Try again" sends it again instead of asking again.
-  const failedChoice = useRef<PastLimitChoice | null>(null);
+  const failedChoice = useRef<GoalContextType['pendingChoice']>(null);
   // When the last load started, and whether one is running, for the new-day catch-up (M3.1 R3).
   const lastLoadAt = useRef<Date | null>(null);
   const loading = useRef(false);
@@ -158,16 +158,17 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * Closes are counted, so one that ends first never hides another still running (review fix 3). A failure never
    * stops the load.
    */
-  const runClose = useCallback(async (t: string, choice?: PastLimitChoice) => {
+  const runClose = useCallback(async (t: string, choice?: PastLimitChoice): Promise<'ok' | 'server' | 'other'> => {
     closesRunning.current += 1;
     setClosingWeek(true);
     try {
       await (choice ? closeWeek(t, undefined, choice) : closeWeek(t));
-      return true;
+      return 'ok';
     } catch (err) {
       console.warn('Failed to close the week:', err);
-      if (closeFailedOnServer(err)) setCloseFailed(true);
-      return false;
+      if (!closeFailedOnServer(err)) return 'other';
+      setCloseFailed(true);
+      return 'server';
     }
   }, []);
   const endClose = useCallback(() => {
@@ -350,11 +351,12 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   /**
-   * M1.5b (WU-38): the close with the person's choice, then reconcile and the fetch. A failed close keeps the plan as
-   * stored (no reconcile, as while the choice waited) and "Try again" sends the same choice.
+   * M1.5b (WU-38): the close with the person's choice, then reconcile and the fetch. A server failure keeps the plan as
+   * stored (no reconcile, as while the choice waited) and "Try again" sends the same choice. Any other failure (no
+   * network, a 409) puts the card back exactly as before the tap (review fix 4).
    */
   const closeWithChoice = useCallback(
-    async (t: string, choice: PastLimitChoice) => {
+    async (t: string, waiting: NonNullable<GoalContextType['pendingChoice']>, choice: PastLimitChoice) => {
       answering.current = true;
       let closing = false;
       try {
@@ -363,9 +365,14 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCloseFailed(false);
         failedChoice.current = null;
         closing = true;
-        const ok = await runClose(t, choice);
-        if (!ok) failedChoice.current = choice;
-        await reconcileAndFetch(t, ok, false);
+        const result = await runClose(t, choice);
+        if (result === 'other') {
+          held.current = waiting.weekNumber;
+          setPendingChoice(waiting);
+          return false;
+        }
+        if (result === 'server') failedChoice.current = { ...waiting, choice };
+        await reconcileAndFetch(t, result === 'ok', false);
         return true;
       } finally {
         if (closing) endClose();
@@ -377,10 +384,10 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const answerChoice = useCallback(
     async (choice: PastLimitChoice) => {
-      if (!token || held.current === null || answering.current) return false;
-      return closeWithChoice(token, choice);
+      if (!token || held.current === null || answering.current || !pendingChoice) return false;
+      return closeWithChoice(token, pendingChoice, choice);
     },
-    [token, closeWithChoice]
+    [token, pendingChoice, closeWithChoice]
   );
 
   // WU-40 (4): a fresh plan made another goal active (goal creation sets it); the old goal's choice no longer waits.
@@ -394,7 +401,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const retryClose = useCallback(async () => {
     if (!token || held.current !== null || answering.current) return;
     if (failedChoice.current) {
-      await closeWithChoice(token, failedChoice.current);
+      await closeWithChoice(token, failedChoice.current, failedChoice.current.choice);
       return;
     }
     await closeThenLoad(token, false);

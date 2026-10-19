@@ -324,7 +324,7 @@ ${dayLines(layout)}
 
 WRITE THE WEEK
 - 7 days, dayNumber 1-7, exactly as listed above.
-- The test day's main step is the weekly test exactly as written above, titled "Weekly test: ...", with a
+- The test day's main step is ${input.firstWeekBack?.highLoad ? 'a light version of the weekly test above (see FIRST WEEK BACK)' : 'the weekly test exactly as written above'}, titled "Weekly test: ...", with a
   short warm-up before it (5 minutes or less) and a short step after it (5 minutes or less) that compares the
   result with the target. The test day may be shorter than ${input.dailyMinutes} minutes; do not pad it.
 - Mark 1-2 practice days (not the test day) as key sessions ("isKeySession": true): the hardest sessions that
@@ -475,7 +475,33 @@ export function isSideStepTitle(title: string): boolean {
 /** A pause is part of a step's instructions, not a step of its own. */
 const BREAK_STEP = /\b(break|breather)\b|^rest\b/i;
 
-function testStepFor(test: WeekTest, minutes: number): DetailedStep & { priority: number } {
+/**
+ * M1.5b (WU-41): the test step of a light week when the model's own can't be used (left out, or refused on the last
+ * attempt). Fixed text, so a light week can always be written; the stored test and target never change.
+ */
+export const LIGHT_TEST_STEP = {
+  title: 'Weekly test: an easy version',
+  instructions: "First week back: do this week's test at an easy, comfortable effort, never all-out. Note what you did and how it felt.",
+  passMark: 'No pass mark this week; just log what you did.',
+} as const;
+
+function lightTestStep(minutes: number): DetailedStep & { priority: number } {
+  return {
+    stepNumber: 0,
+    title: LIGHT_TEST_STEP.title,
+    durationMinutes: minutes,
+    instructions: LIGHT_TEST_STEP.instructions,
+    focusCue: 'Easy and comfortable all the way through.',
+    pitfallToAvoid: 'Turning it into a hard effort.',
+    passMark: LIGHT_TEST_STEP.passMark,
+    output: 'What you did and how it felt.',
+    priority: 0,
+    highLoad: false,
+  };
+}
+
+function testStepFor(test: WeekTest, minutes: number, light = false): DetailedStep & { priority: number } {
+  if (light) return lightTestStep(minutes);
   return {
     stepNumber: 0,
     title: `Weekly test: ${test.instructions.split(/[.;]/)[0].slice(0, 80)}`,
@@ -556,12 +582,14 @@ export function checkWeekAnswer(
       if (!hasTest && !lastAttempt) {
         return { reason: `${label} is the test day; its main step must be titled "Weekly test: ..." and run the weekly test as written.` };
       }
-      if (!hasTest) steps = [testStepFor(input.test, Math.round(input.dailyMinutes / 2)), ...keepTopSteps(steps, MAX_STEPS - 1)];
+      if (!hasTest) steps = [testStepFor(input.test, Math.round(input.dailyMinutes / 2), isLightWeek(input)), ...keepTopSteps(steps, MAX_STEPS - 1)];
       // RULE-7: the test step is always Weekly test, whatever the model tagged; with a profile, so is every other step
       // on the test day, such as its warm-up and its review (MR-25). Without a profile, only the test step changes.
       steps = steps.map((step) => {
         const tagged = recovery ? { ...(cleanStep(step) as ParsedStep), kind: WEEKLY_TEST_KIND.id } : step;
-        return TEST_STEP.test(step.title) ? { ...tagged, priority: 0, passMark: input.test.passIf } : tagged;
+        // M1.5b: the fixed light step keeps its own pass mark.
+        const passMark = step.title === LIGHT_TEST_STEP.title && isLightWeek(input) ? LIGHT_TEST_STEP.passMark : input.test.passIf;
+        return TEST_STEP.test(step.title) ? { ...tagged, priority: 0, passMark } : tagged;
       });
     }
 
@@ -633,7 +661,8 @@ export function checkWeekAnswer(
     });
   }
 
-  // B-63 (PSL-1): a safety breach is a hard reason too; a second breach fails the week.
+  // B-63 (PSL-1): a safety breach is a hard reason too; a second breach fails the week. M1.5b (WU-41): in a light week a
+  // last attempt refused only on its test step gets the fixed light step instead.
   const safetyFailures = safetyBreaches(days, input, lastAttempt);
   if (safetyFailures.length > 0 || kindFailures.length > 0) {
     return { reason: [...safetyFailures, ...kindFailures].slice(0, 8).join(' ') };
@@ -669,9 +698,10 @@ export function checkWeekAnswer(
  * 10-minute version included, as retry reasons. Each hit is logged once as a `[Safety]` line.
  */
 export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAttempt = false): string[] {
-  const reasons: string[] = [];
-  // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through.
-  const scan = { light: input.firstWeekBack?.highLoad === true };
+  const hits: { day: WeekDayPlan; step: DetailedStep; name: string; hit: SafetyHit; allowed: boolean; testStep: boolean }[] = [];
+  // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through,
+  // and every step is scanned, not only the high-load ones.
+  const scan = { light: isLightWeek(input) };
   // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
   // says is logged, never refused, or that week could never be written.
   const testText = scan.light ? [] : textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
@@ -681,24 +711,41 @@ export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAt
   for (const day of days) {
     const steps = [...day.detailedSteps, ...(day.minimumVersion ? [day.minimumVersion] : [])];
     for (const step of steps) {
-      if (!input.highLoadGoal && step.highLoad !== true) continue;
+      if (!scan.light && !input.highLoadGoal && step.highLoad !== true) continue;
       const name = step === day.minimumVersion ? `Day ${day.dayNumber} 10-minute version "${step.title}"` : `Day ${day.dayNumber} step "${step.title}"`;
-      for (const hit of stepSafetyHits(step, input.weekNumber, scan)) {
-        const allowed = fromTest(hit, step !== day.minimumVersion && TEST_STEP.test(step.title));
-        logSafetyHit({
-          goalId: input.goalId ?? null,
-          week: input.weekNumber,
-          attempt: lastAttempt ? 2 : 1,
-          rule: hit.rule,
-          step: name,
-          matched: hit.matched,
-          outcome: allowed ? 'test_text' : lastAttempt ? 'failed' : 'retry',
-        });
-        if (!allowed) reasons.push(`SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`);
-      }
+      const testStep = step !== day.minimumVersion && TEST_STEP.test(step.title);
+      for (const hit of stepSafetyHits(step, input.weekNumber, scan)) hits.push({ day, step, name, hit, testStep, allowed: fromTest(hit, testStep) });
     }
   }
-  return reasons;
+  const refused = hits.filter((item) => !item.allowed);
+  // M1.5b (WU-41): the last attempt of a light week refused only on test steps keeps the week, with the fixed light step.
+  const swap = lastAttempt && scan.light && refused.length > 0 && refused.every((item) => item.testStep);
+  for (const { name, hit, allowed } of hits) {
+    logSafetyHit({
+      goalId: input.goalId ?? null,
+      week: input.weekNumber,
+      attempt: lastAttempt ? 2 : 1,
+      rule: hit.rule,
+      step: name,
+      matched: hit.matched,
+      outcome: allowed ? 'test_text' : swap ? 'light_test' : lastAttempt ? 'failed' : 'retry',
+    });
+  }
+  if (swap) {
+    for (const { day, step } of refused) {
+      const at = day.detailedSteps.indexOf(step);
+      if (at < 0) continue;
+      const light = { ...step, ...lightTestStep(step.durationMinutes), stepNumber: step.stepNumber, priority: step.priority, ...(step.kind ? { kind: step.kind } : {}) };
+      day.detailedSteps = day.detailedSteps.map((item, index) => (index === at ? light : item));
+    }
+    return [];
+  }
+  return refused.map(({ name, hit }) => `SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`);
+}
+
+/** M1.5b (WU-41): a first week back of a high-load goal: its test is a light version, and the week is scanned as light. */
+function isLightWeek(input: Pick<WeekCallInput, 'firstWeekBack'>): boolean {
+  return input.firstWeekBack?.highLoad === true;
 }
 
 /** ND-5: on a physical preset goal every practice step and the 10-minute version are high-load, whatever the model said. */

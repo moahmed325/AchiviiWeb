@@ -237,6 +237,37 @@ describe('the choice card past the limit (WU-38, WU-40)', () => {
     expect(closes()).toEqual([]);
   });
 
+  it.each([
+    ['no network', () => new TypeError('Failed to fetch')],
+    ['a 409', () => new api.ApiError('Choose how to continue on Today first.', 409)],
+  ])('review fix 4: a close that fails with %s puts the card back, with no reconcile and no stored week', async (_name, error) => {
+    const user = userEvent.setup();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    let failing = true;
+    mocked.closeWeek.mockImplementation(async (_t, mode, choice) => {
+      calls.push(mode === 'check' ? 'close:check' : `close:${choice ?? 'none'}`);
+      if (mode === 'check') return check;
+      if (failing) throw error();
+      return CLOSED;
+    });
+    mocked.fetchActiveGoal.mockImplementation(async () => {
+      calls.push('fetch');
+      return failing ? BEFORE : AFTER;
+    });
+    renderApp();
+    await user.click(within(await card()).getByRole('button', { name: 'Keep going' }));
+    expect(await card()).toBeVisible();
+    expect(screen.queryByText("Couldn't get your next week ready. Please try again.")).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Run a 10K' })).not.toBeInTheDocument();
+    expect(calls).toEqual(['close:check', 'fetch', 'close:keep_going']);
+
+    // The card answers again as before the tap.
+    failing = false;
+    await user.click(within(await card()).getByRole('button', { name: 'Keep going' }));
+    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/^Week 6 · Base · Theme 6/));
+    expect(calls).toEqual(['close:check', 'fetch', 'close:keep_going', 'close:keep_going', 'reconcile', 'fetch']);
+  });
+
   it('a 5xx keeps "Couldn\'t get your next week ready" with Try again, which sends the same choice', async () => {
     const user = userEvent.setup();
     vi.spyOn(console, 'warn').mockImplementation(() => {});

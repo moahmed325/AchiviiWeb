@@ -76,7 +76,7 @@ const RoadmapContent: React.FC<{ journey: NonNullable<ReturnType<typeof useJourn
             {phases.map((phase) => (
               <div key={phase.id} className="flex gap-1" style={{ flex: phase.weeks.length + ' 1 0%' }}>
                 {phase.weeks.map((week) => (
-                  <span key={week.weekNumber} className="road-week flex-1" data-state={week.status === 'completed' ? 'completed' : week.isCurrentWeek ? 'current' : 'upcoming'} />
+                  <span key={week.weekNumber} className="road-week flex-1" data-state={week.jumped ? 'paused' : week.status === 'completed' ? 'completed' : week.isCurrentWeek ? 'current' : 'upcoming'} />
                 ))}
               </div>
             ))}

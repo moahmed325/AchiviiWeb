@@ -273,9 +273,9 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
             create: { goalId: goal.id, weekNumber, ...reviewFields },
           });
 
-    // M1.5b (WU-19, WU-40 (1)): each jumped week closes with no tasks, no review row and no update.
+    // M1.5b (WU-19, WU-40 (1)): each jumped week closes with no review row and no update. It has no tasks: a week is
+    // written only when the week before it closes, so a jumped week never was.
     if (jumped.length > 0) {
-      await tx.dailyTask.deleteMany({ where: { goalId: goal.id, weekNumber: { in: jumped } } });
       await tx.roadmapWeek.updateMany({
         where: { goalId: goal.id, weekNumber: { in: jumped } },
         data: { jumped: true, status: 'completed', closedBy: 'jumped', closedAt },

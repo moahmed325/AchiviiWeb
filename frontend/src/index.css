@@ -1210,6 +1210,12 @@ html:has(.marketing) {
     animation: dash-breathe 3.6s ease-in-out infinite;
   }
 
+  /* Weekly update M1.5b (WU-40 (1)): a jumped week, outlined with no fill, so it never reads as done. */
+  .road-week[data-state='paused'] {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-text) 16%, transparent);
+  }
+
   /* One row per phase. Each row draws its own piece of the rail, so the rail needs no measuring. */
   .road-row {
     position: relative;

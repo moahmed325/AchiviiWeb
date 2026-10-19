@@ -135,6 +135,16 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
     expect(summary.completedAt).toBe('2026-08-30T10:00:00Z');
   });
 
+  it('weekly update M1.5b: a jumped week is not a week done and not a benchmark (WU-40 (1))', () => {
+    const jumped = baseGoal.roadmapWeeks!.map((w) =>
+      w.weekNumber === 8 ? { ...w, jumped: true, closedBy: 'jumped' as const, testResult: null } : w
+    );
+    const summary = computeAchievementSummary({ ...baseGoal, roadmapWeeks: jumped });
+    expect(summary.completedWeeks).toBe(2);
+    expect(summary.totalBenchmarks).toBe(2);
+    expect(summary.benchmarksAchieved).toBe(2);
+  });
+
   it('2. Handles 100% adherence and bounds percentage safely', () => {
     const allDoneGoal: Goal = {
       ...baseGoal,
