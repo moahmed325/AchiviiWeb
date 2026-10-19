@@ -387,8 +387,13 @@ export async function completeGoal(
  * Weekly update M1.2b (RULE-8, RULE-17): `POST /api/goal/close-week`. `{ mode: 'check' }` only says whether a close is
  * due (and whether the week's test is logged); without it a due week closes. Throws `ApiError` with the status (503
  * when the next week could not be written).
+ * M1.5b (WU-38): `choice` answers the card past the limit; without it such a close is refused (409 `choice_needed`).
  */
-export async function closeWeek(token: string, mode?: 'check'): Promise<import('../types').CloseWeekAnswer> {
+export async function closeWeek(
+  token: string,
+  mode?: 'check',
+  choice?: import('../types').PastLimitChoice
+): Promise<import('../types').CloseWeekAnswer> {
   const response = await fetch(`${API_BASE_URL}/api/goal/close-week`, {
     method: 'POST',
     headers: {
@@ -397,7 +402,7 @@ export async function closeWeek(token: string, mode?: 'check'): Promise<import('
       'Authorization': `Bearer ${token}`,
       ...clientTimezoneHeader(),
     },
-    body: JSON.stringify(mode ? { mode } : {}),
+    body: JSON.stringify(mode ? { mode } : choice ? { choice } : {}),
   });
 
   return readJson(response, "Couldn't get your next week ready. Please try again.");

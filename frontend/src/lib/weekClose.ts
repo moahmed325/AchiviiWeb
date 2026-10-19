@@ -33,10 +33,12 @@ export function fillPlanEnd(line: string, goal: Pick<Goal, 'targetDate'>, now: D
 /**
  * The line once (WU-28): the most recently closed week, when it closed automatically and its line wasn't dismissed,
  * with that week's review insight ("Next week is ready. Your targets stay as planned." until P3, M1.4's moved-plan
- * line, or M1.5a's welcome-back line after a break, with its `{date}` filled in). Null otherwise.
+ * line, M1.5a's welcome-back line after a break, or M1.5b's line after a choice past the limit, with its `{date}`
+ * filled in). Jumped weeks are passed over. Null otherwise.
  */
 export function closeLineWeek(goal: Goal, now: Date = new Date()): { weekNumber: number; line: string } | null {
-  const closed = (goal.roadmapWeeks ?? []).filter((w) => w.status === 'completed');
+  // M1.5b (WU-40): a jumped week has no line; the line after a jump is on the week that closed before it.
+  const closed = (goal.roadmapWeeks ?? []).filter((w) => w.status === 'completed' && !w.jumped);
   const last = closed.reduce<(typeof closed)[number] | null>((a, b) => (!a || b.weekNumber > a.weekNumber ? b : a), null);
   if (!last || last.closedBy !== 'auto' || last.closeLineSeenAt) return null;
   const line = goal.weeklyReviews?.find((r) => r.weekNumber === last.weekNumber)?.aiAdaptationInsight?.trim();

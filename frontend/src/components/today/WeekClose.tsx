@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import type { Goal, WeeklyTestResult } from '../../types';
+import { useNavigate } from 'react-router-dom';
+import type { Goal, PastLimitChoice, WeeklyTestResult } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import { ApiError, logWeeklyTestResult } from '../../lib/api';
+import { DRAFT_GOAL_KEY } from '../onboarding/payload';
 import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
-import { Button, Dialog, DialogContent, LoadingState } from '../ui';
+import { Button, Dialog, DialogContent, LoadingState, Surface } from '../ui';
 
 // Weekly update M1.2b (RULE-8, WU-14, WU-28): what the app shows around an automatic week close.
 
@@ -118,6 +120,70 @@ export const WeekTestFirst: React.FC<{ goal: Goal; weekNumber: number }> = ({ go
           />
         )}
       </Dialog>
+    </main>
+  );
+};
+
+/** Section 6 (WU-40 (3)): the card's words, by the choice the break waits for. */
+const CHOICE_COPY: Record<PastLimitChoice, { body: string; action: string }> = {
+  keep_going: {
+    body: 'This break is longer than your plan can move. Start a fresh 12-week plan, or keep going with this one.',
+    action: 'Keep going',
+  },
+  final_week: {
+    body: "Your plan's dates have passed. Start a fresh 12-week plan, or do your final week now.",
+    action: 'Do my final week',
+  },
+};
+
+/**
+ * Past the limit (M1.5b, RULE-15, WU-38, WU-40): Today shows only this card while the choice waits. "Keep going" or
+ * "Do my final week" runs the close with that choice ("Getting your next week ready…" while it runs). "Start a fresh
+ * plan" opens goal creation with the goal's text filled in, as switching goal does; nothing closes, and leaving goal
+ * creation brings this card back. Closing the tab answers nothing.
+ */
+export const BreakChoice: React.FC<{ goal: Goal; choice: PastLimitChoice }> = ({ goal, choice }) => {
+  const navigate = useNavigate();
+  const { answerChoice } = useGoal();
+  const [answering, setAnswering] = useState(false);
+  const copy = CHOICE_COPY[choice];
+
+  const keep = async () => {
+    if (answering) return;
+    setAnswering(true);
+    try {
+      await answerChoice(choice);
+    } finally {
+      setAnswering(false);
+    }
+  };
+
+  const fresh = () => {
+    // The way a goal switch opens goal creation (`usePathwayLaunch`): the draft key and `switchGoal`. WU-24: the text only.
+    try {
+      localStorage.setItem(DRAFT_GOAL_KEY, goal.rawGoal);
+    } catch {
+      // Without storage the navigation state still carries the text.
+    }
+    navigate('/onboarding', { state: { draftGoal: goal.rawGoal, isPreset: false, switchGoal: true } });
+  };
+
+  return (
+    <main id="main" className="ui-root mx-auto flex w-full max-w-xl flex-1 items-center px-gutter py-10 sm:py-14">
+      <Surface as="section" tone="elevated" padding="lg" aria-labelledby="break-choice-title" className="w-full">
+        <h1 id="break-choice-title" className="text-h3 text-text">
+          Welcome back.
+        </h1>
+        <p className="mt-3 text-body text-text-secondary">{copy.body}</p>
+        <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button variant="secondary" onClick={fresh} disabled={answering}>
+            Start a fresh plan
+          </Button>
+          <Button variant="primary" onClick={keep} loading={answering}>
+            {copy.action}
+          </Button>
+        </div>
+      </Surface>
     </main>
   );
 };

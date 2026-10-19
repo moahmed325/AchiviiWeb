@@ -18,6 +18,8 @@ interface AdaptationEntry {
   aiAdaptationInsight: string | null;
   isMilestoneGate: boolean;
   createdAt: string | null;
+  /** M1.5b (WU-40 (1)): a week jumped past the limit: muted, "Paused", no score, nothing else. */
+  paused: boolean;
 }
 
 /**
@@ -40,6 +42,21 @@ function deriveAdaptationHistory(goal: Goal): AdaptationEntry[] {
   for (const week of weeks) {
     // Only show completed or adapted weeks (past weeks that have been reviewed)
     if (week.weekNumber >= currentWeek && week.status !== 'completed' && week.status !== 'adapted') {
+      continue;
+    }
+
+    if (week.jumped) {
+      entries.push({
+        weekNumber: week.weekNumber,
+        phase: week.phase,
+        theme: week.theme,
+        executionScore: null,
+        reflection: null,
+        aiAdaptationInsight: null,
+        isMilestoneGate: false,
+        createdAt: null,
+        paused: true,
+      });
       continue;
     }
 
@@ -71,6 +88,7 @@ function deriveAdaptationHistory(goal: Goal): AdaptationEntry[] {
       aiAdaptationInsight: aiInsight,
       isMilestoneGate: isLastWeekOfPhase,
       createdAt: review?.created_at || null,
+      paused: false,
     });
   }
 
@@ -87,8 +105,8 @@ function deriveAdaptationHistory(goal: Goal): AdaptationEntry[] {
 export const AdaptationHistoryList: React.FC<AdaptationHistoryListProps> = ({ goal, className }) => {
   const entries = useMemo(() => deriveAdaptationHistory(goal), [goal]);
 
-  // Early state: no weekly reviews submitted yet (M8.4)
-  if (entries.length === 0) {
+  // Early state: no weekly reviews submitted yet (M8.4). Paused weeks alone are not a review.
+  if (entries.every((entry) => entry.paused)) {
     return (
       <section aria-labelledby="adaptation-history-heading" className={cx('space-y-3', className)}>
         <h2 id="adaptation-history-heading" className="text-h3 text-text">
@@ -118,7 +136,10 @@ export const AdaptationHistoryList: React.FC<AdaptationHistoryListProps> = ({ go
         {entries.map((entry) => (
           <div
             key={entry.weekNumber}
-            className="rounded-card border border-border bg-surface px-5 py-4 sm:px-6 sm:py-5"
+            className={cx(
+              'rounded-card border px-5 py-4 sm:px-6 sm:py-5',
+              entry.paused ? 'border-border/60 bg-surface/60' : 'border-border bg-surface',
+            )}
           >
             {/* Header row */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -126,6 +147,7 @@ export const AdaptationHistoryList: React.FC<AdaptationHistoryListProps> = ({ go
                 Week {entry.weekNumber}
               </span>
               <span className="text-small text-text-secondary">{entry.theme}</span>
+              {entry.paused && <span className="ml-auto font-ui-mono text-micro uppercase text-text-secondary">Paused</span>}
               {entry.executionScore !== null && (
                 <span className="ml-auto font-ui-mono text-small tabular-nums text-text-secondary">
                   {entry.executionScore}%

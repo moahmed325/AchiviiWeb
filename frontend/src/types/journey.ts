@@ -37,6 +37,8 @@ export interface JourneyWeek {
   keyMilestone?: string;
   status: JourneyStatus;
   executionScore?: number;
+  /** Weekly update M1.5b (WU-40 (1)): jumped past the limit; shown muted as "Paused", no score, never a week done. */
+  jumped?: boolean;
   days: JourneyStep[];
   isCurrentWeek: boolean;
   hasWrittenTasks: boolean;

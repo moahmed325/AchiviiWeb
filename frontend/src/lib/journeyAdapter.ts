@@ -172,7 +172,9 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
         test: matchingWeek?.test || null,
         keyMilestone: matchingWeek?.keyMilestone,
         status: weekStatus,
-        executionScore: matchingWeek?.executionScore,
+        // M1.5b (WU-40 (1)): a jumped week has no score.
+        executionScore: matchingWeek?.jumped ? undefined : matchingWeek?.executionScore,
+        jumped: matchingWeek?.jumped === true,
         days,
         isCurrentWeek,
         hasWrittenTasks,

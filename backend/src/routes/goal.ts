@@ -34,7 +34,18 @@ import {
 import { makeGoalProfile } from '../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
-import { autoCloseInsight, closeAnswer, logWeekClose, reviewInsight, saveWeekClose, weekCloseDue, writeWeekAfter } from '../lib/weekClose/close.js';
+import {
+  autoCloseInsight,
+  closeAnswer,
+  logJump,
+  logWeekClose,
+  planWeekMove,
+  reviewInsight,
+  saveWeekClose,
+  weekCloseDue,
+  writeWeekAfter,
+} from '../lib/weekClose/close.js';
+import type { PastLimitChoice } from '../lib/weekClose/breaks.js';
 import { weekCloseEnabled } from '../lib/weekClose/switch.js';
 
 function wantsPlanStream(req: Request): boolean {
@@ -499,7 +510,8 @@ type ActionReason =
   | 'week_not_open'
   | 'week_close_disabled'
   | 'not_auto_closed'
-  | 'reflection_saved';
+  | 'reflection_saved'
+  | 'choice_needed';
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -528,11 +540,20 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   week_close_disabled: 'This action is not available yet.',
   not_auto_closed: 'This week did not close on its own.',
   reflection_saved: 'This week already has a reflection.',
+  // Weekly update M1.5b (WU-38 (1)): a break past the limit waits for the person's choice on Today.
+  choice_needed: 'Choose how to continue on Today first.',
 };
 
 function refuse(res: Response, reason: ActionReason): void {
   res.status(409).json({ error: ACTION_ERRORS[reason], reason });
 }
+
+/** M1.5b (WU-38 (1)): 409 `choice_needed`, naming the choice the card offers. */
+function refuseChoice(res: Response, choice: PastLimitChoice): void {
+  res.status(409).json({ error: ACTION_ERRORS.choice_needed, reason: 'choice_needed', choice });
+}
+
+const isChoice = (value: unknown): value is PastLimitChoice => value === 'keep_going' || value === 'final_week';
 
 async function actionUser(req: Request, res: Response) {
   const user = await getAuthUser(req);
@@ -1150,6 +1171,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       : goal;
     const now = new Date();
     const next = await writeWeekAfter(writerGoal, weekNum, { now, timezone: user.timezone });
+    // M1.5b (WU-38 (1)): a break past the limit is answered on Today's card, never by the review; nothing was called.
+    if (next?.choiceNeeded) return refuseChoice(res, next.choiceNeeded);
     if (!next) {
       res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
       return;
@@ -1229,13 +1252,24 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
     }
 
     if (req.body?.mode === 'check') {
-      res.json({ due: true, weekNumber: weekNum, testLogged: week.testResult !== null && week.testResult !== undefined });
+      // M1.5b: `break` (WU-39: no test card after a break) and `choice` (WU-38: the card past the limit, else null).
+      const move = planWeekMove(found, weekNum, now, user.timezone, weekTasks);
+      res.json({
+        due: true,
+        weekNumber: weekNum,
+        testLogged: week.testResult !== null && week.testResult !== undefined,
+        break: move !== null && move.breakDays !== null,
+        choice: move?.choiceNeeded ?? null,
+      });
       return;
     }
 
     const startedAt = Date.now();
     const lastWeek = weekNum >= TOTAL_WEEKS;
-    const next = await writeWeekAfter(goal, weekNum, { now, timezone: user.timezone });
+    const choice = isChoice(req.body?.choice) ? req.body.choice : null;
+    const next = await writeWeekAfter(goal, weekNum, { now, timezone: user.timezone, choice });
+    // M1.5b (WU-38): past the limit, a close without the person's choice saves nothing and calls no model.
+    if (next?.choiceNeeded) return refuseChoice(res, next.choiceNeeded);
     if (!next) {
       res.status(503).json({ error: "Couldn't get your next week ready. Please try again." });
       return;
@@ -1256,7 +1290,8 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
       return;
     }
     logWeekClose(goal, weekNum, 'auto', now, user.timezone, startedAt);
-    res.json({ due: true, closedBy: 'auto', ...closeAnswer(goal, weekNum, saved, week.testResult ?? null) });
+    logJump(goal, weekNum, next.move);
+    res.json({ due: true, closedBy: 'auto', ...closeAnswer(goal, weekNum, saved, week.testResult ?? null, next.move) });
   } catch (err: any) {
     console.error('[GoalRouter] Week close error:', err);
     res.status(500).json({ error: 'Failed to close the week.' });

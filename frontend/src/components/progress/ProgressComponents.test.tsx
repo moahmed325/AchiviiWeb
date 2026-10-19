@@ -437,3 +437,61 @@ describe('Progress after days not offered (weekly update M1.4)', () => {
     expect(screen.getByText('100% execution')).toBeInTheDocument();
   });
 });
+
+describe('Progress with jumped weeks (weekly update M1.5b, WU-40 (1))', () => {
+  /** Week 1 closed, weeks 2 and 3 jumped (week 3 holds a test), week 4 open. */
+  const jumpedGoal = (): Goal =>
+    ({
+      ...createSampleGoal(createSampleTasks().filter((t) => t.weekNumber === 1), [
+        ...createSampleWeeks().map((w) =>
+          w.weekNumber === 1
+            ? { ...w, test: { type: 'timer', instructions: 'Run 5 km', passIf: 'under 30 minutes' }, testResult: { value: 29, passed: true } }
+            : { ...w, status: 'completed', closedBy: 'jumped', jumped: true, executionScore: 0, ...(w.weekNumber === 3 ? { test: { type: 'timer', instructions: 'Run 5 km', passIf: 'under 28 minutes' } } : {}) }
+        ),
+        { ...createSampleWeeks()[2], id: 'rw-4', weekNumber: 4, theme: 'Week four', status: 'active' },
+      ] as RoadmapWeek[]),
+      currentWeek: 4,
+      targetDate: '2026-12-24T00:00:00.000Z',
+      weeklyReviews: [
+        {
+          id: 'wr-1',
+          goalId: 'g-1',
+          weekNumber: 1,
+          tasksPlanned: 5,
+          tasksCompleted: 5,
+          scorePercentage: 100,
+          reflection: '',
+          aiAdaptationInsight: 'Welcome back. Your plan picks up at week 4 and now ends on {date}.',
+          created_at: '',
+        },
+      ],
+    }) as Goal;
+
+  it('WeekBreakdownList shows them muted as "Paused" with no score and no session count', () => {
+    render(<WeekBreakdownList goal={jumpedGoal()} />);
+    expect(screen.getAllByText('Paused')).toHaveLength(2);
+    expect(screen.getByText('100%')).toBeInTheDocument(); // week 1
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Done')).toHaveLength(1);
+  });
+
+  it('BenchmarkResultsCard has no line for a jumped week', () => {
+    render(<BenchmarkResultsCard goal={jumpedGoal()} />);
+    expect(screen.getByText(/under 30 minutes/)).toBeInTheDocument();
+    expect(screen.queryByText(/under 28 minutes/)).not.toBeInTheDocument();
+  });
+
+  it('AdaptationHistoryList shows them as "Paused" with no score, and the line after "Keep going" has its date', () => {
+    render(<AdaptationHistoryList goal={jumpedGoal()} />);
+    expect(screen.getAllByText('Paused')).toHaveLength(2);
+    expect(screen.queryByText('0%')).not.toBeInTheDocument();
+    expect(screen.queryByText('Phase milestone reached')).not.toBeInTheDocument();
+    expect(screen.getByText(/^Welcome back\. Your plan picks up at week 4 and now ends on (?!\{date\}).+\.$/)).toBeInTheDocument();
+  });
+
+  it('AdaptationHistoryList with only jumped weeks keeps its early state', () => {
+    const goal = { ...jumpedGoal(), weeklyReviews: [], roadmapWeeks: jumpedGoal().roadmapWeeks!.filter((w) => w.jumped) } as Goal;
+    render(<AdaptationHistoryList goal={goal} />);
+    expect(screen.getByText('Weekly reviews unlock adaptation insights')).toBeInTheDocument();
+  });
+});

@@ -302,7 +302,7 @@ describe('a break (RULE-13, WU-33 (2)), WEEK_CLOSE_ENABLED on', () => {
     expect(db.state.reviews).toHaveLength(0);
   });
 
-  it('a break past the limit keeps the partial move and still says welcome back (until M1.5b)', async () => {
+  it('a break whose overflow is under a whole week (room 4, gap 10) keeps the partial move and says welcome back (no choice, WU-37 (3))', async () => {
     seed({ goal: { movedDays: 24, startDate: shifted(START, 24), targetDate: shifted(TARGET, 24) } });
     // Week 3's planned start is now 2026-10-29; back on 2026-11-08 (a gap of 10, room for 4).
     expect((await closeWeek('2026-11-08T08:00:00Z')).status).toBe(200);
@@ -323,15 +323,17 @@ describe('a break (RULE-13, WU-33 (2)), WEEK_CLOSE_ENABLED on', () => {
 describe('the note to the week writer (WU-25 (3), WU-29 (1))', () => {
   beforeEach(closeOn);
 
-  it('the block: the days away and the note; the "at or below" line only for a high-load goal; never a target or restart', () => {
+  it('the block: the days away and the note; the "at or below" and light-test lines only for a high-load goal; never a target or restart', () => {
     expect(firstWeekBackBlock({ firstWeekBack: { awayDays: 12, note: 'Easy sessions only, no quality session.', highLoad: true } })).toBe(
       [
         '',
         '',
-        'FIRST WEEK BACK (after a break; nothing here is checked)',
+        'FIRST WEEK BACK (after a break; only the light test is checked)',
         '- They have been away 12 days. This is their first week back.',
         '- For the first week back, the method says: Easy sessions only, no quality session.',
         '- Keep every session at or below what they last completed.',
+        // M1.5b (WU-41): the light test, for a high-load goal only.
+        "- This week's weekly test is a light version of the test above: no time trial or all-out effort, no max or 1RM test, nothing to failure, no lift above 80% of 1RM, at least 3 reps in reserve. A week that breaks this is not saved.",
       ].join('\n')
     );
     expect(firstWeekBackBlock({ firstWeekBack: { awayDays: 9, note: 'Starts with fundamentals.', highLoad: false } })).toBe(

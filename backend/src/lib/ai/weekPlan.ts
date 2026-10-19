@@ -120,6 +120,8 @@ export interface WeekCallInput {
   /**
    * Weekly update M1.5a (WU-25 (3), WU-29 (1)): the first week back after a break, given only with `WEEK_CLOSE_ENABLED`
    * on. Told, never checked; never a target or a restart level. Without it the prompt is exactly as before.
+   * M1.5b (WU-41): with `highLoad`, the week's test is a light version, and the week is scanned as a light week
+   * (`ScanOptions.light`): the weeks 1 to 3 rules and the time-trial rule, a sentence copied from the stored test refused.
    */
   firstWeekBack?: Pick<FirstWeekBack, 'awayDays' | 'note' | 'highLoad'>;
   /** B-63: only for the `[Safety]` log line; logged as null when not given. */
@@ -277,9 +279,16 @@ export function buildWeekPrompt(input: WeekCallInput, layout: DayLayout[]): stri
 export function firstWeekBackBlock(input: Pick<WeekCallInput, 'firstWeekBack'>): string {
   const back = input.firstWeekBack;
   if (!back) return '';
-  const lines = ['', '', 'FIRST WEEK BACK (after a break; nothing here is checked)', `- They have been away ${back.awayDays} days. This is their first week back.`];
+  const heading = back.highLoad ? 'FIRST WEEK BACK (after a break; only the light test is checked)' : 'FIRST WEEK BACK (after a break; nothing here is checked)';
+  const lines = ['', '', heading, `- They have been away ${back.awayDays} days. This is their first week back.`];
   if (back.note) lines.push(`- For the first week back, the method says: ${back.note}`);
-  if (back.highLoad) lines.push('- Keep every session at or below what they last completed.');
+  if (back.highLoad) {
+    lines.push(
+      '- Keep every session at or below what they last completed.',
+      // M1.5b (WU-41): the stored test and target stay; only how this week runs the test is lighter.
+      `- This week's weekly test is a light version of the test above: no time trial or all-out effort, no max or 1RM test, nothing to failure, no lift above ${EARLY_WEEK_MAX_1RM_PERCENT}% of 1RM, at least ${EARLY_WEEK_MIN_RIR} reps in reserve. A week that breaks this is not saved.`
+    );
+  }
   return lines.join(NL);
 }
 
@@ -661,9 +670,11 @@ export function checkWeekAnswer(
  */
 export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAttempt = false): string[] {
   const reasons: string[] = [];
+  // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through.
+  const scan = { light: input.firstWeekBack?.highLoad === true };
   // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
   // says is logged, never refused, or that week could never be written.
-  const testText = textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
+  const testText = scan.light ? [] : textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
   /** On the test step a rule the test itself breaks is allowed; elsewhere only a sentence copied from the test. */
   const fromTest = (hit: SafetyHit, testStep: boolean) =>
     testText.some((item) => item.rule === hit.rule && (testStep || hit.matched.includes(item.matched) || item.matched.includes(hit.matched)));
@@ -672,7 +683,7 @@ export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAt
     for (const step of steps) {
       if (!input.highLoadGoal && step.highLoad !== true) continue;
       const name = step === day.minimumVersion ? `Day ${day.dayNumber} 10-minute version "${step.title}"` : `Day ${day.dayNumber} step "${step.title}"`;
-      for (const hit of stepSafetyHits(step, input.weekNumber)) {
+      for (const hit of stepSafetyHits(step, input.weekNumber, scan)) {
         const allowed = fromTest(hit, step !== day.minimumVersion && TEST_STEP.test(step.title));
         logSafetyHit({
           goalId: input.goalId ?? null,

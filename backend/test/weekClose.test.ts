@@ -377,13 +377,13 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
   it('check mode answers due, the week and whether its test is logged, and closes nothing', async () => {
     closeOn();
     seed(1);
-    expect(await closeWeek({ mode: 'check' })).toEqual({ status: 200, body: { due: true, weekNumber: 1, testLogged: false } });
+    expect(await closeWeek({ mode: 'check' })).toEqual({ status: 200, body: { due: true, weekNumber: 1, testLogged: false, break: false, choice: null } });
     expect(generateWeekPlan).not.toHaveBeenCalled();
     expect(db.week(1).status).toBe('active');
     expect(db.goal()).toMatchObject({ currentWeek: 1, closeTriedAt: new Date(MORNING_AFTER), closeTriedWeek: 1 });
 
     db.week(1).testResult = { value: 12, passed: true };
-    expect((await closeWeek({ mode: 'check' })).body).toEqual({ due: true, weekNumber: 1, testLogged: true });
+    expect((await closeWeek({ mode: 'check' })).body).toEqual({ due: true, weekNumber: 1, testLogged: true, break: false, choice: null });
   });
 
   it('the first try is kept: a failed week write saves only the try, and later tries keep its time', async () => {

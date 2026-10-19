@@ -129,7 +129,14 @@ export interface MockOptions {
    * a close works; a close waits `closeDelayMs`, then answers `closeStatus` with the server's 503 text, or saves
    * `goalAfterClose` as the goal and answers `{ due: true, closedBy: 'auto' }`.
    */
-  closeWeek?: { check: Record<string, unknown>; goalAfterClose: Record<string, unknown>; closeStatus?: number; closeDelayMs?: number };
+  closeWeek?: {
+    check: Record<string, unknown>;
+    goalAfterClose: Record<string, unknown>;
+    closeStatus?: number;
+    closeDelayMs?: number;
+    /** M1.5b (WU-38): a close without this `choice` in its body is refused with 409 `choice_needed`, as the server does. */
+    requireChoice?: 'keep_going' | 'final_week';
+  };
 }
 
 /**
@@ -178,6 +185,8 @@ export interface MockCalls {
   testResults: Array<{ weekNumber: number; body: unknown }>;
   /** Every POST /api/goal/close-week, by mode (M1.2b). */
   closeWeek: Array<'check' | 'close'>;
+  /** The `choice` each close (not check) sent, or null (M1.5b). */
+  closeChoices: Array<string | null>;
   /** Every POST /api/goal/weeks/:weekNumber/close-line-seen, by week (M1.2b). */
   closeLineSeen: number[];
   /** POST /api/goal/reconcile. */
@@ -191,7 +200,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [], closeWeek: [], closeLineSeen: [], reconcile: 0 };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [], closeWeek: [], closeChoices: [], closeLineSeen: [], reconcile: 0 };
   const {
     goal = null,
     signupStatus = 201,
@@ -312,10 +321,15 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
     }
 
     if (path === '/api/goal/close-week' && route.request().method() === 'POST') {
-      const mode = route.request().postDataJSON()?.mode === 'check' ? 'check' : 'close';
+      const body = route.request().postDataJSON();
+      const mode = body?.mode === 'check' ? 'check' : 'close';
       calls.closeWeek.push(mode);
+      if (mode === 'close') calls.closeChoices.push(typeof body?.choice === 'string' ? body.choice : null);
       if (!closeWeek || weekClosed) return json(route, 200, { due: false });
       if (mode === 'check') return json(route, 200, closeWeek.check);
+      if (closeWeek.requireChoice && body?.choice !== closeWeek.requireChoice) {
+        return json(route, 409, { error: 'Choose how to continue on Today first.', reason: 'choice_needed', choice: closeWeek.requireChoice });
+      }
       await wait(closeWeek.closeDelayMs ?? 0);
       if (closeWeek.closeStatus) return json(route, closeWeek.closeStatus, { error: "Couldn't get your next week ready. Please try again." });
       weekClosed = true;

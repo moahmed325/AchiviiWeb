@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Goal, GoalCompletionPayload, Reconciliation } from '../types';
+import { Goal, GoalCompletionPayload, PastLimitChoice, Reconciliation } from '../types';
 import {
   ApiError,
   closeWeek,
@@ -50,9 +50,17 @@ interface GoalContextType {
    * A failing `before` keeps the card and throws.
    */
   answerHeldClose: (before?: () => Promise<void>) => Promise<boolean>;
+  /**
+   * Weekly update M1.5b (WU-38): a break past the limit waits for the person's choice. Nothing closes and reconcile
+   * waits; a goal screen sends them to Today (AppShell), which shows only the choice card. Going to goal creation for a
+   * fresh plan answers nothing: the card shows again on Today. Null otherwise, and once another goal is active.
+   */
+  pendingChoice: { weekNumber: number; choice: PastLimitChoice; goalId: string } | null;
+  /** Answers the card with "Keep going" or "Do my final week": the close, reconcile and the fetch. Only the first runs. */
+  answerChoice: (choice: PastLimitChoice) => Promise<boolean>;
   /** The last close answered with a server failure (503): Today offers to try again. */
   closeFailed: boolean;
-  /** Runs the close again, then reconcile and the fetch. */
+  /** Runs the close again (with the choice, when the failed close followed one), then reconcile and the fetch. */
   retryClose: () => Promise<void>;
   setActiveGoal: (goal: Goal | null) => void;
   updateActiveGoal: (goal: Goal) => void;
@@ -83,7 +91,10 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [reconciliation, setReconciliation] = useState<Reconciliation | null>(null);
   const [closingWeek, setClosingWeek] = useState(false);
   const [heldClose, setHeldClose] = useState<{ weekNumber: number } | null>(null);
+  const [pendingChoice, setPendingChoice] = useState<GoalContextType['pendingChoice']>(null);
   const [closeFailed, setCloseFailed] = useState(false);
+  // M1.5b: the choice whose close failed on the server, so "Try again" sends it again instead of asking again.
+  const failedChoice = useRef<PastLimitChoice | null>(null);
   // When the last load started, and whether one is running, for the new-day catch-up (M3.1 R3).
   const lastLoadAt = useRef<Date | null>(null);
   const loading = useRef(false);
@@ -147,14 +158,16 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * Closes are counted, so one that ends first never hides another still running (review fix 3). A failure never
    * stops the load.
    */
-  const runClose = useCallback(async (t: string) => {
+  const runClose = useCallback(async (t: string, choice?: PastLimitChoice) => {
     closesRunning.current += 1;
     setClosingWeek(true);
     try {
-      await closeWeek(t);
+      await (choice ? closeWeek(t, undefined, choice) : closeWeek(t));
+      return true;
     } catch (err) {
       console.warn('Failed to close the week:', err);
       if (closeFailedOnServer(err)) setCloseFailed(true);
+      return false;
     }
   }, []);
   const endClose = useCallback(() => {
@@ -166,26 +179,44 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * Weekly update M1.2b (RULE-8, RULE-17, WU-14): every load closes a finished week first, then reconciles, then
    * fetches. A quick check says whether a close is due, so "getting ready" shows only while a week is written. On
    * Today with the test not logged, the close is held for the test card: the goal is fetched as stored, without
-   * reconcile.
+   * reconcile. M1.5b: a break never gets the test card (WU-39); a break past the limit is held on any screen for the
+   * choice card (WU-38), and nothing closes until the person chooses.
    */
   const closeThenLoad = useCallback(
     async (t: string, clearOnFailure: boolean, check = true) => {
-      let due: { weekNumber: number; testLogged: boolean } | null = null;
+      let due: { weekNumber: number; testLogged: boolean; isBreak: boolean; choice: PastLimitChoice | null } | null = null;
       if (check) {
         setCloseFailed(false);
+        failedChoice.current = null;
         try {
           const answer = await closeWeek(t, 'check');
-          if (answer.due && 'testLogged' in answer) due = { weekNumber: answer.weekNumber, testLogged: answer.testLogged };
+          if (answer.due && 'testLogged' in answer) {
+            due = { weekNumber: answer.weekNumber, testLogged: answer.testLogged, isBreak: answer.break === true, choice: answer.choice ?? null };
+          }
         } catch (err) {
           console.warn('Failed to check the week close:', err);
           if (closeFailedOnServer(err)) setCloseFailed(true);
         }
       }
 
+      // WU-38: the choice waits on every screen; a goal that didn't load has nothing to show and closes nothing.
+      if (due?.choice) {
+        const { weekNumber, choice } = due;
+        held.current = weekNumber;
+        const goal = await reconcileAndFetch(t, false, clearOnFailure);
+        if (goal && held.current === weekNumber) {
+          setPendingChoice({ weekNumber, choice, goalId: goal.id });
+          return;
+        }
+        held.current = null;
+        return;
+      }
+
       let closing = false;
       try {
         // Read after the answer: someone who left Today meanwhile gets no card (any other screen counts as Skip).
-        if (due && !due.testLogged && onToday()) {
+        // WU-39: after a break the test is long gone; the week closes as unlogged.
+        if (due && !due.testLogged && !due.isBreak && onToday()) {
           const weekNumber = due.weekNumber;
           held.current = weekNumber;
           const goal = await reconcileAndFetch(t, false, clearOnFailure);
@@ -218,6 +249,7 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     held.current = null;
     setHeldClose(null);
+    setPendingChoice(null);
     if (!token) {
       setActiveGoal(null);
       setReconciliation(null);
@@ -317,10 +349,56 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [token, runClose, endClose, reconcileAndFetch]
   );
 
+  /**
+   * M1.5b (WU-38): the close with the person's choice, then reconcile and the fetch. A failed close keeps the plan as
+   * stored (no reconcile, as while the choice waited) and "Try again" sends the same choice.
+   */
+  const closeWithChoice = useCallback(
+    async (t: string, choice: PastLimitChoice) => {
+      answering.current = true;
+      let closing = false;
+      try {
+        held.current = null;
+        setPendingChoice(null);
+        setCloseFailed(false);
+        failedChoice.current = null;
+        closing = true;
+        const ok = await runClose(t, choice);
+        if (!ok) failedChoice.current = choice;
+        await reconcileAndFetch(t, ok, false);
+        return true;
+      } finally {
+        if (closing) endClose();
+        answering.current = false;
+      }
+    },
+    [runClose, endClose, reconcileAndFetch]
+  );
+
+  const answerChoice = useCallback(
+    async (choice: PastLimitChoice) => {
+      if (!token || held.current === null || answering.current) return false;
+      return closeWithChoice(token, choice);
+    },
+    [token, closeWithChoice]
+  );
+
+  // WU-40 (4): a fresh plan made another goal active (goal creation sets it); the old goal's choice no longer waits.
+  useEffect(() => {
+    if (pendingChoice && activeGoal && activeGoal.id !== pendingChoice.goalId) {
+      held.current = null;
+      setPendingChoice(null);
+    }
+  }, [activeGoal, pendingChoice]);
+
   const retryClose = useCallback(async () => {
-    if (!token || held.current !== null) return;
+    if (!token || held.current !== null || answering.current) return;
+    if (failedChoice.current) {
+      await closeWithChoice(token, failedChoice.current);
+      return;
+    }
     await closeThenLoad(token, false);
-  }, [token, closeThenLoad]);
+  }, [token, closeThenLoad, closeWithChoice]);
 
   // Reset active goal
   const resetGoal = useCallback(async (): Promise<boolean> => {
@@ -361,6 +439,8 @@ export const GoalProvider: React.FC<{ children: React.ReactNode }> = ({ children
         closingWeek,
         heldClose,
         answerHeldClose,
+        pendingChoice,
+        answerChoice,
         closeFailed,
         retryClose,
         setActiveGoal,

@@ -448,6 +448,8 @@ describe('journeyAdapter', () => {
       closingWeek: false,
       heldClose: null,
       answerHeldClose: vi.fn(),
+      pendingChoice: null,
+      answerChoice: vi.fn(),
       closeFailed: false,
       retryClose: vi.fn(),
       setActiveGoal: vi.fn(),

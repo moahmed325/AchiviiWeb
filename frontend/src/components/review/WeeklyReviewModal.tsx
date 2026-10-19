@@ -27,6 +27,8 @@ export interface WeeklyReviewModalProps {
   onMilestoneGate?: (gate: MilestoneGateTransition) => void;
   /** B-59: the week was already closed (another tab, or the automatic close); called when the modal closes. */
   onWeekClosed?: () => void;
+  /** Weekly update M1.5b (WU-38 (1)): a break past the limit waits for the choice card; the modal closes at once. */
+  onChoiceNeeded?: () => void;
   apiStatus?: 'online' | 'offline' | 'checking';
 }
 
@@ -48,6 +50,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   onGoalUpdated,
   onMilestoneGate,
   onWeekClosed,
+  onChoiceNeeded,
   apiStatus,
 }) => {
   const currentWeekNum = goal.currentWeek || 1;
@@ -205,7 +208,11 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
         (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) ||
         (err instanceof Error && /network|offline|failed to fetch/i.test(err.message));
 
-      if ((err as { code?: unknown } | null)?.code === 'week_closed') {
+      if ((err as { code?: unknown } | null)?.code === 'choice_needed') {
+        // M1.5b (WU-38 (1)): nothing was saved; the draft stays, and the goal is reloaded so Today shows the card.
+        onClose();
+        onChoiceNeeded?.();
+      } else if ((err as { code?: unknown } | null)?.code === 'week_closed') {
         // WU-31: when the week closed on its own (another tab's load), the typed reflection is saved onto it. The
         // server saves it only for a week closed automatically with no reflection yet; anything else is M1.2a's case.
         let reflectionSaved = false;
