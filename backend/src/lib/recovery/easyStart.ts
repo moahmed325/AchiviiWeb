@@ -11,13 +11,28 @@ import { actionOf, type RecoveryProfile } from './profile.js';
 /** RULE-21, MR-31 (1): put first in the first hard step back after an open gap, once. */
 export const EASY_START_LINE = 'First hard session after a few days off: keep the effort easy today.';
 
+/**
+ * Weekly update M1.5a (WU-29, WU-35 (2)): first on every hard high-load step of a high-load goal's first week back
+ * after a break (`firstWeekBack.ts`). Not RULE-21's line: a step holding it never also gets that line, and nothing that
+ * moves or strips RULE-21's line touches it.
+ */
+export const FIRST_WEEK_BACK_LINE = 'First week back: keep the effort easy today.';
+
 const textOf = (instructions: unknown) => (typeof instructions === 'string' ? instructions : '');
 const withFirstLine = (line: string, text: string) => (text.trim() ? `${line}\n${text}` : line);
 
-/** RULE-21: the easy line goes first, once; the minutes do not change. */
+export const hasFirstWeekBackLine = (step: { instructions?: unknown }) => textOf(step.instructions).startsWith(FIRST_WEEK_BACK_LINE);
+
+/** RULE-21: the easy line goes first, once; the minutes do not change. Never on a step holding the first-week-back line. */
 export function withEasyLine(instructions: unknown): string {
   const text = textOf(instructions);
-  return text.startsWith(EASY_START_LINE) ? text : withFirstLine(EASY_START_LINE, text);
+  return text.startsWith(EASY_START_LINE) || text.startsWith(FIRST_WEEK_BACK_LINE) ? text : withFirstLine(EASY_START_LINE, text);
+}
+
+/** M1.5a: the first-week-back line goes first, once; the minutes do not change. */
+export function withFirstWeekBackLine(instructions: unknown): string {
+  const text = textOf(instructions);
+  return text.startsWith(FIRST_WEEK_BACK_LINE) ? text : withFirstLine(FIRST_WEEK_BACK_LINE, text);
 }
 
 /** A step that a reorder moves leaves RULE-21's line behind: it belongs to the first day back, not to the step. */

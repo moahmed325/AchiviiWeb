@@ -399,6 +399,36 @@ describe('Progress after days not offered (weekly update M1.4)', () => {
     expect(screen.queryByText(/\{date\}/)).not.toBeInTheDocument();
   });
 
+  it('AdaptationHistoryList: the welcome-back line after a break (M1.5a) has its date', () => {
+    const goal = {
+      ...createSampleGoal(createSampleTasks(), closedWeeks()),
+      currentWeek: 3,
+      targetDate: '2026-12-24T00:00:00.000Z',
+      weeklyReviews: [
+        {
+          id: 'wr-2',
+          goalId: 'g-1',
+          weekNumber: 2,
+          tasksPlanned: 5,
+          tasksCompleted: 5,
+          scorePercentage: 100,
+          reflection: '',
+          aiAdaptationInsight: 'Welcome back. Your plan picks up from here and now ends on {date}.',
+          created_at: '',
+        },
+      ],
+    } as Goal;
+    render(<AdaptationHistoryList goal={goal} />);
+    const end = new Date(Date.UTC(2026, 11, 23)).toLocaleDateString(undefined, {
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+      ...(new Date().getUTCFullYear() === 2026 ? {} : { year: 'numeric' }),
+    });
+    expect(screen.getByText(`Welcome back. Your plan picks up from here and now ends on ${end}.`)).toBeInTheDocument();
+    expect(screen.queryByText(/\{date\}/)).not.toBeInTheDocument();
+  });
+
   it('PhaseMilestonesCard leaves days not offered out of a phase score', () => {
     const tasks = notOfferedTasks();
     const goal = { ...createSampleGoal(tasks, closedWeeks()), currentWeek: 5 };

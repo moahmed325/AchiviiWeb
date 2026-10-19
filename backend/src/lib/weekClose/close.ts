@@ -8,6 +8,8 @@ import { phaseGate, readRoutine, readStoredRoadmap, saveWeekTasks, weekStartFor,
 import { ensureRecoveryProfile } from '../recovery/store.js';
 import { methodRecoveryEnabled } from '../recovery/switch.js';
 import { weekCloseEnabled } from './switch.js';
+import { BREAK_FROM_GAP_DAYS, WELCOME_BACK_INSIGHT, breakLength, firstWeekBackFor } from './breaks.js';
+import { isHighLoadGoal } from '../highLoad.js';
 
 /**
  * Weekly update M1.2a (RULE-9, WU-27): the one way a week closes, by the weekly review or automatically. The week after
@@ -39,8 +41,12 @@ export const PARTIAL_MOVE_INSIGHT = 'Your plan now ends on {date}.';
 /** M1.4 review fix 2: a review of a week whose every practice day was not offered (no score). */
 export const NOT_OFFERED_WEEK_INSIGHT = 'No practice days were offered this week.';
 
-/** The automatic close's line (section 6): the neutral line, or the moved-plan line when the plan moved. */
+/**
+ * The automatic close's line (section 6): welcome back after a break (M1.5a, past the limit too), else the neutral
+ * line, or the moved-plan line when the plan moved.
+ */
 export function autoCloseInsight(move: WeekMove | null): string {
+  if (move && move.breakDays !== null) return WELCOME_BACK_INSIGHT;
   if (!move || move.days <= 0) return AUTO_CLOSE_INSIGHT;
   return move.days < move.gap ? PARTIAL_MOVE_INSIGHT : MOVED_INSIGHT;
 }
@@ -78,6 +84,8 @@ export function weekScore(tasks: readonly DailyTask[]) {
  *   (`closeTriedAt` when `closeTriedWeek` is this week, else `now`), so days spent on failed writes never count (RULE-9).
  * - `days`: for a gap of 2 or more, `min(gap, 28 - movedDays)`; else 0.
  * - `writtenOn`: the person's local date now. Every row of the new week dated before it is not offered.
+ * - `breakDays` (M1.5a, RULE-13, WU-18): for a gap of 7 or more, the break's length (`breakLength`, from the closing
+ *   week's last done step in `closingTasks` to the first try); else null. The move itself is the same either way.
  */
 export interface WeekMove {
   gap: number;
@@ -86,26 +94,32 @@ export interface WeekMove {
   targetDate: Date;
   movedDays: number;
   writtenOn: string;
+  breakDays: number | null;
 }
 
 export function planWeekMove(
   goal: Pick<Goal, 'startDate' | 'targetDate' | 'movedDays' | 'closeTriedAt' | 'closeTriedWeek'>,
   closedWeek: number,
   now: Date,
-  timezone?: string | null
+  timezone?: string | null,
+  closingTasks: readonly Pick<DailyTask, 'date' | 'status' | 'isRestDay' | 'notOffered'>[] = []
 ): WeekMove | null {
   if (!weekCloseEnabled() || closedWeek + 1 > TOTAL_WEEKS) return null;
   const firstTry = goal.closeTriedWeek === closedWeek && goal.closeTriedAt && goal.closeTriedAt.getTime() <= now.getTime() ? goal.closeTriedAt : now;
   const gap = gapDays(goal.startDate, closedWeek, firstTry, timezone);
   const moved = Math.max(0, goal.movedDays ?? 0);
   const days = gap >= MOVE_FROM_GAP_DAYS ? Math.max(0, Math.min(gap, MOVE_LIMIT_DAYS - moved)) : 0;
+  const tz = normalizeTimezone(timezone);
+  const breakDays =
+    gap >= BREAK_FROM_GAP_DAYS ? breakLength(closingTasks, weekStartFor(goal.startDate, closedWeek).toISOString().slice(0, 10), getZonedDateString(firstTry, tz)) : null;
   return {
     gap,
     days,
     startDate: shiftDays(goal.startDate, days),
     targetDate: shiftDays(goal.targetDate, days),
     movedDays: moved + days,
-    writtenOn: getZonedDateString(now, normalizeTimezone(timezone)),
+    writtenOn: getZonedDateString(now, tz),
+    breakDays,
   };
 }
 
@@ -127,9 +141,12 @@ export async function writeWeekAfter(
   context: { now?: Date; timezone?: string | null } = {}
 ): Promise<{ written: WeekDayPlan[] | null; move: WeekMove | null } | null> {
   if (weekNumber + 1 > TOTAL_WEEKS) return { written: null, move: null };
-  const move = planWeekMove(goal, weekNumber, context.now ?? new Date(), context.timezone);
+  const move = planWeekMove(goal, weekNumber, context.now ?? new Date(), context.timezone, goal.dailyTasks);
   // M1.3a (RULE-1, MR-14): an older goal gets its recovery profile here; never blocks the close.
   const recovery = await ensureRecoveryProfile(goal);
+  // M1.5a (WU-25 (3), WU-29, WU-35): after a break the week writer is told the days away and the return rule's note.
+  const back = move && move.breakDays !== null ? firstWeekBackFor(recovery, move.breakDays, isHighLoadGoal(goal)) : null;
+  if (back) console.log(`[WeekClose] goal ${goal.id} week ${weekNumber} break breakDays ${back.awayDays} rule ${back.length ?? 'none'} highLoad ${back.highLoad}`);
   // M3.1d review: with the method switch on, the week before too, so a break across the week change is seen. Never
   // fails the close: without it, the handoff only sees this week.
   let weekBefore: DailyTask[] = [];
@@ -142,7 +159,15 @@ export async function writeWeekAfter(
   }
   // WU-26: the week is dated from the moved start, so it starts on the day they came back (or as near as the limit allows).
   const writerGoal = move && move.days > 0 ? { ...goal, startDate: move.startDate } : goal;
-  const written = await writeNextWeek(writerGoal, weekNumber, goal.dailyTasks, slotTimeFor(readRoutine(goal).preferredSlot), recovery, weekBefore);
+  const written = await writeNextWeek(
+    writerGoal,
+    weekNumber,
+    goal.dailyTasks,
+    slotTimeFor(readRoutine(goal).preferredSlot),
+    recovery,
+    weekBefore,
+    back ? { firstWeekBack: back } : {}
+  );
   return written ? { written, move } : null;
 }
 
@@ -169,8 +194,8 @@ export interface SavedClose {
 
 /**
  * Saves a close all or nothing. Null when the closing week was no longer `active` (another close won): nothing is saved.
- * Week N closed, the review row, week N+1's tasks (with the days not offered), week N+1 active, `currentWeek` and the
- * move (`startDate`, `targetDate`, `movedDays`) commit together. Week N's stored rows don't change.
+ * Week N closed, the review row, week N+1's tasks (with the days not offered), week N+1 active (with `breakDays` after a
+ * break), `currentWeek` and the move (`startDate`, `targetDate`, `movedDays`) commit together. Week N's stored rows don't change.
  */
 export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose | null> {
   const { goal, weekNumber, by, written, move } = input;
@@ -209,7 +234,9 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
     let nextTasks: DailyTask[] = [];
     if (written && nextWeek <= TOTAL_WEEKS) {
       nextTasks = await saveWeekTasks(goal.id, nextWeek, written, tx, move ? { notOfferedBefore: move.writtenOn } : undefined);
-      await tx.roadmapWeek.update({ where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } }, data: { status: 'active' } });
+      // M1.5a (WU-18): the break's length is stored on the first week back, by the request that wins only.
+      const breakDays = move && move.breakDays !== null ? { breakDays: move.breakDays } : {};
+      await tx.roadmapWeek.update({ where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } }, data: { status: 'active', ...breakDays } });
       const moved = move && move.days > 0 ? { startDate: move.startDate, targetDate: move.targetDate, movedDays: move.movedDays } : {};
       await tx.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek, ...moved } });
     }

@@ -329,6 +329,12 @@ something on: per in-order kind, the steps not done yet (which code will place, 
 behind), unfinished continue work, and moved steps that found no room. Nothing in it is checked; after the call,
 code places the carried steps itself (`lib/recovery/handoff.ts`, RULE-20, MR-32).
 
+**First week back (weekly update M1.5a, only with `WEEK_CLOSE_ENABLED` on):** after a break (a close 7 or more days
+late) the week call ends with a `FIRST WEEK BACK` block: the days away and the return rule's "first week back" note,
+plus "Keep every session at or below what they last completed." for a high-load goal. Told, never checked; never a
+target. For a high-load goal, code then puts "First week back: keep the effort easy today." first on every hard
+high-load step (`lib/recovery/firstWeekBack.ts`, WU-29, WU-35).
+
 ## Prompt 4: weekly update (after each weekly test, weeks 1-11)
 
 **System**

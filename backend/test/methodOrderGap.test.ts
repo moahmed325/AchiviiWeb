@@ -3,7 +3,7 @@ import { planCarries, swappedTaskIds, type CarriedStep, type CarryInput, type Ca
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { MOVED_WARM_UP_LINE, planRecovery, takePlace, withWarmUpLine, type RecoveryPlan } from '../src/lib/recovery/carry.js';
-import { EASY_START_LINE, withEasyLine } from '../src/lib/recovery/easyStart.js';
+import { EASY_START_LINE, FIRST_WEEK_BACK_LINE, withEasyLine } from '../src/lib/recovery/easyStart.js';
 import { doneStepsOf, inOrderMoveKinds, inOrderQueue, isDoneCopy, originOf, stepKey } from '../src/lib/recovery/inOrder.js';
 import { actionOf, profileFailures, withFixedKinds, type RecoveryKind, type RecoveryProfile } from '../src/lib/recovery/profile.js';
 
@@ -714,6 +714,58 @@ describe('RULE-21 the easy first hard session back (M3.1c, MR-31 (1))', () => {
     expect(withWarmUpLine(`${EASY_START_LINE}\nRun.`)).toBe(`${EASY_START_LINE}\n${MOVED_WARM_UP_LINE}\nRun.`);
     expect(withWarmUpLine(withWarmUpLine(`${EASY_START_LINE}\nRun.`))).toBe(`${EASY_START_LINE}\n${MOVED_WARM_UP_LINE}\nRun.`);
     expect(withEasyLine(`${MOVED_WARM_UP_LINE}\nRun.`)).toBe(`${EASY_START_LINE}\n${MOVED_WARM_UP_LINE}\nRun.`);
+  });
+});
+
+describe("weekly update M1.5a: the first-week-back line beside RULE-21's (WU-35 (2))", () => {
+  const backLine = (title: string) => ({ instructions: `${FIRST_WEEK_BACK_LINE}\nDo ${title}.` });
+  const back = (fri: CarriedStep[]) =>
+    weeks(
+      {
+        '2-mon': { kind: 'missed' },
+        '2-tue': { kind: 'missed' },
+        '2-wed': { kind: 'missed' },
+        '2-thu': { rest: false, steps: [step('thu practice', 1, 15, 'practice'), step('thu review', 2, 15, 'review')] },
+        '2-fri': { steps: fri },
+      },
+      { today: '2026-09-24' }
+    );
+
+  it('a target step holding the first-week-back line never also gets the easy line, and nothing is written for it', () => {
+    const fri = [step('fri practice', 1, 10, 'practice'), step('fri intervals', 2, 10, 'heavy', backLine('fri intervals')), step('fri hills', 3, 10, 'heavy', backLine('fri hills'))];
+    const plan = on(back(fri));
+    expect(plan.easyStart).toBeNull();
+    expect(rowOf(plan, '2-fri')).toBeUndefined();
+  });
+
+  it('without the line, RULE-21 is unchanged (a goal with no break)', () => {
+    const plan = on(back([step('fri practice', 1, 10, 'practice'), step('fri intervals', 2, 10, 'heavy')]));
+    expect(plan.easyStart!.steps[1].instructions).toBe(`${EASY_START_LINE}\nDo fri intervals.`);
+  });
+
+  it('a strength step the reorder moves keeps its line first, then the warm-up line, and gets no easy line', () => {
+    const input = weeks(
+      {
+        '2-mon': { kind: 'missed', steps: day('Strength A', 'strength', backLine('Strength A')) },
+        '2-tue': { kind: 'missed' },
+        '2-wed': { kind: 'missed' },
+        '2-fri': { steps: day('Strength B', 'strength', backLine('Strength B')) },
+      },
+      { today: '2026-09-25' }
+    );
+    const plan = on(input);
+    expect(holds(plan, 'strength')).toEqual([['2-fri', 'Strength A']]);
+    expect(plan.easyStart).toBeNull();
+    expect(rowOf(plan, '2-fri')![0].instructions).toBe(`${FIRST_WEEK_BACK_LINE}\n${MOVED_WARM_UP_LINE}\nDo Strength A.`);
+    expectStable(store(input, plan));
+  });
+
+  it('the lines are each added once and never both', () => {
+    expect(withEasyLine(`${FIRST_WEEK_BACK_LINE}\nRun.`)).toBe(`${FIRST_WEEK_BACK_LINE}\nRun.`);
+    expect(withWarmUpLine(`${FIRST_WEEK_BACK_LINE}\nRun.`)).toBe(`${FIRST_WEEK_BACK_LINE}\n${MOVED_WARM_UP_LINE}\nRun.`);
+    expect(withWarmUpLine(withWarmUpLine(`${FIRST_WEEK_BACK_LINE}\nRun.`))).toBe(`${FIRST_WEEK_BACK_LINE}\n${MOVED_WARM_UP_LINE}\nRun.`);
+    expect(withEasyLine(withWarmUpLine(`${FIRST_WEEK_BACK_LINE}\nRun.`))).toBe(`${FIRST_WEEK_BACK_LINE}\n${MOVED_WARM_UP_LINE}\nRun.`);
+    expect(FIRST_WEEK_BACK_LINE).not.toBe(EASY_START_LINE);
   });
 });
 

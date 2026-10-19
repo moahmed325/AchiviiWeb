@@ -22,6 +22,7 @@ import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
+import { WELCOME_BACK_INSIGHT } from '../src/lib/weekClose/breaks.js';
 import { AUTO_CLOSE_INSIGHT, MOVED_INSIGHT, NOT_OFFERED_WEEK_INSIGHT, PARTIAL_MOVE_INSIGHT, planWeekMove, weekScore } from '../src/lib/weekClose/close.js';
 import { classifyDays, findOpenGap } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
@@ -223,8 +224,9 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
     expect(notOfferedDates()).toEqual(notOffered);
     // Week 2's stored rows don't change (WU-26).
     expect(db.tasksOf(2).map((t) => t.date)).toEqual(lessonDays(weekStart(2), 6, 'Planned').map((d) => d.date));
-    // Section 6: the line says so only when the plan moved; `{date}` is stored as written.
-    expect(db.state.reviews[0].aiAdaptationInsight).toBe(moved > 0 ? MOVED_INSIGHT : AUTO_CLOSE_INSIGHT);
+    // Section 6: the line says so only when the plan moved; `{date}` is stored as written. M1.5a: a gap of 7 or more is a
+    // break and says welcome back (weekCloseBreak.test.ts).
+    expect(db.state.reviews[0].aiAdaptationInsight).toBe(gap >= 7 ? WELCOME_BACK_INSIGHT : moved > 0 ? MOVED_INSIGHT : AUTO_CLOSE_INSIGHT);
   });
 
   it('the lines are exact', () => {
