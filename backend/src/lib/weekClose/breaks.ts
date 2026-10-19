@@ -1,4 +1,5 @@
 import type { DailyTask } from '@prisma/client';
+import { TOTAL_WEEKS } from '../ai/roadmap.js';
 import { isHighLoadGoal } from '../highLoad.js';
 import type { BreakLength, RecoveryProfile, Restart } from '../recovery/profile.js';
 
@@ -15,6 +16,38 @@ export const LONG_BREAK_DAYS = 21;
 
 /** Section 6: the line an automatic close after a break saves. `{date}` is stored as written; the app fills it in. */
 export const WELCOME_BACK_INSIGHT = 'Welcome back. Your plan picks up from here and now ends on {date}.';
+
+/** M1.5b (WU-40 (2)): the line after "Keep going". `{n}` is written in by the close; `{date}` is filled by the app. */
+export const KEEP_GOING_INSIGHT = 'Welcome back. Your plan picks up at week {n} and now ends on {date}.';
+
+/** M1.5b (WU-40 (2)): the line after "Do my final week". `{date}` is filled by the app. */
+export const FINAL_WEEK_INSIGHT = 'Welcome back. Your final week starts today and ends on {date}.';
+
+/** WU-37 (3): the card shows only when at least this many days of the break don't fit in the room (a whole week). */
+export const JUMP_FROM_OVERFLOW_DAYS = 7;
+
+/** WU-37, WU-38: the two choices past the limit; the card offers one of them next to "Start a fresh plan". */
+export type PastLimitChoice = 'keep_going' | 'final_week';
+
+/**
+ * M1.5b (RULE-15, WU-37, WU-38 (2)): what a break past the limit does once the person chooses, or null when no choice is
+ * needed (not a break, an overflow under a whole week, or week 12 closing). `gap` and `room` (`28 - movedDays`, never
+ * below 0) are `planWeekMove`'s; `closedWeek` is the week closing.
+ * - `keep_going`: `days` is the largest `d <= room` with `gap - d` a multiple of 7, so a week starts on the first try's
+ *   date; with none, the room (that week's passed days are then not offered). `weekBack` is the week holding that date.
+ * - `final_week`, when `weekBack` would be past week 12: week 12 starts on the first try's date, every week before it
+ *   from `closedWeek + 1` is jumped, and `days` is whatever that takes, past the limit if needed (the only case).
+ */
+export function pastLimitMove(gap: number, room: number, closedWeek: number): { choice: PastLimitChoice; days: number; weekBack: number } | null {
+  const space = Math.max(0, room);
+  if (closedWeek + 1 > TOTAL_WEEKS || gap < BREAK_FROM_GAP_DAYS || gap - space < JUMP_FROM_OVERFLOW_DAYS) return null;
+  const aligned = space - ((((space - gap) % 7) + 7) % 7);
+  const days = aligned >= 0 ? aligned : space;
+  const weekBack = closedWeek + 1 + Math.floor((gap - days) / 7);
+  if (weekBack <= TOTAL_WEEKS) return { choice: 'keep_going', days, weekBack };
+  // Week 12 starts on the first try's date: week `closedWeek + 1` would start `gap` days ago, week 12 that many weeks later.
+  return { choice: 'final_week', days: gap - 7 * (TOTAL_WEEKS - closedWeek - 1), weekBack: TOTAL_WEEKS };
+}
 
 const dayIndex = (date: string) => Date.parse(`${date}T00:00:00Z`) / 86_400_000;
 const isDate = (date: unknown): date is string => typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(dayIndex(date));

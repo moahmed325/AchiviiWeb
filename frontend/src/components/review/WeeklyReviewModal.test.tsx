@@ -837,6 +837,30 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
     expect(mockedApi.submitWeeklyReview).toHaveBeenCalledTimes(1);
   });
 
+  it('a break past the limit (409 choice_needed) closes the modal at once and reloads the goal (weekly update M1.5b, WU-38 (1))', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const onChoiceNeeded = vi.fn();
+    const onGoalUpdated = vi.fn();
+    mockedApi.submitWeeklyReview.mockRejectedValueOnce(
+      Object.assign(new Error('Choose how to continue on Today first.'), { status: 409, code: 'choice_needed' })
+    );
+    render(
+      <WeeklyReviewModal
+        isOpen={true}
+        onClose={onClose}
+        goal={createSampleGoal(createSampleTasks(5, 6))}
+        token="test-token"
+        onGoalUpdated={onGoalUpdated}
+        onChoiceNeeded={onChoiceNeeded}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onChoiceNeeded).toHaveBeenCalledTimes(1);
+    expect(onGoalUpdated).not.toHaveBeenCalled();
+  });
+
   describe('a review that lost to an automatic close (weekly update M1.2b, WU-31)', () => {
     const closed = () => Object.assign(new Error('This week has already been reviewed.'), { status: 409, code: 'week_closed' });
     const submitWith = async (reflection: string) => {

@@ -14,7 +14,8 @@ interface WeekEntry {
   practiceCompleted: number;
   practiceTotal: number;
   executionScore: number | null;
-  status: 'completed' | 'active' | 'upcoming';
+  /** M1.5b (WU-40 (1)): `paused`, a week jumped past the limit: muted, no score, no practice count. */
+  status: 'completed' | 'active' | 'upcoming' | 'paused';
 }
 
 function deriveWeeks(goal: Goal): WeekEntry[] {
@@ -33,8 +34,10 @@ function deriveWeeks(goal: Goal): WeekEntry[] {
     const activeTasks = weekTasks.filter((t) => !isRestLike(t));
     const completedCount = activeTasks.filter((t) => t.status === 'completed').length;
 
-    let status: 'completed' | 'active' | 'upcoming';
-    if (wNum < currentWeek) {
+    let status: WeekEntry['status'];
+    if (roadmapWeek?.jumped) {
+      status = 'paused';
+    } else if (wNum < currentWeek) {
       status = 'completed';
     } else if (wNum === currentWeek) {
       status = 'active';
@@ -44,7 +47,9 @@ function deriveWeeks(goal: Goal): WeekEntry[] {
 
     // Execution score from roadmapWeek if available, else calculate from tasks
     let executionScore: number | null = null;
-    if (roadmapWeek?.executionScore != null) {
+    if (status === 'paused') {
+      executionScore = null;
+    } else if (roadmapWeek?.executionScore != null) {
       executionScore = roadmapWeek.executionScore;
     } else if (status === 'completed' && activeTasks.length > 0) {
       executionScore = Math.round((completedCount / activeTasks.length) * 100);
@@ -69,12 +74,14 @@ const statusStyles: Record<WeekEntry['status'], string> = {
   completed: 'border-border bg-surface',
   active: 'border-accent/25 bg-surface',
   upcoming: 'border-border/60 bg-surface/60',
+  paused: 'border-border/60 bg-surface/60',
 };
 
 const statusLabel: Record<WeekEntry['status'], { text: string; className: string }> = {
   completed: { text: 'Done', className: 'text-accent-hover' },
   active: { text: 'Now', className: 'text-accent-hover' },
   upcoming: { text: 'Ahead', className: 'text-text-secondary' },
+  paused: { text: 'Paused', className: 'text-text-secondary' },
 };
 
 /**
@@ -119,7 +126,7 @@ export const WeekBreakdownList: React.FC<WeekBreakdownListProps> = ({ goal, clas
               <p
                 className={cx(
                   'truncate text-small font-medium',
-                  week.status === 'upcoming' ? 'text-text-secondary' : 'text-text',
+                  week.status === 'upcoming' || week.status === 'paused' ? 'text-text-secondary' : 'text-text',
                 )}
               >
                 {week.theme}
@@ -141,7 +148,7 @@ export const WeekBreakdownList: React.FC<WeekBreakdownListProps> = ({ goal, clas
               >
                 {statusLabel[week.status].text}
               </span>
-              {week.executionScore !== null && week.status !== 'upcoming' && (
+              {week.executionScore !== null && week.status !== 'upcoming' && week.status !== 'paused' && (
                 <span className="font-ui-mono text-micro tabular-nums text-text-secondary">
                   {week.executionScore}%
                 </span>

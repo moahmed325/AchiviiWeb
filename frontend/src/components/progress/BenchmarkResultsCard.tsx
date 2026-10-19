@@ -42,7 +42,8 @@ function deriveBenchmarks(goal: Goal): BenchmarkEntry[] {
   const weeks: RoadmapWeek[] = goal.roadmapWeeks || [];
 
   return weeks
-    .filter((w) => w.test != null)
+    // M1.5b (WU-40 (1)): a jumped week had no test to run, so it has no benchmark line.
+    .filter((w) => w.test != null && !w.jumped)
     .sort((a, b) => a.weekNumber - b.weekNumber)
     .map((w) => {
       let status: BenchmarkStatus;

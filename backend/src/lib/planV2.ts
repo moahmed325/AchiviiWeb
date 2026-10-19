@@ -171,6 +171,9 @@ function logWaits(goalId: string, weekNumber: number, waiting: HandoffPlacement<
  * Weekly update M1.5a: `firstWeekBack` (given only after a break, with `WEEK_CLOSE_ENABLED` on) tells the writer the days
  * away and the return rule's note; for a high-load goal code then puts the first-week-back line on its hard high-load
  * steps. Without it, the call and the week are exactly as before.
+ * Weekly update M1.5b: `weekNumber` names the week to write when a jump past the limit skips the weeks in between (the
+ * first week back); `finishedWeek` stays the week that closed, so last week's result and the handoff read it. Without
+ * it the week written is `finishedWeek + 1`, as before.
  */
 export async function writeNextWeek(
   goal: Goal & { roadmapWeeks: RoadmapWeekRow[] },
@@ -181,10 +184,10 @@ export async function writeNextWeek(
   recovery?: RecoveryProfile | null,
   /** M3.1d review: the week before `finishedWeek`, only to see a break that started there. Read only with the switch on. */
   weekBefore: DailyTask[] = [],
-  options: { firstWeekBack?: FirstWeekBack } = {}
+  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number } = {}
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
-  const next = goal.roadmapWeeks.find((week) => week.weekNumber === finishedWeek + 1);
+  const next = goal.roadmapWeeks.find((week) => week.weekNumber === (options.weekNumber ?? finishedWeek + 1));
   const done = goal.roadmapWeeks.find((week) => week.weekNumber === finishedWeek);
   if (!stored || !next?.target || !next.test) return null;
 

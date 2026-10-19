@@ -57,7 +57,8 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
   const activeWeek = phase.weeks.find((week) => week.isCurrentWeek);
   const isActive = phase.status === 'active';
   const isComplete = phase.status === 'completed';
-  const weeksDone = phase.weeks.filter((week) => week.status === 'completed').length;
+  // M1.5b (WU-40 (1)): a jumped week is never a week done.
+  const weeksDone = phase.weeks.filter((week) => week.status === 'completed' && !week.jumped).length;
   const weeksTotal = phase.weeks.length;
   const comingUp = phase.weeks.filter((week) => week.weekNumber > currentWeek);
 
@@ -157,10 +158,12 @@ const WeekList: React.FC<{ weeks: JourneyWeek[]; currentWeek: number; title?: st
               {current ? 'Now' : 'Week ' + week.weekNumber}
             </span>
             <div className="min-w-0 flex-1">
-              <p className={'text-body ' + (week.status === 'completed' || current ? 'text-text' : 'text-text-secondary')}>{name}</p>
+              <p className={'text-body ' + ((week.status === 'completed' && !week.jumped) || current ? 'text-text' : 'text-text-secondary')}>{name}</p>
               {milestone && <p className="mt-1 line-clamp-2 text-small text-text-secondary">{milestone}</p>}
             </div>
-            {week.status === 'completed' && <Check strokeWidth={2} className="mt-1 size-4 shrink-0 text-achievement" aria-label="Completed" />}
+            {/* M1.5b (WU-40 (1)): a jumped week is muted and labelled, never checked off. */}
+            {week.jumped && <span className="mt-0.5 shrink-0 font-ui-mono text-micro uppercase tracking-[0.1em] text-text-secondary">Paused</span>}
+            {week.status === 'completed' && !week.jumped && <Check strokeWidth={2} className="mt-1 size-4 shrink-0 text-achievement" aria-label="Completed" />}
             {week.status === 'locked' && <Lock strokeWidth={1.5} className="mt-1 size-4 shrink-0 text-text-secondary" aria-label="Locked" />}
           </li>
         );

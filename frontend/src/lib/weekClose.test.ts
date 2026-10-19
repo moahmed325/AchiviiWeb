@@ -66,4 +66,21 @@ describe('the plan end in the moved-plan line', () => {
     expect(line).not.toContain('{date}');
     expect(line).toContain(planEndLabel(goal, NOW)!);
   });
+
+  it("M1.5b: after a jump the line is the closing week's, past the jumped weeks, and both new lines are filled", () => {
+    const keep = 'Welcome back. Your plan picks up at week 6 and now ends on {date}.';
+    const closed = {
+      ...goal,
+      roadmapWeeks: [
+        { weekNumber: 2, status: 'completed', closedBy: 'auto', closeLineSeenAt: null },
+        ...[3, 4, 5].map((weekNumber) => ({ weekNumber, status: 'completed', closedBy: 'jumped', jumped: true, closeLineSeenAt: null })),
+        { weekNumber: 6, status: 'active' },
+      ],
+      weeklyReviews: [{ weekNumber: 2, aiAdaptationInsight: keep }],
+    } as unknown as Goal;
+    expect(closeLineWeek(closed, NOW)).toEqual({ weekNumber: 2, line: 'Welcome back. Your plan picks up at week 6 and now ends on ' + planEndLabel(goal, NOW) + '.' });
+    expect(fillPlanEnd('Welcome back. Your final week starts today and ends on {date}.', goal, NOW, 'en-US')).toBe(
+      'Welcome back. Your final week starts today and ends on December 23.'
+    );
+  });
 });

@@ -904,6 +904,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         token={token || ''}
         onGoalUpdated={goalContext.updateActiveGoal}
         onWeekClosed={() => void goalContext.refreshGoal()}
+        onChoiceNeeded={() => void goalContext.reloadPlan()}
         apiStatus={apiStatus}
       />
     </main>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import { SkipLink } from '../ui';
@@ -14,6 +14,9 @@ interface AppShellProps {
   previewPath?: string;
 }
 
+/** The screens that show the active goal's plan (M1.5b, WU-38): Today's choice card comes first. */
+const GOAL_SCREENS = ['/dashboard', '/roadmap', '/progress', '/achievement'];
+
 /**
  * The frame around every route (ND-7). Routed pages render their own `main#main`; the shell never adds a second one.
  * The rail comes before the content in the document, so a legacy full-screen overlay inside the page still covers it.
@@ -21,7 +24,8 @@ interface AppShellProps {
 export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => {
   const { pathname } = useLocation();
   const { token } = useAuth();
-  const { activeGoal, heldClose, answerHeldClose } = useGoal();
+  const navigate = useNavigate();
+  const { activeGoal, heldClose, answerHeldClose, pendingChoice } = useGoal();
   const [pathwaysOpen, setPathwaysOpen] = useState(false);
   const [coachOpen, setCoachOpen] = useState(false);
   const mode = shellMode(pathname, Boolean(token), previewPath);
@@ -30,6 +34,12 @@ export const AppShell: React.FC<AppShellProps> = ({ children, previewPath }) => 
   useEffect(() => {
     if (heldClose && pathname !== '/') void answerHeldClose();
   }, [pathname, heldClose, answerHeldClose]);
+
+  // M1.5b (WU-38 (1)): while a choice past the limit waits, a screen that shows the goal sends them to Today's card.
+  // Leaving answers nothing (unlike the test card), and goal creation stays open for "Start a fresh plan".
+  useEffect(() => {
+    if (pendingChoice && GOAL_SCREENS.includes(pathname)) navigate('/', { replace: true });
+  }, [pathname, pendingChoice, navigate]);
 
   if (mode === 'chromeless') {
     return <div className="flex min-h-[100dvh] w-full flex-col overscroll-contain bg-background text-text">{children}</div>;

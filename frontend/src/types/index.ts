@@ -324,6 +324,8 @@ export interface RoadmapWeek {
   /** Weekly update (WU-21, M1.2a): who closed the week and when; null while it is open. */
   closedBy?: 'review' | 'auto' | 'jumped' | null;
   closedAt?: string | null;
+  /** Weekly update M1.5b (WU-19, WU-40 (1)): skipped by "Keep going" past the limit; shown as "Paused", never scored. */
+  jumped?: boolean;
   /** WU-28: when the automatic close's line was dismissed; it never shows again once set. */
   closeLineSeenAt?: string | null;
   created_at: string;
@@ -418,9 +420,21 @@ export interface CreateGoalResponse {
  * Weekly update M1.2a/M1.2b: what `POST /api/goal/close-week` answers. Not due (switch off, nothing due, or a lost
  * race); due in check mode; or a close, which also carries the review's answer fields.
  */
+/** Weekly update M1.5b (WU-37, WU-38): the choice a break past the limit waits for, next to "Start a fresh plan". */
+export type PastLimitChoice = 'keep_going' | 'final_week';
+
 export type CloseWeekAnswer =
   | { due: false; alreadyClosed?: boolean; weekNumber?: number }
-  | { due: true; weekNumber: number; testLogged: boolean; closedBy?: undefined }
+  | {
+      due: true;
+      weekNumber: number;
+      testLogged: boolean;
+      /** M1.5b (WU-39): the close is a break (a gap of 7 days or more), so no test card is shown. */
+      break?: boolean;
+      /** M1.5b (WU-38): the choice the close waits for; null when none is needed. */
+      choice?: PastLimitChoice | null;
+      closedBy?: undefined;
+    }
   | ({ due: true; closedBy: 'auto' } & WeeklyReviewResponse);
 
 export interface WeeklyReviewResponse {

@@ -10,7 +10,16 @@ import {
  * B-63 (PSL-1, PSL-2): a narrow stopgap scan of high-load step text for clear breaches of the old safety limits,
  * until docs/features/plan-safety-limits lands. Patterns stay narrow: safe wording must never count.
  */
-export type SafetyRule = 'deficit_over_600' | 'over_80_percent_1rm' | 'rir_below_3' | 'to_failure' | 'max_test';
+export type SafetyRule = 'deficit_over_600' | 'over_80_percent_1rm' | 'rir_below_3' | 'to_failure' | 'max_test' | 'time_trial';
+
+/**
+ * Weekly update M1.5b (WU-41): how a week is scanned. `light`: a first week back of a high-load goal, whose test is a
+ * light version: the weeks 1 to 3 rules apply whatever the week number, and so does the time-trial rule, which applies
+ * nowhere else. Without it the scan is exactly B-63's.
+ */
+export interface ScanOptions {
+  light?: boolean;
+}
 
 export interface SafetyHit {
   rule: SafetyRule;
@@ -27,6 +36,7 @@ export const SAFETY_LIMIT_TEXT: Record<SafetyRule, string> = {
   rir_below_3: `in weeks 1 to 3, at least ${EARLY_WEEK_MIN_RIR} reps in reserve`,
   to_failure: 'in weeks 1 to 3, nothing to failure',
   max_test: 'in weeks 1 to 3, no max or 1RM test',
+  time_trial: 'in the first week back after a break, no time trial or all-out effort',
 };
 
 /** The step fields a breach is looked for in. Not pitfallToAvoid: it names what to avoid by design. */
@@ -72,6 +82,13 @@ const RIR_PATTERNS = [
 const FAILURE = /\b(?:to|until|till)\s+(?:(?:momentary|muscular|technical|complete|total|absolute)\s+)?failure\b|\bAMRAP\b|\bas many reps as possible\b/i;
 const MAX_TEST =
   /\b(?:1\s*-?\s*RM|one[\s-]rep[\s-]max)\s+test|\btest\s+(?:your|a|the)\s+(?:new\s+)?(?:1\s*-?\s*RM|one[\s-]rep[\s-]max|max\b(?!\s*(?:heart|hr\b|pace|speed|wpm|words|typing|score|cadence|distance|time|power|watts|vo2)))\b|\bmax(?:es|ed|ing)?\s+out\b|\bmax(?:imal|imum)?\s+single\b|\btrue\s+max\b/i;
+/**
+ * M1.5b (WU-41): a time trial, or an all-out effort over a distance ("all-out 3 km", "run 5K as fast as you can").
+ * Narrow on purpose: "as fast as you can" alone (a sprint drill, typing) does not count without a distance.
+ */
+const TIME_TRIAL = /\btime[\s-]?trials?\b/i;
+const ALL_OUT = /\ball[\s-]out\b|\bas\s+fast\s+as\s+(?:you\s+)?(?:can|possible)\b|\bflat[\s-]out\b/i;
+const DISTANCE = /\b\d+(?:\.\d+)?\s*(?:k|km|kms|kilomet(?:er|re)s?|mi|miles?|m|meters?|metres?)\b/i;
 const NEGATION = /\b(?:never|no|not|don'?t|don’t|do\s+not|avoid|without)\b/i;
 /** "stop 3 reps before failure": 3 or more reps short of failure is safe wording. */
 const SAFE_SHORT_OF_FAILURE = new RegExp(String.raw`\b${N}(?:\s+or\s+more)?\s+reps?\s+(?:short\s+of|before|from|shy\s+of)\s+failure`, 'i');
@@ -134,13 +151,24 @@ export function maxOrFailureHits(value: string): SafetyHit[] {
   return hits;
 }
 
+/** M1.5b (WU-41): the time-trial rule, for a light week only. A negated clause ("no time trial this week") is safe. */
+export function timeTrialHits(value: string): SafetyHit[] {
+  for (const sentence of sentences(value)) {
+    const trial = TIME_TRIAL.exec(sentence);
+    if (trial && !negated(sentence, trial.index)) return [{ rule: 'time_trial', matched: clip(sentence) }];
+    const allOut = ALL_OUT.exec(sentence);
+    if (allOut && DISTANCE.test(sentence) && !negated(sentence, allOut.index)) return [{ rule: 'time_trial', matched: clip(sentence) }];
+  }
+  return [];
+}
+
 /** Every breach in one piece of text: one hit per rule, the first sentence that breaks it. */
-export function textSafetyHits(value: string, weekNumber: number): SafetyHit[] {
+export function textSafetyHits(value: string, weekNumber: number, options: ScanOptions = {}): SafetyHit[] {
   const hits: SafetyHit[] = [];
   const add = (hit: SafetyHit) => {
     if (!hits.some((item) => item.rule === hit.rule)) hits.push(hit);
   };
-  const early = weekNumber <= EARLY_WEEKS;
+  const early = weekNumber <= EARLY_WEEKS || options.light === true;
   for (const sentence of sentences(value)) {
     if (anyMatch([DEFICIT_AFTER, DEFICIT_BEFORE], sentence, (match) => upperEnd(match) > CALORIE_DEFICIT_MAX)) {
       add({ rule: 'deficit_over_600', matched: clip(sentence) });
@@ -150,15 +178,16 @@ export function textSafetyHits(value: string, weekNumber: number): SafetyHit[] {
     if (anyMatch(RIR_PATTERNS, sentence, (match) => lowerEnd(match) < EARLY_WEEK_MIN_RIR)) add({ rule: 'rir_below_3', matched: clip(sentence) });
   }
   if (early) for (const hit of maxOrFailureHits(value)) add(hit);
+  if (options.light === true) for (const hit of timeTrialHits(value)) add(hit);
   return hits;
 }
 
 /** One step's breaches, across the scanned fields. */
-export function stepSafetyHits(step: Pick<DetailedStep, (typeof SCANNED_FIELDS)[number]>, weekNumber: number): SafetyHit[] {
+export function stepSafetyHits(step: Pick<DetailedStep, (typeof SCANNED_FIELDS)[number]>, weekNumber: number, options: ScanOptions = {}): SafetyHit[] {
   const value = SCANNED_FIELDS.map((field) => step[field] ?? '')
     .filter(Boolean)
     .join('\n');
-  return textSafetyHits(value, weekNumber);
+  return textSafetyHits(value, weekNumber, options);
 }
 
 export interface SafetyLogLine {
@@ -168,8 +197,11 @@ export interface SafetyLogLine {
   rule: SafetyRule;
   step: string;
   matched: string;
-  /** `test_text`: the sentence is the roadmap's own weekly test, which the week must run as written; logged, not refused. */
-  outcome: 'retry' | 'failed' | 'test_text';
+  /**
+   * `test_text`: the sentence is the roadmap's own weekly test, which the week must run as written; logged, not refused.
+   * `light_test` (M1.5b, WU-41): on the last attempt of a light week the test step was replaced by the fixed light step.
+   */
+  outcome: 'retry' | 'failed' | 'test_text' | 'light_test';
 }
 
 /** PSL-1 (3): one line per hit, so the false-alarm rate can be checked in production. */
