@@ -3,6 +3,7 @@ import { Flame } from 'lucide-react';
 import { cx } from '../ui/cx';
 import type { WeekTarget, WeekTest } from '../../types';
 import { formatTarget, formatPassIf } from '../../lib/formatters';
+import { isLightTest, nextCheckLine } from '../../lib/lightTest';
 
 export interface ReviewSummaryCardProps {
   /** WU-33 (3): null when the week has no practice day left to count (every day not offered): shown as not counted. */
@@ -12,6 +13,8 @@ export interface ReviewSummaryCardProps {
   theme?: string;
   target?: WeekTarget | null;
   test?: WeekTest | null;
+  /** M2.1: the week shown; a light week's target reads "Next check, week {n}: {target}". */
+  weekNumber?: number;
 }
 
 /**
@@ -26,6 +29,7 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
   theme,
   target,
   test,
+  weekNumber,
 }) => {
   const notCounted = scorePercentage === null;
   const isEmptyWeek = completedSessions === 0;
@@ -81,11 +85,15 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
               <span className="font-medium text-text text-right">{theme}</span>
             </div>
           )}
-          {target && (
-            <div className="flex items-start justify-between gap-3 text-small">
-              <span className="text-text-secondary shrink-0">Target</span>
-              <span className="font-medium text-text text-right">{formatTarget(target)}</span>
-            </div>
+          {target && isLightTest(test) && weekNumber !== undefined ? (
+            <p className="text-small font-medium text-text">{nextCheckLine(weekNumber, target)}</p>
+          ) : (
+            target && (
+              <div className="flex items-start justify-between gap-3 text-small">
+                <span className="text-text-secondary shrink-0">Target</span>
+                <span className="font-medium text-text text-right">{formatTarget(target)}</span>
+              </div>
+            )
           )}
           {test && (
             <div className="flex items-start justify-between gap-3 text-small">

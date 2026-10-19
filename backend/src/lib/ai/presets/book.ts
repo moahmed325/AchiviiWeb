@@ -267,6 +267,14 @@ export const bookPreset: CertifiedPresetBlueprint = {
       workoutArchetypes: []
     }
   ],
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'count',
+      instructions:
+        "Open your manuscript and note its word count and the chapters drafted so far. Check what you have against this week's target: {target}",
+    },
+  },
   expertPromptContext: `
 ================================================================================
 EXPERT AUTHOR & BOOK ARCHITECT CONTEXT: 30,000-WORD MANUSCRIPT

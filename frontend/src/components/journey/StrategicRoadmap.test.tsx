@@ -83,3 +83,30 @@ describe('jumped weeks on the Roadmap (M1.5b, WU-40 (1))', () => {
     expect(rows.map((row) => within(row).queryByLabelText('Completed') !== null)).toEqual([true, true, false, false]);
   });
 });
+
+// Weekly update M2.1 (requirement 8): this week's target in a light week is the next check.
+describe('a light week on the Roadmap (M2.1)', () => {
+  const target = { kind: 'number' as const, metric: '10K time', value: 62, unit: 'minutes', direction: 'lower_is_better' as const };
+  const withWeek6 = (over: Partial<RoadmapWeek>) =>
+    ({ ...goal, currentWeek: 6, roadmapWeeks: goal.roadmapWeeks!.map((w) => (w.weekNumber === 6 ? { ...w, target, ...over } : w)) }) as Goal;
+  const renderRoadmap = (g: Goal) =>
+    render(
+      <MemoryRouter>
+        <StrategicRoadmap journey={toJourneyData(g, '2026-10-12')!} />
+      </MemoryRouter>
+    );
+
+  it('shows "Next check, week 8: {target}" and the light test, no pass mark', () => {
+    renderRoadmap(withWeek6({ test: { type: 'timer', instructions: "Run this week's long run as written.", passIf: 'Done as written', light: true } }));
+    expect(screen.getByText('Next check, week 8: 10K time: 62 minutes or less')).toBeInTheDocument();
+    expect(screen.getByText("Run this week's long run as written.")).toBeInTheDocument();
+    expect(screen.queryByText(/Done as written/)).not.toBeInTheDocument();
+  });
+
+  it('a week without the light key shows its target and pass mark as before', () => {
+    renderRoadmap(withWeek6({ test: { type: 'timer', instructions: 'Run 10 km.', passIf: '62 minutes' } }));
+    expect(screen.getByText('10K time: 62 minutes or less')).toBeInTheDocument();
+    expect(screen.getByText('Pass if 62 minutes.')).toBeInTheDocument();
+    expect(screen.queryByText(/Next check/)).not.toBeInTheDocument();
+  });
+});

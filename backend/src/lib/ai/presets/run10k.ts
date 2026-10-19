@@ -513,6 +513,20 @@ export const run10kPreset: CertifiedPresetBlueprint = {
       workoutArchetypes: []
     }
   ],
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'timer',
+      instructions:
+        'Warm up with 10 minutes of easy running. Then run the test for your target at a hard, steady effort you can hold to the end, and log your time and distance. Target: {target}',
+    },
+    light: {
+      type: 'timer',
+      instructions:
+        "Run this week's long run as written, at an easy pace you could talk at. Note the distance, the time and how it felt.",
+      session: 'the long run',
+    },
+  },
   expertPromptContext: `You are Olympic endurance running coach and exercise physiologist applying Jack Daniels' VDOT formula and Stephen Seiler's 80/20 Polarized training.
 When generating or calibrating this 10K Runner blueprint:
 1. Pacing Precision: Use the provided VDOT pacing table to calculate EXACT min/km and min/mile target paces based on the user's 5K baseline quiz answer. Never give vague advice like "run at a medium pace". Always specify: e.g. "Run at 5:12 - 5:18 /km (8:22 - 8:32 /mi) with target HR 165-172 bpm".

@@ -178,6 +178,25 @@ export interface EvidenceTriad {
   proCoaching: EvidencePillar;
 }
 
+/**
+ * Weekly update M2.1 (RULE-19, WU-43 (3)): a pathway's hand-written weekly test. `{target}` is filled with that week's
+ * `formatTarget(target)`, so the text works for a number target and a deliverable target alike.
+ */
+export interface PathwayTestText {
+  type: 'typing_test' | 'quiz' | 'timer' | 'count' | 'photo' | 'video';
+  instructions: string;
+}
+
+export interface PathwayWeeklyTests {
+  /** The test that measures the target: every week, or for a pathway with `light` only weeks 4, 8 and 12 (the big test). */
+  measured: PathwayTestText;
+  /**
+   * run10k, recomp, speech and spanish: the light test of every other week, logged as done plus a note. `session` is the
+   * session it belongs to, which the week writer puts on the test day (WU-43 (5)).
+   */
+  light?: PathwayTestText & { session: string };
+}
+
 export interface CertifiedPresetBlueprint {
   id: string;
   matchingPatterns: RegExp[];
@@ -203,4 +222,6 @@ export interface CertifiedPresetBlueprint {
   weeks: BlueprintWeekSchedule[];
   expertPromptContext: string;
   evidenceTriad?: EvidenceTriad;
+  /** M2.1: put in place of the model's weekly tests after the roadmap call (`withPathwayTests` in `ai/roadmap.ts`). */
+  weeklyTests?: PathwayWeeklyTests;
 }

@@ -6,6 +6,8 @@ import { logWeeklyTestResult } from '../../lib/api';
 import { formatPassIf } from '../../lib/formatters';
 import { lateTestWeek } from '../../lib/lateTest';
 import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
+import { LightTestEntry } from '../review/LightTestEntry';
+import { isLightTest, lightTestResult } from '../../lib/lightTest';
 import { Button, Dialog, DialogClose, DialogContent } from '../ui';
 
 const NOT_SAVED = "That didn't save. Please try again.";
@@ -20,12 +22,15 @@ export const LateTestCard: React.FC<{ goal: Goal; now: Date; timezone?: string }
   const { reconciliation, refreshGoal } = useGoal();
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<WeeklyTestResult | null>(null);
+  // M2.1: a light week's note; "I did it" saves it with the light result.
+  const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const week = lateTestWeek(goal, reconciliation, now, timezone);
   if (!week?.test) return null;
   const test = week.test;
+  const light = isLightTest(test);
 
   const onOpenChange = (next: boolean) => {
     if (saving) return;
@@ -34,13 +39,15 @@ export const LateTestCard: React.FC<{ goal: Goal; now: Date; timezone?: string }
   };
 
   const onSave = async () => {
-    if (!result || !token || saving) return;
+    const toSave = light ? lightTestResult(note) : result;
+    if (!toSave || !token || saving) return;
     setSaving(true);
     setError(null);
     try {
-      await logWeeklyTestResult(week.weekNumber, result, token);
+      await logWeeklyTestResult(week.weekNumber, toSave, token);
       setOpen(false);
       setResult(null);
+      setNote('');
       await refreshGoal();
     } catch (err) {
       console.warn('Failed to log the test result:', err);
@@ -59,7 +66,7 @@ export const LateTestCard: React.FC<{ goal: Goal; now: Date; timezone?: string }
           </h2>
           <p className="mt-2 max-w-md text-small text-text-secondary">Take it when you can. Your result goes into this week's review.</p>
           {test.instructions && <p className="mt-3 max-w-md text-small text-text-secondary">{test.instructions}</p>}
-          {test.passIf && (
+          {test.passIf && !light && (
             <p className="mt-3 max-w-md text-small text-text">
               <span className="font-medium">Pass mark: </span>
               <span className="text-text-secondary">{formatPassIf(test.passIf)}</span>
@@ -82,14 +89,18 @@ export const LateTestCard: React.FC<{ goal: Goal; now: Date; timezone?: string }
                   Cancel
                 </Button>
               </DialogClose>
-              <Button variant="primary" onClick={onSave} disabled={!result || !token} loading={saving}>
-                Save result
+              <Button variant="primary" onClick={onSave} disabled={(!light && !result) || !token} loading={saving}>
+                {light ? 'I did it' : 'Save result'}
               </Button>
             </>
           }
         >
           <div className="space-y-4">
-            <ReviewTestResultStep target={week.target} test={test} testResult={result} onChange={setResult} disabled={saving} />
+            {light ? (
+              <LightTestEntry weekNumber={week.weekNumber} target={week.target} test={test} note={note} onNoteChange={setNote} disabled={saving} />
+            ) : (
+              <ReviewTestResultStep target={week.target} test={test} testResult={result} onChange={setResult} disabled={saving} />
+            )}
             {error && (
               <p role="alert" className="text-small text-danger">
                 {error}

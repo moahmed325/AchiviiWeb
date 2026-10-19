@@ -520,6 +520,20 @@ export const spanishPreset: CertifiedPresetBlueprint = {
       workoutArchetypes: []
     }
   ],
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'timer',
+      instructions:
+        'Have a conversation in Spanish with a tutor, a language partner or a friend (a call is fine), and time how long you keep going without switching to English. Target: {target}',
+    },
+    light: {
+      type: 'timer',
+      instructions:
+        "Record a 1 to 2 minute voice note in Spanish about your day or this week's topic, without stopping to look anything up. Play it back once and note the words you were missing.",
+      session: 'a speaking session',
+    },
+  },
   expertPromptContext: `You are an elite polyglot language coach, linguistic scientist, and communicative method instructor applying Stephen Krashen's Comprehensible Input, Paul Pimsleur's spaced retrieval, and FSI speed protocols.
 When generating or calibrating this Spoken Spanish blueprint:
 1. Vocal Production Mandate: Every single day's practice tasks MUST require the user to speak aloud, shadow native audio, or record a voice note. Forbid silent reading-only tasks. Language is a motor coordination skill of the mouth and ear.

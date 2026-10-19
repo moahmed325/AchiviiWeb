@@ -272,6 +272,14 @@ export const youtubePreset: CertifiedPresetBlueprint = {
       workoutArchetypes: []
     }
   ],
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'video',
+      instructions:
+        "Play back what you made this week from start to finish (the published video or the latest draft) and note where it stands. Check it against this week's target: {target}",
+    },
+  },
   expertPromptContext: `
 ================================================================================
 EXPERT YOUTUBE PRODUCER & RETENTION ARCHITECT CONTEXT: 12-VIDEO CREATOR ENGINE

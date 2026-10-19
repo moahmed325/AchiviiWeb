@@ -224,6 +224,28 @@ describe('the test card (WU-14, WU-28)', () => {
     expect(calls).toEqual(['close:check', 'fetch', 'test-result', 'close', 'reconcile', 'fetch']);
   });
 
+  // Weekly update M2.1 (requirement 7): a light week's "Log result" is the light test, a note and "I did it".
+  it('a light week: "I did it" logs Done with the note, then closes the week with it', async () => {
+    const user = userEvent.setup();
+    const lightTest = { type: 'timer', instructions: "Run this week's long run as written.", passIf: 'Done as written', light: true };
+    const lightBefore = { ...BEFORE, roadmapWeeks: [week(1, { status: 'active', test: lightTest } as Partial<RoadmapWeek>), week(2)] } as unknown as Goal;
+    mocked.fetchActiveGoal.mockImplementation(async () => {
+      calls.push('fetch');
+      return calls.includes('close') ? after() : lightBefore;
+    });
+    renderApp();
+    await user.click(within(await card()).getByRole('button', { name: 'Log result' }));
+    const entry = await screen.findByRole('dialog', { name: "Log last week's test" });
+    expect(within(entry).getByText("Run this week's long run as written.")).toBeVisible();
+    expect(within(entry).getByText('Next check, week 4: 5 km time: 27 min or less')).toBeVisible();
+    expect(within(entry).queryByLabelText('Your result')).toBeNull();
+    await user.type(within(entry).getByLabelText(/Note/), 'Legs heavy');
+    await user.click(within(entry).getByRole('button', { name: 'I did it' }));
+    await screen.findByRole('heading', { level: 1, name: 'Run a 10K' });
+    expect(mocked.logWeeklyTestResult).toHaveBeenCalledWith(1, { value: 'Done', passed: true, note: 'Legs heavy' }, 't');
+    expect(calls).toEqual(['close:check', 'fetch', 'test-result', 'close', 'reconcile', 'fetch']);
+  });
+
   it('Escape on the entry goes back to the card (WU-32); Escape on the card is still Skip', async () => {
     const user = userEvent.setup();
     renderApp();

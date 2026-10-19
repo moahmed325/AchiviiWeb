@@ -2,6 +2,7 @@ import type { DailyTask, Goal, Prisma, RoadmapWeek as RoadmapWeekRow } from '@pr
 import { prisma } from './prisma.js';
 import {
   formatTarget,
+  lightTestSession,
   TOTAL_WEEKS,
   type ChosenMethod,
   type PlanAnswer,
@@ -199,6 +200,8 @@ export async function writeNextWeek(
   const handOn = methodRecoveryEnabled() && profile ? readHandoff(finishedTasks, weekBefore, profile, readRecoveryProfile(goal.roadmap) ?? profile) : null;
   const brief = handOn ? handoffBrief(handOn.handoff) : [];
 
+  // M2.1 (WU-43 (5)): the session a light week's test belongs to; nothing for any other week.
+  const session = lightTestSession(next.test as unknown as WeekTest, goal.rawGoal, goal.clarifiedOutcome);
   const days = await generateWeekPlan({
     finalGoal: stored.finalGoal,
     answers: stored.answers,
@@ -218,6 +221,8 @@ export async function writeNextWeek(
     lastWeek: done?.target
       ? {
           target: done.target as unknown as WeekTarget,
+          // M2.1: only a light test adds the key, so a goal created before M2.1 gets exactly the input it had.
+          ...((done.test as unknown as WeekTest | null)?.light === true ? { lightTest: true } : {}),
           result: lastWeekResult(finishedTasks.find((task) => task.isTestDay), done.testResult),
           done: practice.filter((task) => task.status === 'completed').length,
           planned: practice.length,
@@ -228,6 +233,7 @@ export async function writeNextWeek(
         }
       : undefined,
     ...(brief.length > 0 ? { whereTheyAre: brief } : {}),
+    ...(session ? { testSession: session } : {}),
     ...(options.firstWeekBack ? { firstWeekBack: options.firstWeekBack } : {}),
   });
   if (!days) return days;

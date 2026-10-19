@@ -224,4 +224,27 @@ describe('Late-test card on Today (missed sessions M4.1)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(trigger).toHaveFocus();
   });
+
+  // Weekly update M2.1 (requirement 7): a light week's test is logged as done plus a note.
+  it('a light week: the light test, a note and "I did it", which saves Done with the note', async () => {
+    const user = userEvent.setup();
+    const light = { test: { type: 'timer', instructions: "Run this week's long run as written.", passIf: 'Done as written', light: true } } as Partial<RoadmapWeek>;
+    mocked.fetchActiveGoal.mockResolvedValue(goal(light));
+    mocked.logWeeklyTestResult.mockResolvedValue({ testResult: { value: 'Done', passed: true, note: 'Felt easy' } });
+    await renderToday();
+    const region = card()!;
+    expect(within(region).queryByText('Pass mark:')).toBeNull();
+
+    await user.click(within(region).getByRole('button', { name: 'Log my result' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Log my result' });
+    expect(within(dialog).getByText("Run this week's long run as written.")).toBeVisible();
+    expect(within(dialog).getByText('Next check, week 4: 5 km time: 27 min or less')).toBeVisible();
+    expect(within(dialog).queryByLabelText('Your result')).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Save result' })).toBeNull();
+    await user.type(within(dialog).getByLabelText(/Note/), 'Felt easy');
+    await user.click(within(dialog).getByRole('button', { name: 'I did it' }));
+
+    expect(mocked.logWeeklyTestResult).toHaveBeenCalledWith(1, { value: 'Done', passed: true, note: 'Felt easy' }, 't');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
 });

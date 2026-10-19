@@ -7,6 +7,7 @@ import type { DailyTask, WeekTarget, WeeklyTestResult } from '../../types';
 import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
 import { formatTarget } from '../../lib/formatters';
 import { isRestLike } from '../../lib/today';
+import { nextCheckLine } from '../../lib/lightTest';
 
 export interface AdaptationMomentStepProps {
   currentWeekNumber: number;
@@ -17,6 +18,10 @@ export interface AdaptationMomentStepProps {
   nextWeekTarget?: WeekTarget | null;
   currentWeekTarget?: WeekTarget | null;
   testResult?: WeeklyTestResult | null;
+  /** M2.1: this week's test was light: its result shows as "Done", never against the target. */
+  currentWeekLight?: boolean;
+  /** M2.1: next week is a light week: its target shows as the next check. */
+  nextWeekLight?: boolean;
   milestoneGateTransition?: MilestoneGateTransition | null;
   onContinue: () => void;
 }
@@ -36,6 +41,8 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
   nextWeekTarget,
   currentWeekTarget,
   testResult,
+  currentWeekLight = false,
+  nextWeekLight = false,
   milestoneGateTransition,
   onContinue,
 }) => {
@@ -64,8 +71,26 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
         <PhaseGateOutcomeCard gate={milestoneGateTransition} />
       )}
 
+      {/* M2.1: a light test's result, never set against the target. */}
+      {testResult && currentWeekLight && (
+        <div data-testid="adaptation-light-result" className="rounded-card border border-border bg-surface p-4 text-small space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-1.5 font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
+              <Target aria-hidden="true" strokeWidth={1.5} className="size-3.5 text-accent shrink-0" />
+              <span>Light test</span>
+            </span>
+            <span className="font-semibold text-text">Done</span>
+          </div>
+          {testResult.note && (
+            <div className="border-t border-border/50 pt-2 text-micro text-text-secondary italic">
+              "{testResult.note}"
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Benchmark Target Comparison (OD-1a, BP §17, §33) */}
-      {testResult && (
+      {testResult && !currentWeekLight && (
         <div
           data-testid="adaptation-target-comparison"
           className="rounded-card border border-border bg-surface p-4 text-small space-y-2.5"
@@ -137,7 +162,9 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
             </div>
           )}
 
-          {nextWeekTarget && (
+          {nextWeekTarget && nextWeekLight && nextWeekNumber !== null ? (
+            <p className="font-medium text-text">{nextCheckLine(nextWeekNumber, nextWeekTarget)}</p>
+          ) : nextWeekTarget && (
             <div className="flex items-start justify-between gap-3">
               <span className="text-text-secondary shrink-0">Target</span>
               <span className="font-medium text-text text-right">{formatTarget(nextWeekTarget)}</span>

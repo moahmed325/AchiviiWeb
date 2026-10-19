@@ -8,6 +8,7 @@ import {
   extractFinalTestEvaluation,
 } from '../../lib/achievement';
 import { cx } from '../ui';
+import { isLightTest, nextCheckLine } from '../../lib/lightTest';
 
 interface AchievementResultsProps {
   goal: Goal;
@@ -230,7 +231,9 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
         ) : (
           <div className="flex flex-col gap-3">
             {benchmarkItems.map((item) => {
-              const targetStr = formatTarget(item.target);
+              // M2.1: a light week shows its next check, and a logged light test as "Done", never against the target.
+              const light = isLightTest(item.test);
+              const targetStr = light && item.target ? nextCheckLine(item.weekNumber, item.target) : formatTarget(item.target);
               const hasResult = item.testResult != null;
               const isPassed = item.testResult?.passed === true;
 
@@ -262,7 +265,12 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
 
                     {/* Result pill */}
                     <div className="mt-2 shrink-0 sm:mt-0">
-                      {hasResult ? (
+                      {hasResult && light ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-elevated px-2.5 py-1 font-ui-mono text-micro font-medium text-text">
+                          <Check className="size-3" aria-hidden="true" />
+                          Done
+                        </span>
+                      ) : hasResult ? (
                         <span
                           className={cx(
                             'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-ui-mono text-micro font-medium',
@@ -290,11 +298,11 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
                   <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border pt-3 text-small">
                     {targetStr && (
                       <div>
-                        <span className="text-text-secondary">Target: </span>
+                        {!light && <span className="text-text-secondary">Target: </span>}
                         <span className="font-medium text-text">{targetStr}</span>
                       </div>
                     )}
-                    {item.testResult && (
+                    {item.testResult && !light && (
                       <div>
                         <span className="text-text-secondary">Recorded: </span>
                         <span className="font-ui-mono font-medium text-text">

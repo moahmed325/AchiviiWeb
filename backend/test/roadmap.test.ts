@@ -476,7 +476,7 @@ describe('buildRoadmapPrompt', () => {
     expect(prompt).toContain('smaller again before the final test');
     const flat = prompt.replace(/\s+/g, ' ');
     expect(flat).toContain(
-      "A lighter week (a taper, a deload, a review week) or a harder test (a full mock exam after topic quizzes) keeps the previous week's target; it never lowers it.",
+      "A lighter week (a taper, a deload, a review week) or the harder test in week 4, 8 or 12 keeps the previous week's target; it never lowers it.",
     );
     expect(flat).toContain("If their answer uses another measure (a 5K time for a 10K goal), convert it to the targets' metric.");
   });

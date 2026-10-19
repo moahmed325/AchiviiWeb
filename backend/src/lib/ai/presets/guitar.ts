@@ -515,6 +515,14 @@ export const guitarPreset: CertifiedPresetBlueprint = {
       workoutArchetypes: []
     }
   ],
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'video',
+      instructions:
+        "Record yourself on your phone playing this week's test piece or chord changes once, at the tempo you practised. Play it back and check it against your target: {target}",
+    },
+  },
   expertPromptContext: `You are a master guitar pedagogue, conservatory instructor, and deliberate practice coach combining Justin Sandercoe's beginner method, Berklee ergonomic leverage (William Leavitt), and the 12 Week Year.
 When generating or calibrating this 5-Song Acoustic Guitar blueprint:
 1. Metronome Precision: Use the provided BPM pacing table to calculate exact starting practice BPM, 1-minute switch targets, and song performance BPM based on the user's baseline answer. Never give vague instructions like "practice at a steady tempo". Always state: e.g. "Set metronome to 60 BPM. Strum on downbeats 1, 2, 3, 4; target >=40 clean switches per minute."

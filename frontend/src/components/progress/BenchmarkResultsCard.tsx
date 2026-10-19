@@ -3,13 +3,15 @@ import { Check, Clock, Minus } from 'lucide-react';
 import type { Goal, RoadmapWeek, WeekTarget, WeekTest } from '../../types';
 import type { WeeklyTestResult } from '../../types/review';
 import { cx } from '../ui';
+import { isLightTest, nextCheckLine } from '../../lib/lightTest';
 
 interface BenchmarkResultsCardProps {
   goal: Goal;
   className?: string;
 }
 
-type BenchmarkStatus = 'passed' | 'not_passed' | 'no_result' | 'upcoming';
+/** M2.1: `done`, a logged light test: done plus a note, never passed or not against the target. */
+type BenchmarkStatus = 'passed' | 'not_passed' | 'done' | 'no_result' | 'upcoming';
 
 interface BenchmarkEntry {
   weekNumber: number;
@@ -47,7 +49,9 @@ function deriveBenchmarks(goal: Goal): BenchmarkEntry[] {
     .sort((a, b) => a.weekNumber - b.weekNumber)
     .map((w) => {
       let status: BenchmarkStatus;
-      if (w.testResult) {
+      if (w.testResult && isLightTest(w.test)) {
+        status = 'done';
+      } else if (w.testResult) {
         status = w.testResult.passed ? 'passed' : 'not_passed';
       } else if (w.weekNumber < currentWeek || w.status === 'completed' || w.status === 'adapted') {
         status = 'no_result';
@@ -74,6 +78,14 @@ const StatusBadge: React.FC<{ status: BenchmarkStatus }> = ({ status }) => {
       <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/[0.06] px-2.5 py-1 font-ui-mono text-micro uppercase text-accent-hover">
         <Check aria-hidden="true" strokeWidth={2} className="size-3" />
         Benchmark achieved
+      </span>
+    );
+  }
+  if (status === 'done') {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-border-strong px-2.5 py-1 font-ui-mono text-micro uppercase text-text">
+        <Check aria-hidden="true" strokeWidth={2} className="size-3" />
+        Done
       </span>
     );
   }
@@ -120,7 +132,8 @@ export const BenchmarkResultsCard: React.FC<BenchmarkResultsCardProps> = ({ goal
       </h2>
       <div className="space-y-2">
         {benchmarks.map((entry) => {
-          const targetStr = formatTarget(entry.target);
+          const light = isLightTest(entry.test);
+          const targetStr = light && entry.target ? nextCheckLine(entry.weekNumber, entry.target) : formatTarget(entry.target);
 
           return (
             <div
@@ -145,19 +158,19 @@ export const BenchmarkResultsCard: React.FC<BenchmarkResultsCardProps> = ({ goal
                 {targetStr && (
                   <p className="flex items-start gap-2 text-small text-text-secondary">
                     <Minus aria-hidden="true" strokeWidth={1.5} className="mt-1 size-3 shrink-0 text-text-secondary" />
-                    <span>Target: {targetStr}</span>
+                    <span>{light ? targetStr : `Target: ${targetStr}`}</span>
                   </p>
                 )}
                 <p className="flex items-start gap-2 text-small text-text-secondary">
                   <Minus aria-hidden="true" strokeWidth={1.5} className="mt-1 size-3 shrink-0 text-text-secondary" />
-                  <span>Pass criteria: {entry.test.passIf}</span>
+                  <span>{light ? `Light test: ${entry.test.instructions}` : `Pass criteria: ${entry.test.passIf}`}</span>
                 </p>
               </div>
 
               {/* Result */}
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <StatusBadge status={entry.status} />
-                {entry.testResult && (
+                {entry.testResult && !light && (
                   <span className="font-ui-mono text-small tabular-nums text-text">
                     {formatResultValue(entry.testResult)}
                   </span>
@@ -172,7 +185,7 @@ export const BenchmarkResultsCard: React.FC<BenchmarkResultsCardProps> = ({ goal
               )}
 
               {/* Upcoming: show instructions preview */}
-              {entry.status === 'upcoming' && entry.test.instructions && (
+              {entry.status === 'upcoming' && !light && entry.test.instructions && (
                 <p className="mt-2 text-small text-text-secondary">
                   {entry.test.instructions}
                 </p>

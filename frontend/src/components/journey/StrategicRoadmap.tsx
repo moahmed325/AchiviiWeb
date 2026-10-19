@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Check, ChevronDown, Lock, Sparkles, Target } from 'lucide-react';
 import type { JourneyData, JourneyPhase, JourneyWeek } from '../../types/journey';
-import { formatPassIf, formatTarget } from '../../lib/formatters';
+import { weekTargetText, weekTestText } from '../../lib/lightTest';
 import { Badge, StepMarker } from '../ui';
 
 export interface StrategicRoadmapProps { journey: JourneyData; }
@@ -131,12 +131,12 @@ const CurrentWeek: React.FC<{ week: JourneyWeek }> = ({ week }) => (
       <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">Week {week.weekNumber}</span>
     </div>
     <div className="mt-5 grid gap-3 sm:grid-cols-2">
-      {week.target && <Detail label="Target" icon={<Target aria-hidden="true" strokeWidth={1.5} className="size-3.5" />} value={formatTarget(week.target)} />}
+      {week.target && <Detail label="Target" icon={<Target aria-hidden="true" strokeWidth={1.5} className="size-3.5" />} value={weekTargetText(week.weekNumber, week.target, week.test)} />}
       {(week.test || week.keyMilestone) && (
         <Detail
           label={week.test ? 'Test' : 'Milestone'}
           icon={<Sparkles aria-hidden="true" strokeWidth={1.5} className="size-3.5" />}
-          value={week.test ? formatPassIf(week.test.passIf) || week.test.instructions : week.keyMilestone || ''}
+          value={week.test ? weekTestText(week.test) : week.keyMilestone || ''}
         />
       )}
     </div>

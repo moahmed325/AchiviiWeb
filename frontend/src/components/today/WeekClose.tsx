@@ -6,6 +6,8 @@ import { useGoal } from '../../context/GoalContext';
 import { ApiError, logWeeklyTestResult } from '../../lib/api';
 import { DRAFT_GOAL_KEY } from '../onboarding/payload';
 import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
+import { LightTestEntry } from '../review/LightTestEntry';
+import { isLightTest, lightTestResult } from '../../lib/lightTest';
 import { Button, Dialog, DialogContent, LoadingState, Surface } from '../ui';
 
 // Weekly update M1.2b (RULE-8, WU-14, WU-28): what the app shows around an automatic week close.
@@ -37,8 +39,11 @@ export const WeekTestFirst: React.FC<{ goal: Goal; weekNumber: number }> = ({ go
   const week = goal.roadmapWeeks?.find((w) => w.weekNumber === weekNumber);
   const [entry, setEntry] = useState(false);
   const [result, setResult] = useState<WeeklyTestResult | null>(null);
+  // M2.1: a light week's note; "I did it" logs it with the light result and closes the week.
+  const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const light = isLightTest(week?.test);
 
   const skip = () => {
     if (!saving) void answerHeldClose();
@@ -55,13 +60,14 @@ export const WeekTestFirst: React.FC<{ goal: Goal; weekNumber: number }> = ({ go
   };
 
   const onSave = async () => {
-    if (!result || !token || saving) return;
+    const toSave = light ? lightTestResult(note) : result;
+    if (!toSave || !token || saving) return;
     setSaving(true);
     setError(null);
     try {
       await answerHeldClose(async () => {
         try {
-          await logWeeklyTestResult(weekNumber, result, token);
+          await logWeeklyTestResult(weekNumber, toSave, token);
         } catch (err) {
           // Another tab closed the week meanwhile: nothing left to log, the close below finds nothing due.
           if (err instanceof ApiError && err.code === 'week_closed') return;
@@ -87,14 +93,18 @@ export const WeekTestFirst: React.FC<{ goal: Goal; weekNumber: number }> = ({ go
                 <Button variant="quiet" onClick={skip} disabled={saving}>
                   Skip
                 </Button>
-                <Button variant="primary" onClick={onSave} disabled={!result || !token} loading={saving}>
-                  Save result
+                <Button variant="primary" onClick={onSave} disabled={(!light && !result) || !token} loading={saving}>
+                  {light ? 'I did it' : 'Save result'}
                 </Button>
               </>
             }
           >
             <div className="space-y-4">
-              <ReviewTestResultStep target={week?.target} test={week?.test} testResult={result} onChange={setResult} disabled={saving} />
+              {light && week?.test ? (
+                <LightTestEntry weekNumber={weekNumber} target={week.target} test={week.test} note={note} onNoteChange={setNote} disabled={saving} />
+              ) : (
+                <ReviewTestResultStep target={week?.target} test={week?.test} testResult={result} onChange={setResult} disabled={saving} />
+              )}
               {error && (
                 <p role="alert" className="text-small text-danger">
                   {error}
