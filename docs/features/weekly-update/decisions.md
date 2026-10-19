@@ -263,6 +263,12 @@ How this log works: `docs/templates/decisions.md`.
 **Why (Mo, option A):** keeps week 12 as the final goal and one metric for all 12 weeks; the person never sees a light result set against a target it can't measure; showing the next check's target moves forward the same way in every week.
 **Changes:** RULE-19, RULE-4 (a note for P3), AC-20 in `02-feature.md`; M2.1's prompt.
 
+### WU-44 — M2.1 review: the week-1 rule reads the model's climb; a pathway's model tests are not checked (2026-10-19)
+**Question:** M2.1 stop: giving light weeks 1 to 3 week 4's target (WU-43 (1)) can break `checkRoadmapAnswer`'s 40% week-1 rule (`MAX_WEEK1_SHARE`), e.g. run10k start 70, week 4 65, week 12 58. And in review: the model's tests on a pathway are scanned (B-63, hard) and held to one type, though code throws them away.
+**Decision:** (1) `checkRoadmapAnswer`, the 40% rule included, runs on the model's answer as now; `withPathwayTests` runs after it, and the 40% rule is not checked again. Every other rule still holds after the rewrite (tested). (2) When the goal's pathway has hand-written tests (`RoadmapCheckContext.pathwayTests`), the model's tests skip B-63's roadmap test scan and the one-type check; custom goals keep both. The hand-written tests are scanned in tests for weeks 1 to 12. (3) A logged light test reaches the week writer as "light test done" plus the note, never "passed". (4) recomp's tests need a scale and a tape measure, as RULE-19's own example does.
+**Why:** the 40% rule is there so the model's own week 1 is an early win; on a split pathway week 1 shows week 4's target as "Next check, week 4", not as week 1's goal. Checking tests that are thrown away only costs retries and 503s.
+**Changes:** M2.1 (`roadmap.ts`, `planV2.ts`); requirement 3's "every rule" reads "every rule but the 40% week-1 rule".
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*

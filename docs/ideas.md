@@ -26,3 +26,4 @@
 | I-12 | 2026-10-17 | weekly-update M1.4 report, Ideas | Add the days moved (`moved <k>`) to the `[WeekClose]` log line, so O1's production checks see each move. | Moves are visible in the logs without a database query. | OPEN |
 | I-13 | 2026-10-19 | weekly-update M1.5a report, Ideas | Show "Away N days" in the progress history for a first week back, from `RoadmapWeek.breakDays`. | The person sees why a week's dates moved. | OPEN |
 | I-14 | 2026-10-19 | weekly-update M1.5b report, Ideas | The choice card past the limit says where "Keep going" picks up, for example "Keep going picks up at week 9", from the check answer. | The person knows what keeping the plan means before they choose. | OPEN |
+| I-15 | 2026-10-19 | weekly-update M2.1 report, Ideas | Show each light week's note on Progress (week by week). | The notes are the only record of a light week, and P3's update will read them; the person sees them too. | OPEN |
