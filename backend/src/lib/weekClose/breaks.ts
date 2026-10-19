@@ -1,4 +1,5 @@
 import type { DailyTask } from '@prisma/client';
+import { isHighLoadGoal } from '../highLoad.js';
 import type { BreakLength, RecoveryProfile, Restart } from '../recovery/profile.js';
 
 /**
@@ -49,18 +50,30 @@ export function returnRuleEntry(profile: RecoveryProfile | null | undefined, day
  * What the week writer is told for the first week back (WU-25 (3), WU-29 (1)): the days away and the rule's note. Never
  * a target or a restart level (M3.4). `highLoad` (WU-35 (4)) adds the "at or below" sentence and the first-week-back line.
  */
-export interface FirstWeekBack {
+export type FirstWeekBack = {
   awayDays: number;
   /** The rule's `firstWeekBack` note; null for a goal with no readable profile. */
   note: string | null;
   /** The entry the length picked, for the log only (the restart is M3.4's). */
   length: BreakLength | null;
+} & GoalLoad;
+
+/**
+ * WU-35 (4): `highLoad`, the goal is high-load (`isHighLoadGoal`, or its profile has a `highLoad` kind): the writer's
+ * "at or below" line and the first-week-back line act only then. `everyStep`, the goal is `isHighLoadGoal`, so every
+ * step of it is high-load (ND-5). Worked out once per close (M1.5a review) so the two can't disagree.
+ */
+export interface GoalLoad {
   highLoad: boolean;
+  everyStep: boolean;
 }
 
-/** WU-35 (4): a high-load goal is `isHighLoadGoal` or a goal whose profile has a `highLoad` kind. */
-export function firstWeekBackFor(profile: RecoveryProfile | null | undefined, breakDays: number, highLoadGoal: boolean): FirstWeekBack {
+export function goalLoad(goal: { rawGoal: string; clarifiedOutcome: string }, profile: RecoveryProfile | null | undefined): GoalLoad {
+  const everyStep = isHighLoadGoal(goal);
+  return { highLoad: everyStep || (Array.isArray(profile?.kinds) && profile.kinds.some((kind) => kind?.highLoad === true)), everyStep };
+}
+
+export function firstWeekBackFor(profile: RecoveryProfile | null | undefined, breakDays: number, load: GoalLoad): FirstWeekBack {
   const note = typeof profile?.returnRule?.firstWeekBack === 'string' && profile.returnRule.firstWeekBack.trim() ? profile.returnRule.firstWeekBack.trim() : null;
-  const highLoad = highLoadGoal || (Array.isArray(profile?.kinds) && profile.kinds.some((kind) => kind?.highLoad === true));
-  return { awayDays: breakDays, note, length: returnRuleEntry(profile, breakDays)?.length ?? null, highLoad };
+  return { awayDays: breakDays, note, length: returnRuleEntry(profile, breakDays)?.length ?? null, ...load };
 }

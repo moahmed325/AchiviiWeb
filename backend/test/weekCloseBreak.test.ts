@@ -27,7 +27,7 @@ import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 import type { RecoveryProfile } from '../src/lib/recovery/profile.js';
 import { EASY_START_LINE, FIRST_WEEK_BACK_LINE } from '../src/lib/recovery/easyStart.js';
 import { takesFirstWeekBackLine, withFirstWeekBackLines } from '../src/lib/recovery/firstWeekBack.js';
-import { WELCOME_BACK_INSIGHT, breakLength, firstWeekBackFor, returnRuleEntry } from '../src/lib/weekClose/breaks.js';
+import { WELCOME_BACK_INSIGHT, breakLength, firstWeekBackFor, goalLoad, returnRuleEntry } from '../src/lib/weekClose/breaks.js';
 import { MOVED_INSIGHT, autoCloseInsight, planWeekMove, saveWeekClose } from '../src/lib/weekClose/close.js';
 
 const USER = { id: 'u1', email: 'u1@achivii.com', timezone: 'UTC' };
@@ -93,6 +93,10 @@ interface SeedOptions {
   recovery?: RecoveryProfile | null;
   /** Week 2's practice dates marked done; every practice day by default. */
   done?: string[];
+  /** Week 2's practice-day steps by date; one general step by default. */
+  week2Steps?: (date: string, isTestDay: boolean) => DetailedStep[];
+  /** Week 2's stored `breakDays` (it was a first week back). */
+  week2BreakDays?: number;
 }
 
 /** Week 1 closed by review; week 2 open. */
@@ -140,7 +144,7 @@ function seed(options: SeedOptions = {}) {
       reviewNotes: null,
       closedBy: weekNumber === 1 ? 'review' : null,
       closedAt: null,
-      breakDays: null,
+      breakDays: weekNumber === 2 ? options.week2BreakDays ?? null : null,
     });
   }
   WEEK2.forEach((day) => {
@@ -160,7 +164,7 @@ function seed(options: SeedOptions = {}) {
       notOffered: false,
       notes: null,
       durationMinutes: 40,
-      detailedSteps: JSON.stringify(day.isRestDay ? [] : [step('Practice', 1, 40, 'general')]),
+      detailedSteps: JSON.stringify(day.isRestDay ? [] : options.week2Steps?.(day.date, day.isTestDay) ?? [step('Practice', 1, 40, 'general')]),
       implementationIntention: '',
       whyToday: null,
       minimumVersion: null,
@@ -241,7 +245,7 @@ describe('a break (RULE-13, WU-33 (2)), WEEK_CLOSE_ENABLED on', () => {
     expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: gap, startDate: shifted(START, gap), targetDate: shifted(TARGET, gap) });
     const back = daysBetween(lastPractice, addDays('2026-10-05', gap));
     expect(db.week(3).breakDays).toBe(isBreak ? back : null);
-    expect(writerInput().firstWeekBack).toEqual(isBreak ? { awayDays: back, note: LANGUAGE.returnRule.firstWeekBack, length: 'any', highLoad: false } : undefined);
+    expect(writerInput().firstWeekBack).toEqual(isBreak ? { awayDays: back, note: LANGUAGE.returnRule.firstWeekBack, length: 'any', highLoad: false, everyStep: false } : undefined);
     expect(db.state.reviews[0].aiAdaptationInsight).toBe(isBreak ? WELCOME_BACK_INSIGHT : MOVED_INSIGHT);
     expect(logged()).toHaveLength(isBreak ? 1 : 0);
   });
@@ -362,10 +366,17 @@ describe('the note to the week writer (WU-25 (3), WU-29 (1))', () => {
     expect(returnRuleEntry(ENDURANCE, 20)).toEqual({ length: '1-2 weeks', restart: 'back 1 week' });
     expect(returnRuleEntry(ENDURANCE, 21)).toEqual({ length: '3+ weeks', restart: 'back 2 weeks' });
     expect(returnRuleEntry(null, 21)).toBeNull();
-    expect(firstWeekBackFor(null, 12, false)).toEqual({ awayDays: 12, note: null, length: null, highLoad: false });
-    expect(firstWeekBackFor(null, 12, true).highLoad).toBe(true);
-    expect(firstWeekBackFor(STRENGTH_HIGH_LOAD, 12, false).highLoad).toBe(true);
-    expect(firstWeekBackFor(RECOVERY_TEMPLATES.strength, 12, false).highLoad).toBe(false);
+    const light = { highLoad: false, everyStep: false };
+    expect(firstWeekBackFor(null, 12, light)).toEqual({ awayDays: 12, note: null, length: null, highLoad: false, everyStep: false });
+    expect(firstWeekBackFor(ENDURANCE, 12, { highLoad: true, everyStep: true })).toMatchObject({ note: ENDURANCE.returnRule.firstWeekBack, highLoad: true, everyStep: true });
+  });
+
+  it('goalLoad (WU-35 (4)), worked out once: high-load by goal or by a profile kind; every step only by goal', () => {
+    expect(goalLoad(RUN_10K, ENDURANCE)).toEqual({ highLoad: true, everyStep: true });
+    expect(goalLoad(RUN_10K, null)).toEqual({ highLoad: true, everyStep: true });
+    expect(goalLoad(CUSTOM, STRENGTH_HIGH_LOAD)).toEqual({ highLoad: true, everyStep: false });
+    expect(goalLoad(CUSTOM, RECOVERY_TEMPLATES.strength)).toEqual({ highLoad: false, everyStep: false });
+    expect(goalLoad(SPANISH, null)).toEqual({ highLoad: false, everyStep: false });
   });
 
   it('breakLength: from the last done practice day, else the week first day; never below 0', () => {
@@ -459,6 +470,46 @@ describe('a high-load first week back (WU-29, WU-35)', () => {
     expect(db.tasksOf(3)).toHaveLength(7);
     expect(withLine()).toEqual([]);
     expect(console.error).toHaveBeenCalledWith('[PlanV2] Could not add the first-week-back line:', expect.any(Error));
+  });
+});
+
+describe('M1.5a review: the line belongs to the week, through the real close (METHOD_RECOVERY_ENABLED on)', () => {
+  beforeEach(() => {
+    closeOn();
+    vi.stubEnv('METHOD_RECOVERY_ENABLED', 'true');
+  });
+
+  const WARM_UP = 'Start with an easy 5-minute warm-up and end with 5 easy minutes.';
+  const lastPracticeDay = WEEK2.filter((d) => !d.isRestDay && !d.isTestDay).at(-1)!.date;
+  /** Week 2: a workout on every practice day (the test day keeps the test); the last one is not done. */
+  const workouts = (line: boolean) => ({
+    goal: CUSTOM,
+    recovery: STRENGTH_HIGH_LOAD,
+    done: WEEK2_PRACTICE.filter((date) => date !== lastPracticeDay),
+    week2Steps: (date: string, isTestDay: boolean) =>
+      isTestDay
+        ? [step('Weekly test: long run', 1, 40, 'weekly_test')]
+        : [step(`Workout ${date}`, 1, 30, 'strength_workout', { highLoad: true, ...(line ? { instructions: `${FIRST_WEEK_BACK_LINE}\nDo Workout ${date}.` } : {}) })],
+  });
+  const newWeek = (input: WeekCallInput) =>
+    modelWeek(input.weekStart, () => [step('Workout A', 1, 30, 'strength_workout', { highLoad: true }), step('Log food', 2, 10, 'nutrition_and_tracking')]);
+  const handedOn = () => week3Steps().flatMap((d) => d.steps).find((s) => s.title === `Workout ${lastPracticeDay}`);
+
+  it('a hard high-load step handed into the first week back gets the line once, before the warm-up line', async () => {
+    seed(workouts(false));
+    vi.mocked(generateWeekPlan).mockImplementation(async (input) => newWeek(input));
+    expect((await closeWeek(atGap(10))).status).toBe(200);
+    expect(handedOn()!.instructions).toBe(`${FIRST_WEEK_BACK_LINE}\n${WARM_UP}\nDo Workout ${lastPracticeDay}.`);
+    expect(JSON.stringify(week3Steps())).not.toContain(EASY_START_LINE);
+  });
+
+  it('a step handed on out of a first week back (week 2) into a normal week leaves the line behind', async () => {
+    seed({ ...workouts(true), week2BreakDays: 12 });
+    vi.mocked(generateWeekPlan).mockImplementation(async (input) => newWeek(input));
+    expect((await closeWeek(atGap(0))).status).toBe(200);
+    expect(db.week(3).breakDays).toBeNull();
+    expect(handedOn()!.instructions).toBe(`${WARM_UP}\nDo Workout ${lastPracticeDay}.`);
+    expect(withLine()).toEqual([]);
   });
 });
 

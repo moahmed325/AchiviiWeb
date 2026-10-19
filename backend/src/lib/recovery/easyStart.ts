@@ -35,6 +35,12 @@ export function withFirstWeekBackLine(instructions: unknown): string {
   return text.startsWith(FIRST_WEEK_BACK_LINE) ? text : withFirstLine(FIRST_WEEK_BACK_LINE, text);
 }
 
+/** M1.5a review: a step that lands outside a first week back leaves the line behind; it belongs to that week. */
+export function withoutFirstWeekBackLine(instructions: unknown): unknown {
+  if (typeof instructions !== 'string' || !instructions.startsWith(FIRST_WEEK_BACK_LINE)) return instructions;
+  return instructions.slice(FIRST_WEEK_BACK_LINE.length).replace(/^\n/, '');
+}
+
 /** A step that a reorder moves leaves RULE-21's line behind: it belongs to the first day back, not to the step. */
 export function withoutEasyLine(instructions: unknown): unknown {
   if (typeof instructions !== 'string' || !instructions.startsWith(EASY_START_LINE)) return instructions;

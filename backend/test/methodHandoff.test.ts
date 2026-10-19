@@ -4,7 +4,8 @@ import { buildWeekPrompt, weekLayout, type WeekCallInput } from '../src/lib/ai/w
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { MOVED_WARM_UP_LINE, planRecovery } from '../src/lib/recovery/carry.js';
-import { EASY_START_LINE } from '../src/lib/recovery/easyStart.js';
+import { EASY_START_LINE, FIRST_WEEK_BACK_LINE, withEasyLine } from '../src/lib/recovery/easyStart.js';
+import { lineForDay } from '../src/lib/recovery/firstWeekBack.js';
 import { handoffBrief, hasHandoff, placeHandoff, weekHandoff, type HandoffTask, type PlacedDay, type WeekHandoff } from '../src/lib/recovery/handoff.js';
 import { inOrderQueue } from '../src/lib/recovery/inOrder.js';
 import { actionOf, withFixedKinds, type RecoveryKind, type RecoveryProfile } from '../src/lib/recovery/profile.js';
@@ -609,6 +610,68 @@ describe('no-room moves of other kinds (requirement 5, MR-32 (3))', () => {
     });
     expect(result.noRoomPlaced).toEqual([]);
     expect(titles(result.days, 'mon')).toEqual(['Drill A', 'Group call']);
+  });
+});
+
+describe('weekly update M1.5a review: the first-week-back line belongs to the week, not the step', () => {
+  const withBack = (title: string) => `${FIRST_WEEK_BACK_LINE}\nDo ${title}.`;
+  /** Last week: Friday's Strength 4 (hard, in-order) not done; with `line`, it holds the first-week-back line. */
+  const strengthLeft = (line: boolean) => storedWeek(1, { fri: { done: false, steps: day('Strength 4', 'strength', line ? { instructions: withBack('Strength 4') } : {}) } });
+  const place = (last: HandoffTask[], firstWeekBack?: { everyStep: boolean } | null, days = writtenWeek(2, { wed: day('Strength B', 'strength') })) =>
+    placeHandoff({ days, handoff: weekHandoff({ tasks: last, profile: PROFILE }), profile: PROFILE, lastWeek: last, ...(firstWeekBack === undefined ? {} : { firstWeekBack }) });
+
+  it('a step handed on out of the first week back leaves the line behind, keeping the warm-up line', () => {
+    const result = place(strengthLeft(true), null);
+    expect(result.placed).toEqual([{ kind: 'strength', title: 'Strength 4', date: '2026-09-23' }]);
+    expect(stepOf(result.days, 'wed', 'Strength 4').instructions).toBe(`${MOVED_WARM_UP_LINE}\nDo Strength 4.`);
+    // Without the input at all (no week has breakDays), the same.
+    expect(stepOf(place(strengthLeft(true)).days, 'wed', 'Strength 4').instructions).toBe(`${MOVED_WARM_UP_LINE}\nDo Strength 4.`);
+  });
+
+  it('a step carried into next week with no room leaves the line behind too', () => {
+    const last = storedWeek(1, { tue: { done: false, steps: day('Grammar drill', 'practice', { instructions: withBack('Grammar drill') }) } });
+    const result = place(last, null, writtenWeek(2));
+    expect(result.noRoomPlaced).toEqual([{ kind: 'practice', title: 'Grammar drill', date: '2026-09-21' }]);
+    expect(stepOf(result.days, 'mon', 'Grammar drill').instructions).toBe('Do Grammar drill.');
+  });
+
+  it('a hard step handed into a first week back gets the line once, first, then the warm-up line; never RULE-21 beside it', () => {
+    const both = `${FIRST_WEEK_BACK_LINE}\n${MOVED_WARM_UP_LINE}\nDo Strength 4.`;
+    // Every step of an isHighLoadGoal goal is high-load; otherwise a step flagged highLoad.
+    expect(stepOf(place(strengthLeft(false), { everyStep: true }).days, 'wed', 'Strength 4').instructions).toBe(both);
+    expect(stepOf(place(strengthLeft(true), { everyStep: true }).days, 'wed', 'Strength 4').instructions).toBe(both);
+    const flagged = storedWeek(1, { fri: { done: false, steps: day('Strength 4', 'strength', { highLoad: true }) } });
+    expect(stepOf(place(flagged, { everyStep: false }).days, 'wed', 'Strength 4').instructions).toBe(both);
+    // Hard but not high-load (a custom goal's unflagged step): no line.
+    expect(stepOf(place(strengthLeft(false), { everyStep: false }).days, 'wed', 'Strength 4').instructions).toBe(`${MOVED_WARM_UP_LINE}\nDo Strength 4.`);
+    const easy = storedWeek(1, { fri: { done: false, steps: day('Strength 4', 'strength', { instructions: `${EASY_START_LINE}\nDo Strength 4.` }) } });
+    const placed = stepOf(place(easy, { everyStep: true }).days, 'wed', 'Strength 4').instructions;
+    expect(placed).toBe(`${FIRST_WEEK_BACK_LINE}\n${MOVED_WARM_UP_LINE}\nDo Strength 4.`);
+    expect(withEasyLine(placed)).toBe(placed);
+  });
+
+  it('a step that is not hard handed into a first week back gets no line', () => {
+    const last = storedWeek(1, { wed: { done: false, steps: day('Lesson 4', 'lesson') } });
+    const result = place(last, { everyStep: false }, writtenWeek(2, { mon: day('Lesson A', 'lesson') }));
+    expect(stepOf(result.days, 'mon', 'Lesson 4').instructions).toBe('Do Lesson 4.');
+  });
+
+  it('nothing changes for a goal with no first week back: the placement is identical with and without the input', () => {
+    const last = lessonsFourToNineNotDone();
+    const days = () => writtenWeek(2, { mon: day('Lesson A', 'lesson'), wed: day('Lesson B', 'lesson'), fri: day('Lesson C', 'lesson') });
+    expect(place(last, null, days())).toEqual(place(last, undefined, days()));
+    expect(place(strengthLeft(false), null)).toEqual(place(strengthLeft(false)));
+  });
+
+  it('lineForDay: kept on a first week back, removed elsewhere, unchanged steps returned as they were', () => {
+    const hard = step('Hills', 1, 20, 'heavy', { instructions: withBack('Hills') });
+    expect(lineForDay(hard, { everyStep: true }, PROFILE)).toBe(hard);
+    // Hard but not high-load: removed, as anywhere the step doesn't take it.
+    expect(lineForDay(hard, { everyStep: false }, PROFILE).instructions).toBe('Do Hills.');
+    expect(lineForDay(hard, null, PROFILE).instructions).toBe('Do Hills.');
+    const plain = step('Notes', 2, 10, 'review');
+    expect(lineForDay(plain, null, PROFILE)).toBe(plain);
+    expect(lineForDay(plain, { everyStep: true }, PROFILE)).toBe(plain);
   });
 });
 

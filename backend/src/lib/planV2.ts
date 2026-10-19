@@ -228,20 +228,29 @@ export async function writeNextWeek(
     ...(options.firstWeekBack ? { firstWeekBack: options.firstWeekBack } : {}),
   });
   if (!days) return days;
-  const placed = handOn && profile ? placeHandedOn(goal.id, next.weekNumber, days, handOn, profile) : days;
-  if (!options.firstWeekBack?.highLoad) return placed;
+  // M1.5a review: the goal's load is worked out once (`goalLoad` in `writeWeekAfter`); the line acts only for a high-load goal.
+  const back = options.firstWeekBack?.highLoad ? { everyStep: options.firstWeekBack.everyStep } : null;
+  const placed = handOn && profile ? placeHandedOn(goal.id, next.weekNumber, days, handOn, profile, back) : days;
+  if (!back) return placed;
   try {
     // WU-29 (1), WU-35 (2): after the call and the placement, so a carried step gets the line too. Never fails the week.
-    return withFirstWeekBackLines(placed, profile, isHighLoadGoal(goal));
+    return withFirstWeekBackLines(placed, profile, back.everyStep);
   } catch (err) {
     console.error('[PlanV2] Could not add the first-week-back line:', err);
     return placed;
   }
 }
 
-function placeHandedOn(goalId: string, weekNumber: number, days: WeekDayPlan[], handOn: NonNullable<ReturnType<typeof readHandoff>>, profile: RecoveryProfile) {
+function placeHandedOn(
+  goalId: string,
+  weekNumber: number,
+  days: WeekDayPlan[],
+  handOn: NonNullable<ReturnType<typeof readHandoff>>,
+  profile: RecoveryProfile,
+  firstWeekBack: { everyStep: boolean } | null
+) {
   try {
-    const placement = placeHandoff({ days, handoff: handOn.handoff, profile, lastWeek: handOn.tasks });
+    const placement = placeHandoff({ days, handoff: handOn.handoff, profile, lastWeek: handOn.tasks, firstWeekBack });
     logWaits(goalId, weekNumber, placement.waiting);
     return placement.days;
   } catch (err) {

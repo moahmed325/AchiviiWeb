@@ -8,8 +8,7 @@ import { phaseGate, readRoutine, readStoredRoadmap, saveWeekTasks, weekStartFor,
 import { ensureRecoveryProfile } from '../recovery/store.js';
 import { methodRecoveryEnabled } from '../recovery/switch.js';
 import { weekCloseEnabled } from './switch.js';
-import { BREAK_FROM_GAP_DAYS, WELCOME_BACK_INSIGHT, breakLength, firstWeekBackFor } from './breaks.js';
-import { isHighLoadGoal } from '../highLoad.js';
+import { BREAK_FROM_GAP_DAYS, WELCOME_BACK_INSIGHT, breakLength, firstWeekBackFor, goalLoad } from './breaks.js';
 
 /**
  * Weekly update M1.2a (RULE-9, WU-27): the one way a week closes, by the weekly review or automatically. The week after
@@ -145,7 +144,7 @@ export async function writeWeekAfter(
   // M1.3a (RULE-1, MR-14): an older goal gets its recovery profile here; never blocks the close.
   const recovery = await ensureRecoveryProfile(goal);
   // M1.5a (WU-25 (3), WU-29, WU-35): after a break the week writer is told the days away and the return rule's note.
-  const back = move && move.breakDays !== null ? firstWeekBackFor(recovery, move.breakDays, isHighLoadGoal(goal)) : null;
+  const back = move && move.breakDays !== null ? firstWeekBackFor(recovery, move.breakDays, goalLoad(goal, recovery)) : null;
   if (back) console.log(`[WeekClose] goal ${goal.id} week ${weekNumber} break breakDays ${back.awayDays} rule ${back.length ?? 'none'} highLoad ${back.highLoad}`);
   // M3.1d review: with the method switch on, the week before too, so a break across the week change is seen. Never
   // fails the close: without it, the handoff only sees this week.
