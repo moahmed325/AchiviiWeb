@@ -2,6 +2,7 @@ import type { DailyTask, Goal, Prisma, RoadmapWeek as RoadmapWeekRow } from '@pr
 import { prisma } from './prisma.js';
 import {
   formatTarget,
+  lightTestSession,
   TOTAL_WEEKS,
   type ChosenMethod,
   type PlanAnswer,
@@ -113,18 +114,23 @@ export function readRoutine(goal: Pick<Goal, 'routine'>): Required<Pick<RoutineS
 }
 
 /** The logged `RoadmapWeek.testResult` as a line for the week writer, or null when none is stored in a usable shape. */
-function loggedResult(testResult: unknown, testDayNote: string | undefined): string | null {
+function loggedResult(testResult: unknown, testDayNote: string | undefined, light = false): string | null {
   if (!testResult || typeof testResult !== 'object' || Array.isArray(testResult)) return null;
   const { value, passed, unit, note } = testResult as Record<string, unknown>;
   if ((typeof value !== 'string' && typeof value !== 'number') || String(value).trim() === '' || typeof passed !== 'boolean') return null;
   const amount = typeof unit === 'string' && unit.trim() ? `${String(value).trim()} ${unit.trim()}` : String(value).trim();
   const theirNote = typeof note === 'string' && note.trim() ? note.trim() : testDayNote;
+  // M2.1 review (WU-43 (2)): a light test is done plus a note, never passed or not against the target.
+  if (light) return `light test done${theirNote ? `; their note: "${theirNote}"` : ''}`;
   return `test logged: ${amount}, ${passed ? 'passed' : 'not passed'}${theirNote ? `; their note: "${theirNote}"` : ''}`;
 }
 
-/** B-61: the logged result first (the review's or a late test's), then the test day's notes. */
-function lastWeekResult(testDay: DailyTask | undefined, testResult: unknown): string {
-  const logged = loggedResult(testResult, testDay?.notes?.trim() || undefined);
+/**
+ * B-61: the logged result first (the review's or a late test's), then the test day's notes. M2.1: `light`, last week's
+ * test was a light test; a logged one reads "light test done", an unlogged one as before.
+ */
+export function lastWeekResult(testDay: DailyTask | undefined, testResult: unknown, light = false): string {
+  const logged = loggedResult(testResult, testDay?.notes?.trim() || undefined, light);
   if (logged) return logged;
   if (!testDay) return 'no test day this week';
   if (testDay.status !== 'completed') return 'the weekly test was not done';
@@ -199,6 +205,9 @@ export async function writeNextWeek(
   const handOn = methodRecoveryEnabled() && profile ? readHandoff(finishedTasks, weekBefore, profile, readRecoveryProfile(goal.roadmap) ?? profile) : null;
   const brief = handOn ? handoffBrief(handOn.handoff) : [];
 
+  // M2.1 (WU-43 (5)): the session a light week's test belongs to; nothing for any other week.
+  const lastLight = (done?.test as unknown as WeekTest | null)?.light === true;
+  const session = lightTestSession(next.test as unknown as WeekTest, goal.rawGoal, goal.clarifiedOutcome);
   const days = await generateWeekPlan({
     finalGoal: stored.finalGoal,
     answers: stored.answers,
@@ -218,7 +227,9 @@ export async function writeNextWeek(
     lastWeek: done?.target
       ? {
           target: done.target as unknown as WeekTarget,
-          result: lastWeekResult(finishedTasks.find((task) => task.isTestDay), done.testResult),
+          // M2.1: only a light test adds the key, so a goal created before M2.1 gets exactly the input it had.
+          ...(lastLight ? { lightTest: true } : {}),
+          result: lastWeekResult(finishedTasks.find((task) => task.isTestDay), done.testResult, lastLight),
           done: practice.filter((task) => task.status === 'completed').length,
           planned: practice.length,
           keySessionsSkipped: practice
@@ -228,6 +239,7 @@ export async function writeNextWeek(
         }
       : undefined,
     ...(brief.length > 0 ? { whereTheyAre: brief } : {}),
+    ...(session ? { testSession: session } : {}),
     ...(options.firstWeekBack ? { firstWeekBack: options.firstWeekBack } : {}),
   });
   if (!days) return days;

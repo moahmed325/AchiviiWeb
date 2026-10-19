@@ -27,3 +27,22 @@ describe('a week with no score (weekly update M1.4)', () => {
     expect(screen.getByText('Milestone Achieved')).toBeInTheDocument();
   });
 });
+
+// Weekly update M2.1 (requirement 8): a light week shows its target as the next check.
+describe('a light week in the review summary (M2.1)', () => {
+  const target = { kind: 'number' as const, metric: '10K time', value: 65, unit: 'minutes', direction: 'lower_is_better' as const };
+  const test = { type: 'timer' as const, instructions: "Run this week's long run as written.", passIf: 'Done as written' };
+
+  it('shows "Next check, week {n}: {target}" in place of the target', () => {
+    render(<ReviewSummaryCard scorePercentage={80} completedSessions={4} totalActiveSessions={5} weekNumber={6} target={target} test={{ ...test, light: true }} />);
+    expect(screen.getByText('Next check, week 8: 10K time: 65 minutes or less')).toBeInTheDocument();
+    expect(screen.queryByText('Target')).not.toBeInTheDocument();
+  });
+
+  it('a test without the light key shows the target as before', () => {
+    render(<ReviewSummaryCard scorePercentage={80} completedSessions={4} totalActiveSessions={5} weekNumber={6} target={target} test={test} />);
+    expect(screen.getByText('Target')).toBeInTheDocument();
+    expect(screen.getByText('10K time: 65 minutes or less')).toBeInTheDocument();
+    expect(screen.queryByText(/Next check/)).not.toBeInTheDocument();
+  });
+});

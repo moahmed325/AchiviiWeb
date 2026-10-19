@@ -146,3 +146,67 @@ describe('ReviewTestResultStep Component (Milestone M7.5 — OD-1a Benchmark Ent
     expect(onChange).toHaveBeenCalledWith(null);
   });
 });
+
+// Weekly update M2.1 (requirements 7, 8): a light week's entry in the review.
+describe('ReviewTestResultStep in a light week (M2.1)', () => {
+  const target: WeekTarget = { kind: 'number', metric: '10K time', value: 65, unit: 'minutes', direction: 'lower_is_better' };
+  const lightTest: WeekTest = { type: 'timer', instructions: "Run this week's long run as written.", passIf: 'Done as written', light: true };
+
+  const Controlled = ({ onSave }: { onSave: (result: WeeklyTestResult | null) => void }) => {
+    const [result, setResult] = useState<WeeklyTestResult | null>(null);
+    return (
+      <ReviewTestResultStep
+        weekNumber={2}
+        target={target}
+        test={lightTest}
+        testResult={result}
+        onChange={(next) => {
+          setResult(next);
+          onSave(next);
+        }}
+      />
+    );
+  };
+
+  it('shows the light test, the next check, a note and one "I did it"; no number field and no comparison', () => {
+    render(<Controlled onSave={vi.fn()} />);
+    expect(screen.getByText("Run this week's long run as written.")).toBeInTheDocument();
+    expect(screen.getByText('Next check, week 4: 10K time: 65 minutes or less')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Note/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'I did it' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByLabelText('Your result')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Met target' })).toBeNull();
+    expect(screen.queryByText(/Pass if/)).toBeNull();
+    expect(screen.queryByTestId('target-comparison-summary')).toBeNull();
+  });
+
+  it('"I did it" saves Done with the note; a later note change updates it; Clear leaves it unlogged', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<Controlled onSave={onSave} />);
+    await user.type(screen.getByLabelText(/Note/), 'Easy');
+    expect(onSave).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'I did it' }));
+    expect(onSave).toHaveBeenLastCalledWith({ value: 'Done', passed: true, note: 'Easy' });
+    expect(screen.getByRole('button', { name: 'I did it' })).toHaveAttribute('aria-pressed', 'true');
+    await user.type(screen.getByLabelText(/Note/), '!');
+    expect(onSave).toHaveBeenLastCalledWith({ value: 'Done', passed: true, note: 'Easy!' });
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(onSave).toHaveBeenLastCalledWith(null);
+  });
+
+  it('with no note, "I did it" saves Done with no note', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(<Controlled onSave={onSave} />);
+    await user.click(screen.getByRole('button', { name: 'I did it' }));
+    expect(onSave).toHaveBeenLastCalledWith({ value: 'Done', passed: true });
+  });
+
+  it('a test without the light key renders the number entry as before', () => {
+    render(<ReviewTestResultStep weekNumber={2} target={target} test={{ ...lightTest, light: undefined }} testResult={null} onChange={vi.fn()} />);
+    expect(screen.getByLabelText('Your result')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'I did it' })).toBeNull();
+    expect(screen.queryByText(/Next check/)).toBeNull();
+  });
+});

@@ -302,6 +302,11 @@ export interface WeekTest {
   type: 'typing_test' | 'quiz' | 'timer' | 'count' | 'photo' | 'video';
   instructions: string;
   passIf: string;
+  /**
+   * Weekly update M2.1 (RULE-19, WU-43): a light test, logged as done plus a note, never against the target; the week's
+   * target is then the next check's (`lib/lightTest.ts`). Missing means false (goals created before M2.1, custom goals).
+   */
+  light?: boolean;
 }
 
 export interface RoadmapWeek {

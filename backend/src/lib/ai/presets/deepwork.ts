@@ -269,6 +269,14 @@ export const deepWorkPreset: CertifiedPresetBlueprint = {
       workoutArchetypes: []
     }
   ],
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'count',
+      instructions:
+        "From this week's session log, add up your focused, uninterrupted work (no phone, no email) and note your longest single block. Check it against your target: {target}",
+    },
+  },
   expertPromptContext: `
 ================================================================================
 EXPERT COGNITIVE PERFORMANCE & DEEP WORK ARCHITECT CONTEXT

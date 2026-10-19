@@ -185,6 +185,20 @@ export const speechPreset: CertifiedPresetBlueprint = {
         'Great orators don’t pace aimlessly. They plant their feet to deliver critical punches, use open palms to invite connection, and take two steps to signify a new narrative act.'
     }
   },
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'video',
+      instructions:
+        'Record yourself giving the full talk once, start to finish, as if to the real audience. Play it back, count your filler words and note how long it ran. Target: {target}',
+    },
+    light: {
+      type: 'video',
+      instructions:
+        "Record yourself giving this week's section of the talk once. Play it back, count your filler words (um, uh, like, you know) and note one thing to fix.",
+      session: 'the section practice (a session with the talk)',
+    },
+  },
   expertPromptContext: `You are generating a certified 12-week public speaking roadmap to deliver an unforgettable 15-minute TED-style keynote speech.
 Follow the 5-Step Master Blueprint Protocol strictly:
 1. Ground every week in Carmine Gallo Talk Like TED, Toastmasters International vocal dynamics, and Nancy Duarte Sparkline structure.

@@ -17,6 +17,12 @@ export interface WeekTest {
   type: TestType;
   instructions: string;
   passIf: string;
+  /**
+   * Weekly update M2.1 (RULE-19, WU-43): a split pathway's light test, logged as done plus a note, never a number
+   * against the target; the week's target is then the next check's (`nextCheckWeek`). Missing means false: every
+   * goal created before M2.1, and every custom goal.
+   */
+  light?: boolean;
 }
 
 export interface RoadmapPhase {
@@ -342,21 +348,23 @@ ${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
      Counts that stay at 0 until late (sales, users, subscribers, customers, orders) can't be counted in week 1: use
      deliverables for all 12 weeks (what gets built, launched or sent each week), and make week 12's the number,
      e.g. "50 sales of the template".
-     Exams: one measure every week, e.g. metric "Practice test score", unit "percent"; topic quizzes and full mock
-     exams both report that same percent. Never switch to questions, topics or hours.${
+     Exams: one measure every week, e.g. metric "Practice test score", unit "percent"; the short weekly quiz and the
+     full mock exam in weeks 4, 8 and 12 both report that same percent. Never switch to questions, topics or hours.${
        statedTargets.length
          ? `\n     They named ${statedTargets.map((item) => `"${item.phrase}"`).join(', ')}: count every week in that unit, or use deliverables. Never another unit.`
          : ''
      }
      "metric" names what is measured ("Typing speed", "5K time"); "unit" is its unit ("words per minute", "minutes").
    - "test": { "type": "typing_test" | "quiz" | "timer" | "count" | "photo" | "video", "instructions", "passIf" }.
+     The test is part of a normal session, needs no special tools and is short: no all-out effort, no max and nothing
+     to failure. Any harder test (a full mock exam, a full run-through) goes only in weeks 4, 8 and 12.
      Prefer tests the app runs itself, then proof (photo, video), then a count. Use the same type every week.
    How the targets climb:
    - Week 1 starts just above where they are now: an early win, not a leap.
    - Steps are small in weeks 1 to 3, larger in the middle, and smaller again before the final test.
    - Never go backwards: each week's target is at least as good as the week before. A lighter week (a taper, a
-     deload, a review week) or a harder test (a full mock exam after topic quizzes) keeps the previous week's target;
-     it never lowers it. Week 12's target is the finalGoal.
+     deload, a review week) or the harder test in week 4, 8 or 12 keeps the previous week's target; it never lowers
+     it. Week 12's target is the finalGoal.
    - A target is what they can do on that week's test (the longest distance in one go, the best time, the score),
      not how much they train that week. For distance and endurance goals, a taper or recovery week trains less but
      its target stays at the previous week's distance or time.
@@ -570,6 +578,11 @@ function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbPr
 export interface RoadmapCheckContext {
   statedTargets: StatedTarget[];
   fixedMethod?: FixedMethod;
+  /**
+   * M2.1 review: the goal's pathway has hand-written tests (`weeklyTests`), which replace the model's after the check
+   * (`withPathwayTests`). The model's tests are then not scanned and not held to one type: they are thrown away.
+   */
+  pathwayTests?: boolean;
 }
 
 /**
@@ -639,7 +652,7 @@ export function checkRoadmapAnswer(
   // B-63 (PSL-1): no week's test breaks a limit the week call checks (the same rules, by week), or that week's call
   // would fail on its own test every time. Hard.
   const testBreaches: string[] = [];
-  for (const week of weeks) {
+  for (const week of context.pathwayTests ? [] : weeks) {
     for (const hit of textSafetyHits(`${week.test.instructions}\n${week.test.passIf}`, week.weekNumber)) {
       logSafetyHit({
         goalId: null,
@@ -690,7 +703,7 @@ export function checkRoadmapAnswer(
   }
 
   const testTypes = new Set(weeks.map((week) => week.test.type));
-  if (testTypes.size > 1 && !lastAttempt) {
+  if (testTypes.size > 1 && !lastAttempt && !context.pathwayTests) {
     return { reason: `Weekly tests use ${[...testTypes].join(', ')}. Use the same test type every week.` };
   }
 
@@ -709,6 +722,59 @@ export function checkRoadmapAnswer(
   };
 
   return { value: { finalGoal, finalTest, startingPoint, method, phases, weeks } };
+}
+
+/** RULE-19: the weeks whose test measures the target on a pathway with light tests (the big test). */
+export const BIG_TEST_WEEKS: readonly number[] = [4, 8, 12];
+/** WU-43 (3): a light test's pass mark, exactly. */
+export const LIGHT_TEST_PASS_IF = 'Done as written';
+
+/** WU-43 (1): the big-test week a week builds toward: weeks 1 to 3 week 4, 5 to 7 week 8, 9 to 11 week 12. */
+export function nextCheckWeek(weekNumber: number): number {
+  return BIG_TEST_WEEKS.find((week) => week >= weekNumber) ?? TOTAL_WEEKS;
+}
+
+/** The pathway a goal is on, as the roadmap call finds it (the raw goal first, then the clarified one). */
+export function pathwayFor(rawGoal: string, workingTitle: string | null | undefined): CertifiedPresetBlueprint | null {
+  return findPresetForGoal(rawGoal) || findPresetForGoal(workingTitle ?? '');
+}
+
+/** WU-43 (5): the session a light week's test belongs to, for the week writer; undefined in any other week. */
+export function lightTestSession(test: Pick<WeekTest, 'light'> | null | undefined, rawGoal: string, workingTitle: string | null | undefined): string | undefined {
+  return test?.light === true ? pathwayFor(rawGoal, workingTitle)?.weeklyTests?.light?.session : undefined;
+}
+
+function fillTarget(template: string, target: WeekTarget): string {
+  return template.split('{target}').join(formatTarget(target).replace(/[.\s]+$/, ''));
+}
+
+/**
+ * Weekly update M2.1 (RULE-19, WU-43 (1), (3), (7)): the pathway's hand-written tests in place of the model's, so only
+ * code decides them. A week whose test measures the target gets the pathway's test with that week's target filled in
+ * and a pass mark naming it. On a pathway with a light test, every week but 4, 8 and 12 gets the light test ("Done as
+ * written", `light: true`) and the next big-test week's target. Week 12's test is the final test. Pure; a custom goal
+ * (no preset, or a preset without tests) is returned as it is.
+ */
+export function withPathwayTests(roadmap: Roadmap, preset: Pick<CertifiedPresetBlueprint, 'weeklyTests'> | null | undefined): Roadmap {
+  const tests = preset?.weeklyTests;
+  if (!tests) return roadmap;
+  const targetOf = new Map(roadmap.weeks.map((week) => [week.weekNumber, week.target]));
+  const weeks = roadmap.weeks.map((week): RoadmapWeek => {
+    if (tests.light && !BIG_TEST_WEEKS.includes(week.weekNumber)) {
+      const check = targetOf.get(nextCheckWeek(week.weekNumber)) ?? week.target;
+      return {
+        ...week,
+        target: { ...check },
+        test: { type: tests.light.type, instructions: tests.light.instructions, passIf: LIGHT_TEST_PASS_IF, light: true },
+      };
+    }
+    return {
+      ...week,
+      test: { type: tests.measured.type, instructions: fillTarget(tests.measured.instructions, week.target), passIf: formatTarget(week.target) },
+    };
+  });
+  const week12 = weeks.find((week) => week.weekNumber === TOTAL_WEEKS);
+  return { ...roadmap, weeks, finalTest: week12 ? week12.test.instructions : roadmap.finalTest };
 }
 
 /** The method a preset already follows: its badge names it, its frameworks describe it. */
@@ -734,7 +800,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
     return { ok: false, reason: 'This goal is outside what Achivii can plan safely.', unsafe: true };
   }
 
-  const preset = findPresetForGoal(input.rawGoal) || findPresetForGoal(input.workingTitle);
+  const preset = pathwayFor(input.rawGoal, input.workingTitle);
   const fixedMethod = preset ? presetMethod(preset) : undefined;
   const statedTargets = extractStatedTargets(
     `${input.rawGoal}. ${isSkippedAnswer(successAnswer) ? '' : successAnswer}`
@@ -747,13 +813,15 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
     ROADMAP_SYSTEM,
     ROADMAP_RESPONSE_SCHEMA,
     (data, lastAttempt) => {
-      const verdict = checkRoadmapAnswer(data, { statedTargets, fixedMethod }, lastAttempt);
+      const verdict = checkRoadmapAnswer(data, { statedTargets, fixedMethod, pathwayTests: Boolean(preset?.weeklyTests) }, lastAttempt);
       lowSafety = 'reason' in verdict && verdict.reason.startsWith('"safety" is');
       return verdict;
     },
     'Roadmap'
   );
-  if (roadmap) return { ok: true, roadmap };
+  // M2.1: the pathway's tests and light-week targets go in after the check, so the 40% week-1 rule (MAX_WEEK1_SHARE)
+  // reads the model's own climb: on a split pathway week 1 shows week 4's target, as "Next check, week 4".
+  if (roadmap) return { ok: true, roadmap: withPathwayTests(roadmap, preset) };
   if (lowSafety) {
     return {
       ok: false,

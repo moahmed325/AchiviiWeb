@@ -17,6 +17,7 @@ import { ReviewReflectionStep } from './ReviewReflectionStep';
 import { AdaptationMomentStep } from './AdaptationMomentStep';
 import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
 import { isRestLike } from '../../lib/today';
+import { isLightTest } from '../../lib/lightTest';
 
 export interface WeeklyReviewModalProps {
   isOpen: boolean;
@@ -329,6 +330,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
               theme={activeWeek?.theme}
               target={activeWeek?.target}
               test={activeWeek?.test}
+              weekNumber={currentWeekNum}
             />
 
             <ReviewTestResultStep
@@ -337,6 +339,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
               testResult={testResult}
               onChange={handleTestResultChange}
               disabled={isSubmitting}
+              weekNumber={currentWeekNum}
             />
 
             <ReviewReflectionStep
@@ -356,6 +359,8 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
             nextWeekTarget={nextRoadmapWeek?.target}
             currentWeekTarget={activeWeek?.target}
             testResult={adaptationData?.testResult ?? testResult}
+            currentWeekLight={isLightTest(activeWeek?.test)}
+            nextWeekLight={isLightTest(nextRoadmapWeek?.test)}
             milestoneGateTransition={adaptationData?.milestoneGateTransition}
             onContinue={handleFinish}
           />

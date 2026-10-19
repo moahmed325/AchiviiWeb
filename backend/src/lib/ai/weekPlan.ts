@@ -14,6 +14,7 @@ import {
 import {
   formatAnswerLines,
   formatTarget,
+  nextCheckWeek,
   type ChosenMethod,
   type PlanAnswer,
   type RoadmapPhase,
@@ -80,6 +81,8 @@ export interface WeekDayPlan extends DailyTaskPlan {
 
 export interface LastWeekSummary {
   target: WeekTarget;
+  /** M2.1 (WU-43 (2)): last week's test was a light test, so its result is not a result against the target. */
+  lightTest?: boolean;
   result: string;
   done: number;
   planned: number;
@@ -124,6 +127,11 @@ export interface WeekCallInput {
    * (`ScanOptions.light`): the weeks 1 to 3 rules and the time-trial rule, a sentence copied from the stored test refused.
    */
   firstWeekBack?: Pick<FirstWeekBack, 'awayDays' | 'note' | 'highLoad'>;
+  /**
+   * Weekly update M2.1 (WU-43 (5)): in a light week (`test.light`), the session the pathway's light test belongs to
+   * ("the long run"), which goes on the test day. Told, never checked.
+   */
+  testSession?: string;
   /** B-63: only for the `[Safety]` log line; logged as null when not given. */
   goalId?: string;
 }
@@ -204,7 +212,9 @@ function lastWeekBlock(input: WeekCallInput): string {
   const lines = [
     '',
     'LAST WEEK',
-    `Target: ${formatTarget(last.target)}. Result: ${last.result}. Sessions done: ${last.done} of ${last.planned}.`,
+    last.lightTest
+      ? `Next check: ${formatTarget(last.target)}. Light test (not a check of the target): ${last.result}. Sessions done: ${last.done} of ${last.planned}.`
+      : `Target: ${formatTarget(last.target)}. Result: ${last.result}. Sessions done: ${last.done} of ${last.planned}.`,
     `Key sessions skipped: ${last.keySessionsSkipped.length ? last.keySessionsSkipped.join('; ') : 'none'}.`,
   ];
   if (last.note) lines.push(`Coach's note: ${last.note}`);
@@ -298,6 +308,20 @@ function whereTheyAreBlock(input: WeekCallInput): string {
   return ['', '', 'WHERE THEY ARE (from last week; code acts on this after you answer, nothing here is checked)', ...input.whereTheyAre].join(NL);
 }
 
+/**
+ * M2.1 (WU-43 (1), (5)): a light week names the next check's target as something to build toward, not to test; any
+ * other week (every goal created before M2.1 included) reads exactly as before.
+ */
+function thisWeekTestLines(input: WeekCallInput): string {
+  if (!input.test.light) {
+    return `Target: ${formatTarget(input.target)}${NL}Weekly test: ${input.test.instructions}. Pass if: ${input.test.passIf}`;
+  }
+  return [
+    `Next check (week ${nextCheckWeek(input.weekNumber)}): ${formatTarget(input.target)}. Build toward it; it is not tested this week.`,
+    `Weekly test (the light test, done as written; no number against the target): ${input.test.instructions}`,
+  ].join(NL);
+}
+
 function buildBaseWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string {
   const method = input.method.creator ? `${input.method.name} by ${input.method.creator}` : input.method.name;
   const activeNames = layout.filter((day) => !day.isRestDay).map((day) => day.dayOfWeek).join(', ');
@@ -315,8 +339,7 @@ ${input.method.rules.map((rule) => `- ${rule}`).join('\n')}
 THIS WEEK
 Week ${input.weekNumber} of ${input.totalWeeks}, phase "${input.phase.name}": ${input.phase.purpose}
 Focus: ${input.focus}
-Target: ${formatTarget(input.target)}
-Weekly test: ${input.test.instructions}. Pass if: ${input.test.passIf}
+${thisWeekTestLines(input)}
 ${lastWeekBlock(input)}
 
 THE DAYS (already decided; keep them)
@@ -325,8 +348,11 @@ ${dayLines(layout)}
 WRITE THE WEEK
 - 7 days, dayNumber 1-7, exactly as listed above.
 - The test day's main step is ${input.firstWeekBack?.highLoad ? 'a light version of the weekly test above (see FIRST WEEK BACK)' : 'the weekly test exactly as written above'}, titled "Weekly test: ...", with a
-  short warm-up before it (5 minutes or less) and a short step after it (5 minutes or less) that compares the
-  result with the target. The test day may be shorter than ${input.dailyMinutes} minutes; do not pad it.
+  short warm-up before it (5 minutes or less) and a short step after it (5 minutes or less) that ${
+    input.test.light ? 'notes how it went; it does not compare anything with the target' : `compares the${NL}  result with the target`
+  }. The test day may be shorter than ${input.dailyMinutes} minutes; do not pad it.${
+    input.test.light && input.testSession ? `${NL}- The light test belongs to ${input.testSession}: the test day is that session, with the test as its main step.` : ''
+  }
 - Mark 1-2 practice days (not the test day) as key sessions ("isKeySession": true): the hardest sessions that
   matter most for the target. Put them mid-week.
 - Each practice day has:

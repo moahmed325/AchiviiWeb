@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2, Clock, RotateCcw, Target } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Field, Input } from '../ui/Field';
 import { cx } from '../ui/cx';
 import type { WeekTarget, WeekTest, WeeklyTestResult } from '../../types';
 import { formatPassIf, formatTarget } from '../../lib/formatters';
+import { isLightTest, lightTestResult } from '../../lib/lightTest';
+import { LightTestEntry } from './LightTestEntry';
 
 export interface ReviewTestResultStepProps {
   target?: WeekTarget | null;
@@ -12,7 +14,58 @@ export interface ReviewTestResultStepProps {
   testResult: WeeklyTestResult | null;
   onChange: (result: WeeklyTestResult | null) => void;
   disabled?: boolean;
+  /** M2.1: the week the test belongs to; a light week shows "Next check, week {n}" with it. */
+  weekNumber?: number;
 }
+
+/**
+ * M2.1 (requirement 7): a light week's entry in the review: "I did it" sets `{ value: 'Done', passed: true, note }`, which
+ * the review saves with the week; not pressing it leaves the test unlogged, as before.
+ */
+const LightReviewEntry: React.FC<ReviewTestResultStepProps & { test: WeekTest }> = ({ weekNumber, target, test, testResult, onChange, disabled }) => {
+  const [note, setNote] = useState(testResult?.note ?? '');
+  const done = testResult !== null;
+  const onNoteChange = (next: string) => {
+    setNote(next);
+    if (done) onChange(lightTestResult(next));
+  };
+  return (
+    <LightTestEntry
+      weekNumber={weekNumber}
+      target={target}
+      test={test}
+      note={note}
+      onNoteChange={onNoteChange}
+      disabled={disabled}
+      action={
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant={done ? 'primary' : 'secondary'}
+            aria-pressed={done}
+            onClick={() => onChange(lightTestResult(note))}
+            disabled={disabled}
+            leadingIcon={<CheckCircle2 aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0" />}
+          >
+            I did it
+          </Button>
+          {done && (
+            <Button
+              type="button"
+              variant="quiet"
+              size="sm"
+              onClick={() => onChange(null)}
+              disabled={disabled}
+              leadingIcon={<RotateCcw aria-hidden="true" strokeWidth={1.5} className="size-3" />}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      }
+    />
+  );
+};
 
 /**
  * Honest Weekly Benchmark Test & Target Comparison Step (Phase 7 — BP §17, §33, §43, OD-1a).
@@ -25,10 +78,16 @@ export const ReviewTestResultStep: React.FC<ReviewTestResultStepProps> = ({
   testResult,
   onChange,
   disabled = false,
+  weekNumber,
 }) => {
   // If neither target nor benchmark test instructions exist for this week, render nothing
   if (!target && !test) {
     return null;
+  }
+  if (test && isLightTest(test)) {
+    return (
+      <LightReviewEntry weekNumber={weekNumber} target={target} test={test} testResult={testResult} onChange={onChange} disabled={disabled} />
+    );
   }
 
   const defaultUnit = target?.kind === 'number' ? target.unit : undefined;

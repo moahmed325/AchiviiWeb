@@ -4,6 +4,7 @@ import { ArrowRight, Check, ChevronDown, Clock, ExternalLink, Flag, Map as MapIc
 import type { DailyTask, Goal } from '../../types';
 import { useGoal } from '../../context/GoalContext';
 import { formatPassIf } from '../../lib/formatters';
+import { isLightTest, nextCheckLine } from '../../lib/lightTest';
 import {
   currentRoadmapWeek,
   currentWeekTasks,
@@ -578,10 +579,14 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               {task.isTestDay && (
                 <div className="mt-6 rounded-card border border-border bg-background/50 p-5">
                   <h3 className="font-ui-mono text-micro uppercase text-achievement">
-                    {week?.test?.type ? `${week.test.type} Benchmark` : 'Weekly Benchmark'}
+                    {isLightTest(week?.test) ? 'Light test' : week?.test?.type ? `${week.test.type} Benchmark` : 'Weekly Benchmark'}
                   </h3>
                   {week?.test?.instructions && <p className="mt-3 text-small text-text-secondary">{week.test.instructions}</p>}
-                  {week?.test?.passIf && (
+                  {/* M2.1: a light week shows the next check it builds toward, not a pass mark against the target. */}
+                  {isLightTest(week?.test) && week?.target && (
+                    <p className="mt-3 text-small text-text">{nextCheckLine(week.weekNumber, week.target)}</p>
+                  )}
+                  {week?.test?.passIf && !isLightTest(week.test) && (
                     <p className="mt-3 text-small text-text">
                       <span className="font-medium">Pass mark: </span>
                       <span className="text-text-secondary">{formatPassIf(week.test.passIf)}</span>

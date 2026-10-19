@@ -3,6 +3,7 @@ import { Flame } from 'lucide-react';
 import { cx } from '../ui/cx';
 import type { WeekTarget, WeekTest } from '../../types';
 import { formatTarget, formatPassIf } from '../../lib/formatters';
+import { isLightTest, weekTargetText } from '../../lib/lightTest';
 
 export interface ReviewSummaryCardProps {
   /** WU-33 (3): null when the week has no practice day left to count (every day not offered): shown as not counted. */
@@ -12,6 +13,8 @@ export interface ReviewSummaryCardProps {
   theme?: string;
   target?: WeekTarget | null;
   test?: WeekTest | null;
+  /** M2.1: the week shown; a light week's target reads "Next check, week {n}: {target}". */
+  weekNumber?: number;
 }
 
 /**
@@ -26,7 +29,10 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
   theme,
   target,
   test,
+  weekNumber,
 }) => {
+  // M2.1: a light week's target is the next check; without the week number it shows as before.
+  const light = isLightTest(test) && weekNumber !== undefined;
   const notCounted = scorePercentage === null;
   const isEmptyWeek = completedSessions === 0;
   const isHighCompletion = scorePercentage !== null && scorePercentage >= 80;
@@ -83,8 +89,10 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
           )}
           {target && (
             <div className="flex items-start justify-between gap-3 text-small">
-              <span className="text-text-secondary shrink-0">Target</span>
-              <span className="font-medium text-text text-right">{formatTarget(target)}</span>
+              {!light && <span className="text-text-secondary shrink-0">Target</span>}
+              <span className={cx('font-medium text-text', !light && 'text-right')}>
+                {weekNumber !== undefined ? weekTargetText(weekNumber, target, test) : formatTarget(target)}
+              </span>
             </div>
           )}
           {test && (

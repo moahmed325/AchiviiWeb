@@ -1,5 +1,6 @@
 import type { Goal, DailyTask, RoadmapWeek, AchievementSummary, FinalTestEvaluation } from '../types';
 import { isRestLike } from './today';
+import { isLightTest } from './lightTest';
 
 /**
  * Derives verified, real achievement summary metrics from stored goal records.
@@ -28,8 +29,9 @@ export function computeAchievementSummary(goal: Goal): AchievementSummary {
   const totalWeeks = Math.max(12, weeks.length);
 
   // Benchmarks from roadmapWeeks. M1.5b: a jumped week had no test to run, so it is no benchmark.
-  const weeksWithTests = weeks.filter((w) => !w.jumped && (w.test != null || w.testResult != null));
-  const benchmarksAchieved = weeks.filter((w) => w.testResult?.passed === true).length;
+  // M2.1 (WU-43 (2)): a light week's test is done plus a note, not a benchmark against the target.
+  const weeksWithTests = weeks.filter((w) => !w.jumped && !isLightTest(w.test) && (w.test != null || w.testResult != null));
+  const benchmarksAchieved = weeks.filter((w) => !isLightTest(w.test) && w.testResult?.passed === true).length;
   const totalBenchmarks = weeksWithTests.length;
 
   const completedAt = goal.completedAt || goal.updated_at || new Date().toISOString();

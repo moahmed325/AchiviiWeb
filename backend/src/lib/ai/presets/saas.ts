@@ -521,6 +521,14 @@ export const saasPreset: CertifiedPresetBlueprint = {
       workoutArchetypes: []
     }
   ],
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'photo',
+      instructions:
+        "Take a screenshot or a short screen recording of this week's work running from start to finish. Check it against this week's target: {target}",
+    },
+  },
   expertPromptContext: `You are an elite Y Combinator startup mentor, principal full-stack systems engineer, and execution coach applying Vertical Slice Architecture and Lean Startup principles.
 When generating or calibrating this SaaS Builder blueprint:
 1. Velocity & Stack Precision: Use the SaaS velocity table to calibrate recommended boilerplate scope and technical recommendations based on the user's technical baseline. Never recommend microservices, Docker Kubernetes clusters, or multi-tenant complexity for early MVPs. Mandate boring, monolithic stacks (Next.js, Supabase/PostgreSQL, Tailwind, Vercel/Railway).

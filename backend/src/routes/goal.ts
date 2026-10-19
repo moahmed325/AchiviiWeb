@@ -24,7 +24,7 @@ import { isHighLoadGoal } from '../lib/highLoad.js';
 import { formatBasisBadge } from '../lib/research/planGrounding.js';
 import { applySafetyClamps } from '../lib/research/safetyClamps.js';
 import type { VelocityTable } from '../lib/research/types.js';
-import { generateRoadmap, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../lib/ai/roadmap.js';
+import { generateRoadmap, lightTestSession, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../lib/ai/roadmap.js';
 import { activeDaysFor, generateWeekPlan, slotTimeFor, type PlanVariant, type WeekDayPlan } from '../lib/ai/weekPlan.js';
 import {
   dailyTaskRows,
@@ -319,6 +319,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         roadmap,
       });
       const first = roadmap.weeks[0];
+      const firstSession = lightTestSession(first.test, rawGoal, clarifiedOutcome);
       week1 = await generateWeekPlan({
         finalGoal: roadmap.finalGoal,
         answers: answerList,
@@ -333,6 +334,8 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         target: first.target,
         test: first.test,
         weekStart: start,
+        // M2.1 (WU-43 (5)): only a light first week names the session its test belongs to.
+        ...(firstSession ? { testSession: firstSession } : {}),
         highLoadGoal: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
         recovery,
       });

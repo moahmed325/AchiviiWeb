@@ -191,6 +191,14 @@ export const chessPreset: CertifiedPresetBlueprint = {
         'Games under 1200 are won not by brilliant combinations, but by capitalizing on opponent loose pieces and reliably converting basic endgames without allowing stalemate draws.'
     }
   },
+  // Weekly update M2.1 (RULE-19, WU-43): the hand-written weekly test; `{target}` is that week's target.
+  weeklyTests: {
+    measured: {
+      type: 'count',
+      instructions:
+        "After this week's games and puzzles, open the chess site or app you play on and note your rapid rating and your puzzle accuracy. Check them against your target: {target}",
+    },
+  },
   expertPromptContext: `You are generating a certified 12-week chess roadmap to climb from beginner to a verified 1200+ Rapid rating.
 Follow the 5-Step Master Blueprint Protocol strictly:
 1. Ground every week in the Axel Smith Woodpecker Method, Jeremy Silman Imbalance Architecture, and Dan Heisman Real Chess principles.
