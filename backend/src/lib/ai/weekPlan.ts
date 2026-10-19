@@ -4,6 +4,7 @@ import { WEEKLY_TEST_KIND, type RecoveryProfile } from '../recovery/profile.js';
 import { fitStepMinutes } from './scheduleRepair.js';
 import { dayQualityFailures, polishDays } from './taskRules.js';
 import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyHit } from './safetyScan.js';
+import type { FirstWeekBack } from '../weekClose/breaks.js';
 import {
   CALORIE_DEFICIT_MAX,
   CALORIE_DEFICIT_MIN,
@@ -116,6 +117,11 @@ export interface WeekCallInput {
    * checked. Without it the prompt is exactly as before.
    */
   whereTheyAre?: string[];
+  /**
+   * Weekly update M1.5a (WU-25 (3), WU-29 (1)): the first week back after a break, given only with `WEEK_CLOSE_ENABLED`
+   * on. Told, never checked; never a target or a restart level. Without it the prompt is exactly as before.
+   */
+  firstWeekBack?: Pick<FirstWeekBack, 'awayDays' | 'note' | 'highLoad'>;
   /** B-63: only for the `[Safety]` log line; logged as null when not given. */
   goalId?: string;
 }
@@ -259,9 +265,22 @@ function safetyLimitsBlock(input: WeekCallInput): string {
 
 export function buildWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string {
   const prompt = buildBaseWeekPrompt(input, layout) + safetyLimitsBlock(input);
-  if (!input.recovery) return prompt;
+  if (!input.recovery) return prompt + firstWeekBackBlock(input);
   const withKindLine = prompt.replace(HIGH_LOAD_LINE, [HIGH_LOAD_LINE, '  - kind: the id of the kind of step it is, from KINDS OF STEP below'].join(NL));
-  return withKindLine + kindsBlock(input.recovery) + whereTheyAreBlock(input);
+  return withKindLine + kindsBlock(input.recovery) + whereTheyAreBlock(input) + firstWeekBackBlock(input);
+}
+
+/**
+ * M1.5a (WU-25 (3), WU-29 (1)): the days away and the return rule's note; for a high-load goal, the "at or below" line.
+ * Nothing about a target or a restart level (M3.4).
+ */
+export function firstWeekBackBlock(input: Pick<WeekCallInput, 'firstWeekBack'>): string {
+  const back = input.firstWeekBack;
+  if (!back) return '';
+  const lines = ['', '', 'FIRST WEEK BACK (after a break; nothing here is checked)', `- They have been away ${back.awayDays} days. This is their first week back.`];
+  if (back.note) lines.push(`- For the first week back, the method says: ${back.note}`);
+  if (back.highLoad) lines.push('- Keep every session at or below what they last completed.');
+  return lines.join(NL);
 }
 
 /** M3.1d: what last week hands on. Code places the carried steps after the answer; nothing here is checked. */

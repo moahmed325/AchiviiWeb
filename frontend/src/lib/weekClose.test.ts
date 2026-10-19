@@ -43,6 +43,18 @@ describe('the plan end in the moved-plan line', () => {
     expect(fillPlanEnd(LINE, { targetDate: 'nope' } as Pick<Goal, 'targetDate'>, NOW)).toBe('Your next week starts today.');
   });
 
+  it('M1.5a: the welcome-back line gets the same fill, and loses only its date sentence when the date is unreadable', () => {
+    const welcome = 'Welcome back. Your plan picks up from here and now ends on {date}.';
+    expect(fillPlanEnd(welcome, goal, NOW, 'en-US')).toBe('Welcome back. Your plan picks up from here and now ends on December 23.');
+    expect(fillPlanEnd(welcome, { targetDate: 'nope' } as Pick<Goal, 'targetDate'>, NOW)).toBe('Welcome back.');
+    const closed = {
+      ...goal,
+      roadmapWeeks: [{ weekNumber: 2, status: 'completed', closedBy: 'auto', closeLineSeenAt: null }],
+      weeklyReviews: [{ weekNumber: 2, aiAdaptationInsight: welcome }],
+    } as unknown as Goal;
+    expect(closeLineWeek(closed, NOW)?.line).toBe(`Welcome back. Your plan picks up from here and now ends on ${planEndLabel(goal, NOW)}.`);
+  });
+
   it('the line once (closeLineWeek) shows it filled in', () => {
     const closed = {
       ...goal,

@@ -17,6 +17,8 @@ import { isHighLoadGoal } from './highLoad.js';
 import { handoffBrief, placeHandoff, weekHandoff, type HandoffPlacement, type HandoffTask, type WeekHandoff } from './recovery/handoff.js';
 import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
 import { methodRecoveryEnabled } from './recovery/switch.js';
+import { withFirstWeekBackLines } from './recovery/firstWeekBack.js';
+import type { FirstWeekBack } from './weekClose/breaks.js';
 
 /** What `Goal.roadmap` holds for a v2 goal. The 12 weeks live in `RoadmapWeek` rows. */
 export interface StoredRoadmap {
@@ -166,6 +168,9 @@ function logWaits(goalId: string, weekNumber: number, waiting: HandoffPlacement<
  * Until prompt 4 exists there is no coach's note and targets stay as planned.
  * With `METHOD_RECOVERY_ENABLED` on (M3.1d), the writer is also told where the person is, and code places the steps
  * last week hands on into the week the call returns. With it off, the call and the week are exactly as before.
+ * Weekly update M1.5a: `firstWeekBack` (given only after a break, with `WEEK_CLOSE_ENABLED` on) tells the writer the days
+ * away and the return rule's note; for a high-load goal code then puts the first-week-back line on its hard high-load
+ * steps. Without it, the call and the week are exactly as before.
  */
 export async function writeNextWeek(
   goal: Goal & { roadmapWeeks: RoadmapWeekRow[] },
@@ -175,7 +180,8 @@ export async function writeNextWeek(
   /** M2.1: the goal's profile; when not given it is read from the stored roadmap. Null: no kinds (RULE-18). */
   recovery?: RecoveryProfile | null,
   /** M3.1d review: the week before `finishedWeek`, only to see a break that started there. Read only with the switch on. */
-  weekBefore: DailyTask[] = []
+  weekBefore: DailyTask[] = [],
+  options: { firstWeekBack?: FirstWeekBack } = {}
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
   const next = goal.roadmapWeeks.find((week) => week.weekNumber === finishedWeek + 1);
@@ -219,11 +225,33 @@ export async function writeNextWeek(
         }
       : undefined,
     ...(brief.length > 0 ? { whereTheyAre: brief } : {}),
+    ...(options.firstWeekBack ? { firstWeekBack: options.firstWeekBack } : {}),
   });
-  if (!days || !handOn || !profile) return days;
+  if (!days) return days;
+  // M1.5a review: the goal's load is worked out once (`goalLoad` in `writeWeekAfter`); the line acts only for a high-load goal.
+  const back = options.firstWeekBack?.highLoad ? { everyStep: options.firstWeekBack.everyStep } : null;
+  const placed = handOn && profile ? placeHandedOn(goal.id, next.weekNumber, days, handOn, profile, back) : days;
+  if (!back) return placed;
   try {
-    const placement = placeHandoff({ days, handoff: handOn.handoff, profile, lastWeek: handOn.tasks });
-    logWaits(goal.id, next.weekNumber, placement.waiting);
+    // WU-29 (1), WU-35 (2): after the call and the placement, so a carried step gets the line too. Never fails the week.
+    return withFirstWeekBackLines(placed, profile, back.everyStep);
+  } catch (err) {
+    console.error('[PlanV2] Could not add the first-week-back line:', err);
+    return placed;
+  }
+}
+
+function placeHandedOn(
+  goalId: string,
+  weekNumber: number,
+  days: WeekDayPlan[],
+  handOn: NonNullable<ReturnType<typeof readHandoff>>,
+  profile: RecoveryProfile,
+  firstWeekBack: { everyStep: boolean } | null
+) {
+  try {
+    const placement = placeHandoff({ days, handoff: handOn.handoff, profile, lastWeek: handOn.tasks, firstWeekBack });
+    logWaits(goalId, weekNumber, placement.waiting);
     return placement.days;
   } catch (err) {
     // Never a new failure for the review: the week is kept as written.

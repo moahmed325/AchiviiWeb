@@ -18,6 +18,7 @@ import { hasPriority, markerOf, type CarriedStep, type NextWeekRecord } from '..
 import { GAP_MIN_DAYS, type DayClassification } from '../missedSessions.js';
 import { asWritten, keepRecords, PHYSICAL_TEMPLATES, renumber, shiftMarkerOf, takePlace, withWarmUpLine } from './carry.js';
 import { withoutEasyLine } from './easyStart.js';
+import { lineForDay } from './firstWeekBack.js';
 import { describeDay } from './dayText.js';
 import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, writtenNumber } from './inOrder.js';
 import { actionOf, type RecoveryProfile } from './profile.js';
@@ -225,6 +226,12 @@ export function placeHandoff<T extends PlacedDay>(input: {
   handoff: WeekHandoff;
   profile: RecoveryProfile;
   lastWeek: readonly Pick<HandoffTask, 'date' | 'status' | 'isRestDay' | 'steps'>[];
+  /**
+   * Weekly update M1.5a review: set when the new week is a first week back of a high-load goal (`everyStep` for an
+   * `isHighLoadGoal` goal). A placed step then holds the first-week-back line when it takes it; otherwise, or when
+   * not set, it leaves the line behind (`lineForDay`).
+   */
+  firstWeekBack?: { everyStep: boolean } | null;
 }): HandoffPlacement<T> {
   const { profile, handoff } = input;
   const rows = input.days.map((day) => ({ steps: day.detailedSteps as CarriedStep[], durationMinutes: day.durationMinutes }));
@@ -268,10 +275,13 @@ export function placeHandoff<T extends PlacedDay>(input: {
     return true;
   };
 
-  /** The step as code places it: as written, without RULE-21's line, with the warm-up line when physical (MR-31). */
+  /**
+   * The step as code places it: as written, without RULE-21's line, with the first-week-back line exactly when the new
+   * week is a first week back and the step takes it (M1.5a review), then the warm-up line when physical (MR-31).
+   */
   const placedContent = (item: HandoffStep): CarriedStep => {
     const content = asWritten(item.step);
-    const instructions = withoutEasyLine(content.instructions);
+    const instructions = lineForDay({ ...content, instructions: withoutEasyLine(content.instructions) as string }, input.firstWeekBack, profile).instructions;
     return {
       ...content,
       instructions: isPhysical(content) ? withWarmUpLine(instructions) : (instructions as string),

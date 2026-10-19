@@ -13,10 +13,16 @@ export const EASY_START_LINE = 'First hard session after a few days off: keep th
 /** MR-26, MR-31 (2): a moved physical step. After the easy line when both are there. */
 export const MOVED_WARM_UP_LINE = 'Start with an easy 5-minute warm-up and end with 5 easy minutes.';
 
-const STORED_LEADS = [EASY_START_LINE, MOVED_WARM_UP_LINE];
+/**
+ * Weekly update M1.5a (WU-35 (2)): a high-load goal's hard steps in the first week back after a break. Never on a step
+ * with the easy line; before the warm-up line when both are there.
+ */
+export const FIRST_WEEK_BACK_LINE = 'First week back: keep the effort easy today.';
+
+const STORED_LEADS = [EASY_START_LINE, FIRST_WEEK_BACK_LINE, MOVED_WARM_UP_LINE];
 
 export interface StepLines {
-  /** The lines shown first, each on its own line: the continue line, then the stored easy and warm-up lines. */
+  /** The lines shown first, each on its own line: the continue line, then the stored easy (or first-week-back) and warm-up lines. */
   lead: string[];
   /** The rest of the instructions, as stored. */
   body: string;

@@ -41,7 +41,7 @@ import { isRestLike, type DayClassification } from '../missedSessions.js';
 import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, originOf, stepKey, type QueueItem } from './inOrder.js';
 import { actionOf, type RecoveryProfile, type StepRecovery } from './profile.js';
 import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf } from './rules.js';
-import { EASY_START_LINE, easyLineTarget, hasEasyLine, withEasyLine, withoutEasyLine } from './easyStart.js';
+import { EASY_START_LINE, FIRST_WEEK_BACK_LINE, easyLineTarget, hasEasyLine, hasFirstWeekBackLine, withEasyLine, withoutEasyLine } from './easyStart.js';
 import { holdRefusal } from './swap.js';
 
 /** MR-26, MR-31: put first in a moved step's instructions, once, when the step is physical. */
@@ -243,11 +243,15 @@ export function keepRecords(before: readonly CarriedStep[], after: CarriedStep[]
 const textOf = (instructions: unknown) => (typeof instructions === 'string' ? instructions : '');
 const withFirstLine = (line: string, text: string) => (text.trim() ? `${line}\n${text}` : line);
 
-/** MR-26: the warm-up line goes first (after RULE-21's easy line, when present), once; the minutes do not change. */
+/**
+ * MR-26: the warm-up line goes first (after RULE-21's easy line or M1.5a's first-week-back line, when present), once;
+ * the minutes do not change.
+ */
 export function withWarmUpLine(instructions: unknown): string {
   const text = textOf(instructions);
-  if (text.startsWith(MOVED_WARM_UP_LINE) || text.startsWith(`${EASY_START_LINE}\n${MOVED_WARM_UP_LINE}`)) return text;
-  if (text.startsWith(EASY_START_LINE)) return `${EASY_START_LINE}\n${withFirstLine(MOVED_WARM_UP_LINE, text.slice(EASY_START_LINE.length).replace(/^\n/, ''))}`;
+  const lead = [EASY_START_LINE, FIRST_WEEK_BACK_LINE].find((line) => text.startsWith(line));
+  if (text.startsWith(MOVED_WARM_UP_LINE) || (lead && text.startsWith(`${lead}\n${MOVED_WARM_UP_LINE}`))) return text;
+  if (lead) return `${lead}\n${withFirstLine(MOVED_WARM_UP_LINE, text.slice(lead.length).replace(/^\n/, ''))}`;
   return withFirstLine(MOVED_WARM_UP_LINE, text);
 }
 
@@ -708,7 +712,9 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   // is skipped as before.
   let easyStart: PlannedEasyStart | null = null;
   const easyTarget = easyLineTarget({ days: ordered, gap: input.gap, today: input.today, profile }, rowOf);
-  if (easyTarget && !hasEasyLine(rowOf(easyTarget.day.taskId)[easyTarget.index])) {
+  // M1.5a (WU-35 (2)): a step holding the first-week-back line never also gets RULE-21's line.
+  const targetStep = easyTarget ? rowOf(easyTarget.day.taskId)[easyTarget.index] : null;
+  if (easyTarget && targetStep && !hasEasyLine(targetStep) && !hasFirstWeekBackLine(targetStep)) {
     const { day, index } = easyTarget;
     const row = rowOf(day.taskId);
     const steps = row.map((step, i) => (i === index ? { ...step, instructions: withEasyLine(step.instructions) } : step));

@@ -32,8 +32,8 @@ export function fillPlanEnd(line: string, goal: Pick<Goal, 'targetDate'>, now: D
 
 /**
  * The line once (WU-28): the most recently closed week, when it closed automatically and its line wasn't dismissed,
- * with that week's review insight ("Next week is ready. Your targets stay as planned." until P3, or M1.4's moved-plan
- * line with its `{date}` filled in). Null otherwise.
+ * with that week's review insight ("Next week is ready. Your targets stay as planned." until P3, M1.4's moved-plan
+ * line, or M1.5a's welcome-back line after a break, with its `{date}` filled in). Null otherwise.
  */
 export function closeLineWeek(goal: Goal, now: Date = new Date()): { weekNumber: number; line: string } | null {
   const closed = (goal.roadmapWeeks ?? []).filter((w) => w.status === 'completed');

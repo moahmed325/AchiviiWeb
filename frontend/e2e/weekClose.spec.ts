@@ -204,4 +204,40 @@ test.describe('The week close in the app (M1.2b)', () => {
       await page.screenshot({ path: `../docs/features/weekly-update/milestones/m1.4-evidence/moved-line-${info.project.name}.png`, scale: 'css' });
     }
   });
+  // Weekly update M1.5a (RULE-13, section 6 "Back from a break"): back 10 days after week 2 should have started, the
+  // close is a break; the plan moves 10 days, Today says welcome back with the new end date and shows today's step.
+  test('a 10-day break: welcome back with the new end date, and today is week 2 day 1', async ({ page }, info) => {
+    const iso = (offset: number) => {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() + offset);
+      return date.toISOString().slice(0, 10);
+    };
+    const moved = after();
+    const goal = {
+      ...moved,
+      startDate: `${iso(-7)}T00:00:00.000Z`,
+      targetDate: `${iso(83)}T00:00:00.000Z`,
+      dailyTasks: moved.dailyTasks.map((t, index) => ({ ...t, date: iso(index), title: index === 0 ? 'Write the one-page product brief' : t.title })),
+      weeklyReviews: moved.weeklyReviews.map((r) => ({ ...r, aiAdaptationInsight: 'Welcome back. Your plan picks up from here and now ends on {date}.' })),
+    };
+    await mockApi(page, { goal: before(), closeWeek: { check: { due: true, weekNumber: 1, testLogged: true }, goalAfterClose: goal } });
+    await signIn(page);
+    await page.goto('/');
+
+    const end = await page.evaluate((key) => {
+      const [y, m, d] = key.split('-').map(Number);
+      const date = new Date(Date.UTC(y, m - 1, d));
+      return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC', ...(y === new Date().getUTCFullYear() ? {} : { year: 'numeric' }) });
+    }, iso(82));
+    await expect(page.getByText(`Welcome back. Your plan picks up from here and now ends on ${end}.`)).toBeVisible();
+    await expect(page.getByText('{date}', { exact: false })).toHaveCount(0);
+    await expect(page.getByLabel('Day 8 of 90')).toBeVisible();
+    const step = page.getByRole('region', { name: 'Write the one-page product brief' });
+    await expect(step.getByText("Today's step")).toBeVisible();
+    await settled(page);
+    expect(await axeViolations(page), 'axe with the welcome-back line').toEqual([]);
+    if (process.env.EVIDENCE) {
+      await page.screenshot({ path: `../docs/features/weekly-update/milestones/m1.5a-evidence/welcome-back-${info.project.name}.png`, scale: 'css' });
+    }
+  });
 });

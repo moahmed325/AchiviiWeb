@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DailyTask, Goal, MissedSignals, Reconciliation } from '../types';
 import { missNotice, moveNowOffered, todayActions } from './today';
-import { EASY_START_LINE, MOVED_WARM_UP_LINE, continueLine, doneDaysOf, stepLines, visibleDay, visibleSteps } from './stepLines';
+import { EASY_START_LINE, FIRST_WEEK_BACK_LINE, MOVED_WARM_UP_LINE, continueLine, doneDaysOf, stepLines, visibleDay, visibleSteps } from './stepLines';
 
 // Method-aware recovery M3.3: the server's line (`signals.line`) and choices (`carry.choices`), read with the method
 // switch on; with it off (no `line`, no `choices`) everything stays as missed sessions built it (today.test.ts).
@@ -293,6 +293,9 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
     expect(stepLines({ instructions: `${MOVED_WARM_UP_LINE}\nRun.` })).toEqual({ lead: [MOVED_WARM_UP_LINE], body: 'Run.' });
     expect(stepLines({ instructions: EASY_START_LINE })).toEqual({ lead: [EASY_START_LINE], body: '' });
     expect(stepLines({ instructions: 'Run.', continueFrom: { taskId: 'a', date: '2026-09-21' } })).toEqual({ lead: ['Pick up where Monday stopped.'], body: 'Run.' });
+    // M1.5a: the first-week-back line comes off the top too, before the warm-up line.
+    expect(stepLines({ instructions: `${FIRST_WEEK_BACK_LINE}\n${MOVED_WARM_UP_LINE}\nRun.` })).toEqual({ lead: [FIRST_WEEK_BACK_LINE, MOVED_WARM_UP_LINE], body: 'Run.' });
+    expect(FIRST_WEEK_BACK_LINE).toBe('First week back: keep the effort easy today.');
     // Only an exact first line counts.
     expect(stepLines({ instructions: `${EASY_START_LINE} Then run.` })).toEqual({ lead: [], body: `${EASY_START_LINE} Then run.` });
     expect(stepLines({ instructions: 'Run 5 km.' })).toEqual({ lead: [], body: 'Run 5 km.' });

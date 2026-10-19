@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { CarriedStep } from '../src/lib/carryForward.js';
 import type { DayClassification, DayKind } from '../src/lib/missedSessions.js';
-import { EASY_START_LINE, easyLineAfterSwap, easyLineTarget } from '../src/lib/recovery/easyStart.js';
+import { EASY_START_LINE, FIRST_WEEK_BACK_LINE, easyLineAfterSwap, easyLineTarget } from '../src/lib/recovery/easyStart.js';
 import { PROFILE } from './methodProfile.js';
 
 // B-49: RULE-21's target, shared by the carry planner and the swap route, and where the line goes after a swap.
@@ -64,6 +64,25 @@ describe('easyLineAfterSwap (B-49)', () => {
     const after = swapped(before, 'thu', 'sun');
     expect(easyLineAfterSwap({ ...base, gap: null, swapped: ['thu', 'sun'], before, after }).size).toBe(0);
     expect(easyLineAfterSwap({ ...base, profile: null, swapped: ['thu', 'sun'], before, after }).size).toBe(0);
+  });
+
+  it('M1.5a (WU-35 (2)): a swap leaves the first-week-back line where it is and adds no easy line beside it', () => {
+    const back = (title: string): CarriedStep => ({ ...step(title, 'heavy'), instructions: `${FIRST_WEEK_BACK_LINE}\nDo ${title}.` }) as CarriedStep;
+    const before = rows({ fri: [back('fri intervals')], sun: [back('sun hills')] });
+    const after = swapped(before, 'thu', 'sun');
+    expect(easyLineAfterSwap({ ...base, swapped: ['thu', 'sun'], before, after }).size).toBe(0);
+    expect(easyLineAfterSwap({ ...base, swapped: ['thu', 'fri'], before, after: swapped(before, 'thu', 'fri') }).size).toBe(0);
+    expect(after.get('thu')![0].instructions).toBe(`${FIRST_WEEK_BACK_LINE}\nDo sun hills.`);
+  });
+
+  it("M1.5a: RULE-21's line moving to a target that holds the first-week-back line leaves its old step and is not added", () => {
+    const back = { ...step('fri intervals', 'heavy'), instructions: `${FIRST_WEEK_BACK_LINE}\nDo fri intervals.` } as CarriedStep;
+    const before = rows({ thu: [step('thu hills', 'heavy', true)], fri: [back] });
+    const changes = easyLineAfterSwap({ ...base, swapped: ['thu', 'fri'], before, after: swapped(before, 'thu', 'fri') });
+    // Thu now holds the first-week-back step (the target): it keeps only its own line; Fri's step loses RULE-21's line.
+    expect(titlesWithLine(changes)).toEqual([]);
+    expect(changes.get('fri')![0].instructions).toBe('Do thu hills.');
+    expect(changes.has('thu')).toBe(false);
   });
 
   it('the only hard step back swapped later keeps its line: it is still the first hard step back', () => {
