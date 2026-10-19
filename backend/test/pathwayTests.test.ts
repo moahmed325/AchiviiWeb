@@ -64,7 +64,8 @@ interface Climb {
 const CLIMBS: Record<string, Climb> = {
   // A 70-minute runner aiming at 58: week 4 (65) is 5 of the 12-minute climb, above the 40% week-1 share (4.8).
   run10k: { metric: '10K time', unit: 'minutes', direction: 'lower_is_better', start: 70, values: [68.5, 67.5, 66, 65, 64, 63, 62, 61, 60, 59, 58.5, 58], finalGoal: 'Run a 10K in 58 minutes or less' },
-  recomp: { metric: 'Body fat', unit: 'percent', direction: 'lower_is_better', start: 28, values: [27.8, 27.6, 27.4, 27, 26.6, 26.2, 25.8, 25.4, 24.8, 24.2, 23.6, 23], finalGoal: 'Reach 23 percent body fat' },
+  // Plan safety limits M1.2: at most 0.5 points a week, so no week is lowered (the climb used to drop 0.6 in weeks 9 to 12).
+  recomp: { metric: 'Body fat', unit: 'percent', direction: 'lower_is_better', start: 28, values: [27.6, 27.2, 26.8, 26.4, 26, 25.6, 25.2, 24.8, 24.4, 24, 23.5, 23], finalGoal: 'Reach 23 percent body fat' },
   speech: { metric: 'Filler words', unit: 'per minute', direction: 'lower_is_better', start: 8, values: [7.5, 7, 6.5, 6, 5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2], finalGoal: 'Give the full talk at 2 filler words per minute or less' },
   spanish: { metric: 'Conversation', unit: 'minutes', direction: 'higher_is_better', start: 1, values: [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15], finalGoal: 'Hold a 15 minute conversation in Spanish' },
   guitar: { metric: 'Songs from memory', unit: 'songs', direction: 'higher_is_better', start: 0.5, values: [1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5], finalGoal: 'Play 5 songs from memory' },

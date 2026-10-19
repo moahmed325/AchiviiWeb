@@ -4,6 +4,7 @@ import { extractStatedTargets, rowMatchesTarget, type StatedTarget } from '../re
 import { screenQuery } from '../research/safetyFilter.js';
 import type { VelocityTarget } from '../research/types.js';
 import { SAFETY_LIMIT_TEXT, logSafetyHit, textSafetyHits } from './safetyScan.js';
+import { safeTargetClimb } from '../safety/targetSteps.js';
 
 export const TEST_TYPES = ['typing_test', 'quiz', 'timer', 'count', 'photo', 'video'] as const;
 export type TestType = (typeof TEST_TYPES)[number];
@@ -65,6 +66,13 @@ export interface StartingPoint {
   description: string;
 }
 
+/** Plan safety limits M1.2 (PSL-11 Q15): a week whose target code lowered to the safe step, with what the model wrote. */
+export interface LoweredTarget {
+  week: number;
+  model: number;
+  safe: number;
+}
+
 export interface Roadmap {
   finalGoal: string;
   finalTest: string;
@@ -72,6 +80,11 @@ export interface Roadmap {
   method: ChosenMethod;
   phases: RoadmapPhase[];
   weeks: RoadmapWeek[];
+  /**
+   * M1.2 (RULE-2, section 7): the weeks code lowered, kept in `Goal.roadmap` by `storedRoadmap`'s spread. Only on a
+   * roadmap that lowered a target; missing means none (every goal created before M1.2 too).
+   */
+  loweredTargets?: LoweredTarget[];
 }
 
 /** One answer from the wizard. Custom goals use the 4 clarify ids; presets use their own. */
@@ -297,9 +310,11 @@ function statedTargetLines(statedTargets: StatedTarget[]): string {
 function statedTargetWayOut(statedTargets: StatedTarget[]): string {
   const item = statedTargets[0];
   const reach =
-    item.bound === 'at_most'
-      ? `${item.value} ${item.unit} or less`
-      : `${item.value} ${item.unit} or more, only if week 1 already has a count above 0 in it`;
+    item.change === 'lose'
+      ? `${item.value} ${item.unit} below the starting point (or, counting what is lost, ${item.value} ${item.unit} or more)`
+      : item.bound === 'at_most'
+        ? `${item.value} ${item.unit} or less`
+        : `${item.value} ${item.unit} or more, only if week 1 already has a count above 0 in it`;
   const all = statedTargets.map((target) => `"${target.phrase}"`).join(', ');
   return `The user asked for ${all}. Fix it one of two ways, never a mix: (a) number targets in "${item.unit}" for all 12 weeks, week 12 at ${reach}; or (b) deliverable targets for all 12 weeks, with week 12's description naming the number and unit (e.g. "${item.phrase} ..."). Not another unit.`;
 }
@@ -497,12 +512,18 @@ function numberMentioned(textValue: string, value: number): boolean {
   return new RegExp(`(?:^|[^0-9.])(?:${plain}|${withComma})(?:[^0-9]|$)`).test(textValue);
 }
 
-function statedTargetMet(week12: WeekTarget, item: StatedTarget): boolean {
+/**
+ * M1.2 (PSL-5): "lose N <unit>" is met on a body-weight target (lower is better) when week 12 is at or below the
+ * starting point minus N (met when there is no starting point), and on a target that counts the amount lost (higher is
+ * better) when week 12 is at or above N.
+ */
+function statedTargetMet(week12: WeekTarget, item: StatedTarget, start: number | null): boolean {
   if (week12.kind === 'deliverable') {
     return numberMentioned(week12.description, item.value) && item.aliases.some((alias) => week12.description.toLowerCase().includes(alias));
   }
   const row = { metric: week12.metric, unit: week12.unit, value: week12.value } as VelocityTarget;
   if (!rowMatchesTarget(row, item)) return false;
+  if (item.change === 'lose' && week12.direction === 'lower_is_better') return start === null || week12.value <= start - item.value + 1e-9;
   return item.bound === 'at_most' ? week12.value <= item.value : week12.value >= item.value;
 }
 
@@ -583,6 +604,8 @@ export interface RoadmapCheckContext {
    * (`withPathwayTests`). The model's tests are then not scanned and not held to one type: they are thrown away.
    */
   pathwayTests?: boolean;
+  /** M1.2 (PSL-10 (3)): the goal's pathway id; on run10k a time or minutes target counts as running. */
+  pathwayId?: string;
 }
 
 /**
@@ -690,15 +713,31 @@ export function checkRoadmapAnswer(
     for (const week of weeks) if (week.target.kind === 'number') week.target.unit = firstTarget.unit;
   }
 
+  // Plan safety limits M1.2 (RULE-2, PSL-6, PSL-11 Q1, Q2, Q14): code lowers any target that climbs faster than a safe
+  // step, on the model's 12 targets, before the stated-target check and before light weeks copy them
+  // (`withPathwayTests`). Logged only after goal create saves the goal (`logRoadmapTargets`).
+  const modelWeek12 = weeks[TOTAL_WEEKS - 1].target;
+  const climb = safeTargetClimb(
+    weeks.map((week) => week.target),
+    startingPoint.value,
+    { run10k: context.pathwayId === 'run10k' }
+  );
+  weeks.forEach((week, index) => (week.target = climb.targets[index]));
+  const week12Lowered = climb.lowered.some((item) => item.week === TOTAL_WEEKS);
+
   const week12 = weeks[TOTAL_WEEKS - 1].target;
-  // Before the finalGoal check: its retry reason would otherwise anchor the model on the wrong unit.
-  const missed = context.statedTargets.filter((item) => !statedTargetMet(week12, item));
+  // Before the finalGoal check: its retry reason would otherwise anchor the model on the wrong unit. RULE-3: a number
+  // the model's own week 12 met, and only the lowering put out of reach, is accepted at the highest safe step.
+  const missed = context.statedTargets.filter(
+    (item) => !statedTargetMet(week12, item, startingPoint.value) && !(week12Lowered && statedTargetMet(modelWeek12, item, startingPoint.value))
+  );
   if (missed.length > 0) {
     return {
       reason: `Week 12 must reach the number the user asked for: ${missed.map((item) => item.phrase).join(', ')}. ${statedTargetWayOut(missed)}`,
     };
   }
-  if (!lastAttempt && week12.kind === 'number' && !numberMentioned(finalGoal, week12.value)) {
+  // M1.2 (PSL-11 Q2): finalGoal keeps the person's goal when week 12 was lowered, so it is not asked for again.
+  if (!lastAttempt && !week12Lowered && week12.kind === 'number' && !numberMentioned(finalGoal, week12.value)) {
     return { reason: `"finalGoal" must state week 12's target (${formatTarget(week12)}).` };
   }
 
@@ -721,7 +760,9 @@ export function checkRoadmapAnswer(
     candidates,
   };
 
-  return { value: { finalGoal, finalTest, startingPoint, method, phases, weeks } };
+  return {
+    value: { finalGoal, finalTest, startingPoint, method, phases, weeks, ...(climb.lowered.length > 0 ? { loweredTargets: climb.lowered } : {}) },
+  };
 }
 
 /** RULE-19: the weeks whose test measures the target on a pathway with light tests (the big test). */
@@ -813,7 +854,11 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
     ROADMAP_SYSTEM,
     ROADMAP_RESPONSE_SCHEMA,
     (data, lastAttempt) => {
-      const verdict = checkRoadmapAnswer(data, { statedTargets, fixedMethod, pathwayTests: Boolean(preset?.weeklyTests) }, lastAttempt);
+      const verdict = checkRoadmapAnswer(
+        data,
+        { statedTargets, fixedMethod, pathwayTests: Boolean(preset?.weeklyTests), pathwayId: preset?.id },
+        lastAttempt
+      );
       lowSafety = 'reason' in verdict && verdict.reason.startsWith('"safety" is');
       return verdict;
     },

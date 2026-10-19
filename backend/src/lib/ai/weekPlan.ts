@@ -10,7 +10,7 @@ import {
   CALORIE_DEFICIT_MIN,
   EARLY_WEEK_MAX_1RM_PERCENT,
   EARLY_WEEK_MIN_RIR,
-} from '../research/safetyClamps.js';
+} from '../safety/limits.js';
 import {
   formatAnswerLines,
   formatTarget,

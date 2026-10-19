@@ -1,14 +1,16 @@
 import type { VelocityTable, VelocityTarget } from './types.js';
+import {
+  CALORIE_DEFICIT_MAX,
+  CALORIE_DEFICIT_MIN,
+  EARLY_WEEK_MAX_1RM_PERCENT,
+  EARLY_WEEK_MIN_RIR,
+  EARLY_WEEKS,
+  RUN_DISTANCE_STEP_PERCENT,
+} from '../safety/limits.js';
 
 /** Week 1 → week 12 is 11 steps. 10% each step is the running-volume ceiling. */
 const RUNNING_STEPS = 11;
-const MAX_WEEKLY_RUNNING_INCREASE = 1.1;
-
-export const CALORIE_DEFICIT_MIN = 250;
-export const CALORIE_DEFICIT_MAX = 600;
-/** Weeks 1–3 must not open at a true max. Week 12 may still peak higher. */
-export const EARLY_WEEK_MAX_1RM_PERCENT = 80;
-export const EARLY_WEEK_MIN_RIR = 3;
+const MAX_WEEKLY_RUNNING_INCREASE = 1 + RUN_DISTANCE_STEP_PERCENT / 100;
 
 export interface ClampEvent {
   metric: string;
@@ -90,7 +92,7 @@ export function applySafetyClamps(
         field: 'week12',
         original,
         clamped: end.value,
-        rule: 'running volume week-over-week increase capped at 10%',
+        rule: `running volume week-over-week increase capped at ${RUN_DISTANCE_STEP_PERCENT}%`,
       });
     }
 
@@ -103,7 +105,7 @@ export function applySafetyClamps(
           field,
           original: target.value,
           clamped,
-          rule: 'calorie deficit clamped to 250–600 kcal/day',
+          rule: `calorie deficit clamped to ${CALORIE_DEFICIT_MIN}–${CALORIE_DEFICIT_MAX} kcal/day`,
         });
         target.value = clamped;
       };
@@ -119,7 +121,7 @@ export function applySafetyClamps(
         field: 'week1',
         original,
         clamped: start.value,
-        rule: 'weeks 1–3 compound lift capped below 100% 1RM',
+        rule: `weeks 1–${EARLY_WEEKS} compound lift capped below 100% 1RM`,
       });
     }
 
@@ -131,7 +133,7 @@ export function applySafetyClamps(
         field: 'week1',
         original,
         clamped: start.value,
-        rule: 'weeks 1–3 minimum 3 reps in reserve',
+        rule: `weeks 1–${EARLY_WEEKS} minimum ${EARLY_WEEK_MIN_RIR} reps in reserve`,
       });
     }
   }

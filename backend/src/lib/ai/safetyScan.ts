@@ -4,13 +4,21 @@ import {
   CALORIE_DEFICIT_MIN,
   EARLY_WEEK_MAX_1RM_PERCENT,
   EARLY_WEEK_MIN_RIR,
-} from '../research/safetyClamps.js';
+  EARLY_WEEKS,
+} from '../safety/limits.js';
 
 /**
  * B-63 (PSL-1, PSL-2): a narrow stopgap scan of high-load step text for clear breaches of the old safety limits,
  * until docs/features/plan-safety-limits lands. Patterns stay narrow: safe wording must never count.
  */
-export type SafetyRule = 'deficit_over_600' | 'over_80_percent_1rm' | 'rir_below_3' | 'to_failure' | 'max_test' | 'time_trial';
+export type ScanRule = 'deficit_over_600' | 'over_80_percent_1rm' | 'rir_below_3' | 'to_failure' | 'max_test' | 'time_trial';
+
+/**
+ * Every `[Safety]` rule: the text scan's, plus plan-safety-limits M1.2's roadmap target rules (RULE-2, RULE-10):
+ * `target_step` (a target lowered to the safe step), `unknown_family` (a number target no family reads, logged once per
+ * goal) and `no_start` (no starting point, so week 1 is not checked).
+ */
+export type SafetyRule = ScanRule | 'target_step' | 'unknown_family' | 'no_start';
 
 /**
  * Weekly update M1.5b (WU-41): how a week is scanned. `light`: a first week back of a high-load goal, whose test is a
@@ -22,15 +30,15 @@ export interface ScanOptions {
 }
 
 export interface SafetyHit {
-  rule: SafetyRule;
+  rule: ScanRule;
   /** The sentence that matched, at most 120 characters. */
   matched: string;
 }
 
-/** Weeks 1 to 3 hold the early-week limits (PSL-2); from week 4 the method's own range applies. */
-export const EARLY_WEEKS = 3;
+/** Weeks 1 to 3 hold the early-week limits (PSL-2); from week 4 the method's own range applies. Defined in the limits module. */
+export { EARLY_WEEKS };
 
-export const SAFETY_LIMIT_TEXT: Record<SafetyRule, string> = {
+export const SAFETY_LIMIT_TEXT: Record<ScanRule, string> = {
   deficit_over_600: `a calorie deficit of ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more`,
   over_80_percent_1rm: `in weeks 1 to 3, no lift above ${EARLY_WEEK_MAX_1RM_PERCENT}% of 1RM`,
   rir_below_3: `in weeks 1 to 3, at least ${EARLY_WEEK_MIN_RIR} reps in reserve`,
@@ -193,15 +201,21 @@ export function stepSafetyHits(step: Pick<DetailedStep, (typeof SCANNED_FIELDS)[
 export interface SafetyLogLine {
   goalId: string | null;
   week: number;
-  attempt: number;
+  /** The model call's attempt; left out of the roadmap target lines, which are logged once after goal create (M1.2). */
+  attempt?: number;
   rule: SafetyRule;
   step: string;
   matched: string;
+  /** `target_step` only: the model's target and the safe value it was lowered to. */
+  model?: number;
+  safe?: number;
   /**
    * `test_text`: the sentence is the roadmap's own weekly test, which the week must run as written; logged, not refused.
    * `light_test` (M1.5b, WU-41): on the last attempt of a light week the test step was replaced by the fixed light step.
+   * `lowered` (M1.2): a roadmap target was lowered to the safe step. `logged` (M1.2): told only, never refused
+   * (`unknown_family`, `no_start`).
    */
-  outcome: 'retry' | 'failed' | 'test_text' | 'light_test';
+  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged';
 }
 
 /** PSL-1 (3): one line per hit, so the false-alarm rate can be checked in production. */

@@ -86,3 +86,46 @@ describe('stated targets in the goal text', () => {
     expect(targets[0].aliases).toEqual(expect.arrayContaining(['users', 'people']));
   });
 });
+
+// Plan safety limits M1.2 (PSL-5): two-letter units, a body-fat percent, "lose N" and "in N minutes".
+describe('the widened reader (PSL-5)', () => {
+  const read = (goal: string) => extractStatedTargets(goal).map((item) => ({ value: item.value, unit: item.unit, bound: item.bound, change: item.change }));
+
+  it('reads two-letter units after a number: kg, km, lb, mi', () => {
+    expect(read('Squat 100 kg')).toEqual([{ value: 100, unit: 'kg', bound: 'at_least', change: undefined }]);
+    expect(read('Run 10 km without stopping')).toEqual([{ value: 10, unit: 'km', bound: 'at_least', change: undefined }]);
+    expect(read('Bench 225 lb')).toEqual([{ value: 225, unit: 'lb', bound: 'at_least', change: undefined }]);
+    expect(read('Run 3 mi')).toEqual([{ value: 3, unit: 'mi', bound: 'at_least', change: undefined }]);
+    expect(extractStatedTargets('Run 10 km')[0].aliases).toEqual(expect.arrayContaining(['km', 'kilometres', 'kilometers']));
+    expect(extractStatedTargets('Squat 100 kg')[0].aliases).not.toContain('lb');
+  });
+
+  it('reads "lose N" as a change, met against the starting point', () => {
+    expect(read('Lose 10 kg')).toEqual([{ value: 10, unit: 'kg', bound: 'at_least', change: 'lose' }]);
+    expect(read('lose 10kg')).toEqual([{ value: 10, unit: 'kg', bound: 'at_least', change: 'lose' }]);
+    expect(read('Lose 10 pounds')).toEqual([{ value: 10, unit: 'pounds', bound: 'at_least', change: 'lose' }]);
+    expect(extractStatedTargets('Lose 10 pounds')[0].phrase).toBe('10 pounds');
+  });
+
+  it('reads a body-fat percent: a level at most, or a loss after "lose"; not after another change verb', () => {
+    expect(read('Get to 15% body fat')).toEqual([{ value: 15, unit: 'percent', bound: 'at_most', change: undefined }]);
+    expect(read('Reach 15 percent body fat')).toEqual([{ value: 15, unit: 'percent', bound: 'at_most', change: undefined }]);
+    expect(read('Lose 5% body fat')).toEqual([{ value: 5, unit: 'percent', bound: 'at_least', change: 'lose' }]);
+    expect(read('Drop 5% Body Fat & Build Lean Muscle')).toEqual([]);
+    expect(extractStatedTargets('Get to 15% body fat')[0].aliases).toEqual(expect.arrayContaining(['percent', '%']));
+  });
+
+  it('reads "in N minutes" as a time at most, and the distance before it as the event', () => {
+    expect(read('Run 5 km in 25 minutes')).toEqual([{ value: 25, unit: 'minutes', bound: 'at_most', change: undefined }]);
+    expect(read('Run a 10K in 50 minutes')).toEqual([{ value: 50, unit: 'minutes', bound: 'at_most', change: undefined }]);
+    expect(read('Run a 10K in under 50 minutes')).toEqual([{ value: 50, unit: 'minutes', bound: 'at_most', change: undefined }]);
+  });
+
+  it('keeps race names and plan lengths as non-targets', () => {
+    expect(extractStatedTargets('Run a 10K')).toEqual([]);
+    expect(extractStatedTargets('Run a 10 km race')).toEqual([]);
+    expect(extractStatedTargets('Finish my first 5 km parkrun')).toEqual([]);
+    expect(extractStatedTargets('Build a 12 week meditation practice')).toEqual([]);
+    expect(extractStatedTargets('Get fit in 12 weeks')).toEqual([]);
+  });
+});

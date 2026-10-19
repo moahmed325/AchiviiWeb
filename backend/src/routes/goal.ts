@@ -21,6 +21,7 @@ import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import { clarifyGoalWithAI, UserRoutineInput } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
 import { isHighLoadGoal } from '../lib/highLoad.js';
+import { logRoadmapTargets } from '../lib/safety/targetSteps.js';
 import { formatBasisBadge } from '../lib/research/planGrounding.js';
 import { applySafetyClamps } from '../lib/research/safetyClamps.js';
 import type { VelocityTable } from '../lib/research/types.js';
@@ -355,6 +356,11 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         targetDate,
         isPreset: Boolean(preset),
         recovery,
+      });
+      // Plan safety limits M1.2 (RULE-10, AC-10): the accepted roadmap's lowered targets, logged once with the goal id.
+      logRoadmapTargets(createdGoalId, roadmapResult.roadmap, {
+        run10k: preset?.id === 'run10k',
+        highLoad: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
       });
     } else {
       // No silent v1 fallback, for presets either: a plan the AI could not write is an honest "try again", never an

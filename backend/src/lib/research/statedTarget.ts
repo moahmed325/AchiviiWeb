@@ -10,6 +10,11 @@ export interface StatedTarget {
   direction: MetricDirection;
   /** higher targets must reach this by week 12; "under N" must be at or below it. */
   bound: 'at_least' | 'at_most';
+  /**
+   * Plan safety limits M1.2 (PSL-5): "lose N <unit>". Met on a body-weight target when week 12 is at or below the
+   * starting point minus N, or on a target that counts the amount lost when week 12 is at or above N (`statedTargetMet`).
+   */
+  change?: 'lose';
 }
 
 const NUMBER_WORDS: Record<string, number> = {
@@ -98,9 +103,19 @@ function numberToken(raw: string): number | null {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
+/** M1.2 (PSL-5): one unit written several ways. Never a conversion: kg and lb stay apart, as do km and miles. */
+const SAME_UNIT: readonly (readonly string[])[] = [
+  ['km', 'kms', 'kilometre', 'kilometres', 'kilometer', 'kilometers'],
+  ['kg', 'kgs', 'kilo', 'kilos', 'kilogram', 'kilograms'],
+  ['lb', 'lbs', 'pound', 'pounds'],
+  ['mi', 'mile', 'miles'],
+  ['percent', '%', 'percentage'],
+];
+
 function aliasesFor(unit: string): string[] {
   const lower = unit.toLowerCase();
   const aliases = new Set<string>([lower]);
+  for (const group of SAME_UNIT) if (group.includes(lower)) for (const alias of group) aliases.add(alias);
   if (lower.endsWith('s') && lower.length > 3) aliases.add(lower.slice(0, -1));
   else aliases.add(`${lower}s`);
   if (lower === 'words per minute') {
@@ -120,10 +135,20 @@ function target(
   value: number,
   unit: string,
   direction: MetricDirection,
-  bound: StatedTarget['bound']
+  bound: StatedTarget['bound'],
+  change?: StatedTarget['change']
 ): StatedTarget {
-  return { phrase, value, unit, aliases: aliasesFor(unit), direction, bound };
+  return { phrase, value, unit, aliases: aliasesFor(unit), direction, bound, ...(change ? { change } : {}) };
 }
+
+/** M1.2 (PSL-5): "lose" right before the number. */
+const LOSE_BEFORE = /\blos(?:e|ing)\s+$/i;
+/** M1.2: a change verb other than "lose" before a body-fat percent ("drop 5% body fat"): not read as a level. */
+const OTHER_CHANGE_BEFORE = /\b(?:drop|dropping|cut|cutting|reduce|reducing|shed|shedding|burn|burning|lower|lowering|gain|gaining|add|adding)\s+(?:by\s+)?$/i;
+/** M1.2: a distance named as the event, not a result: "a 10 km race", "5 km in 25 minutes", "10 km under an hour". */
+const ARTICLE_BEFORE = /\b(?:a|an|the|my|first|your)\s+$/i;
+const EVENT_AFTER = /^\s*(?:race|run\b|road|event|fun\s+run|parkrun|trail|in\b|under\b|below\b|sub\b|within\b)/i;
+const SHORT_UNIT: Record<string, string> = { kg: 'kg', kgs: 'kg', km: 'km', kms: 'km', lb: 'lb', mi: 'mi' };
 
 /**
  * Pulls a result the user named out of the goal text.
@@ -155,6 +180,51 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
   };
 
   const timeUnit = (raw: string): string => (/hour|hr/i.test(raw) ? 'hours' : /sec/i.test(raw) ? 'seconds' : 'minutes');
+  /** M1.2: spans a newer reader already took, so the "N <noun>" reader below never reads them a second way. */
+  const taken: Array<[number, number]> = [];
+  const isTaken = (at: number) => taken.some(([start, end]) => at >= start && at < end);
+  const beforeAt = (at: number) => goal.slice(Math.max(0, at - 24), at);
+
+  // M1.2 (PSL-5): "in 25 minutes" is a time to beat, at most, like "under 25 minutes".
+  for (const match of goal.matchAll(/\bin\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|min|seconds?|secs?|hours?|hrs?)\b/gi)) {
+    const value = numberToken(match[1]);
+    if (!value) continue;
+    const at = match.index ?? 0;
+    taken.push([at, at + match[0].length]);
+    const unit = timeUnit(match[2]);
+    add(target(`in ${value} ${unit}`, value, unit, 'lower_is_harder', 'at_most'));
+  }
+
+  // M1.2 (PSL-5): a body-fat percent. "15% body fat" is a level to reach, at most; "lose 5% body fat" is a change; after
+  // another change verb ("drop 5% body fat") the number is not read, since it names neither a level nor a loss we check.
+  for (const match of goal.matchAll(/\b(\d+(?:\.\d+)?)\s*(?:%|percent)\s*(?:body\s*-?\s*fat|bodyfat)\b/gi)) {
+    const value = numberToken(match[1]);
+    if (!value) continue;
+    const at = match.index ?? 0;
+    taken.push([at, at + match[0].length]);
+    const before = beforeAt(at);
+    if (LOSE_BEFORE.test(before)) add(target(`${value}% body fat`, value, 'percent', 'higher_is_harder', 'at_least', 'lose'));
+    else if (!OTHER_CHANGE_BEFORE.test(before)) add(target(`${value}% body fat`, value, 'percent', 'lower_is_harder', 'at_most'));
+  }
+
+  // M1.2 (PSL-5): two-letter units after a number: kg, km, lb, mi ("squat 100 kg", "run 10 km", "lose 10kg"). A distance
+  // named as the event ("a 10 km race", "5 km in 25 minutes") is not a target, as "Run a 10K" is not.
+  for (const match of goal.matchAll(/\b(\d+(?:\.\d+)?)\s*(kgs?|kms?|lb|mi)\b/gi)) {
+    const value = numberToken(match[1]);
+    if (!value) continue;
+    const at = match.index ?? 0;
+    const end = at + match[0].length;
+    taken.push([at, end]);
+    const unit = SHORT_UNIT[match[2].toLowerCase()];
+    const before = beforeAt(at);
+    if (LOSE_BEFORE.test(before)) {
+      add(target(`${value} ${unit}`, value, unit, 'higher_is_harder', 'at_least', 'lose'));
+      continue;
+    }
+    if (/\b(?:with|using)\s+$/i.test(before)) continue;
+    if ((unit === 'km' || unit === 'mi') && (ARTICLE_BEFORE.test(before) || EVENT_AFTER.test(goal.slice(end)))) continue;
+    add(target(`${value} ${unit}`, value, unit, 'higher_is_harder', 'at_least'));
+  }
 
   for (const match of goal.matchAll(/\b(?:under|below|less than|sub-?)\s*(\d+(?:\.\d+)?)\s*(minutes?|mins?|min|seconds?|secs?|hours?|hrs?)\b/gi)) {
     const value = numberToken(match[1]);
@@ -189,11 +259,13 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
       if (PRACTICE_FRAME.test(afterUnit)) continue;
     }
     const at = match.index ?? 0;
+    if (isTaken(at)) continue;
     const before = goal.slice(Math.max(0, at - 16), at);
     if (/\b(?:under|below|less than|sub-?)\s*$/i.test(before)) continue;
     if (/\b(?:with|using)\s+$/i.test(before)) continue;
     if (/^words?$/.test(noun) && /per\s+minute/i.test(goal.slice(at, at + match[0].length + 16))) continue;
-    add(target(`${value} ${noun}`, value, noun, 'higher_is_harder', 'at_least'));
+    // M1.2 (PSL-5): "lose 10 pounds" is a change, checked against the starting point.
+    add(target(`${value} ${noun}`, value, noun, 'higher_is_harder', 'at_least', LOSE_BEFORE.test(before) ? 'lose' : undefined));
   }
 
   return found;
