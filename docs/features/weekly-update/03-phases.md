@@ -14,7 +14,7 @@
 | M1.3 | Moved days in every date | — | MOVED to M1.4 (WU-30) | |
 | M1.4 | Moved dates and gaps: days not offered, short gaps move the plan | AC-11, AC-16 | DONE 2026-10-17 | [m1.4](milestones/m1.4-moved-dates-and-gaps.md) |
 | M1.5a | Breaks: the length, the first-week-back note, the high-load hold, welcome back | AC-9 (part), AC-10 (dates), AC-18 (length) | DONE 2026-10-19 | [m1.5a](milestones/m1.5a-breaks-first-week-back.md) |
-| M1.5b | Past the limit: the choice card, jumped weeks, the fresh plan | AC-12 | NOT STARTED | |
+| M1.5b | Past the limit: the choice card, jumped weeks, the fresh plan | AC-12 | DONE 2026-10-19 | [m1.5b](milestones/m1.5b-past-the-limit.md) |
 | O1 | Mo: turn on `WEEK_CLOSE_ENABLED` in Render, then run the P1 production checks | — | NOT STARTED | |
 | M2.1 | Light weekly tests: 10 pathways and the custom-goal rule | AC-20 | NOT STARTED | |
 | M3.1 | The update call and its checks, on the review path (needs B-62) | AC-1, AC-2, AC-3, AC-8, AC-13, AC-15 | NOT STARTED | |
@@ -72,7 +72,7 @@
 
 **M1.5b Past the limit.** The choice card when a break goes past the 28-day limit, "Keep going" with jumped weeks (RULE-15, WU-8, WU-19), and the text-only fresh plan (WU-9, WU-24). Settled by the logic check of 2026-10-19: how far the plan moves and when the card shows, with no week wholly in the past ever written (WU-37); other screens send the person to the card, and past week 12 the card offers the final week (WU-38); no test card after a break (WU-39); jumped weeks shown as "Paused" and the lines (WU-40); a light test in a high-load first week back (WU-41). The P1 release checklist for O1 is written in its review. Covers AC-12. Checks R-1, R-5, R-6, R-7.
 
-**O1.** Not before M1.5a and M1.5b are merged (WU-33: until then a 7+ day break gets a full-load first week back; WU-35). Mo turns on `WEEK_CLOSE_ENABLED` in Render after a P1 release checklist (written in M1.5b's review), then records the production checks here. The checklist includes: the backend (with M1.2a's migration) is deployed before the switch is turned on; a frontend that ships first gets 404 from `/close-week`, which it treats as nothing due (M1.2b review); the `[WeekClose]` log lines show closes by `auto` with their `gapDays`.
+**O1.** Not before M1.5a and M1.5b are merged (WU-33: until then a 7+ day break gets a full-load first week back; WU-35). Mo turns on `WEEK_CLOSE_ENABLED` in Render after the P1 release checklist (M1.5b's Review section), then records the production checks here. The checklist includes: the backend (with M1.2a's migration) is deployed before the switch is turned on; a frontend that ships first gets 404 from `/close-week`, which it treats as nothing due (M1.2b review); the `[WeekClose]` log lines show closes by `auto` with their `gapDays`.
 
 ### P2 Light weekly tests
 
