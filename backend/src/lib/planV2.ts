@@ -2,12 +2,14 @@ import type { DailyTask, Goal, Prisma, RoadmapWeek as RoadmapWeekRow } from '@pr
 import { prisma } from './prisma.js';
 import {
   formatTarget,
+  keyMilestoneText,
   lightTestSession,
   TOTAL_WEEKS,
   type ChosenMethod,
   type PlanAnswer,
   type Roadmap,
   type RoadmapPhase,
+  type LoweredTarget,
   type StartingPoint,
   type WeekTarget,
   type WeekTest,
@@ -15,6 +17,8 @@ import {
 import { activeDaysFor, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
 import { parseStoredSteps } from './carryForward.js';
 import { isHighLoadGoal } from './highLoad.js';
+import { logSafetyHit } from './ai/safetyScan.js';
+import { safeGoalTargets } from './safety/storedTargets.js';
 import { handoffBrief, placeHandoff, weekHandoff, type HandoffPlacement, type HandoffTask, type WeekHandoff } from './recovery/handoff.js';
 import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
 import { methodRecoveryEnabled } from './recovery/switch.js';
@@ -55,7 +59,7 @@ export function roadmapWeekRows(goalId: string, roadmap: Roadmap, dailyMinutes: 
     phase: week.phase,
     theme: week.focus,
     objective: formatTarget(week.target),
-    keyMilestone: `${week.test.instructions} Pass if: ${week.test.passIf}`,
+    keyMilestone: keyMilestoneText(week.test),
     targetIntensity: Math.round(60 + (40 * (week.weekNumber - 1)) / (TOTAL_WEEKS - 1)),
     plannedMinutes: dailyMinutes * activeDaysFor(planVariant),
     target: json(week.target),
@@ -193,9 +197,15 @@ export async function writeNextWeek(
   options: { firstWeekBack?: FirstWeekBack; weekNumber?: number } = {}
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
-  const next = goal.roadmapWeeks.find((week) => week.weekNumber === (options.weekNumber ?? finishedWeek + 1));
-  const done = goal.roadmapWeeks.find((week) => week.weekNumber === finishedWeek);
+  // Plan safety limits M1.3 (RULE-9): an older goal's targets lowered on read; nothing stored changes. A goal with
+  // nothing to lower keeps its stored rows, so the week call gets exactly what it did before.
+  const safe = safeGoalTargets(goal);
+  const weeks = safe?.weeks ?? goal.roadmapWeeks;
+  const next = weeks.find((week) => week.weekNumber === (options.weekNumber ?? finishedWeek + 1));
+  const done = weeks.find((week) => week.weekNumber === finishedWeek);
   if (!stored || !next?.target || !next.test) return null;
+  const loweredNow = safe?.foundNow.find((item) => item.week === next.weekNumber);
+  if (loweredNow) logLoweredOnRead(goal.id, next.target as unknown as WeekTarget, loweredNow);
 
   const routine = readRoutine(goal);
   // WU-13: a day not offered is not part of how the week went (never missed, no status effect).
@@ -254,6 +264,22 @@ export async function writeNextWeek(
     console.error('[PlanV2] Could not add the first-week-back line:', err);
     return placed;
   }
+}
+
+/** RULE-10 as PSL-12 (2) reads it for older goals: one line when a week whose target was lowered on read is written. */
+function logLoweredOnRead(goalId: string, target: WeekTarget, item: LoweredTarget): void {
+  const metric = target.kind === 'number' ? target.metric : '';
+  const unit = target.kind === 'number' ? target.unit : '';
+  logSafetyHit({
+    goalId,
+    week: item.week,
+    rule: 'target_step',
+    step: `Week ${item.week} target`,
+    matched: `${metric}: ${item.model} ${unit} lowered to ${item.safe} ${unit}`,
+    model: item.model,
+    safe: item.safe,
+    outcome: 'lowered_on_read',
+  });
 }
 
 function placeHandedOn(

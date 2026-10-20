@@ -914,3 +914,67 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
     });
   });
 });
+
+// Plan safety limits M1.3 (PSL-9, PSL-12 (4)): the review shows the honest line under next week's target when week 12 is
+// next, and compares a result with the target the server sent (an older goal's lowered target).
+describe('the review and lowered targets (plan safety limits M1.3)', () => {
+  const distance = (value: number) => ({ kind: 'number' as const, metric: 'Long run distance', value, unit: 'km', direction: 'higher_is_better' as const });
+  const response = (weekNumber: number, nextWeekNumber: number): WeeklyReviewResponse => ({
+    review: { id: 'rev', goalId: 'g-1', weekNumber, tasksPlanned: 6, tasksCompleted: 6, scorePercentage: 100, reflection: 'Good.', aiAdaptationInsight: 'Steady.', created_at: '' },
+    scorePercentage: 100,
+    nextWeekNumber,
+    nextWeekTasks: [],
+  });
+  const week11Goal = (week12Line: Goal['week12Line']) => {
+    const goal = createSampleGoal(createSampleTasks(6, 6).map((task) => ({ ...task, weekNumber: 11 })), {
+      weekNumber: 11,
+      target: distance(14.6),
+      test: { type: 'timer', instructions: 'Run it.', passIf: 'Long run distance: 14.6 km' },
+    });
+    return {
+      ...goal,
+      currentWeek: 11,
+      week12Line,
+      roadmapWeeks: [goal.roadmapWeeks![0], { ...goal.roadmapWeeks![1], id: 'rw-12', weekNumber: 12, target: distance(16) }],
+    } as Goal;
+  };
+  const reviewWeek11 = async (week12Line: Goal['week12Line']) => {
+    const user = userEvent.setup();
+    mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(11, 12));
+    render(<WeeklyReviewModal isOpen={true} onClose={vi.fn()} goal={week11Goal(week12Line)} token="test-token" onGoalUpdated={vi.fn()} />);
+    await user.type(screen.getByPlaceholderText(/Morning sessions went well/i), 'Good.');
+    await user.click(screen.getByRole('button', { name: 'Start Week 12' }));
+    await waitFor(() => expect(screen.getByText('Upcoming Week')).toBeVisible());
+  };
+
+  it('week 12 next: the full line under its target', async () => {
+    await reviewWeek11({ safe: '16 km', goal: '21 km' });
+    expect(screen.getByText('Long run distance: 16 km')).toBeVisible();
+    expect(screen.getByText('Week 12 aims at 16 km, a safe step. Your 21 km goal is the next step.')).toBeVisible();
+  });
+
+  it('week 12 next: the short line', async () => {
+    await reviewWeek11({ safe: '16 km', goal: null });
+    expect(screen.getByText('Week 12 aims at 16 km, a safe step.')).toBeVisible();
+  });
+
+  it('week 12 next and nothing lowered: no line', async () => {
+    await reviewWeek11(null);
+    expect(screen.queryByText(/Week 12 aims at/)).not.toBeInTheDocument();
+  });
+
+  it('a result that meets the lowered target (7 km) but not the stored one (10 km) is suggested and sent as passed', async () => {
+    const user = userEvent.setup();
+    mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(1, 2));
+    // The goal as presentGoal sends it: week 1's stored 10 km lowered to 7 km.
+    const goal = createSampleGoal(createSampleTasks(6, 6), {
+      target: distance(7),
+      test: { type: 'timer', instructions: 'Run it.', passIf: 'Long run distance: 7 km' },
+    });
+    render(<WeeklyReviewModal isOpen={true} onClose={vi.fn()} goal={goal} token="test-token" onGoalUpdated={vi.fn()} />);
+    await user.type(screen.getByLabelText('Your result'), '8');
+    await user.type(screen.getByPlaceholderText(/Morning sessions went well/i), 'Good.');
+    await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+    expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, 'Good.', 'test-token', expect.objectContaining({ value: 8, passed: true }));
+  });
+});

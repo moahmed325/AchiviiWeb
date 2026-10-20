@@ -37,9 +37,10 @@ export const StrategicRoadmap: React.FC<StrategicRoadmapProps> = ({ journey }) =
             isOpen={Boolean(expanded[phase.id])}
             onToggle={() => toggle(phase.id)}
             delay={index * 90}
+            week12Line={journey.week12Line ?? null}
           />
         ))}
-        <Destination closingStretch={closingStretch} goal={journey.rawGoal} delay={phases.length * 90} />
+        <Destination closingStretch={closingStretch} goal={journey.rawGoal} delay={phases.length * 90} week12Line={journey.week12Line ?? null} />
       </div>
     </section>
   );
@@ -51,9 +52,11 @@ interface PhaseRowProps {
   isOpen: boolean;
   onToggle: () => void;
   delay: number;
+  /** M1.3 (PSL-9): shown under week 12's target when it is the current week. */
+  week12Line: string | null;
 }
 
-const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggle, delay }) => {
+const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggle, delay, week12Line }) => {
   const activeWeek = phase.weeks.find((week) => week.isCurrentWeek);
   const isActive = phase.status === 'active';
   const isComplete = phase.status === 'completed';
@@ -108,7 +111,7 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
             {!isActive && phase.purpose && <p className="max-w-2xl text-body leading-7 text-text-secondary">{phase.purpose}</p>}
             {activeWeek && isActive ? (
               <>
-                <CurrentWeek week={activeWeek} />
+                <CurrentWeek week={activeWeek} week12Line={week12Line} />
                 {comingUp.length > 0 && <WeekList title="Coming up" weeks={comingUp} currentWeek={currentWeek} />}
               </>
             ) : (
@@ -121,7 +124,7 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
   );
 };
 
-const CurrentWeek: React.FC<{ week: JourneyWeek }> = ({ week }) => (
+const CurrentWeek: React.FC<{ week: JourneyWeek; week12Line: string | null }> = ({ week, week12Line }) => (
   <div>
     <div className="flex flex-wrap items-baseline justify-between gap-2">
       <div>
@@ -131,7 +134,7 @@ const CurrentWeek: React.FC<{ week: JourneyWeek }> = ({ week }) => (
       <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">Week {week.weekNumber}</span>
     </div>
     <div className="mt-5 grid gap-3 sm:grid-cols-2">
-      {week.target && <Detail label="Target" icon={<Target aria-hidden="true" strokeWidth={1.5} className="size-3.5" />} value={weekTargetText(week.weekNumber, week.target, week.test)} />}
+      {week.target && <Detail label="Target" icon={<Target aria-hidden="true" strokeWidth={1.5} className="size-3.5" />} value={weekTargetText(week.weekNumber, week.target, week.test)} note={week.weekNumber === 12 ? week12Line : null} />}
       {(week.test || week.keyMilestone) && (
         <Detail
           label={week.test ? 'Test' : 'Milestone'}
@@ -172,16 +175,17 @@ const WeekList: React.FC<{ weeks: JourneyWeek[]; currentWeek: number; title?: st
   </div>
 );
 
-const Detail: React.FC<{ label: string; icon: React.ReactNode; value: string }> = ({ label, icon, value }) => (
+const Detail: React.FC<{ label: string; icon: React.ReactNode; value: string; note?: string | null }> = ({ label, icon, value, note }) => (
   <div className="rounded-card border border-border bg-background/40 p-4">
     <div className="flex items-center gap-2 font-ui-mono text-micro uppercase tracking-[0.14em] text-achievement">{icon}{label}</div>
     <p className="mt-2 text-body leading-6 text-text">{value}</p>
+    {note && <p className="mt-1.5 text-small leading-6 text-text-secondary">{note}</p>}
   </div>
 );
 
 /** The climax of the path: the one star at the end of the rail. */
 /** Named with the goal the user chose, as on Today and the Roadmap header (ND-18). */
-const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; goal: string; delay: number }> = ({ closingStretch, goal, delay }) => (
+const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; goal: string; delay: number; week12Line: string | null }> = ({ closingStretch, goal, delay, week12Line }) => (
   <div className="road-row road-row--end animate-rise-in" data-status={closingStretch.status} style={{ animationDelay: delay + 'ms' }}>
     <span className="road-node road-node--destination" aria-hidden="true"><StepMarker state="destination" size="lg" /></span>
     <div className="dash-card p-6 sm:p-8">
@@ -191,6 +195,7 @@ const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; goa
       </div>
       <h3 className="mt-5 max-w-[30ch] text-2xl font-semibold leading-tight tracking-[-0.02em] text-text sm:text-3xl">{goal}</h3>
       <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">Your final benchmark: {closingStretch.finalTest}</p>
+      {week12Line && <p className="mt-2 max-w-xl text-small leading-6 text-text-secondary">{week12Line}</p>}
     </div>
   </div>
 );

@@ -377,6 +377,16 @@ export interface WeeklyReview {
   created_at: string;
 }
 
+/**
+ * Plan safety limits M1.3 (PSL-12): sent by the server when week 12's target was lowered to a safe step. `safe` is week
+ * 12's value and `goal` the number the person named that it no longer meets (null when they named none), each as
+ * amount and unit.
+ */
+export interface Week12Line {
+  safe: string;
+  goal: string | null;
+}
+
 export interface Goal {
   id: string;
   userId: string;
@@ -402,6 +412,8 @@ export interface Goal {
   roadmapWeeks?: RoadmapWeek[];
   dailyTasks?: DailyTask[];
   weeklyReviews?: WeeklyReview[];
+  /** M1.3 (PSL-12): the honest week 12 line's numbers; null or missing when week 12 was not lowered. */
+  week12Line?: Week12Line | null;
 }
 
 export interface CreateGoalPayload {

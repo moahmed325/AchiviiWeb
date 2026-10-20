@@ -262,6 +262,17 @@ against the starting point, each later week against the (lowered) week before; a
 model's values are kept as `loweredTargets` in `Goal.roadmap`. A stated number the model's own week 12 met but the
 lowering put out of reach is accepted at the highest safe step, and `finalGoal` is not asked for again then.
 
+**Older goals on read (plan-safety-limits M1.3):** a goal stored before M1.2 is checked whenever it is read, by
+`safeGoalTargets` in `backend/src/lib/safety/storedTargets.ts`, in `presentGoal` (every route that sends a goal) and in
+`writeNextWeek` (what the week call is told). Nothing stored changes. A goal with no light test is checked on all 12
+weeks; one with light tests on weeks 4, 8 and 12 only, four safe steps apart (`safeCheckWeekClimb`), and each light week
+then takes its big week's lowered target. For a week whose target changed, `objective` is rebuilt; a pathway's measured
+test, `keyMilestone` and (for week 12) `finalTest` are refilled from the preset; a custom goal keeps its test text and
+`finalTest`, and only its pass mark changes. A goal created since M1.2 comes back unchanged. `presentGoal` also sends
+`week12Line` (`{ safe, goal }` or null) whenever week 12 was lowered, at create or on read; the app shows the honest line
+from it on the Roadmap, Today's closing stretch and the review. `writeNextWeek` logs one `[Safety]` `target_step` line
+with outcome `lowered_on_read` when the week it writes was lowered on read.
+
 ## Prompt 3: week call
 
 **System**

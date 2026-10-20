@@ -213,9 +213,10 @@ export interface SafetyLogLine {
    * `test_text`: the sentence is the roadmap's own weekly test, which the week must run as written; logged, not refused.
    * `light_test` (M1.5b, WU-41): on the last attempt of a light week the test step was replaced by the fixed light step.
    * `lowered` (M1.2): a roadmap target was lowered to the safe step. `logged` (M1.2): told only, never refused
-   * (`unknown_family`, `no_start`).
+   * (`unknown_family`, `no_start`). `lowered_on_read` (M1.3, PSL-12 (2)): an older goal's target, lowered on read, in the
+   * week being written; nothing stored changed.
    */
-  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged';
+  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged' | 'lowered_on_read';
 }
 
 /** PSL-1 (3): one line per hit, so the false-alarm rate can be checked in production. */

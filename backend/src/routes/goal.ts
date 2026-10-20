@@ -22,6 +22,7 @@ import { clarifyGoalWithAI, UserRoutineInput } from '../lib/ai/goalDecomposer.js
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
 import { isHighLoadGoal } from '../lib/highLoad.js';
 import { logRoadmapTargets } from '../lib/safety/targetSteps.js';
+import { safeGoalTargets, type StoredWeek, type Week12Line } from '../lib/safety/storedTargets.js';
 import { formatBasisBadge } from '../lib/research/planGrounding.js';
 import { applySafetyClamps } from '../lib/research/safetyClamps.js';
 import type { VelocityTable } from '../lib/research/types.js';
@@ -71,12 +72,33 @@ function clampedTable(value: unknown, goalId?: string): VelocityTable | null {
   return applySafetyClamps(value as VelocityTable, { source: 'goal', goalId }).table;
 }
 
+/**
+ * Plan safety limits M1.3 (RULE-9, PSL-12): an older goal's targets lowered on read, and the honest week 12 line. Writes
+ * nothing and logs nothing (`/active` runs on every app load). A goal without a v2 roadmap or weeks is left as it is.
+ */
+function safeTargetsOf(goal: Record<string, unknown>): { roadmapWeeks: unknown; roadmap: unknown; week12Line: Week12Line | null } | null {
+  const safe = safeGoalTargets({
+    rawGoal: typeof goal.rawGoal === 'string' ? goal.rawGoal : '',
+    clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
+    roadmap: goal.roadmap,
+    roadmapWeeks: goal.roadmapWeeks as StoredWeek[] | undefined,
+  });
+  if (!safe) return null;
+  const roadmap = goal.roadmap as Record<string, unknown>;
+  return {
+    roadmapWeeks: safe.weeks,
+    roadmap: safe.finalTest === roadmap.finalTest ? roadmap : { ...roadmap, finalTest: safe.finalTest },
+    week12Line: safe.week12Line,
+  };
+}
+
 function presentGoal<T extends Record<string, unknown>>(goal: T): T & { basis: ReturnType<typeof formatBasisBadge> } {
   const velocityTable = goal.velocityTable
     ? clampedTable(goal.velocityTable, typeof goal.id === 'string' ? goal.id : undefined)
     : goal.velocityTable;
   return {
     ...goal,
+    ...safeTargetsOf(goal),
     velocityTable,
     basis: formatBasisBadge({
       methodKind: goal.methodKind as string | null | undefined,
