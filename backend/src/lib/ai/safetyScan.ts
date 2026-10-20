@@ -224,9 +224,10 @@ export interface SafetyLogLine {
    * (`unknown_family`, `no_start`). `lowered_on_read` (M1.3, PSL-12 (2)): an older goal's target, lowered on read, in the
    * week being written; nothing stored changed. `kept` (M2.1, RULE-4): `load_missing` on the last attempt; the step is
    * kept without a load and B-63's scan decides. `counted` (M2.2a, PSL-15 (2)): `run_minutes_over_step` on the accepted
-   * answer; the run is counted as written.
+   * answer; the run is counted as written. `first_answer` (M2.2a follow-up): the last answer was refused for this rule,
+   * and the first answer, checked again as a last attempt, passed every check and is the week.
    */
-  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged' | 'lowered_on_read' | 'kept' | 'counted';
+  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged' | 'lowered_on_read' | 'kept' | 'counted' | 'first_answer';
 }
 
 /** PSL-1 (3): one line per hit, so the false-alarm rate can be checked in production. */
