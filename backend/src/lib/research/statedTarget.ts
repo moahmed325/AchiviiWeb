@@ -148,6 +148,8 @@ const OTHER_CHANGE_BEFORE = /\b(?:drop|dropping|cut|cutting|reduce|reducing|shed
 /** M1.2: a distance named as the event, not a result: "a 10 km race", "5 km in 25 minutes", "10 km under an hour". */
 const ARTICLE_BEFORE = /\b(?:a|an|the|my|first|your)\s+$/i;
 const EVENT_AFTER = /^\s*(?:race|run\b|road|event|fun\s+run|parkrun|trail|in\b|under\b|below\b|sub\b|within\b)/i;
+/** M1.2 review: a distance right after a running verb is the event too ("run 10 km without stopping", "run 5km"). */
+const RUN_VERB_BEFORE = /\b(?:run|runs|running|ran|jog|jogs|jogging)\s+$/i;
 const SHORT_UNIT: Record<string, string> = { kg: 'kg', kgs: 'kg', km: 'km', kms: 'km', lb: 'lb', mi: 'mi' };
 
 /**
@@ -184,13 +186,22 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
   const taken: Array<[number, number]> = [];
   const isTaken = (at: number) => taken.some(([start, end]) => at >= start && at < end);
   const beforeAt = (at: number) => goal.slice(Math.max(0, at - 24), at);
+  /**
+   * M1.2 review: the one guard pass every reader's match goes through. A number followed by a practice frame ("a day",
+   * "every week", "per session") is how much they practise, a plan length is not a result, and "with/using N" is a
+   * tool, so none of them is ever a stated target. `at`: where the number starts; `unitEnd`: where its unit ends.
+   */
+  const notATarget = (at: number, unitEnd: number, unit: string) =>
+    PRACTICE_FRAME.test(goal.slice(unitEnd)) || HORIZON.has(unit.toLowerCase()) || /\b(?:with|using)\s+$/i.test(beforeAt(at));
 
   // M1.2 (PSL-5): "in 25 minutes" is a time to beat, at most, like "under 25 minutes".
   for (const match of goal.matchAll(/\bin\s+(\d+(?:\.\d+)?)\s*(minutes?|mins?|min|seconds?|secs?|hours?|hrs?)\b/gi)) {
     const value = numberToken(match[1]);
     if (!value) continue;
     const at = match.index ?? 0;
-    taken.push([at, at + match[0].length]);
+    const end = at + match[0].length;
+    taken.push([at, end]);
+    if (notATarget(at + match[0].indexOf(match[1]), end, match[2])) continue;
     const unit = timeUnit(match[2]);
     add(target(`in ${value} ${unit}`, value, unit, 'lower_is_harder', 'at_most'));
   }
@@ -202,6 +213,7 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
     if (!value) continue;
     const at = match.index ?? 0;
     taken.push([at, at + match[0].length]);
+    if (notATarget(at, at + match[0].length, 'percent')) continue;
     const before = beforeAt(at);
     if (LOSE_BEFORE.test(before)) add(target(`${value}% body fat`, value, 'percent', 'higher_is_harder', 'at_least', 'lose'));
     else if (!OTHER_CHANGE_BEFORE.test(before)) add(target(`${value}% body fat`, value, 'percent', 'lower_is_harder', 'at_most'));
@@ -216,19 +228,22 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
     const end = at + match[0].length;
     taken.push([at, end]);
     const unit = SHORT_UNIT[match[2].toLowerCase()];
+    if (notATarget(at, end, unit)) continue;
     const before = beforeAt(at);
     if (LOSE_BEFORE.test(before)) {
       add(target(`${value} ${unit}`, value, unit, 'higher_is_harder', 'at_least', 'lose'));
       continue;
     }
-    if (/\b(?:with|using)\s+$/i.test(before)) continue;
-    if ((unit === 'km' || unit === 'mi') && (ARTICLE_BEFORE.test(before) || EVENT_AFTER.test(goal.slice(end)))) continue;
+    const distance = unit === 'km' || unit === 'mi';
+    if (distance && (ARTICLE_BEFORE.test(before) || RUN_VERB_BEFORE.test(before) || EVENT_AFTER.test(goal.slice(end)))) continue;
     add(target(`${value} ${unit}`, value, unit, 'higher_is_harder', 'at_least'));
   }
 
   for (const match of goal.matchAll(/\b(?:under|below|less than|sub-?)\s*(\d+(?:\.\d+)?)\s*(minutes?|mins?|min|seconds?|secs?|hours?|hrs?)\b/gi)) {
     const value = numberToken(match[1]);
     if (!value) continue;
+    const at = match.index ?? 0;
+    if (notATarget(at + match[0].indexOf(match[1]), at + match[0].length, match[2])) continue;
     const unit = timeUnit(match[2]);
     add(target(`under ${value} ${unit}`, value, unit, 'lower_is_harder', 'at_most'));
   }
@@ -236,6 +251,8 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
   for (const match of goal.matchAll(/\b(\d+(?:\.\d+)?|forty|fifty|sixty|thirty|twenty)\s*(?:words?\s+per\s+minute|wpm)\b/gi)) {
     const value = numberToken(match[1]);
     if (!value) continue;
+    const at = match.index ?? 0;
+    if (notATarget(at, at + match[0].length, 'words per minute')) continue;
     add(target(`${value} words per minute`, value, 'words per minute', 'higher_is_harder', 'at_least'));
   }
 
@@ -253,16 +270,13 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
       : [...words].reverse().find((word) => !MODIFIERS.has(word) && !NOT_A_UNIT.test(word));
     if (!noun || HORIZON.has(noun) || HORIZON.has(words[0])) continue;
     if (value === 1 && ONE_IS_A_MANNER.has(noun)) continue;
-    // "20 minutes every day", "2 hours per week": how long they practise, not a result to reach by week 12.
-    if (MEASURES.has(words[0]) && noun === words[0]) {
-      const afterUnit = goal.slice(match.index ?? 0).replace(/^\S+\s+\S+/, '');
-      if (PRACTICE_FRAME.test(afterUnit)) continue;
-    }
     const at = match.index ?? 0;
     if (isTaken(at)) continue;
+    // "20 minutes every day", "2 hours per week": how long they practise, not a result to reach by week 12. The frame is
+    // read right after the number's first word.
+    if (notATarget(at, at + (/^\S+\s+\S+/.exec(match[0])?.[0].length ?? match[0].length), noun)) continue;
     const before = goal.slice(Math.max(0, at - 16), at);
     if (/\b(?:under|below|less than|sub-?)\s*$/i.test(before)) continue;
-    if (/\b(?:with|using)\s+$/i.test(before)) continue;
     if (/^words?$/.test(noun) && /per\s+minute/i.test(goal.slice(at, at + match[0].length + 16))) continue;
     // M1.2 (PSL-5): "lose 10 pounds" is a change, checked against the starting point.
     add(target(`${value} ${noun}`, value, noun, 'higher_is_harder', 'at_least', LOSE_BEFORE.test(before) ? 'lose' : undefined));

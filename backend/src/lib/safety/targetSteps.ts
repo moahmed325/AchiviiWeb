@@ -5,6 +5,7 @@
  */
 import type { WeekTarget, LoweredTarget } from '../ai/roadmap.js';
 import { logSafetyHit } from '../ai/safetyScan.js';
+import { HIGH_LOAD_PRESET_IDS } from '../highLoad.js';
 import {
   BODY_FAT_STEP_POINTS,
   BODY_WEIGHT_GAIN_STEP_PERCENT,
@@ -68,6 +69,8 @@ function isPercentUnit(unit: string): boolean {
   return u === '%' || /^percent(age)?s?(\s+points?)?$/.test(u) || /^(percentage\s+)?points?$/.test(u);
 }
 
+/** M1.2 review: another endurance sport is never running, distance or not (02-feature.md section 8). */
+const OTHER_SPORT_WORDS = /\b(?:cycle|cycles|cycling|cyclist|bike|bikes|biking|ride|rides|riding|swim|swims|swimming|row|rows|rowing|rower)\b/;
 const RUN_WORDS = /\b(?:run|runs|running|runner|jog|jogging|race|racing|parkrun|marathon|mileage|\d+(?:\.\d+)?\s*(?:k|km|mi|miles?))\b/;
 const LIFT_WORDS = /\b(?:squat|squats|bench|deadlifts?|press|row|lifts?|lifted|clean|snatch|jerk|thrust|pull-?ups?|chin-?ups?|dips?|lunges?|curl)\b/;
 const BODY_WEIGHT_WORDS = /\b(?:body\s*weight|bodyweight|weight|weigh|weigh-in|scale|mass)\b/;
@@ -93,6 +96,7 @@ export function targetFamily(target: WeekTarget, context: FamilyContext = {}): T
     if (BODY_WEIGHT_WORDS.test(metric)) return 'body_weight';
     return null;
   }
+  if (OTHER_SPORT_WORDS.test(metric)) return null;
   if (isPaceUnit(target.unit)) return higher ? null : 'running_time';
   const running = context.run10k === true || RUN_WORDS.test(metric);
   if (!running) return null;
@@ -114,10 +118,9 @@ export function looksPhysical(target: WeekTarget, context: { highLoad?: boolean 
   );
 }
 
-/** Rounded to 0.1 toward the easier side (whole kcal for a deficit), so a rounded value never breaks a limit. */
-function roundEasier(value: number, direction: NumberTarget['direction'], whole = false): number {
-  const scale = whole ? 1 : 10;
-  const rounded = direction === 'higher_is_better' ? Math.floor(value * scale + 1e-9) / scale : Math.ceil(value * scale - 1e-9) / scale;
+/** Rounded to 0.1 toward the easier side, so a rounded value never breaks a limit. A deficit's 600 is already whole. */
+function roundEasier(value: number, direction: NumberTarget['direction']): number {
+  const rounded = direction === 'higher_is_better' ? Math.floor(value * 10 + 1e-9) / 10 : Math.ceil(value * 10 - 1e-9) / 10;
   return Math.max(0, rounded);
 }
 
@@ -156,6 +159,17 @@ export function nextSafeStep(target: WeekTarget, previousValue: number, context:
 
 function harder(value: number, limit: number, direction: NumberTarget['direction']): boolean {
   return direction === 'higher_is_better' ? value > limit + 1e-9 : value < limit - 1e-9;
+}
+
+/**
+ * M1.2 review: what the roadmap check decided about the targets, carried to goal create's log so the log and the check
+ * can never disagree. Never stored: `generateRoadmap` returns it next to the roadmap, not in it.
+ */
+export interface TargetCheck {
+  family: TargetFamily | null;
+  noStart: boolean;
+  /** The pathway the check used (`RoadmapCheckContext.pathwayId`); decides `unknown_family`'s high-load test too. */
+  pathwayId?: string;
 }
 
 export interface TargetClimb {
@@ -208,12 +222,13 @@ export function safeTargetClimb(targets: WeekTarget[], startValue: number | null
  */
 export function logRoadmapTargets(
   goalId: string,
-  roadmap: { startingPoint: { value: number | null }; weeks: Array<{ target: WeekTarget }>; loweredTargets?: LoweredTarget[] },
-  context: FamilyContext & { highLoad?: boolean } = {}
+  roadmap: { weeks: Array<{ target: WeekTarget }>; loweredTargets?: LoweredTarget[] },
+  /** From `generateRoadmap`; when missing (never on the real path), only the lowered targets are logged. */
+  check: TargetCheck | undefined
 ): void {
   const first = roadmap.weeks[0]?.target;
   if (!first || first.kind !== 'number') return;
-  const family = targetFamily(first, context);
+  const { family, noStart } = check ?? { family: 'unchecked' as const, noStart: false };
   for (const item of roadmap.loweredTargets ?? []) {
     logSafetyHit({
       goalId,
@@ -226,10 +241,11 @@ export function logRoadmapTargets(
       outcome: 'lowered',
     });
   }
-  if (!family && looksPhysical(first, context)) {
+  const highLoad = check?.pathwayId !== undefined && HIGH_LOAD_PRESET_IDS.includes(check.pathwayId);
+  if (family === null && looksPhysical(first, { highLoad })) {
     logSafetyHit({ goalId, week: 1, rule: 'unknown_family', step: 'Roadmap targets', matched: `${first.metric} (${first.unit})`, outcome: 'logged' });
   }
-  if (family && family !== 'calorie_deficit' && roadmap.startingPoint.value === null) {
+  if (noStart) {
     logSafetyHit({ goalId, week: 1, rule: 'no_start', step: 'Week 1 target', matched: 'no starting point; week 1 not checked', outcome: 'logged' });
   }
 }

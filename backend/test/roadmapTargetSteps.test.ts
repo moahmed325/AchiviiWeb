@@ -4,6 +4,7 @@ vi.mock('../src/lib/ai/gemini.js', () => ({ generateStructuredContent: vi.fn() }
 vi.mock('../src/lib/prisma.js', () => ({ prisma: {} }));
 
 import {
+  buildRoadmapPrompt,
   checkRoadmapAnswer,
   presetMethod,
   withPathwayTests,
@@ -196,5 +197,20 @@ describe('safety wins over the stated number (RULE-3, AC-3 server)', () => {
     const safe = { ...STEEP_10K, start: 60, values: [59, 58, 57, 56.5, 56, 55.5, 55.2, 55, 55, 55, 55, 55], finalGoal: 'Run a faster 10K' };
     const result = checkRoadmapAnswer(answer(run10kPreset, safe), context(run10kPreset, '', 'run10k'), false);
     expect('reason' in result && result.reason).toMatch(/"finalGoal" must state week 12's target/);
+  });
+});
+
+describe('"lose N" in the first prompt (M1.2 review)', () => {
+  const input = { workingTitle: 'Lose 10 kg', domain: 'fitness', rawGoal: 'Lose 10 kg', dailyMinutes: 45, activeDays: 5, answers: [] };
+
+  it('says week 12 is N below the starting point, not that week 12 must reach N', () => {
+    const prompt = buildRoadmapPrompt(input, presetMethod(recompPreset), extractStatedTargets('Lose 10 kg'));
+    expect(prompt).toContain('For "10 kg", week 12 is 10 kg below the starting point (or, counting what is lost, 10 kg or more).');
+    expect(prompt).not.toContain("Week 12's target must reach it.");
+  });
+
+  it('keeps the plain sentence when nothing is a loss', () => {
+    const prompt = buildRoadmapPrompt({ ...input, rawGoal: 'Squat 100 kg' }, presetMethod(recompPreset), extractStatedTargets('Squat 100 kg'));
+    expect(prompt).toContain(`They named a number: "100 kg". Week 12's target must reach it.`);
   });
 });

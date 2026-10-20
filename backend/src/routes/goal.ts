@@ -358,10 +358,8 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         recovery,
       });
       // Plan safety limits M1.2 (RULE-10, AC-10): the accepted roadmap's lowered targets, logged once with the goal id.
-      logRoadmapTargets(createdGoalId, roadmapResult.roadmap, {
-        run10k: preset?.id === 'run10k',
-        highLoad: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
-      });
+      // The check's own decision (family, no start, pathway), so the log and the check can never disagree.
+      logRoadmapTargets(createdGoalId, roadmapResult.roadmap, roadmapResult.targetCheck);
     } else {
       // No silent v1 fallback, for presets either: a plan the AI could not write is an honest "try again", never an
       // old-style plan without the plan v2 features (missed sessions, weekly targets). Logged so a missing or broken

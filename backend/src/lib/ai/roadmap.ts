@@ -4,7 +4,7 @@ import { extractStatedTargets, rowMatchesTarget, type StatedTarget } from '../re
 import { screenQuery } from '../research/safetyFilter.js';
 import type { VelocityTarget } from '../research/types.js';
 import { SAFETY_LIMIT_TEXT, logSafetyHit, textSafetyHits } from './safetyScan.js';
-import { safeTargetClimb } from '../safety/targetSteps.js';
+import { safeTargetClimb, type TargetCheck } from '../safety/targetSteps.js';
 
 export const TEST_TYPES = ['typing_test', 'quiz', 'timer', 'count', 'photo', 'video'] as const;
 export type TestType = (typeof TEST_TYPES)[number];
@@ -300,8 +300,18 @@ const OPEN_METHOD_BLOCK = `2. THE METHOD
 function statedTargetLines(statedTargets: StatedTarget[]): string {
   if (statedTargets.length === 0) return '';
   const phrases = statedTargets.map((item) => `"${item.phrase}"`).join(', ');
+  // M1.2 review (PSL-5): "lose N" is measured from where they start, not reached as a level.
+  const reach = statedTargets.some((item) => item.change === 'lose')
+    ? statedTargets
+        .map((item) =>
+          item.change === 'lose'
+            ? `For "${item.phrase}", week 12 is ${item.value} ${item.unit} below the starting point (or, counting what is lost, ${item.value} ${item.unit} or more).`
+            : `Week 12's target must reach "${item.phrase}".`
+        )
+        .join(' ')
+    : "Week 12's target must reach it.";
   return `
-   They named a number: ${phrases}. Week 12's target must reach it. Count the weekly targets in that unit; if week 1
+   They named a number: ${phrases}. ${reach} Count the weekly targets in that unit; if week 1
    can't be counted in it yet, use deliverables for all 12 weeks and name it in week 12's (e.g. "${statedTargets[0].phrase} ...").
    A method's own measure (speed, reps, a score) goes in the weekly tests, not in place of it.`;
 }
@@ -612,11 +622,17 @@ export interface RoadmapCheckContext {
  * Fixes what code can fix (order, rules, each week's phase from the ranges, the chosen method's details)
  * and rejects what it can't. Soft checks give way on the last attempt so the user still gets a plan.
  */
+/**
+ * M1.2 review: the accepted roadmap plus what the target check decided (`targetCheck`), which goal create's log reads.
+ * `generateRoadmap` takes `targetCheck` off before returning the roadmap, so it is never stored in `Goal.roadmap`.
+ */
+export type CheckedRoadmap = Roadmap & { targetCheck: TargetCheck };
+
 export function checkRoadmapAnswer(
   data: RawRoadmapAnswer,
   context: RoadmapCheckContext,
   lastAttempt = false
-): { value: Roadmap } | { reason: string } {
+): { value: CheckedRoadmap } | { reason: string } {
   const finalGoal = text(data.finalGoal);
   const finalTest = text(data.finalTest);
   if (!finalGoal) return { reason: '"finalGoal" is empty.' };
@@ -761,7 +777,16 @@ export function checkRoadmapAnswer(
   };
 
   return {
-    value: { finalGoal, finalTest, startingPoint, method, phases, weeks, ...(climb.lowered.length > 0 ? { loweredTargets: climb.lowered } : {}) },
+    value: {
+      finalGoal,
+      finalTest,
+      startingPoint,
+      method,
+      phases,
+      weeks,
+      ...(climb.lowered.length > 0 ? { loweredTargets: climb.lowered } : {}),
+      targetCheck: { family: climb.family, noStart: climb.noStart, ...(context.pathwayId ? { pathwayId: context.pathwayId } : {}) },
+    },
   };
 }
 
@@ -829,7 +854,8 @@ export function presetMethod(preset: CertifiedPresetBlueprint): FixedMethod {
 }
 
 export type RoadmapResult =
-  | { ok: true; roadmap: Roadmap }
+  /** `targetCheck` (M1.2 review): what the accepted answer's target check decided, for goal create's `[Safety]` log. */
+  | { ok: true; roadmap: Roadmap; targetCheck: TargetCheck }
   /** `unsafe`: the goal itself is blocked. `lowSafety`: the model rated its own method under 3 twice. */
   | { ok: false; reason: string; unsafe?: boolean; lowSafety?: boolean };
 
@@ -849,7 +875,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
 
   const prompt = buildRoadmapPrompt(input, fixedMethod, statedTargets) + (preset ? `\n\nMETHOD DETAIL\n${preset.expertPromptContext}` : '');
   let lowSafety = false;
-  const roadmap = await generateWithOneRetry<RawRoadmapAnswer, Roadmap>(
+  const checked = await generateWithOneRetry<RawRoadmapAnswer, CheckedRoadmap>(
     prompt,
     ROADMAP_SYSTEM,
     ROADMAP_RESPONSE_SCHEMA,
@@ -866,7 +892,11 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
   );
   // M2.1: the pathway's tests and light-week targets go in after the check, so the 40% week-1 rule (MAX_WEEK1_SHARE)
   // reads the model's own climb: on a split pathway week 1 shows week 4's target, as "Next check, week 4".
-  if (roadmap) return { ok: true, roadmap: withPathwayTests(roadmap, preset) };
+  if (checked) {
+    // Taken off here so `storedRoadmap`'s spread never stores it.
+    const { targetCheck, ...roadmap } = checked;
+    return { ok: true, roadmap: withPathwayTests(roadmap, preset), targetCheck };
+  }
   if (lowSafety) {
     return {
       ok: false,

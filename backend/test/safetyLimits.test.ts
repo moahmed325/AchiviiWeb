@@ -78,8 +78,18 @@ describe('target families (section 3, PSL-10)', () => {
     ['Plank hold', 'minutes', 'higher_is_better'],
     ['Time', 'minutes', 'lower_is_better'],
     ['Cycling distance', 'km', 'higher_is_better'],
+    ['Cycling 40 km time', 'minutes', 'lower_is_better'],
+    ['Swim 5 km time', 'minutes', 'lower_is_better'],
+    ['Bike ride', 'km', 'higher_is_better'],
+    ['Rowing pace', 'min/km', 'lower_is_better'],
   ] as const)('%s in %s (%s) has no family', (metric, unit, direction) => {
     expect(targetFamily(number(metric, unit, direction))).toBeNull();
+  });
+
+  it('another sport is not running even on run10k; "5 km time" on run10k is running time (M1.2 review)', () => {
+    expect(targetFamily(number('Cycling 40 km time', 'minutes', 'lower_is_better'), { run10k: true })).toBeNull();
+    expect(targetFamily(number('Swim 5 km time', 'minutes', 'lower_is_better'), { run10k: true })).toBeNull();
+    expect(targetFamily(number('5 km time', 'minutes', 'lower_is_better'), { run10k: true })).toBe('running_time');
   });
 
   it('a time or minutes target counts as running on run10k, not elsewhere (PSL-10 (3))', () => {
@@ -191,14 +201,17 @@ describe('logRoadmapTargets (RULE-10, AC-10)', () => {
 
   it('logs one line per lowered target with the goal id', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    logRoadmapTargets('goal-1', {
-      startingPoint: { value: 5 },
-      weeks: [{ target: number('Long run', 'km', 'higher_is_better', 6) }],
-      loweredTargets: [
-        { week: 1, model: 7, safe: 6 },
-        { week: 2, model: 8, safe: 7 },
-      ],
-    });
+    logRoadmapTargets(
+      'goal-1',
+      {
+        weeks: [{ target: number('Long run', 'km', 'higher_is_better', 6) }],
+        loweredTargets: [
+          { week: 1, model: 7, safe: 6 },
+          { week: 2, model: 8, safe: 7 },
+        ],
+      },
+      { family: 'running_distance', noStart: false }
+    );
     expect(lines()).toEqual([
       expect.objectContaining({ goalId: 'goal-1', week: 1, rule: 'target_step', model: 7, safe: 6, outcome: 'lowered' }),
       expect.objectContaining({ goalId: 'goal-1', week: 2, rule: 'target_step', model: 8, safe: 7, outcome: 'lowered' }),
@@ -207,14 +220,18 @@ describe('logRoadmapTargets (RULE-10, AC-10)', () => {
 
   it('logs unknown_family once for a physical target no family reads, never for a typing goal', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    logRoadmapTargets('goal-2', { startingPoint: { value: 95 }, weeks: [{ target: number('Waist', 'cm', 'lower_is_better', 94) }, { target: number('Waist', 'cm', 'lower_is_better', 93) }] });
-    logRoadmapTargets('goal-3', { startingPoint: { value: 14 }, weeks: [{ target: number('Typing speed', 'wpm', 'higher_is_better', 16) }] });
+    logRoadmapTargets(
+      'goal-2',
+      { weeks: [{ target: number('Waist', 'cm', 'lower_is_better', 94) }, { target: number('Waist', 'cm', 'lower_is_better', 93) }] },
+      { family: null, noStart: false, pathwayId: 'body_recomposition_90day' }
+    );
+    logRoadmapTargets('goal-3', { weeks: [{ target: number('Typing speed', 'wpm', 'higher_is_better', 16) }] }, { family: null, noStart: false });
     expect(lines()).toEqual([expect.objectContaining({ goalId: 'goal-2', rule: 'unknown_family', outcome: 'logged' })]);
   });
 
   it('logs no_start when a family target has no starting point', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
-    logRoadmapTargets('goal-4', { startingPoint: { value: null }, weeks: [{ target: number('10K time', 'minutes', 'lower_is_better', 65) }] });
+    logRoadmapTargets('goal-4', { weeks: [{ target: number('10K time', 'minutes', 'lower_is_better', 65) }] }, { family: 'running_time', noStart: true });
     expect(lines()).toEqual([expect.objectContaining({ goalId: 'goal-4', week: 1, rule: 'no_start', outcome: 'logged' })]);
   });
 });

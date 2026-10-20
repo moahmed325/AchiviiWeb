@@ -160,6 +160,8 @@ describe('goal create stores safe targets and logs each lowered one (AC-2, AC-10
     const roadmap = db.goalCreate.mock.calls[0][0].data.roadmap;
     expect(roadmap.loweredTargets).toEqual(STEEP_10K.map((model, index) => ({ week: index + 1, model, safe: SAFE_10K[index] })));
     expect(roadmap.weeks).toBeUndefined();
+    // M1.2 review: the check's decision is carried to the log, never stored.
+    expect(roadmap.targetCheck).toBeUndefined();
 
     const lines = safetyLines();
     expect(lines).toHaveLength(12);
@@ -198,5 +200,21 @@ describe('goal create stores safe targets and logs each lowered one (AC-2, AC-10
 
     expect(db.goalCreate.mock.calls[0][0].data.roadmap.loweredTargets).toBeUndefined();
     expect(safetyLines()).toEqual([]);
+  });
+
+  it('the log and the check agree for a goal that matches run10k only by its working title (M1.2 review)', async () => {
+    // "Time" in minutes is running only on run10k (PSL-10 (3)); the raw goal names no pathway, the clarified one does.
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce({
+      success: true,
+      data: modelAnswer(run10kPreset, 'Time', 'minutes', 'lower_is_better', 70, STEEP_10K, 'Run a 10K in 50 minutes or less'),
+    } as never);
+
+    expect(await create('Get quicker at my weekend runs', 'Run a 10K under 50 minutes')).toBe(201);
+
+    expect(storedTargets()).toEqual([64.7, 64.7, 64.7, 64.7, 59.9, 59.9, 59.9, 59.9, 55.5, 55.5, 55.5, 55.5]);
+    const lines = safetyLines();
+    expect(lines).toHaveLength(12);
+    expect(lines.every((line) => line.goalId === 'goal-new' && line.rule === 'target_step')).toBe(true);
+    expect(lines.some((line) => line.rule === 'unknown_family')).toBe(false);
   });
 });

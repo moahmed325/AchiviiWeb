@@ -93,10 +93,10 @@ describe('the widened reader (PSL-5)', () => {
 
   it('reads two-letter units after a number: kg, km, lb, mi', () => {
     expect(read('Squat 100 kg')).toEqual([{ value: 100, unit: 'kg', bound: 'at_least', change: undefined }]);
-    expect(read('Run 10 km without stopping')).toEqual([{ value: 10, unit: 'km', bound: 'at_least', change: undefined }]);
+    expect(read('Walk 15 km')).toEqual([{ value: 15, unit: 'km', bound: 'at_least', change: undefined }]);
     expect(read('Bench 225 lb')).toEqual([{ value: 225, unit: 'lb', bound: 'at_least', change: undefined }]);
-    expect(read('Run 3 mi')).toEqual([{ value: 3, unit: 'mi', bound: 'at_least', change: undefined }]);
-    expect(extractStatedTargets('Run 10 km')[0].aliases).toEqual(expect.arrayContaining(['km', 'kilometres', 'kilometers']));
+    expect(read('Hike 3 mi')).toEqual([{ value: 3, unit: 'mi', bound: 'at_least', change: undefined }]);
+    expect(extractStatedTargets('Walk 10 km')[0].aliases).toEqual(expect.arrayContaining(['km', 'kilometres', 'kilometers']));
     expect(extractStatedTargets('Squat 100 kg')[0].aliases).not.toContain('lb');
   });
 
@@ -127,5 +127,34 @@ describe('the widened reader (PSL-5)', () => {
     expect(extractStatedTargets('Finish my first 5 km parkrun')).toEqual([]);
     expect(extractStatedTargets('Build a 12 week meditation practice')).toEqual([]);
     expect(extractStatedTargets('Get fit in 12 weeks')).toEqual([]);
+  });
+});
+
+// M1.2 review: one guard pass for every reader (practice frames, plan lengths, with/using), and a distance after a
+// running verb is the event.
+describe('the widened reader keeps practice frames and run distances out (M1.2 review)', () => {
+  it.each([
+    'Learn guitar in 15 minutes a day',
+    'Get fit in 20 minutes a day',
+    'Walk 10 km a day',
+    'Lift 20 kg per session',
+    'Type under 30 minutes every day',
+    'Run 10 km without stopping',
+    'I want to run 5km',
+    'Start jogging 3 mi',
+  ])('"%s" gives no stated target', (goal) => {
+    expect(extractStatedTargets(goal)).toEqual([]);
+  });
+
+  it('"Read 20 pages in 30 minutes each evening" keeps only main\'s "20 pages", no time target', () => {
+    expect(extractStatedTargets('Read 20 pages in 30 minutes each evening').map((item) => [item.phrase, item.bound])).toEqual([['20 pages', 'at_least']]);
+  });
+
+  it('still reads squat 100 kg, lose 10 kg, run 5 km in 25 minutes and 15% body fat as before', () => {
+    const read = (goal: string) => extractStatedTargets(goal).map((item) => ({ value: item.value, unit: item.unit, bound: item.bound, change: item.change }));
+    expect(read('Squat 100 kg')).toEqual([{ value: 100, unit: 'kg', bound: 'at_least', change: undefined }]);
+    expect(read('Lose 10 kg')).toEqual([{ value: 10, unit: 'kg', bound: 'at_least', change: 'lose' }]);
+    expect(read('Run 5 km in 25 minutes')).toEqual([{ value: 25, unit: 'minutes', bound: 'at_most', change: undefined }]);
+    expect(read('Get to 15% body fat')).toEqual([{ value: 15, unit: 'percent', bound: 'at_most', change: undefined }]);
   });
 });
