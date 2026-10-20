@@ -256,6 +256,12 @@ user typed in the goal must appear in week 12 (as the number target, or named in
 unit change, a 0 target, a step backwards, low safety and a missed stated number are refused even on the last
 attempt; the other checks give way on it.
 
+**Safe steps (plan-safety-limits M1.2):** after those checks, code lowers any number target that climbs faster than
+the limits allow (`safeTargetClimb` in `backend/src/lib/safety/targetSteps.ts`, numbers in `safety/limits.ts`): week 1
+against the starting point, each later week against the (lowered) week before; an easier week is never changed. The
+model's values are kept as `loweredTargets` in `Goal.roadmap`. A stated number the model's own week 12 met but the
+lowering put out of reach is accepted at the highest safe step, and `finalGoal` is not asked for again then.
+
 ## Prompt 3: week call
 
 **System**
