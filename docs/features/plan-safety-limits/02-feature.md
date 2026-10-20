@@ -60,7 +60,7 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 | Calorie deficit (target or step) | 250 to 600 kcal a day | PSL-1; the recomp method itself uses 300 to 500 |
 | Daily intake written in a step | never below 1,200 kcal | we don't ask sex or weight, so one floor |
 | Running total against the base week | +10%, or +10 minutes / +1 km when that is more | |
-| Longest run | at most 50% of the week's running total | |
+| Longest run | at most 50% of the week's running total, in a week with 3 or more runs; with no base and fewer runs, or after a base of 0 runs, at most 30 minutes / 5 km a run | PSL-15 (7), PSL-16 |
 | Hard runs (intervals, tempo, race pace) | at most 2 a week | already told by the stopgap |
 | Weeks 1 to 3 lifting | at most 80% of 1RM, at least 3 reps in reserve, nothing to failure, no max test | PSL-2; from week 4 the method's own range |
 | Base week | last week's planned total, or what was done when under 70% of it | |
@@ -73,7 +73,7 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 | Starting point missing (person skipped the level question) | Week 1 is checked against the roadmap's cautious beginner value. If the roadmap still has no starting point (accepted on its last attempt), week 1 is not checked, `[Safety]` logs `no_start`, and the check runs from week 2 (PSL-11). |
 | A custom goal with no high-load step and no family | Nothing in this feature applies. |
 | Recomp with a stated "lose 10 kg" (read since PSL-5) | Weight steps of 1% a week; week 12 shows the honest line if 10 kg is out of reach. |
-| Person did 0 runs last week, no break | Base week is 0 done, so the running total may be at most the allowance (10 minutes or 1 km). |
+| Person did 0 runs last week, no break | Held like week 1: no running-total check, every run at most 30 minutes / 5 km (PSL-16). |
 | Week 12 test day | Week limits apply; a max test is allowed from week 4. |
 | Steps moved by carry-forward or the handoff | Already checked in their own week; moving never adds load to a day (missed-sessions rules). |
 | The test step | Its load counts in the running total; its text follows PSL-3. |

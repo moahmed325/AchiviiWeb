@@ -33,3 +33,4 @@
 | I-19 | 2026-10-20 | plan-safety-limits M1.2 report, Ideas | A table in the docs of every `[Safety]` rule and outcome. | One place to read the log lines when checking production (O2). | OPEN |
 | I-20 | 2026-10-20 | plan-safety-limits M1.3 report, Ideas | Show the honest week 12 line on the Dashboard when week 12 is current. | The Dashboard is the screen most people open; M1.3 shows the line only on the four PSL-9 screens. | OPEN |
 | I-21 | 2026-10-20 | plan-safety-limits M1.3 report, Ideas | A read-only script that counts the older goals `safeGoalTargets` lowers on read. | Shows how many people M1.3 touches; could run with O1's query. | OPEN |
+| I-22 | 2026-10-21 | plan-safety-limits M2.2a report, Ideas | Log one `[Safety]` summary line per accepted load-goal week (running total, unit, base, hard runs). | O2 could see how close weeks run to the limits, not only the breaches. | OPEN |
