@@ -17,6 +17,7 @@ import {
 import { activeDaysFor, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
 import { parseStoredSteps } from './carryForward.js';
 import { isHighLoadGoal } from './highLoad.js';
+import { loadGoalInput } from './safety/stepLoad.js';
 import { logSafetyHit } from './ai/safetyScan.js';
 import { safeGoalTargets } from './safety/storedTargets.js';
 import { handoffBrief, placeHandoff, weekHandoff, type HandoffPlacement, type HandoffTask, type WeekHandoff } from './recovery/handoff.js';
@@ -233,6 +234,8 @@ export async function writeNextWeek(
     test: next.test as unknown as WeekTest,
     weekStart: weekStartFor(goal.startDate, next.weekNumber),
     highLoadGoal: isHighLoadGoal(goal),
+    // Plan safety limits M2.1 (RULE-4): only a load goal adds the key, so any other goal's call is exactly as before.
+    ...loadGoalInput(goal, next.target as unknown as WeekTarget),
     recovery: profile,
     lastWeek: done?.target
       ? {

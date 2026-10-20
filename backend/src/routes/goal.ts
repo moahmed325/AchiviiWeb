@@ -21,6 +21,7 @@ import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
 import { clarifyGoalWithAI, UserRoutineInput } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
 import { isHighLoadGoal } from '../lib/highLoad.js';
+import { loadGoalInput } from '../lib/safety/stepLoad.js';
 import { logRoadmapTargets } from '../lib/safety/targetSteps.js';
 import { safeGoalTargets, type StoredWeek, type Week12Line } from '../lib/safety/storedTargets.js';
 import { formatBasisBadge } from '../lib/research/planGrounding.js';
@@ -360,6 +361,8 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         // M2.1 (WU-43 (5)): only a light first week names the session its test belongs to.
         ...(firstSession ? { testSession: firstSession } : {}),
         highLoadGoal: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
+        // Plan safety limits M2.1 (RULE-4): only a load goal adds the key.
+        ...loadGoalInput({ rawGoal, clarifiedOutcome }, first.target),
         recovery,
       });
     }

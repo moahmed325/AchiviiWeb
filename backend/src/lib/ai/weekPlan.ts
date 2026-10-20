@@ -5,6 +5,7 @@ import { fitStepMinutes } from './scheduleRepair.js';
 import { dayQualityFailures, polishDays } from './taskRules.js';
 import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyHit } from './safetyScan.js';
 import type { FirstWeekBack } from '../weekClose/breaks.js';
+import { STEP_LOAD_SCHEMA, loadNeed, missingLoad, parseStepLoad, withMinutes, withoutLoad, type LoadGoal } from '../safety/stepLoad.js';
 import {
   CALORIE_DEFICIT_MAX,
   CALORIE_DEFICIT_MIN,
@@ -134,6 +135,12 @@ export interface WeekCallInput {
   testSession?: string;
   /** B-63: only for the `[Safety]` log line; logged as null when not given. */
   goalId?: string;
+  /**
+   * Plan safety limits M2.1 (RULE-4, PSL-8): given only on a load goal (`loadGoalFor`). The schema and the prompt then
+   * ask the steps PSL-8 names for their `load`, and a missing one is a soft retry reason. Without it the call is exactly
+   * as before.
+   */
+  loadGoal?: LoadGoal;
 }
 
 export const WEEK_SYSTEM = `You write one week of daily practice for a person following a 90-day plan. The goal, the method and this week's
@@ -184,19 +191,27 @@ export const WEEK_RESPONSE_SCHEMA = {
 };
 
 /**
- * The response schema for one week call (RULE-6). Without a profile it is `WEEK_RESPONSE_SCHEMA`, unchanged. With
- * one, every step requires `kind`, a fixed menu of the profile's kind ids. Gemini may drop the schema, so
- * `checkWeekAnswer` checks every kind too.
+ * The response schema for one week call (RULE-6). Without a profile and a load goal it is `WEEK_RESPONSE_SCHEMA`,
+ * unchanged. With a profile, every step requires `kind`, a fixed menu of the profile's kind ids. Gemini may drop the
+ * schema, so `checkWeekAnswer` checks every kind too. On a load goal (plan safety limits M2.1), the step and the
+ * 10-minute version each get an optional `load`, never required: only some steps carry one.
  */
-export function weekResponseSchema(recovery?: RecoveryProfile | null): typeof WEEK_RESPONSE_SCHEMA {
-  if (!recovery) return WEEK_RESPONSE_SCHEMA;
+export function weekResponseSchema(recovery?: RecoveryProfile | null, loadGoal?: LoadGoal): typeof WEEK_RESPONSE_SCHEMA {
+  if (!recovery && !loadGoal) return WEEK_RESPONSE_SCHEMA;
   const schema = structuredClone(WEEK_RESPONSE_SCHEMA);
-  const stepItems = schema.properties.days.items.properties.steps.items as {
+  const dayProperties = schema.properties.days.items.properties;
+  const stepItems = dayProperties.steps.items as {
     properties: Record<string, unknown>;
     required: string[];
   };
-  stepItems.properties.kind = { type: 'string', enum: recovery.kinds.map((kind) => kind.id) };
-  stepItems.required = [...stepItems.required, 'kind'];
+  if (recovery) {
+    stepItems.properties.kind = { type: 'string', enum: recovery.kinds.map((kind) => kind.id) };
+    stepItems.required = [...stepItems.required, 'kind'];
+  }
+  if (loadGoal) {
+    stepItems.properties.load = STEP_LOAD_SCHEMA;
+    (dayProperties.minimumVersion.properties as Record<string, unknown>).load = STEP_LOAD_SCHEMA;
+  }
   return schema;
 }
 
@@ -275,11 +290,35 @@ function safetyLimitsBlock(input: WeekCallInput): string {
   return lines.join(NL);
 }
 
+/**
+ * Plan safety limits M2.1 (RULE-4, PSL-8): the step-fields line on a load goal, worded from `loadNeed`. The weekly
+ * test step is named only on a running goal.
+ */
+export function loadLine(loadGoal: LoadGoal): string {
+  const which = loadGoal.running
+    ? 'a running step, a cardio step, a lifting step, the weekly test step and any step with highLoad true'
+    : 'a running step, a cardio step, a lifting step and any step with highLoad true';
+  return [
+    `  - load: only on ${which},`,
+    "    and on the minimumVersion when the day's priority-1 step has one: the step's numbers, leaving out any that don't",
+    '    apply. A step with any running in it gives runMinutes or runKm. Running: runMinutes (minutes of running) or runKm',
+    '    (km run), and hardRun (true for intervals, tempo or race pace, otherwise false). Lifting: percent1RM (the heaviest',
+    '    set as a % of 1-rep max) or rir (the fewest reps in reserve), toFailure (true if any set goes to failure) and',
+    '    maxTest (true for a max or 1RM test). Food: kcalDeficit (kcal a day below maintenance) and kcalIntake (kcal eaten',
+    '    a day).',
+  ].join(NL);
+}
+
 export function buildWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string {
-  const prompt = buildBaseWeekPrompt(input, layout) + safetyLimitsBlock(input);
+  const base = buildBaseWeekPrompt(input, layout) + safetyLimitsBlock(input);
+  const fieldLines = [
+    HIGH_LOAD_LINE,
+    ...(input.recovery ? ['  - kind: the id of the kind of step it is, from KINDS OF STEP below'] : []),
+    ...(input.loadGoal ? [loadLine(input.loadGoal)] : []),
+  ];
+  const prompt = fieldLines.length > 1 ? base.replace(HIGH_LOAD_LINE, fieldLines.join(NL)) : base;
   if (!input.recovery) return prompt + firstWeekBackBlock(input);
-  const withKindLine = prompt.replace(HIGH_LOAD_LINE, [HIGH_LOAD_LINE, '  - kind: the id of the kind of step it is, from KINDS OF STEP below'].join(NL));
-  return withKindLine + kindsBlock(input.recovery) + whereTheyAreBlock(input) + firstWeekBackBlock(input);
+  return prompt + kindsBlock(input.recovery) + whereTheyAreBlock(input) + firstWeekBackBlock(input);
 }
 
 /**
@@ -389,6 +428,7 @@ interface RawStep {
   timing?: unknown;
   highLoad?: unknown;
   kind?: unknown;
+  load?: unknown;
 }
 
 interface RawDay {
@@ -429,9 +469,11 @@ export function resolveKind(value: unknown, recovery: RecoveryProfile): string |
   return byName ? byName.id : null;
 }
 
-function toStep(raw: RawStep, stepNumber: number, recovery?: RecoveryProfile | null): ParsedStep {
+function toStep(raw: RawStep, stepNumber: number, recovery?: RecoveryProfile | null, withLoad = false): ParsedStep {
   const timing = text(raw.timing);
   const kind = recovery ? resolveKind(raw.kind, recovery) : null;
+  // Plan safety limits M2.1: read only on a load goal, so any other goal's steps are exactly as before.
+  const load = withLoad ? parseStepLoad(raw.load) : undefined;
   return {
     stepNumber,
     title: text(raw.title),
@@ -446,6 +488,7 @@ function toStep(raw: RawStep, stepNumber: number, recovery?: RecoveryProfile | n
     // ND-5: only a real boolean counts; a missing or odd value is never a reason to retry.
     highLoad: raw.highLoad === true,
     ...(kind ? { kind } : recovery ? { badKind: text(raw.kind) } : {}),
+    ...(load ? { load } : {}),
   };
 }
 
@@ -567,6 +610,9 @@ export function checkWeekAnswer(
   const recovery = input.recovery ?? null;
   /** RULE-6: hard reasons; they never give way on the last attempt (MR-5, MR-16). */
   const kindFailures: string[] = [];
+  const loadGoal = input.loadGoal;
+  /** Plan safety limits M2.1 (RULE-4): steps PSL-8 names that came without their load; soft, kept on the last attempt. */
+  const loadMisses: LoadMiss[] = [];
 
   for (const slot of layout) {
     const numbered = rawDays.some((day) => int(day?.dayNumber) !== null);
@@ -575,16 +621,17 @@ export function checkWeekAnswer(
     if (!raw) return { reason: `Day ${slot.dayNumber} is missing. Return all 7 days.` };
     const label = `Day ${slot.dayNumber}`;
     let steps = (Array.isArray(raw.steps) ? (raw.steps as RawStep[]) : [])
-      .map((step, index) => toStep(step ?? {}, index + 1, recovery))
+      .map((step, index) => toStep(step ?? {}, index + 1, recovery, loadGoal !== undefined))
       .filter((step) => step.title);
     const work = steps.filter((step) => !BREAK_STEP.test(step.title));
     if (!slot.isRestDay && work.length > 0) steps = work;
 
     if (slot.isRestDay) {
-      const light = keepTopSteps(steps, 1).map((step) => ({
-        ...(cleanStep(step, false) as ParsedStep),
-        durationMinutes: Math.min(REST_STEP_MAX_MINUTES, step.durationMinutes || REST_STEP_MAX_MINUTES),
-      }));
+      const light = keepTopSteps(steps, 1).map((step) =>
+        withMinutes(cleanStep(step, false) as ParsedStep, Math.min(REST_STEP_MAX_MINUTES, step.durationMinutes || REST_STEP_MAX_MINUTES))
+      );
+      // Checked as ranked, so each miss holds the step number the day returns.
+      if (loadGoal) loadMisses.push(...stepLoadMisses(slot.dayNumber, rankSteps(light), false, loadGoal));
       days.push({
         dayNumber: slot.dayNumber,
         date: slot.date,
@@ -603,8 +650,9 @@ export function checkWeekAnswer(
       continue;
     }
 
+    // PSL-11 Q9: only the model's own test step carries a load; a code-made one (`testStepFor`) never needs one.
+    const hasTest = slot.isTestDay && steps.some((step) => TEST_STEP.test(step.title));
     if (slot.isTestDay) {
-      const hasTest = steps.some((step) => TEST_STEP.test(step.title));
       if (!hasTest && !lastAttempt) {
         return { reason: `${label} is the test day; its main step must be titled "Weekly test: ..." and run the weekly test as written.` };
       }
@@ -647,22 +695,30 @@ export function checkWeekAnswer(
     if (!whyToday) soft.push(`${label} has no "whyToday".`);
 
     const rawMinimum = raw.minimumVersion;
-    let minimumVersion: DetailedStep | null = rawMinimum && text(rawMinimum.title) ? toStep(rawMinimum, 1) : null;
+    let minimumVersion: DetailedStep | null = rawMinimum && text(rawMinimum.title) ? toStep(rawMinimum, 1, null, loadGoal !== undefined) : null;
+    const modelMinimum = minimumVersion !== null;
     if (!minimumVersion) {
       soft.push(`${label} has no "minimumVersion".`);
-      const lead = rankSteps(steps).find((step) => step.priority === 1)!;
+      // Plan safety limits M2.1 (M1.1 section 3): the full step's load is not the 10-minute version's.
+      const lead = withoutLoad(rankSteps(steps).find((step) => step.priority === 1)!);
       minimumVersion = { ...lead, stepNumber: 1, title: `Short version: ${lead.title}` };
     }
     const minMinutes = minimumVersion.durationMinutes;
-    minimumVersion = {
-      ...minimumVersion,
-      durationMinutes: minMinutes > 0 && minMinutes <= MINIMUM_VERSION_MINUTES ? minMinutes : MINIMUM_VERSION_MINUTES,
-    };
+    minimumVersion = withMinutes(minimumVersion, minMinutes > 0 && minMinutes <= MINIMUM_VERSION_MINUTES ? minMinutes : MINIMUM_VERSION_MINUTES);
     delete (minimumVersion as { priority?: number }).priority;
 
     const written = steps.reduce((sum, step) => sum + step.durationMinutes, 0);
     const minutes = slot.isTestDay && written > 0 && written < input.dailyMinutes ? written : input.dailyMinutes;
     const detailedSteps = fitStepMinutes(rankSteps(steps), minutes);
+    if (loadGoal) {
+      const misses = stepLoadMisses(slot.dayNumber, detailedSteps, hasTest, loadGoal);
+      // The 10-minute version needs a load exactly when the day's priority-1 step does; the fallback is code-made.
+      const minimumMissing = modelMinimum ? missingLoad(minimumVersion.load, leadLoadNeed(detailedSteps, hasTest, loadGoal)) : null;
+      if (minimumMissing) {
+        misses.push({ day: slot.dayNumber, name: `${label} 10-minute version "${minimumVersion.title}"`, stepNumber: null, title: minimumVersion.title, missing: minimumMissing });
+      }
+      loadMisses.push(...misses);
+    }
     // MR-15: the 10-minute version takes the kind of the day's priority-1 step.
     const leadKind = recovery ? detailedSteps.find((step) => step.priority === 1)?.kind : undefined;
     if (recovery) {
@@ -712,9 +768,12 @@ export function checkWeekAnswer(
     soft.push(`Day ${practice[0].dayNumber} must start with a step titled "Re-test: ..." that runs the weekly test.`);
   }
 
+  // M2.1 review: the load misses go first, so the cut to 8 reasons never drops them all.
+  soft.unshift(...loadMisses.map((miss) => `${miss.name} needs its load: ${miss.missing}.`));
   const polished = polishDays(days);
   soft.push(...dayQualityFailures(polished));
   if (soft.length > 0 && !lastAttempt) return { reason: soft.slice(0, 8).join(' ') };
+  if (lastAttempt) logKeptWithoutLoad(loadMisses, polished, input);
   // RULE-7: with a profile the kinds decide; the goal-level marking is only for goals without one.
   return { value: input.highLoadGoal && !recovery ? polished.map(markHighLoad) : polished };
 }
@@ -761,12 +820,63 @@ export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAt
     for (const { day, step } of refused) {
       const at = day.detailedSteps.indexOf(step);
       if (at < 0) continue;
-      const light = { ...step, ...lightTestStep(step.durationMinutes), stepNumber: step.stepNumber, priority: step.priority, ...(step.kind ? { kind: step.kind } : {}) };
+      // Plan safety limits M2.1: the refused step's load is not the light step's.
+      const light = { ...withoutLoad(step), ...lightTestStep(step.durationMinutes), stepNumber: step.stepNumber, priority: step.priority, ...(step.kind ? { kind: step.kind } : {}) };
       day.detailedSteps = day.detailedSteps.map((item, index) => (index === at ? light : item));
     }
     return [];
   }
   return refused.map(({ name, hit }) => `SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`);
+}
+
+/**
+ * Plan safety limits M2.1: one step that needed its load and came without it. `stepNumber` is its place in the day as
+ * returned (`rankSteps` sets it; nothing after changes it), null for the 10-minute version; `title` as checked.
+ */
+interface LoadMiss {
+  day: number;
+  name: string;
+  stepNumber: number | null;
+  title: string;
+  missing: string;
+}
+
+/**
+ * RULE-4, PSL-8: the steps of one day (ranked, as returned) that need a load and lack it, plus any step whose load
+ * names running without `hardRun`. `hasTest`: the model wrote the day's test step.
+ */
+function stepLoadMisses(day: number, steps: DetailedStep[], hasTest: boolean, loadGoal: LoadGoal): LoadMiss[] {
+  return steps.flatMap((step) => {
+    const missing = missingLoad(step.load, loadNeed(step, hasTest && TEST_STEP.test(step.title), loadGoal));
+    return missing ? [{ day, name: `Day ${day} step "${step.title}"`, stepNumber: step.stepNumber, title: step.title, missing }] : [];
+  });
+}
+
+function leadLoadNeed(steps: DetailedStep[], hasTest: boolean, loadGoal: LoadGoal) {
+  const lead = steps.find((step) => step.priority === 1);
+  return lead ? loadNeed(lead, hasTest && TEST_STEP.test(lead.title), loadGoal) : null;
+}
+
+/**
+ * RULE-4, AC-4: on the last attempt a step without its load is kept, and B-63's scan has already decided. One
+ * `[Safety]` line per kept step, found by its place in the day (`polishDays` changes no step's number or title). A test
+ * step the light swap replaced keeps its place but has the light step's title: it is code-made now, so not logged.
+ */
+function logKeptWithoutLoad(misses: LoadMiss[], days: WeekDayPlan[], input: WeekCallInput): void {
+  for (const miss of misses) {
+    const day = days.find((item) => item.dayNumber === miss.day);
+    const kept = miss.stepNumber === null ? day?.minimumVersion : day?.detailedSteps.find((step) => step.stepNumber === miss.stepNumber);
+    if (!kept || kept.title !== miss.title) continue;
+    logSafetyHit({
+      goalId: input.goalId ?? null,
+      week: input.weekNumber,
+      attempt: 2,
+      rule: 'load_missing',
+      step: miss.name,
+      matched: miss.missing,
+      outcome: 'kept',
+    });
+  }
 }
 
 /** M1.5b (WU-41): a first week back of a high-load goal: its test is a light version, and the week is scanned as light. */
@@ -790,7 +900,7 @@ export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPla
   return generateWithOneRetry<RawWeekAnswer, WeekDayPlan[]>(
     buildWeekPrompt(input, layout),
     WEEK_SYSTEM,
-    weekResponseSchema(input.recovery),
+    weekResponseSchema(input.recovery, input.loadGoal),
     (data, lastAttempt) => checkWeekAnswer(data, input, lastAttempt),
     `Week ${input.weekNumber}`
   );
