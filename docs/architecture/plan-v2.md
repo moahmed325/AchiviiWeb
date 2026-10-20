@@ -58,6 +58,10 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
   minutes, ranks priorities, and picks key sessions when the model marks none or too many.
 - The test day may be shorter than the daily time; it is never padded. Break steps are dropped (breaks belong in a
   step's instructions). A rest day the model leaves out is filled in by code.
+- On a physical goal (a load goal) code holds the week to numbers (plan-safety-limits M2.2a, RULE-5): the week's
+  running total against the base week (last week planned, or done when under 70% was done) plus 10% or 10 minutes /
+  1 km, the longest run, at most 2 hard runs, and each step's deficit, intake and (weeks 1 to 3) lifting load
+  (`backend/src/lib/safety/weekLoad.ts`). A breach is a retry reason; a second one fails the week.
 - If the week call fails twice, nothing is saved and the user is asked to retry.
 
 ### Weekly update

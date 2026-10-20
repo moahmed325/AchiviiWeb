@@ -211,6 +211,12 @@ export interface HandoffPlacement<T extends PlacedDay> {
   noRoomPlaced: Array<{ kind: string; title: string; date: string }>;
 }
 
+/** Plan safety limits M2.2a review: a step whose load gives `runMinutes` or `runKm` above 0 (`runOf`'s rule). */
+function namesRunning(step: CarriedStep): boolean {
+  const load = step.load;
+  return (typeof load?.runMinutes === 'number' && load.runMinutes > 0) || (typeof load?.runKm === 'number' && load.runKm > 0);
+}
+
 /**
  * Places the handoff in the week the call returned (requirements 3 and 5). For each in-order kind with carried steps,
  * the new week's steps of that kind on practice days (not the test day, not rest), in date then row order, take the
@@ -289,8 +295,13 @@ export function placeHandoff<T extends PlacedDay>(input: {
     };
   };
 
-  /** Tries `item` in place of `current` on day `at`; the new row, or null when it does not fit or breaks the rest gap. */
+  /**
+   * Tries `item` in place of `current` on day `at`; the new row, or null when it does not fit or breaks the rest gap.
+   * Plan safety limits M2.2a review: a step whose load names running never fits, because the new week's running was
+   * checked before placement (RULE-5).
+   */
   const tryPlace = (at: number, current: CarriedStep, item: HandoffStep) => {
+    if (namesRunning(item.step)) return null;
     const row = rows[at];
     const incoming = placedContent(item);
     const fit = takePlace(row, current, incoming, canTrim);
@@ -316,6 +327,9 @@ export function placeHandoff<T extends PlacedDay>(input: {
     for (const slot of slots) {
       const item = carried[next];
       if (!item) break;
+      // M2.2a review: a step that names running waits, with the ones after it (in order), as a step that doesn't fit;
+      // no session gives its own step up for it.
+      if (namesRunning(item.step)) break;
       const current = rows[slot.at].steps.find((step) => written(step) && step.title === slot.title);
       if (!current) continue;
       const row = tryPlace(slot.at, current, item);

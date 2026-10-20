@@ -186,17 +186,21 @@ describe('the schema and the prompt', () => {
     expect(JSON.stringify(WEEK_RESPONSE_SCHEMA)).not.toContain('"load"');
   });
 
-  it('a run10k week 1 prompt differs from main only by the load line', () => {
+  it('a run10k week 1 prompt differs from main only by the load line (and, since M2.2a, the SAFETY LIMITS block)', () => {
     const prompt = buildWeekPrompt(RUN10K, weekLayout('steady', RUN10K.weekStart));
-    expect(prompt).toBe(fixture('weekPrompt.run10k-m2.1.txt'));
+    expect(prompt).toBe(fixture('weekPrompt.run10k-m2.2a.txt'));
+    // Plan safety limits M2.2a: the M2.1 prompt with the old SAFETY LIMITS block (weekLoadLimits.test.ts checks the new one).
+    const block = (text: string) => text.slice(text.indexOf('\n\nSAFETY LIMITS'), text.indexOf('\n\nKINDS OF STEP'));
+    expect(prompt.replace(block(prompt), block(fixture('weekPrompt.run10k-m2.1.txt')))).toBe(fixture('weekPrompt.run10k-m2.1.txt'));
     const added = loadLine({ running: true });
     expect(prompt.split(added)).toHaveLength(2);
-    expect(prompt.replace(`\n${added}`, '')).toBe(fixture('weekPrompt.run10k-before-m2.1.txt'));
+    // M2.2a review: without a load goal there is no SAFETY LIMITS block, so the "before" fixture has none (updated on purpose).
+    expect(prompt.replace(`\n${added}`, '').replace(block(prompt), '')).toBe(fixture('weekPrompt.run10k-before-m2.1.txt'));
     // It follows the kind line.
     expect(prompt).toContain(`from KINDS OF STEP below\n${added}`);
   });
 
-  it('the run10k prompt without a load goal is exactly main', () => {
+  it('the run10k prompt without a load goal is main without the load line and the SAFETY LIMITS block', () => {
     expect(buildWeekPrompt(RUN10K_WEEK1, weekLayout('steady', RUN10K_WEEK1.weekStart))).toBe(fixture('weekPrompt.run10k-before-m2.1.txt'));
   });
 

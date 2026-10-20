@@ -43,6 +43,8 @@ const input: WeekCallInput = {
   test: TIME_TRIAL_TEST,
   weekStart: new Date('2026-11-16T12:00:00Z'),
   highLoadGoal: true,
+  // Plan safety limits M2.2a review: as production sends it (`loadGoalFor`: a running-time target).
+  loadGoal: { running: true },
 };
 const back = (highLoad: boolean) => ({ firstWeekBack: { awayDays: 45, note: null, highLoad } });
 
@@ -57,6 +59,8 @@ function step(title: string, priority: number, minutes = 15, extra: Record<strin
     pitfall: 'Starting too fast',
     priority,
     highLoad: true,
+    // M2.2a review: every step is a run and carries its load (M2.1), easy and within the limits.
+    load: { runMinutes: minutes, hardRun: false },
     ...extra,
   };
 }
@@ -110,8 +114,12 @@ const asRaw = (days: WeekDayPlan[]): RawWeekAnswer => ({
       pitfall: s.pitfallToAvoid,
       priority: s.priority,
       highLoad: s.highLoad,
+      // M2.2a review: the loads as saved; the code-made light step has none, so as the model's it gets an easy one.
+      load: s.load ?? { runMinutes: s.durationMinutes, hardRun: false },
     })),
-    ...(day.minimumVersion ? { minimumVersion: { title: day.minimumVersion.title, instructions: day.minimumVersion.instructions, minutes: 10, highLoad: true } } : {}),
+    ...(day.minimumVersion
+      ? { minimumVersion: { title: day.minimumVersion.title, instructions: day.minimumVersion.instructions, minutes: 10, highLoad: true, load: day.minimumVersion.load } }
+      : {}),
   })),
 });
 let warn: ReturnType<typeof vi.spyOn>;

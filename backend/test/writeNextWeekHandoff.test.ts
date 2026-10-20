@@ -130,6 +130,8 @@ const todaysInput = (recovery: unknown) => ({
   highLoadGoal: false,
   recovery,
   lastWeek: { target, result: 'no test day this week', done: 1, planned: 3, keySessionsSkipped: [] },
+  // Plan safety limits M2.2a (B-64): the goal id for the `[Safety]` lines; the prompt never reads it.
+  goalId: 'g1',
 });
 
 const call = () => vi.mocked(generateWeekPlan).mock.calls.at(-1)![0];
