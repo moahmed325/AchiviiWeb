@@ -31,3 +31,5 @@
 | I-17 | 2026-10-19 | plan-safety-limits M1.1 report, Ideas | A per-step "done" flag (Today already shows steps). | The base week could count what was actually done instead of a whole day. | OPEN |
 | I-18 | 2026-10-20 | plan-safety-limits M1.2 report, Ideas | Tell the roadmap model the safe step for a physical goal ("at most 2% faster a week") in the prompt. | Fewer lowered weeks, and the method's phases stay as planned instead of being flattened by code. | OPEN |
 | I-19 | 2026-10-20 | plan-safety-limits M1.2 report, Ideas | A table in the docs of every `[Safety]` rule and outcome. | One place to read the log lines when checking production (O2). | OPEN |
+| I-20 | 2026-10-20 | plan-safety-limits M1.3 report, Ideas | Show the honest week 12 line on the Dashboard when week 12 is current. | The Dashboard is the screen most people open; M1.3 shows the line only on the four PSL-9 screens. | OPEN |
+| I-21 | 2026-10-20 | plan-safety-limits M1.3 report, Ideas | A read-only script that counts the older goals `safeGoalTargets` lowers on read. | Shows how many people M1.3 touches; could run with O1's query. | OPEN |

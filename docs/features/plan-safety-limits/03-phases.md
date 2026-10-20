@@ -11,7 +11,7 @@
 | M1.1 | Check the code | — | DONE 2026-10-19 | [m1.1](milestones/m1.1-check-the-code.md) |
 | O1 | Mo: run a read-only query on production that counts run10k and recomp roadmaps by week 1 target metric and unit (the query is written in M1.1's report) | — | READY: both read-only queries (O1 and B-58) are in M1.1's report, section 5; M1.2 does not wait for the results | [m1.1](milestones/m1.1-check-the-code.md) |
 | M1.2 | The limits module, target families and safe steps at roadmap time | AC-1, AC-2, AC-3 (server), AC-10 (targets), AC-11 | DONE 2026-10-20 | [m1.2](milestones/m1.2-limits-module.md) |
-| M1.3 | Older goals on read, and the honest week 12 line | AC-3 (screen), AC-9 | READY | [m1.3](milestones/m1.3-older-goals-honest-line.md) |
+| M1.3 | Older goals on read, and the honest week 12 line | AC-3 (screen), AC-9 | DONE 2026-10-20 | [m1.3](milestones/m1.3-older-goals-honest-line.md) |
 | M2.1 | High-load steps carry their load | AC-4 | NOT STARTED | |
 | M2.2 | Week limits, base week and first week back | AC-5, AC-6, AC-7, AC-10 (weeks) | NOT STARTED | |
 | O2 | Mo: after M2.2 is live, read a week of `[Safety]` lines and note false alarms and failed weeks (`01-brief.md` section 9, question 9) | — | NOT STARTED | |

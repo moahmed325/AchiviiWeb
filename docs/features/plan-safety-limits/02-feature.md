@@ -44,7 +44,7 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 
 **RULE-8 — The text scan stays.** B-63's scan of step text runs as well, for any limit a load number did not cover. The roadmap's week tests are checked by the same rules (B-63). A breach that the week's stored test itself holds is logged, not refused (PSL-3).
 
-**RULE-9 — Older goals.** A goal stored before this feature is checked on read: what the week writer is told and what the plan shows use the lowered targets, and nothing stored is rewritten. Lowering happens in `presentGoal` and `writeNextWeek`; `objective` and `passIf` are rebuilt from the lowered target, a pathway's test is refilled from the preset, and a model-written test on an older custom goal stays as stored (PSL-7). Their stored weeks have no load, so their first base week comes from the text scan only (told, not counted).
+**RULE-9 — Older goals.** A goal stored before this feature is checked on read: what the week writer is told and what the plan shows use the lowered targets, and nothing stored is rewritten. Lowering happens in `presentGoal` and `writeNextWeek`; `objective` and `passIf` are rebuilt from the lowered target, a pathway's test is refilled from the preset, and a model-written test on an older custom goal stays as stored (PSL-7). Their stored weeks have no load, so their first base week comes from the text scan only (told, not counted). A closed week keeps its stored target, and the weeks after the last closed one are checked from its stored target (PSL-13).
 
 **RULE-10 — Every action is logged.** Each lowered target and each breach writes one `[Safety]` line (goal, week, rule, the number or sentence, the outcome), as B-63 does.
 
