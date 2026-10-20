@@ -11,6 +11,7 @@ import type {
 } from '../types/journey';
 import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
+import { week12LineText } from './week12Line';
 import { dayNumber, isRestLike, todayKey } from './today';
 
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -254,6 +255,7 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
     phases,
     closingStretch,
     metrics,
+    week12Line: week12LineText(goal.week12Line),
   };
 }
 

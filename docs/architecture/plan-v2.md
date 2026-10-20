@@ -262,6 +262,22 @@ against the starting point, each later week against the (lowered) week before; a
 model's values are kept as `loweredTargets` in `Goal.roadmap`. A stated number the model's own week 12 met but the
 lowering put out of reach is accepted at the highest safe step, and `finalGoal` is not asked for again then.
 
+**Older goals on read (plan-safety-limits M1.3):** a goal stored before M1.2 is checked whenever it is read, by
+`safeGoalTargets` in `backend/src/lib/safety/storedTargets.ts`, in `presentGoal` (every route that sends a goal) and in
+`writeNextWeek` (what the week call is told). Nothing stored changes. A goal with no light test is checked on all 12
+weeks; one with light tests on weeks 4, 8 and 12 only, four safe steps apart (`safeCheckWeekClimb`), and each light week
+then takes its big week's lowered target. For a week whose target changed, `objective` is rebuilt; a pathway's measured
+test, `keyMilestone` and (for week 12) `finalTest` are refilled from the preset when the stored test is the preset's
+own; a model-written test (a custom goal, or an older pathway goal) keeps its text and `finalTest`, and only its pass
+mark changes. A goal created since M1.2 comes back unchanged. A closed week (`completed` or jumped) keeps its stored
+target, because its result was judged against it: the check starts from the last closed week's stored target (on a
+light-test goal, the last closed of weeks 4 and 8, four safe steps to the next checked week), or from the starting
+point when none is closed. Both readers use the same rule (the week `writeNextWeek` closes is still active).
+`presentGoal` also sends `week12Line` (`{ safe, goal }` or null; for "lose N", `goal` is the starting point minus N)
+whenever week 12 was lowered, at create or on read; the app shows the honest line
+from it on the Roadmap, Today's closing stretch and the review. `writeNextWeek` logs one `[Safety]` `target_step` line
+with outcome `lowered_on_read` when the week it writes was lowered on read.
+
 ## Prompt 3: week call
 
 **System**

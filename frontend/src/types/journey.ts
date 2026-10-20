@@ -105,4 +105,6 @@ export interface JourneyData {
   phases: JourneyPhase[];
   closingStretch: JourneyClosingStretch;
   metrics: JourneyProgressMetrics;
+  /** Plan safety limits M1.3 (PSL-9, PSL-12): the honest line under week 12's target, when it was lowered. */
+  week12Line?: string | null;
 }

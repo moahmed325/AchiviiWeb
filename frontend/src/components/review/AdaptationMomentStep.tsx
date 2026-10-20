@@ -22,6 +22,8 @@ export interface AdaptationMomentStepProps {
   currentWeekLight?: boolean;
   /** M2.1: next week is a light week: its target shows as the next check. */
   nextWeekLight?: boolean;
+  /** Plan safety limits M1.3 (PSL-9): the honest line under next week's target, given only when next week is week 12. */
+  nextWeekLine?: string | null;
   milestoneGateTransition?: MilestoneGateTransition | null;
   onContinue: () => void;
 }
@@ -43,6 +45,7 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
   testResult,
   currentWeekLight = false,
   nextWeekLight = false,
+  nextWeekLine = null,
   milestoneGateTransition,
   onContinue,
 }) => {
@@ -170,6 +173,7 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
               <span className="font-medium text-text text-right">{formatTarget(nextWeekTarget)}</span>
             </div>
           )}
+          {nextWeekTarget && nextWeekLine && <p className="text-text-secondary">{nextWeekLine}</p>}
 
           {plannedSessions > 0 && (
             <div className="flex items-start justify-between gap-3">

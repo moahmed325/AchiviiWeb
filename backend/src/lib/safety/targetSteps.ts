@@ -189,6 +189,22 @@ export interface TargetClimb {
  * week 1 is not checked and the check runs from week 2 (PSL-11 Q14). Targets with no family come back unchanged.
  */
 export function safeTargetClimb(targets: WeekTarget[], startValue: number | null, context: FamilyContext = {}): TargetClimb {
+  return climbBySteps(targets, targets.map((_, index) => index + 1), startValue, context, 1);
+}
+
+/** PSL-11 Q1: weeks 4, 8 and 12 are four weeks apart, so four safe steps apart. Not a limit: the weeks between them. */
+const STEPS_BETWEEN_CHECKS = 4;
+
+/**
+ * Plan safety limits M1.3 (RULE-2, PSL-11 Q1): a stored split-pathway goal, checked on its big-test weeks only
+ * (`weeks`, in order, normally 4, 8 and 12), each at most four safe steps beyond the one before and the first against
+ * the starting point. The same rules as `safeTargetClimb`, so a goal it already checked is never lowered again.
+ */
+export function safeCheckWeekClimb(targets: WeekTarget[], weeks: number[], startValue: number | null, context: FamilyContext = {}): TargetClimb {
+  return climbBySteps(targets, weeks, startValue, context, STEPS_BETWEEN_CHECKS);
+}
+
+function climbBySteps(targets: WeekTarget[], weeks: number[], startValue: number | null, context: FamilyContext, steps: number): TargetClimb {
   const first = targets[0];
   const family = first ? targetFamily(first, context) : null;
   const out = targets.map((target) => ({ ...target }));
@@ -200,12 +216,13 @@ export function safeTargetClimb(targets: WeekTarget[], startValue: number | null
   let prev: number | null = startValue;
   out.forEach((target, index) => {
     if (target.kind !== 'number') return;
-    const week = index + 1;
+    const week = weeks[index];
     if (prev === null && !range) {
       prev = target.value;
       return;
     }
-    const limit = nextSafeStep(target, prev ?? target.value, context);
+    let limit: number | null = prev ?? target.value;
+    for (let step = 0; step < steps && limit !== null; step += 1) limit = nextSafeStep(target, limit, context);
     if (limit !== null && harder(target.value, limit, target.direction)) {
       lowered.push({ week, model: target.value, safe: limit });
       target.value = limit;

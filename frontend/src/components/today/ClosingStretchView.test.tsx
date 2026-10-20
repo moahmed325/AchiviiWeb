@@ -243,3 +243,47 @@ describe('ClosingStretchView Component (M9.4)', () => {
     expect(fallbackButton).toBeDisabled();
   });
 });
+
+// Plan safety limits M1.3 (PSL-9, PSL-12): the honest line under the Summit Target when week 12 was lowered.
+describe('the honest week 12 line in the closing stretch (M1.3)', () => {
+  const goal = {
+    id: 'goal-90',
+    rawGoal: 'Run 10K in under 50 minutes',
+    clarifiedOutcome: 'Run 10K in under 50 minutes',
+    status: 'active',
+    currentWeek: 12,
+    targetDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+    dailyTasks: [],
+    roadmapWeeks: [
+      {
+        id: 'rw12',
+        weekNumber: 12,
+        target: { kind: 'number', metric: '10K time', value: 55.5, unit: 'minutes', direction: 'lower_is_better' },
+        test: { type: 'timer', instructions: 'Run the 10K.', passIf: '10K time: 55.5 minutes or less' },
+      },
+    ],
+    roadmap: { finalGoal: 'Run a 10K in 50 minutes or less', finalTest: 'Run the 10K.', phases: [] },
+  } as unknown as Goal;
+  const renderWith = (week12Line: Goal['week12Line']) =>
+    render(
+      <MemoryRouter>
+        <ClosingStretchView goal={{ ...goal, week12Line }} />
+      </MemoryRouter>
+    );
+
+  it('the full line under the Summit Target', () => {
+    renderWith({ safe: '55.5 minutes', goal: '50 minutes' });
+    expect(screen.getByText('Summit Target:')).toBeVisible();
+    expect(screen.getByText('Week 12 aims at 55.5 minutes, a safe step. Your 50 minutes goal is the next step.')).toBeVisible();
+  });
+
+  it('the short line', () => {
+    renderWith({ safe: '55.5 minutes', goal: null });
+    expect(screen.getByText('Week 12 aims at 55.5 minutes, a safe step.')).toBeVisible();
+  });
+
+  it('nothing when week12Line is null', () => {
+    renderWith(null);
+    expect(screen.queryByText(/Week 12 aims at/)).not.toBeInTheDocument();
+  });
+});

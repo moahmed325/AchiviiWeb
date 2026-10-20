@@ -140,9 +140,14 @@ function metricRepeatsUnit(metric: string, unit: string): boolean {
   return !m || m === u || m.includes(u) || u.includes(m) || initials === u.replace(/[^a-z]/g, '');
 }
 
+/** Plan safety limits M1.3 (PSL-12): a number as the honest line names it, rounded, with no metric and no "or less". */
+export function formatAmount(value: number, unit: string): string {
+  return `${roundValue(value)} ${unit}`.trim();
+}
+
 export function formatTarget(target: WeekTarget): string {
   if (target.kind === 'deliverable') return target.description;
-  const amount = `${roundValue(target.value)} ${target.unit}`.trim();
+  const amount = formatAmount(target.value, target.unit);
   const suffix = target.direction === 'lower_is_better' ? ' or less' : '';
   return metricRepeatsUnit(target.metric, target.unit) ? `${amount}${suffix}` : `${target.metric}: ${amount}${suffix}`;
 }
@@ -527,7 +532,7 @@ function numberMentioned(textValue: string, value: number): boolean {
  * starting point minus N (met when there is no starting point), and on a target that counts the amount lost (higher is
  * better) when week 12 is at or above N.
  */
-function statedTargetMet(week12: WeekTarget, item: StatedTarget, start: number | null): boolean {
+export function statedTargetMet(week12: WeekTarget, item: StatedTarget, start: number | null): boolean {
   if (week12.kind === 'deliverable') {
     return numberMentioned(week12.description, item.value) && item.aliases.some((alias) => week12.description.toLowerCase().includes(alias));
   }
@@ -814,6 +819,25 @@ function fillTarget(template: string, target: WeekTarget): string {
   return template.split('{target}').join(formatTarget(target).replace(/[.\s]+$/, ''));
 }
 
+/** A pathway's measured test for one week: its template with the week's target filled in, and a pass mark naming it. */
+export function measuredPathwayTest(tests: NonNullable<CertifiedPresetBlueprint['weeklyTests']>, target: WeekTarget): WeekTest {
+  return { type: tests.measured.type, instructions: fillTarget(tests.measured.instructions, target), passIf: formatTarget(target) };
+}
+
+/** What joins a test's instructions and its pass mark in `keyMilestone`. */
+export const PASS_IF_JOIN = ' Pass if: ';
+
+/** `RoadmapWeek.keyMilestone` as code writes it from a week's test. */
+export function keyMilestoneText(test: Pick<WeekTest, 'instructions' | 'passIf'>): string {
+  return `${test.instructions}${PASS_IF_JOIN}${test.passIf}`;
+}
+
+/** The text a goal's stated targets are read from (`extractStatedTargets`): the raw goal and the success answer. */
+export function statedTargetText(rawGoal: string, answers: PlanAnswer[]): string {
+  const successAnswer = answers.find((item) => item.id === 'success')?.answer ?? '';
+  return `${rawGoal}. ${isSkippedAnswer(successAnswer) ? '' : successAnswer}`;
+}
+
 /**
  * Weekly update M2.1 (RULE-19, WU-43 (1), (3), (7)): the pathway's hand-written tests in place of the model's, so only
  * code decides them. A week whose test measures the target gets the pathway's test with that week's target filled in
@@ -834,10 +858,7 @@ export function withPathwayTests(roadmap: Roadmap, preset: Pick<CertifiedPresetB
         test: { type: tests.light.type, instructions: tests.light.instructions, passIf: LIGHT_TEST_PASS_IF, light: true },
       };
     }
-    return {
-      ...week,
-      test: { type: tests.measured.type, instructions: fillTarget(tests.measured.instructions, week.target), passIf: formatTarget(week.target) },
-    };
+    return { ...week, test: measuredPathwayTest(tests, week.target) };
   });
   const week12 = weeks.find((week) => week.weekNumber === TOTAL_WEEKS);
   return { ...roadmap, weeks, finalTest: week12 ? week12.test.instructions : roadmap.finalTest };
@@ -869,9 +890,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
 
   const preset = pathwayFor(input.rawGoal, input.workingTitle);
   const fixedMethod = preset ? presetMethod(preset) : undefined;
-  const statedTargets = extractStatedTargets(
-    `${input.rawGoal}. ${isSkippedAnswer(successAnswer) ? '' : successAnswer}`
-  );
+  const statedTargets = extractStatedTargets(statedTargetText(input.rawGoal, input.answers));
 
   const prompt = buildRoadmapPrompt(input, fixedMethod, statedTargets) + (preset ? `\n\nMETHOD DETAIL\n${preset.expertPromptContext}` : '');
   let lowSafety = false;

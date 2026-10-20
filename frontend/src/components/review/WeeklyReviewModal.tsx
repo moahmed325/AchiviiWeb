@@ -15,6 +15,7 @@ import { ReviewSummaryCard } from './ReviewSummaryCard';
 import { ReviewTestResultStep } from './ReviewTestResultStep';
 import { ReviewReflectionStep } from './ReviewReflectionStep';
 import { AdaptationMomentStep } from './AdaptationMomentStep';
+import { week12LineText } from '../../lib/week12Line';
 import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
 import { isRestLike } from '../../lib/today';
 import { isLightTest } from '../../lib/lightTest';
@@ -361,6 +362,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
             testResult={adaptationData?.testResult ?? testResult}
             currentWeekLight={isLightTest(activeWeek?.test)}
             nextWeekLight={isLightTest(nextRoadmapWeek?.test)}
+            nextWeekLine={nextWeekNum === 12 ? week12LineText(goal.week12Line) : null}
             milestoneGateTransition={adaptationData?.milestoneGateTransition}
             onContinue={handleFinish}
           />
