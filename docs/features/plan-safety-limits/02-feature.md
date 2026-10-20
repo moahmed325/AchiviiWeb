@@ -87,6 +87,7 @@ No new screen. One line where week 12's target shows when RULE-3 lowered it: the
 | Situation | Exact words |
 |---|---|
 | Week 12 lowered below the stated goal (RULE-3) | "Week 12 aims at {safe}, a safe step. Your {goal} goal is the next step." |
+| Week 12 lowered, and the goal text names no number it misses (PSL-12) | "Week 12 aims at {safe}, a safe step." |
 | Week could not be written (RULE-6) | existing: "Couldn't write your first week right now. Please try again." / "Couldn't write next week right now. This week is unchanged; please try again." |
 
 ## 7. Data and system changes
