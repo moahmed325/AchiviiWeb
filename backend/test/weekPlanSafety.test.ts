@@ -35,6 +35,8 @@ const input: WeekCallInput = {
   test: { type: 'count', instructions: 'Squat 72.5 kg for 5 reps with 3 reps in reserve', passIf: '5 clean reps at 72.5 kg' },
   weekStart: new Date('2026-09-21T12:00:00Z'),
   highLoadGoal: true,
+  // Plan safety limits M2.2a review: as production sends it (`loadGoalFor`: a lift-load target).
+  loadGoal: { running: false },
 };
 
 function step(title: string, priority: number, minutes = 15, extra: Record<string, unknown> = {}) {
@@ -48,6 +50,8 @@ function step(title: string, priority: number, minutes = 15, extra: Record<strin
     pitfall: 'Rushing the descent',
     priority,
     highLoad: true,
+    // M2.2a review: every high-load step carries its load (M2.1), within the limits.
+    load: { rir: 3 },
     ...extra,
   };
 }
@@ -208,7 +212,9 @@ describe('safety limits in the week prompt', () => {
     expect(prompt).toContain('SAFETY LIMITS');
     expect(prompt).toContain('Calorie deficit: 250 to 600 kcal a day, never more.');
     expect(prompt).toContain('At most 2 hard runs this week');
-    expect(prompt).toContain('at most 10% more than last week');
+    // M2.2a review: the load goal's block (week 1 has no base week).
+    expect(prompt).toContain('- Running: there is no last week to count from; keep it at their level.');
+    expect(prompt).toContain('- Daily intake: never below 1200 kcal a day.');
     expect(prompt).toContain(OVERRIDE);
     const week4 = buildWeekPrompt({ ...recomp, weekNumber: 4 }, layout);
     expect(week4).toContain('SAFETY LIMITS');

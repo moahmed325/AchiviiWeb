@@ -33,11 +33,15 @@ export type RunUnit = 'minutes' | 'km';
 /** A test step code wrote: `testStepFor`'s measured step, or the light step. Null for any other step. */
 export type CodeMadeTest = 'measured' | 'light' | null;
 
-/** How one step is read: on a running goal, and whether it is the test day's test step. */
+/**
+ * How one step is read: on a running goal, whether it is the test day's test step, and whether the week's test is
+ * measured (not a light week); only the test step's hardness reads `measured`.
+ */
 export interface StepContext {
   running: boolean;
   testStep: boolean;
   codeMade: CodeMadeTest;
+  measured: boolean;
 }
 
 /**
@@ -57,7 +61,8 @@ const above0 = (value: number | undefined): value is number => typeof value === 
 /**
  * PSL-11 Q9, PSL-15 (1), (6): the run a step holds, or null. A load with `runMinutes` or `runKm` above 0 is a run and its
  * `hardRun` decides; a code-made test step on a running goal counts its minutes (hard when measured); a run kind, or
- * the model's test step on a running goal, with no running number counts its minutes (a `quality_session` is hard).
+ * the model's test step on a running goal, with no running number counts its minutes (a `quality_session` is hard, and
+ * so is the model's test step in a measured week, as code's measured test is: M2.2a review).
  */
 export function runOf(step: Pick<DetailedStep, 'durationMinutes' | 'kind' | 'load'>, name: string, context: StepContext): Run | null {
   const load = step.load;
@@ -68,7 +73,8 @@ export function runOf(step: Pick<DetailedStep, 'durationMinutes' | 'kind' | 'loa
   if (context.testStep && context.running && context.codeMade) return { name, minutes, hard: context.codeMade === 'measured', noLoad: false };
   const givesRunning = load?.runMinutes !== undefined || load?.runKm !== undefined;
   const runKind = typeof step.kind === 'string' && RUN_KINDS.includes(step.kind);
-  if (!givesRunning && (runKind || (context.testStep && context.running))) return { name, minutes, hard: step.kind === 'quality_session', noLoad: true };
+  const modelTest = context.testStep && context.running;
+  if (!givesRunning && (runKind || modelTest)) return { name, minutes, hard: step.kind === 'quality_session' || (modelTest && context.measured), noLoad: true };
   return null;
 }
 
@@ -103,9 +109,10 @@ export function weekRunning(runs: Run[]): WeekRunning {
 
 /**
  * What a later week's running total is held to. `known: false`: some run of the base week, planned or done, has no
- * running number (or the week was written before M2.1), so there is no base: never 0 (PSL-15 (1)).
+ * running number (`runWithoutLoad`), or the week was written before M2.1, so there is no base: never 0 (PSL-15 (1)).
+ * A known base of 0 runs is held like week 1 (PSL-16).
  */
-export type BaseWeek = { known: true; unit: RunUnit; total: number; totalMinutes: number; runs: number } | { known: false };
+export type BaseWeek = { known: true; unit: RunUnit; total: number; totalMinutes: number; runs: number } | { known: false; runWithoutLoad: boolean };
 
 /** The stored fields of one day of the base week that its count reads. */
 export interface BaseTask {
@@ -133,7 +140,9 @@ interface BaseCount {
 export function baseWeekOf(tasks: readonly BaseTask[], running: boolean, codeMade: (step: DetailedStep) => CodeMadeTest): BaseWeek {
   const offered = tasks.filter((task) => !task.notOffered);
   // A week written before M2.1 carries no load on any step: its running is not known.
-  if (!offered.some((task) => task.steps.some((step) => step.load) || task.minimumVersion?.load)) return { known: false };
+  if (!offered.some((task) => task.steps.some((step) => step.load) || task.minimumVersion?.load)) {
+    return { known: false, runWithoutLoad: countDays(offered, false, running, codeMade).unknown };
+  }
   const planned = countDays(offered, false, running, codeMade);
   const done = countDays(
     offered.filter((task) => task.status === 'completed'),
@@ -141,7 +150,7 @@ export function baseWeekOf(tasks: readonly BaseTask[], running: boolean, codeMad
     running,
     codeMade
   );
-  if (planned.unknown || done.unknown) return { known: false };
+  if (planned.unknown || done.unknown) return { known: false, runWithoutLoad: true };
   const sameUnit = planned.running.unit === done.running.unit;
   const plannedAmount = sameUnit ? planned.running.total : planned.running.totalMinutes;
   const doneAmount = sameUnit ? done.running.total : done.running.totalMinutes;
@@ -176,7 +185,8 @@ function countDays(tasks: readonly BaseTask[], asDone: boolean, running: boolean
 
 function contextOf(step: DetailedStep, task: Pick<BaseTask, 'isTestDay'>, running: boolean, codeMade: (step: DetailedStep) => CodeMadeTest): StepContext {
   const testStep = task.isTestDay && TEST_STEP_TITLE.test(step.title);
-  return { running, testStep, codeMade: testStep ? codeMade(step) : null };
+  // The base week's hard runs are never compared, so `measured` doesn't matter here.
+  return { running, testStep, codeMade: testStep ? codeMade(step) : null, measured: false };
 }
 
 /**
@@ -188,7 +198,7 @@ function minimumRun(task: BaseTask, running: boolean, codeMade: (step: DetailedS
   const leadRun = lead ? runOf(lead, '', contextOf(lead, task, running, codeMade)) : null;
   const minimum = task.minimumVersion;
   const name = `${task.date} 10-minute version`;
-  if (minimum && (above0(minimum.load?.runMinutes) || above0(minimum.load?.runKm))) return runOf(minimum, name, { running, testStep: false, codeMade: null });
+  if (minimum && (above0(minimum.load?.runMinutes) || above0(minimum.load?.runKm))) return runOf(minimum, name, { running, testStep: false, codeMade: null, measured: false });
   if (!leadRun) return null;
   if (!minimum) return 'unknown';
   return { name, minutes: Math.max(0, minimum.durationMinutes || 0), hard: false, noLoad: false };
@@ -211,10 +221,10 @@ export interface LoadBreach {
   text: string;
 }
 
-/** Numbers as told: whole minutes, km to one decimal. */
-const shown = (value: number) => String(Math.round(value * 10) / 10);
-/** A limit as told never says more than the check allows. */
-const shownLimit = (value: number, unit: RunUnit) => String(unit === 'km' ? Math.floor(value * 10 + 1e-9) / 10 : Math.floor(value + 1e-9));
+/** Numbers as told, to one decimal. Shared with the week prompt (`runningLines`). */
+export const shown = (value: number) => String(Math.round(value * 10) / 10);
+/** A limit as told (whole minutes, km to one decimal) never says more than the check allows. */
+export const shownLimit = (value: number, unit: RunUnit) => String(unit === 'km' ? Math.floor(value * 10 + 1e-9) / 10 : Math.floor(value + 1e-9));
 const withUnit = (value: string, unit: RunUnit) => `${value} ${unit}`;
 /** At the limit passes; floating point must not refuse it. */
 const over = (value: number, limit: number) => value > limit + 1e-9;
@@ -233,11 +243,15 @@ export function comparedUnit(base: Extract<BaseWeek, { known: true }>, week: Pic
   return base.runs === 0 || base.unit === week.unit ? week.unit : 'minutes';
 }
 
-/** Running total, longest run and hard runs. `base` undefined or not known: no running-total check. */
+/**
+ * Running total, longest run and hard runs. `base` undefined or not known: no running-total check. PSL-16: a known base
+ * of 0 runs is held like week 1 (no running-total check), and every run is held to the fixed cap whatever their number.
+ */
 export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Array<LoadBreach & { run?: Run }> {
   const breaches: Array<LoadBreach & { run?: Run }> = [];
   const known = base?.known ? base : null;
-  if (known) {
+  const zeroBase = known !== null && known.runs === 0;
+  if (known && !zeroBase) {
     const unit = comparedUnit(known, week);
     const amount = unit === week.unit ? week.total : week.totalMinutes;
     const limit = runningLimit(known, unit);
@@ -252,7 +266,7 @@ export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Arr
       });
     }
   }
-  const longest = longestRunBreach(week, known !== null);
+  const longest = longestRunBreach(week, zeroBase ? 'zero' : known ? 'base' : 'none');
   if (longest) breaches.push(longest);
   if (week.hardRuns > HARD_RUNS_MAX) {
     breaches.push({
@@ -266,31 +280,33 @@ export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Arr
   return breaches;
 }
 
-/** PSL-15 (7): 50% of the week with 3 or more runs; with fewer and no base, the fixed cap; with fewer and a base, none. */
-function longestRunBreach(week: WeekRunning, hasBase: boolean): (LoadBreach & { run: Run }) | null {
+/**
+ * PSL-15 (7): 50% of the week with 3 or more runs; with fewer and no base, the fixed cap; with fewer and a base, none.
+ * PSL-16: after a base of 0 runs, the fixed cap whatever the number of runs, and also 50% with 3 or more.
+ */
+function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero'): (LoadBreach & { run: Run }) | null {
   if (week.runs.length === 0) return null;
   const unit = week.unit;
   const run = week.runs.reduce((best, item) => (amountOf(item, unit) > amountOf(best, unit) ? item : best));
   const amount = amountOf(run, unit);
-  let limit: number;
-  let why: string;
+  const limits: Array<{ limit: number; why: string }> = [];
   if (week.runs.length >= LONGEST_RUN_MIN_RUNS) {
-    limit = (week.total * LONGEST_RUN_MAX_PERCENT) / 100;
-    why = `${LONGEST_RUN_MAX_PERCENT}% of this week's ${withUnit(shown(week.total), unit)} of running`;
-  } else if (!hasBase) {
-    limit = unit === 'km' ? LONGEST_RUN_NO_BASE_MAX_KM : LONGEST_RUN_NO_BASE_MAX_MINUTES;
-    why = `with no last week to build from and fewer than ${LONGEST_RUN_MIN_RUNS} runs`;
-  } else {
-    return null;
+    limits.push({ limit: (week.total * LONGEST_RUN_MAX_PERCENT) / 100, why: `${LONGEST_RUN_MAX_PERCENT}% of this week's ${withUnit(shown(week.total), unit)} of running` });
   }
-  if (!over(amount, limit)) return null;
+  const cap = unit === 'km' ? LONGEST_RUN_NO_BASE_MAX_KM : LONGEST_RUN_NO_BASE_MAX_MINUTES;
+  if (base === 'zero') limits.push({ limit: cap, why: 'last week had no running' });
+  else if (base === 'none' && week.runs.length < LONGEST_RUN_MIN_RUNS) {
+    limits.push({ limit: cap, why: `with no last week to build from and fewer than ${LONGEST_RUN_MIN_RUNS} runs` });
+  }
+  const held = limits.reduce<{ limit: number; why: string } | null>((least, item) => (least === null || item.limit < least.limit ? item : least), null);
+  if (!held || !over(amount, held.limit)) return null;
   return {
     rule: 'longest_run_over_limit',
     run,
     value: amount,
-    limit,
-    matched: `run ${withUnit(shown(amount), unit)}, limit ${withUnit(shownLimit(limit, unit), unit)}`,
-    text: `the run is ${withUnit(shown(amount), unit)}; the most allowed is ${shownLimit(limit, unit)} (${why}).`,
+    limit: held.limit,
+    matched: `run ${withUnit(shown(amount), unit)}, limit ${withUnit(shownLimit(held.limit, unit), unit)}`,
+    text: `the run is ${withUnit(shown(amount), unit)}; the most allowed is ${shownLimit(held.limit, unit)} (${held.why}).`,
   };
 }
 

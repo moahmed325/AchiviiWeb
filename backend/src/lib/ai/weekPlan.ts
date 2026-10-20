@@ -17,14 +17,13 @@ import {
   LONGEST_RUN_MIN_RUNS,
   LONGEST_RUN_NO_BASE_MAX_KM,
   LONGEST_RUN_NO_BASE_MAX_MINUTES,
-  RUNNING_TOTAL_STEP_MIN_KM,
-  RUNNING_TOTAL_STEP_MIN_MINUTES,
-  RUNNING_TOTAL_STEP_PERCENT,
 } from '../safety/limits.js';
 import {
   TEST_STEP_TITLE,
   runOf,
   runningLimit,
+  shown,
+  shownLimit,
   stepLoadBreaches,
   weekBreaches,
   weekRunning,
@@ -295,31 +294,23 @@ function kindsBlock(recovery: RecoveryProfile): string {
 }
 
 /**
- * B-63 (PSL-1, PSL-2): the limits, told to high-load goals. In weeks 1 to 3 it says plainly that it overrides the
- * method's reps-in-reserve range. Plan safety limits M2.2a (RULE-5, PSL-11 Q17): told on every load goal too, with the
- * running line naming the number from the base week, the longest-run rule and the intake floor; every number is from
- * the limits module. Without a high-load or load goal the prompt is unchanged.
+ * B-63 (PSL-1, PSL-2): the limits. In weeks 1 to 3 it says plainly that it overrides the method's reps-in-reserve
+ * range. Plan safety limits M2.2a (RULE-5, PSL-11 Q17): told on every load goal, with the running line naming the number
+ * from the base week, the longest-run rule and the intake floor; every number is from the limits module. Without a load
+ * goal the prompt is unchanged.
  */
 function safetyLimitsBlock(input: WeekCallInput): string {
-  if (!input.highLoadGoal && !input.loadGoal) return '';
-  const lines = input.loadGoal
-    ? [
-        '',
-        '',
-        'SAFETY LIMITS (these override the method and the target; a week whose steps break any of them is not saved)',
-        ...runningLines(input.baseWeek),
-        `- At most ${HARD_RUNS_MAX} hard runs this week (intervals, tempo, race pace; a hard weekly test counts as one).`,
-        `- Calorie deficit: ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more.`,
-        `- Daily intake: never below ${DAILY_INTAKE_MIN_KCAL} kcal a day.`,
-      ]
-    : [
-        '',
-        '',
-        'SAFETY LIMITS (these override the method and the target; a week whose steps break the calorie or the weeks 1 to 3 lifting limits is not saved)',
-        `- Running: this week at most ${RUNNING_TOTAL_STEP_PERCENT}% more than last week.`,
-        `- At most ${HARD_RUNS_MAX} hard runs this week (intervals, tempo, race pace).`,
-        `- Calorie deficit: ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more.`,
-      ];
+  // M2.2a review: every high-load preset is a load goal (`loadGoalFor`), so the load goal alone decides.
+  if (!input.loadGoal) return '';
+  const lines = [
+    '',
+    '',
+    'SAFETY LIMITS (these override the method and the target; a week whose steps break any of them is not saved)',
+    ...runningLines(input.baseWeek),
+    `- At most ${HARD_RUNS_MAX} hard runs this week (intervals, tempo, race pace; a hard weekly test counts as one).`,
+    `- Calorie deficit: ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more.`,
+    `- Daily intake: never below ${DAILY_INTAKE_MIN_KCAL} kcal a day.`,
+  ];
   if (input.weekNumber <= EARLY_WEEKS) {
     lines.push(
       `- Weeks 1 to 3: no lift above ${EARLY_WEEK_MAX_1RM_PERCENT}% of 1RM, at least ${EARLY_WEEK_MIN_RIR} reps in reserve, nothing to failure, no max or 1RM test.`,
@@ -329,36 +320,27 @@ function safetyLimitsBlock(input: WeekCallInput): string {
   return lines.join(NL);
 }
 
-/** A limit as told: whole minutes, km to one decimal, never above what the check allows. */
-const toldLimit = (value: number, unit: 'minutes' | 'km') => String(unit === 'km' ? Math.floor(value * 10 + 1e-9) / 10 : Math.floor(value + 1e-9));
-const toldAmount = (value: number) => String(Math.round(value * 10) / 10);
-
 /**
  * M2.2a (PSL-11 Q17, PSL-15 (3), (7)): the running total's limit in the unit it is compared in (a km base week is
  * compared in minutes when any run of this week is not in km), and the longest-run rule. No base: the fixed cap.
+ * PSL-16: after a base of 0 runs, no running total, and every run held to the fixed cap.
  */
 export function runningLines(base: BaseWeek | undefined): string[] {
   const longest = `- Longest run: at most ${LONGEST_RUN_MAX_PERCENT}% of the week's running when there are ${LONGEST_RUN_MIN_RUNS} or more runs.`;
+  const cap = `${LONGEST_RUN_NO_BASE_MAX_MINUTES} minutes (${LONGEST_RUN_NO_BASE_MAX_KM} km when every run is given in km)`;
   if (!base?.known) {
-    return [
-      '- Running: there is no last week to count from; keep it at their level.',
-      longest,
-      `- With fewer than ${LONGEST_RUN_MIN_RUNS} runs, no run longer than ${LONGEST_RUN_NO_BASE_MAX_MINUTES} minutes (${LONGEST_RUN_NO_BASE_MAX_KM} km when every run is given in km).`,
-    ];
+    return ['- Running: there is no last week to count from; keep it at their level.', longest, `- With fewer than ${LONGEST_RUN_MIN_RUNS} runs, no run longer than ${cap}.`];
   }
   if (base.runs === 0) {
-    return [
-      `- Running: last week had no running, so at most ${RUNNING_TOTAL_STEP_MIN_MINUTES} minutes this week in all (${RUNNING_TOTAL_STEP_MIN_KM} km when every run is given in km).`,
-      longest,
-    ];
+    return ['- Running: last week had no running; keep it at their level.', longest, `- No run longer than ${cap}.`];
   }
   const minutes = runningLimit(base, 'minutes');
   if (base.unit === 'minutes') {
-    return [`- Running: at most ${toldLimit(minutes.limit, 'minutes')} minutes this week in all (last week ${toldAmount(base.totalMinutes)} minutes).`, longest];
+    return [`- Running: at most ${shownLimit(minutes.limit, 'minutes')} minutes this week in all (last week ${shown(base.totalMinutes)} minutes).`, longest];
   }
   const km = runningLimit(base, 'km');
   return [
-    `- Running: at most ${toldLimit(km.limit, 'km')} km this week in all when every run is given in km, otherwise at most ${toldLimit(minutes.limit, 'minutes')} minutes (last week ${toldAmount(base.total)} km, ${toldAmount(base.totalMinutes)} minutes).`,
+    `- Running: at most ${shownLimit(km.limit, 'km')} km this week in all when every run is given in km, otherwise at most ${shownLimit(minutes.limit, 'minutes')} minutes (last week ${shown(base.total)} km, ${shown(base.totalMinutes)} minutes).`,
     longest,
   ];
 }
@@ -642,6 +624,10 @@ function lightTestStep(minutes: number): DetailedStep & { priority: number } {
   };
 }
 
+/**
+ * Plan safety limits M2.2a: `codeMadeTestStep` recognises the code-made test step, stored ones included, by this exact
+ * text (the base week reads stored weeks). Never change it, or stored test steps stop being recognised.
+ */
 const CODE_TEST_FOCUS = 'Your honest best, done exactly as written.';
 const CODE_TEST_PITFALL = 'Changing the test to make it easier.';
 
@@ -938,22 +924,35 @@ export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAt
   const refused = hits.filter((item) => !item.allowed);
   let week = input.loadGoal ? weekLoadBreaches(days, input) : [];
   // M1.5b (WU-41): the last attempt of a light week refused only on test steps keeps the week, with the fixed light step.
-  const swap = lastAttempt && scan.light && refused.length > 0 && refused.every((item) => item.testStep) && week.length === 0;
+  // M2.2a review: decided after counting the swapped week again (the light step's minutes are running too); only a
+  // swapped week that passes is kept, otherwise the week fails.
+  const candidate = lastAttempt && scan.light && refused.length > 0 && refused.every((item) => item.testStep) && week.length === 0;
+  const swapped = candidate ? withLightSteps(days, refused) : null;
+  if (swapped) week = input.loadGoal ? weekLoadBreaches(swapped.map((item) => item.day), input) : [];
+  const swap = swapped !== null && week.length === 0;
   for (const hit of hits) logBreach(hit, input, lastAttempt, hit.allowed ? 'test_text' : swap ? 'light_test' : lastAttempt ? 'failed' : 'retry');
   if (swap) {
+    for (const { original, day } of swapped) original.detailedSteps = day.detailedSteps;
+    return [];
+  }
+  for (const breach of week) logBreach(breach, input, lastAttempt, lastAttempt ? 'failed' : 'retry');
+  return [...refused, ...week].map((item) => item.reason);
+}
+
+/** M1.5b: the days with each refused test step replaced by the fixed light step, as copies; the days are not changed. */
+function withLightSteps(days: WeekDayPlan[], refused: Breach[]): Array<{ original: WeekDayPlan; day: WeekDayPlan }> {
+  return days.map((original) => {
+    let detailedSteps = original.detailedSteps;
     for (const { day, step } of refused) {
-      if (!day || !step) continue;
-      const at = day.detailedSteps.indexOf(step);
+      if (day !== original || !step) continue;
+      const at = detailedSteps.indexOf(step);
       if (at < 0) continue;
       // Plan safety limits M2.1: the refused step's load is not the light step's.
       const light = { ...withoutLoad(step), ...lightTestStep(step.durationMinutes), stepNumber: step.stepNumber, priority: step.priority, ...(step.kind ? { kind: step.kind } : {}) };
-      day.detailedSteps = day.detailedSteps.map((item, index) => (index === at ? light : item));
+      detailedSteps = detailedSteps.map((item, index) => (index === at ? light : item));
     }
-    // The swapped week is counted again: the light step's minutes are running too.
-    week = input.loadGoal ? weekLoadBreaches(days, input) : [];
-  }
-  for (const breach of week) logBreach(breach, input, lastAttempt, lastAttempt ? 'failed' : 'retry');
-  return [...(swap ? [] : refused), ...week].map((item) => item.reason);
+    return { original, day: { ...original, detailedSteps } };
+  });
 }
 
 function logBreach(breach: Breach, input: WeekCallInput, lastAttempt: boolean, outcome: 'retry' | 'failed' | 'test_text' | 'light_test'): void {
@@ -973,11 +972,11 @@ function logBreach(breach: Breach, input: WeekCallInput, lastAttempt: boolean, o
  * M2.2a (PSL-15 (1), (4)): the runs of the days as checked, rest days included; the 10-minute versions are not added.
  * The test day's test step is the model's, or code-made (`codeMadeTestStep`).
  */
-function weekRuns(days: WeekDayPlan[], running: boolean): Run[] {
+function weekRuns(days: WeekDayPlan[], running: boolean, measured: boolean): Run[] {
   return days.flatMap((day) =>
     day.detailedSteps.flatMap((step) => {
       const testStep = day.isTestDay && TEST_STEP.test(step.title);
-      const run = runOf(step, `Day ${day.dayNumber} step "${step.title}"`, { running, testStep, codeMade: testStep ? codeMadeTestStep(step) : null });
+      const run = runOf(step, `Day ${day.dayNumber} step "${step.title}"`, { running, testStep, codeMade: testStep ? codeMadeTestStep(step) : null, measured });
       return run ? [run] : [];
     })
   );
@@ -985,7 +984,9 @@ function weekRuns(days: WeekDayPlan[], running: boolean): Run[] {
 
 /** RULE-5: the running total against the base week, the longest run and the hard runs, as breaches of the week. */
 function weekLoadBreaches(days: WeekDayPlan[], input: WeekCallInput): Breach[] {
-  const week = weekRunning(weekRuns(days, input.loadGoal?.running === true));
+  // M2.2a review: a measured week's test is hard; a light week's (a light test, or a high-load first week back) is not.
+  const measured = input.test.light !== true && !isLightWeek(input);
+  const week = weekRunning(weekRuns(days, input.loadGoal?.running === true, measured));
   return weekBreaches(week, input.baseWeek).map((breach: LoadBreach & { run?: Run }) => ({
     name: breach.run ? breach.run.name : 'This week',
     rule: breach.rule,
@@ -1091,7 +1092,8 @@ function markHighLoad(day: WeekDayPlan): WeekDayPlan {
 export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPlan[] | null> {
   const layout = weekLayout(input.planVariant, input.weekStart);
   // M2.2a (PSL-15 (1)): a base week whose running isn't known is no base; said once per week call.
-  if (input.loadGoal && input.baseWeek && !input.baseWeek.known) {
+  // M2.2a review: only where running is expected, or a run step of the base week had no load.
+  if (input.loadGoal && input.baseWeek && !input.baseWeek.known && (input.loadGoal.running || input.baseWeek.runWithoutLoad)) {
     logSafetyHit({ goalId: input.goalId ?? null, week: input.weekNumber, rule: 'no_base', step: 'This week', matched: 'last week running not known', outcome: 'logged' });
   }
   return generateWithOneRetry<RawWeekAnswer, WeekDayPlan[]>(

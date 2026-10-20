@@ -55,13 +55,6 @@ WRITE THE WEEK
   never as their own step.
 - Rest days: "steps" is empty, or one light step of 15 minutes at most. "isKeySession": false.
 
-SAFETY LIMITS (these override the method and the target; a week whose steps break the calorie or the weeks 1 to 3 lifting limits is not saved)
-- Running: this week at most 10% more than last week.
-- At most 2 hard runs this week (intervals, tempo, race pace).
-- Calorie deficit: 250 to 600 kcal a day, never more.
-- Weeks 1 to 3: no lift above 80% of 1RM, at least 3 reps in reserve, nothing to failure, no max or 1RM test.
-- In weeks 1 to 3 this overrides the method's RIR range: at least 3 reps in reserve.
-
 KINDS OF STEP (every practice-day step has exactly one "kind": one of these ids, written exactly)
 - easy_session: Easy session. An easy, conversational-pace run, ride or swim.
 - quality_session: Quality session. A harder workout such as intervals or a tempo effort.

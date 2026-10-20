@@ -23,6 +23,7 @@ import {
 import { writeNextWeek } from '../src/lib/planV2.js';
 import { baseWeekOf, runOf, weekBreaches, weekRunning, type BaseTask, type BaseWeek } from '../src/lib/safety/weekLoad.js';
 import { PATHWAY_PROFILES } from '../src/lib/recovery/pathways.js';
+import { placeHandoff } from '../src/lib/recovery/handoff.js';
 import type { DetailedStep } from '../src/lib/ai/goalDecomposer.js';
 import { RUN10K_WEEK1 } from './run10kWeekInput.js';
 
@@ -164,13 +165,19 @@ describe('AC-5: the running total against the base week (later weeks only)', () 
     expect(valueOf(checkWeekAnswer(week({ 1: { min: 30 }, 2: { min: 30 }, 3: { min: 30 }, 5: { min: 30 } }, { min: 30 }), WEEK1))).not.toBeNull();
   });
 
-  it('a real 0: a base week that ran 0 allows only the allowance', () => {
+  it('PSL-16: a known base of 0 runs is held like week 1: no running total, every run at most the cap', () => {
     const input = { ...WEEK5, baseWeek: minutesBase(0, 0) };
-    expect(valueOf(checkWeekAnswer(week({}, { min: 10 }), input))).not.toBeNull();
-    expect(reasonOf(checkWeekAnswer(week({}, { min: 11 }), input))).toContain("This week's running is 11 minutes; the most allowed is 10 (last week 0, plus 10 minutes).");
-    // A 0 base takes this week's unit: 1 km.
-    expect(valueOf(checkWeekAnswer(week({}, { min: 10, km: 1 }), input))).not.toBeNull();
-    expect(reasonOf(checkWeekAnswer(week({}, { min: 10, km: 1.2 }), input))).toContain('the most allowed is 1 (last week 0, plus 1 km)');
+    // 3 runs of 25 minutes (75 in all) pass: no running-total check.
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 25 }, 2: { min: 25 } }, { min: 25 }), input))).not.toBeNull();
+    // One run of 35 is refused by the cap, though it is under 50% of the week.
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 35 }, 2: { min: 25 } }, { min: 25 }), input))).toContain(
+      'Day 1 step "Run 1": the run is 35 minutes; the most allowed is 30 (last week had no running).'
+    );
+    // In km: 5 km.
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 30, km: 5.5 }, 2: { min: 25, km: 4 } }, { min: 25, km: 4 }), input))).toContain('the run is 5.5 km; the most allowed is 5');
+    // The 50% rule still holds with 3 or more runs.
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 5 }, 2: { min: 5 } }, { min: 25 }), input))).toContain("(50% of this week's 35 minutes of running)");
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 5 }, 2: { min: 5 } }, { min: 25 }), input))).not.toContain('running is');
   });
 });
 
@@ -217,7 +224,7 @@ describe('AC-5: the longest run (PSL-15 (7))', () => {
   });
 
   it('an unknown base is no base: the cap holds', () => {
-    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 31 } }, { min: 10 }), { ...WEEK5, baseWeek: { known: false } }))).toContain('the most allowed is 30');
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 31 } }, { min: 10 }), { ...WEEK5, baseWeek: { known: false, runWithoutLoad: true } }))).toContain('the most allowed is 30');
   });
 
   it('a 3-run week is held to 50% instead of the cap', () => {
@@ -421,13 +428,15 @@ describe('the base week (B-64, PSL-11 Q8, PSL-15 (1))', () => {
   it("a run without a load (the model's test step kept on the last attempt) makes the base unknown, never 0", () => {
     const tasks = four(() => 'completed');
     tasks.push(task('test', '2026-09-26', [{ title: 'Weekly test: Run 5 km', durationMinutes: 20 }], { isTestDay: true }));
-    expect(base(tasks)).toEqual({ known: false });
-    expect(base([...four(() => 'completed'), task('x', '2026-09-26', [{ title: 'Long run', durationMinutes: 40, kind: 'long_session' }])])).toEqual({ known: false });
+    expect(base(tasks)).toEqual({ known: false, runWithoutLoad: true });
+    expect(base([...four(() => 'completed'), task('x', '2026-09-26', [{ title: 'Long run', durationMinutes: 40, kind: 'long_session' }])])).toEqual({ known: false, runWithoutLoad: true });
   });
 
   it('a week written before M2.1 (no load on any step) is unknown', () => {
-    expect(base([task('a', '2026-09-21', [{ title: 'Easy jog', durationMinutes: 30 }])])).toEqual({ known: false });
-    expect(base([])).toEqual({ known: false });
+    // No kind and no load: nothing reads as a run.
+    expect(base([task('a', '2026-09-21', [{ title: 'Easy jog', durationMinutes: 30 }])])).toEqual({ known: false, runWithoutLoad: false });
+    expect(base([task('a', '2026-09-21', [{ title: 'Easy jog', durationMinutes: 30, kind: 'easy_session' }])])).toEqual({ known: false, runWithoutLoad: true });
+    expect(base([])).toEqual({ known: false, runWithoutLoad: false });
   });
 
   it('a known week that ran 0 is a real 0', () => {
@@ -587,8 +596,12 @@ describe('the prompt (PSL-11 Q17)', () => {
     expect(runningLines({ known: true, unit: 'km', total: 12, totalMinutes: 75, runs: 3 })[0]).toBe(
       '- Running: at most 13.2 km this week in all when every run is given in km, otherwise at most 85 minutes (last week 12 km, 75 minutes).'
     );
-    expect(runningLines(minutesBase(0, 0))[0]).toBe('- Running: last week had no running, so at most 10 minutes this week in all (1 km when every run is given in km).');
-    expect(runningLines({ known: false })).toEqual(runningLines(undefined));
+    expect(runningLines(minutesBase(0, 0))).toEqual([
+      '- Running: last week had no running; keep it at their level.',
+      "- Longest run: at most 50% of the week's running when there are 3 or more runs.",
+      '- No run longer than 30 minutes (5 km when every run is given in km).',
+    ]);
+    expect(runningLines({ known: false, runWithoutLoad: true })).toEqual(runningLines(undefined));
     expect(runningLines(undefined).join('\n')).toContain('no run longer than 30 minutes (5 km when every run is given in km)');
   });
 
@@ -635,5 +648,115 @@ describe('a goal that is not a load goal is exactly as before', () => {
 
   it('weekBreaches is pure: no base, no running-total check', () => {
     expect(weekBreaches(weekRunning([]), undefined)).toEqual([]);
+  });
+});
+
+describe('M2.2a review fixes', () => {
+  it("fix 2: the model's test step kept without a load is a hard run in a measured week, not in a light one", () => {
+    const runs = { 1: { min: 15, hard: true }, 3: { min: 15, hard: true }, 5: { min: 15 } };
+    expect(reasonOf(checkWeekAnswer(week(runs, { min: 10, noLoad: true }), { ...WEEK5, baseWeek: BIG }, true))).toContain('This week has 3 hard runs');
+    // Week 1 is a light week (a light test): the same step is easy.
+    expect(valueOf(checkWeekAnswer(week(runs, { min: 10, noLoad: true }), WEEK1, true))).not.toBeNull();
+  });
+
+  it('fix 4: the light-step swap is kept only when the swapped week passes', () => {
+    const light = { ...WEEK1, weekNumber: 2, test: { type: 'max_reps', instructions: 'Test your 1RM squat.', passIf: 'Logged' }, baseWeek: BIG, firstWeekBack: { awayDays: 10, note: null, highLoad: true } } as WeekCallInput;
+    // The test step says 10 minutes of running in a 30-minute step: 10, 10 and 10 pass the 50% rule; as the light step
+    // its 30 minutes count, and 30 of 50 is over half the week.
+    const answer = week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 30 }, (days) => {
+      days[5].steps[1].load = { runMinutes: 10, hardRun: false, maxTest: true };
+    });
+    const result = checkWeekAnswer(answer, light, true);
+    expect(reasonOf(result)).toContain('maxTest is true');
+    expect(reasonOf(result)).toContain(`the run is 30 minutes; the most allowed is 25 (50% of this week's 50 minutes of running)`);
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([
+      ['max_test', 'failed'],
+      ['longest_run_over_limit', 'failed'],
+    ]);
+  });
+
+  describe('fix 5: no_base only where running is expected', () => {
+    const recomp: WeekCallInput = { ...WEEK1, loadGoal: { running: false }, goalId: 'g1' };
+    const noBaseLines = () => safetyLines().filter((line) => line.rule === 'no_base');
+    const lift = (load?: Record<string, unknown>) => [task('a', '2026-09-21', [{ title: 'Squat workout A', durationMinutes: 40, kind: 'strength_workout', ...(load ? { load } : {}) }])];
+    const call = async (input: WeekCallInput) => {
+      vi.mocked(generateStructuredContent).mockResolvedValue({ success: false, error: 'stop' } as never);
+      await generateWeekPlan(input);
+    };
+
+    it('a lift-only recomp week gives no line: with loads it is a known 0, and written before M2.1 it has no run without a load', async () => {
+      const withLoads = baseWeekOf(lift({ rir: 3 }), false, codeMadeTestStep);
+      expect(withLoads).toMatchObject({ known: true, runs: 0 });
+      const older = baseWeekOf(lift(), false, codeMadeTestStep);
+      expect(older).toEqual({ known: false, runWithoutLoad: false });
+      await call({ ...recomp, weekNumber: 2, baseWeek: withLoads });
+      await call({ ...recomp, weekNumber: 2, baseWeek: older });
+      expect(noBaseLines()).toEqual([]);
+    });
+
+    it('logged on a goal that is not a running goal when a run step of the base week had no load', async () => {
+      const base = baseWeekOf([task('a', '2026-09-21', [{ title: 'Easy run', durationMinutes: 20, kind: 'easy_session' }, { title: 'Squat', durationMinutes: 20, kind: 'strength_workout', load: { rir: 3 } }])], false, codeMadeTestStep);
+      expect(base).toEqual({ known: false, runWithoutLoad: true });
+      await call({ ...recomp, weekNumber: 2, baseWeek: base });
+      expect(noBaseLines()).toHaveLength(1);
+    });
+
+    it('always logged on a running goal', async () => {
+      await call({ ...WEEK5, goalId: 'g1', baseWeek: { known: false, runWithoutLoad: false } });
+      expect(noBaseLines()).toHaveLength(1);
+    });
+  });
+
+  describe('fix 3: the handoff never places a step that names running', () => {
+    const profile = PATHWAY_PROFILES.body_recomposition_90day;
+    const stepOf = (title: string, kind: string, priority: number, minutes: number, load?: Record<string, unknown>): DetailedStep => ({
+      stepNumber: priority,
+      title,
+      durationMinutes: minutes,
+      instructions: `${title}, as written.`,
+      focusCue: 'Brace',
+      pitfallToAvoid: 'Rushing',
+      passMark: 'Done',
+      output: 'Logged',
+      priority,
+      kind,
+      ...(load ? { load } : {}),
+    });
+    /** A strength week: Monday and Friday workouts with a catch-all finisher, Wednesday a mobility day. */
+    const newWeek = () =>
+      ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03', '2026-10-04'].map((date, index) => {
+        const workout = index === 0 || index === 4;
+        const rest = index === 3 || index === 6;
+        const steps = rest
+          ? []
+          : workout
+            ? [stepOf(`Workout ${index === 0 ? 'A2' : 'B2'}`, 'strength_workout', 1, 30, { rir: 3 }), stepOf(`Finisher ${index}`, 'catch_all', 2, 10)]
+            : [stepOf(`Mobility ${index}`, 'mobility', 1, 20), stepOf(`Core ${index}`, 'catch_all', 2, 20)];
+        return { date, isRestDay: rest, isTestDay: index === 5, durationMinutes: rest ? 0 : 40, detailedSteps: steps };
+      });
+    const handoff = (carried: DetailedStep | null, noRoom: DetailedStep | null) => ({
+      carried: carried ? [{ kind: 'strength_workout', name: 'Strength workout', steps: [{ taskId: 'last1', date: '2026-09-21', title: carried.title, step: carried }] }] : [],
+      letGo: [],
+      unfinished: [],
+      noRoom: noRoom ? [{ taskId: 'last2', date: '2026-09-23', title: noRoom.title, step: noRoom, kind: 'catch_all', dayOfWeek: 'Wednesday', hard: false }] : [],
+    });
+    const place = (carried: DetailedStep | null, noRoom: DetailedStep | null) =>
+      placeHandoff({ days: newWeek(), handoff: handoff(carried, noRoom), profile, lastWeek: [] });
+
+    it('an in-order step with a run load waits; no session gives its step up for it', () => {
+      const result = place(stepOf('Workout A1', 'strength_workout', 1, 30, { rir: 3, runMinutes: 10, hardRun: false }), null);
+      expect(result.placed).toEqual([]);
+      expect(result.gaveUp).toEqual([]);
+      expect(result.waiting).toEqual([{ kind: 'strength_workout', title: 'Workout A1', why: 'sessions_full' }]);
+      expect(result.days[0].detailedSteps[0].title).toBe('Workout A2');
+      // Without running it is placed, as before.
+      expect(place(stepOf('Workout A1', 'strength_workout', 1, 30, { rir: 3 }), null).placed).toHaveLength(1);
+    });
+
+    it('a no-room step with a run load is not placed', () => {
+      // Both fit Monday's 10-minute finisher; only the load differs.
+      expect(place(null, stepOf('Easy jog finisher', 'catch_all', 2, 10, { runMinutes: 10, hardRun: false })).noRoomPlaced).toEqual([]);
+      expect(place(null, stepOf('Band pull-aparts', 'catch_all', 2, 10, { kcalDeficit: 300 })).noRoomPlaced).toHaveLength(1);
+    });
   });
 });
