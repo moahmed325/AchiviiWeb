@@ -82,7 +82,6 @@ function safeTargetsOf(goal: Record<string, unknown>): { roadmapWeeks: unknown; 
     clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
     roadmap: goal.roadmap,
     roadmapWeeks: goal.roadmapWeeks as StoredWeek[] | undefined,
-    keepClosedWeeks: true,
   });
   if (!safe) return null;
   const roadmap = goal.roadmap as Record<string, unknown>;

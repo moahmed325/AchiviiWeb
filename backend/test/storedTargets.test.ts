@@ -403,8 +403,7 @@ describe('writeNextWeek tells the week writer the safe targets (RULE-9, RULE-10)
 });
 
 describe('M1.3 review fixes', () => {
-  const sent = (goal: ReturnType<typeof goalOf>) =>
-    safeGoalTargets({ ...goal, roadmapWeeks: goal.roadmapWeeks, keepClosedWeeks: true })!;
+  const sent = (goal: ReturnType<typeof goalOf>) => safeGoalTargets(goal)!;
   const closeWeeks = (goal: ReturnType<typeof goalOf>, upTo: number) => ({
     ...goal,
     currentWeek: Math.min(upTo + 1, 12),
@@ -413,17 +412,64 @@ describe('M1.3 review fixes', () => {
     ),
   });
 
-  it('(1) closed weeks are sent as stored; the open week and later ones lowered from the full climb', () => {
+  it('(B) weeks 1-3 closed at 5, 7 and 9 km: kept, and week 4 is checked against 9 km and keeps 10 km', () => {
     const goal = closeWeeks(goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K)), 3);
     const result = sent(goal);
-    [0, 1, 2].forEach((index) => expect(result.weeks[index]).toBe(goal.roadmapWeeks[index]));
-    expect(valueOf(result.weeks[1])).toBe(7);
-    expect(result.weeks.slice(3).map(valueOf)).toEqual(SAFE_10K.slice(3));
-    // writeNextWeek's reading (no keepClosedWeeks) still lowers them.
-    expect(safeGoalTargets(goal)!.weeks.slice(0, 3).map(valueOf)).toEqual([4, 5, 6]);
+    goal.roadmapWeeks.forEach((week, index) => expect(result.weeks[index]).toBe(week));
+    expect(result.weeks.map(valueOf)).toEqual(OLDER_10K.values);
+    expect(result.foundNow).toEqual([]);
+    expect(result.week12Line).toBeNull();
   });
 
-  it('(1) a completed goal is sent exactly as stored, with no line for a week 12 lowered only on read (2)', () => {
+  it('(B) the same goal with nothing closed is lowered from the starting point as before', () => {
+    expect(sent(goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K))).weeks.map(valueOf)).toEqual(SAFE_10K);
+  });
+
+  it('(B) a too-steep climb after the closed weeks is still lowered, from the last closed week', () => {
+    const steep: Climb = { ...OLDER_10K, values: [5, 7, 9, 14, 15, 16, 17, 18, 19, 20, 21, 22] };
+    const goal = closeWeeks(goalOf('Run my first 10K', olderRoadmap(steep, MEASURED_10K)), 3);
+    const result = sent(goal);
+    [0, 1, 2].forEach((index) => expect(result.weeks[index]).toBe(goal.roadmapWeeks[index]));
+    expect(valueOf(result.weeks[3])).toBe(10);
+    let prev = 9;
+    for (const week of result.weeks.slice(3)) {
+      expect(valueOf(week)).toBeLessThanOrEqual(nextSafeStep(week.target as WeekTarget, prev)!);
+      prev = valueOf(week);
+    }
+    expect(result.foundNow[0]).toEqual({ week: 4, model: 14, safe: 10 });
+  });
+
+  it('(B) a light-test goal with week 4 closed: weeks 1-4 kept, week 8 checked four steps from week 4', () => {
+    const goal = closeWeeks(goalOf('Body recomp: get to 18% body fat', olderRoadmap(OLDER_RECOMP, recompPreset)), 4);
+    const result = sent(goal);
+    [0, 1, 2, 3].forEach((index) => expect(result.weeks[index]).toBe(goal.roadmapWeeks[index]));
+    expect(result.weeks.map(valueOf)).toEqual([24, 24, 24, 24, 22, 22, 22, 22, 20, 20, 20, 20]);
+    expect(result.foundNow).toEqual([
+      { week: 8, model: 20, safe: 22 },
+      { week: 12, model: 18, safe: 20 },
+    ]);
+    expect(result.week12Line).toEqual({ safe: '20 %', goal: '18 %' });
+  });
+
+  it('(B) a light-test goal with only light weeks closed is checked from the starting point', () => {
+    const goal = closeWeeks(goalOf('Body recomp: get to 18% body fat', olderRoadmap(OLDER_RECOMP, recompPreset)), 3);
+    const result = sent(goal);
+    [0, 1, 2].forEach((index) => expect(result.weeks[index]).toBe(goal.roadmapWeeks[index]));
+    expect(result.weeks.slice(3).map(valueOf)).toEqual([26, 24, 24, 24, 24, 22, 22, 22, 22]);
+  });
+
+  for (const split of [false, true]) {
+    it(`(B) a goal created since M1.2 with weeks closed still comes back unchanged (${split ? 'split' : 'not split'})`, () => {
+      for (const upTo of [3, 4, 8]) {
+        const goal = closeWeeks(createdSinceM12(STEEP_10K, 'Run a 10K in under 50 minutes', split), upTo);
+        const result = sent(goal);
+        goal.roadmapWeeks.forEach((week, index) => expect(result.weeks[index]).toBe(week));
+        expect(result.foundNow).toEqual([]);
+      }
+    });
+  }
+
+  it('(1) a completed goal comes back exactly as stored, with no line for a week 12 lowered only on read (2)', () => {
     const goal = { ...closeWeeks(goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K)), 12), status: 'completed' };
     const result = sent(goal);
     goal.roadmapWeeks.forEach((week, index) => expect(result.weeks[index]).toBe(week));

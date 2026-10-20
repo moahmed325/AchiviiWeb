@@ -32,7 +32,7 @@ export interface StoredWeek {
   test: unknown;
   objective: string;
   keyMilestone: string;
-  /** M1.3 review: a closed week (`completed`, or jumped) is sent as stored by `presentGoal`. */
+  /** M1.3 review: a closed week (`completed`, or jumped) keeps its stored target; the climb is checked from it. */
   status?: string;
   jumped?: boolean;
 }
@@ -82,7 +82,10 @@ function isPresetTest(test: WeekTest | null, tests: NonNullable<CertifiedPresetB
 
 /**
  * RULE-9, PSL-11 Q1 and Q14: a goal with no light test is checked on all 12 weeks; one with any light test on weeks 4,
- * 8 and 12 only, four safe steps apart, and each light week then takes its big week's lowered target. PSL-7, PSL-12
+ * 8 and 12 only, four safe steps apart, and each light week then takes its big week's lowered target. M1.3 review
+ * (option B): a closed week (completed or jumped) keeps its stored target, and the check starts from the last closed
+ * week's stored target (on a light-test goal, the last closed of weeks 4 and 8); with none closed, from the starting
+ * point. presentGoal and writeNextWeek read it the same way. PSL-7, PSL-12
  * (3): only what code wrote from a changed target is rebuilt. Anything that is not 12 weeks of readable targets comes
  * back as stored.
  */
@@ -96,25 +99,41 @@ export function safeStoredTargets<W extends StoredWeek>(input: StoredTargetsInpu
   const targets = rows.map((week) => week.target as WeekTarget);
   const context = { run10k: input.pathway?.id === 'run10k' };
 
+  // M1.3 review (option B): closed weeks keep their stored targets and are never lowered; the climb is checked from the
+  // last closed week's stored target (from the starting point when none is closed).
+  const valueAt = (weekNumber: number) => {
+    const target = targets[weekNumber - 1];
+    return target.kind === 'number' ? target.value : null;
+  };
   const safe = new Map<number, WeekTarget>();
-  let found: LoweredTarget[];
+  let found: LoweredTarget[] = [];
   if (rows.some((week) => testOf(week)?.light === true)) {
-    const climb = safeCheckWeekClimb(
-      BIG_TEST_WEEKS.map((week) => targets[week - 1]),
-      [...BIG_TEST_WEEKS],
-      input.startValue,
-      context
-    );
-    found = climb.lowered;
-    BIG_TEST_WEEKS.forEach((week, index) => safe.set(week, climb.targets[index]));
+    // A closed light week holds a later week's target, so only a closed big week (4 or 8) is the starting value.
+    const lastBig = [...BIG_TEST_WEEKS].filter((week) => week < TOTAL_WEEKS && isClosedWeek(rows[week - 1])).pop();
+    const checked = BIG_TEST_WEEKS.filter((week) => week > (lastBig ?? 0) && !isClosedWeek(rows[week - 1]));
+    if (checked.length > 0) {
+      const climb = safeCheckWeekClimb(
+        checked.map((week) => targets[week - 1]),
+        checked,
+        lastBig === undefined ? input.startValue : valueAt(lastBig),
+        context
+      );
+      found = climb.lowered;
+      checked.forEach((week, index) => safe.set(week, climb.targets[index]));
+    }
     for (const week of rows) {
       const big = nextCheckWeek(week.weekNumber);
-      if (testOf(week)?.light === true && found.some((item) => item.week === big)) safe.set(week.weekNumber, { ...(safe.get(big) as WeekTarget) });
+      if (testOf(week)?.light === true && !isClosedWeek(week) && found.some((item) => item.week === big)) {
+        safe.set(week.weekNumber, { ...(safe.get(big) as WeekTarget) });
+      }
     }
   } else {
-    const climb = safeTargetClimb(targets, input.startValue, context);
-    found = climb.lowered;
-    climb.targets.forEach((target, index) => safe.set(index + 1, target));
+    const lastClosed = rows.filter(isClosedWeek).map((week) => week.weekNumber).pop() ?? 0;
+    if (lastClosed < TOTAL_WEEKS) {
+      const climb = safeTargetClimb(targets.slice(lastClosed), lastClosed === 0 ? input.startValue : valueAt(lastClosed), context);
+      found = climb.lowered.map((item) => ({ ...item, week: item.week + lastClosed }));
+      climb.targets.forEach((target, index) => safe.set(lastClosed + index + 1, target));
+    }
   }
 
   const changed = (week: W) => {
@@ -197,42 +216,18 @@ export function safeGoalTargets<W extends StoredWeek>(goal: {
   clarifiedOutcome: string | null;
   roadmap: unknown;
   roadmapWeeks: W[] | undefined;
-  /**
-   * M1.3 review (`presentGoal`): a closed week is sent as stored, since its result was judged against that target;
-   * the climb is still worked out over all 12. `writeNextWeek` leaves it off: the week closing is still active then.
-   */
-  keepClosedWeeks?: boolean;
 }): SafeGoal<W> | null {
   const roadmap = goal.roadmap as StoredRoadmapShape | null;
   if (!roadmap || typeof roadmap !== 'object' || !roadmap.method || !Array.isArray(goal.roadmapWeeks)) return null;
   const startValue = typeof roadmap.startingPoint?.value === 'number' ? roadmap.startingPoint.value : null;
-  const finalTest = typeof roadmap.finalTest === 'string' ? roadmap.finalTest : '';
   const result = safeStoredTargets({
     weeks: goal.roadmapWeeks,
     startValue,
-    finalTest,
+    finalTest: typeof roadmap.finalTest === 'string' ? roadmap.finalTest : '',
     loweredTargets: Array.isArray(roadmap.loweredTargets) ? roadmap.loweredTargets : undefined,
     pathway: pathwayFor(goal.rawGoal, goal.clarifiedOutcome),
   });
-  const sent = goal.keepClosedWeeks ? keepClosed(result, goal.roadmapWeeks, finalTest) : result;
-  const week12Row = sent.weeks.find((week) => week.weekNumber === TOTAL_WEEKS);
-  // A week 12 lowered only now, but already closed, is shown as stored, so it gets no line; one lowered at create keeps it.
-  const lowered =
-    goal.keepClosedWeeks && week12Row && isClosedWeek(week12Row)
-      ? sent.lowered.filter((item) => !(item.week === TOTAL_WEEKS && sent.foundNow.includes(item)))
-      : sent.lowered;
+  const week12 = result.weeks.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
   const statedText = statedTargetText(goal.rawGoal, Array.isArray(roadmap.answers) ? roadmap.answers : []);
-  const week12 = week12Row?.target;
-  return { ...sent, week12Line: week12LineFor(lowered, isWeekTarget(week12) ? week12 : null, statedText, startValue) };
-}
-
-/** Closed weeks back to their stored rows; `finalTest` back to stored when week 12 is one of them. */
-function keepClosed<W extends StoredWeek>(result: SafeStoredTargets<W>, stored: W[], storedFinalTest: string): SafeStoredTargets<W> {
-  const byWeek = new Map(stored.map((week) => [week.weekNumber, week]));
-  const weeks = result.weeks.map((week) => {
-    const original = byWeek.get(week.weekNumber);
-    return original && isClosedWeek(original) ? original : week;
-  });
-  const week12 = byWeek.get(TOTAL_WEEKS);
-  return { ...result, weeks, finalTest: week12 && isClosedWeek(week12) ? storedFinalTest : result.finalTest };
+  return { ...result, week12Line: week12LineFor(result.lowered, isWeekTarget(week12) ? week12 : null, statedText, startValue) };
 }
