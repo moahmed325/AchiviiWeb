@@ -37,7 +37,7 @@ import {
 } from '../src/lib/ai/roadmap.js';
 import { recompPreset, run10kPreset, type CertifiedPresetBlueprint } from '../src/lib/ai/presets/index.js';
 import { extractStatedTargets } from '../src/lib/research/statedTarget.js';
-import { safeGoalTargets, safeStoredTargets } from '../src/lib/safety/storedTargets.js';
+import { safeGoalTargets, safeStoredTargets, week12LineFor } from '../src/lib/safety/storedTargets.js';
 import { nextSafeStep, safeCheckWeekClimb } from '../src/lib/safety/targetSteps.js';
 
 // Plan safety limits M1.3 (RULE-9, RULE-3, PSL-7, PSL-11 Q1, Q14, PSL-12): an older goal's stored targets are lowered on
@@ -58,7 +58,7 @@ function target(climb: Climb, value: number): WeekTarget {
 }
 
 /** A goal stored before M1.2: the model's climb as it was, with the model's (or, on a split pathway, the preset's) tests. */
-function olderRoadmap(climb: Climb, preset?: CertifiedPresetBlueprint): Roadmap {
+function olderRoadmap(climb: Climb, preset?: Pick<CertifiedPresetBlueprint, 'weeklyTests'>): Roadmap {
   const roadmap: Roadmap = {
     finalGoal: 'The model wrote this goal.',
     finalTest: 'The model wrote its own final test.',
@@ -101,13 +101,15 @@ const testOf = (week: { test: unknown }) => week.test as WeekTest;
 /** Long-run distance from 3 km, climbing 2 km a week at first: faster than +1 km or +10%. */
 const OLDER_10K: Climb = { metric: 'Long run distance', unit: 'km', direction: 'higher_is_better', start: 3, values: [5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] };
 const SAFE_10K = [4, 5, 6, 7, 8, 9, 10, 11, 12.1, 13.3, 14.6, 16];
+/** run10k's preset tests without the light test: a pathway goal stored with the preset's own measured test every week. */
+const MEASURED_10K = { ...run10kPreset, weeklyTests: { measured: run10kPreset.weeklyTests!.measured } };
 
 /** A recomp goal stored on the split pathway (light weeks hold the next big week's target): 24, 20, 18 from 28. */
 const OLDER_RECOMP: Climb = { metric: 'Body fat', unit: '%', direction: 'lower_is_better', start: 28, values: [24, 24, 24, 24, 20, 20, 20, 20, 18, 18, 18, 18] };
 
 describe('an older goal is lowered on read (RULE-9, AC-9)', () => {
   it('run10k distance: every too-steep week lowered, objective, test, keyMilestone and finalTest rebuilt from the preset', () => {
-    const stored = goalOf('Run my first 10K', olderRoadmap(OLDER_10K));
+    const stored = goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K));
     const before = JSON.parse(JSON.stringify(stored));
     const safe = safeGoalTargets(stored)!;
 
@@ -200,7 +202,7 @@ describe('an older goal is lowered on read (RULE-9, AC-9)', () => {
   });
 
   it('a goal without a v2 roadmap or without weeks is not read', () => {
-    const stored = goalOf('Run my first 10K', olderRoadmap(OLDER_10K));
+    const stored = goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K));
     expect(safeGoalTargets({ ...stored, roadmap: null })).toBeNull();
     expect(safeGoalTargets({ ...stored, roadmapWeeks: undefined })).toBeNull();
   });
@@ -281,7 +283,7 @@ describe('the honest week 12 line (RULE-3, PSL-12)', () => {
   });
 
   it('week 12 lowered and the goal text names no number: goal is null', () => {
-    expect(safeGoalTargets(goalOf('Run my first 10K', olderRoadmap(OLDER_10K)))!.week12Line).toEqual({ safe: '16 km', goal: null });
+    expect(safeGoalTargets(goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K)))!.week12Line).toEqual({ safe: '16 km', goal: null });
   });
 
   it('week 12 not lowered: null, even when an earlier week was', () => {
@@ -292,7 +294,7 @@ describe('the honest week 12 line (RULE-3, PSL-12)', () => {
   });
 
   it('the stored list and the ones found now are merged, one entry per week', () => {
-    const rows = goalOf('Run my first 10K', olderRoadmap(OLDER_10K)).roadmapWeeks;
+    const rows = goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K)).roadmapWeeks;
     const result = safeStoredTargets({ weeks: rows, startValue: 3, finalTest: '', loweredTargets: [{ week: 1, model: 9, safe: 5 }], pathway: run10kPreset });
     expect(result.lowered.filter((item) => item.week === 1)).toEqual([{ week: 1, model: 9, safe: 5 }]);
     expect(result.lowered).toHaveLength(12);
@@ -325,7 +327,7 @@ describe('presentGoal sends the lowered plan and writes nothing', () => {
   });
 
   it('GET /active: an older goal comes back with safe targets and the line; nothing is written or logged', async () => {
-    const stored = goalOf('Run my first 10K', olderRoadmap(OLDER_10K));
+    const stored = goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K));
     const before = JSON.parse(JSON.stringify(stored));
     vi.mocked(prisma.goal.findFirst).mockResolvedValue(stored as never);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -362,7 +364,7 @@ describe('writeNextWeek tells the week writer the safe targets (RULE-9, RULE-10)
   });
 
   it('an older goal: the lowered next and last targets and the refilled test; one lowered_on_read line', async () => {
-    const goal = goalOf('Run my first 10K', olderRoadmap(OLDER_10K));
+    const goal = goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
     await writeNextWeek(goal as never, 3, [], '07:00');
@@ -397,5 +399,72 @@ describe('writeNextWeek tells the week writer the safe targets (RULE-9, RULE-10)
     expect(input.lastWeek?.target).toBe(goal.roadmapWeeks[2].target);
     expect(warn.mock.calls.filter((call) => call[0] === '[Safety]')).toHaveLength(0);
     warn.mockRestore();
+  });
+});
+
+describe('M1.3 review fixes', () => {
+  const sent = (goal: ReturnType<typeof goalOf>) =>
+    safeGoalTargets({ ...goal, roadmapWeeks: goal.roadmapWeeks, keepClosedWeeks: true })!;
+  const closeWeeks = (goal: ReturnType<typeof goalOf>, upTo: number) => ({
+    ...goal,
+    currentWeek: Math.min(upTo + 1, 12),
+    roadmapWeeks: goal.roadmapWeeks.map((week) =>
+      week.weekNumber <= upTo ? { ...week, status: 'completed' } : week.weekNumber === upTo + 1 ? { ...week, status: 'active' } : week
+    ),
+  });
+
+  it('(1) closed weeks are sent as stored; the open week and later ones lowered from the full climb', () => {
+    const goal = closeWeeks(goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K)), 3);
+    const result = sent(goal);
+    [0, 1, 2].forEach((index) => expect(result.weeks[index]).toBe(goal.roadmapWeeks[index]));
+    expect(valueOf(result.weeks[1])).toBe(7);
+    expect(result.weeks.slice(3).map(valueOf)).toEqual(SAFE_10K.slice(3));
+    // writeNextWeek's reading (no keepClosedWeeks) still lowers them.
+    expect(safeGoalTargets(goal)!.weeks.slice(0, 3).map(valueOf)).toEqual([4, 5, 6]);
+  });
+
+  it('(1) a completed goal is sent exactly as stored, with no line for a week 12 lowered only on read (2)', () => {
+    const goal = { ...closeWeeks(goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K)), 12), status: 'completed' };
+    const result = sent(goal);
+    goal.roadmapWeeks.forEach((week, index) => expect(result.weeks[index]).toBe(week));
+    expect(result.finalTest).toBe(goal.roadmap.finalTest);
+    expect(result.week12Line).toBeNull();
+  });
+
+  it('(1) a jumped week counts as closed', () => {
+    const goal = goalOf('Run my first 10K', olderRoadmap(OLDER_10K, MEASURED_10K));
+    goal.roadmapWeeks[4] = { ...goal.roadmapWeeks[4], jumped: true } as never;
+    expect(sent(goal).weeks[4]).toBe(goal.roadmapWeeks[4]);
+  });
+
+  it('(2) a week 12 lowered at create keeps its line when it is closed', () => {
+    const goal = closeWeeks(createdSinceM12(STEEP_10K, 'Run a 10K in under 50 minutes', true), 12);
+    expect(sent(goal).week12Line).toEqual({ safe: '55.5 minutes', goal: '50 minutes' });
+  });
+
+  it('(3) "lose 10 kg" from 90 kg, week 12 lowered from 80 to 82 kg: the weight it implies', () => {
+    const weight: Climb = { metric: 'Body weight', unit: 'kg', direction: 'lower_is_better', start: 90, values: [89.2, 88.4, 87.6, 86.8, 86, 85.2, 84.4, 83.6, 82.8, 82.8, 82.8, 80] };
+    const result = safeGoalTargets(goalOf('Lose 10 kg', olderRoadmap(weight)))!;
+    expect(result.foundNow).toEqual([{ week: 12, model: 80, safe: 82 }]);
+    expect(result.week12Line).toEqual({ safe: '82 kg', goal: '80 kg' });
+  });
+
+  it('(3) "lose N" with no starting point: the short line', () => {
+    expect(week12LineFor([{ week: 12, model: 80, safe: 82 }], { kind: 'number', metric: 'Body weight', value: 82, unit: 'kg', direction: 'lower_is_better' }, 'Lose 10 kg. ', null)).toEqual({
+      safe: '82 kg',
+      goal: null,
+    });
+  });
+
+  it('(4) an older run10k goal with a model-written test keeps its test text and finalTest; only the pass marks change', () => {
+    const steep: Climb = { ...OLDER_10K, start: 4, values: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18] };
+    const stored = goalOf('Run my first 10K', olderRoadmap(steep));
+    const result = safeGoalTargets(stored)!;
+    expect(result.foundNow.map((item) => item.week)).toEqual([12]);
+    const week12 = result.weeks[11];
+    const safeText = formatTarget(week12.target as WeekTarget);
+    expect(testOf(week12)).toEqual({ ...testOf(stored.roadmapWeeks[11]), passIf: safeText });
+    expect(week12.keyMilestone).toBe(`The model wrote this test for 18 km. Pass if: ${safeText}`);
+    expect(result.finalTest).toBe('The model wrote its own final test.');
   });
 });

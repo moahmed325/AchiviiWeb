@@ -825,8 +825,11 @@ export function measuredPathwayTest(tests: NonNullable<CertifiedPresetBlueprint[
 }
 
 /** `RoadmapWeek.keyMilestone` as code writes it from a week's test. */
+/** What joins a test's instructions and its pass mark in `keyMilestone`. */
+export const PASS_IF_JOIN = ' Pass if: ';
+
 export function keyMilestoneText(test: Pick<WeekTest, 'instructions' | 'passIf'>): string {
-  return `${test.instructions} Pass if: ${test.passIf}`;
+  return `${test.instructions}${PASS_IF_JOIN}${test.passIf}`;
 }
 
 /** The text a goal's stated targets are read from (`extractStatedTargets`): the raw goal and the success answer. */

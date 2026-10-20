@@ -82,6 +82,7 @@ function safeTargetsOf(goal: Record<string, unknown>): { roadmapWeeks: unknown; 
     clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
     roadmap: goal.roadmap,
     roadmapWeeks: goal.roadmapWeeks as StoredWeek[] | undefined,
+    keepClosedWeeks: true,
   });
   if (!safe) return null;
   const roadmap = goal.roadmap as Record<string, unknown>;
@@ -400,9 +401,11 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         weeklyReviews: { orderBy: { weekNumber: 'asc' } }
       }
     });
+    const presented = presentGoal(saved as unknown as Record<string, unknown>);
     const body = {
-      goal: presentGoal(saved as unknown as Record<string, unknown>),
-      roadmapWeeks: saved.roadmapWeeks,
+      goal: presented,
+      // M1.3 review: the same weeks the goal carries, never a second, unlowered copy.
+      roadmapWeeks: presented.roadmapWeeks,
       dailyTasks: saved.dailyTasks,
     };
     if (send) {

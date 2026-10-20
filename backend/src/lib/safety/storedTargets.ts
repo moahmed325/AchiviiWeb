@@ -11,6 +11,7 @@ import {
   keyMilestoneText,
   measuredPathwayTest,
   nextCheckWeek,
+  PASS_IF_JOIN,
   pathwayFor,
   statedTargetMet,
   statedTargetText,
@@ -31,6 +32,9 @@ export interface StoredWeek {
   test: unknown;
   objective: string;
   keyMilestone: string;
+  /** M1.3 review: a closed week (`completed`, or jumped) is sent as stored by `presentGoal`. */
+  status?: string;
+  jumped?: boolean;
 }
 
 export interface StoredTargetsInput<W extends StoredWeek> {
@@ -66,7 +70,15 @@ function testOf(week: StoredWeek): WeekTest | null {
   return week.test && typeof week.test === 'object' ? (week.test as WeekTest) : null;
 }
 
-const PASS_IF = ' Pass if: ';
+/** M1.3 review: a week whose result was judged against its stored target (closed, or jumped past). */
+export function isClosedWeek(week: Pick<StoredWeek, 'status' | 'jumped'>): boolean {
+  return week.status === 'completed' || week.jumped === true;
+}
+
+/** M1.3 review: the stored test is the preset's own (written by `withPathwayTests`), not one the model wrote. */
+function isPresetTest(test: WeekTest | null, tests: NonNullable<CertifiedPresetBlueprint['weeklyTests']>, storedTarget: WeekTarget): boolean {
+  return test !== null && test.type === tests.measured.type && test.instructions === measuredPathwayTest(tests, storedTarget).instructions;
+}
 
 /**
  * RULE-9, PSL-11 Q1 and Q14: a goal with no light test is checked on all 12 weeks; one with any light test on weeks 4,
@@ -120,15 +132,16 @@ export function safeStoredTargets<W extends StoredWeek>(input: StoredTargetsInpu
     let keyMilestone = week.keyMilestone;
     if (storedTest?.light === true) {
       // A light test does not name the target: it and its milestone stay as written.
-    } else if (tests) {
+    } else if (tests && isPresetTest(storedTest, tests, week.target as WeekTarget)) {
       test = measuredPathwayTest(tests, target);
       keyMilestone = keyMilestoneText(test);
       if (week.weekNumber === TOTAL_WEEKS) finalTest = test.instructions;
     } else {
-      // A custom goal's test was written by the model: only its pass mark, which code reads as the target, changes.
+      // A test the model wrote (a custom goal, or an older pathway goal from before its preset tests): only its pass
+      // mark, which code reads as the target, changes; `finalTest` stays as stored.
       if (storedTest) test = { ...storedTest, passIf: formatTarget(target) };
-      const cut = week.keyMilestone.lastIndexOf(PASS_IF);
-      if (cut >= 0) keyMilestone = `${week.keyMilestone.slice(0, cut)}${PASS_IF}${formatTarget(target)}`;
+      const cut = week.keyMilestone.lastIndexOf(PASS_IF_JOIN);
+      if (cut >= 0) keyMilestone = `${week.keyMilestone.slice(0, cut)}${PASS_IF_JOIN}${formatTarget(target)}`;
     }
     return { ...week, target, test, objective: formatTarget(target), keyMilestone };
   });
@@ -158,7 +171,9 @@ export function week12LineFor(lowered: LoweredTarget[], week12: WeekTarget | nul
     (item) => !statedTargetMet(week12, item, startValue) && statedTargetMet(before, item, startValue)
   );
   // Both in week 12's unit: the stated number matched it ("%" and "percent" are one unit), so the line reads as one.
-  return { safe: formatAmount(week12.value, week12.unit), goal: missed ? formatAmount(missed.value, week12.unit) : null };
+  // "lose N" names the weight it implies (the starting point minus N); with no starting point there is none to name.
+  const goal = !missed ? null : missed.change === 'lose' ? (startValue === null ? null : formatAmount(startValue - missed.value, week12.unit)) : formatAmount(missed.value, week12.unit);
+  return { safe: formatAmount(week12.value, week12.unit), goal };
 }
 
 interface StoredRoadmapShape {
@@ -182,18 +197,42 @@ export function safeGoalTargets<W extends StoredWeek>(goal: {
   clarifiedOutcome: string | null;
   roadmap: unknown;
   roadmapWeeks: W[] | undefined;
+  /**
+   * M1.3 review (`presentGoal`): a closed week is sent as stored, since its result was judged against that target;
+   * the climb is still worked out over all 12. `writeNextWeek` leaves it off: the week closing is still active then.
+   */
+  keepClosedWeeks?: boolean;
 }): SafeGoal<W> | null {
   const roadmap = goal.roadmap as StoredRoadmapShape | null;
   if (!roadmap || typeof roadmap !== 'object' || !roadmap.method || !Array.isArray(goal.roadmapWeeks)) return null;
   const startValue = typeof roadmap.startingPoint?.value === 'number' ? roadmap.startingPoint.value : null;
+  const finalTest = typeof roadmap.finalTest === 'string' ? roadmap.finalTest : '';
   const result = safeStoredTargets({
     weeks: goal.roadmapWeeks,
     startValue,
-    finalTest: typeof roadmap.finalTest === 'string' ? roadmap.finalTest : '',
+    finalTest,
     loweredTargets: Array.isArray(roadmap.loweredTargets) ? roadmap.loweredTargets : undefined,
     pathway: pathwayFor(goal.rawGoal, goal.clarifiedOutcome),
   });
-  const week12 = result.weeks.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
+  const sent = goal.keepClosedWeeks ? keepClosed(result, goal.roadmapWeeks, finalTest) : result;
+  const week12Row = sent.weeks.find((week) => week.weekNumber === TOTAL_WEEKS);
+  // A week 12 lowered only now, but already closed, is shown as stored, so it gets no line; one lowered at create keeps it.
+  const lowered =
+    goal.keepClosedWeeks && week12Row && isClosedWeek(week12Row)
+      ? sent.lowered.filter((item) => !(item.week === TOTAL_WEEKS && sent.foundNow.includes(item)))
+      : sent.lowered;
   const statedText = statedTargetText(goal.rawGoal, Array.isArray(roadmap.answers) ? roadmap.answers : []);
-  return { ...result, week12Line: week12LineFor(result.lowered, isWeekTarget(week12) ? week12 : null, statedText, startValue) };
+  const week12 = week12Row?.target;
+  return { ...sent, week12Line: week12LineFor(lowered, isWeekTarget(week12) ? week12 : null, statedText, startValue) };
+}
+
+/** Closed weeks back to their stored rows; `finalTest` back to stored when week 12 is one of them. */
+function keepClosed<W extends StoredWeek>(result: SafeStoredTargets<W>, stored: W[], storedFinalTest: string): SafeStoredTargets<W> {
+  const byWeek = new Map(stored.map((week) => [week.weekNumber, week]));
+  const weeks = result.weeks.map((week) => {
+    const original = byWeek.get(week.weekNumber);
+    return original && isClosedWeek(original) ? original : week;
+  });
+  const week12 = byWeek.get(TOTAL_WEEKS);
+  return { ...result, weeks, finalTest: week12 && isClosedWeek(week12) ? storedFinalTest : result.finalTest };
 }
