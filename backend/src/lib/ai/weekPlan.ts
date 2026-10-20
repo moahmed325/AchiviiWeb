@@ -672,12 +672,16 @@ function byClosenessToMiddle(days: WeekDayPlan[]): WeekDayPlan[] {
 /**
  * Code owns the week's shape (which days rest, which day tests, minutes, priorities, key sessions).
  * The model's content is rejected only for what code can't write for it.
+ * M2.2a follow-up: a refusal whose every hard reason is a safety breach names the first one's rule (`safetyRule`), for
+ * the first-answer fallback in `generateWeekPlan`. `quiet` writes no `[Safety]` line (that fallback's dry run).
  */
 export function checkWeekAnswer(
   data: RawWeekAnswer,
   input: WeekCallInput,
-  lastAttempt = false
-): { value: WeekDayPlan[] } | { reason: string } {
+  lastAttempt = false,
+  options: { quiet?: boolean } = {}
+): { value: WeekDayPlan[] } | { reason: string; safetyRule?: SafetyRule } {
+  const log = options.quiet !== true;
   const layout = weekLayout(input.planVariant, input.weekStart);
   const rawDays = Array.isArray(data.days) ? (data.days as RawDay[]) : [];
   const soft: string[] = [];
@@ -693,15 +697,24 @@ export function checkWeekAnswer(
    * goal parses the other days on, so the load checks are told with it (`dayLevelReason`).
    */
   let dayReason: string | null = null;
+  /**
+   * M2.2a follow-up: the four day-level exits. Not a load goal: the refusal, returned at once. A load goal: the first
+   * reason is kept, the day as far as it parsed (`steps`, when given) is kept for the safety checks, and parsing goes on.
+   */
+  const dayExit = (reason: string, slot: DayLayout, raw: RawDay | null, steps: ParsedStep[] | null): { reason: string } | null => {
+    if (!loadGoal) return { reason };
+    dayReason ??= reason;
+    if (raw && steps) days.push(partialDay(slot, raw, steps, input));
+    return null;
+  };
 
   for (const slot of layout) {
     const numbered = rawDays.some((day) => int(day?.dayNumber) !== null);
     const found = numbered ? rawDays.find((day) => int(day?.dayNumber) === slot.dayNumber) : rawDays[slot.dayNumber - 1];
     const raw: RawDay | undefined = found ?? (slot.isRestDay ? { title: 'Rest day', steps: [] } : undefined);
     if (!raw) {
-      const reason = `Day ${slot.dayNumber} is missing. Return all 7 days.`;
-      if (!loadGoal) return { reason };
-      dayReason ??= reason;
+      const stop = dayExit(`Day ${slot.dayNumber} is missing. Return all 7 days.`, slot, null, null);
+      if (stop) return stop;
       continue;
     }
     const label = `Day ${slot.dayNumber}`;
@@ -739,10 +752,8 @@ export function checkWeekAnswer(
     const hasTest = slot.isTestDay && steps.some((step) => TEST_STEP.test(step.title));
     if (slot.isTestDay) {
       if (!hasTest && !lastAttempt) {
-        const reason = `${label} is the test day; its main step must be titled "Weekly test: ..." and run the weekly test as written.`;
-        if (!loadGoal) return { reason };
-        dayReason ??= reason;
-        days.push(partialDay(slot, raw, steps, input));
+        const stop = dayExit(`${label} is the test day; its main step must be titled "Weekly test: ..." and run the weekly test as written.`, slot, raw, steps);
+        if (stop) return stop;
         continue;
       }
       if (!hasTest) steps = [testStepFor(input.test, Math.round(input.dailyMinutes / 2), isLightWeek(input)), ...keepTopSteps(steps, MAX_STEPS - 1)];
@@ -757,10 +768,8 @@ export function checkWeekAnswer(
     }
 
     if (steps.length === 0 || (steps.length < MIN_STEPS && !lastAttempt)) {
-      const reason = `${label} is a practice day and needs 2 to 4 steps; got ${steps.length}.`;
-      if (!loadGoal) return { reason };
-      dayReason ??= reason;
-      days.push(partialDay(slot, raw, steps, input));
+      const stop = dayExit(`${label} is a practice day and needs 2 to 4 steps; got ${steps.length}.`, slot, raw, steps);
+      if (stop) return stop;
       continue;
     }
     steps = keepTopSteps(steps, MAX_STEPS);
@@ -784,10 +793,8 @@ export function checkWeekAnswer(
 
     const title = text(raw.title);
     if (!title) {
-      const reason = `${label} has no title.`;
-      if (!loadGoal) return { reason };
-      dayReason ??= reason;
-      days.push(partialDay(slot, raw, steps, input));
+      const stop = dayExit(`${label} has no title.`, slot, raw, steps);
+      if (stop) return stop;
       continue;
     }
     const whyToday = text(raw.whyToday);
@@ -842,13 +849,14 @@ export function checkWeekAnswer(
     });
   }
 
-  if (dayReason !== null) return { reason: dayLevelReason(dayReason, days, input) };
+  if (dayReason !== null) return { reason: dayLevelReason(dayReason, days, input, lastAttempt, log) };
 
   // B-63 (PSL-1): a safety breach is a hard reason too; a second breach fails the week. M1.5b (WU-41): in a light week a
   // last attempt refused only on its test step gets the fixed light step instead.
-  const safetyFailures = safetyBreaches(days, input, lastAttempt);
+  const safetyFailures = safetyBreachList(days, input, lastAttempt, log);
   if (safetyFailures.length > 0 || kindFailures.length > 0) {
-    return { reason: [...safetyFailures, ...kindFailures].slice(0, 8).join(' ') };
+    const reason = [...safetyFailures.map((item) => item.reason), ...kindFailures].slice(0, 8).join(' ');
+    return kindFailures.length === 0 ? { reason, safetyRule: safetyFailures[0].rule } : { reason };
   }
 
   const candidates = days.filter((day) => !day.isRestDay && !day.isTestDay);
@@ -874,21 +882,21 @@ export function checkWeekAnswer(
   const polished = polishDays(days);
   soft.push(...dayQualityFailures(polished));
   if (soft.length > 0 && !lastAttempt) return { reason: soft.slice(0, 8).join(' ') };
-  if (lastAttempt) logKeptWithoutLoad(loadMisses, polished, input);
-  if (loadGoal) logRunMinutesOver(polished, input, lastAttempt);
+  if (lastAttempt && log) logKeptWithoutLoad(loadMisses, polished, input);
+  if (loadGoal && log) logRunMinutesOver(polished, input, lastAttempt);
   // RULE-7: with a profile the kinds decide; the goal-level marking is only for goals without one.
   return { value: input.highLoadGoal && !recovery ? polished.map(markHighLoad) : polished };
 }
 
 /**
  * M2.2a follow-up: a load goal's answer refused for a day-level reason is still checked against the safety limits on
- * every day that could be parsed, and those reasons go first (the day-level reason always fits in the 8). Not logged:
- * the attempt is refused for the day-level reason, and a breach still there on the next attempt is logged then. On the
- * last attempt the day-level reason fails the week, as before.
+ * every day that could be parsed, and those reasons go first (the day-level reason always fits in the 8). Each breach
+ * is logged once, `retry` (`failed` on the last attempt, which the day-level reason fails); never the light-step swap.
  */
-function dayLevelReason(dayReason: string, days: WeekDayPlan[], input: WeekCallInput): string {
-  const told = safetyBreaches(days, input, false, false);
-  return [...told.slice(0, 7), dayReason].join(' ');
+function dayLevelReason(dayReason: string, days: WeekDayPlan[], input: WeekCallInput, lastAttempt: boolean, log: boolean): string {
+  const told = safetyBreachList(days, input, false, false);
+  if (log) for (const breach of told) logBreach(breach, input, lastAttempt, lastAttempt ? 'failed' : 'retry');
+  return [...told.slice(0, 7).map((item) => item.reason), dayReason].join(' ');
 }
 
 /** M2.2a follow-up: a practice day refused for a day-level reason, as far as it parsed, only for the safety checks. */
@@ -936,6 +944,11 @@ interface Breach {
  * counts for M1.5b's light-step swap, and a week breach never lets the swap happen.
  */
 export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAttempt = false, log = true): string[] {
+  return safetyBreachList(days, input, lastAttempt, log).map((item) => item.reason);
+}
+
+/** `safetyBreaches` as breaches: the refused ones, step breaches first, then the week's. */
+function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt: boolean, log: boolean): Breach[] {
   const hits: Breach[] = [];
   // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through,
   // and every step is scanned, not only the high-load ones.
@@ -998,7 +1011,7 @@ export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAt
     return [];
   }
   if (log) for (const breach of week) logBreach(breach, input, lastAttempt, lastAttempt ? 'failed' : 'retry');
-  return [...refused, ...week].map((item) => item.reason);
+  return [...refused, ...week];
 }
 
 /** M1.5b: the days with each refused test step replaced by the fixed light step, as copies; the days are not changed. */
@@ -1158,11 +1171,43 @@ export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPla
   if (input.loadGoal && input.baseWeek && !input.baseWeek.known && (input.loadGoal.running || input.baseWeek.runWithoutLoad)) {
     logSafetyHit({ goalId: input.goalId ?? null, week: input.weekNumber, rule: 'no_base', step: 'This week', matched: 'last week running not known', outcome: 'logged' });
   }
+  // M2.2a follow-up: attempt 1's answer, for the first-answer fallback.
+  let first: RawWeekAnswer | null = null;
   return generateWithOneRetry<RawWeekAnswer, WeekDayPlan[]>(
     buildWeekPrompt(input, layout),
     WEEK_SYSTEM,
     weekResponseSchema(input.recovery, input.loadGoal),
-    (data, lastAttempt) => checkWeekAnswer(data, input, lastAttempt),
+    (data, lastAttempt) => {
+      if (!lastAttempt) {
+        first = data;
+        return checkWeekAnswer(data, input, false);
+      }
+      const verdict = checkWeekAnswer(data, input, true);
+      if ('value' in verdict || !verdict.safetyRule || !first) return verdict;
+      return firstAnswer(first, input, verdict.safetyRule) ?? verdict;
+    },
     `Week ${input.weekNumber}`
   );
+}
+
+/**
+ * M2.2a follow-up (RULE-6): the last answer was refused only for safety breaches. Attempt 1's answer is checked again
+ * as a last attempt (a one-step day kept, a missing test step added); when it passes every check, safety included, it
+ * is the week, with one `[Safety]` line naming the last answer's breach. A dry run first, so an answer that fails again
+ * logs nothing twice. No model call; nothing unsafe is ever returned.
+ */
+function firstAnswer(data: RawWeekAnswer, input: WeekCallInput, rule: SafetyRule): { value: WeekDayPlan[] } | null {
+  if (!('value' in checkWeekAnswer(data, input, true, { quiet: true }))) return null;
+  const kept = checkWeekAnswer(data, input, true);
+  if (!('value' in kept)) return null;
+  logSafetyHit({
+    goalId: input.goalId ?? null,
+    week: input.weekNumber,
+    attempt: 2,
+    rule,
+    step: 'This week',
+    matched: 'the last answer broke a limit; the first answer, checked again, is within every limit',
+    outcome: 'first_answer',
+  });
+  return kept;
 }

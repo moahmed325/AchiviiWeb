@@ -771,12 +771,12 @@ describe('M2.2a follow-up: safety reasons are told with a day-level reason', () 
   const DAY_REASON = 'Day 1 is a practice day and needs 2 to 4 steps; got 1.';
   const RUNNING = "SAFETY: This week's running is 75 minutes; the most allowed is 70 (last week 60, plus 10 minutes).";
 
-  it('names both, the safety reason first, and logs nothing for the refused attempt', () => {
+  it('names both, the safety reason first, and logs each breach once as retry', () => {
     const reason = reasonOf(checkWeekAnswer(answer(), input));
     expect(reason).toContain(RUNNING);
     expect(reason).toContain(DAY_REASON);
     expect(reason.indexOf(RUNNING)).toBeLessThan(reason.indexOf(DAY_REASON));
-    expect(safetyLines()).toEqual([]);
+    expect(safetyLines().map((line) => [line.goalId, line.rule, line.outcome])).toEqual([['g1', 'running_total_over_limit', 'retry']]);
   });
 
   it('a missing day: the days parsed are still checked', () => {
@@ -784,23 +784,94 @@ describe('M2.2a follow-up: safety reasons are told with a day-level reason', () 
       days.splice(4, 1);
     });
     // Day 5 is missing; days 1-3 and the test are 75 minutes.
-    const reason = reasonOf(checkWeekAnswer(missing, input));
-    expect(reason).toBe(`${RUNNING} Rewrite the week within the limit. Day 5 is missing. Return all 7 days.`);
+    expect(reasonOf(checkWeekAnswer(missing, input))).toBe(`${RUNNING} Rewrite the week within the limit. Day 5 is missing. Return all 7 days.`);
   });
 
-  it('the same answer on the last attempt still fails, on the running total', async () => {
-    // On the last attempt one step is allowed, and code fits it to the day's 40 minutes (runMinutes scaled): 100 in all.
-    expect(reasonOf(checkWeekAnswer(answer(), input, true))).toContain("SAFETY: This week's running is 100 minutes; the most allowed is 70");
-    warn.mockClear();
-    vi.mocked(generateStructuredContent).mockResolvedValue({ success: true, data: answer() } as never);
-    expect(await generateWeekPlan(input)).toBeNull();
-    // The retry prompt told the model the number.
-    expect(JSON.stringify(vi.mocked(generateStructuredContent).mock.calls[1])).toContain("This week's running is 75 minutes");
-    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([['running_total_over_limit', 'failed']]);
+  it('the test-day exit tells the safety reasons', () => {
+    const noTest = week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }, (days) => {
+      days[5].steps[1].title = 'Long steady run';
+    });
+    const reason = reasonOf(checkWeekAnswer(noTest, input));
+    expect(reason).toMatch(/^SAFETY: This week's running is 75 minutes/);
+    expect(reason).toContain('Day 6 is the test day; its main step must be titled "Weekly test: ..."');
   });
 
-  it("a typing goal's reasons are unchanged: the day-level reason alone", () => {
+  it('the no-title exit tells the safety reasons', () => {
+    const noTitle = week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }, (days) => {
+      days[1].title = '';
+    });
+    const reason = reasonOf(checkWeekAnswer(noTitle, input));
+    expect(reason).toMatch(/^SAFETY: This week's running is 75 minutes/);
+    expect(reason).toContain('Day 2 has no title.');
+  });
+
+  it("a typing goal's reasons are unchanged: the day-level reason alone, nothing logged", () => {
     const typing: WeekCallInput = { ...input, loadGoal: undefined, baseWeek: undefined, highLoadGoal: false, recovery: null };
     expect(reasonOf(checkWeekAnswer(answer(), typing))).toBe(DAY_REASON);
+    expect(safetyLines()).toEqual([]);
+  });
+
+  it('a stretched lone run keeps its runMinutes (code makes a step longer, never its running)', () => {
+    // On the last attempt one step is allowed, and code fits it to the day's 40 minutes.
+    const days = valueOf(checkWeekAnswer(answer(), { ...input, baseWeek: BIG }, true)) as WeekDayPlan[];
+    expect(days[0].detailedSteps).toHaveLength(1);
+    expect(days[0].detailedSteps[0]).toMatchObject({ durationMinutes: 40, load: { runMinutes: 15 } });
+    // So the same answer still breaks a limit of 70 by its own 75 minutes, not 100.
+    expect(reasonOf(checkWeekAnswer(answer(), input, true))).toContain(RUNNING);
+  });
+});
+
+describe('M2.2a follow-up: the first answer when the last one breaks a limit', () => {
+  const input = { ...WEEK5, baseWeek: minutesBase(150), goalId: 'g1' };
+  /** Week 5: 145 minutes, within 165, but day 5 has only its run. */
+  const safeFirst = () =>
+    week({ 1: { min: 35 }, 2: { min: 35 }, 3: { min: 35 }, 5: { min: 30 } }, { min: 10 }, (days) => {
+      days[4].steps = [days[4].steps[0]];
+    });
+  /** 170 minutes: over 165. */
+  const overLast = () => week({ 1: { min: 35 }, 2: { min: 35 }, 3: { min: 35 }, 5: { min: 35 } }, { min: 30 });
+
+  it('attempt 1 safe with a one-step day, attempt 2 over the limit: attempt 1 is the week, with one first_answer line', async () => {
+    vi.mocked(generateStructuredContent)
+      .mockResolvedValueOnce({ success: true, data: safeFirst() } as never)
+      .mockResolvedValueOnce({ success: true, data: overLast() } as never);
+    const days = await generateWeekPlan(input);
+    expect(days).not.toBeNull();
+    // Day 5 keeps its one run, stretched to the day, its running as written.
+    expect(days![4].detailedSteps).toHaveLength(1);
+    expect(days![4].detailedSteps[0]).toMatchObject({ title: 'Run 5', load: { runMinutes: 30 } });
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([
+      ['running_total_over_limit', 'failed'],
+      ['running_total_over_limit', 'first_answer'],
+    ]);
+    expect(safetyLines()[1]).toMatchObject({ goalId: 'g1', week: 5, attempt: 2, step: 'This week' });
+  });
+
+  it('attempt 1 unsafe too: no week', async () => {
+    const unsafeFirst = () =>
+      week({ 1: { min: 35 }, 2: { min: 35 }, 3: { min: 35 }, 5: { min: 35 } }, { min: 30 }, (days) => {
+        days[4].steps = [days[4].steps[0]];
+      });
+    vi.mocked(generateStructuredContent)
+      .mockResolvedValueOnce({ success: true, data: unsafeFirst() } as never)
+      .mockResolvedValueOnce({ success: true, data: overLast() } as never);
+    expect(await generateWeekPlan(input)).toBeNull();
+    // Attempt 1's breach once (retry), the last answer's once (failed); the dry run of attempt 1 logs nothing.
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([
+      ['running_total_over_limit', 'retry'],
+      ['running_total_over_limit', 'failed'],
+    ]);
+  });
+
+  it('no fallback when the last answer is refused for anything but safety', async () => {
+    const missingDay = () =>
+      week({ 1: { min: 35 }, 2: { min: 35 }, 3: { min: 35 }, 5: { min: 30 } }, { min: 10 }, (days) => {
+        days.splice(4, 1);
+      });
+    vi.mocked(generateStructuredContent)
+      .mockResolvedValueOnce({ success: true, data: safeFirst() } as never)
+      .mockResolvedValueOnce({ success: true, data: missingDay() } as never);
+    expect(await generateWeekPlan(input)).toBeNull();
+    expect(safetyLines().filter((line) => line.outcome === 'first_answer')).toEqual([]);
   });
 });

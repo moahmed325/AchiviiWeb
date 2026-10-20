@@ -123,6 +123,7 @@ export function withoutLoad<T extends DetailedStep>(step: T): Omit<T, 'load'> {
 export function withMinutes<T extends DetailedStep>(step: T, minutes: number): T {
   const before = step.durationMinutes;
   const runMinutes = step.load?.runMinutes;
-  if (runMinutes === undefined || before <= 0 || minutes === before) return { ...step, durationMinutes: minutes };
+  // M2.2a follow-up: only shortening scales it; a step code makes longer keeps the running the model wrote.
+  if (runMinutes === undefined || before <= 0 || minutes >= before) return { ...step, durationMinutes: minutes };
   return { ...step, durationMinutes: minutes, load: { ...step.load, runMinutes: Math.round((runMinutes * minutes) / before) } };
 }
