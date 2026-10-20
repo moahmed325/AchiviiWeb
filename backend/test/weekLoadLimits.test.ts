@@ -592,9 +592,9 @@ describe('the prompt (PSL-11 Q17)', () => {
   const layout = weekLayout('steady', WEEK1.weekStart);
 
   it('names the most allowed and last week, in the unit compared', () => {
-    expect(runningLines(minutesBase(60))[0]).toBe('- Running: at most 70 minutes this week in all (last week 60 minutes).');
+    expect(runningLines(minutesBase(60))[0]).toBe('- Running: at most 70 minutes this week in all (last week 60 minutes). Add up the runMinutes of every run before you answer; the total must be at most 70 minutes.');
     expect(runningLines({ known: true, unit: 'km', total: 12, totalMinutes: 75, runs: 3 })[0]).toBe(
-      '- Running: at most 13.2 km this week in all when every run is given in km, otherwise at most 85 minutes (last week 12 km, 75 minutes).'
+      '- Running: at most 13.2 km this week in all when every run is given in km, otherwise at most 85 minutes (last week 12 km, 75 minutes). Add up the runKm of every run before you answer; the total must be at most 13.2 km (or the runMinutes, at most 85 minutes, when any run is not given in km).'
     );
     expect(runningLines(minutesBase(0, 0))).toEqual([
       '- Running: last week had no running; keep it at their level.',
@@ -611,7 +611,7 @@ describe('the prompt (PSL-11 Q17)', () => {
     expect(block).toBe(
       [
         'SAFETY LIMITS (these override the method and the target; a week whose steps break any of them is not saved)',
-        '- Running: at most 70 minutes this week in all (last week 60 minutes).',
+        '- Running: at most 70 minutes this week in all (last week 60 minutes). Add up the runMinutes of every run before you answer; the total must be at most 70 minutes.',
         "- Longest run: at most 50% of the week's running when there are 3 or more runs.",
         '- At most 2 hard runs this week (intervals, tempo, race pace; a hard weekly test counts as one).',
         '- Calorie deficit: 250 to 600 kcal a day, never more.',
@@ -758,5 +758,49 @@ describe('M2.2a review fixes', () => {
       expect(place(null, stepOf('Easy jog finisher', 'catch_all', 2, 10, { runMinutes: 10, hardRun: false })).noRoomPlaced).toEqual([]);
       expect(place(null, stepOf('Band pull-aparts', 'catch_all', 2, 10, { kcalDeficit: 300 })).noRoomPlaced).toHaveLength(1);
     });
+  });
+});
+
+describe('M2.2a follow-up: safety reasons are told with a day-level reason', () => {
+  const input = { ...WEEK5, baseWeek: minutesBase(60), goalId: 'g1' };
+  /** 75 minutes of running against a limit of 70, and day 1 has only its run (one step). */
+  const answer = () =>
+    week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }, (days) => {
+      days[0].steps = [days[0].steps[0]];
+    });
+  const DAY_REASON = 'Day 1 is a practice day and needs 2 to 4 steps; got 1.';
+  const RUNNING = "SAFETY: This week's running is 75 minutes; the most allowed is 70 (last week 60, plus 10 minutes).";
+
+  it('names both, the safety reason first, and logs nothing for the refused attempt', () => {
+    const reason = reasonOf(checkWeekAnswer(answer(), input));
+    expect(reason).toContain(RUNNING);
+    expect(reason).toContain(DAY_REASON);
+    expect(reason.indexOf(RUNNING)).toBeLessThan(reason.indexOf(DAY_REASON));
+    expect(safetyLines()).toEqual([]);
+  });
+
+  it('a missing day: the days parsed are still checked', () => {
+    const missing = week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }, (days) => {
+      days.splice(4, 1);
+    });
+    // Day 5 is missing; days 1-3 and the test are 75 minutes.
+    const reason = reasonOf(checkWeekAnswer(missing, input));
+    expect(reason).toBe(`${RUNNING} Rewrite the week within the limit. Day 5 is missing. Return all 7 days.`);
+  });
+
+  it('the same answer on the last attempt still fails, on the running total', async () => {
+    // On the last attempt one step is allowed, and code fits it to the day's 40 minutes (runMinutes scaled): 100 in all.
+    expect(reasonOf(checkWeekAnswer(answer(), input, true))).toContain("SAFETY: This week's running is 100 minutes; the most allowed is 70");
+    warn.mockClear();
+    vi.mocked(generateStructuredContent).mockResolvedValue({ success: true, data: answer() } as never);
+    expect(await generateWeekPlan(input)).toBeNull();
+    // The retry prompt told the model the number.
+    expect(JSON.stringify(vi.mocked(generateStructuredContent).mock.calls[1])).toContain("This week's running is 75 minutes");
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([['running_total_over_limit', 'failed']]);
+  });
+
+  it("a typing goal's reasons are unchanged: the day-level reason alone", () => {
+    const typing: WeekCallInput = { ...input, loadGoal: undefined, baseWeek: undefined, highLoadGoal: false, recovery: null };
+    expect(reasonOf(checkWeekAnswer(answer(), typing))).toBe(DAY_REASON);
   });
 });
