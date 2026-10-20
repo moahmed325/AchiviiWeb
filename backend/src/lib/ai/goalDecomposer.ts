@@ -41,6 +41,20 @@ export type TaskLayerType = 'mechanism' | 'adherence' | 'safety';
 
 export const VALID_TASK_LAYERS: readonly TaskLayerType[] = ['mechanism', 'adherence', 'safety'] as const;
 
+/** Plan safety limits section 7: every field is optional; a yes/no is a real boolean, a number finite and 0 or more. */
+export interface StepLoad {
+  runMinutes?: number;
+  runKm?: number;
+  hardRun?: boolean;
+  kcalDeficit?: number;
+  kcalIntake?: number;
+  /** At most 100. */
+  percent1RM?: number;
+  rir?: number;
+  toFailure?: boolean;
+  maxTest?: boolean;
+}
+
 export interface DetailedStep {
   stepNumber: number;
   title: string;
@@ -60,6 +74,11 @@ export interface DetailedStep {
   highLoad?: boolean;
   /** Method-aware recovery: the id of one of the goal's recovery kinds (`lib/recovery/profile.ts`). Nothing writes it yet (M2.1). */
   kind?: string;
+  /**
+   * Plan safety limits M2.1 (RULE-4, PSL-4, PSL-8): a high-load step's load as numbers, from the week call on a load
+   * goal (`lib/safety/stepLoad.ts`). Older steps have none. Not checked yet (M2.2); never shown in the app.
+   */
+  load?: StepLoad;
   layer?: TaskLayerType;
   layerReasoning?: string;
   challenge?: StepChallenge;

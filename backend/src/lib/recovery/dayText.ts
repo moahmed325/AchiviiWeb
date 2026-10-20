@@ -33,14 +33,15 @@ const replaceAll = (text: string, from: string, to: string) => (from ? text.spli
 /**
  * The day's new text when its priority-1 step is not the one it had (by title), or null when it is the same. The
  * 10-minute version is `weekPlan.ts`'s fallback: the step itself as written, titled "Short version: {title}", at most
- * 10 minutes, with the step's kind (MR-15).
+ * 10 minutes, with the step's kind (MR-15) and without its load (plan safety limits M2.1).
  */
 export function describeDay(day: DayText, before: readonly CarriedStep[], after: readonly CarriedStep[]): NewDayText | null {
   const old = lead(before);
   const now = lead(after);
   if (!now || (old && old.title === now.title)) return null;
 
-  const { priority: _priority, ...content } = asWritten(now);
+  // Plan safety limits M2.1 (M1.1 section 3): the full step's load is not the 10-minute version's.
+  const { priority: _priority, load: _load, ...content } = asWritten(now);
   const minutes = content.durationMinutes > 0 && content.durationMinutes <= MINIMUM_VERSION_MINUTES ? content.durationMinutes : MINIMUM_VERSION_MINUTES;
   const out: NewDayText = {
     title: now.title,

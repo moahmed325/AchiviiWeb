@@ -1,5 +1,7 @@
 import type { DetailedStep } from './goalDecomposer.js';
+import { withMinutes } from '../safety/stepLoad.js';
 
+/** Plan safety limits M2.1 (PSL-11 Q10): a step's `load.runMinutes` follows its minutes (`withMinutes`). */
 export function fitStepMinutes(steps: DetailedStep[], total: number): DetailedStep[] {
   if (steps.length === 0 || total <= 0) return steps.map((step) => ({ ...step }));
   const next = steps.map((step) => ({ ...step, durationMinutes: Math.max(0, step.durationMinutes || 0) }));
@@ -12,18 +14,18 @@ export function fitStepMinutes(steps: DetailedStep[], total: number): DetailedSt
     return next.map((step) => {
       const extra = leftover > 0 ? 1 : 0;
       leftover -= extra;
-      return { ...step, durationMinutes: base + extra };
+      return withMinutes(step, base + extra);
     });
   }
 
   let used = 0;
   return next.map((step, index) => {
     if (index === next.length - 1) {
-      return { ...step, durationMinutes: Math.max(1, total - used) };
+      return withMinutes(step, Math.max(1, total - used));
     }
     const room = total - used - (next.length - index - 1);
     const share = Math.min(room, Math.max(1, Math.round((step.durationMinutes / sum) * total)));
     used += share;
-    return { ...step, durationMinutes: share };
+    return withMinutes(step, share);
   });
 }
