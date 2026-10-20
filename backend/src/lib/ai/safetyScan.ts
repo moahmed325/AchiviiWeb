@@ -1,4 +1,5 @@
 import type { DetailedStep } from './goalDecomposer.js';
+import type { WeekLoadRule } from '../safety/weekLoad.js';
 import {
   CALORIE_DEFICIT_MAX,
   CALORIE_DEFICIT_MIN,
@@ -17,9 +18,12 @@ export type ScanRule = 'deficit_over_600' | 'over_80_percent_1rm' | 'rir_below_3
  * Every `[Safety]` rule: the text scan's, plus plan-safety-limits M1.2's roadmap target rules (RULE-2, RULE-10):
  * `target_step` (a target lowered to the safe step), `unknown_family` (a number target no family reads, logged once per
  * goal) and `no_start` (no starting point, so week 1 is not checked). M2.1 (RULE-4): `load_missing`, a step that
- * needed its load kept without it on the week call's last attempt.
+ * needed its load kept without it on the week call's last attempt. M2.2a (RULE-5, RULE-10): a load number past a week
+ * limit (`WeekLoadRule`, and the scan's own rules when read from a number), `no_base` (the base week's running isn't
+ * known, so the running total is not checked) and `run_minutes_over_step` (a step's `runMinutes` above its minutes,
+ * counted as written).
  */
-export type SafetyRule = ScanRule | 'target_step' | 'unknown_family' | 'no_start' | 'load_missing';
+export type SafetyRule = ScanRule | WeekLoadRule | 'target_step' | 'unknown_family' | 'no_start' | 'load_missing' | 'no_base' | 'run_minutes_over_step';
 
 /**
  * Weekly update M1.5b (WU-41): how a week is scanned. `light`: a first week back of a high-load goal, whose test is a
@@ -210,15 +214,19 @@ export interface SafetyLogLine {
   /** `target_step` only: the model's target and the safe value it was lowered to. */
   model?: number;
   safe?: number;
+  /** M2.2a: a load number's breach: the number and the limit it passed. */
+  value?: number;
+  limit?: number;
   /**
    * `test_text`: the sentence is the roadmap's own weekly test, which the week must run as written; logged, not refused.
    * `light_test` (M1.5b, WU-41): on the last attempt of a light week the test step was replaced by the fixed light step.
    * `lowered` (M1.2): a roadmap target was lowered to the safe step. `logged` (M1.2): told only, never refused
    * (`unknown_family`, `no_start`). `lowered_on_read` (M1.3, PSL-12 (2)): an older goal's target, lowered on read, in the
    * week being written; nothing stored changed. `kept` (M2.1, RULE-4): `load_missing` on the last attempt; the step is
-   * kept without a load and B-63's scan decides.
+   * kept without a load and B-63's scan decides. `counted` (M2.2a, PSL-15 (2)): `run_minutes_over_step` on the accepted
+   * answer; the run is counted as written.
    */
-  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged' | 'lowered_on_read' | 'kept';
+  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged' | 'lowered_on_read' | 'kept' | 'counted';
 }
 
 /** PSL-1 (3): one line per hit, so the false-alarm rate can be checked in production. */

@@ -1,0 +1,639 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../src/lib/ai/gemini.js', () => ({
+  generateStructuredContent: vi.fn(),
+}));
+vi.mock('../src/lib/prisma.js', () => ({ prisma: {} }));
+
+import { generateStructuredContent } from '../src/lib/ai/gemini.js';
+import {
+  LIGHT_TEST_STEP,
+  WEEK_RESPONSE_SCHEMA,
+  buildWeekPrompt,
+  checkWeekAnswer,
+  codeMadeTestStep,
+  generateWeekPlan,
+  runningLines,
+  weekLayout,
+  weekResponseSchema,
+  type RawWeekAnswer,
+  type WeekCallInput,
+  type WeekDayPlan,
+} from '../src/lib/ai/weekPlan.js';
+import { writeNextWeek } from '../src/lib/planV2.js';
+import { baseWeekOf, runOf, weekBreaches, weekRunning, type BaseTask, type BaseWeek } from '../src/lib/safety/weekLoad.js';
+import { PATHWAY_PROFILES } from '../src/lib/recovery/pathways.js';
+import type { DetailedStep } from '../src/lib/ai/goalDecomposer.js';
+import { RUN10K_WEEK1 } from './run10kWeekInput.js';
+
+// Plan safety limits M2.2a (RULE-5, RULE-6, RULE-10, AC-5, AC-6, AC-10, B-64, PSL-15): week limits against the base week.
+
+const WEEK1: WeekCallInput = { ...RUN10K_WEEK1, loadGoal: { running: true } };
+/** A later, measured week (not light). */
+const WEEK5: WeekCallInput = {
+  ...WEEK1,
+  weekNumber: 5,
+  test: { type: 'timer', instructions: 'Run 5 km at a hard, steady effort and log your time.', passIf: 'Under 30 minutes' },
+  testSession: undefined,
+};
+const minutesBase = (total: number, runs = 3): BaseWeek => ({ known: true, unit: 'minutes', total, totalMinutes: total, runs });
+/** A big base, so the running total never decides. */
+const BIG = minutesBase(500, 5);
+
+function step(title: string, priority: number, minutes: number, extra: Record<string, unknown> = {}) {
+  return {
+    title,
+    instructions: `${title}: keep it relaxed and steady from the first minute to the last one.`,
+    minutes,
+    output: 'Distance and time written down',
+    doneWhen: 'Done at the planned effort',
+    focusCue: 'Relaxed shoulders',
+    pitfall: 'Starting too fast',
+    priority,
+    highLoad: false,
+    ...extra,
+  };
+}
+
+interface RunSpec {
+  min: number;
+  km?: number;
+  hard?: boolean;
+  kind?: string;
+  /** With `km`: also give `runMinutes`. */
+  minutesToo?: boolean;
+  /** No load at all (a step kept on the last attempt). */
+  noLoad?: boolean;
+}
+
+const loadOf = (run: RunSpec) =>
+  run.noLoad
+    ? {}
+    : {
+        load: {
+          ...(run.km !== undefined ? { runKm: run.km } : {}),
+          ...(run.km === undefined || run.minutesToo ? { runMinutes: run.min } : {}),
+          hardRun: run.hard ?? false,
+        },
+      };
+
+const minimum = (dayNumber: number, load: Record<string, unknown> = { runMinutes: 10, hardRun: false }) => ({ ...step(`Short easy run ${dayNumber}`, 1, 10), load });
+
+type Practice = 1 | 2 | 3 | 5;
+
+/**
+ * Steady: days 1-3 and 5-6 practice, 4 and 7 rest, day 6 the test. Each practice day is its run plus a mobility step,
+ * 40 minutes in all (so code never rescales the minutes); a day with no run gets two mobility steps. `test` null: the
+ * model leaves the test step out.
+ */
+function week(runs: Partial<Record<Practice, RunSpec>>, test: RunSpec | null = { min: 10 }, change: (days: Array<Record<string, any>>) => void = () => {}): RawWeekAnswer {
+  const days: Array<Record<string, any>> = Array.from({ length: 7 }, (_, index) => {
+    const dayNumber = index + 1;
+    if (dayNumber === 4 || dayNumber === 7) return { dayNumber, isKeySession: false, title: 'Rest and recover', whyToday: 'Recovery.', steps: [] };
+    let steps: unknown[];
+    if (dayNumber === 6) {
+      steps = [
+        step('Jog gently before the test', 2, 5, { kind: 'weekly_test' }),
+        ...(test ? [step('Weekly test: long run at an easy pace', 1, test.min, { kind: 'weekly_test', highLoad: true, ...loadOf(test) })] : []),
+        step('Note how the run felt', 3, 5, { kind: 'weekly_test' }),
+      ];
+    } else {
+      const run = runs[dayNumber as Practice];
+      steps = run
+        ? [
+            step(`Run ${dayNumber}`, 1, run.min, { kind: run.kind ?? 'easy_session', highLoad: true, ...loadOf(run) }),
+            step(`Calf and hip circuit ${dayNumber}`, 2, 40 - run.min, { kind: 'strength_and_mobility' }),
+          ]
+        : [
+            step(`Core circuit ${dayNumber}`, 1, 20, { kind: 'strength_and_mobility' }),
+            step(`Hip circuit ${dayNumber}`, 2, 20, { kind: 'strength_and_mobility' }),
+          ];
+    }
+    return { dayNumber, isKeySession: false, title: `Day ${dayNumber} session`, whyToday: 'Builds running.', steps, minimumVersion: minimum(dayNumber) };
+  });
+  change(days);
+  return { days };
+}
+
+/** A day's step load, added on the practice day's second step (a mobility step). */
+const withStepLoad = (day: number, load: Record<string, unknown>) => (days: Array<Record<string, any>>) => {
+  days[day - 1].steps[1].load = load;
+};
+
+const reasonOf = (result: ReturnType<typeof checkWeekAnswer>) => ('reason' in result ? result.reason : '');
+const valueOf = (result: ReturnType<typeof checkWeekAnswer>) => ('value' in result ? result.value : null);
+
+let warn: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+  vi.mocked(generateStructuredContent).mockReset();
+  warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
+afterEach(() => vi.restoreAllMocks());
+
+const safetyLines = () =>
+  warn.mock.calls.filter((call: unknown[]) => call[0] === '[Safety]').map((call: unknown[]) => JSON.parse(call[1] as string) as Record<string, unknown>);
+
+describe('AC-5: the running total against the base week (later weeks only)', () => {
+  it('passes at the limit and refuses one past, with both numbers in the reason', () => {
+    const input = { ...WEEK5, baseWeek: minutesBase(60) };
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 25 }), input))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 26 }), input))).toContain(
+      "This week's running is 71 minutes; the most allowed is 70 (last week 60, plus 10 minutes)."
+    );
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }), input))).toContain(
+      "SAFETY: This week's running is 75 minutes; the most allowed is 70 (last week 60, plus 10 minutes)."
+    );
+  });
+
+  it('the allowance is 10% when that is more than 10 minutes', () => {
+    const input = { ...WEEK5, baseWeek: minutesBase(120) };
+    const runs = { 1: { min: 30 }, 2: { min: 30 }, 3: { min: 30 }, 5: { min: 22 } };
+    expect(valueOf(checkWeekAnswer(week(runs, { min: 20 }), input))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week(runs, { min: 21 }), input))).toContain('the most allowed is 132 (last week 120, plus 10%)');
+  });
+
+  it('in km: 1 km more passes, a little past refuses', () => {
+    const input = { ...WEEK5, baseWeek: { known: true, unit: 'km', total: 10, totalMinutes: 60, runs: 3 } as BaseWeek };
+    const runs = { 1: { min: 15, km: 2.5 }, 2: { min: 15, km: 2.5 }, 3: { min: 15, km: 2.5 } };
+    expect(valueOf(checkWeekAnswer(week(runs, { min: 25, km: 3.5 }), input))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week(runs, { min: 25, km: 3.6 }), input))).toContain("This week's running is 11.1 km; the most allowed is 11 (last week 10, plus 1 km).");
+  });
+
+  it('week 1 has no running-total check', () => {
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 30 }, 2: { min: 30 }, 3: { min: 30 }, 5: { min: 30 } }, { min: 30 }), WEEK1))).not.toBeNull();
+  });
+
+  it('a real 0: a base week that ran 0 allows only the allowance', () => {
+    const input = { ...WEEK5, baseWeek: minutesBase(0, 0) };
+    expect(valueOf(checkWeekAnswer(week({}, { min: 10 }), input))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({}, { min: 11 }), input))).toContain("This week's running is 11 minutes; the most allowed is 10 (last week 0, plus 10 minutes).");
+    // A 0 base takes this week's unit: 1 km.
+    expect(valueOf(checkWeekAnswer(week({}, { min: 10, km: 1 }), input))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({}, { min: 10, km: 1.2 }), input))).toContain('the most allowed is 1 (last week 0, plus 1 km)');
+  });
+});
+
+describe("Mo's tests (PSL-15)", () => {
+  it('(b) a base week in km and this week in minutes are compared in minutes: one passes, one is refused', () => {
+    const input = { ...WEEK5, baseWeek: { known: true, unit: 'km', total: 10, totalMinutes: 60, runs: 3 } as BaseWeek };
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 25 }), input))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }), input))).toContain(
+      "This week's running is 75 minutes; the most allowed is 70 (last week 60, plus 10 minutes)."
+    );
+  });
+
+  it('(b) the reverse: a base week in minutes and this week in km, compared in minutes', () => {
+    const input = { ...WEEK5, baseWeek: minutesBase(60) };
+    const runs = { 1: { min: 15, km: 2.5, minutesToo: true }, 2: { min: 15, km: 2.5, minutesToo: true }, 3: { min: 15, km: 2.5, minutesToo: true } };
+    expect(valueOf(checkWeekAnswer(week(runs, { min: 25, km: 4, minutesToo: true }), input))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week(runs, { min: 30, km: 4, minutesToo: true }), input))).toContain("This week's running is 75 minutes; the most allowed is 70");
+  });
+});
+
+describe('AC-5: the longest run (PSL-15 (7))', () => {
+  for (const [label, input] of [
+    ['week 1', WEEK1],
+    ['a later week', { ...WEEK5, baseWeek: BIG }],
+  ] as const) {
+    it(`${label}: with 3 or more runs, at most 50% of the week`, () => {
+      expect(valueOf(checkWeekAnswer(week({ 1: { min: 10 }, 2: { min: 10 }, 3: { min: 30 } }, { min: 10 }), input))).not.toBeNull();
+      expect(reasonOf(checkWeekAnswer(week({ 1: { min: 10 }, 2: { min: 10 }, 3: { min: 31 } }, { min: 10 }), input))).toContain(
+        `SAFETY: Day 3 step "Run 3": the run is 31 minutes; the most allowed is 30 (50% of this week's 61 minutes of running).`
+      );
+    });
+  }
+
+  it('no base and fewer than 3 runs: the fixed cap of 30 minutes', () => {
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 30 } }, { min: 10 }), WEEK1))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 31 } }, { min: 10 }), WEEK1))).toContain(
+      'Day 1 step "Run 1": the run is 31 minutes; the most allowed is 30 (with no last week to build from and fewer than 3 runs).'
+    );
+  });
+
+  it('no base and fewer than 3 runs, counted in km: the cap of 5 km', () => {
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 30, km: 5 } }, { min: 10, km: 1.5 }), WEEK1))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 30, km: 5.1 } }, { min: 10, km: 1.5 }), WEEK1))).toContain('the run is 5.1 km; the most allowed is 5');
+  });
+
+  it('an unknown base is no base: the cap holds', () => {
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 31 } }, { min: 10 }), { ...WEEK5, baseWeek: { known: false } }))).toContain('the most allowed is 30');
+  });
+
+  it('a 3-run week is held to 50% instead of the cap', () => {
+    // Above the 30-minute cap, but a third of the week: passes.
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 32 }, 2: { min: 32 } }, { min: 30 }), WEEK1))).not.toBeNull();
+    // Under the cap, but 60% of the week: refused.
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 30 }), WEEK1))).toContain('(50% of this week');
+  });
+
+  it('a week with a base and 2 runs has no longest-run check', () => {
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 35 } }, { min: 10 }), { ...WEEK5, baseWeek: minutesBase(60) }))).not.toBeNull();
+  });
+});
+
+describe('AC-5: hard runs', () => {
+  for (const [label, input] of [
+    ['week 1', WEEK1],
+    ['a later week', { ...WEEK5, baseWeek: BIG }],
+  ] as const) {
+    it(`${label}: 2 pass, 3 are refused`, () => {
+      expect(valueOf(checkWeekAnswer(week({ 1: { min: 15, hard: true }, 3: { min: 15, hard: true }, 5: { min: 15 } }), input))).not.toBeNull();
+      expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15, hard: true }, 3: { min: 15, hard: true }, 5: { min: 15, hard: true } }), input))).toContain(
+        'SAFETY: This week has 3 hard runs (intervals, tempo, race pace or a hard test); the most allowed is 2.'
+      );
+    });
+  }
+
+  it("the code-made measured test counts as one hard run; the model's test step's own hardRun decides", () => {
+    const runs = { 1: { min: 15, hard: true }, 3: { min: 15, hard: true }, 5: { min: 15 } };
+    // The model left the test step out on the last attempt: code's test step is the third hard run.
+    expect(reasonOf(checkWeekAnswer(week(runs, null), { ...WEEK5, baseWeek: BIG }, true))).toContain('This week has 3 hard runs');
+    expect(reasonOf(checkWeekAnswer(week(runs, { min: 10, hard: true }), { ...WEEK5, baseWeek: BIG }))).toContain('This week has 3 hard runs');
+    expect(valueOf(checkWeekAnswer(week(runs, { min: 10 }), { ...WEEK5, baseWeek: BIG }))).not.toBeNull();
+  });
+
+  it('a quality_session kept without a load on the last attempt is a hard run, counted by its minutes', () => {
+    const runs = { 1: { min: 15, hard: true }, 3: { min: 15, hard: true }, 5: { min: 15, kind: 'quality_session', noLoad: true } };
+    expect(reasonOf(checkWeekAnswer(week(runs), { ...WEEK5, baseWeek: BIG }, true))).toContain('This week has 3 hard runs');
+  });
+});
+
+describe('AC-5: every step and 10-minute version', () => {
+  const later = { ...WEEK5, baseWeek: BIG };
+  for (const [label, input] of [
+    ['week 1', WEEK1],
+    ['a later week', later],
+  ] as const) {
+    it(`${label}: a deficit of 600 passes, 601 is refused, and a lower deficit is never refused`, () => {
+      expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, { kcalDeficit: 600 })), input))).not.toBeNull();
+      expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, { kcalDeficit: 100 })), input))).not.toBeNull();
+      expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, { kcalDeficit: 601 })), input))).toContain(
+        'SAFETY: Day 1 step "Calf and hip circuit 1": kcalDeficit is 601; the most allowed is 600 kcal a day.'
+      );
+    });
+
+    it(`${label}: an intake of 1200 passes, 1199 is refused`, () => {
+      expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, { kcalIntake: 1200 })), input))).not.toBeNull();
+      expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, { kcalIntake: 1199 })), input))).toContain(
+        'kcalIntake is 1199; the least allowed is 1200 kcal a day.'
+      );
+    });
+
+    it(`${label}: the 10-minute version gets the same checks`, () => {
+      const change = (days: Array<Record<string, any>>) => {
+        days[0].minimumVersion = minimum(1, { runMinutes: 10, hardRun: false, kcalDeficit: 700 });
+      };
+      expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, change), input))).toContain('SAFETY: Day 1 10-minute version "Short easy run 1": kcalDeficit is 700');
+    });
+  }
+
+  const lift: Array<[string, Record<string, unknown>, Record<string, unknown>]> = [
+    ['% of 1RM', { percent1RM: 80 }, { percent1RM: 81 }],
+    ['reps in reserve', { rir: 3 }, { rir: 2 }],
+    ['to failure', { toFailure: false }, { toFailure: true }],
+    ['max test', { maxTest: false }, { maxTest: true }],
+  ];
+  for (const [label, atLimit, past] of lift) {
+    it(`weeks 1 to 3, ${label}: at the limit passes, past it is refused; week 4 is not checked`, () => {
+      const atWeek = (weekNumber: number) => ({ ...later, weekNumber });
+      expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, atLimit)), WEEK1))).not.toBeNull();
+      expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, past)), WEEK1))).toContain('in weeks 1 to 3');
+      expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, past)), atWeek(3)))).toContain('in weeks 1 to 3');
+      expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, past)), atWeek(4)))).not.toBeNull();
+    });
+  }
+});
+
+describe('how a week is counted', () => {
+  it('mixed units in one week are counted in minutes, using runMinutes where given and the minutes where not', () => {
+    const running = weekRunning([
+      { name: 'a', minutes: 30, km: 5, hard: false, noLoad: false },
+      { name: 'b', minutes: 20, hard: false, noLoad: false },
+    ]);
+    expect(running).toMatchObject({ unit: 'minutes', total: 50, totalMinutes: 50 });
+    expect(runOf({ durationMinutes: 25, load: { runKm: 4, hardRun: false } }, 'x', { running: true, testStep: false, codeMade: null })).toMatchObject({ minutes: 25, km: 4 });
+  });
+
+  it('a runMinutes above the step is counted as written, and logged once on the accepted answer only', () => {
+    const over = week({ 1: { min: 15 } }, { min: 10 }, (days) => {
+      days[0].steps[0].load = { runMinutes: 40, hardRun: false };
+    });
+    // Counted as written: 40 + 10 is over a base of 30 plus 10.
+    expect(reasonOf(checkWeekAnswer(over, { ...WEEK5, baseWeek: minutesBase(30) }))).toContain("This week's running is 50 minutes");
+    expect(safetyLines().filter((line) => line.rule === 'run_minutes_over_step')).toEqual([]);
+    expect(valueOf(checkWeekAnswer(over, { ...WEEK5, baseWeek: BIG, goalId: 'g1' }))).not.toBeNull();
+    expect(safetyLines().filter((line) => line.rule === 'run_minutes_over_step')).toEqual([
+      { goalId: 'g1', week: 5, attempt: 1, rule: 'run_minutes_over_step', step: 'Day 1 step "Run 1"', matched: 'runMinutes 40 in a 15-minute step', value: 40, limit: 15, outcome: 'counted' },
+    ]);
+  });
+
+  it('a rest-day run counts in the running total', () => {
+    const restRun = week({ 1: { min: 15 } }, { min: 10 }, (days) => {
+      days[3].steps = [step('Easy shakeout jog', 1, 15, { highLoad: true, load: { runMinutes: 15, hardRun: false } })];
+    });
+    expect(reasonOf(checkWeekAnswer(restRun, { ...WEEK5, baseWeek: minutesBase(20) }))).toContain("This week's running is 40 minutes");
+  });
+
+  it('the light step and the code-made test step are read from their fixed text', () => {
+    expect(codeMadeTestStep({ title: LIGHT_TEST_STEP.title, focusCue: '', pitfallToAvoid: '' })).toBe('light');
+    expect(codeMadeTestStep({ title: 'Weekly test: Run 5 km', focusCue: 'Your honest best, done exactly as written.', pitfallToAvoid: 'Changing the test to make it easier.' })).toBe('measured');
+    expect(codeMadeTestStep({ title: 'Weekly test: Run 5 km', focusCue: 'Relaxed', pitfallToAvoid: 'Too fast' })).toBeNull();
+  });
+});
+
+/** One stored day of the base week. */
+function task(id: string, date: string, steps: Array<Partial<DetailedStep> & Record<string, unknown>>, extra: Partial<BaseTask> = {}): BaseTask {
+  return {
+    id,
+    date,
+    status: 'completed',
+    isTestDay: false,
+    notOffered: false,
+    usedMinimumVersion: false,
+    steps: steps.map((item, index) => ({ stepNumber: index + 1, title: `Step ${index + 1}`, durationMinutes: 0, instructions: '', focusCue: '', pitfallToAvoid: '', passMark: '', output: '', priority: index + 1, ...item })) as never,
+    minimumVersion: null,
+    ...extra,
+  };
+}
+const runStep = (title: string, minutes: number, extra: Record<string, unknown> = {}) => ({ title, durationMinutes: minutes, kind: 'easy_session', load: { runMinutes: minutes, hardRun: false }, ...extra });
+const base = (tasks: BaseTask[]) => baseWeekOf(tasks, true, codeMadeTestStep);
+
+describe('the base week (B-64, PSL-11 Q8, PSL-15 (1))', () => {
+  const four = (status: (index: number) => string) =>
+    [1, 2, 3, 4].map((n) => task(`t${n}`, `2026-09-2${n}`, [runStep(`Run ${n}`, 25)], { status: status(n) }));
+
+  it('is planned when 70% or more was done', () => {
+    expect(base(four((n) => (n <= 3 ? 'completed' : 'missed')))).toEqual({ known: true, unit: 'minutes', total: 100, totalMinutes: 100, runs: 4 });
+  });
+
+  it('is what was done when under 70% of planned was done', () => {
+    expect(base(four((n) => (n <= 2 ? 'completed' : 'missed')))).toEqual({ known: true, unit: 'minutes', total: 50, totalMinutes: 50, runs: 2 });
+  });
+
+  it("a day done through its 10-minute version counts that version's load", () => {
+    const tasks = four((n) => (n <= 2 ? 'completed' : 'missed'));
+    tasks[1] = { ...tasks[1], usedMinimumVersion: true, minimumVersion: { ...tasks[1].steps[0], title: 'Short run', durationMinutes: 10, load: { runMinutes: 8, hardRun: false } } };
+    expect(base(tasks)).toMatchObject({ known: true, total: 33 });
+  });
+
+  it('a code-made 10-minute version done instead of a run counts its minutes', () => {
+    const tasks = four((n) => (n <= 2 ? 'completed' : 'missed'));
+    tasks[1] = { ...tasks[1], usedMinimumVersion: true, minimumVersion: { ...tasks[1].steps[0], title: 'Short version: Run 2', durationMinutes: 10, load: undefined } };
+    expect(base(tasks)).toMatchObject({ known: true, total: 35 });
+  });
+
+  it('a carried copy counts once, planned and done', () => {
+    const tasks = four(() => 'completed');
+    tasks[0] = { ...tasks[0], status: 'missed' };
+    tasks[2] = { ...tasks[2], steps: [...tasks[2].steps, { ...tasks[0].steps[0], stepNumber: 2, carriedFrom: { taskId: 't1', date: '2026-09-21' } } as never] };
+    // Planned: 4 runs, not 5. Done: runs 2, 3, 4 and the copy of run 1 = 100.
+    expect(base(tasks)).toEqual({ known: true, unit: 'minutes', total: 100, totalMinutes: 100, runs: 4 });
+  });
+
+  it('a done day that still holds a step carried from it is counted once', () => {
+    const tasks = four(() => 'completed');
+    tasks[2] = { ...tasks[2], steps: [...tasks[2].steps, { ...tasks[0].steps[0], stepNumber: 2, shiftedFrom: { taskId: 't1', date: '2026-09-21', replaced: [] } } as never] };
+    expect(base(tasks)).toMatchObject({ total: 100, runs: 4 });
+  });
+
+  it('not-offered days are left out', () => {
+    const tasks = four(() => 'completed');
+    tasks[3] = { ...tasks[3], notOffered: true, status: 'pending' };
+    expect(base(tasks)).toMatchObject({ known: true, total: 75, runs: 3 });
+  });
+
+  it('a rest-day run is counted, and a conditioning walk is not', () => {
+    const tasks = four(() => 'completed');
+    tasks.push(task('rest', '2026-09-26', [{ title: 'Shakeout jog', durationMinutes: 15, load: { runMinutes: 15, hardRun: false } }]));
+    tasks.push(task('walk', '2026-09-27', [{ title: 'Brisk walk', durationMinutes: 30, kind: 'conditioning', load: { runMinutes: 0, hardRun: false, kcalDeficit: 300 } }]));
+    expect(base(tasks)).toMatchObject({ known: true, total: 115, runs: 5 });
+  });
+
+  it('the code-made test step counts its minutes', () => {
+    const tasks = four(() => 'completed');
+    tasks.push(
+      task('test', '2026-09-26', [{ title: 'Weekly test: Run 5 km', durationMinutes: 20, focusCue: 'Your honest best, done exactly as written.', pitfallToAvoid: 'Changing the test to make it easier.' }], { isTestDay: true })
+    );
+    expect(base(tasks)).toMatchObject({ known: true, total: 120, runs: 5 });
+  });
+
+  it("a run without a load (the model's test step kept on the last attempt) makes the base unknown, never 0", () => {
+    const tasks = four(() => 'completed');
+    tasks.push(task('test', '2026-09-26', [{ title: 'Weekly test: Run 5 km', durationMinutes: 20 }], { isTestDay: true }));
+    expect(base(tasks)).toEqual({ known: false });
+    expect(base([...four(() => 'completed'), task('x', '2026-09-26', [{ title: 'Long run', durationMinutes: 40, kind: 'long_session' }])])).toEqual({ known: false });
+  });
+
+  it('a week written before M2.1 (no load on any step) is unknown', () => {
+    expect(base([task('a', '2026-09-21', [{ title: 'Easy jog', durationMinutes: 30 }])])).toEqual({ known: false });
+    expect(base([])).toEqual({ known: false });
+  });
+
+  it('a known week that ran 0 is a real 0', () => {
+    expect(base(four(() => 'missed'))).toEqual({ known: true, unit: 'minutes', total: 0, totalMinutes: 0, runs: 0 });
+  });
+
+  it('in km only when every run gives km', () => {
+    const km = [1, 2, 3].map((n) => task(`k${n}`, `2026-09-2${n}`, [runStep(`Run ${n}`, 20, { load: { runKm: 3, hardRun: false } })]));
+    expect(base(km)).toEqual({ known: true, unit: 'km', total: 9, totalMinutes: 60, runs: 3 });
+    expect(base([...km, task('m', '2026-09-25', [runStep('Run 4', 15)])])).toEqual({ known: true, unit: 'minutes', total: 75, totalMinutes: 75, runs: 4 });
+  });
+});
+
+describe('the exceptions', () => {
+  const maxTest = { type: 'max_reps' as const, instructions: 'Test your 1RM squat.', passIf: 'Logged' };
+
+  it("PSL-3: a load breach of a rule the stored test itself breaks is logged as test_text on the test step, not refused", () => {
+    const input = { ...WEEK1, weekNumber: 2, test: maxTest, baseWeek: BIG, goalId: 'g1' };
+    const answer = week({ 1: { min: 15 } }, { min: 10 }, (days) => {
+      days[5].steps[1].load = { runMinutes: 10, hardRun: false, maxTest: true };
+    });
+    expect(valueOf(checkWeekAnswer(answer, input))).not.toBeNull();
+    expect(safetyLines().filter((line) => line.matched === 'maxTest true')).toMatchObject([{ goalId: 'g1', rule: 'max_test', outcome: 'test_text' }]);
+    // Anywhere else it is refused.
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, withStepLoad(1, { maxTest: true })), input))).toContain('maxTest is true');
+  });
+
+  const lightWeek = { ...WEEK1, weekNumber: 2, test: maxTest, baseWeek: BIG, firstWeekBack: { awayDays: 10, note: null, highLoad: true } } as WeekCallInput;
+  const testBreach = (days: Array<Record<string, any>>) => {
+    days[5].steps[1].load = { runMinutes: 10, hardRun: false, maxTest: true };
+  };
+
+  it('in a light week nothing from the test is let through, and on the last attempt the light step takes its place', () => {
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, testBreach), lightWeek))).toContain('Day 6 step "Weekly test: long run at an easy pace": maxTest is true');
+    warn.mockClear();
+    const days = valueOf(checkWeekAnswer(week({ 1: { min: 15 } }, { min: 10 }, testBreach), lightWeek, true)) as WeekDayPlan[];
+    expect(days[5].detailedSteps.find((item) => item.title.startsWith('Weekly test'))).toMatchObject({ title: LIGHT_TEST_STEP.title });
+    expect(days[5].detailedSteps.find((item) => item.title === LIGHT_TEST_STEP.title)?.load).toBeUndefined();
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([['max_test', 'light_test']]);
+  });
+
+  it('a week breach next to a test-step breach gives no light step: the week fails', () => {
+    const hard = { 1: { min: 15, hard: true }, 2: { min: 15, hard: true }, 3: { min: 15, hard: true } };
+    const result = checkWeekAnswer(week(hard, { min: 10 }, testBreach), lightWeek, true);
+    expect(reasonOf(result)).toContain('maxTest is true');
+    expect(reasonOf(result)).toContain('This week has 3 hard runs');
+    expect(safetyLines().map((line) => line.outcome)).toEqual(['failed', 'failed']);
+  });
+
+  it('a week breach alone never gets the light step', () => {
+    const hard = { 1: { min: 15, hard: true }, 2: { min: 15, hard: true }, 3: { min: 15, hard: true } };
+    expect(reasonOf(checkWeekAnswer(week(hard), lightWeek, true))).toContain('This week has 3 hard runs');
+  });
+
+  it("B-63's text scan runs exactly as before next to the load checks", () => {
+    const answer = week({ 1: { min: 15 } }, { min: 10 }, (days) => {
+      days[0].steps[1].instructions = 'Squat: last set to failure.';
+    });
+    expect(reasonOf(checkWeekAnswer(answer, WEEK1))).toMatch(/SAFETY: Day 1 step "Calf and hip circuit 1" says ".*failure.*"/);
+  });
+});
+
+describe('AC-6: a second breach returns no week', () => {
+  it('generateWeekPlan retries once, then gives null (both callers answer their 503 and save nothing)', async () => {
+    const breaching = week({ 1: { min: 15, hard: true }, 2: { min: 15, hard: true }, 3: { min: 15, hard: true } });
+    vi.mocked(generateStructuredContent).mockResolvedValue({ success: true, data: breaching } as never);
+    expect(await generateWeekPlan({ ...WEEK5, baseWeek: BIG, goalId: 'g1' })).toBeNull();
+    expect(generateStructuredContent).toHaveBeenCalledTimes(2);
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([
+      ['hard_runs_over_2', 'retry'],
+      ['hard_runs_over_2', 'failed'],
+    ]);
+  });
+
+  it('a retry that comes back within the limits is saved', async () => {
+    vi.mocked(generateStructuredContent)
+      .mockResolvedValueOnce({ success: true, data: week({ 1: { min: 31 } }) } as never)
+      .mockResolvedValueOnce({ success: true, data: week({ 1: { min: 30 } }) } as never);
+    expect(await generateWeekPlan(WEEK1)).not.toBeNull();
+    const prompts = vi.mocked(generateStructuredContent).mock.calls.map((call) => JSON.stringify(call));
+    expect(prompts[1]).toContain('the run is 31 minutes; the most allowed is 30');
+  });
+});
+
+describe('writeNextWeek (B-64)', () => {
+  const target = WEEK1.target;
+  const test = WEEK5.test;
+  const goal = (rawGoal: string, clarifiedOutcome: string, weekTarget: unknown = target) =>
+    ({
+      id: 'g1',
+      rawGoal,
+      clarifiedOutcome,
+      startDate: new Date('2026-09-21T00:00:00Z'),
+      routine: JSON.stringify({ dailyMinutes: 40, planVariant: 'steady' }),
+      roadmap: { finalGoal: clarifiedOutcome, finalTest: '', startingPoint: {}, method: WEEK1.method, phases: [WEEK1.phase], answers: [] },
+      roadmapWeeks: [
+        { weekNumber: 1, phase: 'Base', theme: 'Easy runs', target: weekTarget, test, status: 'completed' },
+        { weekNumber: 2, phase: 'Base', theme: 'Longer runs', target: weekTarget, test, status: 'active' },
+      ],
+    }) as never;
+  const RUN = ['Run 10 km in under 55 minutes', 'Finish a 10 km race in under 55:00'] as const;
+  const row = (n: number, steps: unknown[], extra: Record<string, unknown> = {}) =>
+    ({
+      id: `t${n}`,
+      date: `2026-09-2${n}`,
+      dayOfWeek: 'Monday',
+      title: `Day ${n}`,
+      status: 'completed',
+      isRestDay: false,
+      isTestDay: false,
+      isKeySession: false,
+      notOffered: false,
+      usedMinimumVersion: false,
+      notes: null,
+      detailedSteps: JSON.stringify(steps),
+      minimumVersion: null,
+      ...extra,
+    }) as never;
+
+  it("(a) a base week whose runs have no load, then a normal week: written, no running-total refusal, no_base logged with the goal id", async () => {
+    const finished = [1, 2, 3].map((n) => row(n, [{ stepNumber: 1, title: `Easy run ${n}`, durationMinutes: 10, kind: 'easy_session', priority: 1 }]));
+    vi.mocked(generateStructuredContent).mockResolvedValue({ success: true, data: week({ 1: { min: 30 }, 2: { min: 30 }, 3: { min: 30 } }, { min: 10 }) } as never);
+    const days = await writeNextWeek(goal(...RUN), 1, finished, '07:30', PATHWAY_PROFILES.run10k);
+    expect(days).not.toBeNull();
+    expect(safetyLines()).toEqual([{ goalId: 'g1', week: 2, rule: 'no_base', step: 'This week', matched: 'last week running not known', outcome: 'logged' }]);
+  });
+
+  it('a known base week holds the next week, and the goal id reaches the [Safety] line', async () => {
+    const finished = [1, 2, 3].map((n) => row(n, [{ stepNumber: 1, title: `Easy run ${n}`, durationMinutes: 20, kind: 'easy_session', priority: 1, load: { runMinutes: 20, hardRun: false } }]));
+    vi.mocked(generateStructuredContent).mockResolvedValue({ success: true, data: week({ 1: { min: 30 }, 2: { min: 30 }, 3: { min: 30 } }, { min: 10 }) } as never);
+    expect(await writeNextWeek(goal(...RUN), 1, finished, '07:30', PATHWAY_PROFILES.run10k)).toBeNull();
+    const lines = safetyLines();
+    expect(lines.map((line) => [line.goalId, line.rule, line.outcome])).toEqual([
+      ['g1', 'running_total_over_limit', 'retry'],
+      ['g1', 'running_total_over_limit', 'failed'],
+    ]);
+    expect(lines[0]).toMatchObject({ value: 100, limit: 70 });
+    // The writer is told the number.
+    expect(JSON.stringify(vi.mocked(generateStructuredContent).mock.calls[0])).toContain('at most 70 minutes this week in all (last week 60 minutes)');
+  });
+
+  it('a goal that is not a load goal gets no base week and no load key', async () => {
+    vi.mocked(generateStructuredContent).mockResolvedValue({ success: false, error: 'stop' } as never);
+    await writeNextWeek(goal('Type 40 words per minute', 'Type 40 wpm at 95% accuracy', { kind: 'number', metric: 'Typing speed', value: 40, unit: 'wpm', direction: 'higher_is_better' }), 1, [], '07:30', null).catch(() => null);
+    const prompt = JSON.stringify(vi.mocked(generateStructuredContent).mock.calls[0]);
+    expect(prompt).not.toContain('SAFETY LIMITS');
+    expect(prompt).not.toContain('"load"');
+    expect(safetyLines()).toEqual([]);
+  });
+});
+
+describe('the prompt (PSL-11 Q17)', () => {
+  const layout = weekLayout('steady', WEEK1.weekStart);
+
+  it('names the most allowed and last week, in the unit compared', () => {
+    expect(runningLines(minutesBase(60))[0]).toBe('- Running: at most 70 minutes this week in all (last week 60 minutes).');
+    expect(runningLines({ known: true, unit: 'km', total: 12, totalMinutes: 75, runs: 3 })[0]).toBe(
+      '- Running: at most 13.2 km this week in all when every run is given in km, otherwise at most 85 minutes (last week 12 km, 75 minutes).'
+    );
+    expect(runningLines(minutesBase(0, 0))[0]).toBe('- Running: last week had no running, so at most 10 minutes this week in all (1 km when every run is given in km).');
+    expect(runningLines({ known: false })).toEqual(runningLines(undefined));
+    expect(runningLines(undefined).join('\n')).toContain('no run longer than 30 minutes (5 km when every run is given in km)');
+  });
+
+  it('a later week tells the base, the longest-run rule, the hard-run limit and the intake floor', () => {
+    const prompt = buildWeekPrompt({ ...WEEK5, baseWeek: minutesBase(60) }, layout);
+    const block = prompt.slice(prompt.indexOf('SAFETY LIMITS'), prompt.indexOf('\n\nKINDS OF STEP') + 2);
+    expect(block).toBe(
+      [
+        'SAFETY LIMITS (these override the method and the target; a week whose steps break any of them is not saved)',
+        '- Running: at most 70 minutes this week in all (last week 60 minutes).',
+        "- Longest run: at most 50% of the week's running when there are 3 or more runs.",
+        '- At most 2 hard runs this week (intervals, tempo, race pace; a hard weekly test counts as one).',
+        '- Calorie deficit: 250 to 600 kcal a day, never more.',
+        '- Daily intake: never below 1200 kcal a day.',
+        '',
+        '',
+      ].join('\n')
+    );
+  });
+
+  it('is told on a custom physical goal (a load goal that is not a high-load preset)', () => {
+    const custom = { ...WEEK1, highLoadGoal: false, recovery: null };
+    expect(buildWeekPrompt(custom, layout)).toContain('SAFETY LIMITS (these override the method and the target; a week whose steps break any of them is not saved)');
+  });
+});
+
+describe('a goal that is not a load goal is exactly as before', () => {
+  const typing: WeekCallInput = { ...RUN10K_WEEK1, finalGoal: 'Type 40 wpm', highLoadGoal: false, recovery: null, loadGoal: undefined, test: { type: 'score', instructions: 'Take a typing test.', passIf: '40 wpm' } };
+
+  it('schema and prompt', () => {
+    expect(weekResponseSchema(null, undefined)).toBe(WEEK_RESPONSE_SCHEMA);
+    expect(buildWeekPrompt(typing, weekLayout('steady', typing.weekStart))).not.toContain('SAFETY LIMITS');
+  });
+
+  it('result: load numbers the model sends are neither read nor checked', () => {
+    const answer = week({ 1: { min: 35 }, 2: { min: 35 }, 3: { min: 35 } }, { min: 10, hard: true }, (days) => {
+      days[0].steps[1].load = { kcalDeficit: 900 };
+    });
+    const days = valueOf(checkWeekAnswer(answer, { ...typing, baseWeek: minutesBase(0, 0) })) as WeekDayPlan[];
+    expect(days).not.toBeNull();
+    expect(days.flatMap((day) => day.detailedSteps).some((item) => 'load' in item)).toBe(false);
+    expect(safetyLines()).toEqual([]);
+  });
+
+  it('weekBreaches is pure: no base, no running-total check', () => {
+    expect(weekBreaches(weekRunning([]), undefined)).toEqual([]);
+  });
+});

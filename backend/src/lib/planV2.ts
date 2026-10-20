@@ -14,10 +14,12 @@ import {
   type WeekTarget,
   type WeekTest,
 } from './ai/roadmap.js';
-import { activeDaysFor, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
+import { activeDaysFor, codeMadeTestStep, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
 import { parseStoredSteps } from './carryForward.js';
 import { isHighLoadGoal } from './highLoad.js';
 import { loadGoalInput } from './safety/stepLoad.js';
+import { baseWeekOf, type BaseWeek } from './safety/weekLoad.js';
+import type { DetailedStep } from './ai/goalDecomposer.js';
 import { logSafetyHit } from './ai/safetyScan.js';
 import { safeGoalTargets } from './safety/storedTargets.js';
 import { handoffBrief, placeHandoff, weekHandoff, type HandoffPlacement, type HandoffTask, type WeekHandoff } from './recovery/handoff.js';
@@ -219,6 +221,7 @@ export async function writeNextWeek(
   // M2.1 (WU-43 (5)): the session a light week's test belongs to; nothing for any other week.
   const lastLight = (done?.test as unknown as WeekTest | null)?.light === true;
   const session = lightTestSession(next.test as unknown as WeekTest, goal.rawGoal, goal.clarifiedOutcome);
+  const load = loadGoalInput(goal, next.target as unknown as WeekTarget);
   const days = await generateWeekPlan({
     finalGoal: stored.finalGoal,
     answers: stored.answers,
@@ -235,7 +238,12 @@ export async function writeNextWeek(
     weekStart: weekStartFor(goal.startDate, next.weekNumber),
     highLoadGoal: isHighLoadGoal(goal),
     // Plan safety limits M2.1 (RULE-4): only a load goal adds the key, so any other goal's call is exactly as before.
-    ...loadGoalInput(goal, next.target as unknown as WeekTarget),
+    // M2.2a (RULE-5, B-64): a load goal also gets the closing week as its base week. Until M2.2b a first week back is
+    // counted from the closing week too.
+    ...load,
+    ...(load.loadGoal ? { baseWeek: baseWeekFrom(finishedTasks, load.loadGoal.running) } : {}),
+    // B-64: for the `[Safety]` lines.
+    goalId: goal.id,
     recovery: profile,
     lastWeek: done?.target
       ? {
@@ -267,6 +275,21 @@ export async function writeNextWeek(
     console.error('[PlanV2] Could not add the first-week-back line:', err);
     return placed;
   }
+}
+
+/** M2.2a (PSL-11 Q8, PSL-15 (1)): the closing week's running, planned and done, from its stored rows. */
+function baseWeekFrom(tasks: DailyTask[], running: boolean): BaseWeek {
+  const rows = tasks.map((task) => ({
+    id: task.id,
+    date: task.date,
+    status: task.status,
+    isTestDay: task.isTestDay,
+    notOffered: task.notOffered,
+    usedMinimumVersion: task.usedMinimumVersion,
+    steps: parseStoredSteps(task.detailedSteps),
+    minimumVersion: task.minimumVersion && typeof task.minimumVersion === 'object' && !Array.isArray(task.minimumVersion) ? (task.minimumVersion as unknown as DetailedStep) : null,
+  }));
+  return baseWeekOf(rows, running, codeMadeTestStep);
 }
 
 /** RULE-10 as PSL-12 (2) reads it for older goals: one line when a week whose target was lowered on read is written. */

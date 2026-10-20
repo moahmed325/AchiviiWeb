@@ -37,6 +37,14 @@ export const RUNNING_TOTAL_STEP_MIN_KM = 1;
 
 /** Longest run: at most 50% of the week's running total. */
 export const LONGEST_RUN_MAX_PERCENT = 50;
+/**
+ * PSL-15 (7): the 50% rule holds only in a week with at least 3 runs. A week with no base week (week 1, or a base that
+ * isn't known) and fewer runs has no running-total check, so its longest run is held to a fixed cap: 30 minutes, or 5 km
+ * when the week is counted in km (run10k's week 1 "first 30-minute continuous run" and its beginner level, 3 to 5 km).
+ */
+export const LONGEST_RUN_MIN_RUNS = 3;
+export const LONGEST_RUN_NO_BASE_MAX_MINUTES = 30;
+export const LONGEST_RUN_NO_BASE_MAX_KM = 5;
 
 /** Hard runs (intervals, tempo, race pace): at most 2 a week. */
 export const HARD_RUNS_MAX = 2;
