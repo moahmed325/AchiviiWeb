@@ -824,10 +824,10 @@ export function measuredPathwayTest(tests: NonNullable<CertifiedPresetBlueprint[
   return { type: tests.measured.type, instructions: fillTarget(tests.measured.instructions, target), passIf: formatTarget(target) };
 }
 
-/** `RoadmapWeek.keyMilestone` as code writes it from a week's test. */
 /** What joins a test's instructions and its pass mark in `keyMilestone`. */
 export const PASS_IF_JOIN = ' Pass if: ';
 
+/** `RoadmapWeek.keyMilestone` as code writes it from a week's test. */
 export function keyMilestoneText(test: Pick<WeekTest, 'instructions' | 'passIf'>): string {
   return `${test.instructions}${PASS_IF_JOIN}${test.passIf}`;
 }
