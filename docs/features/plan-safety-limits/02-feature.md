@@ -34,7 +34,7 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 
 **RULE-3 — Safety wins over the stated number.** When lowering leaves week 12 below a number the person named in the goal (`statedTarget.ts`), week 12 keeps the highest safe step, the stated-target check accepts it, and the plan shows the honest line from section 6 (as WU-23 does for the weekly update). `statedTarget.ts` is widened to read kg, km, lb, percent, "lose N" and "in N minutes" (PSL-5).
 
-**RULE-4 — Physical steps carry their load.** On a physical goal, every step the model flags `highLoad` and every step of a run or lift kind returns its load as numbers next to its text, and so does the test step of a running goal; other steps (warm-ups, food logging) need none (PSL-8). A missing load on such a step is a retry reason; on the last attempt the step is kept and RULE-8's text scan decides.
+**RULE-4 — Physical steps carry their load.** On a physical goal, every step the model flags `highLoad` and every step of a run, lift or cardio kind (the strength template's `conditioning`, PSL-14) returns its load as numbers next to its text, and so does the test step of a running goal; other steps (warm-ups, food logging) need none (PSL-8). A missing load on such a step is a retry reason; on the last attempt the step is kept and RULE-8's text scan decides. A load that names running (minutes or km) also says whether it is a hard run (PSL-14).
 
 **RULE-5 — Week limits.** A week of a physical goal is checked as a whole: its running total against the base week (with the allowance), its longest run, its hard runs, and every step's deficit, intake, % of 1RM and reps in reserve. Week 1 of a goal has no base week; only the per-step and per-week counts apply.
 
