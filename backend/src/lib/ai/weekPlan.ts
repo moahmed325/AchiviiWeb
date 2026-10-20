@@ -5,7 +5,7 @@ import { fitStepMinutes } from './scheduleRepair.js';
 import { dayQualityFailures, polishDays } from './taskRules.js';
 import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyHit } from './safetyScan.js';
 import type { FirstWeekBack } from '../weekClose/breaks.js';
-import { STEP_LOAD_SCHEMA, loadNeed, missingLoad, parseStepLoad, withMinutes, type LoadGoal } from '../safety/stepLoad.js';
+import { STEP_LOAD_SCHEMA, loadNeed, missingLoad, parseStepLoad, withMinutes, withoutLoad, type LoadGoal } from '../safety/stepLoad.js';
 import {
   CALORIE_DEFICIT_MAX,
   CALORIE_DEFICIT_MIN,
@@ -296,15 +296,16 @@ function safetyLimitsBlock(input: WeekCallInput): string {
  */
 export function loadLine(loadGoal: LoadGoal): string {
   const which = loadGoal.running
-    ? 'a running step, a lifting step, the weekly test step and any step with highLoad true'
-    : 'a running step, a lifting step and any step with highLoad true';
+    ? 'a running step, a cardio step, a lifting step, the weekly test step and any step with highLoad true'
+    : 'a running step, a cardio step, a lifting step and any step with highLoad true';
   return [
     `  - load: only on ${which},`,
     "    and on the minimumVersion when the day's priority-1 step has one: the step's numbers, leaving out any that don't",
-    '    apply. Running: runMinutes (minutes of running) or runKm (km run), and hardRun (true for intervals, tempo or race',
-    '    pace, otherwise false). Lifting: percent1RM (the heaviest set as a % of 1-rep max) or rir (the fewest reps in',
-    '    reserve), toFailure (true if any set goes to failure) and maxTest (true for a max or 1RM test). Food: kcalDeficit',
-    '    (kcal a day below maintenance) and kcalIntake (kcal eaten a day).',
+    '    apply. A step with any running in it gives runMinutes or runKm. Running: runMinutes (minutes of running) or runKm',
+    '    (km run), and hardRun (true for intervals, tempo or race pace, otherwise false). Lifting: percent1RM (the heaviest',
+    '    set as a % of 1-rep max) or rir (the fewest reps in reserve), toFailure (true if any set goes to failure) and',
+    '    maxTest (true for a max or 1RM test). Food: kcalDeficit (kcal a day below maintenance) and kcalIntake (kcal eaten',
+    '    a day).',
   ].join(NL);
 }
 
@@ -629,7 +630,8 @@ export function checkWeekAnswer(
       const light = keepTopSteps(steps, 1).map((step) =>
         withMinutes(cleanStep(step, false) as ParsedStep, Math.min(REST_STEP_MAX_MINUTES, step.durationMinutes || REST_STEP_MAX_MINUTES))
       );
-      if (loadGoal) loadMisses.push(...stepLoadMisses(slot.dayNumber, light, false, loadGoal));
+      // Checked as ranked, so each miss holds the step number the day returns.
+      if (loadGoal) loadMisses.push(...stepLoadMisses(slot.dayNumber, rankSteps(light), false, loadGoal));
       days.push({
         dayNumber: slot.dayNumber,
         date: slot.date,
@@ -698,7 +700,7 @@ export function checkWeekAnswer(
     if (!minimumVersion) {
       soft.push(`${label} has no "minimumVersion".`);
       // Plan safety limits M2.1 (M1.1 section 3): the full step's load is not the 10-minute version's.
-      const { load: _load, ...lead } = rankSteps(steps).find((step) => step.priority === 1)!;
+      const lead = withoutLoad(rankSteps(steps).find((step) => step.priority === 1)!);
       minimumVersion = { ...lead, stepNumber: 1, title: `Short version: ${lead.title}` };
     }
     const minMinutes = minimumVersion.durationMinutes;
@@ -711,9 +713,10 @@ export function checkWeekAnswer(
     if (loadGoal) {
       const misses = stepLoadMisses(slot.dayNumber, detailedSteps, hasTest, loadGoal);
       // The 10-minute version needs a load exactly when the day's priority-1 step does; the fallback is code-made.
-      const leadNeed = modelMinimum ? leadLoadNeed(detailedSteps, hasTest, loadGoal) : null;
-      const minimumMissing = modelMinimum && leadNeed ? missingLoad(minimumVersion.load, leadNeed) : null;
-      if (minimumMissing) misses.push({ day: slot.dayNumber, name: `${label} 10-minute version "${minimumVersion.title}"`, title: null, missing: minimumMissing });
+      const minimumMissing = modelMinimum ? missingLoad(minimumVersion.load, leadLoadNeed(detailedSteps, hasTest, loadGoal)) : null;
+      if (minimumMissing) {
+        misses.push({ day: slot.dayNumber, name: `${label} 10-minute version "${minimumVersion.title}"`, stepNumber: null, title: minimumVersion.title, missing: minimumMissing });
+      }
       loadMisses.push(...misses);
     }
     // MR-15: the 10-minute version takes the kind of the day's priority-1 step.
@@ -765,11 +768,12 @@ export function checkWeekAnswer(
     soft.push(`Day ${practice[0].dayNumber} must start with a step titled "Re-test: ..." that runs the weekly test.`);
   }
 
-  soft.push(...loadMisses.map((miss) => `${miss.name} needs its load: ${miss.missing}.`));
+  // M2.1 review: the load misses go first, so the cut to 8 reasons never drops them all.
+  soft.unshift(...loadMisses.map((miss) => `${miss.name} needs its load: ${miss.missing}.`));
   const polished = polishDays(days);
   soft.push(...dayQualityFailures(polished));
   if (soft.length > 0 && !lastAttempt) return { reason: soft.slice(0, 8).join(' ') };
-  if (lastAttempt) logKeptWithoutLoad(loadMisses, days, input);
+  if (lastAttempt) logKeptWithoutLoad(loadMisses, polished, input);
   // RULE-7: with a profile the kinds decide; the goal-level marking is only for goals without one.
   return { value: input.highLoadGoal && !recovery ? polished.map(markHighLoad) : polished };
 }
@@ -817,8 +821,7 @@ export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAt
       const at = day.detailedSteps.indexOf(step);
       if (at < 0) continue;
       // Plan safety limits M2.1: the refused step's load is not the light step's.
-      const { load: _load, ...refusedStep } = step;
-      const light = { ...refusedStep, ...lightTestStep(step.durationMinutes), stepNumber: step.stepNumber, priority: step.priority, ...(step.kind ? { kind: step.kind } : {}) };
+      const light = { ...withoutLoad(step), ...lightTestStep(step.durationMinutes), stepNumber: step.stepNumber, priority: step.priority, ...(step.kind ? { kind: step.kind } : {}) };
       day.detailedSteps = day.detailedSteps.map((item, index) => (index === at ? light : item));
     }
     return [];
@@ -826,20 +829,26 @@ export function safetyBreaches(days: WeekDayPlan[], input: WeekCallInput, lastAt
   return refused.map(({ name, hit }) => `SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`);
 }
 
-/** Plan safety limits M2.1: one step that needed its load and came without it. `title` is null for the 10-minute version. */
+/**
+ * Plan safety limits M2.1: one step that needed its load and came without it. `stepNumber` is its place in the day as
+ * returned (`rankSteps` sets it; nothing after changes it), null for the 10-minute version; `title` as checked.
+ */
 interface LoadMiss {
   day: number;
   name: string;
-  title: string | null;
+  stepNumber: number | null;
+  title: string;
   missing: string;
 }
 
-/** RULE-4, PSL-8: the steps of one day that need a load and lack it. `hasTest`: the model wrote the day's test step. */
+/**
+ * RULE-4, PSL-8: the steps of one day (ranked, as returned) that need a load and lack it, plus any step whose load
+ * names running without `hardRun`. `hasTest`: the model wrote the day's test step.
+ */
 function stepLoadMisses(day: number, steps: DetailedStep[], hasTest: boolean, loadGoal: LoadGoal): LoadMiss[] {
   return steps.flatMap((step) => {
-    const need = loadNeed(step, hasTest && TEST_STEP.test(step.title), loadGoal);
-    const missing = need ? missingLoad(step.load, need) : null;
-    return missing ? [{ day, name: `Day ${day} step "${step.title}"`, title: step.title, missing }] : [];
+    const missing = missingLoad(step.load, loadNeed(step, hasTest && TEST_STEP.test(step.title), loadGoal));
+    return missing ? [{ day, name: `Day ${day} step "${step.title}"`, stepNumber: step.stepNumber, title: step.title, missing }] : [];
   });
 }
 
@@ -850,12 +859,14 @@ function leadLoadNeed(steps: DetailedStep[], hasTest: boolean, loadGoal: LoadGoa
 
 /**
  * RULE-4, AC-4: on the last attempt a step without its load is kept, and B-63's scan has already decided. One
- * `[Safety]` line per step still in the week (a test step the light swap replaced is code-made now).
+ * `[Safety]` line per kept step, found by its place in the day (`polishDays` changes no step's number or title). A test
+ * step the light swap replaced keeps its place but has the light step's title: it is code-made now, so not logged.
  */
 function logKeptWithoutLoad(misses: LoadMiss[], days: WeekDayPlan[], input: WeekCallInput): void {
   for (const miss of misses) {
     const day = days.find((item) => item.dayNumber === miss.day);
-    if (miss.title !== null && !day?.detailedSteps.some((step) => step.title === miss.title)) continue;
+    const kept = miss.stepNumber === null ? day?.minimumVersion : day?.detailedSteps.find((step) => step.stepNumber === miss.stepNumber);
+    if (!kept || kept.title !== miss.title) continue;
     logSafetyHit({
       goalId: input.goalId ?? null,
       week: input.weekNumber,

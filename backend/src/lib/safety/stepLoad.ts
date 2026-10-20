@@ -7,7 +7,7 @@ import type { Goal } from '@prisma/client';
 import type { DetailedStep, StepLoad } from '../ai/goalDecomposer.js';
 import type { WeekTarget } from '../ai/roadmap.js';
 import { findPresetForGoal } from '../ai/presets/index.js';
-import { isHighLoadGoal } from '../highLoad.js';
+import { HIGH_LOAD_PRESET_IDS } from '../highLoad.js';
 import { targetFamily } from './targetSteps.js';
 
 /** The week call's input on a load goal: present means the goal is asked for load. */
@@ -21,10 +21,12 @@ export interface LoadGoal {
  * Undefined for any other goal, whose week call stays exactly as before.
  */
 export function loadGoalFor(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget): LoadGoal | undefined {
+  // One lookup, the way `isHighLoadGoal` finds the preset.
   const preset = findPresetForGoal(goal.rawGoal) || findPresetForGoal(goal.clarifiedOutcome);
   const run10k = preset?.id === 'run10k';
   const family = targetFamily(target, { run10k });
-  if (!isHighLoadGoal(goal) && !family) return undefined;
+  const highLoadGoal = preset !== null && HIGH_LOAD_PRESET_IDS.includes(preset.id);
+  if (!highLoadGoal && !family) return undefined;
   return { running: run10k || family === 'running_distance' || family === 'running_time' };
 }
 
@@ -72,29 +74,45 @@ export const STEP_LOAD_SCHEMA = {
 /** The endurance template's run kinds and the strength template's lift kind (`recovery/templates.ts`). */
 export const RUN_KINDS: readonly string[] = ['easy_session', 'quality_session', 'long_session'];
 export const LIFT_KIND = 'strength_workout';
+/**
+ * M2.1 review (option A): the strength template's cardio (walking or light cardio). A custom "lose weight" goal gets
+ * the strength template (`pickTemplate.ts`), so its runs are this kind. It needs some load; any running in it gives a
+ * run load (`missingLoad`).
+ */
+export const CARDIO_KIND = 'conditioning';
 
 /** What a step must carry: a run load, a lift load, or any field at all. */
 export type LoadNeed = 'run' | 'lift' | 'any';
 
 /**
- * PSL-8: on a load goal, a run or lift kind, the model's own test step on a running goal (whatever its flag), or a step
- * the model flagged `highLoad`. Null for any other step. Code-made steps are never passed here.
+ * PSL-8: on a load goal, a run or lift kind, the strength template's cardio kind (M2.1 review), the model's own test
+ * step on a running goal (whatever its flag), or a step the model flagged `highLoad`. Null for any other step.
+ * Code-made steps are never passed here.
  */
 export function loadNeed(step: Pick<DetailedStep, 'kind' | 'highLoad'>, modelTestStep: boolean, goal: LoadGoal): LoadNeed | null {
   if (modelTestStep && goal.running) return 'run';
   if (step.kind && RUN_KINDS.includes(step.kind)) return 'run';
   if (step.kind === LIFT_KIND) return 'lift';
-  return step.highLoad === true ? 'any' : null;
+  return step.kind === CARDIO_KIND || step.highLoad === true ? 'any' : null;
 }
 
-/** What the step is missing for its need, worded for the retry reason; null when it has it. */
-export function missingLoad(load: StepLoad | undefined, need: LoadNeed): string | null {
-  if (need === 'run') {
-    const ran = load?.runMinutes !== undefined || load?.runKm !== undefined;
-    return ran && load?.hardRun !== undefined ? null : 'runMinutes or runKm, and hardRun';
-  }
-  if (need === 'lift') return load?.rir !== undefined || load?.percent1RM !== undefined ? null : 'rir or percent1RM';
-  return load ? null : 'the numbers that apply';
+/**
+ * What the step is missing for its need, worded for the retry reason; null when it has it. Whatever the need (none
+ * included), a load that names `runMinutes` or `runKm` must also say `hardRun` (M2.1 review), or M2.2 cannot count its
+ * hard runs.
+ */
+export function missingLoad(load: StepLoad | undefined, need: LoadNeed | null): string | null {
+  const ran = load?.runMinutes !== undefined || load?.runKm !== undefined;
+  if (need === 'run') return ran && load?.hardRun !== undefined ? null : 'runMinutes or runKm, and hardRun';
+  if (need === 'lift' && load?.rir === undefined && load?.percent1RM === undefined) return 'rir or percent1RM';
+  if (need === 'any' && !load) return 'the numbers that apply';
+  return ran && load?.hardRun === undefined ? 'hardRun' : null;
+}
+
+/** M1.1 section 3: a step code builds from another step's fields never takes that step's load. */
+export function withoutLoad<T extends DetailedStep>(step: T): Omit<T, 'load'> {
+  const { load: _load, ...rest } = step;
+  return rest;
 }
 
 /**

@@ -7,6 +7,7 @@
 import type { DetailedStep } from '../ai/goalDecomposer.js';
 import type { CarriedStep } from '../carryForward.js';
 import { asWritten } from './carry.js';
+import { withoutLoad } from '../safety/stepLoad.js';
 
 /** As `weekPlan.ts`'s fallback: the 10-minute version is at most this long. */
 const MINIMUM_VERSION_MINUTES = 10;
@@ -41,7 +42,7 @@ export function describeDay(day: DayText, before: readonly CarriedStep[], after:
   if (!now || (old && old.title === now.title)) return null;
 
   // Plan safety limits M2.1 (M1.1 section 3): the full step's load is not the 10-minute version's.
-  const { priority: _priority, load: _load, ...content } = asWritten(now);
+  const { priority: _priority, ...content } = withoutLoad(asWritten(now));
   const minutes = content.durationMinutes > 0 && content.durationMinutes <= MINIMUM_VERSION_MINUTES ? content.durationMinutes : MINIMUM_VERSION_MINUTES;
   const out: NewDayText = {
     title: now.title,

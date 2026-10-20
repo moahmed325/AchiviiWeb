@@ -21,8 +21,9 @@ import { fitStepMinutes } from '../src/lib/ai/scheduleRepair.js';
 import { describeDay } from '../src/lib/recovery/dayText.js';
 import { PATHWAY_PROFILES } from '../src/lib/recovery/pathways.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
-import { withFixedKinds, type RecoveryKind } from '../src/lib/recovery/profile.js';
-import { loadGoalFor, parseStepLoad, withMinutes } from '../src/lib/safety/stepLoad.js';
+import { templateProfile } from '../src/lib/recovery/templates.js';
+import { polishDays } from '../src/lib/ai/taskRules.js';
+import { CARDIO_KIND, LIFT_KIND, RUN_KINDS, loadGoalFor, parseStepLoad, withMinutes } from '../src/lib/safety/stepLoad.js';
 import type { DetailedStep } from '../src/lib/ai/goalDecomposer.js';
 import { RUN10K_WEEK1 } from './run10kWeekInput.js';
 
@@ -214,23 +215,19 @@ describe('the schema and the prompt', () => {
   });
 });
 
-/** A profile with a run kind and the lift kind, as a custom weight-loss goal's could be. */
-const kind = (id: string, overrides: Partial<RecoveryKind> = {}): RecoveryKind => ({
-  id,
-  name: id.replace(/_/g, ' '),
-  description: `A ${id} step.`,
-  action: 'move',
-  hard: false,
-  inOrder: false,
-  ...overrides,
-});
-const MIXED = withFixedKinds({
-  version: 1,
-  template: 'general',
-  kinds: [kind('easy_session'), kind('strength_workout', { hard: true }), kind('nutrition_and_tracking', { action: 'let_go' }), kind('general')],
-  catchAll: 'general',
-  restGapDays: 1,
-  returnRule: { breaks: [{ length: 'any', restart: 'last level' }], firstWeekBack: 'Ease back in.' },
+/** M2.1 review (option A): a custom "lose weight" goal gets the strength template; its runs are `conditioning`. */
+const STRENGTH = templateProfile('strength');
+const toStrengthKinds = (days: Array<Record<string, any>>) => {
+  const kinds: Record<string, string> = { easy_session: 'conditioning', strength_and_mobility: 'mobility' };
+  for (const day of days) day.steps = day.steps.map((item: Record<string, any>) => ({ ...item, kind: kinds[item.kind] ?? item.kind }));
+};
+
+describe('the kind ids the load rules name', () => {
+  it('every one exists in a recovery template', () => {
+    const ids = new Set(Object.values(RECOVERY_TEMPLATES).flatMap((template) => template.kinds.map((item) => item.id)));
+    for (const id of [...RUN_KINDS, LIFT_KIND, CARDIO_KIND]) expect(ids, id).toContain(id);
+    expect(RECOVERY_TEMPLATES.strength.kinds.map((item) => item.id)).toEqual(expect.arrayContaining([LIFT_KIND, CARDIO_KIND]));
+  });
 });
 
 describe('a missing load is a retry reason (PSL-8)', () => {
@@ -280,18 +277,50 @@ describe('a missing load is a retry reason (PSL-8)', () => {
     expect(reason(checkWeekAnswer(answer, RUN10K))).toContain('Day 6 step "Weekly test: long run at an easy pace" needs its load: runMinutes or runKm, and hardRun.');
   });
 
-  it('a custom body-weight goal: its run step and its lift step are both asked', () => {
-    const custom: WeekCallInput = { ...RUN10K, highLoadGoal: false, recovery: MIXED, loadGoal: { running: false } };
+  it('a custom body-weight goal on the strength template: its run (conditioning) and lift steps are both asked', () => {
+    const custom: WeekCallInput = { ...RUN10K, highLoadGoal: false, recovery: STRENGTH, loadGoal: { running: false } };
     const answer = runWeek((days) => {
-      for (const day of days) day.steps = day.steps.map((item: Record<string, unknown>) => (item.kind === 'strength_and_mobility' ? { ...item, kind: 'general' } : item));
-      days[0].steps[0] = step('Brisk easy jog', 1, 30, { kind: 'easy_session' });
+      toStrengthKinds(days);
+      days[0].steps[0] = step('Brisk easy jog', 1, 30, { kind: 'conditioning' });
       days[1].steps[0] = step('Full-body strength session', 1, 30, { kind: 'strength_workout' });
       days[2].steps[1] = step("Plan tomorrow's meals and protein", 2, 10, { kind: 'nutrition_and_tracking' });
     });
     const text = reason(checkWeekAnswer(answer, custom));
-    expect(text).toContain('Day 1 step "Brisk easy jog" needs its load: runMinutes or runKm, and hardRun.');
+    expect(text).toContain('Day 1 step "Brisk easy jog" needs its load: the numbers that apply.');
     expect(text).toContain('Day 2 step "Full-body strength session" needs its load: rir or percent1RM.');
     expect(text).not.toContain('meals');
+    // The lift day's 10-minute version follows its lead; the other conditioning steps carry a run load with hardRun.
+    expect(text).toContain('Day 2 10-minute version "Short easy run 2" needs its load: rir or percent1RM.');
+    expect(text.match(/needs its load/g)).toHaveLength(3);
+  });
+
+  it('a load that names running needs hardRun, whatever the step needs', () => {
+    const custom: WeekCallInput = { ...RUN10K, highLoadGoal: false, recovery: STRENGTH, loadGoal: { running: false } };
+    const answer = runWeek((days) => {
+      toStrengthKinds(days);
+      days[0].steps[0] = step('Brisk easy jog', 1, 30, { kind: 'conditioning', load: { runMinutes: 30 } });
+      // A step that needs no load, but names running in the one it gives.
+      days[1].steps[1] = step('Hip mobility and strides', 2, 10, { kind: 'mobility', load: { runKm: 1 } });
+      days[2].steps[0] = step('Workout A: squat, press, row', 1, 30, { kind: 'strength_workout', load: { rir: 3, runMinutes: 5 } });
+    });
+    const text = reason(checkWeekAnswer(answer, custom));
+    expect(text).toContain('Day 1 step "Brisk easy jog" needs its load: hardRun.');
+    expect(text).toContain('Day 2 step "Hip mobility and strides" needs its load: hardRun.');
+    expect(text).toContain('Day 3 step "Workout A: squat, press, row" needs its load: hardRun.');
+  });
+
+  it('load misses reach the model even with 8 other soft reasons', () => {
+    const answer = runWeek((days) => {
+      for (const day of days) {
+        if (!day.steps.length) continue;
+        delete day.whyToday;
+        delete day.minimumVersion;
+      }
+      days[0].steps[0] = step('Easy run 1', 1, 30, { kind: 'easy_session' });
+    });
+    const text = reason(checkWeekAnswer(answer, RUN10K));
+    expect(text).toContain('has no "whyToday"');
+    expect(text).toContain('Day 1 step "Easy run 1" needs its load: runMinutes or runKm, and hardRun.');
   });
 
   it('the 10-minute version needs a load when the priority-1 step does', () => {
@@ -351,6 +380,38 @@ describe('the last attempt keeps a step without its load (RULE-4, AC-4)', () => 
       { goalId: 'g1', week: 1, attempt: 2, rule: 'load_missing', step: 'Day 2 step "Easy run 2"', matched: 'runMinutes or runKm, and hardRun', outcome: 'kept' },
       { goalId: 'g1', week: 1, attempt: 2, rule: 'load_missing', step: 'Day 3 10-minute version "Short easy run 3"', matched: 'runMinutes or runKm, and hardRun', outcome: 'kept' },
     ]);
+  });
+
+  it('finds the kept step by its place in the day: two steps share a title, only the one without load is logged', () => {
+    const answer = runWeek((days) => {
+      days[0].steps = [
+        step('Easy run', 1, 20, { kind: 'easy_session', load: { runMinutes: 20, hardRun: false } }),
+        step('Easy run', 2, 20, { kind: 'easy_session' }),
+      ];
+    });
+    const week = value(checkWeekAnswer(answer, { ...RUN10K, goalId: 'g1' }, true));
+    expect(week[0].detailedSteps.map((item) => [item.stepNumber, item.title, item.load])).toEqual([
+      [1, 'Easy run', { runMinutes: 20, hardRun: false }],
+      [2, 'Easy run', undefined],
+    ]);
+    expect(safetyLines()).toEqual([
+      { goalId: 'g1', week: 1, attempt: 2, rule: 'load_missing', step: 'Day 1 step "Easy run"', matched: 'runMinutes or runKm, and hardRun', outcome: 'kept' },
+    ]);
+  });
+
+  it('polishDays changes no step title or number (the log relies on it)', () => {
+    // A vague day title and a missing pass mark: the two things polishDays rewrites.
+    const days = value(checkWeekAnswer(runWeek(), RUN10K)).map((day) => ({
+      ...day,
+      title: 'Practice session',
+      detailedSteps: day.detailedSteps.map((item) => ({ ...item, passMark: '' })),
+    }));
+    const polished = polishDays(days);
+    expect(polished[0].title).toBe('Easy run 1');
+    expect(polished[0].detailedSteps[0].passMark).not.toBe('');
+    expect(polished.map((day) => day.detailedSteps.map((item) => [item.stepNumber, item.title]))).toEqual(
+      days.map((day) => day.detailedSteps.map((item) => [item.stepNumber, item.title]))
+    );
   });
 
   it('logs nothing before the last attempt, and nothing when the week is refused', () => {

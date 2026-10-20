@@ -49,12 +49,13 @@ WRITE THE WEEK
   - timing (optional): only when the step can't follow the previous one straight away
   - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false
   - kind: the id of the kind of step it is, from KINDS OF STEP below
-  - load: only on a running step, a lifting step, the weekly test step and any step with highLoad true,
+  - load: only on a running step, a cardio step, a lifting step, the weekly test step and any step with highLoad true,
     and on the minimumVersion when the day's priority-1 step has one: the step's numbers, leaving out any that don't
-    apply. Running: runMinutes (minutes of running) or runKm (km run), and hardRun (true for intervals, tempo or race
-    pace, otherwise false). Lifting: percent1RM (the heaviest set as a % of 1-rep max) or rir (the fewest reps in
-    reserve), toFailure (true if any set goes to failure) and maxTest (true for a max or 1RM test). Food: kcalDeficit
-    (kcal a day below maintenance) and kcalIntake (kcal eaten a day).
+    apply. A step with any running in it gives runMinutes or runKm. Running: runMinutes (minutes of running) or runKm
+    (km run), and hardRun (true for intervals, tempo or race pace, otherwise false). Lifting: percent1RM (the heaviest
+    set as a % of 1-rep max) or rir (the fewest reps in reserve), toFailure (true if any set goes to failure) and
+    maxTest (true for a max or 1RM test). Food: kcalDeficit (kcal a day below maintenance) and kcalIntake (kcal eaten
+    a day).
 - No two practice days are the same. Most practice days include doing the real thing, not only preparing for it.
 - Only use equipment they have. Match their level. Never assign loads beyond what is safe for their level.
 - No steps for journaling, reflecting, or reading about the method. Breaks go inside a step's instructions,
