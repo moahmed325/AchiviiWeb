@@ -14,7 +14,7 @@
 | M1.3 | Older goals on read, and the honest week 12 line | AC-3 (screen), AC-9 | DONE 2026-10-20 | [m1.3](milestones/m1.3-older-goals-honest-line.md) |
 | M2.1 | High-load steps carry their load | AC-4 | DONE 2026-10-20 | [m2.1](milestones/m2.1-load-on-steps.md) |
 | M2.2a | Week limits against the base week | AC-5, AC-6, AC-10 (weeks) | DONE 2026-10-21 | [m2.2a](milestones/m2.2a-week-limits.md) |
-| M2.2b | First week back, and the older weeks it reads | AC-7 | NOT STARTED | |
+| M2.2b | First week back, and the older weeks it reads | AC-7 | READY | [m2.2b](milestones/m2.2b-first-week-back.md) |
 | O2 | Mo: after M2.2b is live, read a week of `[Safety]` lines and note false alarms and failed weeks (`01-brief.md` section 9, question 9), plus how often `load_missing` and `[AI] Week n attempt 1 rejected` show on run10k and recomp (M2.1 review), and how often `hard_runs_over_2`, `running_total_over_limit`, `longest_run_over_limit` and `no_base` show and end `failed` or `first_answer` (M2.2a review, PSL-17) | — | NOT STARTED | |
 | M3.1 | Acceptance, regression and close | AC-8, all | NOT STARTED | |
 
@@ -61,7 +61,7 @@ Weekly-update M3.1 (RULE-10, WU-23, WU-29) waits for this feature's P2 (M2.2a an
 
 **M2.2a Week limits against the base week.** The running total against the base week with the allowance, longest run, hard runs, deficit, intake and weeks 1 to 3 lifting (RULE-5); one retry then no week (RULE-6); `writeNextWeek` passes last week's planned and done running and the goal id (B-64), counted as PSL-11 (Q8, Q9) and PSL-15; the prompt's running line is built from the limits module (PSL-11, Q17). A step with no load, mixed units, rest-day runs and `conditioning` as PSL-15; an unknown base week is no base, never 0; `runKm` is never scaled down (PSL-14). Until M2.2b, a first week back is counted from the closing week like any other. Covers AC-5, AC-6, AC-10 (weeks). Checks R-1 to R-4, R-6.
 
-**M2.2b First week back.** The first week back held to the last done running total (RULE-7), the last week with any running read from older weeks by `goalId`/`weekNumber` (PSL-11, Q13), a week without load as PSL-15 (1). Covers AC-7. Checks R-1 to R-4, R-6.
+**M2.2b First week back.** The first week back held to the last done running total (RULE-7), the last week with any running read from older weeks by `goalId`/`weekNumber` (PSL-11, Q13), a week without load as PSL-15 (1), no allowance and a floor as PSL-18. Covers AC-7. Checks R-1 to R-4, R-6.
 
 ### P3 Close
 **M3.1 Acceptance, regression and close.** Every AC and R row checked; O2's findings sorted; the velocity-table clamps retired (RULE-1; move the live `formatBasisBadge` tests out of `safetyClamps.test.ts` first, M1.1 report) and what of B-63's scan stays decided (RULE-8); CLAUDE.md step 6 rewritten; every problem from the reports in a milestone or `docs/backlog.md`. Covers AC-8 and all.

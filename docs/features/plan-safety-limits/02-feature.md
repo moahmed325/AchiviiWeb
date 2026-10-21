@@ -63,7 +63,7 @@ Code, not the model, keeps a physical plan within safe limits: the 12 weekly tar
 | Longest run | at most 50% of the week's running total, in a week with 3 or more runs; with no base and fewer runs, or after a base of 0 runs, at most 30 minutes / 5 km a run | PSL-15 (7), PSL-16 |
 | Hard runs (intervals, tempo, race pace) | at most 2 a week | already told by the stopgap |
 | Weeks 1 to 3 lifting | at most 80% of 1RM, at least 3 reps in reserve, nothing to failure, no max test | PSL-2; from week 4 the method's own range |
-| Base week | last week's planned total, or what was done when under 70% of it | |
+| Base week | last week's planned total, or what was done when under 70% of it | after a break, the last week with any done running, no allowance, half of it after 21 days or more (until weekly-update M3.4), never below 30 minutes / 5 km; unknown is held like a 0-run base (PSL-18) |
 
 ## 5. States and edge cases
 | Situation | What happens |
