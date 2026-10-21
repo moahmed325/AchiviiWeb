@@ -28,7 +28,7 @@ function input(n = 3, over: Partial<WeeklyUpdateInput> = {}): WeeklyUpdateInput 
     result: 'test logged: 12 km, passed',
     testLogged: true,
     lowerBound: 9 + n,
-    counts: { practiceDone: 4, practicePlanned: 5, keyDone: 1, keySkipped: 0, keySkippedNames: [], doneByMinimum: 0, missed: 1, dropped: 0 },
+    counts: { practiceDone: 4, practicePlanned: 5, detail: { keyDone: 1, keySkipped: 0, keySkippedNames: [], doneByMinimum: 0, missed: 1, dropped: 0 } },
     reflection: '',
     history: [],
     weeksLeft,
@@ -262,5 +262,40 @@ describe('the prompt (prompt 4, trimmed)', () => {
     expect(prompt).toContain('- conversation: at "Talk 2", 1 step still to do (2 sessions of it this week)');
     expect(prompt).toContain("They are a week behind in new material: week 4's target must not be higher than this week's");
     expect(prompt).not.toMatch(/checkpoint|retestFirst|Extensions/i);
+  });
+});
+
+describe('M3.1 review (WU-46)', () => {
+  it('(1) a hold wins over the lower bound: far_behind with a result above this week keeps next week at this week', () => {
+    const i = input(3, { lowerBound: 12.5 });
+    expect('value' in checkWeeklyUpdate(answer(i, { status: 'far_behind' }, [12]), i)).toBe(true);
+    // Only the held week: the weeks after it still keep the bound.
+    expect(reasonsOf(checkWeeklyUpdate(answer(i, { status: 'far_behind' }, [12, 12.2]), i))).toMatch(/week 5's 12.2 km is easier than what they last achieved \(12.5 km\)/);
+    expect(buildWeeklyUpdatePrompt(i)).toContain("(12.5 km), and no week easier than the week before it. A held week 4 may stay at this week's target instead.");
+  });
+
+  it('(1) an unlogged test with an older result above this week holds next week at this week', () => {
+    const i = input(3, { testLogged: false, result: 'not logged', lowerBound: 12.5 });
+    expect('value' in checkWeeklyUpdate(answer(i, {}, [12]), i)).toBe(true);
+  });
+
+  it('(1) without a hold, next week still keeps the bound', () => {
+    const i = input(3, { lowerBound: 12.5 });
+    expect(reasonsOf(checkWeeklyUpdate(answer(i, { status: 'a_bit_behind' }, [12]), i))).toMatch(/week 4's 12 km is easier than what they last achieved \(12.5 km\)/);
+    // The bound at or below this week's target needs no exception for a held week.
+    expect(buildWeeklyUpdatePrompt(input(3, { lowerBound: 12 }))).not.toContain('A held week');
+  });
+
+  it('(2) a result above week 12 no longer rejects: the bound is week 12', () => {
+    const i = input(3, { lowerBound: 25 });
+    expect('value' in checkWeeklyUpdate(answer(i, {}, Array(9).fill(21)), i)).toBe(true);
+    expect(buildWeeklyUpdatePrompt(i)).toContain('what they last achieved (21 km)');
+    expect(buildWeeklyUpdatePrompt(i)).not.toContain('25 km');
+  });
+
+  it('counts reconcile could not make are "not counted", never zeros', () => {
+    const prompt = buildWeeklyUpdatePrompt(input(3, { counts: { practiceDone: 3, practicePlanned: 5, detail: null } }));
+    expect(prompt).toContain('Sessions done: 3 of 5. Key sessions, 10-minute versions, missed and dropped days: not counted.');
+    expect(prompt).not.toContain('Missed days:');
   });
 });

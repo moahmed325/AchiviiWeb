@@ -25,7 +25,7 @@ import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { generateStructuredContent } from '../src/lib/ai/gemini.js';
 import { buildWeekPrompt, generateWeekPlan, weekLayout, type WeekCallInput, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
-import { keyMilestoneText, formatTarget, type WeekTarget } from '../src/lib/ai/roadmap.js';
+import { keyMilestoneText, formatTarget, measuredPathwayTest, pathwayFor, type WeekTarget } from '../src/lib/ai/roadmap.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 import { safeGoalTargets } from '../src/lib/safety/storedTargets.js';
 import { AUTO_CLOSE_INSIGHT } from '../src/lib/weekClose/close.js';
@@ -63,6 +63,9 @@ interface SeedOptions {
   done?: number;
   kind?: string;
   rawGoal?: string;
+  /** A week's stored test; by default `runTest`. */
+  testFor?: (week: number, target: WeekTarget) => Record<string, unknown>;
+  finalTest?: string;
 }
 
 /** A running goal on week `n`, weeks before it closed by review with their results and review rows. */
@@ -81,7 +84,7 @@ function seed(n: number, options: SeedOptions = {}) {
     routine: JSON.stringify({ dailyMinutes: 30, planVariant: 'steady', sleepTime: '23:00', preferredSlot: 'evening' }),
     roadmap: {
       finalGoal: 'Run 21 km a week',
-      finalTest: 'Run the weekly distance',
+      finalTest: options.finalTest ?? 'Run the weekly distance',
       startingPoint: {},
       method: { name: 'Ten percent rule', creator: '', rules: ['Add at most 10% a week'] },
       phases: [{ name: 'Base', purpose: 'Build.' }],
@@ -94,7 +97,7 @@ function seed(n: number, options: SeedOptions = {}) {
   });
   targets.forEach((target, i) => {
     const weekNumber = i + 1;
-    const test = runTest(target, options.light?.(weekNumber));
+    const test = options.testFor ? options.testFor(weekNumber, target) : runTest(target, options.light?.(weekNumber));
     db.state.weeks.push({
       id: `w${weekNumber}`,
       goalId: 'g1',
@@ -311,6 +314,8 @@ describe('safety (RULE-10, AC-8, AC-11, WU-45 (3))', () => {
     ]);
     expect(updateLines()[0]).toContain('outcome accepted lowered 3');
     expect(db.goal().roadmap.loweredTargets).toBeUndefined();
+    // WU-46 (3): next week was lowered (week 12 was not), so the sentence is code's.
+    expect(db.state.reviews.find((r) => r.weekNumber === 3)?.aiAdaptationInsight).toBe('Next week aims at Weekly running distance: 13.2 km, a safe step.');
   });
 
   it("week 12 lowered by the climb is accepted, with code's sentence and its loweredTargets entry; a read lowers nothing more", async () => {
@@ -327,6 +332,67 @@ describe('safety (RULE-10, AC-8, AC-11, WU-45 (3))', () => {
     const read = safeGoalTargets({ ...db.goal(), roadmapWeeks: db.state.weeks });
     expect(read?.foundNow).toEqual([]);
     expect(read?.week12Line).toEqual({ safe: '22 km', goal: '24 km' });
+  });
+});
+
+describe('M3.1 review fixes', () => {
+  /** Week 8 stored at 25 km: a read lowers it to 17.6 (one step past week 7's 16). */
+  const older = () => Array.from({ length: 12 }, (_, i) => km(i === 7 ? 25 : 10 + i));
+
+  it('(5) a week only lowered on read and left as it was is not stored; nothing for week 12', async () => {
+    seed(3, { targets: older() });
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(4, 12), [13, 14, 15, 16, 17.6, 18, 19, 20, 21]) as never);
+    const writes = () => vi.mocked(db.prisma.roadmapWeek.update).mock.calls.filter(([args]: any[]) => 'target' in args.data);
+    expect((await review(3)).status).toBe(200);
+    expect(updatePrompt()).toContain('- Week 8: Weekly running distance: 17.6 km');
+    expect(writes()).toEqual([]);
+    expect(valueOf(8)).toBe(25);
+    expect(db.goal().roadmap.loweredTargets).toBeUndefined();
+  });
+
+  it('(5) a week the read would climb differently once an earlier week changed is stored at the update value', async () => {
+    seed(3, { targets: older() });
+    // Week 7 rises to 16.5: read from it, stored week 8 (25) would become 18.1, not the 17.6 the update kept.
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(4, 12), [13, 14, 15, 16.5, 17.6, 18, 19, 20, 21]) as never);
+    expect((await review(3)).status).toBe(200);
+    expect(values(7, 8)).toEqual([16.5, 17.6]);
+    const read = safeGoalTargets({ ...db.goal(), roadmapWeeks: db.state.weeks });
+    expect(read?.weeks.filter((w) => w.weekNumber > 3).map((w) => (w.target as any).value)).toEqual([13, 14, 15, 16.5, 17.6, 18, 19, 20, 21]);
+  });
+
+  it("(6) week 12 lowered on a pathway goal also sets the roadmap's finalTest, in the close", async () => {
+    const run10k = pathwayFor('Run a 10k', null)!;
+    expect(run10k.id).toBe('run10k');
+    const tests = run10k.weeklyTests!;
+    const distance = (value: number): WeekTarget => ({ kind: 'number', metric: 'Continuous run distance', value, unit: 'km', direction: 'higher_is_better' });
+    const shows = (week: number) => (week <= 4 ? 5 : week <= 8 ? 8 : 10);
+    const big = (week: number) => [4, 8, 12].includes(week);
+    seed(5, {
+      targets: range(1, 12).map((week) => distance(shows(week))),
+      rawGoal: 'Run a 10k',
+      testFor: (week, target) => (big(week) ? measuredPathwayTest(tests, target) : { type: 'timer', instructions: tests.light.instructions, passIf: 'Done as written', light: true }),
+      finalTest: measuredPathwayTest(tests, distance(10)).instructions,
+    });
+    db.week(4).testResult = { value: 5, unit: 'km', passed: true };
+    // Week 8 down to 5.5 km: from it, week 12's 10 km is more than four safe steps away (9.5 km).
+    const answer = modelAnswer([8, 12], [5.5, 10], { status: 'a_bit_behind', messageToUser: 'Week 8 now aims a little lower.' });
+    answer.data.nextTargets.forEach((item) => (item.metric = 'Continuous run distance'));
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(answer as never);
+    expect((await review(5, { reflection: '', testResult: { value: 'Done', passed: true } })).status).toBe(200);
+    expect(valueOf(12)).toBe(9.5);
+    expect(db.week(12).test.instructions).toBe(measuredPathwayTest(tests, distance(9.5)).instructions);
+    expect(db.goal().roadmap.finalTest).toBe(measuredPathwayTest(tests, distance(9.5)).instructions);
+    expect(db.goal().roadmap.loweredTargets).toEqual([{ week: 12, model: 10, safe: 9.5 }]);
+    expect(db.state.reviews.find((r) => r.weekNumber === 5)?.aiAdaptationInsight).toMatch(/^Week 12 aims at 9.5 km, a safe step\./);
+  });
+
+  it('(7) the week before is read once and handed to the week writer', async () => {
+    vi.stubEnv('METHOD_RECOVERY_ENABLED', 'true');
+    seed(3, { kind: 'new_material', done: 3 });
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(4, 12), RAISED) as never);
+    expect((await review(3)).status).toBe(200);
+    const reads = vi.mocked(db.prisma.dailyTask.findMany).mock.calls.filter(([args]: any[]) => args.where?.weekNumber === 2);
+    expect(reads).toHaveLength(1);
   });
 });
 

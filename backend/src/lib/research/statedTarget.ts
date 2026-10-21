@@ -112,7 +112,8 @@ const SAME_UNIT: readonly (readonly string[])[] = [
   ['percent', '%', 'percentage'],
 ];
 
-function aliasesFor(unit: string): string[] {
+/** One unit's other spellings ("km" and "kilometres", "minutes" and "min"). Shared with the weekly update's result reading. */
+export function aliasesFor(unit: string): string[] {
   const lower = unit.toLowerCase();
   const aliases = new Set<string>([lower]);
   for (const group of SAME_UNIT) if (group.includes(lower)) for (const alias of group) aliases.add(alias);

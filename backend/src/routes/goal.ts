@@ -1217,6 +1217,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       now,
       timezone: user.timezone,
       ...(update?.coachNote ? { coachNote: update.coachNote } : {}),
+      ...(update?.weekBefore ? { weekBefore: update.weekBefore } : {}),
     });
     // M1.5b (WU-38 (1)): a break past the limit is answered on Today's card, never by the review; nothing was called.
     if (next?.choiceNeeded) return refuseChoice(res, next.choiceNeeded);

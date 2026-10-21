@@ -60,13 +60,14 @@ export interface SafeStoredTargets<W extends StoredWeek> {
 
 type NumberTarget = Extract<WeekTarget, { kind: 'number' }>;
 
-function isWeekTarget(value: unknown): value is WeekTarget {
+/** A stored target in a readable shape: a number with a value, or a deliverable. */
+export function isWeekTarget(value: unknown): value is WeekTarget {
   if (!value || typeof value !== 'object') return false;
   const target = value as Record<string, unknown>;
   return (target.kind === 'number' && typeof target.value === 'number') || target.kind === 'deliverable';
 }
 
-function testOf(week: StoredWeek): WeekTest | null {
+export function testOf(week: Pick<StoredWeek, 'test'>): WeekTest | null {
   return week.test && typeof week.test === 'object' ? (week.test as WeekTest) : null;
 }
 

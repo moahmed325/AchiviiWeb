@@ -7,6 +7,7 @@
  */
 import { generateStructuredContent } from './gemini.js';
 import { formatAmount, formatTarget, TOTAL_WEEKS, type WeekTarget } from './roadmap.js';
+import { harder } from '../safety/targetSteps.js';
 
 export const UPDATE_STATUSES = ['on_track', 'a_bit_behind', 'far_behind'] as const;
 export type UpdateStatus = (typeof UPDATE_STATUSES)[number];
@@ -45,12 +46,15 @@ export interface UpdateKind {
 export interface UpdateCounts {
   practiceDone: number;
   practicePlanned: number;
-  keyDone: number;
-  keySkipped: number;
-  keySkippedNames: string[];
-  doneByMinimum: number;
-  missed: number;
-  dropped: number;
+  /** `weekCounts`' detail; null when reconcile could not count the week (then the prompt says "not counted"). */
+  detail: {
+    keyDone: number;
+    keySkipped: number;
+    keySkippedNames: string[];
+    doneByMinimum: number;
+    missed: number;
+    dropped: number;
+  } | null;
 }
 
 export interface WeeklyUpdateInput {
@@ -66,7 +70,7 @@ export interface WeeklyUpdateInput {
   /** The result line: logged, light test done, or not logged. */
   result: string;
   testLogged: boolean;
-  /** RULE-4: the last usable result (on a light-test goal the last big-test result); null: no bound. */
+  /** RULE-4: the last usable result (on a light-test goal the last big-test result); null: no bound. Capped at week 12 (WU-46 (2)). */
   lowerBound: number | null;
   counts: UpdateCounts;
   reflection: string;
@@ -164,6 +168,35 @@ function historyLine(week: UpdateHistoryWeek): string {
   return `- Week ${week.weekNumber}: ${target}; result: ${week.result}; sessions done: ${week.sessions}; status: ${week.status ?? 'none'}`;
 }
 
+function countLines(counts: UpdateCounts): string[] {
+  const detail = counts.detail;
+  if (!detail) {
+    return [`Sessions done: ${counts.practiceDone} of ${counts.practicePlanned}. Key sessions, 10-minute versions, missed and dropped days: not counted.`];
+  }
+  return [
+    `Sessions done: ${counts.practiceDone} of ${counts.practicePlanned}. Key sessions: ${detail.keyDone} done, ${detail.keySkipped} skipped${
+      detail.keySkippedNames.length ? ` (${detail.keySkippedNames.join('; ')})` : ''
+    }. A key session done only as the 10-minute version counts as skipped.`,
+    `10-minute versions used: ${detail.doneByMinimum}. Missed days: ${detail.missed}. Dropped days: ${detail.dropped}.`,
+  ];
+}
+
+/**
+ * WU-46 (2): the lower bound never goes above week 12's current target; null without a result or without a number
+ * week 12. WU-46 (1) is `checkWeeklyUpdate`'s: a held next week may be below it.
+ */
+export function boundOf(input: Pick<WeeklyUpdateInput, 'lowerBound' | 'weeksLeft' | 'target'>): number | null {
+  const week12 = input.weeksLeft.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
+  if (input.lowerBound === null || input.target.kind !== 'number' || week12?.kind !== 'number') return input.lowerBound;
+  return harder(input.lowerBound, week12.value, input.target.direction) ? week12.value : input.lowerBound;
+}
+
+/** WU-46 (1): a hold on next week (none before week 12, WU-15). */
+function nextWeekHeld(input: WeeklyUpdateInput, status: string | undefined): boolean {
+  const holds = holdsOf(input);
+  return (status === 'far_behind' && !nextWeekIsLast(input)) || holds.notLogged || holds.weekBehind.length > 0;
+}
+
 function kindLine(kind: UpdateKind): string {
   const behind = kind.weekBehind ? '; a week behind' : '';
   return `- ${kind.name}: at "${kind.position}", ${kind.stepsBehind} step${kind.stepsBehind === 1 ? '' : 's'} still to do (${kind.sessions} session${kind.sessions === 1 ? '' : 's'} of it this week)${behind}`;
@@ -192,10 +225,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     `THIS WEEK (week ${input.weekNumber})`,
     input.lightTest ? `Next check: ${formatTarget(input.target)}. This week's test was the light test, not a check of the target.` : `Target: ${formatTarget(input.target)}`,
     `Test result: ${input.result}`,
-    `Sessions done: ${counts.practiceDone} of ${counts.practicePlanned}. Key sessions: ${counts.keyDone} done, ${counts.keySkipped} skipped${
-      counts.keySkippedNames.length ? ` (${counts.keySkippedNames.join('; ')})` : ''
-    }. A key session done only as the 10-minute version counts as skipped.`,
-    `10-minute versions used: ${counts.doneByMinimum}. Missed days: ${counts.missed}. Dropped days: ${counts.dropped}.`,
+    ...countLines(counts),
     `Their note: ${input.reflection.trim() ? `"${input.reflection.trim()}"` : 'none'}`
   );
   if (input.kinds?.length) {
@@ -221,10 +251,15 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
       );
     }
   }
+  const bound = boundOf(input);
+  // WU-46 (1): the bound is said only for the weeks it binds; a held next week may stay at this week's target.
+  const heldBelow = bound !== null && input.target.kind === 'number' && !nextWeekIsLast(input) && harder(bound, input.target.value, input.target.direction);
   targetRules.push(
-    input.lowerBound === null
+    bound === null
       ? '   - No target goes backwards: each week is at least as hard as the week before it.'
-      : `   - Never set a target easier than what they last achieved (${amount(input.target, input.lowerBound)}), and no week easier than the week before it.`,
+      : `   - Never set a target easier than what they last achieved (${amount(input.target, bound)}), and no week easier than the week before it.${
+          heldBelow ? ` A held week ${nextWeek} may stay at this week's target instead.` : ''
+        }`,
     `   - Week 12 stays exactly ${week12 ? formatTarget(week12) : 'the goal'}.`,
     '   - Keep each week\'s kind, metric and unit as planned.'
   );
@@ -257,12 +292,6 @@ export function sentenceReason(sentence: string): string | null {
 }
 
 const EPSILON = 1e-9;
-type NumberTarget = Extract<WeekTarget, { kind: 'number' }>;
-
-/** `a` is harder than `b` in the target's direction. */
-function harder(a: number, b: number, direction: NumberTarget['direction']): boolean {
-  return direction === 'higher_is_better' ? a > b + EPSILON : a < b - EPSILON;
-}
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
@@ -339,12 +368,16 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
     const direction = input.target.direction;
     const label = (value: number) => formatAmount(value, input.target.kind === 'number' ? input.target.unit : '');
     if (Math.abs(week12.value - week12Now.value) > EPSILON) reasons.push(`week 12 must stay exactly ${label(week12Now.value)}.`);
+    const bound = boundOf(input);
+    const held = nextWeekHeld(input, status);
     let before: number | null = null;
     for (const item of targets) {
       if (item.target.kind !== 'number') continue;
       const value = item.target.value;
-      if (input.lowerBound !== null && harder(input.lowerBound, value, direction)) {
-        reasons.push(`week ${item.weekNumber}'s ${label(value)} is easier than what they last achieved (${label(input.lowerBound)}).`);
+      // WU-46 (1): a hold wins over the bound; a held next week may go as low as this week's target.
+      const floor = bound !== null && held && item.weekNumber === input.weekNumber + 1 && harder(bound, input.target.value, direction) ? input.target.value : bound;
+      if (floor !== null && harder(floor, value, direction)) {
+        reasons.push(`week ${item.weekNumber}'s ${label(value)} is easier than what they last achieved (${label(floor)}).`);
       }
       if (before !== null && harder(before, value, direction)) reasons.push(`week ${item.weekNumber}'s ${label(value)} is easier than the week before it (${label(before)}).`);
       if (item.weekNumber < TOTAL_WEEKS && harder(value, week12Now.value, direction)) {
