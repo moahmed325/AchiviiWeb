@@ -180,7 +180,7 @@ describe('week 12 comes first (WU-15): no hold when next week is week 12', () =>
 
   it('the prompt says week 12 keeps the goal and states no hold', () => {
     const prompt = buildWeeklyUpdatePrompt(i);
-    expect(prompt).toContain('Next week is week 12: it keeps the goal whatever the status');
+    expect(prompt).toContain("Week 12 shows week 12's target: it keeps the goal whatever the status");
     expect(prompt).not.toContain('far_behind: week 12');
     expect(prompt).not.toContain('The test was not logged');
   });

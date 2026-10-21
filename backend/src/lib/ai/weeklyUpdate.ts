@@ -146,12 +146,16 @@ function bigWeekFor(weekNumber: number, weeksLeft: readonly UpdateWeekLeft[]): n
   return weeksLeft.find((week) => week.weekNumber >= weekNumber && !week.light)?.weekNumber ?? TOTAL_WEEKS;
 }
 
-function nextWeekIsLast(input: Pick<WeeklyUpdateInput, 'weekNumber'>): boolean {
-  return input.weekNumber + 1 >= TOTAL_WEEKS;
+/**
+ * WU-47 (amends WU-15): next week shows week 12's target: it is week 12, or a light week whose next check is week 12 (on
+ * a light-test goal, the close of week 8). No hold applies then.
+ */
+function nextWeekIsLast(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): boolean {
+  return input.weekNumber + 1 >= TOTAL_WEEKS || bigWeekFor(input.weekNumber + 1, input.weeksLeft) === TOTAL_WEEKS;
 }
 
-/** RULE-4 and WU-11: the holds on next week's target, none when next week is week 12 (WU-15). */
-export function holdsOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'testLogged' | 'kinds'>): { notLogged: boolean; weekBehind: UpdateKind[] } {
+/** RULE-4 and WU-11: the holds on next week's target, none when next week shows week 12's target (WU-15, WU-47). */
+export function holdsOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'testLogged' | 'kinds'>): { notLogged: boolean; weekBehind: UpdateKind[] } {
   if (nextWeekIsLast(input)) return { notLogged: false, weekBehind: [] };
   return { notLogged: !input.testLogged, weekBehind: (input.kinds ?? []).filter((kind) => kind.weekBehind) };
 }
@@ -241,7 +245,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     '   - a_bit_behind: make the next step smaller and spread the remaining climb over the weeks left.',
   ];
   if (nextWeekIsLast(input)) {
-    targetRules.push(`   - Next week is week 12: it keeps the goal whatever the status, and the message says the final week aims at the goal.`);
+    targetRules.push(`   - Week ${nextWeek} shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.`);
   } else {
     targetRules.push(`   - far_behind: week ${nextWeek}'s target equals this week's target.`);
     if (holds.notLogged) targetRules.push(`   - The test was not logged: week ${nextWeek}'s target must not be higher than this week's.`);

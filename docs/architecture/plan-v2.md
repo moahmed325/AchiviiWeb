@@ -412,7 +412,8 @@ DECIDE
 2. nextTargets: one target for each of weeks {asked}, in order.
    - on_track: keep the plan; raise only if they clearly beat the target, never above week 12's target before week 12.
    - a_bit_behind: make the next step smaller and spread the remaining climb over the weeks left.
-   - far_behind: next week's target equals this week's target.   (week 11: "Next week is week 12: it keeps the goal")
+   - far_behind: next week's target equals this week's target.   (when next week shows week 12's target: "Week {n+1}
+     shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.")
    - [The test was not logged: next week's target must not be higher than this week's.]
    - [They are a week behind in {kinds}: next week's target must not be higher than this week's; the message names it.]
    - Never easier than what they last achieved ({bound}, at most week 12's target); no week easier than the week before
@@ -436,7 +437,7 @@ this one, a light test never counts; no bound without one; the unit read as the 
 target even when the result is higher (WU-46 (1)); no week easier than the one before; no week before 12
 harder than week 12's current target; week 12 is its current target; `far_behind` holds next week at this week's
 target; a kind a week behind and an unlogged test block a raise of next week; none of the holds applies when next week
-is week 12; the sentence is not empty, asks no question and has no forbidden word. Deliverables: the count, still a
+shows week 12's target (week 12 itself, or a light week whose next check is week 12, WU-47); the sentence is not empty, asks no question and has no forbidden word. Deliverables: the count, still a
 deliverable, week 12's text unchanged, and a held week (any hold) repeats this week's text exactly. One retry with every
 reason; a second rejection, or no answer, is the fallback: targets as planned, no status stored, no coach's note, and
 "Next week is ready. Your targets stay as planned."
@@ -446,7 +447,7 @@ once the week is closed (`safeTargetClimb` from this week's target; on a light-t
 weeks from the last big week up to this one, or the starting point), so a read never lowers what was stored. A week
 past a safe step is lowered to it (`[Safety]` `target_step` `lowered_on_update`, after the close is saved). Week 12
 lowered this way is accepted: its `Goal.roadmap.loweredTargets` entry is set, a pathway's `Goal.roadmap.finalTest`
-follows its rebuilt week 12 test, and the sentence is code's ("Week 12 aims at {safe}, a safe step. Your {goal} goal is
+follows its rebuilt week 12 test (whenever week 12 is stored, also one lowered on read that the read-back stores), and the sentence is code's ("Week 12 aims at {safe}, a safe step. Your {goal} goal is
 the next step.", the second sentence only when the person named a number). When safety lowers next week and not week
 12, the sentence is "Next week aims at {target}, a safe step." (WU-46 (3)). A week only lowered on read that the update
 leaves as it was is not stored; a week the read would climb differently once an earlier week changed is stored at the
@@ -457,7 +458,7 @@ update's value, so the read and the update agree.
 changed week's `target`, `objective`, `keyMilestone` and `test` (the code-written text, as plan-safety-limits M1.3
 rebuilds it), week 12's `loweredTargets` entry and `finalTest` (one read-modify-write of `Goal.roadmap`), and the review
 row's insight = the sentence. One
-`[WeeklyUpdate] goal <id> week <n> status <s|none> outcome <accepted|retry_accepted|fallback> lowered <k> reasons <json|none>`
+`[WeeklyUpdate] goal <id> week <n> status <s|none> outcome <accepted|retry_accepted|fallback> lowered <k> stored <weeks|none> readBack <weeks|none> reasons <json|none>`
 line per update.
 
 ## Prompt 5: proof judge (photo and video tests only)

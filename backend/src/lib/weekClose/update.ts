@@ -47,6 +47,8 @@ export interface PlannedUpdate {
   finalTest: string | null;
   /** The weeks safety lowered now, for the `[Safety]` `lowered_on_update` lines. */
   lowered: Array<LoweredTarget & { metric: string; unit: string }>;
+  /** The weeks the read-back stores although the model left them as read (in `weeks` too), for the log line. */
+  readBack: number[];
   /** The week before, when the update read it (method switch on), so `writeWeekAfter` does not read it again. */
   weekBefore: DailyTask[] | null;
   reasons: string[];
@@ -78,6 +80,7 @@ const fallback = (reasons: string[], weekBefore: DailyTask[] | null = null): Pla
   week12: null,
   finalTest: null,
   lowered: [],
+  readBack: [],
   weekBefore,
   reasons,
 });
@@ -85,7 +88,11 @@ const fallback = (reasons: string[], weekBefore: DailyTask[] | null = null): Pla
 /** RULE-8's line for M3.2's eval: one per update. */
 function logUpdate(goalId: string, weekNumber: number, update: PlannedUpdate): void {
   const reasons = update.reasons.length ? JSON.stringify(update.reasons) : 'none';
-  console.log(`[WeeklyUpdate] goal ${goalId} week ${weekNumber} status ${update.status ?? 'none'} outcome ${update.outcome} lowered ${update.lowered.length} reasons ${reasons}`);
+  const list = (weeks: number[]) => (weeks.length ? weeks.join(',') : 'none');
+  const stored = list(update.weeks.map((week) => week.weekNumber));
+  console.log(
+    `[WeeklyUpdate] goal ${goalId} week ${weekNumber} status ${update.status ?? 'none'} outcome ${update.outcome} lowered ${update.lowered.length} stored ${stored} readBack ${list(update.readBack)} reasons ${reasons}`
+  );
 }
 
 /** RULE-10, WU-45 (3): one `[Safety]` line per week the update's targets were lowered on; after the close is saved. */
@@ -349,6 +356,7 @@ async function runUpdate(
   });
   const readRow = (n: number) => rows.find((week) => week.weekNumber === n);
   const toStore = new Map(final.filter((week) => !sameTarget(week.target as unknown as WeekTarget, readRow(week.weekNumber)?.target)).map((week) => [week.weekNumber, asUpdated(week)]));
+  const readBack: number[] = [];
   for (let pass = 0; pass < 2; pass++) {
     const afterSave = goal.roadmapWeeks.map((week) => {
       if (week.weekNumber === weekNumber) return { ...week, status: 'completed' };
@@ -358,7 +366,10 @@ async function runUpdate(
     const reread = safeStoredTargets({ weeks: afterSave, startValue, finalTest: stored.finalTest, pathway });
     const differs = final.filter((week) => !toStore.has(week.weekNumber) && !sameTarget(week.target as unknown as WeekTarget, reread.weeks.find((item) => item.weekNumber === week.weekNumber)?.target));
     if (differs.length === 0) break;
-    for (const week of differs) toStore.set(week.weekNumber, asUpdated(week));
+    for (const week of differs) {
+      toStore.set(week.weekNumber, asUpdated(week));
+      readBack.push(week.weekNumber);
+    }
   }
   const weeks = [...toStore.values()].sort((a, b) => a.weekNumber - b.weekNumber);
 
@@ -374,8 +385,10 @@ async function runUpdate(
     final12Value !== null && current12 !== null && stores12 && (loweredNow || prior)
       ? { week: TOTAL_WEEKS, model: prior?.model ?? current12, safe: final12Value }
       : null;
-  // Fix 6: a pathway's week 12 test names its target, so `finalTest` follows a week 12 this update lowered.
-  const finalTest = loweredNow && checked.finalTest !== stored.finalTest ? checked.finalTest : null;
+  // A pathway's week 12 test names its target, so `finalTest` follows whenever week 12 is stored: rebuilt by this
+  // update's climb, else as the read rebuilt it (a week 12 lowered on read that the read-back stores).
+  const rebuiltFinalTest = checked.finalTest !== stored.finalTest ? checked.finalTest : safe.finalTest;
+  const finalTest = stores12 && rebuiltFinalTest !== stored.finalTest ? rebuiltFinalTest : null;
 
   let insight = answer.update.messageToUser;
   const nextLowered = final.find((week) => week.weekNumber === weekNumber + 1);
@@ -396,6 +409,7 @@ async function runUpdate(
     week12,
     finalTest,
     lowered,
+    readBack: readBack.sort((a, b) => a - b),
     weekBefore,
     reasons: answer.reasons,
   };
