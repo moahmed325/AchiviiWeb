@@ -18,7 +18,7 @@
 | O1 | Mo: turn on `WEEK_CLOSE_ENABLED` in Render, then run the P1 production checks | — | IN PROGRESS: on in production since 2026-10-19 (checklist steps 1 to 5 done: B-66 no rows; `e43d905` deployed, CI green; other switches as listed; own goal unchanged mid-week). Step 6, a week of logs, open until 2026-10-26 | [m1.5b checklist](milestones/m1.5b-past-the-limit.md) |
 | M2.1 | Light weekly tests: 10 pathways and the custom-goal rule | AC-20 | DONE 2026-10-19 | [m2.1](milestones/m2.1-light-weekly-tests.md) |
 | M3.1 | The update call and its checks, on the review path (needs B-62) | AC-1, AC-2, AC-3, AC-8, AC-13, AC-15 | DONE 2026-10-21 | [m3.1](milestones/m3.1-update-call.md) |
-| M3.2 | Eval of the update call on recorded weeks | AC-2, AC-3, AC-8 (measured) | NOT STARTED | |
+| M3.2 | Eval of the update call on recorded weeks | AC-2, AC-3, AC-8 (measured) | READY | [m3.2](milestones/m3.2-eval.md) |
 | M3.3 | The update in the automatic close; unlogged test; two hard weeks | AC-1, AC-4, AC-5 | NOT STARTED | |
 | M3.4 | Break restart | AC-9, AC-10, AC-18 | NOT STARTED | |
 | M4.1 | Copy and acceptance | AC-14, AC-19, all | NOT STARTED | |
