@@ -275,6 +275,18 @@ How this log works: `docs/templates/decisions.md`.
 **Why (Mo):** each settles a gap the prompt needed: one path first keeps M3.1 small and M3.2's eval clean; light weeks only show the next check (WU-43); rejecting a safety-forced week 12 would make an answer whose holds push the climb into week 12 unpassable; a fallback line must stay true.
 **Changes:** M3.1's prompt (`milestones/m3.1-update-call.md`); M3.3 (an empty status in RULE-6); M3.4 (the update after a break).
 
+### WU-46 — M3.1 review: holds, the lower bound and the safe-step sentence (2026-10-21)
+**Question:** M3.1 review: a hold (`far_behind`, an unlogged test, a kind a week behind) and RULE-4's "never below what they last achieved" can't both pass when the result beat this week's target; a result above week 12's target (a week 12 lowered to a safe step) makes every later answer fail; the model's sentence can name a number code then lowered.
+**Decision:** (1) A hold wins over the lower bound: under a hold, next week's floor is this week's target when the bound is above it (not lower); later weeks keep the bound. (2) The lower bound never goes above week 12's current target. (3) When safety lowers next week and not week 12, the sentence is code's: "Next week aims at {target}, a safe step." (`{target}` from `formatTarget`). Also from the review: when the update stores week 12, `Goal.roadmap.finalTest` follows it in the same transaction; a week is stored when it differs from the week as read (`safeGoalTargets`), plus any week a read-back of the saved goal would read differently (an older goal's stored week that now climbs from a changed week), always the safe value the model was shown.
+**Why (Mo):** without (1) and (2) the update always falls back exactly when the person did well; a sentence must not name a number the plan doesn't hold.
+**Changes:** `ai/weeklyUpdate.ts`, `weekClose/update.ts`; `docs/architecture/plan-v2.md` prompt 4.
+
+### WU-47 — No hold when next week shows week 12's target (amends WU-15) (2026-10-21)
+**Question:** M3.1 review: on a light-test goal closing week 8, next week (9) shows week 12's target, which can't change, so any hold makes every answer fail.
+**Decision:** no hold (`far_behind`, an unlogged test, a kind a week behind) applies when next week shows week 12's target: week 12 itself, or a light week whose next check is week 12. The message then says the final week aims at the goal.
+**Why (Mo):** the same reason as WU-15: week 12 keeps the final goal, and a light week only shows it.
+**Changes:** RULE-4's week-12 sentence reads "when next week shows week 12's target"; `ai/weeklyUpdate.ts` (`nextWeekIsLast`).
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
