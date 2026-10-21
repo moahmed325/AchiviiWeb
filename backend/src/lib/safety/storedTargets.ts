@@ -146,29 +146,45 @@ export function safeStoredTargets<W extends StoredWeek>(input: StoredTargetsInpu
   const weeks = input.weeks.map((week): W => {
     const target = changed(week);
     if (!target) return week;
-    const storedTest = testOf(week);
-    let test: WeekTest | null = storedTest;
-    let keyMilestone = week.keyMilestone;
-    if (storedTest?.light === true) {
-      // A light test does not name the target: it and its milestone stay as written.
-    } else if (tests && isPresetTest(storedTest, tests, week.target as WeekTarget)) {
-      test = measuredPathwayTest(tests, target);
-      keyMilestone = keyMilestoneText(test);
-      if (week.weekNumber === TOTAL_WEEKS) finalTest = test.instructions;
-    } else {
-      // A test the model wrote (a custom goal, or an older pathway goal from before its preset tests): only its pass
-      // mark, which code reads as the target, changes; `finalTest` stays as stored.
-      if (storedTest) test = { ...storedTest, passIf: formatTarget(target) };
-      const cut = week.keyMilestone.lastIndexOf(PASS_IF_JOIN);
-      if (cut >= 0) keyMilestone = `${week.keyMilestone.slice(0, cut)}${PASS_IF_JOIN}${formatTarget(target)}`;
-    }
-    return { ...week, target, test, objective: formatTarget(target), keyMilestone };
+    const rebuilt = withTargetText(week, target, tests);
+    if (rebuilt.finalTest !== null) finalTest = rebuilt.finalTest;
+    return rebuilt.week;
   });
 
   const known = new Set(stored.map((item) => item.week));
   const foundNow = found.filter((item) => !known.has(item.week));
   const lowered = [...stored, ...foundNow].sort((a, b) => a.week - b.week);
   return { weeks, finalTest, lowered, foundNow };
+}
+
+/**
+ * PSL-7, PSL-12 (3): a week with a new target, with only what code wrote from the target rebuilt (`objective`; a
+ * pathway's own test and `keyMilestone`, and `finalTest` for week 12; otherwise only the pass mark). `finalTest` is null
+ * when it does not change. Weekly update M3.1 uses it for the targets the update changes.
+ */
+export function withTargetText<W extends StoredWeek>(
+  week: W,
+  target: WeekTarget,
+  tests: CertifiedPresetBlueprint['weeklyTests'] | undefined
+): { week: W; finalTest: string | null } {
+  const storedTest = testOf(week);
+  let test: WeekTest | null = storedTest;
+  let keyMilestone = week.keyMilestone;
+  let finalTest: string | null = null;
+  if (storedTest?.light === true) {
+    // A light test does not name the target: it and its milestone stay as written.
+  } else if (tests && isPresetTest(storedTest, tests, week.target as WeekTarget)) {
+    test = measuredPathwayTest(tests, target);
+    keyMilestone = keyMilestoneText(test);
+    if (week.weekNumber === TOTAL_WEEKS) finalTest = test.instructions;
+  } else {
+    // A test the model wrote (a custom goal, or an older pathway goal from before its preset tests): only its pass
+    // mark, which code reads as the target, changes; `finalTest` stays as stored.
+    if (storedTest) test = { ...storedTest, passIf: formatTarget(target) };
+    const cut = week.keyMilestone.lastIndexOf(PASS_IF_JOIN);
+    if (cut >= 0) keyMilestone = `${week.keyMilestone.slice(0, cut)}${PASS_IF_JOIN}${formatTarget(target)}`;
+  }
+  return { week: { ...week, target, test, objective: formatTarget(target), keyMilestone }, finalTest };
 }
 
 /** PSL-12 (1): the honest week 12 line's two numbers, rounded amount and unit. */

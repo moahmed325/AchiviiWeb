@@ -118,6 +118,8 @@ db.prisma = {
     }),
   },
   weeklyReview: {
+    // Weekly update M3.1: the update reads the last 3 weeks' review rows.
+    findMany: vi.fn(async ({ where }: Row) => structuredClone(db.state.reviews.filter((r) => matches(r, where)))),
     upsert: vi.fn(async ({ where, update, create }: Row) => {
       const key = where.goalId_weekNumber;
       const found = db.state.reviews.find((r) => r.goalId === key.goalId && r.weekNumber === key.weekNumber);

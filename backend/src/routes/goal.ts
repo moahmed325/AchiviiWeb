@@ -48,6 +48,7 @@ import {
   weekCloseDue,
   writeWeekAfter,
 } from '../lib/weekClose/close.js';
+import { logUpdateLowered, planWeeklyUpdate, withUpdatedTargets } from '../lib/weekClose/update.js';
 import type { PastLimitChoice } from '../lib/weekClose/breaks.js';
 import { weekCloseEnabled } from '../lib/weekClose/switch.js';
 
@@ -1204,7 +1205,19 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       ? { ...goal, roadmapWeeks: goal.roadmapWeeks.map((w) => (w.weekNumber === weekNum ? { ...w, testResult: sanitizedTestResult as unknown as Prisma.JsonValue } : w)) }
       : goal;
     const now = new Date();
-    const next = await writeWeekAfter(writerGoal, weekNum, { now, timezone: user.timezone });
+    // Weekly update M3.1 (RULE-1, WU-45 (1)): with both switches on, weeks 1 to 11 and not a break, the update runs
+    // first and the week after is written from its targets; otherwise null and the review is exactly as before.
+    const update = await planWeeklyUpdate(writerGoal, weekNum, {
+      userId: user.id,
+      reflection: typeof reflection === 'string' ? reflection : '',
+      now,
+      timezone: user.timezone,
+    });
+    const next = await writeWeekAfter(withUpdatedTargets(writerGoal, update), weekNum, {
+      now,
+      timezone: user.timezone,
+      ...(update?.coachNote ? { coachNote: update.coachNote } : {}),
+    });
     // M1.5b (WU-38 (1)): a break past the limit is answered on Today's card, never by the review; nothing was called.
     if (next?.choiceNeeded) return refuseChoice(res, next.choiceNeeded);
     if (!next) {
@@ -1219,14 +1232,17 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       written: next.written,
       reflection,
       testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject | null,
-      // M1.4 (section 6): a late review that moves the plan keeps its own insight and answer.
-      insight: reviewInsight(goal.dailyTasks),
+      // M1.4 (section 6): a late review that moves the plan keeps its own insight and answer. M3.1 (RULE-7): after an
+      // update, its sentence (or the neutral line on the fallback).
+      insight: update ? update.insight : reviewInsight(goal.dailyTasks),
       move: next.move,
       now,
+      update,
     });
     // Another close won inside the save (WU-27): nothing of this request was saved.
     if (!saved) return refuse(res, 'week_closed');
     logWeekClose(goal, weekNum, 'review', now, user.timezone, startedAt);
+    logUpdateLowered(goal.id, update);
     // B-61: the answer shows the result the week writer was told: the one sent, else the stored (late) one, which the save keeps.
     res.json(closeAnswer(goal, weekNum, saved, sanitizedTestResult ?? week.testResult ?? null));
   } catch (err: any) {
