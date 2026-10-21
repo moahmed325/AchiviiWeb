@@ -179,7 +179,8 @@ function logWaits(goalId: string, weekNumber: number, waiting: HandoffPlacement<
 
 /**
  * Prompt 3 for the week after `finishedWeek`, from how that week went.
- * Until prompt 4 exists there is no coach's note and targets stay as planned.
+ * Weekly update M3.1 (RULE-9, WU-45): after an accepted update the goal comes with the new targets and `coachNote` is
+ * the update's `guidanceForNextWeek`, told as "Coach's note"; without it the call is exactly as before.
  * With `METHOD_RECOVERY_ENABLED` on (M3.1d), the writer is also told where the person is, and code places the steps
  * last week hands on into the week the call returns. With it off, the call and the week are exactly as before.
  * Weekly update M1.5a: `firstWeekBack` (given only after a break, with `WEEK_CLOSE_ENABLED` on) tells the writer the days
@@ -201,7 +202,7 @@ export async function writeNextWeek(
   recovery?: RecoveryProfile | null,
   /** M3.1d review: the week before `finishedWeek`, only to see a break that started there. Read only with the switch on. */
   weekBefore: DailyTask[] = [],
-  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[] } = {}
+  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[]; coachNote?: string } = {}
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
   // Plan safety limits M1.3 (RULE-9): an older goal's targets lowered on read; nothing stored changes. A goal with
@@ -267,6 +268,7 @@ export async function writeNextWeek(
             // OD-2: a key session done only through the 10-minute version is not "key done" (M2.3).
             .filter((task) => task.isKeySession && (task.status !== 'completed' || task.usedMinimumVersion === true))
             .map((task) => `${task.dayOfWeek}: ${task.title}`),
+          ...(options.coachNote ? { note: options.coachNote } : {}),
         }
       : undefined,
     ...(brief.length > 0 ? { whereTheyAre: brief } : {}),

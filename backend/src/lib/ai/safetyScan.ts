@@ -226,8 +226,10 @@ export interface SafetyLogLine {
    * kept without a load and B-63's scan decides. `counted` (M2.2a, PSL-15 (2)): `run_minutes_over_step` on the accepted
    * answer; the run is counted as written. `first_answer` (M2.2a follow-up): the last answer was refused for this rule,
    * and the first answer, checked again as a last attempt, passed every check and is the week.
+   * `lowered_on_update` (weekly update M3.1, WU-45 (3)): a target the weekly update accepted, lowered to the safe step
+   * before it was stored.
    */
-  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged' | 'lowered_on_read' | 'kept' | 'counted' | 'first_answer';
+  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged' | 'lowered_on_read' | 'lowered_on_update' | 'kept' | 'counted' | 'first_answer';
 }
 
 /** PSL-1 (3): one line per hit, so the false-alarm rate can be checked in production. */

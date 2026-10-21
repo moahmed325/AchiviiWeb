@@ -365,6 +365,11 @@ high-load step (`lib/recovery/firstWeekBack.ts`, WU-29, WU-35).
 
 ## Prompt 4: weekly update (after each weekly test, weeks 1-11)
 
+As built in weekly update M3.1 (`backend/src/lib/ai/weeklyUpdate.ts`, read and saved by `lib/weekClose/update.ts`). It
+runs only on the weekly review, only with `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED` both exactly `true`, only
+for weeks 1 to 11 and not on a close that is a break (the automatic close gets it in M3.3, the break in M3.4). No
+checkpoint offer (WU-2) and no `retestFirst` (code decides it in M3.3).
+
 **System**
 
 ```text
@@ -372,50 +377,89 @@ You review one week of a person's 90-day plan and set the targets for the weeks 
 daily tasks. Respond with one JSON object that matches the schema.
 ```
 
-**Prompt**
+**Prompt** (lines in brackets appear only when they apply)
 
 ```text
 THE PLAN
 Goal: {finalGoal}
 Method: {method.name}. Rules: {rules}
-Weeks left, as currently planned: {week n+1 … last week, each with target}
-Extensions used: {0-2} of 2
+Weeks left, as currently planned:
+- Week {k}: {target}            (a light week: "light test week; shows week {big}'s target (code fills it in)")
+[Only weeks {big weeks left} have the big test that measures the target. Each other week shows its next big week's
+target; code fills those in.]
 
 THIS WEEK (week {n})
-Target: {target}
-Test result: {result or verdict + reason, or "not logged"}
-Sessions done: {done} of {planned}. Key sessions: {done/skipped, by name}
-10-minute versions used: {count}. Missed days: {count}
-Their note (optional): {note}
+Target: {target}                (a light week: "Next check: {target}. This week's test was the light test, ...")
+Test result: {logged result, "light test done; their note: ...", or the not-logged line}
+Sessions done: {done} of {planned}. Key sessions: {done} done, {skipped} skipped ({names}). A key session done only as
+the 10-minute version counts as skipped.
+10-minute versions used: {count}. Missed days: {count}. Dropped days: {count}.
+(when reconcile can't count the week: "Sessions done: {done} of {planned}. Key sessions, 10-minute versions, missed and
+dropped days: not counted.")
+Their note: {reflection or "none"}
+
+[WHERE THEY ARE in each in-order kind of step (the first step not done yet):
+- {kind name}: at "{step}", {k} steps still to do ({s} sessions of it this week)[; a week behind]]
 
 LAST 3 WEEKS
-{week, target, result, sessions done, status}
+- Week {w}: target {target}; result: {result}; sessions done: {done of planned}; status: {status or none}
+
+[SAFETY
+- The most week {k} may be: {nextSafeStep} (one safe step). Code lowers anything past it.]
 
 DECIDE
-1. status:
-   - on_track: they hit the target
-   - a_bit_behind: they missed it but did 50%+ of sessions
-   - far_behind: they did under 50%, or skipped the key sessions
-   Weigh the trend. One bad week after good ones is not the same as three weeks declining.
-2. nextTargets: targets for every week left.
-   - on_track: keep the plan. Raise it only if they clearly beat the target, never above the goal before the
-     last week.
+1. status: on_track / a_bit_behind / far_behind, as before. Weigh the trend.
+2. nextTargets: one target for each of weeks {asked}, in order.
+   - on_track: keep the plan; raise only if they clearly beat the target, never above week 12's target before week 12.
    - a_bit_behind: make the next step smaller and spread the remaining climb over the weeks left.
-   - far_behind: next week's target equals this week's target.
-   - Never set a target below what they just achieved. The last week must equal the goal.
-3. messageToUser: one sentence, neutral and encouraging. Say what happens next, and say plainly if next week's
-   target is held or lowered. Never ask why they missed.
+   - far_behind: next week's target equals this week's target.   (when next week shows week 12's target: "Week {n+1}
+     shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.")
+   - [The test was not logged: next week's target must not be higher than this week's.]
+   - [They are a week behind in {kinds}: next week's target must not be higher than this week's; the message names it.]
+   - Never easier than what they last achieved ({bound}, at most week 12's target); no week easier than the week before
+     it. [A held week {n+1} may stay at this week's target instead.] (only when the bound is above this week's target)
+   - Week 12 stays exactly {week 12's current target}. Keep each week's kind, metric and unit.
+3. messageToUser: one sentence, neutral and encouraging; say plainly if next week is held or lowered. Never a question,
+   never "missed", "behind", "failed" or "fail".
 4. guidanceForNextWeek: 1-2 sentences for the person writing next week's tasks.
-5. retestFirst: true if this week and last week were both far_behind.
-6. Only at week 4 and week 8: if the goal is no longer reachable at their pace, add checkpointOffer:
-   - lowerGoal: a realistic final goal value
-   - extend: true if extensions used < 2
 ```
 
-**Code checks:** the number of targets equals the weeks left; same metric and unit; nothing below the latest
-result, nothing backwards; the last target equals the goal (unless the user accepted a lower one); no target above
-the goal before the last week; `retestFirst` matches the real history; `checkpointOffer` only at weeks 4 and 8.
-One retry; if it fails again, the targets stay as planned and next week gets a neutral note.
+Its inputs: the week's stored or sent test result; `weekCounts` from the day kinds and carry plan reconcile works out
+(read only); the last 3 closed weeks with their review rows and `updateStatus`; the weeks left from `safeGoalTargets`;
+with `METHOD_RECOVERY_ENABLED` on, each in-order kind from the finished week's handoff (`weekHandoff`), a week behind
+when its steps still to do are at least its sessions that week (the test day not counted) and at least 2 (WU-11).
+
+**Code checks (RULE-4, WU-15, WU-20 (3), WU-45):** the weeks returned are exactly the weeks asked, in order (on a
+light-test goal only the big weeks left; code then fills each light week with its next big week's target); a week's
+kind, metric or unit does not change; no target easier than the last usable result (the newest measured week up to
+this one, a light test never counts; no bound without one; the unit read as the stated-target reading unifies it, so
+"min" is "minutes"), never above week 12's current target (WU-46 (2)), and a held next week may go down to this week's
+target even when the result is higher (WU-46 (1)); no week easier than the one before; no week before 12
+harder than week 12's current target; week 12 is its current target; `far_behind` holds next week at this week's
+target; a kind a week behind and an unlogged test block a raise of next week; none of the holds applies when next week
+shows week 12's target (week 12 itself, or a light week whose next check is week 12, WU-47); the sentence is not empty, asks no question and has no forbidden word. Deliverables: the count, still a
+deliverable, week 12's text unchanged, and a held week (any hold) repeats this week's text exactly. One retry with every
+reason; a second rejection, or no answer, is the fallback: targets as planned, no status stored, no coach's note, and
+"Next week is ready. Your targets stay as planned."
+
+**Safety (RULE-10, WU-45 (3)):** after the checks pass, the targets go through the same climb `safeGoalTargets` runs
+once the week is closed (`safeTargetClimb` from this week's target; on a light-test goal `safeCheckWeekClimb` on the big
+weeks from the last big week up to this one, or the starting point), so a read never lowers what was stored. A week
+past a safe step is lowered to it (`[Safety]` `target_step` `lowered_on_update`, after the close is saved). Week 12
+lowered this way is accepted: its `Goal.roadmap.loweredTargets` entry is set, a pathway's `Goal.roadmap.finalTest`
+follows its rebuilt week 12 test (whenever week 12 is stored, also one lowered on read that the read-back stores), and the sentence is code's ("Week 12 aims at {safe}, a safe step. Your {goal} goal is
+the next step.", the second sentence only when the person named a number). When safety lowers next week and not week
+12, the sentence is "Next week aims at {target}, a safe step." (WU-46 (3)). A week only lowered on read that the update
+leaves as it was is not stored; a week the read would climb differently once an earlier week changed is stored at the
+update's value, so the read and the update agree.
+
+**Saved:** the update runs before the week is written; the week call gets the new targets and `guidanceForNextWeek` as
+"Coach's note". In the close's transaction, after the conditional update: the closing week's `updateStatus`, each
+changed week's `target`, `objective`, `keyMilestone` and `test` (the code-written text, as plan-safety-limits M1.3
+rebuilds it), week 12's `loweredTargets` entry and `finalTest` (one read-modify-write of `Goal.roadmap`), and the review
+row's insight = the sentence. One
+`[WeeklyUpdate] goal <id> week <n> status <s|none> outcome <accepted|retry_accepted|fallback> lowered <k> stored <weeks|none> readBack <weeks|none> reasons <json|none>`
+line per update.
 
 ## Prompt 5: proof judge (photo and video tests only)
 

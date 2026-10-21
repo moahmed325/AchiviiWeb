@@ -157,7 +157,8 @@ export function nextSafeStep(target: WeekTarget, previousValue: number, context:
   }
 }
 
-function harder(value: number, limit: number, direction: NumberTarget['direction']): boolean {
+/** `value` is harder than `limit` in the target's direction (with a small tolerance). Shared with the weekly update. */
+export function harder(value: number, limit: number, direction: NumberTarget['direction']): boolean {
   return direction === 'higher_is_better' ? value > limit + 1e-9 : value < limit - 1e-9;
 }
 

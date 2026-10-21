@@ -8,8 +8,9 @@ import { phaseGate, readRoutine, readStoredRoadmap, saveWeekTasks, weekStartFor,
 import { ensureRecoveryProfile } from '../recovery/store.js';
 import { methodRecoveryEnabled } from '../recovery/switch.js';
 import { loadGoalFor } from '../safety/stepLoad.js';
-import type { WeekTarget } from '../ai/roadmap.js';
+import type { LoweredTarget, WeekTarget } from '../ai/roadmap.js';
 import { weekCloseEnabled } from './switch.js';
+import type { PlannedUpdate } from './update.js';
 import {
   BREAK_FROM_GAP_DAYS,
   FINAL_WEEK_INSIGHT,
@@ -176,7 +177,11 @@ function shiftDays(date: Date, days: number): Date {
 export async function writeWeekAfter(
   goal: ClosingGoal,
   weekNumber: number,
-  context: { now?: Date; timezone?: string | null; choice?: PastLimitChoice | null } = {}
+  /**
+   * `coachNote` (M3.1): the weekly update's guidance for the week writer, given only after an accepted update.
+   * `weekBefore` (M3.1 review): the week before as the update already read it; when given it is not read again.
+   */
+  context: { now?: Date; timezone?: string | null; choice?: PastLimitChoice | null; coachNote?: string; weekBefore?: DailyTask[] } = {}
 ): Promise<{ written: WeekDayPlan[] | null; move: WeekMove | null; choiceNeeded?: PastLimitChoice } | null> {
   if (weekNumber + 1 > TOTAL_WEEKS) return { written: null, move: null };
   const move = planWeekMove(goal, weekNumber, context.now ?? new Date(), context.timezone, goal.dailyTasks, context.choice);
@@ -189,8 +194,8 @@ export async function writeWeekAfter(
   if (back) console.log(`[WeekClose] goal ${goal.id} week ${weekNumber} break breakDays ${back.awayDays} rule ${back.length ?? 'none'} highLoad ${back.highLoad}`);
   // M3.1d review: with the method switch on, the week before too, so a break across the week change is seen. Never
   // fails the close: without it, the handoff only sees this week.
-  let weekBefore: DailyTask[] = [];
-  if (methodRecoveryEnabled() && weekNumber > 1) {
+  let weekBefore: DailyTask[] = context.weekBefore ?? [];
+  if (methodRecoveryEnabled() && weekNumber > 1 && !context.weekBefore) {
     try {
       weekBefore = await prisma.dailyTask.findMany({ where: { goalId: goal.id, weekNumber: weekNumber - 1 }, orderBy: { dayNumber: 'asc' } });
     } catch (err) {
@@ -218,6 +223,7 @@ export async function writeWeekAfter(
       ...(back ? { firstWeekBack: back } : {}),
       ...(move && move.weekBack !== weekNumber + 1 ? { weekNumber: move.weekBack } : {}),
       ...(olderWeeks ? { olderWeeks } : {}),
+      ...(context.coachNote ? { coachNote: context.coachNote } : {}),
     }
   );
   return written ? { written, move } : null;
@@ -237,6 +243,8 @@ export interface WeekCloseInput {
   /** From `writeWeekAfter`: the move and the days not offered, saved only by the request that wins. */
   move?: WeekMove | null;
   now?: Date;
+  /** Weekly update M3.1 (RULE-9): saved only by the request that wins; missing means the review as before. */
+  update?: PlannedUpdate | null;
 }
 
 export interface SavedClose {
@@ -271,9 +279,36 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
         closedAt,
         // M4.1: a close without a result keeps the one logged earlier (PUT .../test-result).
         ...(input.testResult ? { testResult: input.testResult } : {}),
+        // M3.1 (RULE-3, WU-45 (7)): the status stays inside; the fallback stores none.
+        ...(input.update?.status ? { updateStatus: input.update.status } : {}),
       },
     });
     if (won.count === 0) return null;
+
+    // M3.1 (RULE-9): the weeks left's new targets and week 12's lowered entry commit with the close, or not at all.
+    for (const week of input.update?.weeks ?? []) {
+      await tx.roadmapWeek.update({
+        where: { goalId_weekNumber: { goalId: goal.id, weekNumber: week.weekNumber } },
+        data: {
+          target: week.target as unknown as Prisma.InputJsonObject,
+          objective: week.objective,
+          keyMilestone: week.keyMilestone,
+          test: week.test as Prisma.InputJsonObject,
+        },
+      });
+    }
+    if (input.update?.week12 || input.update?.finalTest) {
+      // Read inside the transaction: the close may have written the recovery profile into the roadmap since the goal was loaded.
+      const row = await tx.goal.findFirst({ where: { id: goal.id }, select: { roadmap: true } });
+      const roadmap = { ...((row?.roadmap ?? {}) as Record<string, unknown>) };
+      if (input.update.week12) {
+        const kept = Array.isArray(roadmap.loweredTargets) ? (roadmap.loweredTargets as LoweredTarget[]).filter((item) => item.week !== TOTAL_WEEKS) : [];
+        roadmap.loweredTargets = [...kept, input.update.week12].sort((a, b) => a.week - b.week);
+      }
+      // M3.1 review (WU-46): a pathway's week 12 test names its target, so `finalTest` follows a lowered week 12.
+      if (input.update.finalTest) roadmap.finalTest = input.update.finalTest;
+      await tx.goal.update({ where: { id: goal.id }, data: { roadmap: roadmap as unknown as Prisma.InputJsonObject } });
+    }
 
     // WU-33 (3): a week with no score stores 0 of 0 here, because these columns can't be empty.
     const reviewFields = { tasksPlanned: planned, tasksCompleted: completed, scorePercentage: score ?? 0, reflection, aiAdaptationInsight: input.insight ?? '' };

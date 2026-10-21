@@ -212,7 +212,9 @@ describe.each([
     expect(db.week(2).status).toBe('active');
     expect(db.goal().currentWeek).toBe(2);
     expect(db.tasksOf(2)).toHaveLength(7);
-    expect(db.state.reviews).toEqual([expect.objectContaining({ weekNumber: 1, reflection: 'Went fine', aiAdaptationInsight: '3 of 5 sessions done.' })]);
+    // M3.1: with both switches on the review runs the weekly update; with no model here it is the fallback's neutral line.
+    const insight = env.WEEKLY_UPDATE_ENABLED ? AUTO_CLOSE_INSIGHT : '3 of 5 sessions done.';
+    expect(db.state.reviews).toEqual([expect.objectContaining({ weekNumber: 1, reflection: 'Went fine', aiAdaptationInsight: insight })]);
     expect(db.prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(closeLines()).toEqual([expect.stringMatching(/^\[WeekClose\] goal g1 week 1 by review gapDays 0 ms \d+$/)]);
   });
