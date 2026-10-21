@@ -300,6 +300,15 @@ export function firstWeekBackLimit(
   return { base: baseAmount, share, floor, byFloor: floor > share, limit: Math.max(share, floor) };
 }
 
+/**
+ * M2.2b review: the running total's limit in minutes, or null where none holds (no base, an unknown base, or a 0-run
+ * base). A week holding a run with no km is compared in minutes, as a week holding the code-made light step is.
+ */
+export function runningLimitMinutes(base: BaseWeek | undefined): number | null {
+  if (!base?.known || base.runs === 0) return null;
+  return base.firstWeekBack ? firstWeekBackLimit({ ...base, firstWeekBack: base.firstWeekBack }, 'minutes').limit : runningLimit(base, 'minutes').limit;
+}
+
 /** "half" for 50%, else the percent: how a first week back's share is told. */
 export const shareOf = (percent: number) => (percent === 50 ? 'half' : `${percent}%`);
 
@@ -333,7 +342,8 @@ export function comparedUnit(base: Extract<BaseWeek, { known: true }>, week: Pic
 export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Array<LoadBreach & { run?: Run }> {
   const breaches: Array<LoadBreach & { run?: Run }> = [];
   const known = base?.known ? base : null;
-  const zeroBase = (known !== null && known.runs === 0) || (base?.known === false && base.firstWeekBack !== undefined);
+  const unknownBack = base?.known === false && base.firstWeekBack !== undefined;
+  const zeroBase = (known !== null && known.runs === 0) || unknownBack;
   if (known?.firstWeekBack && !zeroBase) {
     const back = known.firstWeekBack;
     const unit = comparedUnit(known, week);
@@ -367,7 +377,7 @@ export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Arr
       });
     }
   }
-  const longest = longestRunBreach(week, zeroBase ? 'zero' : known ? 'base' : 'none');
+  const longest = longestRunBreach(week, unknownBack ? 'unknown' : zeroBase ? 'zero' : known ? 'base' : 'none');
   if (longest) breaches.push(longest);
   if (week.hardRuns > HARD_RUNS_MAX) {
     breaches.push({
@@ -383,9 +393,10 @@ export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Arr
 
 /**
  * PSL-15 (7): 50% of the week with 3 or more runs; with fewer and no base, the fixed cap; with fewer and a base, none.
- * PSL-16: after a base of 0 runs, the fixed cap whatever the number of runs, and also 50% with 3 or more.
+ * PSL-16: after a base of 0 runs, the fixed cap whatever the number of runs, and also 50% with 3 or more. M2.2b: an
+ * unknown first-week-back base (`unknown`) is held the same way.
  */
-function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero'): (LoadBreach & { run: Run }) | null {
+function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero' | 'unknown'): (LoadBreach & { run: Run }) | null {
   if (week.runs.length === 0) return null;
   const unit = week.unit;
   const run = week.runs.reduce((best, item) => (amountOf(item, unit) > amountOf(best, unit) ? item : best));
@@ -396,6 +407,8 @@ function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero'): (L
   }
   const cap = unit === 'km' ? LONGEST_RUN_NO_BASE_MAX_KM : LONGEST_RUN_NO_BASE_MAX_MINUTES;
   if (base === 'zero') limits.push({ limit: cap, why: 'last week had no running' });
+  // M2.2b review: a first week back whose base isn't known is held as `zero`, and says so.
+  else if (base === 'unknown') limits.push({ limit: cap, why: "last week's running isn't known" });
   else if (base === 'none' && week.runs.length < LONGEST_RUN_MIN_RUNS) {
     limits.push({ limit: cap, why: `with no last week to build from and fewer than ${LONGEST_RUN_MIN_RUNS} runs` });
   }

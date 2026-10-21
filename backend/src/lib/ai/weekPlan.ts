@@ -24,6 +24,7 @@ import {
   firstWeekBackSummary,
   runOf,
   runningLimit,
+  runningLimitMinutes,
   shareOf,
   shown,
   shownLimit,
@@ -329,14 +330,15 @@ function safetyLimitsBlock(input: WeekCallInput): string {
  * compared in minutes when any run of this week is not in km), and the longest-run rule. No base: the fixed cap.
  * PSL-16: after a base of 0 runs, no running total, and every run held to the fixed cap.
  * M2.2b (PSL-18): a first week back names its limit (no allowance, the floor, half after a long break); its unknown base
- * gets the 0-run base's lines.
+ * gets the 0-run base's longest-run and cap lines, with its running line saying it isn't known.
  */
 export function runningLines(base: BaseWeek | undefined): string[] {
   const longest = `- Longest run: at most ${LONGEST_RUN_MAX_PERCENT}% of the week's running when there are ${LONGEST_RUN_MIN_RUNS} or more runs.`;
   const cap = `${LONGEST_RUN_NO_BASE_MAX_MINUTES} minutes (${LONGEST_RUN_NO_BASE_MAX_KM} km when every run is given in km)`;
   const zeroLines = ['- Running: last week had no running; keep it at their level.', longest, `- No run longer than ${cap}.`];
   if (!base?.known) {
-    if (base?.firstWeekBack) return zeroLines;
+    // M2.2b review: held like a 0-run base, told as not known.
+    if (base?.firstWeekBack) return ["- Running: last week's running isn't known; keep it at their level.", ...zeroLines.slice(1)];
     return ['- Running: there is no last week to count from; keep it at their level.', longest, `- With fewer than ${LONGEST_RUN_MIN_RUNS} runs, no run longer than ${cap}.`];
   }
   if (base.runs === 0) return zeroLines;
@@ -1025,20 +1027,53 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   // M2.2a review: decided after counting the swapped week again (the light step's minutes are running too); only a
   // swapped week that passes is kept, otherwise the week fails.
   const candidate = lastAttempt && scan.light && refused.length > 0 && refused.every((item) => item.testStep) && week.length === 0;
-  const swapped = candidate ? withLightSteps(days, refused) : null;
+  const swapped = candidate ? withLightSteps(days, refused, input) : null;
   if (swapped) week = input.loadGoal ? weekLoadBreaches(swapped.map((item) => item.day), input) : [];
   const swap = swapped !== null && week.length === 0;
   if (log) for (const hit of hits) logBreach(hit, input, lastAttempt, hit.allowed ? 'test_text' : swap ? 'light_test' : lastAttempt ? 'failed' : 'retry');
   if (swap) {
-    for (const { original, day } of swapped) original.detailedSteps = day.detailedSteps;
+    for (const { original, day } of swapped) {
+      original.detailedSteps = day.detailedSteps;
+      original.durationMinutes = day.durationMinutes;
+    }
     return [];
   }
   if (log) for (const breach of week) logBreach(breach, input, lastAttempt, lastAttempt ? 'failed' : 'retry');
   return [...refused, ...week];
 }
 
-/** M1.5b: the days with each refused test step replaced by the fixed light step, as copies; the days are not changed. */
-function withLightSteps(days: WeekDayPlan[], refused: Breach[]): Array<{ original: WeekDayPlan; day: WeekDayPlan }> {
+/**
+ * M1.5b: the days with each refused test step replaced by the fixed light step, as copies; the days are not changed.
+ * M2.2b review: on a running goal with a running-total limit the light step (counted as running by its minutes) takes at
+ * most the whole minutes left under the limit, never more than its own; with less room than a 10-minute version it is
+ * not shortened, and the swapped week fails its check as before. A shortened step shortens its day.
+ */
+function withLightSteps(days: WeekDayPlan[], refused: Breach[], input: WeekCallInput): Array<{ original: WeekDayPlan; day: WeekDayPlan }> {
+  const swapped = swapLightSteps(days, refused);
+  const limit = input.loadGoal?.running ? runningLimitMinutes(input.baseWeek) : null;
+  if (limit === null) return swapped;
+  const isLight = (step: DetailedStep) => step.title === LIGHT_TEST_STEP.title && codeMadeTestStep(step) === 'light';
+  const lights = swapped.flatMap(({ day }) => (day.isTestDay ? day.detailedSteps.filter(isLight) : []));
+  const lightMinutes = lights.reduce((sum, step) => sum + step.durationMinutes, 0);
+  const measured = input.test.light !== true && !isLightWeek(input);
+  const rest = weekRunning(weekRuns(swapped.map(({ day }) => day), true, measured)).totalMinutes - lightMinutes;
+  let room = Math.floor(limit - rest + 1e-9);
+  if (lightMinutes <= room || room < MINIMUM_VERSION_MINUTES) return swapped;
+  return swapped.map(({ original, day }) => {
+    if (!day.isTestDay || !day.detailedSteps.some(isLight)) return { original, day };
+    let cut = 0;
+    const detailedSteps = day.detailedSteps.map((step) => {
+      if (!isLight(step) || room < MINIMUM_VERSION_MINUTES) return step;
+      const minutes = Math.min(step.durationMinutes, room);
+      room -= minutes;
+      cut += step.durationMinutes - minutes;
+      return { ...step, durationMinutes: minutes };
+    });
+    return { original, day: { ...day, detailedSteps, durationMinutes: Math.max(0, day.durationMinutes - cut) } };
+  });
+}
+
+function swapLightSteps(days: WeekDayPlan[], refused: Breach[]): Array<{ original: WeekDayPlan; day: WeekDayPlan }> {
   return days.map((original) => {
     let detailedSteps = original.detailedSteps;
     for (const { day, step } of refused) {
