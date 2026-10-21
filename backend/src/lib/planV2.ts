@@ -18,7 +18,8 @@ import { activeDaysFor, codeMadeTestStep, generateWeekPlan, type PlanVariant, ty
 import { parseStoredSteps } from './carryForward.js';
 import { isHighLoadGoal } from './highLoad.js';
 import { loadGoalInput } from './safety/stepLoad.js';
-import { baseWeekOf, type BaseWeek } from './safety/weekLoad.js';
+import { baseWeekOf, firstWeekBackBaseOf, type BaseTask, type BaseWeek } from './safety/weekLoad.js';
+import { FIRST_WEEK_BACK_LONG_BREAK_PERCENT } from './safety/limits.js';
 import type { DetailedStep } from './ai/goalDecomposer.js';
 import { logSafetyHit } from './ai/safetyScan.js';
 import { safeGoalTargets } from './safety/storedTargets.js';
@@ -26,7 +27,7 @@ import { handoffBrief, placeHandoff, weekHandoff, type HandoffPlacement, type Ha
 import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
 import { methodRecoveryEnabled } from './recovery/switch.js';
 import { withFirstWeekBackLines } from './recovery/firstWeekBack.js';
-import type { FirstWeekBack } from './weekClose/breaks.js';
+import { LONG_BREAK_DAYS, type FirstWeekBack } from './weekClose/breaks.js';
 
 /** What `Goal.roadmap` holds for a v2 goal. The 12 weeks live in `RoadmapWeek` rows. */
 export interface StoredRoadmap {
@@ -187,6 +188,9 @@ function logWaits(goalId: string, weekNumber: number, waiting: HandoffPlacement<
  * Weekly update M1.5b: `weekNumber` names the week to write when a jump past the limit skips the weeks in between (the
  * first week back); `finishedWeek` stays the week that closed, so last week's result and the handoff read it. Without
  * it the week written is `finishedWeek + 1`, as before.
+ * Plan safety limits M2.2b (RULE-7, PSL-18): on a load goal with `firstWeekBack`, the base week is the newest week with
+ * done running, read from `finishedTasks` then `olderWeeks` (the goal's weeks before `finishedWeek`, read by
+ * `writeWeekAfter`), held with no allowance. Without `firstWeekBack` the base is the closing week, as before.
  */
 export async function writeNextWeek(
   goal: Goal & { roadmapWeeks: RoadmapWeekRow[] },
@@ -197,7 +201,7 @@ export async function writeNextWeek(
   recovery?: RecoveryProfile | null,
   /** M3.1d review: the week before `finishedWeek`, only to see a break that started there. Read only with the switch on. */
   weekBefore: DailyTask[] = [],
-  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number } = {}
+  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[] } = {}
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
   // Plan safety limits M1.3 (RULE-9): an older goal's targets lowered on read; nothing stored changes. A goal with
@@ -238,10 +242,16 @@ export async function writeNextWeek(
     weekStart: weekStartFor(goal.startDate, next.weekNumber),
     highLoadGoal: isHighLoadGoal(goal),
     // Plan safety limits M2.1 (RULE-4): only a load goal adds the key, so any other goal's call is exactly as before.
-    // M2.2a (RULE-5, B-64): a load goal also gets the closing week as its base week. Until M2.2b a first week back is
-    // counted from the closing week too.
+    // M2.2a (RULE-5, B-64): a load goal also gets the closing week as its base week; M2.2b (RULE-7): a first week back
+    // gets the newest week with done running instead.
     ...load,
-    ...(load.loadGoal ? { baseWeek: baseWeekFrom(finishedTasks, load.loadGoal.running) } : {}),
+    ...(load.loadGoal
+      ? {
+          baseWeek: options.firstWeekBack
+            ? firstWeekBackBaseFrom(finishedWeek, finishedTasks, options.olderWeeks ?? [], load.loadGoal.running, options.firstWeekBack.awayDays)
+            : baseWeekFrom(finishedTasks, load.loadGoal.running),
+        }
+      : {}),
     // B-64: for the `[Safety]` lines.
     goalId: goal.id,
     recovery: profile,
@@ -279,7 +289,24 @@ export async function writeNextWeek(
 
 /** M2.2a (PSL-11 Q8, PSL-15 (1)): the closing week's running, planned and done, from its stored rows. */
 function baseWeekFrom(tasks: DailyTask[], running: boolean): BaseWeek {
-  const rows = tasks.map((task) => ({
+  return baseWeekOf(baseTasks(tasks), running, codeMadeTestStep);
+}
+
+/**
+ * M2.2b (PSL-18 (3), (6)): walks back from the closing week through the older weeks' rows (any order); half of the done
+ * total after a break of `LONG_BREAK_DAYS` or more.
+ */
+function firstWeekBackBaseFrom(finishedWeek: number, finishedTasks: DailyTask[], olderWeeks: DailyTask[], running: boolean, awayDays: number): BaseWeek {
+  const byWeek = new Map<number, DailyTask[]>();
+  for (const task of olderWeeks) if (task.weekNumber < finishedWeek) byWeek.set(task.weekNumber, [...(byWeek.get(task.weekNumber) ?? []), task]);
+  const weeks = [{ weekNumber: finishedWeek, tasks: baseTasks(finishedTasks) }];
+  for (const weekNumber of [...byWeek.keys()].sort((a, b) => b - a)) weeks.push({ weekNumber, tasks: baseTasks(byWeek.get(weekNumber) ?? []) });
+  const percent = awayDays >= LONG_BREAK_DAYS ? FIRST_WEEK_BACK_LONG_BREAK_PERCENT : 100;
+  return firstWeekBackBaseOf(weeks, running, codeMadeTestStep, percent);
+}
+
+function baseTasks(tasks: DailyTask[]): BaseTask[] {
+  return tasks.map((task) => ({
     id: task.id,
     date: task.date,
     status: task.status,
@@ -289,7 +316,6 @@ function baseWeekFrom(tasks: DailyTask[], running: boolean): BaseWeek {
     steps: parseStoredSteps(task.detailedSteps),
     minimumVersion: task.minimumVersion && typeof task.minimumVersion === 'object' && !Array.isArray(task.minimumVersion) ? (task.minimumVersion as unknown as DetailedStep) : null,
   }));
-  return baseWeekOf(rows, running, codeMadeTestStep);
 }
 
 /** RULE-10 as PSL-12 (2) reads it for older goals: one line when a week whose target was lowered on read is written. */

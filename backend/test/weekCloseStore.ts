@@ -24,6 +24,7 @@ function matches(row: Row, where: Row = {}): boolean {
     if (cond !== null && typeof cond === 'object' && !(cond instanceof Date)) {
       if ('not' in cond) return row[key] !== cond.not && !(cond.not !== null && row[key] === null);
       if ('in' in cond) return (cond.in as unknown[]).includes(row[key]);
+      if ('lt' in cond) return row[key] < cond.lt;
       return matches(row[key] ?? {}, cond);
     }
     // Prisma reads a field that was never written as null.

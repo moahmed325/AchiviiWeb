@@ -23,7 +23,7 @@ export type ScanRule = 'deficit_over_600' | 'over_80_percent_1rm' | 'rir_below_3
  * known, so the running total is not checked) and `run_minutes_over_step` (a step's `runMinutes` above its minutes,
  * counted as written).
  */
-export type SafetyRule = ScanRule | WeekLoadRule | 'target_step' | 'unknown_family' | 'no_start' | 'load_missing' | 'no_base' | 'run_minutes_over_step';
+export type SafetyRule = ScanRule | WeekLoadRule | 'target_step' | 'unknown_family' | 'no_start' | 'load_missing' | 'no_base' | 'run_minutes_over_step' | 'first_week_back_base';
 
 /**
  * Weekly update M1.5b (WU-41): how a week is scanned. `light`: a first week back of a high-load goal, whose test is a

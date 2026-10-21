@@ -61,7 +61,9 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
 - On a physical goal (a load goal) code holds the week to numbers (plan-safety-limits M2.2a, RULE-5): the week's
   running total against the base week (last week planned, or done when under 70% was done) plus 10% or 10 minutes /
   1 km, the longest run, at most 2 hard runs, and each step's deficit, intake and (weeks 1 to 3) lifting load
-  (`backend/src/lib/safety/weekLoad.ts`). A breach is a retry reason; a second one fails the week.
+  (`backend/src/lib/safety/weekLoad.ts`). A breach is a retry reason; a second one fails the week. A first week back
+  after a break (M2.2b, RULE-7) is held instead to the newest week with done running, by what was done, with no
+  allowance, half of it after 21 days or more away, never below 30 minutes / 5 km.
 - If the week call fails twice, nothing is saved and the user is asked to retry.
 
 ### Weekly update
