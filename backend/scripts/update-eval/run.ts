@@ -5,6 +5,7 @@
  *   npx tsx scripts/update-eval/run.ts roadmaps [--only id,id]   live roadmaps -> roadmaps.json
  *   npx tsx scripts/update-eval/run.ts weeks [--only id,id]      each case's closing week, written live -> weeks.json
  *   npx tsx scripts/update-eval/run.ts update --run 1 [--only id,id]   the real planWeeklyUpdate -> run-1.json
+ *   npx tsx scripts/update-eval/run.ts update --dry                 same path, no model call (key blanked) -> run-dry.json
  *   npx tsx scripts/update-eval/run.ts score                     no model calls -> score.json
  *
  * The order is the milestone's: goals and roadmaps, the cases and their weeks, the expected answers (expected.json),
@@ -44,7 +45,11 @@ if (!COMMANDS.includes(command)) {
   console.error(`Usage: npx tsx scripts/update-eval/run.ts ${COMMANDS.join(' | ')}`);
   process.exit(1);
 }
-if (command !== 'score' && !process.env.GEMINI_API_KEY) {
+// `update --dry`: the same path with the key blanked inside this process, so every model call misses and the update
+// falls back; it checks the stand-in and the recording without spending a call (written to run-dry.json).
+const dry = command === 'update' && process.argv.includes('--dry');
+if (dry) delete process.env.GEMINI_API_KEY;
+if (command !== 'score' && !dry && !process.env.GEMINI_API_KEY) {
   console.error('No GEMINI_API_KEY in backend/.env: this command makes live Gemini calls, so nothing was run.');
   process.exit(1);
 }
@@ -241,7 +246,7 @@ async function update(goals: EvalGoal[]): Promise<void> {
     process.exit(1);
   }
   const run = Number(flag('--run'));
-  if (!Number.isInteger(run) || run < 1) {
+  if (!dry && (!Number.isInteger(run) || run < 1)) {
     console.error('Give the run number: update --run 1');
     process.exit(1);
   }
@@ -273,7 +278,7 @@ async function update(goals: EvalGoal[]): Promise<void> {
 
   const entries = readJson<RoadmapEntry[]>('roadmaps.json');
   const weekEntries = readJson<WeekEntry[]>('weeks.json');
-  const name = `run-${run}.json`;
+  const name = dry ? 'run-dry.json' : `run-${run}.json`;
   const results = readOr<CaseRun[]>(name, []);
   for (const c of loadCases()) {
     if (only.length && !only.includes(c.id)) continue;
@@ -309,6 +314,52 @@ async function update(goals: EvalGoal[]): Promise<void> {
   console.log(`Model calls this run: ${recorder.total()}`);
 }
 
+const RUNS = [1, 2];
+
+async function score(goals: EvalGoal[]): Promise<void> {
+  const { factsOf } = await import('./facts.js');
+  const { scoreRun } = await import('./score.js');
+  const { sentenceReason } = await import('../../src/lib/ai/weeklyUpdate.js');
+  type Facts = Awaited<ReturnType<typeof factsOf>>;
+  const entries = readJson<RoadmapEntry[]>('roadmaps.json');
+  const weekEntries = readJson<WeekEntry[]>('weeks.json');
+  const cases = loadCases();
+  const expected = readJson<import('./score.js').Expected[]>('expected.json');
+  const tags = readOr<import('./score.js').WordingTag[]>('wording-tags.json', []);
+  const byRun = new Map<number, Facts[]>();
+  for (const run of RUNS) {
+    const recorded = readOr<import('./facts.js').RecordedCase[]>(`run-${run}.json`, []);
+    byRun.set(
+      run,
+      recorded.map((item) => {
+        const c = cases.find((row) => row.id === item.caseId)!;
+        return factsOf(item, c, entryFor(entries, c.goalId), weekEntries.find((row) => row.caseId === c.id)!, goals.find((goal) => goal.id === c.goalId)!.rawGoal);
+      })
+    );
+  }
+  const scores: Record<string, unknown> = {};
+  for (const run of RUNS) scores[`run-${run}`] = scoreRun(byRun.get(run)!, expected, tags.filter((tag) => tag.run === run), sentenceReason);
+  scores.both = scoreRun([...byRun.values()].flat(), expected, tags, sentenceReason);
+  writeJson('score.json', { scores, facts: Object.fromEntries([...byRun.entries()].map(([run, list]) => [`run-${run}`, list])) });
+
+  for (const [name, value] of Object.entries(scores)) {
+    const s = value as ReturnType<typeof scoreRun>;
+    console.log(`\n== ${name} (${s.cases} cases)`);
+    console.log(`outcomes: ${JSON.stringify(s.outcomes)}`);
+    console.log(`reasons, first attempts: ${s.reasons.first.map((r) => `${r.key} ${r.count}`).join(', ') || 'none'}`);
+    console.log(`reasons, retries: ${s.reasons.retry.map((r) => `${r.key} ${r.count}`).join(', ') || 'none'}`);
+    console.log(`lowered: ${s.safety.loweredCases.map((r) => `${r.caseId} [${r.weeks.join(',')}]`).join('; ') || 'none'}`);
+    console.log(`above safeMax: ${s.safety.aboveSafeMax.above} of ${s.safety.aboveSafeMax.answers} answers; climb breaks: ${JSON.stringify(s.safety.climbBreaks)}; week 12 not kept: ${s.safety.week12NotKept.join(', ') || 'none'}`);
+    console.log(`sentence fails: ${JSON.stringify(s.wording.sentenceFails)}; status words: ${JSON.stringify(s.wording.statusWords)}`);
+    console.log(`wording tags: ${s.wording.matchesTarget} of ${s.wording.tagged} match the target; week-behind holds ${s.wording.weekBehindHolds}, names the kind ${s.wording.namesKind}`);
+    const a = s.agreement;
+    console.log(`agreement of ${a.of}: status ${a.status}, direction ${a.direction}, holds ${a.holds}, lowering ${a.lowering}, week 12 ${a.week12}`);
+    console.log(`disagreements: ${a.disagreements.map((d) => `${d.caseId} (${d.fields.join(',')})`).join('; ') || 'none'}`);
+    console.log(`stand-in: detail null ${s.standIn.detailNull.length} ${s.standIn.detailNull.join(',')}; unanswered calls ${s.standIn.misses}`);
+    console.log(`time: median ${s.time.medianMs} ms, slowest ${s.time.slowestMs} ms (${s.time.slowestCase}); retried ${s.time.retryCases}; retry share of time ${(100 * s.time.retryTimeShare).toFixed(1)}%`);
+  }
+}
+
 async function main(): Promise<void> {
   const goals = loadGoals();
   const problems = goalSetProblems(goals);
@@ -319,6 +370,7 @@ async function main(): Promise<void> {
   if (command === 'roadmaps') await roadmaps(goals);
   if (command === 'weeks') await weeks(goals);
   if (command === 'update') await update(goals);
+  if (command === 'score') await score(goals);
 }
 
 main().then(
