@@ -56,3 +56,15 @@ export const EARLY_WEEK_MIN_RIR = 3;
 
 /** Base week: last week's planned total, or what was done when under 70% of it was done. */
 export const BASE_WEEK_DONE_PERCENT = 70;
+
+/**
+ * PSL-18 (RULE-7): the first week back after a break runs at most the last done week's running total, with no
+ * allowance, and never less than 30 minutes, or 5 km when the week is compared in km (PSL-15 (7)'s numbers).
+ */
+export const FIRST_WEEK_BACK_MIN_MINUTES = 30;
+export const FIRST_WEEK_BACK_MIN_KM = 5;
+/**
+ * PSL-18 (6): after a break of 21 days or more, at most this share of that total, never below the floor. A stopgap:
+ * weekly-update M3.4's restart level replaces it.
+ */
+export const FIRST_WEEK_BACK_LONG_BREAK_PERCENT = 50;

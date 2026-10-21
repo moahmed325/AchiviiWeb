@@ -7,6 +7,8 @@ import { getZonedDateString, normalizeTimezone } from '../timezone.js';
 import { phaseGate, readRoutine, readStoredRoadmap, saveWeekTasks, weekStartFor, writeNextWeek } from '../planV2.js';
 import { ensureRecoveryProfile } from '../recovery/store.js';
 import { methodRecoveryEnabled } from '../recovery/switch.js';
+import { loadGoalFor } from '../safety/stepLoad.js';
+import type { WeekTarget } from '../ai/roadmap.js';
 import { weekCloseEnabled } from './switch.js';
 import {
   BREAK_FROM_GAP_DAYS,
@@ -195,6 +197,13 @@ export async function writeWeekAfter(
       console.warn('[GoalRouter] Could not read the week before for the handoff:', err);
     }
   }
+  // Plan safety limits M2.2b (RULE-7, PSL-11 Q13, PSL-18 (3), (7)): a load goal's first week back is held to the newest
+  // week with done running, so the weeks before this one are read (one query). Not caught: a failed read fails the close.
+  const nextTarget = goal.roadmapWeeks.find((week) => week.weekNumber === (move?.weekBack ?? weekNumber + 1))?.target;
+  const olderWeeks =
+    back && nextTarget && loadGoalFor(goal, nextTarget as unknown as WeekTarget)
+      ? await prisma.dailyTask.findMany({ where: { goalId: goal.id, weekNumber: { lt: weekNumber } }, orderBy: [{ weekNumber: 'desc' }, { dayNumber: 'asc' }] })
+      : null;
   // WU-26: the week is dated from the moved start, so it starts on the day they came back (or as near as the limit allows).
   const writerGoal = move && move.days > 0 ? { ...goal, startDate: move.startDate } : goal;
   const written = await writeNextWeek(
@@ -205,7 +214,11 @@ export async function writeWeekAfter(
     recovery,
     weekBefore,
     // M1.5b: after a jump the week written is the first week back, not the week after this one.
-    { ...(back ? { firstWeekBack: back } : {}), ...(move && move.weekBack !== weekNumber + 1 ? { weekNumber: move.weekBack } : {}) }
+    {
+      ...(back ? { firstWeekBack: back } : {}),
+      ...(move && move.weekBack !== weekNumber + 1 ? { weekNumber: move.weekBack } : {}),
+      ...(olderWeeks ? { olderWeeks } : {}),
+    }
   );
   return written ? { written, move } : null;
 }

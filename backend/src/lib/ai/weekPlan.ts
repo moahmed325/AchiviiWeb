@@ -20,8 +20,11 @@ import {
 } from '../safety/limits.js';
 import {
   TEST_STEP_TITLE,
+  firstWeekBackLimit,
+  firstWeekBackSummary,
   runOf,
   runningLimit,
+  shareOf,
   shown,
   shownLimit,
   stepLoadBreaches,
@@ -165,6 +168,7 @@ export interface WeekCallInput {
    * Plan safety limits M2.2a (RULE-5, B-64, PSL-15 (1)): the base week the running total is held to, given only on a
    * load goal for a week that has one (`baseWeekOf` over the closing week). `known: false` is no base: the running total
    * is not checked and `no_base` is logged once. Not given (week 1): no base, nothing logged. Every other limit applies.
+   * M2.2b: on a first week back it is `firstWeekBackBaseOf`'s (`firstWeekBack` set), logged once as `first_week_back_base`.
    */
   baseWeek?: BaseWeek;
 }
@@ -324,16 +328,19 @@ function safetyLimitsBlock(input: WeekCallInput): string {
  * M2.2a (PSL-11 Q17, PSL-15 (3), (7)): the running total's limit in the unit it is compared in (a km base week is
  * compared in minutes when any run of this week is not in km), and the longest-run rule. No base: the fixed cap.
  * PSL-16: after a base of 0 runs, no running total, and every run held to the fixed cap.
+ * M2.2b (PSL-18): a first week back names its limit (no allowance, the floor, half after a long break); its unknown base
+ * gets the 0-run base's lines.
  */
 export function runningLines(base: BaseWeek | undefined): string[] {
   const longest = `- Longest run: at most ${LONGEST_RUN_MAX_PERCENT}% of the week's running when there are ${LONGEST_RUN_MIN_RUNS} or more runs.`;
   const cap = `${LONGEST_RUN_NO_BASE_MAX_MINUTES} minutes (${LONGEST_RUN_NO_BASE_MAX_KM} km when every run is given in km)`;
+  const zeroLines = ['- Running: last week had no running; keep it at their level.', longest, `- No run longer than ${cap}.`];
   if (!base?.known) {
+    if (base?.firstWeekBack) return zeroLines;
     return ['- Running: there is no last week to count from; keep it at their level.', longest, `- With fewer than ${LONGEST_RUN_MIN_RUNS} runs, no run longer than ${cap}.`];
   }
-  if (base.runs === 0) {
-    return ['- Running: last week had no running; keep it at their level.', longest, `- No run longer than ${cap}.`];
-  }
+  if (base.runs === 0) return zeroLines;
+  if (base.firstWeekBack) return [...firstWeekBackLines({ ...base, firstWeekBack: base.firstWeekBack }), longest];
   const minutes = runningLimit(base, 'minutes');
   if (base.unit === 'minutes') {
     const most = shownLimit(minutes.limit, 'minutes');
@@ -347,6 +354,22 @@ export function runningLines(base: BaseWeek | undefined): string[] {
     `- Running: at most ${shownLimit(km.limit, 'km')} km this week in all when every run is given in km, otherwise at most ${shownLimit(minutes.limit, 'minutes')} minutes (last week ${shown(base.total)} km, ${shown(base.totalMinutes)} minutes). Add up the runKm of every run before you answer; the total must be at most ${shownLimit(km.limit, 'km')} km (or the runMinutes, at most ${shownLimit(minutes.limit, 'minutes')} minutes, when any run is not given in km).`,
     longest,
   ];
+}
+
+/**
+ * M2.2b (RULE-7, PSL-11 Q17, PSL-18): a first week back's running line, in the base's unit, then the add-up line M2.2a's
+ * running line ends with (a km base also gives the limit in minutes, for a week with a run not given in km).
+ */
+function firstWeekBackLines(base: Parameters<typeof firstWeekBackLimit>[0]): string[] {
+  const back = base.firstWeekBack;
+  const limit = firstWeekBackLimit(base, base.unit);
+  const most = shownLimit(limit.limit, base.unit);
+  const long = back.percent < 100;
+  const what = long ? `, ${shareOf(back.percent)} of what they last completed (week ${back.fromWeek})` : `, what they last completed (week ${back.fromWeek})`;
+  const head = `- Running: first week back${long ? ' after a long break' : ''}; at most ${most} ${base.unit} in total${limit.byFloor ? '' : what}.`;
+  if (base.unit === 'minutes') return [head, `- Add up the runMinutes of every run before you answer; the total must be at most ${most} minutes.`];
+  const minutes = shownLimit(firstWeekBackLimit(base, 'minutes').limit, 'minutes');
+  return [head, `- Add up the runKm of every run before you answer; the total must be at most ${most} km (or the runMinutes, at most ${minutes} minutes, when any run is not given in km).`];
 }
 
 /**
@@ -1170,6 +1193,11 @@ export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPla
   // M2.2a review: only where running is expected, or a run step of the base week had no load.
   if (input.loadGoal && input.baseWeek && !input.baseWeek.known && (input.loadGoal.running || input.baseWeek.runWithoutLoad)) {
     logSafetyHit({ goalId: input.goalId ?? null, week: input.weekNumber, rule: 'no_base', step: 'This week', matched: 'last week running not known', outcome: 'logged' });
+  }
+  // M2.2b (RULE-10): a first week back's base, once per week call.
+  const back = input.loadGoal ? input.baseWeek : undefined;
+  if (back?.firstWeekBack) {
+    logSafetyHit({ goalId: input.goalId ?? null, week: input.weekNumber, rule: 'first_week_back_base', step: 'This week', ...firstWeekBackSummary({ ...back, firstWeekBack: back.firstWeekBack }), outcome: 'logged' });
   }
   // M2.2a follow-up: attempt 1's answer, for the first-answer fallback.
   let first: RawWeekAnswer | null = null;

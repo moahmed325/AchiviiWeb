@@ -15,6 +15,8 @@ import {
   EARLY_WEEK_MAX_1RM_PERCENT,
   EARLY_WEEK_MIN_RIR,
   EARLY_WEEKS,
+  FIRST_WEEK_BACK_MIN_KM,
+  FIRST_WEEK_BACK_MIN_MINUTES,
   HARD_RUNS_MAX,
   LONGEST_RUN_MAX_PERCENT,
   LONGEST_RUN_MIN_RUNS,
@@ -110,9 +112,21 @@ export function weekRunning(runs: Run[]): WeekRunning {
 /**
  * What a later week's running total is held to. `known: false`: some run of the base week, planned or done, has no
  * running number (`runWithoutLoad`), or the week was written before M2.1, so there is no base: never 0 (PSL-15 (1)).
- * A known base of 0 runs is held like week 1 (PSL-16).
+ * A known base of 0 runs is held like week 1 (PSL-16). `firstWeekBack` (M2.2b): the base of a first week back
+ * (`firstWeekBackBaseOf`); a known one holds the total with no allowance, an unknown one is held like a 0-run base.
  */
-export type BaseWeek = { known: true; unit: RunUnit; total: number; totalMinutes: number; runs: number } | { known: false; runWithoutLoad: boolean };
+export type BaseWeek =
+  | { known: true; unit: RunUnit; total: number; totalMinutes: number; runs: number; firstWeekBack?: FirstWeekBackBase }
+  | { known: false; runWithoutLoad: boolean; firstWeekBack?: FirstWeekBackBase };
+
+/**
+ * M2.2b (RULE-7, PSL-18): the week a first week back was counted from (null: no week with done running) and the share of
+ * its done total allowed (100, or `FIRST_WEEK_BACK_LONG_BREAK_PERCENT` after a long break).
+ */
+export interface FirstWeekBackBase {
+  fromWeek: number | null;
+  percent: number;
+}
 
 /** The stored fields of one day of the base week that its count reads. */
 export interface BaseTask {
@@ -156,6 +170,40 @@ export function baseWeekOf(tasks: readonly BaseTask[], running: boolean, codeMad
   const doneAmount = sameUnit ? done.running.total : done.running.totalMinutes;
   const base = doneAmount < (plannedAmount * BASE_WEEK_DONE_PERCENT) / 100 ? done.running : planned.running;
   return { known: true, unit: base.unit, total: base.total, totalMinutes: base.totalMinutes, runs: base.runs.length };
+}
+
+/** One week's stored days, for the first-week-back walk. */
+export interface DoneWeek {
+  weekNumber: number;
+  tasks: readonly BaseTask[];
+}
+
+/**
+ * M2.2b (PSL-18 (3)): a week's done running only (completed, offered days, M2.2a's done rules; no 70% rule). `unknown`:
+ * a done run with no running number, or done days in a week written before M2.1 (no load on any step, PSL-16 (3)).
+ */
+export function doneRunningOf(tasks: readonly BaseTask[], running: boolean, codeMade: (step: DetailedStep) => CodeMadeTest): BaseCount & { runWithoutLoad: boolean } {
+  const offered = tasks.filter((task) => !task.notOffered);
+  const done = offered.filter((task) => task.status === 'completed');
+  const count = countDays(done, true, running, codeMade);
+  const beforeLoad = done.length > 0 && !offered.some((task) => task.steps.some((step) => step.load) || task.minimumVersion?.load);
+  return { ...count, unknown: count.unknown || beforeLoad, runWithoutLoad: count.unknown };
+}
+
+/**
+ * M2.2b (RULE-7, PSL-18 (3), (5)): the base of a first week back. `weeks` newest first, from the closing week back to
+ * week 1: a week with no done running is passed over (a jumped week has no rows); the first week with an unknown done
+ * run stops the walk at an unknown base; the first with done running above 0 is the base; none is a known 0-run base.
+ */
+export function firstWeekBackBaseOf(weeks: readonly DoneWeek[], running: boolean, codeMade: (step: DetailedStep) => CodeMadeTest, percent: number): BaseWeek {
+  for (const week of weeks) {
+    const done = doneRunningOf(week.tasks, running, codeMade);
+    const firstWeekBack = { fromWeek: week.weekNumber, percent };
+    if (done.unknown) return { known: false, runWithoutLoad: done.runWithoutLoad, firstWeekBack };
+    const { unit, total, totalMinutes, runs } = done.running;
+    if (total > 0 || totalMinutes > 0) return { known: true, unit, total, totalMinutes, runs: runs.length, firstWeekBack };
+  }
+  return { known: true, unit: 'minutes', total: 0, totalMinutes: 0, runs: 0, firstWeekBack: { fromWeek: null, percent } };
 }
 
 function countDays(tasks: readonly BaseTask[], asDone: boolean, running: boolean, codeMade: (step: DetailedStep) => CodeMadeTest): BaseCount {
@@ -238,6 +286,39 @@ export function runningLimit(base: Extract<BaseWeek, { known: true }>, unit: Run
   return { base: baseAmount, allowance, byPercent: percent > least, limit: baseAmount + allowance };
 }
 
+/**
+ * M2.2b (RULE-7, PSL-18 (1), (2), (6)): a first week back's running-total limit in the compared unit: the base's done
+ * total times its share, with no allowance, and never below the floor.
+ */
+export function firstWeekBackLimit(
+  base: Extract<BaseWeek, { known: true }> & { firstWeekBack: FirstWeekBackBase },
+  unit: RunUnit
+): { base: number; share: number; floor: number; byFloor: boolean; limit: number } {
+  const baseAmount = unit === base.unit ? base.total : base.totalMinutes;
+  const share = (baseAmount * base.firstWeekBack.percent) / 100;
+  const floor = unit === 'km' ? FIRST_WEEK_BACK_MIN_KM : FIRST_WEEK_BACK_MIN_MINUTES;
+  return { base: baseAmount, share, floor, byFloor: floor > share, limit: Math.max(share, floor) };
+}
+
+/** "half" for 50%, else the percent: how a first week back's share is told. */
+export const shareOf = (percent: number) => (percent === 50 ? 'half' : `${percent}%`);
+
+/**
+ * M2.2b (RULE-10): the `first_week_back_base` log line's words and numbers: the week read and its total (or `none` /
+ * `unknown`), the share used and the limit in the base's unit (`none` when it is held like a 0-run base).
+ */
+export function firstWeekBackSummary(base: BaseWeek & { firstWeekBack: FirstWeekBackBase }): { matched: string; value?: number; limit?: number } {
+  const { fromWeek, percent } = base.firstWeekBack;
+  if (!base.known) return { matched: `week ${fromWeek} total unknown, share ${percent}, limit none (held like no running)` };
+  if (base.runs === 0) return { matched: `week none, share ${percent}, limit none (held like no running)` };
+  const limit = firstWeekBackLimit({ ...base, firstWeekBack: base.firstWeekBack }, base.unit);
+  return {
+    matched: `week ${fromWeek} total ${withUnit(shown(base.total), base.unit)}, share ${percent}, limit ${withUnit(shownLimit(limit.limit, base.unit), base.unit)}`,
+    value: base.total,
+    limit: limit.limit,
+  };
+}
+
 /** The unit two weeks are compared in: the same unit, or minutes; a base of 0 runs takes this week's unit. */
 export function comparedUnit(base: Extract<BaseWeek, { known: true }>, week: Pick<WeekRunning, 'unit'>): RunUnit {
   return base.runs === 0 || base.unit === week.unit ? week.unit : 'minutes';
@@ -246,12 +327,32 @@ export function comparedUnit(base: Extract<BaseWeek, { known: true }>, week: Pic
 /**
  * Running total, longest run and hard runs. `base` undefined or not known: no running-total check. PSL-16: a known base
  * of 0 runs is held like week 1 (no running-total check), and every run is held to the fixed cap whatever their number.
+ * M2.2b (PSL-18): a first week back's known base holds the total to `firstWeekBackLimit`; its unknown base is held like a
+ * 0-run base (PSL-18 (5)).
  */
 export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Array<LoadBreach & { run?: Run }> {
   const breaches: Array<LoadBreach & { run?: Run }> = [];
   const known = base?.known ? base : null;
-  const zeroBase = known !== null && known.runs === 0;
-  if (known && !zeroBase) {
+  const zeroBase = (known !== null && known.runs === 0) || (base?.known === false && base.firstWeekBack !== undefined);
+  if (known?.firstWeekBack && !zeroBase) {
+    const back = known.firstWeekBack;
+    const unit = comparedUnit(known, week);
+    const amount = unit === week.unit ? week.total : week.totalMinutes;
+    const limit = firstWeekBackLimit({ ...known, firstWeekBack: back }, unit);
+    if (over(amount, limit.limit)) {
+      const most = shownLimit(limit.limit, unit);
+      const what = back.percent < 100 ? `${shareOf(back.percent)} of what they last did, week ${back.fromWeek}` : `what they last did, week ${back.fromWeek}`;
+      const why = back.percent < 100 ? `${what}: ${shown(limit.base)}` : what;
+      const floored = back.percent < 100 ? `${what}: ${shown(limit.base)}, is ${shown(limit.share)}; never below ${most}` : `${what}, was ${shown(limit.base)}; never below ${most}`;
+      breaches.push({
+        rule: 'running_total_over_limit',
+        value: amount,
+        limit: limit.limit,
+        matched: `running ${withUnit(shown(amount), unit)}, limit ${withUnit(most, unit)}`,
+        text: `This week's running is ${withUnit(shown(amount), unit)}; the most allowed is ${most} (${limit.byFloor ? floored : why}).`,
+      });
+    }
+  } else if (known && !zeroBase) {
     const unit = comparedUnit(known, week);
     const amount = unit === week.unit ? week.total : week.totalMinutes;
     const limit = runningLimit(known, unit);
