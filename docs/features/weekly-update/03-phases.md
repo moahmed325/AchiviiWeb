@@ -21,7 +21,7 @@
 | M3.2 | Eval of the update call on recorded weeks | AC-2, AC-3, AC-8 (measured) | DONE 2026-10-22 | [m3.2](milestones/m3.2-eval.md) |
 | M3.2b | Fixes from the eval (WU-48 to WU-51, the safe-step line without the metric label), then one rerun of the 24 cases | AC-2, AC-3, AC-8 (measured) | DONE 2026-10-22 | [m3.2b](milestones/m3.2b-eval-fixes.md) |
 | M3.3a | Server: the update in the automatic close with a time limit; the re-test (unlogged test, two hard weeks); deliverable schema; WU-51 line (WU-52 to WU-56) | AC-1, AC-4 (server), AC-5 (re-test) | DONE 2026-10-22 | [m3.3a](milestones/m3.3a-update-in-auto-close.md) |
-| M3.3b | App: Today's "Test not logged" and "Two hard weeks" lines, the re-test's result entry, the daily-time card | AC-4 (Today), AC-5 (daily time) | READY | [m3.3b](milestones/m3.3b-app-retest-daily-time.md) |
+| M3.3b | App: Today's "Test not logged" and "Two hard weeks" lines, the re-test's result entry, the daily-time card | AC-4 (Today), AC-5 (daily time) | DONE 2026-10-22 | [m3.3b](milestones/m3.3b-app-retest-daily-time.md) |
 | M3.4 | Break restart | AC-9, AC-10, AC-18 | NOT STARTED | |
 | M4.1 | Copy and acceptance | AC-14, AC-19, all | NOT STARTED | |
 | O2 | Mo: turn on `WEEKLY_UPDATE_ENABLED` in Render | — | BLOCKED (the `checkpoints` feature must ship first, WU-23) | |
@@ -92,7 +92,7 @@
 
 ### P4 Close
 
-**M4.1 Copy and acceptance.** Every line in section 6, the kind names in the sentence (WU-11), the fallback's hold line (WU-48, M3.2b writes a working one), WU-23's week-12 line saying when next week is also held (M3.2 eval: `run-weekly-w10`), every acceptance criterion in the three switch states, e2e, and the docs (`docs/architecture/plan-v2.md`, `CLAUDE.md`).
+**M4.1 Copy and acceptance.** Every line in section 6, the kind names in the sentence (WU-11), the fallback's hold line (WU-48, M3.2b writes a working one), WU-23's week-12 line saying when next week is also held (M3.2 eval: `run-weekly-w10`), every acceptance criterion in the three switch states, e2e, and the docs (`docs/architecture/plan-v2.md`, `CLAUDE.md`). From M3.3b's review: the daily-time card shows on every day of the open week until answered, rest days included; decide its placement here.
 
 ## 6. Risks
 
