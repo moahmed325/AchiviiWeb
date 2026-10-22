@@ -54,10 +54,11 @@ describe('code-written lines pass the copy check (M4.1a requirement 2)', () => {
 });
 
 describe('kind names in the sentence (M4.1a requirement 5, WU-61 (5), WU-11)', () => {
-  const names = [...new Set(Object.values(RECOVERY_TEMPLATES).flatMap((profile) => profile.kinds.map((kind) => kind.name)))];
+  // Only in-order kinds reach the sentence (`kindsOf`, from the handoff).
+  const names = [...new Set(Object.values(RECOVERY_TEMPLATES).flatMap((profile) => profile.kinds.filter((kind) => kind.inOrder).map((kind) => kind.name)))];
 
-  it('every kind name of every template reads as a plain word in "catch up on {name}"', () => {
-    expect(names.length).toBeGreaterThan(40);
+  it('every in-order kind name of every template reads as a plain word in "catch up on {name}"', () => {
+    expect(names.length).toBeGreaterThan(10);
     for (const name of names) {
       const sentence = `Next week keeps this week's target, so you can catch up on ${kindWord(name)}.`;
       expect(sentenceReason(sentence), name).toBeNull();
@@ -68,57 +69,19 @@ describe('kind names in the sentence (M4.1a requirement 5, WU-61 (5), WU-11)', (
   it('the full list, name to what the sentence says', () => {
     expect(Object.fromEntries(names.map((name) => [name, kindWord(name)]))).toMatchInlineSnapshot(`
       {
-        "Build work": "build work",
-        "Catch-all": "other work",
-        "Conditioning": "conditioning",
-        "Conversation or listening practice": "conversation or listening practice",
-        "Customer conversations and outreach": "customer conversations and outreach",
-        "Daily distribution sprint": "daily distribution sprints",
-        "Daily focus block": "daily focus blocks",
-        "Daily speaking": "daily speaking",
-        "Drafting": "drafting",
-        "Easy session": "easy sessions",
         "Editing": "editing",
         "Filming": "filming",
-        "Fixed-time session": "fixed-time sessions",
-        "Fundamentals drill": "fundamentals drills",
         "Launch or shipping step": "launch or shipping steps",
-        "Learning": "learning",
-        "Learning and analytics": "learning and analytics",
-        "Long session": "long sessions",
-        "Mobility": "mobility",
-        "Mock exam": "mock exams",
         "New material": "new material",
         "New piece or section": "new pieces or sections",
         "New topic": "new topics",
-        "Nutrition and tracking": "nutrition and tracking",
         "Opening or theory study": "opening or theory study",
         "Outlining and planning": "outlining and planning",
-        "Play-through or recording": "play-throughs or recordings",
-        "Played game with its review": "played games and their reviews",
-        "Practice questions": "practice questions",
-        "Practice session": "practice sessions",
-        "Project piece": "your project piece",
-        "Project work": "project work",
         "Publishing": "publishing",
-        "Quality session": "quality sessions",
-        "Reading and research": "reading and research",
-        "Recorded run-through": "recorded run-throughs",
-        "Rehearsal": "rehearsal",
         "Research and scripting": "research and scripting",
-        "Review": "review",
-        "Review or reflection": "review or reflection",
-        "Revising": "revising",
         "Script and structure": "script and structure",
-        "Strength and mobility": "strength and mobility",
         "Strength workout": "strength workouts",
-        "Study or copy work": "study or copy work",
-        "Tactics puzzles": "tactics puzzles",
-        "Technique drills": "technique drills",
         "Titles and thumbnails": "titles and thumbnails",
-        "Voice and delivery drills": "voice and delivery drills",
-        "Weekly planning or review": "weekly planning or review",
-        "Weekly test": "weekly tests",
       }
     `);
   });

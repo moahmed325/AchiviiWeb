@@ -544,6 +544,18 @@ describe('in-order kinds (WU-11, AC-15), with METHOD_RECOVERY_ENABLED on', () =>
     expect(updatePrompt()).toContain('("...so you can catch up on strength workouts")');
   });
 
+  it('a name that fails the copy check is left out of the sentence (RULE-7)', async () => {
+    seed(3, { kind: 'strength_workout', done: 0 });
+    const profile = structuredClone(RECOVERY_TEMPLATES.strength);
+    profile.kinds = profile.kinds.map((kind) => (kind.id === 'strength_workout' ? { ...kind, name: 'Missed lifts' } : kind));
+    db.goal().roadmap.recovery = profile;
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(4, 12), [12, ...RAISED.slice(1)], { messageToUser: 'Next week keeps the same distance, so you can catch up.' }) as never);
+    expect((await review(3, { reflection: '', testResult: { value: 12, unit: 'km', passed: true } })).status).toBe(200);
+    expect(updatePrompt()).not.toContain('missed lifts');
+    expect(updatePrompt()).toMatch(/- one kind of step: at "[^"]+", 4 steps still to do/);
+    expect(updatePrompt()).toContain('without naming it ("...so you can catch up")');
+  });
+
   it('with the method switch off nothing is held for this reason', async () => {
     vi.stubEnv('METHOD_RECOVERY_ENABLED', '');
     seed(3, { kind: 'new_material', done: 0 });
@@ -686,6 +698,17 @@ describe('M3.2b: a fallback keeps the holds code can see (WU-48)', () => {
     expect(db.week(10).updateStatus ?? null).toBeNull();
     expect(updateLines()[0]).toContain('outcome fallback held not_logged');
     expect(safeGoalTargets({ ...db.goal(), roadmapWeeks: db.state.weeks })?.week12Line).toEqual({ safe: '22 km', goal: '24 km' });
+  });
+
+  it('next week held at the same amount under its own metric label still says it stays (WU-61 (3), WU-50)', async () => {
+    const targets = Array.from({ length: 12 }, (_, i) => km([11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24][i]));
+    targets[10] = { ...targets[10], metric: 'Running distance per week' } as WeekTarget;
+    seed(10, { targets, rawGoal: 'Build my weekly running distance to 24 km', done: 2 });
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer([11, 12], [20, 24], { status: 'far_behind', messageToUser: 'Next week keeps the same distance.' }) as never);
+    expect((await review(10, { reflection: '', testResult: { value: 20, unit: 'km', passed: true } })).status).toBe(200);
+    expect(values(11, 12)).toEqual([20, 22]);
+    expect((db.week(11).target as WeekTarget & { metric: string }).metric).toBe('Running distance per week');
+    expect(insightOf(10)).toBe('Week 12 aims at 22 km, a safe step. Your 24 km goal is the next step. Next week stays at 20 km.');
   });
 
   it('on a light-test goal it holds the next big week, and the light weeks before it show it', async () => {

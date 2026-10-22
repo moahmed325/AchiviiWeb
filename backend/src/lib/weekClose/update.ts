@@ -19,6 +19,7 @@ import {
   heldWeekOf,
   fallbackRestart,
   nextWeekIsLast,
+  sentenceReason,
   type FallbackHold,
   type UpdateCounts,
   type UpdateHistoryWeek,
@@ -362,29 +363,15 @@ async function weekBeforeOf(goal: ClosingGoal, weekNumber: number): Promise<Dail
 }
 
 /**
- * M4.1a (WU-61 (5), RULE-7): the plain word for a kind name that reads badly in "...so you can catch up on {name}",
- * keyed by the lower-case `name` our templates write. Every other name is used as written, in lower case.
+ * M4.1a (WU-61 (5), RULE-7): the plain word for an in-order kind name (the only kinds `kindsOf` names) that reads badly
+ * in "...so you can catch up on {name}", keyed by the lower-case `name` our templates write. Every other name is used as
+ * written, in lower case.
  */
 const KIND_WORDS: Readonly<Record<string, string>> = {
-  'easy session': 'easy sessions',
-  'quality session': 'quality sessions',
-  'long session': 'long sessions',
   'strength workout': 'strength workouts',
   'new piece or section': 'new pieces or sections',
-  'play-through or recording': 'play-throughs or recordings',
-  'daily distribution sprint': 'daily distribution sprints',
   'launch or shipping step': 'launch or shipping steps',
   'new topic': 'new topics',
-  'mock exam': 'mock exams',
-  'recorded run-through': 'recorded run-throughs',
-  'fundamentals drill': 'fundamentals drills',
-  'project piece': 'your project piece',
-  'daily focus block': 'daily focus blocks',
-  'played game with its review': 'played games and their reviews',
-  'practice session': 'practice sessions',
-  'catch-all': 'other work',
-  'weekly test': 'weekly tests',
-  'fixed-time session': 'fixed-time sessions',
 };
 
 /** A kind's name as the update's sentence says it (WU-11): lower case, or its plain word. */
@@ -410,7 +397,10 @@ function kindsOf(goal: ClosingGoal, weekBefore: DailyTask[] | null): UpdateKind[
       // As the in-order queue reads the week: the test day holds no in-order step (RULE-7).
       const sessions = tasks.filter((task) => !task.isRestDay && !task.isTestDay && task.steps.some((step) => step.kind === kind.kind)).length;
       const stepsBehind = kind.steps.length;
-      return { name: kindWord(kind.name), position: kind.steps[0].title, stepsBehind, sessions, weekBehind: stepsBehind >= sessions && stepsBehind >= 2 };
+      // RULE-7: a name that fails the copy check (one the profile call wrote; ours all pass) is left out of the sentence.
+      const name = kindWord(kind.name);
+      const named = sentenceReason(`...so you can catch up on ${name}.`) === null;
+      return { name: named ? name : 'one kind of step', named, position: kind.steps[0].title, stepsBehind, sessions, weekBehind: stepsBehind >= sessions && stepsBehind >= 2 };
     });
 }
 
@@ -625,7 +615,9 @@ async function runUpdate(
     // WU-61 (3): when the week next week shows is held at this week's target, code's sentence says that too.
     const shownWeek = heldWeekOf(input);
     const shown = final.find((week) => week.weekNumber === shownWeek);
-    if (line && shownWeek < TOTAL_WEEKS && shown && sameTarget(target, shown.target)) {
+    // As the fallback's hold reads it (`fallbackHold`): the same amount, whatever the week's metric label or unit.
+    const stays = shown && isWeekTarget(shown.target) && target.kind === 'number' && shown.target.kind === 'number' ? Math.abs(target.value - shown.target.value) < 1e-9 : Boolean(shown && sameTarget(target, shown.target));
+    if (line && shownWeek < TOTAL_WEEKS && shown && stays) {
       insight += ` Next week stays at ${shownAmount(shown.target as unknown as WeekTarget)}.`;
     }
   } else if (nextLowered && lowered.some((item) => item.week === nextWeek)) {
