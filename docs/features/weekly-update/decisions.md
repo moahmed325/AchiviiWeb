@@ -366,6 +366,12 @@ How this log works: `docs/templates/decisions.md`.
 **Why:** the return rule and the safe steps are both the method's answer; a break costs time the plan can't always win back safely.
 **Changes:** none in code (M3.4 behaves this way); M3.4 Review.
 
+### WU-61 — M4.1 is split; the copy pass (2026-10-23)
+**Question:** writing M4.1's prompt: it holds a copy pass, every acceptance criterion in three switch states, e2e and the docs; and the notes left for it (code's own lines, WU-23's line with a hold, lower-is-better wording, kind names, the daily-time card, a line after a break, the review's next target).
+**Decision:** (1) M4.1a is the copy pass and small fixes, M4.1b the acceptance run and docs. (2) Code's own lines join the copy table as they are; "next week" stays on both paths. (3) WU-23's line adds " Next week stays at {amount}." when the week next week shows is held. (4) Prompt 4: a lower-is-better target "gets harder" or "moves to {amount}", never "goes up"; the check is unchanged. (5) Every kind name is checked in a sentence; a bad one gets a plain word from a code map, no stored change. (6) The daily-time card stays on every day until answered. (7) No re-test line after a break. (8) The review's last step shows next week's target every time. (9) `updateStatus` leaves every goal response (B-95, B-98). (10) e2e runs in UTC (B-75). *(Proposed by main - review in M4.1a's prompt.)*
+**Why:** one milestone per kind of work keeps each reviewable; the acceptance run needs e2e at any hour and the status out of the app first.
+**Changes:** `03-phases.md` (M4.1a, M4.1b); M4.1a's prompt; section 6 (M4.1a).
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
