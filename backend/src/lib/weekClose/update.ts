@@ -16,6 +16,7 @@ import { prisma } from '../prisma.js';
 import {
   askWeeklyUpdate,
   fallbackHold,
+  heldWeekOf,
   fallbackRestart,
   nextWeekIsLast,
   type FallbackHold,
@@ -111,15 +112,23 @@ export function week12Sentence(line: { safe: string; goal: string | null }): str
 
 /** WU-46 (3): next week's line when safety lowered next week and not week 12; the amount with no metric label. */
 export function nextWeekSentence(target: WeekTarget): string {
-  const shown = target.kind === 'number' ? `${formatAmount(target.value, target.unit)}${target.direction === 'lower_is_better' ? ' or less' : ''}` : target.description;
-  return `Next week aims at ${shown}, a safe step.`;
+  return `Next week aims at ${shownAmount(target)}, a safe step.`;
+}
+
+/** The amount with no metric label, " or less" for a lower-is-better target; a deliverable's text. */
+function shownAmount(target: WeekTarget): string {
+  return target.kind === 'number' ? `${formatAmount(target.value, target.unit)}${target.direction === 'lower_is_better' ? ' or less' : ''}` : target.description;
 }
 
 /** WU-48: a fallback that kept a hold (M4.1 rewords it). */
 export const FALLBACK_HOLD_INSIGHT = "Next week keeps this week's target.";
 
-/** M3.4 (WU-59 (6)): a fallback after a break that set next week to the restart level (M4.1 rewords it). */
+/**
+ * M3.4 (WU-59 (6)): a fallback after a break that set next week to the restart level (M4.1 rewords it). On a light-test
+ * goal whose next week is a light week, "Week {w} picks up at {level}." names the big week (review fix 2).
+ */
 export const RESTART_FALLBACK_INSIGHT = 'Next week picks up at {level}.';
+export const RESTART_FALLBACK_BIG_WEEK_INSIGHT = 'Week {w} picks up at {level}.';
 
 /**
  * RULE-1, WU-45 (1): both switches on and weeks 1 to 11. M3.4: a break too, but never before the choice a break past the
@@ -127,8 +136,30 @@ export const RESTART_FALLBACK_INSIGHT = 'Next week picks up at {level}.';
  */
 export function updateRuns(goal: ClosingGoal, weekNumber: number, now: Date, timezone?: string | null, choice?: PastLimitChoice | null): boolean {
   if (!weeklyUpdateEnabled() || weekNumber < 1 || weekNumber >= TOTAL_WEEKS) return false;
-  const move = planWeekMove(goal, weekNumber, now, timezone, goal.dailyTasks, choice);
-  return !(move?.choiceNeeded && !move.choice);
+  return runsWith(planWeekMove(goal, weekNumber, now, timezone, goal.dailyTasks, choice));
+}
+
+/** `updateRuns` once the switches and week are checked: never before a choice a break past the limit needs. */
+const runsWith = (move: WeekMove | null) => !(move?.choiceNeeded && !move.choice);
+
+/**
+ * M3.4 review fix 5: the close's move, worked out once, and the goal as the update reads it: the weeks a "Keep going"
+ * jumps read as they will be stored (closed and jumped). `runUpdate` and `retestOf` both read it.
+ */
+interface ClosingRead {
+  move: WeekMove | null;
+  nextWeek: number;
+  jumped: Set<number>;
+  readGoal: ClosingGoal;
+}
+
+const asClosed = <W extends RoadmapWeek>(week: W, jumped: Set<number>): W => (jumped.has(week.weekNumber) ? { ...week, status: 'completed', jumped: true } : week);
+
+function closingRead(goal: ClosingGoal, weekNumber: number, context: { now: Date; timezone?: string | null; choice?: PastLimitChoice | null }): ClosingRead {
+  const move = planWeekMove(goal, weekNumber, context.now, context.timezone, goal.dailyTasks, context.choice);
+  const jumped = new Set(jumpedWeeks(weekNumber, move));
+  const readGoal = jumped.size > 0 ? { ...goal, roadmapWeeks: goal.roadmapWeeks.map((week) => asClosed(week, jumped)) } : goal;
+  return { move, nextWeek: move?.weekBack ?? weekNumber + 1, jumped, readGoal };
 }
 
 const fallback = (reasons: string[], weekBefore: DailyTask[] | null = null): PlannedUpdate => ({
@@ -179,16 +210,18 @@ export async function planWeeklyUpdate(
   weekNumber: number,
   context: { userId: string; reflection: string; now: Date; timezone?: string | null; choice?: PastLimitChoice | null }
 ): Promise<PlannedUpdate | null> {
-  if (!updateRuns(goal, weekNumber, context.now, context.timezone, context.choice)) return null;
+  if (!weeklyUpdateEnabled() || weekNumber < 1 || weekNumber >= TOTAL_WEEKS) return null;
+  const read = closingRead(goal, weekNumber, context);
+  if (!runsWith(read.move)) return null;
   let update: PlannedUpdate;
   try {
-    update = await runUpdate(goal, weekNumber, context);
+    update = await runUpdate(goal, weekNumber, context, read);
   } catch (err) {
     console.error('[WeeklyUpdate] The update failed; targets stay as planned:', err);
     update = fallback(['error']);
   }
   try {
-    update.retest = retestOf(goal, weekNumber, update, context.now, context.timezone, context.choice);
+    update.retest = retestOf(goal, weekNumber, update, read);
   } catch (err) {
     console.error('[WeeklyUpdate] Could not decide the re-test; none this week:', err);
   }
@@ -206,13 +239,12 @@ export async function planWeeklyUpdate(
  * the closing week's measured test, on the first week back (`weekBack`, its layout and dates). A break's update stores no
  * status, so two hard weeks never come from it (WU-18). On a high-load goal `writeWeekAfter` asks for the easy re-test.
  */
-function retestOf(goal: ClosingGoal, weekNumber: number, update: PlannedUpdate, now: Date, timezone?: string | null, choice?: PastLimitChoice | null): PlannedUpdate['retest'] {
-  const rows = safeGoalTargets(goal)?.weeks ?? goal.roadmapWeeks;
+function retestOf(goal: ClosingGoal, weekNumber: number, update: PlannedUpdate, read: ClosingRead): PlannedUpdate['retest'] {
+  const { move, nextWeek, readGoal } = read;
+  const rows = safeGoalTargets(readGoal)?.weeks ?? readGoal.roadmapWeeks;
   const thisWeek = rows.find((week) => week.weekNumber === weekNumber);
   const test = thisWeek ? (testOf(thisWeek) as WeekTest | null) : null;
   if (!thisWeek || !test || typeof test.instructions !== 'string' || !test.instructions.trim() || isLight(thisWeek)) return null;
-  const move = planWeekMove(goal, weekNumber, now, timezone, goal.dailyTasks, choice);
-  const nextWeek = move?.weekBack ?? weekNumber + 1;
   const weeksLeft = rows.filter((week) => week.weekNumber >= nextWeek).map((week) => ({ weekNumber: week.weekNumber, target: week.target as unknown as WeekTarget, light: isLight(week) }));
   if (nextWeekIsLast({ weekNumber, weeksLeft, nextWeek })) return null;
   const before = goal.roadmapWeeks.find((week) => week.weekNumber === weekNumber - 1);
@@ -364,16 +396,13 @@ function safeMaxOf(base: number | null, target: WeekTarget, weekNumber: number, 
 async function runUpdate(
   goal: ClosingGoal,
   weekNumber: number,
-  context: { userId: string; reflection: string; now: Date; timezone?: string | null; choice?: PastLimitChoice | null }
+  context: { userId: string; reflection: string; now: Date; timezone?: string | null; choice?: PastLimitChoice | null },
+  read: ClosingRead
 ): Promise<PlannedUpdate> {
   const stored = readStoredRoadmap(goal);
   // M3.4 (WU-59 (7)): next week is the week this close writes; the weeks a "Keep going" jumps are read as they will be
   // stored (closed and jumped), so the weeks left are `nextWeek` to 12 and no jumped week is ever stored.
-  const move = planWeekMove(goal, weekNumber, context.now, context.timezone, goal.dailyTasks, context.choice);
-  const nextWeek = move?.weekBack ?? weekNumber + 1;
-  const jumped = new Set(jumpedWeeks(weekNumber, move));
-  const asClosed = <W extends RoadmapWeek>(week: W): W => (jumped.has(week.weekNumber) ? { ...week, status: 'completed', jumped: true } : week);
-  const readGoal = jumped.size > 0 ? { ...goal, roadmapWeeks: goal.roadmapWeeks.map(asClosed) } : goal;
+  const { move, nextWeek, jumped, readGoal } = read;
   const safe = safeGoalTargets(readGoal);
   const rows = safe?.weeks ?? [];
   const thisWeek = rows.find((week) => week.weekNumber === weekNumber);
@@ -445,10 +474,18 @@ async function runUpdate(
         )
       : null;
   if (move && move.breakDays !== null && level) {
-    input.restart = { awayDays: move.breakDays, restart: level.restart, level: level.level, week: level.week };
+    input.restart = { awayDays: move.breakDays, restart: level.restart, level: level.level, week: level.week, ...(level.fellBack ? { fellBack: true } : {}) };
     if (level.fellBack) {
       console.log(`[WeeklyUpdate] goal ${goal.id} week ${weekNumber} restart ${level.restart} uses week ${weekNumber}'s target (${level.fellBack})`);
     }
+    // M3.4 review fix 1: the restart week must be the level exactly, so SAFETY names the first week the model sets after
+    // it, one safe step above the level (on a light-test goal the next big week, four steps); none when that is week 12.
+    const restartWeek = heldWeekOf(input);
+    const after = left.find((week) => week.weekNumber > restartWeek && (!lightTestGoal || !isLight(week)));
+    input.safeMax =
+      after && after.weekNumber < TOTAL_WEEKS && level.level.kind === 'number'
+        ? safeMaxOf(level.level.value, target, after.weekNumber, lightTestGoal ? 4 : 1, run10k)
+        : null;
   }
 
   // WU-52: a time out, or an error from the model call, is the fallback below, with the holds code can see.
@@ -516,7 +553,7 @@ async function runUpdate(
   for (let pass = 0; pass < 2; pass++) {
     const afterSave = goal.roadmapWeeks.map((week) => {
       if (week.weekNumber === weekNumber) return { ...week, status: 'completed' };
-      if (jumped.has(week.weekNumber)) return asClosed(week);
+      if (jumped.has(week.weekNumber)) return asClosed(week, jumped);
       const next = toStore.get(week.weekNumber);
       return next ? { ...week, target: next.target as never, objective: next.objective, keyMilestone: next.keyMilestone, test: next.test as never } : week;
     });
@@ -577,8 +614,11 @@ async function runUpdate(
 
 /** M3.4: the restart fallback's line, the level as `nextWeekSentence` shows an amount (with no metric label). */
 function restartFallbackInsight(input: WeeklyUpdateInput): string {
-  const level = input.restart!.level;
-  const shown = level.kind === 'number' ? formatAmount(level.value, level.unit) : level.description;
+  const shown = shownAmount(input.restart!.level);
+  // Review fix 2: on a light-test goal whose next week is light, the line names the big week the level is set on.
+  if (input.lightTestGoal && input.weeksLeft[0]?.light) {
+    return RESTART_FALLBACK_BIG_WEEK_INSIGHT.replace('{w}', String(heldWeekOf(input))).replace('{level}', shown);
+  }
   return RESTART_FALLBACK_INSIGHT.replace('{level}', shown);
 }
 

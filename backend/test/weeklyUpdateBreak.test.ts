@@ -42,7 +42,7 @@ function answer(i: WeeklyUpdateInput, values: number[], over: Partial<RawWeeklyU
   return {
     status: 'far_behind',
     nextTargets: askedWeeks(i).map((week, index) => ({ weekNumber: week.weekNumber, kind: 'number', metric: 'Weekly running distance', value: values[index], unit: 'km' })),
-    messageToUser: 'Welcome back: next week picks up at 13 km and builds from there.',
+    messageToUser: 'Next week picks up at 13 km and builds from there.',
     guidanceForNextWeek: 'Easy sessions first.',
     ...over,
   };
@@ -129,6 +129,24 @@ describe('the check (WU-59 (2))', () => {
     });
     expect('value' in checkWeeklyUpdate(answer(i, [12, 13.2, 14.5, 16, 17.6, 19.3, 21]), i)).toBe(true);
     expect(reasonsOf(checkWeeklyUpdate(answer(i, [15, 16, 17, 18, 19, 20, 21]), i))).toMatch(/week 6's target must be exactly/);
+  });
+});
+
+describe('M3.4 review fixes 3 and 4: the BREAK block', () => {
+  it('when restartLevel fell back, it says the restart stays at this week\'s target, never "go back N weeks"', () => {
+    const prompt = buildWeeklyUpdatePrompt(input({ restart: { awayDays: 12, restart: 'back 1 week', level: km(14), week: 5, fellBack: true } }));
+    expect(prompt).toContain("- They were away 12 days. The restart stays at this week's target (week 5).");
+    expect(prompt).not.toContain('go back');
+  });
+
+  it('tells the model not to greet; a sentence that says "welcome back" is refused on a break only', () => {
+    expect(buildWeeklyUpdatePrompt(input())).toContain('- The app already welcomes them back, so the message must not greet them or say "welcome back".');
+    expect(reasonsOf(checkWeeklyUpdate(answer(input(), SPREAD, { messageToUser: 'Welcome back! Next week picks up at 13 km.' }), input()))).toMatch(
+      /"messageToUser" says "welcome back"/
+    );
+    // Not a break: the sentence checks are as before.
+    const plain = input({ restart: undefined, testLogged: true, lowerBound: 13 });
+    expect('value' in checkWeeklyUpdate(answer(plain, [15, 16, 17, 18, 19, 20, 21], { status: 'on_track', messageToUser: 'Welcome back, next week moves on to 15 km.' }), plain)).toBe(true);
   });
 });
 

@@ -99,6 +99,8 @@ export interface UpdateRestart {
   level: WeekTarget;
   /** The week `level` was read from. */
   week: number;
+  /** M3.4 review: the rule's week could not be used (`restartLevel`'s `fellBack`), so the restart stays at this week's target. */
+  fellBack?: boolean;
 }
 
 export interface CheckedUpdate {
@@ -226,7 +228,7 @@ export function holdsOf(
 }
 
 /** WU-49: the week a hold binds is the week the model sets: next week, or on a light-test goal the big week it shows. */
-function heldWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): number {
+export function heldWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): number {
   return bigWeekFor(nextWeekOf(input), input.weeksLeft);
 }
 
@@ -308,8 +310,12 @@ function breakLines(input: WeeklyUpdateInput, restart: UpdateRestart): string[] 
   return [
     '',
     'BREAK',
-    `- They were away ${restart.awayDays} days. The method's return rule for a break this long: ${RESTART_WORDS[restart.restart]} (week ${restart.week}'s target).`,
+    restart.fellBack
+      ? `- They were away ${restart.awayDays} days. The restart stays at this week's target (week ${restart.week}).`
+      : `- They were away ${restart.awayDays} days. The method's return rule for a break this long: ${RESTART_WORDS[restart.restart]} (week ${restart.week}'s target).`,
     `- W${held.slice(1)} must be exactly ${level}. Spread the remaining weeks from there up to week 12; none easier than it.`,
+    // M3.4 review: the app's welcome-back line comes first, so the sentence must not repeat it.
+    '- The app already welcomes them back, so the message must not greet them or say "welcome back".',
   ];
 }
 
@@ -538,6 +544,7 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
   const message = text(raw.messageToUser);
   const sentence = sentenceReason(message);
   if (sentence) reasons.push(sentence);
+  if (input.restart && !nextWeekIsLast(input) && /\bwelcome back\b/i.test(message)) reasons.push('"messageToUser" says "welcome back"; the app already welcomes them back, so say what happens next instead.');
   if (reasons.length > 0 || set.size !== asked.length) return { reasons: reasons.length ? reasons : ['"nextTargets" could not be read.'] };
 
   // WU-45 (2): each light week left holds its next big week's target.

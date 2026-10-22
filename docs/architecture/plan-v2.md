@@ -419,7 +419,12 @@ LAST 3 WEEKS
 [BREAK                          (M3.4: only on a break with a restart)
 - They were away {d} days. The method's return rule for a break this long: {restart at the last level reached | go back
   1 week | go back 2 weeks} (week {k}'s target).
-- {Held} must be exactly {level}. Spread the remaining weeks from there up to week 12; none easier than it.]
+- {Held} must be exactly {level}. Spread the remaining weeks from there up to week 12; none easier than it.
+- The app already welcomes them back, so the message must not greet them or say "welcome back".]
+                                (when `restartLevel` fell back, the first line is "They were away {d} days. The restart
+                                stays at this week's target (week {n})."; SAFETY then names the first week the model sets
+                                after the restart week, one safe step above the level, four on a light-test goal, none when
+                                that week is week 12)
 
 [SAFETY
 - The most week {k} may be: {nextSafeStep} (one safe step). Code lowers anything past it.]
@@ -459,7 +464,8 @@ when next week shows week 12's target ("Do my final week" included); the update 
 sets for next week must be exactly the level (a number within 1e-9, a deliverable's text exactly), the level is the
 lower bound of every week left, and the `far_behind`, unlogged and week-behind holds are not applied. No status is
 stored. A fallback (rejected twice, timed out, a call error) sets that week and the light weeks before it to the level
-through the same climb and storing path, with "Next week picks up at {level}." as its line. The re-test gains reason
+through the same climb and storing path, with "Next week picks up at {level}." as its line ("Week {w} picks up at {level}." naming the big week when next week
+is a light week; the amount as `nextWeekSentence` shows it). On a break a sentence saying "welcome back" is a retry reason. The re-test gains reason
 `break` (one re-test; the easy one from the start on a high-load goal).
 
 Its inputs: the week's stored or sent test result; `weekCounts` from the day kinds and carry plan reconcile works out

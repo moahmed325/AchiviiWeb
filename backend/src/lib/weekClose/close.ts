@@ -213,6 +213,9 @@ export async function writeWeekAfter(
       : null;
   // WU-26: the week is dated from the moved start, so it starts on the day they came back (or as near as the limit allows).
   const writerGoal = move && move.days > 0 ? { ...goal, startDate: move.startDate } : goal;
+  // M3.4 review fix 6: whether the re-test is easy is only known here (`goalLoad` with the profile just ensured), so it
+  // is logged here, after the update's `[WeeklyUpdate]` line.
+  if (back?.highLoad && context.retest) console.log(`[WeeklyUpdate] goal ${goal.id} week ${weekNumber} retest easy`);
   const written = await writeNextWeek(
     writerGoal,
     weekNumber,
