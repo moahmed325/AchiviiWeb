@@ -22,6 +22,8 @@ export default defineConfig({
     // Full Chromium in new headless mode, closer to a real browser than the headless shell.
     channel: 'chromium',
     trace: 'retain-on-failure',
+    // B-75: the fixtures build dates in UTC, so the browser counts days in UTC too, whatever the machine's time zone.
+    timezoneId: 'UTC',
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },

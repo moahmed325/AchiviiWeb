@@ -115,13 +115,13 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 | Goal is not plan v2 | Refused with `not_plan_v2`, as everywhere (ND-21). |
 
 ## 6. Screens and copy
-- **Weekly review, last step:** the update's sentence replaces the session count; next week's target is shown when it changed.
+- **Weekly review, last step:** the update's sentence replaces the session count; next week's target is shown every time (WU-61 (8)).
 - **Today, before an automatic close with no logged test:** one card to log last week's test, with Skip; any other action skips it (WU-14).
 - **Today, after a short gap that moved the plan:** one line with the new end date.
 - **Today, after an automatic close:** a short "getting ready" state while the week is written, then the sentence once, dismissible.
 - **Today, re-test weeks:** the first practice day's re-test step uses the normal step layout.
-- **Today, daily-time check:** one card, once, after two hard weeks.
-- **Today, after a break:** a welcome-back line with the new end date; past the limit, a choice card.
+- **Today, daily-time check:** one card after two hard weeks, on every day of the open week until answered, rest days included; once per run of hard weeks (WU-61 (6)).
+- **Today, after a break:** a welcome-back line with the new end date; past the limit, a choice card. No re-test line (WU-59 (5), WU-61 (7)).
 - **Roadmap and progress:** show the updated targets and the moved dates. No status labels.
 
 **Copy rules:** neutral and encouraging; never "missed", "behind", "failed" or "fail"; never ask why; one line that moves forward.
@@ -146,6 +146,14 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 | After "Keep going" | "Welcome back. Your plan picks up at week {n} and now ends on {date}." |
 | After "Do my final week" | "Welcome back. Your final week starts today and ends on {date}." |
 | A jumped week on Roadmap and Progress | "Paused" |
+| Update fell back, and an unlogged test or a kind a week behind keeps next week at this week's target (WU-48) | "Next week keeps this week's target." |
+| Update fell back after a break: next week takes the restart level (WU-59 (3)) | "Next week picks up at {level}." |
+| The same, on a light-test goal whose next week is a light week: the big week takes the level | "Week {w} picks up at {level}." |
+| Safety lowered next week, not week 12 (WU-46 (3)) | "Next week aims at {amount}, a safe step." |
+| Safety lowered week 12 (WU-23) | "Week 12 aims at {safe}, a safe step. Your {goal} goal is the next step." With no number in the goal: "Week 12 aims at {safe}, a safe step." |
+| Safety lowered week 12 and the week next week shows is held at this week's target (WU-61 (3)) | Week 12's line, then " Next week stays at {amount}." |
+
+`{level}` and `{amount}` are the amount with no metric label, with " or less" for a target where lower is better (`nextWeekSentence`); "next week" stays on both paths (WU-61 (2)).
 
 The weekly sentence itself is written by the model under RULE-7.
 

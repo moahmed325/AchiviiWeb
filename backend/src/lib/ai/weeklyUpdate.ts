@@ -37,6 +37,8 @@ export interface UpdateHistoryWeek {
 export interface UpdateKind {
   /** The kind's profile `name`, in lower case (RULE-7). */
   name: string;
+  /** RULE-7: false when the name fails the copy check; the sentence then leaves it out ("...so you can catch up"). */
+  named?: boolean;
   /** The first step not done yet. */
   position: string;
   stepsBehind: number;
@@ -418,7 +420,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     if (holds.notLogged) targetRules.push(`   - The test was not logged: ${held} must not be higher than this week's.`);
     if (holds.weekBehind.length) {
       targetRules.push(
-        `   - They are a week behind in ${holds.weekBehind.map((kind) => kind.name).join(', ')}: ${held} must not be higher than this week's, and the message says so, naming it ("...so you can catch up on ${holds.weekBehind[0].name}").`
+        `   - They are a week behind in ${holds.weekBehind.map((kind) => kind.name).join(', ')}: ${held} must not be higher than this week's, and the message says so, ${holds.weekBehind[0].named === false ? 'without naming it ("...so you can catch up")' : `naming it ("...so you can catch up on ${holds.weekBehind[0].name}")`}.`
       );
     }
   }
@@ -436,7 +438,9 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     `   - Week 12 stays exactly ${week12 ? formatTarget(week12) : 'the goal'}.`,
     '   - Keep each week\'s kind, metric and unit as planned.',
     // M3.3a (03-phases M3.3 note (b)): WU-51's rule, told as well as checked.
-    '   - In the message, don\'t say held, kept or stays when next week\'s target moves on, or goes up, raised or rises when it stays the same.'
+    '   - In the message, don\'t say held, kept or stays when next week\'s target moves on, or goes up, raised or rises when it stays the same.',
+    // M4.1a (WU-61 (4)): told only; `directionReason` is unchanged.
+    '   - For a target where lower is better, say it "gets harder" or "moves to" the new amount, never "goes up".'
   );
   lines.push(
     '',

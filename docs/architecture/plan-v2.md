@@ -412,6 +412,8 @@ Their note: {reflection or "none"}
 
 [WHERE THEY ARE in each in-order kind of step (the first step not done yet):
 - {kind name}: at "{step}", {k} steps still to do ({s} sessions of it this week)[; a week behind]]
+  ({kind name}: the profile `name` in lower case, or its plain word from `KIND_WORDS` in `weekClose/update.ts` when it reads
+  badly in "catch up on {name}", e.g. "strength workouts"; M4.1a, WU-61 (5))
 
 LAST 3 WEEKS
 - Week {w}: target {target}; result: {result}; sessions done: {done of planned}; status: {status or none}
@@ -449,6 +451,8 @@ DECIDE
    - Week 12 stays exactly {week 12's current target}. Keep each week's kind, metric and unit.
    - In the message, don't say held, kept or stays when next week's target moves on, or goes up, raised or rises when
      it stays the same.   (M3.3a: WU-51's rule, told as well as checked)
+   - For a target where lower is better, say it "gets harder" or "moves to" the new amount, never "goes up".
+     (M4.1a, WU-61 (4): told only; `directionReason` is unchanged)
 3. messageToUser: one sentence, neutral and encouraging; say plainly if next week is held or lowered. Never a question,
    never "missed", "behind", "failed" or "fail".
 4. guidanceForNextWeek: 1-2 sentences for the person writing next week's tasks.
@@ -500,7 +504,8 @@ weeks from the last big week up to this one, or the starting point), so a read n
 past a safe step is lowered to it (`[Safety]` `target_step` `lowered_on_update`, after the close is saved). Week 12
 lowered this way is accepted: its `Goal.roadmap.loweredTargets` entry is set, a pathway's `Goal.roadmap.finalTest`
 follows its rebuilt week 12 test (whenever week 12 is stored, also one lowered on read that the read-back stores), and the sentence is code's ("Week 12 aims at {safe}, a safe step. Your {goal} goal is
-the next step.", the second sentence only when the person named a number). When safety lowers next week and not week
+the next step.", the second sentence only when the person named a number; when the week next week shows is held at this week's
+target, " Next week stays at {amount}." follows, M4.1a, WU-61 (3)). When safety lowers next week and not week
 12, the sentence is "Next week aims at {amount}, a safe step." (WU-46 (3); the amount with no metric label, " or less" for a
 lower-is-better target, M3.2b). A week only lowered on read that the update
 leaves as it was is not stored; a week the read would climb differently once an earlier week changed is stored at the

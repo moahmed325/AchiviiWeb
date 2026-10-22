@@ -114,16 +114,26 @@ function retestOfGoal(goal: Record<string, unknown>): { retest: RetestInfo | nul
   return { retest: retestInfo(weeks, tasks), dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes) };
 }
 
+function withoutStatus(week: unknown): unknown {
+  if (!week || typeof week !== 'object') return week;
+  const { updateStatus: _status, ...rest } = week as Record<string, unknown>;
+  return rest;
+}
+
 function presentGoal<T extends Record<string, unknown>>(
   goal: T
 ): T & { basis: ReturnType<typeof formatBasisBadge>; retest: RetestInfo | null; dailyTimeCheck: DailyTimeCheck | null } {
   const velocityTable = goal.velocityTable
     ? clampedTable(goal.velocityTable, typeof goal.id === 'string' ? goal.id : undefined)
     : goal.velocityTable;
+  const safe = safeTargetsOf(goal);
+  const weeks = safe ? safe.roadmapWeeks : goal.roadmapWeeks;
   return {
     ...goal,
-    ...safeTargetsOf(goal),
+    ...safe,
     ...retestOfGoal(goal),
+    // RULE-3 (B-95, B-98): the status stays inside; no goal response carries `updateStatus`.
+    ...(Array.isArray(weeks) ? { roadmapWeeks: weeks.map(withoutStatus) } : {}),
     velocityTable,
     basis: formatBasisBadge({
       methodKind: goal.methodKind as string | null | undefined,

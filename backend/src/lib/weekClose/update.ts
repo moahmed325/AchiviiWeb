@@ -19,6 +19,7 @@ import {
   heldWeekOf,
   fallbackRestart,
   nextWeekIsLast,
+  sentenceReason,
   type FallbackHold,
   type UpdateCounts,
   type UpdateHistoryWeek,
@@ -120,11 +121,11 @@ function shownAmount(target: WeekTarget): string {
   return target.kind === 'number' ? `${formatAmount(target.value, target.unit)}${target.direction === 'lower_is_better' ? ' or less' : ''}` : target.description;
 }
 
-/** WU-48: a fallback that kept a hold (M4.1 rewords it). */
+/** WU-48: a fallback that kept a hold (in section 6's copy table as it is, WU-61 (2)). */
 export const FALLBACK_HOLD_INSIGHT = "Next week keeps this week's target.";
 
 /**
- * M3.4 (WU-59 (6)): a fallback after a break that set next week to the restart level (M4.1 rewords it). On a light-test
+ * M3.4 (WU-59 (6)): a fallback after a break that set next week to the restart level (WU-61 (2): as it is). On a light-test
  * goal whose next week is a light week, "Week {w} picks up at {level}." names the big week (review fix 2).
  */
 export const RESTART_FALLBACK_INSIGHT = 'Next week picks up at {level}.';
@@ -362,6 +363,24 @@ async function weekBeforeOf(goal: ClosingGoal, weekNumber: number): Promise<Dail
 }
 
 /**
+ * M4.1a (WU-61 (5), RULE-7): the plain word for an in-order kind name (the only kinds `kindsOf` names) that reads badly
+ * in "...so you can catch up on {name}", keyed by the lower-case `name` our templates write. Every other name is used as
+ * written, in lower case.
+ */
+const KIND_WORDS: Readonly<Record<string, string>> = {
+  'strength workout': 'strength workouts',
+  'new piece or section': 'new pieces or sections',
+  'launch or shipping step': 'launch or shipping steps',
+  'new topic': 'new topics',
+};
+
+/** A kind's name as the update's sentence says it (WU-11): lower case, or its plain word. */
+export function kindWord(name: string): string {
+  const lower = name.toLowerCase();
+  return KIND_WORDS[lower] ?? lower;
+}
+
+/**
  * WU-11: each in-order kind with steps still to do, from the finished week's handoff (the same one the week writer is
  * told as `whereTheyAre`). Only with `METHOD_RECOVERY_ENABLED` on and a readable profile.
  */
@@ -378,7 +397,10 @@ function kindsOf(goal: ClosingGoal, weekBefore: DailyTask[] | null): UpdateKind[
       // As the in-order queue reads the week: the test day holds no in-order step (RULE-7).
       const sessions = tasks.filter((task) => !task.isRestDay && !task.isTestDay && task.steps.some((step) => step.kind === kind.kind)).length;
       const stepsBehind = kind.steps.length;
-      return { name: kind.name.toLowerCase(), position: kind.steps[0].title, stepsBehind, sessions, weekBehind: stepsBehind >= sessions && stepsBehind >= 2 };
+      // RULE-7: a name that fails the copy check (one the profile call wrote; ours all pass) is left out of the sentence.
+      const name = kindWord(kind.name);
+      const named = sentenceReason(`...so you can catch up on ${name}.`) === null;
+      return { name: named ? name : 'one kind of step', named, position: kind.steps[0].title, stepsBehind, sessions, weekBehind: stepsBehind >= sessions && stepsBehind >= 2 };
     });
 }
 
@@ -590,6 +612,14 @@ async function runUpdate(
     const statedText = statedTargetText(goal.rawGoal, stored.answers ?? []);
     const line = week12LineFor([week12], final12.target as unknown as WeekTarget, statedText, startValue);
     if (line) insight = week12Sentence(line);
+    // WU-61 (3): when the week next week shows is held at this week's target, code's sentence says that too.
+    const shownWeek = heldWeekOf(input);
+    const shown = final.find((week) => week.weekNumber === shownWeek);
+    // As the fallback's hold reads it (`fallbackHold`): the same amount, whatever the week's metric label or unit.
+    const stays = shown && isWeekTarget(shown.target) && target.kind === 'number' && shown.target.kind === 'number' ? Math.abs(target.value - shown.target.value) < 1e-9 : Boolean(shown && sameTarget(target, shown.target));
+    if (line && shownWeek < TOTAL_WEEKS && shown && stays) {
+      insight += ` Next week stays at ${shownAmount(shown.target as unknown as WeekTarget)}.`;
+    }
   } else if (nextLowered && lowered.some((item) => item.week === nextWeek)) {
     // WU-46 (3): the model's sentence named a target code then lowered.
     insight = nextWeekSentence(nextLowered.target as unknown as WeekTarget);
