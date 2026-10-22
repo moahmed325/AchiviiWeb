@@ -7,6 +7,7 @@
  */
 import { generateStructuredContent } from './gemini.js';
 import { formatAmount, formatTarget, TOTAL_WEEKS, type WeekTarget } from './roadmap.js';
+import { sameUnit } from '../research/statedTarget.js';
 import { harder } from '../safety/targetSteps.js';
 
 export const UPDATE_STATUSES = ['on_track', 'a_bit_behind', 'far_behind'] as const;
@@ -160,6 +161,54 @@ export function holdsOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft
   return { notLogged: !input.testLogged, weekBehind: (input.kinds ?? []).filter((kind) => kind.weekBehind) };
 }
 
+/** WU-49: the week a hold binds is the week the model sets: next week, or on a light-test goal the big week it shows. */
+function heldWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): number {
+  return bigWeekFor(input.weekNumber + 1, input.weeksLeft);
+}
+
+/** "week 4", or "week 8 (next week shows it)" when next week is a light week. */
+function heldWeekName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): string {
+  const week = heldWeekOf(input);
+  return week === input.weekNumber + 1 ? `week ${week}` : `week ${week} (next week shows it)`;
+}
+
+/** "week 4's target", or "week 8's target (next week shows it)". */
+function heldTargetName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): string {
+  const week = heldWeekOf(input);
+  return week === input.weekNumber + 1 ? `week ${week}'s target` : `week ${week}'s target (next week shows it)`;
+}
+
+/** Next week's target is harder than this week's (for a deliverable: different text), or null when the kinds differ. */
+function goesUp(now: WeekTarget, next: WeekTarget): boolean | null {
+  if (now.kind === 'deliverable' && next.kind === 'deliverable') return now.description !== next.description;
+  if (now.kind === 'number' && next.kind === 'number') return harder(next.value, now.value, now.direction);
+  return null;
+}
+
+export type FallbackHold = 'not_logged' | 'week_behind';
+
+/**
+ * WU-48: on a fallback, the holds code can see (an unlogged test, a kind a week behind; never `far_behind`, the model's
+ * call) keep the week next week shows at this week's target when it is planned harder. On a light-test goal that is the
+ * next big week, and the light weeks before it show it. Every later week stays as planned; none when next week shows
+ * week 12's target (WU-47). `keeps`: next week shows this week's target afterwards.
+ */
+export function fallbackHold(input: WeeklyUpdateInput): { held: FallbackHold[]; targets: Array<{ weekNumber: number; target: WeekTarget }>; keeps: boolean } {
+  const holds = holdsOf(input);
+  const held: FallbackHold[] = [...(holds.notLogged ? ['not_logged' as const] : []), ...(holds.weekBehind.length ? ['week_behind' as const] : [])];
+  const week = heldWeekOf(input);
+  const planned = input.weeksLeft.find((item) => item.weekNumber === week)?.target;
+  if (!held.length || !planned) return { held, targets: [], keeps: false };
+  const up = goesUp(input.target, planned);
+  if (up === null) return { held, targets: [], keeps: false };
+  const sameNow = (target: WeekTarget) => goesUp(input.target, target) === false && goesUp(target, input.target) === false;
+  if (!up) return { held, targets: [], keeps: sameNow(planned) };
+  const targets = input.weeksLeft
+    .filter((item) => item.weekNumber <= week && bigWeekFor(item.weekNumber, input.weeksLeft) === week)
+    .map((item) => ({ weekNumber: item.weekNumber, target: input.target }));
+  return { held, targets, keeps: true };
+}
+
 const amount = (target: WeekTarget, value: number) => (target.kind === 'number' ? formatAmount(value, target.unit) : String(value));
 
 function targetLine(week: UpdateWeekLeft, weeksLeft: readonly UpdateWeekLeft[]): string {
@@ -247,11 +296,13 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   if (nextWeekIsLast(input)) {
     targetRules.push(`   - Week ${nextWeek} shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.`);
   } else {
-    targetRules.push(`   - far_behind: week ${nextWeek}'s target equals this week's target.`);
-    if (holds.notLogged) targetRules.push(`   - The test was not logged: week ${nextWeek}'s target must not be higher than this week's.`);
+    // WU-49: each hold names the week the model sets (on a light-test goal, the big week next week shows).
+    const held = heldTargetName(input);
+    targetRules.push(`   - far_behind: ${held} equals this week's target.`);
+    if (holds.notLogged) targetRules.push(`   - The test was not logged: ${held} must not be higher than this week's.`);
     if (holds.weekBehind.length) {
       targetRules.push(
-        `   - They are a week behind in ${holds.weekBehind.map((kind) => kind.name).join(', ')}: week ${nextWeek}'s target must not be higher than this week's, and the message says so, naming it ("...so you can catch up on ${holds.weekBehind[0].name}").`
+        `   - They are a week behind in ${holds.weekBehind.map((kind) => kind.name).join(', ')}: ${held} must not be higher than this week's, and the message says so, naming it ("...so you can catch up on ${holds.weekBehind[0].name}").`
       );
     }
   }
@@ -262,7 +313,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     bound === null
       ? '   - No target goes backwards: each week is at least as hard as the week before it.'
       : `   - Never set a target easier than what they last achieved (${amount(input.target, bound)}), and no week easier than the week before it.${
-          heldBelow ? ` A held week ${nextWeek} may stay at this week's target instead.` : ''
+          heldBelow ? ` A held ${heldWeekName(input)} may stay at this week's target instead.` : ''
         }`,
     `   - Week 12 stays exactly ${week12 ? formatTarget(week12) : 'the goal'}.`,
     '   - Keep each week\'s kind, metric and unit as planned.'
@@ -295,12 +346,39 @@ export function sentenceReason(sentence: string): string | null {
   return null;
 }
 
+/** WU-51, kept narrow: words of holding and words of raising. Never a bare "up" ("catch up", "build up", "keep it up"). */
+const HELD_WORDS = /\b(held|kept|stays)\b/i;
+const RAISED_WORDS = /\b(goes up|went up|moves up|rises|raised)\b/i;
+
+/**
+ * WU-51 (RULE-7): the sentence must not say held while next week's target (the one next week shows) went up, or raised
+ * while it stayed the same. A deliverable with different text has gone up. Only the model's sentence is checked.
+ */
+export function directionReason(sentence: string, now: WeekTarget, next: WeekTarget): string | null {
+  const up = goesUp(now, next);
+  if (up === null) return null;
+  const stayed = !up && goesUp(next, now) === false;
+  const shown = (target: WeekTarget) => (target.kind === 'deliverable' ? `"${target.description}"` : formatAmount(target.value, target.unit));
+  const heldWord = sentence.match(HELD_WORDS)?.[0];
+  if (up && heldWord) {
+    return `"messageToUser" says "${heldWord}", but next week's target goes up from ${shown(now)} to ${shown(next)}; say plainly that it goes up.`;
+  }
+  const raisedWord = sentence.match(RAISED_WORDS)?.[0];
+  if (stayed && raisedWord) {
+    return `"messageToUser" says "${raisedWord}", but next week's target stays at ${shown(now)}; say plainly that it is held.`;
+  }
+  return null;
+}
+
 const EPSILON = 1e-9;
 
-const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 const text = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
 
-/** The model's target for a week, read against the week's current target; a reason when the kind, metric or unit changed. */
+/**
+ * The model's target for a week, read against the week's current target; a reason when the kind or the unit changed.
+ * WU-50: for a number week the metric is not compared, and a missing unit or the same unit written another way
+ * (`sameUnit`) is accepted; code keeps the week's own metric and unit and takes only the value.
+ */
 function readTarget(raw: RawTarget, current: WeekTarget): { target: WeekTarget } | { reason: string } {
   const week = Number(raw.weekNumber);
   if (raw.kind !== current.kind) return { reason: `week ${week}'s kind changed to "${String(raw.kind)}"; keep "${current.kind}".` };
@@ -308,15 +386,15 @@ function readTarget(raw: RawTarget, current: WeekTarget): { target: WeekTarget }
     const description = text(raw.description);
     return description ? { target: { kind: 'deliverable', description } } : { reason: `week ${week}'s description is empty.` };
   }
-  if (!same(text(raw.metric), current.metric)) return { reason: `week ${week}'s metric changed to "${text(raw.metric)}"; keep "${current.metric}".` };
-  if (!same(text(raw.unit), current.unit)) return { reason: `week ${week}'s unit changed to "${text(raw.unit)}"; keep "${current.unit}".` };
+  const unit = text(raw.unit);
+  if (unit && !sameUnit(unit, current.unit)) return { reason: `week ${week}'s unit changed to "${unit}"; keep "${current.unit}".` };
   const value = typeof raw.value === 'number' ? raw.value : NaN;
   if (!Number.isFinite(value) || value < 0) return { reason: `week ${week}'s value is not a number.` };
   return { target: { ...current, value } };
 }
 
 /**
- * RULE-4, WU-11, WU-15, WU-20 (3), WU-45 (2), (4), (6). On a light-test goal code fills each light week with its next big
+ * RULE-4, RULE-7, WU-11, WU-15, WU-20 (3), WU-45 (2), (4), (6), WU-49 to WU-51. On a light-test goal code fills each light week with its next big
  * week's target before the checks. Every reason is returned, so the one retry can fix them all.
  */
 export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput): { value: CheckedUpdate } | { reasons: string[] } {
@@ -366,7 +444,7 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
       reasons.push(`week 12 must stay exactly "${week12Now.description}".`);
     }
     if (heldBy.length && next?.kind === 'deliverable' && input.target.kind === 'deliverable' && next.description !== input.target.description) {
-      reasons.push(`week ${input.weekNumber + 1} must repeat this week's target exactly ("${input.target.description}") because ${heldBy.join(' and ')}.`);
+      reasons.push(`${heldWeekName(input)} must repeat this week's target exactly ("${input.target.description}") because ${heldBy.join(' and ')}.`);
     }
   } else if (input.target.kind === 'number' && week12Now?.kind === 'number' && week12?.kind === 'number') {
     const direction = input.target.direction;
@@ -392,14 +470,16 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
     if (next?.kind === 'number' && !nextWeekIsLast(input)) {
       const now = input.target.value;
       if (status === 'far_behind' && Math.abs(next.value - now) > EPSILON) {
-        reasons.push(`the status is far_behind, so week ${input.weekNumber + 1}'s target must equal this week's (${label(now)}).`);
+        reasons.push(`the status is far_behind, so ${heldTargetName(input)} must equal this week's (${label(now)}).`);
       }
       const raiseHolds = heldBy.filter((reason) => reason !== 'the status is far_behind');
       if (raiseHolds.length && harder(next.value, now, direction)) {
-        reasons.push(`week ${input.weekNumber + 1}'s target must not be higher than this week's (${label(now)}) because ${raiseHolds.join(' and ')}.`);
+        reasons.push(`${heldTargetName(input)} must not be higher than this week's (${label(now)}) because ${raiseHolds.join(' and ')}.`);
       }
     }
   }
+  const wording = next ? directionReason(message, input.target, next) : null;
+  if (wording) reasons.push(wording);
   if (reasons.length > 0 || !status) return { reasons };
   return { value: { status, targets, messageToUser: message, guidanceForNextWeek: text(raw.guidanceForNextWeek) } };
 }

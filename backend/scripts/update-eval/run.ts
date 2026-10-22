@@ -6,7 +6,7 @@
  *   npx tsx scripts/update-eval/run.ts weeks [--only id,id]      each case's closing week, written live -> weeks.json
  *   npx tsx scripts/update-eval/run.ts update --run 1 [--only id,id]   the real planWeeklyUpdate -> run-1.json
  *   npx tsx scripts/update-eval/run.ts update --dry                 same path, no model call (key blanked) -> run-dry.json
- *   npx tsx scripts/update-eval/run.ts score                     no model calls -> score.json
+ *   npx tsx scripts/update-eval/run.ts score                     no model calls -> score.json (runs 1 to 3)
  *
  * The order is the milestone's: goals and roadmaps, the cases and their weeks, the expected answers (expected.json),
  * then the runs. The script never sets WEEK_CLOSE_ENABLED or WEEKLY_UPDATE_ENABLED: `update` refuses to run unless the
@@ -314,7 +314,9 @@ async function update(goals: EvalGoal[]): Promise<void> {
   console.log(`Model calls this run: ${recorder.total()}`);
 }
 
-const RUNS = [1, 2];
+/** M3.2's two runs, then M3.2b's rerun after the fixes; `both` stays runs 1 and 2 together, as M3.2 scored them. */
+const RUNS = [1, 2, 3];
+const BEFORE_FIXES = [1, 2];
 
 async function score(goals: EvalGoal[]): Promise<void> {
   const { factsOf } = await import('./facts.js');
@@ -338,16 +340,21 @@ async function score(goals: EvalGoal[]): Promise<void> {
     );
   }
   const scores: Record<string, unknown> = {};
-  for (const run of RUNS) scores[`run-${run}`] = scoreRun(byRun.get(run)!, expected, tags.filter((tag) => tag.run === run), sentenceReason);
-  scores.both = scoreRun([...byRun.values()].flat(), expected, tags, sentenceReason);
-  writeJson('score.json', { scores, facts: Object.fromEntries([...byRun.entries()].map(([run, list]) => [`run-${run}`, list])) });
+  for (const run of BEFORE_FIXES) scores[`run-${run}`] = scoreRun(byRun.get(run)!, expected, tags.filter((tag) => tag.run === run), sentenceReason);
+  const before = BEFORE_FIXES.flatMap((run) => byRun.get(run)!);
+  scores.both = scoreRun(before, expected, tags.filter((tag) => BEFORE_FIXES.includes(tag.run)), sentenceReason);
+  // Run 3 once it has been run, on its own next to runs 1 and 2.
+  if (byRun.get(3)!.length) scores['run-3'] = scoreRun(byRun.get(3)!, expected, tags.filter((tag) => tag.run === 3), sentenceReason);
+  const ran = [...byRun.entries()].filter(([, list]) => list.length);
+  writeJson('score.json', { scores, facts: Object.fromEntries(ran.map(([run, list]) => [`run-${run}`, list])) });
 
   for (const [name, value] of Object.entries(scores)) {
     const s = value as ReturnType<typeof scoreRun>;
-    console.log(`\n== ${name} (${s.cases} cases)`);
+    console.log(`\n== ${name === 'both' ? 'runs 1-2' : name} (${s.cases} cases)`);
     console.log(`outcomes: ${JSON.stringify(s.outcomes)}`);
     console.log(`reasons, first attempts: ${s.reasons.first.map((r) => `${r.key} ${r.count}`).join(', ') || 'none'}`);
     console.log(`reasons, retries: ${s.reasons.retry.map((r) => `${r.key} ${r.count}`).join(', ') || 'none'}`);
+    console.log(`fallbacks that kept a hold: ${s.safety.fallbackHolds.map((r) => `${r.caseId} [${r.holds.join(',')}]`).join('; ') || 'none'}`);
     console.log(`lowered: ${s.safety.loweredCases.map((r) => `${r.caseId} [${r.weeks.join(',')}]`).join('; ') || 'none'}`);
     console.log(`above safeMax: ${s.safety.aboveSafeMax.above} of ${s.safety.aboveSafeMax.answers} answers; climb breaks: ${JSON.stringify(s.safety.climbBreaks)}; week 12 not kept: ${s.safety.week12NotKept.join(', ') || 'none'}`);
     console.log(`sentence fails: ${JSON.stringify(s.wording.sentenceFails)}; status words: ${JSON.stringify(s.wording.statusWords)}`);

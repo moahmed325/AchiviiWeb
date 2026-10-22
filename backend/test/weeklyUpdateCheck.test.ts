@@ -3,6 +3,8 @@ import {
   askedWeeks,
   buildWeeklyUpdatePrompt,
   checkWeeklyUpdate,
+  directionReason,
+  fallbackHold,
   sentenceReason,
   type RawWeeklyUpdate,
   type UpdateKind,
@@ -90,17 +92,18 @@ describe('RULE-4 rejections', () => {
     expect(reasonsOf(checkWeeklyUpdate(raw, i))).toMatch(/in order; got weeks 5, 4/);
   });
 
-  it("a week's kind, metric or unit changes", () => {
+  it("a week's kind or unit changes (the metric is not compared, WU-50)", () => {
     const i = input();
     const kind = answer(i);
     (kind.nextTargets as any[])[2] = { weekNumber: 6, kind: 'deliverable', description: 'Run' };
     expect(reasonsOf(checkWeeklyUpdate(kind, i))).toMatch(/week 6's kind changed/);
     const metric = answer(i);
     (metric.nextTargets as any[])[2].metric = 'Long run';
-    expect(reasonsOf(checkWeeklyUpdate(metric, i))).toMatch(/week 6's metric changed/);
+    const kept = checkWeeklyUpdate(metric, i);
+    expect('value' in kept && kept.value.targets[2].target).toEqual(km(15));
     const unit = answer(i);
     (unit.nextTargets as any[])[2].unit = 'mi';
-    expect(reasonsOf(checkWeeklyUpdate(unit, i))).toMatch(/week 6's unit changed/);
+    expect(reasonsOf(checkWeeklyUpdate(unit, i))).toMatch(/week 6's unit changed to "mi"; keep "km"/);
   });
 
   it('a target easier than the last result', () => {
@@ -238,7 +241,10 @@ describe('a light-test goal (WU-45 (2))', () => {
   });
 
   it("a hold compares the target each week shows: far_behind keeps week 8 at this week's 16", () => {
-    expect(reasonsOf(checkWeeklyUpdate(answer(i, { status: 'far_behind' }, [15, 20]), i))).toMatch(/week 6's target must equal this week's \(16 km\)/);
+    // WU-49: the reason names the week the model sets, week 8, which next week (6) shows.
+    expect(reasonsOf(checkWeeklyUpdate(answer(i, { status: 'far_behind' }, [15, 20]), i))).toMatch(
+      /far_behind, so week 8's target \(next week shows it\) must equal this week's \(16 km\)/
+    );
     expect('value' in checkWeeklyUpdate(answer(i, { status: 'far_behind' }, [16, 20]), i)).toBe(true);
   });
 
@@ -297,5 +303,157 @@ describe('M3.1 review (WU-46)', () => {
     const prompt = buildWeeklyUpdatePrompt(input(3, { counts: { practiceDone: 3, practicePlanned: 5, detail: null } }));
     expect(prompt).toContain('Sessions done: 3 of 5. Key sessions, 10-minute versions, missed and dropped days: not counted.');
     expect(prompt).not.toContain('Missed days:');
+  });
+});
+
+describe('WU-49: the hold lines name the week the model sets', () => {
+  // As the light-test goal above: closing light week 5; next week (6) is light and shows week 8's 16 km.
+  const big: Record<number, number> = { 4: 12, 8: 16, 12: 20 };
+  const shows = (week: number) => big[week <= 4 ? 4 : week <= 8 ? 8 : 12];
+  const weeksLeft = [6, 7, 8, 9, 10, 11, 12].map((weekNumber) => ({ weekNumber, target: km(shows(weekNumber)), light: ![8, 12].includes(weekNumber) }));
+  const light = (over: Partial<WeeklyUpdateInput> = {}) =>
+    input(5, { target: km(16), lightTest: true, lightTestGoal: true, lowerBound: 12, weeksLeft, result: 'light test done', safeMax: { weekNumber: 8, value: 17.6 }, ...over });
+
+  it('on a light-test goal every hold line names the next big week, which next week shows', () => {
+    const prompt = buildWeeklyUpdatePrompt(light({ testLogged: false, kinds: [behind()], lowerBound: 16.5 }));
+    expect(prompt).toContain("   - far_behind: week 8's target (next week shows it) equals this week's target.");
+    expect(prompt).toContain("   - The test was not logged: week 8's target (next week shows it) must not be higher than this week's.");
+    expect(prompt).toContain("They are a week behind in new material: week 8's target (next week shows it) must not be higher than this week's");
+    expect(prompt).toContain("A held week 8 (next week shows it) may stay at this week's target instead.");
+  });
+
+  it('the retry reasons name the same week, and the check itself is unchanged', () => {
+    const i = light({ testLogged: false, kinds: [behind()] });
+    expect(reasonsOf(checkWeeklyUpdate(answer(i, {}, [17, 20]), i))).toMatch(
+      /week 8's target \(next week shows it\) must not be higher than this week's \(16 km\) because the test was not logged and they are a week behind in new material/
+    );
+    expect('value' in checkWeeklyUpdate(answer(i, {}, [16, 20]), i)).toBe(true);
+  });
+
+  it('on a goal without light weeks the lines name next week as before', () => {
+    const prompt = buildWeeklyUpdatePrompt(input(3, { testLogged: false }));
+    expect(prompt).toContain("   - far_behind: week 4's target equals this week's target.");
+    expect(prompt).toContain("   - The test was not logged: week 4's target must not be higher than this week's.");
+  });
+});
+
+describe('WU-50: code keeps the metric and unit', () => {
+  const pct = (value: number): WeekTarget => ({ kind: 'number', metric: 'Body fat percentage', value, unit: 'percent', direction: 'lower_is_better' });
+  const weeksLeft = Array.from({ length: 9 }, (_, k) => ({ weekNumber: 4 + k, target: pct(24 - 0.5 * k), light: false }));
+  const i = input(3, { target: pct(24.5), weeksLeft, lowerBound: 24.5, safeMax: null, finalGoal: 'Reach 20% body fat' });
+
+  it('"%" for "percent", with its own metric wording, is accepted and the week keeps its metric and unit', () => {
+    const raw = answer(i);
+    for (const item of raw.nextTargets as any[]) Object.assign(item, { metric: 'body fat', unit: '%' });
+    const result = checkWeeklyUpdate(raw, i);
+    expect('value' in result && result.value.targets.map((t) => t.target)).toEqual(weeksLeft.map((w) => w.target));
+  });
+
+  it('a missing or empty unit is accepted; only the value is taken', () => {
+    const raw = answer(i, {}, [23.8]);
+    delete (raw.nextTargets as any[])[0].unit;
+    (raw.nextTargets as any[])[1].unit = '';
+    const result = checkWeeklyUpdate(raw, i);
+    expect('value' in result && result.value.targets.slice(0, 2).map((t) => t.target)).toEqual([pct(23.8), pct(23.5)]);
+  });
+
+  it('"miles" for "km" and a changed kind are still rejected', () => {
+    const k = input();
+    const miles = answer(k);
+    (miles.nextTargets as any[])[0].unit = 'miles';
+    expect(reasonsOf(checkWeeklyUpdate(miles, k))).toMatch(/week 4's unit changed to "miles"; keep "km"/);
+    const kind = answer(k);
+    (kind.nextTargets as any[])[0] = { weekNumber: 4, kind: 'deliverable', description: 'Run 13 km' };
+    expect(reasonsOf(checkWeeklyUpdate(kind, k))).toMatch(/week 4's kind changed to "deliverable"; keep "number"/);
+  });
+});
+
+describe('WU-51: no "held" for a raise, no "raised" for a hold', () => {
+  it('"held" while next week goes up is a retry reason that says what to fix', () => {
+    const i = input();
+    expect(reasonsOf(checkWeeklyUpdate(answer(i, { messageToUser: 'Next week your target is held steady.' }), i))).toMatch(
+      /"messageToUser" says "held", but next week's target goes up from 12 km to 13 km; say plainly that it goes up\./
+    );
+    for (const message of ['Your pace is kept for now.', 'The plan stays on course.']) {
+      expect(reasonsOf(checkWeeklyUpdate(answer(i, { messageToUser: message }), i))).toMatch(/but next week's target goes up/);
+    }
+  });
+
+  it('"goes up" while next week stays is a retry reason', () => {
+    const i = input(3, { testLogged: false, result: 'not logged', lowerBound: null });
+    for (const message of ['Next week goes up a little.', 'Your target rises next week.', 'Next week is raised.', 'It went up.', 'Next week moves up.']) {
+      expect(reasonsOf(checkWeeklyUpdate(answer(i, { messageToUser: message }, [12]), i))).toMatch(
+        /"messageToUser" says "(goes up|rises|raised|went up|moves up)", but next week's target stays at 12 km; say plainly that it is held\./i
+      );
+    }
+  });
+
+  it('a held sentence for a week that really is held passes', () => {
+    const i = input(3, { testLogged: false, result: 'not logged', lowerBound: null });
+    expect('value' in checkWeeklyUpdate(answer(i, { messageToUser: "Next week's target is held at 12 km until the test is logged." }, [12]), i)).toBe(true);
+  });
+
+  it('"catch up", "build up" and "keep it up" pass on a held week (never a bare "up")', () => {
+    const i = input(3, { kinds: [behind()] });
+    for (const message of [
+      'Next week repeats this target so you can catch up on new material.',
+      'Next week repeats this target so you can build up slowly.',
+      'Keep it up: next week repeats this target.',
+    ]) {
+      expect('value' in checkWeeklyUpdate(answer(i, { messageToUser: message }, [12]), i)).toBe(true);
+    }
+  });
+
+  it('a raise said plainly passes, and a lowered week is not checked', () => {
+    const i = input();
+    expect('value' in checkWeeklyUpdate(answer(i, { messageToUser: 'Next week goes up to 13 km.' }), i)).toBe(true);
+    expect(directionReason('Next week is held at an easier 11.5 km.', km(12), km(11.5))).toBeNull();
+  });
+
+  it('a deliverable: new text has gone up, the same text has stayed', () => {
+    expect(directionReason('The target is kept as planned.', text('Draft chapter 4'), text('Draft chapter 5'))).toMatch(
+      /says "kept", but next week's target goes up from "Draft chapter 4" to "Draft chapter 5"/
+    );
+    expect(directionReason('The target rises to the next chapter.', text('Draft chapter 4'), text('Draft chapter 4'))).toMatch(/says "rises", but next week's target stays at "Draft chapter 4"/);
+    expect(directionReason("Next week's target is held.", text('Draft chapter 4'), text('Draft chapter 4'))).toBeNull();
+  });
+});
+
+describe('WU-48: the holds a fallback keeps (fallbackHold)', () => {
+  it('an unlogged test holds next week at this week when it is planned harder; later weeks stay as planned', () => {
+    expect(fallbackHold(input(3, { testLogged: false }))).toEqual({ held: ['not_logged'], targets: [{ weekNumber: 4, target: km(12) }], keeps: true });
+  });
+
+  it('a kind a week behind holds too; both together are listed', () => {
+    expect(fallbackHold(input(3, { kinds: [behind()] })).held).toEqual(['week_behind']);
+    expect(fallbackHold(input(3, { kinds: [behind()], testLogged: false })).held).toEqual(['not_logged', 'week_behind']);
+  });
+
+  it("no hold code can see: nothing held (far_behind is never applied: it is the model's)", () => {
+    expect(fallbackHold(input(3))).toEqual({ held: [], targets: [], keeps: false });
+  });
+
+  it('a light-test goal holds the next big week, with the light weeks before it', () => {
+    // Closing big week 4 at 12 km; weeks 5 to 7 are light and show week 8's 16 km.
+    const weeksLeft = [5, 6, 7, 8, 9, 10, 11, 12].map((weekNumber) => ({ weekNumber, target: km(weekNumber <= 8 ? 16 : 20), light: ![8, 12].includes(weekNumber) }));
+    const i = input(4, { target: km(12), lightTestGoal: true, weeksLeft, kinds: [behind()] });
+    expect(fallbackHold(i)).toEqual({ held: ['week_behind'], targets: [5, 6, 7, 8].map((weekNumber) => ({ weekNumber, target: km(12) })), keeps: true });
+  });
+
+  it("no hold when next week shows week 12's target (WU-47)", () => {
+    const weeksLeft = [9, 10, 11, 12].map((weekNumber) => ({ weekNumber, target: km(20), light: weekNumber !== 12 }));
+    expect(fallbackHold(input(8, { target: km(16), lightTestGoal: true, weeksLeft, testLogged: false }))).toEqual({ held: [], targets: [], keeps: false });
+    expect(fallbackHold(input(11, { testLogged: false }))).toEqual({ held: [], targets: [], keeps: false });
+  });
+
+  it("a deliverable holds next week at this week's text", () => {
+    const weeksLeft = [5, 6, 7, 8, 9, 10, 11, 12].map((weekNumber) => ({ weekNumber, target: text(weekNumber === 12 ? 'Publish the book' : `Draft chapter ${weekNumber}`), light: false }));
+    const i = input(4, { target: text('Draft chapter 4'), weeksLeft, lowerBound: null, safeMax: null, testLogged: false });
+    expect(fallbackHold(i)).toEqual({ held: ['not_logged'], targets: [{ weekNumber: 5, target: text('Draft chapter 4') }], keeps: true });
+  });
+
+  it('a next week already at this week keeps it with nothing to change; one planned easier is left alone', () => {
+    expect(fallbackHold(input(3, { testLogged: false, target: km(13) }))).toEqual({ held: ['not_logged'], targets: [], keeps: true });
+    expect(fallbackHold(input(3, { testLogged: false, target: km(14) }))).toEqual({ held: ['not_logged'], targets: [], keeps: false });
   });
 });

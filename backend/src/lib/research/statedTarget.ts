@@ -131,6 +131,13 @@ export function aliasesFor(unit: string): string[] {
   return [...aliases];
 }
 
+/** One unit written two ways ("min" and "minutes", "kilometres" and "km"), through `aliasesFor`. Shared with the weekly update. */
+export function sameUnit(a: string, b: string): boolean {
+  const x = a.trim().toLowerCase();
+  const y = b.trim().toLowerCase();
+  return x === y || aliasesFor(x).includes(y) || aliasesFor(y).includes(x);
+}
+
 function target(
   phrase: string,
   value: number,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { checkWeeklyUpdate, sentenceReason, type WeeklyUpdateInput } from '../../src/lib/ai/weeklyUpdate.js';
-import { aboveSafeMaxOf, directionOf, holdsFromPrompt } from './facts.js';
+import { buildWeeklyUpdatePrompt, checkWeeklyUpdate, sentenceReason, type WeeklyUpdateInput } from '../../src/lib/ai/weeklyUpdate.js';
+import { aboveSafeMaxOf, directionOf, fallbackHeldOf, holdsFromPrompt } from './facts.js';
 import { agreementOf, median, reasonCheck, rejectionOf, scoreRun, splitReasons, statusWords, type CaseFacts, type Expected } from './score.js';
 
 const km = (value: number) => ({ kind: 'number' as const, metric: 'Weekly running distance', value, unit: 'km', direction: 'higher_is_better' as const });
@@ -182,5 +182,36 @@ describe('scoreRun', () => {
   it('takes the median of an even list', () => {
     expect(median([1, 4, 2, 3])).toBe(2.5);
     expect(median([])).toBeNull();
+  });
+});
+
+describe('M3.2b scoring', () => {
+  it("groups WU-51's reasons as held_or_raised, both ways", () => {
+    const week12 = { weekNumber: 12, kind: 'number', metric: 'Weekly running distance', value: 30, unit: 'km' };
+    const at = (value: number) => ({ weekNumber: 11, kind: 'number', metric: 'Weekly running distance', value, unit: 'km' });
+    const logged = { testLogged: true, lowerBound: 26 };
+    expect(reasonsFor({ status: 'on_track', nextTargets: [at(28), week12], messageToUser: 'Next week is held.' }, logged).map(reasonCheck)).toEqual(['held_or_raised']);
+    expect(reasonsFor({ status: 'on_track', nextTargets: [at(26), week12], messageToUser: 'Next week goes up.' }, logged).map(reasonCheck)).toEqual(['held_or_raised']);
+  });
+
+  it('reads the holds from a light-test prompt, whose lines name the big week next week shows (WU-49)', () => {
+    const weeksLeft = [
+      { weekNumber: 6, target: km(28), light: true },
+      { weekNumber: 7, target: km(28), light: true },
+      { weekNumber: 8, target: km(28), light: false },
+      { weekNumber: 12, target: km(30), light: false },
+    ];
+    const prompt = buildWeeklyUpdatePrompt(input({ weekNumber: 5, lightTestGoal: true, weeksLeft }));
+    expect(prompt).toContain("week 8's target (next week shows it)");
+    expect(holdsFromPrompt(prompt, 'far_behind')).toEqual(['far_behind', 'not_logged']);
+  });
+
+  it("reads a fallback's kept holds from the log line; none in a line without the field (runs 1 and 2)", () => {
+    const line = (held: string) => `[WeeklyUpdate] goal g week 4 status none outcome fallback held ${held} lowered 0 stored 5 readBack none reasons none`;
+    expect(fallbackHeldOf([line('not_logged,week_behind')])).toEqual(['not_logged', 'week_behind']);
+    expect(fallbackHeldOf([line('none')])).toEqual([]);
+    expect(fallbackHeldOf(['[WeeklyUpdate] goal g week 4 status none outcome fallback lowered 0 stored none readBack none reasons none'])).toEqual([]);
+    expect(fallbackHeldOf(['[WeeklyUpdate] goal g week 4 status on_track outcome accepted held not_logged lowered 0 stored 5 readBack none reasons none'])).toEqual([]);
+    expect(fallbackHeldOf(undefined)).toEqual([]);
   });
 });
