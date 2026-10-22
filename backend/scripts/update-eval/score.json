@@ -92,6 +92,7 @@
             ]
           }
         ],
+        "fallbackHolds": [],
         "aboveSafeMax": {
           "answers": 9,
           "above": 3
@@ -288,6 +289,7 @@
             ]
           }
         ],
+        "fallbackHolds": [],
         "aboveSafeMax": {
           "answers": 9,
           "above": 3
@@ -537,6 +539,7 @@
             ]
           }
         ],
+        "fallbackHolds": [],
         "aboveSafeMax": {
           "answers": 18,
           "above": 6
@@ -695,6 +698,196 @@
         "slowestCase": "spanish-w2-light",
         "retryCases": 18,
         "retryTimeShare": 0.1812383941337352
+      }
+    },
+    "run-3": {
+      "cases": 24,
+      "outcomes": {
+        "accepted": 15,
+        "retry_accepted": 6,
+        "fallback": 3,
+        "did_not_run": 0
+      },
+      "reasons": {
+        "first": [
+          {
+            "key": "kind_metric_unit",
+            "count": 13
+          },
+          {
+            "key": "held_or_raised",
+            "count": 3
+          },
+          {
+            "key": "count",
+            "count": 1
+          },
+          {
+            "key": "far_behind_hold",
+            "count": 1
+          }
+        ],
+        "retry": [
+          {
+            "key": "held_or_raised",
+            "count": 2
+          },
+          {
+            "key": "no_answer",
+            "count": 1
+          }
+        ]
+      },
+      "safety": {
+        "loweredCases": [
+          {
+            "caseId": "run10k-w4-ahead",
+            "goalId": "run10k",
+            "weeks": [
+              5,
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "caseId": "recomp-w4-ahead",
+            "goalId": "recomp",
+            "weeks": [
+              5,
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "caseId": "run-weekly-w3-forbidden",
+            "goalId": "run-weekly",
+            "weeks": [
+              5,
+              6,
+              7,
+              8
+            ]
+          },
+          {
+            "caseId": "run-weekly-w5-ahead",
+            "goalId": "run-weekly",
+            "weeks": [
+              6,
+              7,
+              8,
+              9
+            ]
+          },
+          {
+            "caseId": "run-weekly-w10-wu23",
+            "goalId": "run-weekly",
+            "weeks": [
+              12
+            ]
+          }
+        ],
+        "fallbackHolds": [
+          {
+            "caseId": "youtube-w4-not-logged",
+            "holds": [
+              "not_logged"
+            ]
+          }
+        ],
+        "aboveSafeMax": {
+          "answers": 9,
+          "above": 4
+        },
+        "climbBreaks": [],
+        "week12NotKept": [
+          "run-weekly-w10-wu23"
+        ]
+      },
+      "wording": {
+        "sentenceFails": [],
+        "statusWords": [],
+        "tagged": 21,
+        "matchesTarget": 19,
+        "weekBehindHolds": 1,
+        "namesKind": 1
+      },
+      "agreement": {
+        "status": 18,
+        "direction": 21,
+        "holds": 24,
+        "lowering": 23,
+        "week12": 24,
+        "of": 24,
+        "disagreements": [
+          {
+            "caseId": "recomp-w7-light-bit-behind",
+            "fields": [
+              "direction"
+            ]
+          },
+          {
+            "caseId": "spanish-w4-week-behind",
+            "fields": [
+              "status"
+            ]
+          },
+          {
+            "caseId": "saas-w6-bit-behind",
+            "fields": [
+              "direction"
+            ]
+          },
+          {
+            "caseId": "spanish-w8-big-not-logged",
+            "fields": [
+              "status"
+            ]
+          },
+          {
+            "caseId": "youtube-w4-not-logged",
+            "fields": [
+              "status"
+            ]
+          },
+          {
+            "caseId": "chess-w11-not-logged",
+            "fields": [
+              "status"
+            ]
+          },
+          {
+            "caseId": "run-weekly-w3-forbidden",
+            "fields": [
+              "direction",
+              "lowering"
+            ]
+          },
+          {
+            "caseId": "run-weekly-w10-wu23",
+            "fields": [
+              "status"
+            ]
+          },
+          {
+            "caseId": "portfolio-w7-moving-on",
+            "fields": [
+              "status"
+            ]
+          }
+        ]
+      },
+      "standIn": {
+        "detailNull": [],
+        "misses": 0
+      },
+      "time": {
+        "medianMs": 1895,
+        "slowestMs": 21164,
+        "slowestCase": "youtube-w4-not-logged",
+        "retryCases": 9,
+        "retryTimeShare": 0.1660885774285647
       }
     }
   },
@@ -1967,6 +2160,643 @@
         "standInMisses": 0,
         "ms": 3673,
         "retryMs": 2090
+      }
+    ],
+    "run-3": [
+      {
+        "caseId": "run10k-w4-ahead",
+        "goalId": "run10k",
+        "outcome": "accepted",
+        "status": "on_track",
+        "insight": "Next week aims at 51.9 minutes or less, a safe step.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "above_plan",
+        "holds": [],
+        "lowered": [
+          {
+            "week": 5,
+            "model": 51.5,
+            "safe": 51.9
+          },
+          {
+            "week": 6,
+            "model": 51.5,
+            "safe": 51.9
+          },
+          {
+            "week": 7,
+            "model": 51.5,
+            "safe": 51.9
+          },
+          {
+            "week": 8,
+            "model": 51.5,
+            "safe": 51.9
+          }
+        ],
+        "week12Kept": true,
+        "aboveSafeMax": [
+          true
+        ],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 2424,
+        "retryMs": 0
+      },
+      {
+        "caseId": "run10k-w6-light",
+        "goalId": "run10k",
+        "outcome": "accepted",
+        "status": "on_track",
+        "insight": "You completed all scheduled sessions smoothly, so next week maintains the target of 52.5 minutes for the 10K test in week 8 as you progress toward your final goal.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [
+          false
+        ],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1466,
+        "retryMs": 0
+      },
+      {
+        "caseId": "run10k-w9-light-to-12",
+        "goalId": "run10k",
+        "outcome": "accepted",
+        "status": "far_behind",
+        "insight": "A busy travel week interrupted your training, so the final target is held steady at 50 minutes for the upcoming test.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [
+          false
+        ],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1311,
+        "retryMs": 0
+      },
+      {
+        "caseId": "recomp-w4-ahead",
+        "goalId": "recomp",
+        "outcome": "retry_accepted",
+        "status": "on_track",
+        "insight": "Next week aims at 21.4 percent or less, a safe step.",
+        "reasonsFirst": [
+          "\"messageToUser\" says \"held\", but next week's target goes up from 23.4 percent to 21 percent; say plainly that it goes up."
+        ],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "above_plan",
+        "holds": [],
+        "lowered": [
+          {
+            "week": 5,
+            "model": 21,
+            "safe": 21.4
+          },
+          {
+            "week": 6,
+            "model": 21,
+            "safe": 21.4
+          },
+          {
+            "week": 7,
+            "model": 21,
+            "safe": 21.4
+          },
+          {
+            "week": 8,
+            "model": 21,
+            "safe": 21.4
+          }
+        ],
+        "week12Kept": true,
+        "aboveSafeMax": [
+          true,
+          true
+        ],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 3072,
+        "retryMs": 1216
+      },
+      {
+        "caseId": "recomp-w7-light-bit-behind",
+        "goalId": "recomp",
+        "outcome": "accepted",
+        "status": "a_bit_behind",
+        "insight": "Work schedule disruptions slowed progress this week, so the target for next week is adjusted slightly to maintain steady momentum toward the final goal.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "above_plan",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [
+          false
+        ],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1368,
+        "retryMs": 0
+      },
+      {
+        "caseId": "guitar-w3-on-track",
+        "goalId": "guitar",
+        "outcome": "accepted",
+        "status": "on_track",
+        "insight": "You have met all your goals so far, and next week you will maintain the current schedule to build on your progress.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1928,
+        "retryMs": 0
+      },
+      {
+        "caseId": "spanish-w4-week-behind",
+        "goalId": "spanish",
+        "outcome": "accepted",
+        "status": "a_bit_behind",
+        "insight": "You successfully hit the seven-minute target this week, and we are holding next week's target at seven minutes so you can catch up on new material.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "below_plan",
+        "holds": [
+          "week_behind"
+        ],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1314,
+        "retryMs": 0
+      },
+      {
+        "caseId": "guitar-w6-step-behind",
+        "goalId": "guitar",
+        "outcome": "retry_accepted",
+        "status": "on_track",
+        "insight": "You successfully exceeded your target this week, so next week's target goes up to four songs as you continue building momentum.",
+        "reasonsFirst": [
+          "\"messageToUser\" says \"held\", but next week's target goes up from 3 songs to 4 songs; say plainly that it goes up."
+        ],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "above_plan",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 3643,
+        "retryMs": 1854
+      },
+      {
+        "caseId": "saas-w3-held",
+        "goalId": "saas",
+        "outcome": "accepted",
+        "status": "far_behind",
+        "insight": "Since illness interrupted your progress, next week's target is held so you can complete the booking form without added pressure.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "above_plan",
+        "holds": [
+          "far_behind"
+        ],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1787,
+        "retryMs": 0
+      },
+      {
+        "caseId": "saas-w6-bit-behind",
+        "goalId": "saas",
+        "outcome": "retry_accepted",
+        "status": "a_bit_behind",
+        "insight": "Since Stripe setup required extra time, next week repeats the current target to ensure complete mastery before moving forward.",
+        "reasonsFirst": [
+          "week 12's kind changed to \"number\"; keep \"deliverable\"."
+        ],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "above_plan",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 2965,
+        "retryMs": 1381
+      },
+      {
+        "caseId": "spanish-w8-big-not-logged",
+        "goalId": "spanish",
+        "outcome": "fallback",
+        "status": null,
+        "insight": "Next week is ready. Your targets stay as planned.",
+        "reasonsFirst": [
+          "\"nextTargets\" must have exactly one target for each of weeks 12, in order; got weeks 9, 10, 11, 12."
+        ],
+        "reasonsRetry": [
+          "\"messageToUser\" says \"held\", but next week's target goes up from 11 minutes to 15 minutes; say plainly that it goes up."
+        ],
+        "direction": "raise",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 2765,
+        "retryMs": 1133
+      },
+      {
+        "caseId": "spanish-w2-light",
+        "goalId": "spanish",
+        "outcome": "accepted",
+        "status": "on_track",
+        "insight": "You completed all sessions successfully and your current target remains held at seven minutes for next week.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1300,
+        "retryMs": 0
+      },
+      {
+        "caseId": "youtube-w4-not-logged",
+        "goalId": "youtube",
+        "outcome": "fallback",
+        "status": null,
+        "insight": "Next week keeps this week's target.",
+        "reasonsFirst": [
+          "week 5's kind changed to \"number\"; keep \"deliverable\".",
+          "week 6's kind changed to \"number\"; keep \"deliverable\".",
+          "week 7's kind changed to \"number\"; keep \"deliverable\".",
+          "week 8's kind changed to \"number\"; keep \"deliverable\".",
+          "week 9's kind changed to \"number\"; keep \"deliverable\".",
+          "week 10's kind changed to \"number\"; keep \"deliverable\".",
+          "week 11's kind changed to \"number\"; keep \"deliverable\"."
+        ],
+        "reasonsRetry": [
+          "no_answer"
+        ],
+        "direction": "hold",
+        "vsPlan": "above_plan",
+        "holds": [
+          "not_logged"
+        ],
+        "fallbackHeld": [
+          "not_logged"
+        ],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 21164,
+        "retryMs": 2121
+      },
+      {
+        "caseId": "youtube-w9-on-track",
+        "goalId": "youtube",
+        "outcome": "retry_accepted",
+        "status": "on_track",
+        "insight": "You successfully hit your target for week 9, and the next step is to maintain this momentum as you work toward publishing ten cumulative videos next week.",
+        "reasonsFirst": [
+          "week 10's kind changed to \"number\"; keep \"deliverable\".",
+          "week 11's kind changed to \"number\"; keep \"deliverable\"."
+        ],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 17276,
+        "retryMs": 1783
+      },
+      {
+        "caseId": "book-w6-bit-behind",
+        "goalId": "book",
+        "outcome": "accepted",
+        "status": "a_bit_behind",
+        "insight": "Your research on Chapter 4 slowed your pace slightly, so the upcoming targets have been adjusted to distribute the remaining climb smoothly.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "below_plan",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1588,
+        "retryMs": 0
+      },
+      {
+        "caseId": "chess-w11-not-logged",
+        "goalId": "chess",
+        "outcome": "retry_accepted",
+        "status": "a_bit_behind",
+        "insight": "Since last week's test was not completed, next week's target goes up to 1200 rating points as we enter the final push toward your goal.",
+        "reasonsFirst": [
+          "\"messageToUser\" says \"held\", but next week's target goes up from 1160 rating points to 1200 rating points; say plainly that it goes up."
+        ],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 2327,
+        "retryMs": 1252
+      },
+      {
+        "caseId": "deepwork-w5-far-behind",
+        "goalId": "deepwork",
+        "outcome": "retry_accepted",
+        "status": "far_behind",
+        "insight": "A demanding product launch disrupted your schedule, so next week's target is held at 2.25 hours while you rebuild your deep work momentum.",
+        "reasonsFirst": [
+          "the status is far_behind, so week 6's target must equal this week's (2.25 hours)."
+        ],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "below_plan",
+        "holds": [
+          "far_behind"
+        ],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 3474,
+        "retryMs": 1763
+      },
+      {
+        "caseId": "chess-w1-first",
+        "goalId": "chess",
+        "outcome": "accepted",
+        "status": "on_track",
+        "insight": "Great start to the plan, exceeding the first week target and keeping the scheduled targets unchanged for next week.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1995,
+        "retryMs": 0
+      },
+      {
+        "caseId": "chess-w8-two-far-behind",
+        "goalId": "chess",
+        "outcome": "accepted",
+        "status": "far_behind",
+        "insight": "Consistency is key to building momentum, so next week's target is held at 990 rating points while you rebuild your routine.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "below_plan",
+        "holds": [
+          "far_behind"
+        ],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1383,
+        "retryMs": 0
+      },
+      {
+        "caseId": "speech-w5-light-question",
+        "goalId": "speech",
+        "outcome": "accepted",
+        "status": "on_track",
+        "insight": "You completed all scheduled sessions and successfully passed the previous milestone, so your target for week 8 remains at 4 filler words or less per block while you transition away from using notes.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1303,
+        "retryMs": 0
+      },
+      {
+        "caseId": "run-weekly-w3-forbidden",
+        "goalId": "run-weekly",
+        "outcome": "accepted",
+        "status": "a_bit_behind",
+        "insight": "Since you completed a solid portion of your sessions this week, we will slightly adjust the upcoming schedule to help you rebuild momentum safely toward your final goal.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "lower",
+        "vsPlan": "below_plan",
+        "holds": [],
+        "lowered": [
+          {
+            "week": 5,
+            "model": 16.8,
+            "safe": 16.5
+          },
+          {
+            "week": 6,
+            "model": 18.5,
+            "safe": 18.1
+          },
+          {
+            "week": 7,
+            "model": 20.3,
+            "safe": 19.9
+          },
+          {
+            "week": 8,
+            "model": 22,
+            "safe": 21.8
+          }
+        ],
+        "week12Kept": true,
+        "aboveSafeMax": [
+          false
+        ],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1862,
+        "retryMs": 0
+      },
+      {
+        "caseId": "run-weekly-w5-ahead",
+        "goalId": "run-weekly",
+        "outcome": "accepted",
+        "status": "on_track",
+        "insight": "Next week aims at 19.3 km, a safe step.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "raise",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [
+          {
+            "week": 6,
+            "model": 20,
+            "safe": 19.3
+          },
+          {
+            "week": 7,
+            "model": 22,
+            "safe": 21.2
+          },
+          {
+            "week": 8,
+            "model": 24.2,
+            "safe": 23.3
+          },
+          {
+            "week": 9,
+            "model": 26.6,
+            "safe": 25.6
+          }
+        ],
+        "week12Kept": true,
+        "aboveSafeMax": [
+          true
+        ],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1736,
+        "retryMs": 0
+      },
+      {
+        "caseId": "run-weekly-w10-wu23",
+        "goalId": "run-weekly",
+        "outcome": "accepted",
+        "status": "a_bit_behind",
+        "insight": "Week 12 aims at 29.2 km, a safe step.",
+        "reasonsFirst": [],
+        "reasonsRetry": [],
+        "direction": "hold",
+        "vsPlan": "below_plan",
+        "holds": [
+          "not_logged"
+        ],
+        "lowered": [
+          {
+            "week": 12,
+            "model": 30,
+            "safe": 29.2
+          }
+        ],
+        "week12Kept": false,
+        "aboveSafeMax": [
+          false
+        ],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 1779,
+        "retryMs": 0
+      },
+      {
+        "caseId": "portfolio-w7-moving-on",
+        "goalId": "portfolio",
+        "outcome": "fallback",
+        "status": null,
+        "insight": "Next week is ready. Your targets stay as planned.",
+        "reasonsFirst": [
+          "week 8's kind changed to \"number\"; keep \"deliverable\".",
+          "week 10's kind changed to \"number\"; keep \"deliverable\".",
+          "week 11's kind changed to \"number\"; keep \"deliverable\"."
+        ],
+        "reasonsRetry": [
+          "\"messageToUser\" says \"held\", but next week's target goes up from \"15 fully edited street photos arranged in a logical sequence\" to \"The final master set of 20 edited and sequenced street photos\"; say plainly that it goes up."
+        ],
+        "direction": "raise",
+        "vsPlan": "as_planned",
+        "holds": [],
+        "lowered": [],
+        "week12Kept": true,
+        "aboveSafeMax": [],
+        "climbBreaks": [],
+        "detailNull": false,
+        "standInMisses": 0,
+        "ms": 3532,
+        "retryMs": 1575
       }
     ]
   }
