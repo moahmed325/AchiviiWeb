@@ -307,7 +307,7 @@ How this log works: `docs/templates/decisions.md`.
 
 ### WU-51 — The sentence must not say held for a raise, or raised for a hold (2026-10-22)
 **Question:** M3.2 eval: 6 of 41 sentences said "held" while next week went up (and 2 for a deliverable that moved on).
-**Decision:** a retry reason, both ways and kept narrow: words of holding ("held", "kept", "stays") while next week's target went up, or words of raising ("raised", "up") while it stayed the same. Next week's target is the one next week shows; a deliverable that changed counts as gone up.
+**Decision:** a retry reason, both ways and kept narrow: words of holding ("held", "kept", "stays") while next week's target went up, or words of raising ("goes up", "went up", "moves up", "rises", "raised") while it stayed the same. Never a bare "up": "catch up" (WU-11's sentence), "build up" and "keep it up" pass (amended 2026-10-22, main - review). Next week's target is the one next week shows; a deliverable that changed counts as gone up.
 **Why (Mo):** RULE-7 says the sentence says plainly when a target is held; a sentence that says the opposite of what happened is worse than none. Narrow, so it doesn't reject good sentences.
 **Changes:** RULE-7; `ai/weeklyUpdate.ts` (`sentenceReason` or a check beside it); M3.2b.
 
