@@ -18,7 +18,8 @@
 | O1 | Mo: turn on `WEEK_CLOSE_ENABLED` in Render, then run the P1 production checks | — | IN PROGRESS: on in production since 2026-10-19 (checklist steps 1 to 5 done: B-66 no rows; `e43d905` deployed, CI green; other switches as listed; own goal unchanged mid-week). Step 6, a week of logs, open until 2026-10-26 | [m1.5b checklist](milestones/m1.5b-past-the-limit.md) |
 | M2.1 | Light weekly tests: 10 pathways and the custom-goal rule | AC-20 | DONE 2026-10-19 | [m2.1](milestones/m2.1-light-weekly-tests.md) |
 | M3.1 | The update call and its checks, on the review path (needs B-62) | AC-1, AC-2, AC-3, AC-8, AC-13, AC-15 | DONE 2026-10-21 | [m3.1](milestones/m3.1-update-call.md) |
-| M3.2 | Eval of the update call on recorded weeks | AC-2, AC-3, AC-8 (measured) | READY | [m3.2](milestones/m3.2-eval.md) |
+| M3.2 | Eval of the update call on recorded weeks | AC-2, AC-3, AC-8 (measured) | DONE 2026-10-22 | [m3.2](milestones/m3.2-eval.md) |
+| M3.2b | Fixes from the eval (WU-48 to WU-51, the safe-step line without the metric label), then one rerun of the 24 cases | AC-2, AC-3, AC-8 (measured) | READY | [m3.2b](milestones/m3.2b-eval-fixes.md) |
 | M3.3 | The update in the automatic close; unlogged test; two hard weeks | AC-1, AC-4, AC-5 | NOT STARTED | |
 | M3.4 | Break restart | AC-9, AC-10, AC-18 | NOT STARTED | |
 | M4.1 | Copy and acceptance | AC-14, AC-19, all | NOT STARTED | |
@@ -82,12 +83,13 @@
 
 **M3.1 The update call.** Needs B-62's safety limits (WU-29). Wires `weekCounts` into the update's inputs (RULE-2, WU-30). Prompt 4 with its code checks (RULE-4 with WU-11, WU-15, WU-16's bound left to M3.4, WU-23, deliverables), the status stored, the sentence and its fallback, the coach's note to the week writer, on the review path only.
 **M3.2 Eval.** The update call on recorded weeks: rejections (ranked from the `[WeeklyUpdate]` reasons), fallbacks, safety, wording. A `[WeeklyUpdate]` line with no `[WeekClose]` line for the same goal and week was not saved (the week write failed or the close was lost, M3.1 review).
-**M3.3 The update in the automatic close.** Plus how RULE-6 reads a week with no stored status (a fallback, WU-45 (7)), and the unlogged test and re-test (RULE-5, WU-17) and two hard weeks with the daily-time question (RULE-6, WU-20).
+**M3.2b Fixes from the eval.** A fallback keeps the holds code can see (WU-48), the hold lines name the week the model sets (WU-49), code keeps the metric and unit when the unit is the same (WU-50), the held/raised sentence check (WU-51), and `nextWeekSentence` without the metric label. Then one live rerun of M3.2's 24 cases against the same frozen `expected.json`.
+**M3.3 The update in the automatic close.** Plus how RULE-6 reads a week with no stored status (a fallback, WU-45 (7)), and the unlogged test and re-test (RULE-5, WU-17) and two hard weeks with the daily-time question (RULE-6, WU-20). From M3.2: a rate-limited update took 27 s before its fallback (six HTTP 429s); inside the automatic close every goal load waits that long, so decide a time limit for the update there.
 **M3.4 Break restart.** The return rule's restart level, the re-test first, the restart level as lower bound, week 1 as the floor, the week a break started in left out of RULE-6 (RULE-16, WU-16, WU-18).
 
 ### P4 Close
 
-**M4.1 Copy and acceptance.** Every line in section 6, the kind names in the sentence (WU-11), every acceptance criterion in the three switch states, e2e, and the docs (`docs/architecture/plan-v2.md`, `CLAUDE.md`).
+**M4.1 Copy and acceptance.** Every line in section 6, the kind names in the sentence (WU-11), the fallback's hold line (WU-48, M3.2b writes a working one), WU-23's week-12 line saying when next week is also held (M3.2 eval: `run-weekly-w10`), every acceptance criterion in the three switch states, e2e, and the docs (`docs/architecture/plan-v2.md`, `CLAUDE.md`).
 
 ## 6. Risks
 

@@ -287,6 +287,30 @@ How this log works: `docs/templates/decisions.md`.
 **Why (Mo):** the same reason as WU-15: week 12 keeps the final goal, and a light week only shows it.
 **Changes:** RULE-4's week-12 sentence reads "when next week shows week 12's target"; `ai/weeklyUpdate.ts` (`nextWeekIsLast`).
 
+### WU-48 — A fallback keeps the holds code can see (2026-10-22)
+**Question:** M3.2 eval: with both answers rejected, the targets stay as planned, so a week that must be held (test not logged, a kind a week behind) went ahead raised (`youtube-w4`, `spanish-w4`, both runs).
+**Decision:** on a fallback, code holds next week at this week's target when a hold code can see applies: an unlogged test (RULE-5) or an in-order kind a week behind (WU-11). `far_behind` is the model's call, so a fallback never applies it. WU-47 stands: no hold when next week shows week 12's target. The fallback that holds gets its own true line (not "Your targets stay as planned"); its exact wording waits for M4.1.
+**Why (Mo):** these holds are facts code reads, not judgments, and a fallback must not undo them; the status is the model's.
+**Changes:** RULE-4 and AC-2 (a fallback keeps code's holds); `weekClose/update.ts` (the fallback path); M3.2b.
+
+### WU-49 — The hold lines name the week the model sets (2026-10-22)
+**Question:** M3.2 eval: on a light-test goal the prompt said "week 5's target must not be higher than this week's", but the model sets only weeks 8 and 12, so the WU-11 hold failed 4 of 4 attempts.
+**Decision:** every hold line in prompt 4 and in its retry reasons names the week the model actually sets: next week, or on a light-test goal the next big week (which next week shows).
+**Why (Mo):** the model can only keep a rule about a week it writes.
+**Changes:** `ai/weeklyUpdate.ts` (`buildWeeklyUpdatePrompt`, `checkWeeklyUpdate`'s reasons); M3.2b.
+
+### WU-50 — Code keeps the metric and unit when the model's unit is the same (2026-10-22)
+**Question:** M3.2 eval: the top rejection was the model rewriting the metric or unit ("body fat" / "%" for "Body fat percentage" / "percent") and retrying into a fallback.
+**Decision:** for a number week, code takes only the model's value and keeps the week's current metric and unit, but only when the model's unit is the same unit (`aliasesFor`) or missing. A different unit, or a changed kind, stays a rejection.
+**Why (Mo):** the metric's wording carries no meaning code needs; a real change of unit or kind does.
+**Changes:** RULE-4 (the metric is not compared; the unit is, through its aliases); `ai/weeklyUpdate.ts` (`readTarget`); M3.2b.
+
+### WU-51 — The sentence must not say held for a raise, or raised for a hold (2026-10-22)
+**Question:** M3.2 eval: 6 of 41 sentences said "held" while next week went up (and 2 for a deliverable that moved on).
+**Decision:** a retry reason, both ways and kept narrow: words of holding ("held", "kept", "stays") while next week's target went up, or words of raising ("raised", "up") while it stayed the same. Next week's target is the one next week shows; a deliverable that changed counts as gone up.
+**Why (Mo):** RULE-7 says the sentence says plainly when a target is held; a sentence that says the opposite of what happened is worse than none. Narrow, so it doesn't reject good sentences.
+**Changes:** RULE-7; `ai/weeklyUpdate.ts` (`sentenceReason` or a check beside it); M3.2b.
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
