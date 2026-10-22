@@ -325,6 +325,87 @@ test.describe('the practice day', () => {
   });
 });
 
+/**
+ * Weekly update M3.3b (AC-4, AC-5): week 2 starts with a re-test of week 1's test, after two hard weeks, so Today shows
+ * the line, the result entry and the daily-time card. The server's `retest` and `dailyTimeCheck` are mocked.
+ */
+const TWO_HARD_WEEKS = 'The last two weeks were hard to fit in. This week starts with a re-test to find your real level.';
+const EVIDENCE = '../docs/features/weekly-update/milestones/m3.3b-evidence';
+
+const retestGoal = () => {
+  const base = shellGoal();
+  const week1 = {
+    ...base.roadmapWeeks[0],
+    status: 'completed',
+    target: { kind: 'number', metric: 'Pages written', value: 3, unit: 'pages', direction: 'higher_is_better' },
+    test: { type: 'deliverable', instructions: 'Write three pages of the product brief in one sitting.', passIf: 'three pages written' },
+    testResult: { value: 1, unit: 'pages', passed: false },
+  };
+  const retestStep = { stepNumber: 1, title: 'Re-test: Write three pages of the product brief in one sitting', durationMinutes: 20, instructions: 'Write the pages.' };
+  return {
+    ...base,
+    currentWeek: 2,
+    routine: JSON.stringify({ dailyMinutes: 60 }),
+    roadmapWeeks: [week1, { ...base.roadmapWeeks[0], id: 'w2', weekNumber: 2, status: 'active', retestOfWeek: 1 }],
+    dailyTasks: base.dailyTasks.map((t) => ({
+      ...t,
+      weekNumber: 2,
+      dayNumber: t.dayNumber + 7,
+      detailedSteps: t.id === 't3' ? JSON.stringify([retestStep, ...JSON.parse(t.detailedSteps)]) : t.detailedSteps,
+    })),
+    retest: { ofWeek: 1, reason: 'two_hard_weeks', logged: false },
+    dailyTimeCheck: { minutes: 60, shorter: [30, 45] },
+  };
+};
+
+test.describe('re-test weeks (weekly update M3.3b)', () => {
+  test('the re-test line, its result entry, and the daily-time card with a shorter choice', async ({ page }, testInfo) => {
+    const calls = await openToday(page, { goal: retestGoal() });
+    // Screenshots for the milestone's evidence only when asked (EVIDENCE=1), so a normal run writes nothing into docs.
+    const shot = async (name: string) => {
+      if (process.env.EVIDENCE === '1') await page.screenshot({ path: `${EVIDENCE}/${name}-${testInfo.project.name}.png`, scale: 'css' });
+    };
+
+    // The line, as a status, and the entry on the re-test day.
+    const line = main(page).getByRole('status').filter({ hasText: TWO_HARD_WEEKS });
+    await expect(line).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Dismiss' })).toHaveCount(0);
+    await line.scrollIntoViewIfNeeded();
+    await settled(page);
+    await shot('retest-line');
+
+    // Log the re-test: stored on week 1 (the re-tested week); the line and the entry go.
+    await page.getByRole('button', { name: 'Log re-test result' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Log re-test result' });
+    await expect(dialog.getByText('Write three pages of the product brief in one sitting.')).toBeVisible();
+    await dialog.getByLabel('Your result').fill('3');
+    await settled(page);
+    await shot('retest-dialog');
+    await dialog.getByRole('button', { name: 'Save result' }).click();
+    await expect(dialog).toHaveCount(0);
+    expect(calls.testResults.map((r) => r.weekNumber)).toEqual([1]);
+    await expect(line).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Log re-test result' })).toHaveCount(0);
+
+    // The daily-time card: Make it shorter, then 45 min.
+    const card = page.getByRole('region', { name: 'Does 60 minutes a day still work?' });
+    await card.scrollIntoViewIfNeeded();
+    await expect(card.getByRole('button', { name: 'Keep 60 minutes' })).toBeVisible();
+    await settled(page);
+    await shot('daily-time-card');
+    await card.getByRole('button', { name: 'Make it shorter' }).click();
+    await expect(card.getByRole('button', { name: '30 min' })).toBeVisible();
+    await shot('daily-time-shorter');
+    await card.getByRole('button', { name: '45 min' }).click();
+    const changed = page.getByRole('status').filter({ hasText: 'From next week, your sessions are 45 minutes.' });
+    await expect(changed).toBeVisible();
+    await expect(card).toHaveCount(0);
+    expect(calls.dailyTime).toEqual([45]);
+    await shot('daily-time-changed');
+    expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+  });
+});
+
 test.describe('layout, keyboard and motion', () => {
   test('no overflow, 44 px targets and no axe violations; Start in the first screen with the thumb', async ({ page }, testInfo) => {
     await openToday(page, { goal: richGoal() });

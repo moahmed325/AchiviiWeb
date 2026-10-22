@@ -87,6 +87,10 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
 - The 10-minute minimum version is always available.
 - Two far_behind weeks in a row → the next week starts with a re-test, and the app checks whether their daily time
   is realistic. Code decides the re-test after the weekly update and places the step (weekly update M3.3a, below).
+  The goal responses send `retest` (`ofWeek`, `reason`, `logged`) and `dailyTimeCheck` (`minutes`, `shorter`), worked
+  out on the server (M3.3b, WU-58); Today shows the re-test line and its result entry, and asks once per run of hard
+  weeks whether the daily time still works (`POST /api/goal/daily-time`; a shorter time is read when the next week is
+  written, the current week is unchanged).
 - Tone: neutral and encouraging, never firm. After a miss, one line that moves forward; never ask why.
 - Reminders before sessions: a later phase.
 
