@@ -88,9 +88,15 @@ describe('the re-test step (item 5, WU-56)', () => {
       instructions: TYPING.instructions,
       passMark: TYPING.passIf,
       durationMinutes: 15,
-      priority: 1,
       stepNumber: 1,
     });
+    // M3.3a review: first in order, but ranked right after the day's own lead, which stays priority 1.
+    expect(days[0].detailedSteps.map((s) => [s.title, s.priority])).toEqual([
+      ['Re-test: Take a 1-minute typing test on keybr', 2],
+      ['Drill 1 letters', 1],
+      ['Type sentence set 1', 3],
+      ['Speed burst 1', 4],
+    ]);
     expect(retest.load).toBeUndefined();
     // Trimmed as the test day is: at most 3 of the model's steps, the lowest priority dropped first.
     expect(others.map((s) => s.title)).toEqual(['Drill 1 letters', 'Type sentence set 1', 'Speed burst 1']);

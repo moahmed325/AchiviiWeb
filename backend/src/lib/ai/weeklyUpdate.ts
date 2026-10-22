@@ -161,9 +161,17 @@ export const WEEKLY_UPDATE_DELIVERABLE_SCHEMA = {
   },
 };
 
-/** The schema for this update: the deliverable one when this week's target is a deliverable. */
-export function weeklyUpdateSchema(input: Pick<WeeklyUpdateInput, 'target'>) {
-  return input.target.kind === 'deliverable' ? WEEKLY_UPDATE_DELIVERABLE_SCHEMA : WEEKLY_UPDATE_SCHEMA;
+/**
+ * M3.3a review: only deliverables to set, when this week's target and every week the model sets are deliverables; a goal
+ * with any number week keeps today's schema and line.
+ */
+function deliverablesOnly(input: Pick<WeeklyUpdateInput, 'target' | 'weeksLeft' | 'lightTestGoal'>): boolean {
+  return input.target.kind === 'deliverable' && askedWeeks(input).every((week) => week.target.kind === 'deliverable');
+}
+
+/** The schema for this update: the deliverable one when there are only deliverables to set (`deliverablesOnly`). */
+export function weeklyUpdateSchema(input: Pick<WeeklyUpdateInput, 'target' | 'weeksLeft' | 'lightTestGoal'>) {
+  return deliverablesOnly(input) ? WEEKLY_UPDATE_DELIVERABLE_SCHEMA : WEEKLY_UPDATE_SCHEMA;
 }
 
 /** The weeks the model sets: every week left, or on a light-test goal only the big weeks left (WU-45 (2)). */
@@ -361,7 +369,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     '   - far_behind: they did under 50%, or skipped the key sessions',
     '   Weigh the trend. One bad week after good ones is not the same as three weeks declining.',
     // M3.3a (note (a)): a deliverable week is shown only the deliverable shape; a number week's line is unchanged.
-    input.target.kind === 'deliverable'
+    deliverablesOnly(input)
       ? `2. nextTargets: one target for each of weeks ${askedList}, in order: { weekNumber, kind: "deliverable", description }.`
       : `2. nextTargets: one target for each of weeks ${askedList}, in order: { weekNumber, kind: "number", metric, value, unit } or { weekNumber, kind: "deliverable", description }.`,
     ...targetRules,
@@ -528,12 +536,19 @@ export interface WeeklyUpdateAnswer {
   reasons: string[];
 }
 
-/** One call, one retry with the reasons (RULE-4); a second rejection, or no answer, is the fallback. */
-export async function askWeeklyUpdate(input: WeeklyUpdateInput): Promise<WeeklyUpdateAnswer> {
+/**
+ * One call, one retry with the reasons (RULE-4); a second rejection, or no answer, is the fallback. M3.3a review
+ * (WU-52): past `deadline` (ms since the epoch) the retry is not started.
+ */
+export async function askWeeklyUpdate(input: WeeklyUpdateInput, options: { deadline?: number } = {}): Promise<WeeklyUpdateAnswer> {
   const prompt = buildWeeklyUpdatePrompt(input);
   const reasons: string[] = [];
   let rejection = '';
   for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0 && options.deadline !== undefined && Date.now() >= options.deadline) {
+      reasons.push('time_limit');
+      break;
+    }
     const attemptPrompt =
       attempt === 0 ? prompt : `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${rejection}\nReturn the complete JSON again with that problem fixed.`;
     const result = await generateStructuredContent<RawWeeklyUpdate>(attemptPrompt, WEEKLY_UPDATE_SYSTEM, undefined, {

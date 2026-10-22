@@ -545,6 +545,13 @@ describe('M3.3a: the deliverable schema and the WU-51 line (03-phases M3.3 notes
     }
   });
 
+  it('M3.3a review: a deliverable week with a number week left keeps the number schema and line', () => {
+    const mixed = deliverable();
+    mixed.weeksLeft[8] = { weekNumber: 12, target: km(21), light: false };
+    expect(weeklyUpdateSchema(mixed)).toBe(WEEKLY_UPDATE_SCHEMA);
+    expect(buildWeeklyUpdatePrompt(mixed)).toContain('{ weekNumber, kind: "number", metric, value, unit } or { weekNumber, kind: "deliverable", description }.');
+  });
+
   it('checkWeeklyUpdate is unchanged for a deliverable answer', () => {
     const i = deliverable();
     expect('value' in checkWeeklyUpdate(answer(i), i)).toBe(true);

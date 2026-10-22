@@ -620,16 +620,6 @@ function keepTopSteps(steps: Array<DetailedStep & { priority: number }>, max: nu
   return steps.filter((_, index) => keep.has(index));
 }
 
-/**
- * The day's priority-1 step, passing over a re-test (M3.3a): the 10-minute version is the rest of the day's, never a
- * short re-test.
- */
-function leadStep<T extends DetailedStep>(steps: T[]): T {
-  const others = steps.filter((step) => !codeMadeRetestStep(step));
-  const pool = others.length ? others : steps;
-  return pool.reduce((best, step) => ((step.priority ?? Infinity) < (best.priority ?? Infinity) ? step : best), pool[0]);
-}
-
 /** M3.3a: the re-test (first) keeps half the day; the other steps fit into the rest. */
 function withRetestMinutes(steps: DetailedStep[], dailyMinutes: number): DetailedStep[] {
   const [retest, ...others] = steps;
@@ -825,12 +815,16 @@ export function checkWeekAnswer(
         return TEST_STEP.test(step.title) ? { ...tagged, priority: 0, passMark } : tagged;
       });
     }
-    // M3.3a (WU-56): the re-test goes first on its day, the day's other steps trimmed as the test day's are. Tagged as the
-    // test step is, so the carry planner and the handoff treat it as fixed.
+    // M3.3a (WU-56): the re-test goes first on its day, the day's other steps trimmed as the test day's are. It ranks right
+    // after the day's own lead (priority 2), so the day's priority-1 step, its 10-minute version and what a missed day
+    // carries stay the model's (M3.3a review). Tagged as the test step is, so the carry planner and the handoff treat it
+    // as fixed.
     const retestHere = input.retest !== undefined && slot.dayNumber === retestDay;
     if (retestHere) {
-      const retest = retestStepFor(input.retest!.test, retestMinutes(input.dailyMinutes));
-      steps = [recovery ? { ...retest, kind: WEEKLY_TEST_KIND.id } : retest, ...keepTopSteps(steps, MAX_STEPS - 1)];
+      const own = keepTopSteps(steps, MAX_STEPS - 1);
+      const lead = own.length ? Math.min(...own.map((step) => step.priority)) : -1;
+      const retest = { ...retestStepFor(input.retest!.test, retestMinutes(input.dailyMinutes)), priority: lead + 0.5 };
+      steps = [recovery ? { ...retest, kind: WEEKLY_TEST_KIND.id } : retest, ...own];
     }
 
     if (steps.length === 0 || (steps.length < MIN_STEPS && !lastAttempt)) {
@@ -872,7 +866,7 @@ export function checkWeekAnswer(
     if (!minimumVersion) {
       soft.push(`${label} has no "minimumVersion".`);
       // Plan safety limits M2.1 (M1.1 section 3): the full step's load is not the 10-minute version's.
-      const lead = withoutLoad(leadStep(rankSteps(steps)));
+      const lead = withoutLoad(rankSteps(steps).find((step) => step.priority === 1)!);
       minimumVersion = { ...lead, stepNumber: 1, title: `Short version: ${lead.title}` };
     }
     const minMinutes = minimumVersion.durationMinutes;
@@ -892,7 +886,7 @@ export function checkWeekAnswer(
       loadMisses.push(...misses);
     }
     // MR-15: the 10-minute version takes the kind of the day's priority-1 step.
-    const leadKind = recovery ? leadStep(detailedSteps).kind : undefined;
+    const leadKind = recovery ? detailedSteps.find((step) => step.priority === 1)?.kind : undefined;
     if (recovery) {
       const { kind: _ignored, ...rest } = minimumVersion;
       minimumVersion = leadKind ? { ...rest, kind: leadKind } : rest;

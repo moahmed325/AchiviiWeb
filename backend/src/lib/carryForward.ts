@@ -7,6 +7,7 @@
  */
 import type { DetailedStep } from './ai/goalDecomposer.js';
 import { isHighLoadStep } from './highLoad.js';
+import { codeMadeRetestStep } from './ai/retestStep.js';
 import { dayCloseInstant, isRestLike, type ClassifiableTask, type DayClassification, type Gap } from './missedSessions.js';
 
 /** ND-13: stored on a carried step, so the move is auditable, reversible and never made twice. */
@@ -211,7 +212,7 @@ export function byDate(a: DayClassification, b: DayClassification): number {
 /**
  * ND-10: the receiving day's new steps, or null when the carried step cannot fit.
  * Removes the lowest-priority steps, lowest first, until the day is no longer than before. Its own priority-1
- * step and test step (priority 0) are never removed. The carried step comes directly after the day's own
+ * step, test step (priority 0) and re-test step (weekly update M3.3a) are never removed. The carried step comes directly after the day's own
  * priority-1 step, in both order and priority; everything else keeps its relative order and is renumbered.
  */
 export function fitCarriedStep(
@@ -229,7 +230,8 @@ export function fitCarriedStep(
   // Never longer than the steps were, nor than the day's planned minutes.
   const limit = receiving.durationMinutes > 0 ? Math.min(before, receiving.durationMinutes) : before;
   const removable = steps
-    .filter((step) => (step.priority as number) > 1 && !TEST_STEP.test(step.title ?? '') && !isProtected?.(step))
+    // Weekly update M3.3a review: nor the re-test step, which is never carried and never removed.
+    .filter((step) => (step.priority as number) > 1 && !TEST_STEP.test(step.title ?? '') && !codeMadeRetestStep(step) && !isProtected?.(step))
     .sort((a, b) => (b.priority as number) - (a.priority as number));
   const carriedMinutes = Math.max(0, carried.durationMinutes || 0);
 

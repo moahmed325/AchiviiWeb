@@ -326,7 +326,7 @@ WRITE THE WEEK
   short warm-up before it and a short review after it.
 {with a re-test (weekly update M3.3a), on the first offered practice day before the test day:}
 - Day {d} ({weekday}) starts with a re-test of week {N}'s test ({its instructions}), which
-  code adds as its first step ({half} minutes). Plan the rest of that day around it, shorter: steps adding up to
+  code adds as its first step ({half} minutes).   (first in order, ranked right after the day's own lead) Plan the rest of that day around it, shorter: steps adding up to
   {dailyMinutes - half} minutes, and none that repeats the test.{on a running load goal: " The re-test counts as a hard run."}
 - Mark 1-2 practice days (not the test day) as key sessions: the hardest sessions that matter most for the
   target. Put them mid-week.
@@ -370,11 +370,11 @@ high-load step (`lib/recovery/firstWeekBack.ts`, WU-29, WU-35).
 As built in weekly update M3.1 (`backend/src/lib/ai/weeklyUpdate.ts`, read and saved by `lib/weekClose/update.ts`). It
 runs on the weekly review and (M3.3a) the automatic close, only with `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED`
 both exactly `true`, only for weeks 1 to 11 and not on a close that is a break (the break gets it in M3.4). The model
-call (both attempts) has a 15 s limit (`WEEKLY_UPDATE_TIME_LIMIT_MS`, WU-52). No checkpoint offer (WU-2) and no
+call (both attempts) has a 15 s limit (`WEEKLY_UPDATE_TIME_LIMIT_MS`, WU-52); past it the retry is not started. No checkpoint offer (WU-2) and no
 `retestFirst`: code decides the re-test after the update (M3.3a).
 
 **Schema (M3.3a):** a number week keeps `WEEKLY_UPDATE_SCHEMA` (each `nextTargets` item `kind` `number` or
-`deliverable`). When this week's target is a deliverable, `WEEKLY_UPDATE_DELIVERABLE_SCHEMA`: items with `kind` fixed to
+`deliverable`). When this week's target and every week the model sets are deliverables, `WEEKLY_UPDATE_DELIVERABLE_SCHEMA`: items with `kind` fixed to
 `deliverable` and `description` required, no `metric`, `value` or `unit`.
 
 **System**
@@ -417,7 +417,7 @@ LAST 3 WEEKS
 DECIDE
 1. status: on_track / a_bit_behind / far_behind, as before. Weigh the trend.
 2. nextTargets: one target for each of weeks {asked}, in order: { weekNumber, kind: "number", metric, value, unit } or
-   { weekNumber, kind: "deliverable", description }.   (a deliverable week: only the deliverable shape, M3.3a)
+   { weekNumber, kind: "deliverable", description }.   (only deliverables to set: only the deliverable shape, M3.3a)
    - on_track: keep the plan; raise only if they clearly beat the target, never above week 12's target before week 12.
    - a_bit_behind: make the next step smaller and spread the remaining climb over the weeks left.
    - far_behind: {held}'s target equals this week's target.   (when next week shows week 12's target: "Week {n+1}

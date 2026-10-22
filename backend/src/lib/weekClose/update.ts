@@ -233,13 +233,10 @@ export function resultNumber(testResult: unknown, target: WeekTarget): number | 
   return Number.isFinite(number) ? number : null;
 }
 
-/**
- * RULE-4, WU-43 (2): the last usable result of a measured week up to this one (a light test is not a result, nor an easy
- * re-test's, WU-55).
- */
-function lowerBoundOf(rows: readonly RoadmapWeek[], weekNumber: number, target: WeekTarget, easyRetestOf: number | null = null): number | null {
+/** RULE-4, WU-43 (2): the last usable result of a measured week up to this one (a light test is not a result). */
+function lowerBoundOf(rows: readonly RoadmapWeek[], weekNumber: number, target: WeekTarget): number | null {
   for (const week of [...rows].reverse()) {
-    if (week.weekNumber > weekNumber || week.jumped || isLight(week) || week.weekNumber === easyRetestOf) continue;
+    if (week.weekNumber > weekNumber || week.jumped || isLight(week)) continue;
     const number = resultNumber(week.testResult, target);
     if (number !== null) return number;
   }
@@ -283,9 +280,9 @@ function resultLine(week: RoadmapWeek, testDay: DailyTask | undefined): string {
 
 /**
  * The last 3 closed weeks before this one (jumped weeks had no practice), with their review rows. A re-tested week's
- * result is its re-test's (WU-17), read as a light result when it was the easy re-test (`easyRetestOf`, WU-55).
+ * result is its re-test's late result (WU-17).
  */
-async function historyOf(goalId: string, rows: readonly RoadmapWeek[], weekNumber: number, easyRetestOf: number | null = null): Promise<UpdateHistoryWeek[]> {
+async function historyOf(goalId: string, rows: readonly RoadmapWeek[], weekNumber: number): Promise<UpdateHistoryWeek[]> {
   const weeks = rows.filter((week) => week.weekNumber < weekNumber && !week.jumped && isWeekTarget(week.target)).slice(-3);
   if (weeks.length === 0) return [];
   const reviews = await prisma.weeklyReview.findMany({ where: { goalId, weekNumber: { in: weeks.map((week) => week.weekNumber) } } });
@@ -295,7 +292,7 @@ async function historyOf(goalId: string, rows: readonly RoadmapWeek[], weekNumbe
       weekNumber: week.weekNumber,
       target: week.target as unknown as WeekTarget,
       light: isLight(week),
-      result: isLogged(week.testResult) ? lastWeekResult(undefined, week.testResult, isLight(week) || week.weekNumber === easyRetestOf) : 'not logged',
+      result: isLogged(week.testResult) ? lastWeekResult(undefined, week.testResult, isLight(week)) : 'not logged',
       sessions: review ? `${review.tasksCompleted} of ${review.tasksPlanned}` : 'not recorded',
       status: week.updateStatus ?? null,
     };
@@ -374,15 +371,10 @@ async function runUpdate(
     ? safeMaxOf(lastBig === undefined ? startValue : valueOf(rows.find((week) => week.weekNumber === lastBig)), target, firstAsked?.weekNumber ?? TOTAL_WEEKS, 4, run10k)
     : safeMaxOf(valueOf(thisWeek), target, weekNumber + 1, 1, run10k);
 
-  // M3.3a (WU-55): this week opened with the easy re-test, so the re-tested week's result is a light one.
-  const closing = goal.roadmapWeeks.find((week) => week.weekNumber === weekNumber);
-  const easyRetest = goal.dailyTasks.some((task) => parseStoredSteps(task.detailedSteps).some((step) => codeMadeRetestStep(step) === 'light'));
-  const easyRetestOf = easyRetest ? closing?.retestOfWeek ?? null : null;
-
   // Independent reads, side by side. The week before is read once, for the kinds here and for `writeWeekAfter`.
   const [counts, history, weekBefore] = await Promise.all([
     countsOf(goal, weekNumber, context.userId, context.now, context.timezone),
-    historyOf(goal.id, goal.roadmapWeeks, weekNumber, easyRetestOf),
+    historyOf(goal.id, goal.roadmapWeeks, weekNumber),
     weekBeforeOf(goal, weekNumber),
   ]);
   const testDay = goal.dailyTasks.find((task) => task.isTestDay);
@@ -395,7 +387,7 @@ async function runUpdate(
     lightTestGoal,
     result: resultLine(thisWeek, testDay),
     testLogged: isLogged(thisWeek.testResult),
-    lowerBound: lowerBoundOf(goal.roadmapWeeks, weekNumber, target, easyRetestOf),
+    lowerBound: lowerBoundOf(goal.roadmapWeeks, weekNumber, target),
     counts,
     reflection: context.reflection,
     history,
@@ -408,7 +400,7 @@ async function runUpdate(
   // WU-52: a time out, or an error from the model call, is the fallback below, with the holds code can see.
   let answer: WeeklyUpdateAnswer;
   try {
-    answer = await withinTimeLimit(askWeeklyUpdate(input), WEEKLY_UPDATE_TIME_LIMIT_MS);
+    answer = await withinTimeLimit(askWeeklyUpdate(input, { deadline: Date.now() + WEEKLY_UPDATE_TIME_LIMIT_MS }), WEEKLY_UPDATE_TIME_LIMIT_MS);
   } catch (err) {
     const timedOut = err instanceof UpdateTimeLimit;
     if (!timedOut) console.error("[WeeklyUpdate] The update call failed; code's holds still apply:", err);
@@ -562,12 +554,16 @@ export async function updateThenWrite(
  * line, a space, then the sentence. Without one, as before.
  */
 export function autoCloseUpdateInsight(move: WeekMove | null, update: PlannedUpdate | null): string {
-  if (!update) return autoCloseInsight(move);
+  // M3.3a review: the plain fallback's neutral line says nothing the move line doesn't; it is stored as before.
+  if (!update || update.insight === AUTO_CLOSE_INSIGHT) return autoCloseInsight(move);
   return move && move.days > 0 ? `${autoCloseInsight(move)} ${update.insight}` : update.insight;
 }
 
-/** Item 6: the new week's `retestOfWeek`, only when the week written holds the re-test step (or its easy version). */
+/**
+ * Item 6: the new week's `retestOfWeek`, only when the week written holds the measured re-test. The easy re-test stores
+ * nothing on the earlier week (M3.3a review, amends WU-56 (2)): a light result is not a result (WU-43).
+ */
 export function retestOfWeekFor(update: PlannedUpdate | null, written: readonly WeekDayPlan[] | null): number | null {
   if (!update?.retest || !written) return null;
-  return written.some((day) => day.detailedSteps.some((step) => codeMadeRetestStep(step) !== null)) ? update.retest.ofWeek : null;
+  return written.some((day) => day.detailedSteps.some((step) => codeMadeRetestStep(step) === 'measured')) ? update.retest.ofWeek : null;
 }

@@ -903,6 +903,22 @@ describe('M3.3a: the time limit (WU-52)', () => {
     expect(db.week(3).status).toBe('active');
   });
 
+  it('M3.3a review: a first attempt that settles after the limit starts no second attempt', async () => {
+    seed(3);
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date(START.getTime() + 2 * 7 * DAY + 6 * DAY + 15 * 3_600_000));
+    let answer: (value: unknown) => void = () => {};
+    vi.mocked(generateStructuredContent).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)) as never);
+    const pending = planWeeklyUpdate(closing(3), 3, { userId: USER.id, reflection: '', now: new Date() });
+    await untilAsked();
+    await vi.advanceTimersByTimeAsync(WEEKLY_UPDATE_TIME_LIMIT_MS + 1000);
+    expect((await pending)?.reasons).toEqual(['time_limit']);
+    // A rejected first answer, after the deadline: the retry is never sent.
+    answer(modelAnswer(range(4, 12), [99, ...RAISED.slice(1)]));
+    for (let i = 0; i < 20; i++) await new Promise((resolve) => setImmediate(resolve));
+    expect(generateStructuredContent).toHaveBeenCalledTimes(1);
+  });
+
   it('the review path goes through the same limit (updateThenWrite): a timed-out update still writes the week from the held target', async () => {
     seed(3);
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
@@ -1060,14 +1076,40 @@ describe('M3.3a: the re-test result is the earlier week\'s late result (WU-17)',
     expect(prompt).toContain('Test result: test logged: 13.5 km, passed');
   });
 
-  it('an easy re-test\'s result is read as a light result, never a bound (WU-55)', async () => {
-    seed(4);
-    db.week(3).testResult = { value: 'Done', passed: true, note: 'easy jog' };
-    db.week(4).retestOfWeek = 3;
-    const first = db.tasksOf(4)[0];
-    first.detailedSteps = JSON.stringify([{ ...easyRetestStep(15), stepNumber: 1, priority: 1 }, ...JSON.parse(first.detailedSteps)]);
-    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(5, 12), range(14, 21)) as never);
-    expect((await review(4, { reflection: '', testResult: { value: 13, unit: 'km', passed: true } })).status).toBe(200);
-    expect(updatePrompt()).toContain('- Week 3: target Weekly running distance: 12 km; result: light test done; their note: "easy jog";');
+  it('M3.3a review (amends WU-56 (2)): the easy re-test stores no retestOfWeek, so the earlier week takes no result', async () => {
+    seed(3);
+    vi.mocked(generateWeekPlan).mockImplementation(async (input) => {
+      const days = dayPlans(input.weekStart);
+      if (input.retest) days[0].detailedSteps.unshift(easyRetestStep(15));
+      return days;
+    });
+    expect((await review(3, { reflection: '' })).status).toBe(200);
+    expect(weekInput().retest).toMatchObject({ ofWeek: 3 });
+    expect(db.week(4).retestOfWeek ?? null).toBeNull();
+    expect((await putResult(3, { value: 12, unit: 'km', passed: true })).body.reason).toBe('week_closed');
+  });
+});
+
+describe('M3.3a review: the automatic close line after the plain fallback', () => {
+  it('stores only the move line when the update fell back to the neutral line; the neutral line alone with no move', async () => {
+    seed(3);
+    db.week(3).testResult = { value: 12.5, unit: 'km', passed: true };
+    after(3, 3);
+    expect((await closeWeek()).status).toBe(200);
+    expect(updateLines()[0]).toContain('outcome fallback held none');
+    expect(insightOfWeek(3)).toBe(MOVED_INSIGHT);
+    db.reset();
+    seed(3);
+    db.week(3).testResult = { value: 12.5, unit: 'km', passed: true };
+    after(3);
+    expect((await closeWeek()).status).toBe(200);
+    expect(insightOfWeek(3)).toBe(AUTO_CLOSE_INSIGHT);
+  });
+
+  it('a held fallback keeps its own line after the move line', async () => {
+    seed(3);
+    after(3, 3);
+    expect((await closeWeek()).status).toBe(200);
+    expect(insightOfWeek(3)).toBe(`${MOVED_INSIGHT} ${FALLBACK_HOLD_INSIGHT}`);
   });
 });
