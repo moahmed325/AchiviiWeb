@@ -71,7 +71,7 @@ export function reasonCheck(reason: string): string {
   if (reason.startsWith('"nextTargets" must have exactly')) return 'count';
   if (reason.startsWith('"nextTargets" could not be read')) return 'unreadable';
   if (/kind changed|metric changed|unit changed|description is empty|value is not a number/.test(reason)) return 'kind_metric_unit';
-  if (/^"messageToUser" says "[^"]+", but next week's target (goes up|stays)/.test(reason)) return 'held_or_raised';
+  if (/^"messageToUser" says "[^"]+", but next week's target (goes up|moves on|stays)/.test(reason)) return 'held_or_raised';
   if (reason.startsWith('"messageToUser"')) return 'sentence';
   if (/easier than what they last achieved/.test(reason)) return 'below_last_result';
   if (/easier than the week before it/.test(reason)) return 'backwards';

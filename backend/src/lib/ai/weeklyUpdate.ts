@@ -361,7 +361,7 @@ export function directionReason(sentence: string, now: WeekTarget, next: WeekTar
   const shown = (target: WeekTarget) => (target.kind === 'deliverable' ? `"${target.description}"` : formatAmount(target.value, target.unit));
   const heldWord = sentence.match(HELD_WORDS)?.[0];
   if (up && heldWord) {
-    return `"messageToUser" says "${heldWord}", but next week's target goes up from ${shown(now)} to ${shown(next)}; say plainly that it goes up.`;
+    return `"messageToUser" says "${heldWord}", but next week's target moves on from ${shown(now)} to ${shown(next)}; say plainly that next week aims at ${shown(next)}, not that it is held.`;
   }
   const raisedWord = sentence.match(RAISED_WORDS)?.[0];
   if (stayed && raisedWord) {

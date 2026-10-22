@@ -372,10 +372,10 @@ describe('WU-51: no "held" for a raise, no "raised" for a hold', () => {
   it('"held" while next week goes up is a retry reason that says what to fix', () => {
     const i = input();
     expect(reasonsOf(checkWeeklyUpdate(answer(i, { messageToUser: 'Next week your target is held steady.' }), i))).toMatch(
-      /"messageToUser" says "held", but next week's target goes up from 12 km to 13 km; say plainly that it goes up\./
+      /"messageToUser" says "held", but next week's target moves on from 12 km to 13 km; say plainly that next week aims at 13 km, not that it is held\./
     );
     for (const message of ['Your pace is kept for now.', 'The plan stays on course.']) {
-      expect(reasonsOf(checkWeeklyUpdate(answer(i, { messageToUser: message }), i))).toMatch(/but next week's target goes up/);
+      expect(reasonsOf(checkWeeklyUpdate(answer(i, { messageToUser: message }), i))).toMatch(/but next week's target moves on/);
     }
   });
 
@@ -410,9 +410,16 @@ describe('WU-51: no "held" for a raise, no "raised" for a hold', () => {
     expect(directionReason('Next week is held at an easier 11.5 km.', km(12), km(11.5))).toBeNull();
   });
 
+  it('a lower-is-better target that gets harder is never called "up" in the retry reason (M3.2b review)', () => {
+    const fat = (value: number) => ({ kind: 'number' as const, metric: 'Body fat percentage', value, unit: 'percent', direction: 'lower_is_better' as const });
+    const reason = directionReason('Next week is held at this benchmark.', fat(23.4), fat(21));
+    expect(reason).toMatch(/moves on from 23\.4 percent to 21 percent; say plainly that next week aims at 21 percent/);
+    expect(reason).not.toMatch(/goes up/);
+  });
+
   it('a deliverable: new text has gone up, the same text has stayed', () => {
     expect(directionReason('The target is kept as planned.', text('Draft chapter 4'), text('Draft chapter 5'))).toMatch(
-      /says "kept", but next week's target goes up from "Draft chapter 4" to "Draft chapter 5"/
+      /says "kept", but next week's target moves on from "Draft chapter 4" to "Draft chapter 5"/
     );
     expect(directionReason('The target rises to the next chapter.', text('Draft chapter 4'), text('Draft chapter 4'))).toMatch(/says "rises", but next week's target stays at "Draft chapter 4"/);
     expect(directionReason("Next week's target is held.", text('Draft chapter 4'), text('Draft chapter 4'))).toBeNull();
