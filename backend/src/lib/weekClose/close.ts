@@ -213,6 +213,9 @@ export async function writeWeekAfter(
       : null;
   // WU-26: the week is dated from the moved start, so it starts on the day they came back (or as near as the limit allows).
   const writerGoal = move && move.days > 0 ? { ...goal, startDate: move.startDate } : goal;
+  // M3.4 review fix 6: whether the re-test is easy is only known here (`goalLoad` with the profile just ensured), so it
+  // is logged here, after the update's `[WeeklyUpdate]` line.
+  if (back?.highLoad && context.retest) console.log(`[WeeklyUpdate] goal ${goal.id} week ${weekNumber} retest easy`);
   const written = await writeNextWeek(
     writerGoal,
     weekNumber,
@@ -226,7 +229,10 @@ export async function writeWeekAfter(
       ...(move && move.weekBack !== weekNumber + 1 ? { weekNumber: move.weekBack } : {}),
       ...(olderWeeks ? { olderWeeks } : {}),
       ...(context.coachNote ? { coachNote: context.coachNote } : {}),
-      ...(context.retest ? { retest: { ...context.retest, ...(move ? { notOfferedBefore: move.writtenOn } : {}) } } : {}),
+      // M3.4 (WU-41, WU-55, WU-59 (4)): a high-load first week back gets the easy re-test from the start.
+      ...(context.retest
+        ? { retest: { ...context.retest, ...(move ? { notOfferedBefore: move.writtenOn } : {}), ...(back?.highLoad ? { easy: true } : {}) } }
+        : {}),
     }
   );
   return written ? { written, move } : null;
@@ -340,8 +346,8 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
       nextTasks = await saveWeekTasks(goal.id, nextWeek, written, tx, move ? { notOfferedBefore: move.writtenOn } : undefined);
       // M1.5a (WU-18): the break's length is stored on the first week back, by the request that wins only.
       const breakDays = move && move.breakDays !== null ? { breakDays: move.breakDays } : {};
-      // M3.3a (RULE-5, RULE-6): the re-tested week, on a week written straight after the closing one (never a jump).
-      const retest = input.retestOfWeek && jumped.length === 0 ? { retestOfWeek: input.retestOfWeek } : {};
+      // M3.3a (RULE-5, RULE-6): the re-tested week. M3.4 (WU-59 (4)): after "Keep going" too, on the first week back.
+      const retest = input.retestOfWeek ? { retestOfWeek: input.retestOfWeek } : {};
       await tx.roadmapWeek.update({ where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } }, data: { status: 'active', ...breakDays, ...retest } });
       const moved = move && move.days > 0 ? { startDate: move.startDate, targetDate: move.targetDate, movedDays: move.movedDays } : {};
       await tx.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek, ...moved } });

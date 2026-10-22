@@ -131,6 +131,13 @@ describe('The re-test line (AC-4)', () => {
     for (const word of [/missed/i, /behind/i, /failed/i, /\bfail\b/i]) expect(line).not.toMatch(word);
   });
 
+  it('M3.4 (WU-59 (5)): after a break no line is shown, and the result entry is still offered', async () => {
+    mocked.fetchActiveGoal.mockResolvedValue(goal({ retest: { ofWeek: 3, reason: 'break', logged: false } as Retest }));
+    await renderToday();
+    for (const line of Object.values(RETEST_LINES)) expect(screen.queryByText(line)).toBeNull();
+    expect(logButton()).toBeVisible();
+  });
+
   it('the exact words of the copy table', () => {
     expect(RETEST_LINES.not_logged).toBe(
       "Last week's test wasn't logged, so we're holding your target. This week starts with a quick re-test so we can adjust."

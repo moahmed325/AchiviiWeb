@@ -12,7 +12,7 @@ import { isLogged } from './update.js';
 /** The daily-time options the schedule step offers (`DAILY_MINUTES` in the frontend's `StepSchedule.tsx`). */
 export const DAILY_MINUTES_OPTIONS = [30, 45, 60, 90] as const;
 
-export type RetestLineReason = 'not_logged' | 'two_hard_weeks';
+export type RetestLineReason = 'break' | 'not_logged' | 'two_hard_weeks';
 
 export interface RetestInfo {
   ofWeek: number;
@@ -29,6 +29,8 @@ export interface DailyTimeCheck {
 }
 
 export type RetestWeek = Pick<RoadmapWeek, 'weekNumber' | 'status' | 'retestOfWeek' | 'updateStatus' | 'testResult' | 'dailyTimeAskedAt'> & {
+  /** M3.4: set on a first week back (M1.5a); missing on older callers. */
+  breakDays?: number | null;
   jumped?: boolean | null;
 };
 
@@ -69,7 +71,8 @@ function retestTaskOf(tasks: readonly RetestTask[], openWeek: number): RetestTas
 /**
  * WU-58 (1), (2): the open week's re-test, or null when the open week has no `retestOfWeek` or no day holds the
  * measured re-test step. `two_hard_weeks` only when the re-tested week has a result logged and both it and the week
- * before stored `far_behind`; an unlogged test wins (`not_logged`).
+ * before stored `far_behind`; an unlogged test wins (`not_logged`). M3.4 (WU-59 (5)): `break` first, when the open week
+ * is a first week back (`breakDays`).
  */
 export function retestInfo(weeks: readonly RetestWeek[], tasks: readonly RetestTask[]): RetestInfo | null {
   const open = openWeekOf(weeks);
@@ -79,7 +82,8 @@ export function retestInfo(weeks: readonly RetestWeek[], tasks: readonly RetestT
   const ofWeek = open.retestOfWeek;
   const of = weeks.find((week) => week.weekNumber === ofWeek);
   const logged = loggedInWeek(of?.testResult, open.weekNumber);
-  const reason: RetestLineReason = isLogged(of?.testResult) && twoHardWeeks(weeks, ofWeek) ? 'two_hard_weeks' : 'not_logged';
+  const reason: RetestLineReason =
+    typeof open.breakDays === 'number' ? 'break' : isLogged(of?.testResult) && twoHardWeeks(weeks, ofWeek) ? 'two_hard_weeks' : 'not_logged';
   return { ofWeek, reason, logged, taskId: day.id, date: day.date };
 }
 

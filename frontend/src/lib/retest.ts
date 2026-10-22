@@ -14,10 +14,13 @@ export const RETEST_LINES = {
 
 type RetestGoal = Pick<Goal, 'retest' | 'currentWeek' | 'dailyTasks' | 'roadmapWeeks'>;
 
-/** AC-4: the line, only on the re-test day and only while the re-test is not logged. */
+/**
+ * AC-4: the line, only on the re-test day and only while the re-test is not logged. M3.4 (WU-59 (5)): none after a break;
+ * the welcome-back line already explains the week (M4.1 owns any new copy).
+ */
 export function retestLine(goal: RetestGoal, now: Date, timezone?: string): string | null {
   const retest = goal.retest;
-  if (!retest || retest.logged) return null;
+  if (!retest || retest.logged || retest.reason === 'break') return null;
   return retest.date === todayKey(now, timezone) ? RETEST_LINES[retest.reason] : null;
 }
 

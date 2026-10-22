@@ -148,3 +148,25 @@ describe('dailyTimeCheckOf (RULE-6, WU-7, WU-20 (1))', () => {
     expect(dailyTimeCheckOf(weeks, 60)).toEqual({ minutes: 60, shorter: [30, 45] });
   });
 });
+
+describe('M3.4 (WU-59 (5)): a re-test on a first week back', () => {
+  it('reason break when the open week has breakDays, before two_hard_weeks and not_logged', () => {
+    const weeks = weeksWith(6, { 4: 'far_behind', 5: 'far_behind' }, { 5: { testResult: RESULT }, 6: { breakDays: 12 } });
+    expect(retestInfo(weeks, tasksOf(6))).toMatchObject({ ofWeek: 5, reason: 'break', logged: false });
+    expect(retestInfo(weeksWith(6, {}, { 6: { breakDays: 12 } }), tasksOf(6))?.reason).toBe('break');
+  });
+
+  it('no breakDays: as before', () => {
+    expect(retestInfo(weeksWith(6, {}, { 6: { breakDays: null } }), tasksOf(6))?.reason).toBe('not_logged');
+  });
+
+  it('the easy re-test (high-load first week back) gives nothing', () => {
+    expect(retestInfo(weeksWith(6, {}, { 6: { breakDays: 12 } }), tasksOf(6, 2, easyRetestStep(15)))).toBeNull();
+  });
+
+  it('RULE-6: the week a break started in has no status, so it ends a run of hard weeks', () => {
+    // Week 5 started the break (no status); weeks 6 and 7 hard: the check comes only after both.
+    expect(dailyTimeCheckOf(weeksWith(7, { 4: 'far_behind', 6: 'far_behind' }), 60)).toBeNull();
+    expect(dailyTimeCheckOf(weeksWith(8, { 4: 'far_behind', 6: 'far_behind', 7: 'far_behind' }), 60)).not.toBeNull();
+  });
+});

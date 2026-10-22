@@ -10,6 +10,7 @@ import { generateStructuredContent } from './gemini.js';
 import { formatAmount, formatTarget, TOTAL_WEEKS, type WeekTarget } from './roadmap.js';
 import { sameUnit } from '../research/statedTarget.js';
 import { harder } from '../safety/targetSteps.js';
+import type { Restart } from '../recovery/profile.js';
 
 export const UPDATE_STATUSES = ['on_track', 'a_bit_behind', 'far_behind'] as const;
 export type UpdateStatus = (typeof UPDATE_STATUSES)[number];
@@ -84,6 +85,22 @@ export interface WeeklyUpdateInput {
   safeMax: { weekNumber: number; value: number } | null;
   /** WU-11: only with `METHOD_RECOVERY_ENABLED` on, and only kinds with steps still to do. */
   kinds?: UpdateKind[];
+  /** M3.4: the week this close writes (`WeekMove.weekBack`, after "Keep going" past the jumped weeks); missing: `weekNumber + 1`. */
+  nextWeek?: number;
+  /** M3.4 (RULE-16, WU-59): on a break, the return rule's restart; missing on any other close. */
+  restart?: UpdateRestart;
+}
+
+/** M3.4 (WU-59 (1), (2)): a break's restart, as `restartLevel` gives it, with the days away. */
+export interface UpdateRestart {
+  awayDays: number;
+  restart: Restart;
+  /** The target the week the model sets for next week must equal; the lower bound of every week left. */
+  level: WeekTarget;
+  /** The week `level` was read from. */
+  week: number;
+  /** M3.4 review: the rule's week could not be used (`restartLevel`'s `fellBack`), so the restart stays at this week's target. */
+  fellBack?: boolean;
 }
 
 export interface CheckedUpdate {
@@ -179,6 +196,11 @@ export function askedWeeks(input: Pick<WeeklyUpdateInput, 'lightTestGoal' | 'wee
   return input.lightTestGoal ? input.weeksLeft.filter((week) => !week.light) : input.weeksLeft;
 }
 
+/** The week this close writes: `nextWeek`, or the week after this one. */
+export function nextWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'nextWeek'>): number {
+  return input.nextWeek ?? input.weekNumber + 1;
+}
+
 /** The week the next week shows: a light week shows its next big week's target. */
 function bigWeekFor(weekNumber: number, weeksLeft: readonly UpdateWeekLeft[]): number {
   return weeksLeft.find((week) => week.weekNumber >= weekNumber && !week.light)?.weekNumber ?? TOTAL_WEEKS;
@@ -188,34 +210,38 @@ function bigWeekFor(weekNumber: number, weeksLeft: readonly UpdateWeekLeft[]): n
  * WU-47 (amends WU-15): next week shows week 12's target: it is week 12, or a light week whose next check is week 12 (on
  * a light-test goal, the close of week 8). No hold applies then.
  */
-export function nextWeekIsLast(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): boolean {
-  return input.weekNumber + 1 >= TOTAL_WEEKS || bigWeekFor(input.weekNumber + 1, input.weeksLeft) === TOTAL_WEEKS;
+export function nextWeekIsLast(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): boolean {
+  const next = nextWeekOf(input);
+  return next >= TOTAL_WEEKS || bigWeekFor(next, input.weeksLeft) === TOTAL_WEEKS;
 }
 
 /**
  * RULE-4 and WU-11: the holds on next week's target, none when next week shows week 12's target (WU-15, WU-47). WU-54
- * (M3.3a): a light week's test is not a result, so an unlogged light week is not "not logged".
+ * (M3.3a): a light week's test is not a result, so an unlogged light week is not "not logged". M3.4 (WU-59 (2)): none on a
+ * break; the restart level is at or below this week's target, so it already holds.
  */
-export function holdsOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'testLogged' | 'lightTest' | 'kinds'>): { notLogged: boolean; weekBehind: UpdateKind[] } {
-  if (nextWeekIsLast(input)) return { notLogged: false, weekBehind: [] };
+export function holdsOf(
+  input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'testLogged' | 'lightTest' | 'kinds' | 'nextWeek' | 'restart'>
+): { notLogged: boolean; weekBehind: UpdateKind[] } {
+  if (nextWeekIsLast(input) || input.restart) return { notLogged: false, weekBehind: [] };
   return { notLogged: !input.testLogged && !input.lightTest, weekBehind: (input.kinds ?? []).filter((kind) => kind.weekBehind) };
 }
 
 /** WU-49: the week a hold binds is the week the model sets: next week, or on a light-test goal the big week it shows. */
-function heldWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): number {
-  return bigWeekFor(input.weekNumber + 1, input.weeksLeft);
+export function heldWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): number {
+  return bigWeekFor(nextWeekOf(input), input.weeksLeft);
 }
 
 /** "week 4", or "week 8 (next week shows it)" when next week is a light week. */
-function heldWeekName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): string {
+function heldWeekName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): string {
   const week = heldWeekOf(input);
-  return week === input.weekNumber + 1 ? `week ${week}` : `week ${week} (next week shows it)`;
+  return week === nextWeekOf(input) ? `week ${week}` : `week ${week} (next week shows it)`;
 }
 
 /** "week 4's target", or "week 8's target (next week shows it)". */
-function heldTargetName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): string {
+function heldTargetName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): string {
   const week = heldWeekOf(input);
-  return week === input.weekNumber + 1 ? `week ${week}'s target` : `week ${week}'s target (next week shows it)`;
+  return week === nextWeekOf(input) ? `week ${week}'s target` : `week ${week}'s target (next week shows it)`;
 }
 
 /** Next week's target is harder than this week's (for a deliverable: different text), or null when the kinds differ. */
@@ -249,6 +275,50 @@ export function fallbackHold(input: WeeklyUpdateInput): { held: FallbackHold[]; 
   return { held, targets, keeps: true };
 }
 
+/**
+ * M3.4 (WU-59 (3)): on a fallback after a break, the week the model sets for next week (on a light-test goal the big
+ * week next week shows) and the light weeks before it take the restart level; every later week stays as planned. Empty
+ * without a restart.
+ */
+export function fallbackRestart(input: WeeklyUpdateInput): Array<{ weekNumber: number; target: WeekTarget }> {
+  if (!input.restart || nextWeekIsLast(input)) return [];
+  const week = heldWeekOf(input);
+  const level = input.restart.level;
+  return input.weeksLeft
+    .filter((item) => item.weekNumber <= week && bigWeekFor(item.weekNumber, input.weeksLeft) === week)
+    .map((item) => ({ weekNumber: item.weekNumber, target: level }));
+}
+
+/** M3.4 (WU-59 (2)): a target equals the restart level (a number within `EPSILON`, a deliverable's text exactly). */
+function atLevel(target: WeekTarget, level: WeekTarget): boolean {
+  if (target.kind === 'deliverable' || level.kind === 'deliverable') {
+    return target.kind === 'deliverable' && level.kind === 'deliverable' && target.description === level.description;
+  }
+  return Math.abs(target.value - level.value) <= EPSILON;
+}
+
+const RESTART_WORDS: Record<Restart, string> = {
+  'last level': 'restart at the last level reached',
+  'back 1 week': 'go back 1 week',
+  'back 2 weeks': 'go back 2 weeks',
+};
+
+/** M3.4 (requirement 4): the BREAK block, only on a break with a restart. */
+function breakLines(input: WeeklyUpdateInput, restart: UpdateRestart): string[] {
+  const level = formatTarget(restart.level);
+  const held = heldWeekName(input);
+  return [
+    '',
+    'BREAK',
+    restart.fellBack
+      ? `- They were away ${restart.awayDays} days. The restart stays at this week's target (week ${restart.week}).`
+      : `- They were away ${restart.awayDays} days. The method's return rule for a break this long: ${RESTART_WORDS[restart.restart]} (week ${restart.week}'s target).`,
+    `- W${held.slice(1)} must be exactly ${level}. Spread the remaining weeks from there up to week 12; none easier than it.`,
+    // M3.4 review: the app's welcome-back line comes first, so the sentence must not repeat it.
+    '- The app already welcomes them back, so the message must not greet them or say "welcome back".',
+  ];
+}
+
 const amount = (target: WeekTarget, value: number) => (target.kind === 'number' ? formatAmount(value, target.unit) : String(value));
 
 function targetLine(week: UpdateWeekLeft, weeksLeft: readonly UpdateWeekLeft[]): string {
@@ -278,16 +348,18 @@ function countLines(counts: UpdateCounts): string[] {
  * WU-46 (2): the lower bound never goes above week 12's current target; null without a result or without a number
  * week 12. WU-46 (1) is `checkWeeklyUpdate`'s: a held next week may be below it.
  */
-export function boundOf(input: Pick<WeeklyUpdateInput, 'lowerBound' | 'weeksLeft' | 'target'>): number | null {
+export function boundOf(input: Pick<WeeklyUpdateInput, 'lowerBound' | 'weeksLeft' | 'target' | 'restart'>): number | null {
+  // M3.4 (WU-16, WU-59 (2)): after a break the restart level is the lower bound, not the last result.
+  const lowerBound = input.restart ? (input.restart.level.kind === 'number' ? input.restart.level.value : null) : input.lowerBound;
   const week12 = input.weeksLeft.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
-  if (input.lowerBound === null || input.target.kind !== 'number' || week12?.kind !== 'number') return input.lowerBound;
-  return harder(input.lowerBound, week12.value, input.target.direction) ? week12.value : input.lowerBound;
+  if (lowerBound === null || input.target.kind !== 'number' || week12?.kind !== 'number') return lowerBound;
+  return harder(lowerBound, week12.value, input.target.direction) ? week12.value : lowerBound;
 }
 
-/** WU-46 (1): a hold on next week (none before week 12, WU-15). */
+/** WU-46 (1): a hold on next week (none before week 12, WU-15; none on a break, WU-59 (2)). */
 function nextWeekHeld(input: WeeklyUpdateInput, status: string | undefined): boolean {
   const holds = holdsOf(input);
-  return (status === 'far_behind' && !nextWeekIsLast(input)) || holds.notLogged || holds.weekBehind.length > 0;
+  return (status === 'far_behind' && !nextWeekIsLast(input) && !input.restart) || holds.notLogged || holds.weekBehind.length > 0;
 }
 
 function kindLine(kind: UpdateKind): string {
@@ -302,7 +374,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   const week12 = input.weeksLeft.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
   const counts = input.counts;
   const holds = holdsOf(input);
-  const nextWeek = input.weekNumber + 1;
+  const nextWeek = nextWeekOf(input);
   const lines: string[] = [
     'THE PLAN',
     `Goal: ${input.finalGoal}`,
@@ -325,6 +397,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     lines.push('', 'WHERE THEY ARE in each in-order kind of step (the first step not done yet):', ...input.kinds.map(kindLine));
   }
   lines.push('', 'LAST 3 WEEKS', ...(input.history.length ? input.history.map(historyLine) : ['none: this is their first week']));
+  if (input.restart && !nextWeekIsLast(input)) lines.push(...breakLines(input, input.restart));
   if (input.safeMax) {
     lines.push('', 'SAFETY', `- The most week ${input.safeMax.weekNumber} may be: ${amount(input.target, input.safeMax.value)} (one safe step). Code lowers anything past it.`);
   }
@@ -335,6 +408,9 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   ];
   if (nextWeekIsLast(input)) {
     targetRules.push(`   - Week ${nextWeek} shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.`);
+  } else if (input.restart) {
+    // M3.4 (WU-59 (2)): after a break the restart level decides next week, whatever the status; no other hold applies.
+    targetRules.push(`   - After the break, ${heldTargetName(input)} equals ${formatTarget(input.restart.level)} whatever the status.`);
   } else {
     // WU-49: each hold names the week the model sets (on a light-test goal, the big week next week shows).
     const held = heldTargetName(input);
@@ -348,13 +424,15 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   }
   const bound = boundOf(input);
   // WU-46 (1): the bound is said only for the weeks it binds; a held next week may stay at this week's target.
-  const heldBelow = bound !== null && input.target.kind === 'number' && !nextWeekIsLast(input) && harder(bound, input.target.value, input.target.direction);
+  const heldBelow = bound !== null && input.target.kind === 'number' && !nextWeekIsLast(input) && !input.restart && harder(bound, input.target.value, input.target.direction);
   targetRules.push(
     bound === null
       ? '   - No target goes backwards: each week is at least as hard as the week before it.'
-      : `   - Never set a target easier than what they last achieved (${amount(input.target, bound)}), and no week easier than the week before it.${
-          heldBelow ? ` A held ${heldWeekName(input)} may stay at this week's target instead.` : ''
-        }`,
+      : input.restart
+        ? `   - Never set a target easier than the restart level (${amount(input.target, bound)}), and no week easier than the week before it.`
+        : `   - Never set a target easier than what they last achieved (${amount(input.target, bound)}), and no week easier than the week before it.${
+            heldBelow ? ` A held ${heldWeekName(input)} may stay at this week's target instead.` : ''
+          }`,
     `   - Week 12 stays exactly ${week12 ? formatTarget(week12) : 'the goal'}.`,
     '   - Keep each week\'s kind, metric and unit as planned.',
     // M3.3a (03-phases M3.3 note (b)): WU-51's rule, told as well as checked.
@@ -466,6 +544,7 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
   const message = text(raw.messageToUser);
   const sentence = sentenceReason(message);
   if (sentence) reasons.push(sentence);
+  if (input.restart && !nextWeekIsLast(input) && /\bwelcome back\b/i.test(message)) reasons.push('"messageToUser" says "welcome back"; the app already welcomes them back, so say what happens next instead.');
   if (reasons.length > 0 || set.size !== asked.length) return { reasons: reasons.length ? reasons : ['"nextTargets" could not be read.'] };
 
   // WU-45 (2): each light week left holds its next big week's target.
@@ -477,8 +556,9 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
   const week12 = targets.find((item) => item.weekNumber === TOTAL_WEEKS)?.target;
   const next = targets[0]?.target;
   const holds = holdsOf(input);
+  const restart = input.restart && !nextWeekIsLast(input) ? input.restart : null;
   const heldBy = [
-    ...(status === 'far_behind' && !nextWeekIsLast(input) ? ['the status is far_behind'] : []),
+    ...(status === 'far_behind' && !nextWeekIsLast(input) && !restart ? ['the status is far_behind'] : []),
     ...(holds.notLogged ? ['the test was not logged'] : []),
     ...(holds.weekBehind.length ? [`they are a week behind in ${holds.weekBehind.map((kind) => kind.name).join(', ')}`] : []),
   ];
@@ -502,9 +582,13 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
       if (item.target.kind !== 'number') continue;
       const value = item.target.value;
       // WU-46 (1): a hold wins over the bound; a held next week may go as low as this week's target.
-      const floor = bound !== null && held && item.weekNumber === input.weekNumber + 1 && harder(bound, input.target.value, direction) ? input.target.value : bound;
+      const floor = bound !== null && held && item.weekNumber === nextWeekOf(input) && harder(bound, input.target.value, direction) ? input.target.value : bound;
       if (floor !== null && harder(floor, value, direction)) {
-        reasons.push(`week ${item.weekNumber}'s ${label(value)} is easier than what they last achieved (${label(floor)}).`);
+        reasons.push(
+          restart
+            ? `week ${item.weekNumber}'s ${label(value)} is easier than the restart level (${label(floor)}).`
+            : `week ${item.weekNumber}'s ${label(value)} is easier than what they last achieved (${label(floor)}).`
+        );
       }
       if (before !== null && harder(before, value, direction)) reasons.push(`week ${item.weekNumber}'s ${label(value)} is easier than the week before it (${label(before)}).`);
       if (item.weekNumber < TOTAL_WEEKS && harder(value, week12Now.value, direction)) {
@@ -512,7 +596,7 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
       }
       before = value;
     }
-    if (next?.kind === 'number' && !nextWeekIsLast(input)) {
+    if (next?.kind === 'number' && !nextWeekIsLast(input) && !restart) {
       const now = input.target.value;
       if (status === 'far_behind' && Math.abs(next.value - now) > EPSILON) {
         reasons.push(`the status is far_behind, so ${heldTargetName(input)} must equal this week's (${label(now)}).`);
@@ -522,6 +606,11 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
         reasons.push(`${heldTargetName(input)} must not be higher than this week's (${label(now)}) because ${raiseHolds.join(' and ')}.`);
       }
     }
+  }
+  // M3.4 (WU-59 (2)): after a break, the week the model sets for next week is the restart level exactly.
+  const setNext = targets.find((item) => item.weekNumber === heldWeekOf(input))?.target;
+  if (restart && setNext && !atLevel(setNext, restart.level)) {
+    reasons.push(`${heldTargetName(input)} must be exactly ${formatTarget(restart.level)} after the break (the return rule's restart); got ${formatTarget(setNext)}.`);
   }
   const wording = next ? directionReason(message, input.target, next) : null;
   if (wording) reasons.push(wording);

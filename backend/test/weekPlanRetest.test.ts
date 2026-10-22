@@ -235,3 +235,30 @@ describe('the re-test on a load goal (WU-55)', () => {
     expect(base).toMatchObject({ known: true, totalMinutes: 40, runs: 2 });
   });
 });
+
+describe('M3.4 (WU-59 (4)): the easy re-test from the start on a high-load first week back', () => {
+  const easy: WeekCallInput = { ...input, retest: { ofWeek: 3, test: TIME_TRIAL, easy: true } };
+
+  it('is placed where the measured one would be, with its fixed text and half the day; it reads back as light', () => {
+    const days = value(checkWeekAnswer(week(), easy));
+    expect(retestSteps(days).map((item) => item.day)).toEqual([1]);
+    const retest = days[0].detailedSteps[0];
+    expect(retest).toMatchObject({ title: EASY_RETEST_STEP.title, instructions: EASY_RETEST_STEP.instructions, durationMinutes: 15, priority: 2 });
+    expect(codeMadeRetestStep(retest)).toBe('light');
+    expect(days.some((day) => day.detailedSteps.some((s) => codeMadeRetestStep(s) === 'measured'))).toBe(false);
+  });
+
+  it('passes the light scan of a high-load first week back (WU-41): its own text is never refused', () => {
+    const days = value(checkWeekAnswer(week(), { ...easy, firstWeekBack: { awayDays: 12, note: null, highLoad: true } }, false));
+    expect(retestSteps(days).map((item) => codeMadeRetestStep(item.step))).toEqual(['light']);
+    expect(safetyLines()).toEqual([]);
+  });
+
+  it('the prompt asks for an easy version and never names the stored time trial; a measured re-test is told as before', () => {
+    const layout = weekLayout('steady', input.weekStart);
+    const prompt = buildWeekPrompt(easy, layout);
+    expect(prompt).toContain("starts with an easy version of week 3's test (an easy, comfortable effort");
+    expect(prompt).not.toContain(TIME_TRIAL.instructions);
+    expect(buildWeekPrompt({ ...easy, retest: { ofWeek: 3, test: TIME_TRIAL } }, layout)).toContain(`a re-test of week 3's test (${TIME_TRIAL.instructions})`);
+  });
+});
