@@ -38,7 +38,6 @@ import { makeGoalProfile } from '../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
 import {
-  autoCloseInsight,
   closeAnswer,
   logJump,
   logWeekClose,
@@ -46,9 +45,8 @@ import {
   reviewInsight,
   saveWeekClose,
   weekCloseDue,
-  writeWeekAfter,
 } from '../lib/weekClose/close.js';
-import { logUpdateLowered, planWeeklyUpdate, withUpdatedTargets } from '../lib/weekClose/update.js';
+import { autoCloseUpdateInsight, logUpdateLowered, retestOfWeekFor, updateThenWrite } from '../lib/weekClose/update.js';
 import type { PastLimitChoice } from '../lib/weekClose/breaks.js';
 import { weekCloseEnabled } from '../lib/weekClose/switch.js';
 
@@ -1111,6 +1109,8 @@ export function validateWeeklyTestResult(
  * Missed sessions M4.1 (ND-4, RULE-7): logs the week's test result without closing the week. Stores
  * `RoadmapWeek.testResult` and nothing else: no status change, no next week, no model call. The latest call wins.
  * The weekly review keeps this result when it is submitted without one.
+ * Weekly update M3.3a (RULE-5, WU-17, WU-56 (2)): a closed week the open week re-tests (`retestOfWeek`) takes the
+ * re-test's result as its late result; every other closed week is refused as before.
  */
 goalRouter.put('/weeks/:weekNumber/test-result', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -1128,17 +1128,21 @@ goalRouter.put('/weeks/:weekNumber/test-result', async (req: Request, res: Respo
 
     const goal = await prisma.goal.findFirst({
       where: { userId: user.id, status: 'active' },
-      select: { planVersion: true, roadmapWeeks: { where: { weekNumber }, select: { id: true, status: true } } },
+      select: {
+        planVersion: true,
+        roadmapWeeks: { where: { OR: [{ weekNumber }, { status: 'active' }] }, select: { id: true, weekNumber: true, status: true, retestOfWeek: true } },
+      },
     });
-    const week = goal?.roadmapWeeks[0];
+    const week = goal?.roadmapWeeks.find((w) => w.weekNumber === weekNumber);
+    const retested = goal?.roadmapWeeks.some((w) => w.status === 'active' && w.retestOfWeek === weekNumber) === true;
     if (!goal || !week) {
       res.status(404).json({ error: 'Week not found.' });
       return;
     }
     if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
-    if (week.status === 'completed') return refuse(res, 'week_closed');
+    if (week.status === 'completed' && !retested) return refuse(res, 'week_closed');
     // B-68: only the open week takes a result (a late test is logged while its week is still active).
-    if (week.status !== 'active') return refuse(res, 'week_not_open');
+    if (week.status !== 'active' && !retested) return refuse(res, 'week_not_open');
 
     await prisma.roadmapWeek.update({
       where: { id: week.id },
@@ -1207,17 +1211,11 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     const now = new Date();
     // Weekly update M3.1 (RULE-1, WU-45 (1)): with both switches on, weeks 1 to 11 and not a break, the update runs
     // first and the week after is written from its targets; otherwise null and the review is exactly as before.
-    const update = await planWeeklyUpdate(writerGoal, weekNum, {
+    const { update, next } = await updateThenWrite(writerGoal, weekNum, {
       userId: user.id,
       reflection: typeof reflection === 'string' ? reflection : '',
       now,
       timezone: user.timezone,
-    });
-    const next = await writeWeekAfter(withUpdatedTargets(writerGoal, update), weekNum, {
-      now,
-      timezone: user.timezone,
-      ...(update?.coachNote ? { coachNote: update.coachNote } : {}),
-      ...(update?.weekBefore ? { weekBefore: update.weekBefore } : {}),
     });
     // M1.5b (WU-38 (1)): a break past the limit is answered on Today's card, never by the review; nothing was called.
     if (next?.choiceNeeded) return refuseChoice(res, next.choiceNeeded);
@@ -1239,6 +1237,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       move: next.move,
       now,
       update,
+      retestOfWeek: retestOfWeekFor(update, next.written),
     });
     // Another close won inside the save (WU-27): nothing of this request was saved.
     if (!saved) return refuse(res, 'week_closed');
@@ -1318,7 +1317,9 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
     const startedAt = Date.now();
     const lastWeek = weekNum >= TOTAL_WEEKS;
     const choice = isChoice(req.body?.choice) ? req.body.choice : null;
-    const next = await writeWeekAfter(goal, weekNum, { now, timezone: user.timezone, choice });
+    // M3.3a (RULE-1, RULE-18, WU-52): the same update as the review, with no reflection; none for week 12, on a break
+    // (so never before a choice past the limit) or with either switch off, and then the close is exactly as before.
+    const { update, next } = await updateThenWrite(goal, weekNum, { userId: user.id, reflection: '', now, timezone: user.timezone, choice });
     // M1.5b (WU-38): past the limit, a close without the person's choice saves nothing and calls no model.
     if (next?.choiceNeeded) return refuseChoice(res, next.choiceNeeded);
     if (!next) {
@@ -1330,10 +1331,13 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
       weekNumber: weekNum,
       by: 'auto',
       written: next.written,
-      // RULE-11: week 12 closes with no review row. M1.4 (section 6): a close that moved the plan says so.
-      ...(lastWeek ? {} : { insight: autoCloseInsight(next.move) }),
+      // RULE-11: week 12 closes with no review row. M1.4 (section 6): a close that moved the plan says so. M3.3a
+      // (WU-56 (4)): with an update, its sentence, after the move line when the plan moved.
+      ...(lastWeek ? {} : { insight: autoCloseUpdateInsight(next.move, update) }),
       move: next.move,
       now,
+      update,
+      retestOfWeek: retestOfWeekFor(update, next.written),
     });
     // Lost the race (WU-27): another close saved this week; nothing of this request was saved.
     if (!saved) {
@@ -1342,6 +1346,7 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
     }
     logWeekClose(goal, weekNum, 'auto', now, user.timezone, startedAt);
     logJump(goal, weekNum, next.move);
+    logUpdateLowered(goal.id, update);
     res.json({ due: true, closedBy: 'auto', ...closeAnswer(goal, weekNum, saved, week.testResult ?? null, next.move) });
   } catch (err: any) {
     console.error('[GoalRouter] Week close error:', err);

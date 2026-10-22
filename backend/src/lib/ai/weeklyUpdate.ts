@@ -1,7 +1,8 @@
 /**
  * Weekly update M3.1 (docs/features/weekly-update, RULE-1 to RULE-4, RULE-7, WU-11, WU-15, WU-20 (3), WU-45): prompt 4,
  * trimmed. One model call after a week closes by review sets the status and the targets of the weeks left; code checks
- * the answer (RULE-4) and gives one retry with the reasons. No checkpoint offer (WU-2) and no `retestFirst` (WU-45 (5)).
+ * the answer (RULE-4) and gives one retry with the reasons. No checkpoint offer (WU-2) and no `retestFirst`: code decides
+ * the re-test after the update (M3.3a, `weekClose/update.ts`).
  * Everything here is pure apart from the model call in `askWeeklyUpdate`; reading the goal and keeping the targets safe
  * (RULE-10) is `weekClose/update.ts`'s.
  */
@@ -137,6 +138,42 @@ export const WEEKLY_UPDATE_SCHEMA = {
   required: ['status', 'nextTargets', 'messageToUser', 'guidanceForNextWeek'],
 };
 
+/**
+ * Weekly update M3.3a (03-phases M3.3 note (a)): a deliverable week's schema, `kind` fixed to `deliverable` and
+ * `description` required, with no number fields. Number weeks keep `WEEKLY_UPDATE_SCHEMA`.
+ */
+export const WEEKLY_UPDATE_DELIVERABLE_SCHEMA = {
+  ...WEEKLY_UPDATE_SCHEMA,
+  properties: {
+    ...WEEKLY_UPDATE_SCHEMA.properties,
+    nextTargets: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          weekNumber: { type: 'integer' },
+          kind: { type: 'string', enum: ['deliverable'] },
+          description: { type: 'string' },
+        },
+        required: ['weekNumber', 'kind', 'description'],
+      },
+    },
+  },
+};
+
+/**
+ * M3.3a review: only deliverables to set, when this week's target and every week the model sets are deliverables; a goal
+ * with any number week keeps today's schema and line.
+ */
+function deliverablesOnly(input: Pick<WeeklyUpdateInput, 'target' | 'weeksLeft' | 'lightTestGoal'>): boolean {
+  return input.target.kind === 'deliverable' && askedWeeks(input).every((week) => week.target.kind === 'deliverable');
+}
+
+/** The schema for this update: the deliverable one when there are only deliverables to set (`deliverablesOnly`). */
+export function weeklyUpdateSchema(input: Pick<WeeklyUpdateInput, 'target' | 'weeksLeft' | 'lightTestGoal'>) {
+  return deliverablesOnly(input) ? WEEKLY_UPDATE_DELIVERABLE_SCHEMA : WEEKLY_UPDATE_SCHEMA;
+}
+
 /** The weeks the model sets: every week left, or on a light-test goal only the big weeks left (WU-45 (2)). */
 export function askedWeeks(input: Pick<WeeklyUpdateInput, 'lightTestGoal' | 'weeksLeft'>): UpdateWeekLeft[] {
   return input.lightTestGoal ? input.weeksLeft.filter((week) => !week.light) : input.weeksLeft;
@@ -151,14 +188,17 @@ function bigWeekFor(weekNumber: number, weeksLeft: readonly UpdateWeekLeft[]): n
  * WU-47 (amends WU-15): next week shows week 12's target: it is week 12, or a light week whose next check is week 12 (on
  * a light-test goal, the close of week 8). No hold applies then.
  */
-function nextWeekIsLast(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): boolean {
+export function nextWeekIsLast(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft'>): boolean {
   return input.weekNumber + 1 >= TOTAL_WEEKS || bigWeekFor(input.weekNumber + 1, input.weeksLeft) === TOTAL_WEEKS;
 }
 
-/** RULE-4 and WU-11: the holds on next week's target, none when next week shows week 12's target (WU-15, WU-47). */
-export function holdsOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'testLogged' | 'kinds'>): { notLogged: boolean; weekBehind: UpdateKind[] } {
+/**
+ * RULE-4 and WU-11: the holds on next week's target, none when next week shows week 12's target (WU-15, WU-47). WU-54
+ * (M3.3a): a light week's test is not a result, so an unlogged light week is not "not logged".
+ */
+export function holdsOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'testLogged' | 'lightTest' | 'kinds'>): { notLogged: boolean; weekBehind: UpdateKind[] } {
   if (nextWeekIsLast(input)) return { notLogged: false, weekBehind: [] };
-  return { notLogged: !input.testLogged, weekBehind: (input.kinds ?? []).filter((kind) => kind.weekBehind) };
+  return { notLogged: !input.testLogged && !input.lightTest, weekBehind: (input.kinds ?? []).filter((kind) => kind.weekBehind) };
 }
 
 /** WU-49: the week a hold binds is the week the model sets: next week, or on a light-test goal the big week it shows. */
@@ -316,7 +356,9 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
           heldBelow ? ` A held ${heldWeekName(input)} may stay at this week's target instead.` : ''
         }`,
     `   - Week 12 stays exactly ${week12 ? formatTarget(week12) : 'the goal'}.`,
-    '   - Keep each week\'s kind, metric and unit as planned.'
+    '   - Keep each week\'s kind, metric and unit as planned.',
+    // M3.3a (03-phases M3.3 note (b)): WU-51's rule, told as well as checked.
+    '   - In the message, don\'t say held, kept or stays when next week\'s target moves on, or goes up, raised or rises when it stays the same.'
   );
   lines.push(
     '',
@@ -326,7 +368,10 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     '   - a_bit_behind: they missed it but did 50%+ of sessions',
     '   - far_behind: they did under 50%, or skipped the key sessions',
     '   Weigh the trend. One bad week after good ones is not the same as three weeks declining.',
-    `2. nextTargets: one target for each of weeks ${askedList}, in order: { weekNumber, kind: "number", metric, value, unit } or { weekNumber, kind: "deliverable", description }.`,
+    // M3.3a (note (a)): a deliverable week is shown only the deliverable shape; a number week's line is unchanged.
+    deliverablesOnly(input)
+      ? `2. nextTargets: one target for each of weeks ${askedList}, in order: { weekNumber, kind: "deliverable", description }.`
+      : `2. nextTargets: one target for each of weeks ${askedList}, in order: { weekNumber, kind: "number", metric, value, unit } or { weekNumber, kind: "deliverable", description }.`,
     ...targetRules,
     '3. messageToUser: one sentence, neutral and encouraging. Say what happens next, and say plainly if next week\'s',
     '   target is held or lowered. Never ask a question. Never use the words "missed", "behind", "failed" or "fail".',
@@ -491,16 +536,23 @@ export interface WeeklyUpdateAnswer {
   reasons: string[];
 }
 
-/** One call, one retry with the reasons (RULE-4); a second rejection, or no answer, is the fallback. */
-export async function askWeeklyUpdate(input: WeeklyUpdateInput): Promise<WeeklyUpdateAnswer> {
+/**
+ * One call, one retry with the reasons (RULE-4); a second rejection, or no answer, is the fallback. M3.3a review
+ * (WU-52): past `deadline` (ms since the epoch) the retry is not started.
+ */
+export async function askWeeklyUpdate(input: WeeklyUpdateInput, options: { deadline?: number } = {}): Promise<WeeklyUpdateAnswer> {
   const prompt = buildWeeklyUpdatePrompt(input);
   const reasons: string[] = [];
   let rejection = '';
   for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0 && options.deadline !== undefined && Date.now() >= options.deadline) {
+      reasons.push('time_limit');
+      break;
+    }
     const attemptPrompt =
       attempt === 0 ? prompt : `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${rejection}\nReturn the complete JSON again with that problem fixed.`;
     const result = await generateStructuredContent<RawWeeklyUpdate>(attemptPrompt, WEEKLY_UPDATE_SYSTEM, undefined, {
-      responseSchema: WEEKLY_UPDATE_SCHEMA,
+      responseSchema: weeklyUpdateSchema(input),
       temperature: attempt === 0 ? 0 : 0.4,
     });
     if (!result.success || !result.data) {

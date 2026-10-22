@@ -2,6 +2,7 @@ import type { DailyTaskPlan, DetailedStep } from './goalDecomposer.js';
 import { generateWithOneRetry } from './retry.js';
 import { WEEKLY_TEST_KIND, type RecoveryProfile } from '../recovery/profile.js';
 import { fitStepMinutes } from './scheduleRepair.js';
+import { codeMadeRetestStep, easyRetestStep, retestDayOf, retestStepFor, type Retest } from './retestStep.js';
 import { dayQualityFailures, polishDays } from './taskRules.js';
 import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyRule } from './safetyScan.js';
 import type { FirstWeekBack } from '../weekClose/breaks.js';
@@ -26,6 +27,7 @@ import {
   runningLimit,
   runningLimitMinutes,
   shareOf,
+  testStepOf,
   shown,
   shownLimit,
   stepLoadBreaches,
@@ -131,7 +133,12 @@ export interface WeekCallInput {
   test: WeekTest;
   weekStart: Date;
   lastWeek?: LastWeekSummary;
-  retestFirst?: boolean;
+  /**
+   * Weekly update M3.3a (RULE-5, RULE-6, WU-55, WU-56): the closing week's test to re-test. Code puts the re-test step
+   * first on the first offered practice day before the test day (`retestDayOf`); none when there is no such day.
+   * Without it the call is exactly as before.
+   */
+  retest?: Retest;
   /** ND-5: a physical preset goal (`isHighLoadGoal`); every practice step is then high-load, unless the goal has a profile. */
   highLoadGoal?: boolean;
   /**
@@ -264,12 +271,6 @@ function lastWeekBlock(input: WeekCallInput): string {
     `Key sessions skipped: ${last.keySessionsSkipped.length ? last.keySessionsSkipped.join('; ') : 'none'}.`,
   ];
   if (last.note) lines.push(`Coach's note: ${last.note}`);
-  if (input.retestFirst) {
-    lines.push(
-      'Their last two weeks were weak. Make the first practice day a re-test using the weekly test, so the plan resets',
-      'to their real level. Title that step "Re-test: ...".'
-    );
-  }
   return lines.join('\n');
 }
 
@@ -445,6 +446,21 @@ function thisWeekTestLines(input: WeekCallInput): string {
   ].join(NL);
 }
 
+/** M3.3a (WU-56): the half of the day the re-test takes, as `testStepFor`'s step takes half of the test day. */
+const retestMinutes = (dailyMinutes: number) => Math.round(dailyMinutes / 2);
+
+/** M3.3a: the re-test day, told in WRITE THE WEEK; code adds the step after the answer. Empty without one. */
+function retestLine(input: WeekCallInput, layout: DayLayout[]): string {
+  const dayNumber = input.retest ? retestDayOf(layout, input.retest.notOfferedBefore) : null;
+  const day = layout.find((item) => item.dayNumber === dayNumber);
+  if (!input.retest || !day) return '';
+  const half = retestMinutes(input.dailyMinutes);
+  const hard = input.loadGoal?.running ? ' The re-test counts as a hard run.' : '';
+  return `${NL}- Day ${day.dayNumber} (${day.dayOfWeek}) starts with a re-test of week ${input.retest.ofWeek}'s test (${input.retest.test.instructions}), which
+  code adds as its first step (${half} minutes). Plan the rest of that day around it, shorter: steps adding up to
+  ${input.dailyMinutes - half} minutes, and none that repeats the test.${hard}`;
+}
+
 function buildBaseWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string {
   const method = input.method.creator ? `${input.method.name} by ${input.method.creator}` : input.method.name;
   const activeNames = layout.filter((day) => !day.isRestDay).map((day) => day.dayOfWeek).join(', ');
@@ -475,7 +491,7 @@ WRITE THE WEEK
     input.test.light ? 'notes how it went; it does not compare anything with the target' : `compares the${NL}  result with the target`
   }. The test day may be shorter than ${input.dailyMinutes} minutes; do not pad it.${
     input.test.light && input.testSession ? `${NL}- The light test belongs to ${input.testSession}: the test day is that session, with the test as its main step.` : ''
-  }
+  }${retestLine(input, layout)}
 - Mark 1-2 practice days (not the test day) as key sessions ("isKeySession": true): the hardest sessions that
   matter most for the target. Put them mid-week.
 - Each practice day has:
@@ -604,6 +620,13 @@ function keepTopSteps(steps: Array<DetailedStep & { priority: number }>, max: nu
   return steps.filter((_, index) => keep.has(index));
 }
 
+/** M3.3a: the re-test (first) keeps half the day; the other steps fit into the rest. */
+function withRetestMinutes(steps: DetailedStep[], dailyMinutes: number): DetailedStep[] {
+  const [retest, ...others] = steps;
+  const rest = Math.max(0, dailyMinutes - retest.durationMinutes);
+  return [retest, ...(rest > 0 ? fitStepMinutes(others, rest) : others)];
+}
+
 function signature(task: DailyTaskPlan): string {
   return task.detailedSteps
     .map((step) => step.title.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
@@ -715,6 +738,7 @@ export function checkWeekAnswer(
   /** RULE-6: hard reasons; they never give way on the last attempt (MR-5, MR-16). */
   const kindFailures: string[] = [];
   const loadGoal = input.loadGoal;
+  const retestDay = input.retest ? retestDayOf(layout, input.retest.notOfferedBefore) : null;
   /** Plan safety limits M2.1 (RULE-4): steps PSL-8 names that came without their load; soft, kept on the last attempt. */
   const loadMisses: LoadMiss[] = [];
   /**
@@ -791,6 +815,17 @@ export function checkWeekAnswer(
         return TEST_STEP.test(step.title) ? { ...tagged, priority: 0, passMark } : tagged;
       });
     }
+    // M3.3a (WU-56): the re-test goes first on its day, the day's other steps trimmed as the test day's are. It ranks right
+    // after the day's own lead (priority 2), so the day's priority-1 step, its 10-minute version and what a missed day
+    // carries stay the model's (M3.3a review). Tagged as the test step is, so the carry planner and the handoff treat it
+    // as fixed.
+    const retestHere = input.retest !== undefined && slot.dayNumber === retestDay;
+    if (retestHere) {
+      const own = keepTopSteps(steps, MAX_STEPS - 1);
+      const lead = own.length ? Math.min(...own.map((step) => step.priority)) : -1;
+      const retest = { ...retestStepFor(input.retest!.test, retestMinutes(input.dailyMinutes)), priority: lead + 0.5 };
+      steps = [recovery ? { ...retest, kind: WEEKLY_TEST_KIND.id } : retest, ...own];
+    }
 
     if (steps.length === 0 || (steps.length < MIN_STEPS && !lastAttempt)) {
       const stop = dayExit(`${label} is a practice day and needs 2 to 4 steps; got ${steps.length}.`, slot, raw, steps);
@@ -809,7 +844,7 @@ export function checkWeekAnswer(
       // RULE-8, MR-25: a warm-up, cool-down or log belongs inside its session's step. Soft: gives way on the last attempt.
       if (!slot.isTestDay) {
         for (const step of steps) {
-          if (isSideStepTitle(step.title)) {
+          if (isSideStepTitle(step.title) && !codeMadeRetestStep(step)) {
             soft.push(`${label} step "${step.title}" is a warm-up, cool-down or log on its own; write it inside the instructions of the step it belongs to.`);
           }
         }
@@ -840,7 +875,7 @@ export function checkWeekAnswer(
 
     const written = steps.reduce((sum, step) => sum + step.durationMinutes, 0);
     const minutes = slot.isTestDay && written > 0 && written < input.dailyMinutes ? written : input.dailyMinutes;
-    const detailedSteps = fitStepMinutes(rankSteps(steps), minutes);
+    const detailedSteps = retestHere ? withRetestMinutes(rankSteps(steps), input.dailyMinutes) : fitStepMinutes(rankSteps(steps), minutes);
     if (loadGoal) {
       const misses = stepLoadMisses(slot.dayNumber, detailedSteps, hasTest, loadGoal);
       // The 10-minute version needs a load exactly when the day's priority-1 step does; the fallback is code-made.
@@ -898,10 +933,6 @@ export function checkWeekAnswer(
     else seen.set(key, day.dayNumber);
   }
 
-  if (input.retestFirst && practice[0] && !practice[0].detailedSteps.some((step) => /^re-?test\b/i.test(step.title))) {
-    soft.push(`Day ${practice[0].dayNumber} must start with a step titled "Re-test: ..." that runs the weekly test.`);
-  }
-
   // M2.1 review: the load misses go first, so the cut to 8 reasons never drops them all.
   soft.unshift(...loadMisses.map((miss) => `${miss.name} needs its load: ${miss.missing}.`));
   const polished = polishDays(days);
@@ -954,6 +985,8 @@ interface Breach {
   /** PSL-3: a rule the stored test itself breaks, on the test step (or a sentence copied from it): logged, not refused. */
   allowed: boolean;
   testStep: boolean;
+  /** M3.3a: on the re-test step; counts for the easy re-test swap. */
+  retestStep?: boolean;
   day?: WeekDayPlan;
   step?: DetailedStep;
   value?: number;
@@ -984,11 +1017,14 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   /** On the test step a rule the test itself breaks is allowed; elsewhere only a sentence copied from the test. */
   const fromTest = (rule: SafetyRule, matched: string | null, testStep: boolean) =>
     testText.some((item) => item.rule === rule && (testStep || (matched !== null && (matched.includes(item.matched) || item.matched.includes(matched)))));
+  // M3.3a (WU-55): the re-test step runs the re-tested week's stored test, read as the test step reads its own.
+  const retestText = scan.light || !input.retest ? [] : textSafetyHits([input.retest.test.instructions, input.retest.test.passIf].join(NL), input.weekNumber);
   for (const day of days) {
     const steps = [...day.detailedSteps, ...(day.minimumVersion ? [day.minimumVersion] : [])];
     for (const step of steps) {
       const name = step === day.minimumVersion ? `Day ${day.dayNumber} 10-minute version "${step.title}"` : `Day ${day.dayNumber} step "${step.title}"`;
       const testStep = step !== day.minimumVersion && TEST_STEP.test(step.title);
+      const retestStep = step !== day.minimumVersion && codeMadeRetestStep(step) !== null;
       if (scan.light || input.highLoadGoal || step.highLoad === true) {
         for (const hit of stepSafetyHits(step, input.weekNumber, scan)) {
           hits.push({
@@ -999,7 +1035,8 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
             matched: hit.matched,
             reason: `SAFETY: ${name} says "${hit.matched}". The limit is ${SAFETY_LIMIT_TEXT[hit.rule]}; rewrite it within the limit.`,
             testStep,
-            allowed: fromTest(hit.rule, hit.matched, testStep),
+            retestStep,
+            allowed: retestStep ? retestText.some((item) => item.rule === hit.rule) : fromTest(hit.rule, hit.matched, testStep),
           });
         }
       }
@@ -1013,6 +1050,7 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
           matched: breach.matched,
           reason: `SAFETY: ${name}: ${breach.text} Rewrite it within the limit.`,
           testStep,
+          retestStep,
           // A number is no sentence: only on the test step itself is a rule of the test let through.
           allowed: testStep && fromTest(breach.rule, null, true),
           value: breach.value,
@@ -1027,10 +1065,25 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   // M2.2a review: decided after counting the swapped week again (the light step's minutes are running too); only a
   // swapped week that passes is kept, otherwise the week fails.
   const candidate = lastAttempt && scan.light && refused.length > 0 && refused.every((item) => item.testStep) && week.length === 0;
-  const swapped = candidate ? withLightSteps(days, refused, input) : null;
+  // M3.3a (WU-55): likewise a last attempt refused only on the re-test step (or with the test step under M1.5b's rule), or
+  // for a week limit with a re-test in the week (its hard run), swaps in the easy re-test; kept only when the swapped
+  // week passes the week checks again.
+  const hasRetest = days.some((day) => day.detailedSteps.some((step) => codeMadeRetestStep(step) === 'measured'));
+  const retestCandidate =
+    lastAttempt && hasRetest && refused.every((item) => item.retestStep || (scan.light && item.testStep)) && (refused.some((item) => item.retestStep) || week.length > 0);
+  const lightSteps = refused.filter((item) => item.testStep);
+  const swapped = retestCandidate
+    ? withEasyRetests(lightSteps.length ? withLightSteps(days, lightSteps, input) : days.map((day) => ({ original: day, day })))
+    : candidate
+      ? withLightSteps(days, refused, input)
+      : null;
+  const weekBefore = week;
   if (swapped) week = input.loadGoal ? weekLoadBreaches(swapped.map((item) => item.day), input) : [];
   const swap = swapped !== null && week.length === 0;
-  if (log) for (const hit of hits) logBreach(hit, input, lastAttempt, hit.allowed ? 'test_text' : swap ? 'light_test' : lastAttempt ? 'failed' : 'retry');
+  const swapOutcome = (hit: Breach) => (hit.retestStep ? 'light_retest' : 'light_test');
+  if (log) for (const hit of hits) logBreach(hit, input, lastAttempt, hit.allowed ? 'test_text' : swap ? swapOutcome(hit) : lastAttempt ? 'failed' : 'retry');
+  // A week limit the easy re-test cleared is logged once, as the swap.
+  if (log && swap && retestCandidate) for (const breach of weekBefore) logBreach(breach, input, lastAttempt, 'light_retest');
   if (swap) {
     for (const { original, day } of swapped) {
       original.detailedSteps = day.detailedSteps;
@@ -1073,6 +1126,19 @@ function withLightSteps(days: WeekDayPlan[], refused: Breach[], input: WeekCallI
   });
 }
 
+/** M3.3a (WU-55): each measured re-test step replaced by the fixed easy one, same place and minutes; copies only. */
+function withEasyRetests(pairs: Array<{ original: WeekDayPlan; day: WeekDayPlan }>): Array<{ original: WeekDayPlan; day: WeekDayPlan }> {
+  return pairs.map(({ original, day }) => {
+    if (!day.detailedSteps.some((step) => codeMadeRetestStep(step) === 'measured')) return { original, day };
+    const detailedSteps = day.detailedSteps.map((step) =>
+      codeMadeRetestStep(step) === 'measured'
+        ? { ...easyRetestStep(step.durationMinutes), stepNumber: step.stepNumber, priority: step.priority, ...(step.kind ? { kind: step.kind } : {}) }
+        : step
+    );
+    return { original, day: { ...day, detailedSteps } };
+  });
+}
+
 function swapLightSteps(days: WeekDayPlan[], refused: Breach[]): Array<{ original: WeekDayPlan; day: WeekDayPlan }> {
   return days.map((original) => {
     let detailedSteps = original.detailedSteps;
@@ -1088,7 +1154,7 @@ function swapLightSteps(days: WeekDayPlan[], refused: Breach[]): Array<{ origina
   });
 }
 
-function logBreach(breach: Breach, input: WeekCallInput, lastAttempt: boolean, outcome: 'retry' | 'failed' | 'test_text' | 'light_test'): void {
+function logBreach(breach: Breach, input: WeekCallInput, lastAttempt: boolean, outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'light_retest'): void {
   logSafetyHit({
     goalId: input.goalId ?? null,
     week: input.weekNumber,
@@ -1108,8 +1174,8 @@ function logBreach(breach: Breach, input: WeekCallInput, lastAttempt: boolean, o
 function weekRuns(days: WeekDayPlan[], running: boolean, measured: boolean): Run[] {
   return days.flatMap((day) =>
     day.detailedSteps.flatMap((step) => {
-      const testStep = day.isTestDay && TEST_STEP.test(step.title);
-      const run = runOf(step, `Day ${day.dayNumber} step "${step.title}"`, { running, testStep, codeMade: testStep ? codeMadeTestStep(step) : null, measured });
+      // M3.3a (WU-55): a re-test step counts as the code-made test step of its kind.
+      const run = runOf(step, `Day ${day.dayNumber} step "${step.title}"`, { running, ...testStepOf(step, day.isTestDay, codeMadeTestStep), measured });
       return run ? [run] : [];
     })
   );

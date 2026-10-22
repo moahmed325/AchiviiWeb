@@ -79,10 +79,12 @@ function findFirst(args: any) {
   const goal = store.goals.find((g) => g.userId === args.where.userId && g.status === args.where.status);
   if (!goal) return null;
   if (args.select) {
-    const n = args.select.roadmapWeeks.where.weekNumber;
+    // M3.3a: the asked week and the open week (its `retestOfWeek`).
+    const where = args.select.roadmapWeeks.where;
+    const keep = (w: any) => (where.OR ?? [where]).some((part: any) => Object.entries(part).every(([key, value]) => w[key] === value));
     return {
       planVersion: goal.planVersion,
-      roadmapWeeks: goal.roadmapWeeks.filter((w: any) => w.weekNumber === n).map((w: any) => ({ id: w.id, status: w.status })),
+      roadmapWeeks: goal.roadmapWeeks.filter(keep).map((w: any) => ({ id: w.id, weekNumber: w.weekNumber, status: w.status, retestOfWeek: w.retestOfWeek ?? null })),
     };
   }
   const n = args.include?.dailyTasks?.where?.weekNumber;
@@ -205,6 +207,29 @@ describe('Late test result (missed sessions M4.1)', () => {
       const res = await put(3, RESULT);
       expect(res.status).toBe(409);
       expect(await res.json()).toEqual({ error: 'This week has already been reviewed.', reason: 'week_closed' });
+      expect(store.prisma.roadmapWeek.update).not.toHaveBeenCalled();
+    });
+
+    it('M3.3a (WU-17, WU-56): the closed week the open week re-tests takes the re-test result; the latest wins', async () => {
+      weekRow('g1', 1).retestOfWeek = 3;
+      const res = await put(3, RESULT);
+      expect(res.status).toBe(200);
+      expect(weekRow('g1', 3)).toMatchObject({ status: 'completed', testResult: RESULT });
+      const again = { ...RESULT, value: 26 };
+      expect((await put(3, again)).status).toBe(200);
+      expect(weekRow('g1', 3).testResult).toEqual(again);
+      // The open week's own result is still its own.
+      expect(weekRow('g1', 1).testResult).toBeNull();
+    });
+
+    it('M3.3a: any other closed week is still refused, and a pending week too', async () => {
+      weekRow('g1', 1).retestOfWeek = 3;
+      weekRow('g1', 2).status = 'completed';
+      const closed = await put(2, RESULT);
+      expect(closed.status).toBe(409);
+      expect((await closed.json()).reason).toBe('week_closed');
+      weekRow('g1', 1).retestOfWeek = 5;
+      expect((await (await put(3, RESULT)).json()).reason).toBe('week_closed');
       expect(store.prisma.roadmapWeek.update).not.toHaveBeenCalled();
     });
 

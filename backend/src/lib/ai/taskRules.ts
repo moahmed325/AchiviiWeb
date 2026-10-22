@@ -1,4 +1,5 @@
 import type { DailyTaskPlan, DetailedStep } from './goalDecomposer.js';
+import { codeMadeRetestStep } from './retestStep.js';
 
 /** Always filler, whatever numbers are attached. */
 const FILLER = /\b(reflect\w*|journal\w*|recap|overview|mindset|resum\w*|getting started)\b|recovery & reflection/i;
@@ -58,6 +59,8 @@ export function dayQualityFailures(tasks: DailyTaskPlan[]): string[] {
     }
 
     for (const step of steps) {
+      // M3.3a: the re-test's text is the stored test's, written by code; no retry can change it.
+      if (codeMadeRetestStep(step)) continue;
       const label = `${day} step "${step.title}"`;
       if (FILLER.test(step.title)) failures.push(`${label} is filler. Replace it with real work.`);
       if ((step.instructions ?? '').trim().length < MIN_INSTRUCTIONS) failures.push(`${label} does not say exactly what to do.`);

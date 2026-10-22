@@ -9,6 +9,7 @@ import {
   type CarryTask,
 } from '../src/lib/carryForward.js';
 import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/missedSessions.js';
+import { codeMadeRetestStep, retestStepFor } from '../src/lib/ai/retestStep.js';
 
 // Missed sessions M2.2: the pure carry planner (ND-9 to ND-17, RULE-1, RULE-10).
 
@@ -372,5 +373,35 @@ describe('planCarries: swapped days (ND-18, M2.4)', () => {
     const mentioned = [...plan.carries.map((c) => c.fromTaskId), ...plan.drops.map((d) => d.taskId), ...plan.held.map((h) => h.taskId)];
     expect(mentioned).not.toContain('w1-tue');
     expect(mentioned).not.toContain('w1-wed');
+  });
+});
+
+// Weekly update M3.3a review: the re-test step ranks right after the day's own lead and is never carried or removed.
+describe('the re-test step in carry-forward (METHOD_RECOVERY_ENABLED off)', () => {
+  const TEST = { type: 'timer', instructions: 'Run 5 km; note the time', passIf: '5 km in 30 minutes' } as const;
+  const retest = (minutes: number): CarriedStep => ({ ...retestStepFor(TEST, minutes), stepNumber: 1, priority: 2 });
+  /** A re-test day as `checkWeekAnswer` writes it: the re-test first in order, ranked 2; the day's lead ranked 1. */
+  const retestDay = (tag: string): CarriedStep[] => [
+    retest(10),
+    step(`${tag} lead`, 1, 10, { stepNumber: 2 }),
+    step(`${tag} second`, 3, 5, { stepNumber: 3 }),
+    step(`${tag} third`, 4, 5, { stepNumber: 4 }),
+  ];
+
+  it("a missed re-test day carries the model's lead, never the re-test", () => {
+    const plan = planCarries(week({ mon: { kind: 'missed', steps: retestDay('mon') } }));
+    expect(plan.carries).toHaveLength(1);
+    expect(plan.carries[0].step.title).toBe('mon lead');
+  });
+
+  it('a carry onto a re-test day never removes the re-test: it fits around it, or not at all', () => {
+    const fits = fitCarriedStep({ steps: retestDay('tue'), durationMinutes: 30 }, step('mon lead', 1, 10));
+    expect(fits?.steps.some((s) => codeMadeRetestStep(s) === 'measured')).toBe(true);
+    expect(fits?.replaced.map((s) => s.title)).toEqual(['tue second', 'tue third']);
+    // 15 minutes would need the re-test's 10 as well: it does not fit.
+    expect(fitCarriedStep({ steps: retestDay('tue'), durationMinutes: 30 }, step('mon lead', 1, 15))).toBeNull();
+    const plan = planCarries(week({ mon: { kind: 'missed', steps: practiceSteps('mon') }, tue: { steps: retestDay('tue') } }));
+    expect(plan.carries).toEqual([]);
+    expect(dropOf(plan, 'mon')).toBe('does_not_fit');
   });
 });
