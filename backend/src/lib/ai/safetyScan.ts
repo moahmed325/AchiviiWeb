@@ -229,7 +229,7 @@ export interface SafetyLogLine {
    * `lowered_on_update` (weekly update M3.1, WU-45 (3)): a target the weekly update accepted, lowered to the safe step
    * before it was stored.
    */
-  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'lowered' | 'logged' | 'lowered_on_read' | 'lowered_on_update' | 'kept' | 'counted' | 'first_answer';
+  outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'light_retest' | 'lowered' | 'logged' | 'lowered_on_read' | 'lowered_on_update' | 'kept' | 'counted' | 'first_answer';
 }
 
 /** PSL-1 (3): one line per hit, so the false-alarm rate can be checked in production. */

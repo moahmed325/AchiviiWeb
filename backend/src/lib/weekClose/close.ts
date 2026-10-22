@@ -2,6 +2,7 @@ import { Prisma, type DailyTask, type Goal, type RoadmapWeek } from '@prisma/cli
 import { prisma } from '../prisma.js';
 import { TOTAL_WEEKS } from '../ai/roadmap.js';
 import { slotTimeFor, type WeekDayPlan } from '../ai/weekPlan.js';
+import type { Retest } from '../ai/retestStep.js';
 import { dayCloseInstant } from '../missedSessions.js';
 import { getZonedDateString, normalizeTimezone } from '../timezone.js';
 import { phaseGate, readRoutine, readStoredRoadmap, saveWeekTasks, weekStartFor, writeNextWeek } from '../planV2.js';
@@ -180,8 +181,9 @@ export async function writeWeekAfter(
   /**
    * `coachNote` (M3.1): the weekly update's guidance for the week writer, given only after an accepted update.
    * `weekBefore` (M3.1 review): the week before as the update already read it; when given it is not read again.
+   * `retest` (M3.3a): the closing week's test to re-test, given only by the update; the days not offered are skipped.
    */
-  context: { now?: Date; timezone?: string | null; choice?: PastLimitChoice | null; coachNote?: string; weekBefore?: DailyTask[] } = {}
+  context: { now?: Date; timezone?: string | null; choice?: PastLimitChoice | null; coachNote?: string; weekBefore?: DailyTask[]; retest?: Retest } = {}
 ): Promise<{ written: WeekDayPlan[] | null; move: WeekMove | null; choiceNeeded?: PastLimitChoice } | null> {
   if (weekNumber + 1 > TOTAL_WEEKS) return { written: null, move: null };
   const move = planWeekMove(goal, weekNumber, context.now ?? new Date(), context.timezone, goal.dailyTasks, context.choice);
@@ -224,6 +226,7 @@ export async function writeWeekAfter(
       ...(move && move.weekBack !== weekNumber + 1 ? { weekNumber: move.weekBack } : {}),
       ...(olderWeeks ? { olderWeeks } : {}),
       ...(context.coachNote ? { coachNote: context.coachNote } : {}),
+      ...(context.retest ? { retest: { ...context.retest, ...(move ? { notOfferedBefore: move.writtenOn } : {}) } } : {}),
     }
   );
   return written ? { written, move } : null;
@@ -245,6 +248,8 @@ export interface WeekCloseInput {
   now?: Date;
   /** Weekly update M3.1 (RULE-9): saved only by the request that wins; missing means the review as before. */
   update?: PlannedUpdate | null;
+  /** M3.3a (item 6): the week the new week re-tests (`retestOfWeekFor`); not written when missing or null. */
+  retestOfWeek?: number | null;
 }
 
 export interface SavedClose {
@@ -335,7 +340,9 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
       nextTasks = await saveWeekTasks(goal.id, nextWeek, written, tx, move ? { notOfferedBefore: move.writtenOn } : undefined);
       // M1.5a (WU-18): the break's length is stored on the first week back, by the request that wins only.
       const breakDays = move && move.breakDays !== null ? { breakDays: move.breakDays } : {};
-      await tx.roadmapWeek.update({ where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } }, data: { status: 'active', ...breakDays } });
+      // M3.3a (RULE-5, RULE-6): the re-tested week, on a week written straight after the closing one (never a jump).
+      const retest = input.retestOfWeek && jumped.length === 0 ? { retestOfWeek: input.retestOfWeek } : {};
+      await tx.roadmapWeek.update({ where: { goalId_weekNumber: { goalId: goal.id, weekNumber: nextWeek } }, data: { status: 'active', ...breakDays, ...retest } });
       const moved = move && move.days > 0 ? { startDate: move.startDate, targetDate: move.targetDate, movedDays: move.movedDays } : {};
       await tx.goal.update({ where: { id: goal.id }, data: { currentWeek: nextWeek, ...moved } });
     }

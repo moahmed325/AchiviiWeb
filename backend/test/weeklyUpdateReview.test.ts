@@ -28,8 +28,9 @@ import { buildWeekPrompt, generateWeekPlan, weekLayout, type WeekCallInput, type
 import { keyMilestoneText, formatTarget, measuredPathwayTest, pathwayFor, type WeekTarget } from '../src/lib/ai/roadmap.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 import { safeGoalTargets } from '../src/lib/safety/storedTargets.js';
-import { AUTO_CLOSE_INSIGHT } from '../src/lib/weekClose/close.js';
-import { FALLBACK_HOLD_INSIGHT, nextWeekSentence } from '../src/lib/weekClose/update.js';
+import { AUTO_CLOSE_INSIGHT, MOVED_INSIGHT } from '../src/lib/weekClose/close.js';
+import { FALLBACK_HOLD_INSIGHT, WEEKLY_UPDATE_TIME_LIMIT_MS, nextWeekSentence, planWeeklyUpdate, updateThenWrite } from '../src/lib/weekClose/update.js';
+import { easyRetestStep, retestStepFor } from '../src/lib/ai/retestStep.js';
 import { sentenceReason } from '../src/lib/ai/weeklyUpdate.js';
 
 const USER = { id: 'u1', email: 'u1@achivii.com', timezone: 'UTC' };
@@ -239,7 +240,7 @@ describe('an accepted update (RULE-1, RULE-9)', () => {
     expect(weekInput().target).toMatchObject({ value: 13.2 });
     expect(weekInput().lastWeek?.note).toBe('Keep the long run easy and add the extra kilometre on Tuesday.');
     expect(buildWeekPrompt(weekInput(), weekLayout('steady', weekInput().weekStart))).toContain("Coach's note: Keep the long run easy and add the extra kilometre on Tuesday.");
-    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status on_track outcome accepted held none lowered 0 stored 4,5,6,7,8,9,10,11 readBack none reasons none']);
+    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status on_track outcome accepted held none lowered 0 stored 4,5,6,7,8,9,10,11 readBack none retest none reasons none']);
   });
 
   it('reads the review\'s result, the reconcile counts, the reflection and the last 3 weeks', async () => {
@@ -268,7 +269,7 @@ describe('the retry and the fallback (RULE-4, RULE-7, AC-2)', () => {
     expect(generateStructuredContent).toHaveBeenCalledTimes(2);
     expect(updatePrompt(1)).toContain('YOUR PREVIOUS ANSWER WAS REJECTED: week 12 must stay exactly 21 km.');
     expect(valueOf(4)).toBe(13.2);
-    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status on_track outcome retry_accepted held none lowered 0 stored 4,5,6,7,8,9,10,11 readBack none reasons ["week 12 must stay exactly 21 km."]']);
+    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status on_track outcome retry_accepted held none lowered 0 stored 4,5,6,7,8,9,10,11 readBack none retest none reasons ["week 12 must stay exactly 21 km."]']);
   });
 
   it('two bad answers: targets as planned, no status, the neutral line, no coach\'s note', async () => {
@@ -281,7 +282,7 @@ describe('the retry and the fallback (RULE-4, RULE-7, AC-2)', () => {
     expect(db.week(3).updateStatus ?? null).toBeNull();
     expect(db.state.reviews.find((r) => r.weekNumber === 3)?.aiAdaptationInsight).toBe(AUTO_CLOSE_INSIGHT);
     expect(weekInput().lastWeek?.note).toBeUndefined();
-    expect(updateLines()[0]).toMatch(/^\[WeeklyUpdate\] goal g1 week 3 status none outcome fallback held none lowered 0 stored none readBack none reasons \[.*uses the word \\"missed\\"/);
+    expect(updateLines()[0]).toMatch(/^\[WeeklyUpdate\] goal g1 week 3 status none outcome fallback held none lowered 0 stored none readBack none retest none reasons \[.*uses the word \\"missed\\"/);
   });
 
   it('no answer at all is the fallback and never fails the close', async () => {
@@ -289,7 +290,7 @@ describe('the retry and the fallback (RULE-4, RULE-7, AC-2)', () => {
     expect((await review(3)).status).toBe(200);
     expect(db.week(3).status).toBe('completed');
     expect(db.state.reviews.find((r) => r.weekNumber === 3)?.aiAdaptationInsight).toBe(AUTO_CLOSE_INSIGHT);
-    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status none outcome fallback held none lowered 0 stored none readBack none reasons ["no_answer","no_answer"]']);
+    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status none outcome fallback held none lowered 0 stored none readBack none retest none reasons ["no_answer","no_answer"]']);
   });
 
   it('a failed week write is the 503 and saves nothing of the update', async () => {
@@ -430,7 +431,7 @@ describe('M3.1 review fixes 2', () => {
     expect(values(6, 12)).toEqual([7, 7, 7, 10, 10, 10, 10]);
     expect(db.goal().roadmap.finalTest).toBe(measuredPathwayTest(tests, distance(10)).instructions);
     expect(db.goal().roadmap.loweredTargets).toEqual([{ week: 12, model: 12, safe: 10 }]);
-    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 5 status on_track outcome accepted held none lowered 0 stored 6,7,8,9,10,11,12 readBack 9,10,11,12 reasons none']);
+    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 5 status on_track outcome accepted held none lowered 0 stored 6,7,8,9,10,11,12 readBack 9,10,11,12 retest none reasons none']);
   });
 
   describe('(1) WU-47: no hold when next week shows week 12', () => {
@@ -692,13 +693,25 @@ describe('M3.2b: a fallback keeps the holds code can see (WU-48)', () => {
     expect(updateLines()[0]).toContain('outcome fallback held none lowered 0 stored none');
   });
 
-  it('the error fallback stays exactly as before: no hold, the neutral line', async () => {
+  // M3.3a (WU-52): changed. An error from the model call now keeps code's holds, as a rejected answer does.
+  it('an error from the model call keeps the hold, with its own line', async () => {
     seed(3);
     vi.mocked(generateStructuredContent).mockRejectedValue(new Error('boom'));
     expect((await review(3, notLogged)).status).toBe(200);
+    expect(valueOf(4)).toBe(12);
+    expect(insightOf(3)).toBe(FALLBACK_HOLD_INSIGHT);
+    expect(updateLines()[0]).toMatch(/^\[WeeklyUpdate\] goal g1 week 3 status none outcome fallback held not_logged lowered \d+ stored 4,.* retest not_logged reasons \["error"\]$/);
+  });
+
+  it('an error before the update has its input stays the plain fallback: no hold, the neutral line', async () => {
+    seed(3);
+    vi.mocked(db.prisma.weeklyReview.findMany).mockRejectedValueOnce(new Error('db down'));
+    expect((await review(3, notLogged)).status).toBe(200);
+    expect(generateStructuredContent).not.toHaveBeenCalled();
     expect(valueOf(4)).toBe(13);
     expect(insightOf(3)).toBe(AUTO_CLOSE_INSIGHT);
-    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status none outcome fallback held none lowered 0 stored none readBack none reasons ["error"]']);
+    // The re-test is code's fact, so it still starts the week (RULE-5).
+    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status none outcome fallback held none lowered 0 stored none readBack none retest not_logged reasons ["error"]']);
   });
 });
 
@@ -708,5 +721,353 @@ describe('M3.2b: the safe-step line has no metric label', () => {
     expect(nextWeekSentence({ kind: 'number', metric: '10K test time', value: 51.9, unit: 'minutes', direction: 'lower_is_better' })).toBe(
       'Next week aims at 51.9 minutes or less, a safe step.'
     );
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Weekly update M3.3a (RULE-1, RULE-5, RULE-6, RULE-18, WU-52 to WU-56).
+
+const closeWeek = async (body: unknown = {}) => {
+  const res = await fetch(`${baseUrl}/api/goal/close-week`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, body: await res.json() };
+};
+const putResult = async (weekNumber: number, body: unknown) => {
+  const res = await fetch(`${baseUrl}/api/goal/weeks/${weekNumber}/test-result`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, body: await res.json() };
+};
+const insightOfWeek = (week: number) => db.state.reviews.find((r) => r.weekNumber === week)?.aiAdaptationInsight;
+/** The closing week `n`'s last day closes at 01:00 the next day; `days` after the new week's planned start, at 10:00. */
+const after = (n: number, days = 0) => vi.setSystemTime(new Date(START.getTime() + (n * 7 + days) * DAY + 10 * 3_600_000));
+/** A week writer that places the re-test as `checkWeekAnswer` does (first on day 1), so the close can store it. */
+const writerWithRetest = () =>
+  vi.mocked(generateWeekPlan).mockImplementation(async (input) => {
+    const days = dayPlans(input.weekStart);
+    if (input.retest) days[0].detailedSteps.unshift(retestStepFor(input.retest.test, 15));
+    return days;
+  });
+const farBehind = (weeks: number[], values: number[]) => modelAnswer(weeks, values, { status: 'far_behind', messageToUser: 'Next week stays at this week\'s distance.' });
+const logged = { reflection: '', testResult: { value: 12, unit: 'km', passed: true } };
+
+describe('M3.3a: the update in the automatic close (RULE-1, RULE-18, WU-52)', () => {
+  it('with both switches on it runs the same update: targets, status, the sentence, the coach\'s note', async () => {
+    seed(3);
+    db.week(3).testResult = { value: 12.5, unit: 'km', passed: true };
+    after(3);
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(4, 12), RAISED) as never);
+    const res = await closeWeek();
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ due: true, closedBy: 'auto', nextWeekNumber: 4 });
+    expect(values(4, 12)).toEqual(RAISED);
+    expect(db.week(3)).toMatchObject({ status: 'completed', closedBy: 'auto', updateStatus: 'on_track' });
+    expect(insightOfWeek(3)).toBe('Next week builds on a strong one.');
+    expect(db.state.reviews.find((r) => r.weekNumber === 3)?.reflection).toBe('');
+    expect(weekInput().target).toMatchObject({ value: 13.2 });
+    expect(weekInput().lastWeek?.note).toBe('Keep the long run easy and add the extra kilometre on Tuesday.');
+    expect(updatePrompt()).toContain('Their note: none');
+    expect(updateLines()).toEqual(['[WeeklyUpdate] goal g1 week 3 status on_track outcome accepted held none lowered 0 stored 4,5,6,7,8,9,10,11 readBack none retest none reasons none']);
+  });
+
+  it('after a short gap the line is the move line, a space, then the update\'s sentence', async () => {
+    seed(3);
+    db.week(3).testResult = { value: 12.5, unit: 'km', passed: true };
+    after(3, 3);
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(4, 12), RAISED) as never);
+    expect((await closeWeek()).status).toBe(200);
+    expect(db.goal().movedDays).toBe(3);
+    expect(insightOfWeek(3)).toBe(`${MOVED_INSIGHT} Next week builds on a strong one.`);
+  });
+
+  it('{ mode: "check" } runs nothing', async () => {
+    seed(3);
+    after(3);
+    expect((await closeWeek({ mode: 'check' })).body).toMatchObject({ due: true, weekNumber: 3 });
+    expect(generateStructuredContent).not.toHaveBeenCalled();
+    expect(generateWeekPlan).not.toHaveBeenCalled();
+  });
+
+  it('runs nothing for week 12 or on a break; then the close is as before', async () => {
+    seed(12);
+    after(12);
+    expect((await closeWeek()).status).toBe(200);
+    expect(generateStructuredContent).not.toHaveBeenCalled();
+    db.reset();
+    seed(3);
+    after(3, 10);
+    expect((await closeWeek()).status).toBe(200);
+    expect(generateStructuredContent).not.toHaveBeenCalled();
+    expect(values(4, 12)).toEqual(range(13, 21));
+    expect(db.week(4).retestOfWeek ?? null).toBeNull();
+  });
+
+  it.each([
+    ['WEEKLY_UPDATE_ENABLED off', 'WEEKLY_UPDATE_ENABLED'],
+    ['WEEK_CLOSE_ENABLED off', 'WEEK_CLOSE_ENABLED'],
+  ])('R-3, R-7: with %s nothing of the update runs: no model call beyond the week, no re-test, the neutral line', async (_label, name) => {
+    vi.stubEnv(name, '');
+    seed(3);
+    after(3);
+    writerWithRetest();
+    const res = await closeWeek();
+    expect(generateStructuredContent).not.toHaveBeenCalled();
+    if (name === 'WEEK_CLOSE_ENABLED') {
+      expect(res.body).toEqual({ due: false });
+      return;
+    }
+    expect(res.status).toBe(200);
+    expect(weekInput().retest).toBeUndefined();
+    expect('retest' in weekInput()).toBe(false);
+    expect(db.week(4).retestOfWeek ?? null).toBeNull();
+    expect(db.week(3).updateStatus ?? null).toBeNull();
+    expect(insightOfWeek(3)).toBe(AUTO_CLOSE_INSIGHT);
+    expect(updateLines()).toEqual([]);
+  });
+
+  it('R-3: with WEEKLY_UPDATE_ENABLED off the review is as before too: no update call, no re-test', async () => {
+    vi.stubEnv('WEEKLY_UPDATE_ENABLED', '');
+    seed(3);
+    writerWithRetest();
+    expect((await review(3, { reflection: '' })).status).toBe(200);
+    expect(generateStructuredContent).not.toHaveBeenCalled();
+    expect('retest' in weekInput()).toBe(false);
+    expect(db.week(4).retestOfWeek ?? null).toBeNull();
+  });
+
+  it('a lost race saves nothing of the update', async () => {
+    seed(3);
+    after(3);
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(4, 12), RAISED) as never);
+    vi.mocked(generateWeekPlan).mockImplementation(async (input) => {
+      // Another close wins while this one writes the week.
+      db.week(3).status = 'completed';
+      const days = dayPlans(input.weekStart);
+      if (input.retest) days[0].detailedSteps.unshift(retestStepFor(input.retest.test, 15));
+      return days;
+    });
+    const res = await closeWeek();
+    expect(res.body).toEqual({ due: false, alreadyClosed: true, weekNumber: 3 });
+    expect(values(4, 12)).toEqual(range(13, 21));
+    expect(db.week(3).updateStatus ?? null).toBeNull();
+    expect(db.week(4).retestOfWeek ?? null).toBeNull();
+    expect(insightOfWeek(3)).toBeUndefined();
+  });
+
+  it('an error from the model call keeps the hold in the automatic close too', async () => {
+    seed(3);
+    after(3);
+    vi.mocked(generateStructuredContent).mockRejectedValue(new Error('boom'));
+    expect((await closeWeek()).status).toBe(200);
+    expect(valueOf(4)).toBe(12);
+    expect(insightOfWeek(3)).toBe(FALLBACK_HOLD_INSIGHT);
+  });
+});
+
+describe('M3.3a: the time limit (WU-52)', () => {
+  /** The reads before the call are not timed: wait (outside the fake clock) until the model is asked. */
+  const untilAsked = async () => {
+    for (let i = 0; i < 200 && vi.mocked(generateStructuredContent).mock.calls.length === 0; i++) await new Promise((resolve) => setImmediate(resolve));
+    expect(generateStructuredContent).toHaveBeenCalled();
+  };
+  const closing = (n: number) => ({ ...structuredClone(db.goal()), roadmapWeeks: structuredClone(db.state.weeks), dailyTasks: structuredClone(db.tasksOf(n)) }) as never;
+
+  it('one 15 s limit on the model call; a call that never settles gives the time_limit fallback with the hold kept', async () => {
+    expect(WEEKLY_UPDATE_TIME_LIMIT_MS).toBe(15000);
+    seed(3);
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date(START.getTime() + 2 * 7 * DAY + 6 * DAY + 15 * 3_600_000));
+    let late: (value: unknown) => void = () => {};
+    vi.mocked(generateStructuredContent).mockReturnValue(new Promise((resolve) => (late = resolve)) as never);
+    const pending = planWeeklyUpdate(closing(3), 3, { userId: USER.id, reflection: '', now: new Date() });
+    await untilAsked();
+    await vi.advanceTimersByTimeAsync(WEEKLY_UPDATE_TIME_LIMIT_MS - 1);
+    let settled = false;
+    void pending.then(() => (settled = true));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    const update = await pending;
+    expect(update).toMatchObject({ outcome: 'fallback', status: null, held: ['not_logged'], reasons: ['time_limit'], insight: FALLBACK_HOLD_INSIGHT });
+    expect(update?.weeks.find((week) => week.weekNumber === 4)?.target).toMatchObject({ value: 12 });
+    // The call left running changes nothing when it answers later.
+    late(modelAnswer(range(4, 12), RAISED));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(update?.reasons).toEqual(['time_limit']);
+    expect(updateLines()).toHaveLength(1);
+    expect(db.week(3).status).toBe('active');
+  });
+
+  it('the review path goes through the same limit (updateThenWrite): a timed-out update still writes the week from the held target', async () => {
+    seed(3);
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date(START.getTime() + 2 * 7 * DAY + 6 * DAY + 15 * 3_600_000));
+    vi.mocked(generateStructuredContent).mockReturnValue(new Promise(() => {}) as never);
+    const pending = updateThenWrite(closing(3), 3, { userId: USER.id, reflection: 'x', now: new Date() });
+    await untilAsked();
+    await vi.advanceTimersByTimeAsync(WEEKLY_UPDATE_TIME_LIMIT_MS);
+    const { update, next } = await pending;
+    expect(update?.reasons).toEqual(['time_limit']);
+    expect(next?.written).not.toBeNull();
+    expect(weekInput().target).toMatchObject({ value: 12 });
+    expect(weekInput().retest).toMatchObject({ ofWeek: 3 });
+  });
+});
+
+describe('M3.3a: the re-test (RULE-5, RULE-6, WU-53, WU-54, WU-56)', () => {
+  const retestTag = () => updateLines()[0]?.match(/ retest (\S+) /)?.[1];
+
+  it('an unlogged test: the hold, a re-test of the closing week\'s stored test, stored as retestOfWeek (review path)', async () => {
+    seed(3);
+    writerWithRetest();
+    expect((await review(3, { reflection: '' })).status).toBe(200);
+    expect(retestTag()).toBe('not_logged');
+    expect(weekInput().retest).toMatchObject({ ofWeek: 3, test: db.week(3).test });
+    expect(db.week(4).retestOfWeek).toBe(3);
+    expect(JSON.stringify(db.tasksOf(4)[0].detailedSteps)).toContain('Re-test: Run the weekly distance');
+  });
+
+  it('and on the automatic close', async () => {
+    seed(3);
+    after(3);
+    writerWithRetest();
+    expect((await closeWeek()).status).toBe(200);
+    expect(retestTag()).toBe('not_logged');
+    expect(db.week(4).retestOfWeek).toBe(3);
+  });
+
+  it('no retestOfWeek when the week written holds no re-test step', async () => {
+    seed(3);
+    expect((await review(3, { reflection: '' })).status).toBe(200);
+    expect(weekInput().retest).toMatchObject({ ofWeek: 3 });
+    expect(db.week(4).retestOfWeek ?? null).toBeNull();
+  });
+
+  it('two hard weeks: this update far_behind and the stored status of the week before far_behind', async () => {
+    seed(3);
+    db.week(2).updateStatus = 'far_behind';
+    writerWithRetest();
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(farBehind(range(4, 12), [12, ...range(14, 21)]) as never);
+    expect((await review(3, logged)).status).toBe(200);
+    expect(db.week(3).updateStatus).toBe('far_behind');
+    expect(retestTag()).toBe('two_hard_weeks');
+    expect(db.week(4).retestOfWeek).toBe(3);
+  });
+
+  it('both at once give one re-test', async () => {
+    seed(3);
+    db.week(2).updateStatus = 'far_behind';
+    writerWithRetest();
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(farBehind(range(4, 12), [12, ...range(14, 21)]) as never);
+    expect((await review(3, { reflection: '' })).status).toBe(200);
+    expect(retestTag()).toBe('not_logged,two_hard_weeks');
+    expect(db.tasksOf(4).filter((task) => JSON.stringify(task.detailedSteps).includes('Re-test:'))).toHaveLength(1);
+  });
+
+  it.each([
+    ['the week before has no stored status (WU-53)', () => (db.week(2).updateStatus = null)],
+    ['the week before was on_track', () => (db.week(2).updateStatus = 'on_track')],
+    ['the week before was jumped', () => Object.assign(db.week(2), { jumped: true, updateStatus: 'far_behind' })],
+  ])('no two-hard-weeks re-test when %s', async (_label, set) => {
+    seed(3);
+    set();
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(farBehind(range(4, 12), [12, ...range(14, 21)]) as never);
+    expect((await review(3, logged)).status).toBe(200);
+    expect(db.week(3).updateStatus).toBe('far_behind');
+    expect(retestTag()).toBe('none');
+    expect('retest' in weekInput()).toBe(false);
+  });
+
+  it('a fallback this week has no status, so it never starts a two-hard-weeks re-test (WU-53)', async () => {
+    seed(3);
+    db.week(2).updateStatus = 'far_behind';
+    expect((await review(3, logged)).status).toBe(200);
+    expect(db.week(3).updateStatus ?? null).toBeNull();
+    expect(retestTag()).toBe('none');
+  });
+
+  it('none when next week is week 12 (WU-15)', async () => {
+    seed(11);
+    expect((await review(11, { reflection: '' })).status).toBe(200);
+    expect(retestTag()).toBe('none');
+    expect('retest' in weekInput()).toBe(false);
+  });
+
+  const lightGoal = (n: number) => seed(n, { light: (week) => ![4, 8, 12].includes(week) });
+
+  it('none when next week is a light week showing week 12\'s target (WU-47): closing week 8', async () => {
+    lightGoal(8);
+    expect((await review(8, { reflection: '' })).status).toBe(200);
+    expect(retestTag()).toBe('none');
+  });
+
+  it('WU-54, WU-56 (3): an unlogged light week holds nothing and gets no re-test', async () => {
+    lightGoal(5);
+    expect((await review(5, { reflection: '' })).status).toBe(200);
+    expect(updateLines()[0]).toContain(' held none ');
+    expect(retestTag()).toBe('none');
+    expect(updatePrompt()).not.toContain('The test was not logged');
+  });
+
+  it('WU-54: an unlogged big week 4 on a light-test goal holds and gets the re-test', async () => {
+    lightGoal(4);
+    writerWithRetest();
+    expect((await review(4, { reflection: '' })).status).toBe(200);
+    expect(updateLines()[0]).toContain(' held not_logged ');
+    expect(retestTag()).toBe('not_logged');
+    expect(db.week(5).retestOfWeek).toBe(4);
+  });
+
+  it('two hard weeks after a light week: no re-test (WU-56 (3))', async () => {
+    lightGoal(5);
+    db.week(4).updateStatus = 'far_behind';
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(
+      modelAnswer([8, 12], [14, 21], { status: 'far_behind', messageToUser: 'Week 8 stays at this week\'s distance.' }) as never
+    );
+    expect((await review(5, { reflection: '' })).status).toBe(200);
+    expect(retestTag()).toBe('none');
+  });
+
+  it('none when the new week has no offered practice day before its test day (a gap that left only the test day)', async () => {
+    seed(3);
+    db.week(3).testResult = null;
+    // A 6-day gap (not a break) moves the plan by only the room left, so the new week starts in the past and its days
+    // before today are not offered: with 27 days moved already, one day of room, leaving only the test day (day 6).
+    db.goal().movedDays = 27;
+    after(3, 6);
+    expect((await closeWeek()).status).toBe(200);
+    expect(updateLines()[0]).toContain(' held not_logged ');
+    expect(retestTag()).toBe('none');
+  });
+});
+
+describe('M3.3a: the re-test result is the earlier week\'s late result (WU-17)', () => {
+  it('the next update reads it in the trend, and the new week\'s own test as its result', async () => {
+    seed(4);
+    db.week(3).testResult = null;
+    db.week(4).retestOfWeek = 3;
+    expect((await putResult(3, { value: 12.5, unit: 'km', passed: true })).status).toBe(200);
+    expect((await putResult(2, { value: 99, unit: 'km', passed: true })).body.reason).toBe('week_closed');
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(5, 12), range(14, 21)) as never);
+    expect((await review(4, { reflection: '', testResult: { value: 13.5, unit: 'km', passed: true } })).status).toBe(200);
+    const prompt = updatePrompt();
+    expect(prompt).toContain('- Week 3: target Weekly running distance: 12 km; result: test logged: 12.5 km, passed;');
+    expect(prompt).toContain('Test result: test logged: 13.5 km, passed');
+  });
+
+  it('an easy re-test\'s result is read as a light result, never a bound (WU-55)', async () => {
+    seed(4);
+    db.week(3).testResult = { value: 'Done', passed: true, note: 'easy jog' };
+    db.week(4).retestOfWeek = 3;
+    const first = db.tasksOf(4)[0];
+    first.detailedSteps = JSON.stringify([{ ...easyRetestStep(15), stepNumber: 1, priority: 1 }, ...JSON.parse(first.detailedSteps)]);
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(5, 12), range(14, 21)) as never);
+    expect((await review(4, { reflection: '', testResult: { value: 13, unit: 'km', passed: true } })).status).toBe(200);
+    expect(updatePrompt()).toContain('- Week 3: target Weekly running distance: 12 km; result: light test done; their note: "easy jog";');
   });
 });

@@ -15,6 +15,7 @@ import {
   type WeekTest,
 } from './ai/roadmap.js';
 import { activeDaysFor, codeMadeTestStep, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
+import type { Retest } from './ai/retestStep.js';
 import { parseStoredSteps } from './carryForward.js';
 import { isHighLoadGoal } from './highLoad.js';
 import { loadGoalInput } from './safety/stepLoad.js';
@@ -192,6 +193,8 @@ function logWaits(goalId: string, weekNumber: number, waiting: HandoffPlacement<
  * Plan safety limits M2.2b (RULE-7, PSL-18): on a load goal with `firstWeekBack`, the base week is the newest week with
  * done running, read from `finishedTasks` then `olderWeeks` (the goal's weeks before `finishedWeek`, read by
  * `writeWeekAfter`), held with no allowance. Without `firstWeekBack` the base is the closing week, as before.
+ * Weekly update M3.3a (RULE-5, RULE-6, WU-56): `retest`, the closing week's test; code puts the re-test step first on
+ * the new week's first offered practice day before the test day.
  */
 export async function writeNextWeek(
   goal: Goal & { roadmapWeeks: RoadmapWeekRow[] },
@@ -202,7 +205,7 @@ export async function writeNextWeek(
   recovery?: RecoveryProfile | null,
   /** M3.1d review: the week before `finishedWeek`, only to see a break that started there. Read only with the switch on. */
   weekBefore: DailyTask[] = [],
-  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[]; coachNote?: string } = {}
+  options: { firstWeekBack?: FirstWeekBack; weekNumber?: number; olderWeeks?: DailyTask[]; coachNote?: string; retest?: Retest } = {}
 ): Promise<WeekDayPlan[] | null> {
   const stored = readStoredRoadmap(goal);
   // Plan safety limits M1.3 (RULE-9): an older goal's targets lowered on read; nothing stored changes. A goal with
@@ -274,6 +277,8 @@ export async function writeNextWeek(
     ...(brief.length > 0 ? { whereTheyAre: brief } : {}),
     ...(session ? { testSession: session } : {}),
     ...(options.firstWeekBack ? { firstWeekBack: options.firstWeekBack } : {}),
+    // Weekly update M3.3a (RULE-5, RULE-6): only a re-test adds the key, so any other week's call is exactly as before.
+    ...(options.retest ? { retest: options.retest } : {}),
   });
   if (!days) return days;
   // M1.5a review: the goal's load is worked out once (`goalLoad` in `writeWeekAfter`); the line acts only for a high-load goal.

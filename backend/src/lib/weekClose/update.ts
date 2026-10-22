@@ -5,15 +5,32 @@
  * and on a close that is a break it returns null and nothing runs (R-3, R-7). A rejected or failed update is the
  * fallback: targets as planned, no status, no coach's note, the neutral line; except that a rejected one keeps the holds
  * code can see (WU-48: an unlogged test, a kind a week behind), with its own line. It never fails the close.
+ * M3.3a (RULE-1, RULE-5, RULE-6, WU-52 to WU-56): the automatic close runs it too (`updateThenWrite`, both paths); the
+ * model call has a time limit; code decides the re-test the new week starts with.
  */
 import type { DailyTask, RoadmapWeek } from '@prisma/client';
 import { prisma } from '../prisma.js';
-import { askWeeklyUpdate, fallbackHold, type FallbackHold, type UpdateCounts, type UpdateHistoryWeek, type UpdateKind, type UpdateStatus, type WeeklyUpdateInput } from '../ai/weeklyUpdate.js';
+import {
+  askWeeklyUpdate,
+  fallbackHold,
+  nextWeekIsLast,
+  type FallbackHold,
+  type UpdateCounts,
+  type UpdateHistoryWeek,
+  type UpdateKind,
+  type UpdateStatus,
+  type WeeklyUpdateAnswer,
+  type WeeklyUpdateInput,
+} from '../ai/weeklyUpdate.js';
+import { codeMadeRetestStep, retestDayOf, type Retest } from '../ai/retestStep.js';
+import { weekLayout, type WeekDayPlan } from '../ai/weekPlan.js';
+import type { WeekTest } from '../ai/roadmap.js';
+import type { PastLimitChoice } from './breaks.js';
 import { BIG_TEST_WEEKS, formatAmount, pathwayFor, statedTargetText, TOTAL_WEEKS, type LoweredTarget, type WeekTarget } from '../ai/roadmap.js';
 import { logSafetyHit } from '../ai/safetyScan.js';
 import { parseStoredSteps } from '../carryForward.js';
 import { weekCounts } from '../missedSignals.js';
-import { lastWeekResult, readStoredRoadmap } from '../planV2.js';
+import { lastWeekResult, readRoutine, readStoredRoadmap, weekStartFor } from '../planV2.js';
 import { evaluate, loadReconcileGoal } from '../reconcileCore.js';
 import { weekHandoff, type HandoffTask } from '../recovery/handoff.js';
 import { readRecoveryProfile } from '../recovery/profile.js';
@@ -21,7 +38,7 @@ import { methodRecoveryEnabled } from '../recovery/switch.js';
 import { sameUnit } from '../research/statedTarget.js';
 import { nextSafeStep } from '../safety/targetSteps.js';
 import { isWeekTarget, safeGoalTargets, safeStoredTargets, testOf, week12LineFor, withTargetText } from '../safety/storedTargets.js';
-import { AUTO_CLOSE_INSIGHT, planWeekMove, weekScore, type ClosingGoal } from './close.js';
+import { AUTO_CLOSE_INSIGHT, autoCloseInsight, planWeekMove, weekScore, writeWeekAfter, type ClosingGoal, type WeekMove } from './close.js';
 import { weeklyUpdateEnabled } from './switch.js';
 
 /** A week left whose stored target the update changes, with the code-written text that follows it. */
@@ -55,6 +72,29 @@ export interface PlannedUpdate {
   /** The week before, when the update read it (method switch on), so `writeWeekAfter` does not read it again. */
   weekBefore: DailyTask[] | null;
   reasons: string[];
+  /** M3.3a (RULE-5, RULE-6, WU-56): the closing week's test the new week starts with, and why; null for none. */
+  retest: (Retest & { by: RetestReason[] }) | null;
+}
+
+export type RetestReason = 'not_logged' | 'two_hard_weeks';
+
+/** WU-52: the update's model call (both attempts together) on both paths; the reads before it are not counted. */
+export const WEEKLY_UPDATE_TIME_LIMIT_MS = 15000;
+
+class UpdateTimeLimit extends Error {}
+
+/** `work`, or `UpdateTimeLimit` after `ms`. The call left running is never awaited again: it changes nothing. */
+async function withinTimeLimit<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new UpdateTimeLimit()), ms);
+  });
+  work.catch(() => undefined);
+  try {
+    return await Promise.race([work, limit]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** WU-23: week 12's honest line when safety lowered it, worded as the app words `week12Line`. */
@@ -91,6 +131,7 @@ const fallback = (reasons: string[], weekBefore: DailyTask[] | null = null): Pla
   readBack: [],
   weekBefore,
   reasons,
+  retest: null,
 });
 
 /** RULE-8's line for M3.2's eval: one per update. */
@@ -99,7 +140,7 @@ function logUpdate(goalId: string, weekNumber: number, update: PlannedUpdate): v
   const list = (weeks: number[]) => (weeks.length ? weeks.join(',') : 'none');
   const stored = list(update.weeks.map((week) => week.weekNumber));
   console.log(
-    `[WeeklyUpdate] goal ${goalId} week ${weekNumber} status ${update.status ?? 'none'} outcome ${update.outcome} held ${update.held.join(',') || 'none'} lowered ${update.lowered.length} stored ${stored} readBack ${list(update.readBack)} reasons ${reasons}`
+    `[WeeklyUpdate] goal ${goalId} week ${weekNumber} status ${update.status ?? 'none'} outcome ${update.outcome} held ${update.held.join(',') || 'none'} lowered ${update.lowered.length} stored ${stored} readBack ${list(update.readBack)} retest ${update.retest?.by.join(',') || 'none'} reasons ${reasons}`
   );
 }
 
@@ -132,8 +173,40 @@ export async function planWeeklyUpdate(
     console.error('[WeeklyUpdate] The update failed; targets stay as planned:', err);
     update = fallback(['error']);
   }
+  try {
+    update.retest = retestOf(goal, weekNumber, update, context.now, context.timezone);
+  } catch (err) {
+    console.error('[WeeklyUpdate] Could not decide the re-test; none this week:', err);
+  }
   logUpdate(goal.id, weekNumber, update);
   return update;
+}
+
+/**
+ * RULE-5, RULE-6, WU-53, WU-54, WU-56 (M3.3a): whether the new week starts with a re-test of the closing week's test,
+ * from these only. Unlogged: the closing week's measured test was not logged. Two hard weeks: this update's status is
+ * `far_behind` and so is the stored status of the week before (no stored status is not `far_behind`; a fallback has
+ * none). Neither after a light week, when next week shows week 12's target (WU-15, WU-47), or when the new week has no
+ * offered practice day before its test day (the layout is code's, so it is known before the week is written).
+ */
+function retestOf(goal: ClosingGoal, weekNumber: number, update: PlannedUpdate, now: Date, timezone?: string | null): PlannedUpdate['retest'] {
+  const rows = safeGoalTargets(goal)?.weeks ?? goal.roadmapWeeks;
+  const thisWeek = rows.find((week) => week.weekNumber === weekNumber);
+  const test = thisWeek ? (testOf(thisWeek) as WeekTest | null) : null;
+  if (!thisWeek || !test || typeof test.instructions !== 'string' || !test.instructions.trim() || isLight(thisWeek)) return null;
+  const weeksLeft = rows.filter((week) => week.weekNumber > weekNumber).map((week) => ({ weekNumber: week.weekNumber, target: week.target as unknown as WeekTarget, light: isLight(week) }));
+  if (nextWeekIsLast({ weekNumber, weeksLeft })) return null;
+  const before = goal.roadmapWeeks.find((week) => week.weekNumber === weekNumber - 1);
+  const by: RetestReason[] = [
+    ...(isLogged(thisWeek.testResult) ? [] : ['not_logged' as const]),
+    ...(update.status === 'far_behind' && before && !before.jumped && before.updateStatus === 'far_behind' ? ['two_hard_weeks' as const] : []),
+  ];
+  if (by.length === 0) return null;
+  const move = planWeekMove(goal, weekNumber, now, timezone, goal.dailyTasks);
+  const start = move && move.days > 0 ? move.startDate : goal.startDate;
+  const layout = weekLayout(readRoutine(goal).planVariant, weekStartFor(start, weekNumber + 1));
+  if (retestDayOf(layout, move?.writtenOn) === null) return null;
+  return { ofWeek: weekNumber, test, by };
 }
 
 const isLight = (week: Pick<RoadmapWeek, 'test'>) => testOf(week)?.light === true;
@@ -160,10 +233,13 @@ export function resultNumber(testResult: unknown, target: WeekTarget): number | 
   return Number.isFinite(number) ? number : null;
 }
 
-/** RULE-4, WU-43 (2): the last usable result of a measured week up to this one (a light test is not a result). */
-function lowerBoundOf(rows: readonly RoadmapWeek[], weekNumber: number, target: WeekTarget): number | null {
+/**
+ * RULE-4, WU-43 (2): the last usable result of a measured week up to this one (a light test is not a result, nor an easy
+ * re-test's, WU-55).
+ */
+function lowerBoundOf(rows: readonly RoadmapWeek[], weekNumber: number, target: WeekTarget, easyRetestOf: number | null = null): number | null {
   for (const week of [...rows].reverse()) {
-    if (week.weekNumber > weekNumber || week.jumped || isLight(week)) continue;
+    if (week.weekNumber > weekNumber || week.jumped || isLight(week) || week.weekNumber === easyRetestOf) continue;
     const number = resultNumber(week.testResult, target);
     if (number !== null) return number;
   }
@@ -205,8 +281,11 @@ function resultLine(week: RoadmapWeek, testDay: DailyTask | undefined): string {
   return isLogged(week.testResult) || testDay ? lastWeekResult(testDay, week.testResult, isLight(week)) : 'not logged';
 }
 
-/** The last 3 closed weeks before this one (jumped weeks had no practice), with their review rows. */
-async function historyOf(goalId: string, rows: readonly RoadmapWeek[], weekNumber: number): Promise<UpdateHistoryWeek[]> {
+/**
+ * The last 3 closed weeks before this one (jumped weeks had no practice), with their review rows. A re-tested week's
+ * result is its re-test's (WU-17), read as a light result when it was the easy re-test (`easyRetestOf`, WU-55).
+ */
+async function historyOf(goalId: string, rows: readonly RoadmapWeek[], weekNumber: number, easyRetestOf: number | null = null): Promise<UpdateHistoryWeek[]> {
   const weeks = rows.filter((week) => week.weekNumber < weekNumber && !week.jumped && isWeekTarget(week.target)).slice(-3);
   if (weeks.length === 0) return [];
   const reviews = await prisma.weeklyReview.findMany({ where: { goalId, weekNumber: { in: weeks.map((week) => week.weekNumber) } } });
@@ -216,7 +295,7 @@ async function historyOf(goalId: string, rows: readonly RoadmapWeek[], weekNumbe
       weekNumber: week.weekNumber,
       target: week.target as unknown as WeekTarget,
       light: isLight(week),
-      result: isLogged(week.testResult) ? lastWeekResult(undefined, week.testResult, isLight(week)) : 'not logged',
+      result: isLogged(week.testResult) ? lastWeekResult(undefined, week.testResult, isLight(week) || week.weekNumber === easyRetestOf) : 'not logged',
       sessions: review ? `${review.tasksCompleted} of ${review.tasksPlanned}` : 'not recorded',
       status: week.updateStatus ?? null,
     };
@@ -295,10 +374,15 @@ async function runUpdate(
     ? safeMaxOf(lastBig === undefined ? startValue : valueOf(rows.find((week) => week.weekNumber === lastBig)), target, firstAsked?.weekNumber ?? TOTAL_WEEKS, 4, run10k)
     : safeMaxOf(valueOf(thisWeek), target, weekNumber + 1, 1, run10k);
 
+  // M3.3a (WU-55): this week opened with the easy re-test, so the re-tested week's result is a light one.
+  const closing = goal.roadmapWeeks.find((week) => week.weekNumber === weekNumber);
+  const easyRetest = goal.dailyTasks.some((task) => parseStoredSteps(task.detailedSteps).some((step) => codeMadeRetestStep(step) === 'light'));
+  const easyRetestOf = easyRetest ? closing?.retestOfWeek ?? null : null;
+
   // Independent reads, side by side. The week before is read once, for the kinds here and for `writeWeekAfter`.
   const [counts, history, weekBefore] = await Promise.all([
     countsOf(goal, weekNumber, context.userId, context.now, context.timezone),
-    historyOf(goal.id, goal.roadmapWeeks, weekNumber),
+    historyOf(goal.id, goal.roadmapWeeks, weekNumber, easyRetestOf),
     weekBeforeOf(goal, weekNumber),
   ]);
   const testDay = goal.dailyTasks.find((task) => task.isTestDay);
@@ -311,7 +395,7 @@ async function runUpdate(
     lightTestGoal,
     result: resultLine(thisWeek, testDay),
     testLogged: isLogged(thisWeek.testResult),
-    lowerBound: lowerBoundOf(goal.roadmapWeeks, weekNumber, target),
+    lowerBound: lowerBoundOf(goal.roadmapWeeks, weekNumber, target, easyRetestOf),
     counts,
     reflection: context.reflection,
     history,
@@ -321,7 +405,15 @@ async function runUpdate(
   const kinds = kindsOf(goal, weekBefore);
   if (kinds) input.kinds = kinds;
 
-  const answer = await askWeeklyUpdate(input);
+  // WU-52: a time out, or an error from the model call, is the fallback below, with the holds code can see.
+  let answer: WeeklyUpdateAnswer;
+  try {
+    answer = await withinTimeLimit(askWeeklyUpdate(input), WEEKLY_UPDATE_TIME_LIMIT_MS);
+  } catch (err) {
+    const timedOut = err instanceof UpdateTimeLimit;
+    if (!timedOut) console.error("[WeeklyUpdate] The update call failed; code's holds still apply:", err);
+    answer = { outcome: 'fallback', update: null, reasons: [timedOut ? 'time_limit' : 'error'] };
+  }
   // WU-48: a fallback keeps the holds code can see (never far_behind), with its own line when next week keeps this
   // week's target; with no such hold it is the plain fallback. Its targets take the same path as accepted ones.
   const hold = fallbackHold(input);
@@ -423,6 +515,7 @@ async function runUpdate(
     readBack: readBack.sort((a, b) => a - b),
     weekBefore,
     reasons: answer.reasons,
+    retest: null,
   };
 }
 
@@ -441,4 +534,40 @@ export function withUpdatedTargets(goal: ClosingGoal, update: PlannedUpdate | nu
       : week;
   });
   return { ...goal, roadmapWeeks };
+}
+
+/**
+ * M3.3a (RULE-1, WU-52): the update, then the week after from its targets, for the review and the automatic close alike.
+ * With no update (a switch off, week 12, a break) the week is written exactly as before.
+ */
+export async function updateThenWrite(
+  goal: ClosingGoal,
+  weekNumber: number,
+  context: { userId: string; reflection: string; now: Date; timezone?: string | null; choice?: PastLimitChoice | null }
+): Promise<{ update: PlannedUpdate | null; next: Awaited<ReturnType<typeof writeWeekAfter>> }> {
+  const update = await planWeeklyUpdate(goal, weekNumber, context);
+  const next = await writeWeekAfter(withUpdatedTargets(goal, update), weekNumber, {
+    now: context.now,
+    timezone: context.timezone,
+    ...(context.choice !== undefined ? { choice: context.choice } : {}),
+    ...(update?.coachNote ? { coachNote: update.coachNote } : {}),
+    ...(update?.weekBefore ? { weekBefore: update.weekBefore } : {}),
+    ...(update?.retest ? { retest: { ofWeek: update.retest.ofWeek, test: update.retest.test } } : {}),
+  });
+  return { update, next };
+}
+
+/**
+ * WU-56 (4): the automatic close's line. With an update, its sentence; after a short gap that moved the plan, the move
+ * line, a space, then the sentence. Without one, as before.
+ */
+export function autoCloseUpdateInsight(move: WeekMove | null, update: PlannedUpdate | null): string {
+  if (!update) return autoCloseInsight(move);
+  return move && move.days > 0 ? `${autoCloseInsight(move)} ${update.insight}` : update.insight;
+}
+
+/** Item 6: the new week's `retestOfWeek`, only when the week written holds the re-test step (or its easy version). */
+export function retestOfWeekFor(update: PlannedUpdate | null, written: readonly WeekDayPlan[] | null): number | null {
+  if (!update?.retest || !written) return null;
+  return written.some((day) => day.detailedSteps.some((step) => codeMadeRetestStep(step) !== null)) ? update.retest.ofWeek : null;
 }

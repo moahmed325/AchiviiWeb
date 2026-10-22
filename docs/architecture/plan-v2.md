@@ -85,8 +85,8 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
   not moved.
 - Carry writes happen only when `MISSED_SESSIONS_CARRY_ENABLED` is exactly `true` (ND-15).
 - The 10-minute minimum version is always available.
-- Two far_behind weeks in a row → the next week starts with a re-test (`retestFirst`), and the app checks whether
-  their daily time is realistic.
+- Two far_behind weeks in a row → the next week starts with a re-test, and the app checks whether their daily time
+  is realistic. Code decides the re-test after the weekly update and places the step (weekly update M3.3a, below).
 - Tone: neutral and encouraging, never firm. After a miss, one line that moves forward; never ask why.
 - Reminders before sessions: a later phase.
 
@@ -319,13 +319,15 @@ LAST WEEK                                   (only from week 2)
 Target: {prevTarget}. Result: {prevResult}. Sessions done: {done} of {planned}.
 Key sessions skipped: {list or "none"}.
 Coach's note: {guidanceForNextWeek from prompt 4}
-{if retestFirst:} "Their last two weeks were weak. Make the first practice day a re-test using the weekly test,
-so the plan resets to their real level."
 
 WRITE THE WEEK
 - 7 days, dayNumber 1-7. Days that fall on {activeDays} are practice days. The others are rest days.
 - The last practice day is the test day. Its main step is the weekly test exactly as written above, with a
   short warm-up before it and a short review after it.
+{with a re-test (weekly update M3.3a), on the first offered practice day before the test day:}
+- Day {d} ({weekday}) starts with a re-test of week {N}'s test ({its instructions}), which
+  code adds as its first step ({half} minutes). Plan the rest of that day around it, shorter: steps adding up to
+  {dailyMinutes - half} minutes, and none that repeats the test.{on a running load goal: " The re-test counts as a hard run."}
 - Mark 1-2 practice days (not the test day) as key sessions: the hardest sessions that matter most for the
   target. Put them mid-week.
 - Each practice day has:
@@ -366,9 +368,14 @@ high-load step (`lib/recovery/firstWeekBack.ts`, WU-29, WU-35).
 ## Prompt 4: weekly update (after each weekly test, weeks 1-11)
 
 As built in weekly update M3.1 (`backend/src/lib/ai/weeklyUpdate.ts`, read and saved by `lib/weekClose/update.ts`). It
-runs only on the weekly review, only with `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED` both exactly `true`, only
-for weeks 1 to 11 and not on a close that is a break (the automatic close gets it in M3.3, the break in M3.4). No
-checkpoint offer (WU-2) and no `retestFirst` (code decides it in M3.3).
+runs on the weekly review and (M3.3a) the automatic close, only with `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED`
+both exactly `true`, only for weeks 1 to 11 and not on a close that is a break (the break gets it in M3.4). The model
+call (both attempts) has a 15 s limit (`WEEKLY_UPDATE_TIME_LIMIT_MS`, WU-52). No checkpoint offer (WU-2) and no
+`retestFirst`: code decides the re-test after the update (M3.3a).
+
+**Schema (M3.3a):** a number week keeps `WEEKLY_UPDATE_SCHEMA` (each `nextTargets` item `kind` `number` or
+`deliverable`). When this week's target is a deliverable, `WEEKLY_UPDATE_DELIVERABLE_SCHEMA`: items with `kind` fixed to
+`deliverable` and `description` required, no `metric`, `value` or `unit`.
 
 **System**
 
@@ -409,18 +416,21 @@ LAST 3 WEEKS
 
 DECIDE
 1. status: on_track / a_bit_behind / far_behind, as before. Weigh the trend.
-2. nextTargets: one target for each of weeks {asked}, in order.
+2. nextTargets: one target for each of weeks {asked}, in order: { weekNumber, kind: "number", metric, value, unit } or
+   { weekNumber, kind: "deliverable", description }.   (a deliverable week: only the deliverable shape, M3.3a)
    - on_track: keep the plan; raise only if they clearly beat the target, never above week 12's target before week 12.
    - a_bit_behind: make the next step smaller and spread the remaining climb over the weeks left.
    - far_behind: {held}'s target equals this week's target.   (when next week shows week 12's target: "Week {n+1}
      shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.")
-   - [The test was not logged: {held}'s target must not be higher than this week's.]
+   - [The test was not logged: {held}'s target must not be higher than this week's.]   (not after a light week, WU-54)
    - [They are a week behind in {kinds}: {held}'s target must not be higher than this week's; the message names it.]
    - Never easier than what they last achieved ({bound}, at most week 12's target); no week easier than the week before
      it. [A held {held} may stay at this week's target instead.] (only when the bound is above this week's target)
    ({held} is the week the model sets (WU-49): "week {n+1}", or on a light-test goal when next week is a light week
    "week {big} (next week shows it)", its next big week; the retry reasons name the same week.)
    - Week 12 stays exactly {week 12's current target}. Keep each week's kind, metric and unit.
+   - In the message, don't say held, kept or stays when next week's target moves on, or goes up, raised or rises when
+     it stays the same.   (M3.3a: WU-51's rule, told as well as checked)
 3. messageToUser: one sentence, neutral and encouraging; say plainly if next week is held or lowered. Never a question,
    never "missed", "behind", "failed" or "fail".
 4. guidanceForNextWeek: 1-2 sentences for the person writing next week's tasks.
@@ -444,7 +454,7 @@ shows week 12's target (week 12 itself, or a light week whose next check is week
 "held", "kept" or "stays" while next week's target (the one next week shows) went up, or "goes up", "went up", "moves
 up", "rises" or "raised" while it stayed the same (never a bare "up"; a deliverable with new text has gone up). Deliverables: the count, still a
 deliverable, week 12's text unchanged, and a held week (any hold) repeats this week's text exactly. One retry with every
-reason; a second rejection, or no answer, is the fallback: targets as planned, no status stored, no coach's note, and
+reason; a second rejection, no answer, a time out (`time_limit`) or an error from the call (`error`) is the fallback: targets as planned, no status stored, no coach's note, and
 "Next week is ready. Your targets stay as planned." Except (WU-48): when an unlogged test or a kind a week behind holds
 (never `far_behind`, the model's call; none when next week shows week 12's target), the week next week shows is kept
 at this week's target when it was planned harder (on a light-test goal the next big week, with the light weeks before

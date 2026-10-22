@@ -8,6 +8,7 @@ import type { ScanRule } from '../ai/safetyScan.js';
 import type { CarriedStep } from '../carryForward.js';
 import { originOf, stepKey } from '../recovery/inOrder.js';
 import { RUN_KINDS } from './stepLoad.js';
+import { codeMadeRetestStep } from '../ai/retestStep.js';
 import {
   BASE_WEEK_DONE_PERCENT,
   CALORIE_DEFICIT_MAX,
@@ -232,9 +233,20 @@ function countDays(tasks: readonly BaseTask[], asDone: boolean, running: boolean
 }
 
 function contextOf(step: DetailedStep, task: Pick<BaseTask, 'isTestDay'>, running: boolean, codeMade: (step: DetailedStep) => CodeMadeTest): StepContext {
-  const testStep = task.isTestDay && TEST_STEP_TITLE.test(step.title);
   // The base week's hard runs are never compared, so `measured` doesn't matter here.
-  return { running, testStep, codeMade: testStep ? codeMade(step) : null, measured: false };
+  return { running, ...testStepOf(step, task.isTestDay, codeMade), measured: false };
+}
+
+/**
+ * The test day's test step (the model's, or code-made through `codeMade`), or a re-test step (weekly update M3.3a,
+ * WU-55), which counts as the code-made test step of its kind: the measured re-test is hard on a running goal, the easy
+ * one is not. Any other step is no test step.
+ */
+export function testStepOf(step: Pick<DetailedStep, 'title' | 'focusCue' | 'pitfallToAvoid'>, isTestDay: boolean, codeMade: (step: DetailedStep) => CodeMadeTest): Pick<StepContext, 'testStep' | 'codeMade'> {
+  const retest = codeMadeRetestStep(step);
+  if (retest) return { testStep: true, codeMade: retest };
+  const testStep = isTestDay && TEST_STEP_TITLE.test(step.title);
+  return { testStep, codeMade: testStep ? codeMade(step as DetailedStep) : null };
 }
 
 /**

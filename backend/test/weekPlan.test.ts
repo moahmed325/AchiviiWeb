@@ -208,10 +208,6 @@ describe('checkWeekAnswer', () => {
   it('rejects filler steps', () => {
     expect(reason(checkWeekAnswer(week((days) => { (days[0].steps as unknown[])[1] = step('Journal about progress', 2, 15); }), input))).toMatch(/filler/);
   });
-
-  it('asks for a re-test first when the last two weeks were weak', () => {
-    expect(reason(checkWeekAnswer(week(), { ...input, retestFirst: true }))).toMatch(/Re-test/);
-  });
 });
 
 describe('buildWeekPrompt', () => {

@@ -6,6 +6,9 @@ import {
   directionReason,
   fallbackHold,
   sentenceReason,
+  WEEKLY_UPDATE_DELIVERABLE_SCHEMA,
+  WEEKLY_UPDATE_SCHEMA,
+  weeklyUpdateSchema,
   type RawWeeklyUpdate,
   type UpdateKind,
   type WeeklyUpdateInput,
@@ -314,8 +317,21 @@ describe('WU-49: the hold lines name the week the model sets', () => {
   const light = (over: Partial<WeeklyUpdateInput> = {}) =>
     input(5, { target: km(16), lightTest: true, lightTestGoal: true, lowerBound: 12, weeksLeft, result: 'light test done', safeMax: { weekNumber: 8, value: 17.6 }, ...over });
 
+  // M3.3a (WU-54): an unlogged light week holds nothing, so the unlogged hold is shown closing big week 4, whose next
+  // week (5) is light and shows week 8's 16 km.
+  const big4 = (over: Partial<WeeklyUpdateInput> = {}) =>
+    input(4, {
+      target: km(12),
+      lightTest: false,
+      lightTestGoal: true,
+      lowerBound: 12,
+      weeksLeft: [5, 6, 7, 8, 9, 10, 11, 12].map((weekNumber) => ({ weekNumber, target: km(shows(weekNumber)), light: ![8, 12].includes(weekNumber) })),
+      safeMax: { weekNumber: 8, value: 17.6 },
+      ...over,
+    });
+
   it('on a light-test goal every hold line names the next big week, which next week shows', () => {
-    const prompt = buildWeeklyUpdatePrompt(light({ testLogged: false, kinds: [behind()], lowerBound: 16.5 }));
+    const prompt = buildWeeklyUpdatePrompt(big4({ testLogged: false, kinds: [behind()], lowerBound: 12.5 }));
     expect(prompt).toContain("   - far_behind: week 8's target (next week shows it) equals this week's target.");
     expect(prompt).toContain("   - The test was not logged: week 8's target (next week shows it) must not be higher than this week's.");
     expect(prompt).toContain("They are a week behind in new material: week 8's target (next week shows it) must not be higher than this week's");
@@ -323,11 +339,32 @@ describe('WU-49: the hold lines name the week the model sets', () => {
   });
 
   it('the retry reasons name the same week, and the check itself is unchanged', () => {
-    const i = light({ testLogged: false, kinds: [behind()] });
+    const i = big4({ testLogged: false, kinds: [behind()] });
     expect(reasonsOf(checkWeeklyUpdate(answer(i, {}, [17, 20]), i))).toMatch(
-      /week 8's target \(next week shows it\) must not be higher than this week's \(16 km\) because the test was not logged and they are a week behind in new material/
+      /week 8's target \(next week shows it\) must not be higher than this week's \(12 km\) because the test was not logged and they are a week behind in new material/
     );
-    expect('value' in checkWeeklyUpdate(answer(i, {}, [16, 20]), i)).toBe(true);
+    expect('value' in checkWeeklyUpdate(answer(i, {}, [12, 20]), i)).toBe(true);
+  });
+
+  it('WU-54: an unlogged light week holds nothing: no line, no reason, no fallback hold; a week behind still holds', () => {
+    const i = light({ testLogged: false });
+    expect(buildWeeklyUpdatePrompt(i)).not.toContain('The test was not logged');
+    expect('value' in checkWeeklyUpdate(answer(i, {}, [17, 20]), i)).toBe(true);
+    expect(fallbackHold(i).held).toEqual([]);
+    const behindToo = light({ testLogged: false, kinds: [behind()] });
+    expect(reasonsOf(checkWeeklyUpdate(answer(behindToo, {}, [17, 20]), behindToo))).toBe("week 8's target (next week shows it) must not be higher than this week's (16 km) because they are a week behind in new material.");
+    expect(fallbackHold(behindToo).held).toEqual(['week_behind']);
+  });
+
+  it('WU-54: an unlogged big week on a light-test goal still holds, in the fallback too', () => {
+    const i = big4({ testLogged: false });
+    expect(fallbackHold(i).held).toEqual(['not_logged']);
+    expect(fallbackHold(i).targets.map((t) => [t.weekNumber, t.target.kind === 'number' && t.target.value])).toEqual([
+      [5, 12],
+      [6, 12],
+      [7, 12],
+      [8, 12],
+    ]);
   });
 
   it('on a goal without light weeks the lines name next week as before', () => {
@@ -462,5 +499,54 @@ describe('WU-48: the holds a fallback keeps (fallbackHold)', () => {
   it('a next week already at this week keeps it with nothing to change; one planned easier is left alone', () => {
     expect(fallbackHold(input(3, { testLogged: false, target: km(13) }))).toEqual({ held: ['not_logged'], targets: [], keeps: true });
     expect(fallbackHold(input(3, { testLogged: false, target: km(14) }))).toEqual({ held: ['not_logged'], targets: [], keeps: false });
+  });
+});
+
+describe('M3.3a: the deliverable schema and the WU-51 line (03-phases M3.3 notes (a), (b))', () => {
+  const deliverable = () =>
+    input(3, {
+      target: text('Draft chapter 3'),
+      lowerBound: null,
+      safeMax: null,
+      weeksLeft: Array.from({ length: 9 }, (_, k) => ({ weekNumber: 4 + k, target: text(k === 8 ? 'Finish the book' : `Draft chapter ${4 + k}`), light: false })),
+    });
+
+  it('a deliverable week gets kind fixed to deliverable and description required, with no number fields', () => {
+    const schema = weeklyUpdateSchema(deliverable());
+    expect(schema).toBe(WEEKLY_UPDATE_DELIVERABLE_SCHEMA);
+    const items = (schema.properties.nextTargets as any).items;
+    expect(items.properties.kind.enum).toEqual(['deliverable']);
+    expect(items.required).toEqual(['weekNumber', 'kind', 'description']);
+    expect(Object.keys(items.properties).sort()).toEqual(['description', 'kind', 'weekNumber']);
+    expect(schema.required).toEqual(WEEKLY_UPDATE_SCHEMA.required);
+  });
+
+  it("a deliverable week's prompt shows only the deliverable shape", () => {
+    const prompt = buildWeeklyUpdatePrompt(deliverable());
+    expect(prompt).toContain('2. nextTargets: one target for each of weeks 4, 5, 6, 7, 8, 9, 10, 11, 12, in order: { weekNumber, kind: "deliverable", description }.');
+    expect(prompt).not.toContain('kind: "number"');
+  });
+
+  it("a number week keeps today's schema and nextTargets line exactly", () => {
+    expect(weeklyUpdateSchema(input(3))).toBe(WEEKLY_UPDATE_SCHEMA);
+    expect(JSON.stringify(WEEKLY_UPDATE_SCHEMA.properties.nextTargets)).toBe(
+      '{"type":"array","items":{"type":"object","properties":{"weekNumber":{"type":"integer"},"kind":{"type":"string","enum":["number","deliverable"]},"metric":{"type":"string"},"value":{"type":"number"},"unit":{"type":"string"},"description":{"type":"string"}},"required":["weekNumber","kind"]}}'
+    );
+    expect(buildWeeklyUpdatePrompt(input(3))).toContain(
+      '2. nextTargets: one target for each of weeks 4, 5, 6, 7, 8, 9, 10, 11, 12, in order: { weekNumber, kind: "number", metric, value, unit } or { weekNumber, kind: "deliverable", description }.'
+    );
+  });
+
+  it('both prompts state the WU-51 rule in the target rules', () => {
+    const line = "   - In the message, don't say held, kept or stays when next week's target moves on, or goes up, raised or rises when it stays the same.";
+    for (const prompt of [buildWeeklyUpdatePrompt(input(3)), buildWeeklyUpdatePrompt(deliverable())]) {
+      expect(prompt).toContain(line);
+      expect(prompt.indexOf(line)).toBeLessThan(prompt.indexOf('3. messageToUser'));
+    }
+  });
+
+  it('checkWeeklyUpdate is unchanged for a deliverable answer', () => {
+    const i = deliverable();
+    expect('value' in checkWeeklyUpdate(answer(i), i)).toBe(true);
   });
 });
