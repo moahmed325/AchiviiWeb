@@ -20,7 +20,8 @@
 | M3.1 | The update call and its checks, on the review path (needs B-62) | AC-1, AC-2, AC-3, AC-8, AC-13, AC-15 | DONE 2026-10-21 | [m3.1](milestones/m3.1-update-call.md) |
 | M3.2 | Eval of the update call on recorded weeks | AC-2, AC-3, AC-8 (measured) | DONE 2026-10-22 | [m3.2](milestones/m3.2-eval.md) |
 | M3.2b | Fixes from the eval (WU-48 to WU-51, the safe-step line without the metric label), then one rerun of the 24 cases | AC-2, AC-3, AC-8 (measured) | DONE 2026-10-22 | [m3.2b](milestones/m3.2b-eval-fixes.md) |
-| M3.3 | The update in the automatic close; unlogged test; two hard weeks | AC-1, AC-4, AC-5 | NOT STARTED | |
+| M3.3a | Server: the update in the automatic close with a time limit; the re-test (unlogged test, two hard weeks); deliverable schema; WU-51 line (WU-52 to WU-56) | AC-1, AC-4 (server), AC-5 (re-test) | PROMPT WRITTEN | [m3.3a](milestones/m3.3a-update-in-auto-close.md) |
+| M3.3b | App: Today's "Test not logged" and "Two hard weeks" lines, the re-test's result entry, the daily-time card | AC-4 (Today), AC-5 (daily time) | NOT STARTED | |
 | M3.4 | Break restart | AC-9, AC-10, AC-18 | NOT STARTED | |
 | M4.1 | Copy and acceptance | AC-14, AC-19, all | NOT STARTED | |
 | O2 | Mo: turn on `WEEKLY_UPDATE_ENABLED` in Render | — | BLOCKED (the `checkpoints` feature must ship first, WU-23) | |

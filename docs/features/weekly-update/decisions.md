@@ -311,6 +311,36 @@ How this log works: `docs/templates/decisions.md`.
 **Why (Mo):** RULE-7 says the sentence says plainly when a target is held; a sentence that says the opposite of what happened is worse than none. Narrow, so it doesn't reject good sentences.
 **Changes:** RULE-7; `ai/weeklyUpdate.ts` (`sentenceReason` or a check beside it); M3.2b.
 
+### WU-52 — M3.3 is split; the update in the automatic close has a time limit (2026-10-22)
+**Question:** M3.3 holds the update in the automatic close, RULE-5's re-test, RULE-6 with the daily-time card, and two M3.2b fixes; and M3.2/M3.2b saw rate-limited updates take 21 to 27 s, which every goal load would wait for.
+**Decision:** (1) M3.3a is the server (the update in the automatic close, the time limit, the re-test, RULE-6's `retestFirst`, the deliverable schema, the WU-51 line in prompt 4); M3.3b is the app (Today's lines, the re-test's result entry, the daily-time card). (2) The update's model call has a 15 s limit on both paths; a time out, and an error from the model call, give the WU-48 fallback with the holds code can see (this also fixes M3.2b review finding 3).
+**Why (Mo):** one milestone per side keeps each reviewable; a goal load must not wait on rate-limit retries, and a fallback must not drop a hold code can see.
+**Changes:** `03-phases.md` (M3.3a, M3.3b); `weekClose/update.ts`.
+
+### WU-53 — A week with no stored status is not far_behind (2026-10-22)
+**Question:** WU-45 (7): a fallback stores no `updateStatus`; how does RULE-6 read it?
+**Decision:** a week with no stored status (a fallback, the week a break started in, any week before the switch) is not `far_behind`, so it ends a run of hard weeks. A fallback never starts one.
+**Why (Mo):** a re-test should never come from a guess.
+**Changes:** RULE-6; M3.3a.
+
+### WU-54 — An unlogged light week holds nothing (2026-10-22)
+**Question:** on a light-test goal, a light week whose "I did it" wasn't logged held the target as "not logged" (RULE-5), but a light test is not a result against the target (WU-43).
+**Decision:** an unlogged light week is not "not logged" for RULE-5: no hold and no re-test. On a light-test goal only the big weeks 4 and 8 can be not logged.
+**Why (Mo):** holding a target for a test that measures nothing holds the person back for no reason.
+**Changes:** RULE-5; `holdsOf` in `ai/weeklyUpdate.ts`; M3.3a.
+
+### WU-55 — A re-test on a load goal counts as a hard session (2026-10-22)
+**Question:** a re-test of a missed big test on run10k or recomp is a hard timed effort on the first day, in the same week as that week's own test.
+**Decision:** the re-test step counts in the week's load checks like the code-made measured test step (on a running goal a hard run of its minutes). When only the re-test step breaks a limit on the last attempt, code swaps it for a fixed easy re-test step, kept only when the swapped week passes the week checks (as M1.5b's light-step swap). An easy re-test's result is a light result, not a result against the target.
+**Why (Mo):** safety limits must see every hard effort; the week must still be writable.
+**Changes:** `ai/weekPlan.ts`; M3.3a.
+
+### WU-56 — One re-test, of the closing week; none after a light week (2026-10-22)
+**Question:** writing M3.3a: what the re-test re-tests, where its result goes, and the automatic close's line when the plan also moved.
+**Decision:** (1) An unlogged test and two hard weeks in the same close give one re-test. (2) Both re-test the closing week's stored test; the result is stored as that week's `testResult` (the latest wins, as a late result) through the test-result endpoint, which takes it only for the week the open week's `retestOfWeek` names. (3) No re-test after a light week, for either rule (a light week has no measured test to repeat). (4) An automatic close that ran the update and moved the plan stores the move line followed by the update's sentence. *(Proposed by main - review in M3.3a's prompt.)*
+**Why:** one path for both rules; a light week's test is not a measure (WU-43); the person must see both the new end date and what happened to the target.
+**Changes:** RULE-5; RULE-6; M3.3a.
+
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
 - **2026-10-11, MR-32:** the week writer is now told, per in-order kind, where the person is in the sequence and how many steps behind the plan. The weekly update's targets (and the weekly test, which may cover lessons not reached yet) should read that. *Handled: WU-11.*
