@@ -14,6 +14,8 @@ export interface Retest {
   test: WeekTest;
   /** M1.4: every day dated before this local date is stored not offered, so the re-test never goes there. */
   notOfferedBefore?: string;
+  /** M3.4 (WU-41, WU-55, WU-59 (4)): a high-load first week back places the easy re-test from the start. */
+  easy?: boolean;
 }
 
 /** Never change these, or stored re-test steps stop being recognised. */

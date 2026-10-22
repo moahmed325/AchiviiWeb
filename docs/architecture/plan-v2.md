@@ -374,7 +374,7 @@ high-load step (`lib/recovery/firstWeekBack.ts`, WU-29, WU-35).
 
 As built in weekly update M3.1 (`backend/src/lib/ai/weeklyUpdate.ts`, read and saved by `lib/weekClose/update.ts`). It
 runs on the weekly review and (M3.3a) the automatic close, only with `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED`
-both exactly `true`, only for weeks 1 to 11 and not on a close that is a break (the break gets it in M3.4). The model
+both exactly `true`, only for weeks 1 to 11, and never before a choice past the limit (a break gets it since M3.4). The model
 call (both attempts) has a 15 s limit (`WEEKLY_UPDATE_TIME_LIMIT_MS`, WU-52); past it the retry is not started. No checkpoint offer (WU-2) and no
 `retestFirst`: code decides the re-test after the update (M3.3a).
 
@@ -416,6 +416,11 @@ Their note: {reflection or "none"}
 LAST 3 WEEKS
 - Week {w}: target {target}; result: {result}; sessions done: {done of planned}; status: {status or none}
 
+[BREAK                          (M3.4: only on a break with a restart)
+- They were away {d} days. The method's return rule for a break this long: {restart at the last level reached | go back
+  1 week | go back 2 weeks} (week {k}'s target).
+- {Held} must be exactly {level}. Spread the remaining weeks from there up to week 12; none easier than it.]
+
 [SAFETY
 - The most week {k} may be: {nextSafeStep} (one safe step). Code lowers anything past it.]
 
@@ -427,10 +432,13 @@ DECIDE
    - a_bit_behind: make the next step smaller and spread the remaining climb over the weeks left.
    - far_behind: {held}'s target equals this week's target.   (when next week shows week 12's target: "Week {n+1}
      shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.")
+     (M3.4, on a break: "After the break, {held}'s target equals {level} whatever the status." instead, and none of
+     the hold lines below)
    - [The test was not logged: {held}'s target must not be higher than this week's.]   (not after a light week, WU-54)
    - [They are a week behind in {kinds}: {held}'s target must not be higher than this week's; the message names it.]
    - Never easier than what they last achieved ({bound}, at most week 12's target); no week easier than the week before
      it. [A held {held} may stay at this week's target instead.] (only when the bound is above this week's target)
+     (M3.4, on a break: "Never set a target easier than the restart level ({level}), ...")
    ({held} is the week the model sets (WU-49): "week {n+1}", or on a light-test goal when next week is a light week
    "week {big} (next week shows it)", its next big week; the retry reasons name the same week.)
    - Week 12 stays exactly {week 12's current target}. Keep each week's kind, metric and unit.
@@ -440,6 +448,19 @@ DECIDE
    never "missed", "behind", "failed" or "fail".
 4. guidanceForNextWeek: 1-2 sentences for the person writing next week's tasks.
 ```
+
+**After a break (M3.4, RULE-16, WU-16, WU-59):** "next week" is the week the close writes (`WeekMove.weekBack`; after
+"Keep going" the weeks between are read as closed and jumped, so the weeks left are `weekBack` to 12 and none of them is
+ever stored), `{n+1}` above reads as that week, and the climb starts as `safeStoredTargets` reads the goal after the save.
+The restart level (`restartLevel` in `weekClose/breaks.ts`) is the stored target of week `max(1, n - back)` (`back` 0,
+1 or 2 from the return rule's entry for `breakDays`; no profile or entry: `last level`), never harder than week `n`'s
+(week `n`'s is used when it is, or when the kind or unit differs); on a light-test goal the target that week shows. None
+when next week shows week 12's target ("Do my final week" included); the update still runs then. The week the model
+sets for next week must be exactly the level (a number within 1e-9, a deliverable's text exactly), the level is the
+lower bound of every week left, and the `far_behind`, unlogged and week-behind holds are not applied. No status is
+stored. A fallback (rejected twice, timed out, a call error) sets that week and the light weeks before it to the level
+through the same climb and storing path, with "Next week picks up at {level}." as its line. The re-test gains reason
+`break` (one re-test; the easy one from the start on a high-load goal).
 
 Its inputs: the week's stored or sent test result; `weekCounts` from the day kinds and carry plan reconcile works out
 (read only); the last 3 closed weeks with their review rows and `updateStatus`; the weeks left from `safeGoalTargets`;
@@ -484,7 +505,7 @@ update's value, so the read and the update agree.
 changed week's `target`, `objective`, `keyMilestone` and `test` (the code-written text, as plan-safety-limits M1.3
 rebuilds it), week 12's `loweredTargets` entry and `finalTest` (one read-modify-write of `Goal.roadmap`), and the review
 row's insight = the sentence. One
-`[WeeklyUpdate] goal <id> week <n> status <s|none> outcome <accepted|retry_accepted|fallback> lowered <k> stored <weeks|none> readBack <weeks|none> reasons <json|none>`
+`[WeeklyUpdate] goal <id> week <n> status <s|none> restart <last level|back 1 week|back 2 weeks|none> outcome <accepted|retry_accepted|fallback> held <...|none> lowered <k> stored <weeks|none> readBack <weeks|none> retest <break|not_logged|two_hard_weeks, comma-joined|none> reasons <json|none>`
 line per update.
 
 ## Prompt 5: proof judge (photo and video tests only)

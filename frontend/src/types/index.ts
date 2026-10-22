@@ -423,7 +423,8 @@ export interface Goal {
 export interface Retest {
   /** The closed week whose test the open week re-tests; its result is stored on that week (WU-17). */
   ofWeek: number;
-  reason: 'not_logged' | 'two_hard_weeks';
+  /** Weekly update M3.4 (WU-59 (5)): `break` on a first week back; Today shows no line for it. */
+  reason: 'break' | 'not_logged' | 'two_hard_weeks';
   /** The re-test's result was logged in the open week. */
   logged: boolean;
   /** The day holding the measured re-test step: its task and date ('YYYY-MM-DD'). */

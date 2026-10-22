@@ -455,6 +455,12 @@ function retestLine(input: WeekCallInput, layout: DayLayout[]): string {
   const day = layout.find((item) => item.dayNumber === dayNumber);
   if (!input.retest || !day) return '';
   const half = retestMinutes(input.dailyMinutes);
+  if (input.retest.easy) {
+    // M3.4 (WU-59 (4)): after weeks off on a high-load goal, an easy version only; no time trial.
+    return `${NL}- Day ${day.dayNumber} (${day.dayOfWeek}) starts with an easy version of week ${input.retest.ofWeek}'s test (an easy, comfortable effort,
+  never all-out), which code adds as its first step (${half} minutes). Plan the rest of that day around it, shorter: steps
+  adding up to ${input.dailyMinutes - half} minutes, and none that repeats the test.`;
+  }
   const hard = input.loadGoal?.running ? ' The re-test counts as a hard run.' : '';
   return `${NL}- Day ${day.dayNumber} (${day.dayOfWeek}) starts with a re-test of week ${input.retest.ofWeek}'s test (${input.retest.test.instructions}), which
   code adds as its first step (${half} minutes). Plan the rest of that day around it, shorter: steps adding up to
@@ -823,7 +829,9 @@ export function checkWeekAnswer(
     if (retestHere) {
       const own = keepTopSteps(steps, MAX_STEPS - 1);
       const lead = own.length ? Math.min(...own.map((step) => step.priority)) : -1;
-      const retest = { ...retestStepFor(input.retest!.test, retestMinutes(input.dailyMinutes)), priority: lead + 0.5 };
+      // M3.4 (WU-59 (4)): a high-load first week back gets the easy re-test from the start, which stores nothing.
+      const minutes = retestMinutes(input.dailyMinutes);
+      const retest = { ...(input.retest!.easy ? easyRetestStep(minutes) : retestStepFor(input.retest!.test, minutes)), priority: lead + 0.5 };
       steps = [recovery ? { ...retest, kind: WEEKLY_TEST_KIND.id } : retest, ...own];
     }
 

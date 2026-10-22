@@ -1,6 +1,9 @@
 import type { DailyTask } from '@prisma/client';
-import { TOTAL_WEEKS } from '../ai/roadmap.js';
+import { TOTAL_WEEKS, type WeekTarget } from '../ai/roadmap.js';
 import { isHighLoadGoal } from '../highLoad.js';
+import { sameUnit } from '../research/statedTarget.js';
+import { isWeekTarget } from '../safety/storedTargets.js';
+import { harder } from '../safety/targetSteps.js';
 import type { BreakLength, RecoveryProfile, Restart } from '../recovery/profile.js';
 
 /**
@@ -77,6 +80,59 @@ export function returnRuleEntry(profile: RecoveryProfile | null | undefined, day
   if (any) return any;
   const length: BreakLength = days >= LONG_BREAK_DAYS ? '3+ weeks' : '1-2 weeks';
   return breaks.find((entry) => entry?.length === length) ?? null;
+}
+
+/** WU-59 (1): how many weeks of targets each restart goes back. */
+const RESTART_BACK: Record<Restart, number> = { 'last level': 0, 'back 1 week': 1, 'back 2 weeks': 2 };
+
+/**
+ * Weekly update M3.4 (RULE-16, WU-16, WU-20 (2), WU-59 (1)): the level the first week back restarts at. `restart` is the
+ * rule's restart, `level` the target and `week` the week it was read from; `fellBack` names why week `n`'s target was
+ * used instead (for the log), else null.
+ */
+export interface RestartLevel {
+  restart: Restart;
+  level: WeekTarget;
+  week: number;
+  fellBack: 'harder' | 'kind' | 'unit' | 'unreadable' | null;
+}
+
+/**
+ * WU-59 (1): the stored target of week `max(1, n - back)` (`n` the closing week, also after "Keep going"; `back` from the
+ * entry `returnRuleEntry` picks for `breakDays`; no profile or no matching entry is `last level`, RULE-12), as `weeks`
+ * reads it (`safeGoalTargets`). On a light-test goal that is the target the week shows: a light week stores its next
+ * check's target. Never harder than week `n`'s target: if it is, or its kind or unit differs, or it can't be read, week
+ * `n`'s target is used. Null when week `n`'s target can't be read, or when `weekBack` (the week written) shows week 12's
+ * target (WU-15, WU-47): week 12 itself, or a light week whose next check is week 12.
+ */
+export function restartLevel(
+  profile: RecoveryProfile | null | undefined,
+  breakDays: number,
+  closingWeek: number,
+  weeks: readonly { weekNumber: number; target: unknown; light: boolean }[],
+  weekBack: number
+): RestartLevel | null {
+  const shows = weeks.find((week) => week.weekNumber >= weekBack && !week.light)?.weekNumber ?? TOTAL_WEEKS;
+  if (weekBack >= TOTAL_WEEKS || shows >= TOTAL_WEEKS) return null;
+  const restart = returnRuleEntry(profile, breakDays)?.restart ?? 'last level';
+  const targetOf = (n: number) => {
+    const target = weeks.find((week) => week.weekNumber === n)?.target;
+    return isWeekTarget(target) ? target : null;
+  };
+  const last = targetOf(closingWeek);
+  if (!last) return null;
+  const week = Math.max(1, closingWeek - (RESTART_BACK[restart] ?? 0));
+  const level = targetOf(week);
+  const fellBack: RestartLevel['fellBack'] = !level
+    ? 'unreadable'
+    : level.kind !== last.kind
+      ? 'kind'
+      : level.kind === 'number' && last.kind === 'number' && !sameUnit(level.unit, last.unit)
+        ? 'unit'
+        : level.kind === 'number' && last.kind === 'number' && harder(level.value, last.value, last.direction)
+          ? 'harder'
+          : null;
+  return fellBack || !level ? { restart, level: last, week: closingWeek, fellBack } : { restart, level, week, fellBack: null };
 }
 
 /**

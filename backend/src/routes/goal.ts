@@ -1245,8 +1245,9 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       ? { ...goal, roadmapWeeks: goal.roadmapWeeks.map((w) => (w.weekNumber === weekNum ? { ...w, testResult: sanitizedTestResult as unknown as Prisma.JsonValue } : w)) }
       : goal;
     const now = new Date();
-    // Weekly update M3.1 (RULE-1, WU-45 (1)): with both switches on, weeks 1 to 11 and not a break, the update runs
-    // first and the week after is written from its targets; otherwise null and the review is exactly as before.
+    // Weekly update M3.1 (RULE-1, WU-45 (1)): with both switches on and weeks 1 to 11 (M3.4: a break too, never before a
+    // choice past the limit), the update runs first and the week after is written from its targets; otherwise null and
+    // the review is exactly as before.
     const { update, next } = await updateThenWrite(writerGoal, weekNum, {
       userId: user.id,
       reflection: typeof reflection === 'string' ? reflection : '',
@@ -1353,8 +1354,8 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
     const startedAt = Date.now();
     const lastWeek = weekNum >= TOTAL_WEEKS;
     const choice = isChoice(req.body?.choice) ? req.body.choice : null;
-    // M3.3a (RULE-1, RULE-18, WU-52): the same update as the review, with no reflection; none for week 12, on a break
-    // (so never before a choice past the limit) or with either switch off, and then the close is exactly as before.
+    // M3.3a (RULE-1, RULE-18, WU-52): the same update as the review, with no reflection; none for week 12, before a
+    // choice past the limit or with either switch off, and then the close is exactly as before. M3.4: a break runs it.
     const { update, next } = await updateThenWrite(goal, weekNum, { userId: user.id, reflection: '', now, timezone: user.timezone, choice });
     // M1.5b (WU-38): past the limit, a close without the person's choice saves nothing and calls no model.
     if (next?.choiceNeeded) return refuseChoice(res, next.choiceNeeded);
