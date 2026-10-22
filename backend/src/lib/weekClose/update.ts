@@ -3,12 +3,13 @@
  * path. `planWeeklyUpdate` reads what the update needs (read only), runs the call (`ai/weeklyUpdate.ts`), keeps the
  * accepted targets safe and returns what the close saves; nothing is written here. With either switch off, for week 12
  * and on a close that is a break it returns null and nothing runs (R-3, R-7). A rejected or failed update is the
- * fallback: targets as planned, no status, no coach's note, the neutral line. It never fails the close.
+ * fallback: targets as planned, no status, no coach's note, the neutral line; except that a rejected one keeps the holds
+ * code can see (WU-48: an unlogged test, a kind a week behind), with its own line. It never fails the close.
  */
 import type { DailyTask, RoadmapWeek } from '@prisma/client';
 import { prisma } from '../prisma.js';
-import { askWeeklyUpdate, type UpdateCounts, type UpdateHistoryWeek, type UpdateKind, type UpdateStatus, type WeeklyUpdateInput } from '../ai/weeklyUpdate.js';
-import { BIG_TEST_WEEKS, formatTarget, pathwayFor, statedTargetText, TOTAL_WEEKS, type LoweredTarget, type WeekTarget } from '../ai/roadmap.js';
+import { askWeeklyUpdate, fallbackHold, type FallbackHold, type UpdateCounts, type UpdateHistoryWeek, type UpdateKind, type UpdateStatus, type WeeklyUpdateInput } from '../ai/weeklyUpdate.js';
+import { BIG_TEST_WEEKS, formatAmount, pathwayFor, statedTargetText, TOTAL_WEEKS, type LoweredTarget, type WeekTarget } from '../ai/roadmap.js';
 import { logSafetyHit } from '../ai/safetyScan.js';
 import { parseStoredSteps } from '../carryForward.js';
 import { weekCounts } from '../missedSignals.js';
@@ -17,7 +18,7 @@ import { evaluate, loadReconcileGoal } from '../reconcileCore.js';
 import { weekHandoff, type HandoffTask } from '../recovery/handoff.js';
 import { readRecoveryProfile } from '../recovery/profile.js';
 import { methodRecoveryEnabled } from '../recovery/switch.js';
-import { aliasesFor } from '../research/statedTarget.js';
+import { sameUnit } from '../research/statedTarget.js';
 import { nextSafeStep } from '../safety/targetSteps.js';
 import { isWeekTarget, safeGoalTargets, safeStoredTargets, testOf, week12LineFor, withTargetText } from '../safety/storedTargets.js';
 import { AUTO_CLOSE_INSIGHT, planWeekMove, weekScore, type ClosingGoal } from './close.js';
@@ -40,6 +41,8 @@ export interface PlannedUpdate {
   insight: string;
   /** `guidanceForNextWeek`, told to the week writer as the coach's note; null on the fallback. */
   coachNote: string | null;
+  /** The holds code can see that were in force (RULE-5, WU-11); on a fallback, the ones it kept (WU-48). */
+  held: FallbackHold[];
   weeks: UpdatedWeek[];
   /** Week 12's `Goal.roadmap.loweredTargets` entry to set, so `week12Line` keeps showing (WU-45 (3)). */
   week12: LoweredTarget | null;
@@ -59,10 +62,14 @@ export function week12Sentence(line: { safe: string; goal: string | null }): str
   return line.goal ? `Week 12 aims at ${line.safe}, a safe step. Your ${line.goal} goal is the next step.` : `Week 12 aims at ${line.safe}, a safe step.`;
 }
 
-/** WU-46 (3): next week's line when safety lowered next week and not week 12. */
+/** WU-46 (3): next week's line when safety lowered next week and not week 12; the amount with no metric label. */
 export function nextWeekSentence(target: WeekTarget): string {
-  return `Next week aims at ${formatTarget(target)}, a safe step.`;
+  const shown = target.kind === 'number' ? `${formatAmount(target.value, target.unit)}${target.direction === 'lower_is_better' ? ' or less' : ''}` : target.description;
+  return `Next week aims at ${shown}, a safe step.`;
 }
+
+/** WU-48: a fallback that kept a hold (M4.1 rewords it). */
+export const FALLBACK_HOLD_INSIGHT = "Next week keeps this week's target.";
 
 /** RULE-1, WU-45 (1): both switches on, weeks 1 to 11, and not a break (M3.4 owns that). */
 export function updateRuns(goal: ClosingGoal, weekNumber: number, now: Date, timezone?: string | null): boolean {
@@ -76,6 +83,7 @@ const fallback = (reasons: string[], weekBefore: DailyTask[] | null = null): Pla
   status: null,
   insight: AUTO_CLOSE_INSIGHT,
   coachNote: null,
+  held: [],
   weeks: [],
   week12: null,
   finalTest: null,
@@ -91,7 +99,7 @@ function logUpdate(goalId: string, weekNumber: number, update: PlannedUpdate): v
   const list = (weeks: number[]) => (weeks.length ? weeks.join(',') : 'none');
   const stored = list(update.weeks.map((week) => week.weekNumber));
   console.log(
-    `[WeeklyUpdate] goal ${goalId} week ${weekNumber} status ${update.status ?? 'none'} outcome ${update.outcome} lowered ${update.lowered.length} stored ${stored} readBack ${list(update.readBack)} reasons ${reasons}`
+    `[WeeklyUpdate] goal ${goalId} week ${weekNumber} status ${update.status ?? 'none'} outcome ${update.outcome} held ${update.held.join(',') || 'none'} lowered ${update.lowered.length} stored ${stored} readBack ${list(update.readBack)} reasons ${reasons}`
   );
 }
 
@@ -141,13 +149,6 @@ function isLogged(testResult: unknown): boolean {
   if (!testResult || typeof testResult !== 'object' || Array.isArray(testResult)) return false;
   const { value, passed } = testResult as Record<string, unknown>;
   return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && typeof passed === 'boolean';
-}
-
-/** One unit written two ways ("min" and "minutes", "kilometres" and "km"), as the stated-target reading unifies them. */
-function sameUnit(a: string, b: string): boolean {
-  const x = a.trim().toLowerCase();
-  const y = b.trim().toLowerCase();
-  return x === y || aliasesFor(x).includes(y) || aliasesFor(y).includes(x);
 }
 
 /** The result as a number in the target's unit, or null (no unit, or the same unit, counts). */
@@ -321,11 +322,20 @@ async function runUpdate(
   if (kinds) input.kinds = kinds;
 
   const answer = await askWeeklyUpdate(input);
-  if (!answer.update) return fallback(answer.reasons, weekBefore);
+  // WU-48: a fallback keeps the holds code can see (never far_behind), with its own line when next week keeps this
+  // week's target; with no such hold it is the plain fallback. Its targets take the same path as accepted ones.
+  const hold = fallbackHold(input);
+  if (!answer.update && !hold.held.length) return fallback(answer.reasons, weekBefore);
+  const decided = answer.update ?? {
+    status: null,
+    targets: hold.targets,
+    messageToUser: hold.keeps ? FALLBACK_HOLD_INSIGHT : AUTO_CLOSE_INSIGHT,
+    guidanceForNextWeek: '',
+  };
 
   // RULE-10, WU-45 (3): the accepted targets through the same climb `safeGoalTargets` runs once this week is closed, so
   // a read never lowers what the update stored. Safety lowers, it does not reject.
-  const accepted = new Map(answer.update.targets.map((item) => [item.weekNumber, item.target]));
+  const accepted = new Map(decided.targets.map((item) => [item.weekNumber, item.target]));
   const tests = pathway?.weeklyTests;
   const postClose = rows.map((week) => {
     if (week.weekNumber === weekNumber) return { ...week, status: 'completed' };
@@ -390,7 +400,7 @@ async function runUpdate(
   const rebuiltFinalTest = checked.finalTest !== stored.finalTest ? checked.finalTest : safe.finalTest;
   const finalTest = stores12 && rebuiltFinalTest !== stored.finalTest ? rebuiltFinalTest : null;
 
-  let insight = answer.update.messageToUser;
+  let insight = decided.messageToUser;
   const nextLowered = final.find((week) => week.weekNumber === weekNumber + 1);
   if (loweredNow && week12 && final12) {
     const statedText = statedTargetText(goal.rawGoal, stored.answers ?? []);
@@ -402,9 +412,10 @@ async function runUpdate(
   }
   return {
     outcome: answer.outcome,
-    status: answer.update.status,
+    status: decided.status,
     insight,
-    coachNote: answer.update.guidanceForNextWeek || null,
+    coachNote: decided.guidanceForNextWeek || null,
+    held: hold.held,
     weeks,
     week12,
     finalTest,

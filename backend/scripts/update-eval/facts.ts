@@ -24,6 +24,8 @@ export interface RecordedCase {
   } | null;
   modelCalls: Array<{ prompt: string; answer: string | null; status: number; ms: number }>;
   standIn: Array<{ answered: boolean }>;
+  /** The `[WeeklyUpdate]` and `[Safety]` lines, as printed. */
+  logs?: string[];
 }
 
 const RETRY_MARK = 'YOUR PREVIOUS ANSWER WAS REJECTED';
@@ -41,13 +43,23 @@ export function directionOf(now: WeekTarget, next: WeekTarget): Direction {
   return harder(next.value, now.value, now.direction) ? 'raise' : 'lower';
 }
 
-/** The holds the prompt put in force (code's), plus far_behind when the status set it and next week does not show week 12. */
+/**
+ * The holds the prompt put in force (code's), plus far_behind when the status set it and next week does not show week 12.
+ * M3.2b (WU-49): a light-test goal's lines add "(next week shows it)" after the week's target.
+ */
 export function holdsFromPrompt(prompt: string, status: string | null): Hold[] {
   const holds: Hold[] = [];
-  if (status === 'far_behind' && /\n {3}- far_behind: week \d+'s target equals this week's target\./.test(prompt)) holds.push('far_behind');
-  if (/\n {3}- The test was not logged: week \d+'s target must not be higher/.test(prompt)) holds.push('not_logged');
+  const shows = "(?: \\(next week shows it\\))?";
+  if (status === 'far_behind' && new RegExp(`\\n {3}- far_behind: week \\d+'s target${shows} equals this week's target\\.`).test(prompt)) holds.push('far_behind');
+  if (new RegExp(`\\n {3}- The test was not logged: week \\d+'s target${shows} must not be higher`).test(prompt)) holds.push('not_logged');
   if (/\n {3}- They are a week behind in /.test(prompt)) holds.push('week_behind');
   return holds;
+}
+
+/** M3.2b (WU-48): the holds a fallback kept, from the `held` field of the `[WeeklyUpdate]` line (runs 1 and 2 have none). */
+export function fallbackHeldOf(logs: readonly string[] | undefined): Hold[] {
+  const field = (logs ?? []).map((line) => line.match(/^\[WeeklyUpdate\] .* outcome fallback held (\S+) /)?.[1]).find(Boolean);
+  return field && field !== 'none' ? (field.split(',') as Hold[]) : [];
 }
 
 function parseAnswer(answer: string | null): { nextTargets?: Array<{ weekNumber?: number; value?: unknown }> } | null {
@@ -102,6 +114,7 @@ export function factsOf(recorded: RecordedCase, c: EvalCase, entry: RoadmapEntry
 
   const firstPrompt = recorded.modelCalls.find((call) => !call.prompt.includes(RETRY_MARK))?.prompt ?? '';
   const status = update?.status ?? null;
+  const fallbackHeld = fallbackHeldOf(recorded.logs);
   const { first, retry } = splitReasons(update?.reasons ?? [], rejectionOf(recorded.modelCalls.map((call) => call.prompt)));
   return {
     caseId: c.id,
@@ -113,7 +126,8 @@ export function factsOf(recorded: RecordedCase, c: EvalCase, entry: RoadmapEntry
     reasonsRetry: retry,
     direction: nextAfter ? directionOf(now, nextAfter) : null,
     vsPlan,
-    holds: holdsFromPrompt(firstPrompt, status),
+    holds: [...new Set([...holdsFromPrompt(firstPrompt, status), ...fallbackHeld])],
+    ...(fallbackHeld.length ? { fallbackHeld } : {}),
     lowered: (update?.lowered ?? []).map(({ week, model, safe }) => ({ week, model, safe })),
     week12Kept: sameTarget(targetOf(returned, 12), targetOf(read, 12)),
     aboveSafeMax: aboveSafeMaxOf(recorded.modelCalls, now.kind === 'number' ? now.direction : null),

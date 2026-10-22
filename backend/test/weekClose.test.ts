@@ -23,6 +23,7 @@ import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/we
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 import { weekCloseEnabled, weeklyUpdateEnabled } from '../src/lib/weekClose/switch.js';
 import { AUTO_CLOSE_INSIGHT, gapDays } from '../src/lib/weekClose/close.js';
+import { FALLBACK_HOLD_INSIGHT } from '../src/lib/weekClose/update.js';
 
 const USER = { id: 'u1', email: 'u1@achivii.com', timezone: 'UTC' };
 const START = new Date('2026-09-21T00:00:00Z'); // a Monday
@@ -212,8 +213,9 @@ describe.each([
     expect(db.week(2).status).toBe('active');
     expect(db.goal().currentWeek).toBe(2);
     expect(db.tasksOf(2)).toHaveLength(7);
-    // M3.1: with both switches on the review runs the weekly update; with no model here it is the fallback's neutral line.
-    const insight = env.WEEKLY_UPDATE_ENABLED ? AUTO_CLOSE_INSIGHT : '3 of 5 sessions done.';
+    // M3.1: with both switches on the review runs the weekly update; with no model here it is the fallback, and the test
+    // was not logged, so it keeps next week at this week's target with its own line (WU-48).
+    const insight = env.WEEKLY_UPDATE_ENABLED ? FALLBACK_HOLD_INSIGHT : '3 of 5 sessions done.';
     expect(db.state.reviews).toEqual([expect.objectContaining({ weekNumber: 1, reflection: 'Went fine', aiAdaptationInsight: insight })]);
     expect(db.prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(closeLines()).toEqual([expect.stringMatching(/^\[WeekClose\] goal g1 week 1 by review gapDays 0 ms \d+$/)]);

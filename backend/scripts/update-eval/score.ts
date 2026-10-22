@@ -23,6 +23,8 @@ export interface CaseFacts {
   vsPlan: 'above_plan' | 'as_planned' | 'below_plan' | null;
   /** The holds in force: code's (from the prompt it sent) and far_behind when the status set it. */
   holds: Hold[];
+  /** M3.2b (WU-48): the holds a fallback kept, from the log line; missing in runs 1 and 2. */
+  fallbackHeld?: Hold[];
   /** Weeks code lowered (safety), with the model's and the safe value. */
   lowered: Array<{ week: number; model: number; safe: number }>;
   /** Week 12 after the update equals week 12 as planned before it. */
@@ -69,6 +71,7 @@ export function reasonCheck(reason: string): string {
   if (reason.startsWith('"nextTargets" must have exactly')) return 'count';
   if (reason.startsWith('"nextTargets" could not be read')) return 'unreadable';
   if (/kind changed|metric changed|unit changed|description is empty|value is not a number/.test(reason)) return 'kind_metric_unit';
+  if (/^"messageToUser" says "[^"]+", but next week's target (goes up|moves on|stays)/.test(reason)) return 'held_or_raised';
   if (reason.startsWith('"messageToUser"')) return 'sentence';
   if (/easier than what they last achieved/.test(reason)) return 'below_last_result';
   if (/easier than the week before it/.test(reason)) return 'backwards';
@@ -158,6 +161,8 @@ export interface RunScore {
   reasons: { first: Array<{ key: string; count: number }>; retry: Array<{ key: string; count: number }> };
   safety: {
     loweredCases: Array<{ caseId: string; goalId: string; weeks: number[] }>;
+    /** M3.2b (WU-48): fallbacks that kept a hold. */
+    fallbackHolds: Array<{ caseId: string; holds: Hold[] }>;
     aboveSafeMax: { answers: number; above: number };
     climbBreaks: Array<{ caseId: string; weeks: number[] }>;
     week12NotKept: string[];
@@ -215,6 +220,7 @@ export function scoreRun(
     },
     safety: {
       loweredCases: facts.filter((item) => item.lowered.length).map((item) => ({ caseId: item.caseId, goalId: item.goalId, weeks: item.lowered.map((row) => row.week) })),
+      fallbackHolds: facts.filter((item) => item.fallbackHeld?.length).map((item) => ({ caseId: item.caseId, holds: item.fallbackHeld! })),
       aboveSafeMax: { answers: facts.reduce((sum, item) => sum + item.aboveSafeMax.length, 0), above: facts.reduce((sum, item) => sum + item.aboveSafeMax.filter(Boolean).length, 0) },
       climbBreaks: facts.filter((item) => item.climbBreaks.length).map((item) => ({ caseId: item.caseId, weeks: item.climbBreaks })),
       week12NotKept: facts.filter((item) => !item.week12Kept).map((item) => item.caseId),

@@ -412,12 +412,14 @@ DECIDE
 2. nextTargets: one target for each of weeks {asked}, in order.
    - on_track: keep the plan; raise only if they clearly beat the target, never above week 12's target before week 12.
    - a_bit_behind: make the next step smaller and spread the remaining climb over the weeks left.
-   - far_behind: next week's target equals this week's target.   (when next week shows week 12's target: "Week {n+1}
+   - far_behind: {held}'s target equals this week's target.   (when next week shows week 12's target: "Week {n+1}
      shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.")
-   - [The test was not logged: next week's target must not be higher than this week's.]
-   - [They are a week behind in {kinds}: next week's target must not be higher than this week's; the message names it.]
+   - [The test was not logged: {held}'s target must not be higher than this week's.]
+   - [They are a week behind in {kinds}: {held}'s target must not be higher than this week's; the message names it.]
    - Never easier than what they last achieved ({bound}, at most week 12's target); no week easier than the week before
-     it. [A held week {n+1} may stay at this week's target instead.] (only when the bound is above this week's target)
+     it. [A held {held} may stay at this week's target instead.] (only when the bound is above this week's target)
+   ({held} is the week the model sets (WU-49): "week {n+1}", or on a light-test goal when next week is a light week
+   "week {big} (next week shows it)", its next big week; the retry reasons name the same week.)
    - Week 12 stays exactly {week 12's current target}. Keep each week's kind, metric and unit.
 3. messageToUser: one sentence, neutral and encouraging; say plainly if next week is held or lowered. Never a question,
    never "missed", "behind", "failed" or "fail".
@@ -431,16 +433,24 @@ when its steps still to do are at least its sessions that week (the test day not
 
 **Code checks (RULE-4, WU-15, WU-20 (3), WU-45):** the weeks returned are exactly the weeks asked, in order (on a
 light-test goal only the big weeks left; code then fills each light week with its next big week's target); a week's
-kind, metric or unit does not change; no target easier than the last usable result (the newest measured week up to
+kind and unit do not change (WU-50: the metric is not compared; a missing unit or the same unit through its aliases is
+accepted, and code keeps the week's own metric and unit, taking only the value); no target easier than the last usable result (the newest measured week up to
 this one, a light test never counts; no bound without one; the unit read as the stated-target reading unifies it, so
 "min" is "minutes"), never above week 12's current target (WU-46 (2)), and a held next week may go down to this week's
 target even when the result is higher (WU-46 (1)); no week easier than the one before; no week before 12
 harder than week 12's current target; week 12 is its current target; `far_behind` holds next week at this week's
 target; a kind a week behind and an unlogged test block a raise of next week; none of the holds applies when next week
-shows week 12's target (week 12 itself, or a light week whose next check is week 12, WU-47); the sentence is not empty, asks no question and has no forbidden word. Deliverables: the count, still a
+shows week 12's target (week 12 itself, or a light week whose next check is week 12, WU-47); the sentence is not empty, asks no question and has no forbidden word, and (WU-51) does not say
+"held", "kept" or "stays" while next week's target (the one next week shows) went up, or "goes up", "went up", "moves
+up", "rises" or "raised" while it stayed the same (never a bare "up"; a deliverable with new text has gone up). Deliverables: the count, still a
 deliverable, week 12's text unchanged, and a held week (any hold) repeats this week's text exactly. One retry with every
 reason; a second rejection, or no answer, is the fallback: targets as planned, no status stored, no coach's note, and
-"Next week is ready. Your targets stay as planned."
+"Next week is ready. Your targets stay as planned." Except (WU-48): when an unlogged test or a kind a week behind holds
+(never `far_behind`, the model's call; none when next week shows week 12's target), the week next week shows is kept
+at this week's target when it was planned harder (on a light-test goal the next big week, with the light weeks before
+it), those targets go through the safety climb and storing below as accepted ones do, and the line is "Next week keeps
+this week's target." whenever next week then shows this week's target (week 12's safe-step sentence wins when the hold
+forces week 12 down). The `[WeeklyUpdate]` line names the holds as `held <...|none>`.
 
 **Safety (RULE-10, WU-45 (3)):** after the checks pass, the targets go through the same climb `safeGoalTargets` runs
 once the week is closed (`safeTargetClimb` from this week's target; on a light-test goal `safeCheckWeekClimb` on the big
@@ -449,7 +459,8 @@ past a safe step is lowered to it (`[Safety]` `target_step` `lowered_on_update`,
 lowered this way is accepted: its `Goal.roadmap.loweredTargets` entry is set, a pathway's `Goal.roadmap.finalTest`
 follows its rebuilt week 12 test (whenever week 12 is stored, also one lowered on read that the read-back stores), and the sentence is code's ("Week 12 aims at {safe}, a safe step. Your {goal} goal is
 the next step.", the second sentence only when the person named a number). When safety lowers next week and not week
-12, the sentence is "Next week aims at {target}, a safe step." (WU-46 (3)). A week only lowered on read that the update
+12, the sentence is "Next week aims at {amount}, a safe step." (WU-46 (3); the amount with no metric label, " or less" for a
+lower-is-better target, M3.2b). A week only lowered on read that the update
 leaves as it was is not stored; a week the read would climb differently once an earlier week changed is stored at the
 update's value, so the read and the update agree.
 
