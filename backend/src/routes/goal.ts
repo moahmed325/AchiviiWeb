@@ -56,6 +56,7 @@ import {
   retestInfo,
   type DailyTimeCheck,
   type RetestInfo,
+  type RetestTask,
   type RetestWeek,
 } from '../lib/weekClose/retest.js';
 
@@ -109,7 +110,8 @@ function retestOfGoal(goal: Record<string, unknown>): { retest: RetestInfo | nul
   const weeks = goal.roadmapWeeks as RetestWeek[] | undefined;
   if (!weeklyUpdateEnabled() || !Array.isArray(weeks)) return { retest: null, dailyTimeCheck: null };
   const routine = typeof goal.routine === 'string' ? goal.routine : '{}';
-  return { retest: retestInfo(weeks), dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes) };
+  const tasks = Array.isArray(goal.dailyTasks) ? (goal.dailyTasks as RetestTask[]) : [];
+  return { retest: retestInfo(weeks, tasks), dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes) };
 }
 
 function presentGoal<T extends Record<string, unknown>>(
@@ -1181,7 +1183,8 @@ goalRouter.put('/weeks/:weekNumber/test-result', async (req: Request, res: Respo
       where: { id: week.id },
       data: { testResult: stored as unknown as Prisma.InputJsonObject },
     });
-    res.json({ testResult: stored });
+    // M3.3b review: the key is stored, never sent back.
+    res.json({ testResult: validation.result });
   } catch (err: any) {
     console.error('[GoalRouter] Log test result error:', err);
     res.status(500).json({ error: 'Failed to save the test result.' });

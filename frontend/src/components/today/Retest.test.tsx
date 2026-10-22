@@ -31,7 +31,6 @@ const mocked = vi.mocked(api);
 const isoDay = (offset: number) => addDaysToDateKey(todayKey(new Date()), offset);
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const RETEST_STEP = { title: 'Re-test: Run 5 km at an even, hard effort', instructions: 'Run 5 km.', durationMinutes: 15, priority: 2 };
-const EASY_STEP = { title: 'Re-test: an easy version', instructions: 'Easy.', durationMinutes: 15, priority: 2 };
 const LEAD = { title: 'Easy run', instructions: 'Run easy.', durationMinutes: 15, priority: 1 };
 
 /** Week 4 runs from two days ago; the re-test step sits on the day `retestOffset` from today. */
@@ -70,8 +69,11 @@ const week = (weekNumber: number, status: string, extra: Partial<RoadmapWeek> = 
     ...extra,
   }) as unknown as RoadmapWeek;
 
-const goal = (extra: Partial<Goal> = {}, retestOffset: number | null = 0, step = RETEST_STEP): Goal =>
-  ({
+/** The server names the re-test day (M3.3b review); `extra.retest` is merged over it, and null stays null. */
+const goal = (extra: Partial<Goal> = {}, retestOffset: number | null = 0, step = RETEST_STEP): Goal => {
+  const day = retestOffset === null ? {} : { taskId: `t${retestOffset + 3}`, date: isoDay(retestOffset) };
+  const retest = 'retest' in extra ? (extra.retest ? { ...day, ...extra.retest } : null) : { ofWeek: 3, reason: 'not_logged', logged: false, ...day };
+  return {
     id: 'g1',
     planVersion: 2,
     rawGoal: 'Run a 10K',
@@ -81,10 +83,11 @@ const goal = (extra: Partial<Goal> = {}, retestOffset: number | null = 0, step =
     targetDate: `${isoDay(60)}T00:00:00.000Z`,
     roadmapWeeks: [week(3, 'completed'), week(4, 'active')],
     dailyTasks: tasks(retestOffset, step),
-    retest: { ofWeek: 3, reason: 'not_logged', logged: false } as Retest,
     dailyTimeCheck: null,
     ...extra,
-  }) as unknown as Goal;
+    retest: retest as Retest | null,
+  } as unknown as Goal;
+};
 
 const Harness = () => {
   const { activeGoal } = useGoal();
@@ -121,7 +124,7 @@ describe('The re-test line (AC-4)', () => {
     ['not_logged', RETEST_LINES.not_logged],
     ['two_hard_weeks', RETEST_LINES.two_hard_weeks],
   ] as const)('on the re-test day, %s shows its exact line as a status, with no dismiss', async (reason, line) => {
-    mocked.fetchActiveGoal.mockResolvedValue(goal({ retest: { ofWeek: 3, reason, logged: false } }));
+    mocked.fetchActiveGoal.mockResolvedValue(goal({ retest: { ofWeek: 3, reason, logged: false } as Retest }));
     await renderToday();
     expect(screen.getByText(line)).toHaveAttribute('role', 'status');
     expect(screen.queryByRole('button', { name: 'Dismiss' })).toBeNull();
@@ -138,9 +141,8 @@ describe('The re-test line (AC-4)', () => {
   it.each([
     ['on another day (the re-test was yesterday)', goal({}, -1)],
     ['before the re-test day', goal({}, 1)],
-    ['once it is logged', goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } })],
+    ['once it is logged', goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } as Retest })],
     ['when retest is null', goal({ retest: null })],
-    ['for the easy re-test (it never sets retest; a stray one is ignored)', goal({}, 0, EASY_STEP)],
   ])('is not shown %s', async (_, g) => {
     mocked.fetchActiveGoal.mockResolvedValue(g);
     await renderToday();
@@ -157,7 +159,7 @@ describe('The re-test result entry (AC-4, WU-17)', () => {
 
   it.each([
     ['before the re-test day', goal({}, 1)],
-    ['once logged', goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } })],
+    ['once logged', goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } as Retest })],
     ['for a light week (cannot happen)', goal({ roadmapWeeks: [week(3, 'completed', { test: { type: 'light', instructions: 'Log the long run.', passIf: 'Done as written', light: true } as never }), week(4, 'active')] })],
     ['with no re-test', goal({ retest: null })],
   ])('not offered %s', async (_, g) => {
@@ -170,7 +172,7 @@ describe('The re-test result entry (AC-4, WU-17)', () => {
     const user = userEvent.setup();
     mocked.logWeeklyTestResult.mockResolvedValue({ testResult: { value: 26, unit: 'min', passed: true } });
     await renderToday();
-    mocked.fetchActiveGoal.mockResolvedValue(goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } }));
+    mocked.fetchActiveGoal.mockResolvedValue(goal({ retest: { ofWeek: 3, reason: 'not_logged', logged: true } as Retest }));
 
     await user.click(logButton()!);
     const dialog = await screen.findByRole('dialog', { name: 'Log re-test result' });
@@ -250,6 +252,32 @@ describe('The daily-time card (AC-5)', () => {
     expect(await screen.findByText('From next week, your sessions are 45 minutes.')).toHaveAttribute('role', 'status');
     expect(card()).toBeNull();
     expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(2);
+  });
+
+  it('while choosing a shorter time, Keep is still offered', async () => {
+    const user = userEvent.setup();
+    mocked.answerDailyTime.mockResolvedValue({ dailyMinutes: 60, dailyTimeAskedAt: '' });
+    await renderToday();
+    mocked.fetchActiveGoal.mockResolvedValue(goal());
+    await user.click(screen.getByRole('button', { name: 'Make it shorter' }));
+    expect(screen.getByRole('button', { name: '45 min' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Keep 60 minutes' }));
+    expect(mocked.answerDailyTime).toHaveBeenCalledWith(60, 't');
+    await waitFor(() => expect(card()).toBeNull());
+    expect(screen.queryByText(/From next week/)).toBeNull();
+  });
+
+  it.each(['no_daily_time_check', 'weekly_update_disabled'])('a 409 %s refreshes the goal so the card goes, with no error', async (code) => {
+    const user = userEvent.setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocked.answerDailyTime.mockRejectedValue(new api.ApiError('This action is not available yet.', 409, code));
+    await renderToday();
+    mocked.fetchActiveGoal.mockResolvedValue(goal());
+    await user.click(screen.getByRole('button', { name: 'Keep 60 minutes' }));
+    await waitFor(() => expect(card()).toBeNull());
+    expect(screen.queryByText("That didn't save. Please try again.")).toBeNull();
+    expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
   });
 
   it('a failed answer says so and keeps the card', async () => {

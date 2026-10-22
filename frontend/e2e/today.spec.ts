@@ -353,7 +353,8 @@ const retestGoal = () => {
       dayNumber: t.dayNumber + 7,
       detailedSteps: t.id === 't3' ? JSON.stringify([retestStep, ...JSON.parse(t.detailedSteps)]) : t.detailedSteps,
     })),
-    retest: { ofWeek: 1, reason: 'two_hard_weeks', logged: false },
+    // The server names the re-test day (M3.3b review): t3, today.
+    retest: { ofWeek: 1, reason: 'two_hard_weeks', logged: false, taskId: 't3', date: base.dailyTasks.find((t) => t.id === 't3')!.date },
     dailyTimeCheck: { minutes: 60, shorter: [30, 45] },
   };
 };

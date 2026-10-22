@@ -229,7 +229,9 @@ describe('Late test result (missed sessions M4.1)', () => {
       expect(await own.json()).toEqual({ testResult: RESULT });
       expect(weekRow('g1', 1).testResult).toEqual(RESULT);
       const retest = await put(3, RESULT);
-      expect(await retest.json()).toEqual({ testResult: { ...RESULT, retestLoggedInWeek: 1 } });
+      // Stored with the key; the answer is the result as sent (M3.3b review).
+      expect(await retest.json()).toEqual({ testResult: RESULT });
+      expect(weekRow('g1', 3).testResult).toEqual({ ...RESULT, retestLoggedInWeek: 1 });
     });
 
     it('M3.3b (WU-58 (3)): a later write replaces the whole result, so a result stored another way carries no key', async () => {

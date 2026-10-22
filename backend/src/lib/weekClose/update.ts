@@ -218,7 +218,7 @@ function sameTarget(a: WeekTarget, b: unknown): boolean {
 }
 
 /** A logged result in a usable shape (as the week writer reads it): a value and passed or not. */
-function isLogged(testResult: unknown): boolean {
+export function isLogged(testResult: unknown): boolean {
   if (!testResult || typeof testResult !== 'object' || Array.isArray(testResult)) return false;
   const { value, passed } = testResult as Record<string, unknown>;
   return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && typeof passed === 'boolean';

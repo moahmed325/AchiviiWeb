@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { DailyTimeCheck, Goal } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
-import { answerDailyTime } from '../../lib/api';
+import { ApiError, answerDailyTime } from '../../lib/api';
 import { retestEntryWeek, retestLine } from '../../lib/retest';
 import { Button } from '../ui';
 import { TestResultDialog } from './TestResultDialog';
@@ -73,7 +73,12 @@ export const DailyTimeCard: React.FC<{ check: DailyTimeCheck | null | undefined 
       await refreshGoal();
     } catch (err) {
       console.warn('Failed to save the daily time:', err);
-      setError(NOT_SAVED);
+      // The question is gone on the server (answered elsewhere, or a switch turned off): refresh so the card goes.
+      if (err instanceof ApiError && err.status === 409 && (err.code === 'no_daily_time_check' || err.code === 'weekly_update_disabled')) {
+        await refreshGoal();
+      } else {
+        setError(NOT_SAVED);
+      }
     } finally {
       setSaving(false);
     }
@@ -85,6 +90,9 @@ export const DailyTimeCard: React.FC<{ check: DailyTimeCheck | null | undefined 
         Does {check.minutes} minutes a day still work?
       </h2>
       <div className="mt-5 flex flex-wrap gap-3">
+        <Button type="button" variant={choosing ? 'quiet' : 'primary'} disabled={saving} onClick={() => save(check.minutes)}>
+          Keep {check.minutes} minutes
+        </Button>
         {choosing ? (
           check.shorter.map((minutes) => (
             <Button key={minutes} type="button" variant="secondary" disabled={saving} onClick={() => save(minutes)}>
@@ -92,14 +100,9 @@ export const DailyTimeCard: React.FC<{ check: DailyTimeCheck | null | undefined 
             </Button>
           ))
         ) : (
-          <>
-            <Button type="button" variant="primary" disabled={saving} onClick={() => save(check.minutes)}>
-              Keep {check.minutes} minutes
-            </Button>
-            <Button type="button" variant="secondary" disabled={saving} onClick={() => setChoosing(true)}>
-              Make it shorter
-            </Button>
-          </>
+          <Button type="button" variant="secondary" disabled={saving} onClick={() => setChoosing(true)}>
+            Make it shorter
+          </Button>
         )}
       </div>
       {error && (

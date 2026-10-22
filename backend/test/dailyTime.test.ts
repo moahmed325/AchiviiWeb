@@ -22,9 +22,13 @@ vi.mock('../src/routes/auth.js', () => ({
 
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
+import { retestStepFor } from '../src/lib/ai/retestStep.js';
+import type { WeekTest } from '../src/lib/ai/roadmap.js';
 
 const SWITCHES = ['WEEK_CLOSE_ENABLED', 'WEEKLY_UPDATE_ENABLED'] as const;
 const RESULT = { value: 26, unit: 'min', passed: false };
+const RETEST_STEP = retestStepFor({ type: 'skill', instructions: 'Play the C major scale at 80 bpm.', passIf: 'no missed notes' } as unknown as WeekTest, 15);
+const DAY = { taskId: 't23', date: '2026-10-20' };
 
 const week = (weekNumber: number, status: string, extra: Record<string, unknown> = {}) => ({
   id: `w${weekNumber}`,
@@ -57,7 +61,11 @@ const hardGoal = (dailyMinutes = 60) => ({
     week(4, 'active', { retestOfWeek: 3 }),
     week(5, 'pending'),
   ],
-  dailyTasks: [],
+  // Week 4's second day holds the measured re-test.
+  dailyTasks: [
+    { id: 't22', weekNumber: 4, dayNumber: 22, date: '2026-10-19', detailedSteps: '[]' },
+    { id: 't23', weekNumber: 4, dayNumber: 23, date: '2026-10-20', detailedSteps: JSON.stringify([RETEST_STEP]) },
+  ],
   weeklyReviews: [],
 });
 
@@ -119,22 +127,28 @@ describe('Daily time and the re-test in goal responses (weekly update M3.3b)', (
     it('sends the re-test and the daily-time check with both switches on', async () => {
       switchesOn();
       const goal = await active();
-      expect(goal.retest).toEqual({ ofWeek: 3, reason: 'two_hard_weeks', logged: false });
+      expect(goal.retest).toEqual({ ofWeek: 3, reason: 'two_hard_weeks', logged: false, ...DAY });
       expect(goal.dailyTimeCheck).toEqual({ minutes: 60, shorter: [30, 45] });
     });
 
     it('logged once the re-tested week holds a result logged in the open week', async () => {
       switchesOn();
       store.goal.roadmapWeeks[2].testResult = { ...RESULT, retestLoggedInWeek: 4 };
-      expect((await active()).retest).toEqual({ ofWeek: 3, reason: 'two_hard_weeks', logged: true });
+      expect((await active()).retest).toEqual({ ofWeek: 3, reason: 'two_hard_weeks', logged: true, ...DAY });
     });
 
-    it('both null with no re-test', async () => {
+    it('no re-test: retest is null, and the daily-time check still follows the two hard weeks (RULE-6)', async () => {
       switchesOn();
       store.goal.roadmapWeeks[3].retestOfWeek = null;
       const goal = await active();
       expect(goal.retest).toBeNull();
-      expect(goal.dailyTimeCheck).toBeNull();
+      expect(goal.dailyTimeCheck).toEqual({ minutes: 60, shorter: [30, 45] });
+    });
+
+    it('retest is null when no day of the open week holds the measured re-test', async () => {
+      switchesOn();
+      store.goal.dailyTasks = store.goal.dailyTasks.map((t: any) => ({ ...t, detailedSteps: '[]' }));
+      expect((await active()).retest).toBeNull();
     });
 
     it('AC-19: both null with both switches unset, even with a stored re-test, and with only one on', async () => {

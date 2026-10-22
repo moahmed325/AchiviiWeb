@@ -1,4 +1,8 @@
-import type { RoadmapWeek } from '@prisma/client';
+import type { DailyTask, RoadmapWeek } from '@prisma/client';
+import { codeMadeRetestStep } from '../ai/retestStep.js';
+import { parseStoredSteps } from '../carryForward.js';
+import { TOTAL_WEEKS } from '../ai/roadmap.js';
+import { isLogged } from './update.js';
 
 /**
  * Weekly update M3.3b (RULE-5, RULE-6, WU-20 (1), WU-58): what the app is told about the open week's re-test and the
@@ -14,6 +18,9 @@ export interface RetestInfo {
   ofWeek: number;
   reason: RetestLineReason;
   logged: boolean;
+  /** The day holding the measured re-test step: its task and date ('YYYY-MM-DD'). */
+  taskId: string;
+  date: string;
 }
 
 export interface DailyTimeCheck {
@@ -25,6 +32,8 @@ export type RetestWeek = Pick<RoadmapWeek, 'weekNumber' | 'status' | 'retestOfWe
   jumped?: boolean | null;
 };
 
+export type RetestTask = Pick<DailyTask, 'id' | 'weekNumber' | 'dayNumber' | 'date' | 'detailedSteps'>;
+
 /** WU-58 (3): the key the test-result route adds to a result stored through the re-test path. */
 export const RETEST_LOGGED_KEY = 'retestLoggedInWeek';
 
@@ -33,52 +42,59 @@ const openWeekOf = (weeks: readonly RetestWeek[]) => weeks.find((week) => week.s
 /** WU-53: only a stored `far_behind` counts; a jumped week, a fallback or no status ends a run. */
 const isHard = (week: RetestWeek | undefined): boolean => Boolean(week && !week.jumped && week.updateStatus === 'far_behind');
 
-/** A logged result in a usable shape (as `isLogged` in `update.ts` reads it). */
-function isLogged(testResult: unknown): boolean {
-  if (!testResult || typeof testResult !== 'object' || Array.isArray(testResult)) return false;
-  const { value, passed } = testResult as Record<string, unknown>;
-  return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')) && typeof passed === 'boolean';
-}
-
 /** WU-58 (3): the re-tested week's result was stored through the re-test path during this open week. */
 export function loggedInWeek(testResult: unknown, openWeek: number): boolean {
   if (!testResult || typeof testResult !== 'object' || Array.isArray(testResult)) return false;
   return (testResult as Record<string, unknown>)[RETEST_LOGGED_KEY] === openWeek;
 }
 
-/** RULE-6: the re-tested week and the week before it both stored `far_behind`. */
-function twoHardWeeks(weeks: readonly RetestWeek[], ofWeek: number): boolean {
-  const byNumber = (n: number) => weeks.find((week) => week.weekNumber === n);
-  return isHard(byNumber(ofWeek)) && isHard(byNumber(ofWeek - 1));
+/** RULE-6: weeks `n` and `n - 1` both stored `far_behind`. */
+function twoHardWeeks(weeks: readonly RetestWeek[], n: number): boolean {
+  const byNumber = (k: number) => weeks.find((week) => week.weekNumber === k);
+  return isHard(byNumber(n)) && isHard(byNumber(n - 1));
+}
+
+/** The open week's first day (in day order) holding the measured re-test step (`codeMadeRetestStep`), or null. */
+function retestTaskOf(tasks: readonly RetestTask[], openWeek: number): RetestTask | null {
+  const days = tasks.filter((task) => task.weekNumber === openWeek).sort((a, b) => a.dayNumber - b.dayNumber);
+  return (
+    days.find((task) =>
+      parseStoredSteps(task.detailedSteps).some(
+        (step) => typeof step.title === 'string' && codeMadeRetestStep(step as Parameters<typeof codeMadeRetestStep>[0]) === 'measured'
+      )
+    ) ?? null
+  );
 }
 
 /**
- * WU-58 (1), (2): the open week's re-test, or null when the open week has no `retestOfWeek`. `two_hard_weeks` only when
- * the re-tested week has a result logged and both weeks stored `far_behind`; an unlogged test wins (`not_logged`).
+ * WU-58 (1), (2): the open week's re-test, or null when the open week has no `retestOfWeek` or no day holds the
+ * measured re-test step. `two_hard_weeks` only when the re-tested week has a result logged and both it and the week
+ * before stored `far_behind`; an unlogged test wins (`not_logged`).
  */
-export function retestInfo(weeks: readonly RetestWeek[]): RetestInfo | null {
+export function retestInfo(weeks: readonly RetestWeek[], tasks: readonly RetestTask[]): RetestInfo | null {
   const open = openWeekOf(weeks);
   if (!open || typeof open.retestOfWeek !== 'number') return null;
+  const day = retestTaskOf(tasks, open.weekNumber);
+  if (!day) return null;
   const ofWeek = open.retestOfWeek;
   const of = weeks.find((week) => week.weekNumber === ofWeek);
   const logged = loggedInWeek(of?.testResult, open.weekNumber);
   const reason: RetestLineReason = isLogged(of?.testResult) && twoHardWeeks(weeks, ofWeek) ? 'two_hard_weeks' : 'not_logged';
-  return { ofWeek, reason, logged };
+  return { ofWeek, reason, logged, taskId: day.id, date: day.date };
 }
 
 /**
  * RULE-6, WU-7, WU-20 (1): the daily-time question, asked once per run of hard weeks and only when a shorter option
- * exists. Asked when the open week re-tests two hard weeks (the re-tested week and the week before it both
- * `far_behind`, whatever the line says), the open week was not asked yet, and no earlier week of the same run was
+ * exists. Asked when the two weeks before the open week both stored `far_behind` (with or without a re-test), the open
+ * week is not week 12 (no week is written after it) and was not asked yet, and no earlier week of the same run was
  * followed by a week that was asked.
  */
 export function dailyTimeCheckOf(weeks: readonly RetestWeek[], dailyMinutes: number): DailyTimeCheck | null {
   const open = openWeekOf(weeks);
-  if (!open || typeof open.retestOfWeek !== 'number' || open.dailyTimeAskedAt) return null;
-  const ofWeek = open.retestOfWeek;
-  if (!twoHardWeeks(weeks, ofWeek)) return null;
+  if (!open || open.weekNumber >= TOTAL_WEEKS || open.dailyTimeAskedAt) return null;
+  if (!twoHardWeeks(weeks, open.weekNumber - 1)) return null;
   const byNumber = (n: number) => weeks.find((week) => week.weekNumber === n);
-  for (let n = ofWeek - 1; isHard(byNumber(n)); n -= 1) {
+  for (let n = open.weekNumber - 2; isHard(byNumber(n)); n -= 1) {
     if (byNumber(n + 1)?.dailyTimeAskedAt) return null;
   }
   const shorter = DAILY_MINUTES_OPTIONS.filter((option) => option < dailyMinutes);

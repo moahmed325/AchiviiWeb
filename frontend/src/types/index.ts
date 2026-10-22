@@ -426,6 +426,9 @@ export interface Retest {
   reason: 'not_logged' | 'two_hard_weeks';
   /** The re-test's result was logged in the open week. */
   logged: boolean;
+  /** The day holding the measured re-test step: its task and date ('YYYY-MM-DD'). */
+  taskId: string;
+  date: string;
 }
 
 export interface DailyTimeCheck {
