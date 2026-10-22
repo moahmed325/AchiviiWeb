@@ -131,6 +131,17 @@ describe('Daily time and the re-test in goal responses (weekly update M3.3b)', (
       expect(goal.dailyTimeCheck).toEqual({ minutes: 60, shorter: [30, 45] });
     });
 
+    it('no week in the goal carries updateStatus, in any switch state; the server still reads it (RULE-3, B-95, B-98)', async () => {
+      const off = await active();
+      expect(off.roadmapWeeks).toHaveLength(store.goal.roadmapWeeks.length);
+      expect(off.roadmapWeeks.some((w: Record<string, unknown>) => 'updateStatus' in w)).toBe(false);
+      switchesOn();
+      const on = await active();
+      expect(on.roadmapWeeks.some((w: Record<string, unknown>) => 'updateStatus' in w)).toBe(false);
+      expect(on.retest.reason).toBe('two_hard_weeks');
+      expect(store.goal.roadmapWeeks[1].updateStatus).toBe('far_behind');
+    });
+
     it('logged once the re-tested week holds a result logged in the open week', async () => {
       switchesOn();
       store.goal.roadmapWeeks[2].testResult = { ...RESULT, retestLoggedInWeek: 4 };

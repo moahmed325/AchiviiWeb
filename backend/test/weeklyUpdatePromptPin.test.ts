@@ -3,7 +3,8 @@ import { buildWeeklyUpdatePrompt, type WeeklyUpdateInput } from '../src/lib/ai/w
 import type { WeekTarget } from '../src/lib/ai/roadmap.js';
 
 // Weekly update M3.4 (requirement 2): a close that is not a break builds exactly the prompt it built on `8e9d5dd`. The
-// snapshots below were written by running this file on that code, before M3.4 changed anything.
+// snapshots below were written by running this file on that code, before M3.4 changed anything. M4.1a (WU-61 (4)) added
+// one line on purpose, the lower-is-better wording after WU-51's line; nothing else changed.
 
 const km = (value: number): WeekTarget => ({ kind: 'number', metric: 'Weekly running distance', value, unit: 'km', direction: 'higher_is_better' });
 
@@ -75,6 +76,7 @@ describe('a non-break prompt is unchanged (M3.4 requirement 2)', () => {
          - Week 12 stays exactly Weekly running distance: 21 km.
          - Keep each week's kind, metric and unit as planned.
          - In the message, don't say held, kept or stays when next week's target moves on, or goes up, raised or rises when it stays the same.
+         - For a target where lower is better, say it "gets harder" or "moves to" the new amount, never "goes up".
       3. messageToUser: one sentence, neutral and encouraging. Say what happens next, and say plainly if next week's
          target is held or lowered. Never ask a question. Never use the words "missed", "behind", "failed" or "fail".
       4. guidanceForNextWeek: 1-2 sentences for the person writing next week's tasks."
@@ -133,6 +135,7 @@ describe('a non-break prompt is unchanged (M3.4 requirement 2)', () => {
          - Week 12 stays exactly Weekly running distance: 21 km.
          - Keep each week's kind, metric and unit as planned.
          - In the message, don't say held, kept or stays when next week's target moves on, or goes up, raised or rises when it stays the same.
+         - For a target where lower is better, say it "gets harder" or "moves to" the new amount, never "goes up".
       3. messageToUser: one sentence, neutral and encouraging. Say what happens next, and say plainly if next week's
          target is held or lowered. Never ask a question. Never use the words "missed", "behind", "failed" or "fail".
       4. guidanceForNextWeek: 1-2 sentences for the person writing next week's tasks."
@@ -184,6 +187,7 @@ describe('a non-break prompt is unchanged (M3.4 requirement 2)', () => {
          - Week 12 stays exactly Weekly running distance: 20 km.
          - Keep each week's kind, metric and unit as planned.
          - In the message, don't say held, kept or stays when next week's target moves on, or goes up, raised or rises when it stays the same.
+         - For a target where lower is better, say it "gets harder" or "moves to" the new amount, never "goes up".
       3. messageToUser: one sentence, neutral and encouraging. Say what happens next, and say plainly if next week's
          target is held or lowered. Never ask a question. Never use the words "missed", "behind", "failed" or "fail".
       4. guidanceForNextWeek: 1-2 sentences for the person writing next week's tasks."
@@ -227,6 +231,7 @@ describe('a non-break prompt is unchanged (M3.4 requirement 2)', () => {
          - Week 12 stays exactly Weekly running distance: 20 km.
          - Keep each week's kind, metric and unit as planned.
          - In the message, don't say held, kept or stays when next week's target moves on, or goes up, raised or rises when it stays the same.
+         - For a target where lower is better, say it "gets harder" or "moves to" the new amount, never "goes up".
       3. messageToUser: one sentence, neutral and encouraging. Say what happens next, and say plainly if next week's
          target is held or lowered. Never ask a question. Never use the words "missed", "behind", "failed" or "fail".
       4. guidanceForNextWeek: 1-2 sentences for the person writing next week's tasks."

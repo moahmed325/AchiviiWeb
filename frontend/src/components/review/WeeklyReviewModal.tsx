@@ -19,6 +19,7 @@ import { week12LineText } from '../../lib/week12Line';
 import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
 import { isRestLike } from '../../lib/today';
 import { isLightTest } from '../../lib/lightTest';
+import { WEEK_CLOSED_LINES } from '../../lib/weekClose';
 
 export interface WeeklyReviewModalProps {
   isOpen: boolean;
@@ -232,7 +233,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
           }
         }
         setWeekClosed(true);
-        setReviewError(reflectionSaved ? 'This week had already closed. Your reflection is saved.' : "This week's review is already saved.");
+        setReviewError(reflectionSaved ? WEEK_CLOSED_LINES.reflectionSaved : WEEK_CLOSED_LINES.alreadySaved);
         if (draftDone && goal?.id) clearReviewDraft(goal.id, currentWeekNum);
       } else if (isNetworkError) {
         setReviewError("You're offline. Reconnect to submit your weekly review.");

@@ -6,6 +6,12 @@ import { currentWeekTasks, todayKey } from './today';
 /** M1.4 (WU-33 (4)): the stored line "Your plan now ends on {date}." keeps this as written; the app fills it in. */
 export const PLAN_END_TOKEN = '{date}';
 
+/** B-59, WU-31 (section 6): what a review sent after the week closed shows. */
+export const WEEK_CLOSED_LINES = {
+  reflectionSaved: 'This week had already closed. Your reflection is saved.',
+  alreadySaved: "This week's review is already saved.",
+} as const;
+
 /**
  * The plan's end as it is now: day 90, `targetDate` minus one day, read as a UTC date (it is stored at UTC midnight).
  * In the viewer's locale like the app's other dates, with the year only when it isn't this year (both years read in

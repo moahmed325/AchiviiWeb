@@ -436,7 +436,9 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
     `   - Week 12 stays exactly ${week12 ? formatTarget(week12) : 'the goal'}.`,
     '   - Keep each week\'s kind, metric and unit as planned.',
     // M3.3a (03-phases M3.3 note (b)): WU-51's rule, told as well as checked.
-    '   - In the message, don\'t say held, kept or stays when next week\'s target moves on, or goes up, raised or rises when it stays the same.'
+    '   - In the message, don\'t say held, kept or stays when next week\'s target moves on, or goes up, raised or rises when it stays the same.',
+    // M4.1a (WU-61 (4)): told only; `directionReason` is unchanged.
+    '   - For a target where lower is better, say it "gets harder" or "moves to" the new amount, never "goes up".'
   );
   lines.push(
     '',
