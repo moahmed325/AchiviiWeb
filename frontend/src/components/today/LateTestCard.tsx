@@ -1,16 +1,11 @@
 import React, { useState } from 'react';
-import type { Goal, WeeklyTestResult } from '../../types';
-import { useAuth } from '../../context/AuthContext';
+import type { Goal } from '../../types';
 import { useGoal } from '../../context/GoalContext';
-import { logWeeklyTestResult } from '../../lib/api';
 import { formatPassIf } from '../../lib/formatters';
 import { lateTestWeek } from '../../lib/lateTest';
-import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
-import { LightTestEntry } from '../review/LightTestEntry';
-import { isLightTest, lightTestResult } from '../../lib/lightTest';
-import { Button, Dialog, DialogClose, DialogContent } from '../ui';
-
-const NOT_SAVED = "That didn't save. Please try again.";
+import { isLightTest } from '../../lib/lightTest';
+import { Button } from '../ui';
+import { TestResultDialog } from './TestResultDialog';
 
 /**
  * Missed sessions M4.1 (RULE-7, UX-3, AC-8): after test day, while the week's test has no result and the week is not
@@ -18,49 +13,13 @@ const NOT_SAVED = "That didn't save. Please try again.";
  * then refreshed, so the card goes. Self-contained: it reads the goal context and renders nothing outside its window.
  */
 export const LateTestCard: React.FC<{ goal: Goal; now: Date; timezone?: string }> = ({ goal, now, timezone }) => {
-  const { token } = useAuth();
-  const { reconciliation, refreshGoal } = useGoal();
+  const { reconciliation } = useGoal();
   const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<WeeklyTestResult | null>(null);
-  // M2.1: a light week's note; "I did it" saves it with the light result.
-  const [note, setNote] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const week = lateTestWeek(goal, reconciliation, now, timezone);
   if (!week?.test) return null;
   const test = week.test;
   const light = isLightTest(test);
-
-  const onOpenChange = (next: boolean) => {
-    if (saving) return;
-    setOpen(next);
-    if (!next) {
-      // M2.1 review: a closed entry keeps nothing; a cancelled note or result is never saved later.
-      setError(null);
-      setResult(null);
-      setNote('');
-    }
-  };
-
-  const onSave = async () => {
-    const toSave = light ? lightTestResult(note) : result;
-    if (!toSave || !token || saving) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await logWeeklyTestResult(week.weekNumber, toSave, token);
-      setOpen(false);
-      setResult(null);
-      setNote('');
-      await refreshGoal();
-    } catch (err) {
-      console.warn('Failed to log the test result:', err);
-      setError(NOT_SAVED);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   return (
     <section aria-labelledby="late-test-heading" className="dash-panel animate-rise-in relative mt-10 p-6 sm:p-8">
@@ -83,37 +42,7 @@ export const LateTestCard: React.FC<{ goal: Goal; now: Date; timezone?: string }
         </Button>
       </div>
 
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent
-          title="Log my result"
-          size="md"
-          footer={
-            <>
-              <DialogClose asChild>
-                <Button variant="quiet" disabled={saving}>
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button variant="primary" onClick={onSave} disabled={(!light && !result) || !token} loading={saving}>
-                {light ? 'I did it' : 'Save result'}
-              </Button>
-            </>
-          }
-        >
-          <div className="space-y-4">
-            {light ? (
-              <LightTestEntry weekNumber={week.weekNumber} target={week.target} test={test} note={note} onNoteChange={setNote} disabled={saving} />
-            ) : (
-              <ReviewTestResultStep target={week.target} test={test} testResult={result} onChange={setResult} disabled={saving} />
-            )}
-            {error && (
-              <p role="alert" className="text-small text-danger">
-                {error}
-              </p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <TestResultDialog week={week} open={open} onOpenChange={setOpen} title="Log my result" />
     </section>
   );
 };

@@ -31,6 +31,7 @@ import { generateRoadmap, lightTestSession, TOTAL_WEEKS, type PlanAnswer, type R
 import { activeDaysFor, generateWeekPlan, slotTimeFor, type PlanVariant, type WeekDayPlan } from '../lib/ai/weekPlan.js';
 import {
   dailyTaskRows,
+  readRoutine,
   roadmapWeekRows,
   storedRoadmap,
 } from '../lib/planV2.js';
@@ -48,7 +49,16 @@ import {
 } from '../lib/weekClose/close.js';
 import { autoCloseUpdateInsight, logUpdateLowered, retestOfWeekFor, updateThenWrite } from '../lib/weekClose/update.js';
 import type { PastLimitChoice } from '../lib/weekClose/breaks.js';
-import { weekCloseEnabled } from '../lib/weekClose/switch.js';
+import { weekCloseEnabled, weeklyUpdateEnabled } from '../lib/weekClose/switch.js';
+import {
+  RETEST_LOGGED_KEY,
+  dailyTimeCheckOf,
+  retestInfo,
+  type DailyTimeCheck,
+  type RetestInfo,
+  type RetestTask,
+  type RetestWeek,
+} from '../lib/weekClose/retest.js';
 
 function wantsPlanStream(req: Request): boolean {
   return (req.headers.accept || '').includes('text/event-stream');
@@ -92,13 +102,28 @@ function safeTargetsOf(goal: Record<string, unknown>): { roadmapWeeks: unknown; 
   };
 }
 
-function presentGoal<T extends Record<string, unknown>>(goal: T): T & { basis: ReturnType<typeof formatBasisBadge> } {
+/**
+ * Weekly update M3.3b (WU-58 (1)): the open week's re-test and the daily-time check, from the stored rows. Both null
+ * with either switch off (RULE-18), so a switch turned off hides them as it refuses the daily-time answer.
+ */
+function retestOfGoal(goal: Record<string, unknown>): { retest: RetestInfo | null; dailyTimeCheck: DailyTimeCheck | null } {
+  const weeks = goal.roadmapWeeks as RetestWeek[] | undefined;
+  if (!weeklyUpdateEnabled() || !Array.isArray(weeks)) return { retest: null, dailyTimeCheck: null };
+  const routine = typeof goal.routine === 'string' ? goal.routine : '{}';
+  const tasks = Array.isArray(goal.dailyTasks) ? (goal.dailyTasks as RetestTask[]) : [];
+  return { retest: retestInfo(weeks, tasks), dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes) };
+}
+
+function presentGoal<T extends Record<string, unknown>>(
+  goal: T
+): T & { basis: ReturnType<typeof formatBasisBadge>; retest: RetestInfo | null; dailyTimeCheck: DailyTimeCheck | null } {
   const velocityTable = goal.velocityTable
     ? clampedTable(goal.velocityTable, typeof goal.id === 'string' ? goal.id : undefined)
     : goal.velocityTable;
   return {
     ...goal,
     ...safeTargetsOf(goal),
+    ...retestOfGoal(goal),
     velocityTable,
     basis: formatBasisBadge({
       methodKind: goal.methodKind as string | null | undefined,
@@ -544,7 +569,9 @@ type ActionReason =
   | 'week_close_disabled'
   | 'not_auto_closed'
   | 'reflection_saved'
-  | 'choice_needed';
+  | 'choice_needed'
+  | 'weekly_update_disabled'
+  | 'no_daily_time_check';
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -575,6 +602,9 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   reflection_saved: 'This week already has a reflection.',
   // Weekly update M1.5b (WU-38 (1)): a break past the limit waits for the person's choice on Today.
   choice_needed: 'Choose how to continue on Today first.',
+  // Weekly update M3.3b (WU-58 (4)): the daily-time answer.
+  weekly_update_disabled: 'This action is not available yet.',
+  no_daily_time_check: 'There is no daily-time question to answer.',
 };
 
 function refuse(res: Response, reason: ActionReason): void {
@@ -1144,10 +1174,16 @@ goalRouter.put('/weeks/:weekNumber/test-result', async (req: Request, res: Respo
     // B-68: only the open week takes a result (a late test is logged while its week is still active).
     if (week.status !== 'active' && !retested) return refuse(res, 'week_not_open');
 
+    // M3.3b (WU-58 (3)): a result stored through the re-test path names the open week it was logged in. The whole
+    // result is replaced on every write, so a result stored any other way carries no key.
+    const openWeek = goal.roadmapWeeks.find((w) => w.status === 'active');
+    const stored =
+      week.status !== 'active' && retested && openWeek ? { ...validation.result, [RETEST_LOGGED_KEY]: openWeek.weekNumber } : validation.result;
     await prisma.roadmapWeek.update({
       where: { id: week.id },
-      data: { testResult: validation.result as unknown as Prisma.InputJsonObject },
+      data: { testResult: stored as unknown as Prisma.InputJsonObject },
     });
+    // M3.3b review: the key is stored, never sent back.
     res.json({ testResult: validation.result });
   } catch (err: any) {
     console.error('[GoalRouter] Log test result error:', err);
@@ -1440,6 +1476,77 @@ goalRouter.post('/weeks/:weekNumber/reflection', async (req: Request, res: Respo
   } catch (err: any) {
     console.error('[GoalRouter] Late reflection error:', err);
     res.status(500).json({ error: 'Failed to save the reflection.' });
+  }
+});
+
+/**
+ * POST /api/goal/daily-time (weekly update M3.3b, RULE-6, WU-7, WU-20 (1), WU-58 (4), behind both switches)
+ * The answer to the daily-time question after two hard weeks: `{ minutes }`, the current daily time (keep) or one of
+ * the shorter options. Sets the open week's `dailyTimeAskedAt` and, when shorter, `routine.dailyMinutes`, in one
+ * transaction. A shorter time is read when the next week is written; the current week's tasks don't change.
+ */
+goalRouter.post('/daily-time', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await actionUser(req, res);
+    if (!user) return;
+    // RULE-18: off means nothing is read or written.
+    if (!weeklyUpdateEnabled()) return refuse(res, 'weekly_update_disabled');
+
+    const goal = await prisma.goal.findFirst({
+      where: { userId: user.id, status: 'active' },
+      select: {
+        id: true,
+        planVersion: true,
+        routine: true,
+        roadmapWeeks: {
+          orderBy: { weekNumber: 'asc' },
+          select: {
+            id: true,
+            weekNumber: true,
+            status: true,
+            retestOfWeek: true,
+            updateStatus: true,
+            testResult: true,
+            dailyTimeAskedAt: true,
+            jumped: true,
+          },
+        },
+      },
+    });
+    if (!goal) {
+      res.status(404).json({ error: 'Active goal not found.' });
+      return;
+    }
+    if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
+
+    const check = dailyTimeCheckOf(goal.roadmapWeeks, readRoutine(goal).dailyMinutes);
+    const openWeek = goal.roadmapWeeks.find((w) => w.status === 'active');
+    if (!check || !openWeek) return refuse(res, 'no_daily_time_check');
+    const minutes = req.body?.minutes;
+    if (minutes !== check.minutes && !check.shorter.includes(minutes)) {
+      res.status(400).json({ error: `minutes must be ${[...check.shorter, check.minutes].join(', ')}.` });
+      return;
+    }
+
+    const askedAt = new Date();
+    const shorter = minutes !== check.minutes;
+    let routine: Record<string, unknown> = {};
+    try {
+      const parsed = JSON.parse(goal.routine || '{}');
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) routine = parsed;
+    } catch {}
+    const saved = await prisma.$transaction(async (tx) => {
+      // Asked once (WU-20 (1)): a second answer racing this one saves nothing.
+      const won = await tx.roadmapWeek.updateMany({ where: { id: openWeek.id, dailyTimeAskedAt: null }, data: { dailyTimeAskedAt: askedAt } });
+      if (won.count === 0) return false;
+      if (shorter) await tx.goal.update({ where: { id: goal.id }, data: { routine: JSON.stringify({ ...routine, dailyMinutes: minutes }) } });
+      return true;
+    });
+    if (!saved) return refuse(res, 'no_daily_time_check');
+    res.json({ dailyMinutes: minutes, dailyTimeAskedAt: askedAt });
+  } catch (err: any) {
+    console.error('[GoalRouter] Daily time error:', err);
+    res.status(500).json({ error: 'Failed to save the daily time.' });
   }
 });
 

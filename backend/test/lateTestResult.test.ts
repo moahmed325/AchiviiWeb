@@ -214,12 +214,36 @@ describe('Late test result (missed sessions M4.1)', () => {
       weekRow('g1', 1).retestOfWeek = 3;
       const res = await put(3, RESULT);
       expect(res.status).toBe(200);
-      expect(weekRow('g1', 3)).toMatchObject({ status: 'completed', testResult: RESULT });
+      // M3.3b (WU-58 (3)): stored with the open week it was logged in.
+      expect(weekRow('g1', 3)).toMatchObject({ status: 'completed', testResult: { ...RESULT, retestLoggedInWeek: 1 } });
       const again = { ...RESULT, value: 26 };
       expect((await put(3, again)).status).toBe(200);
-      expect(weekRow('g1', 3).testResult).toEqual(again);
+      expect(weekRow('g1', 3).testResult).toEqual({ ...again, retestLoggedInWeek: 1 });
       // The open week's own result is still its own.
       expect(weekRow('g1', 1).testResult).toBeNull();
+    });
+
+    it("M3.3b (WU-58 (3)): the key is stored on the re-test path only, never on the open week's own result", async () => {
+      weekRow('g1', 1).retestOfWeek = 3;
+      const own = await put(1, RESULT);
+      expect(await own.json()).toEqual({ testResult: RESULT });
+      expect(weekRow('g1', 1).testResult).toEqual(RESULT);
+      const retest = await put(3, RESULT);
+      // Stored with the key; the answer is the result as sent (M3.3b review).
+      expect(await retest.json()).toEqual({ testResult: RESULT });
+      expect(weekRow('g1', 3).testResult).toEqual({ ...RESULT, retestLoggedInWeek: 1 });
+    });
+
+    it('M3.3b (WU-58 (3)): a later write replaces the whole result, so a result stored another way carries no key', async () => {
+      weekRow('g1', 1).retestOfWeek = 3;
+      await put(3, RESULT);
+      expect(weekRow('g1', 3).testResult.retestLoggedInWeek).toBe(1);
+      // The same row written as an open week's own result (any other path): the key does not survive.
+      weekRow('g1', 1).retestOfWeek = null;
+      weekRow('g1', 3).status = 'active';
+      weekRow('g1', 1).status = 'completed';
+      await put(3, { value: 25, passed: true });
+      expect(weekRow('g1', 3).testResult).toEqual({ value: 25, passed: true });
     });
 
     it('M3.3a: any other closed week is still refused, and a pending week too', async () => {

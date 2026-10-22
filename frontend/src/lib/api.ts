@@ -419,6 +419,20 @@ export async function markCloseLineSeen(weekNumber: number, token: string): Prom
 }
 
 /**
+ * Weekly update M3.3b (RULE-6, WU-58 (4)): the answer to the daily-time question, the current minutes (keep) or a shorter
+ * option. Throws `ApiError` (`code` `weekly_update_disabled` or `no_daily_time_check`, or a 400).
+ */
+export async function answerDailyTime(minutes: number, token: string): Promise<{ dailyMinutes: number; dailyTimeAskedAt: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/daily-time`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ minutes }),
+  });
+
+  return readJson(response, 'Failed to save');
+}
+
+/**
  * Weekly update M1.2b (WU-31): a review that lost to an automatic close saves its typed reflection onto that week.
  * Refused (`ApiError`, `code` `not_auto_closed` or `reflection_saved`) unless the week closed on its own with none yet.
  */

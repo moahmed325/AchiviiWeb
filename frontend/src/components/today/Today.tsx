@@ -31,6 +31,7 @@ import { BasisBadge } from '../BasisBadge';
 import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
 import { LateTestCard } from './LateTestCard';
+import { DailyTimeCard, RetestNotice } from './Retest';
 import { CLOSE_FAILED } from './WeekClose';
 import { closeLineWeek } from '../../lib/weekClose';
 import { markCloseLineSeen } from '../../lib/api';
@@ -489,6 +490,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         </Callout>
       )}
 
+      {/* Weekly update M3.3b (AC-4): why the week starts with a re-test, and its result entry (self-contained). */}
+      <RetestNotice goal={goal} now={now} timezone={timezone} />
+
       {reviewDue && (
         <section
           aria-labelledby="review-due-heading"
@@ -516,6 +520,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
 
       {/* Missed sessions M4.1: the week's test, still open after test day (self-contained). */}
       <LateTestCard goal={goal} now={now} timezone={timezone} />
+
+      {/* Weekly update M3.3b (AC-5): the daily-time question after two hard weeks, once. */}
+      <DailyTimeCard check={goal.dailyTimeCheck} />
 
       {isClosingStretch ? (
         <ClosingStretchView goal={goal} apiStatus={apiStatus} />

@@ -189,6 +189,8 @@ export interface MockCalls {
   closeChoices: Array<string | null>;
   /** Every POST /api/goal/weeks/:weekNumber/close-line-seen, by week (M1.2b). */
   closeLineSeen: number[];
+  /** Every POST /api/goal/daily-time, by the minutes sent (weekly update M3.3b). */
+  dailyTime: unknown[];
   /** POST /api/goal/reconcile. */
   reconcile: number;
 }
@@ -200,7 +202,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [], closeWeek: [], closeChoices: [], closeLineSeen: [], reconcile: 0 };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0 };
   const {
     goal = null,
     signupStatus = 201,
@@ -366,9 +368,25 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       const weeks = (saved?.roadmapWeeks ?? []) as Array<Record<string, unknown>>;
       const week = weeks.find((w) => w.weekNumber === weekNumber);
       if (!week) return json(route, 404, { error: 'Week not found.' });
-      if (week.status === 'completed') return json(route, 409, { error: 'This week has already been reviewed.', reason: 'week_closed' });
-      week.testResult = body;
-      return json(route, 200, { testResult: body });
+      // Weekly update M3.3b (WU-58 (3)): the closed week the open week re-tests takes the result, and the goal's
+      // `retest` then reads it as logged, as the server works it out.
+      const openWeek = weeks.find((w) => w.status === 'active');
+      const retested = week.status === 'completed' && openWeek?.retestOfWeek === weekNumber;
+      if (week.status === 'completed' && !retested) return json(route, 409, { error: 'This week has already been reviewed.', reason: 'week_closed' });
+      week.testResult = retested ? { ...body, retestLoggedInWeek: openWeek!.weekNumber } : body;
+      if (retested && saved?.retest) saved.retest = { ...(saved.retest as object), logged: true };
+      return json(route, 200, { testResult: week.testResult });
+    }
+
+    // Weekly update M3.3b (WU-58 (4)): the daily-time answer. 409 `no_daily_time_check` without a question, as the server.
+    if (path === '/api/goal/daily-time' && route.request().method() === 'POST') {
+      const minutes = route.request().postDataJSON()?.minutes;
+      calls.dailyTime.push(minutes);
+      const check = saved?.dailyTimeCheck as { minutes: number; shorter: number[] } | null | undefined;
+      if (!check) return json(route, 409, { error: 'There is no daily-time question to answer.', reason: 'no_daily_time_check' });
+      saved!.dailyTimeCheck = null;
+      if (minutes !== check.minutes) saved!.routine = JSON.stringify({ ...JSON.parse(String(saved!.routine || '{}')), dailyMinutes: minutes });
+      return json(route, 200, { dailyMinutes: minutes, dailyTimeAskedAt: new Date().toISOString() });
     }
 
     const taskMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)$/);

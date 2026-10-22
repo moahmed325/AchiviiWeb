@@ -414,6 +414,28 @@ export interface Goal {
   weeklyReviews?: WeeklyReview[];
   /** M1.3 (PSL-12): the honest week 12 line's numbers; null or missing when week 12 was not lowered. */
   week12Line?: Week12Line | null;
+  /** Weekly update M3.3b (WU-58 (1)): the open week's re-test, worked out on the server; null or missing when none. */
+  retest?: Retest | null;
+  /** Weekly update M3.3b (RULE-6, WU-58 (1)): the daily-time question after two hard weeks; null or missing when none. */
+  dailyTimeCheck?: DailyTimeCheck | null;
+}
+
+export interface Retest {
+  /** The closed week whose test the open week re-tests; its result is stored on that week (WU-17). */
+  ofWeek: number;
+  reason: 'not_logged' | 'two_hard_weeks';
+  /** The re-test's result was logged in the open week. */
+  logged: boolean;
+  /** The day holding the measured re-test step: its task and date ('YYYY-MM-DD'). */
+  taskId: string;
+  date: string;
+}
+
+export interface DailyTimeCheck {
+  /** The current daily time. */
+  minutes: number;
+  /** The shorter daily-time options, ascending. */
+  shorter: number[];
 }
 
 export interface CreateGoalPayload {
