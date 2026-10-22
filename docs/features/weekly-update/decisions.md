@@ -337,9 +337,15 @@ How this log works: `docs/templates/decisions.md`.
 
 ### WU-56 — One re-test, of the closing week; none after a light week (2026-10-22)
 **Question:** writing M3.3a: what the re-test re-tests, where its result goes, and the automatic close's line when the plan also moved.
-**Decision:** (1) An unlogged test and two hard weeks in the same close give one re-test. (2) Both re-test the closing week's stored test; the result is stored as that week's `testResult` (the latest wins, as a late result) through the test-result endpoint, which takes it only for the week the open week's `retestOfWeek` names. (3) No re-test after a light week, for either rule (a light week has no measured test to repeat). (4) An automatic close that ran the update and moved the plan stores the move line followed by the update's sentence. *(Proposed by main - review in M3.3a's prompt.)*
+**Decision:** (1) An unlogged test and two hard weeks in the same close give one re-test. (2) Both re-test the closing week's stored test; the result is stored as that week's `testResult` (the latest wins, as a late result) through the test-result endpoint, which takes it only for the week the open week's `retestOfWeek` names. *Amended 2026-10-22 (M3.3a review, Mo): an easy re-test (WU-55) stores nothing on the earlier week, since a light result is not a result (WU-43); only the measured re-test sets `retestOfWeek`.* (3) No re-test after a light week, for either rule (a light week has no measured test to repeat). (4) An automatic close that ran the update and moved the plan stores the move line followed by the update's sentence; when the update's line is the plain neutral line, only the move line (M3.3a review). *(Proposed by main - review in M3.3a's prompt; accepted by Mo.)*
 **Why:** one path for both rules; a light week's test is not a measure (WU-43); the person must see both the new end date and what happened to the target.
 **Changes:** RULE-5; RULE-6; M3.3a.
+
+### WU-57 — M3.3a review: the re-test ranks after the day's lead (2026-10-22)
+**Question:** M3.3a review: the re-test step became its day's priority-1 step, so a missed re-test day (method switch off) would carry the hard re-test onto a later day, possibly the test day.
+**Decision:** the re-test is first in order on its day but ranks right after the model's lead (priority 2); the day's priority-1 step, its 10-minute version and what a missed day carries stay the model's; a carry never removes the re-test. The update's retry is not started once the 15 s limit has passed (WU-52). The deliverable-only schema is used only when this week and every week the model sets are deliverables.
+**Why (Mo):** a hard test must never be carried onto another hard day; a timed-out update must not keep spending quota; a mixed goal must stay writable.
+**Changes:** `ai/weekPlan.ts`, `carryForward.ts`, `ai/weeklyUpdate.ts`.
 
 ## Notes from method-aware recovery (not decisions)
 - **2026-10-11, logic check finding 8:** a carried lesson can keep landing on a day the person never trains (the same weekday each week). When the weekly update resumes, consider letting the week writer avoid the day a step was missed on. *Handled: WU-12 (1), under Later.*
