@@ -24,7 +24,7 @@
 | M3.3b | App: Today's "Test not logged" and "Two hard weeks" lines, the re-test's result entry, the daily-time card | AC-4 (Today), AC-5 (daily time) | DONE 2026-10-22 | [m3.3b](milestones/m3.3b-app-retest-daily-time.md) |
 | M3.4 | Break restart | AC-9, AC-10, AC-18 | DONE 2026-10-23 | [m3.4](milestones/m3.4-break-restart.md) |
 | M4.1a | Copy pass: code's lines in the copy table, WU-23 with a hold, lower-is-better wording, kind names, status out of the app (B-95, B-98), e2e in UTC (B-75) | AC-3, AC-15 (names) | DONE 2026-10-23 | [m4.1a](milestones/m4.1a-copy-pass.md) |
-| M4.1b | Acceptance in the three switch states, the full e2e run, docs | AC-14, AC-19, all | NOT STARTED | |
+| M4.1b | Acceptance in the three switch states, the full e2e run, docs | AC-14, AC-19, all | IN PROGRESS: prompt written (WU-62) | [m4.1b](milestones/m4.1b-acceptance-and-docs.md) |
 | O2 | Mo: turn on `WEEKLY_UPDATE_ENABLED` in Render | — | BLOCKED (the `checkpoints` feature must ship first, WU-23) | |
 
 ## 2. Order
