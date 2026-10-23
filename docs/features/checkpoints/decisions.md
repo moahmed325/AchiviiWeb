@@ -16,7 +16,7 @@ How this log works: `docs/templates/decisions.md`.
 **Question:** who decides that the goal is out of reach by day 90?
 **Decision:** code, from the logged results, the targets and the safe-step limits. The model only writes the forecast line, and code checks it like the weekly update's sentence.
 **Why:** testable and the same every time; for target families code can already count the safe climb (`safeTargetClimb`).
-**Changes:** `01-brief.md` section 7; open question 1 asks for the exact rule.
+**Changes:** `01-brief.md` section 7; open question 1 asks for the exact rule. The "model only words it" half is replaced by CP-14.
 
 ### CP-3 — Ignored means the full goal stays (2026-10-23)
 **Question:** what happens if the person ignores or dismisses the offer?
@@ -83,3 +83,9 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** nothing: no forecast and no offer (I-9). "Go further" belongs to the day-90 feature (I-10, CP-4).
 **Why:** no forecast when on track; keeps this feature to people who are behind.
 **Changes:** `01-brief.md` section 9, question 9 answered. Proposed in the review chat; Mo did not object.
+
+### CP-14 — Code writes the forecast line (2026-10-23)
+**Question:** who writes the checkpoint's forecast line: the model (CP-2) or code?
+**Decision:** code, from fixed lines in the copy table with code's numbers filled in. No model call. Replaces the "the model only words it" half of CP-2; code still decides everything (CP-2's first half stands).
+**Why:** every number in the line is code's anyway; no time limit, fallback or wording check to build, and the words are testable exactly.
+**Changes:** CP-2 (second half replaced); `02-feature.md` RULE-7 and section 6.
