@@ -11,7 +11,9 @@ Every decision below was agreed in chat before any code was written.
 4. Each week: the user logs the weekly test → **Prompt 4 (weekly update)** sets the remaining targets →
    **Prompt 3** writes the next week. A week whose review is skipped closes automatically on the first open after
    its last day closed (weekly update, `WEEK_CLOSE_ENABLED`); on Today the test card comes first when its test isn't
-   logged, and the close then runs with the test logged or marked not logged. Prompt 4 runs on both paths only with
+   logged, and the close then runs with the test logged or marked not logged. After a break (a gap of 7 days or
+   more) there is no test card: the week closes at once as not logged, on every screen. While a choice past the
+   28-day limit waits ("Keep going" or "Do my final week"), nothing closes on any screen. Prompt 4 runs on both paths only with
    `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED` both `true`; otherwise the targets stay as planned and only
    prompt 3 runs. With `WEEK_CLOSE_ENABLED` off nothing closes a week but the review.
 5. Photo/video tests → **Prompt 5 (proof judge)**.

@@ -4,9 +4,9 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { Goal, RoadmapWeek, WeekTarget } from '../../types';
 import { BreakChoice, CLOSE_FAILED, GETTING_READY, WeekTestFirst } from './WeekClose';
-import { DailyTimeCard } from './Retest';
-import { TestResultDialog } from './TestResultDialog';
-import { WEEK_CLOSED_LINES } from '../../lib/weekClose';
+import { DailyTimeCard, RetestNotice } from './Retest';
+import { LateTestCard } from './LateTestCard';
+import { NOT_SAVED, WEEK_CLOSED_LINES } from '../../lib/weekClose';
 import { RETEST_LINES } from '../../lib/retest';
 import { week12LineText } from '../../lib/week12Line';
 import { nextCheckLine } from '../../lib/lightTest';
@@ -114,9 +114,10 @@ describe("section 6's app lines and step texts, word for word (M4.1b requirement
       reflectionSaved: 'This week had already closed. Your reflection is saved.',
       alreadySaved: "This week's review is already saved.",
     });
+    expect(NOT_SAVED).toBe("That didn't save. Please try again.");
     expect(FIRST_WEEK_BACK_LINE).toBe('First week back: keep the effort easy today.');
-    expect(nextCheckLine(2, km(14))).toMatch(/^Next check, week 4: /);
-    [FIRST_WEEK_BACK_LINE, nextCheckLine(2, km(14))].forEach(expectClean);
+    expect(nextCheckLine(2, km(14))).toBe('Next check, week 4: Weekly running distance: 14 km');
+    [NOT_SAVED, FIRST_WEEK_BACK_LINE, nextCheckLine(2, km(14))].forEach(expectClean);
   });
 
   it('the test card\'s entry: "Log last week\'s test" with "Save result"', async () => {
@@ -128,15 +129,52 @@ describe("section 6's app lines and step texts, word for word (M4.1b requirement
     for (const button of within(entry).getAllByRole('button')) expectClean(button.textContent || button.getAttribute('aria-label') || '');
   });
 
-  it('the re-test entry: "Log re-test result", "I did it" on a light test, and the failed-save line', async () => {
+  const clean = (dialog: HTMLElement) => {
+    for (const button of within(dialog).getAllByRole('button')) expectClean(button.textContent || button.getAttribute('aria-label') || '');
+  };
+
+  it('the re-test entry on a measured week: "Log re-test result", "Save result", and the failed-save line', async () => {
     const user = userEvent.setup();
-    render(<TestResultDialog week={lightWeek} open onOpenChange={() => {}} title="Log re-test result" />);
-    const dialog = screen.getByRole('dialog', { name: 'Log re-test result' });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const retestGoal = {
+      ...goal,
+      planVersion: 2,
+      currentWeek: 4,
+      retest: { ofWeek: 3, reason: 'not_logged', logged: false, taskId: 't22', date: '2026-10-19' },
+      dailyTasks: [
+        { id: 't22', weekNumber: 4, dayNumber: 22, date: '2026-10-19' },
+        { id: 't28', weekNumber: 4, dayNumber: 28, date: '2026-10-25' },
+      ],
+    } as unknown as Goal;
+    render(<RetestNotice goal={retestGoal} now={new Date('2026-10-20T12:00:00Z')} timezone="UTC" />);
+    await user.click(screen.getByRole('button', { name: 'Log re-test result' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Log re-test result' });
+    await user.type(within(dialog).getByLabelText('Your result'), '11');
+    await user.click(within(dialog).getByRole('button', { name: 'Save result' }));
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent(NOT_SAVED);
+    expectClean(alert.textContent ?? '');
+    clean(dialog);
+    warn.mockRestore();
+  });
+
+  it('the late-test entry on a light week: "I did it" and the next check', async () => {
+    const user = userEvent.setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lateGoal = {
+      id: 'g1',
+      planVersion: 2,
+      currentWeek: 2,
+      roadmapWeeks: [{ ...lightWeek, status: 'active', testResult: null }],
+      dailyTasks: [{ id: 't13', weekNumber: 2, dayNumber: 13, date: '2026-10-17', isTestDay: true }],
+    } as unknown as Goal;
+    render(<LateTestCard goal={lateGoal} now={new Date('2026-10-20T12:00:00Z')} timezone="UTC" />);
+    await user.click(screen.getByRole('button', { name: 'Log my result' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Log my result' });
     expect(within(dialog).getByText(nextCheckLine(2, km(14)))).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'I did it' }));
-    const alert = await within(dialog).findByRole('alert');
-    expect(alert).toHaveTextContent("That didn't save. Please try again.");
-    expectClean(alert.textContent ?? '');
-    for (const button of within(dialog).getAllByRole('button')) expectClean(button.textContent || button.getAttribute('aria-label') || '');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(NOT_SAVED);
+    clean(dialog);
+    warn.mockRestore();
   });
 });

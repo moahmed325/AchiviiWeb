@@ -9,12 +9,12 @@ import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
 import { LightTestEntry } from '../review/LightTestEntry';
 import { isLightTest, lightTestResult } from '../../lib/lightTest';
 import { Button, Dialog, DialogContent, LoadingState, Surface } from '../ui';
+import { NOT_SAVED } from '../../lib/weekClose';
 
 // Weekly update M1.2b (RULE-8, WU-14, WU-28): what the app shows around an automatic week close.
 
 export const GETTING_READY = 'Getting your next week ready…';
 export const CLOSE_FAILED = "Couldn't get your next week ready. Please try again.";
-const NOT_SAVED = "That didn't save. Please try again.";
 
 /**
  * "Getting ready" (section 6): shown by every loading view while the close call writes the next week, in place of its

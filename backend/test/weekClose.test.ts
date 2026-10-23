@@ -297,6 +297,8 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
   });
 
   it('M4.1b, AC-19 state A: with both switches unset, { due: false } in both modes, reading and writing nothing', async () => {
+    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
+    vi.stubEnv('WEEKLY_UPDATE_ENABLED', '');
     seed(1);
     const before = snapshot();
     expect(await closeWeek({ mode: 'check' })).toEqual({ status: 200, body: { due: false } });
