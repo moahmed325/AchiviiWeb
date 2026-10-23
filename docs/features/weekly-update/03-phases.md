@@ -24,7 +24,7 @@
 | M3.3b | App: Today's "Test not logged" and "Two hard weeks" lines, the re-test's result entry, the daily-time card | AC-4 (Today), AC-5 (daily time) | DONE 2026-10-22 | [m3.3b](milestones/m3.3b-app-retest-daily-time.md) |
 | M3.4 | Break restart | AC-9, AC-10, AC-18 | DONE 2026-10-23 | [m3.4](milestones/m3.4-break-restart.md) |
 | M4.1a | Copy pass: code's lines in the copy table, WU-23 with a hold, lower-is-better wording, kind names, status out of the app (B-95, B-98), e2e in UTC (B-75) | AC-3, AC-15 (names) | DONE 2026-10-23 | [m4.1a](milestones/m4.1a-copy-pass.md) |
-| M4.1b | Acceptance in the three switch states, the full e2e run, docs | AC-14, AC-19, all | IN PROGRESS: prompt written (WU-62) | [m4.1b](milestones/m4.1b-acceptance-and-docs.md) |
+| M4.1b | Acceptance in the four switch states (WU-62), the full e2e run, docs | AC-14, AC-19, all | DONE 2026-10-23 | [m4.1b](milestones/m4.1b-acceptance-and-docs.md) |
 | O2 | Mo: turn on `WEEKLY_UPDATE_ENABLED` in Render | — | BLOCKED (the `checkpoints` feature must ship first, WU-23) | |
 
 ## 2. Order
@@ -32,7 +32,7 @@
 - **P1 Week close** (`WEEK_CLOSE_ENABLED`): a skipped review no longer leaves next week unwritten; gaps and breaks move dates; no target changes. Needs M1.1. Ends with O1.
 - **P2 Light weekly tests**: new goals get light tests (no switch, goal creation). Needs M1.1; can run between P1 milestones; must finish before M3.1.
 - **P3 Weekly update** (`WEEKLY_UPDATE_ENABLED`): targets follow the person. Needs P1, P2 and `docs/backlog.md` B-62 (real safety limits, WU-29). M3.2's eval comes before M3.3 puts the update inside the automatic close.
-- **P4 Close**: copy, every acceptance criterion in the three switch states, docs. Needs P3. O2 waits on the `checkpoints` feature.
+- **P4 Close**: copy, every acceptance criterion in the four switch states (WU-62), docs. Needs P3. O2 waits on the `checkpoints` feature.
 
 ## 3. Rules for this feature
 
@@ -48,7 +48,7 @@
 | ID | What | How to check |
 |---|---|---|
 | R-1 | Missed sessions: reconcile, carry, swap, mark missed, carry-now, signals, with both switches off and with each recovery switch state | Backend `npm test` (missed-sessions, carry, recovery and reconcile tests); e2e `today` specs |
-| R-2 | Carry at a normal week change with nobody away, reading the week before (method-aware recovery RULE-20, M3.1d) | Reconcile tests across the week change give the same body with `WEEK_CLOSE_ENABLED` on and off, both for an on-time review and for a review or close on the morning after the week ended (WU-30) |
+| R-2 | Carry at a normal week change with nobody away, reading the week before (method-aware recovery RULE-20, M3.1d) | Reconcile tests across the week change give the same body with `WEEK_CLOSE_ENABLED` on and off, both for an on-time review and for a review or close on the morning after the week ended (WU-30); since M4.1b also with only `WEEKLY_UPDATE_ENABLED` on and with both on (`weekCloseR2.test.ts`) |
 | R-3 | The weekly review writes next week as today when `WEEKLY_UPDATE_ENABLED` is off | Review-route and `writeNextWeek` tests; e2e review spec |
 | R-4 | Late test: `PUT /weeks/:weekNumber/test-result` and Today's late-test card | `lateTestResult` tests; `LateTestCard` tests |
 | R-5 | Day numbers, the closing stretch from day 85, roadmap, progress and achievement screens with 0 moved days | Frontend `npm test`; e2e journey and progress specs |
