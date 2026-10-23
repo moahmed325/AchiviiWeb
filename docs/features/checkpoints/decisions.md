@@ -53,3 +53,33 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** no new switch: checkpoints run only when the weekly update runs (`weeklyUpdateEnabled()`, both `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED` exactly `true`). Weekly-update O2 turns both on together.
 **Why:** WU-23 says the update must never run in production without checkpoints; no new switch states beyond WU-62's four.
 **Changes:** `01-brief.md` section 9, question 5 answered; weekly-update O2 note.
+
+### CP-9 — Sequences don't count, results only (2026-10-23)
+**Question:** does being behind on an in-order sequence (lessons that wait, WU-12) count toward "clearly behind"?
+**Decision:** no. CP-5 reads the measured result only.
+**Why:** steps that wait already slow the result, and the weekly update's week-behind hold (WU-11) already holds targets; a second signal would be hard to explain and has no number to forecast.
+**Changes:** `01-brief.md` section 9, question 2 answered; closes WU-12's note for this feature.
+
+### CP-10 — The offer is a Today card until the next close (2026-10-23)
+**Question:** where does the offer appear, and for how long?
+**Decision:** after the close of week 4 or 8 (weekly review or automatic close), Today shows one card: the honest forecast line, "Keep my goal" and "Aim for {realistic}". It never blocks the plan. Dismissed, or not answered by the next week close, counts as keep (CP-3). The review modal is unchanged.
+**Why:** one place for both close paths; the week after the checkpoint is already written by the close, so the choice only changes later weeks anyway.
+**Changes:** `01-brief.md` section 9, question 6 answered.
+
+### CP-11 — Choosing the realistic target changes targets only, and is final (2026-10-23)
+**Question:** what changes when they choose the realistic target, and can they change their mind?
+**Decision:** week 12 takes the realistic target; code spreads the weeks between (after the open week, which keeps its target) evenly up to it, never harder than stored and always inside the safe climb; on a light-test goal only the big weeks are set and the light weeks follow; on a pathway week 12's `finalTest` is refilled from the preset. `Goal.roadmap.finalGoal` is kept; the screens show the day-90 target with the goal beside it, as `week12Line` does ("Day-90 target: 7.5 km. Your goal: 10 km."). The offer and the answer are stored in `Goal.roadmap` (no migration). No undo; week 8 may still check (CP-12).
+**Why:** the person's own goal stays in the app (the rest is the next plan, I-10); one state, no exact put-back to test.
+**Changes:** `01-brief.md` section 9, question 7 answered.
+
+### CP-12 — Week 8 checks against the current week 12 (2026-10-23)
+**Question:** how do the week 4 and week 8 checkpoints work together?
+**Decision:** week 8 always measures against the current week 12 (the full goal, or the realistic target chosen at week 4). Clearly behind again: one more offer, worded as the last check. If they lowered at week 4 and their week 8 forecast now reaches the full goal, week 8 offers to go back up to it, only inside the safe climb. At most one offer per checkpoint, so at most two per plan.
+**Why:** CP-3 asks again at week 8; someone who catches up after lowering is not stuck with a too-easy week 12 (the weekly update never changes week 12, WU-15).
+**Changes:** `01-brief.md` section 9, question 8 answered.
+
+### CP-13 — Ahead of pace: nothing (2026-10-23)
+**Question:** what happens for someone ahead of pace at a checkpoint?
+**Decision:** nothing: no forecast and no offer (I-9). "Go further" belongs to the day-90 feature (I-10, CP-4).
+**Why:** no forecast when on track; keeps this feature to people who are behind.
+**Changes:** `01-brief.md` section 9, question 9 answered. Proposed in the review chat; Mo did not object.

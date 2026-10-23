@@ -1,6 +1,6 @@
 # Achivii Checkpoints — Brief
 
-**Status:** DIRECTION CHOSEN
+**Status:** DIRECTION CHOSEN; every open question answered (CP-5 to CP-13), ready for `02-feature.md`
 **Date:** 2026-10-08 (stub); direction 2026-10-23
 **Links:** `docs/architecture/plan-v2.md` (Weekly update: checkpoints), `docs/features/weekly-update/02-feature.md`, `docs/features/weekly-update/decisions.md` (WU-2, WU-12, WU-23), `docs/ideas.md` (I-9, I-10, I-11), `docs/features/plan-safety-limits/02-feature.md`
 
@@ -57,14 +57,14 @@ Agreed by Mo on 2026-10-23.
 
 ## 9. Open questions for the feature definition
 1. **Answered by CP-5.** What exactly is "clearly behind": a number rule per target family (the safe climb from the last result can't reach week 12), and what for deliverables and custom targets? Does a `far_behind` status count, or only results?
-2. Should being behind on an in-order sequence count (a carried lesson can wait weeks; WU-12)?
+2. **Answered by CP-9.** Should being behind on an in-order sequence count (a carried lesson can wait weeks; WU-12)?
 3. **Answered by CP-6.** How is the realistic target worked out: the safe climb, the person's own trend, or the lower of the two? Is it rounded to a clean number?
 4. **Answered by CP-7.** When the checkpoint week's test isn't logged, or the week ended in a break, is there a checkpoint at all?
 5. **Answered by CP-8.** Does the checkpoint need `WEEKLY_UPDATE_ENABLED` on, or a switch of its own? Production has the update off until this ships.
-6. Where does the offer appear: on Today after the close, inside the review, or both? What if the week closed automatically?
-7. What changes when they choose the realistic target: week 12's target and `finalTest`, the weeks between, `finalGoal` text, the `week12Line`, achievement screens? Can they change their mind later?
-8. If they keep the full goal at week 4 and are still behind at week 8, is the second offer worded differently? If they picked the realistic target at week 4, is there still a week-8 check (it could go down again, or up)?
-9. What about someone ahead of pace? (I-9 says no forecast when on track; "Go further" belongs to I-10.)
+6. **Answered by CP-10.** Where does the offer appear: on Today after the close, inside the review, or both? What if the week closed automatically?
+7. **Answered by CP-11.** What changes when they choose the realistic target: week 12's target and `finalTest`, the weeks between, `finalGoal` text, the `week12Line`, achievement screens? Can they change their mind later?
+8. **Answered by CP-12.** If they keep the full goal at week 4 and are still behind at week 8, is the second offer worded differently? If they picked the realistic target at week 4, is there still a week-8 check (it could go down again, or up)?
+9. **Answered by CP-13.** What about someone ahead of pace? (I-9 says no forecast when on track; "Go further" belongs to I-10.)
 
 ## 10. Handed over from other features
 - Split out of the weekly update by WU-2 (2026-10-08); the weekly update never returns `checkpointOffer`.
