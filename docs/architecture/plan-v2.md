@@ -9,8 +9,13 @@ Every decision below was agreed in chat before any code was written.
 2. User answers 4 questions → **Prompt 2 (method + roadmap)**: final goal, method, rules, phases, 12 weekly targets.
 3. **Prompt 3 (week call)** writes week 1.
 4. Each week: the user logs the weekly test → **Prompt 4 (weekly update)** sets the remaining targets →
-   **Prompt 3** writes the next week. If the test is never logged, this runs the first time they open the app in
-   the new week, with the test marked missing.
+   **Prompt 3** writes the next week. A week whose review is skipped closes automatically on the first open after
+   its last day closed (weekly update, `WEEK_CLOSE_ENABLED`); on Today the test card comes first when its test isn't
+   logged, and the close then runs with the test logged or marked not logged. After a break (a gap of 7 days or
+   more) there is no test card: the week closes at once as not logged, on every screen. While a choice past the
+   28-day limit waits ("Keep going" or "Do my final week"), nothing closes on any screen. Prompt 4 runs on both paths only with
+   `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED` both `true`; otherwise the targets stay as planned and only
+   prompt 3 runs. With `WEEK_CLOSE_ENABLED` off nothing closes a week but the review.
 5. Photo/video tests → **Prompt 5 (proof judge)**.
 
 Presets (guitar, chess, 10K and others) skip the method part of prompt 2: their method is fixed; their roadmap is
@@ -73,7 +78,7 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
 - The user only sees the one-sentence message, never a status label. If a target is lowered or held, the message
   says so plainly.
 - Targets can be raised when someone clearly beats one, but never above the final goal before the last week.
-- Checkpoints at weeks 4 and 8: if the goal is out of reach at their pace, offer a lower goal or a 1-week
+- Checkpoints at weeks 4 and 8 (not built; the `checkpoints` feature, weekly update WU-2): if the goal is out of reach at their pace, offer a lower goal or a 1-week
   extension. At most 2 extensions per plan; beyond that, re-run the questions and start a revised plan.
 
 ### Missed sessions
@@ -413,7 +418,9 @@ Their note: {reflection or "none"}
 [WHERE THEY ARE in each in-order kind of step (the first step not done yet):
 - {kind name}: at "{step}", {k} steps still to do ({s} sessions of it this week)[; a week behind]]
   ({kind name}: the profile `name` in lower case, or its plain word from `KIND_WORDS` in `weekClose/update.ts` when it reads
-  badly in "catch up on {name}", e.g. "strength workouts"; M4.1a, WU-61 (5))
+  badly in "catch up on {name}", e.g. "strength workouts"; M4.1a, WU-61 (5); a name that fails the copy check, a
+  forbidden word or a question, is sent as "one kind of step" and its hold line below says "without naming it
+  ("...so you can catch up")", RULE-7)
 
 LAST 3 WEEKS
 - Week {w}: target {target}; result: {result}; sessions done: {done of planned}; status: {status or none}

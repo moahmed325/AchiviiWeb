@@ -2,13 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import type { Goal, WeekTarget } from '../../types';
+import type { Goal, RoadmapWeek, WeekTarget } from '../../types';
 import { BreakChoice, CLOSE_FAILED, GETTING_READY, WeekTestFirst } from './WeekClose';
-import { DailyTimeCard } from './Retest';
-import { WEEK_CLOSED_LINES } from '../../lib/weekClose';
+import { DailyTimeCard, RetestNotice } from './Retest';
+import { LateTestCard } from './LateTestCard';
+import { NOT_SAVED, WEEK_CLOSED_LINES } from '../../lib/weekClose';
 import { RETEST_LINES } from '../../lib/retest';
 import { week12LineText } from '../../lib/week12Line';
 import { nextCheckLine } from '../../lib/lightTest';
+import { FIRST_WEEK_BACK_LINE } from '../../lib/stepLines';
 
 // Weekly update M4.1a (requirement 2, RULE-7, section 6): every line the feature shows in the app is free of the
 // forbidden words and asks nothing, except the two questions the copy table holds.
@@ -20,6 +22,9 @@ vi.mock('../../context/GoalContext', () => ({
 vi.mock('../../lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/api')>()),
   answerDailyTime: vi.fn(async () => ({ dailyMinutes: 30 })),
+  logWeeklyTestResult: vi.fn(async () => {
+    throw new Error('offline');
+  }),
 }));
 
 const FORBIDDEN = /\b(missed|behind|failed|fail)\b/i;
@@ -92,5 +97,84 @@ describe('the app lines pass the copy check (M4.1a requirement 2)', () => {
     const status = await screen.findByRole('status');
     expect(status).toHaveTextContent('From next week, your sessions are 30 minutes.');
     expectClean(status.textContent ?? '');
+  });
+});
+
+describe("section 6's app lines and step texts, word for word (M4.1b requirement 6, WU-62 (4))", () => {
+  const lightWeek = {
+    weekNumber: 2,
+    target: km(14),
+    test: { type: 'other', instructions: "Log the week's long run as written", passRule: 'Done as written', light: true },
+  } as unknown as RoadmapWeek;
+
+  it('the fixed lines', () => {
+    expect(GETTING_READY).toBe('Getting your next week ready…');
+    expect(CLOSE_FAILED).toBe("Couldn't get your next week ready. Please try again.");
+    expect(WEEK_CLOSED_LINES).toEqual({
+      reflectionSaved: 'This week had already closed. Your reflection is saved.',
+      alreadySaved: "This week's review is already saved.",
+    });
+    expect(NOT_SAVED).toBe("That didn't save. Please try again.");
+    expect(FIRST_WEEK_BACK_LINE).toBe('First week back: keep the effort easy today.');
+    expect(nextCheckLine(2, km(14))).toBe('Next check, week 4: Weekly running distance: 14 km');
+    [NOT_SAVED, FIRST_WEEK_BACK_LINE, nextCheckLine(2, km(14))].forEach(expectClean);
+  });
+
+  it('the test card\'s entry: "Log last week\'s test" with "Save result"', async () => {
+    const user = userEvent.setup();
+    render(<WeekTestFirst goal={goal} weekNumber={3} />);
+    await user.click(screen.getByRole('button', { name: 'Log result' }));
+    const entry = await screen.findByRole('dialog', { name: "Log last week's test" });
+    expect(within(entry).getByRole('button', { name: 'Save result' })).toBeInTheDocument();
+    for (const button of within(entry).getAllByRole('button')) expectClean(button.textContent || button.getAttribute('aria-label') || '');
+  });
+
+  const clean = (dialog: HTMLElement) => {
+    for (const button of within(dialog).getAllByRole('button')) expectClean(button.textContent || button.getAttribute('aria-label') || '');
+  };
+
+  it('the re-test entry on a measured week: "Log re-test result", "Save result", and the failed-save line', async () => {
+    const user = userEvent.setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const retestGoal = {
+      ...goal,
+      planVersion: 2,
+      currentWeek: 4,
+      retest: { ofWeek: 3, reason: 'not_logged', logged: false, taskId: 't22', date: '2026-10-19' },
+      dailyTasks: [
+        { id: 't22', weekNumber: 4, dayNumber: 22, date: '2026-10-19' },
+        { id: 't28', weekNumber: 4, dayNumber: 28, date: '2026-10-25' },
+      ],
+    } as unknown as Goal;
+    render(<RetestNotice goal={retestGoal} now={new Date('2026-10-20T12:00:00Z')} timezone="UTC" />);
+    await user.click(screen.getByRole('button', { name: 'Log re-test result' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Log re-test result' });
+    await user.type(within(dialog).getByLabelText('Your result'), '11');
+    await user.click(within(dialog).getByRole('button', { name: 'Save result' }));
+    const alert = await within(dialog).findByRole('alert');
+    expect(alert).toHaveTextContent(NOT_SAVED);
+    expectClean(alert.textContent ?? '');
+    clean(dialog);
+    warn.mockRestore();
+  });
+
+  it('the late-test entry on a light week: "I did it" and the next check', async () => {
+    const user = userEvent.setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const lateGoal = {
+      id: 'g1',
+      planVersion: 2,
+      currentWeek: 2,
+      roadmapWeeks: [{ ...lightWeek, status: 'active', testResult: null }],
+      dailyTasks: [{ id: 't13', weekNumber: 2, dayNumber: 13, date: '2026-10-17', isTestDay: true }],
+    } as unknown as Goal;
+    render(<LateTestCard goal={lateGoal} now={new Date('2026-10-20T12:00:00Z')} timezone="UTC" />);
+    await user.click(screen.getByRole('button', { name: 'Log my result' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Log my result' });
+    expect(within(dialog).getByText(nextCheckLine(2, km(14)))).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'I did it' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(NOT_SAVED);
+    clean(dialog);
+    warn.mockRestore();
   });
 });

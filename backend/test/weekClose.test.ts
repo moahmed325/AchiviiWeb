@@ -296,6 +296,18 @@ describe('POST /api/goal/close-week (RULE-8, RULE-9)', () => {
     expect(db.state).toEqual(before);
   });
 
+  it('M4.1b, AC-19 state A: with both switches unset, { due: false } in both modes, reading and writing nothing', async () => {
+    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
+    vi.stubEnv('WEEKLY_UPDATE_ENABLED', '');
+    seed(1);
+    const before = snapshot();
+    expect(await closeWeek({ mode: 'check' })).toEqual({ status: 200, body: { due: false } });
+    expect(await closeWeek()).toEqual({ status: 200, body: { due: false } });
+    expect(db.prisma.goal.findFirst).not.toHaveBeenCalled();
+    expect(generateWeekPlan).not.toHaveBeenCalled();
+    expect(db.state).toEqual(before);
+  });
+
   it('a goal that is not plan v2 is refused with not_plan_v2', async () => {
     closeOn();
     seed(1, { planVersion: 1 });
@@ -494,6 +506,19 @@ describe('the close line and a late reflection (weekly update M1.2b, WU-28, WU-3
       expect(db.prisma.goal.findFirst).not.toHaveBeenCalled();
       expect(db.state).toEqual(before);
     });
+  });
+
+  it('M4.1b, AC-19 state A: with both switches unset, both refuse and read nothing', async () => {
+    await closedAuto();
+    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
+    vi.stubEnv('WEEKLY_UPDATE_ENABLED', '');
+    const before = snapshot();
+    vi.mocked(db.prisma.goal.findFirst).mockClear();
+    for (const answer of [await lineSeen(), await reflect()]) {
+      expect(answer).toEqual({ status: 409, body: { error: 'This action is not available yet.', reason: 'week_close_disabled' } });
+    }
+    expect(db.prisma.goal.findFirst).not.toHaveBeenCalled();
+    expect(db.state).toEqual(before);
   });
 
   it('records the line as seen once; a repeat keeps the first time', async () => {

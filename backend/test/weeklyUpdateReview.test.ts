@@ -843,6 +843,9 @@ describe('M3.3a: the update in the automatic close (RULE-1, RULE-18, WU-52)', ()
     expect((await closeWeek()).status).toBe(200);
     expect(db.goal().movedDays).toBe(3);
     expect(insightOfWeek(3)).toBe(`${MOVED_INSIGHT} Next week builds on a strong one.`);
+    // M4.1b, AC-16: a 2 to 6 day gap moves the plan with no re-test.
+    expect(updateLines()[0]).toContain(' retest none ');
+    expect('retest' in weekInput()).toBe(false);
   });
 
   it('{ mode: "check" } runs nothing', async () => {
@@ -852,6 +855,24 @@ describe('M3.3a: the update in the automatic close (RULE-1, RULE-18, WU-52)', ()
     expect(generateStructuredContent).not.toHaveBeenCalled();
     expect(generateWeekPlan).not.toHaveBeenCalled();
   });
+
+  it.each(['the review sent without a result', 'the automatic close'])(
+    'M4.1b, AC-1: a result logged with PUT test-result is what the one update reads, on %s',
+    async (path) => {
+      seed(3);
+      expect((await putResult(3, { value: 12.5, unit: 'km', passed: true })).status).toBe(200);
+      vi.mocked(generateStructuredContent).mockResolvedValueOnce(modelAnswer(range(4, 12), RAISED) as never);
+      if (path === 'the automatic close') {
+        after(3);
+        expect((await closeWeek()).status).toBe(200);
+      } else {
+        expect((await review(3, { reflection: '' })).status).toBe(200);
+      }
+      expect(generateStructuredContent).toHaveBeenCalledTimes(1);
+      expect(updatePrompt()).toContain('Test result: test logged: 12.5 km, passed');
+      expect(updateLines()).toHaveLength(1);
+    }
+  );
 
   it('runs nothing for week 12; then the close is as before (M3.4: a break runs it, below)', async () => {
     seed(12);
@@ -1026,6 +1047,22 @@ describe('M3.3a: the re-test (RULE-5, RULE-6, WU-53, WU-54, WU-56)', () => {
     expect(db.week(3).updateStatus).toBe('far_behind');
     expect(retestTag()).toBe('two_hard_weeks');
     expect(db.week(4).retestOfWeek).toBe(3);
+  });
+
+  it('M4.1b, AC-5: a shorter daily time answered after two hard weeks is the next written week\'s daily time', async () => {
+    seed(3);
+    db.goal().routine = JSON.stringify({ dailyMinutes: 60, planVariant: 'steady', sleepTime: '23:00', preferredSlot: 'evening' });
+    db.week(1).updateStatus = 'far_behind';
+    db.week(2).updateStatus = 'far_behind';
+    const res = await fetch(`${baseUrl}/api/goal/daily-time`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+      body: JSON.stringify({ minutes: 30 }),
+    });
+    expect(res.status).toBe(200);
+    expect(db.week(3).dailyTimeAskedAt).toBeInstanceOf(Date);
+    expect((await review(3, logged)).status).toBe(200);
+    expect(weekInput().dailyMinutes).toBe(30);
   });
 
   it('both at once give one re-test', async () => {

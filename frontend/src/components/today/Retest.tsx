@@ -5,9 +5,8 @@ import { useGoal } from '../../context/GoalContext';
 import { ApiError, answerDailyTime } from '../../lib/api';
 import { retestEntryWeek, retestLine } from '../../lib/retest';
 import { Button } from '../ui';
+import { NOT_SAVED } from '../../lib/weekClose';
 import { TestResultDialog } from './TestResultDialog';
-
-const NOT_SAVED = "That didn't save. Please try again.";
 
 /**
  * Weekly update M3.3b (RULE-5, RULE-6, AC-4, WU-17): on the re-test day, one status line saying why the week starts

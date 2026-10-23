@@ -522,7 +522,13 @@ describe('M1.5a review: the line belongs to the week, through the real close (ME
 });
 
 describe('WEEK_CLOSE_ENABLED off (RULE-18, R-7, AC-19)', () => {
-  it('a late review after 10 days: no break, no breakDays, no block, no line, the review insight', async () => {
+  // M4.1b (WU-62 (1)): state A (both unset) and state D (only WEEKLY_UPDATE_ENABLED) must agree.
+  it.each([
+    ['both switches unset', ''],
+    ['only WEEKLY_UPDATE_ENABLED on', 'true'],
+  ])('%s: a late review after 10 days: no break, no breakDays, no block, no line, the review insight', async (_name, update) => {
+    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
+    vi.stubEnv('WEEKLY_UPDATE_ENABLED', update);
     seed({ goal: RUN_10K, recovery: ENDURANCE });
     vi.mocked(generateWeekPlan).mockImplementation(async (input) => runWeek(input.weekStart));
     const res = await reviewWeek2(atGap(10));

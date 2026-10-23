@@ -7,8 +7,7 @@ import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
 import { LightTestEntry } from '../review/LightTestEntry';
 import { isLightTest, lightTestResult } from '../../lib/lightTest';
 import { Button, Dialog, DialogClose, DialogContent } from '../ui';
-
-const NOT_SAVED = "That didn't save. Please try again.";
+import { NOT_SAVED } from '../../lib/weekClose';
 
 /**
  * The dialog that logs a week's test result without closing any week (`PUT .../test-result`), then refreshes the goal.

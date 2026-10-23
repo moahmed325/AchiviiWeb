@@ -320,7 +320,13 @@ describe('a close after a gap (RULE-13, RULE-14, WU-13, WU-33 (2)), WEEK_CLOSE_E
 });
 
 describe('WEEK_CLOSE_ENABLED off (RULE-18, R-7, AC-19)', () => {
-  it('a late review closes the week exactly as before: no gap, no move, no days not offered', async () => {
+  // M4.1b (WU-62 (1)): state A (both unset) and state D (only WEEKLY_UPDATE_ENABLED) must agree.
+  it.each([
+    ['both switches unset', ''],
+    ['only WEEKLY_UPDATE_ENABLED on', 'true'],
+  ])('%s: a late review closes the week exactly as before: no gap, no move, no days not offered', async (_name, update) => {
+    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
+    vi.stubEnv('WEEKLY_UPDATE_ENABLED', update);
     seed();
     expect((await reviewWeek2(atGap(4))).status).toBe(200);
     expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: 0, startDate: START, targetDate: TARGET });

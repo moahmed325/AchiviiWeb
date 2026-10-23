@@ -12,6 +12,9 @@ export const WEEK_CLOSED_LINES = {
   alreadySaved: "This week's review is already saved.",
 } as const;
 
+/** M4.1b (section 6): what a test result or the daily-time answer that didn't save shows. */
+export const NOT_SAVED = "That didn't save. Please try again.";
+
 /**
  * The plan's end as it is now: day 90, `targetDate` minus one day, read as a UTC date (it is stored at UTC midnight).
  * In the viewer's locale like the app's other dates, with the year only when it isn't this year (both years read in
