@@ -171,6 +171,15 @@ describe('Daily time and the re-test in goal responses (weekly update M3.3b)', (
       expect(goal.retest).toBeNull();
       expect(goal.dailyTimeCheck).toBeNull();
     });
+
+    it('M4.1b, AC-19 state D: both null with only WEEKLY_UPDATE_ENABLED on, and the goal is the same as with both unset', async () => {
+      const unset = await active();
+      vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
+      const goal = await active();
+      expect(goal.retest).toBeNull();
+      expect(goal.dailyTimeCheck).toBeNull();
+      expect(goal).toEqual(unset);
+    });
   });
 
   describe('POST /daily-time', () => {
@@ -185,6 +194,13 @@ describe('Daily time and the re-test in goal responses (weekly update M3.3b)', (
       vi.stubEnv('WEEKLY_UPDATE_ENABLED', 'true');
       expect((await (await answer({ minutes: 30 })).json()).reason).toBe('weekly_update_disabled');
       expect(store.prisma.goal.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('M4.1b, state B: 409 weekly_update_disabled with only WEEK_CLOSE_ENABLED on, and nothing is written', async () => {
+      vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
+      expect((await (await answer({ minutes: 30 })).json()).reason).toBe('weekly_update_disabled');
+      expect(store.prisma.goal.findFirst).not.toHaveBeenCalled();
+      expect(store.prisma.roadmapWeek.updateMany).not.toHaveBeenCalled();
     });
 
     it('a shorter time sets dailyTimeAskedAt and routine.dailyMinutes, keeping the rest of the routine', async () => {

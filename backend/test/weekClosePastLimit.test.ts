@@ -387,7 +387,13 @@ describe('no test card after a break (WU-39)', () => {
 });
 
 describe('switch off (R-7, AC-19)', () => {
-  it('no choice in any answer, no jumps, the review works as before', async () => {
+  // M4.1b (WU-62 (1)): state A (both unset) and state D (only WEEKLY_UPDATE_ENABLED) must agree.
+  it.each([
+    ['both switches unset', ''],
+    ['only WEEKLY_UPDATE_ENABLED on', 'true'],
+  ])('%s: no choice in any answer, no jumps, the review works as before', async (_name, update) => {
+    vi.stubEnv('WEEK_CLOSE_ENABLED', '');
+    vi.stubEnv('WEEKLY_UPDATE_ENABLED', update);
     seed(2);
     expect((await check(atGap(2, 45))).body).toEqual({ due: false });
     expect((await close(atGap(2, 45), 'keep_going')).body).toEqual({ due: false });

@@ -152,6 +152,21 @@ At the end of every week, the plan looks at what really happened (the weekly tes
 | Safety lowered next week, not week 12 (WU-46 (3)) | "Next week aims at {amount}, a safe step." |
 | Safety lowered week 12 (WU-23) | "Week 12 aims at {safe}, a safe step. Your {goal} goal is the next step." With no number in the goal: "Week 12 aims at {safe}, a safe step." |
 | Safety lowered week 12 and the week next week shows is held at this week's target (WU-61 (3)) | Week 12's line, then " Next week stays at {amount}." |
+| A review sent for a week that is already reviewed or closed by a review (B-59) | "This week's review is already saved." |
+| A test result, or the daily-time answer, did not save | "That didn't save. Please try again." |
+| The test card's entry (WU-14) | Title: "Log last week's test" |
+| Today, re-test week: logging the re-test (WU-17) | Button and title: "Log re-test result" |
+| Saving a measured test result (the test card's entry, the re-test and the late test) | Button: "Save result" |
+| First week back of a high-load goal: the first line of each hard high-load step (WU-35 (2)) | "First week back: keep the effort easy today." |
+| High-load first week back: the test step code puts in when the model's is refused on the last attempt or left out (WU-41) | Step title: "Weekly test: an easy version" |
+| The re-test step on a high-load first week back, or in place of a re-test refused on the last attempt (WU-55) | Step title: "Re-test: an easy version" |
+
+**Light weekly tests (RULE-19, AC-20):**
+
+| Situation | Exact words |
+|---|---|
+| A light week's target (the Roadmap, the review, Today and the test entries) | "Next check, week {n}: {target}" |
+| Logging a light test (saves "Done" plus the note) | Button: "I did it" |
 
 `{level}` and `{amount}` are the amount with no metric label, with " or less" for a target where lower is better (`nextWeekSentence`); "next week" stays on both paths (WU-61 (2)).
 
