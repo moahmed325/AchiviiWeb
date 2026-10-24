@@ -198,7 +198,8 @@ describe('Achievement Metrics Calculation Engine (M9.3-R4)', () => {
     const evalData = extractFinalTestEvaluation(baseGoal);
     expect(evalData).not.toBeNull();
     expect(evalData?.testType).toBe('timer');
-    expect(evalData?.targetDeliverable).toBe('10k Race Time: 45 min');
+    // B-84: a lower-is-better target says so.
+    expect(evalData?.targetDeliverable).toBe('10k Race Time: 45 min or less');
     expect(evalData?.instructions).toBe('Run 10 kilometers all out on verified flat course');
     expect(evalData?.passCriteria).toBe('Sub-45:00');
     expect(evalData?.result?.value).toBe('44:18');

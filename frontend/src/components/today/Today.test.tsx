@@ -941,7 +941,7 @@ describe('Today', () => {
     ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Review 90-day staircase' })).toHaveAttribute('href', '/roadmap');
     expect(
-      screen.getByRole('button', { name: 'Complete Journey & Arrive at the Garden' })
+      screen.getByRole('button', { name: 'Complete my journey' })
     ).toBeVisible();
   });
 

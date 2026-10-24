@@ -14,7 +14,8 @@ async function userAfterSignIn(accessToken: string) {
     return await fetchCurrentUser(accessToken);
   } catch (error) {
     if (error instanceof TypeError) throw error;
-    throw new Error(ACCOUNT_LOAD_FAILED, { cause: error });
+    // The lib is ES2020, so the cause is set by hand.
+    throw Object.assign(new Error(ACCOUNT_LOAD_FAILED), { cause: error });
   }
 }
 

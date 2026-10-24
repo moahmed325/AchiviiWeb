@@ -1,6 +1,7 @@
 import type { Goal, DailyTask, RoadmapWeek, AchievementSummary, FinalTestEvaluation } from '../types';
 import { isRestLike } from './today';
 import { isLightTest } from './lightTest';
+import { formatTarget } from './formatters';
 
 /**
  * Derives verified, real achievement summary metrics from stored goal records.
@@ -106,10 +107,9 @@ export function extractFinalTestEvaluation(goal: Goal): FinalTestEvaluation | nu
   }
 
   const testType = week12?.test?.type || 'Capstone Benchmark Verification';
+  // B-84: formatTarget names the direction ("52 minutes or less" for a time).
   const targetDeliverable = week12?.target
-    ? week12.target.kind === 'number'
-      ? `${week12.target.metric}: ${week12.target.value} ${week12.target.unit}`
-      : week12.target.description
+    ? formatTarget(week12.target)
     : typeof roadmapFinalTest === 'string'
       ? roadmapFinalTest
       : undefined;
@@ -124,7 +124,7 @@ export function extractFinalTestEvaluation(goal: Goal): FinalTestEvaluation | nu
     week12?.test?.passIf ||
     (week12?.target
       ? week12.target.kind === 'number'
-        ? `Target: ≥ ${week12.target.value} ${week12.target.unit}`
+        ? `Target: ${week12.target.direction === 'lower_is_better' ? '≤' : '≥'} ${week12.target.value} ${week12.target.unit}`
         : week12.target.description
       : undefined);
 

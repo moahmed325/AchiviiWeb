@@ -393,7 +393,7 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
           trailingIcon={<Sparkles aria-hidden="true" strokeWidth={1.5} className="size-4 text-achievement" />}
           className="w-full sm:w-auto min-h-12 border-achievement/40 bg-surface-elevated hover:bg-surface text-text hover:border-achievement shadow-lg"
         >
-          Complete Journey & Arrive at the Garden
+          Complete my journey
         </Button>
 
         <Button

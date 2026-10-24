@@ -72,8 +72,9 @@ describe('jumped weeks on the Roadmap (M1.5b, WU-40 (1))', () => {
         <StrategicRoadmap journey={toJourneyData(goal, '2026-10-12')!} />
       </MemoryRouter>
     );
-    expect(screen.getByText('2 of 4 weeks')).toBeInTheDocument(); // Foundation: weeks 1 and 2
-    expect(screen.getByText('0 of 4 weeks')).toBeInTheDocument(); // Acceleration: week 5 jumped, week 6 open
+    // B-76: paused weeks are named next to the weeks done.
+    expect(screen.getByText('2 of 4 weeks done, 2 paused')).toBeInTheDocument(); // Foundation: weeks 1 and 2 done, 3 and 4 jumped
+    expect(screen.getByText('0 of 4 weeks done, 1 paused')).toBeInTheDocument(); // Acceleration: week 5 jumped, week 6 open
 
     const foundation = screen.getByRole('button', { name: /Foundation/ });
     await user.click(foundation);
