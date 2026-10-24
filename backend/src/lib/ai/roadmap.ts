@@ -922,6 +922,9 @@ export type RoadmapResult =
   | { ok: false; reason: string; unsafe?: boolean; lowSafety?: boolean };
 
 /** Prompt 2: the checkable 90-day goal, the method, its phases, and 12 weekly targets. */
+/** B-32: the roadmap call's attempts (the last one lets soft checks give way). */
+export const ROADMAP_ATTEMPTS = 3;
+
 export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResult> {
   const successAnswer = input.answers.find((item) => item.id === 'success')?.answer ?? '';
   const goalText = `${input.rawGoal} ${input.workingTitle} ${successAnswer}`;
@@ -955,7 +958,10 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
       lowSafety = 'reason' in verdict && verdict.reason.startsWith('"safety" is');
       return verdict;
     },
-    'Roadmap'
+    'Roadmap',
+    // B-32: a first answer that mixes number and deliverable weeks is common, and the retry fixes it; a third call keeps
+    // a second, different miss from becoming a 503.
+    ROADMAP_ATTEMPTS
   );
   // M2.1: the pathway's tests and light-week targets go in after the check, so the 40% week-1 rule (MAX_WEEK1_SHARE)
   // reads the model's own climb: on a split pathway week 1 shows week 4's target, as "Next check, week 4".
