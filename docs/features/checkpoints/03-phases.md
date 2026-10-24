@@ -8,7 +8,7 @@
 
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
-| M1 | Server: the check at the week 4 and 8 close, the stored offer, the answer route with its target changes, the goal response fields, the prompt line, logs | AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8, AC-9 (server), AC-10, AC-11 (logs) | READY | [m1](milestones/m1-server.md) |
+| M1 | Server: the check at the week 4 and 8 close, the stored offer, the answer route with its target changes, the goal response fields, the prompt line, logs | AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8, AC-9 (server), AC-10, AC-11 (logs) | DONE 2026-10-24 | [m1](milestones/m1-server.md) |
 | M2 | App and close: the Today card, the confirmation, the day-90 line, acceptance in the four switch states, docs | AC-5, AC-9, AC-11, all | NOT STARTED | |
 | O1 | Mo: goes live with weekly-update O2 (turning on `WEEKLY_UPDATE_ENABLED` turns on checkpoints, CP-8) | — | NOT STARTED (needs M2) | |
 
