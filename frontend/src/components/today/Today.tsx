@@ -32,6 +32,7 @@ import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
 import { LateTestCard } from './LateTestCard';
 import { DailyTimeCard, RetestNotice } from './Retest';
+import { CheckpointCard } from './Checkpoint';
 import { CLOSE_FAILED } from './WeekClose';
 import { closeLineWeek } from '../../lib/weekClose';
 import { markCloseLineSeen } from '../../lib/api';
@@ -476,6 +477,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
 
       {/* Weekly update M1.2b (RULE-9): the close couldn't write next week; the plan shows as stored. */}
       {goalContext.closeFailed && <ErrorState className="relative mt-10" title={CLOSE_FAILED} onRetry={retryClose} retrying={retryingClose} />}
+
+      {/* Checkpoints (RULE-7): the week 4 or 8 offer, first among Today's cards; not while the close failed. */}
+      {!goalContext.closeFailed && <CheckpointCard checkpoint={goal.checkpoint} />}
 
       {closeLine && (
         <Callout>

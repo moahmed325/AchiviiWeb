@@ -459,3 +459,33 @@ test.describe('layout, keyboard and motion', () => {
     for (const d of durations) expect(d).toBeLessThanOrEqual(0.001);
   });
 });
+
+/**
+ * Checkpoints M2 (RULE-7, RULE-11, AC-5, AC-9): after the week 4 close, Today shows the checkpoint card first; accepting
+ * says so, and the Roadmap shows the day-90 line under week 12. The server's `checkpoint` is mocked.
+ */
+const CHECKPOINT_EVIDENCE = '../docs/features/checkpoints/milestones/m2-evidence';
+
+test.describe('checkpoints (M2)', () => {
+  test('the week 4 card, accepting the realistic target, and the day-90 line', async ({ page }, testInfo) => {
+    const goal = { ...shellGoal(), checkpoint: { week: 4, kind: 'lower', target: '10 km', offered: '6 km', goal: '10 km', last: false, toFullGoal: false }, dayNinetyLine: null };
+    const calls = await openToday(page, { goal });
+    const shot = async (name: string) => {
+      if (process.env.EVIDENCE === '1') await page.screenshot({ path: `${CHECKPOINT_EVIDENCE}/${name}-${testInfo.project.name}.png`, scale: 'css' });
+    };
+
+    const card = page.getByRole('region', { name: 'A check on your pace' });
+    await expect(card.getByText("At this pace you'll reach about 6 km by day 90. Your day-90 target is 10 km.")).toBeVisible();
+    await card.scrollIntoViewIfNeeded();
+    await settled(page);
+    expect(await documentOverflow(page)).toBeLessThanOrEqual(1);
+    await shot('checkpoint-card');
+
+    await card.getByRole('button', { name: 'Aim for 6 km' }).click();
+    await expect(main(page).getByRole('status').filter({ hasText: 'Your day-90 target is now 6 km.' })).toBeVisible();
+    await expect(card).toHaveCount(0);
+    expect(calls.checkpoints).toEqual([{ week: 4, answer: 'accept' }]);
+    await settled(page);
+    await shot('checkpoint-accepted');
+  });
+});

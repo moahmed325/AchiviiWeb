@@ -433,6 +433,20 @@ export async function answerDailyTime(minutes: number, token: string): Promise<{
 }
 
 /**
+ * Checkpoints (RULE-8, RULE-9, section 7): the answer to the open offer. Refused (`ApiError`, 409 `no_checkpoint` or
+ * `weekly_update_disabled`) when there is no open offer for that week any more.
+ */
+export async function answerCheckpoint(week: number, answer: 'keep' | 'accept', token: string): Promise<{ week: number; answer: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/checkpoint`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ week, answer }),
+  });
+
+  return readJson(response, 'Failed to save');
+}
+
+/**
  * Weekly update M1.2b (WU-31): a review that lost to an automatic close saves its typed reflection onto that week.
  * Refused (`ApiError`, `code` `not_auto_closed` or `reflection_saved`) unless the week closed on its own with none yet.
  */

@@ -310,6 +310,8 @@ export interface CheckpointView {
   goal: string;
   /** Week 8: worded as the last check. */
   last: boolean;
+  /** A raise all the way back to the full goal (section 6 words it without "about"). */
+  toFullGoal: boolean;
 }
 
 export function checkpointViewOf(goal: GoalRead): CheckpointView | null {
@@ -326,6 +328,7 @@ export function checkpointViewOf(goal: GoalRead): CheckpointView | null {
     offered: open.offered === null ? null : amount(open.offered),
     goal: goalShown(week12, list[0].fullGoal),
     last: open.week === 8,
+    toFullGoal: open.kind === 'raise' && open.offered !== null && Math.abs(open.offered - list[0].fullGoal) < 1e-9,
   };
 }
 

@@ -13,7 +13,7 @@ import type { Goal, WeeklyTestResult, GoalCompletionPayload } from '../../types'
 import { useGoal } from '../../context/GoalContext';
 import { useUserTimezone } from '../../context/AuthContext';
 import { extractFinalTestEvaluation } from '../../lib/achievement';
-import { week12LineText } from '../../lib/week12Line';
+import { week12NoteText } from '../../lib/week12Line';
 import { dayNumber } from '../../lib/today';
 import { Button } from '../ui/Button';
 import { Field, Input, Textarea } from '../ui/Field';
@@ -76,7 +76,7 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
 
   const summitGoal = goal.roadmap?.finalGoal || goal.clarifiedOutcome || goal.rawGoal;
   // M1.3 (PSL-9): the honest line under the Summit Target when week 12 was lowered to a safe step.
-  const week12Line = week12LineText(goal.week12Line);
+  const week12Line = week12NoteText(goal);
 
   const handleReflectionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
