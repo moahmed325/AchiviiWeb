@@ -6,7 +6,7 @@ import { prisma } from '../src/lib/prisma.js';
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { EASY_START_LINE } from '../src/lib/recovery/easyStart.js';
-import { RECONCILE_GOAL_SELECT } from '../src/lib/reconcileCore.js';
+import { RECONCILE_GOAL_SELECT, type ReconcileBody } from '../src/lib/reconcileCore.js';
 import { PROFILE } from './methodProfile.js';
 
 // Method-aware recovery M3.1a: POST /api/goal/reconcile behind METHOD_RECOVERY_ENABLED, with carry writes still
@@ -123,6 +123,9 @@ function fakeTransaction(guards: number[]) {
   return { committed, attempted };
 }
 
+/** The body when reconcile applies: every test here reads `carry` and `signals`. */
+type AppliedBody = Extract<ReconcileBody, { carry: unknown }>;
+
 describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
   let server: Server;
   let baseUrl: string;
@@ -130,7 +133,8 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
 
   const reconcile = async () => {
     const res = await fetch(`${baseUrl}/api/goal/reconcile`, { method: 'POST', headers: { Authorization: 'Bearer t' } });
-    return { status: res.status, body: await res.json() };
+    // B-48: typed, so the file passes a strict typecheck.
+    return { status: res.status, body: (await res.json()) as AppliedBody };
   };
   const given = (activeGoal: unknown) => {
     (getAuthUser as any).mockResolvedValue(user);
@@ -332,13 +336,13 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     expect(tue.map((s: any) => s.title)).toEqual(['Lesson 3', 'Lesson 3 extra', 'Lesson 4 review']);
     expect(body.carry.written).toEqual(body.carry.carries);
     expect(body.carry.reorders).toHaveLength(1);
-    expect(body.carry.reorders[0]).toMatchObject({ weekNumber: 1, kind: 'lesson', waits: null });
-    expect(body.carry.reorders[0].sessions.map((s: any) => [s.taskId, s.holds.title, s.changed])).toEqual([
+    expect(body.carry.reorders![0]).toMatchObject({ weekNumber: 1, kind: 'lesson', waits: null });
+    expect(body.carry.reorders![0].sessions.map((s: any) => [s.taskId, s.holds.title, s.changed])).toEqual([
       ['tue', 'Lesson 3', true],
       ['wed', 'Lesson 4', true],
       ['fri', 'Lesson 5', true],
     ]);
-    expect(body.carry.reorders[0].toNextWeek.map((s: any) => [s.taskId, s.title])).toEqual([['fri', 'Lesson 6']]);
+    expect(body.carry.reorders![0].toNextWeek.map((s: any) => [s.taskId, s.title])).toEqual([['fri', 'Lesson 6']]);
     expect(body.carry.writtenReorders).toEqual(body.carry.reorders);
     expect(body.carry.outcomes).toEqual([{ taskId: 'mon', date: '2026-09-21', rules: 'method', outcome: 'moved', topStep: 'moved' }]);
 
@@ -353,9 +357,9 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(updateMany).not.toHaveBeenCalled();
     expect(again.body.carry.reorders).toHaveLength(1);
-    expect(again.body.carry.reorders[0].rows).toEqual([]);
+    expect(again.body.carry.reorders![0].rows).toEqual([]);
     expect(again.body.carry.carries).toEqual([]);
-    expect(again.body.carry.reorders[0].toNextWeek.map((s: any) => s.title)).toEqual(['Lesson 6']);
+    expect(again.body.carry.reorders![0].toNextWeek.map((s: any) => s.title)).toEqual(['Lesson 6']);
     expect(again.body.carry.outcomes).toEqual(body.carry.outcomes);
   });
 
@@ -404,7 +408,7 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     expect(body.carry.writtenReorders).toEqual([]);
     // The plan is still reported.
     expect(body.carry.reorders).toHaveLength(1);
-    expect(body.carry.reorders[0].rows).toHaveLength(4);
+    expect(body.carry.reorders![0].rows).toHaveLength(4);
   });
 
   it('M3.1c: carry switch off: the reorder is reported and nothing is written', async () => {
@@ -463,7 +467,7 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     expect(tue[0].instructions).toBe('Do tue practice.');
     expect(write.data.durationMinutes).toBe(30);
     expect(body.carry.writtenEasyStart).toEqual(body.carry.easyStart);
-    expect(body.carry.outcomes.map((o: any) => o.outcome)).toEqual(['in_gap', 'in_gap', 'in_gap']);
+    expect(body.carry.outcomes!.map((o: any) => o.outcome)).toEqual(['in_gap', 'in_gap', 'in_gap']);
 
     // Once: a replan after the write adds nothing.
     updateMany.mockClear();
