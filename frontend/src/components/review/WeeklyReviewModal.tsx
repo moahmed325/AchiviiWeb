@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { Goal, WeeklyReviewResponse, WeeklyTestResult } from '../../types';
-import { saveClosedWeekReflection, submitWeeklyReview } from '../../lib/api';
+import { ApiError, saveClosedWeekReflection, submitWeeklyReview } from '../../lib/api';
 import {
   clearReviewDraft,
   loadReviewDraft,
@@ -239,12 +239,9 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
         setReviewError("You're offline. Reconnect to submit your weekly review.");
       } else {
         const message = err instanceof Error ? err.message : '';
-        if (
-          message.includes('503') ||
-          message.includes("Couldn't write next week") ||
-          message.includes('adaptation') ||
-          !message
-        ) {
+        // B-45: read the status, not the message text.
+        const status = err instanceof ApiError ? err.status : null;
+        if ((status !== null && status >= 500) || !message) {
           setReviewError("Couldn't write next week right now. This week is unchanged; please try again.");
         } else {
           setReviewError(message);

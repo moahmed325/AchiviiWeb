@@ -6,7 +6,8 @@ import type { DailyTask, Goal, RoadmapWeek, WeeklyReviewResponse } from '../../t
 import { WeeklyReviewModal } from './WeeklyReviewModal';
 import { loadReviewDraft, loadTestResultDraft } from '../../lib/reviewDraft';
 
-vi.mock('../../lib/api', () => ({
+vi.mock('../../lib/api', async (importOriginal) => ({
+  ApiError: (await importOriginal<typeof import('../../lib/api')>()).ApiError,
   submitWeeklyReview: vi.fn(),
   saveClosedWeekReflection: vi.fn(),
 }));
@@ -337,9 +338,8 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
     const goal = createSampleGoal(tasks);
     const onGoalUpdated = vi.fn();
 
-    mockedApi.submitWeeklyReview.mockRejectedValueOnce(
-      new Error("Couldn't write next week right now. This week is unchanged; please try again.")
-    );
+    // B-45: the copy comes from the status, not the message text.
+    mockedApi.submitWeeklyReview.mockRejectedValueOnce(new api.ApiError('Server busy', 503));
 
     render(
       <WeeklyReviewModal
