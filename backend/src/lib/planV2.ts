@@ -24,6 +24,7 @@ import { FIRST_WEEK_BACK_LONG_BREAK_PERCENT } from './safety/limits.js';
 import type { DetailedStep } from './ai/goalDecomposer.js';
 import { logSafetyHit } from './ai/safetyScan.js';
 import { safeGoalTargets } from './safety/storedTargets.js';
+import { dayNinetyLineOf } from './weekClose/checkpoint.js';
 import { handoffBrief, placeHandoff, weekHandoff, type HandoffPlacement, type HandoffTask, type WeekHandoff } from './recovery/handoff.js';
 import { readRecoveryProfile, type RecoveryProfile } from './recovery/profile.js';
 import { methodRecoveryEnabled } from './recovery/switch.js';
@@ -230,8 +231,11 @@ export async function writeNextWeek(
   const lastLight = (done?.test as unknown as WeekTest | null)?.light === true;
   const session = lightTestSession(next.test as unknown as WeekTest, goal.rawGoal, goal.clarifiedOutcome);
   const load = loadGoalInput(goal, next.target as unknown as WeekTarget);
+  // Checkpoints (RULE-12): the day-90 line only while a choice stands, so the call is otherwise exactly as before.
+  const dayNinety = dayNinetyLineOf(goal);
   const days = await generateWeekPlan({
     finalGoal: stored.finalGoal,
+    ...(dayNinety ? { dayNinety } : {}),
     answers: stored.answers,
     dailyMinutes: routine.dailyMinutes,
     planVariant: routine.planVariant,

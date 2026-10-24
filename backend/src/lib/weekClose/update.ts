@@ -33,7 +33,7 @@ import { weekLayout, type WeekDayPlan } from '../ai/weekPlan.js';
 import type { WeekTest } from '../ai/roadmap.js';
 import { restartLevel, type PastLimitChoice } from './breaks.js';
 import type { Restart } from '../recovery/profile.js';
-import { BIG_TEST_WEEKS, formatAmount, pathwayFor, statedTargetText, TOTAL_WEEKS, type LoweredTarget, type WeekTarget } from '../ai/roadmap.js';
+import { BIG_TEST_WEEKS, pathwayFor, shownAmount, statedTargetText, TOTAL_WEEKS, type LoweredTarget, type WeekTarget } from '../ai/roadmap.js';
 import { logSafetyHit } from '../ai/safetyScan.js';
 import { parseStoredSteps } from '../carryForward.js';
 import { weekCounts } from '../missedSignals.js';
@@ -47,6 +47,7 @@ import { nextSafeStep } from '../safety/targetSteps.js';
 import { isWeekTarget, safeGoalTargets, safeStoredTargets, testOf, week12LineFor, withTargetText } from '../safety/storedTargets.js';
 import { AUTO_CLOSE_INSIGHT, autoCloseInsight, jumpedWeeks, planWeekMove, weekScore, writeWeekAfter, type ClosingGoal, type WeekMove } from './close.js';
 import { weeklyUpdateEnabled } from './switch.js';
+import { dayNinetyLineOf } from './checkpoint.js';
 
 /** A week left whose stored target the update changes, with the code-written text that follows it. */
 export interface UpdatedWeek {
@@ -114,11 +115,6 @@ export function week12Sentence(line: { safe: string; goal: string | null }): str
 /** WU-46 (3): next week's line when safety lowered next week and not week 12; the amount with no metric label. */
 export function nextWeekSentence(target: WeekTarget): string {
   return `Next week aims at ${shownAmount(target)}, a safe step.`;
-}
-
-/** The amount with no metric label, " or less" for a lower-is-better target; a deliverable's text. */
-function shownAmount(target: WeekTarget): string {
-  return target.kind === 'number' ? `${formatAmount(target.value, target.unit)}${target.direction === 'lower_is_better' ? ' or less' : ''}` : target.description;
 }
 
 /** WU-48: a fallback that kept a hold (in section 6's copy table as it is, WU-61 (2)). */
@@ -481,6 +477,9 @@ async function runUpdate(
   };
   const kinds = kindsOf(goal, weekBefore);
   if (kinds) input.kinds = kinds;
+  // Checkpoints (RULE-12): the day-90 line only while a choice stands, so the input is otherwise exactly as before.
+  const dayNinety = dayNinetyLineOf(goal);
+  if (dayNinety) input.dayNinety = dayNinety;
   // A close that is not a break builds exactly the input it built before M3.4 (requirement 2).
   if (nextWeek !== weekNumber + 1) input.nextWeek = nextWeek;
   // M3.4 (RULE-16, WU-59 (1)): a break restarts next week at the return rule's level; none when next week shows week 12's

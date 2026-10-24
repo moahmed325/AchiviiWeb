@@ -11,6 +11,7 @@ import { formatAmount, formatTarget, TOTAL_WEEKS, type WeekTarget } from './road
 import { sameUnit } from '../research/statedTarget.js';
 import { harder } from '../safety/targetSteps.js';
 import type { Restart } from '../recovery/profile.js';
+import { dayNinetyPromptLine, type DayNinetyLine } from './dayNinety.js';
 
 export const UPDATE_STATUSES = ['on_track', 'a_bit_behind', 'far_behind'] as const;
 export type UpdateStatus = (typeof UPDATE_STATUSES)[number];
@@ -91,6 +92,8 @@ export interface WeeklyUpdateInput {
   nextWeek?: number;
   /** M3.4 (RULE-16, WU-59): on a break, the return rule's restart; missing on any other close. */
   restart?: UpdateRestart;
+  /** Checkpoints (RULE-12): only while the goal response sends `dayNinetyLine`; without it the prompt is exactly as before. */
+  dayNinety?: DayNinetyLine;
 }
 
 /** M3.4 (WU-59 (1), (2)): a break's restart, as `restartLevel` gives it, with the days away. */
@@ -380,6 +383,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   const lines: string[] = [
     'THE PLAN',
     `Goal: ${input.finalGoal}`,
+    ...(input.dayNinety ? [dayNinetyPromptLine(input.dayNinety)] : []),
     `Method: ${method}. Rules: ${input.method.rules.join('; ')}`,
     'Weeks left, as currently planned:',
     ...input.weeksLeft.map((week) => targetLine(week, input.weeksLeft)),

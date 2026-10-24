@@ -152,6 +152,14 @@ export function formatTarget(target: WeekTarget): string {
   return metricRepeatsUnit(target.metric, target.unit) ? `${amount}${suffix}` : `${target.metric}: ${amount}${suffix}`;
 }
 
+/**
+ * The amount with no metric label, " or less" for a lower-is-better target; a deliverable's text. The weekly update's
+ * safe-step lines and the checkpoints' amounts (checkpoints RULE-7) show it this way.
+ */
+export function shownAmount(target: WeekTarget): string {
+  return target.kind === 'number' ? `${formatAmount(target.value, target.unit)}${target.direction === 'lower_is_better' ? ' or less' : ''}` : target.description;
+}
+
 const ROADMAP_SYSTEM = `You design the 12-week roadmap for one person's goal. You do not write daily tasks; another step does that.
 
 Your job, in order:

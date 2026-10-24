@@ -10,8 +10,10 @@ import { ensureRecoveryProfile } from '../recovery/store.js';
 import { methodRecoveryEnabled } from '../recovery/switch.js';
 import { loadGoalFor } from '../safety/stepLoad.js';
 import type { LoweredTarget, WeekTarget } from '../ai/roadmap.js';
-import { weekCloseEnabled } from './switch.js';
+import { weekCloseEnabled, weeklyUpdateEnabled } from './switch.js';
 import type { PlannedUpdate } from './update.js';
+import { answerLogLine, expireOpen, openCheckpoint, readCheckpoints } from './checkpoint.js';
+import type { CloseCheckpoint } from './checkpointClose.js';
 import {
   BREAK_FROM_GAP_DAYS,
   FINAL_WEEK_INSIGHT,
@@ -123,6 +125,31 @@ export interface WeekMove {
 }
 
 /** M1.5b (WU-19, WU-40 (1)): the weeks a move jumps, first to last; empty for an ordinary close. */
+/**
+ * Checkpoints (RULE-9 review): thrown inside the close's transaction when the open offer was accepted after the close
+ * loaded the goal, so nothing is saved; both close routes answer it with their 503 and the next try reads the new targets.
+ */
+export class CheckpointAcceptedError extends Error {
+  constructor(goalId: string, weekNumber: number) {
+    super(`[Checkpoint] goal ${goalId} week ${weekNumber} close not saved: the open offer was accepted during the close`);
+    this.name = 'CheckpointAcceptedError';
+  }
+}
+
+/**
+ * Week 12's `loweredTargets` entry and a pathway's `finalTest` from the update, set on `roadmap` (changed in place and
+ * returned): what the close stores, and the roadmap the checkpoint check reads before it does.
+ */
+export function withUpdateEntries(roadmap: Record<string, unknown>, update: PlannedUpdate | null | undefined): Record<string, unknown> {
+  if (update?.week12) {
+    const kept = Array.isArray(roadmap.loweredTargets) ? (roadmap.loweredTargets as LoweredTarget[]).filter((item) => item.week !== TOTAL_WEEKS) : [];
+    roadmap.loweredTargets = [...kept, update.week12].sort((a, b) => a.week - b.week);
+  }
+  // M3.1 review (WU-46): a pathway's week 12 test names its target, so `finalTest` follows a lowered week 12.
+  if (update?.finalTest) roadmap.finalTest = update.finalTest;
+  return roadmap;
+}
+
 export function jumpedWeeks(closedWeek: number, move: Pick<WeekMove, 'weekBack'> | null | undefined): number[] {
   const weeks: number[] = [];
   for (let week = closedWeek + 1; move && week < move.weekBack; week++) weeks.push(week);
@@ -256,6 +283,8 @@ export interface WeekCloseInput {
   update?: PlannedUpdate | null;
   /** M3.3a (item 6): the week the new week re-tests (`retestOfWeekFor`); not written when missing or null. */
   retestOfWeek?: number | null;
+  /** Checkpoints (RULE-2): from `checkpointsAtClose`; an offer is stored and every line logged only by the close that wins. */
+  checkpoints?: CloseCheckpoint[];
 }
 
 export interface SavedClose {
@@ -277,9 +306,16 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
   const nextWeek = move?.weekBack ?? weekNumber + 1;
   const jumped = jumpedWeeks(weekNumber, move);
   const closedAt = input.now ?? new Date();
+  // Checkpoints (RULE-1, RULE-2, RULE-8): only with the weekly update. The roadmap is read for them only when the goal as
+  // loaded has an open offer or this close makes one, so a goal with neither closes with exactly the reads it had. An
+  // offer can only be opened by a close, so the loaded goal can't miss one; whether it is still open is read inside.
+  const checkpointsOn = weeklyUpdateEnabled();
+  const offers = checkpointsOn ? (input.checkpoints ?? []).flatMap((item) => (item.entry ? [item.entry] : [])) : [];
+  const checkpointRead = checkpointsOn && (offers.length > 0 || openCheckpoint(readCheckpoints(goal.roadmap)) !== null);
+  const logs: string[] = [];
 
   // About eight round trips after the model call; Prisma's default of 5 s is too tight for a slow database.
-  return prisma.$transaction(async (tx) => {
+  const saved = await prisma.$transaction(async (tx) => {
     const won = await tx.roadmapWeek.updateMany({
       where: { goalId: goal.id, weekNumber, status: 'active' },
       data: {
@@ -308,17 +344,29 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
         },
       });
     }
-    if (input.update?.week12 || input.update?.finalTest) {
-      // Read inside the transaction: the close may have written the recovery profile into the roadmap since the goal was loaded.
+    if (input.update?.week12 || input.update?.finalTest || checkpointRead) {
+      // Read inside the transaction: the close may have written the recovery profile into the roadmap since the goal was
+      // loaded, and an answer to the open offer may have been saved (it holds the open week's row, as this close does).
       const row = await tx.goal.findFirst({ where: { id: goal.id }, select: { roadmap: true } });
       const roadmap = { ...((row?.roadmap ?? {}) as Record<string, unknown>) };
-      if (input.update.week12) {
-        const kept = Array.isArray(roadmap.loweredTargets) ? (roadmap.loweredTargets as LoweredTarget[]).filter((item) => item.week !== TOTAL_WEEKS) : [];
-        roadmap.loweredTargets = [...kept, input.update.week12].sort((a, b) => a.week - b.week);
+      let changed = Boolean(input.update?.week12 || input.update?.finalTest);
+      if (checkpointRead) {
+        // RULE-9 review: an offer accepted after this close loaded the goal changed targets the update and the week
+        // written did not see; saving would put the old targets back over the accepted ones. Nothing is saved.
+        const loadedOpen = openCheckpoint(readCheckpoints(goal.roadmap));
+        if (loadedOpen && readCheckpoints(roadmap).some((item) => item.week === loadedOpen.week && item.answer === 'accept')) {
+          throw new CheckpointAcceptedError(goal.id, weekNumber);
+        }
+        // RULE-8: an offer still open is stored as keep, by expired, before this close's own offer.
+        const { list, expired } = expireOpen(readCheckpoints(roadmap), closedAt);
+        if (expired.length > 0 || offers.length > 0) {
+          roadmap.checkpoints = [...list, ...offers];
+          changed = true;
+        }
+        logs.push(...expired.map((item) => answerLogLine(goal.id, item)));
       }
-      // M3.1 review (WU-46): a pathway's week 12 test names its target, so `finalTest` follows a lowered week 12.
-      if (input.update.finalTest) roadmap.finalTest = input.update.finalTest;
-      await tx.goal.update({ where: { id: goal.id }, data: { roadmap: roadmap as unknown as Prisma.InputJsonObject } });
+      withUpdateEntries(roadmap, input.update);
+      if (changed) await tx.goal.update({ where: { id: goal.id }, data: { roadmap: roadmap as unknown as Prisma.InputJsonObject } });
     }
 
     // WU-33 (3): a week with no score stores 0 of 0 here, because these columns can't be empty.
@@ -354,6 +402,11 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
     }
     return { review, nextTasks };
   }, { timeout: 15_000 });
+  // RULE-13: the expired answers first, then this close's checkpoint lines; nothing for a close that lost.
+  if (saved && checkpointsOn) {
+    for (const line of [...logs, ...(input.checkpoints ?? []).map((item) => item.line)]) console.log(line);
+  }
+  return saved;
 }
 
 /**
