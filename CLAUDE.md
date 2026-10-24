@@ -58,10 +58,10 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 
 ## Database
 
-- Postgres is required everywhere, local included; there is no SQLite mode. The database must allow the pgvector extension, because the migrations run `CREATE EXTENSION vector` for the `research_cache` table's `vector(768)` column.
+- Postgres is required everywhere, local included; there is no SQLite mode. The database must allow the pgvector extension, because the older migrations run `CREATE EXTENSION vector` (for the `research_cache` table, since dropped).
 - Always use `prisma migrate deploy`, never `prisma db push`. `db push` skips the migrations folder, which holds `CREATE EXTENSION vector` and the raw-SQL indexes, so the database drifts from the migration history.
 - For Supabase use the session pooler connection string; the direct host is IPv6-only.
-- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview`, `ResearchCache` (`backend/prisma/schema.prisma`). No code reads or writes `ResearchCache` any more (the live research pipeline was removed); the table and its migrations stay until dropping them is decided separately.
+- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16).
 
 ## Backend architecture
 
