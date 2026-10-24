@@ -14,6 +14,8 @@ import { targetFamily } from './targetSteps.js';
 export interface LoadGoal {
   /** run10k, or a running-distance or running-time target: the model's own test step carries a run load (PSL-11 Q9). */
   running: boolean;
+  /** B-89: the profile's kinds marked `highLoad`; a step of one needs some load, like a flagged step. */
+  highLoadKinds?: readonly string[];
 }
 
 /**
@@ -93,7 +95,8 @@ export function loadNeed(step: Pick<DetailedStep, 'kind' | 'highLoad'>, modelTes
   if (modelTestStep && goal.running) return 'run';
   if (step.kind && RUN_KINDS.includes(step.kind)) return 'run';
   if (step.kind === LIFT_KIND) return 'lift';
-  return step.kind === CARDIO_KIND || step.highLoad === true ? 'any' : null;
+  const highLoadKind = step.kind !== undefined && step.kind !== null && (goal.highLoadKinds ?? []).includes(step.kind);
+  return step.kind === CARDIO_KIND || step.highLoad === true || highLoadKind ? 'any' : null;
 }
 
 /**

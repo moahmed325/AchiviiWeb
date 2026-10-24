@@ -195,6 +195,14 @@ describe('checkWeekAnswer', () => {
     expect(reason(checkWeekAnswer(warmUp, input))).toMatch(/Weekly test: \.\.\./);
   });
 
+  it('asks a rest-day step that names running for a run load on a running goal (B-90)', () => {
+    const restRun = week((days) => {
+      days[3].steps = [step('Easy 10-minute jog', 1, 10)];
+    });
+    expect(reason(checkWeekAnswer(restRun, { ...input, loadGoal: { running: true } }))).toMatch(/Day 4 step "Easy 10-minute jog"[^.]*runMinutes or runKm/);
+    expect(reason(checkWeekAnswer(week(), { ...input, loadGoal: { running: true } }))).not.toMatch(/Day 4 step/);
+  });
+
   it('rejects a practice day with no steps, even on the last attempt', () => {
     expect(reason(checkWeekAnswer(week((days) => { days[0].steps = []; }), input, true))).toMatch(/needs 2 to 4 steps; got 0/);
   });

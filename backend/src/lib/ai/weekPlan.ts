@@ -748,7 +748,8 @@ export function checkWeekAnswer(
   const recovery = input.recovery ?? null;
   /** RULE-6: hard reasons; they never give way on the last attempt (MR-5, MR-16). */
   const kindFailures: string[] = [];
-  const loadGoal = input.loadGoal;
+  // B-89: a profile kind marked highLoad (one the profile call made up, a `tempo_run`) needs a load too.
+  const loadGoal = input.loadGoal && { ...input.loadGoal, highLoadKinds: (recovery?.kinds ?? []).filter((kind) => kind.highLoad === true).map((kind) => kind.id) };
   const retestDay = input.retest ? retestDayOf(layout, input.retest.notOfferedBefore) : null;
   /** Plan safety limits M2.1 (RULE-4): steps PSL-8 names that came without their load; soft, kept on the last attempt. */
   const loadMisses: LoadMiss[] = [];
@@ -789,7 +790,7 @@ export function checkWeekAnswer(
         withMinutes(cleanStep(step, false) as ParsedStep, Math.min(REST_STEP_MAX_MINUTES, step.durationMinutes || REST_STEP_MAX_MINUTES))
       );
       // Checked as ranked, so each miss holds the step number the day returns.
-      if (loadGoal) loadMisses.push(...stepLoadMisses(slot.dayNumber, rankSteps(light), false, loadGoal));
+      if (loadGoal) loadMisses.push(...stepLoadMisses(slot.dayNumber, rankSteps(light), false, loadGoal, true));
       days.push({
         dayNumber: slot.dayNumber,
         date: slot.date,
@@ -1239,6 +1240,9 @@ function logRunMinutesOver(days: WeekDayPlan[], input: WeekCallInput, lastAttemp
  * Plan safety limits M2.1: one step that needed its load and came without it. `stepNumber` is its place in the day as
  * returned (`rankSteps` sets it; nothing after changes it), null for the 10-minute version; `title` as checked.
  */
+/** B-90: words that name running in a rest-day step. "Walk" is not running. */
+const RUNNING_WORDS = /\b(?:run|runs|running|jog|jogs|jogging|stride|strides)\b/i;
+
 interface LoadMiss {
   day: number;
   name: string;
@@ -1251,9 +1255,11 @@ interface LoadMiss {
  * RULE-4, PSL-8: the steps of one day (ranked, as returned) that need a load and lack it, plus any step whose load
  * names running without `hardRun`. `hasTest`: the model wrote the day's test step.
  */
-function stepLoadMisses(day: number, steps: DetailedStep[], hasTest: boolean, loadGoal: LoadGoal): LoadMiss[] {
+function stepLoadMisses(day: number, steps: DetailedStep[], hasTest: boolean, loadGoal: LoadGoal, restDay = false): LoadMiss[] {
   return steps.flatMap((step) => {
-    const missing = missingLoad(step.load, loadNeed(step, hasTest && TEST_STEP.test(step.title), loadGoal));
+    // B-90: a rest-day step has lost its kind (MR-15), so on a running goal one that names running is asked for a run load.
+    const restRun = restDay && loadGoal.running && RUNNING_WORDS.test(`${step.title} ${step.instructions ?? ''}`);
+    const missing = missingLoad(step.load, restRun ? 'run' : loadNeed(step, hasTest && TEST_STEP.test(step.title), loadGoal));
     return missing ? [{ day, name: `Day ${day} step "${step.title}"`, stepNumber: step.stepNumber, title: step.title, missing }] : [];
   });
 }
