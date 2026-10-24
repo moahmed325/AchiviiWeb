@@ -109,6 +109,7 @@ const SAME_UNIT: readonly (readonly string[])[] = [
   ['kg', 'kgs', 'kilo', 'kilos', 'kilogram', 'kilograms'],
   ['lb', 'lbs', 'pound', 'pounds'],
   ['mi', 'mile', 'miles'],
+  ['m', 'metre', 'metres', 'meter', 'meters'],
   ['percent', '%', 'percentage'],
 ];
 
@@ -158,6 +159,8 @@ const ARTICLE_BEFORE = /\b(?:a|an|the|my|first|your)\s+$/i;
 const EVENT_AFTER = /^\s*(?:race|run\b|road|event|fun\s+run|parkrun|trail|in\b|under\b|below\b|sub\b|within\b)/i;
 /** M1.2 review: a distance right after a running verb is the event too ("run 10 km without stopping", "run 5km"). */
 const RUN_VERB_BEFORE = /\b(?:run|runs|running|ran|jog|jogs|jogging)\s+$/i;
+/** B-87: a body weight named as a level ("weigh 70 kg", "a body weight of 150 pounds"): left unread. */
+const WEIGH_BEFORE = /\b(?:weigh|weighs|weighing|weight(?:\s+of)?)\s+(?:about\s+|around\s+|under\s+|below\s+)?$/i;
 const SHORT_UNIT: Record<string, string> = { kg: 'kg', kgs: 'kg', km: 'km', kms: 'km', lb: 'lb', mi: 'mi' };
 
 /**
@@ -165,7 +168,9 @@ const SHORT_UNIT: Record<string, string> = { kg: 'kg', kgs: 'kg', km: 'km', kms:
  * "40 words per minute", "under 50 minutes", "3 balls", "three balls".
  * A race name like "10K" and a plan length like "12 weeks" are not targets.
  */
-export function extractStatedTargets(goal: string): StatedTarget[] {
+export function extractStatedTargets(text: string): StatedTarget[] {
+  // B-33: "10,000 metres" reads as 10000.
+  const goal = text.replace(/(\d),(?=\d{3}\b)/g, '$1');
   const found: StatedTarget[] = [];
   const used = new Set<string>();
 
@@ -242,9 +247,23 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
       add(target(`${value} ${unit}`, value, unit, 'higher_is_harder', 'at_least', 'lose'));
       continue;
     }
+    // B-87: "weigh 70 kg" is a level that is at most when losing and at least when gaining; the goal doesn't say which.
+    if (WEIGH_BEFORE.test(before)) continue;
     const distance = unit === 'km' || unit === 'mi';
     if (distance && (ARTICLE_BEFORE.test(before) || RUN_VERB_BEFORE.test(before) || EVENT_AFTER.test(goal.slice(end)))) continue;
     add(target(`${value} ${unit}`, value, unit, 'higher_is_harder', 'at_least'));
+  }
+
+  // B-33: "1500 m", "swim 400m". Not money or a count ("$1m", "2m followers") and not a named event ("a 100 m sprint").
+  for (const match of goal.matchAll(/\b(\d+(?:\.\d+)?)\s*m\b(?!\s*(?:followers|subscribers|users|views|downloads|plays|streams|listeners|readers|members|customers|people|dollars|revenue|sprint|race|dash|event)\b)/gi)) {
+    const value = numberToken(match[1]);
+    if (!value) continue;
+    const at = match.index ?? 0;
+    const end = at + match[0].length;
+    if (/[$£€]\s*$/.test(goal.slice(0, at))) continue;
+    taken.push([at, end]);
+    if (notATarget(at, end, 'metres') || ARTICLE_BEFORE.test(beforeAt(at))) continue;
+    add(target(`${value} metres`, value, 'metres', 'higher_is_harder', 'at_least'));
   }
 
   for (const match of goal.matchAll(/\b(?:under|below|less than|sub-?)\s*(\d+(?:\.\d+)?)\s*(minutes?|mins?|min|seconds?|secs?|hours?|hrs?)\b/gi)) {
@@ -286,6 +305,7 @@ export function extractStatedTargets(goal: string): StatedTarget[] {
     const before = goal.slice(Math.max(0, at - 16), at);
     if (/\b(?:under|below|less than|sub-?)\s*$/i.test(before)) continue;
     if (/^words?$/.test(noun) && /per\s+minute/i.test(goal.slice(at, at + match[0].length + 16))) continue;
+    if (WEIGH_BEFORE.test(before) && aliasesFor('lb').concat(aliasesFor('kg')).includes(noun)) continue;
     // M1.2 (PSL-5): "lose 10 pounds" is a change, checked against the starting point.
     add(target(`${value} ${noun}`, value, noun, 'higher_is_harder', 'at_least', LOSE_BEFORE.test(before) ? 'lose' : undefined));
   }
