@@ -12,6 +12,7 @@ import {
   findNextTask,
   isToday,
   isWeekReviewDue,
+  todayKey,
   isClosingStretchActive,
   isRestLike,
   missNotice,
@@ -188,7 +189,16 @@ const PathwayNotice: React.FC = () => {
 const dayLabel = (task: DailyTask, now: Date, timezone?: string) => `${task.dayOfWeek.slice(0, 3)} ${task.date.slice(8)}${isToday(task, now, timezone) ? ', today' : ''}`;
 
 const dayState = (task: DailyTask, now: Date, timezone?: string) =>
-  task.status === 'completed' ? 'done' : isRestLike(task) ? 'rest day' : isToday(task, now, timezone) ? 'to do' : 'not done';
+  task.status === 'completed'
+    ? 'done'
+    : isRestLike(task)
+      ? 'rest day'
+      : isToday(task, now, timezone)
+        ? 'to do'
+        : // B-71: a day still ahead is upcoming, not "not done".
+          task.date > todayKey(now, timezone)
+          ? 'upcoming'
+          : 'not done';
 
 /** Which `dash-day` mark a day gets. Shape carries the state as well as colour. */
 const markState = (task: DailyTask, now: Date, timezone?: string) =>
@@ -561,10 +571,13 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               <h2 id="step-heading" className="mt-6 max-w-[24ch] break-words text-h2 text-text">
                 {shown.title}
               </h2>
-              <p className="tabular mt-4 inline-flex items-center gap-2 text-small text-text-secondary">
-                <Clock aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0 text-achievement" />
-                {shown.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
-              </p>
+              {/* B-72: a rest day stores 0 minutes; it shows none, not the 30-minute fallback. */}
+              {!task.isRestDay && (
+                <p className="tabular mt-4 inline-flex items-center gap-2 text-small text-text-secondary">
+                  <Clock aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0 text-achievement" />
+                  {shown.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
+                </p>
+              )}
               {task.isRestDay && (
                 <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">
                   Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity.

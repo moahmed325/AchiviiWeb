@@ -660,6 +660,9 @@ describe('Today', () => {
       await renderToday();
       expect(screen.getByText("Today's rest")).toBeInTheDocument();
       expect(lines()).toHaveLength(0);
+      // B-72: a rest day shows no minutes.
+      // (The "Tomorrow" preview of the next practice day keeps its minutes.)
+      expect(screen.getByRole('region', { name: tasks[2].title }).textContent?.split('Tomorrow')[0]).not.toMatch(/\d+ min/);
     });
 
     it('belongs to today only, not to another selected day', async () => {
@@ -1671,6 +1674,8 @@ describe('Today after a move (weekly update M1.4)', () => {
     expect(days[0]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
     expect(days[1]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
     expect(days[2]).toHaveAccessibleName(expect.stringMatching(/, today, to do$/));
+    // B-71: a day still ahead reads as upcoming.
+    expect(days[3]).toHaveAccessibleName(expect.stringMatching(/, upcoming$/));
     // Six practice days less the two not offered.
     expect(screen.getByText('0 of 4 practice days done')).toBeInTheDocument();
   });
@@ -1688,7 +1693,8 @@ describe('Today after a move (weekly update M1.4)', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Show week' }));
     await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
-    const card = screen.getByRole('region', { name: 'Lesson 100' });
+    // B-73: the rest view names no practice.
+    const card = screen.getByRole('region', { name: 'No practice planned' });
     expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
     expect(within(card).getByText('Rest day')).toBeInTheDocument();
     // Review fix 1: nothing to complete on a day not offered.
@@ -1718,7 +1724,8 @@ describe('Today after a move (weekly update M1.4)', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Show week' }));
     await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
-    const card = screen.getByRole('region', { name: 'Lesson 100' });
+    // B-73: the rest view names no practice.
+    const card = screen.getByRole('region', { name: 'No practice planned' });
     expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
     expect(within(card).queryByText('Why Monday matters')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Implementation intention/ })).not.toBeInTheDocument();
