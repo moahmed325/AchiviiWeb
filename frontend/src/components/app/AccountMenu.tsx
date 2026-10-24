@@ -41,10 +41,23 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut
   const [billing, setBilling] = useState<BillingAccountState | null>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [billingLoading, setBillingLoading] = useState(false);
+  // B-79: a billing answer that lands after the panel closed (or the test's jsdom is gone) is ignored.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const loadBilling = useCallback(async () => {
     if (!token) return;
     setBillingLoading(true); setBillingError(null);
-    try { setBilling(await fetchBillingAccountState(token)); } catch (error) { setBillingError(error instanceof Error ? error.message : 'Unable to load billing status.'); } finally { setBillingLoading(false); }
+    try {
+      const state = await fetchBillingAccountState(token);
+      if (mounted.current) setBilling(state);
+    } catch (error) {
+      if (mounted.current) setBillingError(error instanceof Error ? error.message : 'Unable to load billing status.');
+    } finally {
+      if (mounted.current) setBillingLoading(false);
+    }
   }, [token]);
   useEffect(() => { void loadBilling(); }, [loadBilling]);
   const { activeGoal } = useGoal();
