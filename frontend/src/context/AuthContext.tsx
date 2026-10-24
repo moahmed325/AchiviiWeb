@@ -3,7 +3,20 @@ import type { Session } from '@supabase/supabase-js';
 import { User } from '../types';
 import { fetchCurrentUser } from '../lib/api';
 import { supabase } from '../lib/supabase';
-import { fromSupabaseAuthError } from '../lib/authFlow';
+import { ACCOUNT_LOAD_FAILED, fromSupabaseAuthError } from '../lib/authFlow';
+
+/**
+ * B-44: after Supabase accepted the password, a failed `/me` is our side, not wrong credentials (`/me` answers 401 for
+ * a database error too). A lost connection stays a TypeError, so it still reads as offline.
+ */
+async function userAfterSignIn(accessToken: string) {
+  try {
+    return await fetchCurrentUser(accessToken);
+  } catch (error) {
+    if (error instanceof TypeError) throw error;
+    throw new Error(ACCOUNT_LOAD_FAILED, { cause: error });
+  }
+}
 
 interface AuthContextType {
   user: User | null;
@@ -83,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!data.session) throw new Error('No active session was returned. Please try again.');
 
     const accessToken = data.session.access_token;
-    const currentUser = await fetchCurrentUser(accessToken);
+    const currentUser = await userAfterSignIn(accessToken);
     setToken(accessToken);
     setUser(currentUser);
   };
@@ -105,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const accessToken = data.session.access_token;
-    const currentUser = await fetchCurrentUser(accessToken);
+    const currentUser = await userAfterSignIn(accessToken);
     setToken(accessToken);
     setUser(currentUser);
   };

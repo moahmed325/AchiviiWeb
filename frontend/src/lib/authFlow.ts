@@ -79,6 +79,9 @@ export interface AuthErrorDescription {
   message: string;
 }
 
+/** B-44: signed in with Supabase, but `/api/auth/me` failed. */
+export const ACCOUNT_LOAD_FAILED = "You're signed in, but we couldn't load your account. Please try again in a moment.";
+
 export function describeAuthError(error: unknown): AuthErrorDescription {
   // fetch rejects with a TypeError when the request never reaches the server.
   if (error instanceof TypeError) {
