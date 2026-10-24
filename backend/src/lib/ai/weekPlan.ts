@@ -1025,6 +1025,7 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through,
   // and every step is scanned, not only the high-load ones.
   const scan = { light: isLightWeek(input) };
+  const profileHighLoad = (input.recovery?.kinds ?? []).some((kind) => kind.highLoad === true);
   // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
   // says is logged, never refused, or that week could never be written.
   const testText = scan.light ? [] : textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
@@ -1039,7 +1040,8 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
       const name = step === day.minimumVersion ? `Day ${day.dayNumber} 10-minute version "${step.title}"` : `Day ${day.dayNumber} step "${step.title}"`;
       const testStep = step !== day.minimumVersion && TEST_STEP.test(step.title);
       const retestStep = step !== day.minimumVersion && codeMadeRetestStep(step) !== null;
-      if (scan.light || input.highLoadGoal || step.highLoad === true) {
+      // B-78: a goal that is high-load only through its profile has its test step scanned too.
+      if (scan.light || input.highLoadGoal || step.highLoad === true || (testStep && profileHighLoad)) {
         for (const hit of stepSafetyHits(step, input.weekNumber, scan)) {
           hits.push({
             day,
