@@ -4,7 +4,7 @@ import { WEEKLY_TEST_KIND, type RecoveryProfile } from '../recovery/profile.js';
 import { fitStepMinutes } from './scheduleRepair.js';
 import { codeMadeRetestStep, easyRetestStep, retestDayOf, retestStepFor, type Retest } from './retestStep.js';
 import { dayQualityFailures, polishDays } from './taskRules.js';
-import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyRule } from './safetyScan.js';
+import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyLogLine, type SafetyRule } from './safetyScan.js';
 import type { FirstWeekBack } from '../weekClose/breaks.js';
 import { dayNinetyPromptLine, type DayNinetyLine } from './dayNinety.js';
 import { STEP_LOAD_SCHEMA, loadNeed, missingLoad, parseStepLoad, withMinutes, withoutLoad, type LoadGoal } from '../safety/stepLoad.js';
@@ -169,6 +169,8 @@ export interface WeekCallInput {
   testSession?: string;
   /** B-63: only for the `[Safety]` log line; logged as null when not given. */
   goalId?: string;
+  /** B-91: when given, `[Safety]` lines are added here instead of logged, so goal create can log them with the new goal id. */
+  heldSafetyLines?: SafetyLogLine[];
   /**
    * Plan safety limits M2.1 (RULE-4, PSL-8): given only on a load goal (`loadGoalFor`). The schema and the prompt then
    * ask the steps PSL-8 names for their `load`, and a missing one is a soft retry reason. Without it the call is exactly
@@ -1166,7 +1168,7 @@ function swapLightSteps(days: WeekDayPlan[], refused: Breach[]): Array<{ origina
 }
 
 function logBreach(breach: Breach, input: WeekCallInput, lastAttempt: boolean, outcome: 'retry' | 'failed' | 'test_text' | 'light_test' | 'light_retest'): void {
-  logSafetyHit({
+  safetyLog(input, {
     goalId: input.goalId ?? null,
     week: input.weekNumber,
     attempt: lastAttempt ? 2 : 1,
@@ -1218,7 +1220,7 @@ function logRunMinutesOver(days: WeekDayPlan[], input: WeekCallInput, lastAttemp
     for (const step of day.detailedSteps) {
       const runMinutes = step.load?.runMinutes;
       if (runMinutes === undefined || runMinutes <= step.durationMinutes) continue;
-      logSafetyHit({
+      safetyLog(input, {
         goalId: input.goalId ?? null,
         week: input.weekNumber,
         attempt: lastAttempt ? 2 : 1,
@@ -1271,7 +1273,7 @@ function logKeptWithoutLoad(misses: LoadMiss[], days: WeekDayPlan[], input: Week
     const day = days.find((item) => item.dayNumber === miss.day);
     const kept = miss.stepNumber === null ? day?.minimumVersion : day?.detailedSteps.find((step) => step.stepNumber === miss.stepNumber);
     if (!kept || kept.title !== miss.title) continue;
-    logSafetyHit({
+    safetyLog(input, {
       goalId: input.goalId ?? null,
       week: input.weekNumber,
       attempt: 2,
@@ -1299,17 +1301,23 @@ function markHighLoad(day: WeekDayPlan): WeekDayPlan {
 }
 
 /** Prompt 3: one week of days that move the person toward this week's target. Null when both attempts fail. */
+/** B-91: a `[Safety]` line, logged now or held for the caller. */
+function safetyLog(input: Pick<WeekCallInput, 'heldSafetyLines'>, line: SafetyLogLine): void {
+  if (input.heldSafetyLines) input.heldSafetyLines.push(line);
+  else logSafetyHit(line);
+}
+
 export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPlan[] | null> {
   const layout = weekLayout(input.planVariant, input.weekStart);
   // M2.2a (PSL-15 (1)): a base week whose running isn't known is no base; said once per week call.
   // M2.2a review: only where running is expected, or a run step of the base week had no load.
   if (input.loadGoal && input.baseWeek && !input.baseWeek.known && (input.loadGoal.running || input.baseWeek.runWithoutLoad)) {
-    logSafetyHit({ goalId: input.goalId ?? null, week: input.weekNumber, rule: 'no_base', step: 'This week', matched: 'last week running not known', outcome: 'logged' });
+    safetyLog(input, { goalId: input.goalId ?? null, week: input.weekNumber, rule: 'no_base', step: 'This week', matched: 'last week running not known', outcome: 'logged' });
   }
   // M2.2b (RULE-10): a first week back's base, once per week call.
   const back = input.loadGoal ? input.baseWeek : undefined;
   if (back?.firstWeekBack) {
-    logSafetyHit({ goalId: input.goalId ?? null, week: input.weekNumber, rule: 'first_week_back_base', step: 'This week', ...firstWeekBackSummary({ ...back, firstWeekBack: back.firstWeekBack }), outcome: 'logged' });
+    safetyLog(input, { goalId: input.goalId ?? null, week: input.weekNumber, rule: 'first_week_back_base', step: 'This week', ...firstWeekBackSummary({ ...back, firstWeekBack: back.firstWeekBack }), outcome: 'logged' });
   }
   // M2.2a follow-up: attempt 1's answer, for the first-answer fallback.
   let first: RawWeekAnswer | null = null;
@@ -1340,7 +1348,7 @@ function firstAnswer(data: RawWeekAnswer, input: WeekCallInput, rule: SafetyRule
   if (!('value' in checkWeekAnswer(data, input, true, { quiet: true }))) return null;
   const kept = checkWeekAnswer(data, input, true);
   if (!('value' in kept)) return null;
-  logSafetyHit({
+  safetyLog(input, {
     goalId: input.goalId ?? null,
     week: input.weekNumber,
     attempt: 2,

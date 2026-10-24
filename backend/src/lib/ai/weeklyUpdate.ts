@@ -345,7 +345,7 @@ function countLines(counts: UpdateCounts): string[] {
     `Sessions done: ${counts.practiceDone} of ${counts.practicePlanned}. Key sessions: ${detail.keyDone} done, ${detail.keySkipped} skipped${
       detail.keySkippedNames.length ? ` (${detail.keySkippedNames.join('; ')})` : ''
     }. A key session done only as the 10-minute version counts as skipped.`,
-    `10-minute versions used: ${detail.doneByMinimum}. Missed days: ${detail.missed}. Dropped days: ${detail.dropped}.`,
+    `10-minute versions used: ${detail.doneByMinimum}. Missed days: ${detail.missed}, of which ${detail.dropped} not moved.`,
   ];
 }
 

@@ -53,7 +53,7 @@ describe('a non-break prompt is unchanged (M3.4 requirement 2)', () => {
       Target: Weekly running distance: 12 km
       Test result: test logged: 12 km, passed
       Sessions done: 4 of 5. Key sessions: 1 done, 0 skipped. A key session done only as the 10-minute version counts as skipped.
-      10-minute versions used: 0. Missed days: 1. Dropped days: 0.
+      10-minute versions used: 0. Missed days: 1, of which 0 not moved.
       Their note: "Felt good"
 
       LAST 3 WEEKS
@@ -107,7 +107,7 @@ describe('a non-break prompt is unchanged (M3.4 requirement 2)', () => {
       Target: Weekly running distance: 14 km
       Test result: not logged
       Sessions done: 4 of 5. Key sessions: 1 done, 0 skipped. A key session done only as the 10-minute version counts as skipped.
-      10-minute versions used: 0. Missed days: 1. Dropped days: 0.
+      10-minute versions used: 0. Missed days: 1, of which 0 not moved.
       Their note: "Felt good"
 
       WHERE THEY ARE in each in-order kind of step (the first step not done yet):
@@ -163,7 +163,7 @@ describe('a non-break prompt is unchanged (M3.4 requirement 2)', () => {
       Target: Weekly running distance: 12 km
       Test result: not logged
       Sessions done: 4 of 5. Key sessions: 1 done, 0 skipped. A key session done only as the 10-minute version counts as skipped.
-      10-minute versions used: 0. Missed days: 1. Dropped days: 0.
+      10-minute versions used: 0. Missed days: 1, of which 0 not moved.
       Their note: "Felt good"
 
       LAST 3 WEEKS
@@ -211,7 +211,7 @@ describe('a non-break prompt is unchanged (M3.4 requirement 2)', () => {
       Target: Weekly running distance: 16 km
       Test result: test logged: 12 km, passed
       Sessions done: 4 of 5. Key sessions: 1 done, 0 skipped. A key session done only as the 10-minute version counts as skipped.
-      10-minute versions used: 0. Missed days: 1. Dropped days: 0.
+      10-minute versions used: 0. Missed days: 1, of which 0 not moved.
       Their note: "Felt good"
 
       LAST 3 WEEKS
