@@ -406,6 +406,8 @@ ${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
    - A target is what they can do on that week's test (the longest distance in one go, the best time, the score),
      not how much they train that week. For distance and endurance goals, a taper or recovery week trains less but
      its target stays at the previous week's distance or time.
+   - A running total (words written so far, pages drafted, chapters done) only ever grows. An editing, review or
+     rest week keeps the total it reached; it never drops below the week before.
    - Realistic for ${input.dailyMinutes} minutes a day and ${input.activeDays} days a week.`;
 }
 
@@ -598,7 +600,7 @@ function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbPr
       const previous = numbers[i - 1].value;
       const bound = first.direction === 'higher_is_better' ? 'at least' : 'at most';
       return hard(
-        `Week ${i + 1}'s target (${target.value}) goes backwards from week ${i} (${previous}). A target is what they can do on the weekly test, not how much they train that week, so it never goes down: a lighter, taper or harder-test week keeps the previous week's target. Set week ${i + 1} to ${bound} ${previous} ${first.unit} and keep every later week ${bound} the week before. Keep "${first.unit}" for all 12 weeks.`
+        `Week ${i + 1}'s target (${target.value}) goes backwards from week ${i} (${previous}). A target is what they can do on the weekly test, not how much they train that week, so it never goes down: a lighter, taper or harder-test week keeps the previous week's target, and a running total (words written so far) never drops. Set week ${i + 1} to ${bound} ${previous} ${first.unit} and keep every later week ${bound} the week before. Keep "${first.unit}" for all 12 weeks.`
       );
     }
   }
@@ -627,6 +629,11 @@ export interface RoadmapCheckContext {
    * (`withPathwayTests`). The model's tests are then not scanned and not held to one type: they are thrown away.
    */
   pathwayTests?: boolean;
+  /**
+   * B-81: the pathway has light weeks, which take the next big week's target. A week 4 already at week 12's target would
+   * then give all 12 weeks one target, so it is a retry reason (accepted on the last attempt).
+   */
+  lightTests?: boolean;
   /** M1.2 (PSL-10 (3)): the goal's pathway id; on run10k a time or minutes target counts as running. */
   pathwayId?: string;
 }
@@ -763,6 +770,12 @@ export function checkRoadmapAnswer(
   if (missed.length > 0) {
     return {
       reason: `Week 12 must reach the number the user asked for: ${missed.map((item) => item.phrase).join(', ')}. ${statedTargetWayOut(missed)}`,
+    };
+  }
+  const week4 = weeks[3]?.target;
+  if (!lastAttempt && context.lightTests && week4?.kind === 'number' && week12.kind === 'number' && week4.value === week12.value) {
+    return {
+      reason: `Week 4's target (${week4.value}) already equals week 12's. Weeks 4, 8 and 12 are the big tests, so the target must still climb from week 4 to week 8 and from week 8 to week 12.`,
     };
   }
   // M1.2 (PSL-11 Q2): finalGoal keeps the person's goal when week 12 was lowered, so it is not asked for again.
@@ -909,7 +922,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
     (data, lastAttempt) => {
       const verdict = checkRoadmapAnswer(
         data,
-        { statedTargets, fixedMethod, pathwayTests: Boolean(preset?.weeklyTests), pathwayId: preset?.id },
+        { statedTargets, fixedMethod, pathwayTests: Boolean(preset?.weeklyTests), lightTests: Boolean(preset?.weeklyTests?.light), pathwayId: preset?.id },
         lastAttempt
       );
       lowSafety = 'reason' in verdict && verdict.reason.startsWith('"safety" is');
