@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, Compass } from 'lucide-react';
 import { cx } from '../ui/cx';
-import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
+import type { MilestoneGateTransition } from '../../types';
 
 export interface PhaseGateOutcomeCardProps {
   gate: MilestoneGateTransition;

@@ -26,7 +26,8 @@ describe('stated targets in the goal text', () => {
 
   // B-27: "row 10,000 m in one steady piece" was read as a target of "1 piece", so every roadmap failed.
   it('does not read "in one piece" and similar phrases as a count of one', () => {
-    expect(extractStatedTargets('Row 10,000 m in one steady piece')).toEqual([]);
+    // Since B-33 the distance itself is read; never "1 piece".
+    expect(extractStatedTargets('Row 10,000 m in one steady piece').map((item) => item.phrase)).toEqual(['10000 metres']);
     expect(extractStatedTargets('Read the whole book in one sitting')).toEqual([]);
     expect(extractStatedTargets('Finish the essay in one go')).toEqual([]);
     expect(extractStatedTargets('Hike 25 km in one day')).toEqual([]);
@@ -156,5 +157,21 @@ describe('the widened reader keeps practice frames and run distances out (M1.2 r
     expect(read('Lose 10 kg')).toEqual([{ value: 10, unit: 'kg', bound: 'at_least', change: 'lose' }]);
     expect(read('Run 5 km in 25 minutes')).toEqual([{ value: 25, unit: 'minutes', bound: 'at_most', change: undefined }]);
     expect(read('Get to 15% body fat')).toEqual([{ value: 15, unit: 'percent', bound: 'at_most', change: undefined }]);
+  });
+
+  it("reads numbers with commas and metres written as m (B-33)", () => {
+    const read = (goal: string) => extractStatedTargets(goal).map((item) => [item.value, item.unit, item.bound]);
+    expect(read("Row 10,000 metres in one steady piece")).toEqual([[10000, "metres", "at_least"]]);
+    expect(read("Swim 1500 m freestyle")).toEqual([[1500, "metres", "at_least"]]);
+    expect(read("Swim 400m without stopping")).toEqual([[400, "metres", "at_least"]]);
+    expect(read("Make $1m in sales")).toEqual([]);
+    expect(read("Get 2m followers")).toEqual([]);
+    expect(read("Run a 100 m race")).toEqual([]);
+  });
+
+  it("leaves a body weight named as a level unread (B-87)", () => {
+    expect(extractStatedTargets("Weigh 70 kg by summer")).toEqual([]);
+    expect(extractStatedTargets("Get down to weigh 150 pounds")).toEqual([]);
+    expect(extractStatedTargets("Squat 100 kg")).toHaveLength(1);
   });
 });

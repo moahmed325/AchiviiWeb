@@ -63,6 +63,8 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
   // M1.5b (WU-40 (1)): a jumped week is never a week done.
   const weeksDone = phase.weeks.filter((week) => week.status === 'completed' && !week.jumped).length;
   const weeksTotal = phase.weeks.length;
+  // B-76: paused weeks are named, so a finished phase with paused weeks doesn't read as unfinished.
+  const weeksPaused = phase.weeks.filter((week) => week.jumped).length;
   const comingUp = phase.weeks.filter((week) => week.weekNumber > currentWeek);
 
   return (
@@ -96,7 +98,7 @@ const PhaseRow: React.FC<PhaseRowProps> = ({ phase, currentWeek, isOpen, onToggl
               <div aria-hidden="true" className="h-[3px] flex-1 overflow-hidden rounded-full bg-text/[0.08]">
                 <div className="h-full rounded-full bg-achievement" style={{ width: Math.round((weeksDone / weeksTotal) * 100) + '%' }} />
               </div>
-              <span className="font-ui-mono text-micro text-text-secondary">{weeksDone} of {weeksTotal} weeks</span>
+              <span className="font-ui-mono text-micro text-text-secondary">{weeksDone} of {weeksTotal} weeks{weeksPaused > 0 ? ` done, ${weeksPaused} paused` : ''}</span>
             </div>
           )}
         </button>

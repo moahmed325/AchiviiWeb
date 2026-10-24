@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AdaptationMomentStep } from './AdaptationMomentStep';
 import type { DailyTask, WeekTarget } from '../../types';
-import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
+import type { MilestoneGateTransition } from '../../types';
 
 describe('AdaptationMomentStep Component (M7.3)', () => {
   const sampleTasks: DailyTask[] = [

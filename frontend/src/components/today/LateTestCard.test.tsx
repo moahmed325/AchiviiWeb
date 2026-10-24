@@ -195,10 +195,28 @@ describe('Late-test card on Today (missed sessions M4.1)', () => {
     expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    ['week_closed', 'This week has already been reviewed.'],
+    ['week_not_open', "That week hasn't started yet."],
+  ])("a %s refusal shows the server's own line (B-69)", async (code, line) => {
+    const user = userEvent.setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocked.logWeeklyTestResult.mockRejectedValue(new api.ApiError(line, 409, code));
+    await renderToday();
+
+    await user.click(screen.getByRole('button', { name: 'Log my result' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Log my result' });
+    await user.type(within(dialog).getByLabelText('Your result'), '28');
+    await user.click(within(dialog).getByRole('button', { name: 'Save result' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(line);
+    warn.mockRestore();
+  });
+
   it('a failed save keeps the form and its value, and says so', async () => {
     const user = userEvent.setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    mocked.logWeeklyTestResult.mockRejectedValue(new api.ApiError('This week has already been reviewed.', 409, 'week_closed'));
+    mocked.logWeeklyTestResult.mockRejectedValue(new api.ApiError('Server error', 500));
     await renderToday();
 
     await user.click(screen.getByRole('button', { name: 'Log my result' }));

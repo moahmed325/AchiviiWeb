@@ -247,7 +247,7 @@ describe('AC-7: the first week back is held to the last done running total', () 
     expect(res.status).toBe(503);
     expect(generateStructuredContent).toHaveBeenCalledTimes(2);
     expect(prompts()[0]).toContain('- Running: first week back; at most 60 minutes in total, what they last completed (week 2).');
-    expect(prompts()[1]).toContain("This week's running is 70 minutes; the most allowed is 60 (what they last did, week 2).");
+    expect(prompts()[1]).toContain("This week's running is 70 minutes; the most allowed is 60 minutes (what they last did, week 2).");
     expect(safetyLines().map((line) => [line.goalId, line.rule, line.outcome])).toEqual([
       ['g1', 'first_week_back_base', 'logged'],
       ['g1', 'running_total_over_limit', 'retry'],

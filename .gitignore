@@ -64,3 +64,6 @@ __pycache__/
 *.py[cod]
 
 .vercel
+
+# TypeScript incremental build output (B-47)
+*.tsbuildinfo

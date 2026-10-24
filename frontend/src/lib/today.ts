@@ -23,8 +23,11 @@ export function isRestLike(task: Pick<DailyTask, 'isRestDay' | 'notOffered'>): b
  * Weekly update M1.4 (review fix 1): a day not offered as Today shows it, a rest day with no practice in it: no steps,
  * no 10-minute version, no minutes, no why-today or intention. Actions read the stored task (`useTaskActions`).
  */
+export const NOT_OFFERED_TITLE = 'No practice planned';
+
 export function notOfferedAsRest<T extends DailyTask>(task: T): T {
-  return { ...task, isRestDay: true, detailedSteps: '[]', minimumVersion: null, durationMinutes: 0, whyToday: null, implementationIntention: '' };
+  // B-73: the day's practice title would read as planned work under "Monday's rest".
+  return { ...task, title: NOT_OFFERED_TITLE, isRestDay: true, detailedSteps: '[]', minimumVersion: null, durationMinutes: 0, whyToday: null, implementationIntention: '' };
 }
 
 export function isToday(task: Pick<DailyTask, 'date'>, now: Date, timezone?: string): boolean {

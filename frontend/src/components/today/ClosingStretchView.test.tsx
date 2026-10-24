@@ -156,7 +156,7 @@ describe('ClosingStretchView Component (M9.4)', () => {
     fireEvent.change(valueInput, { target: { value: '48:50 min' } });
 
     const arriveButton = screen.getByRole('button', {
-      name: 'Complete Journey & Arrive at the Garden',
+      name: 'Complete my journey',
     });
     await user.click(arriveButton);
 
@@ -205,7 +205,7 @@ describe('ClosingStretchView Component (M9.4)', () => {
     fireEvent.change(reflectionInput, { target: { value: 'Important draft that must not be lost.' } });
 
     const arriveButton = screen.getByRole('button', {
-      name: 'Complete Journey & Arrive at the Garden',
+      name: 'Complete my journey',
     });
     await user.click(arriveButton);
 
@@ -235,7 +235,7 @@ describe('ClosingStretchView Component (M9.4)', () => {
     ).toBeVisible();
 
     const arriveButton = screen.getByRole('button', {
-      name: 'Complete Journey & Arrive at the Garden',
+      name: 'Complete my journey',
     });
     expect(arriveButton).toBeDisabled();
 

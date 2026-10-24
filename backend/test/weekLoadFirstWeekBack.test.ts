@@ -176,10 +176,10 @@ describe('the limit (RULE-7, PSL-18)', () => {
   it('AC-7: held to the last done total, with no allowance (the ordinary base would allow 70)', () => {
     expect(passes(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 15 }), back(60))).toBe(true);
     expect(refusal(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 16 }), back(60))).toContain(
-      "SAFETY: This week's running is 61 minutes; the most allowed is 60 (what they last did, week 3). Rewrite the week within the limit."
+      "SAFETY: This week's running is 61 minutes; the most allowed is 60 minutes (what they last did, week 3). Rewrite the week within the limit."
     );
     expect(refusal(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }), back(60))).toContain(
-      "This week's running is 75 minutes; the most allowed is 60 (what they last did, week 3)."
+      "This week's running is 75 minutes; the most allowed is 60 minutes (what they last did, week 3)."
     );
     // The same week passes against an ordinary base of 60.
     expect(passes(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 16 }), { known: true, unit: 'minutes', total: 60, totalMinutes: 60, runs: 3 })).toBe(true);
@@ -189,7 +189,7 @@ describe('the limit (RULE-7, PSL-18)', () => {
     const base = { ...back(10), runs: 1 };
     expect(passes(week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 10 }), base)).toBe(true);
     expect(refusal(week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 11 }), base)).toContain(
-      "This week's running is 31 minutes; the most allowed is 30 (what they last did, week 3, was 10; never below 30)."
+      "This week's running is 31 minutes; the most allowed is 30 minutes (what they last did, week 3, was 10; never below 30 minutes)."
     );
   });
 
@@ -197,28 +197,28 @@ describe('the limit (RULE-7, PSL-18)', () => {
     const base: BaseWeek = { known: true, unit: 'km', total: 2, totalMinutes: 12, runs: 1, firstWeekBack: { fromWeek: 3, percent: 100 } };
     const runs = { 1: { min: 15, km: 1.5 }, 2: { min: 15, km: 1.5 }, 3: { min: 15, km: 1.5 } };
     expect(passes(week(runs, { min: 10, km: 0.5 }), base)).toBe(true);
-    expect(refusal(week(runs, { min: 10, km: 0.6 }), base)).toContain("This week's running is 5.1 km; the most allowed is 5 (what they last did, week 3, was 2; never below 5).");
+    expect(refusal(week(runs, { min: 10, km: 0.6 }), base)).toContain("This week's running is 5.1 km; the most allowed is 5 km (what they last did, week 3, was 2; never below 5 km).");
   });
 
   it('mixed units are compared in minutes: a km base and a week in minutes', () => {
     const base: BaseWeek = { known: true, unit: 'km', total: 8, totalMinutes: 50, runs: 2, firstWeekBack: { fromWeek: 3, percent: 100 } };
     expect(passes(week({ 1: { min: 15 }, 2: { min: 15 } }, { min: 20 }), base)).toBe(true);
-    expect(refusal(week({ 1: { min: 15 }, 2: { min: 15 } }, { min: 21 }), base)).toContain("This week's running is 51 minutes; the most allowed is 50 (what they last did, week 3).");
+    expect(refusal(week({ 1: { min: 15 }, 2: { min: 15 } }, { min: 21 }), base)).toContain("This week's running is 51 minutes; the most allowed is 50 minutes (what they last did, week 3).");
     // A tiny km base, compared in minutes, takes the floor in minutes.
     const tiny: BaseWeek = { known: true, unit: 'km', total: 2, totalMinutes: 12, runs: 1, firstWeekBack: { fromWeek: 3, percent: 100 } };
     expect(passes(week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 10 }), tiny)).toBe(true);
-    expect(refusal(week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 11 }), tiny)).toContain('the most allowed is 30 (what they last did, week 3, was 12; never below 30)');
+    expect(refusal(week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 11 }), tiny)).toContain('the most allowed is 30 minutes (what they last did, week 3, was 12; never below 30 minutes)');
   });
 
   it('a long break: half of the base, never below the floor', () => {
     expect(passes(week({ 1: { min: 10 }, 2: { min: 10 }, 3: { min: 10 } }, { min: 10 }), back(80, 3, 50))).toBe(true);
     expect(refusal(week({ 1: { min: 10 }, 2: { min: 10 }, 3: { min: 10 } }, { min: 11 }), back(80, 3, 50))).toContain(
-      "This week's running is 41 minutes; the most allowed is 40 (half of what they last did, week 3: 80)."
+      "This week's running is 41 minutes; the most allowed is 40 minutes (half of what they last did, week 3: 80)."
     );
     // A base of 40 halves to 20: the floor, 30, holds.
     expect(passes(week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 10 }), back(40, 3, 50))).toBe(true);
     expect(refusal(week({ 1: { min: 10 }, 2: { min: 10 } }, { min: 11 }), back(40, 3, 50))).toContain(
-      'the most allowed is 30 (half of what they last did, week 3: 40, is 20; never below 30).'
+      'the most allowed is 30 minutes (half of what they last did, week 3: 40, is 20; never below 30 minutes).'
     );
   });
 
@@ -228,7 +228,7 @@ describe('the limit (RULE-7, PSL-18)', () => {
 
   it('an unknown base after a break is held like a 0-run base (PSL-16), not "no total check"', () => {
     const unknown: BaseWeek = { known: false, runWithoutLoad: true, firstWeekBack: { fromWeek: 3, percent: 100 } };
-    expect(refusal(week({ 1: { min: 35 } }, { min: 20 }), unknown)).toContain(`Day 1 step "Run 1": the run is 35 minutes; the most allowed is 30 (last week's running isn't known).`);
+    expect(refusal(week({ 1: { min: 35 } }, { min: 20 }), unknown)).toContain(`Day 1 step "Run 1": the run is 35 minutes; the most allowed is 30 minutes (last week's running isn't known).`);
     expect(passes(week({ 1: { min: 30 }, 2: { min: 30 } }, { min: 30 }), unknown)).toBe(true);
     expect(refusal(week({ 1: { min: 30, km: 5.5 }, 2: { min: 25, km: 4 } }, { min: 25, km: 4 }), unknown)).toContain('the run is 5.5 km; the most allowed is 5');
     // Without a break the same unknown base has no cap on a run with 3 or more runs (M2.2a).
@@ -239,7 +239,7 @@ describe('the limit (RULE-7, PSL-18)', () => {
   it('no done running anywhere is held like a 0-run base', () => {
     const none: BaseWeek = { known: true, unit: 'minutes', total: 0, totalMinutes: 0, runs: 0, firstWeekBack: { fromWeek: null, percent: 100 } };
     expect(passes(week({ 1: { min: 25 }, 2: { min: 25 } }, { min: 25 }), none)).toBe(true);
-    expect(refusal(week({ 1: { min: 35 }, 2: { min: 25 } }, { min: 25 }), none)).toContain('the run is 35 minutes; the most allowed is 30 (last week had no running).');
+    expect(refusal(week({ 1: { min: 35 }, 2: { min: 25 } }, { min: 25 }), none)).toContain('the run is 35 minutes; the most allowed is 30 minutes (last week had no running).');
   });
 });
 

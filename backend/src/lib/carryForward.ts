@@ -198,7 +198,7 @@ export function handledTaskIds(tasks: ReadonlyArray<{ id: string; steps: readonl
 }
 
 /** Stored test steps are ranked like any step (weekPlan `rankSteps`), so they are also recognized by title. */
-const TEST_STEP = /^weekly test\b/i;
+const TEST_STEP = /^weekly test\s*:/i;
 
 const minutesOf = (steps: readonly DetailedStep[]) => steps.reduce((sum, step) => sum + Math.max(0, step.durationMinutes || 0), 0);
 export const hasPriority = (step: DetailedStep): step is DetailedStep & { priority: number } =>

@@ -43,6 +43,14 @@ window.matchMedia ??= (query: string) =>
     dispatchEvent: () => false,
   }) as MediaQueryList;
 
+// B-70: a call no test mocked fails at once, loudly, instead of reaching a dev server on :5000.
+// Tests that need fetch replace it (vi.stubGlobal / vi.spyOn); this is only the fallback.
+globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  console.error(`[test] unmocked fetch: ${url}`);
+  throw new TypeError(`Unmocked fetch in a test: ${url}`);
+}) as typeof fetch;
+
 afterEach(() => {
   cleanup();
 });

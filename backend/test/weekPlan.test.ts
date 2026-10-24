@@ -188,6 +188,21 @@ describe('checkWeekAnswer', () => {
     expect(test.priority).toBe(1);
   });
 
+  it('does not take a "Weekly test warm-up" step for the test step (B-30)', () => {
+    const warmUp = week((days) => {
+      days[5].steps = [step('Weekly test warm-up', 1, 15), step('Type sentence set six', 2, 15)];
+    });
+    expect(reason(checkWeekAnswer(warmUp, input))).toMatch(/Weekly test: \.\.\./);
+  });
+
+  it('asks a rest-day step that names running for a run load on a running goal (B-90)', () => {
+    const restRun = week((days) => {
+      days[3].steps = [step('Easy 10-minute jog', 1, 10)];
+    });
+    expect(reason(checkWeekAnswer(restRun, { ...input, loadGoal: { running: true } }))).toMatch(/Day 4 step "Easy 10-minute jog"[^.]*runMinutes or runKm/);
+    expect(reason(checkWeekAnswer(week(), { ...input, loadGoal: { running: true } }))).not.toMatch(/Day 4 step/);
+  });
+
   it('rejects a practice day with no steps, even on the last attempt', () => {
     expect(reason(checkWeekAnswer(week((days) => { days[0].steps = []; }), input, true))).toMatch(/needs 2 to 4 steps; got 0/);
   });
@@ -218,6 +233,13 @@ describe('buildWeekPrompt', () => {
     expect(prompt).toMatch(/Day 4 \(\w+\): rest/);
     expect(prompt).toMatch(/Day 6 \(\w+\): practice, TEST DAY/);
     expect(prompt).not.toContain('LAST WEEK');
+  });
+
+  it('does not print two full stops when the test instructions end with one (B-82)', () => {
+    const dotted = { ...input, test: { ...input.test, instructions: 'Take a 1-minute typing test on keybr.com.' } };
+    const prompt = buildWeekPrompt(dotted, weekLayout('steady', input.weekStart));
+    expect(prompt).toContain('keybr.com. Pass if:');
+    expect(prompt).not.toContain('keybr.com..');
   });
 
   it('includes last week from week 2', () => {

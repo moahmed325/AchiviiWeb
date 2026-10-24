@@ -14,7 +14,7 @@
  */
 import type { CarriedStep, CarryTask } from '../carryForward.js';
 import type { DayClassification } from '../missedSessions.js';
-import { byWritten, originOf, stepKey } from './inOrder.js';
+import { byWritten, doneStepsOf, isDoneCopy, originOf, stepKey } from './inOrder.js';
 import type { RecoveryProfile } from './profile.js';
 import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf, type GoalText } from './rules.js';
 
@@ -54,6 +54,16 @@ interface Placed {
  * With a valid profile: the first of RULE-12, RULE-13 and RULE-14 that a swap of `aId` and `bId` breaks, or null.
  * Without a profile, null: only missed sessions' checks apply.
  */
+/** B-54: one build per week read (the swap check runs once per day pair). */
+const doneStepsCache = new WeakMap<object, { tasks: SwapWeek['tasks']; done: ReturnType<typeof doneStepsOf> }>();
+function doneStepsOfWeek(week: SwapWeek) {
+  const hit = doneStepsCache.get(week.days);
+  if (hit && hit.tasks === week.tasks) return hit.done;
+  const done = doneStepsOf(week.days, week.tasks);
+  doneStepsCache.set(week.days, { tasks: week.tasks, done });
+  return done;
+}
+
 export function methodSwapRefusal(week: SwapWeek, aId: string, bId: string): SwapRefusal | null {
   const { profile } = week;
   if (!profile) return null;
@@ -106,7 +116,9 @@ export function methodSwapRefusal(week: SwapWeek, aId: string, bId: string): Swa
   // unless it was at least that close already (M3.2 review: a swap may keep or widen the writer's closeness, never
   // narrow it). Steps of one day move together, so their closeness stays as written.
   const gap = profile.restGapDays ?? 0;
-  const hard = steps.filter((placed) => isHardStep(placed.step, profile, week.goal));
+  // B-53: a moved copy whose source day is done and still holds it is hidden (MR-37), so it holds no rest gap.
+  const doneSteps = doneStepsOfWeek(week);
+  const hard = steps.filter((placed) => isHardStep(placed.step, profile, week.goal) && !isDoneCopy(placed.step, placed.from, doneSteps));
   /** The calendar days between two hard steps when both days count for rest, or null. */
   const distance = (x: Placed, y: Placed, swapped: boolean) => {
     const dx = swapped ? after(x.from) : x.from;

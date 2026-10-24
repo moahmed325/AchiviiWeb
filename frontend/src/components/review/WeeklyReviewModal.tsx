@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { Goal, WeeklyReviewResponse, WeeklyTestResult } from '../../types';
-import { saveClosedWeekReflection, submitWeeklyReview } from '../../lib/api';
+import { ApiError, saveClosedWeekReflection, submitWeeklyReview } from '../../lib/api';
 import {
   clearReviewDraft,
   loadReviewDraft,
@@ -16,7 +16,6 @@ import { ReviewTestResultStep } from './ReviewTestResultStep';
 import { ReviewReflectionStep } from './ReviewReflectionStep';
 import { AdaptationMomentStep } from './AdaptationMomentStep';
 import { week12NoteText } from '../../lib/week12Line';
-import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
 import { isRestLike } from '../../lib/today';
 import { isLightTest } from '../../lib/lightTest';
 import { WEEK_CLOSED_LINES } from '../../lib/weekClose';
@@ -27,7 +26,6 @@ export interface WeeklyReviewModalProps {
   goal: Goal;
   token: string;
   onGoalUpdated: (goal: Goal) => void;
-  onMilestoneGate?: (gate: MilestoneGateTransition) => void;
   /** B-59: the week was already closed (another tab, or the automatic close); called when the modal closes. */
   onWeekClosed?: () => void;
   /** Weekly update M1.5b (WU-38 (1)): a break past the limit waits for the choice card; the modal closes at once. */
@@ -51,7 +49,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   goal,
   token,
   onGoalUpdated,
-  onMilestoneGate,
   onWeekClosed,
   onChoiceNeeded,
   apiStatus,
@@ -198,10 +195,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
         clearReviewDraft(goal.id, currentWeekNum);
       }
 
-      if (response.isMilestoneCheckpoint && response.milestoneGateTransition) {
-        onMilestoneGate?.(response.milestoneGateTransition);
-      }
-
       // Transition to Step 2: Adaptation Moment (M7.3)
       setStep('adaptation');
     } catch (err: unknown) {
@@ -239,12 +232,9 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
         setReviewError("You're offline. Reconnect to submit your weekly review.");
       } else {
         const message = err instanceof Error ? err.message : '';
-        if (
-          message.includes('503') ||
-          message.includes("Couldn't write next week") ||
-          message.includes('adaptation') ||
-          !message
-        ) {
+        // B-45: read the status, not the message text.
+        const status = err instanceof ApiError ? err.status : null;
+        if ((status !== null && status >= 500) || !message) {
           setReviewError("Couldn't write next week right now. This week is unchanged; please try again.");
         } else {
           setReviewError(message);

@@ -14,6 +14,8 @@ import { targetFamily } from './targetSteps.js';
 export interface LoadGoal {
   /** run10k, or a running-distance or running-time target: the model's own test step carries a run load (PSL-11 Q9). */
   running: boolean;
+  /** B-89: the profile's kinds marked `highLoad`; a step of one needs some load, like a flagged step. */
+  highLoadKinds?: readonly string[];
 }
 
 /**
@@ -93,7 +95,8 @@ export function loadNeed(step: Pick<DetailedStep, 'kind' | 'highLoad'>, modelTes
   if (modelTestStep && goal.running) return 'run';
   if (step.kind && RUN_KINDS.includes(step.kind)) return 'run';
   if (step.kind === LIFT_KIND) return 'lift';
-  return step.kind === CARDIO_KIND || step.highLoad === true ? 'any' : null;
+  const highLoadKind = step.kind !== undefined && step.kind !== null && (goal.highLoadKinds ?? []).includes(step.kind);
+  return step.kind === CARDIO_KIND || step.highLoad === true || highLoadKind ? 'any' : null;
 }
 
 /**
@@ -102,10 +105,12 @@ export function loadNeed(step: Pick<DetailedStep, 'kind' | 'highLoad'>, modelTes
  * hard runs.
  */
 export function missingLoad(load: StepLoad | undefined, need: LoadNeed | null): string | null {
-  const ran = load?.runMinutes !== undefined || load?.runKm !== undefined;
-  if (need === 'run') return ran && load?.hardRun !== undefined ? null : 'runMinutes or runKm, and hardRun';
+  const named = load?.runMinutes !== undefined || load?.runKm !== undefined;
+  if (need === 'run') return named && load?.hardRun !== undefined ? null : 'runMinutes or runKm, and hardRun';
   if (need === 'lift' && load?.rir === undefined && load?.percent1RM === undefined) return 'rir or percent1RM';
   if (need === 'any' && !load) return 'the numbers that apply';
+  // B-93: a load of 0 running (a walk) names no running, so it is not asked for hardRun.
+  const ran = (load?.runMinutes ?? 0) > 0 || (load?.runKm ?? 0) > 0;
   return ran && load?.hardRun === undefined ? 'hardRun' : null;
 }
 

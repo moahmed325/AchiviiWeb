@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { RoadmapWeek, WeeklyTestResult } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
-import { logWeeklyTestResult } from '../../lib/api';
+import { ApiError, logWeeklyTestResult } from '../../lib/api';
 import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
 import { LightTestEntry } from '../review/LightTestEntry';
 import { isLightTest, lightTestResult } from '../../lib/lightTest';
@@ -53,7 +53,9 @@ export const TestResultDialog: React.FC<{
       await refreshGoal();
     } catch (err) {
       console.warn('Failed to log the test result:', err);
-      setError(NOT_SAVED);
+      // B-69: these refusals carry their own copy ("That week hasn't started yet."); anything else is not saved.
+      const own = err instanceof ApiError && (err.code === 'week_closed' || err.code === 'week_not_open');
+      setError(own ? err.message : NOT_SAVED);
     } finally {
       setSaving(false);
     }

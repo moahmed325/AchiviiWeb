@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { cx } from '../ui/cx';
 import { PhaseGateOutcomeCard } from './PhaseGateOutcomeCard';
 import type { DailyTask, WeekTarget, WeeklyTestResult } from '../../types';
-import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
+import type { MilestoneGateTransition } from '../../types';
 import { formatTarget } from '../../lib/formatters';
 import { isRestLike } from '../../lib/today';
 import { nextCheckLine } from '../../lib/lightTest';

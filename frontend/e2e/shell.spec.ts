@@ -142,6 +142,8 @@ test.describe('landmarks', () => {
       await page.goto(url);
       await expect(page.locator('main#main')).toBeVisible();
       await expect(page.locator('main')).toHaveCount(1);
+      // B-79: Today replaces its main after the close check; wait for the page to settle before using the skip link.
+      await page.waitForLoadState('networkidle');
       await page.keyboard.press('Tab');
       const skip = page.getByRole('link', { name: 'Skip to content' });
       await expect(skip).toBeFocused();

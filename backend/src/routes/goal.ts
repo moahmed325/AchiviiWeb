@@ -74,6 +74,7 @@ import {
 } from '../lib/weekClose/checkpoint.js';
 import { checkpointsAtClose } from '../lib/weekClose/checkpointClose.js';
 import type { DayNinetyLine } from '../lib/ai/dayNinety.js';
+import { logSafetyHit, type SafetyLogLine } from '../lib/ai/safetyScan.js';
 import {
   RETEST_LOGGED_KEY,
   dailyTimeCheckOf,
@@ -488,6 +489,8 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
     });
 
     let week1: WeekDayPlan[] | null = null;
+    // B-91: week 1's `[Safety]` lines wait for the goal id, and are logged once the goal is saved (or without it if not).
+    const week1SafetyLines: SafetyLogLine[] = [];
     let recovery: RecoveryProfile | null = null;
     if (roadmapResult.ok) {
       const { roadmap } = roadmapResult;
@@ -523,6 +526,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         // Plan safety limits M2.1 (RULE-4): only a load goal adds the key.
         ...loadGoalInput({ rawGoal, clarifiedOutcome }, first.target),
         recovery,
+        heldSafetyLines: week1SafetyLines,
       });
     }
 
@@ -545,7 +549,9 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       // Plan safety limits M1.2 (RULE-10, AC-10): the accepted roadmap's lowered targets, logged once with the goal id.
       // The check's own decision (family, no start, pathway), so the log and the check can never disagree.
       logRoadmapTargets(createdGoalId, roadmapResult.roadmap, roadmapResult.targetCheck);
+      for (const line of week1SafetyLines) logSafetyHit({ ...line, goalId: createdGoalId });
     } else {
+      for (const line of week1SafetyLines) logSafetyHit(line);
       // No silent v1 fallback, for presets either: a plan the AI could not write is an honest "try again", never an
       // old-style plan without the plan v2 features (missed sessions, weekly targets). Logged so a missing or broken
       // AI key shows up in the logs.

@@ -411,7 +411,7 @@ Target: {target}                (a light week: "Next check: {target}. This week'
 Test result: {logged result, "light test done; their note: ...", or the not-logged line}
 Sessions done: {done} of {planned}. Key sessions: {done} done, {skipped} skipped ({names}). A key session done only as
 the 10-minute version counts as skipped.
-10-minute versions used: {count}. Missed days: {count}. Dropped days: {count}.
+10-minute versions used: {count}. Missed days: {count}, of which {count} not moved (B-96: each missed day counted once).
 (when reconcile can't count the week: "Sessions done: {done} of {planned}. Key sessions, 10-minute versions, missed and
 dropped days: not counted.")
 Their note: {reflection or "none"}

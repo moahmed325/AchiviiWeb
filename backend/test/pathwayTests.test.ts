@@ -440,6 +440,23 @@ describe("M2.1 review: a pathway's model tests are not checked, a custom goal's 
   });
 });
 
+describe('B-81: a split pathway whose week 4 already equals week 12 is retried', () => {
+  const flat: Climb = { ...CLIMBS.spanish, values: [2, 3, 4, 15, 15, 15, 15, 15, 15, 15, 15, 15] };
+  const context = (method: CertifiedPresetBlueprint) => ({ statedTargets: [], fixedMethod: presetMethod(method), pathwayTests: true, lightTests: true });
+
+  it('is a retry reason, and accepted on the last attempt', () => {
+    const method = preset('spanish');
+    const verdict = checkRoadmapAnswer(rawAnswer(flat, method), context(method));
+    expect('reason' in verdict ? verdict.reason : '').toMatch(/Week 4's target \(15\) already equals week 12's/);
+    expect('value' in checkRoadmapAnswer(rawAnswer(flat, method), context(method), true)).toBe(true);
+  });
+
+  it('a pathway with no light weeks is not held to it', () => {
+    const method = preset('spanish');
+    expect('value' in checkRoadmapAnswer(rawAnswer(flat, method), { ...context(method), lightTests: false })).toBe(true);
+  });
+});
+
 describe("M2.1 review: last week's light test is done, never passed (fix 2)", () => {
   const testDay = (over: Partial<DailyTask> = {}) => ({ isTestDay: true, status: 'completed', notes: null, ...over }) as DailyTask;
 

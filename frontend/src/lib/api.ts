@@ -119,11 +119,8 @@ export async function fetchCurrentUser(token: string): Promise<User> {
     },
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Failed to authenticate');
-  }
-
+  // B-44: an HTML 502 page or an error reply is an ApiError, never "Unexpected token '<'".
+  const data = await readJson<{ user: User }>(response, 'Failed to authenticate');
   return data.user;
 }
 

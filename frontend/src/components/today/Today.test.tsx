@@ -660,6 +660,9 @@ describe('Today', () => {
       await renderToday();
       expect(screen.getByText("Today's rest")).toBeInTheDocument();
       expect(lines()).toHaveLength(0);
+      // B-72: a rest day shows no minutes.
+      // (The "Tomorrow" preview of the next practice day keeps its minutes.)
+      expect(screen.getByRole('region', { name: tasks[2].title }).textContent?.split('Tomorrow')[0]).not.toMatch(/\d+ min/);
     });
 
     it('belongs to today only, not to another selected day', async () => {
@@ -708,6 +711,16 @@ describe('Today', () => {
       const text = document.body.textContent ?? '';
       for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
     };
+
+    it("gentle-return day: the card shows the 10-minute version's minutes (B-1)", async () => {
+      reconciled(GENTLE);
+      withMinimum();
+      await renderToday();
+      expect(await screen.findByText(WELCOME)).toBeVisible();
+      const card = screen.getByRole('region', { name: tasks[2].title });
+      expect(within(card).getByText(/^10 min · at 19:30$/)).toBeInTheDocument();
+      expect(within(card).queryByText(/^30 min/)).not.toBeInTheDocument();
+    });
 
     it('gentle-return day: the welcome line, the 10-minute version as the gold action, the full session one tap away', async () => {
       reconciled(GENTLE);
@@ -938,7 +951,7 @@ describe('Today', () => {
     ).toBeVisible();
     expect(screen.getByRole('link', { name: 'Review 90-day staircase' })).toHaveAttribute('href', '/roadmap');
     expect(
-      screen.getByRole('button', { name: 'Complete Journey & Arrive at the Garden' })
+      screen.getByRole('button', { name: 'Complete my journey' })
     ).toBeVisible();
   });
 
@@ -1671,6 +1684,8 @@ describe('Today after a move (weekly update M1.4)', () => {
     expect(days[0]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
     expect(days[1]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
     expect(days[2]).toHaveAccessibleName(expect.stringMatching(/, today, to do$/));
+    // B-71: a day still ahead reads as upcoming.
+    expect(days[3]).toHaveAccessibleName(expect.stringMatching(/, upcoming$/));
     // Six practice days less the two not offered.
     expect(screen.getByText('0 of 4 practice days done')).toBeInTheDocument();
   });
@@ -1688,7 +1703,8 @@ describe('Today after a move (weekly update M1.4)', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Show week' }));
     await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
-    const card = screen.getByRole('region', { name: 'Lesson 100' });
+    // B-73: the rest view names no practice.
+    const card = screen.getByRole('region', { name: 'No practice planned' });
     expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
     expect(within(card).getByText('Rest day')).toBeInTheDocument();
     // Review fix 1: nothing to complete on a day not offered.
@@ -1718,7 +1734,8 @@ describe('Today after a move (weekly update M1.4)', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Show week' }));
     await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
-    const card = screen.getByRole('region', { name: 'Lesson 100' });
+    // B-73: the rest view names no practice.
+    const card = screen.getByRole('region', { name: 'No practice planned' });
     expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
     expect(within(card).queryByText('Why Monday matters')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Implementation intention/ })).not.toBeInTheDocument();

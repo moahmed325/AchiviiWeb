@@ -202,6 +202,21 @@ describe('goal create stores safe targets and logs each lowered one (AC-2, AC-10
     expect(safetyLines()).toEqual([]);
   });
 
+  it("logs week 1's held [Safety] lines with the new goal id, after the save (B-91)", async () => {
+    vi.mocked(generateStructuredContent).mockResolvedValueOnce({
+      success: true,
+      data: modelAnswer(run10kPreset, '10K time', 'minutes', 'lower_is_better', 60, [59, 58, 57, 56.5, 56, 55.5, 55.2, 55, 55, 55, 55, 55], 'Run a 10K in 55 minutes'),
+    } as never);
+    vi.mocked(generateWeekPlan).mockImplementationOnce(async (input) => {
+      input.heldSafetyLines?.push({ goalId: null, week: 1, rule: 'load_missing', step: 'Day 1 step "Run"', matched: 'hardRun', outcome: 'kept' } as never);
+      return [DAY] as never;
+    });
+
+    expect(await create('Run a 10K', 'Run a 10K in 55 minutes')).toBe(201);
+
+    expect(safetyLines()).toEqual([expect.objectContaining({ goalId: 'goal-new', week: 1, rule: 'load_missing' })]);
+  });
+
   it('the log and the check agree for a goal that matches run10k only by its working title (M1.2 review)', async () => {
     // "Time" in minutes is running only on run10k (PSL-10 (3)); the raw goal names no pathway, the clarified one does.
     vi.mocked(generateStructuredContent).mockResolvedValueOnce({

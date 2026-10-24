@@ -140,6 +140,14 @@ export function evaluate(
  */
 export type OpenSwapRefusal = 'rest_day' | 'test_day' | 'completed' | 'not_open' | 'holds_carry' | 'already_handled' | SwapRefusal;
 
+/** B-54: built once per evaluation, not once per day pair `planChoices` checks. */
+const doneStepsCache = new WeakMap<Evaluation, ReturnType<typeof doneStepsOf>>();
+function doneStepsFor(evaluation: Evaluation) {
+  let done = doneStepsCache.get(evaluation);
+  if (!done) doneStepsCache.set(evaluation, (done = doneStepsOf(evaluation.result.days, evaluation.tasks)));
+  return done;
+}
+
 /** M3.2: the one check behind the swap route's open swap and `carry.choices.today.swapWith`. */
 export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string): OpenSwapRefusal | null {
   const handled = handledTaskIds(evaluation.tasks);
@@ -147,7 +155,7 @@ export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string
   const taskOf = new Map(evaluation.goal.dailyTasks.map((task) => [task.id, task]));
   const stepsOf = new Map(evaluation.tasks.map((task) => [task.id, task.steps]));
   const done = doneDayIds(evaluation.result.days);
-  const doneSteps = doneStepsOf(evaluation.result.days, evaluation.tasks);
+  const doneSteps = doneStepsFor(evaluation);
   for (const id of [aId, bId]) {
     const day = taskOf.get(id);
     if (!day) return 'not_open';

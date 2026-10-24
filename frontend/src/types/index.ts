@@ -553,19 +553,21 @@ export type CloseWeekAnswer =
     }
   | ({ due: true; closedBy: 'auto' } & WeeklyReviewResponse);
 
+export interface MilestoneGateTransition {
+  title: string;
+  completedPhase: string;
+  nextPhase: string;
+  /** WU-33 (3): null for a week with no score (every day not offered): no benchmark. */
+  benchmarkMet: boolean | null;
+}
+
 export interface WeeklyReviewResponse {
   review: WeeklyReview;
   scorePercentage: number;
   nextWeekNumber: number | null;
   nextWeekTasks: DailyTask[];
   isMilestoneCheckpoint?: boolean;
-  milestoneGateTransition?: {
-    title: string;
-    completedPhase: string;
-    nextPhase: string;
-    /** WU-33 (3): null for a week with no score (every day not offered): no benchmark. */
-    benchmarkMet: boolean | null;
-  } | null;
+  milestoneGateTransition?: MilestoneGateTransition | null;
   testResult?: import('./review').WeeklyTestResult | null;
 }
 
