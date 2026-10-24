@@ -3,7 +3,7 @@
  * the targets. Read only and pure: `saveWeekClose` stores the offer inside the close's transaction, and logs these lines
  * only when its close wins. Empty with either switch off.
  */
-import type { LoweredTarget, WeekTarget } from '../ai/roadmap.js';
+import type { WeekTarget } from '../ai/roadmap.js';
 import { TOTAL_WEEKS } from '../ai/roadmap.js';
 import { sameUnit } from '../research/statedTarget.js';
 import { safeGoalTargets, testOf, isWeekTarget } from '../safety/storedTargets.js';
@@ -18,7 +18,7 @@ import {
   type NumberTarget,
   type StoredCheckpoint,
 } from './checkpoint.js';
-import { jumpedWeeks, type ClosingGoal, type WeekMove } from './close.js';
+import { jumpedWeeks, withUpdateEntries, type ClosingGoal, type WeekMove } from './close.js';
 import { weeklyUpdateEnabled } from './switch.js';
 import { isLogged, resultNumber, withUpdatedTargets, type PlannedUpdate } from './update.js';
 
@@ -64,12 +64,7 @@ function decide(
 
   // The goal as it reads once this close is saved: the update's targets and week 12's entry, this week closed.
   const updated = withUpdatedTargets(goal, context.update ?? null);
-  const roadmap = { ...((goal.roadmap ?? {}) as Record<string, unknown>) };
-  if (context.update?.week12) {
-    const kept = Array.isArray(roadmap.loweredTargets) ? (roadmap.loweredTargets as LoweredTarget[]).filter((item) => item.week !== TOTAL_WEEKS) : [];
-    roadmap.loweredTargets = [...kept, context.update.week12];
-  }
-  if (context.update?.finalTest) roadmap.finalTest = context.update.finalTest;
+  const roadmap = withUpdateEntries({ ...((goal.roadmap ?? {}) as Record<string, unknown>) }, context.update);
   const roadmapWeeks = updated.roadmapWeeks.map((week) => (week.weekNumber === weekNumber ? { ...week, status: 'completed' } : week));
   const safe = safeGoalTargets({ ...updated, roadmap, roadmapWeeks });
   const rows = safe?.weeks ?? [];

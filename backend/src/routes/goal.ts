@@ -39,6 +39,7 @@ import { makeGoalProfile } from '../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../lib/recovery/profile.js';
 import {
+  CheckpointAcceptedError,
   closeAnswer,
   logJump,
   logWeekClose,
@@ -1331,6 +1332,12 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     // B-61: the answer shows the result the week writer was told: the one sent, else the stored (late) one, which the save keeps.
     res.json(closeAnswer(goal, weekNum, saved, sanitizedTestResult ?? week.testResult ?? null));
   } catch (err: any) {
+    // Checkpoints (RULE-9 review): the open offer was accepted during this review's close; nothing was saved.
+    if (err instanceof CheckpointAcceptedError) {
+      console.log(err.message);
+      res.status(503).json({ error: "Couldn't write next week right now. This week is unchanged; please try again." });
+      return;
+    }
     console.error('[GoalRouter] Weekly review error:', err);
     res.status(500).json({ error: 'Failed to process weekly review.' });
   }
@@ -1436,6 +1443,12 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
     logUpdateLowered(goal.id, update);
     res.json({ due: true, closedBy: 'auto', ...closeAnswer(goal, weekNum, saved, week.testResult ?? null, next.move) });
   } catch (err: any) {
+    // Checkpoints (RULE-9 review): the open offer was accepted during this close; nothing was saved.
+    if (err instanceof CheckpointAcceptedError) {
+      console.log(err.message);
+      res.status(503).json({ error: "Couldn't get your next week ready. Please try again." });
+      return;
+    }
     console.error('[GoalRouter] Week close error:', err);
     res.status(500).json({ error: 'Failed to close the week.' });
   }

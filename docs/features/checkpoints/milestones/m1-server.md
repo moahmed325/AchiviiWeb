@@ -99,3 +99,8 @@ R-1 (`weekCloseR2.test.ts`, the M4.1b matrix tests), R-2 (`targetSteps`, `stored
 None beyond the M2 notes above.
 
 ## Review
+
+**Reviewed:** 2026-10-24
+**Verdict:** ACCEPTED after fixes made in the review chat.
+Checked the diff against `02-feature.md`, reran backend tests (1813 pass) and build, ran code review (high). Fixed on the branch: (1) an accept saved while the next close was between its model call and its transaction was overwritten by the close's stale targets; the close now saves nothing when the open offer was accepted since it loaded the goal (`CheckpointAcceptedError`), both close routes answer their 503, and the retry reads the new targets (test added, fails without the guard); (3) the week-12 entry merge is one helper (`withUpdateEntries`) used by the close and the check. Not changed: (2) the extra `safeGoalTargets` reads only run when the goal has an open offer or an accepted one; (4) on a light-test goal a week-4 lower usually leaves week 8 as it was (RULE-9 as written; Mo: leave it). All nine "Decisions I made" accepted.
+**Problems sorted:** the `week12Line` note goes to M2 (screens show only `dayNinetyLine` while it is set, RULE-11).

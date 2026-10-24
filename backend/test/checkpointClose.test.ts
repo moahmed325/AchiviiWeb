@@ -351,6 +351,25 @@ describe('POST /api/goal/checkpoint (RULE-8, RULE-9, section 7, AC-7)', () => {
     expect(goal.dayNinetyLine).toEqual({ target: '6 km', goal: '10 km' });
   });
 
+  it('an accept saved while the next close is writing its week makes that close save nothing (503); the retry reads the accepted targets', async () => {
+    await offered();
+    atWeekEnd(5);
+    const write = vi.mocked(generateWeekPlan).getMockImplementation()!;
+    vi.mocked(generateWeekPlan).mockImplementationOnce(async (input) => {
+      expect((await answer(4, 'accept')).status).toBe(200);
+      return write(input);
+    });
+    const res = await review(5, { value: 3, unit: 'km', passed: true });
+    expect(res.status).toBe(503);
+    expect(db.week(5).status).toBe('active');
+    expect(values(1, 12)).toEqual([0.5, 1, 1.5, 2, 3, 3, 3.5, 4, 4.5, 5, 5.5, 6]);
+    expect(checkpoints()).toEqual([expect.objectContaining({ week: 4, answer: 'accept', by: 'person' })]);
+    expect(lines()).toContain('[Checkpoint] goal g1 week 5 close not saved: the open offer was accepted during the close');
+    expect((await review(5, { value: 3, unit: 'km', passed: true })).status).toBe(200);
+    expect(db.week(12).target.value).toBe(6);
+    expect(values(6, 11).every((value) => value <= 6)).toBe(true);
+  });
+
   it('the first answer wins: a second answer, or two at once, gets 409', async () => {
     await offered();
     const [a, b] = await Promise.all([answer(4, 'accept'), answer(4, 'keep')]);
