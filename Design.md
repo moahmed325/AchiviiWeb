@@ -591,10 +591,7 @@ The application handles every state of the OD-9 matrix honestly, calmly, and wit
 The redesign integrates all core product systems across Phases 0 through 12 into a unified, accessible, and high-performance application:
 
 ### 14.1 Strategic Roadmap & Journey (Phase 6, VDS §9, §25)
-- **Three-Layer Architecture:**
-  - *Layer 1 (Immediate Orientation):* `JourneyHeader` with `Day N / 90`, tabular numerals, method badge, and back navigation.
-  - *Layer 2 (Emotional Ascent):* `DesktopStaircase` (viewports ≥ 768px) with 2–4 method phase landings, daily flights, and summit destination. `MobileVerticalJourney` (< 768px) replaces the wide staircase with a vertical ascending spine, auto-scrolling to the active step with `rounded-card` phase containers.
-  - *Layer 3 (Strategic Detail):* `StrategicRoadmap` collapsible method accordion with milestone deliverables and strict future honesty (zero fabricated tasks on unwritten future weeks).
+- **Roadmap:** `StrategicRoadmap`, a collapsible accordion of the method's phases with milestone deliverables and strict future honesty (zero fabricated tasks on unwritten future weeks). The earlier `JourneyHeader`, `DesktopStaircase` and `MobileVerticalJourney` layers were never mounted and were removed (B-77, B-83).
 - **Days 85–90 Closing Stretch (OD-2 Option A):** Unlocked upon completing Week 12, guiding the user through final capstone preparation and Roman garden arrival.
 
 ### 14.2 Weekly Review & Adaptation (Phase 7, BP §18, OD-1a)
