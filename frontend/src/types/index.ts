@@ -418,6 +418,32 @@ export interface Goal {
   retest?: Retest | null;
   /** Weekly update M3.3b (RULE-6, WU-58 (1)): the daily-time question after two hard weeks; null or missing when none. */
   dailyTimeCheck?: DailyTimeCheck | null;
+  /** Checkpoints (RULE-7, section 7): the open offer at week 4 or 8; null or missing when none. */
+  checkpoint?: Checkpoint | null;
+  /** Checkpoints (RULE-11): set while an accepted offer leaves week 12 below the goal; shown in place of `week12Line`. */
+  dayNinetyLine?: DayNinetyLine | null;
+}
+
+/** Checkpoints (section 7): the open offer, with every amount as the card shows it ("6 km", "52 min or less"). */
+export interface Checkpoint {
+  week: number;
+  kind: 'lower' | 'raise' | 'line_only';
+  /** The day-90 target. */
+  target: string;
+  /** Null for line only. */
+  offered: string | null;
+  /** The goal shown. */
+  goal: string;
+  /** Week 8: worded as the last check. */
+  last: boolean;
+  /** A raise all the way back to the full goal. */
+  toFullGoal: boolean;
+}
+
+/** Checkpoints (RULE-11): the day-90 target and the goal shown. */
+export interface DayNinetyLine {
+  target: string;
+  goal: string;
 }
 
 export interface Retest {

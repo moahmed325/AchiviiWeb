@@ -193,6 +193,8 @@ export interface MockCalls {
   dailyTime: unknown[];
   /** POST /api/goal/reconcile. */
   reconcile: number;
+  /** Every POST /api/goal/checkpoint body (checkpoints M2). */
+  checkpoints: unknown[];
 }
 
 const json = (route: Route, status: number, body: unknown) =>
@@ -202,7 +204,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Stands in for the backend and Supabase Auth without touching any real service or database. */
 export async function mockApi(page: Page, options: MockOptions = {}): Promise<MockCalls> {
-  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0 };
+  const calls: MockCalls = { signup: 0, login: 0, clarify: [], create: [], clarifyAttempts: 0, active: 0, resets: 0, taskUpdates: [], planActions: [], testResults: [], closeWeek: [], closeChoices: [], closeLineSeen: [], dailyTime: [], reconcile: 0, checkpoints: [] };
   const {
     goal = null,
     signupStatus = 201,
@@ -387,6 +389,18 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       saved!.dailyTimeCheck = null;
       if (minutes !== check.minutes) saved!.routine = JSON.stringify({ ...JSON.parse(String(saved!.routine || '{}')), dailyMinutes: minutes });
       return json(route, 200, { dailyMinutes: minutes, dailyTimeAskedAt: new Date().toISOString() });
+    }
+
+    // Checkpoints (section 7): the answer to the open offer. Accept sets the day-90 line, as the server does; 409
+    // `no_checkpoint` without an open offer.
+    if (path === '/api/goal/checkpoint' && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON() as { week?: number; answer?: string };
+      calls.checkpoints.push(body);
+      const open = saved?.checkpoint as { week: number; offered: string | null; goal: string } | null | undefined;
+      if (!open || open.week !== body?.week) return json(route, 409, { error: 'There is no checkpoint to answer.', reason: 'no_checkpoint' });
+      saved!.checkpoint = null;
+      if (body.answer === 'accept') saved!.dayNinetyLine = { target: open.offered, goal: open.goal };
+      return json(route, 200, { week: body.week, answer: body.answer, by: 'person', answeredAt: new Date().toISOString() });
     }
 
     const taskMatch = path.match(/^\/api\/goal\/tasks\/([^/]+)$/);

@@ -311,7 +311,7 @@ describe('POST /api/goal/checkpoint (RULE-8, RULE-9, section 7, AC-7)', () => {
   it('the goal response sends the open offer, amounts as the card shows them', async () => {
     await offered();
     const goal = await active();
-    expect(goal.checkpoint).toEqual({ week: 4, kind: 'lower', target: '10 km', offered: '6 km', goal: '10 km', last: false });
+    expect(goal.checkpoint).toEqual({ week: 4, kind: 'lower', target: '10 km', offered: '6 km', goal: '10 km', last: false, toFullGoal: false });
     expect(goal.dayNinetyLine).toBeNull();
   });
 
@@ -417,7 +417,7 @@ describe('week 8 (RULE-10, AC-8)', () => {
     expect((await active()).dayNinetyLine).toEqual({ target: '9 km', goal: '10 km' });
     expect((await review(8, { value: 7, unit: 'km', passed: true })).status).toBe(200);
     expect(checkpoints()![1]).toMatchObject({ week: 8, kind: 'raise', target: 9, fullGoal: 10, offered: 10, answer: null });
-    expect((await active()).checkpoint).toEqual({ week: 8, kind: 'raise', target: '9 km', offered: '10 km', goal: '10 km', last: true });
+    expect((await active()).checkpoint).toEqual({ week: 8, kind: 'raise', target: '9 km', offered: '10 km', goal: '10 km', last: true, toFullGoal: true });
     expect((await answer(8, 'accept')).status).toBe(200);
     expect(values(9, 12)).toEqual([7, 8, 9, 10]);
     expect((await active()).dayNinetyLine).toBeNull();
