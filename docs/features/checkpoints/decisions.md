@@ -34,7 +34,7 @@ How this log works: `docs/templates/decisions.md`.
 **Question:** what exact rule says someone is clearly behind at week 4 or 8?
 **Decision:** code works out their pace = (result − starting point) ÷ weeks done (jumped weeks not counted), and a forecast = result + pace × weeks left to 12, never past what the safe climb allows from the result (`nextSafeStep`, for the six target families). Clearly behind when the forecast covers less than 75% of the climb from the starting point to the final goal (one tunable number, kept with the limit numbers), or when the safe climb alone can't reach the final goal. It needs a number target, a starting point and a usable result (`resultNumber`); deliverable targets and goals with no starting point get no checkpoint in this feature. The weekly update's `far_behind` status doesn't count (it may be logged).
 **Why:** the safe climb alone is a ceiling that rarely bites (running distance can climb 10% a week); stored week targets are lowered by the update's holds, so they hide the gap; the person's own pace against the final goal doesn't depend on either. Example: 3 → 10 km, 4.5 km at week 4 forecasts 7.5 km (64%), an offer; 5 km forecasts 9 km (86%), none.
-**Changes:** `01-brief.md` section 9, question 1 answered.
+**Changes:** `01-brief.md` section 9, question 1 answered. Pace and forecast replaced by CP-15.
 
 ### CP-6 — The realistic target is their forecast, rounded easier (2026-10-23)
 **Question:** what realistic day-90 target is offered?
@@ -76,7 +76,7 @@ How this log works: `docs/templates/decisions.md`.
 **Question:** how do the week 4 and week 8 checkpoints work together?
 **Decision:** week 8 always measures against the current week 12 (the full goal, or the realistic target chosen at week 4). Clearly behind again: one more offer, worded as the last check. If they lowered at week 4 and their week 8 forecast now reaches the full goal, week 8 offers to go back up to it, only inside the safe climb. At most one offer per checkpoint, so at most two per plan.
 **Why:** CP-3 asks again at week 8; someone who catches up after lowering is not stuck with a too-easy week 12 (the weekly update never changes week 12, WU-15).
-**Changes:** `01-brief.md` section 9, question 8 answered.
+**Changes:** `01-brief.md` section 9, question 8 answered. The raise rule is replaced by CP-16.
 
 ### CP-13 — Ahead of pace: nothing (2026-10-23)
 **Question:** what happens for someone ahead of pace at a checkpoint?
@@ -89,3 +89,15 @@ How this log works: `docs/templates/decisions.md`.
 **Decision:** code, from fixed lines in the copy table with code's numbers filled in. No model call. Replaces the "the model only words it" half of CP-2; code still decides everything (CP-2's first half stands).
 **Why:** every number in the line is code's anyway; no time limit, fallback or wording check to build, and the words are testable exactly.
 **Changes:** CP-2 (second half replaced); `02-feature.md` RULE-7 and section 6.
+
+### CP-15 — The forecast follows the plan's own shape (2026-10-24)
+**Question:** the straight-line pace of CP-5 tells someone exactly on a slow-starting plan that they won't make it (logic check 2026-10-24, finding 1). How should the forecast read progress?
+**Decision:** compare the result with that week's planned target: progress share = (result − starting point) ÷ (planned target − starting point), forecast = starting point + progress share × the climb to the day-90 target, with CP-5's safe-climb cap and 75% line. When the planned progress up to that week is under 10% of the climb (`CHECKPOINT_FLAT_PLAN_PERCENT`), the share means nothing and CP-5's straight line is used. Replaces CP-5's pace and forecast; the rest of CP-5 stands.
+**Why (Mo):** someone who did exactly what the plan asked is always on track, however the plan curves; a week the update held makes the check a little gentler, which fits "only when clearly behind".
+**Changes:** CP-5 (pace and forecast replaced); `02-feature.md` section 3, RULE-3, RULE-4, AC-3.
+
+### CP-16 — Week 8 can raise part of the way back (2026-10-24)
+**Question:** someone who lowered at week 4 and is now ahead of the lowered target, but not on course for the full goal, is stuck aiming below what they already do (logic check 2026-10-24, finding 2). Raise only to the full goal, or part of the way?
+**Decision:** part of the way: at week 8, after a week-4 lower, the forecast may go past the day-90 target (up to the full goal and the safe climb), and when the rounded forecast is at least one step harder than the day-90 target the offer is a raise to it, at most the full goal. Replaces CP-12's "only back up to the full goal"; the rest of CP-12 stands.
+**Why (Mo):** week 12 should never sit below what someone already does; the weekly update can't raise week 12 (WU-15).
+**Changes:** CP-12 (raise rule replaced); `02-feature.md` RULE-9, RULE-10, section 6 (raise copy), AC-8.
