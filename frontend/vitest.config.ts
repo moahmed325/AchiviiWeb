@@ -17,6 +17,8 @@ export default mergeConfig(
       include: ['src/**/*.test.{ts,tsx}'],
       css: false,
       maxWorkers,
+      // B-41: jsdom is built once per worker, not once per test file (about 38 s down to 16 s locally).
+      pool: 'vmThreads',
     },
   }),
 );
