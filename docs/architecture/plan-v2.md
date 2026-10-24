@@ -78,8 +78,9 @@ its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`)
 - The user only sees the one-sentence message, never a status label. If a target is lowered or held, the message
   says so plainly.
 - Targets can be raised when someone clearly beats one, but never above the final goal before the last week.
-- Checkpoints at weeks 4 and 8 (not built; the `checkpoints` feature, weekly update WU-2): if the goal is out of reach at their pace, offer a lower goal or a 1-week
-  extension. At most 2 extensions per plan; beyond that, re-run the questions and start a revised plan.
+- Checkpoints at weeks 4 and 8 (being built; `docs/features/checkpoints/02-feature.md`, CP-1): if code's forecast says the day-90 target is
+  clearly out of reach, Today offers once to keep it or aim for a realistic day-90 target; week 8 can raise a lowered target again. No
+  extensions: the plan always ends on day 90 (only breaks move it).
 
 ### Missed sessions
 - No pile-up: a day that doesn't happen never makes another day longer, and the test day is protected. A moved

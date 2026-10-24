@@ -1,6 +1,6 @@
 # Achivii Checkpoints — Feature Definition
 
-**Status:** DRAFT
+**Status:** APPROVED (2026-10-24)
 **Date:** 2026-10-23 (logic check fixes 2026-10-24, `logic-check-2026-10-24.md`)
 **Builds on:** `01-brief.md` (direction chosen, CP-1 to CP-4)
 **Decisions:** docs/features/checkpoints/decisions.md
