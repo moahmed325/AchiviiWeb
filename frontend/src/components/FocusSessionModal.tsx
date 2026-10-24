@@ -200,6 +200,8 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
   };
 
   const currentStep = isMinimumVersion ? task.minimumVersion ?? undefined : steps[currentStepIndex];
+  // B-1: the 10-minute version shows its own minutes, not the full session's.
+  const sessionMinutes = (isMinimumVersion ? task.minimumVersion?.durationMinutes : undefined) || task.durationMinutes || 30;
 
   return (
     <div
@@ -218,7 +220,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       {/* Top Controls Bar */}
       <FocusHeader
         dayNumber={dayNumber}
-        durationMinutes={task.durationMinutes || 30}
+        durationMinutes={sessionMinutes}
         isMuted={isMuted}
         onToggleMute={() => setIsMuted(!isMuted)}
         onClose={onClose}
@@ -280,7 +282,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
         ) : (
           <FocusCompletion
             dayNumber={dayNumber}
-            durationMinutes={task.durationMinutes || 30}
+            durationMinutes={sessionMinutes}
             isMinimumVersion={isMinimumVersion}
             reflectionNote={reflectionNote}
             onReflectionChange={setReflectionNote}
@@ -308,7 +310,8 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   const { steps, ...shown } = useMemo(() => visibleDay(task, doneDays ?? new Map()), [task, doneDays]);
 
   // Total duration in seconds (fallback to 30 min)
-  const totalDurationSeconds = (shown.durationMinutes || 30) * 60;
+  const minimumMinutes = startWith === 'minimum' ? shown.minimumVersion?.durationMinutes : undefined;
+  const totalDurationSeconds = (minimumMinutes || shown.durationMinutes || 30) * 60;
 
   if (!isOpen) return null;
 

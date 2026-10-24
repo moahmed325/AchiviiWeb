@@ -575,7 +575,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               {!task.isRestDay && (
                 <p className="tabular mt-4 inline-flex items-center gap-2 text-small text-text-secondary">
                   <Clock aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0 text-achievement" />
-                  {shown.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
+                  {(gentleReturn && shown.minimumVersion?.durationMinutes) || shown.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
                 </p>
               )}
               {task.isRestDay && (

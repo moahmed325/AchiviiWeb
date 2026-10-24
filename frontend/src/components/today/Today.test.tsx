@@ -712,6 +712,16 @@ describe('Today', () => {
       for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
     };
 
+    it("gentle-return day: the card shows the 10-minute version's minutes (B-1)", async () => {
+      reconciled(GENTLE);
+      withMinimum();
+      await renderToday();
+      expect(await screen.findByText(WELCOME)).toBeVisible();
+      const card = screen.getByRole('region', { name: tasks[2].title });
+      expect(within(card).getByText(/^10 min · at 19:30$/)).toBeInTheDocument();
+      expect(within(card).queryByText(/^30 min/)).not.toBeInTheDocument();
+    });
+
     it('gentle-return day: the welcome line, the 10-minute version as the gold action, the full session one tap away', async () => {
       reconciled(GENTLE);
       withMinimum();

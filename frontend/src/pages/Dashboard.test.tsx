@@ -217,6 +217,11 @@ describe('Dashboard: gentle-return line (missed sessions M3.2, ND-19)', () => {
     for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
   });
 
+  it("shows the 10-minute version's minutes, not the full session's (B-1)", () => {
+    renderWith(withMinimum(), body(GENTLE));
+    expect(screen.getByText(/10 min, short version/)).toBeInTheDocument();
+  });
+
   it('has no short-on-time line', () => {
     renderWith(withMinimum(), body({ shortOnTime: true }));
     expect(screen.queryByText(/10-minute version/)).not.toBeInTheDocument();
