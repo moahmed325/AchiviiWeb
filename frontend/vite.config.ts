@@ -23,6 +23,8 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-radix': ['@radix-ui/react-dialog', '@radix-ui/react-slot', '@radix-ui/react-tabs'],
           'vendor-icons': ['lucide-react'],
+          // B-19: the auth client is the largest library; its own chunk keeps the main one under 500 kB.
+          'vendor-supabase': ['@supabase/supabase-js'],
         },
       },
     },

@@ -5,9 +5,10 @@ import { GoalProvider } from './context/GoalContext';
 import { AppShell } from './components/app/AppShell';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Home } from './pages/Home';
-import { Dashboard } from './pages/Dashboard';
 
 /* Route-level code-splitting for secondary flows (M12.5) to keep initial bundle lean. */
+/* B-19: the Dashboard is a secondary screen too; Today (Home) stays in the main bundle. */
+const Dashboard = React.lazy(() => import('./pages/Dashboard').then((m) => ({ default: m.Dashboard })));
 const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
 const RoadmapPage = React.lazy(() => import('./pages/RoadmapPage'));
 const SignupPage = React.lazy(() => import('./pages/auth/SignupPage'));
@@ -73,7 +74,9 @@ export const App: React.FC = () => {
                 path="/dashboard"
                 element={
                   <ProtectedRoute requireGoal={true}>
-                    <Dashboard />
+                    <React.Suspense fallback={null}>
+                      <Dashboard />
+                    </React.Suspense>
                   </ProtectedRoute>
                 }
               />
