@@ -10,6 +10,10 @@ import { LightTestEntry } from '../review/LightTestEntry';
 import { isLightTest, lightTestResult } from '../../lib/lightTest';
 import { Button, Dialog, DialogContent, LoadingState, Surface } from '../ui';
 import { NOT_SAVED } from '../../lib/weekClose';
+import { needsLevel } from '../../lib/nextPlan';
+import { useProEntitlement } from '../../hooks/useProEntitlement';
+import { NextPlanLevelDialog } from '../achievement/NextPlanLevelDialog';
+import { useNextPlanLaunch } from '../achievement/useNextPlanLaunch';
 
 // Weekly update M1.2b (RULE-8, WU-14, WU-28): what the app shows around an automatic week close.
 
@@ -151,11 +155,16 @@ const CHOICE_COPY: Record<PastLimitChoice, { body: string; action: string }> = {
  * "Do my final week" runs the close with that choice ("Getting your next week ready…" while it runs). "Start a fresh
  * plan" opens goal creation with the goal's text filled in, as switching goal does; nothing closes, and leaving goal
  * creation brings this card back. Closing the tab answers nothing.
+ * Next plan (NP-9): with Pro, the fresh plan starts from their level now (asked, with the last result filled in);
+ * without Pro it is the goal's text only, as before.
  */
 export const BreakChoice: React.FC<{ goal: Goal; choice: PastLimitChoice }> = ({ goal, choice }) => {
   const navigate = useNavigate();
   const { answerChoice } = useGoal();
   const [answering, setAnswering] = useState(false);
+  const [askLevel, setAskLevel] = useState(false);
+  const isPro = useProEntitlement();
+  const launchNextPlan = useNextPlanLaunch();
   const copy = CHOICE_COPY[choice];
 
   const keep = async () => {
@@ -169,6 +178,12 @@ export const BreakChoice: React.FC<{ goal: Goal; choice: PastLimitChoice }> = ({
   };
 
   const fresh = () => {
+    const result = goal.journeyResult ?? null;
+    if (isPro && result) {
+      if (needsLevel(result, 'fresh')) setAskLevel(true);
+      else launchNextPlan(goal, 'fresh');
+      return;
+    }
     // The way a goal switch opens goal creation (`usePathwayLaunch`): the draft key and `switchGoal`. WU-24: the text only.
     try {
       localStorage.setItem(DRAFT_GOAL_KEY, goal.rawGoal);
@@ -194,6 +209,14 @@ export const BreakChoice: React.FC<{ goal: Goal; choice: PastLimitChoice }> = ({
           </Button>
         </div>
       </Surface>
+      {askLevel && goal.journeyResult && (
+        <NextPlanLevelDialog
+          open
+          onOpenChange={(open) => !open && setAskLevel(false)}
+          result={goal.journeyResult}
+          onContinue={(level) => launchNextPlan(goal, 'fresh', level)}
+        />
+      )}
     </main>
   );
 };

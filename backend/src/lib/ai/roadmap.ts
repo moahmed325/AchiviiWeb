@@ -1,6 +1,6 @@
 import { findPresetForGoal, type CertifiedPresetBlueprint } from './presets/index.js';
 import { generateWithOneRetry } from './retry.js';
-import { extractStatedTargets, rowMatchesTarget, type StatedTarget } from '../research/statedTarget.js';
+import { extractStatedTargets, rowMatchesTarget, sameUnit, type StatedTarget } from '../research/statedTarget.js';
 import { screenQuery } from '../research/safetyFilter.js';
 import type { VelocityTarget } from '../research/types.js';
 import { SAFETY_LIMIT_TEXT, logSafetyHit, textSafetyHits } from './safetyScan.js';
@@ -101,6 +101,8 @@ export interface RoadmapInput {
   dailyMinutes: number;
   activeDays: number;
   answers: PlanAnswer[];
+  /** Next plan (NP-3): the level code measured from the last plan; the starting point must be it (in the same unit). */
+  measuredStart?: { value: number; unit: string } | null;
 }
 
 export const TOTAL_WEEKS = 12;
@@ -629,6 +631,8 @@ export interface RoadmapCheckContext {
   pathwayTests?: boolean;
   /** M1.2 (PSL-10 (3)): the goal's pathway id; on run10k a time or minutes target counts as running. */
   pathwayId?: string;
+  /** Next plan (NP-3): `RoadmapInput.measuredStart`. */
+  measuredStart?: { value: number; unit: string } | null;
 }
 
 /**
@@ -727,6 +731,22 @@ export function checkRoadmapAnswer(
     description: text(data.startingPoint?.description),
   };
   if (weeks[0].target.kind === 'deliverable') startingPoint.value = null;
+
+  // Next plan (NP-3): the starting point is the level code measured, when the targets are in its unit. The model's own
+  // value is sent back once; on the last attempt it is replaced, so the climb below is checked from the measured level.
+  const measured = context.measuredStart;
+  const firstWeekTarget = weeks[0].target;
+  if (
+    measured &&
+    firstWeekTarget.kind === 'number' &&
+    sameUnit(firstWeekTarget.unit, measured.unit) &&
+    (startingPoint.value === null || Math.abs(startingPoint.value - measured.value) > 1e-9)
+  ) {
+    if (!lastAttempt) {
+      return { reason: `"startingPoint.value" must be ${measured.value} ${measured.unit}: their level measured at the end of their last plan.` };
+    }
+    startingPoint.value = measured.value;
+  }
 
   const climbProblem = numberClimbFailure(weeks, startingPoint);
   if (climbProblem && (climbProblem.hard || !lastAttempt)) {
@@ -909,7 +929,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
     (data, lastAttempt) => {
       const verdict = checkRoadmapAnswer(
         data,
-        { statedTargets, fixedMethod, pathwayTests: Boolean(preset?.weeklyTests), pathwayId: preset?.id },
+        { statedTargets, fixedMethod, pathwayTests: Boolean(preset?.weeklyTests), pathwayId: preset?.id, measuredStart: input.measuredStart ?? null },
         lastAttempt
       );
       lowSafety = 'reason' in verdict && verdict.reason.startsWith('"safety" is');

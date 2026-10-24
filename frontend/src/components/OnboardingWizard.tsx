@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { CommitmentItem, Goal, RoutineSettings } from '../types';
+import type { NextPlanLaunch } from '../lib/nextPlan';
 import { useOnboardingState } from './onboarding/useOnboardingState';
 import { questionFlow } from './onboarding/questionFlow';
 import { nextStep, previousStep, type FlowStep } from './onboarding/steps';
@@ -28,6 +29,8 @@ interface OnboardingWizardProps {
   initialGoal?: string;
   isPreset?: boolean;
   currentGoalId?: string | null;
+  /** Next plan (NP-3): set when this plan continues an earlier one. */
+  nextPlan?: NextPlanLaunch | null;
   /** The app's health check couldn't reach Achivii when it loaded. */
   apiOffline?: boolean;
 }
@@ -42,9 +45,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   initialGoal,
   isPreset,
   currentGoalId,
+  nextPlan = null,
   apiOffline = false
 }) => {
-  const onboarding = useOnboardingState({ token, onGoalCreated, initialGoal, isPreset, currentGoalId });
+  const onboarding = useOnboardingState({ token, onGoalCreated, initialGoal, isPreset, currentGoalId, nextPlan });
   const {
     goalKind,
     order,

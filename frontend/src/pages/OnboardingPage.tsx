@@ -5,6 +5,7 @@ import { useGoal } from '../context/GoalContext';
 import { OnboardingWizard } from '../components/OnboardingWizard';
 import { Button, Surface } from '../components/ui';
 import { Goal } from '../types';
+import type { NextPlanLaunch } from '../lib/nextPlan';
 
 export const OnboardingPage: React.FC = () => {
   const { token } = useAuth();
@@ -56,10 +57,20 @@ export const OnboardingPage: React.FC = () => {
     isPreset?: boolean;
     switchGoal?: boolean;
     fromCompletedGoal?: boolean;
+    nextPlan?: NextPlanLaunch;
   } | null;
   const initialGoal = navState?.presetGoal || navState?.draftGoal;
   const isPreset = Boolean(navState?.isPreset || navState?.presetGoal);
-  const isFromCompleted = Boolean(navState?.fromCompletedGoal || activeGoal?.status === 'completed');
+  const nextPlan = navState?.nextPlan ?? null;
+  const isFromCompleted = !nextPlan && Boolean(navState?.fromCompletedGoal || activeGoal?.status === 'completed');
+  // NP-3, NP-4: where the next plan starts; the earlier plan stays as it is.
+  const nextPlanNotice = !nextPlan
+    ? null
+    : nextPlan.request.mode === 'go_further'
+      ? `Write your next goal.${nextPlan.startsFrom ? ` It starts from ${nextPlan.startsFrom}.` : ''}`
+      : nextPlan.startsFrom
+        ? `Your next plan starts from ${nextPlan.startsFrom}.`
+        : 'Your next plan starts from where your last one ended.';
 
   return (
     <div className="flex w-full flex-1 flex-col">
@@ -77,12 +88,24 @@ export const OnboardingPage: React.FC = () => {
           </div>
         </div>
       )}
+      {nextPlanNotice && (
+        <div role="status" className="mx-auto w-full max-w-2xl px-gutter pt-6 text-left">
+          <div className="flex items-center gap-3 rounded-card border border-achievement/30 bg-surface p-4 text-small text-text-secondary">
+            <span className="size-2 rounded-full bg-achievement shrink-0" aria-hidden="true" />
+            <span>
+              <strong className="text-text font-medium">{nextPlanNotice} </strong>
+              Your last plan and its results stay in your history.
+            </span>
+          </div>
+        </div>
+      )}
       <OnboardingWizard
         token={token}
         onGoalCreated={handleGoalCreated}
         initialGoal={initialGoal}
         isPreset={isPreset}
         currentGoalId={goalLoadFailed ? null : activeGoal?.id}
+        nextPlan={nextPlan}
         apiOffline={apiStatus === 'offline'}
       />
     </div>

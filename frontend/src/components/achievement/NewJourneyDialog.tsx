@@ -15,7 +15,7 @@ export interface NewJourneyDialogProps {
 
 /**
  * NewJourneyDialog (BP §34, R-15).
- * Dignified confirmation modal triggered by "Begin another journey".
+ * Dignified confirmation modal triggered by "Choose another pathway".
  * Reassures the user that their completed 90-day journey is safely preserved in history,
  * then guides them into onboarding to select their next pathway.
  */

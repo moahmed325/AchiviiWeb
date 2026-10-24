@@ -424,3 +424,40 @@ describe('creating the plan', () => {
     expect(result.current.generationError?.kind).toBe('offline');
   });
 });
+
+describe('a next plan (NP-3)', () => {
+  it('drops the level question, fills in the earlier answers and sends nextPlan with the body', async () => {
+    localStorage.setItem(DRAFT_GOAL_KEY, CUSTOM);
+    clarify.mockResolvedValue(CUSTOM_CLARIFY);
+    create.mockResolvedValueOnce({ goal: goal('new', CUSTOM), roadmapWeeks: [], dailyTasks: [] });
+    activeGoal.mockResolvedValue(null);
+    const equipment = CUSTOM_CLARIFY.followUpQuestions.find((q) => q.id === 'equipment')!.options[1];
+    const { result } = setup({
+      initialGoal: CUSTOM,
+      currentGoalId: 'old',
+      nextPlan: {
+        request: { fromGoalId: 'old', mode: 'keep_going' },
+        goalText: CUSTOM,
+        isPreset: false,
+        startsFrom: null,
+        answers: [
+          { id: 'current_level', question: '', answer: 'Never tried sourdough' },
+          { id: 'success', question: '', answer: 'A loaf with an open crumb' },
+          { id: 'equipment', question: '', answer: equipment },
+          { id: 'obstacle', question: '', answer: 'Skipped' },
+        ],
+      },
+    });
+    await flush();
+    expect(result.current.questionList.map((q) => q.id)).toEqual(['success', 'equipment', 'obstacle']);
+    expect(result.current.answers).toEqual({ equipment });
+    expect(result.current.customAnswers).toEqual({ success: 'A loaf with an open crumb' });
+
+    act(() => result.current.setSkipCounts({ obstacle: 2 }));
+    await chooseSchedule(result);
+    await act(() => result.current.handleGeneratePlan());
+    const body = create.mock.calls[0][0];
+    expect(body.nextPlan).toEqual({ fromGoalId: 'old', mode: 'keep_going' });
+    expect(body.answerList?.map((item) => item.id)).toEqual(['success', 'equipment', 'obstacle']);
+  });
+});

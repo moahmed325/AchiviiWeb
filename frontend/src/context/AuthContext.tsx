@@ -139,3 +139,8 @@ export function useAuth(): AuthContextType {
 export function useUserTimezone(): string | undefined {
   return useContext(AuthContext)?.user?.timezone || undefined;
 }
+
+/** The access token, or null. Like useUserTimezone it never throws outside an AuthProvider (next plan's Pro check). */
+export function useAuthToken(): string | null {
+  return useContext(AuthContext)?.token ?? null;
+}

@@ -1,7 +1,13 @@
-import React from 'react';
-import { ArrowRight, Compass, Sparkles } from 'lucide-react';
-import type { Goal, AchievementSummary } from '../../types';
+import React, { useState } from 'react';
+import { ArrowRight, Compass, RotateCcw, Sparkles, TrendingUp } from 'lucide-react';
+import type { Goal, AchievementSummary, NextPlanMode } from '../../types';
+import { findPathwayByTitle } from '../../lib/certifiedPresets';
+import { journeyHeadline, journeyOutcome, needsLevel, nextPlanChoices } from '../../lib/nextPlan';
+import { useProEntitlement } from '../../hooks/useProEntitlement';
+import { usePathwayLaunch } from '../pathways/launch';
 import { Button, cx } from '../ui';
+import { NextPlanLevelDialog } from './NextPlanLevelDialog';
+import { useNextPlanLaunch } from './useNextPlanLaunch';
 
 interface AchievementHeroProps {
   goal: Goal;
@@ -23,6 +29,23 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
   onBeginAnotherJourney,
   className,
 }) => {
+  const isPro = useProEntitlement();
+  const launchNextPlan = useNextPlanLaunch();
+  const { startPathway } = usePathwayLaunch();
+  const [levelFor, setLevelFor] = useState<NextPlanMode | null>(null);
+  const result = goal.journeyResult ?? null;
+  const headline = journeyHeadline(result);
+  const outcome = journeyOutcome(result);
+  // NP-6, NP-7: Pro sees the next plan; everyone can restart their pathway from the start or choose another.
+  const choices = nextPlanChoices(result, isPro);
+  const pathway = findPathwayByTitle(goal.rawGoal);
+  const madeIt = result ? result.madeIt : true;
+
+  const choose = (mode: NextPlanMode) => {
+    if (needsLevel(result, mode)) setLevelFor(mode);
+    else launchNextPlan(goal, mode);
+  };
+
   return (
     <section
       aria-labelledby="achievement-heading"
@@ -61,9 +84,11 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
             COMPLETE
           </h1>
 
+          {/* Next plan (NP-1, NP-2): what they reached, against their full goal. */}
           <p className="mt-2 text-h2 font-medium text-text">
-            You made it.
+            {headline ?? (madeIt ? 'You made it.' : '90 days done.')}
           </p>
+          {outcome && <p className="mt-2 max-w-xl text-body-lg text-text">{outcome}</p>}
 
           <p className="mt-2 max-w-xl text-body-lg text-text-secondary">
             You walked the ninety days one clear action at a time. The staircase was the
@@ -118,10 +143,28 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
             </div>
           </div>
 
+          {/* Next plan (NP-5 to NP-7): Pro only; never shown as a result of falling short. */}
+          {choices.length > 0 && (
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              {choices.map((choice, index) => (
+                <Button
+                  key={choice.mode}
+                  variant={index === 0 ? 'primary' : 'secondary'}
+                  size="lg"
+                  onClick={() => choose(choice.mode)}
+                  leadingIcon={<TrendingUp aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                  className="w-full sm:w-auto"
+                >
+                  {choice.label}
+                </Button>
+              ))}
+            </div>
+          )}
+
           {/* Primary Action Buttons */}
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className={cx('flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center', choices.length > 0 ? 'mt-3' : 'mt-8')}>
             <Button
-              variant="primary"
+              variant={choices.length > 0 ? 'secondary' : 'primary'}
               size="lg"
               onClick={onViewResults}
               trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
@@ -136,9 +179,28 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
               leadingIcon={<Compass aria-hidden="true" strokeWidth={1.5} className="size-4" />}
               className="w-full sm:w-auto"
             >
-              Begin another journey
+              Choose another pathway
             </Button>
+            {pathway && (
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={() => startPathway(pathway)}
+                leadingIcon={<RotateCcw aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                className="w-full sm:w-auto"
+              >
+                Start {pathway.title} again from the start
+              </Button>
+            )}
           </div>
+          {result && levelFor && (
+            <NextPlanLevelDialog
+              open
+              onOpenChange={(open) => !open && setLevelFor(null)}
+              result={result}
+              onContinue={(level) => launchNextPlan(goal, levelFor, level)}
+            />
+          )}
         </div>
 
         {/* Right Column: Architectural Framed Roman Garden Asset (VDS §17–18, note 8) */}

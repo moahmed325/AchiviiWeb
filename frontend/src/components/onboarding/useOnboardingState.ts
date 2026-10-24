@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import type { CreateGoalResponse, FollowUpQuestion, Goal, GoalClarification, RoutineSettings } from '../../types';
 import { clarifyGoal, createGoalPlan, fetchActiveGoal, type PlanProgressEvent } from '../../lib/api';
+import { nextPlanQuestions, prefilledAnswers, type NextPlanLaunch } from '../../lib/nextPlan';
 import { DRAFT_GOAL_KEY, answerFor as answerForState, buildCreatePayload } from './payload';
 import { describeOnboardingError, type OnboardingError } from './requestErrors';
 import { STEP_ORDER, isFlowStep, nextStep, splitQuestions, type FlowStep, type GoalKind, type WizardStep } from './steps';
@@ -38,13 +39,15 @@ export interface OnboardingStateOptions {
    * first Build so a reload does not mistake a just-saved plan for the one that was already active.
    */
   currentGoalId?: string | null;
+  /** Next plan (NP-3): the earlier plan's answers are filled in again, and the level question is not asked. */
+  nextPlan?: NextPlanLaunch | null;
 }
 
 /**
  * Onboarding flow state: steps and browser history, clarify, answers, routine, and plan creation.
  * Presentation-only state (drag, drawers, editors) stays with the step that renders it.
  */
-export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset, currentGoalId }: OnboardingStateOptions) {
+export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset, currentGoalId, nextPlan = null }: OnboardingStateOptions) {
   // The draft key stays until a goal is created, so a reload keeps a launched pathway (ND-16).
   const [initialDraft] = useState(() => {
     if (initialGoal && initialGoal.trim()) return initialGoal.trim();
@@ -204,12 +207,17 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
   const requestClarification = (goalText: string) => {
     const request = ++clarifyRequest.current;
     clarifyGoal(goalText)
-      .then((result) => {
+      .then((clarified) => {
         if (request !== clarifyRequest.current) return;
+        // NP-3: a next plan drops the level question (the server adds the measured level) and fills in the rest.
+        const result = nextPlan ? { ...clarified, followUpQuestions: nextPlanQuestions(clarified.followUpQuestions || []) } : clarified;
+        const filled = nextPlan
+          ? prefilledAnswers(result.followUpQuestions, nextPlan.answers, nextPlan.request.mode)
+          : { answers: {}, customAnswers: {} };
         setClarification(result);
         setEditedOutcome(result.clarifiedOutcome);
-        setAnswers({});
-        setCustomAnswers({});
+        setAnswers(filled.answers);
+        setCustomAnswers(filled.customAnswers);
         setSkipCounts({});
         setIsClarifying(false);
         setConnection('online');
@@ -342,7 +350,7 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
 
       try {
         const response: CreateGoalResponse = await createGoalPlan(
-          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, answers, customAnswers }),
+          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, answers, customAnswers, nextPlan: nextPlan?.request }),
           token,
           (event) => {
             setPlanSteps((prev) => [...prev.filter((s) => s.id !== event.id), event]);

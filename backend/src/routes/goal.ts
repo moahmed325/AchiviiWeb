@@ -17,7 +17,18 @@ import {
 } from '../lib/reconcileCore.js';
 import { doneDayIds, markerRefusal } from '../lib/recovery/swap.js';
 import { easyLineAfterSwap } from '../lib/recovery/easyStart.js';
-import { authorizeNewCustomGoal } from '../lib/billing/goalAuthorization.js';
+import { authorizeNewCustomGoal, authorizeNextPlan } from '../lib/billing/goalAuthorization.js';
+import {
+  journeyResultOf,
+  journeySummary,
+  NEXT_PLAN_MODES,
+  nextPlanStart,
+  readPreviousPlan,
+  type JourneyGoal,
+  type JourneyResult,
+  type NextPlanMode,
+  type PreviousPlan,
+} from '../lib/nextPlan.js';
 import { clarifyGoalWithAI, UserRoutineInput } from '../lib/ai/goalDecomposer.js';
 import { findPresetForGoal } from '../lib/ai/presets/index.js';
 import { isHighLoadGoal } from '../lib/highLoad.js';
@@ -141,6 +152,21 @@ function checkpointOfGoal(goal: Record<string, unknown>): { checkpoint: Checkpoi
   return { checkpoint: checkpointViewOf(read), dayNinetyLine: dayNinetyLineOf(read) };
 }
 
+/** Next plan: the goal as `journeyResultOf` reads it, from a goal row with its weeks. */
+function journeyGoalOf(goal: Record<string, unknown>): JourneyGoal {
+  return {
+    rawGoal: typeof goal.rawGoal === 'string' ? goal.rawGoal : '',
+    clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
+    roadmap: goal.roadmap,
+    roadmapWeeks: goal.roadmapWeeks as JourneyGoal['roadmapWeeks'],
+  };
+}
+
+/** Next plan (NP-1, NP-8): what the plan reached, and the plan it follows. No switch: it reads stored rows only. */
+function nextPlanOfGoal(goal: Record<string, unknown>): { journeyResult: JourneyResult | null; previousPlan: PreviousPlan | null } {
+  return { journeyResult: journeyResultOf(journeyGoalOf(goal)), previousPlan: readPreviousPlan(goal.roadmap) };
+}
+
 function withoutStatus(week: unknown): unknown {
   if (!week || typeof week !== 'object') return week;
   const { updateStatus: _status, ...rest } = week as Record<string, unknown>;
@@ -155,6 +181,8 @@ function presentGoal<T extends Record<string, unknown>>(
   dailyTimeCheck: DailyTimeCheck | null;
   checkpoint: CheckpointView | null;
   dayNinetyLine: DayNinetyLine | null;
+  journeyResult: JourneyResult | null;
+  previousPlan: PreviousPlan | null;
 } {
   const velocityTable = goal.velocityTable
     ? clampedTable(goal.velocityTable, typeof goal.id === 'string' ? goal.id : undefined)
@@ -166,6 +194,7 @@ function presentGoal<T extends Record<string, unknown>>(
     ...safe,
     ...retestOfGoal(goal),
     ...checkpointOfGoal(goal),
+    ...nextPlanOfGoal(goal),
     // RULE-3 (B-95, B-98): the status stays inside; no goal response carries `updateStatus`.
     ...(Array.isArray(weeks) ? { roadmapWeeks: weeks.map(withoutStatus) } : {}),
     velocityTable,
@@ -200,6 +229,50 @@ function planAnswerList(list: unknown, byQuestion: unknown): PlanAnswer[] {
   return [];
 }
 
+type NextPlanRequest =
+  | { start: NonNullable<ReturnType<typeof nextPlanStart>>; previousPlan: PreviousPlan }
+  | { status: number; error: string; code?: string };
+
+/**
+ * Next plan (NP-7 to NP-10): `nextPlan` on `POST /api/goal/create` (`{ fromGoalId, mode, level? }`). Null when the
+ * body has none. Pro for every goal. The level comes from the old plan's stored results (NP-8); only a level the
+ * person typed (after a break, or with no result logged) is taken from the body. "Keep going" and "Go further" follow
+ * a completed plan, "Start a fresh plan" the active one (a long break, WU-9).
+ */
+async function readNextPlanRequest(userId: string, body: unknown): Promise<NextPlanRequest | null> {
+  if (body === undefined || body === null) return null;
+  const request = body as { fromGoalId?: unknown; mode?: unknown; level?: unknown };
+  const mode = request.mode as NextPlanMode;
+  const level = request.level === undefined || request.level === null ? null : request.level;
+  if (
+    typeof body !== 'object' ||
+    typeof request.fromGoalId !== 'string' ||
+    !NEXT_PLAN_MODES.includes(mode) ||
+    (level !== null && (typeof level !== 'number' || !Number.isFinite(level) || level < 0))
+  ) {
+    return { status: 400, error: 'nextPlan must name the plan it follows and how it continues.' };
+  }
+  const authorization = await authorizeNextPlan(userId);
+  if (!authorization.allowed) return { status: 403, error: authorization.message, code: authorization.code };
+
+  const old = await prisma.goal.findFirst({
+    where: { id: request.fromGoalId, userId },
+    include: { roadmapWeeks: { orderBy: { weekNumber: 'asc' } } },
+  });
+  if (!old) return { status: 404, error: 'That plan was not found.' };
+  if (old.status !== (mode === 'fresh' ? 'active' : 'completed')) {
+    return { status: 409, error: 'This plan can no longer be continued this way.' };
+  }
+  const result = journeyResultOf(journeyGoalOf(old as unknown as Record<string, unknown>));
+  if (!result) return { status: 409, error: 'This plan can no longer be continued this way.' };
+  const start = nextPlanStart(result, mode, level as number | null);
+  if (!start) return { status: 400, error: 'Tell us where you are now, so your next plan starts there.' };
+  return {
+    start,
+    previousPlan: { goalId: old.id, number: (readPreviousPlan(old.roadmap)?.number ?? 1) + 1, mode, summary: journeySummary(result) },
+  };
+}
+
 async function archiveActiveGoals(userId: string) {
   await prisma.goal.updateMany({ where: { userId, status: 'active' }, data: { status: 'archived' } });
 }
@@ -217,8 +290,11 @@ async function saveV2Goal(input: {
   isPreset: boolean;
   /** Method-aware recovery (M1.3a): saved under `recovery` when it passed the checks. */
   recovery?: RecoveryProfile | null;
+  /** Next plan (NP-8): the plan this one follows, saved under `previousPlan`. */
+  previousPlan?: PreviousPlan | null;
 }): Promise<string> {
   const { roadmap } = input;
+  const stored = storedRoadmap(roadmap, input.answerList, input.recovery);
   await archiveActiveGoals(input.userId);
   const goal = await prisma.goal.create({
     data: {
@@ -236,7 +312,7 @@ async function saveV2Goal(input: {
       canonicalMethodName: roadmap.method.name,
       canonicalAuthority: roadmap.method.creator || null,
       planVersion: 2,
-      roadmap: JSON.parse(JSON.stringify(storedRoadmap(roadmap, input.answerList, input.recovery))),
+      roadmap: JSON.parse(JSON.stringify(input.previousPlan ? { ...stored, previousPlan: input.previousPlan } : stored)),
     },
   });
   await prisma.roadmapWeek.createMany({
@@ -329,7 +405,13 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
     // New non-preset goals require a verified Pro entitlement before any plan generation or mutation.
     const requestedPreset = typeof rawGoal === 'string' ? findPresetForGoal(rawGoal) : null;
     const requestedClarifiedPreset = typeof clarifiedOutcome === 'string' ? findPresetForGoal(clarifiedOutcome) : null;
-    if (!requestedPreset && !requestedClarifiedPreset) {
+    // Next plan (NP-7): its own Pro check covers custom goals too.
+    const nextPlan = await readNextPlanRequest(user.id, req.body?.nextPlan);
+    if (nextPlan && 'error' in nextPlan) {
+      res.status(nextPlan.status).json({ error: nextPlan.error, ...(nextPlan.code ? { code: nextPlan.code } : {}) });
+      return;
+    }
+    if (!nextPlan && !requestedPreset && !requestedClarifiedPreset) {
       const authorization = await authorizeNewCustomGoal(user.id);
       if (!authorization.allowed) {
         res.status(403).json({ error: authorization.message, code: authorization.code });
@@ -379,7 +461,15 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
     };
 
     const planVariant = routineInput.planVariant as PlanVariant;
-    const answerList = planAnswerList(req.body.answerList, answers);
+    // NP-3: a next plan adds the level it starts from as one more answer, in place of any sent with that id.
+    const sentAnswers = planAnswerList(req.body.answerList, answers);
+    const measuredLevel = nextPlan ? nextPlan.start.answer : null;
+    const answerList = measuredLevel ? [...sentAnswers.filter((item) => item.id !== measuredLevel.id), measuredLevel] : sentAnswers;
+    const answerRecord: Record<string, string> = {
+      ...(answers && typeof answers === 'object' ? answers : {}),
+      ...(measuredLevel ? { [measuredLevel.question]: measuredLevel.answer } : {}),
+    };
+    const measuredStart = nextPlan && nextPlan.start.value !== null && nextPlan.start.unit ? { value: nextPlan.start.value, unit: nextPlan.start.unit } : null;
     const preset = findPresetForGoal(rawGoal) || findPresetForGoal(clarifiedOutcome);
     send?.({
       type: 'step',
@@ -394,6 +484,7 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
       dailyMinutes,
       activeDays: activeDaysFor(planVariant),
       answers: answerList,
+      ...(measuredStart ? { measuredStart } : {}),
     });
 
     let week1: WeekDayPlan[] | null = null;
@@ -442,13 +533,14 @@ goalRouter.post('/create', async (req: Request, res: Response): Promise<void> =>
         rawGoal,
         roadmap: roadmapResult.roadmap,
         week1,
-        answers: answers || {},
+        answers: answerRecord,
         answerList,
         routine: routineInput,
         start,
         targetDate,
         isPreset: Boolean(preset),
         recovery,
+        previousPlan: nextPlan ? nextPlan.previousPlan : null,
       });
       // Plan safety limits M1.2 (RULE-10, AC-10): the accepted roadmap's lowered targets, logged once with the goal id.
       // The check's own decision (family, no start, pathway), so the log and the check can never disagree.

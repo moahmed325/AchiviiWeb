@@ -15,7 +15,7 @@ import { FIRST_WEEK_BACK_LINE } from '../../lib/stepLines';
 // Weekly update M4.1a (requirement 2, RULE-7, section 6): every line the feature shows in the app is free of the
 // forbidden words and asks nothing, except the two questions the copy table holds.
 
-vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ token: 't' }) }));
+vi.mock('../../context/AuthContext', () => ({ useAuth: () => ({ token: 't' }), useAuthToken: () => null }));
 vi.mock('../../context/GoalContext', () => ({
   useGoal: () => ({ answerChoice: vi.fn(), answerHeldClose: vi.fn(), refreshGoal: vi.fn(async () => undefined) }),
 }));

@@ -84,6 +84,12 @@ export const ProgressPage: React.FC = () => {
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Progress</p>
         <h1 className="mt-3 text-h2 text-text">{activeGoal.rawGoal}</h1>
         <p className="mt-2 max-w-xl text-body text-text-secondary">{activeGoal.clarifiedOutcome}</p>
+        {/* Next plan (NP-8): the plan this one follows. */}
+        {activeGoal.previousPlan && (
+          <p className="mt-2 max-w-xl text-small text-text-secondary">
+            Plan {activeGoal.previousPlan.number}. Plan {activeGoal.previousPlan.number - 1}: {activeGoal.previousPlan.summary}.
+          </p>
+        )}
       </header>
 
       <section aria-labelledby="current-progress" className="mt-12 border-t border-border pt-8">

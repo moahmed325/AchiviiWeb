@@ -58,7 +58,7 @@ How this log works: `docs/templates/decisions.md`.
 **Question:** what does "Start a fresh plan" do?
 **Decision:** opens goal creation with this goal's text filled in; creating the new goal archives the old one. Custom goals still need Pro.
 **Why:** least typing for the person, and one active goal at a time as today.
-**Changes:** RULE-15.
+**Changes:** RULE-15. With Pro, next plan NP-9 (2026-10-24) starts the fresh plan from the level now; without Pro it stays as written here.
 
 ### WU-10 — Paused for method-aware recovery (2026-10-08)
 **Question:** missed sessions' recovery treats every task the same. Fix that first, or build the weekly update on top of it?

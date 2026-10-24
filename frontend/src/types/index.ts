@@ -357,6 +357,8 @@ export interface GoalRoadmap {
     rules: string[];
   };
   phases: RoadmapPhase[];
+  /** The wizard's answers by question id, as the plan was made from them. */
+  answers?: PlanAnswer[];
 }
 
 export interface PlanAnswer {
@@ -422,6 +424,52 @@ export interface Goal {
   checkpoint?: Checkpoint | null;
   /** Checkpoints (RULE-11): set while an accepted offer leaves week 12 below the goal; shown in place of `week12Line`. */
   dayNinetyLine?: DayNinetyLine | null;
+  /** Next plan (NP-1, NP-2): what the plan reached, from the stored rows; null or missing for a goal with no v2 roadmap. */
+  journeyResult?: JourneyResult | null;
+  /** Next plan (NP-8): the plan this one follows; null or missing for a first plan. */
+  previousPlan?: PreviousPlan | null;
+}
+
+/** Next plan: how a new plan continues an earlier one. */
+export type NextPlanMode = 'keep_going' | 'go_further' | 'fresh';
+
+/** Next plan (NP-1, NP-2, NP-5): amounts as shown ("3 km", "52 min or less"). */
+export interface JourneyResult {
+  kind: 'number' | 'deliverable';
+  start: string | null;
+  startValue: number | null;
+  /** The last measured result; null when none was logged. */
+  reached: string | null;
+  reachedValue: number | null;
+  reachedWeek: number | null;
+  /** The person's full goal, never a lowered target. */
+  goal: string | null;
+  goalValue: number | null;
+  unit: string | null;
+  direction: 'higher_is_better' | 'lower_is_better' | null;
+  /** Set when a checkpoint lowered week 12. */
+  dayNinetyTarget: string | null;
+  reachedDayNinety: boolean;
+  madeIt: boolean;
+  nearGoal: boolean;
+  weeksFinished: number;
+  lastDone: string | null;
+}
+
+export interface PreviousPlan {
+  goalId: string;
+  number: number;
+  mode: NextPlanMode;
+  /** "3 km → 8 km", or "11 of 12 weeks". */
+  summary: string;
+}
+
+/** Next plan (NP-8): sent with `POST /api/goal/create`; the server reads the level from the old plan itself. */
+export interface NextPlanRequest {
+  fromGoalId: string;
+  mode: NextPlanMode;
+  /** Only a level the person typed (NP-9, NP-10). */
+  level?: number;
 }
 
 /** Checkpoints (section 7): the open offer, with every amount as the card shows it ("6 km", "52 min or less"). */
@@ -474,6 +522,8 @@ export interface CreateGoalPayload {
   domain?: string;
   routine: RoutineSettings;
   startDate?: string;
+  /** Next plan: only when this plan continues an earlier one. */
+  nextPlan?: NextPlanRequest;
 }
 
 export interface CreateGoalResponse {

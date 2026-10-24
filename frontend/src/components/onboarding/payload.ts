@@ -1,4 +1,4 @@
-import type { CreateGoalPayload, FollowUpQuestion, GoalClarification, RoutineSettings } from '../../types';
+import type { CreateGoalPayload, FollowUpQuestion, GoalClarification, NextPlanRequest, RoutineSettings } from '../../types';
 
 /** Written by every pathway launch (landing, auth redirect, galleries); read by onboarding when router state is absent. */
 export const DRAFT_GOAL_KEY = 'achivii_draft_goal';
@@ -20,6 +20,8 @@ export interface PayloadInput extends AnswerState {
   editedOutcome: string;
   clarification: GoalClarification | null;
   routine: RoutineSettings;
+  /** Next plan: added last, only when set, so every other body stays as the R-4 baseline pins it. */
+  nextPlan?: NextPlanRequest;
 }
 
 /** The `POST /api/goal/create` body. Field order and values are pinned by the R-4 baseline (`e2e/fixtures/onboarding`). */
@@ -39,5 +41,6 @@ export function buildCreatePayload(input: PayloadInput): CreateGoalPayload {
     answerList,
     domain: clarification?.primaryDomain,
     routine,
+    ...(input.nextPlan ? { nextPlan: input.nextPlan } : {}),
   };
 }
