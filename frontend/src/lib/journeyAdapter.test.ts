@@ -7,6 +7,7 @@ import {
   useJourneyData,
 } from './journeyAdapter';
 import type { DailyTask, Goal, GoalRoadmap, RoadmapPhase } from '../types';
+import { doneDaysOf } from './stepLines';
 import { useGoal } from '../context/GoalContext';
 
 vi.mock('../context/GoalContext', () => ({
@@ -527,5 +528,16 @@ describe('journeyAdapter after a move (weekly update M1.4)', () => {
     // One holding the in-order queue's toNextWeek records reads the same (review change 1).
     const records = JSON.stringify([{ stepNumber: 1, title: 'Lesson 100', kind: 'lesson', toNextWeek: [{ taskId: 'd15', date: '2026-10-09', step: { title: 'Lesson 104' } }] }]);
     expect(mapTaskToStep(day(15, { notOffered: true, detailedSteps: records }), 17, '2026-10-11')).toMatchObject({ isRestDay: true, status: 'active' });
+  });
+
+  it('reads a day through visibleDay: a moved step done on its source day is hidden (B-54)', () => {
+    const tempo = { stepNumber: 1, title: 'Tempo run', durationMinutes: 20, instructions: '', priority: 1 };
+    const notes = { stepNumber: 2, title: 'Fri notes', durationMinutes: 15, instructions: '', priority: 2 };
+    const done = doneDaysOf([{ id: 'd15', status: 'completed', detailedSteps: JSON.stringify([tempo]) }]);
+    const moved = { ...tempo, carriedFrom: { taskId: 'd15', date: '2026-10-09', replaced: [] } };
+    const friday = day(16, { title: 'Tempo run', durationMinutes: 35, detailedSteps: JSON.stringify([moved, notes]) });
+    expect(mapTaskToStep(friday, 17, '2026-10-11', done)).toMatchObject({ title: 'Fri notes', durationMinutes: 15 });
+    // Without the done day, the stored day is shown.
+    expect(mapTaskToStep(friday, 17, '2026-10-11')).toMatchObject({ title: 'Tempo run', durationMinutes: 35 });
   });
 });

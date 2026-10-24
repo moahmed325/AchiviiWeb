@@ -13,6 +13,7 @@ import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
 import { week12NoteText } from './week12Line';
 import { dayNumber, isRestLike, todayKey } from './today';
+import { doneDaysOf, visibleDay, type DoneDays } from './stepLines';
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 
@@ -47,9 +48,11 @@ export function calculateDayNumber(
 }
 
 /**
- * Maps a single DailyTask into a JourneyStep.
+ * Maps a single DailyTask into a JourneyStep. B-54: the day reads as `visibleDay` shows it (a step done on its source day
+ * is hidden), the same as Today, Focus and the Dashboard.
  */
-export function mapTaskToStep(task: DailyTask, currentDay: number, todayStr: string): JourneyStep {
+export function mapTaskToStep(task: DailyTask, currentDay: number, todayStr: string, done: DoneDays = new Map()): JourneyStep {
+  const shown = visibleDay(task, done);
   let status: JourneyStatus;
 
   if (task.status === 'completed') {
@@ -67,8 +70,8 @@ export function mapTaskToStep(task: DailyTask, currentDay: number, todayStr: str
   return {
     dayNumber: task.dayNumber,
     dayOfWeek: task.dayOfWeek,
-    title: task.title,
-    durationMinutes: task.durationMinutes,
+    title: shown.title,
+    durationMinutes: shown.durationMinutes,
     status,
     // WU-33: a day not offered is shown like a rest day.
     isRestDay: isRestLike(task),
@@ -113,6 +116,7 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
     (goal.roadmap && (goal.roadmap as unknown as { weeks?: RoadmapWeek[] }).weeks) || goal.roadmapWeeks || [];
   const allDailyTasks: DailyTask[] =
     goal.dailyTasks || (goal as unknown as { tasks?: DailyTask[] }).tasks || [];
+  const doneDays = doneDaysOf(allDailyTasks);
 
   const phases: JourneyPhase[] = rawPhases.map((p, index) => {
     const phaseId = `p${index + 1}`;
@@ -152,7 +156,7 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
       if (isCurrentWeek) {
         const weekTasks = allDailyTasks.filter((t) => t.weekNumber === wNum);
         weekTasks.sort((a, b) => a.dayNumber - b.dayNumber);
-        days = weekTasks.map((t) => mapTaskToStep(t, currentDay, todayStr));
+        days = weekTasks.map((t) => mapTaskToStep(t, currentDay, todayStr, doneDays));
         hasWrittenTasks = days.length > 0;
       } else {
         days = [];
