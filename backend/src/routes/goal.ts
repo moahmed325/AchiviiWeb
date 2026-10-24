@@ -51,6 +51,18 @@ import { autoCloseUpdateInsight, logUpdateLowered, retestOfWeekFor, updateThenWr
 import type { PastLimitChoice } from '../lib/weekClose/breaks.js';
 import { weekCloseEnabled, weeklyUpdateEnabled } from '../lib/weekClose/switch.js';
 import {
+  CHECKPOINT_WEEKS,
+  acceptedWeeks,
+  answerLogLine,
+  checkpointViewOf,
+  dayNinetyLineOf,
+  pathwayOf,
+  readCheckpoints,
+  type CheckpointView,
+} from '../lib/weekClose/checkpoint.js';
+import { checkpointsAtClose } from '../lib/weekClose/checkpointClose.js';
+import type { DayNinetyLine } from '../lib/ai/dayNinety.js';
+import {
   RETEST_LOGGED_KEY,
   dailyTimeCheckOf,
   retestInfo,
@@ -114,6 +126,20 @@ function retestOfGoal(goal: Record<string, unknown>): { retest: RetestInfo | nul
   return { retest: retestInfo(weeks, tasks), dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes) };
 }
 
+/**
+ * Checkpoints (RULE-11, section 7): the open offer and the day-90 line, from the stored rows. Both null with either
+ * switch off (RULE-1).
+ */
+function checkpointOfGoal(goal: Record<string, unknown>): { checkpoint: CheckpointView | null; dayNinetyLine: DayNinetyLine | null } {
+  const read = {
+    rawGoal: typeof goal.rawGoal === 'string' ? goal.rawGoal : '',
+    clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
+    roadmap: goal.roadmap,
+    roadmapWeeks: goal.roadmapWeeks as StoredWeek[] | undefined,
+  };
+  return { checkpoint: checkpointViewOf(read), dayNinetyLine: dayNinetyLineOf(read) };
+}
+
 function withoutStatus(week: unknown): unknown {
   if (!week || typeof week !== 'object') return week;
   const { updateStatus: _status, ...rest } = week as Record<string, unknown>;
@@ -122,7 +148,13 @@ function withoutStatus(week: unknown): unknown {
 
 function presentGoal<T extends Record<string, unknown>>(
   goal: T
-): T & { basis: ReturnType<typeof formatBasisBadge>; retest: RetestInfo | null; dailyTimeCheck: DailyTimeCheck | null } {
+): T & {
+  basis: ReturnType<typeof formatBasisBadge>;
+  retest: RetestInfo | null;
+  dailyTimeCheck: DailyTimeCheck | null;
+  checkpoint: CheckpointView | null;
+  dayNinetyLine: DayNinetyLine | null;
+} {
   const velocityTable = goal.velocityTable
     ? clampedTable(goal.velocityTable, typeof goal.id === 'string' ? goal.id : undefined)
     : goal.velocityTable;
@@ -132,6 +164,7 @@ function presentGoal<T extends Record<string, unknown>>(
     ...goal,
     ...safe,
     ...retestOfGoal(goal),
+    ...checkpointOfGoal(goal),
     // RULE-3 (B-95, B-98): the status stays inside; no goal response carries `updateStatus`.
     ...(Array.isArray(weeks) ? { roadmapWeeks: weeks.map(withoutStatus) } : {}),
     velocityTable,
@@ -581,7 +614,8 @@ type ActionReason =
   | 'reflection_saved'
   | 'choice_needed'
   | 'weekly_update_disabled'
-  | 'no_daily_time_check';
+  | 'no_daily_time_check'
+  | 'no_checkpoint';
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -615,6 +649,8 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   // Weekly update M3.3b (WU-58 (4)): the daily-time answer.
   weekly_update_disabled: 'This action is not available yet.',
   no_daily_time_check: 'There is no daily-time question to answer.',
+  // Checkpoints (section 7): no open offer for that week, or "accept" on a line-only one.
+  no_checkpoint: 'There is no checkpoint to answer.',
 };
 
 function refuse(res: Response, reason: ActionReason): void {
@@ -1285,6 +1321,8 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       now,
       update,
       retestOfWeek: retestOfWeekFor(update, next.written),
+      // Checkpoints (RULE-2): after the update decided the targets, from the result this close stores.
+      checkpoints: checkpointsAtClose(goal, weekNum, { testResult: sanitizedTestResult ?? week.testResult, move: next.move, update }),
     });
     // Another close won inside the save (WU-27): nothing of this request was saved.
     if (!saved) return refuse(res, 'week_closed');
@@ -1385,6 +1423,8 @@ goalRouter.post('/close-week', async (req: Request, res: Response): Promise<void
       now,
       update,
       retestOfWeek: retestOfWeekFor(update, next.written),
+      // Checkpoints (RULE-2): as the review, from the result logged this week.
+      checkpoints: checkpointsAtClose(goal, weekNum, { testResult: week.testResult, move: next.move, update }),
     });
     // Lost the race (WU-27): another close saved this week; nothing of this request was saved.
     if (!saved) {
@@ -1558,6 +1598,82 @@ goalRouter.post('/daily-time', async (req: Request, res: Response): Promise<void
   } catch (err: any) {
     console.error('[GoalRouter] Daily time error:', err);
     res.status(500).json({ error: 'Failed to save the daily time.' });
+  }
+});
+
+/**
+ * POST /api/goal/checkpoint (checkpoints RULE-8, RULE-9, section 7, behind both switches)
+ * The answer to the open checkpoint offer: `{ week, answer }`, `keep` or `accept`. Keep stores the answer and changes
+ * nothing. Accept sets week 12 to the offered target and spreads the weeks between (`acceptedWeeks`); the answer and the
+ * targets are saved in one transaction. The first answer wins: the transaction first holds the open week's row (as a
+ * close of that week does, which expires the offer), then reads the offer again.
+ */
+goalRouter.post('/checkpoint', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = await actionUser(req, res);
+    if (!user) return;
+    // RULE-1: off means nothing is read or written.
+    if (!weeklyUpdateEnabled()) return refuse(res, 'weekly_update_disabled');
+    const week = req.body?.week;
+    const answer = req.body?.answer;
+    if (!CHECKPOINT_WEEKS.includes(week) || (answer !== 'keep' && answer !== 'accept')) {
+      res.status(400).json({ error: 'week must be 4 or 8 and answer keep or accept.' });
+      return;
+    }
+
+    const goal = await prisma.goal.findFirst({
+      where: { userId: user.id, status: 'active' },
+      select: { id: true, planVersion: true, roadmapWeeks: { where: { status: 'active' }, select: { weekNumber: true } }, roadmap: true },
+    });
+    if (!goal) {
+      res.status(404).json({ error: 'Active goal not found.' });
+      return;
+    }
+    if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
+    const openWeek = goal.roadmapWeeks[0]?.weekNumber;
+    const offerOf = (roadmap: unknown) => readCheckpoints(roadmap).find((item) => item.week === week && (item.answer === null || item.answer === undefined));
+    const offer = offerOf(goal.roadmap);
+    if (openWeek === undefined || !offer || (answer === 'accept' && (offer.kind === 'line_only' || offer.offered === null))) return refuse(res, 'no_checkpoint');
+
+    const answeredAt = new Date();
+    const saved = await prisma.$transaction(async (tx) => {
+      // Holds the open week's row until this commits; a close of that week, or a second answer, waits and then sees it.
+      const held = await tx.roadmapWeek.updateMany({ where: { goalId: goal.id, weekNumber: openWeek, status: 'active' }, data: { status: 'active' } });
+      if (held.count === 0) return false;
+      const row = await tx.goal.findFirst({ where: { id: goal.id }, include: { roadmapWeeks: { orderBy: { weekNumber: 'asc' } } } });
+      if (!row || !offerOf(row.roadmap)) return false;
+      const roadmap = { ...((row.roadmap ?? {}) as Record<string, unknown>) };
+      roadmap.checkpoints = readCheckpoints(row.roadmap).map((item) =>
+        item.week === week && (item.answer === null || item.answer === undefined) ? { ...item, answer, by: 'person', answeredAt: answeredAt.toISOString() } : item
+      );
+      if (answer === 'accept') {
+        // RULE-9: the weeks as the app reads them (an older goal's targets lowered on read), spread from the open week.
+        const rows = safeGoalTargets(row)?.weeks ?? row.roadmapWeeks;
+        const kind = offer.kind === 'raise' ? 'raise' : 'lower';
+        const spread = acceptedWeeks(rows, openWeek, offer.offered as number, kind, pathwayOf(row));
+        if (!spread) return false;
+        for (const changed of spread.weeks) {
+          await tx.roadmapWeek.update({
+            where: { goalId_weekNumber: { goalId: goal.id, weekNumber: changed.weekNumber } },
+            data: {
+              target: changed.target as unknown as Prisma.InputJsonObject,
+              objective: changed.objective,
+              keyMilestone: changed.keyMilestone,
+              test: changed.test as Prisma.InputJsonObject,
+            },
+          });
+        }
+        if (spread.finalTest !== null) roadmap.finalTest = spread.finalTest;
+      }
+      await tx.goal.update({ where: { id: goal.id }, data: { roadmap: roadmap as unknown as Prisma.InputJsonObject } });
+      return true;
+    });
+    if (!saved) return refuse(res, 'no_checkpoint');
+    console.log(answerLogLine(goal.id, { week, answer, by: 'person' }));
+    res.json({ week, answer, by: 'person', answeredAt });
+  } catch (err: any) {
+    console.error('[GoalRouter] Checkpoint answer error:', err);
+    res.status(500).json({ error: "Couldn't save your choice." });
   }
 });
 

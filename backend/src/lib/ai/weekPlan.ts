@@ -6,6 +6,7 @@ import { codeMadeRetestStep, easyRetestStep, retestDayOf, retestStepFor, type Re
 import { dayQualityFailures, polishDays } from './taskRules.js';
 import { EARLY_WEEKS, SAFETY_LIMIT_TEXT, logSafetyHit, stepSafetyHits, textSafetyHits, type SafetyRule } from './safetyScan.js';
 import type { FirstWeekBack } from '../weekClose/breaks.js';
+import { dayNinetyPromptLine, type DayNinetyLine } from './dayNinety.js';
 import { STEP_LOAD_SCHEMA, loadNeed, missingLoad, parseStepLoad, withMinutes, withoutLoad, type LoadGoal } from '../safety/stepLoad.js';
 import {
   CALORIE_DEFICIT_MAX,
@@ -120,6 +121,8 @@ export interface LastWeekSummary {
 
 export interface WeekCallInput {
   finalGoal: string;
+  /** Checkpoints (RULE-12): only while the goal response sends `dayNinetyLine`; without it the prompt is exactly as before. */
+  dayNinety?: DayNinetyLine;
   answers: PlanAnswer[];
   dailyMinutes: number;
   planVariant: PlanVariant;
@@ -471,7 +474,7 @@ function buildBaseWeekPrompt(input: WeekCallInput, layout: DayLayout[]): string 
   const method = input.method.creator ? `${input.method.name} by ${input.method.creator}` : input.method.name;
   const activeNames = layout.filter((day) => !day.isRestDay).map((day) => day.dayOfWeek).join(', ');
   return `THE PERSON
-Goal: ${input.finalGoal}
+Goal: ${input.finalGoal}${input.dayNinety ? NL + dayNinetyPromptLine(input.dayNinety) : ''}
 Their answers:
 ${formatAnswerLines(input.answers)}
 Time: ${input.dailyMinutes} minutes a day on ${activeNames}

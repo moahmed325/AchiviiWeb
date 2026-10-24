@@ -68,3 +68,11 @@ export const FIRST_WEEK_BACK_MIN_KM = 5;
  * weekly-update M3.4's restart level replaces it.
  */
 export const FIRST_WEEK_BACK_LONG_BREAK_PERCENT = 50;
+
+/**
+ * Checkpoints (docs/features/checkpoints, RULE-4, CP-5): at the close of week 4 or 8, clearly behind when the forecast
+ * covers less than this share of the climb from the starting point to the day-90 target.
+ */
+export const CHECKPOINT_BEHIND_PERCENT = 75;
+/** RULE-3, CP-15: under this share of the climb planned by the closing week, the forecast is the straight line. */
+export const CHECKPOINT_FLAT_PLAN_PERCENT = 10;
