@@ -100,12 +100,12 @@ describe('generateRecoveryProfile', () => {
     expect(result).toEqual({ profile: templateProfile('creative'), source: 'keyword_template', pickedTemplate: null });
 
     answers(null, null);
-    const sourdough = await generateRecoveryProfile({
-      ...input(number, 'Bake sourdough bread at home'),
-      domain: 'Bread baking',
+    const origami = await generateRecoveryProfile({
+      ...input(number, 'Fold origami cranes at home'),
+      domain: 'Paper folding',
       method: { name: 'Tartine method', summary: 'Long fermentation.', rules: ['Feed the starter daily'] },
     });
-    expect(sourdough).toEqual({ profile: templateProfile('general'), source: 'keyword_template', pickedTemplate: null });
+    expect(origami).toEqual({ profile: templateProfile('general'), source: 'keyword_template', pickedTemplate: null });
   });
 
   it('a deliverable goal whose answer has a non-continue catch-all is rejected', async () => {

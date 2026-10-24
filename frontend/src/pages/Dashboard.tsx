@@ -63,6 +63,8 @@ const recoveryStatus = (n: Extract<MissNotice, { kind: 'recovery' }>) => {
       return n.intoToday ? n.day + "'s most important step is part of today's session." : n.day + "'s most important step moved to " + n.toWeekday + '.';
     case 'continued':
       return n.intoToday ? n.day + "'s work picks up again today." : n.day + "'s work picks up again on " + n.toWeekday + '.';
+    case 'restarted':
+      return n.intoToday ? 'The process starts again today, from its first step.' : 'The process starts again on ' + n.toWeekday + ', from its first step.';
     case 'let_go':
     case 'fixed':
       return n.day + ' slipped past. No catching up needed, just today.';

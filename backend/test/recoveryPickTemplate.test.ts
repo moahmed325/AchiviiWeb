@@ -16,9 +16,11 @@ describe('pickTemplate', () => {
     });
   }
 
-  it('gives General practice for sourdough baking, from the goal and from its recorded domain', () => {
-    expect(pickTemplate({ goalText: 'Bake sourdough bread at home' })).toBe('general');
-    expect(pickTemplate({ domain: 'Bread baking', goalText: 'Bake sourdough bread at home', methodName: 'Tartine method' })).toBe('general');
+  it('B-38: gives the process template for sourdough and fermenting; General practice when nothing matches', () => {
+    expect(pickTemplate({ goalText: 'Bake sourdough bread at home' })).toBe('process');
+    expect(pickTemplate({ goalText: 'Brew my own kombucha' })).toBe('process');
+    expect(pickTemplate({ goalText: 'Get better at securing my home network' })).not.toBe('process');
+    expect(pickTemplate({ domain: 'Paper folding', goalText: 'Fold origami cranes at home', methodName: 'Yoshizawa method' })).toBe('general');
   });
 
   it('gives General practice with nothing to go on', () => {

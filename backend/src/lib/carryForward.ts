@@ -35,6 +35,8 @@ export interface SwapMarker {
 export interface ContinueMarker {
   taskId: string;
   date: string;
+  /** B-38: a restart kind's marker: the session starts the process again from its first step. */
+  restart?: true;
 }
 
 /**

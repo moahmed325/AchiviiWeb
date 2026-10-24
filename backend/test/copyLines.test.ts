@@ -107,6 +107,7 @@ describe('kind names in the sentence (M4.1a requirement 5, WU-61 (5), WU-11)', (
         "New topic": "new topics",
         "Opening or theory study": "opening or theory study",
         "Outlining and planning": "outlining and planning",
+        "Process step": "process steps",
         "Publishing": "publishing",
         "Research and scripting": "research and scripting",
         "Script and structure": "script and structure",

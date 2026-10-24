@@ -122,6 +122,8 @@ describe('stepLines (RULE-10, RULE-21, MR-26)', () => {
     expect(continueLine({ continueFrom: { date: '2026-09-22' } })).toBe('Pick up where Tuesday stopped.');
     expect(continueLine({ continueFrom: { date: 'bad' } })).toBeNull();
     expect(continueLine({})).toBeNull();
+    // B-38: a timed process starts again.
+    expect(continueLine({ continueFrom: { date: '2026-09-22', restart: true } })).toBe('Start the process again from its first step (Tuesday was missed).');
   });
 
   it('B-50: no continue line when the day the marker names is done; the line while it is open', () => {

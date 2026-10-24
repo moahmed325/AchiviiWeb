@@ -98,6 +98,8 @@ const recoveryOutcomeLine = (notice: Extract<MissNotice, { kind: 'recovery' }>) 
       return notice.intoToday ? 'We moved it into today, and the next ones follow on.' : `We moved it to ${notice.toWeekday}, and the next ones follow on.`;
     case 'continued':
       return `${notice.intoToday ? 'Today' : notice.toWeekday}'s session picks up where you left off.`;
+    case 'restarted':
+      return `${notice.intoToday ? 'Today' : notice.toWeekday}'s session starts the process again from its first step.`;
     case 'let_go':
       return 'Nothing needs making up: the plan carries on as it is.';
     case 'fixed':

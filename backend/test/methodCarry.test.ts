@@ -4,6 +4,7 @@ import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/mi
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { MOVED_WARM_UP_LINE, planRecovery, withWarmUpLine, type RecoveryPlan } from '../src/lib/recovery/carry.js';
 import { profileFailures, type RecoveryProfile } from '../src/lib/recovery/profile.js';
+import { templateProfile } from '../src/lib/recovery/templates.js';
 import { PROFILE } from './methodProfile.js';
 
 // Method-aware recovery M3.1a: the carry planner follows each step's action (RULE-9 to RULE-12, RULE-17, RULE-18,
@@ -319,6 +320,31 @@ describe('MR-27 is replaced in M3.1b (the order and rest-gap cases are in method
     const plan = on(week({ mon: { kind: 'missed', steps: [step('mon draft', 1, 15, 'drafting', { highLoad: true }), step('r', 2, 15, 'review')] } }));
     expect(plan.carries.map((c) => [c.step.title, c.toTaskId])).toEqual([['mon draft', id('tue')]]);
     expect(plan.continues).toEqual([]);
+  });
+});
+
+describe('B-38 restart: a timed process starts again', () => {
+  const process = templateProfile('process');
+  const feeding = (tag: string) => [step(`${tag} feed the starter`, 1, 20, 'process_step'), step(`${tag} notes`, 2, 10, 'notes_and_review')];
+
+  it('the process template passes the RULE-4 checks', () => {
+    expect(profileFailures(process)).toEqual([]);
+  });
+
+  it('moves nothing and marks the next process session with a restart marker', () => {
+    const input = week({ mon: { kind: 'missed', steps: feeding('mon') }, wed: { steps: feeding('wed') } });
+    const plan = on(input, process);
+    expect(plan.carries).toEqual([]);
+    expect(plan.continues).toHaveLength(1);
+    expect(plan.continues![0]).toMatchObject({ fromTaskId: id('mon'), toTaskId: id('wed'), kind: 'process_step' });
+    expect(plan.continues![0].steps[0].continueFrom).toEqual({ taskId: id('mon'), date: '2026-09-21', restart: true });
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ rules: 'method', topStep: 'continued' });
+  });
+
+  it('a continue kind still gets a plain marker', () => {
+    const drafting = (tag: string) => [step(`${tag} drafting`, 1, 20, 'drafting'), step(`${tag} review`, 2, 10, 'review')];
+    const plan = on(week({ mon: { kind: 'missed', steps: drafting('mon') }, wed: { steps: drafting('wed') } }));
+    expect(plan.continues![0].steps[0].continueFrom).toEqual({ taskId: id('mon'), date: '2026-09-21' });
   });
 });
 

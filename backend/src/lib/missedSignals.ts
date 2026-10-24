@@ -146,7 +146,7 @@ export type NoticeKind = 'gentle_return' | 'swap_offer' | 'carried' | 'dropped' 
  * its outcome. `moved` is a carry (`carriedFrom`), `moved_in_order` a step a reorder placed on a later session
  * (`shiftedFrom`), `continued` a continue marker (`continueFrom`).
  */
-export type LineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
+export type LineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'restarted' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
 
 export interface LineSignal {
   kind: LineKind;
@@ -377,7 +377,9 @@ function methodLine(
       if (line) receiving.push(line);
     } else if (day.outcome === 'continued') {
       const session = rows.find((row) => row.steps.some((held) => continueMarkerOf(held)?.taskId === day.taskId));
-      const line = session ? towards(day, 'continued', session.id) : null;
+      // B-38: a restart kind's marker gets its own line.
+      const restart = session?.steps.some((held) => continueMarkerOf(held)?.taskId === day.taskId && continueMarkerOf(held)?.restart === true) === true;
+      const line = session ? towards(day, restart ? 'restarted' : 'continued', session.id) : null;
       if (line) receiving.push(line);
     }
   }

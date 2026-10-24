@@ -368,6 +368,7 @@ const KIND_WORDS: Readonly<Record<string, string>> = {
   'new piece or section': 'new pieces or sections',
   'launch or shipping step': 'launch or shipping steps',
   'new topic': 'new topics',
+  'process step': 'process steps',
 };
 
 /** A kind's name as the update's sentence says it (WU-11): lower case, or its plain word. */

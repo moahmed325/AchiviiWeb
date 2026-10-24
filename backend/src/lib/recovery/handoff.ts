@@ -21,7 +21,7 @@ import { withoutEasyLine } from './easyStart.js';
 import { lineForDay } from './firstWeekBack.js';
 import { describeDay } from './dayText.js';
 import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, writtenNumber } from './inOrder.js';
-import { actionOf, type RecoveryProfile } from './profile.js';
+import { actionOf, MARKS_NEXT_SESSION, type RecoveryProfile } from './profile.js';
 
 /** A day of the finished week, as stored. A Prisma `DailyTask` with its parsed steps satisfies it. */
 export interface HandoffTask {
@@ -67,6 +67,8 @@ export interface UnfinishedWork extends HandoffStep {
   kind: string;
   name: string;
   dayOfWeek: string;
+  /** B-38: a restart kind: the process starts again from its first step. */
+  restart?: boolean;
 }
 
 export interface WeekHandoff {
@@ -148,13 +150,22 @@ export function weekHandoff(input: {
 
   // Continue work not finished: a missed day's step of a continue kind after the kind's last done day (RULE-10).
   const unfinished: UnfinishedWork[] = [];
-  for (const kind of profile.kinds.filter((item) => item.action === 'continue')) {
-    const holds = (task: HandoffTask) => task.steps.some((step) => step.kind === kind.id && actionOf(step, profile)?.action === 'continue');
+  for (const kind of profile.kinds.filter((item) => MARKS_NEXT_SESSION.has(item.action))) {
+    const holds = (task: HandoffTask) => task.steps.some((step) => step.kind === kind.id && actionOf(step, profile)?.action === kind.action);
     const ofKind = practice.filter(holds);
     const lastDone = ofKind.reduce((at, task, index) => (isDone(task) ? index : at), -1);
     for (const task of ofKind.slice(lastDone + 1)) {
-      const step = task.steps.find((s) => s.kind === kind.id && actionOf(s, profile)?.action === 'continue')!;
-      unfinished.push({ taskId: task.id, date: task.date, title: step.title, step: asWritten(step), kind: kind.id, name: kind.name, dayOfWeek: dayName(task) });
+      const step = task.steps.find((s) => s.kind === kind.id && actionOf(s, profile)?.action === kind.action)!;
+      unfinished.push({
+        taskId: task.id,
+        date: task.date,
+        title: step.title,
+        step: asWritten(step),
+        kind: kind.id,
+        name: kind.name,
+        dayOfWeek: dayName(task),
+        ...(kind.action === 'restart' ? { restart: true } : {}),
+      });
     }
   }
 
@@ -415,7 +426,11 @@ export function handoffBrief(handoff: WeekHandoff): string[] {
     );
   }
   for (const item of handoff.unfinished) {
-    lines.push(`- ${item.name} (kind ${item.kind}): the work of ${quote(item.title)} (${item.dayOfWeek}) is not finished. Pick it up in this week's first step of this kind.`);
+    lines.push(
+      item.restart
+        ? `- ${item.name} (kind ${item.kind}): the process was interrupted at ${quote(item.title)} (${item.dayOfWeek}). Start it again from its first step in this week's first step of this kind.`
+        : `- ${item.name} (kind ${item.kind}): the work of ${quote(item.title)} (${item.dayOfWeek}) is not finished. Pick it up in this week's first step of this kind.`
+    );
   }
   for (const item of handoff.noRoom) {
     lines.push(

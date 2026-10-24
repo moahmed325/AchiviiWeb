@@ -109,6 +109,7 @@ const ACTION_WORDS: Record<string, string> = {
   continue: 'continue (the next session of that kind picks up where this one stopped)',
   let_go: 'let_go (not made up)',
   fixed: 'fixed (never moved or swapped)',
+  restart: 'restart (a timed process: the next session of that kind starts it again from its first step)',
 };
 
 /** One template as the model sees it: its kinds with action and flags, rest gap and return rule. */
@@ -164,11 +165,11 @@ WRITE THE PROFILE
    template's kinds does, gets a new id. A template kind this method does not need is simply left out.
 3. Rules every profile must follow:
    - "kinds": 2 to 8 kinds plus one catch-all kind. Each has a snake_case "id", a short "name", a one-sentence
-     "description" of what the step looks like, one "action" (move, continue, let_go or fixed), and "hard",
+     "description" of what the step looks like, one "action" (move, continue, let_go, fixed or restart), and "hard",
      "inOrder" and "highLoad" true or false.
    - "highLoad" is true only for physical strain (running, lifting, high-intensity or impact work); a highLoad kind
      must be hard.
-   - A hard kind never continues.
+   - A hard kind never continues or restarts.
    - "catchAll": the id of the catch-all kind, for work that fits no other kind.${
      deliverable ? '\n   - The week-12 target is a deliverable, so the catch-all\'s action must be continue.' : ''
    }

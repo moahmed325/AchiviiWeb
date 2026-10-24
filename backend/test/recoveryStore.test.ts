@@ -149,7 +149,7 @@ describe('goal create saves a checked profile (RULE-2, RULE-3, RULE-4)', () => {
   });
 
   it('a custom goal with no keyword match gets General practice', async () => {
-    const { status } = await create({ rawGoal: 'Bake sourdough bread at home', clarifiedOutcome: 'Bake sourdough bread at home', domain: 'Bread baking' });
+    const { status } = await create({ rawGoal: 'Fold origami cranes at home', clarifiedOutcome: 'Fold origami cranes at home', domain: 'Paper folding' });
     expect(status).toBe(201);
     expect(savedRecovery()).toEqual(RECOVERY_TEMPLATES.general);
   });
@@ -164,7 +164,7 @@ describe('goal create saves a checked profile (RULE-2, RULE-3, RULE-4)', () => {
     expect(savedRecovery()).toEqual(PATHWAY_PROFILES.run10k);
 
     db.goalCreate.mockClear();
-    const { status } = await create({ rawGoal: 'Bake sourdough bread at home', clarifiedOutcome: 'Bake sourdough bread at home' }, deliverable);
+    const { status } = await create({ rawGoal: 'Fold origami cranes at home', clarifiedOutcome: 'Fold origami cranes at home' }, deliverable);
     expect(status).toBe(201);
     expect(savedRecovery()).toEqual(RECOVERY_TEMPLATES.general);
     expect(makeGoalProfile).not.toHaveBeenCalledWith(expect.objectContaining({ deliverableGoal: expect.anything() }));
@@ -172,7 +172,7 @@ describe('goal create saves a checked profile (RULE-2, RULE-3, RULE-4)', () => {
 
   it('a failing profile is not saved, is logged, and creation still succeeds', async () => {
     vi.mocked(makeGoalProfile).mockReturnValueOnce({ reasons: ['the rest gap must be 0, 1 or 2 days.'] });
-    const { status, body } = await create({ rawGoal: 'Bake sourdough bread at home', clarifiedOutcome: 'Bake sourdough bread at home' });
+    const { status, body } = await create({ rawGoal: 'Fold origami cranes at home', clarifiedOutcome: 'Fold origami cranes at home' });
     expect(status).toBe(201);
     expect(body.goal.id).toBe('g1');
     expect(db.goalCreate).toHaveBeenCalledTimes(1);
@@ -248,7 +248,7 @@ describe('the weekly review gives an older goal its profile (RULE-1, MR-14)', ()
     expect(roadmapWrites()[0][0].data.roadmap.recovery).toEqual(RECOVERY_TEMPLATES.creative);
 
     db.goalUpdate.mockClear();
-    await review(olderGoal({ rawGoal: 'Bake sourdough bread', clarifiedOutcome: 'Bake sourdough bread at home' }, deliverable));
+    await review(olderGoal({ rawGoal: 'Fold origami cranes', clarifiedOutcome: 'Fold origami cranes at home' }, deliverable));
     expect(roadmapWrites()[0][0].data.roadmap.recovery).toEqual(RECOVERY_TEMPLATES.general);
   });
 

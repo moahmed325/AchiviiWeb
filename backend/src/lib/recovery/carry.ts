@@ -39,7 +39,7 @@ import type { DetailedStep } from '../ai/goalDecomposer.js';
 import { TOTAL_WEEKS } from '../ai/roadmap.js';
 import { isRestLike, type DayClassification } from '../missedSessions.js';
 import { byWritten, doneStepsOf, followsMethod, inOrderMoveKinds, inOrderQueue, isDoneCopy, originOf, stepKey, type QueueItem } from './inOrder.js';
-import { actionOf, type RecoveryProfile, type StepRecovery } from './profile.js';
+import { actionOf, MARKS_NEXT_SESSION, type RecoveryProfile, type StepRecovery } from './profile.js';
 import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf } from './rules.js';
 import { EASY_START_LINE, FIRST_WEEK_BACK_LINE, easyLineTarget, hasEasyLine, hasFirstWeekBackLine, withEasyLine, withoutEasyLine } from './easyStart.js';
 import { holdRefusal } from './swap.js';
@@ -386,7 +386,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   }
   const continueCandidates: ContinueCandidate[] = [];
   for (const missed of active) {
-    const kinds = [...new Set(stepsOf.get(missed.taskId)!.filter((s) => s.recovery.action === 'continue').map((s) => s.step.kind as string))];
+    const kinds = [...new Set(stepsOf.get(missed.taskId)!.filter((s) => MARKS_NEXT_SESSION.has(s.recovery.action)).map((s) => s.step.kind as string))];
     for (const kind of kinds) {
       for (const day of laterInWeek(missed)) {
         if (isRestLike(day) || day.isTestDay) continue;
@@ -422,7 +422,9 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     // A day that receives a missed-sessions carry in this run is written by that carry alone.
     if (carries.some((carry) => carry.toTaskId === target.taskId)) continue;
     const next = [...rowOf(target.taskId)];
-    next[stepIndex] = { ...next[stepIndex], continueFrom: { taskId: missed.taskId, date: missed.date } };
+    // B-38: a restart kind's marker says the session starts the process again.
+    const restart = profile?.kinds.some((item) => item.id === kind && item.action === 'restart') === true;
+    next[stepIndex] = { ...next[stepIndex], continueFrom: { taskId: missed.taskId, date: missed.date, ...(restart ? { restart: true as const } : {}) } };
     stage(target.taskId, next, minutesNow(target.taskId));
     continuedKinds.add(`${missed.taskId}#${kind}`);
     plannedContinues.push({ fromTaskId: missed.taskId, fromDate: missed.date, toTaskId: target.taskId, toDate: target.date, kind, stepTitle: stored.title });
@@ -785,6 +787,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
           topStep = carried ? 'moved' : 'no_room';
           break;
         case 'continue':
+        case 'restart':
           topStep = continuedKinds.has(`${day.taskId}#${top.step.kind}`) ? 'continued' : 'no_room';
           break;
         case 'let_go':

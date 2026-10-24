@@ -18,6 +18,8 @@ const KEYWORDS: ReadonlyArray<[TemplateId, RegExp[]]> = [
   ['creative', [/\bdraw(ing)?\b/, /\bpaint(ing)?\b/, /\bsketch(ing)?\b/, /\billustrat/, /\b(graphic )?design\b/, /\bphotograph/, /\bcalligraphy\b/, /\banimation\b/]],
   ['habit', [/\bdeep work\b/, /\bfocus\b/, /\bdistraction/, /\bproductiv/, /\bhabit\b/, /\bmeditat/, /\bprocrastinat/, /\broutine\b/]],
   ['content', [/\byoutube\b/, /\bvideos?\b/, /\bvlog/, /\bchannel\b/, /\bpodcast\b/, /\btiktok\b/, /\bcontent creat/, /\b(live )?stream(ing|er)?\b/, /\btwitch\b/]],
+  // B-38: timed processes.
+  ['process', [/\bsourdough\b/, /\bferment/, /\bkombucha\b/, /\bbrew(ing)?\b/, /\bkimchi\b/, /\bsauerkraut\b/, /\bcheese ?making\b/, /\bcuring meat\b/]],
   ['strategy_games', [/\bchess\b/, /\bpoker\b/, /\bboard games?\b/, /\besports\b/, /\brubik/]],
 ];
 
