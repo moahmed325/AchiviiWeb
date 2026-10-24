@@ -441,7 +441,7 @@ function whereTheyAreBlock(input: WeekCallInput): string {
  */
 function thisWeekTestLines(input: WeekCallInput): string {
   if (!input.test.light) {
-    return `Target: ${formatTarget(input.target)}${NL}Weekly test: ${input.test.instructions}. Pass if: ${input.test.passIf}`;
+    return `Target: ${formatTarget(input.target)}${NL}Weekly test: ${input.test.instructions.trim().replace(/\.+$/, '')}. Pass if: ${input.test.passIf}`;
   }
   return [
     `Next check (week ${nextCheckWeek(input.weekNumber)}): ${formatTarget(input.target)}. Build toward it; it is not tested this week.`,

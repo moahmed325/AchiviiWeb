@@ -365,13 +365,13 @@ export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Arr
       const most = shownLimit(limit.limit, unit);
       const what = back.percent < 100 ? `${shareOf(back.percent)} of what they last did, week ${back.fromWeek}` : `what they last did, week ${back.fromWeek}`;
       const why = back.percent < 100 ? `${what}: ${shown(limit.base)}` : what;
-      const floored = back.percent < 100 ? `${what}: ${shown(limit.base)}, is ${shown(limit.share)}; never below ${most}` : `${what}, was ${shown(limit.base)}; never below ${most}`;
+      const floored = back.percent < 100 ? `${what}: ${shown(limit.base)}, is ${shown(limit.share)}; never below ${withUnit(most, unit)}` : `${what}, was ${shown(limit.base)}; never below ${withUnit(most, unit)}`;
       breaches.push({
         rule: 'running_total_over_limit',
         value: amount,
         limit: limit.limit,
         matched: `running ${withUnit(shown(amount), unit)}, limit ${withUnit(most, unit)}`,
-        text: `This week's running is ${withUnit(shown(amount), unit)}; the most allowed is ${most} (${limit.byFloor ? floored : why}).`,
+        text: `This week's running is ${withUnit(shown(amount), unit)}; the most allowed is ${withUnit(most, unit)} (${limit.byFloor ? floored : why}).`,
       });
     }
   } else if (known && !zeroBase) {
@@ -385,7 +385,7 @@ export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Arr
         value: amount,
         limit: limit.limit,
         matched: `running ${withUnit(shown(amount), unit)}, limit ${withUnit(shownLimit(limit.limit, unit), unit)}`,
-        text: `This week's running is ${withUnit(shown(amount), unit)}; the most allowed is ${shownLimit(limit.limit, unit)} (last week ${shown(limit.base)}, plus ${plus}).`,
+        text: `This week's running is ${withUnit(shown(amount), unit)}; the most allowed is ${withUnit(shownLimit(limit.limit, unit), unit)} (last week ${shown(limit.base)}, plus ${plus}).`,
       });
     }
   }
@@ -432,7 +432,7 @@ function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero' | 'u
     value: amount,
     limit: held.limit,
     matched: `run ${withUnit(shown(amount), unit)}, limit ${withUnit(shownLimit(held.limit, unit), unit)}`,
-    text: `the run is ${withUnit(shown(amount), unit)}; the most allowed is ${shownLimit(held.limit, unit)} (${held.why}).`,
+    text: `the run is ${withUnit(shown(amount), unit)}; the most allowed is ${withUnit(shownLimit(held.limit, unit), unit)} (${held.why}).`,
   };
 }
 

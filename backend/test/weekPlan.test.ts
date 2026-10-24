@@ -227,6 +227,13 @@ describe('buildWeekPrompt', () => {
     expect(prompt).not.toContain('LAST WEEK');
   });
 
+  it('does not print two full stops when the test instructions end with one (B-82)', () => {
+    const dotted = { ...input, test: { ...input.test, instructions: 'Take a 1-minute typing test on keybr.com.' } };
+    const prompt = buildWeekPrompt(dotted, weekLayout('steady', input.weekStart));
+    expect(prompt).toContain('keybr.com. Pass if:');
+    expect(prompt).not.toContain('keybr.com..');
+  });
+
   it('includes last week from week 2', () => {
     const prompt = buildWeekPrompt(
       {

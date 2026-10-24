@@ -394,7 +394,7 @@ export const run10kPreset: CertifiedPresetBlueprint = {
               title: 'Weekly Mileage & Cadence Review',
               durationRatio: 0.50,
               instructions: 'Review total kilometers completed this week and note your average cadence and heart rate.',
-              focusCue: 'Celebrate hitting every planned session with zero skipped runs.',
+              focusCue: 'Celebrate showing up week after week, not a perfect record.',
               pitfallToAvoid: 'Fixating on pace rather than consistency in Phase 1.',
               layer: 'mechanism',
               layerReasoning: 'Self-monitoring reinforces habit identity as a committed athlete.'

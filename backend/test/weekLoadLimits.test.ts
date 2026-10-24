@@ -140,10 +140,10 @@ describe('AC-5: the running total against the base week (later weeks only)', () 
     const input = { ...WEEK5, baseWeek: minutesBase(60) };
     expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 25 }), input))).not.toBeNull();
     expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 26 }), input))).toContain(
-      "This week's running is 71 minutes; the most allowed is 70 (last week 60, plus 10 minutes)."
+      "This week's running is 71 minutes; the most allowed is 70 minutes (last week 60, plus 10 minutes)."
     );
     expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }), input))).toContain(
-      "SAFETY: This week's running is 75 minutes; the most allowed is 70 (last week 60, plus 10 minutes)."
+      "SAFETY: This week's running is 75 minutes; the most allowed is 70 minutes (last week 60, plus 10 minutes)."
     );
   });
 
@@ -151,14 +151,14 @@ describe('AC-5: the running total against the base week (later weeks only)', () 
     const input = { ...WEEK5, baseWeek: minutesBase(120) };
     const runs = { 1: { min: 30 }, 2: { min: 30 }, 3: { min: 30 }, 5: { min: 22 } };
     expect(valueOf(checkWeekAnswer(week(runs, { min: 20 }), input))).not.toBeNull();
-    expect(reasonOf(checkWeekAnswer(week(runs, { min: 21 }), input))).toContain('the most allowed is 132 (last week 120, plus 10%)');
+    expect(reasonOf(checkWeekAnswer(week(runs, { min: 21 }), input))).toContain('the most allowed is 132 minutes (last week 120, plus 10%)');
   });
 
   it('in km: 1 km more passes, a little past refuses', () => {
     const input = { ...WEEK5, baseWeek: { known: true, unit: 'km', total: 10, totalMinutes: 60, runs: 3 } as BaseWeek };
     const runs = { 1: { min: 15, km: 2.5 }, 2: { min: 15, km: 2.5 }, 3: { min: 15, km: 2.5 } };
     expect(valueOf(checkWeekAnswer(week(runs, { min: 25, km: 3.5 }), input))).not.toBeNull();
-    expect(reasonOf(checkWeekAnswer(week(runs, { min: 25, km: 3.6 }), input))).toContain("This week's running is 11.1 km; the most allowed is 11 (last week 10, plus 1 km).");
+    expect(reasonOf(checkWeekAnswer(week(runs, { min: 25, km: 3.6 }), input))).toContain("This week's running is 11.1 km; the most allowed is 11 km (last week 10, plus 1 km).");
   });
 
   it('week 1 has no running-total check', () => {
@@ -171,7 +171,7 @@ describe('AC-5: the running total against the base week (later weeks only)', () 
     expect(valueOf(checkWeekAnswer(week({ 1: { min: 25 }, 2: { min: 25 } }, { min: 25 }), input))).not.toBeNull();
     // One run of 35 is refused by the cap, though it is under 50% of the week.
     expect(reasonOf(checkWeekAnswer(week({ 1: { min: 35 }, 2: { min: 25 } }, { min: 25 }), input))).toContain(
-      'Day 1 step "Run 1": the run is 35 minutes; the most allowed is 30 (last week had no running).'
+      'Day 1 step "Run 1": the run is 35 minutes; the most allowed is 30 minutes (last week had no running).'
     );
     // In km: 5 km.
     expect(reasonOf(checkWeekAnswer(week({ 1: { min: 30, km: 5.5 }, 2: { min: 25, km: 4 } }, { min: 25, km: 4 }), input))).toContain('the run is 5.5 km; the most allowed is 5');
@@ -186,7 +186,7 @@ describe("Mo's tests (PSL-15)", () => {
     const input = { ...WEEK5, baseWeek: { known: true, unit: 'km', total: 10, totalMinutes: 60, runs: 3 } as BaseWeek };
     expect(valueOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 25 }), input))).not.toBeNull();
     expect(reasonOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 } }, { min: 30 }), input))).toContain(
-      "This week's running is 75 minutes; the most allowed is 70 (last week 60, plus 10 minutes)."
+      "This week's running is 75 minutes; the most allowed is 70 minutes (last week 60, plus 10 minutes)."
     );
   });
 
@@ -206,7 +206,7 @@ describe('AC-5: the longest run (PSL-15 (7))', () => {
     it(`${label}: with 3 or more runs, at most 50% of the week`, () => {
       expect(valueOf(checkWeekAnswer(week({ 1: { min: 10 }, 2: { min: 10 }, 3: { min: 30 } }, { min: 10 }), input))).not.toBeNull();
       expect(reasonOf(checkWeekAnswer(week({ 1: { min: 10 }, 2: { min: 10 }, 3: { min: 31 } }, { min: 10 }), input))).toContain(
-        `SAFETY: Day 3 step "Run 3": the run is 31 minutes; the most allowed is 30 (50% of this week's 61 minutes of running).`
+        `SAFETY: Day 3 step "Run 3": the run is 31 minutes; the most allowed is 30 minutes (50% of this week's 61 minutes of running).`
       );
     });
   }
@@ -214,7 +214,7 @@ describe('AC-5: the longest run (PSL-15 (7))', () => {
   it('no base and fewer than 3 runs: the fixed cap of 30 minutes', () => {
     expect(valueOf(checkWeekAnswer(week({ 1: { min: 30 } }, { min: 10 }), WEEK1))).not.toBeNull();
     expect(reasonOf(checkWeekAnswer(week({ 1: { min: 31 } }, { min: 10 }), WEEK1))).toContain(
-      'Day 1 step "Run 1": the run is 31 minutes; the most allowed is 30 (with no last week to build from and fewer than 3 runs).'
+      'Day 1 step "Run 1": the run is 31 minutes; the most allowed is 30 minutes (with no last week to build from and fewer than 3 runs).'
     );
   });
 
@@ -668,7 +668,7 @@ describe('M2.2a review fixes', () => {
     });
     const result = checkWeekAnswer(answer, light, true);
     expect(reasonOf(result)).toContain('maxTest is true');
-    expect(reasonOf(result)).toContain(`the run is 30 minutes; the most allowed is 25 (50% of this week's 50 minutes of running)`);
+    expect(reasonOf(result)).toContain(`the run is 30 minutes; the most allowed is 25 minutes (50% of this week's 50 minutes of running)`);
     expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([
       ['max_test', 'failed'],
       ['longest_run_over_limit', 'failed'],
@@ -769,7 +769,7 @@ describe('M2.2a follow-up: safety reasons are told with a day-level reason', () 
       days[0].steps = [days[0].steps[0]];
     });
   const DAY_REASON = 'Day 1 is a practice day and needs 2 to 4 steps; got 1.';
-  const RUNNING = "SAFETY: This week's running is 75 minutes; the most allowed is 70 (last week 60, plus 10 minutes).";
+  const RUNNING = "SAFETY: This week's running is 75 minutes; the most allowed is 70 minutes (last week 60, plus 10 minutes).";
 
   it('names both, the safety reason first, and logs each breach once as retry', () => {
     const reason = reasonOf(checkWeekAnswer(answer(), input));
