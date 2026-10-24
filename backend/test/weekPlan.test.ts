@@ -188,6 +188,13 @@ describe('checkWeekAnswer', () => {
     expect(test.priority).toBe(1);
   });
 
+  it('does not take a "Weekly test warm-up" step for the test step (B-30)', () => {
+    const warmUp = week((days) => {
+      days[5].steps = [step('Weekly test warm-up', 1, 15), step('Type sentence set six', 2, 15)];
+    });
+    expect(reason(checkWeekAnswer(warmUp, input))).toMatch(/Weekly test: \.\.\./);
+  });
+
   it('rejects a practice day with no steps, even on the last attempt', () => {
     expect(reason(checkWeekAnswer(week((days) => { days[0].steps = []; }), input, true))).toMatch(/needs 2 to 4 steps; got 0/);
   });

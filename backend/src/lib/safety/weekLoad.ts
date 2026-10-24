@@ -28,8 +28,8 @@ import {
   RUNNING_TOTAL_STEP_PERCENT,
 } from './limits.js';
 
-/** The test day's main step (`checkWeekAnswer` titles it so). */
-export const TEST_STEP_TITLE = /^weekly test\b/i;
+/** The test day's main step (`checkWeekAnswer` titles it so). The colon keeps "Weekly test warm-up" out (B-30). */
+export const TEST_STEP_TITLE = /^weekly test\s*:/i;
 
 export type RunUnit = 'minutes' | 'km';
 

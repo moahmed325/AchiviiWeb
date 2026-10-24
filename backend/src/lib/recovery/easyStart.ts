@@ -71,7 +71,7 @@ export function easyLineTarget(input: EasyLineInput, rowOf: (taskId: string) => 
     (day) => day.weekNumber === todayDay.weekNumber && day.date > gap.lastDate && day.date >= input.today && day.kind === 'planned'
   );
   const backDays = openBack.filter((day, index) => !day.isTestDay || index === 0);
-  const isTestStep = (step: CarriedStep) => step.priority === 0 || /^weekly test\b/i.test(textOf(step.title));
+  const isTestStep = (step: CarriedStep) => step.priority === 0 || /^weekly test\s*:/i.test(textOf(step.title));
   for (const day of backDays) {
     const row = rowOf(day.taskId);
     if (!followsMethod(row, profile)) continue;

@@ -218,7 +218,7 @@ export function readRecoveryProfile(roadmap: unknown, facts: ProfileCheckFacts =
 // RULE-7, RULE-18, MR-11: a step's action.
 
 /** The same test-step check `carryForward.ts` uses today: a stored test step is recognized by its title. */
-const TEST_STEP = /^weekly test\b/i;
+const TEST_STEP = /^weekly test\s*:/i;
 
 export type StepRecovery = { action: RecoveryAction; hard: boolean };
 
