@@ -3,6 +3,7 @@ import { evaluate, planChoices, type ReconcileGoal } from '../src/lib/reconcileC
 import type { RecoveryPlan } from '../src/lib/recovery/carry.js';
 import { holdRefusal, markerRefusal, methodSwapRefusal } from '../src/lib/recovery/swap.js';
 import { closeDays, narrowedSteps, noFixed, orderBreaks, randomWeek, stepsIn, subset, swapped, type Row } from './methodWeeks.js';
+import { PROFILE } from './methodProfile.js';
 
 // Method-aware recovery M3.2: the swap check (RULE-12 to RULE-14), the hold and move now (RULE-16), and generated
 // weeks (AC-6, AC-8): every swap the choices offer keeps fixed steps, order and the rest gap, and every move-now keeps
@@ -55,6 +56,24 @@ describe('the swap check', () => {
     expect(markerRefusal([[{ title: 'a', continueFrom: at } as never]], new Set(['x']))).toBeNull();
     expect(markerRefusal([[{ title: 'a', continueFrom: at } as never]], new Set(['y']))).toBe('holds_continue');
     expect(markerRefusal([[{ title: 'a', shiftedFrom: { ...at, replaced: [] } } as never]], new Set(['x']))).toBe('holds_carry');
+  });
+
+  it('B-53: a hidden copy (its source day done and still holding it) holds no rest gap', () => {
+    const day = (taskId: string, date: string, kind: 'done' | 'planned') =>
+      ({ taskId, date, weekNumber: 1, dayNumber: 1, isKeySession: false, isTestDay: false, kind }) as const;
+    const days = [day('mon', '2026-09-21', 'done'), day('wed', '2026-09-23', 'planned'), day('thu', '2026-09-24', 'planned'), day('fri', '2026-09-25', 'planned')];
+    const heavy = { title: 'Heavy set', kind: 'heavy', priority: 1 };
+    const copy = { ...heavy, carriedFrom: { taskId: 'mon', date: '2026-09-21', replaced: [] } };
+    const tasks = (wed: unknown[]) => [
+      { id: 'mon', steps: [heavy] },
+      { id: 'wed', steps: wed },
+      { id: 'thu', steps: [{ title: 'Easy review', kind: 'review', priority: 1 }] },
+      { id: 'fri', steps: [{ title: 'Second heavy set', kind: 'heavy', priority: 1 }] },
+    ];
+    const week = (wed: unknown[]) => ({ days, tasks: tasks(wed), profile: PROFILE, goal: GOAL }) as never;
+    // Friday's heavy step onto Thursday, one day from Wednesday.
+    expect(methodSwapRefusal(week([copy]), 'thu', 'fri')).toBeNull();
+    expect(methodSwapRefusal(week([{ ...heavy, title: 'Another heavy set' }]), 'thu', 'fri')).toBe('rest_gap');
   });
 
   it('without a profile only missed sessions\' checks apply', () => {

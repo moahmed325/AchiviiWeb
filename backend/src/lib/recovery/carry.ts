@@ -38,7 +38,7 @@ import {
 import type { DetailedStep } from '../ai/goalDecomposer.js';
 import { TOTAL_WEEKS } from '../ai/roadmap.js';
 import { isRestLike, type DayClassification } from '../missedSessions.js';
-import { byWritten, followsMethod, inOrderMoveKinds, inOrderQueue, originOf, stepKey, type QueueItem } from './inOrder.js';
+import { byWritten, doneStepsOf, followsMethod, inOrderMoveKinds, inOrderQueue, isDoneCopy, originOf, stepKey, type QueueItem } from './inOrder.js';
 import { actionOf, type RecoveryProfile, type StepRecovery } from './profile.js';
 import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf } from './rules.js';
 import { EASY_START_LINE, FIRST_WEEK_BACK_LINE, easyLineTarget, hasEasyLine, hasFirstWeekBackLine, withEasyLine, withoutEasyLine } from './easyStart.js';
@@ -337,7 +337,16 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   const claimed = new Set<string>([...carries.map((carry) => carry.toTaskId), ...held.map((item) => item.receivingTaskId)]);
   // A day holding a carried step receives no other carry (ND-13). A reorder's steps do not take a day: a reorder never
   // trims anything but its own kind's step, and an ordinary carry never trims an in-order step.
-  const storedTaken = new Set(input.tasks.filter((task) => task.steps.some((step) => markerOf(step) !== null)).map((task) => task.id));
+  // B-53: a moved step whose source day is done and still holds it is hidden (`isDoneCopy`, MR-37), so it takes no day.
+  const doneSteps = doneStepsOf(input.days, input.tasks);
+  const dayDate = new Map(input.days.map((day) => [day.taskId, day.date]));
+  const hidden = (step: CarriedStep, taskId: string) => {
+    const date = dayDate.get(taskId);
+    return date !== undefined && isDoneCopy(step, { taskId, date }, doneSteps);
+  };
+  const storedTaken = new Set(
+    input.tasks.filter((task) => task.steps.some((step) => markerOf(step) !== null && !hidden(step, task.id))).map((task) => task.id)
+  );
 
   // The rows as they will be written: stored steps plus this run's continue markers and reorders. Ordinary carries
   // stay in `accepted` until the end, so a carry search never reads another day's carry (MR-10).
@@ -458,7 +467,8 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
       for (const day of ordered) {
         if (!countsForRest(day)) continue;
         if (Math.abs(dayNumberOf(day.date) - at) > (sameDayOnly ? 0 : restGap)) continue;
-        if (view(day.taskId).some((other) => other !== step && isHard(other))) return false;
+        // B-53: a hidden step (done on its source day) did not happen here, so it holds no rest gap.
+        if (view(day.taskId).some((other) => other !== step && isHard(other) && !hidden(other, day.taskId))) return false;
       }
     }
     return true;

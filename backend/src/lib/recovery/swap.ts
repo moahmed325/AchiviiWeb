@@ -14,7 +14,7 @@
  */
 import type { CarriedStep, CarryTask } from '../carryForward.js';
 import type { DayClassification } from '../missedSessions.js';
-import { byWritten, originOf, stepKey } from './inOrder.js';
+import { byWritten, doneStepsOf, isDoneCopy, originOf, stepKey } from './inOrder.js';
 import type { RecoveryProfile } from './profile.js';
 import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf, type GoalText } from './rules.js';
 
@@ -106,7 +106,9 @@ export function methodSwapRefusal(week: SwapWeek, aId: string, bId: string): Swa
   // unless it was at least that close already (M3.2 review: a swap may keep or widen the writer's closeness, never
   // narrow it). Steps of one day move together, so their closeness stays as written.
   const gap = profile.restGapDays ?? 0;
-  const hard = steps.filter((placed) => isHardStep(placed.step, profile, week.goal));
+  // B-53: a moved copy whose source day is done and still holds it is hidden (MR-37), so it holds no rest gap.
+  const doneSteps = doneStepsOf(week.days, week.tasks);
+  const hard = steps.filter((placed) => isHardStep(placed.step, profile, week.goal) && !isDoneCopy(placed.step, placed.from, doneSteps));
   /** The calendar days between two hard steps when both days count for rest, or null. */
   const distance = (x: Placed, y: Placed, swapped: boolean) => {
     const dx = swapped ? after(x.from) : x.from;
