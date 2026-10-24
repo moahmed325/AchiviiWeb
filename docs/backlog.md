@@ -9,7 +9,7 @@ Where every feature stands. One row per feature; change a row only when a featur
 | Feature | State | Waiting on | Notes |
 |---|---|---|---|
 | `weekly-update` | IN PROGRESS | — | Resumed 2026-10-17 (WU-10); plan in `03-phases.md` (M1.1 next). Two switches (WU-25): `WEEK_CLOSE_ENABLED` can go live after P1 (O1); `WEEKLY_UPDATE_ENABLED` stays off until `checkpoints` ships (WU-23, O2). After it ships: whole-product logic audit (B-46) |
-| `checkpoints` | IN PROGRESS | weekly-update (WU-2) | Approved 2026-10-24 (CP-1 to CP-16); two milestones, M1 server DONE, M2 app and close; goes live with weekly-update O2 (CP-8) |
+| `checkpoints` | DONE | weekly-update (WU-2) | Built 2026-10-24 (M1 server, M2 app; CP-1 to CP-16). Goes live with weekly-update O2: turning on `WEEKLY_UPDATE_ENABLED` turns it on (CP-8) |
 | `billing` (old layout) | WAITING | Lemon Squeezy test-mode keys and webhook (M2.5); then launch (phase 6) | Code built 2026-09-29 |
 | `plan-safety-limits` | PLANNED | M1.1 prompt (`main - review`) | B-62. Feature APPROVED and order agreed 2026-10-17 (PSL-4). Stopgap B-63 DONE. Weekly-update M3.1 waits for its P2 (WU-29) |
 

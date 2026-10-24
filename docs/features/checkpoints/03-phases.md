@@ -1,6 +1,6 @@
 # Achivii Checkpoints — Phases
 
-**Status:** IN PROGRESS
+**Status:** DONE (2026-10-24); goes live with O1
 **Feature:** docs/features/checkpoints/02-feature.md
 **Decisions:** docs/features/checkpoints/decisions.md
 
@@ -9,8 +9,8 @@
 | Milestone | What | Covers | Status | Report |
 |---|---|---|---|---|
 | M1 | Server: the check at the week 4 and 8 close, the stored offer, the answer route with its target changes, the goal response fields, the prompt line, logs | AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8, AC-9 (server), AC-10, AC-11 (logs) | DONE 2026-10-24 | [m1](milestones/m1-server.md) |
-| M2 | App and close: the Today card, the confirmation, the day-90 line, acceptance in the four switch states, docs | AC-5, AC-9, AC-11, all | NOT STARTED | |
-| O1 | Mo: goes live with weekly-update O2 (turning on `WEEKLY_UPDATE_ENABLED` turns on checkpoints, CP-8) | — | NOT STARTED (needs M2) | |
+| M2 | App and close: the Today card, the confirmation, the day-90 line, acceptance in the four switch states, docs | AC-5, AC-9, AC-11, all | DONE 2026-10-24 (built in one chat; evidence in `milestones/m2-evidence/`) | |
+| O1 | Mo: goes live with weekly-update O2 (turning on `WEEKLY_UPDATE_ENABLED` turns on checkpoints, CP-8) | — | NOT STARTED (ready: M1 and M2 merged) | |
 
 ## 2. Order
 - **P1 Server (M1):** everything the server decides and stores. Stays dark: it only runs with both switches on (RULE-1), which production doesn't have.
