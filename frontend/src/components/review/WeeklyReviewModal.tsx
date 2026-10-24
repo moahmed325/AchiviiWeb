@@ -16,7 +16,6 @@ import { ReviewTestResultStep } from './ReviewTestResultStep';
 import { ReviewReflectionStep } from './ReviewReflectionStep';
 import { AdaptationMomentStep } from './AdaptationMomentStep';
 import { week12NoteText } from '../../lib/week12Line';
-import type { MilestoneGateTransition } from '../today/MilestoneGateModal';
 import { isRestLike } from '../../lib/today';
 import { isLightTest } from '../../lib/lightTest';
 import { WEEK_CLOSED_LINES } from '../../lib/weekClose';
@@ -27,7 +26,6 @@ export interface WeeklyReviewModalProps {
   goal: Goal;
   token: string;
   onGoalUpdated: (goal: Goal) => void;
-  onMilestoneGate?: (gate: MilestoneGateTransition) => void;
   /** B-59: the week was already closed (another tab, or the automatic close); called when the modal closes. */
   onWeekClosed?: () => void;
   /** Weekly update M1.5b (WU-38 (1)): a break past the limit waits for the choice card; the modal closes at once. */
@@ -51,7 +49,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   goal,
   token,
   onGoalUpdated,
-  onMilestoneGate,
   onWeekClosed,
   onChoiceNeeded,
   apiStatus,
@@ -196,10 +193,6 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
       // Clear draft reflection and testResult upon successful submission and transition to adaptation
       if (goal?.id) {
         clearReviewDraft(goal.id, currentWeekNum);
-      }
-
-      if (response.isMilestoneCheckpoint && response.milestoneGateTransition) {
-        onMilestoneGate?.(response.milestoneGateTransition);
       }
 
       // Transition to Step 2: Adaptation Moment (M7.3)

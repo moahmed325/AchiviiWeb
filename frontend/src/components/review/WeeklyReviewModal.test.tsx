@@ -395,11 +395,10 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
     expect(onGoalUpdated).toHaveBeenCalledTimes(1);
   });
 
-  it('renders PhaseGateOutcomeCard and triggers onMilestoneGate when milestone checkpoint is returned', async () => {
+  it('renders PhaseGateOutcomeCard when a milestone checkpoint is returned', async () => {
     const user = userEvent.setup();
     const tasks = createSampleTasks(6, 6);
     const goal = createSampleGoal(tasks);
-    const onMilestoneGate = vi.fn();
 
     mockedApi.submitWeeklyReview.mockResolvedValueOnce({
       review: {
@@ -430,20 +429,12 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
         goal={goal}
         token="test-token"
         onGoalUpdated={vi.fn()}
-        onMilestoneGate={onMilestoneGate}
       />
     );
 
     await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
 
     await waitFor(() => {
-      expect(onMilestoneGate).toHaveBeenCalledTimes(1);
-      expect(onMilestoneGate).toHaveBeenCalledWith({
-        title: 'Phase 1 Complete',
-        completedPhase: 'Foundation',
-        nextPhase: 'Acceleration',
-        benchmarkMet: true,
-      });
       // Visual phase gate card in adaptation step
       expect(screen.getByText('Foundation Complete')).toBeVisible();
       expect(screen.getByText('Milestone Achieved')).toBeVisible();

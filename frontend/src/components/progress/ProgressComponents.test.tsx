@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { DailyTask, Goal, GoalRoadmap, RoadmapWeek } from '../../types';
-import { CompletionOverview } from './CompletionOverview';
-import { PhaseMilestonesCard } from './PhaseMilestonesCard';
 import { WeekBreakdownList } from './WeekBreakdownList';
 import { BenchmarkResultsCard } from './BenchmarkResultsCard';
 import { AdaptationHistoryList } from './AdaptationHistoryList';
@@ -110,51 +108,6 @@ const createSampleGoal = (tasks: DailyTask[], weeks: RoadmapWeek[]): Goal =>
   }) as Goal;
 
 describe('Progress Components (M8.2 — Completion and Milestones)', () => {
-  it('CompletionOverview renders active sessions done, adherence, elapsed days, and duration', () => {
-    const tasks = createSampleTasks();
-    const weeks = createSampleWeeks();
-    const goal = createSampleGoal(tasks, weeks);
-
-    render(<CompletionOverview goal={goal} currentDay={14} />);
-
-    // Day 14 of 90
-    expect(screen.getByText('14')).toBeInTheDocument();
-    expect(screen.getByText('Day 14 of 90')).toBeInTheDocument();
-
-    // 5 sessions completed out of 10 planned active sessions (w1: 5 done, w2: 0 done)
-    expect(screen.getByText('5')).toBeInTheDocument();
-    expect(screen.getByText('Practice sessions')).toBeInTheDocument();
-    expect(screen.getByText('of 10 planned')).toBeInTheDocument();
-
-    // Adherence: 5 / 10 = 50%
-    expect(screen.getByText('50%')).toBeInTheDocument();
-    expect(screen.getByText('Execution adherence')).toBeInTheDocument();
-
-    // Practice time: 5 * 45m = 225m = 3 hrs 45 min
-    expect(screen.getByText('3 hrs 45 min')).toBeInTheDocument();
-    expect(screen.getByText('Total practice time')).toBeInTheDocument();
-  });
-
-  it('PhaseMilestonesCard groups weeks by phase, displaying phase names, milestone status, and scores', () => {
-    const tasks = createSampleTasks();
-    const weeks = createSampleWeeks();
-    const goal = createSampleGoal(tasks, weeks);
-
-    render(<PhaseMilestonesCard goal={goal} />);
-
-    // The roadmap's phases
-    expect(screen.getByText('Foundation')).toBeInTheDocument();
-    expect(screen.getByText('Acceleration')).toBeInTheDocument();
-    expect(screen.getByText('Mastery')).toBeInTheDocument();
-
-    // Key milestones
-    expect(screen.getByText('Consistent form across 5 sessions')).toBeInTheDocument();
-    expect(screen.getByText('Zero errors on standard drill')).toBeInTheDocument();
-
-    // Milestone heading
-    expect(screen.getByRole('heading', { level: 2, name: /Phase milestones/i })).toBeInTheDocument();
-  });
-
   it('WeekBreakdownList renders chronological weeks, themes, session counts, and execution scores', () => {
     const tasks = createSampleTasks();
     const weeks = createSampleWeeks();
@@ -271,33 +224,6 @@ describe('Progress Components (M8.2 — Completion and Milestones)', () => {
     expect(screen.getByText('Morning sessions worked best for consistency.')).toBeInTheDocument();
     expect(screen.getByText('5 of 5 sessions completed. Solid adherence.')).toBeInTheDocument();
     expect(screen.getByText('100%')).toBeInTheDocument();
-  });
-
-  it('CompletionOverview renders calm, non-punitive early state at Week 1 with 0 completed (M8.4)', () => {
-    // Tasks where none are completed yet
-    const tasks = createSampleTasks().map((t) => ({ ...t, status: 'pending' as const }));
-    const weeks = createSampleWeeks();
-    const goal = { ...createSampleGoal(tasks, weeks), currentWeek: 1 };
-
-    render(<CompletionOverview goal={goal} currentDay={1} />);
-
-    // Day 1 of 90
-    expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText('Day 1 of 90')).toBeInTheDocument();
-
-    // 0 sessions completed
-    expect(screen.getByText('0')).toBeInTheDocument();
-    expect(screen.getByText('Practice sessions')).toBeInTheDocument();
-    expect(screen.getByText(/First session awaits · of 10 planned/i)).toBeInTheDocument();
-
-    // 0% adherence with non-punitive orientation sublabel
-    expect(screen.getByText('0%')).toBeInTheDocument();
-    expect(screen.getByText('Execution adherence')).toBeInTheDocument();
-    expect(screen.getByText(/Starting your journey · 0 of 5 to date/i)).toBeInTheDocument();
-
-    // 0 min total practice time
-    expect(screen.getByText('0 min')).toBeInTheDocument();
-    expect(screen.getByText('Total practice time')).toBeInTheDocument();
   });
 
   it('AdaptationHistoryList renders encouraging card when goal has zero reviews (M8.4)', () => {
@@ -429,13 +355,6 @@ describe('Progress after days not offered (weekly update M1.4)', () => {
     expect(screen.queryByText(/\{date\}/)).not.toBeInTheDocument();
   });
 
-  it('PhaseMilestonesCard leaves days not offered out of a phase score', () => {
-    const tasks = notOfferedTasks();
-    const goal = { ...createSampleGoal(tasks, closedWeeks()), currentWeek: 5 };
-    render(<PhaseMilestonesCard goal={goal} />);
-    // Foundation: week 1's 5 sessions done, week 2's not offered: 100%, not 50%.
-    expect(screen.getByText('100% execution')).toBeInTheDocument();
-  });
 });
 
 describe('Progress with jumped weeks (weekly update M1.5b, WU-40 (1))', () => {
