@@ -7,7 +7,8 @@
  */
 export type ShellMode = 'chromeless' | 'bare' | 'focused' | 'app';
 
-const AUTH_ROUTES = ['/signup', '/login'];
+// B-15: the password reset screens are auth screens too.
+const AUTH_ROUTES = ['/signup', '/login', '/forgot-password', '/reset-password'];
 
 export function shellMode(pathname: string, signedIn: boolean, previewPath?: string): ShellMode {
   if ((pathname === '/' && !signedIn) || AUTH_ROUTES.includes(pathname) || (previewPath && pathname === previewPath)) {

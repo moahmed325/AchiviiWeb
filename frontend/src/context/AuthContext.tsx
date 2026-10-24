@@ -26,6 +26,10 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** B-15: emails a reset link that opens /reset-password signed in for recovery. */
+  requestPasswordReset: (email: string) => Promise<void>;
+  /** B-15: sets a new password for the signed-in (recovery) session. */
+  updatePassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -124,6 +128,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(currentUser);
   };
 
+  const requestPasswordReset = async (email: string) => {
+    if (!supabase) throw new Error('Supabase Auth is not configured.');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+    if (error) throw fromSupabaseAuthError(error);
+  };
+
+  const updatePassword = async (password: string) => {
+    if (!supabase) throw new Error('Supabase Auth is not configured.');
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw fromSupabaseAuthError(error);
+  };
+
   const logout = async () => {
     if (supabase) {
       await supabase.auth.signOut();
@@ -133,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, requestPasswordReset, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

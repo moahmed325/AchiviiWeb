@@ -40,7 +40,7 @@ interface FieldErrors {
   password?: string;
 }
 
-const FormAlert: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+export const FormAlert: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div role="alert" className="flex items-start gap-2.5 rounded-control border border-danger/30 bg-danger/[0.06] p-4 text-small text-text">
     <AlertCircle aria-hidden="true" strokeWidth={1.75} className="mt-0.5 size-4 shrink-0 text-danger" />
     <p>{children}</p>
@@ -167,6 +167,16 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
                 }
               />
             </Field>
+            {mode === 'login' && (
+              // B-15: password reset.
+              <p className="-mt-2 text-small">
+                <TextLink asChild>
+                  <Link to="/forgot-password" state={{ email: email.trim() }}>
+                    Forgot password?
+                  </Link>
+                </TextLink>
+              </p>
+            )}
 
             {formError && (
               <FormAlert>
