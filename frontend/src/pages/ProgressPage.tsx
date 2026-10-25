@@ -83,7 +83,13 @@ export const ProgressPage: React.FC = () => {
         <div className="absolute -left-px top-0 h-12 w-px bg-achievement shadow-[0_0_18px_2px_rgba(200,169,107,0.28)]" />
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Progress</p>
         <h1 className="mt-3 text-h2 text-text">{activeGoal.rawGoal}</h1>
-        <p className="mt-2 max-w-xl text-body text-text-secondary">{activeGoal.clarifiedOutcome}</p>
+        {/* B-18: labelled as on Today and the Roadmap. */}
+        {activeGoal.clarifiedOutcome?.trim() && (
+          <p className="mt-2 max-w-xl text-body text-text-secondary">
+            <span className="font-medium text-text">90-day outcome: </span>
+            {activeGoal.clarifiedOutcome}
+          </p>
+        )}
         {/* Next plan (NP-8): the plan this one follows. */}
         {activeGoal.previousPlan && (
           <p className="mt-2 max-w-xl text-small text-text-secondary">

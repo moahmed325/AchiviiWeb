@@ -64,6 +64,11 @@
   --text-micro: 0.75rem;
   --text-micro--line-height: 1.35;
   --text-micro--letter-spacing: 0.16em;
+  /* B-18: the mobile bottom bar's labels; compact below 380px, where seven labels share the width. */
+  --text-nav: 0.6875rem;
+  --text-nav--line-height: 1.2;
+  --text-nav-compact: 0.625rem;
+  --text-nav-compact--line-height: 1.2;
   /* Large numbers as visual objects: 27 / 90, 73% */
   --text-numeral: clamp(4rem, 2rem + 8vw, 9rem);
   --text-numeral--line-height: 0.82;
