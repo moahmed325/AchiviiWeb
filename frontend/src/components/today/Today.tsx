@@ -10,9 +10,10 @@ import {
   currentWeekTasks,
   dayNumber,
   findNextTask,
+  isAheadDay,
   isToday,
   isWeekReviewDue,
-  todayKey,
+  reviewOpensOn,
   isClosingStretchActive,
   isRestLike,
   missNotice,
@@ -200,7 +201,7 @@ const dayState = (task: DailyTask, now: Date, timezone?: string) =>
       : isToday(task, now, timezone)
         ? 'to do'
         : // B-71: a day still ahead is upcoming, not "not done".
-          task.date > todayKey(now, timezone)
+          isAheadDay(task, now, timezone)
           ? 'upcoming'
           : 'not done';
 
@@ -381,9 +382,12 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const draft = task ? drafts[task.id] : undefined;
   const freeformValue = draft !== undefined ? draft : parsedNotes.freeformNotes;
   const reviewDue = isWeekReviewDue(tasks, now, timezone);
+  const reviewOpensDay = reviewOpensOn(tasks, now, timezone);
   const isClosingStretch = isClosingStretchActive(goal, now, timezone);
   // The miss notice belongs to Today's view of today only, never to another selected day (M3.1 R4).
   const viewingToday = Boolean(task && isToday(task, now, timezone));
+  // A day still ahead can be read but not started or completed until its date (the server refuses it, `not_yet`).
+  const ahead = Boolean(task && isAheadDay(task, now, timezone));
   const notice = viewingToday ? missNotice(goalContext.reconciliation, goal, now, timezone) : null;
   // M3.2: on a gentle-return day the 10-minute version is the default; when short on time it is one tap away.
   const gentleReturn = notice?.kind === 'gentle_return';
@@ -631,6 +635,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               )}
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                {ahead && !done && (
+                  <p className="text-small text-text-secondary">This step opens on {task.dayOfWeek}. You can read it now and do it on the day.</p>
+                )}
                 {gentleReturn ? (
                   <>
                     <Button
@@ -647,7 +654,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                     </Button>
                   </>
                 ) : (
-                  !task.isRestDay && (
+                  !task.isRestDay && !ahead && (
                     <Button
                       variant={done ? 'secondary' : 'gold'}
                       size="lg"
@@ -664,7 +671,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                     Start the 10-minute version
                   </Button>
                 )}
-                {!task.notOffered && (
+                {!task.notOffered && !(ahead && !done) && (
                   <Button
                     variant={task.isRestDay && !done ? 'primary' : 'secondary'}
                     size={task.isRestDay ? 'lg' : 'md'}
@@ -710,11 +717,15 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-small font-medium text-text">Week {goal.currentWeek || 1} practice complete.</p>
-                        <p className="mt-0.5 text-small text-text-secondary">Weekly review ready.</p>
+                        <p className="mt-0.5 text-small text-text-secondary">
+                          {reviewOpensDay ? `Weekly review opens on ${reviewOpensDay}.` : 'Weekly review ready.'}
+                        </p>
                       </div>
-                      <Button type="button" variant="secondary" size="sm" onClick={() => setReviewOpen(true)}>
-                        Start weekly review
-                      </Button>
+                      {!reviewOpensDay && (
+                        <Button type="button" variant="secondary" size="sm" onClick={() => setReviewOpen(true)}>
+                          Start weekly review
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -938,6 +949,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         onGoalUpdated={goalContext.updateActiveGoal}
         onWeekClosed={() => void goalContext.refreshGoal()}
         onChoiceNeeded={() => void goalContext.reloadPlan()}
+        timezone={timezone}
         apiStatus={apiStatus}
       />
     </main>

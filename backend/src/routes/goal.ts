@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { getAuthUser } from './auth.js';
-import { normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
+import { getUserTodayDateString, normalizeTimezone, resolveGoalStart } from '../lib/timezone.js';
 import { handledTaskIds, parseStoredSteps, type CarriedStep } from '../lib/carryForward.js';
 import {
   carryEnabled,
@@ -688,6 +688,8 @@ goalRouter.post('/reconcile', async (req: Request, res: Response): Promise<void>
 
 type ActionReason =
   | 'not_today'
+  | 'not_yet'
+  | 'week_not_over'
   | 'rest_day'
   | 'completed'
   | 'already_handled'
@@ -718,6 +720,9 @@ type ActionReason =
 
 const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
+  // Ahead days: a day can be completed from its own date on, and a week reviewed from its last day on.
+  not_yet: "This day hasn't started yet.",
+  week_not_over: 'This week can be reviewed from its last day.',
   rest_day: 'Rest days cannot be changed this way.',
   completed: 'This day is already done.',
   already_handled: 'This day has already been changed.',
@@ -1183,6 +1188,11 @@ goalRouter.patch('/tasks/:taskId', async (req: Request, res: Response): Promise<
     // Sending `completed` again for a task already done keeps the first completion as it was (B-29).
     const statusChanges = status !== undefined && status !== task.status;
 
+    // A day still ahead in the person's time zone cannot be completed; marking a day not done is always allowed.
+    if (statusChanges && status === 'completed' && task.date > getUserTodayDateString(normalizeTimezone(user.timezone))) {
+      return refuse(res, 'not_yet');
+    }
+
     const updated = await prisma.dailyTask.update({
       where: { id: taskId },
       data: {
@@ -1383,6 +1393,9 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     // B-59, WU-27 (every switch state): only the open week can be reviewed, and before any model call.
     const week = goal.roadmapWeeks.find((w) => w.weekNumber === weekNum);
     if (weekNum !== goal.currentWeek || week?.status !== 'active') return refuse(res, 'week_closed');
+    // The review opens on the week's last day in the person's time zone, so a week cannot be crammed and closed early.
+    const lastDay = goal.dailyTasks.reduce((last, t) => (t.date > last ? t.date : last), '');
+    if (lastDay > getUserTodayDateString(normalizeTimezone(user.timezone))) return refuse(res, 'week_not_over');
 
     const startedAt = Date.now();
 

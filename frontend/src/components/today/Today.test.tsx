@@ -410,22 +410,32 @@ describe('Today', () => {
 
   it('displays week completion bridge when the final practice task of the week is completed', async () => {
     const user = userEvent.setup();
+    // Saturday (the last practice day, t6) is today; Sunday's rest is still ahead.
+    const week = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 5), status: idx < 5 ? ('completed' as const) : ('pending' as const) }));
+    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: week } as unknown as Goal);
+    mocked.updateDailyTask.mockImplementation(async (id, updates) => ({ ...week.find((t) => t.id === id)!, ...updates }) as DailyTask);
     await renderToday();
-    await user.click(screen.getByRole('button', { name: 'Show week' }));
-
-    // Select Saturday (last practice day of the week, task t6)
-    const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
-    const saturday = days.find((b) => b.getAttribute('aria-label')?.startsWith('Sat'))!;
-    await user.click(saturday);
     expect(screen.getByRole('region', { name: 'Session 6' })).toBeInTheDocument();
 
-    // Mark Saturday complete
     await user.click(screen.getByRole('button', { name: 'Mark complete' }));
 
-    // Bridge appears pointing to week review
+    // The bridge points to the review, which opens on the week's last day.
     expect(screen.getByText('Week 1 practice complete.')).toBeVisible();
-    expect(screen.getByText('Weekly review ready.')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Start weekly review' })).toBeVisible();
+    expect(screen.getByText('Weekly review opens on Sunday.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Start weekly review' })).not.toBeInTheDocument();
+  });
+
+  it('shows a day still ahead as a preview: no Start and no Mark complete', async () => {
+    const user = userEvent.setup();
+    await renderToday();
+    await user.click(screen.getByRole('button', { name: 'Show week' }));
+    const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
+    await user.click(days.find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!);
+
+    expect(screen.getByText("Thursday's step")).toBeVisible();
+    expect(screen.getByText('This step opens on Thursday. You can read it now and do it on the day.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
   });
 
   it('displays focus wins separately from freeform notes and preserves both on save', async () => {
@@ -468,16 +478,14 @@ describe('Today', () => {
 
   it('renders rest day state with intentional adaptation copy, suppressed start button, recovery toggle, and next step preview', async () => {
     const user = userEvent.setup();
+    // Sunday (the rest day) is today.
+    const week = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 6), status: idx < 6 ? ('completed' as const) : ('pending' as const) }));
+    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: week } as unknown as Goal);
+    mocked.updateDailyTask.mockImplementation(async (id, updates) => ({ ...week.find((t) => t.id === id)!, ...updates }) as DailyTask);
     await renderToday();
 
-    // Select Sunday (rest day)
-    await user.click(screen.getByRole('button', { name: 'Show week' }));
-    const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
-    const sunday = days.find((b) => b.getAttribute('aria-label')?.startsWith('Sun'))!;
-    await user.click(sunday);
-
     // Eyebrow and badge
-    expect(screen.getByText("Sunday's rest")).toBeVisible();
+    expect(screen.getByText("Today's rest")).toBeVisible();
     expect(screen.getByText('Rest day')).toBeVisible();
 
     // Intentional adaptation explanation
@@ -855,8 +863,8 @@ describe('Today', () => {
       expect(button('Start the 10-minute version')).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Show week' }));
       const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
-      await user.click(days.find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!);
-      expect(screen.getByText("Thursday's step")).toBeInTheDocument();
+      await user.click(days.find((b) => b.getAttribute('aria-label')?.startsWith('Tue'))!);
+      expect(screen.getByText("Tuesday's step")).toBeInTheDocument();
       expectUnchanged();
       expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
     });
@@ -997,13 +1005,23 @@ describe('Today', () => {
     expect(screen.queryByText('Step completed. Deliberate practice logged for today.')).not.toBeInTheDocument();
   });
 
-  it('renders review due card when all active practice tasks are completed ahead of time (M7.4-R3)', async () => {
-    // Current tasks where all active practice sessions are completed
-    const completedTasks = tasks.map((t) =>
-      t.isRestDay ? t : { ...t, status: 'completed' as const }
-    );
-    const goalWithCompletedTasks = { ...GOAL, dailyTasks: completedTasks } as unknown as Goal;
-    mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithCompletedTasks);
+  it('does not make the review due before the week\'s last day, even with every practice day done', async () => {
+    const user = userEvent.setup();
+    const completedTasks = tasks.map((t) => (t.isRestDay ? t : { ...t, status: 'completed' as const }));
+    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: completedTasks } as unknown as Goal);
+    await renderToday();
+
+    expect(screen.queryByText('Review due')).not.toBeInTheDocument();
+
+    // The review can be opened and drafted, but not submitted until the last day.
+    await user.click(screen.getByRole('button', { name: 'Review week' }));
+    expect(screen.getByText('You can submit this review on Sunday, the last day of the week. What you write here is kept until then.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Start Week 2' })).toBeDisabled();
+  });
+
+  it('renders review due card on the week\'s last day once every practice day is done (M7.4-R3)', async () => {
+    const lastDay = tasks.map((t, idx) => ({ ...t, date: isoDay(idx - 6), status: t.isRestDay ? t.status : ('completed' as const) }));
+    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: lastDay } as unknown as Goal);
     await renderToday();
 
     expect(screen.getByRole('heading', { level: 2, name: 'Week 1 is ready for review' })).toBeVisible();

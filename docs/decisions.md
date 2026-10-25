@@ -1772,6 +1772,33 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-23 — No completing days ahead; the review opens on the week's last day
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-25 — Mo: someone can do every task in one day |
+| Decided | 2026-10-25 — Mo |
+
+**Context.** Nothing checked a task's date: any day of the open week could be marked complete at once, and the review opened as soon as every practice day was done. The review writes the next week (its dates fixed from the start date), so all 12 weeks could be ticked off in an afternoon, and each crammed week told the weekly update the person was on track, so targets kept climbing on fake data.
+
+**Question.** Refuse ahead days, or allow them but leave them out of adherence? Open the review on the week's last day, or only after the week has passed?
+
+**Decision.** **Refuse ahead days; the review opens on the week's last day.** Both use the person's time zone.
+* `PATCH /api/goal/tasks/:taskId` refuses `completed` for a task dated after today with 409 `not_yet`. Today and past days of the open week can still be completed (logging a day late), marking a day not done is always allowed, and notes and slot time are unchanged.
+* `POST /api/goal/weeks/:weekNumber/review` refuses with 409 `week_not_over` while the week's last task date (a rest day counts) is ahead, before any model call. The automatic close is unchanged (it runs only after the week has passed).
+* Today shows a day ahead as a preview ("This step opens on Thursday…") with no Start and no Mark complete. The review card shows on the last day once every practice day is done, or once the week has passed. The review dialog opens any time but its submit stays disabled before the last day, with a line saying when it opens; the draft is kept.
+
+**Consequences.**
+* Doing a later session early is not supported. If it is asked for, it belongs with the same-week swap and its rules (order, rest gap, key sessions), not with completion.
+* A goal already crammed ahead before this change keeps what it stored; nothing is rewritten.
+
+**Related.** plan-v2.md; `docs/architecture/backend-details.md` (Plan v2).
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 * **OD-3** — Superseded by **ND-19** on 2026-10-07.
@@ -1816,6 +1843,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-07 | ND-19 Decided (A): the Dashboard stays at `/dashboard` as an overview; OD-3 marked Superseded. ND-20 Decided (A): the six legacy billing columns on `users` are declared in `schema.prisma` as deprecated, with no migration. Both delegated by Mo to the agent's recommendation. |
 | 2026-10-08 | ND-21 Decided (A) by Mo: plan v1 goals are retired; the silent v1 fallback was already removed (`2ca4132`). |
 | 2026-10-09 | ND-22 Decided by Mo: Groq removed; Gemini is the only provider until a better second model is added (`3edac07`). |
+| 2026-10-25 | ND-23 Decided by Mo: days ahead cannot be completed (409 `not_yet`) and the weekly review opens on the week's last day (409 `week_not_over`). |
 
 ### PAY-1 — Achivii Pro pricing
 

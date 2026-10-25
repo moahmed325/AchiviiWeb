@@ -16,7 +16,7 @@ import { ReviewTestResultStep } from './ReviewTestResultStep';
 import { ReviewReflectionStep } from './ReviewReflectionStep';
 import { AdaptationMomentStep } from './AdaptationMomentStep';
 import { week12NoteText } from '../../lib/week12Line';
-import { isRestLike } from '../../lib/today';
+import { isRestLike, reviewOpensOn } from '../../lib/today';
 import { isLightTest } from '../../lib/lightTest';
 import { WEEK_CLOSED_LINES } from '../../lib/weekClose';
 
@@ -31,6 +31,8 @@ export interface WeeklyReviewModalProps {
   /** Weekly update M1.5b (WU-38 (1)): a break past the limit waits for the choice card; the modal closes at once. */
   onChoiceNeeded?: () => void;
   apiStatus?: 'online' | 'offline' | 'checking';
+  /** The person's time zone: the review can be submitted from the week's last day there (`week_not_over`). */
+  timezone?: string;
 }
 
 export type ReviewModalStep = 'review' | 'adaptation';
@@ -52,6 +54,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   onWeekClosed,
   onChoiceNeeded,
   apiStatus,
+  timezone,
 }) => {
   const currentWeekNum = goal.currentWeek || 1;
   const roadmapWeeks = goal.roadmapWeeks || [];
@@ -60,6 +63,8 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
   const currentWeekTasks = tasks.filter((t) => t.weekNumber === currentWeekNum);
   const activeDaysThisWeek = currentWeekTasks.filter((t) => !isRestLike(t));
   const completedDaysThisWeek = activeDaysThisWeek.filter((t) => t.status === 'completed');
+  // Before the week's last day the review can be read and drafted but not submitted (the server refuses it).
+  const opensOn = reviewOpensOn(currentWeekTasks, new Date(), timezone);
   // WU-33 (3): a week whose every practice day was not offered has no score (shown as not counted, never 0%).
   const notCounted = activeDaysThisWeek.length === 0 && currentWeekTasks.some((t) => t.notOffered);
   const weekScorePercent = notCounted
@@ -300,7 +305,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
               <Button
                 variant="primary"
                 onClick={weekClosed ? handleClose : handleSubmit}
-                disabled={isSubmitting || !token}
+                disabled={isSubmitting || !token || (opensOn !== null && !weekClosed)}
                 loading={isSubmitting}
                 className="min-h-[44px]"
                 trailingIcon={!isSubmitting && !weekClosed && <ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
@@ -337,6 +342,12 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
               disabled={isSubmitting}
               weekNumber={currentWeekNum}
             />
+
+            {opensOn && !weekClosed && (
+              <p className="text-small text-text-secondary">
+                You can submit this review on {opensOn}, the last day of the week. What you write here is kept until then.
+              </p>
+            )}
 
             <ReviewReflectionStep
               value={reflection}
