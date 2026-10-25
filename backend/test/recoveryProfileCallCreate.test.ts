@@ -14,13 +14,16 @@ const db = vi.hoisted(() => ({
   tasksCreateMany: vi.fn(),
 }));
 
-vi.mock('../src/lib/prisma.js', () => ({
-  prisma: {
+vi.mock('../src/lib/prisma.js', () => {
+  const prisma: any = {
     goal: { create: db.goalCreate, updateMany: db.goalUpdateMany, findUniqueOrThrow: db.goalFindUniqueOrThrow },
     roadmapWeek: { createMany: db.weeksCreateMany },
     dailyTask: { createMany: db.tasksCreateMany },
-  },
-}));
+  };
+  // B-100: goal create saves in one transaction, on the same mocks.
+  prisma.$transaction = async (fn: (tx: unknown) => unknown) => fn(prisma);
+  return { prisma };
+});
 
 vi.mock('../src/routes/auth.js', () => ({
   getAuthUser: vi.fn(),
