@@ -72,6 +72,8 @@ export interface DayOutcome {
   outcome: RecoveryOutcome;
   /** The outcome of the day's highest-priority step alone, which the week counts read (RULE-17). */
   topStep: RecoveryOutcome;
+  /** B-38 logic check: the continued top step was a restart kind's (the process starts again), counted apart. */
+  restart?: true;
 }
 
 /** A continue marker to write (RULE-10). `steps` and `durationMinutes` are the receiving day's full new row. */
@@ -801,7 +803,8 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
           topStep = 'fixed';
       }
     }
-    outcomes.push({ taskId: day.taskId, date: day.date, rules: 'method', outcome: moved ? 'moved' : topStep, topStep });
+    const restart = !top.queued && top.recovery.action === 'restart' && topStep === 'continued';
+    outcomes.push({ taskId: day.taskId, date: day.date, rules: 'method', outcome: moved ? 'moved' : topStep, topStep, ...(restart ? { restart: true as const } : {}) });
   }
 
   drops.sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? -1 : 1));

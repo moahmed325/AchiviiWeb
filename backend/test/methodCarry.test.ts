@@ -368,6 +368,8 @@ describe('B-38 restart: a timed process starts again', () => {
     expect(plan.continues![0]).toMatchObject({ fromTaskId: id('mon'), toTaskId: id('wed'), kind: 'process_step' });
     expect(plan.continues![0].steps[0].continueFrom).toEqual({ taskId: id('mon'), date: '2026-09-21', restart: true });
     expect(outcomeOf(plan, 'mon')).toMatchObject({ rules: 'method', topStep: 'continued' });
+    // Logic check: counted apart from continued work.
+    expect(outcomeOf(plan, 'mon')?.restart).toBe(true);
   });
 
   it('a continue kind still gets a plain marker', () => {
@@ -536,7 +538,7 @@ describe('RULE-17 counts (MR-19, MR-26)', () => {
     const legacy = planCarries(input);
     const base = weekCounts(1, { tasks: countable(input), days: input.days, carry: legacy });
     const counts = weekCounts(1, { tasks: countable(input), days: input.days, carry: plan });
-    expect(counts).toEqual({ ...base, dropped: counts.dropped, letGo: 1, continued: 0, noRoom: 1, toNextWeek: 0 });
+    expect(counts).toEqual({ ...base, dropped: counts.dropped, letGo: 1, continued: 0, restarted: 0, noRoom: 1, toNextWeek: 0 });
     expect(counts.practiceDone).toBe(base.practiceDone);
     expect(counts.missed).toBe(base.missed);
     expect(base).not.toHaveProperty('letGo');

@@ -299,6 +299,8 @@ function kindsBlock(recovery: RecoveryProfile): string {
       : '',
     '- Work that only makes sense together, such as a game and its review, is written as one step.',
     "- A warm-up, cool-down or log of a session is written inside that session's step (in its instructions), never as a step of its own. The test day keeps its short warm-up and result steps as described above.",
+    // B-92: the rules above read as "one session, one step"; without this line a run day came back as one step.
+    '- A practice day still has 2 to 4 steps: a day built around one session, such as a run, adds a second step of another kind, such as drills, strides, mobility or technique work.',
     `- Every step on the test day, including its warm-up and the step after the test, has kind ${WEEKLY_TEST_KIND.id}. Use fixed_time_session only for something set for a time by others, such as a class, a group run or a call.`,
   ].filter(Boolean);
   return ['', '', 'KINDS OF STEP (every practice-day step has exactly one "kind": one of these ids, written exactly)', ...lines, ...rules].join(NL);

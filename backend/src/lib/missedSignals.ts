@@ -43,6 +43,8 @@ export interface WeekCounts {
    */
   letGo?: number;
   continued?: number;
+  /** B-38 logic check: continued days whose step was a timed process starting again; not in `continued`. */
+  restarted?: number;
   noRoom?: number;
   /**
    * RULE-17, RULE-20 (M3.1c, MR-30 (6)), present with the other three: the steps of in-order move kinds this week
@@ -80,13 +82,14 @@ export function weekCounts(
   const keys = practice.filter((task) => task.isKeySession);
   const sources = new Set([...input.carry.alreadyCarried, ...(input.carry.written ?? [])].map((carry) => carry.fromTaskId));
   const outcomes = input.carry.outcomes;
-  let method: Pick<WeekCounts, 'letGo' | 'continued' | 'noRoom' | 'toNextWeek'> = {};
+  let method: Pick<WeekCounts, 'letGo' | 'continued' | 'restarted' | 'noRoom' | 'toNextWeek'> = {};
   if (outcomes) {
     // Gap days have their own outcome (`in_gap`), so they are in none of these.
     const counted = outcomes.filter((day) => day.rules === 'method' && ids.has(day.taskId));
     method = {
       letGo: counted.filter((day) => day.topStep === 'let_go').length,
-      continued: counted.filter((day) => day.topStep === 'continued').length,
+      continued: counted.filter((day) => day.topStep === 'continued' && !day.restart).length,
+      restarted: counted.filter((day) => day.topStep === 'continued' && day.restart === true).length,
       noRoom: counted.filter((day) => day.topStep === 'no_room').length,
       toNextWeek: (input.carry.reorders ?? []).filter((reorder) => reorder.weekNumber === weekNumber).reduce((sum, reorder) => sum + reorder.toNextWeek.length, 0),
     };

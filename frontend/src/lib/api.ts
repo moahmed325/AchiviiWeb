@@ -124,6 +124,17 @@ export async function fetchCurrentUser(token: string): Promise<User> {
   return data.user;
 }
 
+/** B-46 (2): moves the plan to another time zone (the device's, from the account menu). */
+export async function updateTimezone(token: string, timezone: string): Promise<User> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/timezone`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ timezone }),
+  });
+  const data = await readJson<{ user: User }>(response, 'Failed to change the time zone');
+  return data.user;
+}
+
 export async function clarifyGoal(rawGoal: string): Promise<import('../types').GoalClarification> {
   const response = await fetch(`${API_BASE_URL}/api/goal/clarify`, {
     method: 'POST',

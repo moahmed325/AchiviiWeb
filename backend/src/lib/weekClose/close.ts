@@ -274,6 +274,8 @@ export interface WeekCloseInput {
   reflection?: string;
   /** A result sent with the review. Without one, a result logged earlier is kept (M4.1). */
   testResult?: Prisma.InputJsonObject | null;
+  /** B-3: the review cleared the entry, so a result logged earlier is deleted. */
+  clearTestResult?: boolean;
   /** The review row's insight; the review row is not written when this is undefined (RULE-11: week 12 closed automatically). */
   insight?: string;
   /** From `writeWeekAfter`: the move and the days not offered, saved only by the request that wins. */
@@ -325,7 +327,7 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
         closedBy: by,
         closedAt,
         // M4.1: a close without a result keeps the one logged earlier (PUT .../test-result).
-        ...(input.testResult ? { testResult: input.testResult } : {}),
+        ...(input.testResult ? { testResult: input.testResult } : input.clearTestResult ? { testResult: Prisma.DbNull } : {}),
         // M3.1 (RULE-3, WU-45 (7)): the status stays inside; the fallback stores none.
         ...(input.update?.status ? { updateStatus: input.update.status } : {}),
       },

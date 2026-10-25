@@ -778,6 +778,23 @@ describe('WeeklyReviewModal Component (M7.2 & M7.3 Review Flow UI)', () => {
       expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, '', 'test-token', STORED);
     });
 
+    it('B-3: clearing a stored result sends null, which deletes it', async () => {
+      const user = userEvent.setup();
+      mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(null));
+      renderModal(createSampleGoal(createSampleTasks(6, 6), { testResult: STORED }));
+      await user.click(screen.getByRole('button', { name: 'Clear benchmark entry' }));
+      await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+      expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, '', 'test-token', null);
+    });
+
+    it('with nothing stored and nothing entered, sends no result at all', async () => {
+      const user = userEvent.setup();
+      mockedApi.submitWeeklyReview.mockResolvedValueOnce(response(null));
+      renderModal(createSampleGoal(createSampleTasks(6, 6)));
+      await user.click(screen.getByRole('button', { name: 'Start Week 2' }));
+      expect(mockedApi.submitWeeklyReview).toHaveBeenCalledWith(1, '', 'test-token');
+    });
+
     it('falls back to the local draft when nothing is stored', () => {
       localStorage.setItem('achivii_test_result_draft_g-1_w1', JSON.stringify({ value: 'my draft', passed: true }));
       renderModal(createSampleGoal(createSampleTasks(6, 6)));

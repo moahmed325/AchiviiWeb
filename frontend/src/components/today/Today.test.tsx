@@ -712,6 +712,17 @@ describe('Today', () => {
       for (const word of [/missed/i, /failed/i, /behind/i, /\bwhy\b/i]) expect(text).not.toMatch(word);
     };
 
+    it('gentle-return day: a deadline that passed during the gap is named (logic check, B-39)', async () => {
+      reconciled(GENTLE);
+      const due = JSON.stringify([{ stepNumber: 1, title: 'Send the application', durationMinutes: 30, instructions: 'Send it.', focusCue: '', priority: 1, dueDate: isoDay(-1) }]);
+      mocked.fetchActiveGoal.mockResolvedValueOnce({
+        ...GOAL,
+        dailyTasks: tasks.map((t) => (t.id === 't3' ? { ...t, minimumVersion: MINIMUM } : t.id === 't2' ? { ...t, status: 'pending', detailedSteps: due } : t)),
+      } as unknown as Goal);
+      await renderToday();
+      expect(await screen.findByText(`${WELCOME} The deadline for "Send the application" passed while you were away.`)).toBeVisible();
+    });
+
     it("gentle-return day: the card shows the 10-minute version's minutes (B-1)", async () => {
       reconciled(GENTLE);
       withMinimum();

@@ -311,10 +311,13 @@ describe('Late test result (missed sessions M4.1)', () => {
       expect(weekRow('g1', 1).reviewNotes).toBe('Good week');
     });
 
-    it('keeps it when the request sends testResult: null', async () => {
+    it('B-3: clears it when the review sends testResult: null (the entry was cleared)', async () => {
       weekRow('g1', 1).testResult = RESULT;
-      expect((await review(1, { reflection: '', testResult: null })).status).toBe(200);
-      expect(weekRow('g1', 1).testResult).toEqual(RESULT);
+      const res = await review(1, { reflection: '', testResult: null });
+      expect(res.status).toBe(200);
+      expect((await res.json()).testResult).toBeNull();
+      expect(weekRow('g1', 1).testResult ?? null).toBeNull();
+      expect(weekRow('g1', 1).status).toBe('completed');
     });
 
     it('replaces it when the review sends one', async () => {

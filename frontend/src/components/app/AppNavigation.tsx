@@ -103,7 +103,7 @@ export const AppRail: React.FC<AppNavigationProps> = ({ onOpenPathways, onOpenCo
 
 const barItem = (active: boolean) =>
   cx(
-    'focus-ring-inset relative flex min-h-16 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-control text-[11px] sm:text-small font-medium tracking-tight',
+    'focus-ring-inset relative flex min-h-16 w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-control text-nav-compact min-[380px]:text-nav sm:text-small font-medium tracking-tight',
     'transition-colors duration-(--duration-quick)',
     active ? 'text-text' : 'text-text-secondary hover:text-text',
   );
@@ -134,7 +134,7 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
             <OfflineChip />
           </div>
         )}
-        <nav aria-label="Primary" className="mx-auto max-w-lg px-2">
+        <nav aria-label="Primary" className="mx-auto max-w-lg px-1 min-[380px]:px-2">
           <ul className="flex">
             {showDashboard && (
               <li className="min-w-0 flex-1">

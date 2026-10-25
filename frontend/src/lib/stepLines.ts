@@ -155,7 +155,7 @@ export function continueLine(step: StepText, done: DoneDays = new Map()): string
   const weekday = typeof date === 'string' ? weekdayOf(date) : null;
   if (!weekday) return null;
   // B-38: a timed process that was interrupted starts again.
-  return step.continueFrom?.restart === true ? `Start the process again from its first step (${weekday} was missed).` : `Pick up where ${weekday} stopped.`;
+  return step.continueFrom?.restart === true ? `${weekday} was missed, so start the process again from its first step today, in place of this step.` : `Pick up where ${weekday} stopped.`;
 }
 
 export function stepLines(step: StepText, done?: DoneDays): StepLines {

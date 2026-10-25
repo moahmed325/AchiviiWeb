@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronDown, CircleUser, LogOut, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
-import { Dialog, DialogContent, DialogTrigger, cx } from '../ui';
+import { Button, Dialog, DialogContent, DialogTrigger, cx } from '../ui';
 import { ResetPlanDialog } from './ResetPlanDialog';
 import { fetchBillingAccountState, BillingAccountState } from '../../lib/api';
 
@@ -35,6 +35,48 @@ interface AccountPanelProps {
   onReset: () => void;
   onSignOut: () => void;
 }
+
+/** The city part of an IANA zone, for people: "Asia/Tokyo" -> "Tokyo". */
+const placeOf = (zone: string) => (zone.split('/').pop() ?? zone).replace(/_/g, ' ');
+
+/**
+ * B-46 (2), Travelling Leo: the plan keeps the zone set at sign-up; when this device is somewhere else, the person can
+ * move the plan here. Shown only when the two differ.
+ */
+export const TimezoneNotice: React.FC = () => {
+  const { user, setTimezone } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+  let device: string | undefined;
+  try {
+    device = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    device = undefined;
+  }
+  if (!user?.timezone || !device || device === user.timezone) return null;
+  const move = async () => {
+    setSaving(true);
+    setFailed(false);
+    try {
+      await setTimezone(device!);
+    } catch {
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="mt-4">
+      <p className="text-small text-text-secondary">
+        Your plan uses {placeOf(user.timezone)} time. This device is in {placeOf(device)}.
+      </p>
+      <Button size="sm" variant="secondary" loading={saving} onClick={move} className="mt-2">
+        Use {placeOf(device)} time
+      </Button>
+      {failed && <p role="alert" className="mt-2 text-small text-danger">That didn't save. Please try again.</p>}
+    </div>
+  );
+};
 
 const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut }) => {
   const { user, token } = useAuth();
@@ -68,6 +110,7 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut
       <div className="border-b border-border px-3 pb-4">
         <p className="font-ui-mono text-micro uppercase text-text-secondary">Signed in as</p>
         <p className="mt-1 truncate text-small text-text">{user?.email ?? 'Your account'}</p>
+        <TimezoneNotice />
         {withGoal && (
           <>
             <p className="tabular mt-4 font-ui-mono text-micro uppercase text-text-secondary">
