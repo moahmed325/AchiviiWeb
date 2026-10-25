@@ -1772,7 +1772,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
-### ND-23 — No completing days ahead; the review opens on the week's last day
+### ND-24 — No completing days ahead; the review opens on the week's last day
 
 | Field | Value |
 |---|---|
@@ -1843,7 +1843,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-07 | ND-19 Decided (A): the Dashboard stays at `/dashboard` as an overview; OD-3 marked Superseded. ND-20 Decided (A): the six legacy billing columns on `users` are declared in `schema.prisma` as deprecated, with no migration. Both delegated by Mo to the agent's recommendation. |
 | 2026-10-08 | ND-21 Decided (A) by Mo: plan v1 goals are retired; the silent v1 fallback was already removed (`2ca4132`). |
 | 2026-10-09 | ND-22 Decided by Mo: Groq removed; Gemini is the only provider until a better second model is added (`3edac07`). |
-| 2026-10-25 | ND-23 Decided by Mo: days ahead cannot be completed (409 `not_yet`) and the weekly review opens on the week's last day (409 `week_not_over`). |
+| 2026-10-25 | ND-24 Decided by Mo: days ahead cannot be completed (409 `not_yet`) and the weekly review opens on the week's last day (409 `week_not_over`). |
 
 ### PAY-1 — Achivii Pro pricing
 

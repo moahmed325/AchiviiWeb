@@ -145,7 +145,7 @@ test.describe('The week close in the app (M1.2b)', () => {
 
   test('a review that lost to an automatic close keeps its reflection', async ({ page }, info) => {
     const done = before();
-    // ND-23: the review opens on the week's last day, so the week is moved back to end today.
+    // ND-24: the review opens on the week's last day, so the week is moved back to end today.
     const lastDay = done.dailyTasks.reduce((last, t) => (t.date > last ? t.date : last), '');
     const back = (Date.parse(`${lastDay}T00:00:00Z`) - Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`)) / 86_400_000;
     const moved = (date: string) => new Date(Date.parse(`${date}T00:00:00Z`) - back * 86_400_000).toISOString().slice(0, 10);
