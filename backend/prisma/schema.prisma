@@ -15,22 +15,6 @@ model User {
   timezone      String   @default("UTC")
   created_at    DateTime @default(now())
 
-  // ND-20: legacy Stripe-era billing columns. They still exist in the database (migration
-  // 20260928171500_add_user_billing_fields) and are declared here only so the schema matches it.
-  // Billing reads `Subscription`. Never use these; dropping them needs its own migration and decision.
-  /// @deprecated Legacy, unused (ND-20).
-  plan                 String    @default("free")
-  /// @deprecated Legacy, unused (ND-20).
-  stripeCustomerId     String?   @unique
-  /// @deprecated Legacy, unused (ND-20).
-  stripeSubscriptionId String?   @unique
-  /// @deprecated Legacy, unused (ND-20).
-  subscriptionStatus   String?
-  /// @deprecated Legacy, unused (ND-20).
-  currentPeriodEnd     DateTime?
-  /// @deprecated Legacy, unused (ND-20).
-  cancelAtPeriodEnd    Boolean   @default(false)
-
   goals         Goal[]
   subscriptions Subscription[]
 
@@ -101,11 +85,7 @@ model Goal {
   canonicalSourceUrl  String?
   methodConfidence    String?   // "high_consensus" | "medium_consensus" | "first_principles"
   methodKind          String?   // "named_program" | "shared_pattern" | "technique" | "single_source"
-  teachings           Json?     // concrete steps the weekly updater must stay on
-  workBlocks          Json?     // { kinds, blocks }: the ranked pieces of work every practice step is built from
-  allowedUrls         Json?     // retrieved URLs; later weeks may not invent links
   velocityTable       Json?     // Week 1 -> Week 12 metric matrix, derived from research
-  canonicalKey        String?   // hierarchical domain key, e.g. "lang.japanese.jlpt_n3"
   planVersion         Int       @default(1) // 2 = roadmap + one week at a time (docs/architecture/plan-v2.md)
   roadmap             Json?     // v2: { finalGoal, finalTest, startingPoint, method, phases }
   // Weekly update (docs/features/weekly-update, WU-21: one additive migration)
@@ -203,23 +183,4 @@ model WeeklyReview {
 
   @@unique([goalId, weekNumber])
   @@map("weekly_reviews")
-}
-
-// Unused: written and read only by the removed live research pipeline. Kept, with its
-// migrations, until dropping the table is decided separately.
-model ResearchCache {
-  id                String   @id @default(uuid())
-  canonicalKey      String   @unique          // e.g. "lang.japanese.jlpt_n3"
-  // pgvector column. Prisma Client cannot read or write Unsupported types; the removed
-  // cache code accessed it through raw SQL.
-  outcomeEmbedding  Unsupported("vector(768)")?
-  canonicalMethod   Json                      // { methodName, authority, sourceUrl, confidence, velocityTable, rawFindings }
-  hitCount          Int      @default(1)
-  userFeedbackScore Float?                   // populated once a feedback mechanism exists; nullable until then
-  readyForPromotion Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  lastUsedAt        DateTime @default(now())
-
-  @@map("research_cache")
 }
