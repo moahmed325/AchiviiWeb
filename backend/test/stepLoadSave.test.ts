@@ -14,7 +14,12 @@ const db = vi.hoisted(() => ({
 }));
 
 vi.mock('../src/lib/prisma.js', () => {
-  const tx = { dailyTask: { deleteMany: db.tasksDeleteMany, createMany: db.tasksCreateMany } };
+  // B-100: goal create also saves through the transaction.
+  const tx = {
+    goal: { create: db.goalCreate, updateMany: db.goalUpdateMany },
+    roadmapWeek: { createMany: db.weeksCreateMany },
+    dailyTask: { deleteMany: db.tasksDeleteMany, createMany: db.tasksCreateMany },
+  };
   return {
     prisma: {
       goal: { create: db.goalCreate, updateMany: db.goalUpdateMany },

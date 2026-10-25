@@ -274,10 +274,6 @@ async function readNextPlanRequest(userId: string, body: unknown): Promise<NextP
   };
 }
 
-async function archiveActiveGoals(userId: string) {
-  await prisma.goal.updateMany({ where: { userId, status: 'active' }, data: { status: 'archived' } });
-}
-
 async function saveV2Goal(input: {
   userId: string;
   rawGoal: string;
@@ -296,31 +292,34 @@ async function saveV2Goal(input: {
 }): Promise<string> {
   const { roadmap } = input;
   const stored = storedRoadmap(roadmap, input.answerList, input.recovery);
-  await archiveActiveGoals(input.userId);
-  const goal = await prisma.goal.create({
-    data: {
-      userId: input.userId,
-      rawGoal: input.rawGoal,
-      clarifiedOutcome: roadmap.finalGoal,
-      methodologyNotes: `${roadmap.method.name}: ${roadmap.method.summary}`,
-      status: 'active',
-      startDate: input.start,
-      targetDate: input.targetDate,
-      currentWeek: 1,
-      answers: JSON.stringify(input.answers),
-      routine: JSON.stringify(input.routine),
-      isGoldenRail: input.isPreset,
-      canonicalMethodName: roadmap.method.name,
-      canonicalAuthority: roadmap.method.creator || null,
-      planVersion: 2,
-      roadmap: JSON.parse(JSON.stringify(input.previousPlan ? { ...stored, previousPlan: input.previousPlan } : stored)),
-    },
+  // One transaction (B-100): a failed write must not archive the person's current goal and leave a half-saved new one.
+  return prisma.$transaction(async (tx) => {
+    await tx.goal.updateMany({ where: { userId: input.userId, status: 'active' }, data: { status: 'archived' } });
+    const goal = await tx.goal.create({
+      data: {
+        userId: input.userId,
+        rawGoal: input.rawGoal,
+        clarifiedOutcome: roadmap.finalGoal,
+        methodologyNotes: `${roadmap.method.name}: ${roadmap.method.summary}`,
+        status: 'active',
+        startDate: input.start,
+        targetDate: input.targetDate,
+        currentWeek: 1,
+        answers: JSON.stringify(input.answers),
+        routine: JSON.stringify(input.routine),
+        isGoldenRail: input.isPreset,
+        canonicalMethodName: roadmap.method.name,
+        canonicalAuthority: roadmap.method.creator || null,
+        planVersion: 2,
+        roadmap: JSON.parse(JSON.stringify(input.previousPlan ? { ...stored, previousPlan: input.previousPlan } : stored)),
+      },
+    });
+    await tx.roadmapWeek.createMany({
+      data: roadmapWeekRows(goal.id, roadmap, input.routine.dailyMinutes!, input.routine.planVariant as PlanVariant),
+    });
+    await tx.dailyTask.createMany({ data: dailyTaskRows(goal.id, 1, input.week1) });
+    return goal.id;
   });
-  await prisma.roadmapWeek.createMany({
-    data: roadmapWeekRows(goal.id, roadmap, input.routine.dailyMinutes!, input.routine.planVariant as PlanVariant),
-  });
-  await prisma.dailyTask.createMany({ data: dailyTaskRows(goal.id, 1, input.week1) });
-  return goal.id;
 }
 
 /**
