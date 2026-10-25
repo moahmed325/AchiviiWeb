@@ -1385,10 +1385,13 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
 
     const startedAt = Date.now();
 
+    // B-3: an explicit null clears a result logged earlier (the review's "Clear benchmark entry"); a missing one keeps it.
+    const clearTestResult = testResult === null && week.testResult !== null;
     // B-61: the week writer is told the result sent with this review, which is saved only after the call.
-    const writerGoal = sanitizedTestResult
-      ? { ...goal, roadmapWeeks: goal.roadmapWeeks.map((w) => (w.weekNumber === weekNum ? { ...w, testResult: sanitizedTestResult as unknown as Prisma.JsonValue } : w)) }
-      : goal;
+    const writerGoal =
+      sanitizedTestResult || clearTestResult
+        ? { ...goal, roadmapWeeks: goal.roadmapWeeks.map((w) => (w.weekNumber === weekNum ? { ...w, testResult: sanitizedTestResult as unknown as Prisma.JsonValue } : w)) }
+        : goal;
     const now = new Date();
     // Weekly update M3.1 (RULE-1, WU-45 (1)): with both switches on and weeks 1 to 11 (M3.4: a break too, never before a
     // choice past the limit), the update runs first and the week after is written from its targets; otherwise null and
@@ -1413,6 +1416,7 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       written: next.written,
       reflection,
       testResult: sanitizedTestResult as unknown as Prisma.InputJsonObject | null,
+      clearTestResult,
       // M1.4 (section 6): a late review that moves the plan keeps its own insight and answer. M3.1 (RULE-7): after an
       // update, its sentence (or the neutral line on the fallback).
       insight: update ? update.insight : reviewInsight(goal.dailyTasks),
@@ -1421,14 +1425,14 @@ goalRouter.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
       update,
       retestOfWeek: retestOfWeekFor(update, next.written),
       // Checkpoints (RULE-2): after the update decided the targets, from the result this close stores.
-      checkpoints: checkpointsAtClose(goal, weekNum, { testResult: sanitizedTestResult ?? week.testResult, move: next.move, update }),
+      checkpoints: checkpointsAtClose(goal, weekNum, { testResult: clearTestResult ? null : (sanitizedTestResult ?? week.testResult), move: next.move, update }),
     });
     // Another close won inside the save (WU-27): nothing of this request was saved.
     if (!saved) return refuse(res, 'week_closed');
     logWeekClose(goal, weekNum, 'review', now, user.timezone, startedAt);
     logUpdateLowered(goal.id, update);
     // B-61: the answer shows the result the week writer was told: the one sent, else the stored (late) one, which the save keeps.
-    res.json(closeAnswer(goal, weekNum, saved, sanitizedTestResult ?? week.testResult ?? null));
+    res.json(closeAnswer(goal, weekNum, saved, clearTestResult ? null : (sanitizedTestResult ?? week.testResult ?? null)));
   } catch (err: any) {
     // Checkpoints (RULE-9 review): the open offer was accepted during this review's close; nothing was saved.
     if (err instanceof CheckpointAcceptedError) {

@@ -155,9 +155,13 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
     setReviewError(null);
 
     try {
+      // B-3: a result logged earlier that was cleared here is sent as null, which deletes it.
+      const cleared = !testResult && storedTestResult !== null;
       const response = testResult
         ? await submitWeeklyReview(currentWeekNum, reflection, token, testResult)
-        : await submitWeeklyReview(currentWeekNum, reflection, token);
+        : cleared
+          ? await submitWeeklyReview(currentWeekNum, reflection, token, null)
+          : await submitWeeklyReview(currentWeekNum, reflection, token);
 
       const updatedRoadmap = roadmapWeeks.map((w) => {
         if (w.weekNumber === currentWeekNum) {
@@ -166,7 +170,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
             status: 'completed' as const,
             // WU-33 (3): a review row of 0 planned has no score; the week keeps none.
             executionScore: response.review?.tasksPlanned === 0 ? undefined : response.scorePercentage,
-            testResult: response.testResult ?? testResult ?? w.testResult,
+            testResult: cleared ? null : (response.testResult ?? testResult ?? w.testResult),
           };
         }
         if (response.nextWeekNumber && w.weekNumber === response.nextWeekNumber) {
