@@ -56,7 +56,7 @@ const OfflineNotice: React.FC = () => (
 
 export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
   const copy = COPY[mode];
-  const { token, login, signup } = useAuth();
+  const { token, login, signup, signInWithGoogle } = useAuth();
   const { apiStatus } = useGoal();
   const [params] = useSearchParams();
   const location = useLocation();
@@ -73,6 +73,9 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<AuthErrorDescription | null>(null);
   const [pending, setPending] = useState(false);
+  /** B-15: sign-up asked them to confirm their email first. */
+  const [confirmSent, setConfirmSent] = useState(false);
+  const [googlePending, setGooglePending] = useState(false);
   const submitting = useRef(false);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -98,7 +101,16 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
     setFormError(null);
     setPending(true);
     try {
-      await (mode === 'signup' ? signup(email.trim(), password) : login(email.trim(), password));
+      if (mode === 'signup') {
+        if ((await signup(email.trim(), password)) === 'confirm_email') {
+          setConfirmSent(true);
+          setPending(false);
+          submitting.current = false;
+          return;
+        }
+      } else {
+        await login(email.trim(), password);
+      }
       // Stay pending: usePostAuthRedirect navigates away once the goal state is known.
     } catch (error) {
       setFormError(describeAuthError(error));
@@ -119,6 +131,18 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
 
   const loginHref = authSwitchHref('login', params);
 
+  const continueWithGoogle = async () => {
+    setFormError(null);
+    setGooglePending(true);
+    try {
+      // Leaves the page for Google; it comes back to /login signed in.
+      await signInWithGoogle();
+    } catch (error) {
+      setFormError(describeAuthError(error));
+      setGooglePending(false);
+    }
+  };
+
   // Already signed in when the screen opened: show a calm wait while the redirect decides where to go.
   const redirecting = Boolean(token) && !pending;
 
@@ -126,6 +150,18 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
     <AuthLayout title={copy.title} description={copy.description} pathway={pathway}>
       {redirecting ? (
         <LoadingState label="You're signed in. Taking you there…" showLabel />
+      ) : confirmSent ? (
+        <div role="status" className="flex flex-col gap-4">
+          <p className="text-body text-text">Check your inbox. We sent a link to {email.trim()}. Open it to finish creating your account.</p>
+          <p className="text-small text-text-secondary">
+            Already confirmed?{' '}
+            <TextLink asChild>
+              <Link to={loginHref} state={{ email: email.trim() }}>
+                Sign in
+              </Link>
+            </TextLink>
+          </p>
+        </div>
       ) : (
         <>
           {apiStatus === 'offline' && <OfflineNotice />}
@@ -198,6 +234,12 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
               {pending ? copy.pending : copy.submit}
             </Button>
           </form>
+
+          {/* B-15: sign in with Google. */}
+          <p className="mt-6 text-center text-small text-text-secondary">or</p>
+          <Button variant="secondary" size="lg" fullWidth loading={googlePending} disabled={pending} onClick={continueWithGoogle} className="mt-4">
+            Continue with Google
+          </Button>
 
           <p className="mt-8 text-small text-text-secondary">
             {copy.switchPrompt}{' '}

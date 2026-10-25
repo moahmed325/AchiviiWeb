@@ -79,6 +79,9 @@ export interface AuthErrorDescription {
   message: string;
 }
 
+/** B-15: sign-in before the email is confirmed. */
+export const EMAIL_NOT_CONFIRMED = 'Confirm your email first: open the link we sent you, then sign in.';
+
 /** B-44: signed in with Supabase, but `/api/auth/me` failed. */
 export const ACCOUNT_LOAD_FAILED = "You're signed in, but we couldn't load your account. Please try again in a moment.";
 
@@ -114,6 +117,8 @@ export function fromSupabaseAuthError(error: unknown): Error {
   if (error.code === 'user_already_exists' || error.code === 'email_exists') {
     return new ApiError('An account with this email already exists.', 409);
   }
+  // B-15: signing in before opening the confirmation link.
+  if (error.code === 'email_not_confirmed') return new ApiError(EMAIL_NOT_CONFIRMED, 400);
   if ((error.status ?? 0) >= 500) return new Error('Something went wrong on our side. Please try again in a moment.');
   // Anything else (a weak password, an unconfirmed email) is the user's to fix, in Supabase's own words.
   return new ApiError(error.message, 400);

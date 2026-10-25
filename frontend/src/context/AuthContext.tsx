@@ -24,7 +24,10 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (email: string, password: string) => Promise<void>;
+  /** B-15: `confirm_email` when Supabase asks the person to confirm their email before the first sign-in. */
+  signup: (email: string, password: string) => Promise<'signed_in' | 'confirm_email'>;
+  /** B-15: leaves for Google's sign-in; the person comes back to /login with the same search. */
+  signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   /** B-15: emails a reset link that opens /reset-password signed in for recovery. */
   requestPasswordReset: (email: string) => Promise<void>;
@@ -114,18 +117,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
       options: {
         data: { timezone: tz },
-        emailRedirectTo: window.location.origin,
+        // B-15: the confirmation link lands on sign-in, which then sends them on (pathway and next kept).
+        emailRedirectTo: `${window.location.origin}/login${window.location.search}`,
       },
     });
     if (error) throw fromSupabaseAuthError(error);
-    if (!data.session) {
-      throw new Error('Account created. Check your email to confirm your account, then sign in.');
-    }
+    if (!data.session) return 'confirm_email';
 
     const accessToken = data.session.access_token;
     const currentUser = await userAfterSignIn(accessToken);
     setToken(accessToken);
     setUser(currentUser);
+    return 'signed_in';
+  };
+
+  const signInWithGoogle = async () => {
+    if (!supabase) throw new Error('Supabase Auth is not configured.');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/login${window.location.search}` },
+    });
+    if (error) throw fromSupabaseAuthError(error);
   };
 
   const requestPasswordReset = async (email: string) => {
@@ -149,7 +161,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, logout, requestPasswordReset, updatePassword }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, signInWithGoogle, logout, requestPasswordReset, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );
