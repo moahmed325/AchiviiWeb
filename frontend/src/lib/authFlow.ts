@@ -79,6 +79,12 @@ export interface AuthErrorDescription {
   message: string;
 }
 
+/**
+ * B-15: "Continue with Google" shows only when `VITE_GOOGLE_SIGN_IN_ENABLED` is exactly `true` (set in Vercel). Off until
+ * the Google app is published, which needs a domain of our own; until then only Google test users could sign in.
+ */
+export const googleSignInEnabled = () => import.meta.env.VITE_GOOGLE_SIGN_IN_ENABLED === 'true';
+
 /** B-15: sign-in before the email is confirmed. */
 export const EMAIL_NOT_CONFIRMED = 'Confirm your email first: open the link we sent you, then sign in.';
 

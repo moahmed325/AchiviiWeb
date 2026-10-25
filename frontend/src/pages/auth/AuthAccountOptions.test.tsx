@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -79,6 +79,16 @@ describe('email confirmation (B-15)', () => {
 });
 
 describe('sign in with Google (B-15)', () => {
+  beforeEach(() => vi.stubEnv('VITE_GOOGLE_SIGN_IN_ENABLED', 'true'));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it.each(['', 'TRUE', 'false'])('is hidden unless the switch is exactly "true" (%j)', async (value) => {
+    vi.stubEnv('VITE_GOOGLE_SIGN_IN_ENABLED', value);
+    renderAt('/login');
+    expect(await screen.findByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Continue with Google' })).not.toBeInTheDocument();
+  });
+
   it.each(['/login', '/signup'])('%s offers Google and comes back to sign-in', async (url) => {
     const user = userEvent.setup();
     renderAt(url);
