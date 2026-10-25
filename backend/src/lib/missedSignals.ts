@@ -146,7 +146,7 @@ export type NoticeKind = 'gentle_return' | 'swap_offer' | 'carried' | 'dropped' 
  * its outcome. `moved` is a carry (`carriedFrom`), `moved_in_order` a step a reorder placed on a later session
  * (`shiftedFrom`), `continued` a continue marker (`continueFrom`).
  */
-export type LineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'restarted' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
+export type LineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'restarted' | 'due_passed' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
 
 export interface LineSignal {
   kind: LineKind;
@@ -301,7 +301,7 @@ export function buildSignals(input: SignalInput): MissedSignals {
   return { carried, dropped, swapOffer, shortOnTime, gentleReturn, notice };
 }
 
-const NOT_MOVED: ReadonlySet<string> = new Set(['let_go', 'fixed', 'no_room', 'next_week', 'left_out']);
+const NOT_MOVED: ReadonlySet<string> = new Set(['let_go', 'fixed', 'no_room', 'next_week', 'left_out', 'due_passed']);
 
 const byPriority = (a: CarriedStep, b: CarriedStep) =>
   (typeof a.priority === 'number' ? a.priority : Infinity) - (typeof b.priority === 'number' ? b.priority : Infinity);

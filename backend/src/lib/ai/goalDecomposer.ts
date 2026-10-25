@@ -79,6 +79,11 @@ export interface DetailedStep {
    * goal (`lib/safety/stepLoad.ts`). Older steps have none. Not checked yet (M2.2); never shown in the app.
    */
   load?: StepLoad;
+  /**
+   * B-39: the date (YYYY-MM-DD) an outside deadline sets for this step (an application due Friday). A missed one moves
+   * only to a day on or before it; past it, nothing moves.
+   */
+  dueDate?: string;
   layer?: TaskLayerType;
   layerReasoning?: string;
   challenge?: StepChallenge;

@@ -68,6 +68,8 @@ const recoveryStatus = (n: Extract<MissNotice, { kind: 'recovery' }>) => {
     case 'let_go':
     case 'fixed':
       return n.day + ' slipped past. No catching up needed, just today.';
+    case 'due_passed':
+      return n.day + "'s deadline has passed, so nothing moves.";
     case 'no_room':
       return n.day + " slipped past. Next week's plan takes it into account.";
     case 'next_week':

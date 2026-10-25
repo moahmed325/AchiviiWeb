@@ -10,6 +10,7 @@ import {
   WEEK_RESPONSE_SCHEMA,
   buildWeekPrompt,
   checkWeekAnswer,
+  dueDateOf,
   generateWeekPlan,
   weekLayout,
   type RawWeekAnswer,
@@ -225,6 +226,15 @@ describe('checkWeekAnswer', () => {
   });
 });
 
+describe('dueDateOf (B-39)', () => {
+  it('keeps a real YYYY-MM-DD date and nothing else', () => {
+    expect(dueDateOf('2026-10-02')).toBe('2026-10-02');
+    expect(dueDateOf('2026-02-30')).toBeUndefined();
+    expect(dueDateOf('Friday')).toBeUndefined();
+    expect(dueDateOf(20261002)).toBeUndefined();
+  });
+});
+
 describe('buildWeekPrompt', () => {
   it('lists the fixed days, the target and the test', () => {
     const prompt = buildWeekPrompt(input, weekLayout('steady', input.weekStart));
@@ -275,6 +285,8 @@ describe('generateWeekPlan', () => {
 });
 
 describe('high-load step flag (M2.1, ND-5)', () => {
+  // B-39: the optional due-date line came after these fixtures.
+  const DUE_DATE_LINE = "  - dueDate (optional, YYYY-MM-DD): only when an outside deadline sets the step's date, such as an application or entry due that day";
   const HIGH_LOAD_LINE =
     '  - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false';
   const stepSchema = WEEK_RESPONSE_SCHEMA.properties.days.items.properties.steps.items;
@@ -294,7 +306,7 @@ describe('high-load step flag (M2.1, ND-5)', () => {
     const before = readFileSync(new URL('./fixtures/weekPrompt.before-m2.1.txt', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     const prompt = buildWeekPrompt(input, weekLayout('steady', input.weekStart));
     const lines = prompt.split('\n');
-    expect(lines.filter((line) => line !== HIGH_LOAD_LINE).join('\n')).toBe(before);
+    expect(lines.filter((line) => line !== HIGH_LOAD_LINE && line !== DUE_DATE_LINE).join('\n')).toBe(before);
     expect(lines.filter((line) => line === HIGH_LOAD_LINE)).toHaveLength(1);
     expect(lines[lines.indexOf(HIGH_LOAD_LINE) - 1]).toMatch(/^  - timing \(optional\)/);
   });

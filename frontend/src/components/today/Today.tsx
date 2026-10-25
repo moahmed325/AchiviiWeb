@@ -104,6 +104,8 @@ const recoveryOutcomeLine = (notice: Extract<MissNotice, { kind: 'recovery' }>) 
       return 'Nothing needs making up: the plan carries on as it is.';
     case 'fixed':
       return 'It was set for that day, so the plan carries on as it is.';
+    case 'due_passed':
+      return 'Its deadline has passed, so nothing moves and the plan carries on.';
     case 'no_room':
       return "There's no room for it this week without making a day longer, so next week's plan takes it into account.";
     case 'next_week':

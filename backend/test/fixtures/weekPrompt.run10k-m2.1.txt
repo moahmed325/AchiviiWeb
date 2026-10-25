@@ -56,6 +56,7 @@ WRITE THE WEEK
     set as a % of 1-rep max) or rir (the fewest reps in reserve), toFailure (true if any set goes to failure) and
     maxTest (true for a max or 1RM test). Food: kcalDeficit (kcal a day below maintenance) and kcalIntake (kcal eaten
     a day).
+  - dueDate (optional, YYYY-MM-DD): only when an outside deadline sets the step's date, such as an application or entry due that day
 - No two practice days are the same. Most practice days include doing the real thing, not only preparing for it.
 - Only use equipment they have. Match their level. Never assign loads beyond what is safe for their level.
 - No steps for journaling, reflecting, or reading about the method. Breaks go inside a step's instructions,

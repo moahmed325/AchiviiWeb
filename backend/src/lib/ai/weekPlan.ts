@@ -216,7 +216,7 @@ export const WEEK_RESPONSE_SCHEMA = {
             type: 'array',
             items: {
               type: 'object',
-              properties: { ...stepProperties, priority: { type: 'integer' }, timing: { type: 'string' }, highLoad: { type: 'boolean' } },
+              properties: { ...stepProperties, priority: { type: 'integer' }, timing: { type: 'string' }, highLoad: { type: 'boolean' }, dueDate: { type: 'string' } },
               required: ['title', 'instructions', 'minutes', 'output', 'doneWhen', 'focusCue', 'pitfall', 'priority', 'highLoad'],
             },
           },
@@ -520,6 +520,7 @@ WRITE THE WEEK
   - priority: 1 = most important today, no ties
   - timing (optional): only when the step can't follow the previous one straight away
   - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false
+  - dueDate (optional, YYYY-MM-DD): only when an outside deadline sets the step's date, such as an application or entry due that day
 - No two practice days are the same. Most practice days include doing the real thing, not only preparing for it.
 - Only use equipment they have. Match their level. Never assign loads beyond what is safe for their level.
 - No steps for journaling, reflecting, or reading about the method. Breaks go inside a step's instructions,
@@ -540,6 +541,7 @@ interface RawStep {
   highLoad?: unknown;
   kind?: unknown;
   load?: unknown;
+  dueDate?: unknown;
 }
 
 interface RawDay {
@@ -585,6 +587,7 @@ function toStep(raw: RawStep, stepNumber: number, recovery?: RecoveryProfile | n
   const kind = recovery ? resolveKind(raw.kind, recovery) : null;
   // Plan safety limits M2.1: read only on a load goal, so any other goal's steps are exactly as before.
   const load = withLoad ? parseStepLoad(raw.load) : undefined;
+  const dueDate = dueDateOf(raw.dueDate);
   return {
     stepNumber,
     title: text(raw.title),
@@ -600,7 +603,15 @@ function toStep(raw: RawStep, stepNumber: number, recovery?: RecoveryProfile | n
     highLoad: raw.highLoad === true,
     ...(kind ? { kind } : recovery ? { badKind: text(raw.kind) } : {}),
     ...(load ? { load } : {}),
+    ...(dueDate ? { dueDate } : {}),
   };
+}
+
+/** B-39: a real calendar date written YYYY-MM-DD, or nothing. */
+export function dueDateOf(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : undefined;
 }
 
 /** Removes the parsing-only field, and on rest days the kind too (MR-15). */

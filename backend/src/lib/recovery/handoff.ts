@@ -175,6 +175,7 @@ export function weekHandoff(input: {
   const carrySources = new Set(tasks.flatMap((task) => task.steps.flatMap((step) => (markerOf(step) ? [markerOf(step)!.taskId] : []))));
   const queued = inOrderMoveKinds(previous);
   const noRoom: NoRoomMove[] = [];
+  const weekEnd = tasks.reduce((last, task) => (task.date > last ? task.date : last), '');
   for (const task of practice) {
     if (isDone(task) || gap.has(task.id) || carrySources.has(task.id) || !followsMethod(task.steps, previous)) continue;
     const mover = [...task.steps]
@@ -182,6 +183,8 @@ export function weekHandoff(input: {
       .sort((a, b) => a.priority - b.priority)
       .find((step) => actionOf(step, previous)?.action === 'move' && !queued.has(step.kind as string) && !markerOf(step) && !shiftMarkerOf(step));
     if (!mover) continue;
+    // B-39: a step whose outside deadline falls in the finished week is past it next week, so it is not handed on.
+    if (mover.dueDate && mover.dueDate <= weekEnd) continue;
     const recovery = actionOf(mover, profile) ?? actionOf(mover, previous)!;
     noRoom.push({ taskId: task.id, date: task.date, title: mover.title, step: asWritten(mover), kind: mover.kind as string, dayOfWeek: dayName(task), hard: recovery.hard });
   }

@@ -89,7 +89,9 @@ export type DropReason =
   | 'high_load'
   | 'does_not_fit'
   | 'swap_unanswered'
-  | 'no_priority_step';
+  | 'no_priority_step'
+  /** B-39: the step's outside deadline has passed, so nothing moves. */
+  | 'due_date_passed';
 
 export interface PlannedCarry {
   fromTaskId: string;
@@ -334,6 +336,11 @@ export function planCarries(input: CarryInput): CarryPlan {
     }
     if (isHighLoadStep(lead, input.goal)) {
       drop('high_load');
+      continue;
+    }
+    // B-39: a step with an outside deadline moves only to a day on or before it.
+    if (lead.dueDate && receiving.date > lead.dueDate) {
+      drop(lead.dueDate < input.today ? 'due_date_passed' : 'no_receiving_day');
       continue;
     }
     if (receiving.kind === 'done') {

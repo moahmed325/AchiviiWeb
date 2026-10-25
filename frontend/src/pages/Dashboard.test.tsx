@@ -315,6 +315,10 @@ describe('Dashboard: method-aware recovery lines (M3.3, section 6, AC-7)', () =>
     ['moved_in_order', 0, (day) => `${day}'s most important step is part of today's session.`],
     ['continued', 1, (day) => `${day}'s work picks up again on ${weekday(1)}.`],
     ['continued', 0, (day) => `${day}'s work picks up again today.`],
+    // B-38, B-39.
+    ['restarted', 1, () => `The process starts again on ${weekday(1)}, from its first step.`],
+    ['restarted', 0, () => 'The process starts again today, from its first step.'],
+    ['due_passed', null, (day) => `${day}'s deadline has passed, so nothing moves.`],
     ['let_go', null, (day) => `${day} slipped past. No catching up needed, just today.`],
     ['fixed', null, (day) => `${day} slipped past. No catching up needed, just today.`],
     ['no_room', null, (day) => `${day} slipped past. Next week's plan takes it into account.`],

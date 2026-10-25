@@ -193,7 +193,7 @@ export interface ReconcileCarryPlan {
 }
 
 /** What happened to a missed day (backend `RecoveryOutcome`, RULE-15). */
-export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'left_out';
+export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'due_passed' | 'left_out';
 
 export interface ReconcileDayOutcome {
   taskId: string;
@@ -223,7 +223,7 @@ export interface ReconcileChoices {
  * The miss line's day and what happened to it (backend `LineSignal`, M3.3). `carried` and `dropped` are a day under
  * missed sessions' rules; the others follow its method outcome. `toDate` names the receiving day, when there is one.
  */
-export type ReconcileLineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'restarted' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
+export type ReconcileLineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'restarted' | 'due_passed' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
 
 export interface ReconcileLine {
   kind: ReconcileLineKind;

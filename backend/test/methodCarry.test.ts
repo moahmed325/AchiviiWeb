@@ -323,6 +323,29 @@ describe('MR-27 is replaced in M3.1b (the order and rest-gap cases are in method
   });
 });
 
+describe('B-39 due dates: a step with an outside deadline', () => {
+  const dueDay = (tag: string, dueDate: string) => [step(`${tag} send the application`, 1, 15, 'practice', { dueDate }), step(`${tag} review`, 2, 10, 'review'), step(`${tag} extra`, 3, 5, 'general')];
+
+  it('moves to the earliest day on or before its date', () => {
+    const plan = on(week({ mon: { kind: 'missed', steps: dueDay('mon', '2026-09-23') } }));
+    expect(plan.carries.map((carry) => [carry.fromTaskId, carry.toTaskId])).toEqual([[id('mon'), id('tue')]]);
+  });
+
+  it('never moves past its date: the date passed, so nothing moves and the outcome says so', () => {
+    const plan = on(week({ mon: { kind: 'missed', steps: dueDay('mon', '2026-09-21') } }));
+    expect(plan.carries).toEqual([]);
+    expect(dropOf(plan, 'mon')).toBe('due_date_passed');
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ rules: 'method', topStep: 'due_passed' });
+  });
+
+  it('missed sessions without kinds hold the same rule', () => {
+    const steps = dueDay('mon', '2026-09-21').map(({ kind: _k, ...rest }) => rest as CarriedStep);
+    const plan = planCarries(week({ mon: { kind: 'missed', steps } }, { kinds: false }));
+    expect(plan.carries).toEqual([]);
+    expect(plan.drops.find((drop) => drop.taskId === id('mon'))?.reason).toBe('due_date_passed');
+  });
+});
+
 describe('B-38 restart: a timed process starts again', () => {
   const process = templateProfile('process');
   const feeding = (tag: string) => [step(`${tag} feed the starter`, 1, 20, 'process_step'), step(`${tag} notes`, 2, 10, 'notes_and_review')];

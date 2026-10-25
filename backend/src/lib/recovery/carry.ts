@@ -61,7 +61,8 @@ export type RecoveryRules = 'method' | 'missed_sessions';
  * week, which has no next week (MR-32 (6)). For a day under missed sessions' rules, `moved` is a carry and `no_room`
  * any other drop; P3's lines for those stay as today.
  */
-export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'left_out';
+/** `due_passed` (B-39): a step with an outside deadline found no day on or before it, and the date has passed. */
+export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'left_out' | 'due_passed';
 
 export interface DayOutcome {
   taskId: string;
@@ -657,7 +658,9 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     const marker: CarryMarker = { taskId: missed.taskId, date: missed.date, replaced: [] };
     const carried: CarriedStep = { ...content, instructions: isPhysical(content) ? withWarmUpLine(content.instructions) : content.instructions, carriedFrom: marker };
     const kind = profile!.kinds.find((item) => item.id === mover.step.kind);
-    const practiceLater = laterInWeek(missed).filter((day) => !isRestLike(day) && !day.isTestDay);
+    // B-39: a step with an outside deadline moves only to a day on or before it, earliest first.
+    const due = mover.step.dueDate;
+    const practiceLater = laterInWeek(missed).filter((day) => !isRestLike(day) && !day.isTestDay && (!due || day.date <= due));
     // RULE-13 for an in-order kind that is not a move kind (a high-load continue step moves, MR-11): it lands only
     // before the next session of its kind, never on or after it.
     const nextOfKind = kind?.inOrder ? practiceLater.find((day) => rowOf(day.taskId).some((step) => step.kind === kind.id)) : undefined;
@@ -678,7 +681,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
       break;
     }
     if (!found) {
-      drop(missed, 'no_receiving_day');
+      drop(missed, due && due < input.today ? 'due_date_passed' : 'no_receiving_day');
       continue;
     }
     const { receiving, fit } = found;
@@ -784,7 +787,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
       switch (top.recovery.action) {
         case 'move':
           // The top step is the day's highest-priority ordinary move step, so it is the one that moved, if any did.
-          topStep = carried ? 'moved' : 'no_room';
+          topStep = carried ? 'moved' : drops.some((item) => item.taskId === day.taskId && item.reason === 'due_date_passed') ? 'due_passed' : 'no_room';
           break;
         case 'continue':
         case 'restart':

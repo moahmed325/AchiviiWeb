@@ -1416,6 +1416,10 @@ describe('Today with method-aware recovery (M3.3)', () => {
     ['moved_in_order', 0, () => 'We moved it into today, and the next ones follow on.'],
     ['continued', 1, () => `${weekday(1)}'s session picks up where you left off.`],
     ['continued', 0, () => "Today's session picks up where you left off."],
+    // B-38, B-39.
+    ['restarted', 1, () => `${weekday(1)}'s session starts the process again from its first step.`],
+    ['restarted', 0, () => "Today's session starts the process again from its first step."],
+    ['due_passed', null, () => 'Its deadline has passed, so nothing moves and the plan carries on.'],
     ['let_go', null, () => 'Nothing needs making up: the plan carries on as it is.'],
     ['fixed', null, () => 'It was set for that day, so the plan carries on as it is.'],
     ['no_room', null, () => "There's no room for it this week without making a day longer, so next week's plan takes it into account."],
