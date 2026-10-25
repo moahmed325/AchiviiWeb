@@ -7,6 +7,7 @@ import { useGoal } from '../../context/GoalContext';
 import {
   authSwitchHref,
   describeAuthError,
+  googleSignInEnabled,
   validateEmail,
   validatePassword,
   type AuthErrorDescription,
@@ -235,11 +236,15 @@ export const AuthScreen: React.FC<{ mode: AuthMode }> = ({ mode }) => {
             </Button>
           </form>
 
-          {/* B-15: sign in with Google. */}
-          <p className="mt-6 text-center text-small text-text-secondary">or</p>
-          <Button variant="secondary" size="lg" fullWidth loading={googlePending} disabled={pending} onClick={continueWithGoogle} className="mt-4">
-            Continue with Google
-          </Button>
+          {/* B-15: sign in with Google, behind its switch. */}
+          {googleSignInEnabled() && (
+            <>
+              <p className="mt-6 text-center text-small text-text-secondary">or</p>
+              <Button variant="secondary" size="lg" fullWidth loading={googlePending} disabled={pending} onClick={continueWithGoogle} className="mt-4">
+                Continue with Google
+              </Button>
+            </>
+          )}
 
           <p className="mt-8 text-small text-text-secondary">
             {copy.switchPrompt}{' '}
