@@ -52,7 +52,7 @@ describe('PUT /api/auth/timezone', () => {
   it('stores a valid zone and answers the user', async () => {
     const res = await put({ timezone: 'Asia/Tokyo' });
     expect(res.status).toBe(200);
-    expect((await res.json()).user.timezone).toBe('Asia/Tokyo');
+    expect(((await res.json()) as { user: { timezone: string } }).user.timezone).toBe('Asia/Tokyo');
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u1' }, data: { timezone: 'Asia/Tokyo' } }));
   });
 
