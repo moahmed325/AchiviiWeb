@@ -204,6 +204,17 @@ describe('checkWeekAnswer', () => {
     expect(reason(checkWeekAnswer(week(), { ...input, loadGoal: { running: true } }))).not.toMatch(/Day 4 step/);
   });
 
+  it("keeps a due date after the step's own day and drops one on or before it (B-39 review)", () => {
+    const answer = week((days) => {
+      (days[0].steps as Array<Record<string, unknown>>)[0].dueDate = '2026-09-25';
+      (days[1].steps as Array<Record<string, unknown>>)[0].dueDate = '2026-09-22';
+    });
+    const result = checkWeekAnswer(answer, input);
+    if (!('value' in result)) throw new Error(reason(result));
+    expect(result.value[0].detailedSteps.find((s) => s.dueDate)?.dueDate).toBe('2026-09-25');
+    expect(result.value[1].detailedSteps.some((s) => 'dueDate' in s)).toBe(false);
+  });
+
   it('rejects a practice day with no steps, even on the last attempt', () => {
     expect(reason(checkWeekAnswer(week((days) => { days[0].steps = []; }), input, true))).toMatch(/needs 2 to 4 steps; got 0/);
   });

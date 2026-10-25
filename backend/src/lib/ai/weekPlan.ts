@@ -792,6 +792,8 @@ export function checkWeekAnswer(
     const label = `Day ${slot.dayNumber}`;
     let steps = (Array.isArray(raw.steps) ? (raw.steps as RawStep[]) : [])
       .map((step, index) => toStep(step ?? {}, index + 1, recovery, loadGoal !== undefined))
+      // B-39 review: a due date on or before the step's own day is no outside deadline (a miss could never move), so it goes.
+      .map(({ dueDate, ...step }) => (dueDate && dueDate > slot.date ? { ...step, dueDate } : step))
       .filter((step) => step.title);
     const work = steps.filter((step) => !BREAK_STEP.test(step.title));
     if (!slot.isRestDay && work.length > 0) steps = work;

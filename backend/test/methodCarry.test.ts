@@ -338,6 +338,12 @@ describe('B-39 due dates: a step with an outside deadline', () => {
     expect(outcomeOf(plan, 'mon')).toMatchObject({ rules: 'method', topStep: 'due_passed' });
   });
 
+  it('the last day before a passed deadline is closed: the date passed, not no room (review)', () => {
+    const plan = on(week({ mon: { kind: 'missed', steps: dueDay('mon', '2026-09-22') }, tue: { kind: 'missed' } }, { today: '2026-09-23' }));
+    expect(dropOf(plan, 'mon')).toBe('due_date_passed');
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ topStep: 'due_passed' });
+  });
+
   it('missed sessions without kinds hold the same rule', () => {
     const steps = dueDay('mon', '2026-09-21').map(({ kind: _k, ...rest }) => rest as CarriedStep);
     const plan = planCarries(week({ mon: { kind: 'missed', steps } }, { kinds: false }));

@@ -692,7 +692,8 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     reachedBy.set(receiving.taskId, missed);
     const closed = closedReason(receiving);
     if (closed) {
-      drop(missed, closed);
+      // B-39 review: the last day before a deadline that has passed is closed: the date passed, not just no room.
+      drop(missed, due && due < input.today ? 'due_date_passed' : closed);
       continue;
     }
     if (!fit) {
