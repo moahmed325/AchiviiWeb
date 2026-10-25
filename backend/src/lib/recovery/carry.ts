@@ -39,7 +39,7 @@ import type { DetailedStep } from '../ai/goalDecomposer.js';
 import { TOTAL_WEEKS } from '../ai/roadmap.js';
 import { isRestLike, type DayClassification } from '../missedSessions.js';
 import { byWritten, doneStepsOf, followsMethod, inOrderMoveKinds, inOrderQueue, isDoneCopy, originOf, stepKey, type QueueItem } from './inOrder.js';
-import { actionOf, type RecoveryProfile, type StepRecovery } from './profile.js';
+import { actionOf, MARKS_NEXT_SESSION, type RecoveryProfile, type StepRecovery } from './profile.js';
 import { continueMarkerOf, countsForRest, dayNumberOf, isFixedStep, isHardStep, shiftMarkerOf } from './rules.js';
 import { EASY_START_LINE, FIRST_WEEK_BACK_LINE, easyLineTarget, hasEasyLine, hasFirstWeekBackLine, withEasyLine, withoutEasyLine } from './easyStart.js';
 import { holdRefusal } from './swap.js';
@@ -61,7 +61,8 @@ export type RecoveryRules = 'method' | 'missed_sessions';
  * week, which has no next week (MR-32 (6)). For a day under missed sessions' rules, `moved` is a carry and `no_room`
  * any other drop; P3's lines for those stay as today.
  */
-export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'left_out';
+/** `due_passed` (B-39): a step with an outside deadline found no day on or before it, and the date has passed. */
+export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'left_out' | 'due_passed';
 
 export interface DayOutcome {
   taskId: string;
@@ -386,7 +387,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
   }
   const continueCandidates: ContinueCandidate[] = [];
   for (const missed of active) {
-    const kinds = [...new Set(stepsOf.get(missed.taskId)!.filter((s) => s.recovery.action === 'continue').map((s) => s.step.kind as string))];
+    const kinds = [...new Set(stepsOf.get(missed.taskId)!.filter((s) => MARKS_NEXT_SESSION.has(s.recovery.action)).map((s) => s.step.kind as string))];
     for (const kind of kinds) {
       for (const day of laterInWeek(missed)) {
         if (isRestLike(day) || day.isTestDay) continue;
@@ -422,7 +423,9 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     // A day that receives a missed-sessions carry in this run is written by that carry alone.
     if (carries.some((carry) => carry.toTaskId === target.taskId)) continue;
     const next = [...rowOf(target.taskId)];
-    next[stepIndex] = { ...next[stepIndex], continueFrom: { taskId: missed.taskId, date: missed.date } };
+    // B-38: a restart kind's marker says the session starts the process again.
+    const restart = profile?.kinds.some((item) => item.id === kind && item.action === 'restart') === true;
+    next[stepIndex] = { ...next[stepIndex], continueFrom: { taskId: missed.taskId, date: missed.date, ...(restart ? { restart: true as const } : {}) } };
     stage(target.taskId, next, minutesNow(target.taskId));
     continuedKinds.add(`${missed.taskId}#${kind}`);
     plannedContinues.push({ fromTaskId: missed.taskId, fromDate: missed.date, toTaskId: target.taskId, toDate: target.date, kind, stepTitle: stored.title });
@@ -655,7 +658,9 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     const marker: CarryMarker = { taskId: missed.taskId, date: missed.date, replaced: [] };
     const carried: CarriedStep = { ...content, instructions: isPhysical(content) ? withWarmUpLine(content.instructions) : content.instructions, carriedFrom: marker };
     const kind = profile!.kinds.find((item) => item.id === mover.step.kind);
-    const practiceLater = laterInWeek(missed).filter((day) => !isRestLike(day) && !day.isTestDay);
+    // B-39: a step with an outside deadline moves only to a day on or before it, earliest first.
+    const due = mover.step.dueDate;
+    const practiceLater = laterInWeek(missed).filter((day) => !isRestLike(day) && !day.isTestDay && (!due || day.date <= due));
     // RULE-13 for an in-order kind that is not a move kind (a high-load continue step moves, MR-11): it lands only
     // before the next session of its kind, never on or after it.
     const nextOfKind = kind?.inOrder ? practiceLater.find((day) => rowOf(day.taskId).some((step) => step.kind === kind.id)) : undefined;
@@ -676,7 +681,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
       break;
     }
     if (!found) {
-      drop(missed, 'no_receiving_day');
+      drop(missed, due && due < input.today ? 'due_date_passed' : 'no_receiving_day');
       continue;
     }
     const { receiving, fit } = found;
@@ -687,7 +692,8 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     reachedBy.set(receiving.taskId, missed);
     const closed = closedReason(receiving);
     if (closed) {
-      drop(missed, closed);
+      // B-39 review: the last day before a deadline that has passed is closed: the date passed, not just no room.
+      drop(missed, due && due < input.today ? 'due_date_passed' : closed);
       continue;
     }
     if (!fit) {
@@ -782,9 +788,10 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
       switch (top.recovery.action) {
         case 'move':
           // The top step is the day's highest-priority ordinary move step, so it is the one that moved, if any did.
-          topStep = carried ? 'moved' : 'no_room';
+          topStep = carried ? 'moved' : drops.some((item) => item.taskId === day.taskId && item.reason === 'due_date_passed') ? 'due_passed' : 'no_room';
           break;
         case 'continue':
+        case 'restart':
           topStep = continuedKinds.has(`${day.taskId}#${top.step.kind}`) ? 'continued' : 'no_room';
           break;
         case 'let_go':

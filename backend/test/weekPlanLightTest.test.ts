@@ -144,9 +144,10 @@ describe('the time-trial rule (M1.5b, WU-41)', () => {
     expect(timeTrialHits(text).map((hit) => hit.rule)).toEqual(['time_trial']);
   });
 
-  it('acts only in a light week: week 2 of an ordinary plan and the roadmap check (no options) are unchanged', () => {
-    expect(textSafetyHits('Run a 5K time trial at race effort.', 2)).toEqual([]);
-    expect(textSafetyHits('Run a 5K time trial at race effort.', 2, { light: true }).map((hit) => hit.rule)).toEqual(['time_trial']);
+  it('acts in weeks 1 to 3 of every plan and in a light week, not in week 4 or later (B-78)', () => {
+    expect(textSafetyHits('Run a 5K time trial at race effort.', 2).map((hit) => hit.rule)).toEqual(['time_trial']);
+    expect(textSafetyHits('Run a 5K time trial at race effort.', 4)).toEqual([]);
+    expect(textSafetyHits('Run a 5K time trial at race effort.', 4, { light: true }).map((hit) => hit.rule)).toEqual(['time_trial']);
   });
 
   it('a light week takes the weeks 1 to 3 rules in any week', () => {
@@ -179,16 +180,16 @@ describe('the week call in a first week back (M1.5b, WU-41)', () => {
     expect(safetyLines()).toEqual([]);
   });
 
-  it('the same time trial passes as now in week 2 of a plan with no break', () => {
+  it('the same time trial copied from the stored test in week 2 of a plan with no break is only logged (B-78, test_text)', () => {
     const result = checkWeekAnswer(week('Run a 5K time trial at race effort.'), { ...input, weekNumber: 2 }, true);
     expect('value' in result).toBe(true);
-    expect(safetyLines()).toEqual([]);
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([['time_trial', 'test_text']]);
   });
 
-  it('the same time trial passes as now in a first week back of a goal that is not high-load', () => {
+  it('the same copied time trial in a first week back of a goal that is not high-load is only logged (B-78, test_text)', () => {
     const result = checkWeekAnswer(week('Run a 5K time trial at race effort.'), { ...input, weekNumber: 2, ...back(false) }, true);
     expect('value' in result).toBe(true);
-    expect(safetyLines()).toEqual([]);
+    expect(safetyLines().map((line) => [line.rule, line.outcome])).toEqual([['time_trial', 'test_text']]);
   });
 
   it('a copied max test in week 2 of a plan with no break is still only logged (test_text)', () => {
@@ -250,6 +251,15 @@ describe('the week call in a first week back (M1.5b, WU-41)', () => {
     warn.mockClear();
     expect(checkWeekAnswer(copied, { ...custom, firstWeekBack: undefined, weekNumber: 2 }, false)).toHaveProperty('value');
     expect(safetyLines()).toEqual([]);
+  });
+
+  it('B-78: a goal high-load only through its profile has its test step scanned in an ordinary week', () => {
+    const profile = { kinds: [{ id: 'tempo_run', name: 'Tempo run', description: '', action: 'move', hard: true, inOrder: false, highLoad: true }] };
+    const custom = { ...input, highLoadGoal: false, weekNumber: 2, test: { type: 'run', instructions: 'Run 5K at an easy effort', passIf: 'Done' }, recovery: profile as never };
+    const trial = week('Run a 5K time trial at race effort.', { highLoad: false });
+    expect(reason(checkWeekAnswer(trial, custom, false))).toMatch(/SAFETY: Day 6 step "Weekly test: 5K" says "Run a 5K time trial at race effort\."/);
+    // Without a high-load kind in the profile, the unflagged test step is not scanned, as before.
+    expect(checkWeekAnswer(trial, { ...custom, recovery: undefined }, false)).toHaveProperty('value');
   });
 
   it('the retry is accepted when it writes the light version', async () => {

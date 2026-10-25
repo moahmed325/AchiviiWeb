@@ -10,6 +10,7 @@ import {
   WEEK_RESPONSE_SCHEMA,
   buildWeekPrompt,
   checkWeekAnswer,
+  dueDateOf,
   generateWeekPlan,
   weekLayout,
   type RawWeekAnswer,
@@ -203,6 +204,17 @@ describe('checkWeekAnswer', () => {
     expect(reason(checkWeekAnswer(week(), { ...input, loadGoal: { running: true } }))).not.toMatch(/Day 4 step/);
   });
 
+  it("keeps a due date after the step's own day and drops one on or before it (B-39 review)", () => {
+    const answer = week((days) => {
+      (days[0].steps as Array<Record<string, unknown>>)[0].dueDate = '2026-09-25';
+      (days[1].steps as Array<Record<string, unknown>>)[0].dueDate = '2026-09-22';
+    });
+    const result = checkWeekAnswer(answer, input);
+    if (!('value' in result)) throw new Error(reason(result));
+    expect(result.value[0].detailedSteps.find((s) => s.dueDate)?.dueDate).toBe('2026-09-25');
+    expect(result.value[1].detailedSteps.some((s) => 'dueDate' in s)).toBe(false);
+  });
+
   it('rejects a practice day with no steps, even on the last attempt', () => {
     expect(reason(checkWeekAnswer(week((days) => { days[0].steps = []; }), input, true))).toMatch(/needs 2 to 4 steps; got 0/);
   });
@@ -222,6 +234,15 @@ describe('checkWeekAnswer', () => {
 
   it('rejects filler steps', () => {
     expect(reason(checkWeekAnswer(week((days) => { (days[0].steps as unknown[])[1] = step('Journal about progress', 2, 15); }), input))).toMatch(/filler/);
+  });
+});
+
+describe('dueDateOf (B-39)', () => {
+  it('keeps a real YYYY-MM-DD date and nothing else', () => {
+    expect(dueDateOf('2026-10-02')).toBe('2026-10-02');
+    expect(dueDateOf('2026-02-30')).toBeUndefined();
+    expect(dueDateOf('Friday')).toBeUndefined();
+    expect(dueDateOf(20261002)).toBeUndefined();
   });
 });
 
@@ -275,6 +296,8 @@ describe('generateWeekPlan', () => {
 });
 
 describe('high-load step flag (M2.1, ND-5)', () => {
+  // B-39: the optional due-date line came after these fixtures.
+  const DUE_DATE_LINE = "  - dueDate (optional, YYYY-MM-DD): only when an outside deadline sets the step's date, such as an application or entry due that day";
   const HIGH_LOAD_LINE =
     '  - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false';
   const stepSchema = WEEK_RESPONSE_SCHEMA.properties.days.items.properties.steps.items;
@@ -294,7 +317,7 @@ describe('high-load step flag (M2.1, ND-5)', () => {
     const before = readFileSync(new URL('./fixtures/weekPrompt.before-m2.1.txt', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     const prompt = buildWeekPrompt(input, weekLayout('steady', input.weekStart));
     const lines = prompt.split('\n');
-    expect(lines.filter((line) => line !== HIGH_LOAD_LINE).join('\n')).toBe(before);
+    expect(lines.filter((line) => line !== HIGH_LOAD_LINE && line !== DUE_DATE_LINE).join('\n')).toBe(before);
     expect(lines.filter((line) => line === HIGH_LOAD_LINE)).toHaveLength(1);
     expect(lines[lines.indexOf(HIGH_LOAD_LINE) - 1]).toMatch(/^  - timing \(optional\)/);
   });

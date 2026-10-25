@@ -164,7 +164,7 @@ export function maxOrFailureHits(value: string): SafetyHit[] {
   return hits;
 }
 
-/** M1.5b (WU-41): the time-trial rule, for a light week only. A negated clause ("no time trial this week") is safe. */
+/** M1.5b (WU-41), B-78: the time-trial rule, in weeks 1 to 3 and a light week. A negated clause ("no time trial this week") is safe. */
 export function timeTrialHits(value: string): SafetyHit[] {
   for (const sentence of sentences(value)) {
     const trial = TIME_TRIAL.exec(sentence);
@@ -191,7 +191,8 @@ export function textSafetyHits(value: string, weekNumber: number, options: ScanO
     if (anyMatch(RIR_PATTERNS, sentence, (match) => lowerEnd(match) < EARLY_WEEK_MIN_RIR)) add({ rule: 'rir_below_3', matched: clip(sentence) });
   }
   if (early) for (const hit of maxOrFailureHits(value)) add(hit);
-  if (options.light === true) for (const hit of timeTrialHits(value)) add(hit);
+  // B-78: weeks 1 to 3 of every plan too, like the other early-week rules (it was a light week only).
+  if (early) for (const hit of timeTrialHits(value)) add(hit);
   return hits;
 }
 

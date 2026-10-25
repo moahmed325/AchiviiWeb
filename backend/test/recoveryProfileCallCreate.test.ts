@@ -77,7 +77,7 @@ const roadmapResult = (week12Target: object = number) => ({
   },
 });
 
-const SOURDOUGH = { rawGoal: 'Bake sourdough bread at home', clarifiedOutcome: 'Bake sourdough bread at home', domain: 'Bread baking' };
+const ORIGAMI = { rawGoal: 'Fold origami cranes at home', clarifiedOutcome: 'Fold origami cranes at home', domain: 'Paper folding' };
 const RUN_10K = { rawGoal: 'Run a 10K under 50 minutes', clarifiedOutcome: 'Finish a 10 km race in under 50:00' };
 const modelProfile = { ...templateProfile('general'), template: 'creative' as const };
 
@@ -141,7 +141,7 @@ async function create(body: object, week12Target: object = number, stream = fals
 
 describe('goal create and the profile call', () => {
   it('switch off (the default): no profile call; the custom goal keeps its keyword template', async () => {
-    const { status } = await create(SOURDOUGH);
+    const { status } = await create(ORIGAMI);
     expect(status).toBe(201);
     expect(generateRecoveryProfile).not.toHaveBeenCalled();
     expect(savedRecovery()).toEqual(RECOVERY_TEMPLATES.general);
@@ -149,12 +149,12 @@ describe('goal create and the profile call', () => {
 
   it('switch on: a custom goal gets the profile call, before week 1, and is saved with its profile', async () => {
     process.env[SWITCH] = 'true';
-    const { status } = await create(SOURDOUGH);
+    const { status } = await create(ORIGAMI);
     expect(status).toBe(201);
     expect(generateRecoveryProfile).toHaveBeenCalledTimes(1);
     expect(generateRecoveryProfile).toHaveBeenCalledWith({
-      goalText: 'Bake sourdough bread at home Bake sourdough bread at home',
-      domain: 'Bread baking',
+      goalText: 'Fold origami cranes at home Fold origami cranes at home',
+      domain: 'Paper folding',
       answers: [{ id: 'current_level', question: 'Level?', answer: 'New' }],
       method: { name: 'Tartine method', summary: 'Long fermentation.', rules: ['Feed the starter'] },
       phases,
@@ -173,14 +173,14 @@ describe('goal create and the profile call', () => {
 
   it('switch on with any other value than "true" makes no call', async () => {
     process.env[SWITCH] = 'TRUE';
-    await create(SOURDOUGH);
+    await create(ORIGAMI);
     expect(generateRecoveryProfile).not.toHaveBeenCalled();
   });
 
   it('a failed call still creates the goal, with the keyword template', async () => {
     process.env[SWITCH] = 'true';
     vi.mocked(generateRecoveryProfile).mockRejectedValueOnce(new Error('boom'));
-    const { status, body } = await create(SOURDOUGH);
+    const { status, body } = await create(ORIGAMI);
     expect(status).toBe(201);
     expect(body.goal.id).toBe('g1');
     expect(savedRecovery()).toEqual(RECOVERY_TEMPLATES.general);
@@ -188,11 +188,11 @@ describe('goal create and the profile call', () => {
   });
 
   it('the keyword profile is also made before week 1', async () => {
-    await create(SOURDOUGH);
+    await create(ORIGAMI);
     expect(db.goalCreate).toHaveBeenCalledTimes(1);
     vi.mocked(generateWeekPlan).mockResolvedValueOnce(null);
     db.goalCreate.mockClear();
-    const { status } = await create(SOURDOUGH);
+    const { status } = await create(ORIGAMI);
     // Week 1 failed: nothing saved, whatever the profile.
     expect(status).toBe(503);
     expect(db.goalCreate).not.toHaveBeenCalled();
@@ -207,20 +207,20 @@ describe('goal create and the profile call', () => {
 
   it('M2.1: the week call gets the profile the goal is saved with, on every path', async () => {
     const weekInput = () => vi.mocked(generateWeekPlan).mock.calls.at(-1)![0];
-    await create(SOURDOUGH);
+    await create(ORIGAMI);
     expect(weekInput().recovery).toEqual(RECOVERY_TEMPLATES.general);
     await create(RUN_10K);
     expect(weekInput().recovery).toEqual(PATHWAY_PROFILES.run10k);
     process.env[SWITCH] = 'true';
-    await create(SOURDOUGH);
+    await create(ORIGAMI);
     expect(weekInput().recovery).toEqual(modelProfile);
     expect(weekInput().recovery).toEqual(db.goalCreate.mock.calls.at(-1)[0].data.roadmap.recovery);
   });
 
   it('the stream sends the same events with the switch on: no new step', async () => {
-    const { events: off } = await create(SOURDOUGH, number, true);
+    const { events: off } = await create(ORIGAMI, number, true);
     process.env[SWITCH] = 'true';
-    const { events: on } = await create(SOURDOUGH, number, true);
+    const { events: on } = await create(ORIGAMI, number, true);
     const shape = (events: Array<{ type: string; id?: string }>) => events.map((event) => `${event.type}:${event.id ?? ''}`);
     expect(shape(on)).toEqual(shape(off));
     expect(shape(on)).toEqual(['step:search', 'step:method', 'step:plan', 'done:']);

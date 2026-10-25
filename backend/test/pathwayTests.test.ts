@@ -440,6 +440,23 @@ describe("M2.1 review: a pathway's model tests are not checked, a custom goal's 
   });
 });
 
+describe('B-32: the roadmap call takes three attempts', () => {
+  const mocked = vi.mocked(generateStructuredContent);
+  beforeEach(() => mocked.mockReset());
+
+  it('a third answer is asked for after two misses, and its answer is the roadmap', async () => {
+    const good = rawAnswer(CLIMBS.run10k, preset('run10k'));
+    const noWeeks = { ...good, weeks: [] };
+    mocked
+      .mockResolvedValueOnce({ success: true, data: noWeeks } as never)
+      .mockResolvedValueOnce({ success: false, error: 'busy' } as never)
+      .mockResolvedValueOnce({ success: true, data: good } as never);
+    const result = await generateRoadmap(roadmapInput);
+    expect(result.ok).toBe(true);
+    expect(mocked).toHaveBeenCalledTimes(3);
+  });
+});
+
 describe('B-81: a split pathway whose week 4 already equals week 12 is retried', () => {
   const flat: Climb = { ...CLIMBS.spanish, values: [2, 3, 4, 15, 15, 15, 15, 15, 15, 15, 15, 15] };
   const context = (method: CertifiedPresetBlueprint) => ({ statedTargets: [], fixedMethod: presetMethod(method), pathwayTests: true, lightTests: true });

@@ -49,6 +49,7 @@ WRITE THE WEEK
   - timing (optional): only when the step can't follow the previous one straight away
   - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false
   - kind: the id of the kind of step it is, from KINDS OF STEP below
+  - dueDate (optional, YYYY-MM-DD): only when an outside deadline sets the step's date, such as an application or entry due that day
 - No two practice days are the same. Most practice days include doing the real thing, not only preparing for it.
 - Only use equipment they have. Match their level. Never assign loads beyond what is safe for their level.
 - No steps for journaling, reflecting, or reading about the method. Breaks go inside a step's instructions,

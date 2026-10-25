@@ -126,7 +126,8 @@ export interface DetailedStep {
   resourceType?: ResourceType;
   resourceWhy?: string;
   /** Method-aware recovery RULE-10: the step picks up where this missed day stopped. Stored inside `detailedSteps`. */
-  continueFrom?: { taskId: string; date: string };
+  /** `restart` (B-38): a timed process starts again from its first step. */
+  continueFrom?: { taskId: string; date: string; restart?: true };
   /** RULE-20: a reorder placed this step here; the day it was written on. Stored inside `detailedSteps`. */
   shiftedFrom?: { taskId: string; date: string; replaced?: unknown[]; stepNumber?: number };
 }
@@ -192,7 +193,7 @@ export interface ReconcileCarryPlan {
 }
 
 /** What happened to a missed day (backend `RecoveryOutcome`, RULE-15). */
-export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'left_out';
+export type RecoveryOutcome = 'moved' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'held' | 'in_gap' | 'next_week' | 'due_passed' | 'left_out';
 
 export interface ReconcileDayOutcome {
   taskId: string;
@@ -222,7 +223,7 @@ export interface ReconcileChoices {
  * The miss line's day and what happened to it (backend `LineSignal`, M3.3). `carried` and `dropped` are a day under
  * missed sessions' rules; the others follow its method outcome. `toDate` names the receiving day, when there is one.
  */
-export type ReconcileLineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
+export type ReconcileLineKind = 'carried' | 'dropped' | 'moved' | 'moved_in_order' | 'continued' | 'restarted' | 'due_passed' | 'let_go' | 'fixed' | 'no_room' | 'next_week' | 'left_out';
 
 export interface ReconcileLine {
   kind: ReconcileLineKind;

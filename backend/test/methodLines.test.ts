@@ -3,6 +3,7 @@ import express from 'express';
 import type { Server } from 'node:http';
 import { Prisma } from '@prisma/client';
 import { PROFILE } from './methodProfile.js';
+import { templateProfile } from '../src/lib/recovery/templates.js';
 
 // Method-aware recovery M3.3: the one line Today and the Dashboard show (`signals.line`, RULE-15, MR-35). The server
 // chooses it; the screens only write the words. Prisma is the in-memory store of methodActions.test.ts: updateMany
@@ -296,6 +297,15 @@ describe('M3.3 the miss line with method-aware recovery', () => {
       expect(body.carry.written.map((c: any) => [c.fromTaskId, c.step.title])).toEqual([['mon', 'Lesson 3 extra']]);
       expect(body.signals.line).toEqual(line('moved_in_order', ['mon', MON], ['tue', TUE]));
       expect((await reconcile()).signals.line).toEqual(line('moved_in_order', ['mon', MON], ['tue', TUE]));
+    });
+
+    it('B-38 restart: the marked session gets its own line', async () => {
+      seed({ mon: { steps: [step('mon feed', 1, 20, 'process_step'), step('mon notes', 2, 10, 'notes_and_review')] }, wed: { steps: [step('wed feed', 1, 20, 'process_step'), step('wed notes', 2, 10, 'notes_and_review')] } });
+      store.goal.roadmap = { ...store.goal.roadmap, recovery: templateProfile('process') };
+      at(TUE);
+      const first = await reconcile();
+      expect(first.signals.line).toEqual(line('restarted', ['mon', MON], ['wed', WED]));
+      expect(stepsOf('wed')[0]).toMatchObject({ continueFrom: { taskId: 'mon', date: MON, restart: true } });
     });
 
     it('continue: the marked session, until it closes', async () => {

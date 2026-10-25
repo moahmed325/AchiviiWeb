@@ -48,7 +48,8 @@ export function goalSetProblems(goals: EvalGoal[]): string[] {
     const success = goal.answers.find((answer) => answer.id === 'success')?.answer ?? '';
     if (screenQuery(`${goal.rawGoal} ${goal.workingTitle} ${success}`).blocked) problems.push(`${goal.id}: refused by the unsafe screen.`);
   }
-  for (const template of TEMPLATE_IDS) {
+  // B-38's process template came after this frozen set (M2.2); the eval keeps its 13 templates.
+  for (const template of TEMPLATE_IDS.filter((id) => id !== 'process')) {
     const count = goals.filter((goal) => goal.template === template).length;
     if (count !== 2) problems.push(`template ${template}: ${count} goals, needs 2.`);
   }

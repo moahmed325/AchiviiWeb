@@ -199,6 +199,19 @@ export const RECOVERY_TEMPLATES: Readonly<Record<TemplateId, RecoveryProfile>> =
     byLength('last level', 'back 1 week', 'Mostly puzzles and game review.')
   ),
 
+  // 14. Timed processes (B-38): sourdough, fermenting, brewing. A missed process step means starting it again.
+  process: template(
+    'process',
+    [
+      kind('process_step', 'Process step', 'restart', 'One step of a timed process, such as feeding a starter or a fermentation check.', { inOrder: true }),
+      kind('technique_practice', 'Technique practice', 'move', 'Practising a technique on its own, such as shaping or scoring.'),
+      kind('notes_and_review', 'Notes and review', 'let_go', 'Writing down what happened and what to change.'),
+      catchAll('move'),
+    ],
+    0,
+    any('Starts the process again from its first step.')
+  ),
+
   // 13. General practice (no pathway; the default, MR-13)
   general: template(
     'general',

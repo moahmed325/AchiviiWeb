@@ -216,7 +216,7 @@ export const WEEK_RESPONSE_SCHEMA = {
             type: 'array',
             items: {
               type: 'object',
-              properties: { ...stepProperties, priority: { type: 'integer' }, timing: { type: 'string' }, highLoad: { type: 'boolean' } },
+              properties: { ...stepProperties, priority: { type: 'integer' }, timing: { type: 'string' }, highLoad: { type: 'boolean' }, dueDate: { type: 'string' } },
               required: ['title', 'instructions', 'minutes', 'output', 'doneWhen', 'focusCue', 'pitfall', 'priority', 'highLoad'],
             },
           },
@@ -520,6 +520,7 @@ WRITE THE WEEK
   - priority: 1 = most important today, no ties
   - timing (optional): only when the step can't follow the previous one straight away
   - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false
+  - dueDate (optional, YYYY-MM-DD): only when an outside deadline sets the step's date, such as an application or entry due that day
 - No two practice days are the same. Most practice days include doing the real thing, not only preparing for it.
 - Only use equipment they have. Match their level. Never assign loads beyond what is safe for their level.
 - No steps for journaling, reflecting, or reading about the method. Breaks go inside a step's instructions,
@@ -540,6 +541,7 @@ interface RawStep {
   highLoad?: unknown;
   kind?: unknown;
   load?: unknown;
+  dueDate?: unknown;
 }
 
 interface RawDay {
@@ -585,6 +587,7 @@ function toStep(raw: RawStep, stepNumber: number, recovery?: RecoveryProfile | n
   const kind = recovery ? resolveKind(raw.kind, recovery) : null;
   // Plan safety limits M2.1: read only on a load goal, so any other goal's steps are exactly as before.
   const load = withLoad ? parseStepLoad(raw.load) : undefined;
+  const dueDate = dueDateOf(raw.dueDate);
   return {
     stepNumber,
     title: text(raw.title),
@@ -600,7 +603,15 @@ function toStep(raw: RawStep, stepNumber: number, recovery?: RecoveryProfile | n
     highLoad: raw.highLoad === true,
     ...(kind ? { kind } : recovery ? { badKind: text(raw.kind) } : {}),
     ...(load ? { load } : {}),
+    ...(dueDate ? { dueDate } : {}),
   };
+}
+
+/** B-39: a real calendar date written YYYY-MM-DD, or nothing. */
+export function dueDateOf(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : undefined;
 }
 
 /** Removes the parsing-only field, and on rest days the kind too (MR-15). */
@@ -781,6 +792,8 @@ export function checkWeekAnswer(
     const label = `Day ${slot.dayNumber}`;
     let steps = (Array.isArray(raw.steps) ? (raw.steps as RawStep[]) : [])
       .map((step, index) => toStep(step ?? {}, index + 1, recovery, loadGoal !== undefined))
+      // B-39 review: a due date on or before the step's own day is no outside deadline (a miss could never move), so it goes.
+      .map(({ dueDate, ...step }) => (dueDate && dueDate > slot.date ? { ...step, dueDate } : step))
       .filter((step) => step.title);
     const work = steps.filter((step) => !BREAK_STEP.test(step.title));
     if (!slot.isRestDay && work.length > 0) steps = work;
@@ -1025,6 +1038,7 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through,
   // and every step is scanned, not only the high-load ones.
   const scan = { light: isLightWeek(input) };
+  const profileHighLoad = (input.recovery?.kinds ?? []).some((kind) => kind.highLoad === true);
   // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
   // says is logged, never refused, or that week could never be written.
   const testText = scan.light ? [] : textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
@@ -1039,7 +1053,8 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
       const name = step === day.minimumVersion ? `Day ${day.dayNumber} 10-minute version "${step.title}"` : `Day ${day.dayNumber} step "${step.title}"`;
       const testStep = step !== day.minimumVersion && TEST_STEP.test(step.title);
       const retestStep = step !== day.minimumVersion && codeMadeRetestStep(step) !== null;
-      if (scan.light || input.highLoadGoal || step.highLoad === true) {
+      // B-78: a goal that is high-load only through its profile has its test step scanned too.
+      if (scan.light || input.highLoadGoal || step.highLoad === true || (testStep && profileHighLoad)) {
         for (const hit of stepSafetyHits(step, input.weekNumber, scan)) {
           hits.push({
             day,

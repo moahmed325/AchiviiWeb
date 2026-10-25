@@ -142,7 +142,8 @@ describe('the 13 templates (MR-13, MR-20)', () => {
 
   it('has all 13 and each passes the checks', () => {
     expect(Object.keys(RECOVERY_TEMPLATES).sort()).toEqual([...TEMPLATE_IDS].sort());
-    expect(TEMPLATE_IDS).toHaveLength(13);
+    // B-38 added the process template.
+    expect(TEMPLATE_IDS).toHaveLength(14);
     for (const id of TEMPLATE_IDS) {
       expect(profileFailures(RECOVERY_TEMPLATES[id]), id).toEqual([]);
       expect(RECOVERY_TEMPLATES[id].template).toBe(id);
@@ -248,6 +249,7 @@ describe('the 13 templates (MR-13, MR-20)', () => {
       habit: [0, 'any: last level'],
       content: [0, 'any: last level'],
       strategy_games: [0, '1-2 weeks: last level', '3+ weeks: back 1 week'],
+      process: [0, 'any: last level'],
       general: [0, '1-2 weeks: last level', '3+ weeks: back 1 week'],
     });
     expect(RECOVERY_TEMPLATES.writing.returnRule.firstWeekBack).toMatch(/never reread/);

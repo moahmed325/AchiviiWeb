@@ -4,6 +4,7 @@ import { findOpenGap, type DayClassification, type DayKind } from '../src/lib/mi
 import { weekCounts } from '../src/lib/missedSignals.js';
 import { MOVED_WARM_UP_LINE, planRecovery, withWarmUpLine, type RecoveryPlan } from '../src/lib/recovery/carry.js';
 import { profileFailures, type RecoveryProfile } from '../src/lib/recovery/profile.js';
+import { templateProfile } from '../src/lib/recovery/templates.js';
 import { PROFILE } from './methodProfile.js';
 
 // Method-aware recovery M3.1a: the carry planner follows each step's action (RULE-9 to RULE-12, RULE-17, RULE-18,
@@ -319,6 +320,60 @@ describe('MR-27 is replaced in M3.1b (the order and rest-gap cases are in method
     const plan = on(week({ mon: { kind: 'missed', steps: [step('mon draft', 1, 15, 'drafting', { highLoad: true }), step('r', 2, 15, 'review')] } }));
     expect(plan.carries.map((c) => [c.step.title, c.toTaskId])).toEqual([['mon draft', id('tue')]]);
     expect(plan.continues).toEqual([]);
+  });
+});
+
+describe('B-39 due dates: a step with an outside deadline', () => {
+  const dueDay = (tag: string, dueDate: string) => [step(`${tag} send the application`, 1, 15, 'practice', { dueDate }), step(`${tag} review`, 2, 10, 'review'), step(`${tag} extra`, 3, 5, 'general')];
+
+  it('moves to the earliest day on or before its date', () => {
+    const plan = on(week({ mon: { kind: 'missed', steps: dueDay('mon', '2026-09-23') } }));
+    expect(plan.carries.map((carry) => [carry.fromTaskId, carry.toTaskId])).toEqual([[id('mon'), id('tue')]]);
+  });
+
+  it('never moves past its date: the date passed, so nothing moves and the outcome says so', () => {
+    const plan = on(week({ mon: { kind: 'missed', steps: dueDay('mon', '2026-09-21') } }));
+    expect(plan.carries).toEqual([]);
+    expect(dropOf(plan, 'mon')).toBe('due_date_passed');
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ rules: 'method', topStep: 'due_passed' });
+  });
+
+  it('the last day before a passed deadline is closed: the date passed, not no room (review)', () => {
+    const plan = on(week({ mon: { kind: 'missed', steps: dueDay('mon', '2026-09-22') }, tue: { kind: 'missed' } }, { today: '2026-09-23' }));
+    expect(dropOf(plan, 'mon')).toBe('due_date_passed');
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ topStep: 'due_passed' });
+  });
+
+  it('missed sessions without kinds hold the same rule', () => {
+    const steps = dueDay('mon', '2026-09-21').map(({ kind: _k, ...rest }) => rest as CarriedStep);
+    const plan = planCarries(week({ mon: { kind: 'missed', steps } }, { kinds: false }));
+    expect(plan.carries).toEqual([]);
+    expect(plan.drops.find((drop) => drop.taskId === id('mon'))?.reason).toBe('due_date_passed');
+  });
+});
+
+describe('B-38 restart: a timed process starts again', () => {
+  const process = templateProfile('process');
+  const feeding = (tag: string) => [step(`${tag} feed the starter`, 1, 20, 'process_step'), step(`${tag} notes`, 2, 10, 'notes_and_review')];
+
+  it('the process template passes the RULE-4 checks', () => {
+    expect(profileFailures(process)).toEqual([]);
+  });
+
+  it('moves nothing and marks the next process session with a restart marker', () => {
+    const input = week({ mon: { kind: 'missed', steps: feeding('mon') }, wed: { steps: feeding('wed') } });
+    const plan = on(input, process);
+    expect(plan.carries).toEqual([]);
+    expect(plan.continues).toHaveLength(1);
+    expect(plan.continues![0]).toMatchObject({ fromTaskId: id('mon'), toTaskId: id('wed'), kind: 'process_step' });
+    expect(plan.continues![0].steps[0].continueFrom).toEqual({ taskId: id('mon'), date: '2026-09-21', restart: true });
+    expect(outcomeOf(plan, 'mon')).toMatchObject({ rules: 'method', topStep: 'continued' });
+  });
+
+  it('a continue kind still gets a plain marker', () => {
+    const drafting = (tag: string) => [step(`${tag} drafting`, 1, 20, 'drafting'), step(`${tag} review`, 2, 10, 'review')];
+    const plan = on(week({ mon: { kind: 'missed', steps: drafting('mon') }, wed: { steps: drafting('wed') } }));
+    expect(plan.continues![0].steps[0].continueFrom).toEqual({ taskId: id('mon'), date: '2026-09-21' });
   });
 });
 

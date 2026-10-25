@@ -31,7 +31,7 @@ export interface StepLines {
 /** The parts of a step these lines read. */
 export interface StepText {
   instructions?: unknown;
-  continueFrom?: { taskId?: unknown; date?: unknown } | null;
+  continueFrom?: { taskId?: unknown; date?: unknown; restart?: unknown } | null;
 }
 
 /** The markers that say where a step came from. */
@@ -153,7 +153,9 @@ export function continueLine(step: StepText, done: DoneDays = new Map()): string
   if (typeof from === 'string' && done.has(from)) return null;
   const date = step.continueFrom?.date;
   const weekday = typeof date === 'string' ? weekdayOf(date) : null;
-  return weekday ? `Pick up where ${weekday} stopped.` : null;
+  if (!weekday) return null;
+  // B-38: a timed process that was interrupted starts again.
+  return step.continueFrom?.restart === true ? `Start the process again from its first step (${weekday} was missed).` : `Pick up where ${weekday} stopped.`;
 }
 
 export function stepLines(step: StepText, done?: DoneDays): StepLines {

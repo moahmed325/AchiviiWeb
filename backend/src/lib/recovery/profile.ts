@@ -8,8 +8,14 @@
 import type { DetailedStep } from '../ai/goalDecomposer.js';
 
 /** What a kind does when its day doesn't happen (MR-1). */
-export type RecoveryAction = 'move' | 'continue' | 'let_go' | 'fixed';
-export const RECOVERY_ACTIONS: readonly RecoveryAction[] = ['move', 'continue', 'let_go', 'fixed'];
+/**
+ * B-38: `restart` is for a timed process (sourdough, fermenting): a missed step moves nothing, and the next session of
+ * the kind starts the process again from its first step. It is carried as a continue marker with `restart: true`.
+ */
+export type RecoveryAction = 'move' | 'continue' | 'let_go' | 'fixed' | 'restart';
+export const RECOVERY_ACTIONS: readonly RecoveryAction[] = ['move', 'continue', 'let_go', 'fixed', 'restart'];
+/** The actions that mark the kind's next session (a continue marker). */
+export const MARKS_NEXT_SESSION: ReadonlySet<RecoveryAction> = new Set(['continue', 'restart']);
 
 export type TemplateId =
   | 'endurance'
@@ -24,6 +30,7 @@ export type TemplateId =
   | 'habit'
   | 'content'
   | 'strategy_games'
+  | 'process'
   | 'general';
 
 export const TEMPLATE_IDS: readonly TemplateId[] = [
@@ -39,6 +46,7 @@ export const TEMPLATE_IDS: readonly TemplateId[] = [
   'habit',
   'content',
   'strategy_games',
+  'process',
   'general',
 ];
 
@@ -162,7 +170,7 @@ export function profileFailures(profile: RecoveryProfile, facts: ProfileCheckFac
     if (typeof kind?.name !== 'string' || !kind.name.trim()) reasons.push(`kind "${id}" has no name.`);
     if (typeof kind?.description !== 'string' || !kind.description.trim()) reasons.push(`kind "${id}" has no description.`);
     if (!RECOVERY_ACTIONS.includes(kind?.action)) reasons.push(`kind "${id}" needs one action: ${RECOVERY_ACTIONS.join(', ')}.`);
-    if (kind?.hard && kind.action === 'continue') reasons.push(`kind "${id}" is hard, so it cannot continue.`);
+    if (kind?.hard && MARKS_NEXT_SESSION.has(kind.action)) reasons.push(`kind "${id}" is hard, so it cannot ${kind.action}.`);
     if (kind?.highLoad === true && kind.hard !== true) reasons.push(`kind "${id}" is high-load, so it must be hard.`);
   }
 
@@ -239,6 +247,6 @@ export function actionOf(
   const kind = profile.kinds.find((item) => item.id === step.kind);
   if (!kind) return null;
   const hard = kind.hard === true || highLoad;
-  const action: RecoveryAction = highLoad && kind.action === 'continue' ? 'move' : kind.action;
+  const action: RecoveryAction = highLoad && MARKS_NEXT_SESSION.has(kind.action) ? 'move' : kind.action;
   return { action, hard };
 }

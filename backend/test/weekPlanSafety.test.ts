@@ -174,6 +174,8 @@ describe('safety scan: which steps are checked', () => {
 });
 
 describe('safety limits in the week prompt', () => {
+  // B-39: the optional due-date line came after these fixtures.
+  const DUE_DATE_LINE = "  - dueDate (optional, YYYY-MM-DD): only when an outside deadline sets the step's date, such as an application or entry due that day";
   const HIGH_LOAD_LINE =
     '  - highLoad: true when the step puts real physical strain on the body (running, lifting, high-intensity or impact work); otherwise false';
   const layout = weekLayout('steady', input.weekStart);
@@ -199,7 +201,7 @@ describe('safety limits in the week prompt', () => {
     };
     const prompt = buildWeekPrompt(typing, layout);
     expect(prompt).not.toContain('SAFETY LIMITS');
-    expect(prompt.split('\n').filter((line) => line !== HIGH_LOAD_LINE).join('\n')).toBe(before);
+    expect(prompt.split('\n').filter((line) => line !== HIGH_LOAD_LINE && line !== DUE_DATE_LINE).join('\n')).toBe(before);
   });
 
   it('tells the real recomp week 1 the limits and the override, next to the method\'s own range', () => {

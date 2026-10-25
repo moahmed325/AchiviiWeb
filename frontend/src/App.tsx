@@ -13,6 +13,9 @@ const OnboardingPage = React.lazy(() => import('./pages/OnboardingPage'));
 const RoadmapPage = React.lazy(() => import('./pages/RoadmapPage'));
 const SignupPage = React.lazy(() => import('./pages/auth/SignupPage'));
 const LoginPage = React.lazy(() => import('./pages/auth/LoginPage'));
+/* B-15: password reset. */
+const ForgotPasswordPage = React.lazy(() => import('./pages/auth/PasswordResetPages').then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = React.lazy(() => import('./pages/auth/PasswordResetPages').then((m) => ({ default: m.ResetPasswordPage })));
 
 /* Development-only primitives preview; the branch is dropped from production builds. */
 const UiPreviewPage = import.meta.env.DEV ? React.lazy(() => import('./pages/dev/UiPreviewPage')) : null;
@@ -56,6 +59,8 @@ export const App: React.FC = () => {
                   </React.Suspense>
                 }
               />
+              <Route path="/forgot-password" element={<React.Suspense fallback={null}><ForgotPasswordPage /></React.Suspense>} />
+              <Route path="/reset-password" element={<React.Suspense fallback={null}><ResetPasswordPage /></React.Suspense>} />
 
               {/* Onboarding / Plan Creation (Protected, only for users without active plan) */}
               <Route

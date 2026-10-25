@@ -204,7 +204,7 @@ export type MissNotice =
 /** What happened to a day that followed the new rules, as its line says it (section 6). */
 export type RecoveryLine = Exclude<ReconcileLineKind, 'carried' | 'dropped'>;
 
-const NAMES_A_DAY: ReadonlySet<ReconcileLineKind> = new Set(['carried', 'moved', 'moved_in_order', 'continued']);
+const NAMES_A_DAY: ReadonlySet<ReconcileLineKind> = new Set(['carried', 'moved', 'moved_in_order', 'continued', 'restarted']);
 
 /** Today's task when it is an open practice day (not rest, not completed) with a 10-minute version. */
 function openTodayWithMinimum(goal: Pick<Goal, 'dailyTasks'>, today: string): DailyTask | null {
