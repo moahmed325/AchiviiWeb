@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { User } from '../types';
-import { fetchCurrentUser } from '../lib/api';
+import { fetchCurrentUser, updateTimezone } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { ACCOUNT_LOAD_FAILED, fromSupabaseAuthError } from '../lib/authFlow';
 
@@ -29,6 +29,8 @@ interface AuthContextType {
   /** B-15: leaves for Google's sign-in; the person comes back to /login with the same search. */
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  /** B-46 (2): moves the plan to this zone (an IANA name). */
+  setTimezone: (timezone: string) => Promise<void>;
   /** B-15: emails a reset link that opens /reset-password signed in for recovery. */
   requestPasswordReset: (email: string) => Promise<void>;
   /** B-15: sets a new password for the signed-in (recovery) session. */
@@ -152,6 +154,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw fromSupabaseAuthError(error);
   };
 
+  const setTimezone = async (timezone: string) => {
+    if (!token) throw new Error('Sign in first.');
+    setUser(await updateTimezone(token, timezone));
+  };
+
   const logout = async () => {
     if (supabase) {
       await supabase.auth.signOut();
@@ -161,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, signup, signInWithGoogle, logout, requestPasswordReset, updatePassword }}>
+    <AuthContext.Provider value={{ user, token, loading, login, signup, signInWithGoogle, logout, setTimezone, requestPasswordReset, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );

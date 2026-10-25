@@ -153,3 +153,21 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ error: 'Failed to authenticate user.' });
   }
 });
+
+// PUT /api/auth/timezone: B-46 (2), Travelling Leo. A person who moved keeps the zone set at sign-up until they choose
+// the device's zone here (the account menu offers it when the two differ). Stored dates stay calendar days; only when
+// "today" rolls over changes.
+authRouter.put('/timezone', async (req: Request, res: Response): Promise<void> => {
+  const user = await getAuthUser(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized. Please sign in.' });
+    return;
+  }
+  const zone = typeof req.body?.timezone === 'string' ? req.body.timezone.trim() : '';
+  if (!zone || !isValidTimezone(zone)) {
+    res.status(400).json({ error: 'That time zone is not recognised.' });
+    return;
+  }
+  const updated = await prisma.user.update({ where: { id: user.id }, data: { timezone: zone }, select: authUserSelect });
+  res.status(200).json({ user: updated });
+});
