@@ -196,7 +196,8 @@ export function weekdayOf(dateKey: string): string | null {
 export type MissNotice =
   | { kind: 'carried'; day: string; intoToday: boolean; toWeekday: string }
   | { kind: 'dropped'; day: string }
-  | { kind: 'gentle_return' }
+  /** `passedDeadline` (logic check, B-39): a step with an outside deadline whose date passed during the gap. */
+  | { kind: 'gentle_return'; passedDeadline?: string }
   | { kind: 'swap_offer'; day: string | null; when: string; missedTaskId: string; receivingTaskId: string }
   | { kind: 'set_aside'; movedTo: string | null }
   | { kind: 'recovery'; day: string | null; outcome: RecoveryLine; intoToday: boolean; toWeekday: string | null };
@@ -231,7 +232,15 @@ export function missNotice(
   const dayLabel = (date: string) => (date === addDaysToDateKey(today, -1) ? 'Yesterday' : weekdayOf(date));
 
   if (signals.notice === 'gentle_return') {
-    return openTodayWithMinimum(goal, today) ? { kind: 'gentle_return' } : null;
+    if (!openTodayWithMinimum(goal, today)) return null;
+    const gap = signals.gentleReturn;
+    const passed = gap
+      ? (goal.dailyTasks || [])
+          .filter((task) => task.date >= gap.firstDate && task.date <= gap.lastDate && task.status !== 'completed')
+          .flatMap((task) => parseSteps(task.detailedSteps))
+          .find((step) => typeof step.dueDate === 'string' && step.dueDate < today)
+      : undefined;
+    return passed ? { kind: 'gentle_return', passedDeadline: passed.title } : { kind: 'gentle_return' };
   }
   if (reconciliation.carry?.enabled) {
     const offer = signals.swapOffer;

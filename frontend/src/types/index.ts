@@ -110,6 +110,8 @@ export interface DetailedStep {
   title: string;
   durationMinutes: number;
   instructions: string;
+  /** B-39: the date (YYYY-MM-DD) an outside deadline sets for this step. */
+  dueDate?: string;
   focusCue: string;
   pitfallToAvoid: string;
   /** The measurable standard that counts the step as done. */

@@ -265,6 +265,17 @@ describe('M2.4 actions', () => {
       expect(steps('wed').some((s: any) => s.swappedFrom)).toBe(false);
     });
 
+    it('refuses a swap that moves a step past its due date (logic check, B-39)', async () => {
+      const due = JSON.stringify([{ stepNumber: 1, title: 'Send the application', durationMinutes: 30, instructions: 'Send it.', priority: 1, dueDate: '2026-09-23' }]);
+      seed({ mon: { status: 'completed' }, wed: { detailedSteps: due } });
+      at('2026-09-22T10:00:00Z');
+      const res = await swap('wed', 'fri');
+      expect(res.status).toBe(409);
+      expect(res.body.reason).toBe('past_due');
+      // Moving it earlier is fine.
+      expect((await swap('wed', 'tue')).status).toBe(200);
+    });
+
     it('answering a swap offer marks both days, ends the offer, and nothing is carried back (ND-18)', async () => {
       seed({ mon: { status: 'completed' }, tue: { isKeySession: true } });
       at('2026-09-23T10:00:00Z');

@@ -120,7 +120,7 @@ const missNoticeLine = (notice: MissNotice) =>
   notice.kind === 'recovery'
     ? `${notice.day ? `${notice.day}'s session didn't happen.` : "Today's session is set aside."} ${recoveryOutcomeLine(notice)}`
     : notice.kind === 'gentle_return'
-    ? "Welcome back. Today's a short one to ease in."
+    ? `Welcome back. Today's a short one to ease in.${notice.passedDeadline ? ` The deadline for "${notice.passedDeadline}" passed while you were away.` : ''}`
     : notice.kind === 'swap_offer'
     ? notice.day
       ? `${notice.day}'s key session didn't happen. Do it ${notice.when} instead?`

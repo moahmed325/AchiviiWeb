@@ -138,7 +138,7 @@ export function evaluate(
  * route's order (ND-18); then, in any switch state, a day holding a reorder's step or a continue marker (M3.2); then,
  * with METHOD_RECOVERY_ENABLED on, RULE-12 to RULE-14 (`methodSwapRefusal`).
  */
-export type OpenSwapRefusal = 'rest_day' | 'test_day' | 'completed' | 'not_open' | 'holds_carry' | 'already_handled' | SwapRefusal;
+export type OpenSwapRefusal = 'rest_day' | 'test_day' | 'completed' | 'not_open' | 'holds_carry' | 'already_handled' | 'past_due' | SwapRefusal;
 
 /** B-54: built once per evaluation, not once per day pair `planChoices` checks. */
 const doneStepsCache = new WeakMap<Evaluation, ReturnType<typeof doneStepsOf>>();
@@ -172,6 +172,10 @@ export function openSwapRefusal(evaluation: Evaluation, aId: string, bId: string
     if (marker) return marker;
     if (handled.has(id)) return 'already_handled';
   }
+  // Logic check (B-39): a swap never moves a step with an outside deadline to a day after it, in any switch state.
+  const dateOf = (id: string) => taskOf.get(id)!.date;
+  const lateAfterSwap = (from: string, to: string) => (stepsOf.get(from) ?? []).some((step) => step.dueDate !== undefined && step.dueDate < dateOf(to));
+  if (lateAfterSwap(aId, bId) || lateAfterSwap(bId, aId)) return 'past_due';
   return methodRefusal(evaluation, aId, bId);
 }
 

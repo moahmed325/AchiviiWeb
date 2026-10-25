@@ -578,6 +578,15 @@ describe('no-room moves of other kinds (requirement 5, MR-32 (3))', () => {
       },
     });
 
+  it('a step with an outside deadline is never placed after it (logic check, B-39)', () => {
+    const dated = storedWeek(1, {
+      tue: { done: false, steps: day('Grammar drill', 'practice').map((item, index) => (index === 0 ? { ...item, dueDate: '2026-09-21' } : item)) },
+    });
+    const result = placeHandoff({ days: writtenWeek(2, { mon: day('Hills', 'heavy') }), handoff: weekHandoff({ tasks: dated, profile: PROFILE }), profile: PROFILE, lastWeek: dated });
+    // The first practice session of its kind is Tuesday 2026-09-22, a day after its date.
+    expect(result.noRoomPlaced).toEqual([]);
+  });
+
   it('a non-hard one takes the first session of its kind when it fits; a hard one is only told', () => {
     const handoff = weekHandoff({ tasks: last(), profile: PROFILE });
     const days = writtenWeek(2, { mon: day('Hills', 'heavy') });

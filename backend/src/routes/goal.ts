@@ -697,6 +697,7 @@ type ActionReason =
   | 'not_open'
   | 'test_day'
   | 'holds_carry'
+  | 'past_due'
   | 'changed'
   | 'not_plan_v2'
   | 'carry_disabled'
@@ -726,6 +727,7 @@ const ACTION_ERRORS: Record<ActionReason, string> = {
   not_open: 'Both days must still be open.',
   test_day: 'The test day cannot be swapped.',
   holds_carry: 'A day that already received a moved step cannot be swapped.',
+  past_due: 'That step is due before then, so it cannot move there.',
   changed: 'The plan changed. Reload and try again.',
   not_plan_v2: 'This plan does not support this action.',
   carry_disabled: 'This action is not available yet.',

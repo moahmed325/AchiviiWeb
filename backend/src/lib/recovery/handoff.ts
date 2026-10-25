@@ -377,6 +377,8 @@ export function placeHandoff<T extends PlacedDay>(input: {
     if (item.hard || isHard(item.step) || recoveryOf(item.step)?.action !== 'move' || inOrderMoveKinds(profile).has(item.kind)) continue;
     const slot = practiceIndexes.flatMap((at) => rows[at].steps.filter((step) => step.kind === item.kind && !shiftMarkerOf(step)).map((step) => ({ at, step }))).at(0);
     if (!slot) continue;
+    // Logic check (B-39): a step with an outside deadline is never placed after it; it is only told to the writer.
+    if (item.step.dueDate && input.days[slot.at].date > item.step.dueDate) continue;
     const row = tryPlace(slot.at, slot.step, item);
     if (!row) continue;
     rows[slot.at] = row;
