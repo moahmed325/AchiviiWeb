@@ -9,6 +9,8 @@ import {
   findYesterdayTask,
   isToday,
   isWeekReviewDue,
+  isAheadDay,
+  reviewOpensOn,
   isClosingStretchActive,
   missNotice,
   movedDays,
@@ -511,19 +513,44 @@ describe('isWeekReviewDue', () => {
     expect(isWeekReviewDue(currentTasks, wednesday)).toBe(false);
   });
 
-  it('returns true when all active practice tasks are completed even if task dates are in the future', () => {
+  it('is never due before the week\'s last day, even with every practice day done', () => {
     const currentTasks = [
       task({ id: 't1', date: '2026-09-21', status: 'completed' }),
       task({ id: 't2', date: '2026-09-23', status: 'completed' }),
       task({ id: 't3', date: '2026-09-24', status: 'completed' }),
       task({ id: 't4', date: '2026-09-25', isRestDay: true, status: 'pending' }),
     ];
-    const wednesday = new Date('2026-09-23T12:00:00Z');
-    expect(isWeekReviewDue(currentTasks, wednesday)).toBe(true);
+    expect(isWeekReviewDue(currentTasks, new Date('2026-09-23T12:00:00Z'))).toBe(false);
+    expect(isWeekReviewDue(currentTasks, new Date('2026-09-24T12:00:00Z'))).toBe(false);
+    // The last day (a rest day here) has come: due once every practice day is done.
+    expect(isWeekReviewDue(currentTasks, new Date('2026-09-25T12:00:00Z'))).toBe(true);
+    expect(isWeekReviewDue(currentTasks.map((t) => (t.id === 't3' ? { ...t, status: 'pending' as const } : t)), new Date('2026-09-25T12:00:00Z'))).toBe(false);
   });
 
   it('returns false when there are no tasks', () => {
     expect(isWeekReviewDue([], new Date())).toBe(false);
+  });
+});
+
+describe('ahead days', () => {
+  const week = [
+    task({ id: 't1', date: '2026-09-21', dayOfWeek: 'Monday' }),
+    task({ id: 't2', date: '2026-09-23', dayOfWeek: 'Wednesday' }),
+    task({ id: 't3', date: '2026-09-27', dayOfWeek: 'Sunday', isRestDay: true }),
+  ];
+
+  it('isAheadDay reads the user\'s local date', () => {
+    // 23:30 UTC on the 22nd is already the 23rd in Tokyo.
+    const late = new Date('2026-09-22T23:30:00Z');
+    expect(isAheadDay(week[1], late, 'UTC')).toBe(true);
+    expect(isAheadDay(week[1], late, 'Asia/Tokyo')).toBe(false);
+    expect(isAheadDay(week[0], late, 'UTC')).toBe(false);
+  });
+
+  it('reviewOpensOn names the last day while it is ahead, then null', () => {
+    expect(reviewOpensOn(week, new Date('2026-09-23T12:00:00Z'), 'UTC')).toBe('Sunday');
+    expect(reviewOpensOn(week, new Date('2026-09-27T12:00:00Z'), 'UTC')).toBeNull();
+    expect(reviewOpensOn([], new Date('2026-09-27T12:00:00Z'), 'UTC')).toBeNull();
   });
 });
 
@@ -641,8 +668,9 @@ describe('days not offered (weekly update M1.4)', () => {
     const week = [day('a', '2026-10-09', { notOffered: true }), day('b', '2026-10-10', { notOffered: true }), day('c', '2026-10-13'), day('d', '2026-10-14', { status: 'completed' })];
     expect(week.map(isRestLike)).toEqual([true, true, false, false]);
     expect(weekProgress(week)).toEqual({ practiceDays: 2, practiceDone: 1 });
-    expect(isWeekReviewDue(week, NOW, 'UTC')).toBe(false);
-    expect(isWeekReviewDue(week.map((t) => (t.id === 'c' ? { ...t, status: 'completed' as const } : t)), NOW, 'UTC')).toBe(true);
+    const LAST_DAY = new Date('2026-10-14T12:00:00Z');
+    expect(isWeekReviewDue(week, LAST_DAY, 'UTC')).toBe(false);
+    expect(isWeekReviewDue(week.map((t) => (t.id === 'c' ? { ...t, status: 'completed' as const } : t)), LAST_DAY, 'UTC')).toBe(true);
     // No row for today: the first pending day that was offered, not a day not offered.
     expect(selectTodayTask(week, NOW, undefined, 'UTC')?.id).toBe('c');
     // "Day N of 90" is read from the moved targetDate: 12 days moved means 12 fewer days counted.

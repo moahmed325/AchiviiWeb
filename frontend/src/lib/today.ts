@@ -417,19 +417,31 @@ export function shortOnTimeOffer(
 /**
  * Checks whether the weekly review is due.
  * Returns true if all tasks in the current week have dates strictly before today's date in the user's timezone
- * OR if all scheduled active practice tasks for the week are completed.
+ * OR if today is the week's last day and all scheduled active practice tasks for the week are completed.
+ * Never before the last day: the server refuses an earlier review (`week_not_over`).
  */
 export function isWeekReviewDue(tasks: DailyTask[], now: Date, timezone?: string): boolean {
   if (tasks.length === 0) return false;
   const today = todayKey(now, timezone);
   if (tasks.every((t) => t.date < today)) return true;
+  if (reviewOpensOn(tasks, now, timezone)) return false;
 
   const activePracticeTasks = tasks.filter((t) => !isRestLike(t));
-  if (activePracticeTasks.length > 0 && activePracticeTasks.every((t) => t.status === 'completed')) {
-    return true;
-  }
+  return activePracticeTasks.length > 0 && activePracticeTasks.every((t) => t.status === 'completed');
+}
 
-  return false;
+/**
+ * The weekday the open week's review opens on (its last day), while that day is still ahead in the user's time zone;
+ * null once it has come. The server refuses an earlier review (`week_not_over`).
+ */
+export function reviewOpensOn(tasks: DailyTask[], now: Date, timezone?: string): string | null {
+  const last = tasks.reduce<DailyTask | null>((latest, t) => (!latest || t.date > latest.date ? t : latest), null);
+  return last && isAheadDay(last, now, timezone) ? last.dayOfWeek : null;
+}
+
+/** Whether the day is still ahead in the user's time zone; the server refuses completing it (`not_yet`). */
+export function isAheadDay(task: Pick<DailyTask, 'date'>, now: Date, timezone?: string): boolean {
+  return task.date > todayKey(now, timezone);
 }
 
 /**

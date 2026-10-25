@@ -16,6 +16,8 @@ Every decision below was agreed in chat before any code was written.
    28-day limit waits ("Keep going" or "Do my final week"), nothing closes on any screen. Prompt 4 runs on both paths only with
    `WEEK_CLOSE_ENABLED` and `WEEKLY_UPDATE_ENABLED` both `true`; otherwise the targets stay as planned and only
    prompt 3 runs. With `WEEK_CLOSE_ENABLED` off nothing closes a week but the review.
+   The review is accepted from the week's last day on, and a day can only be completed from its own date on, both
+   in the person's time zone (ND-23), so a week can't be crammed and closed early.
 5. Photo/video tests → **Prompt 5 (proof judge)**.
 
 Presets (guitar, chess, 10K and others) skip the method part of prompt 2: their method is fixed; their roadmap is
