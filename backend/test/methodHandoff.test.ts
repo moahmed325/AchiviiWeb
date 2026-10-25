@@ -844,6 +844,35 @@ describe('the final week (requirement 6, MR-32 (6))', () => {
 });
 
 describe('a step handed on is no longer listed in last week (requirement 7, logic check finding 9)', () => {
+  it('B-51: a lesson listed for next week on a day the person then did queues again, and takes a session with room', () => {
+    // Tuesday (Lesson 1) was set aside: Wednesday took Lesson 1, Friday Lesson 2, and Lesson 3 was listed for next week
+    // on Tuesday's step. Then Tuesday was done anyway. Today is Wednesday.
+    const shifted = (n: number, from: string, date: string) => ({ ...lesson(n)[0], shiftedFrom: { taskId: from, date, replaced: [] } });
+    const three = { taskId: '1-fri', date: '2026-09-18', step: lesson(3)[0] };
+    const input = carryInput(
+      1,
+      {
+        '1-mon': { kind: 'done' },
+        '1-tue': { kind: 'done', steps: [{ ...lesson(1)[0], toNextWeek: [three] }, ...lesson(0).slice(1)] },
+        '1-wed': { kind: 'planned', steps: [shifted(1, '1-tue', '2026-09-15'), ...lesson(0).slice(1)] },
+        '1-fri': { kind: 'planned', steps: [shifted(2, '1-wed', '2026-09-16'), ...lesson(0).slice(1)] },
+      },
+      '2026-09-16'
+    );
+    const week1 = inOrderQueue({ ...input, profile: PROFILE }).find((q) => q.weekNumber === 1)!;
+    expect(week1.steps.map((item) => [item.title, item.status])).toEqual([
+      ['Lesson 2', 'session'],
+      ['Lesson 3', 'missed'],
+    ]);
+    const plan = planRecovery({ ...input, method: { profile: PROFILE } });
+    const reorder = plan.reorders!.find((r) => r.weekNumber === 1 && r.kind === 'lesson')!;
+    expect(reorder.sessions.map((session) => [session.taskId, session.holds?.title])).toEqual([
+      ['1-wed', 'Lesson 2'],
+      ['1-fri', 'Lesson 3'],
+    ]);
+    expect(reorder.toNextWeek).toEqual([]);
+  });
+
   it("last week's queue ignores what next week holds; its day stays next_week and is not counted twice", () => {
     // Week 1: Lesson 4 (Wed) and Lesson 5 (Fri) not done. Week 2 (written at the review): Lesson 4 placed on Mon,
     // Lesson 5 waits as a record. Today is Tuesday of week 2.

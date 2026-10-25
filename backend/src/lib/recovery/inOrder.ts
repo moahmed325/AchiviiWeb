@@ -9,7 +9,7 @@
  * reorder placed elsewhere keeps the day in its `shiftedFrom` marker (a missed-sessions carry or a swap names it in
  * `carriedFrom` or `swappedFrom`). A missed day is never rewritten, so after a move it still holds an old copy: the
  * copy on the latest day is the live one. A step taken off its session with no later session left is listed in a
- * `toNextWeek` record and stays listed.
+ * `toNextWeek` record and stays listed, unless the day holding the record is then done (B-51): its step queues again.
  *
  * M3.1d (MR-32): next week continues from the steps not done. A step handed on (placed in a later week, or stored there
  * as a `toNextWeek` record) keeps its identity, so a week ignores any step whose identity also appears in a later week:
@@ -143,6 +143,7 @@ export function inOrderQueue(input: {
     .filter((day) => day.kind !== 'rest' && !day.isTestDay)
     .sort((a, b) => (a.date === b.date ? a.dayNumber - b.dayNumber : a.date < b.date ? -1 : 1));
   const weeks = [...new Set(days.map((day) => day.weekNumber))].sort((a, b) => a - b);
+  const weekOfTask = new Map(input.days.map((day) => [day.taskId, day.weekNumber]));
 
   // M3.1d: the latest week holding each identity of each kind, as a live copy or a record; and every identity with a
   // copy on a done day.
@@ -180,7 +181,11 @@ export function inOrderQueue(input: {
             const origin = markerDay(record);
             if (!origin || !record.step || record.step.kind !== kind) continue;
             const key = stepKey(origin, record.step.title);
-            if (!listed.has(key)) listed.set(key, { key, origin, title: record.step.title, step: record.step, status: 'next_week', at: null });
+            // B-51: a record this week's reorder left on a day the person then did is no longer a reason to wait: its
+            // step goes back into this week's queue as not done (a live copy elsewhere wins over it, below). A record the
+            // handoff wrote for an earlier week's step keeps waiting.
+            const requeue = day.kind === 'done' && weekOfTask.get(origin.taskId) === weekNumber;
+            if (!listed.has(key)) listed.set(key, { key, origin, title: record.step.title, step: record.step, status: requeue ? 'missed' : 'next_week', at: null });
           }
           if (step.kind !== kind) continue;
           const origin = originOf(step, day);
@@ -209,7 +214,8 @@ export function inOrderQueue(input: {
           listed.delete(key);
           continue;
         }
-        if (listed.has(key)) continue;
+        if (listed.get(key)?.status === 'next_week') continue;
+        listed.delete(key);
         // WU-33 (1): the one exception to "like rest": a day not offered holds its steps as not done, so they queue like a
         // missed day's into the days left (and the queue's records may sit on them, as on a missed day's).
         const status: QueueStatus =
