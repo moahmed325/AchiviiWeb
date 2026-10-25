@@ -1830,3 +1830,18 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Lemon Squeezy production configuration must contain these two recurring Pro variants for the initial launch. Existing subscriptions must not be silently repriced.
 
 **Related.** ND-9, ND-10, `docs/features/billing/03-feature.md`.
+### ND-23 — A custom goal keeps running when Pro ends
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-25 — B-46 part 2 (Upgrade Ana: free, then Pro, cancels in week 8) |
+| Decided | 2026-10-25 — Mo asked for the best option |
+
+**Decision.** Pro is checked only when a plan is made (a new custom goal, either next-plan choice). A custom goal made with Pro runs to day 90 after Pro ends: its weeks keep being written, reviewed and updated as before.
+
+**Consequences.** Nothing to build; this is what the code already does (`authorizeNewCustomGoal`, `authorizeNextPlan` are the only Pro checks). Starting another custom goal, or a next plan at day 90, needs Pro again.
+
+**Related.** ND-9, ND-10, next-plan NP-7, `docs/features/billing/03-feature.md` ("Lose paid access").
