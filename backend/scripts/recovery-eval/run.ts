@@ -334,6 +334,8 @@ function median(values: number[]): number {
 const SCORE_ROUNDS: Record<number, { runs: number[]; weekSet: number; out: string }> = {
   1: { runs: [1, 2], weekSet: 1, out: 'score.json' },
   2: { runs: [3, 4], weekSet: 2, out: 'score-2.json' },
+  // B-56 (2026-10-25): the same frozen answers, rescored on two fresh runs of the current profile call.
+  3: { runs: [5, 6], weekSet: 2, out: 'score-3.json' },
 };
 
 async function score(goals: EvalGoal[]): Promise<void> {
