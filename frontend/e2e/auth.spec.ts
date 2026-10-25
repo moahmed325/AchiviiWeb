@@ -214,14 +214,14 @@ test.describe('form behaviour', () => {
     await expect(page.getByRole('alert')).toHaveText('Something went wrong on our side. Please try again in a moment.');
   });
 
-  test('the keyboard order is skip link, home, email, password, toggle, submit, switch', async ({ page, isMobile }) => {
+  test('the keyboard order is skip link, home, email, password, toggle, forgot password, submit, Google, switch', async ({ page, isMobile }) => {
     test.skip(isMobile, 'Keyboard order is checked once, on desktop.');
     await mockApi(page);
     await page.goto('/login');
     // The auth screen is lazy-loaded: wait for the form before tabbing, or every Tab lands on <body>.
     await expect(page.getByLabel('Email')).toBeVisible();
     const order: string[] = [];
-    for (let i = 0; i < 7; i += 1) {
+    for (let i = 0; i < 9; i += 1) {
       await page.keyboard.press('Tab');
       order.push(
         await page.evaluate(() => {
@@ -230,7 +230,8 @@ test.describe('form behaviour', () => {
         }),
       );
     }
-    expect(order).toEqual(['Skip to content', 'Achivii, home', 'email', 'password', 'Show password', 'Sign in', 'Create an account']);
+    // B-15: the reset link and the Google button.
+    expect(order).toEqual(['Skip to content', 'Achivii, home', 'email', 'password', 'Show password', 'Forgot password?', 'Sign in', 'Continue with Google', 'Create an account']);
   });
 
   test('the password toggle reveals and hides the password', async ({ page }) => {
