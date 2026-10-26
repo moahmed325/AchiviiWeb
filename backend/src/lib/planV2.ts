@@ -111,16 +111,35 @@ interface RoutineShape {
   sleepTime?: string;
 }
 
-export function readRoutine(goal: Pick<Goal, 'routine'>): Required<Pick<RoutineShape, 'dailyMinutes' | 'planVariant'>> & RoutineShape {
-  let routine: RoutineShape = {};
+/** B-103: the stored routine as a plain object, or {} when it is missing or not JSON. The one place it is parsed. */
+export function routineRecord(goal: Pick<Goal, 'routine'>): Record<string, unknown> {
   try {
-    routine = JSON.parse(goal.routine || '{}');
-  } catch {}
+    const parsed: unknown = JSON.parse(goal.routine || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
+const PLAN_VARIANTS: readonly PlanVariant[] = ['steady', 'accelerated', 'minimal'];
+
+/** The stored routine, checked field by field (B-103): a field of the wrong type is left out, so its default applies. */
+export function readRoutine(goal: Pick<Goal, 'routine'>): Required<Pick<RoutineShape, 'dailyMinutes' | 'planVariant'>> & RoutineShape {
+  const raw = routineRecord(goal);
+  const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value : undefined);
+  const variant = PLAN_VARIANTS.find((item) => item === raw.planVariant);
   return {
-    ...routine,
-    dailyMinutes: Number(routine.dailyMinutes) || 30,
-    planVariant: routine.planVariant ?? 'steady',
+    ...(text(raw.preferredSlot) ? { preferredSlot: text(raw.preferredSlot) } : {}),
+    ...(text(raw.sleepTime) ? { sleepTime: text(raw.sleepTime) } : {}),
+    dailyMinutes: Number(raw.dailyMinutes) || 30,
+    planVariant: variant ?? 'steady',
   };
+}
+
+/** B-103: the roadmap's starting point as a number, or null (none, or a deliverable goal). */
+export function startingPointValue(goal: { roadmap?: unknown }): number | null {
+  const roadmap = goal.roadmap as { startingPoint?: { value?: unknown } } | null;
+  return typeof roadmap?.startingPoint?.value === 'number' ? roadmap.startingPoint.value : null;
 }
 
 /** The logged `RoadmapWeek.testResult` as a line for the week writer, or null when none is stored in a usable shape. */

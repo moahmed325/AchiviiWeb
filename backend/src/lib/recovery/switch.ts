@@ -1,3 +1,5 @@
+import { flagOn } from '../flags.js';
+
 /**
  * Method-aware recovery (M3.1a, 03-phases.md section 3): the method switch. Missed days follow their steps' kinds, and
  * next week continues from where the person is (M3.1d), only when this is exactly 'true'. Read per call. On in
@@ -6,5 +8,5 @@
  * `reconcileCore.ts` can both read it without importing each other.
  */
 export function methodRecoveryEnabled(): boolean {
-  return process.env.METHOD_RECOVERY_ENABLED === 'true';
+  return flagOn('METHOD_RECOVERY_ENABLED');
 }

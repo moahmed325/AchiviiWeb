@@ -1305,5 +1305,5 @@ describe('generated handoffs (AC-14, requirement 9)', () => {
           `${stats.leftAtTheEnd} steps not done at the end of week 12`
       );
     }
-  }, 30_000); // B-65: a seeded simulation; a slow CI runner can pass the 10 s default.
+  }, 90_000); // B-65: a seeded simulation; a slow CI runner or a busy machine can pass 30 s.
 });

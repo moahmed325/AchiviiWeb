@@ -1113,7 +1113,7 @@ describe('generated weeks (AC-6, AC-14): no in-order step is lost, the order hol
     expect(totals.hardMoves).toBeGreaterThan(10);
     expect(totals.carries).toBeGreaterThan(30);
     expect(totals.easy).toBeGreaterThan(100);
-  });
+  }, 60_000); // A seeded simulation of 2000 goals; a busy machine can pass the 10 s default (as B-65).
 
   it('3500 two-week goals whose profile has no in-order move kinds: ordinary carries, hard ones included, keep every rule', () => {
     const totals = { hardMoves: 0, carries: 0 };

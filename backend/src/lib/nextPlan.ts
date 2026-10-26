@@ -8,6 +8,7 @@ import { readCheckpoints, unitStep, type NumberTarget } from './weekClose/checkp
 import { isWeekTarget, safeGoalTargets, testOf, type StoredWeek } from './safety/storedTargets.js';
 import { harder, nextSafeStep } from './safety/targetSteps.js';
 import { resultNumber } from './weekClose/update.js';
+import { startingPointValue } from './planV2.js';
 
 export type NextPlanMode = 'keep_going' | 'go_further' | 'fresh';
 export const NEXT_PLAN_MODES: readonly NextPlanMode[] = ['keep_going', 'go_further', 'fresh'];
@@ -110,8 +111,7 @@ export function journeyResultOf(goal: JourneyGoal): JourneyResult | null {
     };
   }
 
-  const roadmap = goal.roadmap as { startingPoint?: { value?: unknown } } | null;
-  const startValue = typeof roadmap?.startingPoint?.value === 'number' ? roadmap.startingPoint.value : null;
+  const startValue = startingPointValue(goal);
   // The latest measured result, week 12's first (its own target's unit decides whether it counts).
   let reachedValue: number | null = null;
   let reachedWeek: number | null = null;

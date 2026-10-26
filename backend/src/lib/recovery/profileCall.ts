@@ -6,6 +6,7 @@
  * Off unless `CUSTOM_RECOVERY_PROFILES_ENABLED` is exactly 'true' (03-phases section 3, O1); M2.2 scores it.
  */
 import { generateWithOneRetry } from '../ai/retry.js';
+import { flagOn } from '../flags.js';
 import { formatAnswerLines, formatTarget, type PlanAnswer, type RoadmapPhase, type WeekTarget } from '../ai/roadmap.js';
 import { isDeliverableTarget } from './forGoal.js';
 import { pickTemplate } from './pickTemplate.js';
@@ -27,7 +28,7 @@ import { RECOVERY_TEMPLATES, templateProfile } from './templates.js';
 
 /** O1: the profile call runs only when this is exactly 'true'. Read per request. Never set from code or tests. */
 export function customProfilesEnabled(): boolean {
-  return process.env.CUSTOM_RECOVERY_PROFILES_ENABLED === 'true';
+  return flagOn('CUSTOM_RECOVERY_PROFILES_ENABLED');
 }
 
 export interface ProfileCallInput {

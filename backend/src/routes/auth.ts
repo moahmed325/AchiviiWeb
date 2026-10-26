@@ -53,6 +53,22 @@ async function correctDefaultTimezone(
   }
 }
 
+/**
+ * B-105: first sign-in only. A user row made before Supabase (found by email) is linked to this Supabase account once;
+ * a row already linked to another account is never taken over. Per-request auth reaches this only when the account
+ * has no linked row yet.
+ */
+async function linkByEmail(existing: { id: string; auth_user_id: string | null }, authUserId: string): Promise<AuthenticatedUser | null> {
+  if (existing.auth_user_id && existing.auth_user_id !== authUserId) return null;
+  try {
+    // A conditional update decides a race between two first requests; the loser reads the winner's link.
+    await prisma.user.updateMany({ where: { id: existing.id, auth_user_id: null }, data: { auth_user_id: authUserId } });
+    return await prisma.user.findUnique({ where: { auth_user_id: authUserId }, select: authUserSelect });
+  } catch {
+    return null;
+  }
+}
+
 async function resolveSupabaseUser(
   authUserId: string,
   email: string | null,
@@ -72,32 +88,7 @@ async function resolveSupabaseUser(
     select: { ...authUserSelect, auth_user_id: true },
   });
 
-  if (existing) {
-    if (existing.auth_user_id && existing.auth_user_id !== authUserId) {
-      return null;
-    }
-
-    try {
-      const linkedNow = await prisma.user.updateMany({
-        where: { id: existing.id, auth_user_id: null },
-        data: { auth_user_id: authUserId },
-      });
-      if (linkedNow.count === 1) {
-        return await prisma.user.findUnique({
-          where: { auth_user_id: authUserId },
-          select: authUserSelect,
-        });
-      }
-
-      const afterRace = await prisma.user.findUnique({
-        where: { auth_user_id: authUserId },
-        select: authUserSelect,
-      });
-      return afterRace ?? null;
-    } catch {
-      return null;
-    }
-  }
+  if (existing) return linkByEmail(existing, authUserId);
 
   try {
     return await prisma.user.create({
