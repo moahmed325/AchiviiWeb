@@ -281,6 +281,13 @@ export function groupPathways(pathways: CertifiedPathway[]): PathwayGroup[] {
 /** The directions that hold at least one pathway, in display order. An empty direction is never shown. */
 export const PATHWAY_GROUPS: PathwayGroup[] = groupPathways(CERTIFIED_PATHWAYS);
 
+/** The four pathways the landing page shows as photos, one per direction; the rest sit behind "See all". */
+export const FEATURED_PATHWAYS: CertifiedPathway[] = ['run10k', 'spanish', 'youtube', 'speech'].map((id) => {
+  const pathway = CERTIFIED_PATHWAYS.find((p) => p.id === id);
+  if (!pathway) throw new Error(`Unknown featured pathway: ${id}`);
+  return pathway;
+});
+
 /** Looks up a pathway by the slug used in `/signup?pathway=<slug>`; the slug is the pathway's `id`. */
 export function findPathwayBySlug(slug: string | null | undefined): CertifiedPathway | undefined {
   if (!slug) return undefined;
