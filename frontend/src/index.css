@@ -955,6 +955,37 @@ html:has(.marketing) {
   }
 }
 
+/* Gold botanical engraving framing the closing section from both sides: the garden at the top of the stairs.
+   Faint, and fading toward the centre so the call to action stays clear. */
+.landing-botanical {
+  position: absolute;
+  inset-block: 0;
+  z-index: -1;
+  width: 60%;
+  background: url('/images/brand/botanical.webp') center / cover no-repeat;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+.landing-botanical-left {
+  left: 0;
+  -webkit-mask-image: linear-gradient(to right, black, transparent);
+  mask-image: linear-gradient(to right, black, transparent);
+}
+
+.landing-botanical-right {
+  right: 0;
+  -webkit-mask-image: linear-gradient(to left, black, transparent);
+  mask-image: linear-gradient(to left, black, transparent);
+}
+
+@media (width >= 48rem) {
+  .landing-botanical {
+    width: min(34%, 420px);
+    opacity: 0.22;
+  }
+}
+
 .landing-light-close {
   background-image: radial-gradient(50% 70% at 50% 100%, color-mix(in oklab, var(--color-achievement) 10%, transparent), transparent 70%);
 }
