@@ -17,6 +17,7 @@ import { MarketingFooter } from './sections/MarketingFooter';
 export const LandingPage: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) => (
   <div className="marketing relative min-h-[100dvh] w-full bg-background text-left text-text antialiased">
     <SkipLink />
+    <div aria-hidden="true" className="landing-rails" />
     <MarketingNav apiOffline={apiOffline} />
     <main id="main">
       <Hero />
