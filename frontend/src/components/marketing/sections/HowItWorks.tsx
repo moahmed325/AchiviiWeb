@@ -26,7 +26,7 @@ export const HowItWorks: React.FC = () => (
     <ol className="mt-12 grid gap-4 md:grid-cols-3">
       {STEPS.map((step, index) => (
         <li key={step.title} className="rounded-panel border border-border bg-surface p-6 sm:p-7">
-          <span className="tabular font-ui-mono text-small text-achievement">{`0${index + 1}`}</span>
+          <span className="tabular font-ui-mono text-small text-text-secondary">{`0${index + 1}`}</span>
           <h3 className="mt-6 text-h3 text-text">{step.title}</h3>
           <p className="mt-2 text-body text-text-secondary">{step.body}</p>
         </li>

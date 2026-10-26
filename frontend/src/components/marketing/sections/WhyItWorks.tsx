@@ -1,9 +1,8 @@
 import React from 'react';
-import { Section, Eyebrow, HEADING } from '../Section';
 
 /**
  * Achivii has no track record yet, so instead of testimonials or invented numbers this section shows how the
- * plans are made. Every claim here must stay true of the product.
+ * plans are made. Every claim here must stay true of the product. It is the page's one light section (D-3).
  */
 const POINTS = [
   {
@@ -21,31 +20,36 @@ const POINTS = [
 ];
 
 export const WhyItWorks: React.FC = () => (
-  <Section id="why" labelledBy="why-title">
-    <div className="grid gap-10 lg:grid-cols-12">
+  <section
+    id="why"
+    aria-labelledby="why-title"
+    className="on-inverse scroll-mt-24 bg-surface-inverse px-gutter py-20 text-text-on-inverse sm:py-32"
+  >
+    <div className="mx-auto grid w-full max-w-[1120px] gap-12 lg:grid-cols-12">
       <div className="lg:col-span-5">
-        <Eyebrow>Why it works</Eyebrow>
-        <h2 id="why-title" className={`mt-4 ${HEADING}`}>
+        <p className="text-small text-text-secondary-on-inverse">Why it works</p>
+        <h2 id="why-title" className="mt-4 text-balance text-h2">
           No hype. Here’s how every plan is made.
         </h2>
-        <p className="mt-4 text-body-lg text-text-secondary">
+        <p className="mt-4 text-body-lg text-text-secondary-on-inverse">
           Achivii is new, so we don’t have years of success stories yet. What we can show you is what goes into each
           plan.
         </p>
+        <span aria-hidden="true" className="mt-8 block h-0.5 w-12 bg-achievement" />
       </div>
 
-      <ul className="space-y-8 lg:col-span-6 lg:col-start-7">
+      <ul className="lg:col-span-6 lg:col-start-7">
         {POINTS.map((point) => (
-          <li key={point.title} className="border-t border-border pt-6">
-            <h3 className="text-h3 text-text">{point.title}</h3>
-            <p className="mt-2 text-body text-text-secondary">{point.body}</p>
+          <li key={point.title} className="border-t border-text-on-inverse/15 py-6">
+            <h3 className="text-h3">{point.title}</h3>
+            <p className="mt-2 text-body text-text-secondary-on-inverse">{point.body}</p>
           </li>
         ))}
-        <li className="text-small text-text-muted">
+        <li className="border-t border-text-on-inverse/15 pt-6 text-small text-text-secondary-on-inverse">
           Methods are named after the published books and coaching approaches they come from. Achivii isn’t affiliated
           with or endorsed by their authors.
         </li>
       </ul>
     </div>
-  </Section>
+  </section>
 );

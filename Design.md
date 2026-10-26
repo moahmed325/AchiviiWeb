@@ -65,6 +65,7 @@ Tokens are named by **role, never by colour**, so a rebrand changes only the `@t
 | `text-secondary` | `#A7A59E` | Supporting text, labels, **all micro text** |
 | `text-muted` | `#6F6D67` | Large text, placeholders and decorative dividers only (see §2.2) |
 | `text-on-inverse` | `#0B0B0A` | Text on `surface-inverse`, on the primary button, and on accent fills |
+| `text-secondary-on-inverse` | `#5B564C` | Supporting text on `surface-inverse` |
 | `accent` | `#7FA58B` | Progress, selected state, active markers |
 | `accent-hover` | `#A8C8A9` | Hover of accent elements; **the focus ring**; accent text on dark |
 | `accent-on-inverse` | `#3F6B4E` | Any green text, icon or focus ring on `surface-inverse` |
@@ -106,6 +107,7 @@ On the light surface:
 |---|---|---|
 | `text-on-inverse` on `surface-inverse` | 17.11 | Pass |
 | `accent-on-inverse` on `surface-inverse` | 5.33 | Pass |
+| `text-secondary-on-inverse` on `surface-inverse` | 6.41 | Pass |
 | `text-muted` on `surface-inverse` | 4.496 | **Fail** for normal text (large text only) |
 | `text-secondary` on `surface-inverse` | 2.14 | **Fail** |
 | `accent` on `surface-inverse` | 2.38 | **Fail.** Use `accent-on-inverse`. |
@@ -121,7 +123,7 @@ Rules that follow from this:
 - **`text-muted` fails AA for normal text.** Use it only for large text, placeholders and decorative marks. Anything a user must read at body size or smaller uses `text-secondary` or stronger.
 - **Micro text (`text-micro`, 12px) always uses `text-secondary` or stronger, never `text-muted`.**
 - **Controls a user must find have a 3:1 boundary.** Inputs, textareas, selects, checkboxes and radios use `border-control`. `border` and `border-strong` are decorative: they may outline buttons, cards, choice cards and segmented tracks only because those are identified by their text label, not by the line around them.
-- **On `surface-inverse`, only `text-on-inverse` and `accent-on-inverse` pass.** Every status colour, `text-secondary` and `accent-hover` fail there, which is why the light surface holds text and `TextLink` only for now.
+- **On `surface-inverse`, only `text-on-inverse`, `text-secondary-on-inverse` and `accent-on-inverse` pass.** Every status colour, `text-secondary` and `accent-hover` fail there, which is why the light surface holds text and `TextLink` only for now.
 - **Colour is never the only signal.** Status has a word (Badge), progress has a number (`ProgressBar` `valueText`), step states have different shapes (`StepMarker`), and errors have an icon and a sentence.
 
 ### 2.3 Typography

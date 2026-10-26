@@ -34,7 +34,7 @@ export const Pricing: React.FC = () => (
         <li
           key={plan.name}
           className={`flex flex-col justify-between rounded-panel border bg-surface p-7 sm:p-8 ${
-            plan.featured ? 'border-achievement/40' : 'border-border'
+            plan.featured ? 'border-border-strong' : 'border-border'
           }`}
         >
           <div>
@@ -49,7 +49,7 @@ export const Pricing: React.FC = () => (
                   <Check
                     aria-hidden="true"
                     strokeWidth={1.5}
-                    className={`mt-1 size-4 shrink-0 ${plan.featured ? 'text-achievement' : 'text-text-secondary'}`}
+                    className={`mt-1 size-4 shrink-0 text-text-secondary`}
                   />
                   {item}
                 </li>
