@@ -75,6 +75,7 @@ import {
 import { checkpointsAtClose } from '../lib/weekClose/checkpointClose.js';
 import type { DayNinetyLine } from '../lib/ai/dayNinety.js';
 import { logSafetyHit, type SafetyLogLine } from '../lib/ai/safetyScan.js';
+import { byIp, byTokenOrIp, routeLimit } from '../lib/rateLimit.js';
 import {
   RETEST_LOGGED_KEY,
   dailyTimeCheckOf,
@@ -371,7 +372,8 @@ export const goalRouter = Router();
  * POST /api/goal/clarify
  * Analyzes raw goal, formulates clarified outcome, domain frameworks, and tailored questions.
  */
-goalRouter.post('/clarify', async (req: Request, res: Response): Promise<void> => {
+// B-99 (6): clarify needs no sign-in and calls the model, so it is limited per IP; create, per signed-in token.
+goalRouter.post('/clarify', routeLimit({ windowMs: 60_000, max: 10, keyOf: byIp }), async (req: Request, res: Response): Promise<void> => {
   try {
     const { rawGoal } = req.body;
     if (!rawGoal || typeof rawGoal !== 'string' || !rawGoal.trim()) {
@@ -391,7 +393,7 @@ goalRouter.post('/clarify', async (req: Request, res: Response): Promise<void> =
  * POST /api/goal/create
  * Creates the goal, 12-week roadmap, and Week 1 daily tasks.
  */
-goalRouter.post('/create', async (req: Request, res: Response): Promise<void> => {
+goalRouter.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf: byTokenOrIp }), async (req: Request, res: Response): Promise<void> => {
   try {
     const user = await getAuthUser(req);
     if (!user) {

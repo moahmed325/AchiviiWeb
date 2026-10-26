@@ -20,6 +20,9 @@ const defaultOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173', 'http:
 const allowedOrigins = Array.from(new Set([...configuredOrigins, ...defaultOrigins]));
 
 // Dynamic CORS configuration supporting production domains and Vercel preview deployments (*.vercel.app)
+// B-99 (6): Render sits in front as one proxy hop, so req.ip is the client's (the rate limit reads it).
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser requests (e.g. curl, health checks, server-to-server)
