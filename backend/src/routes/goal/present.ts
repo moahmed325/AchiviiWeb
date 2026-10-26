@@ -3,8 +3,6 @@ import { Request, Response } from 'express';
 import { journeyResultOf, readPreviousPlan, type JourneyGoal, type JourneyResult, type PreviousPlan } from '../../lib/nextPlan.js';
 import { safeGoalTargets, type StoredWeek, type Week12Line } from '../../lib/safety/storedTargets.js';
 import { formatBasisBadge } from '../../lib/research/planGrounding.js';
-import { applySafetyClamps } from '../../lib/research/safetyClamps.js';
-import type { VelocityTable } from '../../lib/research/types.js';
 import { readRoutine } from '../../lib/planV2.js';
 import { weeklyUpdateEnabled } from '../../lib/weekClose/switch.js';
 import { checkpointViewOf, dayNinetyLineOf, type CheckpointView } from '../../lib/weekClose/checkpoint.js';
@@ -29,10 +27,6 @@ export function openPlanStream(res: Response, startedAt: number) {
   };
 }
 
-export function clampedTable(value: unknown, goalId?: string): VelocityTable | null {
-  if (!value || typeof value !== 'object') return null;
-  return applySafetyClamps(value as VelocityTable, { source: 'goal', goalId }).table;
-}
 
 /**
  * Plan safety limits M1.3 (RULE-9, PSL-12): an older goal's targets lowered on read, and the honest week 12 line. Writes
@@ -112,9 +106,6 @@ export function presentGoal<T extends Record<string, unknown>>(
   journeyResult: JourneyResult | null;
   previousPlan: PreviousPlan | null;
 } {
-  const velocityTable = goal.velocityTable
-    ? clampedTable(goal.velocityTable, typeof goal.id === 'string' ? goal.id : undefined)
-    : goal.velocityTable;
   const safe = safeTargetsOf(goal);
   const weeks = safe ? safe.roadmapWeeks : goal.roadmapWeeks;
   return {
@@ -125,7 +116,6 @@ export function presentGoal<T extends Record<string, unknown>>(
     ...nextPlanOfGoal(goal),
     // RULE-3 (B-95, B-98): the status stays inside; no goal response carries `updateStatus`.
     ...(Array.isArray(weeks) ? { roadmapWeeks: weeks.map(withoutStatus) } : {}),
-    velocityTable,
     basis: formatBasisBadge({
       methodKind: goal.methodKind as string | null | undefined,
       methodConfidence: goal.methodConfidence as string | null | undefined,
