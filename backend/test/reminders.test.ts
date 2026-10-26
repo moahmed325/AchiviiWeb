@@ -2,13 +2,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import express from 'express';
 import type { Server } from 'node:http';
 import { prisma } from '../src/lib/prisma.js';
-import { dayBefore, reminderFor, type ReminderCandidate, type ReminderTask } from '../src/lib/reminders/plan.js';
+import { reminderFor, type ReminderCandidate, type ReminderTask } from '../src/lib/reminders/plan.js';
 import { buildReminderEmail, unsubscribeUrl, validUnsubscribeToken } from '../src/lib/reminders/email.js';
 import { runReminders } from '../src/lib/reminders/run.js';
 import { remindersRouter } from '../src/routes/reminders.js';
 
 vi.mock('../src/lib/prisma.js', () => ({
-  prisma: { user: { findMany: vi.fn(), updateMany: vi.fn() } },
+  prisma: { user: { findMany: vi.fn(), updateMany: vi.fn() }, dailyTask: { findFirst: vi.fn() } },
 }));
 
 // 09:30 on Monday 26 October in Tokyo (00:30 UTC).
@@ -20,9 +20,6 @@ const day = (date: string, over: Partial<ReminderTask> = {}): ReminderTask => ({
   status: 'pending',
   isRestDay: false,
   notOffered: false,
-  title: `Session ${date}`,
-  durationMinutes: 30,
-  completedAt: null,
   minimumVersion: { title: 'Short version' },
   ...over,
 });
@@ -33,13 +30,20 @@ const candidate = (over: Partial<ReminderCandidate> = {}): ReminderCandidate => 
   timezone: TZ,
   remindersEnabled: true,
   lastReminderAt: null,
-  tasks: [day('2026-10-24', { status: 'completed', completedAt: new Date('2026-10-24T10:00:00Z') }), day('2026-10-25'), day('2026-10-26', { title: 'Tempo run' })],
+  lastCompletedAt: new Date('2026-10-24T10:00:00Z'),
+  tasks: [day('2026-10-24', { status: 'completed' }), day('2026-10-25'), day('2026-10-26')],
   ...over,
 });
 
 describe('reminderFor (ND-26)', () => {
-  it('reminds the morning after a missed practice day, naming today\'s step', () => {
-    expect(reminderFor(candidate(), NOW)).toEqual({ userId: 'u1', email: 'leo@example.com', todayTitle: 'Tempo run', todayMinutes: 30, hasMinimum: true });
+  it('reminds the morning after a missed practice day', () => {
+    expect(reminderFor(candidate(), NOW)).toEqual({ userId: 'u1', email: 'leo@example.com', today: '2026-10-26', hasMinimum: true });
+  });
+
+  it('yesterday counts as missed only if nothing on that date was done (two rows on one date)', () => {
+    const tasks = [...candidate().tasks, day('2026-10-25', { status: 'completed' })];
+    expect(reminderFor(candidate({ tasks }), NOW)).toBeNull();
+    expect(reminderFor(candidate({ tasks: [...candidate().tasks, day('2026-10-25', { isRestDay: true })] }), NOW)).not.toBeNull();
   });
 
   it('only in the person\'s morning, by their time zone', () => {
@@ -68,10 +72,12 @@ describe('reminderFor (ND-26)', () => {
   });
 
   it('one per gap: none until a practice day is completed after the last reminder', () => {
-    // A reminder 4 days ago and nothing completed since: still in the same gap.
-    expect(reminderFor(candidate({ lastReminderAt: new Date('2026-10-22T00:00:00Z'), tasks: candidate().tasks.map((t) => ({ ...t, completedAt: t.completedAt && new Date('2026-10-20T00:00:00Z') })) }), NOW)).toBeNull();
-    // Completed something after it: a new gap, so a new reminder.
-    expect(reminderFor(candidate({ lastReminderAt: new Date('2026-10-22T00:00:00Z') }), NOW)).not.toBeNull();
+    const last = new Date('2026-10-22T00:00:00Z');
+    expect(reminderFor(candidate({ lastReminderAt: last, lastCompletedAt: new Date('2026-10-20T00:00:00Z') }), NOW)).toBeNull();
+    expect(reminderFor(candidate({ lastReminderAt: last, lastCompletedAt: null }), NOW)).toBeNull();
+    expect(reminderFor(candidate({ lastReminderAt: last }), NOW)).not.toBeNull();
+    // The run asks first without the gap rule, to load the last completion only when it matters.
+    expect(reminderFor(candidate({ lastReminderAt: last, lastCompletedAt: null }), NOW, true)).not.toBeNull();
   });
 
   it('never two within three days', () => {
@@ -83,9 +89,10 @@ describe('reminderFor (ND-26)', () => {
     expect(reminderFor(candidate({ tasks }), NOW)?.hasMinimum).toBe(false);
   });
 
-  it('dayBefore works on calendar keys across months', () => {
-    expect(dayBefore('2026-11-01')).toBe('2026-10-31');
-    expect(dayBefore('2027-01-01')).toBe('2026-12-31');
+  it('finds yesterday across a month boundary', () => {
+    const nov1 = new Date('2026-11-01T00:30:00Z'); // 09:30 on 1 November in Tokyo
+    const tasks = [day('2026-10-31'), day('2026-11-01')];
+    expect(reminderFor(candidate({ tasks }), nov1)?.today).toBe('2026-11-01');
   });
 });
 
@@ -97,21 +104,24 @@ describe('the reminder email (ND-26)', () => {
   });
   afterEach(() => vi.unstubAllEnvs());
 
-  it('is calm, names today\'s step, links to the app and to unsubscribe', () => {
-    const email = buildReminderEmail({ userId: 'u1', email: 'leo@example.com', todayTitle: 'Tempo run', todayMinutes: 30, hasMinimum: true });
+  it('is calm, does not name the step (opening the app may still move it), links to the app and to unsubscribe', () => {
+    const email = buildReminderEmail({ userId: 'u1', email: 'leo@example.com', today: '2026-10-26', hasMinimum: true });
     expect(email.subject).toBe('No catch-up needed');
     expect(email.text).toContain("Yesterday's session didn't happen. That's fine: nothing needs making up, and the plan carries on.");
-    expect(email.text).toContain("Today's step: Tempo run (30 min).");
+    expect(email.text).toContain("Today's step is ready when you are.");
     expect(email.text).toContain('Short on time? The 10-minute version counts.');
-    expect(email.text).toContain('https://app.example.com');
+    expect(email.text).toContain('Open today\'s step: https://app.example.com');
     expect(email.unsubscribeUrl).toMatch(/^https:\/\/api\.example\.com\/api\/reminders\/unsubscribe\?u=u1&t=/);
+    expect(email.idempotencyKey).toBe('missed-day-u1-2026-10-26');
     for (const word of [/failed/i, /behind/i, /streak/i]) expect(email.text).not.toMatch(word);
   });
 
-  it('escapes the step title in the HTML', () => {
-    const email = buildReminderEmail({ userId: 'u1', email: 'x@example.com', todayTitle: '<b>Run</b> & "go"', todayMinutes: 0, hasMinimum: false });
-    expect(email.html).toContain('&lt;b&gt;Run&lt;/b&gt; &amp; &quot;go&quot;');
-    expect(email.html).not.toContain('<b>Run</b>');
+  it('links to the first app origin when CLIENT_ORIGIN lists several', () => {
+    vi.stubEnv('CLIENT_ORIGIN', 'https://app.example.com/, https://other.example.com');
+    const email = buildReminderEmail({ userId: 'u1', email: 'x@example.com', today: '2026-10-26', hasMinimum: false });
+    expect(email.text).toContain("Open today's step: https://app.example.com\n");
+    expect(email.html).toContain('<a href="https://app.example.com">');
+    expect(email.text).toContain('Even a short session counts.');
   });
 
   it('the unsubscribe signature is per user and checked exactly', () => {
@@ -133,7 +143,7 @@ describe('runReminders (ND-26)', () => {
     timezone: TZ,
     remindersEnabled: true,
     lastReminderAt: null,
-    goals: [{ dailyTasks: candidate().tasks }],
+    goals: [{ id: 'g1', dailyTasks: candidate().tasks }],
     ...over,
   });
 
@@ -153,9 +163,12 @@ describe('runReminders (ND-26)', () => {
   });
 
   it('claims, then sends one email through Resend with one-click unsubscribe headers', async () => {
-    (prisma.user.findMany as any).mockResolvedValue([row(), row({ id: 'u2', goals: [{ dailyTasks: [] }] })]);
+    (prisma.user.findMany as any).mockResolvedValue([row(), row({ id: 'u2', goals: [{ id: 'g2', dailyTasks: [] }] })]);
 
-    expect(await runReminders(NOW)).toEqual({ checked: 2, sent: 1, failed: 0 });
+    expect(await runReminders(NOW, 0)).toEqual({ checked: 2, sent: 1, failed: 0 });
+    // Only the days around today are loaded.
+    expect((prisma.user.findMany as any).mock.calls[0][0].select.goals.select.dailyTasks.where).toEqual({ date: { gte: '2026-10-24', lte: '2026-10-27' } });
+    expect(prisma.dailyTask.findFirst).not.toHaveBeenCalled();
     expect(prisma.user.updateMany).toHaveBeenCalledWith({
       where: { id: 'u1', remindersEnabled: true, lastReminderAt: null },
       data: { lastReminderAt: NOW },
@@ -167,12 +180,26 @@ describe('runReminders (ND-26)', () => {
     expect(body).toMatchObject({ from: 'Achivii <r@example.com>', to: ['leo@example.com'], subject: 'No catch-up needed' });
     expect(body.headers['List-Unsubscribe-Post']).toBe('List-Unsubscribe=One-Click');
     expect(init.headers.Authorization).toBe('Bearer key');
+    expect(init.headers['Idempotency-Key']).toBe('missed-day-u1-2026-10-26');
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('after an earlier reminder, loads the last completion and sends only for a new gap', async () => {
+    const last = new Date('2026-10-20T00:00:00Z');
+    (prisma.user.findMany as any).mockResolvedValue([row({ lastReminderAt: last })]);
+    (prisma.dailyTask.findFirst as any).mockResolvedValueOnce({ completedAt: new Date('2026-10-19T00:00:00Z') });
+    expect(await runReminders(NOW, 0)).toEqual({ checked: 1, sent: 0, failed: 0 });
+    expect(prisma.dailyTask.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ goalId: { in: ['g1'] }, status: 'completed' }) }));
+
+    (prisma.dailyTask.findFirst as any).mockResolvedValueOnce({ completedAt: new Date('2026-10-24T00:00:00Z') });
+    expect(await runReminders(NOW, 0)).toEqual({ checked: 1, sent: 1, failed: 0 });
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({ where: { id: 'u1', remindersEnabled: true, lastReminderAt: last }, data: { lastReminderAt: NOW } });
   });
 
   it('sends nothing when another run already claimed the person', async () => {
     (prisma.user.findMany as any).mockResolvedValue([row()]);
     (prisma.user.updateMany as any).mockResolvedValueOnce({ count: 0 });
-    expect(await runReminders(NOW)).toEqual({ checked: 1, sent: 0, failed: 0 });
+    expect(await runReminders(NOW, 0)).toEqual({ checked: 1, sent: 0, failed: 0 });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -180,7 +207,7 @@ describe('runReminders (ND-26)', () => {
     (prisma.user.findMany as any).mockResolvedValue([row()]);
     fetchMock.mockResolvedValueOnce(new Response('bad', { status: 500 }));
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    expect(await runReminders(NOW)).toEqual({ checked: 1, sent: 0, failed: 1 });
+    expect(await runReminders(NOW, 0)).toEqual({ checked: 1, sent: 0, failed: 1 });
     expect(prisma.user.updateMany).toHaveBeenLastCalledWith({ where: { id: 'u1', lastReminderAt: NOW }, data: { lastReminderAt: null } });
   });
 });
@@ -242,18 +269,28 @@ describe('/api/reminders routes (ND-26)', () => {
     expect(await (await run('Bearer cron-secret')).json()).toEqual({ checked: 0, sent: 0, failed: 0 });
   });
 
-  it('unsubscribe turns reminders off with a valid link, by GET or one-click POST', async () => {
-    (prisma.user.updateMany as any).mockResolvedValue({ count: 1 });
+  it('opening the link only asks: a GET changes nothing (mail scanners follow links)', async () => {
     const link = unsubscribeUrl('u1').replace('https://api.example.com', baseUrl);
     const res = await fetch(link);
     expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain('Stop the missed-day emails?');
+    expect(html).toContain('<form method="post">');
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('a POST to the link (the button, or one-click from the mail app) turns reminders off', async () => {
+    (prisma.user.updateMany as any).mockResolvedValue({ count: 1 });
+    const link = unsubscribeUrl('u1').replace('https://api.example.com', baseUrl);
+    const res = await fetch(link, { method: 'POST', body: 'List-Unsubscribe=One-Click' });
+    expect(res.status).toBe(200);
     expect(await res.text()).toContain("You won't get missed-day emails any more");
     expect(prisma.user.updateMany).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { remindersEnabled: false } });
-    expect((await fetch(link, { method: 'POST', body: 'List-Unsubscribe=One-Click' })).status).toBe(200);
   });
 
   it('unsubscribe refuses a bad link and changes nothing', async () => {
-    const res = await fetch(`${baseUrl}/api/reminders/unsubscribe?u=u1&t=forged`);
+    expect((await fetch(`${baseUrl}/api/reminders/unsubscribe?u=u1&t=forged`)).status).toBe(400);
+    const res = await fetch(`${baseUrl}/api/reminders/unsubscribe?u=u1&t=forged`, { method: 'POST' });
     expect(res.status).toBe(400);
     expect(prisma.user.updateMany).not.toHaveBeenCalled();
   });

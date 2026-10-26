@@ -6,19 +6,26 @@ import { RemindersSetting } from './AccountMenu';
 // ND-26: the missed-day reminder email, on unless turned off, switched from the account menu.
 
 const auth = vi.hoisted(() => ({
-  user: { id: 'u1', email: 'leo@example.com', created_at: '' } as { remindersEnabled?: boolean } & Record<string, unknown>,
+  user: { id: 'u1', email: 'leo@example.com', created_at: '' } as { remindersEnabled?: boolean; remindersAvailable?: boolean } & Record<string, unknown>,
   setReminders: vi.fn(),
 }));
 vi.mock('../../context/AuthContext', () => ({ useAuth: () => auth }));
 
 beforeEach(() => {
   auth.user.remindersEnabled = undefined;
+  auth.user.remindersAvailable = true;
   auth.setReminders.mockReset().mockResolvedValue(undefined);
 });
 
 const box = () => screen.getByRole('checkbox', { name: 'Email me after a missed day' });
 
 describe('the reminders setting', () => {
+  it('is hidden while reminder emails are not being sent', () => {
+    auth.user.remindersAvailable = false;
+    const { container } = render(<RemindersSetting />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it('is on by default and turns off when unticked', async () => {
     const user = userEvent.setup();
     render(<RemindersSetting />);

@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Reminder } from './plan.js';
+import { flagOn } from '../flags.js';
 
 /**
  * ND-26: the reminder email, its unsubscribe link and the send (Resend's HTTP API, no SDK). Settings, all in the
@@ -14,14 +15,22 @@ export interface ReminderEmail {
   text: string;
   html: string;
   unsubscribeUrl: string;
+  /** Resend keeps this for 24 hours: a resend after a lost answer is not delivered twice. */
+  idempotencyKey: string;
 }
 
 export function emailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY && process.env.REMINDER_FROM && process.env.REMINDERS_SIGNING_SECRET && apiPublicUrl());
 }
 
+/** Whether reminders are really being sent: the switch is on and every setting is present. */
+export function remindersLive(): boolean {
+  return flagOn('MISSED_DAY_REMINDERS_ENABLED') && emailConfigured();
+}
+
 const apiPublicUrl = () => (process.env.API_PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
-const appUrl = () => (process.env.CLIENT_ORIGIN || 'https://achiviiweb.vercel.app').replace(/\/+$/, '');
+// CLIENT_ORIGIN may list several origins (CORS, src/index.ts); the first is the app.
+const appUrl = () => ((process.env.CLIENT_ORIGIN || '').split(',')[0].trim() || 'https://achiviiweb.vercel.app').replace(/\/+$/, '');
 
 function signature(userId: string): string {
   return createHmac('sha256', process.env.REMINDERS_SIGNING_SECRET ?? '').update(`unsubscribe:${userId}`).digest('base64url');
@@ -45,12 +54,12 @@ const escapeHtml = (text: string) =>
 export function buildReminderEmail(reminder: Reminder): ReminderEmail {
   const link = appUrl();
   const unsubscribe = unsubscribeUrl(reminder.userId);
-  const minutes = reminder.todayMinutes > 0 ? ` (${reminder.todayMinutes} min)` : '';
-  const short = reminder.hasMinimum ? 'Short on time? The 10-minute version counts.' : 'Even a few minutes counts.';
+  // Today's step is not named: opening the app can still move it (carry, ND-25's swap), and the email must not
+  // contradict what the app then shows.
   const lines = [
     "Yesterday's session didn't happen. That's fine: nothing needs making up, and the plan carries on.",
-    `Today's step: ${reminder.todayTitle}${minutes}.`,
-    short,
+    "Today's step is ready when you are.",
+    reminder.hasMinimum ? 'Short on time? The 10-minute version counts.' : 'Even a short session counts.',
   ];
   const text = `${lines.join('\n\n')}\n\nOpen today's step: ${link}\n\n—\nYou get one email like this after a missed day. Turn these off: ${unsubscribe}`;
   const html = [
@@ -58,14 +67,28 @@ export function buildReminderEmail(reminder: Reminder): ReminderEmail {
     `<p><a href="${escapeHtml(link)}">Open today's step</a></p>`,
     `<p style="color:#888;font-size:12px">You get one email like this after a missed day. <a href="${escapeHtml(unsubscribe)}">Turn these off</a>.</p>`,
   ].join('\n');
-  return { to: reminder.email, subject: 'No catch-up needed', text, html, unsubscribeUrl: unsubscribe };
+  return {
+    to: reminder.email,
+    subject: 'No catch-up needed',
+    text,
+    html,
+    unsubscribeUrl: unsubscribe,
+    idempotencyKey: `missed-day-${reminder.userId}-${reminder.today}`,
+  };
 }
+
+const SEND_TIMEOUT_MS = 15_000;
 
 /** Sends one email through Resend. Throws on a failed send, so the caller does not record it as sent. */
 export async function sendEmail(email: ReminderEmail): Promise<void> {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+      'Idempotency-Key': email.idempotencyKey,
+    },
+    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     body: JSON.stringify({
       from: process.env.REMINDER_FROM,
       to: [email.to],

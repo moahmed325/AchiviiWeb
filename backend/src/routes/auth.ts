@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { verifySupabaseToken } from '../lib/supabaseAuth.js';
 import { isValidTimezone } from '../lib/timezone.js';
+import { remindersLive } from '../lib/reminders/email.js';
+import { UnauthorizedError, ValidationError } from '../lib/httpErrors.js';
 
 export const authRouter = Router();
 
@@ -20,6 +22,12 @@ const authUserSelect = {
   created_at: true,
   remindersEnabled: true,
 } as const;
+
+/** The user as the app gets it: ND-26 adds whether reminder emails are being sent at all, so Account shows the
+ * setting only then. */
+function presentUser<T extends object>(user: T): T & { remindersAvailable: boolean } {
+  return { ...user, remindersAvailable: remindersLive() };
+}
 
 /** The default every user starts with (schema.prisma), and the zones that mean the same thing. */
 const DEFAULT_TIMEZONE = 'UTC';
@@ -140,7 +148,7 @@ authRouter.get('/me', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    res.status(200).json({ user });
+    res.status(200).json({ user: presentUser(user) });
   } catch (error: any) {
     console.error('Auth /me error:', error);
     res.status(500).json({ error: 'Failed to authenticate user.' });
@@ -162,7 +170,7 @@ authRouter.put('/timezone', async (req: Request, res: Response): Promise<void> =
     return;
   }
   const updated = await prisma.user.update({ where: { id: user.id }, data: { timezone: zone }, select: authUserSelect });
-  res.status(200).json({ user: updated });
+  res.status(200).json({ user: presentUser(updated) });
 });
 
 // PUT /api/auth/reminders: ND-26, the missed-day reminder email on or off (Account). The email's own unsubscribe link
@@ -170,17 +178,11 @@ authRouter.put('/timezone', async (req: Request, res: Response): Promise<void> =
 authRouter.put('/reminders', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const user = await getAuthUser(req);
-    if (!user) {
-      res.status(401).json({ error: 'Unauthorized. Please sign in.' });
-      return;
-    }
+    if (!user) throw new UnauthorizedError();
     const enabled = req.body?.enabled;
-    if (typeof enabled !== 'boolean') {
-      res.status(400).json({ error: 'enabled must be true or false.' });
-      return;
-    }
+    if (typeof enabled !== 'boolean') throw new ValidationError('enabled must be true or false.');
     const updated = await prisma.user.update({ where: { id: user.id }, data: { remindersEnabled: enabled }, select: authUserSelect });
-    res.status(200).json({ user: updated });
+    res.status(200).json({ user: presentUser(updated) });
   } catch (err) {
     next(err);
   }

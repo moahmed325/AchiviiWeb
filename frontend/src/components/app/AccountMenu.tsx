@@ -78,12 +78,15 @@ export const TimezoneNotice: React.FC = () => {
   );
 };
 
-/** ND-26: the missed-day reminder email, on unless turned off. Saves on change; a failed save puts the box back. */
+/**
+ * ND-26: the missed-day reminder email, on unless turned off. Shown only while reminders are really sent
+ * (`remindersAvailable`), so it never promises an email that won't come. Saves on change; a failed save says so.
+ */
 export const RemindersSetting: React.FC = () => {
   const { user, setReminders } = useAuth();
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
-  if (!user) return null;
+  if (!user?.remindersAvailable) return null;
   const on = user.remindersEnabled !== false;
   const change = async (enabled: boolean) => {
     setSaving(true);

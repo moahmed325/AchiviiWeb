@@ -1835,7 +1835,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 **Context.** Nothing brought people back after a miss: the app sent no reminders of any kind, so the calm notices, the gentle return and the 10-minute version reached only people who opened the app anyway.
 
-**Decision.** **Email only, on by default, sent through Resend.** One gentle email the morning after a missed practice day ("No catch-up needed", today's step, the 10-minute version), at most one per gap and never two within three days, never on a rest day. Off with one click from the email (one-click unsubscribe) or from the Account menu. Behind the `MISSED_DAY_REMINDERS_ENABLED` switch. How it works and the setup steps: `docs/architecture/reminders.md`.
+**Decision.** **Email only, on by default, sent through Resend.** One gentle email the morning after a missed practice day ("No catch-up needed", a link to today's step, the 10-minute version; the step is not named, as opening the app can still move it), at most one per gap and never two within three days, never on a rest day. Off from the email (its link asks to confirm; the mail app's one-click unsubscribe) or from the Account menu, which shows the setting only while reminders are really sent. Behind the `MISSED_DAY_REMINDERS_ENABLED` switch. How it works and the setup steps: `docs/architecture/reminders.md`.
 
 **Consequences.**
 * `User` gains `remindersEnabled` (default true) and `lastReminderAt` (migration `20261026180000_add_user_reminders`).
