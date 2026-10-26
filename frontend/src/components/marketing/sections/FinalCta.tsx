@@ -3,7 +3,7 @@ import { Button } from '../Button';
 import { Section, HEADING } from '../Section';
 
 export const FinalCta: React.FC = () => (
-  <Section id="start" labelledBy="final-cta-title" className="landing-light-close isolate" innerClassName="text-center">
+  <Section id="start" labelledBy="final-cta-title" className="isolate" innerClassName="text-center">
     <div aria-hidden="true" className="landing-botanical landing-botanical-left" />
     <div aria-hidden="true" className="landing-botanical landing-botanical-right" />
     <h2 id="final-cta-title" className={`mx-auto max-w-[20ch] ${HEADING}`}>
