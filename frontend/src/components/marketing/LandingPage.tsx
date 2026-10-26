@@ -1,7 +1,6 @@
 import React from 'react';
 import { SkipLink } from '../ui';
 import { MarketingNav } from './MarketingNav';
-import { StickyCta } from './StickyCta';
 import { Hero } from './sections/Hero';
 import { Pathways } from './sections/Pathways';
 import { HowItWorks } from './sections/HowItWorks';
@@ -29,6 +28,5 @@ export const LandingPage: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) =
       <FinalCta />
     </main>
     <MarketingFooter />
-    <StickyCta />
   </div>
 );

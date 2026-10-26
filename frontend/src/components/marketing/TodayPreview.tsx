@@ -26,7 +26,7 @@ export const TodayPreview: React.FC<{ className?: string }> = ({ className = '' 
           <div className="h-full w-[30%] rounded-full bg-achievement" />
         </div>
 
-        <p className="mt-7 font-ui-mono text-micro uppercase text-achievement">Today’s step</p>
+        <p className="mt-7 text-small text-text-secondary">Today’s step</p>
         <p className="mt-2 text-h3 text-text">Thumbnail framing and a 30-second hook</p>
         <p className="mt-2 flex items-center gap-2 text-small text-text-secondary">
           <Clock className="size-4" strokeWidth={1.5} />
@@ -34,7 +34,7 @@ export const TodayPreview: React.FC<{ className?: string }> = ({ className = '' 
         </p>
 
         <div className="mt-6 rounded-block border-l-2 border-achievement bg-background px-4 py-3">
-          <p className="font-ui-mono text-micro uppercase text-achievement">Why today</p>
+          <p className="text-small text-text">Why today</p>
           <p className="mt-1 text-small text-text-secondary">You film on Saturday. The first 30 seconds decide whether anyone stays.</p>
         </div>
 
@@ -58,7 +58,7 @@ export const TodayPreview: React.FC<{ className?: string }> = ({ className = '' 
         </p>
       </div>
     </div>
-    <figcaption className="mt-3 text-center font-ui-mono text-micro uppercase text-text-muted">
+    <figcaption className="mt-3 text-center text-small text-text-secondary">
       Example · from the YouTube pathway
     </figcaption>
   </figure>

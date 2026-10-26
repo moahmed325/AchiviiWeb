@@ -16,6 +16,8 @@
   /* 4.5:1 on background: suitable for body copy and secondary labels */
   --color-text-muted: #817A6F;
   --color-text-on-inverse: #11110F;
+  /* Supporting text on surface-inverse; 6.4:1 */
+  --color-text-secondary-on-inverse: #5B564C;
 
   --color-accent: #86A98F;
   --color-accent-hover: #B0CFB0;

@@ -43,12 +43,12 @@ export const Faq: React.FC = () => (
       <div className="border-b border-border lg:col-span-6 lg:col-start-7">
         {QUESTIONS.map((item) => (
           <details key={item.q} className="group border-t border-border">
-            <summary className="focus-ring flex min-h-14 cursor-pointer list-none items-center justify-between gap-6 py-4 text-left text-body font-medium text-text transition-colors hover:text-achievement-hover [&::-webkit-details-marker]:hidden">
+            <summary className="focus-ring flex min-h-14 cursor-pointer list-none items-center justify-between gap-6 py-4 text-left text-body font-medium text-text transition-colors hover:text-text-secondary [&::-webkit-details-marker]:hidden">
               {item.q}
               <Plus
                 aria-hidden="true"
                 strokeWidth={1.5}
-                className="size-5 shrink-0 text-achievement transition-transform duration-300 group-open:rotate-45 motion-reduce:transition-none"
+                className="size-5 shrink-0 text-text-secondary transition-transform duration-300 group-open:rotate-45 motion-reduce:transition-none"
               />
             </summary>
             <p className="max-w-[34rem] pb-5 pr-10 text-body text-text-secondary">{item.a}</p>

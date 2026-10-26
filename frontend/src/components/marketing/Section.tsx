@@ -22,5 +22,5 @@ export const Section: React.FC<SectionProps> = ({ id, labelledBy, className = ''
 );
 
 export const Eyebrow: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <p className={`font-ui-mono text-micro uppercase text-achievement ${className}`}>{children}</p>
+  <p className={`text-small text-text-secondary ${className}`}>{children}</p>
 );

@@ -12,7 +12,7 @@ const base =
 
 const variants: Record<Variant, string> = {
   primary: 'bg-text text-background hover:bg-white',
-  gold: 'btn-gold',
+  gold: 'bg-achievement text-background hover:bg-achievement-hover',
   secondary: 'border border-border-strong text-text hover:border-text/40 hover:bg-text/[0.04]',
   quiet: 'text-text-secondary hover:text-text',
 };
