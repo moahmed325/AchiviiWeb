@@ -3,7 +3,7 @@ import { Button } from '../Button';
 import { Section, HEADING } from '../Section';
 
 export const FinalCta: React.FC = () => (
-  <Section id="start" labelledBy="final-cta-title" innerClassName="text-center">
+  <Section id="start" labelledBy="final-cta-title" className="landing-light-close" innerClassName="text-center">
     <h2 id="final-cta-title" className={`mx-auto max-w-[20ch] ${HEADING}`}>
       Pick a goal and get your first step today.
     </h2>
