@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
+import { flagSummary } from './lib/flags.js';
 import { goalRouter } from './routes/goal.js';
 import { billingRouter } from './routes/billing.js';
 import { webhookRouter } from './routes/webhook.js';
@@ -51,4 +52,6 @@ app.use('/api/billing', billingRouter);
 app.listen(PORT, () => {
   console.log(`Achivii Backend API running on http://localhost:${PORT}`);
   console.log(`  Health check: http://localhost:${PORT}/api/health`);
+  // B-99 (4): which feature switches this process starts with (each is still read per request).
+  console.log(`[Flags] ${flagSummary()}`);
 });

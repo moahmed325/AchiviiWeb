@@ -6,6 +6,7 @@
  */
 import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
+import { flagOn } from './flags.js';
 import { getZonedDateString } from './timezone.js';
 import { buildReconcileResult, findOpenGap, type DayClassification, type ReconcileResult } from './missedSessions.js';
 import { handledTaskIds, markerOf, parseStoredSteps, type CarriedStep, type CarryTask, type HeldCarry, type PlannedCarry } from './carryForward.js';
@@ -66,7 +67,7 @@ export interface ReconcileUser {
 
 /** ND-15: carry writes, and every M2.4 action, only when this is exactly 'true'. Read per request. */
 export function carryEnabled(): boolean {
-  return process.env.MISSED_SESSIONS_CARRY_ENABLED === 'true';
+  return flagOn('MISSED_SESSIONS_CARRY_ENABLED');
 }
 
 /** Method-aware recovery's switch (M3.1a); its own module since M3.1d, re-exported here for its callers. */
