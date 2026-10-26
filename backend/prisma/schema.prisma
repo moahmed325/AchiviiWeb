@@ -14,6 +14,10 @@ model User {
   auth_user_id  String?  @unique
   timezone      String   @default("UTC")
   created_at    DateTime @default(now())
+  // ND-26: the missed-day reminder email. On unless the person turns it off (Account or the email's unsubscribe link).
+  remindersEnabled Boolean   @default(true)
+  // When the last reminder was sent; one per gap (no new one until a practice day is completed after it).
+  lastReminderAt   DateTime?
 
   goals         Goal[]
   subscriptions Subscription[]

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { verifySupabaseToken } from '../lib/supabaseAuth.js';
 import { isValidTimezone } from '../lib/timezone.js';
@@ -10,6 +10,7 @@ type AuthenticatedUser = {
   email: string;
   timezone: string;
   created_at: Date;
+  remindersEnabled: boolean;
 };
 
 const authUserSelect = {
@@ -17,6 +18,7 @@ const authUserSelect = {
   email: true,
   timezone: true,
   created_at: true,
+  remindersEnabled: true,
 } as const;
 
 /** The default every user starts with (schema.prisma), and the zones that mean the same thing. */
@@ -161,4 +163,25 @@ authRouter.put('/timezone', async (req: Request, res: Response): Promise<void> =
   }
   const updated = await prisma.user.update({ where: { id: user.id }, data: { timezone: zone }, select: authUserSelect });
   res.status(200).json({ user: updated });
+});
+
+// PUT /api/auth/reminders: ND-26, the missed-day reminder email on or off (Account). The email's own unsubscribe link
+// turns it off without signing in (`routes/reminders.ts`).
+authRouter.put('/reminders', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      res.status(401).json({ error: 'Unauthorized. Please sign in.' });
+      return;
+    }
+    const enabled = req.body?.enabled;
+    if (typeof enabled !== 'boolean') {
+      res.status(400).json({ error: 'enabled must be true or false.' });
+      return;
+    }
+    const updated = await prisma.user.update({ where: { id: user.id }, data: { remindersEnabled: enabled }, select: authUserSelect });
+    res.status(200).json({ user: updated });
+  } catch (err) {
+    next(err);
+  }
 });

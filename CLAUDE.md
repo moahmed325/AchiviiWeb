@@ -61,11 +61,11 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 - Postgres is required everywhere, local included; there is no SQLite mode. The database must allow the pgvector extension, because the older migrations run `CREATE EXTENSION vector` (for the `research_cache` table, since dropped).
 - Always use `prisma migrate deploy`, never `prisma db push`. `db push` skips the migrations folder, which holds `CREATE EXTENSION vector` and the raw-SQL indexes, so the database drifts from the migration history.
 - For Supabase use the session pooler connection string; the direct host is IPv6-only.
-- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16).
+- Models: `User`, `Subscription`, `WebhookEvent`, `Goal`, `RoadmapWeek`, `DailyTask`, `WeeklyReview` (`backend/prisma/schema.prisma`). The unused `research_cache` table, four old `Goal` columns and the Stripe-era `User` columns were dropped on 2026-10-24 (B-8, B-14, B-16). `User.remindersEnabled` and `lastReminderAt` hold the reminder email setting (ND-26).
 
 ## Backend architecture
 
-`src/index.ts` mounts `/api/health`, `/api/auth`, `/api/goal`, `/api/billing`. The Lemon Squeezy webhook (`/api/billing/webhook`) is mounted **before** `express.json()` with `express.raw()` so its signature can be verified against the raw body; keep that order.
+`src/index.ts` mounts `/api/health`, `/api/auth`, `/api/goal`, `/api/billing`, `/api/reminders`. The Lemon Squeezy webhook (`/api/billing/webhook`) is mounted **before** `express.json()` with `express.raw()` so its signature can be verified against the raw body; keep that order.
 
 Every request gets an id (`lib/requestContext.ts`, header `X-Request-Id`), and every log line inside a request starts with `[req <id>]`. Routes may throw the typed errors in `lib/httpErrors.ts` (`ValidationError`, `UnauthorizedError`, `PolicyError`, `ExternalServiceError`); `errorHandler`, mounted last, answers them and any unhandled error (a 500 with the request id) (B-105). Stored JSON is read through one checked reader per field in `lib/planV2.ts` (`readRoutine`, `routineRecord`, `readStoredRoadmap`, `startingPointValue`) and `parseStoredSteps` in `lib/carryForward.ts` (B-103).
 
@@ -80,9 +80,10 @@ Main areas (details in `docs/architecture/backend-details.md`; read the part you
 - Missed sessions and recovery: `lib/missedSessions.ts`, `lib/carryForward.ts`, `lib/recovery/`, `POST /api/goal/reconcile`.
 - Week close and weekly update: `lib/weekClose/`, `lib/ai/weeklyUpdate.ts`.
 - Billing: `lib/billing/`, `config/billing.ts` (Lemon Squeezy, test mode by default).
+- Missed-day reminder email: `lib/reminders/`, `routes/reminders.ts` (`/api/reminders`), run hourly by `.github/workflows/reminders.yml` (`docs/architecture/reminders.md`).
 - LLM: `lib/ai/gemini.ts` (Gemini only, no fallback provider).
 
-Feature switches, all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `WEEKLY_UPDATE_ENABLED` (off), `CUSTOM_RECOVERY_PROFILES_ENABLED` (off). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
+Feature switches, all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `WEEKLY_UPDATE_ENABLED` (off), `CUSTOM_RECOVERY_PROFILES_ENABLED` (off), `MISSED_DAY_REMINDERS_ENABLED` (off until Resend is set up, `docs/architecture/reminders.md`). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
 
 The routes that call the model are rate limited in memory (`lib/rateLimit.ts`): `POST /api/goal/clarify` 10 a minute per IP, `POST /api/goal/create` 10 per 10 minutes per person; over it, 429 `rate_limited`.
 

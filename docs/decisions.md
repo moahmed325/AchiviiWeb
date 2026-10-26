@@ -1823,6 +1823,29 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-26 — A missed-day reminder email, on by default
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-26 — Mo: the missed-sessions work only helps people who come back to the app |
+| Decided | 2026-10-26 — Mo |
+
+**Context.** Nothing brought people back after a miss: the app sent no reminders of any kind, so the calm notices, the gentle return and the 10-minute version reached only people who opened the app anyway.
+
+**Decision.** **Email only, on by default, sent through Resend.** One gentle email the morning after a missed practice day ("No catch-up needed", today's step, the 10-minute version), at most one per gap and never two within three days, never on a rest day. Off with one click from the email (one-click unsubscribe) or from the Account menu. Behind the `MISSED_DAY_REMINDERS_ENABLED` switch. How it works and the setup steps: `docs/architecture/reminders.md`.
+
+**Consequences.**
+* `User` gains `remindersEnabled` (default true) and `lastReminderAt` (migration `20261026180000_add_user_reminders`).
+* An hourly GitHub Action calls the API, because the free Render service sleeps. Nothing is sent until Resend, the Render settings and the repository secret are set up and the switch is turned on.
+* Web push is not built; it can follow later for people who install the app.
+
+**Related.** ND-25; `lib/reminders/`, `routes/reminders.ts`, `.github/workflows/reminders.yml`.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 * **OD-3** — Superseded by **ND-19** on 2026-10-07.
@@ -1869,6 +1892,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-09 | ND-22 Decided by Mo: Groq removed; Gemini is the only provider until a better second model is added (`3edac07`). |
 | 2026-10-25 | ND-24 Decided by Mo: days ahead cannot be completed (409 `not_yet`) and the weekly review opens on the week's last day (409 `week_not_over`). |
 | 2026-10-26 | ND-25 Decided by Mo: a missed key session is swapped onto its receiving day without asking (the question only if the swap is refused); moved steps show the day they came from. |
+| 2026-10-26 | ND-26 Decided by Mo: a missed-day reminder email, on by default, sent through Resend, behind `MISSED_DAY_REMINDERS_ENABLED`. |
 
 ### PAY-1 — Achivii Pro pricing
 

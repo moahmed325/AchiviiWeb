@@ -3,6 +3,8 @@ export interface User {
   email: string;
   timezone?: string;
   created_at: string;
+  /** ND-26: the missed-day reminder email; on unless the person turned it off. */
+  remindersEnabled?: boolean;
 }
 
 export interface AuthResponse {

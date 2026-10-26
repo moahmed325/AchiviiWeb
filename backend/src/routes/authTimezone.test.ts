@@ -66,3 +66,31 @@ describe('PUT /api/auth/timezone', () => {
     expect((await put({ timezone: 'Asia/Tokyo' }, false)).status).toBe(401);
   });
 });
+
+// ND-26: the missed-day reminder email on or off, from Account.
+describe('PUT /api/auth/reminders', () => {
+  const putReminders = (body: unknown, auth = true) =>
+    fetch(`${baseUrl}/api/auth/reminders`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer t' } : {}) },
+      body: JSON.stringify(body),
+    });
+
+  it('turns reminders off and on, and answers the user', async () => {
+    const res = await putReminders({ enabled: false });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { user: { remindersEnabled: boolean } }).user.remindersEnabled).toBe(false);
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'u1' }, data: { remindersEnabled: false } }));
+    expect((await putReminders({ enabled: true })).status).toBe(200);
+  });
+
+  it('refuses anything but a boolean, and writes nothing', async () => {
+    expect((await putReminders({ enabled: 'false' })).status).toBe(400);
+    expect((await putReminders({})).status).toBe(400);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('401 without a user', async () => {
+    expect((await putReminders({ enabled: false }, false)).status).toBe(401);
+  });
+});

@@ -7,6 +7,7 @@ import { flagSummary } from './lib/flags.js';
 import { goalRouter } from './routes/goal.js';
 import { billingRouter } from './routes/billing.js';
 import { webhookRouter } from './routes/webhook.js';
+import { remindersRouter } from './routes/reminders.js';
 import { installRequestLogging, requestContext } from './lib/requestContext.js';
 import { errorHandler } from './lib/httpErrors.js';
 
@@ -61,6 +62,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/goal', goalRouter);
 app.use('/api/billing', billingRouter);
+app.use('/api/reminders', remindersRouter);
 
 // B-105: last: typed errors and anything unhandled, answered in one place.
 app.use(errorHandler);
