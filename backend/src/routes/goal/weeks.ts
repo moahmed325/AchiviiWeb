@@ -6,7 +6,7 @@ import { getAuthUser } from '../auth.js';
 import { getUserTodayDateString, normalizeTimezone } from '../../lib/timezone.js';
 import { safeGoalTargets } from '../../lib/safety/storedTargets.js';
 import { TOTAL_WEEKS } from '../../lib/ai/roadmap.js';
-import { readRoutine } from '../../lib/planV2.js';
+import { readRoutine, routineRecord } from '../../lib/planV2.js';
 import { CheckpointAcceptedError, closeAnswer, logJump, logWeekClose, planWeekMove, reviewInsight, saveWeekClose, weekCloseDue } from '../../lib/weekClose/close.js';
 import { autoCloseUpdateInsight, logUpdateLowered, retestOfWeekFor, updateThenWrite } from '../../lib/weekClose/update.js';
 import { weekCloseEnabled, weeklyUpdateEnabled } from '../../lib/weekClose/switch.js';
@@ -512,11 +512,7 @@ weekRoutes.post('/daily-time', async (req: Request, res: Response): Promise<void
 
     const askedAt = new Date();
     const shorter = minutes !== check.minutes;
-    let routine: Record<string, unknown> = {};
-    try {
-      const parsed = JSON.parse(goal.routine || '{}');
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) routine = parsed;
-    } catch {}
+    const routine = routineRecord(goal);
     const saved = await prisma.$transaction(async (tx) => {
       // Asked once (WU-20 (1)): a second answer racing this one saves nothing.
       const won = await tx.roadmapWeek.updateMany({ where: { id: openWeek.id, dailyTimeAskedAt: null }, data: { dailyTimeAskedAt: askedAt } });

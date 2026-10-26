@@ -37,7 +37,7 @@ import { BIG_TEST_WEEKS, pathwayFor, shownAmount, statedTargetText, TOTAL_WEEKS,
 import { logSafetyHit } from '../ai/safetyScan.js';
 import { parseStoredSteps } from '../carryForward.js';
 import { weekCounts } from '../missedSignals.js';
-import { lastWeekResult, readRoutine, readStoredRoadmap, weekStartFor } from '../planV2.js';
+import { lastWeekResult, readRoutine, readStoredRoadmap, startingPointValue, weekStartFor } from '../planV2.js';
 import { evaluate, loadReconcileGoal } from '../reconcileCore.js';
 import { weekHandoff, type HandoffTask } from '../recovery/handoff.js';
 import { readRecoveryProfile } from '../recovery/profile.js';
@@ -440,8 +440,7 @@ async function runUpdate(
   const lightTestGoal = rows.some(isLight);
   const pathway = pathwayFor(goal.rawGoal, goal.clarifiedOutcome);
   const run10k = pathway?.id === 'run10k';
-  const roadmap = goal.roadmap as { startingPoint?: { value?: unknown } } | null;
-  const startValue = typeof roadmap?.startingPoint?.value === 'number' ? roadmap.startingPoint.value : null;
+  const startValue = startingPointValue(goal);
   const valueOf = (week: { target: unknown } | undefined) => (week && isWeekTarget(week.target) && week.target.kind === 'number' ? week.target.value : null);
 
   // The climb's base, as `safeStoredTargets` reads the goal once this week is closed: this week's target, or on a
