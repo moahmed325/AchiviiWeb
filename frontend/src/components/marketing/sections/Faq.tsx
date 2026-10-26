@@ -2,7 +2,6 @@ import React from 'react';
 import { Plus } from 'lucide-react';
 import { CERTIFIED_PATHWAYS } from '../../../lib/certifiedPresets';
 import { Section, Eyebrow, HEADING } from '../Section';
-import { Reveal } from '../Reveal';
 
 const MINUTES = CERTIFIED_PATHWAYS.map((p) => p.dailyMinutes);
 const SHORTEST = Math.min(...MINUTES);
@@ -10,56 +9,52 @@ const LONGEST = Math.max(...MINUTES);
 
 const QUESTIONS = [
   {
+    q: 'Do I need to know what I want first?',
+    a: `No. Look through the ${CERTIFIED_PATHWAYS.length} guided goals and pick the one you keep putting off. If it turns out not to be right, you can start a different one later.`,
+  },
+  {
     q: 'Is Achivii free?',
-    a: 'Starting is free, and the certified pathways stay free. Achivii Pro is $9/month or $72/year and unlocks building your own custom 90-day journey.',
+    a: 'Yes. Every guided goal is free. Achivii Pro is $9 a month or $72 a year and builds a plan around a goal of your own.',
   },
   {
     q: 'How much time does it take each day?',
-    a: `Each pathway lists its daily time, from ${SHORTEST} to ${LONGEST} minutes. You also tell us the slot you can honestly give, and the session is sized to fit. On a tight day there is a ten-minute version.`,
+    a: `Each goal lists its daily time, from ${SHORTEST} to ${LONGEST} minutes. You tell us the time you can give, and each step is sized to fit. On a busy day there is a ten-minute version.`,
   },
   {
     q: 'What happens if I miss a day?',
-    a: "A day that doesn't happen is information, not a verdict. Every week closes with a short review, and the next week is written from what you actually did.",
+    a: 'Nothing breaks. Every week ends with a short review, and the next week is planned from what you actually did.',
   },
   {
-    q: 'What if my goal isn’t one of the pathways?',
-    a: 'Pro lets you describe your own ambition and builds a guided 90-day journey around it, with the same practice, milestones and weekly benchmarks.',
-  },
-  {
-    q: 'Is the AI coach available?',
-    a: 'Not yet. Achivii Coach is being designed now. Everything else on this page works today.',
+    q: 'Is the plan written by AI?',
+    a: 'Partly. AI writes your plan within the method of the goal you pick. How fast targets rise and how much you do each week are set by fixed rules in the app, not by the AI.',
   },
 ];
 
 export const Faq: React.FC = () => (
-  <Section id="faq" labelledBy="faq-title" className="py-16 sm:py-36">
-    <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
+  <Section id="faq" labelledBy="faq-title">
+    <div className="grid gap-10 lg:grid-cols-12">
       <div className="lg:col-span-5">
-        <Reveal>
-          <Eyebrow>Questions</Eyebrow>
-        </Reveal>
-        <Reveal as="h2" id="faq-title" delayMs={80} className={`mt-8 ${HEADING}`}>
+        <Eyebrow>Questions</Eyebrow>
+        <h2 id="faq-title" className={`mt-4 ${HEADING}`}>
           Straight answers.
-        </Reveal>
+        </h2>
       </div>
 
-      <Reveal delayMs={120} className="lg:col-span-6 lg:col-start-7">
-        <div className="border-b border-border">
-          {QUESTIONS.map((item) => (
-            <details key={item.q} className="group border-t border-border open:border-achievement/40">
-              <summary className="focus-ring flex min-h-14 cursor-pointer list-none items-center justify-between gap-6 py-5 text-left text-[17px] font-medium tracking-[-0.015em] text-text transition-colors hover:text-achievement-hover [&::-webkit-details-marker]:hidden">
-                {item.q}
-                <Plus
-                  aria-hidden="true"
-                  strokeWidth={1.5}
-                  className="h-5 w-5 shrink-0 text-achievement transition-transform duration-300 ease-ascend group-open:rotate-45"
-                />
-              </summary>
-              <p className="max-w-[34rem] pb-6 pr-10 text-[15px] leading-relaxed text-text-secondary">{item.a}</p>
-            </details>
-          ))}
-        </div>
-      </Reveal>
+      <div className="border-b border-border lg:col-span-6 lg:col-start-7">
+        {QUESTIONS.map((item) => (
+          <details key={item.q} className="group border-t border-border">
+            <summary className="focus-ring flex min-h-14 cursor-pointer list-none items-center justify-between gap-6 py-4 text-left text-body font-medium text-text transition-colors hover:text-achievement-hover [&::-webkit-details-marker]:hidden">
+              {item.q}
+              <Plus
+                aria-hidden="true"
+                strokeWidth={1.5}
+                className="size-5 shrink-0 text-achievement transition-transform duration-300 group-open:rotate-45 motion-reduce:transition-none"
+              />
+            </summary>
+            <p className="max-w-[34rem] pb-5 pr-10 text-body text-text-secondary">{item.a}</p>
+          </details>
+        ))}
+      </div>
     </div>
   </Section>
 );
