@@ -310,78 +310,6 @@ html:has(.marketing) {
   font-variant-numeric: tabular-nums;
 }
 
-/* Static film grain. No blend mode, so it costs nothing while scrolling.
-   Sits above the marketing nav (z-40) but below the auth modal (z-50). */
-.grain-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 45;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* Scroll reveal: slow, upward, once */
-.reveal {
-  opacity: 0;
-  transform: translate3d(0, 28px, 0);
-  transition:
-    opacity 1.1s var(--ease-ascend),
-    transform 1.1s var(--ease-ascend);
-  transition-delay: var(--reveal-delay, 0ms);
-}
-
-.reveal.is-visible {
-  opacity: 1;
-  transform: none;
-}
-
-/* Staircase: steps rise into place from the bottom flight to the top.
-   The scene is SVG, so px here are scene units (one riser is 0.55). */
-@keyframes stair-rise {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 1.2px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes portal-open {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.stair-piece {
-  animation: stair-rise 1s var(--ease-ascend) both;
-  animation-delay: var(--stair-delay, 0ms);
-}
-
-.portal-light {
-  animation: portal-open 2.4s ease-out both;
-  animation-delay: var(--stair-delay, 0ms);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal,
-  .reveal.is-visible {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-
-  .stair-piece,
-  .portal-light {
-    animation: none;
-  }
-}
-
 /* ============================================================
    Phase 6 (Journey) Motion System (VDS §19-20, §25, §29)
    ============================================================ */
@@ -991,47 +919,8 @@ html:has(.marketing) {
 }
 
 /* ============================================================
-   Landing page: the gold thread
-   Gold is the light at the top of the stairs. On the landing page it
-   marks everything that moves you toward the summit.
+   Landing page: the gold button
    ============================================================ */
-.gold-text {
-  background-image: linear-gradient(100deg, #f1dfb0 0%, #c8a96b 48%, #e6cf95 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-@media (forced-colors: active) {
-  .gold-text {
-    background: none;
-    -webkit-text-fill-color: currentColor;
-    color: CanvasText;
-  }
-}
-
-.gold-hairline {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(200, 169, 107, 0.6), transparent);
-}
-
-@keyframes gold-breathe {
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.95;
-    transform: scale(1.07);
-  }
-}
-
-.gold-breathe {
-  animation: gold-breathe 8s ease-in-out infinite;
-}
-
 .btn-gold {
   position: relative;
   overflow: hidden;
@@ -1063,113 +952,11 @@ html:has(.marketing) {
   transform: translateX(130%);
 }
 
-/* Gold-bordered panel with a soft lit corner */
-.gold-panel {
-  border: 1px solid rgba(200, 169, 107, 0.32);
-  background:
-    radial-gradient(90% 70% at 100% 0%, rgba(200, 169, 107, 0.16), transparent 62%),
-    var(--color-surface);
-  box-shadow: 0 40px 100px -50px rgba(200, 169, 107, 0.35);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .gold-breathe {
-    animation: none;
-    opacity: 0.8;
-  }
-
   .btn-gold::after {
     display: none;
   }
 }
-
-
-/* ============================================================
-   Landing page: motion and polish
-   ============================================================ */
-
-/* Headline words rise out of a soft blur, one after another */
-@keyframes word-rise {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 0.45em, 0);
-    filter: blur(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-    filter: blur(0);
-  }
-}
-
-.word-rise {
-  display: inline-block;
-  animation: word-rise 1.1s var(--ease-ascend) both;
-}
-
-/* Cursor-following gold light on cards. Position is set by SpotlightEffect. */
-.spotlight {
-  position: relative;
-}
-
-.spotlight::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.45s ease;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(200, 169, 107, 0.13), transparent 62%);
-}
-
-.spotlight:hover::before {
-  opacity: 1;
-}
-
-/* Pathway marquee: decorative ribbon of real journey names */
-@keyframes marquee-scroll {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-.marquee-track {
-  display: flex;
-  width: max-content;
-  animation: marquee-scroll 70s linear infinite;
-}
-
-.marquee:hover .marquee-track {
-  animation-play-state: paused;
-}
-
-.marquee {
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
-}
-
-/* Soft horizontal fade so the lit edge of the stair scene never shows a hard line */
-.scene-fade {
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .marquee-track {
-    animation: none;
-  }
-
-  .hero-parallax {
-    transform: none !important;
-    opacity: 1 !important;
-  }
-}
-
 
 /* ============================================================
    Today. It borrows the Dashboard's vocabulary (dash-card, dash-panel, dash-day, dash-journey), so the two pages read

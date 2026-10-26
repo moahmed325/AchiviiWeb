@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { Wordmark } from '../Wordmark';
 
 const LINKS = [
-  { href: '#method', label: 'How it works' },
-  { href: '#pathways', label: 'Journeys' },
-  { href: '#premium', label: 'Pricing' },
+  { href: '#goals', label: 'Goals' },
+  { href: '#how', label: 'How it works' },
+  { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },
 ];
 
@@ -17,13 +17,12 @@ const LEGAL_LINKS = [
 ];
 
 export const MarketingFooter: React.FC = () => (
-  <footer className="relative px-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-14 sm:px-10 lg:px-16">
-    <div aria-hidden="true" className="gold-hairline absolute inset-x-0 top-0" />
-    <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-10 md:flex-row md:items-start md:justify-between">
+  <footer className="relative border-t border-border px-gutter pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-14">
+    <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-10 md:flex-row md:items-start md:justify-between">
       <div>
         <Wordmark />
         <p className="mt-4 max-w-[22rem] text-sm leading-relaxed text-text-secondary">
-          One meaningful goal. Ninety days. One focused step at a time.
+          One goal. Ninety days. One step a day.
         </p>
       </div>
       <nav aria-label="Footer">
@@ -66,7 +65,7 @@ export const MarketingFooter: React.FC = () => (
         </ul>
       </nav>
     </div>
-    <p className="mx-auto mt-12 w-full max-w-[1280px] font-ui-mono text-xs text-text-secondary/80">
+    <p className="mx-auto mt-12 w-full max-w-[1120px] font-ui-mono text-xs text-text-secondary/80">
       Achivii © {new Date().getFullYear()}
     </p>
   </footer>

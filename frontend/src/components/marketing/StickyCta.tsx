@@ -33,16 +33,16 @@ export const StickyCta: React.FC = () => {
 
   return (
     <div
-      className={`fixed inset-x-0 bottom-0 z-40 md:hidden transition-[transform,opacity,visibility] duration-500 ease-ascend ${
+      className={`fixed inset-x-0 bottom-0 z-40 md:hidden transition-[transform,opacity,visibility] duration-300 ease-ascend motion-reduce:transition-none ${
         visible ? 'visible translate-y-0 opacity-100' : 'invisible translate-y-full opacity-0'
       }`}
     >
-      <div className="border-t border-achievement/25 bg-background/85 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl">
+      <div className="border-t border-border-strong bg-background/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
         <Link
           to="/signup"
-          className="btn-gold focus-ring flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full text-[15px] font-medium"
+          className="btn-gold focus-ring flex min-h-12 w-full items-center justify-center gap-2.5 rounded-full text-body font-medium"
         >
-          <span className="relative z-10">Begin your 90 days</span>
+          <span className="relative z-10">Start free</span>
           <ArrowRight aria-hidden="true" strokeWidth={1.75} className="relative z-10 h-4 w-4" />
         </Link>
       </div>

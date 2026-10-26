@@ -4,9 +4,9 @@ import { Wordmark } from './Wordmark';
 import { useScrolledPast } from './hooks';
 
 const LINKS = [
-  { href: '#method', label: 'How it works' },
-  { href: '#pathways', label: 'Journeys' },
-  { href: '#premium', label: 'Pricing' },
+  { href: '#goals', label: 'Goals' },
+  { href: '#how', label: 'How it works' },
+  { href: '#pricing', label: 'Pricing' },
   { href: '#faq', label: 'FAQ' },
 ];
 
@@ -43,10 +43,8 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
     <header className="fixed inset-x-0 top-0 z-40 px-3 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <nav
         aria-label="Primary"
-        className={`mx-auto flex max-w-[1080px] items-center justify-between gap-2 rounded-[18px] border py-1.5 pl-4 pr-1.5 sm:rounded-full sm:pl-5 transition-[background-color,border-color,backdrop-filter,box-shadow] duration-500 ${
-          scrolled
-            ? 'border-achievement/25 bg-background/80 shadow-[0_18px_50px_-30px_rgba(200,169,107,0.5)] backdrop-blur-xl'
-            : 'border-border/60 bg-background/35 backdrop-blur-md'
+        className={`mx-auto flex max-w-[1120px] items-center justify-between gap-2 rounded-panel border py-1.5 pl-4 pr-1.5 sm:pl-5 transition-colors duration-300 ${
+          scrolled ? 'border-border-strong bg-background/90 backdrop-blur-md' : 'border-transparent bg-transparent'
         }`}
       >
         <a href="#top" className="focus-ring flex min-h-11 items-center rounded-full" aria-label="Achivii, back to top">
@@ -61,17 +59,11 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
                 <a
                   href={link.href}
                   aria-current={isActive ? 'location' : undefined}
-                  className={`focus-ring relative inline-flex min-h-11 items-center rounded-full px-4 text-[14px] transition-colors hover:text-achievement-hover ${
-                    isActive ? 'text-achievement-hover' : 'text-text-secondary'
+                  className={`focus-ring inline-flex min-h-11 items-center rounded-full px-4 text-small transition-colors hover:text-text ${
+                    isActive ? 'text-text' : 'text-text-secondary'
                   }`}
                 >
                   {link.label}
-                  <span
-                    aria-hidden="true"
-                    className={`absolute inset-x-4 bottom-1.5 h-px origin-center bg-gradient-to-r from-transparent via-achievement to-transparent transition-transform duration-500 ease-ascend ${
-                      isActive ? 'scale-x-100' : 'scale-x-0'
-                    }`}
-                  />
                 </a>
               </li>
             );
@@ -82,7 +74,7 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
           {apiOffline && (
             <span
               role="status"
-              className="mr-1 hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 font-ui-mono text-[11px] uppercase tracking-[0.14em] text-text-secondary"
+              className="mr-1 hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 font-ui-mono text-micro uppercase text-text-secondary"
             >
               <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-achievement" />
               Offline
@@ -92,8 +84,7 @@ export const MarketingNav: React.FC<{ apiOffline: boolean }> = ({ apiOffline }) 
             Sign in
           </Button>
           <Button variant="gold" to="/signup" className="px-4 sm:px-5">
-            <span className="sm:hidden">Start</span>
-            <span className="hidden sm:inline">Start your journey</span>
+            Start free
           </Button>
         </div>
       </nav>
