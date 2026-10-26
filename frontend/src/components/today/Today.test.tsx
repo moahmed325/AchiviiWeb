@@ -425,6 +425,19 @@ describe('Today', () => {
     expect(screen.queryByRole('button', { name: 'Start weekly review' })).not.toBeInTheDocument();
   });
 
+  it('shows where a moved step came from, on the day it landed', async () => {
+    const user = userEvent.setup();
+    const [first, second] = JSON.parse(STEPS);
+    const moved = JSON.stringify([first, { ...second, title: 'Hill repeats', carriedFrom: { taskId: 't2', date: tasks[1].date, replaced: [] } }]);
+    mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: tasks.map((t) => (t.id === 't3' ? { ...t, detailedSteps: moved } : t)) } as unknown as Goal);
+    await renderToday();
+
+    const from = new Date(`${tasks[1].date}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+    expect(screen.getByText(`Includes a step from ${from}`)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Show the 2 steps' }));
+    expect(screen.getByText(`From ${from}`)).toBeVisible();
+  });
+
   it('shows a day still ahead as a preview: no Start and no Mark complete', async () => {
     const user = userEvent.setup();
     await renderToday();
@@ -1113,45 +1126,60 @@ describe('Today: swap offer, set today aside, swap with another day (missed sess
       mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t2: { status: 'pending', isKeySession: true } }));
     });
 
-    it('a day before today: "{Day}\'s key session didn\'t happen. Do it today instead?" with both answers', async () => {
+    // ND-25: a past day's key session is swapped onto its receiving day without asking.
+    const REFUSED = () => new api.ApiError('This swap would put two hard sessions too close together.', 409, 'rest_gap');
+
+    it('a day before today is swapped onto today without asking, and says so', async () => {
       mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.swapDays.mockResolvedValue(body());
       await renderToday();
-      expect(screen.getByText("Yesterday's key session didn't happen. Do it today instead?")).toBeVisible();
-      expect(button('Swap the days')).toBeVisible();
-      expect(button('Just move its main step')).toBeVisible();
+      expect(
+        await screen.findByText("Yesterday's key session didn't happen, so we moved it to today. It takes the place of the session planned for today."),
+      ).toBeVisible();
+      expect(mocked.swapDays).toHaveBeenCalledTimes(1);
+      expect(mocked.swapDays).toHaveBeenCalledWith('t2', 't3', { t2: STEPS, t3: STEPS }, 't');
+      expect(button('Swap the days')).not.toBeInTheDocument();
+      expect(button('Just move its main step')).not.toBeInTheDocument();
       expectCalm();
     });
 
     it('an earlier weekday is named', async () => {
       mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'pending', isKeySession: true } }));
       mocked.reconcileGoal.mockResolvedValue(body(offer('t1', -2, 't3', 0)));
-      await renderToday();
-      expect(screen.getByText(`${weekday(-2)}'s key session didn't happen. Do it today instead?`)).toBeVisible();
-    });
-
-    it('"Swap the days" sends both days\' steps as loaded, applies the answer and reloads the goal', async () => {
-      const user = userEvent.setup();
-      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
       mocked.swapDays.mockResolvedValue(body());
       await renderToday();
-      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { title: 'Tempo intervals' } }));
-      await user.click(screen.getByRole('button', { name: 'Swap the days' }));
-      expect(mocked.swapDays).toHaveBeenCalledWith('t2', 't3', { t2: STEPS, t3: STEPS }, 't');
-      // The receiving day's new session, with no extra line.
-      expect(await screen.findByRole('region', { name: 'Tempo intervals' })).toBeInTheDocument();
-      expect(screen.queryByText(/key session didn't happen/)).not.toBeInTheDocument();
-      expect(button('Swap the days')).not.toBeInTheDocument();
-      expect(mocked.reconcileGoal).toHaveBeenCalledTimes(1);
+      expect(await screen.findByText(new RegExp(`^${weekday(-2)}'s key session didn't happen, so we moved it to today\\.`))).toBeVisible();
     });
 
-    it('"Just move its main step" carries now and shows the carried line', async () => {
+    it('a session set aside today is the person\'s own choice, so it still asks', async () => {
+      mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t3: { isKeySession: true } }));
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t3', 0, 't4', 1)));
+      await renderToday();
+      expect(await screen.findByText(`Today's key session is set aside. Do it ${weekday(1)} instead?`)).toBeVisible();
+      expect(button('Swap the days')).toBeVisible();
+      expect(mocked.swapDays).not.toHaveBeenCalled();
+    });
+
+    it('when the swap is refused, the question shows as before, with no error the person did not cause', async () => {
+      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.swapDays.mockRejectedValueOnce(REFUSED());
+      await renderToday();
+      expect(await screen.findByText("Yesterday's key session didn't happen. Do it today instead?")).toBeVisible();
+      expect(button('Swap the days')).toBeVisible();
+      expect(button('Just move its main step')).toBeVisible();
+      expect(screen.queryByText("That didn't change. Please try again.")).not.toBeInTheDocument();
+      expect(mocked.swapDays).toHaveBeenCalledTimes(1);
+    });
+
+    it('after a refused swap, "Just move its main step" carries now and shows the carried line', async () => {
       const user = userEvent.setup();
       mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.swapDays.mockRejectedValueOnce(REFUSED());
       mocked.carryNow.mockResolvedValue(
         body({ notice: 'carried', carried: [{ fromDate: isoDay(-1), fromTaskId: 't2', toDate: isoDay(0), toTaskId: 't3', stepTitle: 'Warm up' }] }),
       );
       await renderToday();
-      await user.click(screen.getByRole('button', { name: 'Just move its main step' }));
+      await user.click(await screen.findByRole('button', { name: 'Just move its main step' }));
       expect(mocked.carryNow).toHaveBeenCalledWith('t2', 't');
       expect(
         await screen.findByText("Yesterday's session didn't happen. We moved its most important step into today, so today stays the same length."),
@@ -1159,41 +1187,28 @@ describe('Today: swap offer, set today aside, swap with another day (missed sess
       expect(button('Swap the days')).not.toBeInTheDocument();
     });
 
-    it('a double click sends once', async () => {
+    it('a refusal of a tap says "That didn\'t change. Please try again." beside the answers, never the server text', async () => {
       const user = userEvent.setup();
       mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
-      mocked.swapDays.mockReturnValue(new Promise(() => {}));
-      await renderToday();
-      await user.dblClick(screen.getByRole('button', { name: 'Swap the days' }));
-      await user.click(screen.getByRole('button', { name: 'Just move its main step' }));
-      expect(mocked.swapDays).toHaveBeenCalledTimes(1);
-      expect(mocked.carryNow).not.toHaveBeenCalled();
-    });
-
-    it('a refusal says "That didn\'t change. Please try again." beside the answers, never the server text', async () => {
-      const user = userEvent.setup();
-      mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.swapDays.mockRejectedValueOnce(REFUSED());
       mocked.carryNow.mockRejectedValue(new api.ApiError(SERVER_TEXT, 409, 'already_handled'));
       await renderToday();
-      await user.click(screen.getByRole('button', { name: 'Just move its main step' }));
+      await user.click(await screen.findByRole('button', { name: 'Just move its main step' }));
       expect(await screen.findByText("That didn't change. Please try again.")).toBeVisible();
       expect(screen.queryByText(SERVER_TEXT)).not.toBeInTheDocument();
       expect(screen.queryByText(/already_handled/)).not.toBeInTheDocument();
-      // Nothing else changes.
       expect(screen.getByText("Yesterday's key session didn't happen. Do it today instead?")).toBeVisible();
       expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(1);
     });
 
-    it('a 409 changed reconciles, reloads, and says "Your plan changed. Here\'s the latest."', async () => {
-      const user = userEvent.setup();
+    it('a 409 changed on the automatic swap reloads the plan and shows it as it is now', async () => {
       mocked.reconcileGoal.mockResolvedValueOnce(body(offer('t2', -1, 't3', 0)));
       mocked.swapDays.mockRejectedValue(new api.ApiError('The plan changed since it was loaded.', 409, 'changed'));
-      await renderToday();
       mocked.reconcileGoal.mockResolvedValue(body());
-      await user.click(screen.getByRole('button', { name: 'Swap the days' }));
-      expect(await screen.findByText("Your plan changed. Here's the latest.")).toBeVisible();
+      await renderToday();
+      await waitFor(() => expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(2));
       expect(mocked.reconcileGoal).toHaveBeenCalledTimes(2);
-      expect(mocked.fetchActiveGoal).toHaveBeenCalledTimes(2);
+      expect(mocked.swapDays).toHaveBeenCalledTimes(1);
       expect(screen.queryByText(/since it was loaded/)).not.toBeInTheDocument();
       expect(button('Swap the days')).not.toBeInTheDocument();
     });
@@ -1201,7 +1216,9 @@ describe('Today: swap offer, set today aside, swap with another day (missed sess
     it('belongs to Today\'s view of today only', async () => {
       const user = userEvent.setup();
       mocked.reconcileGoal.mockResolvedValue(body(offer('t2', -1, 't3', 0)));
+      mocked.swapDays.mockRejectedValueOnce(REFUSED());
       await renderToday();
+      await screen.findByRole('button', { name: 'Swap the days' });
       await user.click(screen.getByRole('button', { name: 'Show week' }));
       await user.click(screen.getByRole('button', { name: /^Thu / }));
       for (const name of NEW) expect(button(name)).not.toBeInTheDocument();

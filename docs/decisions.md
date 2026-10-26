@@ -1800,6 +1800,30 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-25 — A missed key session moves without asking; moved steps show where they came from
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-26 — Mo, after reviewing how missed sessions feel to an average person |
+| Decided | 2026-10-26 — Mo |
+
+**Context.** A missed key session was held and Today asked "Do it Thursday instead?". If nobody answered by the end of the receiving day, the key session was dropped (`swap_unanswered`): doing nothing lost the week's most important session, and the question came when the person felt behind. Moved steps were explained by one line ("We moved its most important step to Thursday") that never showed on Thursday itself.
+
+**Decision.**
+* **Auto-swap.** When Today shows a swap offer for a day before today, it swaps the days at once through the same `POST /api/goal/tasks/:taskId/swap` call ("Swap the days"), so every rule, refusal and compare-and-set guard still applies. Line: "Tuesday's key session didn't happen, so we moved it to Thursday. It takes the place of the session planned for that day." If the swap is refused or fails, the question and both answers show as before, without an error. A key session the person set aside today themselves still asks.
+* **Where the plan bent.** A day holding a carried, swapped or reordered step shows a badge ("Moved from Tuesday" when all its steps came from one day, "Includes a step from Tuesday" otherwise), and each such step is labelled "From Tuesday" in the step list. Screen only, read from the stored markers.
+
+**Consequences.**
+* A swap is final: once written there is no "move its main step instead" (the swapped days are never moved again, ND-18). The receiving day's own session is let go.
+* The swap is written only when the person opens Today; a key session whose receiving day passes without the app being opened is still dropped as before.
+
+**Related.** ND-9, ND-18 (missed sessions); `components/today/useAutoSwap.ts`, `lib/stepLines.ts` (`movedFrom`, `movedHereLine`).
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 * **OD-3** — Superseded by **ND-19** on 2026-10-07.
@@ -1845,6 +1869,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-08 | ND-21 Decided (A) by Mo: plan v1 goals are retired; the silent v1 fallback was already removed (`2ca4132`). |
 | 2026-10-09 | ND-22 Decided by Mo: Groq removed; Gemini is the only provider until a better second model is added (`3edac07`). |
 | 2026-10-25 | ND-24 Decided by Mo: days ahead cannot be completed (409 `not_yet`) and the weekly review opens on the week's last day (409 `week_not_over`). |
+| 2026-10-26 | ND-25 Decided by Mo: a missed key session is swapped onto its receiving day without asking (the question only if the swap is refused); moved steps show the day they came from. |
 
 ### PAY-1 — Achivii Pro pricing
 

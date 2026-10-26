@@ -178,7 +178,8 @@ test.describe('Missed sessions on Today (M3.3)', () => {
     }
   });
 
-  test('a swap offer answered by "Swap the days"', async ({ page }) => {
+  // ND-25: a missed key session is swapped onto its receiving day without asking.
+  test('a missed key session is swapped onto today without asking', async ({ page }) => {
     const goal = shellWith({ t2: { status: 'pending', isKeySession: true, title: 'Interview three users' } });
     const base = shellGoal().dailyTasks;
     const swapped = shellWith({
@@ -198,19 +199,18 @@ test.describe('Missed sessions on Today (M3.3)', () => {
     await page.goto('/');
 
     const card = stepCard(page);
-    await expect(card.getByText("Yesterday's key session didn't happen. Do it today instead?")).toBeVisible();
-    await expect(page.getByText(CALM)).toHaveCount(0);
-    await expectTouchTarget(page, 'Swap the days');
-    await expectTouchTarget(page, 'Just move its main step');
-    await expectCleanAt(page, [390, 375, 360, 412]);
-    await page.setViewportSize({ width: 390, height: 844 });
-
-    await card.getByRole('button', { name: 'Swap the days', exact: true }).click();
     await expect(main(page).getByRole('heading', { name: 'Interview three users' })).toBeVisible();
-    await expect(page.getByText(/key session didn't happen/)).toHaveCount(0);
+    await expect(
+      card.getByText("Yesterday's key session didn't happen, so we moved it to today. It takes the place of the session planned for today."),
+    ).toBeVisible();
+    await expect(page.getByText(CALM)).toHaveCount(0);
+    for (const name of ['Swap the days', 'Just move its main step']) {
+      await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
+    }
     expect(calls.planActions).toEqual([
       { action: 'swap', taskId: 't2', body: { withTaskId: 't3', expected: { t2: base[1].detailedSteps, t3: base[2].detailedSteps } } },
     ]);
+    await expectCleanAt(page, [390, 375, 360, 412]);
   });
 
   test('setting today aside (carried)', async ({ page }) => {
