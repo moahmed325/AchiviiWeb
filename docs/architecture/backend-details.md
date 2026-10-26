@@ -7,7 +7,7 @@ The full backend description, moved out of `CLAUDE.md` on 2026-10-24 so it is re
 
 Auth: the frontend signs in with Supabase and sends the access token as `Authorization: Bearer`. `lib/supabaseAuth.ts` verifies it, and `routes/auth.ts` resolves it to a Prisma `User` by `auth_user_id`, linking an existing user by email the first time.
 
-Goal creation (`POST /api/goal/create` in `routes/goal.ts`):
+Goal creation (`POST /api/goal/create` in `routes/goal/create.ts`; B-102 split `routes/goal.ts` into `routes/goal/`):
 
 1. **Clarify** (`lib/ai/clarify.ts`, `POST /api/goal/clarify`) turns the raw goal into a clarified outcome, a domain and follow-up questions.
 2. **Preset match** (`findPresetForGoal`): the 10 certified pathways in `lib/ai/presets/` (run10k, guitar, saas, spanish, recomp, youtube, book, deepwork, chess, speech) give the roadmap a fixed method. Any other goal is custom and needs Pro (`authorizeNewCustomGoal`).

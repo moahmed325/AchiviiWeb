@@ -67,11 +67,14 @@ Playwright runs with one worker on purpose (parallel workers stall the Vite dev 
 
 `src/index.ts` mounts `/api/health`, `/api/auth`, `/api/goal`, `/api/billing`. The Lemon Squeezy webhook (`/api/billing/webhook`) is mounted **before** `express.json()` with `express.raw()` so its signature can be verified against the raw body; keep that order.
 
+Every request gets an id (`lib/requestContext.ts`, header `X-Request-Id`), and every log line inside a request starts with `[req <id>]`. Routes may throw the typed errors in `lib/httpErrors.ts` (`ValidationError`, `UnauthorizedError`, `PolicyError`, `ExternalServiceError`); `errorHandler`, mounted last, answers them and any unhandled error (a 500 with the request id) (B-105). Stored JSON is read through one checked reader per field in `lib/planV2.ts` (`readRoutine`, `routineRecord`, `readStoredRoadmap`, `startingPointValue`) and `parseStoredSteps` in `lib/carryForward.ts` (B-103).
+
 Auth: the frontend signs in with Supabase and sends the access token as `Authorization: Bearer`; `lib/supabaseAuth.ts` verifies it and `routes/auth.ts` resolves it to a Prisma `User`.
 
 Main areas (details in `docs/architecture/backend-details.md`; read the part you need before changing that area):
 
-- Goal creation: `routes/goal.ts` (`POST /api/goal/create`): clarify (`lib/ai/clarify.ts`), preset match (10 pathways in `lib/ai/presets/`; other goals are custom and need Pro), roadmap (`lib/ai/roadmap.ts`), recovery profile (`lib/recovery/`), week 1 (`lib/ai/weekPlan.ts`). If the roadmap or week 1 can't be written, answer 503 and save nothing; an unsafe goal answers 422. No fallback plan.
+- Routes: `routes/goal.ts` holds the router, the active-goal routes and reconcile; each area's routes live in `routes/goal/` (`present.ts` presentGoal, `create.ts` clarify and create, `actions.ts` mark missed, carry now and swap, `tasks.ts` task updates, `weeks.ts` review, close and the week routes) (B-102).
+- Goal creation: `routes/goal/create.ts` (`POST /api/goal/create`): clarify (`lib/ai/clarify.ts`), preset match (10 pathways in `lib/ai/presets/`; other goals are custom and need Pro), roadmap (`lib/ai/roadmap.ts`), recovery profile (`lib/recovery/`), week 1 (`lib/ai/weekPlan.ts`). If the roadmap or week 1 can't be written, answer 503 and save nothing; an unsafe goal answers 422. No fallback plan.
 - Plan v2 is the only plan model (`lib/planV2.ts`, spec in `docs/architecture/plan-v2.md`). Don't add plan v1 code back.
 - Safety limits: every number lives in `lib/safety/limits.ts`. Code, not the model, decides how fast targets climb and holds weekly load.
 - Missed sessions and recovery: `lib/missedSessions.ts`, `lib/carryForward.ts`, `lib/recovery/`, `POST /api/goal/reconcile`.
