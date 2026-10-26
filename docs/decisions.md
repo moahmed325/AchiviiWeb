@@ -107,10 +107,10 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | D-12 | Mobile acceptance in every phase | Process | Decided | All |
 | D-13 | Framework documents live in `docs/` | Process | Decided | 2026-09-27 — Mo |
 | D-14 | Brand master images and where they live | Design | Decided | 1, 9, 12 |
-| D-15 | Hero staircase is an SVG scene, not the photo | Design | Decided | 1 |
+| D-15 | Hero staircase is an SVG scene, not the photo | Design | Superseded by ND-25 | 1 |
 | D-16 | Marketing motion uses IntersectionObserver and CSS, no library | Technology | Decided | 1 |
-| D-17 | No pricing in the marketing nav while no pricing exists | Product | Decided | 1, 10 |
-| D-18 | Landing page presents Custom Journeys as future Premium; no free-text goal box | Product | Decided | 1, 3, 10 |
+| D-17 | No pricing in the marketing nav while no pricing exists | Product | Superseded by ND-25 | 1, 10 |
+| D-18 | Landing page presents Custom Journeys as future Premium; no free-text goal box | Product | Superseded by ND-25 | 1, 3, 10 |
 | D-19 | Pathway choice carries through signup, waiting for the goal to load | Architecture | Decided | 1, 2 |
 | OD-1a | Store weekly test results | Architecture | Decided (A) | 7, 8 |
 | OD-1b | Goal completion transition | Architecture | Decided (B) | 9 |
@@ -148,6 +148,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-20 | Legacy billing columns on `users` (schema drift) | Technology | Decided (A) | — |
 | ND-21 | Retire plan v1 goals | Architecture | Decided (A) | — |
 | ND-22 | Gemini only; no fallback model for now | Architecture | Decided | — |
+| ND-25 | The landing page is built around picking a goal | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -458,7 +459,7 @@ The Roman-garden website screenshot is a layout reference only, not an asset.
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by [ND-25](#nd-25--the-landing-page-is-built-around-picking-a-goal) |
 | Category | Design |
 | Needed by | 1 |
 | Raised | Phase 1 |
@@ -492,7 +493,7 @@ The Roman-garden website screenshot is a layout reference only, not an asset.
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by [ND-25](#nd-25--the-landing-page-is-built-around-picking-a-goal) |
 | Category | Product |
 | Needed by | 1, 10 |
 | Raised | Phase 1 (VDS §13 lists "Pricing") |
@@ -508,7 +509,7 @@ The Roman-garden website screenshot is a layout reference only, not an asset.
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by [ND-25](#nd-25--the-landing-page-is-built-around-picking-a-goal) |
 | Category | Product |
 | Needed by | 1, 3, 10 |
 | Raised | Phase 1 |
@@ -1873,3 +1874,28 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Nothing to build; this is what the code already does (`authorizeNewCustomGoal`, `authorizeNextPlan` are the only Pro checks). Starting another custom goal, or a next plan at day 90, needs Pro again.
 
 **Related.** ND-9, ND-10, next-plan NP-7, `docs/features/billing/03-feature.md` ("Lose paid access").
+
+---
+
+### ND-25 — The landing page is built around picking a goal
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-26 — Mo: the landing page is too vague and too visually busy |
+| Decided | 2026-10-26 — Mo |
+
+**Context.** Visitors will mostly come from social posts (X, LinkedIn) without a goal in mind. The old page opened on an abstract headline and a decorative staircase, answered "does it cover my goal?" only in its sixth section, and layered parallax, a scroll thread, a cursor spotlight, grain and count-ups. Pro is live, so D-17 and D-18 (no pricing, Custom Journeys "planned") no longer matched the product. There are no real user results yet.
+
+**Decision.**
+* The page follows the visitor's questions: hero (what Achivii does, in one line, beside an example day), goals (every pathway with its daily time and the method it is built on, and a link to Pro for a goal of your own), how it works, why it works, pricing (Free and Pro), FAQ, a closing call to action.
+* The hero's main action jumps to the goals; signup without a goal stays in the nav and the closing call to action.
+* No testimonials, user counts or invented numbers until real results exist. "Why it works" shows how plans are made instead: named methods, fixed safety limits in code, plans that adjust to missed days. Method names carry a note that their authors don't endorse Achivii.
+* Calm: no parallax, scroll effects, cursor effects, grain, marquee or word and number animations. Dark with gold stays. The staircase scene is retired (D-15).
+* Pricing is in the nav and on the page; Coach isn't shown until it exists.
+
+**Consequences.** Supersedes D-15, D-17 and D-18. The landing copy must stay true of the product: change it when pricing, pathways or the plan rules change. A light (white with gold) section is a later design decision under D-3.
+
+**Related.** D-3, PAY-1, `frontend/src/components/marketing/`.
