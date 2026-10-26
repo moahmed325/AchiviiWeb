@@ -41,8 +41,9 @@ import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
 import { SwapOfferAnswers, TodayPlanActions } from './PlanActions';
+import { useAutoSwap } from './useAutoSwap';
 import { StepInstructions } from './StepInstructions';
-import { doneDaysOf, visibleDay } from '../../lib/stepLines';
+import { doneDaysOf, movedFrom, movedHereLine, visibleDay } from '../../lib/stepLines';
 import { usePlanAction } from './usePlanAction';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
@@ -369,6 +370,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const task = selected?.notOffered ? notOfferedAsRest(selected) : selected;
   const shown = task ? visibleDay(task, doneDays) : null;
   const steps = shown?.steps ?? [];
+  // Where the plan bent: steps that moved onto this day (a carry, a swap or a reorder) say which day they came from.
+  const movedHere = task ? movedHereLine(steps, task.id) : null;
   const intention = parseIntention(shown?.implementationIntention);
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now, timezone);
@@ -389,6 +392,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   // A day still ahead can be read but not started or completed until its date (the server refuses it, `not_yet`).
   const ahead = Boolean(task && isAheadDay(task, now, timezone));
   const notice = viewingToday ? missNotice(goalContext.reconciliation, goal, now, timezone) : null;
+  // ND-25: a missed key session is moved onto its receiving day without asking; the question shows only if that fails.
+  const autoSwap = useAutoSwap(notice, goal, planAction);
   // M3.2: on a gentle-return day the 10-minute version is the default; when short on time it is one tap away.
   const gentleReturn = notice?.kind === 'gentle_return';
   const shortOnTime = viewingToday && !gentleReturn && shortOnTimeOffer(goalContext.reconciliation, goal, now, timezone);
@@ -574,6 +579,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 {task.isRestDay && !done && <Badge>Rest day</Badge>}
                 {task.isKeySession && <Badge tone="achievement">Key session</Badge>}
                 {task.isTestDay && <Badge tone="achievement">Test day</Badge>}
+                {movedHere && <Badge>{movedHere}</Badge>}
               </div>
 
               <h2 id="step-heading" className="mt-6 max-w-[24ch] break-words text-h2 text-text">
@@ -593,11 +599,26 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               )}
               {shown.whyToday?.trim() ? <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">{shown.whyToday}</p> : null}
 
-              {notice && (
+              {autoSwap.status === 'moved' ? (
                 <Callout>
-                  <p className="text-text">{missNoticeLine(notice)}</p>
-                  {notice.kind === 'swap_offer' && <SwapOfferAnswers notice={notice} goal={goal} action={planAction} />}
+                  <p className="text-text">
+                    {autoSwap.day}'s key session didn't happen, so we moved it to {autoSwap.when}. It takes the place of the session planned
+                    for {autoSwap.when === 'today' ? 'today' : 'that day'}.
+                  </p>
                 </Callout>
+              ) : autoSwap.status === 'moving' && notice?.kind === 'swap_offer' ? (
+                <Callout>
+                  <p className="text-text">
+                    {notice.day}'s key session didn't happen. Moving it to {notice.when}…
+                  </p>
+                </Callout>
+              ) : (
+                notice && (
+                  <Callout>
+                    <p className="text-text">{missNoticeLine(notice)}</p>
+                    {notice.kind === 'swap_offer' && <SwapOfferAnswers notice={notice} goal={goal} action={planAction} />}
+                  </Callout>
+                )
               )}
 
               {task.isKeySession && (
@@ -745,6 +766,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                           <div className="flex items-baseline justify-between gap-3">
                             <p className="text-small font-medium text-text">
                               <span className="tabular text-achievement">{step.stepNumber}.</span> {step.title}
+                              {task && movedFrom(step, task.id) && (
+                                <span className="ml-2 font-normal text-text-secondary">From {movedFrom(step, task.id)}</span>
+                              )}
                             </p>
                             {step.durationMinutes ? <span className="tabular shrink-0 text-small text-text-secondary">{step.durationMinutes} min</span> : null}
                           </div>

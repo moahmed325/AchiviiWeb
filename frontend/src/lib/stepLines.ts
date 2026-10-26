@@ -145,6 +145,33 @@ export function visibleDay<T extends DayFields>(task: T, done: DoneDays): T & { 
 }
 
 /**
+ * The weekday a step moved here from (a carry, a swap or a reorder), or null when it was written on this day. Shown on
+ * the day it lands ("From Tuesday"), so the person sees where the plan bent. Nothing stored changes.
+ */
+export function movedFrom(step: CameFrom, dayId: string): string | null {
+  for (const marker of [step.carriedFrom, step.swappedFrom, step.shiftedFrom]) {
+    if (!marker || typeof marker !== 'object') continue;
+    const { taskId, date } = marker as { taskId?: unknown; date?: unknown };
+    if (typeof taskId !== 'string' || typeof date !== 'string' || taskId === dayId) continue;
+    return weekdayOf(date);
+  }
+  return null;
+}
+
+/**
+ * The day-level line for the steps that moved onto day `dayId`: "Moved from Tuesday" when every step came from the
+ * same day (a swap), "Includes a step from Tuesday" when some did, null when none did.
+ */
+export function movedHereLine(steps: CameFrom[], dayId: string): string | null {
+  const days = steps.map((step) => movedFrom(step, dayId));
+  const from = [...new Set(days.filter((day): day is string => day !== null))];
+  if (from.length === 0) return null;
+  if (from.length === 1 && days.every((day) => day === from[0])) return `Moved from ${from[0]}`;
+  const names = from.length === 1 ? from[0] : `${from.slice(0, -1).join(', ')} and ${from[from.length - 1]}`;
+  return `Includes ${days.filter(Boolean).length === 1 ? 'a step' : 'steps'} from ${names}`;
+}
+
+/**
  * The continue line for a step marked by RULE-10, or null. B-50 (Mo): when the day the marker names is done, the work
  * was picked up there, so the marker is ignored (it stays stored).
  */

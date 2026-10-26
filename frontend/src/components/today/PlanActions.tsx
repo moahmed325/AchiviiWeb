@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import type { DailyTask, Goal, Reconciliation } from '../../types';
+import type { Goal, Reconciliation } from '../../types';
 import { useGoal } from '../../context/GoalContext';
 import { carryNow, markTodayMissed, swapDays } from '../../lib/api';
 import type { PlanAction, Place } from './usePlanAction';
+import { expectedOf } from './useAutoSwap';
 import { moveNowOffered, todayActions, weekdayOf, type MissNotice } from '../../lib/today';
 import { Button, Dialog, DialogClose, DialogContent, Spinner, cx } from '../ui';
 
@@ -21,8 +22,6 @@ const Failure: React.FC<{ action: PlanAction; at: Place }> = ({ action, at }) =>
     </p>
   ) : null;
 
-/** The day's steps exactly as loaded: the server swaps only if neither day changed since (`expected`, M2.4). */
-const expectedOf = (...days: DailyTask[]) => Object.fromEntries(days.map((day) => [day.id, day.detailedSteps]));
 
 /** The two answers to a key session's swap offer (RULE-6, ND-9), under its line in Today's notice. */
 export const SwapOfferAnswers: React.FC<{
