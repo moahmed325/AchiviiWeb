@@ -932,6 +932,29 @@ html:has(.marketing) {
     radial-gradient(40% 40% at 0% 100%, color-mix(in oklab, var(--color-achievement) 5%, transparent), transparent 70%);
 }
 
+/* Dark satin behind the hero. Lighten against the page black, so the photo's pure black becomes the page's own
+   black and only the fold of light shows. Right side on desktop, the whole hero on phones; both fade out. */
+.landing-satin {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background: url('/images/brand/satin.webp') center 30% / cover no-repeat;
+  mix-blend-mode: lighten;
+  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent);
+  mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+
+@media (width >= 64rem) {
+  .landing-satin {
+    left: auto;
+    width: 62%;
+    -webkit-mask-image: linear-gradient(to right, transparent, black 40%), linear-gradient(to bottom, black 70%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent, black 40%), linear-gradient(to bottom, black 70%, transparent);
+    mask-composite: intersect;
+  }
+}
+
 .landing-light-close {
   background-image: radial-gradient(50% 70% at 50% 100%, color-mix(in oklab, var(--color-achievement) 10%, transparent), transparent 70%);
 }
@@ -947,6 +970,7 @@ html:has(.marketing) {
 
 .landing-rails {
   inset-block: 0;
+  z-index: 1;
   transform: translateX(-50%);
   border-inline: 1px solid var(--color-border);
 }

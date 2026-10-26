@@ -8,7 +8,14 @@ import { WeekLine } from '../WeekLine';
 const MINUTES = CERTIFIED_PATHWAYS.map((p) => p.dailyMinutes);
 
 export const Hero: React.FC = () => (
-  <section id="top" aria-labelledby="hero-title" className="landing-light-open px-gutter pb-20 pt-28 sm:pb-28 sm:pt-40">
+  <section
+    id="top"
+    aria-labelledby="hero-title"
+    className="relative isolate overflow-hidden bg-background px-gutter pb-20 pt-28 sm:pb-28 sm:pt-40"
+  >
+    {/* Satin first, then the gold light falling on it. */}
+    <div aria-hidden="true" className="landing-satin" />
+    <div aria-hidden="true" className="landing-light-open absolute inset-0 -z-10" />
     <div className="mx-auto w-full max-w-[1120px]">
       <div className="grid items-center gap-14 lg:grid-cols-12 lg:gap-10">
         <div className="lg:col-span-7">
