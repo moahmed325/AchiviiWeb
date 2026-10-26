@@ -1,5 +1,4 @@
 import React from 'react';
-import { SectionMarks } from '../Section';
 
 /**
  * Achivii has no track record yet, so instead of testimonials or invented numbers this section shows how the
@@ -24,9 +23,8 @@ export const WhyItWorks: React.FC = () => (
   <section
     id="why"
     aria-labelledby="why-title"
-    className="on-inverse relative scroll-mt-24 bg-surface-inverse px-gutter py-20 text-text-on-inverse sm:py-32"
+    className="on-inverse scroll-mt-24 bg-surface-inverse px-gutter py-20 text-text-on-inverse sm:py-32"
   >
-    <SectionMarks />
     <div className="mx-auto grid w-full max-w-[1120px] gap-12 lg:grid-cols-12">
       <div className="lg:col-span-5">
         <p className="text-small text-text-secondary-on-inverse">Why it works</p>

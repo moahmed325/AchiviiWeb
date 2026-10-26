@@ -921,17 +921,9 @@ html:has(.marketing) {
 }
 
 /* ============================================================
-   Landing page: light and frame
-   Two quiet layers so the black has depth: warm gold light where the page opens and closes (the light at the top
-   of the stairs, as on the pathways dialog), and two hairline rails just outside the content with a small gold mark
-   where each section begins. Neither moves.
+   Landing page: satin and botanicals
+   Two photographic layers, both static: dark satin behind the hero and a faint gold botanical frame at the close.
    ============================================================ */
-.landing-light-open {
-  background-image:
-    radial-gradient(60% 55% at 78% 16%, color-mix(in oklab, var(--color-achievement) 13%, transparent), transparent 70%),
-    radial-gradient(40% 40% at 0% 100%, color-mix(in oklab, var(--color-achievement) 5%, transparent), transparent 70%);
-}
-
 /* Dark satin behind the hero. Lighten against the page black, so the photo's pure black becomes the page's own
    black and only the fold of light shows. Right side on desktop, the whole hero on phones; both fade out. */
 .landing-satin {
@@ -983,46 +975,6 @@ html:has(.marketing) {
   .landing-botanical {
     width: min(34%, 420px);
     opacity: 0.22;
-  }
-}
-
-.landing-light-close {
-  background-image: radial-gradient(50% 70% at 50% 100%, color-mix(in oklab, var(--color-achievement) 10%, transparent), transparent 70%);
-}
-
-/* The rails sit 24px outside the content box, which is 1120px wide inside the gutter. */
-.landing-rails,
-.landing-marks {
-  position: absolute;
-  left: 50%;
-  width: min(1168px, calc(100% - 2 * var(--spacing-gutter) + 48px));
-  pointer-events: none;
-}
-
-.landing-rails {
-  inset-block: 0;
-  z-index: 1;
-  transform: translateX(-50%);
-  border-inline: 1px solid var(--color-border);
-}
-
-.landing-marks {
-  top: 0;
-  display: flex;
-  justify-content: space-between;
-  transform: translate(-50%, -50%);
-  margin-top: -0.5px;
-}
-
-.landing-marks > * {
-  margin-inline: -6px;
-}
-
-/* On phones the rails would crowd the screen edge. */
-@media (width < 48rem) {
-  .landing-rails,
-  .landing-marks {
-    display: none;
   }
 }
 
