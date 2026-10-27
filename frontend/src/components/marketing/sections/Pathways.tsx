@@ -1,10 +1,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronDown } from 'lucide-react';
-import { CERTIFIED_PATHWAYS, FEATURED_PATHWAYS, PATHWAY_GROUPS, type CertifiedPathway } from '../../../lib/certifiedPresets';
+import { CERTIFIED_PATHWAYS, FEATURED_PATHWAYS, type CertifiedPathway } from '../../../lib/certifiedPresets';
+import { Button } from '../Button';
 import { Section, Eyebrow, HEADING } from '../Section';
 
 const signupLink = (pathway: CertifiedPathway) => `/signup?pathway=${encodeURIComponent(pathway.id)}`;
+
+const MORE_PATHWAYS = CERTIFIED_PATHWAYS.filter((p) => !FEATURED_PATHWAYS.includes(p));
+
+/** Goals people could bring to Pro. Illustrations only, never presented as other people's plans. */
+const OWN_GOAL_EXAMPLES = [
+  'Swim 1 km without stopping',
+  'Pass my driving theory test',
+  'Learn the basics of Python',
+  'Sketch a portrait from life',
+];
 
 const PathwayCard: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
   <li>
@@ -28,16 +38,56 @@ const PathwayCard: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
   </li>
 );
 
-const PathwayRow: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
+const PathwayChip: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
   <li>
     <Link
       to={signupLink(pathway)}
-      className="focus-ring group flex min-h-11 items-baseline justify-between gap-4 border-t border-border py-3 transition-colors hover:border-border-strong"
+      className="focus-ring inline-flex min-h-11 items-center gap-x-2 rounded-panel border border-border-strong px-4 py-2 sm:rounded-full text-left text-small text-text transition-colors hover:border-text/40 hover:bg-text/[0.04]"
     >
-      <span className="text-body text-text transition-colors group-hover:text-achievement-hover">{pathway.title}</span>
-      <span className="tabular shrink-0 text-small text-text-secondary">{pathway.dailyMinutes} min</span>
+      {pathway.title}
+      <span className="tabular whitespace-nowrap text-text-secondary">· {pathway.dailyMinutes} min</span>
     </Link>
   </li>
+);
+
+/** The case for a goal of your own (Pro): a still picture of the goal box with examples, so a visitor imagines theirs. */
+const OwnGoal: React.FC = () => (
+  <div className="mt-16 grid items-center gap-10 rounded-panel border border-border-strong bg-surface p-7 sm:p-10 lg:grid-cols-12 lg:gap-12">
+    <div className="lg:col-span-6">
+      <p className="text-small text-achievement-hover">Achivii Pro</p>
+      <h3 className="mt-3 text-balance text-h2 text-text">Or bring your own goal.</h3>
+      <p className="mt-4 max-w-[30rem] text-body-lg text-text-secondary">
+        Describe anything you want to get good at. Achivii asks a few questions, then builds a 90-day plan around it,
+        with one step a day sized to your time and a weekly review that keeps it on track.
+      </p>
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+        <Button size="lg" variant="gold" withArrow to="/signup?premium=1" className="self-start">
+          Build my own plan
+        </Button>
+        <p className="text-small text-text-secondary">$9 a month or $72 a year</p>
+      </div>
+    </div>
+
+    <figure className="lg:col-span-6">
+      <div aria-hidden="true" className="rounded-card border border-border-strong bg-background p-5 sm:p-6">
+        <p className="text-small text-text-secondary">What do you want to get good at?</p>
+        <p className="mt-3 border-b border-border-control pb-3 text-h3 text-text">
+          {OWN_GOAL_EXAMPLES[0]}
+          <span className="ml-1 inline-block h-[1.1em] w-px translate-y-[0.15em] bg-achievement" />
+        </p>
+      </div>
+      <figcaption className="mt-5">
+        <p className="text-small text-text-secondary">For example</p>
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {OWN_GOAL_EXAMPLES.slice(1).map((example) => (
+            <li key={example} className="rounded-full border border-border px-3 py-1.5 text-small text-text-secondary">
+              {example}
+            </li>
+          ))}
+        </ul>
+      </figcaption>
+    </figure>
+  </div>
 );
 
 export const Pathways: React.FC = () => (
@@ -56,39 +106,13 @@ export const Pathways: React.FC = () => (
       ))}
     </ul>
 
-    <details className="group/all mt-12">
-      <summary className="focus-ring inline-flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-full border border-border-strong px-5 text-body text-text transition-colors hover:bg-text/[0.04] [&::-webkit-details-marker]:hidden">
-        <span className="group-open/all:hidden">See all {CERTIFIED_PATHWAYS.length} goals</span>
-        <span className="hidden group-open/all:inline">Show fewer</span>
-        <ChevronDown
-          aria-hidden="true"
-          strokeWidth={1.5}
-          className="size-4 text-text-secondary transition-transform duration-300 group-open/all:rotate-180 motion-reduce:transition-none"
-        />
-      </summary>
-      <div className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2 lg:grid-cols-3">
-        {PATHWAY_GROUPS.map((group) => (
-          <div key={group.direction}>
-            <h3 className="mb-2 text-small text-text-secondary">{group.direction}</h3>
-            <ul>
-              {group.pathways.map((pathway) => (
-                <PathwayRow key={pathway.id} pathway={pathway} />
-              ))}
-            </ul>
-          </div>
-        ))}
-      </div>
-    </details>
+    <p className="mt-12 text-small text-text-secondary">More free goals</p>
+    <ul aria-label="More free goals" className="mt-3 flex flex-wrap gap-2">
+      {MORE_PATHWAYS.map((pathway) => (
+        <PathwayChip key={pathway.id} pathway={pathway} />
+      ))}
+    </ul>
 
-    <p className="mt-12 text-body text-text-secondary">
-      Have a different goal in mind?{' '}
-      <Link
-        to="/signup?premium=1"
-        className="focus-ring inline-flex items-center gap-1.5 text-text underline decoration-border-strong underline-offset-4 transition-colors hover:decoration-text"
-      >
-        Pro builds a plan around your own
-        <ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />
-      </Link>
-    </p>
+    <OwnGoal />
   </Section>
 );

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Pathways } from './Pathways';
-import { CERTIFIED_PATHWAYS, FEATURED_PATHWAYS, PATHWAY_GROUPS } from '../../../lib/certifiedPresets';
+import { CERTIFIED_PATHWAYS, FEATURED_PATHWAYS } from '../../../lib/certifiedPresets';
 
 const renderPathways = () =>
   render(
@@ -26,19 +26,18 @@ describe('landing Pathways', () => {
     }
   });
 
-  it('keeps every pathway, grouped by direction, behind "See all"', () => {
+  it('shows every other pathway as a chip, so all of them are visible without opening anything', () => {
     renderPathways();
-    const all = screen.getByText(`See all ${CERTIFIED_PATHWAYS.length} goals`).closest('details') as HTMLElement;
-    expect(all).not.toHaveAttribute('open');
-    for (const group of PATHWAY_GROUPS) {
-      const list = within(all).getByRole('heading', { level: 3, name: group.direction }).nextElementSibling as HTMLElement;
-      expect(hrefs(list)).toEqual(group.pathways.map((p) => `/signup?pathway=${p.id}`));
-    }
-    expect(within(all).getAllByRole('link')).toHaveLength(CERTIFIED_PATHWAYS.length);
+    const more = screen.getByRole('list', { name: 'More free goals' });
+    const rest = CERTIFIED_PATHWAYS.filter((p) => !FEATURED_PATHWAYS.includes(p));
+    expect(hrefs(more)).toEqual(rest.map((p) => `/signup?pathway=${p.id}`));
+    expect(FEATURED_PATHWAYS.length + rest.length).toBe(CERTIFIED_PATHWAYS.length);
   });
 
-  it('offers a goal of your own through Pro', () => {
+  it('makes the case for a goal of your own, leading to Pro', () => {
     renderPathways();
-    expect(screen.getByRole('link', { name: 'Pro builds a plan around your own' })).toHaveAttribute('href', '/signup?premium=1');
+    expect(screen.getByRole('heading', { level: 3, name: 'Or bring your own goal.' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Build my own plan' })).toHaveAttribute('href', '/signup?premium=1');
+    expect(screen.getByText('$9 a month or $72 a year')).toBeInTheDocument();
   });
 });
