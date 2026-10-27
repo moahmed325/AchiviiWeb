@@ -1,12 +1,8 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { CERTIFIED_PATHWAYS, FEATURED_PATHWAYS, type CertifiedPathway } from '../../../lib/certifiedPresets';
+import { CERTIFIED_PATHWAYS } from '../../../lib/certifiedPresets';
 import { Button } from '../Button';
+import { GoalRail } from '../GoalRail';
 import { Section, Eyebrow, HEADING } from '../Section';
-
-const signupLink = (pathway: CertifiedPathway) => `/signup?pathway=${encodeURIComponent(pathway.id)}`;
-
-const MORE_PATHWAYS = CERTIFIED_PATHWAYS.filter((p) => !FEATURED_PATHWAYS.includes(p));
 
 /** Goals people could bring to Pro. Illustrations only, never presented as other people's plans. */
 const OWN_GOAL_EXAMPLES = [
@@ -15,40 +11,6 @@ const OWN_GOAL_EXAMPLES = [
   'Learn the basics of Python',
   'Sketch a portrait from life',
 ];
-
-const PathwayCard: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
-  <li>
-    <Link to={signupLink(pathway)} className="focus-ring group block rounded-card">
-      <span className="block overflow-hidden rounded-card bg-surface">
-        <img
-          src={pathway.image}
-          alt=""
-          width={400}
-          height={500}
-          loading="lazy"
-          decoding="async"
-          className="aspect-[4/5] w-full object-cover saturate-[.85] transition-[filter,transform] duration-500 ease-ascend group-hover:scale-[1.02] group-hover:saturate-100 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-        />
-      </span>
-      <span className="mt-3 block text-body font-medium text-text transition-colors group-hover:text-achievement-hover">
-        {pathway.title}
-      </span>
-      <span className="tabular mt-1 block text-small text-text-secondary">{pathway.dailyMinutes} min a day</span>
-    </Link>
-  </li>
-);
-
-const PathwayChip: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
-  <li>
-    <Link
-      to={signupLink(pathway)}
-      className="focus-ring inline-flex min-h-11 items-center gap-x-2 rounded-panel border border-border-strong px-4 py-2 sm:rounded-full text-left text-small text-text transition-colors hover:border-text/40 hover:bg-text/[0.04]"
-    >
-      {pathway.title}
-      <span className="tabular whitespace-nowrap text-text-secondary">· {pathway.dailyMinutes} min</span>
-    </Link>
-  </li>
-);
 
 /** The case for a goal of your own (Pro): a still picture of the goal box with examples, so a visitor imagines theirs. */
 const OwnGoal: React.FC = () => (
@@ -97,21 +59,10 @@ export const Pathways: React.FC = () => (
       What do you want to get good at?
     </h2>
     <p className="mt-4 max-w-[36rem] text-body-lg text-text-secondary">
-      Not sure yet? Start with one of these. Each is a complete 90-day plan, and all of them are free.
+      {CERTIFIED_PATHWAYS.length} free 90-day plans. See where each one starts, and where it takes you.
     </p>
 
-    <ul aria-label="Popular goals" className="mt-12 grid grid-cols-2 gap-x-4 gap-y-8 lg:grid-cols-4">
-      {FEATURED_PATHWAYS.map((pathway) => (
-        <PathwayCard key={pathway.id} pathway={pathway} />
-      ))}
-    </ul>
-
-    <p className="mt-12 text-small text-text-secondary">More free goals</p>
-    <ul aria-label="More free goals" className="mt-3 flex flex-wrap gap-2">
-      {MORE_PATHWAYS.map((pathway) => (
-        <PathwayChip key={pathway.id} pathway={pathway} />
-      ))}
-    </ul>
+    <GoalRail />
 
     <OwnGoal />
   </Section>
