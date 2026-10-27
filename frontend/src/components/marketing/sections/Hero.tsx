@@ -22,8 +22,8 @@ export const Hero: React.FC = () => (
             Pick a goal. Get a plan for the next 90 days.
           </h1>
           <p className="mt-6 max-w-[32rem] text-body-lg text-text-secondary">
-            Choose from {CERTIFIED_PATHWAYS.length} guided goals, from running a 10K to writing a book. Every day you
-            get one step, sized to the time you have. Miss a day and the plan adjusts.
+            Choose from {CERTIFIED_PATHWAYS.length} guided goals, from running a 10K to writing a book, or bring your
+            own. Every day you get one step, sized to the time you have. Miss a day and the plan adjusts.
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button size="lg" variant="gold" withArrow href="#goals">
