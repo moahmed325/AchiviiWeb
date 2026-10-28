@@ -4,7 +4,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RoutineSettings } from '../../types';
 import { addDaysToDateKey } from '../../lib/dateUtils';
-import { FIXED_DATE_FITS, FIXED_DATE_HINT, FIXED_DATE_INVALID, FIXED_DATE_SHORT } from '../../lib/fixedDate';
+import { FIXED_DATE_FITS, FIXED_DATE_HINT, FIXED_DATE_INVALID, FIXED_DATE_SHORT, checkFixedDate } from '../../lib/fixedDate';
 import { todayKey } from '../../lib/today';
 import { StepSchedule } from './StepSchedule';
 
@@ -13,6 +13,7 @@ const ROUTINE: RoutineSettings = { wakeTime: '07:00', sleepTime: '23:00', busyHo
 
 function Harness({ onContinue }: { onContinue: () => void }) {
   const [fixedDate, setFixedDate] = useState('');
+  const today = todayKey(new Date());
   return (
     <StepSchedule
       rawGoal="Pass the IELTS"
@@ -23,6 +24,8 @@ function Harness({ onContinue }: { onContinue: () => void }) {
       commitments={null}
       scheduleChosen
       fixedDate={fixedDate}
+      fixedDateCheck={checkFixedDate(fixedDate, today)}
+      today={today}
       onFixedDateChange={setFixedDate}
       isWaitingForClarification={false}
       clarificationError={null}

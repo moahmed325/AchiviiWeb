@@ -23,7 +23,7 @@ import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
-import { FINAL_WEEK_INSIGHT, KEEP_GOING_INSIGHT, fixedDateRoom, pastLimitMove } from '../src/lib/weekClose/breaks.js';
+import { FINAL_WEEK_DATE_INSIGHT, FINAL_WEEK_INSIGHT, KEEP_GOING_INSIGHT, fixedDateRoom, pastLimitMove } from '../src/lib/weekClose/breaks.js';
 import { autoCloseInsight, jumpedWeeks, planWeekMove, saveWeekClose } from '../src/lib/weekClose/close.js';
 import { weekStartFor } from '../src/lib/planV2.js';
 
@@ -335,6 +335,7 @@ describe('the choice past the limit, WEEK_CLOSE_ENABLED on', () => {
     expect(db.tasksOf(12)[0].date).toBe(at.slice(0, 10));
     expect(db.state.reviews.map((r) => r.aiAdaptationInsight)).toEqual([FINAL_WEEK_INSIGHT]);
     expect(logLines(' jumped ')).toEqual(['[WeekClose] goal g1 week 10 jumped 11-11 moved 42 choice final_week']);
+    expect(logLines('fixedDate')).toEqual([]);
     expect(logLines('past the limit')).toEqual(['[WeekClose] goal g1 week 10 past the limit movedDays 42']);
   });
 
@@ -434,7 +435,7 @@ describe('fixedDateRoom and pastLimitMove with a fixed date (B-106)', () => {
     closeOn();
     const goal = { startDate: START, targetDate: TARGET, movedDays: 0, closeTriedAt: null, closeTriedWeek: null };
     const at = new Date(atGap(2, 10));
-    expect(planWeekMove({ ...goal, fixedDate: shifted(DAY_90, 60) }, 2, at, 'UTC')).toEqual({ ...planWeekMove(goal, 2, at, 'UTC'), dateRoom: 60 });
+    expect(planWeekMove({ ...goal, fixedDate: shifted(DAY_90, 60) }, 2, at, 'UTC')).toEqual({ ...planWeekMove(goal, 2, at, 'UTC'), dateRoom: 60, dateCut: false });
   });
 });
 
@@ -473,6 +474,27 @@ describe('a close with a fixed date, WEEK_CLOSE_ENABLED on (B-106)', () => {
     const week12 = db.tasksOf(12);
     expect(week12[3].date).toBe(at.slice(0, 10));
     expect(week12.filter((t) => t.notOffered)).toHaveLength(3);
+    // Week 12 didn't start today, so the line doesn't say it did.
+    expect(db.state.reviews.map((r) => r.aiAdaptationInsight)).toEqual([FINAL_WEEK_DATE_INSIGHT]);
+    expect(logLines('fixedDate')).toEqual(['[WeekClose] goal g1 week 10 fixedDate room 39 moved 39 gap 49']);
+  });
+
+  it('a date that did not hold the move back logs nothing: a one-day-late close, or the 28-day limit was the cap', async () => {
+    seed(2, 0, shifted(DAY_90, 5));
+    expect((await close(atGap(2, 1))).status).toBe(200);
+    db.reset();
+    seed(2, 24, shifted(DAY_90, 24 + 20));
+    expect((await close(atGap(2, 5, 24))).status).toBe(200);
+    expect(db.goal()).toMatchObject({ movedDays: 28 });
+    expect(logLines('fixedDate')).toEqual([]);
+  });
+
+  it('the review path logs the cut too', async () => {
+    seed(2, 0, shifted(DAY_90, 3));
+    const res = await post('/weeks/2/review', atGap(2, 5), { reflection: 'Back' });
+    expect(res.status).toBe(200);
+    expect(db.goal()).toMatchObject({ movedDays: 3 });
+    expect(logLines('fixedDate')).toEqual(['[WeekClose] goal g1 week 2 fixedDate room 3 moved 3 gap 5']);
   });
 
   it('a date that has already passed holds nothing back', async () => {

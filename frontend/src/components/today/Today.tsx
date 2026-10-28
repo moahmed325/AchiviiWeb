@@ -344,7 +344,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   // Weekly update M1.2b (WU-28): the automatic close's line, once. Dismissing it hides it here at once and records it
   // on the server, so no device shows it again; if that save fails, the next load shows it again.
   const closeLine = closeLineWeek(goal);
-  const dateLine = fixedDateLine(goal);
+  const dateLine = fixedDateLine(goal, new Date(), timezone);
   const dismissCloseLine = (weekNumber: number) => {
     const seenAt = new Date().toISOString();
     goalContext.updateActiveGoal({

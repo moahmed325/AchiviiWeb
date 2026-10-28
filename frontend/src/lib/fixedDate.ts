@@ -1,6 +1,7 @@
 import type { Goal } from '../types';
 import { addDaysToDateKey } from './dateUtils';
-import { planEndLabel } from './weekClose';
+import { todayKey } from './today';
+import { planEndLabel, utcDateLabel } from './weekClose';
 
 /**
  * B-106: an optional fixed date (an exam, a race, a talk) the goal must be ready by. The plan stays 90 days; the server
@@ -21,8 +22,20 @@ export type FixedDateCheck = 'empty' | 'invalid' | 'short' | 'fits';
  */
 export function checkFixedDate(value: string, today: string): FixedDateCheck {
   if (!value) return 'empty';
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`)) || value <= today) return 'invalid';
+  if (!isRealDate(value) || value <= today) return 'invalid';
   return value < addDaysToDateKey(today, 89) ? 'short' : 'fits';
+}
+
+/** `YYYY-MM-DD` naming a real day: Date.parse rolls '2026-02-30' over to March 2, so it must read back the same. */
+function isRealDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return !Number.isNaN(time) && new Date(time).toISOString().slice(0, 10) === value;
+}
+
+/** The goal's stored fixed date as `YYYY-MM-DD` (the field's value), or '' for none. */
+export function fixedDateKey(goal: Pick<Goal, 'fixedDate'>): string {
+  return typeof goal.fixedDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(goal.fixedDate) ? goal.fixedDate.slice(0, 10) : '';
 }
 
 /** The line under the field: the hint, what the date means for the plan, or the error. */
@@ -33,17 +46,20 @@ export function fixedDateHint(check: FixedDateCheck): string {
 }
 
 /**
- * Today's line for a goal with a fixed date: the date and the plan's end, read like `planEndLabel` (UTC dates, the
- * year only when it isn't this year). Null with no date or an unreadable one.
+ * Today's line for a goal with a fixed date: the date and the plan's end (`utcDateLabel`). Null with no date, an
+ * unreadable one, or once the date has passed in the person's time zone: the server no longer holds the plan to it.
  */
-export function fixedDateLine(goal: Pick<Goal, 'targetDate' | 'fixedDate'>, now: Date = new Date(), locale?: string): string | null {
-  if (!goal.fixedDate) return null;
-  const fixed = new Date(goal.fixedDate);
+export function fixedDateLine(
+  goal: Pick<Goal, 'targetDate' | 'fixedDate'>,
+  now: Date = new Date(),
+  timezone?: string,
+  locale?: string
+): string | null {
+  const key = fixedDateKey(goal);
   const end = planEndLabel(goal, now, locale);
-  if (Number.isNaN(fixed.getTime()) || !end) return null;
-  const options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', timeZone: 'UTC' };
-  if (fixed.getUTCFullYear() !== now.getUTCFullYear()) options.year = 'numeric';
-  const date = fixed.toLocaleDateString(locale, options);
+  if (!key || !end || key < todayKey(now, timezone)) return null;
+  const fixed = new Date(`${key}T00:00:00Z`);
+  const date = utcDateLabel(fixed, now, locale);
   const after = new Date(goal.targetDate).getTime() - 86_400_000 > fixed.getTime();
   return after ? `Your date: ${date}. Your plan ends on ${end}, after it, and won't move any later.` : `Your date: ${date}. Your plan ends on ${end}.`;
 }

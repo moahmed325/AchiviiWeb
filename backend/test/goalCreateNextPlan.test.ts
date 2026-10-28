@@ -219,13 +219,10 @@ describe('goal create with nextPlan', () => {
     expect(stored().previousPlan).toMatchObject({ mode: 'fresh' });
   });
 
-  it('a fresh plan keeps the old plan\'s fixed date while it is still ahead, and none once it has passed (B-106)', async () => {
+  it('a fresh plan carries no fixed date itself: only the one the body sends is saved (B-106)', async () => {
     db.goalFindFirst.mockResolvedValue({ ...oldGoal('active'), fixedDate: new Date('2099-05-10T00:00:00Z') });
     expect((await create({ fromGoalId: 'goal-old', mode: 'fresh', level: 7 })).status).toBe(201);
-    expect(db.goalCreate.mock.calls[0][0].data.fixedDate).toEqual(new Date('2099-05-10T00:00:00Z'));
-    db.goalFindFirst.mockResolvedValue({ ...oldGoal('active'), fixedDate: new Date('2020-05-10T00:00:00Z') });
-    expect((await create({ fromGoalId: 'goal-old', mode: 'fresh', level: 7 })).status).toBe(201);
-    expect(db.goalCreate.mock.calls[1][0].data.fixedDate).toBeNull();
+    expect(db.goalCreate.mock.calls[0][0].data.fixedDate).toBeNull();
   });
 
   it('refuses a plan that is not theirs, a bad body, or keep going from an active plan', async () => {

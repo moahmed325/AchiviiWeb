@@ -3,7 +3,7 @@ import express from 'express';
 import type { Server } from 'node:http';
 
 // B-106: goal create takes an optional fixed date (an exam, a race, a talk), checks it and saves it on the goal. The
-// plan stays 90 days. A next plan that sends no date keeps the old plan's date while it is still ahead.
+// plan stays 90 days.
 
 const db = vi.hoisted(() => ({
   goalCreate: vi.fn(),
@@ -45,7 +45,6 @@ import { getAuthUser } from '../src/routes/auth.js';
 import { generateRoadmap } from '../src/lib/ai/roadmap.js';
 import { generateWeekPlan } from '../src/lib/ai/weekPlan.js';
 import { goalRouter } from '../src/routes/goal.js';
-import { readFixedDate } from '../src/routes/goal/create.js';
 
 const number = { kind: 'number', metric: 'Loaves', value: 1, unit: 'loaves', direction: 'higher_is_better' };
 const roadmapOk = {
@@ -155,17 +154,5 @@ describe('goal create with a fixed date (B-106)', () => {
     expect(body.error).toBe(error);
     expect(generateRoadmap).not.toHaveBeenCalled();
     expect(db.transaction).not.toHaveBeenCalled();
-  });
-});
-
-describe('readFixedDate: a next plan keeps the old date while it is ahead (B-106)', () => {
-  const start = new Date('2026-10-28T00:00:00Z');
-  const old = new Date('2026-12-15T00:00:00Z');
-
-  it('keeps the carried date only when the body sends no fixedDate and the date is after the start', () => {
-    expect(readFixedDate(undefined, start, old)).toEqual({ date: old });
-    expect(readFixedDate(undefined, start, new Date('2026-10-28T00:00:00Z'))).toEqual({ date: null });
-    expect(readFixedDate(null, start, old)).toEqual({ date: null });
-    expect(readFixedDate('2027-01-10', start, old)).toEqual({ date: new Date('2027-01-10T00:00:00Z') });
   });
 });

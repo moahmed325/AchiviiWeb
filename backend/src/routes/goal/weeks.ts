@@ -7,7 +7,7 @@ import { getUserTodayDateString, normalizeTimezone } from '../../lib/timezone.js
 import { safeGoalTargets } from '../../lib/safety/storedTargets.js';
 import { TOTAL_WEEKS } from '../../lib/ai/roadmap.js';
 import { readRoutine, routineRecord } from '../../lib/planV2.js';
-import { CheckpointAcceptedError, closeAnswer, logJump, logWeekClose, planWeekMove, reviewInsight, saveWeekClose, weekCloseDue } from '../../lib/weekClose/close.js';
+import { CheckpointAcceptedError, closeAnswer, logFixedDate, logJump, logWeekClose, planWeekMove, reviewInsight, saveWeekClose, weekCloseDue } from '../../lib/weekClose/close.js';
 import { autoCloseUpdateInsight, logUpdateLowered, retestOfWeekFor, updateThenWrite } from '../../lib/weekClose/update.js';
 import { weekCloseEnabled, weeklyUpdateEnabled } from '../../lib/weekClose/switch.js';
 import { CHECKPOINT_WEEKS, acceptedWeeks, answerLogLine, pathwayOf, readCheckpoints } from '../../lib/weekClose/checkpoint.js';
@@ -246,6 +246,7 @@ weekRoutes.post('/weeks/:weekNumber/review', async (req: Request, res: Response)
     // Another close won inside the save (WU-27): nothing of this request was saved.
     if (!saved) return refuse(res, 'week_closed');
     logWeekClose(goal, weekNum, 'review', now, user.timezone, startedAt);
+    logFixedDate(goal, weekNum, next.move);
     logUpdateLowered(goal.id, update);
     // B-61: the answer shows the result the week writer was told: the one sent, else the stored (late) one, which the save keeps.
     res.json(closeAnswer(goal, weekNum, saved, clearTestResult ? null : (sanitizedTestResult ?? week.testResult ?? null)));
@@ -358,6 +359,7 @@ weekRoutes.post('/close-week', async (req: Request, res: Response): Promise<void
     }
     logWeekClose(goal, weekNum, 'auto', now, user.timezone, startedAt);
     logJump(goal, weekNum, next.move);
+    logFixedDate(goal, weekNum, next.move);
     logUpdateLowered(goal.id, update);
     res.json({ due: true, closedBy: 'auto', ...closeAnswer(goal, weekNum, saved, week.testResult ?? null, next.move) });
   } catch (err: any) {

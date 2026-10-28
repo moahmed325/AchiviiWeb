@@ -16,6 +16,7 @@ import { answerLogLine, expireOpen, openCheckpoint, readCheckpoints } from './ch
 import type { CloseCheckpoint } from './checkpointClose.js';
 import {
   BREAK_FROM_GAP_DAYS,
+  FINAL_WEEK_DATE_INSIGHT,
   FINAL_WEEK_INSIGHT,
   KEEP_GOING_INSIGHT,
   WELCOME_BACK_INSIGHT,
@@ -64,7 +65,7 @@ export const NOT_OFFERED_WEEK_INSIGHT = 'No practice days were offered this week
 export function autoCloseInsight(move: WeekMove | null): string {
   // M1.5b (WU-40 (2)): after the choice past the limit, the line names the week they pick up at.
   if (move?.choice === 'keep_going') return KEEP_GOING_INSIGHT.replace('{n}', String(move.weekBack));
-  if (move?.choice === 'final_week') return FINAL_WEEK_INSIGHT;
+  if (move?.choice === 'final_week') return move.finalStartedBefore ? FINAL_WEEK_DATE_INSIGHT : FINAL_WEEK_INSIGHT;
   if (move && move.breakDays !== null) return WELCOME_BACK_INSIGHT;
   if (!move || move.days <= 0) return AUTO_CLOSE_INSIGHT;
   return move.days < move.gap ? PARTIAL_MOVE_INSIGHT : MOVED_INSIGHT;
@@ -126,6 +127,10 @@ export interface WeekMove {
   choice: PastLimitChoice | null;
   /** B-106: the days the goal's fixed date still allowed (`fixedDateRoom`), or null with no fixed date ahead. */
   dateRoom: number | null;
+  /** B-106: the fixed date made the move shorter than it would have been without it. */
+  dateCut: boolean;
+  /** B-106: "Do my final week" moved less than it takes for week 12 to start today, so week 12 started earlier. */
+  finalStartedBefore: boolean;
 }
 
 /** M1.5b (WU-19, WU-40 (1)): the weeks a move jumps, first to last; empty for an ordinary close. */
@@ -176,10 +181,15 @@ export function planWeekMove(
   const tz = normalizeTimezone(timezone);
   // B-106: a fixed date ahead cuts the room, so the plan's end never moves past it.
   const dateRoom = fixedDateRoom(goal.targetDate, goal.fixedDate, getZonedDateString(firstTry, tz));
-  const room = Math.max(0, Math.min(MOVE_LIMIT_DAYS - moved, dateRoom ?? Infinity));
-  const past = pastLimitMove(gap, room, closedWeek, dateRoom);
-  const chosen = past && choice === past.choice ? past : null;
-  const days = chosen ? chosen.days : gap >= MOVE_FROM_GAP_DAYS ? Math.min(gap, room) : 0;
+  const moveWith = (limit: number | null) => {
+    const room = Math.max(0, Math.min(MOVE_LIMIT_DAYS - moved, limit ?? Infinity));
+    const past = pastLimitMove(gap, room, closedWeek, limit);
+    const chosen = past && choice === past.choice ? past : null;
+    return { past, chosen, days: chosen ? chosen.days : gap >= MOVE_FROM_GAP_DAYS ? Math.min(gap, room) : 0 };
+  };
+  const { past, chosen, days } = moveWith(dateRoom);
+  const dateCut = dateRoom !== null && days < moveWith(null).days;
+  const finalStartedBefore = chosen?.choice === 'final_week' && chosen.days < gap - 7 * (TOTAL_WEEKS - closedWeek - 1);
   const breakDays =
     gap >= BREAK_FROM_GAP_DAYS ? breakLength(closingTasks, weekStartFor(goal.startDate, closedWeek).toISOString().slice(0, 10), getZonedDateString(firstTry, tz)) : null;
   return {
@@ -194,6 +204,8 @@ export function planWeekMove(
     choiceNeeded: past?.choice ?? null,
     choice: chosen?.choice ?? null,
     dateRoom,
+    dateCut,
+    finalStartedBefore,
   };
 }
 
@@ -473,10 +485,6 @@ export function gapDays(goalStart: Date, closedWeek: number, now: Date, timezone
  * past the 28-day limit (WU-38 (2), the only case). Never fails a close that is already saved.
  */
 export function logJump(goal: Pick<Goal, 'id'>, weekNumber: number, move: WeekMove | null | undefined): void {
-  // B-106: one line when the fixed date held the move back.
-  if (move && move.dateRoom !== null && move.days < move.gap && move.dateRoom < MOVE_LIMIT_DAYS) {
-    console.log(`[WeekClose] goal ${goal.id} week ${weekNumber} fixedDate room ${move.dateRoom} moved ${move.days} gap ${move.gap}`);
-  }
   if (!move?.choice) return;
   try {
     const jumped = jumpedWeeks(weekNumber, move);
@@ -486,6 +494,12 @@ export function logJump(goal: Pick<Goal, 'id'>, weekNumber: number, move: WeekMo
   } catch (err) {
     console.warn('[WeekClose] Could not log the jump:', err);
   }
+}
+
+/** B-106: one line per close (review or automatic) whose move the fixed date made shorter. Never fails a saved close. */
+export function logFixedDate(goal: Pick<Goal, 'id'>, weekNumber: number, move: WeekMove | null | undefined): void {
+  if (!move?.dateCut) return;
+  console.log(`[WeekClose] goal ${goal.id} week ${weekNumber} fixedDate room ${move.dateRoom} moved ${move.days} gap ${move.gap}`);
 }
 
 /** WU-30 (1): one line per close, for O1's production checks. Never fails a close that is already saved. */

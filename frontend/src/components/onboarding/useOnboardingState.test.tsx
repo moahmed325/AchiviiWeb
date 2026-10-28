@@ -68,6 +68,12 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('clarify', () => {
+  it('fills in a fixed date that is still ahead, and drops one that has passed (B-106)', () => {
+    expect(setup({ initialFixedDate: '2099-05-10' }).result.current.fixedDate).toBe('2099-05-10');
+    expect(setup({ initialFixedDate: '2020-05-10' }).result.current.fixedDate).toBe('');
+    expect(setup().result.current.fixedDate).toBe('');
+  });
+
   it('a launched pathway sends clarify once on mount and is loading from the first render', () => {
     clarify.mockReturnValue(new Promise(() => {}));
     const { result } = setup({ initialGoal: PRESET, isPreset: true });

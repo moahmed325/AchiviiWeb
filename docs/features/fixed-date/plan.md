@@ -35,7 +35,7 @@ Out of scope (the medium and large fixes): a plan shorter than 90 days, planning
 | `routes/goal/create.ts` | Read an optional `fixedDate` (`YYYY-MM-DD`) from the body. 400 when it is not a real date or is not after the start date. Save it on the goal. The plan is still 90 days (`targetDate` unchanged). |
 | `lib/weekClose/close.ts`, `planWeekMove` | The room becomes `min(28 - movedDays, days from targetDate to fixedDate)`, never below 0. With no `fixedDate`, exactly as now. |
 | `lib/weekClose/breaks.ts`, `pastLimitMove` | Already works from `room`, so a smaller room gives the choice card sooner. `final_week` may today go past the 28-day limit; with a fixed date it must not end after it (see 4c). |
-| `lib/nextPlan.ts` | A fresh plan after a break carries the fixed date over, if it is still ahead. |
+| `lib/nextPlan.ts` (frontend), `WeekClose.tsx` | A fresh plan (Pro and free) and keep going fill the old plan's date in the field, kept only while it is still ahead; the person can change or clear it. The server carries nothing (code review). |
 | `routes/goal/present.ts` | Sends `fixedDate` to the app already (it spreads the goal); no change needed. |
 | Logs | The `[WeekClose]` line adds `fixedDate` when the room was cut by it. |
 
@@ -75,3 +75,18 @@ d. **Copy.** The question, the hint under it and the end-date line. Suggested: "
 1. Migration and backend (create, `planWeekMove`, `pastLimitMove`, present, next plan) with tests.
 2. Frontend field, payload, end-date line, e2e fixture.
 3. Code review, then Mo merges; the migration runs on deploy.
+
+## 6. Code review (2026-10-28)
+
+`/code-review` found ten points; all fixed on the same branch:
+
+1. A next plan kept the old date on the server where the person couldn't see or clear it. Now the app fills it in the field (fresh plan, Pro and free, and keep going); the server carries nothing.
+2. Today's line kept saying "won't move any later" after the date had passed. It now goes once the date has passed.
+3. After "Do my final week" cut by the date, the saved line said "Your final week starts today" though week 12 had started earlier. That case now saves "Welcome back. Your final week is under way, and your plan ends on {date}."
+4. The field checked against the browser's date; it now uses the person's stored time zone, as the server does.
+5. The `fixedDate` log line fired when the date did not hold the move back. It now fires only when the date made the move shorter (`dateCut`).
+6. The log line was missing on the review path; both close paths log it now (`logFixedDate`).
+7. A free user's "Start a fresh plan" lost the date. It is filled in now (see 1).
+8. The field accepted impossible dates (February 30). Now rejected, as on the server.
+9. The date check was done twice (hook and step); the hook does it once and passes it down.
+10. The date label was formatted in two places; both use `utcDateLabel` now.

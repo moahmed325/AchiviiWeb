@@ -26,6 +26,9 @@ export const KEEP_GOING_INSIGHT = 'Welcome back. Your plan picks up at week {n} 
 /** M1.5b (WU-40 (2)): the line after "Do my final week". `{date}` is filled by the app. */
 export const FINAL_WEEK_INSIGHT = 'Welcome back. Your final week starts today and ends on {date}.';
 
+/** B-106: the line after "Do my final week" when the fixed date kept week 12 from starting today. */
+export const FINAL_WEEK_DATE_INSIGHT = 'Welcome back. Your final week is under way, and your plan ends on {date}.';
+
 /** WU-37 (3): the card shows only when at least this many days of the break don't fit in the room (a whole week). */
 export const JUMP_FROM_OVERFLOW_DAYS = 7;
 
