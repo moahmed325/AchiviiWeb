@@ -167,6 +167,15 @@ describe('goal create and the profile call', () => {
     expect(savedRecovery()).toEqual(modelProfile);
   });
 
+  it('switch on: logs the copy count with the template, and saves it on the profile', async () => {
+    process.env[SWITCH] = 'true';
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.mocked(generateRecoveryProfile).mockResolvedValue({ profile: { ...modelProfile, templateChanges: 3 }, source: 'model', pickedTemplate: 'creative' });
+    expect((await create(ORIGAMI)).status).toBe(201);
+    expect(log).toHaveBeenCalledWith(`[Recovery] Profile from the model: template ${modelProfile.template}, rule changes 3`);
+    expect(savedRecovery().templateChanges).toBe(3);
+  });
+
   it('switch on: a pathway goal never calls it', async () => {
     process.env[SWITCH] = 'true';
     await create(RUN_10K);
