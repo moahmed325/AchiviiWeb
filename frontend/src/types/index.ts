@@ -406,6 +406,8 @@ export interface Goal {
   status: 'active' | 'completed' | 'paused' | 'archived';
   startDate: string;
   targetDate: string;
+  /** B-106: the outside date the plan never moves past (an exam, a race, a talk), or null. */
+  fixedDate?: string | null;
   currentWeek: number;
   answers: string; // JSON string
   routine: string; // JSON string
@@ -525,6 +527,8 @@ export interface CreateGoalPayload {
   domain?: string;
   routine: RoutineSettings;
   startDate?: string;
+  /** B-106: the fixed date (`YYYY-MM-DD`), only when one is set. */
+  fixedDate?: string;
   /** Next plan: only when this plan continues an earlier one. */
   nextPlan?: NextPlanRequest;
 }

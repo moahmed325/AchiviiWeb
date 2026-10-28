@@ -1,4 +1,5 @@
 import type { FollowUpQuestion, Goal, JourneyResult, NextPlanMode, NextPlanRequest, PlanAnswer } from '../types';
+import { fixedDateKey } from './fixedDate';
 import { findPathwayByTitle } from './certifiedPresets';
 
 /**
@@ -68,6 +69,8 @@ export interface NextPlanLaunch {
   startsFrom: string | null;
   /** The old plan's answers, filled in again (NP-3). */
   answers: PlanAnswer[];
+  /** B-106: the old plan's fixed date (`YYYY-MM-DD`) to fill in; none for go further. Onboarding keeps it only while ahead. */
+  fixedDate?: string;
 }
 
 /** Formats a level the person typed as the server will show it. */
@@ -83,6 +86,7 @@ export function nextPlanLaunch(goal: Goal, mode: NextPlanMode, level?: number): 
     isPreset: mode !== 'go_further' && Boolean(findPathwayByTitle(goal.rawGoal)),
     startsFrom,
     answers: goal.roadmap?.answers ?? [],
+    ...(mode !== 'go_further' && fixedDateKey(goal) ? { fixedDate: fixedDateKey(goal) } : {}),
   };
 }
 

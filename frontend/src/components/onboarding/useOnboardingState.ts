@@ -1,7 +1,10 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import type { CreateGoalResponse, FollowUpQuestion, Goal, GoalClarification, RoutineSettings } from '../../types';
 import { clarifyGoal, createGoalPlan, fetchActiveGoal, type PlanProgressEvent } from '../../lib/api';
+import { checkFixedDate } from '../../lib/fixedDate';
 import { nextPlanQuestions, prefilledAnswers, type NextPlanLaunch } from '../../lib/nextPlan';
+import { todayKey } from '../../lib/today';
+import { useUserTimezone } from '../../context/AuthContext';
 import { DRAFT_GOAL_KEY, answerFor as answerForState, buildCreatePayload } from './payload';
 import { describeOnboardingError, type OnboardingError } from './requestErrors';
 import { STEP_ORDER, isFlowStep, nextStep, splitQuestions, type FlowStep, type GoalKind, type WizardStep } from './steps';
@@ -41,13 +44,15 @@ export interface OnboardingStateOptions {
   currentGoalId?: string | null;
   /** Next plan (NP-3): the earlier plan's answers are filled in again, and the level question is not asked. */
   nextPlan?: NextPlanLaunch | null;
+  /** B-106: the fixed date to fill in (`YYYY-MM-DD`), from the plan a fresh or next plan follows; kept only while ahead. */
+  initialFixedDate?: string;
 }
 
 /**
  * Onboarding flow state: steps and browser history, clarify, answers, routine, and plan creation.
  * Presentation-only state (drag, drawers, editors) stays with the step that renders it.
  */
-export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset, currentGoalId, nextPlan = null }: OnboardingStateOptions) {
+export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset, currentGoalId, nextPlan = null, initialFixedDate = '' }: OnboardingStateOptions) {
   // The draft key stays until a goal is created, so a reload keeps a launched pathway (ND-16).
   const [initialDraft] = useState(() => {
     if (initialGoal && initialGoal.trim()) return initialGoal.trim();
@@ -95,6 +100,15 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
     commitments: [],
   });
   const scheduleChosen = routine.dailyMinutes > 0 && Boolean(routine.planVariant);
+  // B-106: the optional fixed date, kept apart from the routine (the server stores it on the goal). Checked against
+  // today in the person's stored time zone, as the server resolves the plan's start.
+  const timezone = useUserTimezone();
+  const [fixedDate, setFixedDate] = useState(() =>
+    initialFixedDate && checkFixedDate(initialFixedDate, todayKey(new Date(), timezone)) !== 'invalid' ? initialFixedDate : ''
+  );
+  const fixedDateToday = todayKey(new Date(), timezone);
+  const fixedDateCheck = checkFixedDate(fixedDate, fixedDateToday);
+  const fixedDateOk = fixedDateCheck !== 'invalid';
 
   const [planSteps, setPlanSteps] = useState<PlanProgressEvent[]>([]);
   const [generationError, setGenerationError] = useState<OnboardingError | null>(null);
@@ -283,7 +297,7 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
 
   // Leaves the schedule, waiting for clarify if the next step needs the questions and they aren't back yet.
   const handleProceedFromSchedule = () => {
-    if (!scheduleChosen) return;
+    if (!scheduleChosen || !fixedDateOk) return;
     if (clarification && !isClarifying) {
       goToStep(stepAfterSchedule);
       return;
@@ -350,7 +364,7 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
 
       try {
         const response: CreateGoalResponse = await createGoalPlan(
-          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, answers, customAnswers, nextPlan: nextPlan?.request }),
+          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, fixedDate, answers, customAnswers, nextPlan: nextPlan?.request }),
           token,
           (event) => {
             setPlanSteps((prev) => [...prev.filter((s) => s.id !== event.id), event]);
@@ -416,6 +430,10 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
     routine,
     setRoutine,
     scheduleChosen,
+    fixedDate,
+    setFixedDate,
+    fixedDateCheck,
+    fixedDateToday,
     planSteps,
     generationError,
     startClarification,

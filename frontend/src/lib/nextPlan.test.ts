@@ -99,6 +99,14 @@ describe('what onboarding is opened with (NP-3, NP-4)', () => {
     });
   });
 
+  it('keep going and a fresh plan carry the fixed date to fill in; go further does not (B-106)', () => {
+    const dated = { ...goal, fixedDate: '2027-05-10T00:00:00.000Z' } as Goal;
+    expect(nextPlanLaunch(dated, 'fresh').fixedDate).toBe('2027-05-10');
+    expect(nextPlanLaunch(dated, 'keep_going').fixedDate).toBe('2027-05-10');
+    expect(nextPlanLaunch(dated, 'go_further').fixedDate).toBeUndefined();
+    expect(nextPlanLaunch(goal, 'fresh').fixedDate).toBeUndefined();
+  });
+
   it('go further leaves the goal for them to write; a typed level is sent and shown', () => {
     const launch = nextPlanLaunch(goal, 'go_further', 7.5);
     expect(launch.goalText).toBeUndefined();

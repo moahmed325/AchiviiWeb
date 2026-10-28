@@ -58,6 +58,8 @@ export const OnboardingPage: React.FC = () => {
     switchGoal?: boolean;
     fromCompletedGoal?: boolean;
     nextPlan?: NextPlanLaunch;
+    /** B-106: the old plan's fixed date, filled in for a fresh plan. */
+    fixedDate?: string;
   } | null;
   const initialGoal = navState?.presetGoal || navState?.draftGoal;
   const isPreset = Boolean(navState?.isPreset || navState?.presetGoal);
@@ -106,6 +108,7 @@ export const OnboardingPage: React.FC = () => {
         isPreset={isPreset}
         currentGoalId={goalLoadFailed ? null : activeGoal?.id}
         nextPlan={nextPlan}
+        initialFixedDate={navState?.fixedDate ?? nextPlan?.fixedDate}
         apiOffline={apiStatus === 'offline'}
       />
     </div>

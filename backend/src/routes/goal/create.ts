@@ -87,6 +87,22 @@ export async function readNextPlanRequest(userId: string, body: unknown): Promis
   };
 }
 
+/**
+ * B-106: the goal's optional fixed date (an exam, a race, a talk), sent as `fixedDate` (`YYYY-MM-DD`, the person's
+ * local date). Stored like `startDate` (ND-1: that date at 00:00 UTC). It must be after the start date; it may be less
+ * than 90 days away (the plan stays 90 days and only never moves past it). Absent, null or '' is no date. A next plan
+ * carries nothing itself: the app fills the old plan's date in the field, so what the person sees is what is saved.
+ */
+export function readFixedDate(value: unknown, start: Date): { date: Date | null } | { error: string } {
+  if (value === undefined || value === null || value === '') return { date: null };
+  const date = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00.000Z`) : null;
+  if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    return { error: 'Choose a real date for your fixed date, or leave it empty.' };
+  }
+  if (date.getTime() <= start.getTime()) return { error: 'Your fixed date needs to be after the day your plan starts.' };
+  return { date };
+}
+
 export async function saveV2Goal(input: {
   userId: string;
   rawGoal: string;
@@ -97,6 +113,8 @@ export async function saveV2Goal(input: {
   routine: UserRoutineInput;
   start: Date;
   targetDate: Date;
+  /** B-106: the outside date the plan never moves past, or null. */
+  fixedDate?: Date | null;
   isPreset: boolean;
   /** Method-aware recovery (M1.3a): saved under `recovery` when it passed the checks. */
   recovery?: RecoveryProfile | null;
@@ -117,6 +135,7 @@ export async function saveV2Goal(input: {
         status: 'active',
         startDate: input.start,
         targetDate: input.targetDate,
+        fixedDate: input.fixedDate ?? null,
         currentWeek: 1,
         answers: JSON.stringify(input.answers),
         routine: JSON.stringify(input.routine),
@@ -251,6 +270,11 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
     const start = resolveGoalStart(normalizeTimezone(user.timezone), startDate);
     const targetDate = new Date(start);
     targetDate.setUTCDate(targetDate.getUTCDate() + 90);
+    const fixed = readFixedDate(req.body?.fixedDate, start);
+    if ('error' in fixed) {
+      res.status(400).json({ error: fixed.error });
+      return;
+    }
 
     const routineInput: UserRoutineInput = {
       wakeTime: routine?.wakeTime || '07:00',
@@ -355,6 +379,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         routine: routineInput,
         start,
         targetDate,
+        fixedDate: fixed.date,
         isPreset: Boolean(preset),
         recovery,
         previousPlan: nextPlan ? nextPlan.previousPlan : null,

@@ -13,6 +13,7 @@ import { NOT_SAVED } from '../../lib/weekClose';
 import { needsLevel } from '../../lib/nextPlan';
 import { useProEntitlement } from '../../hooks/useProEntitlement';
 import { NextPlanLevelDialog } from '../achievement/NextPlanLevelDialog';
+import { fixedDateKey } from '../../lib/fixedDate';
 import { useNextPlanLaunch } from '../achievement/useNextPlanLaunch';
 
 // Weekly update M1.2b (RULE-8, WU-14, WU-28): what the app shows around an automatic week close.
@@ -190,7 +191,9 @@ export const BreakChoice: React.FC<{ goal: Goal; choice: PastLimitChoice }> = ({
     } catch {
       // Without storage the navigation state still carries the text.
     }
-    navigate('/onboarding', { state: { draftGoal: goal.rawGoal, isPreset: false, switchGoal: true } });
+    // B-106: the goal's fixed date is filled in too, so it isn't lost (and can be cleared).
+    const fixedDate = fixedDateKey(goal);
+    navigate('/onboarding', { state: { draftGoal: goal.rawGoal, isPreset: false, switchGoal: true, ...(fixedDate ? { fixedDate } : {}) } });
   };
 
   return (

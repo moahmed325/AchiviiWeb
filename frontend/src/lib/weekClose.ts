@@ -24,11 +24,17 @@ export const NOT_SAVED = "That didn't save. Please try again.";
 export function planEndLabel(goal: Pick<Goal, 'targetDate'>, now: Date, locale?: string): string | null {
   const target = new Date(goal.targetDate);
   if (Number.isNaN(target.getTime())) return null;
-  const end = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate() - 1));
+  return utcDateLabel(new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate() - 1)), now, locale);
+}
+
+/**
+ * A stored date (UTC midnight) as the app shows dates: "May 10", with the year only when it isn't this year. Review fix
+ * 5: both years on one clock (UTC), as the date is read. Shared by the plan's end and the fixed date (B-106).
+ */
+export function utcDateLabel(date: Date, now: Date, locale?: string): string {
   const options: Intl.DateTimeFormatOptions = { month: 'long', day: 'numeric', timeZone: 'UTC' };
-  // Review fix 5: both years on one clock (UTC), as the end date is read.
-  if (end.getUTCFullYear() !== now.getUTCFullYear()) options.year = 'numeric';
-  return end.toLocaleDateString(locale, options);
+  if (date.getUTCFullYear() !== now.getUTCFullYear()) options.year = 'numeric';
+  return date.toLocaleDateString(locale, options);
 }
 
 /** A stored insight with `{date}` filled in (`planEndLabel`); unchanged when it has none. */

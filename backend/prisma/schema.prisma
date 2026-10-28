@@ -91,6 +91,7 @@ model Goal {
   movedDays           Int       @default(0) // RULE-14/15: days gaps and breaks pushed the plan later, max 28
   closeTriedAt        DateTime? // RULE-9: the first open that tried to close week `closeTriedWeek`
   closeTriedWeek      Int?
+  fixedDate           DateTime? // B-106: an outside date the goal must be ready by (exam, race, talk); the plan never moves past it
 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   roadmapWeeks     RoadmapWeek[]

@@ -37,6 +37,22 @@ describe('buildCreatePayload', () => {
     expect(payload).toEqual(baseline);
   });
 
+  it('adds the fixed date only when one is set, before nextPlan (B-106)', () => {
+    const baseline = presetCreate.body as CreateGoalPayload;
+    const input = {
+      rawGoal: 'Run a 10K Under 50 Minutes',
+      editedOutcome: preset.clarifiedOutcome,
+      clarification: preset,
+      routine: baseline.routine,
+      answers: Object.fromEntries(preset.followUpQuestions.map((q) => [q.id, q.options[0]])),
+      customAnswers: {},
+    };
+    expect(buildCreatePayload({ ...input, fixedDate: '' })).toEqual(baseline);
+    const withDate = buildCreatePayload({ ...input, fixedDate: '2027-05-10', nextPlan: { fromGoalId: 'g0', mode: 'fresh', level: 5 } });
+    expect(withDate).toEqual({ ...baseline, fixedDate: '2027-05-10', nextPlan: { fromGoalId: 'g0', mode: 'fresh', level: 5 } });
+    expect(Object.keys(withDate).slice(-2)).toEqual(['fixedDate', 'nextPlan']);
+  });
+
   it('falls back from the edited outcome to the clarified outcome, then to the raw goal', () => {
     const base = { rawGoal: 'Raw', routine: (customCreate.body as CreateGoalPayload).routine, answers: {}, customAnswers: {} };
     expect(buildCreatePayload({ ...base, editedOutcome: '', clarification: custom }).clarifiedOutcome).toBe(custom.clarifiedOutcome);
