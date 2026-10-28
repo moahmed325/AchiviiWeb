@@ -2,8 +2,7 @@ import React from 'react';
 import { CERTIFIED_PATHWAYS } from '../../../lib/certifiedPresets';
 import { Button } from '../Button';
 import { Eyebrow } from '../Section';
-import { TodayPreview } from '../TodayPreview';
-import { WeekLine } from '../WeekLine';
+import { GoalPreview } from '../GoalPreview';
 
 const MINUTES = CERTIFIED_PATHWAYS.map((p) => p.dailyMinutes);
 
@@ -38,10 +37,8 @@ export const Hero: React.FC = () => (
           </p>
         </div>
 
-        <TodayPreview className="mx-auto w-full max-w-[440px] lg:col-span-5" />
+        <GoalPreview className="mx-auto w-full max-w-[440px] lg:col-span-5" />
       </div>
-
-      <WeekLine className="mt-20 sm:mt-24" />
     </div>
   </section>
 );
