@@ -12,13 +12,14 @@ Written 2026-10-15 for Mo (B-28). Prices and limits change often. Check the two 
 
 | What the person does | AI calls when all goes well | Worst case (retries) |
 |---|---|---|
-| Creates a goal (clarify, roadmap, week 1) | 3 | about 9 (each step retries once, and busy errors are retried twice more) |
-| Sends a weekly review (writes next week) | 1 | about 3 |
+| Creates a pathway goal (clarify, roadmap, week 1) | 3 | about 9 (each step retries once, and busy errors are retried twice more) |
+| Creates a custom goal (clarify, roadmap, recovery profile, week 1) | 4 | about 11 (the profile call retries once; if it still fails the goal uses a template) |
+| Closes a week, by review or automatically (weekly update, then next week) | 2 | about 5 (the update retries once within its 15 s limit) |
 | Anything else (Today, Focus, ticking steps, missed days) | 0 | 0 |
 
-The custom profile call is off (O1), so it adds nothing today.
+Since 2026-10-28 both `WEEKLY_UPDATE_ENABLED` and `CUSTOM_RECOVERY_PROFILES_ENABLED` are on, so a week close makes the update call too and a custom goal makes the profile call. Week 12 has no week after it, so its close makes no week call.
 
-So, roughly: **a new user costs about 3 calls on day 1, and then about 1 call a week.**
+So, roughly: **a new user costs about 3 calls on day 1 (4 for a custom goal), and then about 2 calls a week.**
 
 ## 2. How far the free tier goes
 
@@ -34,8 +35,8 @@ If the limit really is 500 a day:
 | Daily load | Calls a day | Fits? |
 |---|---|---|
 | 20 new goals a day | about 60 | Yes |
-| 500 people with a goal, each doing a weekly review | about 70 a day on average | Yes |
-| 50 new goals and 1,000 active people | about 300 | Yes, but retries eat the rest |
+| 500 people with a goal, each closing a week | about 140 a day on average (2 calls each) | Yes |
+| 50 new goals and 1,000 active people | about 460 | Only just; retries go past it |
 | 100 new goals a day | about 300 for new goals alone | Close to the limit |
 
 **The daily limit is not the first problem. The per-minute limit is.** People tend to act at the same time: Sunday evening reviews, or a post that brings many sign-ups at once. 15 calls a minute means only about **5 goals can be created in the same minute**. The 6th person gets "Couldn't design your roadmap right now. Please try again." This already happened in our own eval: running 26 goals in a row hit the limit (M2.2).
@@ -61,7 +62,7 @@ Paying is "pay as you go": no monthly fee. You link a billing account to the Goo
 
 ### What that means for Achivii (estimates)
 
-My guess at the size of each call: a goal creation sends about 11,000 tokens and gets about 10,000 back; a weekly review sends about 5,000 and gets about 5,000 back. These are estimates, not measurements, and "thinking" models can use 2 to 3 times more output. Treat the numbers below as a rough guide.
+My guess at the size of each call: a goal creation sends about 11,000 tokens and gets about 10,000 back; a weekly review sends about 5,000 and gets about 5,000 back. These are estimates, not measurements, and "thinking" models can use 2 to 3 times more output. Treat the numbers below as a rough guide. They were made before the weekly update call and the custom profile call were switched on (2026-10-28); both are smaller than a week call, so a week close and a custom goal cost somewhat more than shown, well under double.
 
 | Model | One new goal | One weekly review | One person, a whole 12-week plan | 1,000 active people a month |
 |---|---|---|---|---|
@@ -80,7 +81,7 @@ Paying lifts the limits a lot. Tier 1 allows many more calls a minute than 15 (s
 ## 4. What a better model would give
 
 - **Better plans.** A smarter model follows the method more closely, writes clearer steps and makes fewer mistakes our checks have to catch. Fewer failed checks means fewer retries and fewer "Please try again" screens.
-- **Custom profiles could go live.** Our eval (M2.3) missed its bar by one kind with Flash-Lite (actions 89.5%). A stronger model may pass it, which would allow O1 (switching on custom recovery profiles).
+- **Better custom profiles.** Flash-Lite passed the eval's bar on 2026-10-25 (B-56 round 3, actions 90.3%) and custom profiles are on since 2026-10-28; a stronger model would likely agree more often and fall back to a template less.
 - **Fewer failures at busy moments**, because of the higher paid limits. This alone is the main reason to pay, and it does not need a bigger model.
 
 What it does not give: the safety rules, the rest gaps and the recovery rules are all in our own code (MR-3). A bigger model does not make the app safer or change how missed days work.

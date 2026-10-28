@@ -110,7 +110,7 @@ action; the model only tags steps (and, when switched on, writes a custom profil
   catch-all, Weekly test and Fixed-time session; each kind has one action and may be hard or in order; a rest gap
   of 0 to 2 days; a return rule. A pathway gets its hand-written profile (its domain template). A custom goal
   gets one of the 13 templates, picked by keywords and used unchanged; the profile call that adjusts it runs only
-  when `CUSTOM_RECOVERY_PROFILES_ENABLED` is exactly `true` (off). An older goal gets its profile at its next
+  when `CUSTOM_RECOVERY_PROFILES_ENABLED` is exactly `true` (on since 2026-10-28). An older goal gets its profile at its next
   weekly review.
 - **Kinds.** The week call tags every practice-day step with a kind from the profile's menu; a missing or unknown
   kind fails the week (one retry). Code makes every test-day step Weekly test and a `highLoad` step hard. Rest-day
