@@ -32,6 +32,8 @@ export type SafetyRule = ScanRule | WeekLoadRule | 'target_step' | 'unknown_fami
  */
 export interface ScanOptions {
   light?: boolean;
+  /** M3.1 (PSL-20): an experienced lifter; weeks 1 to 3 then skip the % of 1RM and reps-in-reserve rules (not in a light week). */
+  experiencedLifter?: boolean;
 }
 
 export interface SafetyHit {
@@ -186,7 +188,7 @@ export function textSafetyHits(value: string, weekNumber: number, options: ScanO
     if (anyMatch([DEFICIT_AFTER, DEFICIT_BEFORE], sentence, (match) => upperEnd(match) > CALORIE_DEFICIT_MAX)) {
       add({ rule: 'deficit_over_600', matched: clip(sentence) });
     }
-    if (!early) continue;
+    if (!early || (options.experiencedLifter && options.light !== true)) continue;
     if (anyMatch([PERCENT_1RM], sentence, (match) => upperEnd(match) > EARLY_WEEK_MAX_1RM_PERCENT)) add({ rule: 'over_80_percent_1rm', matched: clip(sentence) });
     if (anyMatch(RIR_PATTERNS, sentence, (match) => lowerEnd(match) < EARLY_WEEK_MIN_RIR)) add({ rule: 'rir_below_3', matched: clip(sentence) });
   }

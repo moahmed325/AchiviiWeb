@@ -249,7 +249,7 @@ export async function writeNextWeek(
   // M2.1 (WU-43 (5)): the session a light week's test belongs to; nothing for any other week.
   const lastLight = (done?.test as unknown as WeekTest | null)?.light === true;
   const session = lightTestSession(next.test as unknown as WeekTest, goal.rawGoal, goal.clarifiedOutcome);
-  const load = loadGoalInput(goal, next.target as unknown as WeekTarget);
+  const load = loadGoalInput(goal, next.target as unknown as WeekTarget, startingPointValue(goal));
   // Checkpoints (RULE-12): the day-90 line only while a choice stands, so the call is otherwise exactly as before.
   const dayNinety = dayNinetyLineOf(goal);
   const days = await generateWeekPlan({

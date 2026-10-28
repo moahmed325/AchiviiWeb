@@ -11,7 +11,7 @@ Where every feature stands. One row per feature; change a row only when a featur
 | `weekly-update` | IN PROGRESS | — | Resumed 2026-10-17 (WU-10); plan in `03-phases.md`. Both switches on in production: `WEEK_CLOSE_ENABLED` (O1) and `WEEKLY_UPDATE_ENABLED` (O2, Mo confirmed 2026-10-28; it also turns on `checkpoints`). After it ships: whole-product logic audit (B-46) |
 | `checkpoints` | DONE | — | Built 2026-10-24 (M1 server, M2 app; CP-1 to CP-16). Live with `WEEKLY_UPDATE_ENABLED` on (CP-8; Mo confirmed 2026-10-28) |
 | `billing` (old layout) | WAITING | Lemon Squeezy test-mode keys and webhook (M2.5); then launch (phase 6) | Code built 2026-09-29 |
-| `plan-safety-limits` | PLANNED | M1.1 prompt (`main - review`) | B-62. Feature APPROVED and order agreed 2026-10-17 (PSL-4). Stopgap B-63 DONE. Weekly-update M3.1 waits for its P2 (WU-29) |
+| `plan-safety-limits` | WAITING | O2: Mo reads a week of `[Safety]` lines in Render | B-62. Built (M1.1 to M3.1, 2026-10-28; PSL-19 to PSL-22 make the limits follow an experienced runner's starting point and an experienced lifter's method). Closes after O2 |
 
 States: `IN PROGRESS` · `PAUSED` · `WAITING` (on something outside the code) · `STUB` (problem written down, not planned) · `PLANNED`.
 

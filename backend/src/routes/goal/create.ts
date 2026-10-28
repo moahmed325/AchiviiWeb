@@ -363,7 +363,8 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         ...(firstSession ? { testSession: firstSession } : {}),
         highLoadGoal: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
         // Plan safety limits M2.1 (RULE-4): only a load goal adds the key.
-        ...loadGoalInput({ rawGoal, clarifiedOutcome }, first.target),
+        // M3.1 (PSL-19): the starting point raises week 1's longest-run cap to what they already run.
+        ...loadGoalInput({ rawGoal, clarifiedOutcome }, first.target, roadmap.startingPoint?.value ?? null),
         recovery,
         heldSafetyLines: week1SafetyLines,
       });

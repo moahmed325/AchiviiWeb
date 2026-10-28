@@ -24,6 +24,7 @@ import {
   TEST_STEP_TITLE,
   firstWeekBackLimit,
   firstWeekBackSummary,
+  noBaseCap,
   runOf,
   runningLimit,
   runningLimitMinutes,
@@ -39,6 +40,8 @@ import {
   type LoadBreach,
   type Run,
 } from '../safety/weekLoad.js';
+import { isExperiencedLifter } from '../safety/experience.js';
+import type { RunLevel } from '../safety/targetSteps.js';
 import {
   formatAnswerLines,
   formatTarget,
@@ -307,6 +310,15 @@ function kindsBlock(recovery: RecoveryProfile): string {
 }
 
 /**
+ * M3.1 (PSL-20): the one place that decides whether weeks 1 to 3 drop the % of 1RM and reps-in-reserve caps, read by
+ * the prompt and the checks alike: someone who already lifts (`isExperiencedLifter`), on a goal that isn't a running
+ * goal, outside a light week (a high-load first week back keeps every cap).
+ */
+export function liftCapsRelaxed(input: Pick<WeekCallInput, 'answers' | 'loadGoal' | 'firstWeekBack'>): boolean {
+  return input.loadGoal?.running !== true && !isLightWeek(input) && isExperiencedLifter(input.answers);
+}
+
+/**
  * B-63 (PSL-1, PSL-2): the limits. In weeks 1 to 3 it says plainly that it overrides the method's reps-in-reserve
  * range. Plan safety limits M2.2a (RULE-5, PSL-11 Q17): told on every load goal, with the running line naming the number
  * from the base week, the longest-run rule and the intake floor; every number is from the limits module. Without a load
@@ -319,12 +331,15 @@ function safetyLimitsBlock(input: WeekCallInput): string {
     '',
     '',
     'SAFETY LIMITS (these override the method and the target; a week whose steps break any of them is not saved)',
-    ...runningLines(input.baseWeek),
+    ...runningLines(input.baseWeek, input.loadGoal?.runLevel),
     `- At most ${HARD_RUNS_MAX} hard runs this week (intervals, tempo, race pace; a hard weekly test counts as one).`,
     `- Calorie deficit: ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more.`,
     `- Daily intake: never below ${DAILY_INTAKE_MIN_KCAL} kcal a day.`,
   ];
-  if (input.weekNumber <= EARLY_WEEKS) {
+  // M3.1 (PSL-20): an experienced lifter keeps the method's % of 1RM and reps in reserve; failure and max tests still wait.
+  if (input.weekNumber <= EARLY_WEEKS && liftCapsRelaxed(input)) {
+    lines.push(`- Weeks 1 to 3: nothing to failure, no max or 1RM test; loads and reps in reserve follow the method (they already lift).`);
+  } else if (input.weekNumber <= EARLY_WEEKS) {
     lines.push(
       `- Weeks 1 to 3: no lift above ${EARLY_WEEK_MAX_1RM_PERCENT}% of 1RM, at least ${EARLY_WEEK_MIN_RIR} reps in reserve, nothing to failure, no max or 1RM test.`,
       `- In weeks 1 to 3 this overrides the method's RIR range: at least ${EARLY_WEEK_MIN_RIR} reps in reserve.`
@@ -340,14 +355,17 @@ function safetyLimitsBlock(input: WeekCallInput): string {
  * M2.2b (PSL-18): a first week back names its limit (no allowance, the floor, half after a long break); its unknown base
  * gets the 0-run base's longest-run and cap lines, with its running line saying it isn't known.
  */
-export function runningLines(base: BaseWeek | undefined): string[] {
+export function runningLines(base: BaseWeek | undefined, level?: RunLevel | null): string[] {
   const longest = `- Longest run: at most ${LONGEST_RUN_MAX_PERCENT}% of the week's running when there are ${LONGEST_RUN_MIN_RUNS} or more runs.`;
   const cap = `${LONGEST_RUN_NO_BASE_MAX_MINUTES} minutes (${LONGEST_RUN_NO_BASE_MAX_KM} km when every run is given in km)`;
+  // M3.1 (PSL-19): with no last week, the cap is never below what they already run in one go (their starting point).
+  // Rounded down as the check reads it (`shownLimit`), so the prompt never names more than the check allows.
+  const noBase = `${shownLimit(noBaseCap('minutes', level), 'minutes')} minutes (${shownLimit(noBaseCap('km', level), 'km')} km when every run is given in km)`;
   const zeroLines = ['- Running: last week had no running; keep it at their level.', longest, `- No run longer than ${cap}.`];
   if (!base?.known) {
     // M2.2b review: held like a 0-run base, told as not known.
     if (base?.firstWeekBack) return ["- Running: last week's running isn't known; keep it at their level.", ...zeroLines.slice(1)];
-    return ['- Running: there is no last week to count from; keep it at their level.', longest, `- With fewer than ${LONGEST_RUN_MIN_RUNS} runs, no run longer than ${cap}.`];
+    return ['- Running: there is no last week to count from; keep it at their level.', longest, `- With fewer than ${LONGEST_RUN_MIN_RUNS} runs, no run longer than ${noBase}.`];
   }
   if (base.runs === 0) return zeroLines;
   if (base.firstWeekBack) return [...firstWeekBackLines({ ...base, firstWeekBack: base.firstWeekBack }), longest];
@@ -1039,16 +1057,18 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   const hits: Breach[] = [];
   // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through,
   // and every step is scanned, not only the high-load ones.
-  const scan = { light: isLightWeek(input) };
+  // M3.1 (PSL-20): an experienced lifter's weeks 1 to 3 skip the % of 1RM and reps-in-reserve rules.
+  const experiencedLifter = liftCapsRelaxed(input);
+  const scan = { light: isLightWeek(input), experiencedLifter };
   const profileHighLoad = (input.recovery?.kinds ?? []).some((kind) => kind.highLoad === true);
   // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
   // says is logged, never refused, or that week could never be written.
-  const testText = scan.light ? [] : textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
+  const testText = scan.light ? [] : textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber, { experiencedLifter });
   /** On the test step a rule the test itself breaks is allowed; elsewhere only a sentence copied from the test. */
   const fromTest = (rule: SafetyRule, matched: string | null, testStep: boolean) =>
     testText.some((item) => item.rule === rule && (testStep || (matched !== null && (matched.includes(item.matched) || item.matched.includes(matched)))));
   // M3.3a (WU-55): the re-test step runs the re-tested week's stored test, read as the test step reads its own.
-  const retestText = scan.light || !input.retest ? [] : textSafetyHits([input.retest.test.instructions, input.retest.test.passIf].join(NL), input.weekNumber);
+  const retestText = scan.light || !input.retest ? [] : textSafetyHits([input.retest.test.instructions, input.retest.test.passIf].join(NL), input.weekNumber, { experiencedLifter });
   for (const day of days) {
     const steps = [...day.detailedSteps, ...(day.minimumVersion ? [day.minimumVersion] : [])];
     for (const step of steps) {
@@ -1072,7 +1092,7 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
         }
       }
       if (!input.loadGoal) continue;
-      for (const breach of stepLoadBreaches(step.load, input.weekNumber)) {
+      for (const breach of stepLoadBreaches(step.load, input.weekNumber, { experiencedLifter })) {
         hits.push({
           day,
           step,
@@ -1217,7 +1237,7 @@ function weekLoadBreaches(days: WeekDayPlan[], input: WeekCallInput): Breach[] {
   // M2.2a review: a measured week's test is hard; a light week's (a light test, or a high-load first week back) is not.
   const measured = input.test.light !== true && !isLightWeek(input);
   const week = weekRunning(weekRuns(days, input.loadGoal?.running === true, measured));
-  return weekBreaches(week, input.baseWeek).map((breach: LoadBreach & { run?: Run }) => ({
+  return weekBreaches(week, input.baseWeek, input.loadGoal?.runLevel).map((breach: LoadBreach & { run?: Run }) => ({
     name: breach.run ? breach.run.name : 'This week',
     rule: breach.rule,
     matched: breach.matched,

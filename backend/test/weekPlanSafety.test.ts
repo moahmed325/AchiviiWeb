@@ -9,6 +9,7 @@ import { generateStructuredContent } from '../src/lib/ai/gemini.js';
 import {
   buildWeekPrompt,
   checkWeekAnswer,
+  liftCapsRelaxed,
   generateWeekPlan,
   weekLayout,
   type RawWeekAnswer,
@@ -16,6 +17,8 @@ import {
 } from '../src/lib/ai/weekPlan.js';
 import { checkRoadmapAnswer, presetMethod, type RawRoadmapAnswer } from '../src/lib/ai/roadmap.js';
 import { textSafetyHits } from '../src/lib/ai/safetyScan.js';
+import { stepLoadBreaches } from '../src/lib/safety/weekLoad.js';
+import { isExperiencedLifter } from '../src/lib/safety/experience.js';
 import { recompPreset } from '../src/lib/ai/presets/recomp.js';
 
 /** B-63 (PSL-1, PSL-2): the week call's safety stopgap. */
@@ -410,5 +413,65 @@ describe('roadmap: every week test, every rule', () => {
   it('refuses a week 2 test at 85% of 1RM', () => {
     const result = checkRoadmapAnswer(roadmapWith(2, 'Squat 3 reps at 85% of 1RM'), { statedTargets: [] });
     expect('reason' in result && result.reason).toMatch(/^SAFETY: week 2's test/);
+  });
+});
+
+// M3.1 (PSL-20): an experienced lifter's weeks 1 to 3 follow the method's % of 1RM and reps in reserve; failure and max
+// tests still wait for week 4. A beginner, or anyone with no clear signal, keeps every early-week cap.
+describe('weeks 1 to 3 for someone who already lifts (PSL-20)', () => {
+  const recompOption = (start: string) => recompPreset.diagnosticQuestions[0].options.find((option) => option.startsWith(start))!;
+  const lifter: WeekCallInput = { ...input, answers: [{ id: 'baseline', question: 'Experience?', answer: recompOption('Overfat / Intermediate Lifter') }] };
+
+  it('reads experience from the answers, a beginner or a lapsed lifter never counting', () => {
+    expect(isExperiencedLifter([{ answer: recompOption('Overfat / Intermediate Lifter') }])).toBe(true);
+    expect(isExperiencedLifter([{ answer: recompOption('Athletic Cut / Advanced') }])).toBe(true);
+    expect(isExperiencedLifter([{ answer: recompOption('Beginner / Untrained') }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: recompOption('Skinny-Fat / Sedentary') }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: "I've been lifting for 3 years, squat 120 kg" }])).toBe(true);
+    expect(isExperiencedLifter([{ answer: 'I lifted in college 10 years ago but stopped' }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: 'Intermediate Spanish' }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: '70 kg for 5' }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: 'I lift 4 times a week for 2 years' }, { answer: 'Beginner at deadlifts' }])).toBe(false);
+    expect(isExperiencedLifter([])).toBe(false);
+    // Code review: an age or a plan is not experience, and a lapse in another answer counts.
+    expect(isExperiencedLifter([{ answer: "I'm 35 years old and want to start lifting weights" }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: 'I want to go to the gym regularly' }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: recompOption('Overfat / Intermediate Lifter') }, { answer: "I quit the gym 2 years ago after an injury and I'm coming back" }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: 'I train at the gym 4x a week for 2 years' }])).toBe(true);
+    expect(isExperiencedLifter([{ answer: 'I used to skip breakfast' }, { answer: 'Lifting for 3 years' }])).toBe(true);
+  });
+
+  it('a light week (a high-load first week back) and a running goal keep every cap (code review)', () => {
+    const answer = week({ instructions: PREFIX + 'Leave 2 reps in reserve on the last set.', load: { rir: 2 } });
+    const back = { ...lifter, firstWeekBack: { awayDays: 10, note: null, highLoad: true } };
+    expect(liftCapsRelaxed(back)).toBe(false);
+    expect(reason(checkWeekAnswer(answer, back))).toContain('at least 3 reps in reserve');
+    expect(liftCapsRelaxed({ ...lifter, loadGoal: { running: true } })).toBe(false);
+    expect(liftCapsRelaxed(lifter)).toBe(true);
+  });
+
+  it('a step load at 2 reps in reserve or 85% of 1RM passes in week 1; failure and a max test do not', () => {
+    expect(stepLoadBreaches({ rir: 2, percent1RM: 85 }, 1, { experiencedLifter: true })).toEqual([]);
+    expect(stepLoadBreaches({ rir: 2, percent1RM: 85 }, 1).map((b) => b.rule)).toEqual(['over_80_percent_1rm', 'rir_below_3']);
+    expect(stepLoadBreaches({ toFailure: true, maxTest: true }, 1, { experiencedLifter: true }).map((b) => b.rule)).toEqual(['to_failure', 'max_test']);
+  });
+
+  it('the text scan lets "2 reps in reserve" through for them in week 1, but not in a light week or to failure', () => {
+    expect(textSafetyHits('Work up to 2 reps in reserve on every set.', 1, { experiencedLifter: true })).toEqual([]);
+    expect(textSafetyHits('Work up to 2 reps in reserve on every set.', 1).map((h) => h.rule)).toEqual(['rir_below_3']);
+    expect(textSafetyHits('Work up to 2 reps in reserve on every set.', 6, { experiencedLifter: true, light: true }).map((h) => h.rule)).toEqual(['rir_below_3']);
+    expect(textSafetyHits('Take the last set to failure.', 1, { experiencedLifter: true }).map((h) => h.rule)).toEqual(['to_failure']);
+  });
+
+  it('a whole week 1 at 2 reps in reserve is accepted for them and refused for a beginner', () => {
+    const answer = week({ instructions: PREFIX + 'Leave 2 reps in reserve on the last set.', load: { rir: 2 } });
+    expect('value' in checkWeekAnswer(answer, lifter)).toBe(true);
+    expect(reason(checkWeekAnswer(answer, input))).toContain('reps in reserve');
+  });
+
+  it('the prompt tells them the method sets their loads, without the 3-reps-in-reserve override', () => {
+    const prompt = buildWeekPrompt(lifter, weekLayout('steady', input.weekStart));
+    expect(prompt).toContain('- Weeks 1 to 3: nothing to failure, no max or 1RM test; loads and reps in reserve follow the method (they already lift).');
+    expect(prompt).not.toContain('at least 3 reps in reserve');
   });
 });
