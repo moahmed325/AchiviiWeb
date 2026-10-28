@@ -82,3 +82,16 @@ a. **Free or Pro.** Recommended: free; it's core to sticking with any plan, path
 b. **Two rest days in a row** (a weekend off). Today's defaults never put two together. Recommended: allow it; people choose it.
 c. **Where to edit.** Recommended: the account menu, next to the time zone. Alternative: a link on Today.
 d. **How often.** Recommended: any time; edits before the next week starts just replace each other.
+
+## 7. Code review (`/code-review high`, 2026-10-28)
+
+Nine findings, all fixed on the same branch:
+1. A save while the open week's close was already running missed that week (the close had read the old routine). The route now waits (409 `week_closing`) while the open week is over and not yet closed, with the week close on.
+2. Its answered start date could be wrong for a week already over. Fixed by 1: a change is only taken before the open week ends.
+3. The dialog always sent the rest days, so changing only the minutes or time pinned them to fixed weekdays. It now sends them only when the person changed them; a new number of days not picked resets to its own (`null`).
+4. "Never two in a row" in `restDayIndices` read as a rule for chosen days. Reworded: the variant's own days only. (The run10k preset's method text still says it; preset text is out of scope.)
+5. The dialog's final week number is the frontend's existing 12, as elsewhere in the app.
+6. The variant list, the minutes range and the slots were declared again. Now one set in `lib/planV2.ts` (`PLAN_VARIANTS`, `DAILY_MINUTES_MIN`, `DAILY_MINUTES_MAX`, `PREFERRED_SLOTS`), used by goal create and the route.
+7. The app re-read the stored routine with its own defaults. The server now sends `schedule` with every goal (`goalScheduleOf`).
+8. The picker's live count was mounted only while off, so screen readers could miss it. It stays mounted.
+9. Tests now sit next to both new components (`EditScheduleDialog.test.tsx`, `TrainingDays.test.tsx`).

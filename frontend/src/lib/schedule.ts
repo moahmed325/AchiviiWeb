@@ -41,30 +41,13 @@ export function validRestWeekdays(variant: PlanVariant, value: readonly number[]
   return fits && days.length === 7 - DAYS_A_WEEK[variant] ? days : null;
 }
 
-export interface GoalSchedule {
-  planVariant: PlanVariant;
-  dailyMinutes: number;
-  preferredSlot: RoutineSettings['preferredSlot'];
-  /** The rest days in force: the chosen ones, or the variant's own from the plan's start weekday. */
-  restWeekdays: number[];
-}
+export type GoalSchedule = NonNullable<Goal['schedule']>;
 
-/** The active goal's schedule from its stored routine, read the way the server reads it (`readRoutine`). */
-export function goalSchedule(goal: Pick<Goal, 'routine' | 'startDate'>): GoalSchedule {
-  let raw: Record<string, unknown> = {};
-  try {
-    const parsed: unknown = JSON.parse(goal.routine || '{}');
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) raw = parsed as Record<string, unknown>;
-  } catch {
-    raw = {};
-  }
-  const planVariant = (['steady', 'accelerated', 'minimal'] as const).find((item) => item === raw.planVariant) ?? 'steady';
-  const slot = (['morning', 'afternoon', 'evening'] as const).find((item) => item === raw.preferredSlot) ?? 'evening';
-  const chosen = validRestWeekdays(planVariant, Array.isArray(raw.restWeekdays) ? (raw.restWeekdays as number[]) : null);
-  return {
-    planVariant,
-    dailyMinutes: Number(raw.dailyMinutes) || 30,
-    preferredSlot: slot,
-    restWeekdays: chosen ?? defaultRestWeekdays(planVariant, weekdayOf(goal.startDate)),
-  };
+/**
+ * The active goal's schedule in force, as the server sends it (`schedule`, B-108). A goal answer without it (an older
+ * cached one) shows the defaults the server would use: steady, 30 minutes, evening, the variant's own rest days.
+ */
+export function goalSchedule(goal: Pick<Goal, 'schedule' | 'startDate'>): GoalSchedule {
+  if (goal.schedule) return goal.schedule;
+  return { planVariant: 'steady', dailyMinutes: 30, preferredSlot: 'evening', restWeekdays: defaultRestWeekdays('steady', weekdayOf(goal.startDate)), restWeekdaysChosen: false };
 }

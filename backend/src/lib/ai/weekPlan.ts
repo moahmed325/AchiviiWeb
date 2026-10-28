@@ -65,7 +65,7 @@ export function activeDaysFor(variant: PlanVariant): number {
   return variant === 'minimal' ? 4 : variant === 'accelerated' ? 6 : 5;
 }
 
-/** 0-based days of the week that are rest days. Never two in a row. */
+/** 0-based days of the week that are rest days, the variant's own: never two in a row. Chosen ones may be (B-108). */
 export function restDayIndices(variant: PlanVariant): number[] {
   return variant === 'minimal' ? [2, 4, 6] : variant === 'accelerated' ? [6] : [3, 6];
 }

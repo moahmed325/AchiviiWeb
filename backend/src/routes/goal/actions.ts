@@ -49,7 +49,8 @@ export type ActionReason =
   | 'weekly_update_disabled'
   | 'no_daily_time_check'
   | 'no_checkpoint'
-  | 'last_week';
+  | 'last_week'
+  | 'week_closing';
 
 export const ACTION_ERRORS: Record<ActionReason, string> = {
   not_today: 'This can only be done for today.',
@@ -91,6 +92,7 @@ export const ACTION_ERRORS: Record<ActionReason, string> = {
   no_checkpoint: 'There is no checkpoint to answer.',
   // Edit my schedule (B-108): week 12 has no week after it to change.
   last_week: "This is your plan's final week, so there is no next week to change.",
+  week_closing: 'Your next week is being prepared. Open Today first, then change your schedule.',
 };
 
 export function refuse(res: Response, reason: ActionReason): void {

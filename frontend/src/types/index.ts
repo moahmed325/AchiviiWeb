@@ -410,6 +410,14 @@ export interface Goal {
   targetDate: string;
   /** B-106: the outside date the plan never moves past (an exam, a race, a talk), or null. */
   fixedDate?: string | null;
+  /** B-108: the schedule in force, as the server's week writer will use it (`goalScheduleOf`). */
+  schedule?: {
+    planVariant: 'steady' | 'accelerated' | 'minimal';
+    dailyMinutes: number;
+    preferredSlot: 'morning' | 'afternoon' | 'evening';
+    restWeekdays: number[];
+    restWeekdaysChosen: boolean;
+  } | null;
   currentWeek: number;
   answers: string; // JSON string
   routine: string; // JSON string

@@ -3,17 +3,15 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { TOTAL_WEEKS } from '../../lib/ai/roadmap.js';
 import { activeDaysFor, validRestWeekdays, type PlanVariant } from '../../lib/ai/weekPlan.js';
-import { readRoutine, routineRecord, weekStartFor } from '../../lib/planV2.js';
+import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, PREFERRED_SLOTS, readRoutine, routineRecord, weekStartFor } from '../../lib/planV2.js';
+import { weekCloseDue } from '../../lib/weekClose/close.js';
+import { weekCloseEnabled } from '../../lib/weekClose/switch.js';
 import { actionUser, refuse } from './actions.js';
 
 export const scheduleRoutes = Router();
 
-const VARIANTS: readonly PlanVariant[] = ['steady', 'accelerated', 'minimal'];
-const SLOTS = ['morning', 'afternoon', 'evening'] as const;
-
-/** The minutes goal create accepts. */
-const MIN_MINUTES = 10;
-const MAX_MINUTES = 480;
+const VARIANTS = PLAN_VARIANTS;
+const SLOTS = PREFERRED_SLOTS;
 
 type Change = { planVariant?: PlanVariant; restWeekdays?: number[] | null; dailyMinutes?: number; preferredSlot?: (typeof SLOTS)[number] };
 
@@ -30,7 +28,7 @@ export function readScheduleChange(body: unknown): { change: Change } | { error:
   }
   if (raw.dailyMinutes !== undefined) {
     const minutes = raw.dailyMinutes;
-    if (typeof minutes !== 'number' || !Number.isInteger(minutes) || minutes < MIN_MINUTES || minutes > MAX_MINUTES) {
+    if (typeof minutes !== 'number' || !Number.isInteger(minutes) || minutes < DAILY_MINUTES_MIN || minutes > DAILY_MINUTES_MAX) {
       return { error: 'Choose how many minutes a day you can practise.' };
     }
     change.dailyMinutes = minutes;
@@ -86,7 +84,14 @@ scheduleRoutes.patch('/schedule', async (req: Request, res: Response): Promise<v
     }
     const goal = await prisma.goal.findFirst({
       where: { userId: user.id, status: 'active' },
-      select: { id: true, planVersion: true, routine: true, currentWeek: true, startDate: true },
+      select: {
+        id: true,
+        planVersion: true,
+        routine: true,
+        currentWeek: true,
+        startDate: true,
+        roadmapWeeks: { select: { weekNumber: true, status: true } },
+      },
     });
     if (!goal) {
       res.status(404).json({ error: 'Active goal not found.' });
@@ -94,6 +99,10 @@ scheduleRoutes.patch('/schedule', async (req: Request, res: Response): Promise<v
     }
     if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
     if (goal.currentWeek >= TOTAL_WEEKS) return refuse(res, 'last_week');
+    // Code review: once the open week is over, its close (which writes next week from the routine it read) may already
+    // be running, and a gap may move the dates; the change waits until that close is saved.
+    const weekTasks = await prisma.dailyTask.findMany({ where: { goalId: goal.id, weekNumber: goal.currentWeek }, select: { date: true } });
+    if (weekCloseEnabled() && weekCloseDue(goal, weekTasks, new Date(), user.timezone)) return refuse(res, 'week_closing');
 
     const before = readRoutine(goal);
     const next = nextRoutine(routineRecord(goal), before, read.change);

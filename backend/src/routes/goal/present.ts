@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { journeyResultOf, readPreviousPlan, type JourneyGoal, type JourneyResult, type PreviousPlan } from '../../lib/nextPlan.js';
 import { safeGoalTargets, type StoredWeek, type Week12Line } from '../../lib/safety/storedTargets.js';
 import { formatBasisBadge } from '../../lib/research/planGrounding.js';
-import { readRoutine } from '../../lib/planV2.js';
+import { goalScheduleOf, readRoutine, type GoalSchedule } from '../../lib/planV2.js';
 import { weeklyUpdateEnabled } from '../../lib/weekClose/switch.js';
 import { checkpointViewOf, dayNinetyLineOf, type CheckpointView } from '../../lib/weekClose/checkpoint.js';
 import type { DayNinetyLine } from '../../lib/ai/dayNinety.js';
@@ -105,6 +105,7 @@ export function presentGoal<T extends Record<string, unknown>>(
   dayNinetyLine: DayNinetyLine | null;
   journeyResult: JourneyResult | null;
   previousPlan: PreviousPlan | null;
+  schedule: GoalSchedule | null;
 } {
   const safe = safeTargetsOf(goal);
   const weeks = safe ? safe.roadmapWeeks : goal.roadmapWeeks;
@@ -116,6 +117,8 @@ export function presentGoal<T extends Record<string, unknown>>(
     ...nextPlanOfGoal(goal),
     // RULE-3 (B-95, B-98): the status stays inside; no goal response carries `updateStatus`.
     ...(Array.isArray(weeks) ? { roadmapWeeks: weeks.map(withoutStatus) } : {}),
+    // B-108: the schedule in force, so the app shows what the next week will use without reading the routine itself.
+    schedule: typeof goal.routine === 'string' && goal.startDate ? goalScheduleOf({ routine: goal.routine, startDate: goal.startDate as Date }) : null,
     basis: formatBasisBadge({
       methodKind: goal.methodKind as string | null | undefined,
       methodConfidence: goal.methodConfidence as string | null | undefined,

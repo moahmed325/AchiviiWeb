@@ -28,11 +28,10 @@ export const TrainingDays: React.FC<TrainingDaysProps> = ({ variant, restWeekday
           <Checkbox key={day} label={label} checked={!restWeekdays.includes(day)} onChange={(event) => toggle(day, event.target.checked)} />
         ))}
       </div>
-      {off && (
-        <p role="status" className="mt-2 text-small text-text-secondary">
-          {training.length} picked. Pick exactly {want}.
-        </p>
-      )}
+      {/* Code review: the live region stays mounted, so the count is announced when it changes. */}
+      <p role="status" className="mt-2 text-small text-text-secondary empty:hidden">
+        {off ? `${training.length} picked. Pick exactly ${want}.` : ''}
+      </p>
     </fieldset>
   );
 };

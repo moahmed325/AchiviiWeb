@@ -242,7 +242,8 @@ describe('Account', () => {
   const SCHEDULED = {
     ...GOAL,
     startDate: '2026-09-21T00:00:00.000Z',
-    routine: JSON.stringify({ planVariant: 'steady', dailyMinutes: 45, preferredSlot: 'evening' }),
+    // As the server sends it: a Monday start, "steady" resting on Thursday and Sunday by position.
+    schedule: { planVariant: 'steady', dailyMinutes: 45, preferredSlot: 'evening', restWeekdays: [0, 4], restWeekdaysChosen: false },
   } as Goal;
 
   it('Edit my schedule shows the schedule in force and saves a change from next week', async () => {

@@ -20,7 +20,7 @@ import { db } from './weekCloseStore.js';
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { generateWeekPlan, validRestWeekdays, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
-import { readRoutine } from '../src/lib/planV2.js';
+import { goalScheduleOf, readRoutine } from '../src/lib/planV2.js';
 import { nextRoutine, readScheduleChange } from '../src/routes/goal/schedule.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 import { weekStartFor } from '../src/lib/planV2.js';
@@ -226,6 +226,24 @@ describe('the chosen rest days (B-108)', () => {
   });
 });
 
+describe('goalScheduleOf: the schedule the app is sent (B-108, code review)', () => {
+  it('names the rest days in force, chosen or by position, and the time of day as the week writer reads it', () => {
+    expect(goalScheduleOf({ startDate: START, routine: JSON.stringify({ planVariant: 'steady', dailyMinutes: 45 }) })).toEqual({
+      planVariant: 'steady',
+      dailyMinutes: 45,
+      preferredSlot: 'evening',
+      // A Monday start: plan days 4 and 7.
+      restWeekdays: [0, 4],
+      restWeekdaysChosen: false,
+    });
+    expect(goalScheduleOf({ startDate: START, routine: JSON.stringify({ planVariant: 'steady', preferredSlot: 'morning', restWeekdays: [6, 0] }) })).toMatchObject({
+      preferredSlot: 'morning',
+      restWeekdays: [0, 6],
+      restWeekdaysChosen: true,
+    });
+  });
+});
+
 describe('readScheduleChange and nextRoutine (B-108)', () => {
   const stored = { dailyMinutes: 40, planVariant: 'steady', sleepTime: '23:00', preferredSlot: 'evening', wakeTime: '07:00', restWeekdays: [0, 6] };
   const now = readRoutine({ routine: JSON.stringify(stored) });
@@ -271,6 +289,18 @@ describe('PATCH /api/goal/schedule (B-108)', () => {
     expect((await schedule(onDay(12, 2), { dailyMinutes: 60 })).body).toMatchObject({ reason: 'last_week' });
     db.reset();
     expect((await schedule(onDay(2, 3), { dailyMinutes: 60 })).status).toBe(404);
+  });
+
+  it('waits while the open week is over and its close not yet saved (409 week_closing), with the week close on', async () => {
+    closeOn();
+    seed(2);
+    const res = await schedule(atGap(2, 0), { dailyMinutes: 60 });
+    expect(res.status).toBe(409);
+    expect(res.body.reason).toBe('week_closing');
+    expect(JSON.parse(db.goal().routine).dailyMinutes).toBe(40);
+    // Once the close is saved, the change is taken for the week after.
+    expect((await close(atGap(2, 0))).status).toBe(200);
+    expect((await schedule(atGap(2, 0), { dailyMinutes: 60 })).body).toMatchObject({ startsWeek: 4 });
   });
 
   it('the open week stays as written; the next week follows the new days, minutes and time of day', async () => {

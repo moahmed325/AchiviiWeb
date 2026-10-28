@@ -27,15 +27,9 @@ describe('schedule', () => {
     expect(weekdayOf('soon')).toBe(1);
   });
 
-  it('goalSchedule reads the stored routine, the chosen rest days or the variant\'s own', () => {
-    const startDate = '2026-09-21T00:00:00.000Z';
-    expect(goalSchedule({ startDate, routine: JSON.stringify({ planVariant: 'steady', dailyMinutes: 45, preferredSlot: 'morning', restWeekdays: [6, 0] }) })).toEqual({
-      planVariant: 'steady',
-      dailyMinutes: 45,
-      preferredSlot: 'morning',
-      restWeekdays: [0, 6],
-    });
-    expect(goalSchedule({ startDate, routine: JSON.stringify({ planVariant: 'minimal', restWeekdays: [0, 6] }) }).restWeekdays).toEqual([0, 3, 5]);
-    expect(goalSchedule({ startDate, routine: 'not json' })).toEqual({ planVariant: 'steady', dailyMinutes: 30, preferredSlot: 'evening', restWeekdays: [0, 4] });
+  it('goalSchedule takes the server\'s schedule, or its defaults when the answer has none', () => {
+    const schedule = { planVariant: 'minimal' as const, dailyMinutes: 45, preferredSlot: 'morning' as const, restWeekdays: [0, 3, 5], restWeekdaysChosen: true };
+    expect(goalSchedule({ startDate: '2026-09-21T00:00:00.000Z', schedule })).toBe(schedule);
+    expect(goalSchedule({ startDate: '2026-09-21T00:00:00.000Z' })).toEqual({ planVariant: 'steady', dailyMinutes: 30, preferredSlot: 'evening', restWeekdays: [0, 4], restWeekdaysChosen: false });
   });
 });

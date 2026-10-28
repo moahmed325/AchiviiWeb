@@ -31,6 +31,9 @@ export const EditScheduleDialog: React.FC<EditScheduleDialogProps> = ({ open, on
   const { activeGoal, refreshGoal } = useGoal();
   const token = useAuthToken();
   const [draft, setDraft] = useState<GoalSchedule | null>(null);
+  // Code review: the rest days are sent only when the person changed them (or the days a week), so a goal that never
+  // chose keeps rest days that follow its own week start.
+  const [daysTouched, setDaysTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +41,7 @@ export const EditScheduleDialog: React.FC<EditScheduleDialogProps> = ({ open, on
   const changeOpen = (next: boolean) => {
     // Each opening starts from the goal as stored.
     setDraft(next && activeGoal ? goalSchedule(activeGoal) : null);
+    setDaysTouched(false);
     setSaved(null);
     setError(null);
     onOpenChange(next);
@@ -60,8 +64,15 @@ export const EditScheduleDialog: React.FC<EditScheduleDialogProps> = ({ open, on
     setSaving(true);
     setError(null);
     try {
+      const variantChanged = current.planVariant !== goalSchedule(activeGoal).planVariant;
       const answer = await updateSchedule(
-        { planVariant: current.planVariant, restWeekdays: current.restWeekdays, dailyMinutes: current.dailyMinutes, preferredSlot: current.preferredSlot },
+        {
+          planVariant: current.planVariant,
+          dailyMinutes: current.dailyMinutes,
+          preferredSlot: current.preferredSlot,
+          // Picked days are sent as chosen; a new number of days not picked goes back to its own rest days (null).
+          ...(daysTouched ? { restWeekdays: current.restWeekdays } : variantChanged ? { restWeekdays: null } : {}),
+        },
         token
       );
       await refreshGoal();
@@ -104,7 +115,14 @@ export const EditScheduleDialog: React.FC<EditScheduleDialogProps> = ({ open, on
                 set({ planVariant: value as PlanVariant, restWeekdays: defaultRestWeekdays(value as PlanVariant, weekdayOf(activeGoal.startDate)) })
               }
             />
-            <TrainingDays variant={current.planVariant} restWeekdays={current.restWeekdays} onChange={(restWeekdays) => set({ restWeekdays })} />
+            <TrainingDays
+              variant={current.planVariant}
+              restWeekdays={current.restWeekdays}
+              onChange={(restWeekdays) => {
+                setDaysTouched(true);
+                set({ restWeekdays });
+              }}
+            />
             <SegmentedControl
               legend="Minutes a day"
               options={minutes.map((value) => ({ value: String(value), label: `${value} min` }))}
