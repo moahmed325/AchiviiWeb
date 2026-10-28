@@ -11,7 +11,9 @@ import {
   checkProfileAnswer,
   customProfilesEnabled,
   templateIdReason,
+  templateChanges,
   generateRecoveryProfile,
+  MAX_WHY,
   type ProfileCallInput,
   type RawProfileAnswer,
 } from '../src/lib/recovery/profileCall.js';
@@ -68,6 +70,20 @@ beforeEach(() => {
   vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
+/** The creative template written back as the model would, every rule unchanged. */
+const copied = (): RawProfileAnswer => {
+  const template = RECOVERY_TEMPLATES.creative;
+  return {
+    template: 'creative',
+    kinds: template.kinds
+      .filter((kind) => kind.id !== 'weekly_test' && kind.id !== 'fixed_time_session')
+      .map((kind) => ({ ...kind, highLoad: kind.highLoad === true, why: 'Because the template says so.' })),
+    catchAll: template.catchAll,
+    restGapDays: template.restGapDays,
+    returnRule: { breaks: template.returnRule.breaks, firstWeekBack: 'Reworded note.' },
+  };
+};
+
 describe('generateRecoveryProfile', () => {
   it('a good answer is returned checked, with Weekly test and Fixed-time session added by code', async () => {
     answers(good());
@@ -78,6 +94,42 @@ describe('generateRecoveryProfile', () => {
     expect(result.profile.kinds.map((kind) => kind.id)).toEqual(['seeing_drill', 'master_copy', 'project_piece', 'catch_all', 'weekly_test', 'fixed_time_session']);
     expect(result.profile.kinds.slice(-2).every((kind) => kind.action === 'fixed')).toBe(true);
     expect(generateStructuredContent).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps each kind\'s "why" line, and drops one that is missing, empty or too long without failing (soft)', async () => {
+    const answer = good();
+    const kinds = answer.kinds as Array<Record<string, unknown>>;
+    kinds[0].why = '  The method uses short seeing drills daily, so a missed one is let go.  ';
+    kinds[1].why = '';
+    kinds[2].why = 'x'.repeat(MAX_WHY + 1);
+    answers(answer);
+    const result = await generateRecoveryProfile(input());
+    expect(result.source).toBe('model');
+    expect(result.profile.kinds.map((kind) => kind.why)).toEqual([
+      'The method uses short seeing drills daily, so a missed one is let go.',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it('asks for the "why" in the schema and the prompt', () => {
+    expect(buildProfilePrompt(input())).toContain('Each kind\'s "why": one short sentence naming the method rule or reason behind its action');
+  });
+
+  it('saves the copy count: 0 for a copied template, the number of rule changes otherwise', async () => {
+    answers(copied());
+    expect((await generateRecoveryProfile(input())).profile.templateChanges).toBe(0);
+    // good(): two kinds renamed (two added, two left out); project_piece and the catch-all unchanged.
+    answers(good());
+    expect((await generateRecoveryProfile(input())).profile.templateChanges).toBe(4);
+  });
+
+  it('a fallback profile has no copy count', async () => {
+    answers(hardContinue(), hardContinue());
+    expect((await generateRecoveryProfile(input())).profile.templateChanges).toBeUndefined();
   });
 
   it('a bad first answer is retried with the reasons', async () => {
@@ -237,5 +289,37 @@ describe('the switch (O1)', () => {
     const yaml = readFileSync(new URL('../../render.yaml', import.meta.url), 'utf8');
     expect(yaml).toMatch(/- key: CUSTOM_RECOVERY_PROFILES_ENABLED\r?\n\s+sync: false/);
     expect(yaml).not.toMatch(/CUSTOM_RECOVERY_PROFILES_ENABLED\r?\n\s+value:/);
+  });
+});
+
+describe('templateChanges (the copy count)', () => {
+  const creative = RECOVERY_TEMPLATES.creative;
+  const withKind = (id: string, change: Record<string, unknown>) => ({
+    ...creative,
+    kinds: creative.kinds.map((kind) => (kind.id === id ? { ...kind, ...change } : kind)),
+  });
+
+  it('is 0 for the template itself, and wording never counts', () => {
+    expect(templateChanges(creative, creative)).toBe(0);
+    expect(templateChanges(withKind('project_piece', { name: 'Portrait', description: 'Your portrait.', why: 'Reasons.' }), creative)).toBe(0);
+    expect(templateChanges({ ...creative, returnRule: { ...creative.returnRule, firstWeekBack: 'Other words.' } }, creative)).toBe(0);
+  });
+
+  it('counts each changed action and flag, the rest gap and each changed restart', () => {
+    expect(templateChanges(withKind('project_piece', { action: 'move' }), creative)).toBe(1);
+    expect(templateChanges(withKind('study_or_copy_work', { inOrder: true, hard: true }), creative)).toBe(2);
+    expect(templateChanges(withKind('catch_all', { action: 'move' }), creative)).toBe(1);
+    expect(templateChanges({ ...creative, restGapDays: 1 }, creative)).toBe(1);
+    const byLength = { ...creative, returnRule: { firstWeekBack: 'x', breaks: [{ length: '1-2 weeks' as const, restart: 'last level' as const }, { length: '3+ weeks' as const, restart: 'back 1 week' as const }] } };
+    expect(templateChanges(byLength, creative)).toBe(3);
+  });
+
+  it('counts a kind added or left out, but not the two kinds code adds', () => {
+    const extra = { ...creative, kinds: [...creative.kinds, { id: 'critique', name: 'Critique', description: 'A critique.', action: 'move' as const, hard: false, inOrder: false }] };
+    expect(templateChanges(extra, creative)).toBe(1);
+    const fewer = { ...creative, kinds: creative.kinds.filter((kind) => kind.id !== 'fundamentals_drill') };
+    expect(templateChanges(fewer, creative)).toBe(1);
+    const noAdded = { ...creative, kinds: creative.kinds.filter((kind) => kind.id !== 'weekly_test') };
+    expect(templateChanges(noAdded, creative)).toBe(0);
   });
 });

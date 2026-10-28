@@ -186,6 +186,8 @@ export async function recoveryProfileAtCreate(input: {
         weeklyTargets: [...weeks].sort((a, b) => a.weekNumber - b.weekNumber).map((week) => week.target),
       });
       if (result.source !== 'model') console.warn('[Recovery] Profile call fell back to a template:', result.source);
+      // The copy count: 0 means the model copied its template's rules unchanged.
+      else console.log(`[Recovery] Profile from the model: template ${result.profile.template}, rule changes ${result.profile.templateChanges ?? 'unknown'}`);
       return result.profile;
     } catch (err) {
       console.warn('[Recovery] Profile call failed at goal create:', err);
