@@ -20,7 +20,7 @@ vi.mock('../src/lib/ai/weekPlan.js', async (importOriginal) => ({
 import { db } from './weekCloseStore.js';
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
-import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
+import { generateWeekPlan, weekLayout, type PlanVariant, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 
 const USER = { id: 'u1', email: 'u1@achivii.com', timezone: 'UTC' };
@@ -56,11 +56,12 @@ const written: string[] = [];
  * to (`handoffBrief`), the first lesson sessions hold a seat for each lesson still to do from last week (code puts that
  * lesson there), and new lessons continue after them.
  */
-function lessonWeek(weekStart: Date, whereTheyAre: string[] = []): WeekDayPlan[] {
+function lessonWeek(weekStart: Date, whereTheyAre: string[] = [], variant: PlanVariant = 'steady', restWeekdays?: number[]): WeekDayPlan[] {
   const behind = whereTheyAre.find((line) => line.includes(`kind ${LESSON}`) && line.includes('have not done these steps yet'));
   // The quoted titles before "They are at": the steps still to do, in order.
   let seats = behind ? (behind.split('They are at')[0].match(/"Lesson \d+"/g) ?? []).length : 0;
-  return weekLayout('steady', weekStart).map((day) => {
+  // As the real week call does: the layout from the goal's schedule (B-108).
+  return weekLayout(variant, weekStart, restWeekdays).map((day) => {
     const seat = !day.isRestDay && !day.isTestDay && seats > 0 ? (seats--, true) : false;
     const lesson = day.isRestDay ? null : seat ? `Seat ${day.date}` : `Lesson ${nextLesson++}`;
     if (lesson && !seat) written.push(lesson);
@@ -176,7 +177,7 @@ beforeEach(() => {
   written.length = 0;
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.mocked(getAuthUser).mockResolvedValue(USER as never);
-  vi.mocked(generateWeekPlan).mockImplementation(async (input) => lessonWeek(input.weekStart, input.whereTheyAre));
+  vi.mocked(generateWeekPlan).mockImplementation(async (input) => lessonWeek(input.weekStart, input.whereTheyAre, input.planVariant, input.restWeekdays));
   for (const method of ['log', 'warn', 'error', 'info'] as const) vi.spyOn(console, method).mockImplementation(() => {});
   // The production switch states (WEEKLY_UPDATE_ENABLED is off there).
   vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
@@ -192,10 +193,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function post(path: string, at: Date, body: unknown = {}) {
+async function post(path: string, at: Date, body: unknown = {}, method = 'POST') {
   vi.setSystemTime(at);
   const res = await fetch(`${baseUrl}/api/goal${path}`, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
     body: JSON.stringify(body),
   });
@@ -210,6 +211,8 @@ interface Person {
   practises?: (day: number) => boolean;
   /** B-106: the goal's fixed date (a race, an exam), as a plan day (0 = START). */
   fixedDay?: number;
+  /** B-108: on this plan day, before opening the app, they change their schedule with this body. */
+  schedule?: { day: number; body: Record<string, unknown> };
 }
 
 const steps = (task: { detailedSteps: string }): Array<{ title: string; durationMinutes: number; toNextWeek?: Array<{ step: { title: string } }> }> =>
@@ -281,6 +284,11 @@ async function runPlan(person: Person) {
   const problems: string[] = [];
   for (let day = 0; day < 140 && db.goal().status === 'active'; day++) {
     if (person.away?.(day)) continue;
+    if (person.schedule?.day === day) {
+      const at = new Date(addDays(START, day).getTime() + 7 * 3_600_000);
+      const changed = await post('/schedule', at, person.schedule.body, 'PATCH');
+      if (changed.status !== 200) problems.push(`${person.name}, plan day ${day + 1}: schedule answered ${changed.status} ${JSON.stringify(changed.body)}`);
+    }
     await open(person, day, problems);
     // Week 12 closed: the plan is done.
     if (db.week(12).status === 'completed') break;
@@ -335,4 +343,15 @@ describe('90 days, made-up people (B-46 (3))', () => {
     expect(db.goal().movedDays).toBe(0);
     expect(db.state.weeks.some((week) => week.jumped === true)).toBe(true);
   }, 120_000);
+
+  it('Shift-change Sam moves from 5 days to 4 in week 5, weekends and Wednesdays off (B-108)', async () => {
+    const problems = await runPlan({ name: 'Shift Sam', schedule: { day: 30, body: { planVariant: 'minimal', restWeekdays: [0, 3, 6] } } });
+    expect(problems).toEqual([]);
+    expect(db.goal().currentWeek).toBe(12);
+    // Week 5 was written before the change; from week 6 on, 4 practice days on Monday, Tuesday, Thursday and Friday.
+    const weekdays = (week: number) => db.tasksOf(week).filter((t) => !t.isRestDay).map((t) => new Date(`${t.date}T00:00:00Z`).getUTCDay()).sort();
+    expect(weekdays(5)).toHaveLength(5);
+    for (const week of [6, 9, 12]) expect(weekdays(week)).toEqual([1, 2, 4, 5]);
+  }, 120_000);
 });
+

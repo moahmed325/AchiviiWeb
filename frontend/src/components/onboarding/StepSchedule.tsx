@@ -3,6 +3,8 @@ import { ArrowRight } from 'lucide-react';
 import type { RoutineSettings } from '../../types';
 import { FIXED_DATE_INVALID, FIXED_DATE_LABEL, fixedDateHint, type FixedDateCheck } from '../../lib/fixedDate';
 import { addDaysToDateKey } from '../../lib/dateUtils';
+import { defaultRestWeekdays, weekdayOf } from '../../lib/schedule';
+import { TrainingDays } from './TrainingDays';
 import { Button, ChoiceCard, ChoiceGroup, ErrorState, Field, Input, SegmentedControl } from '../ui';
 import type { OnboardingError } from './requestErrors';
 import { GoalContext, StepFooter, StepHeader } from './StepLayout';
@@ -96,13 +98,23 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
           legend="How many days a week?"
           description="Rest days are part of the plan, not a break from it."
           value={routine.planVariant}
-          onChange={(value) => onRoutineChange((prev) => ({ ...prev, planVariant: value as PlanVariant }))}
+          // B-108: a new number of days starts again from its own rest days.
+          onChange={(value) => onRoutineChange((prev) => ({ ...prev, planVariant: value as PlanVariant, restWeekdays: undefined }))}
           columns={3}
         >
           {PLAN_VARIANTS.map((variant) => (
             <ChoiceCard key={variant.id} value={variant.id} title={variant.title} description={variant.desc} meta={variant.meta} />
           ))}
         </ChoiceGroup>
+
+        {routine.planVariant && (
+          <TrainingDays
+            variant={routine.planVariant}
+            // The plan starts today, so its weeks start on today's weekday.
+            restWeekdays={routine.restWeekdays ?? defaultRestWeekdays(routine.planVariant, weekdayOf(today))}
+            onChange={(restWeekdays) => onRoutineChange((prev) => ({ ...prev, restWeekdays }))}
+          />
+        )}
 
         <div>
           <SegmentedControl
@@ -163,7 +175,9 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
         onBack={onBack}
         status={
           !scheduleChosen
-            ? 'Choose how many days a week and how long each day.'
+            ? routine.planVariant && routine.dailyMinutes > 0
+              ? 'Pick your training days.'
+              : 'Choose how many days a week and how long each day.'
             : waiting
               ? 'Preparing your questions. Your schedule is kept while you wait.'
               : undefined

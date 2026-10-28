@@ -440,6 +440,28 @@ export async function answerDailyTime(minutes: number, token: string): Promise<{
   return readJson(response, 'Failed to save');
 }
 
+/** Edit my schedule (B-108): what `PATCH /api/goal/schedule` takes; every field optional, `restWeekdays: null` resets. */
+export interface ScheduleChange {
+  planVariant?: 'steady' | 'accelerated' | 'minimal';
+  restWeekdays?: number[] | null;
+  dailyMinutes?: number;
+  preferredSlot?: 'morning' | 'afternoon' | 'evening';
+}
+
+/**
+ * Edit my schedule (B-108): saves the active goal's schedule from next week. Answers the week and date it starts. Throws
+ * `ApiError` (409 `last_week` in the final week, or a 400 naming the field).
+ */
+export async function updateSchedule(change: ScheduleChange, token: string): Promise<{ startsWeek: number; startsOn: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/goal/schedule`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(change),
+  });
+
+  return readJson(response, "Couldn't save your schedule. Please try again.");
+}
+
 /**
  * Checkpoints (RULE-8, RULE-9, section 7): the answer to the open offer. Refused (`ApiError`, 409 `no_checkpoint` or
  * `weekly_update_disabled`) when there is no open offer for that week any more.

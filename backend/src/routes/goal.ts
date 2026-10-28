@@ -7,6 +7,7 @@ import { createRoutes } from './goal/create.js';
 import { actionRoutes } from './goal/actions.js';
 import { taskRoutes } from './goal/tasks.js';
 import { weekRoutes } from './goal/weeks.js';
+import { scheduleRoutes } from './goal/schedule.js';
 
 // Kept for the importers of routes/goal.js (tests, other modules).
 export { TASK_STATUSES, TASK_NOTES_MAX_LENGTH, TASK_NOTES_HARD_MAX, notesWithinLimit } from './goal/tasks.js';
@@ -126,4 +127,4 @@ goalRouter.delete('/active', async (req: Request, res: Response): Promise<void> 
   }
 });
 
-goalRouter.use(actionRoutes, taskRoutes, weekRoutes);
+goalRouter.use(actionRoutes, taskRoutes, weekRoutes, scheduleRoutes);

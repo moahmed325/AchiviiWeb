@@ -68,6 +68,16 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('clarify', () => {
+  it('counts the schedule as chosen only once picked training days match the days a week (B-108)', () => {
+    const { result } = setup();
+    chooseSchedule(result);
+    expect(result.current.scheduleChosen).toBe(true);
+    act(() => result.current.setRoutine((prev) => ({ ...prev, restWeekdays: [0] })));
+    expect(result.current.scheduleChosen).toBe(false);
+    act(() => result.current.setRoutine((prev) => ({ ...prev, restWeekdays: [0, 6] })));
+    expect(result.current.scheduleChosen).toBe(true);
+  });
+
   it('fills in a fixed date that is still ahead, and drops one that has passed (B-106)', () => {
     expect(setup({ initialFixedDate: '2099-05-10' }).result.current.fixedDate).toBe('2099-05-10');
     expect(setup({ initialFixedDate: '2020-05-10' }).result.current.fixedDate).toBe('');

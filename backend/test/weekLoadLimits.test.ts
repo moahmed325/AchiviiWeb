@@ -914,3 +914,21 @@ describe('the no-base cap follows their starting point (PSL-19)', () => {
     expect(runningLines(undefined)).toContain('- With fewer than 3 runs, no run longer than 30 minutes (5 km when every run is given in km).');
   });
 });
+
+// Edit my schedule (B-108): the week call's days come from the layout, so the chosen rest days are rest whatever the
+// model writes on them, and the test is the last practice day.
+describe('the week call follows the chosen rest days (B-108)', () => {
+  it('days on the chosen weekdays are rest even when the model fills them', () => {
+    const weekdayOfDay = (n: number) => new Date(WEEK1.weekStart.getTime() + (n - 1) * 86_400_000).getUTCDay();
+    const restWeekdays = [weekdayOfDay(3), weekdayOfDay(7)].sort((a, b) => a - b);
+    const fillDay4 = (days: Array<Record<string, any>>) => {
+      days[3] = { ...days[0], dayNumber: 4, steps: days[0].steps.map((item: Record<string, unknown>) => ({ ...item, title: `${item.title} on day 4` })) };
+    };
+    const result = valueOf(checkWeekAnswer(week({ 1: { min: 15 }, 2: { min: 15 }, 3: { min: 15 }, 5: { min: 15 } }, { min: 10 }, fillDay4), { ...WEEK1, restWeekdays }));
+    expect(result).not.toBeNull();
+    expect(result!.filter((day) => day.isRestDay).map((day) => day.dayNumber)).toEqual([3, 7]);
+    expect(result!.find((day) => day.isTestDay)?.dayNumber).toBe(6);
+    expect(result!.find((day) => day.dayNumber === 4)?.detailedSteps.length).toBeGreaterThan(0);
+  });
+});
+

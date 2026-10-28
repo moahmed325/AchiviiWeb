@@ -57,6 +57,8 @@ export interface RoutineSettings {
   preferredSlot: 'morning' | 'afternoon' | 'evening';
   dailyMinutes: number; // 30, 45, 60, 90
   planVariant?: 'steady' | 'accelerated' | 'minimal';
+  /** Edit my schedule (B-108): the chosen rest weekdays (0 Sunday to 6 Saturday); sent only when the person picked them. */
+  restWeekdays?: number[];
   commitments?: CommitmentItem[];
 }
 

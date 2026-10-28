@@ -252,7 +252,8 @@ function retestOf(goal: ClosingGoal, weekNumber: number, update: PlannedUpdate, 
   ];
   if (by.length === 0) return null;
   const start = move && move.days > 0 ? move.startDate : goal.startDate;
-  const layout = weekLayout(readRoutine(goal).planVariant, weekStartFor(start, nextWeek));
+  const routine = readRoutine(goal);
+  const layout = weekLayout(routine.planVariant, weekStartFor(start, nextWeek), routine.restWeekdays);
   if (retestDayOf(layout, move?.writtenOn) === null) return null;
   return { ofWeek: weekNumber, test, by };
 }

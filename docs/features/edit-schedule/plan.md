@@ -1,6 +1,6 @@
 # Edit my schedule: plan
 
-**Status:** PLANNED (2026-10-28), waiting on Mo's choices in section 6. Nothing is built.
+**Status:** BUILT (2026-10-28) on `claude/trusting-edison-v1d3od`, with Mo's picks for all four choices (free, two rest days in a row allowed, the account menu, any time). Waiting on review and merge.
 **Backlog:** B-108. **Ideas:** I-31.
 
 ## 1. The problem

@@ -123,5 +123,7 @@ export interface UserRoutineInput {
   preferredSlot?: 'morning' | 'afternoon' | 'evening';
   dailyMinutes?: number; // e.g. 30, 45, 60, 90
   planVariant?: 'steady' | 'accelerated' | 'minimal';
+  /** Edit my schedule (B-108): the chosen rest weekdays (0 Sunday to 6 Saturday). */
+  restWeekdays?: number[];
   commitments?: Array<CommitmentItem | string>;
 }

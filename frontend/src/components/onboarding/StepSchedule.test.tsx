@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RoutineSettings } from '../../types';
 import { addDaysToDateKey } from '../../lib/dateUtils';
@@ -13,12 +13,13 @@ const ROUTINE: RoutineSettings = { wakeTime: '07:00', sleepTime: '23:00', busyHo
 
 function Harness({ onContinue }: { onContinue: () => void }) {
   const [fixedDate, setFixedDate] = useState('');
+  const [routine, setRoutine] = useState<RoutineSettings>(ROUTINE);
   const today = todayKey(new Date());
   return (
     <StepSchedule
       rawGoal="Pass the IELTS"
-      routine={ROUTINE}
-      onRoutineChange={() => {}}
+      routine={routine}
+      onRoutineChange={setRoutine}
       onChooseSlot={() => {}}
       timeline={null}
       commitments={null}
@@ -68,3 +69,15 @@ describe('StepSchedule: fixed date (B-106)', () => {
     expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
   });
 });
+
+describe('StepSchedule: which days (B-108)', () => {
+  it('shows the training days with the plan\'s own rest days picked from today, and keeps a count until it adds up', async () => {
+    render(<Harness onContinue={() => {}} />);
+    const days = screen.getByRole('group', { name: 'Which days?' });
+    expect(within(days).getAllByRole('checkbox').filter((box) => (box as HTMLInputElement).checked)).toHaveLength(5);
+    const firstTraining = within(days).getAllByRole('checkbox').find((box) => (box as HTMLInputElement).checked)!;
+    await userEvent.click(firstTraining);
+    expect(screen.getByText('4 picked. Pick exactly 5.')).toBeInTheDocument();
+  });
+});
+

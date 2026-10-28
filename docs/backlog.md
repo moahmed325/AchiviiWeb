@@ -12,7 +12,7 @@ Where every feature stands. One row per feature; change a row only when a featur
 | `checkpoints` | DONE | — | Built 2026-10-24 (M1 server, M2 app; CP-1 to CP-16). Live with `WEEKLY_UPDATE_ENABLED` on (CP-8; Mo confirmed 2026-10-28) |
 | `billing` (old layout) | WAITING | Lemon Squeezy test-mode keys and webhook (M2.5); then launch (phase 6) | Code built 2026-09-29 |
 | `plan-safety-limits` | WAITING | O2: Mo reads a week of `[Safety]` lines in Render | B-62. Built (M1.1 to M3.1, 2026-10-28; PSL-19 to PSL-22 make the limits follow an experienced runner's starting point and an experienced lifter's method). Closes after O2 |
-| `edit-schedule` | PLANNED | Mo's choices (plan section 6) | B-108. Plan written 2026-10-28 in `docs/features/edit-schedule/plan.md` |
+| `edit-schedule` | WAITING | Review and merge of `claude/trusting-edison-v1d3od` | B-108. Built 2026-10-28 (`docs/features/edit-schedule/plan.md`), Mo's picks a to d |
 
 States: `IN PROGRESS` · `PAUSED` · `WAITING` (on something outside the code) · `STUB` (problem written down, not planned) · `PLANNED`.
 
