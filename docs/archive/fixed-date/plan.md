@@ -1,6 +1,6 @@
 # Fixed date: plan for the small fix (B-106)
 
-Status: BUILT 2026-10-28 on `claude/trusting-edison-v1d3od`, with Mo's picks for all four choices (the recommended option in each of a to d). Waiting on review and merge.
+Status: DONE. Merged to main on 2026-10-28 (abe60fd), after the code review in section 6.
 
 ## 1. The problem
 
