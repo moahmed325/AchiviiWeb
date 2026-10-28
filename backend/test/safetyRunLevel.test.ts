@@ -19,10 +19,21 @@ describe('runLevelOf', () => {
     expect(runLevelOf(target('Longest run', 'miles'), 5)?.km).toBeCloseTo(8.05, 2);
   });
 
-  it('reads continuous running minutes and a race time in minutes', () => {
+  it('reads continuous running minutes', () => {
     expect(runLevelOf(target('Continuous running', 'minutes'), 40)).toEqual({ minutes: 40 });
-    expect(runLevelOf(target('10K time', 'min', 'lower_is_better'), 55, { run10k: true })).toEqual({ minutes: 55 });
-    expect(runLevelOf(target('Half marathon run time', 'hours', 'lower_is_better'), 2)).toEqual({ minutes: 120 });
+    expect(runLevelOf(target('Longest non-stop run', 'hours'), 1.5)).toEqual({ minutes: 90 });
+  });
+
+  it('never reads a race time: the roadmap\'s cautious guess for a time is a larger number (code review)', () => {
+    expect(runLevelOf(target('10K time', 'min', 'lower_is_better'), 75, { run10k: true })).toBeNull();
+    expect(runLevelOf(target('Half marathon run time', 'hours', 'lower_is_better'), 2)).toBeNull();
+  });
+
+  it('never reads a week\'s running as one run, or a distance that names no single run (code review)', () => {
+    expect(runLevelOf(target('Weekly mileage', 'km'), 25)).toBeNull();
+    expect(runLevelOf(target('Weekly running minutes', 'minutes'), 120)).toBeNull();
+    expect(runLevelOf(target('Total running distance', 'km'), 25)).toBeNull();
+    expect(runLevelOf(target('Running distance', 'km'), 25)).toBeNull();
   });
 
   it('gives nothing for a pace, another family, another sport or no starting point', () => {

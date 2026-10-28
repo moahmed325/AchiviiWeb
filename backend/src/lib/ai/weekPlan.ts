@@ -310,6 +310,15 @@ function kindsBlock(recovery: RecoveryProfile): string {
 }
 
 /**
+ * M3.1 (PSL-20): the one place that decides whether weeks 1 to 3 drop the % of 1RM and reps-in-reserve caps, read by
+ * the prompt and the checks alike: someone who already lifts (`isExperiencedLifter`), on a goal that isn't a running
+ * goal, outside a light week (a high-load first week back keeps every cap).
+ */
+export function liftCapsRelaxed(input: Pick<WeekCallInput, 'answers' | 'loadGoal' | 'firstWeekBack'>): boolean {
+  return input.loadGoal?.running !== true && !isLightWeek(input) && isExperiencedLifter(input.answers);
+}
+
+/**
  * B-63 (PSL-1, PSL-2): the limits. In weeks 1 to 3 it says plainly that it overrides the method's reps-in-reserve
  * range. Plan safety limits M2.2a (RULE-5, PSL-11 Q17): told on every load goal, with the running line naming the number
  * from the base week, the longest-run rule and the intake floor; every number is from the limits module. Without a load
@@ -328,7 +337,7 @@ function safetyLimitsBlock(input: WeekCallInput): string {
     `- Daily intake: never below ${DAILY_INTAKE_MIN_KCAL} kcal a day.`,
   ];
   // M3.1 (PSL-20): an experienced lifter keeps the method's % of 1RM and reps in reserve; failure and max tests still wait.
-  if (input.weekNumber <= EARLY_WEEKS && isExperiencedLifter(input.answers)) {
+  if (input.weekNumber <= EARLY_WEEKS && liftCapsRelaxed(input)) {
     lines.push(`- Weeks 1 to 3: nothing to failure, no max or 1RM test; loads and reps in reserve follow the method (they already lift).`);
   } else if (input.weekNumber <= EARLY_WEEKS) {
     lines.push(
@@ -350,9 +359,8 @@ export function runningLines(base: BaseWeek | undefined, level?: RunLevel | null
   const longest = `- Longest run: at most ${LONGEST_RUN_MAX_PERCENT}% of the week's running when there are ${LONGEST_RUN_MIN_RUNS} or more runs.`;
   const cap = `${LONGEST_RUN_NO_BASE_MAX_MINUTES} minutes (${LONGEST_RUN_NO_BASE_MAX_KM} km when every run is given in km)`;
   // M3.1 (PSL-19): with no last week, the cap is never below what they already run in one go (their starting point).
-  const minutesCap = noBaseCap('minutes', level);
-  const kmCap = noBaseCap('km', level);
-  const noBase = `${shown(minutesCap)} minutes (${shown(kmCap)} km when every run is given in km)`;
+  // Rounded down as the check reads it (`shownLimit`), so the prompt never names more than the check allows.
+  const noBase = `${shownLimit(noBaseCap('minutes', level), 'minutes')} minutes (${shownLimit(noBaseCap('km', level), 'km')} km when every run is given in km)`;
   const zeroLines = ['- Running: last week had no running; keep it at their level.', longest, `- No run longer than ${cap}.`];
   if (!base?.known) {
     // M2.2b review: held like a 0-run base, told as not known.
@@ -1050,7 +1058,7 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through,
   // and every step is scanned, not only the high-load ones.
   // M3.1 (PSL-20): an experienced lifter's weeks 1 to 3 skip the % of 1RM and reps-in-reserve rules.
-  const experiencedLifter = isExperiencedLifter(input.answers);
+  const experiencedLifter = liftCapsRelaxed(input);
   const scan = { light: isLightWeek(input), experiencedLifter };
   const profileHighLoad = (input.recovery?.kinds ?? []).some((kind) => kind.highLoad === true);
   // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself

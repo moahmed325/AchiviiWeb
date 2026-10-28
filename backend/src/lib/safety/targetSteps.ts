@@ -107,10 +107,16 @@ export function targetFamily(target: WeekTarget, context: FamilyContext = {}): T
 
 /**
  * Plan safety limits M3.1 (PSL-19): what the person already runs in one go, read from the roadmap's starting point (in
- * the targets' metric and unit): a running distance in km, continuous running minutes, or a race time in minutes (they
- * can run the race distance for that long). A pace, any other family or no starting point gives null. Used only to
- * raise the fixed longest-run cap of a week with no base week, never above what they already do.
+ * the targets' metric and unit): a single run's distance or its continuous minutes, higher is better, with a metric
+ * that names one run ("longest run", "continuous run") and no week ("weekly mileage", "total"). A race time is never
+ * read (the roadmap's cautious guess for a time is a slower, so larger, number, and it isn't time they have run), nor
+ * a pace, another family or no starting point. Used only to raise the fixed longest-run cap of a week with no base
+ * week, never above what they already do.
  */
+/** A metric that names a single run, and one that names a week's running. */
+const ONE_RUN_WORDS = /\b(?:longest|long run|continuous|continuously|non-?stop|single|in one go|without stopping|one run)\b/;
+const WEEK_WORDS = /\b(?:week|weeks|weekly|per week|a week|mileage|total|volume|cumulative|monthly)\b/;
+
 export interface RunLevel {
   km?: number;
   minutes?: number;
@@ -118,9 +124,9 @@ export interface RunLevel {
 
 export function runLevelOf(target: WeekTarget, startValue: number | null | undefined, context: FamilyContext = {}): RunLevel | null {
   if (target.kind !== 'number' || typeof startValue !== 'number' || !Number.isFinite(startValue) || startValue <= 0) return null;
-  const family = targetFamily(target, context);
-  if (family !== 'running_distance' && family !== 'running_time') return null;
-  if (isPaceUnit(target.unit)) return null;
+  if (targetFamily(target, context) !== 'running_distance' || target.direction !== 'higher_is_better' || isPaceUnit(target.unit)) return null;
+  const metric = target.metric.toLowerCase();
+  if (!ONE_RUN_WORDS.test(metric) || WEEK_WORDS.test(metric)) return null;
   const km = kmPerUnit(target.unit);
   if (km !== null) return { km: startValue * km };
   const minutes = minutesPerUnit(target.unit);

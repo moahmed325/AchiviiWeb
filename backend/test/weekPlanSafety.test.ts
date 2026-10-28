@@ -9,6 +9,7 @@ import { generateStructuredContent } from '../src/lib/ai/gemini.js';
 import {
   buildWeekPrompt,
   checkWeekAnswer,
+  liftCapsRelaxed,
   generateWeekPlan,
   weekLayout,
   type RawWeekAnswer,
@@ -432,6 +433,21 @@ describe('weeks 1 to 3 for someone who already lifts (PSL-20)', () => {
     expect(isExperiencedLifter([{ answer: '70 kg for 5' }])).toBe(false);
     expect(isExperiencedLifter([{ answer: 'I lift 4 times a week for 2 years' }, { answer: 'Beginner at deadlifts' }])).toBe(false);
     expect(isExperiencedLifter([])).toBe(false);
+    // Code review: an age or a plan is not experience, and a lapse in another answer counts.
+    expect(isExperiencedLifter([{ answer: "I'm 35 years old and want to start lifting weights" }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: 'I want to go to the gym regularly' }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: recompOption('Overfat / Intermediate Lifter') }, { answer: "I quit the gym 2 years ago after an injury and I'm coming back" }])).toBe(false);
+    expect(isExperiencedLifter([{ answer: 'I train at the gym 4x a week for 2 years' }])).toBe(true);
+    expect(isExperiencedLifter([{ answer: 'I used to skip breakfast' }, { answer: 'Lifting for 3 years' }])).toBe(true);
+  });
+
+  it('a light week (a high-load first week back) and a running goal keep every cap (code review)', () => {
+    const answer = week({ instructions: PREFIX + 'Leave 2 reps in reserve on the last set.', load: { rir: 2 } });
+    const back = { ...lifter, firstWeekBack: { awayDays: 10, note: null, highLoad: true } };
+    expect(liftCapsRelaxed(back)).toBe(false);
+    expect(reason(checkWeekAnswer(answer, back))).toContain('at least 3 reps in reserve');
+    expect(liftCapsRelaxed({ ...lifter, loadGoal: { running: true } })).toBe(false);
+    expect(liftCapsRelaxed(lifter)).toBe(true);
   });
 
   it('a step load at 2 reps in reserve or 85% of 1RM passes in week 1; failure and a max test do not', () => {
