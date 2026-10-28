@@ -875,3 +875,42 @@ describe('M2.2a follow-up: the first answer when the last one breaks a limit', (
     expect(safetyLines().filter((line) => line.outcome === 'first_answer')).toEqual([]);
   });
 });
+
+// M3.1 (PSL-19): with no last week, the longest-run cap is never below what they already run, from their starting point.
+describe('the no-base cap follows their starting point (PSL-19)', () => {
+  const minutesLevel: WeekCallInput = { ...WEEK1, loadGoal: { running: true, runLevel: { minutes: 50 } } };
+  const kmLevel: WeekCallInput = { ...WEEK1, loadGoal: { running: true, runLevel: { km: 12 } } };
+
+  it('a runner who already runs 50 minutes may run 50 in week 1, not more', () => {
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 40 } }, { min: 10 }), WEEK1))).toBeNull();
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 40 } }, { min: 10 }), minutesLevel))).not.toBeNull();
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 40 } }, { min: 10 }, (days) => (days[0].steps[0].minutes = 50, days[0].steps[0].load.runMinutes = 50, days[0].steps[1].minutes = 0)), minutesLevel))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 40 } }, { min: 10 }, (days) => (days[0].steps[0].load.runMinutes = 51)), minutesLevel))).toContain(
+      'the run is 51 minutes; the most allowed is 50 minutes (what they already run, from their starting point, with no last week to build from).'
+    );
+  });
+
+  it('counted in km, the km level raises the 5 km cap; a level in the other unit changes nothing', () => {
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 35, km: 8 } }, { min: 10, km: 1.5 }), kmLevel))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 35, km: 12.5 } }, { min: 10, km: 1.5 }), kmLevel))).toContain('the most allowed is 12');
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 35, km: 8 } }, { min: 10, km: 1.5 }), minutesLevel))).toContain('the most allowed is 5');
+  });
+
+  it('a level below the fixed cap keeps the cap', () => {
+    const low: WeekCallInput = { ...WEEK1, loadGoal: { running: true, runLevel: { minutes: 20 } } };
+    expect(valueOf(checkWeekAnswer(week({ 1: { min: 30 } }, { min: 10 }), low))).not.toBeNull();
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 31 } }, { min: 10 }), low))).toContain('the most allowed is 30 minutes (with no last week to build from');
+  });
+
+  it('a week after a 0-run week, or a first week back with no known base, keeps the fixed cap', () => {
+    const zero = { ...WEEK5, baseWeek: minutesBase(0, 0), loadGoal: { running: true, runLevel: { minutes: 50 } } };
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 31 } }, { min: 10 }), zero))).toContain('the most allowed is 30');
+    const back = { ...WEEK5, baseWeek: { known: false as const, runWithoutLoad: false, firstWeekBack: { fromWeek: null, percent: 100 } }, loadGoal: { running: true, runLevel: { minutes: 50 } } };
+    expect(reasonOf(checkWeekAnswer(week({ 1: { min: 31 } }, { min: 10 }), back))).toContain('the most allowed is 30');
+  });
+
+  it('the prompt names the raised cap', () => {
+    expect(runningLines(undefined, { minutes: 50, km: 9 })).toContain('- With fewer than 3 runs, no run longer than 50 minutes (9 km when every run is given in km).');
+    expect(runningLines(undefined)).toContain('- With fewer than 3 runs, no run longer than 30 minutes (5 km when every run is given in km).');
+  });
+});

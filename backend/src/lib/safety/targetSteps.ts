@@ -105,6 +105,28 @@ export function targetFamily(target: WeekTarget, context: FamilyContext = {}): T
   return null;
 }
 
+/**
+ * Plan safety limits M3.1 (PSL-19): what the person already runs in one go, read from the roadmap's starting point (in
+ * the targets' metric and unit): a running distance in km, continuous running minutes, or a race time in minutes (they
+ * can run the race distance for that long). A pace, any other family or no starting point gives null. Used only to
+ * raise the fixed longest-run cap of a week with no base week, never above what they already do.
+ */
+export interface RunLevel {
+  km?: number;
+  minutes?: number;
+}
+
+export function runLevelOf(target: WeekTarget, startValue: number | null | undefined, context: FamilyContext = {}): RunLevel | null {
+  if (target.kind !== 'number' || typeof startValue !== 'number' || !Number.isFinite(startValue) || startValue <= 0) return null;
+  const family = targetFamily(target, context);
+  if (family !== 'running_distance' && family !== 'running_time') return null;
+  if (isPaceUnit(target.unit)) return null;
+  const km = kmPerUnit(target.unit);
+  if (km !== null) return { km: startValue * km };
+  const minutes = minutesPerUnit(target.unit);
+  return minutes !== null ? { minutes: startValue * minutes } : null;
+}
+
 /** A target outside every family that still looks physical, for the `unknown_family` log line (never refused). */
 export function looksPhysical(target: WeekTarget, context: { highLoad?: boolean } = {}): boolean {
   if (target.kind !== 'number') return false;

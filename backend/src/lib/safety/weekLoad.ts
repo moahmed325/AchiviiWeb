@@ -8,6 +8,7 @@ import type { ScanRule } from '../ai/safetyScan.js';
 import type { CarriedStep } from '../carryForward.js';
 import { originOf, stepKey } from '../recovery/inOrder.js';
 import { RUN_KINDS } from './stepLoad.js';
+import type { RunLevel } from './targetSteps.js';
 import { codeMadeRetestStep } from '../ai/retestStep.js';
 import {
   BASE_WEEK_DONE_PERCENT,
@@ -351,7 +352,7 @@ export function comparedUnit(base: Extract<BaseWeek, { known: true }>, week: Pic
  * M2.2b (PSL-18): a first week back's known base holds the total to `firstWeekBackLimit`; its unknown base is held like a
  * 0-run base (PSL-18 (5)).
  */
-export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Array<LoadBreach & { run?: Run }> {
+export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined, level?: RunLevel | null): Array<LoadBreach & { run?: Run }> {
   const breaches: Array<LoadBreach & { run?: Run }> = [];
   const known = base?.known ? base : null;
   const unknownBack = base?.known === false && base.firstWeekBack !== undefined;
@@ -389,7 +390,7 @@ export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Arr
       });
     }
   }
-  const longest = longestRunBreach(week, unknownBack ? 'unknown' : zeroBase ? 'zero' : known ? 'base' : 'none');
+  const longest = longestRunBreach(week, unknownBack ? 'unknown' : zeroBase ? 'zero' : known ? 'base' : 'none', level);
   if (longest) breaches.push(longest);
   if (week.hardRuns > HARD_RUNS_MAX) {
     breaches.push({
@@ -404,11 +405,22 @@ export function weekBreaches(week: WeekRunning, base: BaseWeek | undefined): Arr
 }
 
 /**
+ * M3.1 (PSL-19): the longest-run cap of a week with no base week and fewer than 3 runs, in `unit`: the fixed cap, or
+ * what they already run in one go when that is more (`RunLevel`, only in its own unit). A break or a 0-run base keeps
+ * the fixed cap.
+ */
+export function noBaseCap(unit: RunUnit, level?: RunLevel | null): number {
+  const cap = unit === 'km' ? LONGEST_RUN_NO_BASE_MAX_KM : LONGEST_RUN_NO_BASE_MAX_MINUTES;
+  const already = unit === 'km' ? level?.km : level?.minutes;
+  return typeof already === 'number' && Number.isFinite(already) ? Math.max(cap, already) : cap;
+}
+
+/**
  * PSL-15 (7): 50% of the week with 3 or more runs; with fewer and no base, the fixed cap; with fewer and a base, none.
  * PSL-16: after a base of 0 runs, the fixed cap whatever the number of runs, and also 50% with 3 or more. M2.2b: an
  * unknown first-week-back base (`unknown`) is held the same way.
  */
-function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero' | 'unknown'): (LoadBreach & { run: Run }) | null {
+function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero' | 'unknown', level?: RunLevel | null): (LoadBreach & { run: Run }) | null {
   if (week.runs.length === 0) return null;
   const unit = week.unit;
   const run = week.runs.reduce((best, item) => (amountOf(item, unit) > amountOf(best, unit) ? item : best));
@@ -422,7 +434,13 @@ function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero' | 'u
   // M2.2b review: a first week back whose base isn't known is held as `zero`, and says so.
   else if (base === 'unknown') limits.push({ limit: cap, why: "last week's running isn't known" });
   else if (base === 'none' && week.runs.length < LONGEST_RUN_MIN_RUNS) {
-    limits.push({ limit: cap, why: `with no last week to build from and fewer than ${LONGEST_RUN_MIN_RUNS} runs` });
+    // M3.1 (PSL-19): never below what they already run in one go, from their starting point.
+    const already = noBaseCap(unit, level);
+    limits.push(
+      already > cap
+        ? { limit: already, why: `what they already run, from their starting point, with no last week to build from` }
+        : { limit: cap, why: `with no last week to build from and fewer than ${LONGEST_RUN_MIN_RUNS} runs` }
+    );
   }
   const held = limits.reduce<{ limit: number; why: string } | null>((least, item) => (least === null || item.limit < least.limit ? item : least), null);
   if (!held || !over(amount, held.limit)) return null;
@@ -439,9 +457,10 @@ function longestRunBreach(week: WeekRunning, base: 'base' | 'none' | 'zero' | 'u
 /**
  * RULE-5, PSL-2: one step's (or 10-minute version's) load against the per-step limits: the deficit and the intake floor
  * in every week, and in weeks 1 to `EARLY_WEEKS` the % of 1RM, reps in reserve, failure and max test. A lower deficit is
- * never refused.
+ * never refused. M3.1 (PSL-20): for an experienced lifter (`isExperiencedLifter`) weeks 1 to 3 keep only failure and
+ * the max test; the % of 1RM and reps in reserve follow the method, as from week 4.
  */
-export function stepLoadBreaches(load: StepLoad | undefined, weekNumber: number): LoadBreach[] {
+export function stepLoadBreaches(load: StepLoad | undefined, weekNumber: number, options: { experiencedLifter?: boolean } = {}): LoadBreach[] {
   if (!load) return [];
   const breaches: LoadBreach[] = [];
   const add = (rule: LoadBreach['rule'], value: number, limit: number, field: string, text: string) =>
@@ -453,10 +472,10 @@ export function stepLoadBreaches(load: StepLoad | undefined, weekNumber: number)
     add('intake_below_1200', load.kcalIntake, DAILY_INTAKE_MIN_KCAL, 'kcalIntake', `kcalIntake is ${load.kcalIntake}; the least allowed is ${DAILY_INTAKE_MIN_KCAL} kcal a day.`);
   }
   if (weekNumber <= EARLY_WEEKS) {
-    if (load.percent1RM !== undefined && over(load.percent1RM, EARLY_WEEK_MAX_1RM_PERCENT)) {
+    if (!options.experiencedLifter && load.percent1RM !== undefined && over(load.percent1RM, EARLY_WEEK_MAX_1RM_PERCENT)) {
       add('over_80_percent_1rm', load.percent1RM, EARLY_WEEK_MAX_1RM_PERCENT, 'percent1RM', `percent1RM is ${load.percent1RM}; in weeks 1 to ${EARLY_WEEKS} the most allowed is ${EARLY_WEEK_MAX_1RM_PERCENT}.`);
     }
-    if (load.rir !== undefined && load.rir < EARLY_WEEK_MIN_RIR) {
+    if (!options.experiencedLifter && load.rir !== undefined && load.rir < EARLY_WEEK_MIN_RIR) {
       add('rir_below_3', load.rir, EARLY_WEEK_MIN_RIR, 'rir', `rir is ${load.rir}; in weeks 1 to ${EARLY_WEEKS} the least allowed is ${EARLY_WEEK_MIN_RIR} reps in reserve.`);
     }
     if (load.toFailure === true) add('to_failure', 1, 0, 'toFailure', `toFailure is true; in weeks 1 to ${EARLY_WEEKS} nothing goes to failure.`);
