@@ -33,13 +33,25 @@ export interface TemplatePickInput {
   methodName?: string | null;
 }
 
+/**
+ * "Run" that means running something, not running as a sport ("grow my running business", "run my own bakery", "run a
+ * YouTube channel"): the run word goes before the keywords are matched, so it can't pick the endurance template. Only
+ * the run word goes; the rest of the text still counts.
+ */
+const RUN_SOMETHING =
+  /\b(?:run|runs|running|ran)\s+((?:(?:a|an|the|my|our|his|her|their|own|small|local|online|side|new|successful|profitable|first|youtube|book|tech|family)\s+){0,3}(?:business(?:es)?|compan(?:y|ies)|startup|shop|store|agency|brand|channel|podcast|blog|website|campaign|workshop|meetup|newsletter|course|restaurant|caf[eé]|bakery|firm|practice|clinic|nonprofit|non-profit|charity|organi[sz]ation|department|project|meetings?|ads)\b)/g;
+
+export function withoutRunSomething(text: string): string {
+  return text.replace(RUN_SOMETHING, '$1');
+}
+
 function hits(text: string, patterns: RegExp[]): number {
   return patterns.filter((pattern) => pattern.test(text)).length;
 }
 
 export function pickTemplate(input: TemplatePickInput): TemplateId {
   const sources = (Object.keys(WEIGHTS) as Array<keyof typeof WEIGHTS>).map((key) => ({
-    text: typeof input[key] === 'string' ? (input[key] as string).toLowerCase() : '',
+    text: typeof input[key] === 'string' ? withoutRunSomething((input[key] as string).toLowerCase()) : '',
     weight: WEIGHTS[key],
   }));
   let best: TemplateId = 'general';
