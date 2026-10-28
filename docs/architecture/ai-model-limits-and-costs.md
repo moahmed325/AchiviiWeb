@@ -62,7 +62,7 @@ Paying is "pay as you go": no monthly fee. You link a billing account to the Goo
 
 ### What that means for Achivii (estimates)
 
-My guess at the size of each call: a goal creation sends about 11,000 tokens and gets about 10,000 back; a weekly review sends about 5,000 and gets about 5,000 back. These are estimates, not measurements, and "thinking" models can use 2 to 3 times more output. Treat the numbers below as a rough guide. They were made before the weekly update call and the custom profile call were switched on (2026-10-28); both are smaller than a week call, so a week close and a custom goal cost somewhat more than shown, well under double.
+My guess at the size of each call: a goal creation sends about 11,000 tokens and gets about 10,000 back; a weekly review sends about 5,000 and gets about 5,000 back. These are estimates, not measurements, and "thinking" models can use 2 to 3 times more output. Treat the numbers below as a rough guide. They were made before the weekly update call and the custom profile call were switched on (2026-10-28); so a week close and a custom goal cost more than shown. Their sizes are not measured yet.
 
 | Model | One new goal | One weekly review | One person, a whole 12-week plan | 1,000 active people a month |
 |---|---|---|---|---|
