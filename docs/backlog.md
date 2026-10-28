@@ -12,7 +12,7 @@ Where every feature stands. One row per feature; change a row only when a featur
 | `checkpoints` | DONE | weekly-update (WU-2) | Built 2026-10-24 (M1 server, M2 app; CP-1 to CP-16). Goes live with weekly-update O2: turning on `WEEKLY_UPDATE_ENABLED` turns it on (CP-8) |
 | `billing` (old layout) | WAITING | Lemon Squeezy test-mode keys and webhook (M2.5); then launch (phase 6) | Code built 2026-09-29 |
 | `plan-safety-limits` | PLANNED | M1.1 prompt (`main - review`) | B-62. Feature APPROVED and order agreed 2026-10-17 (PSL-4). Stopgap B-63 DONE. Weekly-update M3.1 waits for its P2 (WU-29) |
-| `fixed-date` | PLANNED | Mo's choices (plan section 4) | B-106. Small fix planned 2026-10-28 in `docs/features/fixed-date/plan.md` |
+| `fixed-date` | WAITING | Review and merge of `claude/trusting-edison-v1d3od` | B-106. Small fix built 2026-10-28 (`docs/features/fixed-date/plan.md`), Mo's picks a to d. Migration `20261028120000_goal_fixed_date` runs on deploy |
 
 States: `IN PROGRESS` · `PAUSED` · `WAITING` (on something outside the code) · `STUB` (problem written down, not planned) · `PLANNED`.
 

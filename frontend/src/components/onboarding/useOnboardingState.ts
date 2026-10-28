@@ -1,7 +1,9 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import type { CreateGoalResponse, FollowUpQuestion, Goal, GoalClarification, RoutineSettings } from '../../types';
 import { clarifyGoal, createGoalPlan, fetchActiveGoal, type PlanProgressEvent } from '../../lib/api';
+import { checkFixedDate } from '../../lib/fixedDate';
 import { nextPlanQuestions, prefilledAnswers, type NextPlanLaunch } from '../../lib/nextPlan';
+import { todayKey } from '../../lib/today';
 import { DRAFT_GOAL_KEY, answerFor as answerForState, buildCreatePayload } from './payload';
 import { describeOnboardingError, type OnboardingError } from './requestErrors';
 import { STEP_ORDER, isFlowStep, nextStep, splitQuestions, type FlowStep, type GoalKind, type WizardStep } from './steps';
@@ -95,6 +97,9 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
     commitments: [],
   });
   const scheduleChosen = routine.dailyMinutes > 0 && Boolean(routine.planVariant);
+  // B-106: the optional fixed date, kept apart from the routine (the server stores it on the goal).
+  const [fixedDate, setFixedDate] = useState('');
+  const fixedDateOk = checkFixedDate(fixedDate, todayKey(new Date())) !== 'invalid';
 
   const [planSteps, setPlanSteps] = useState<PlanProgressEvent[]>([]);
   const [generationError, setGenerationError] = useState<OnboardingError | null>(null);
@@ -283,7 +288,7 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
 
   // Leaves the schedule, waiting for clarify if the next step needs the questions and they aren't back yet.
   const handleProceedFromSchedule = () => {
-    if (!scheduleChosen) return;
+    if (!scheduleChosen || !fixedDateOk) return;
     if (clarification && !isClarifying) {
       goToStep(stepAfterSchedule);
       return;
@@ -350,7 +355,7 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
 
       try {
         const response: CreateGoalResponse = await createGoalPlan(
-          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, answers, customAnswers, nextPlan: nextPlan?.request }),
+          buildCreatePayload({ rawGoal, editedOutcome, clarification, routine, fixedDate, answers, customAnswers, nextPlan: nextPlan?.request }),
           token,
           (event) => {
             setPlanSteps((prev) => [...prev.filter((s) => s.id !== event.id), event]);
@@ -416,6 +421,9 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
     routine,
     setRoutine,
     scheduleChosen,
+    fixedDate,
+    setFixedDate,
+    fixedDateOk,
     planSteps,
     generationError,
     startClarification,

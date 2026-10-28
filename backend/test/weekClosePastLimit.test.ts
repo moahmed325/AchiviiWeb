@@ -23,7 +23,7 @@ import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
 import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
-import { FINAL_WEEK_INSIGHT, KEEP_GOING_INSIGHT, pastLimitMove } from '../src/lib/weekClose/breaks.js';
+import { FINAL_WEEK_INSIGHT, KEEP_GOING_INSIGHT, fixedDateRoom, pastLimitMove } from '../src/lib/weekClose/breaks.js';
 import { autoCloseInsight, jumpedWeeks, planWeekMove, saveWeekClose } from '../src/lib/weekClose/close.js';
 import { weekStartFor } from '../src/lib/planV2.js';
 
@@ -55,8 +55,11 @@ function modelWeek(weekStart: Date): WeekDayPlan[] {
   }));
 }
 
-/** Week `open` open (every earlier week closed by review), `movedDays` already moved; its practice days all done. */
-function seed(open: number, movedDays = 0) {
+/**
+ * Week `open` open (every earlier week closed by review), `movedDays` already moved; its practice days all done.
+ * `fixedDate` (B-106): the goal's fixed date, null for none.
+ */
+function seed(open: number, movedDays = 0, fixedDate: Date | null = null) {
   const start = shifted(START, movedDays);
   db.state.goals.push({
     id: 'g1',
@@ -81,6 +84,7 @@ function seed(open: number, movedDays = 0) {
     movedDays,
     closeTriedAt: null,
     closeTriedWeek: null,
+    fixedDate,
   });
   for (let weekNumber = 1; weekNumber <= 12; weekNumber++) {
     db.state.weeks.push({
@@ -403,5 +407,78 @@ describe('switch off (R-7, AC-19)', () => {
     expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: 0, startDate: START });
     expect(db.state.weeks.filter((w) => w.jumped)).toEqual([]);
     expect(vi.mocked(generateWeekPlan).mock.calls[0][0].firstWeekBack).toBeUndefined();
+  });
+});
+
+// B-106: a goal with a fixed date (an exam, a race, a talk). The plan's end (day 90, the day before `targetDate`) never
+// moves past it; what does not fit is not offered or jumped, as past the 28-day limit.
+describe('fixedDateRoom and pastLimitMove with a fixed date (B-106)', () => {
+  const DAY_90 = shifted(TARGET, -1);
+
+  it('is the days from day 90 to the date, 0 when day 90 is already past it, null with no date or once it has passed', () => {
+    expect(fixedDateRoom(TARGET, shifted(DAY_90, 10), '2026-10-01')).toBe(10);
+    expect(fixedDateRoom(TARGET, DAY_90, '2026-10-01')).toBe(0);
+    expect(fixedDateRoom(TARGET, shifted(DAY_90, -20), '2026-10-01')).toBe(0);
+    expect(fixedDateRoom(TARGET, null, '2026-10-01')).toBeNull();
+    expect(fixedDateRoom(TARGET, new Date('2026-10-01T00:00:00Z'), '2026-10-02')).toBeNull();
+  });
+
+  it('"Do my final week" moves only as far as the date allows, but always keeps today in week 12', () => {
+    expect(pastLimitMove(49, 28, 10, 39)).toEqual({ choice: 'final_week', days: 39, weekBack: 12 });
+    expect(pastLimitMove(49, 28, 10, 30)).toEqual({ choice: 'final_week', days: 36, weekBack: 12 });
+    expect(pastLimitMove(49, 28, 10, 60)).toEqual({ choice: 'final_week', days: 42, weekBack: 12 });
+    expect(pastLimitMove(49, 28, 10, null)).toEqual({ choice: 'final_week', days: 42, weekBack: 12 });
+  });
+
+  it('a date further away than the 28-day room changes nothing', () => {
+    closeOn();
+    const goal = { startDate: START, targetDate: TARGET, movedDays: 0, closeTriedAt: null, closeTriedWeek: null };
+    const at = new Date(atGap(2, 10));
+    expect(planWeekMove({ ...goal, fixedDate: shifted(DAY_90, 60) }, 2, at, 'UTC')).toEqual({ ...planWeekMove(goal, 2, at, 'UTC'), dateRoom: 60 });
+  });
+});
+
+describe('a close with a fixed date, WEEK_CLOSE_ENABLED on (B-106)', () => {
+  beforeEach(closeOn);
+  const DAY_90 = shifted(TARGET, -1);
+
+  it('a 5-day gap with 3 days of room: the plan moves 3, ends on the date, and the passed days are not offered', async () => {
+    seed(2, 0, shifted(DAY_90, 3));
+    const at = atGap(2, 5);
+    expect((await close(at)).status).toBe(200);
+    expect(db.goal()).toMatchObject({ currentWeek: 3, movedDays: 3, targetDate: shifted(TARGET, 3) });
+    expect(iso(shifted(db.goal().targetDate, -1))).toBe(iso(db.goal().fixedDate));
+    const week3 = db.tasksOf(3);
+    expect(week3[2].date).toBe(at.slice(0, 10));
+    expect(week3.filter((t) => t.notOffered).map((t) => t.date)).toEqual([week3[0].date, week3[1].date]);
+    expect(logLines('fixedDate')).toEqual(['[WeekClose] goal g1 week 2 fixedDate room 3 moved 3 gap 5']);
+  });
+
+  it('no room left (the plan already ends on the date): a 10-day break needs "Keep going", which jumps a week and moves nothing', async () => {
+    seed(2, 0, DAY_90);
+    const at = atGap(2, 10);
+    expect((await check(at)).body.choice).toBe('keep_going');
+    expect((await close(at, 'keep_going')).status).toBe(200);
+    expect(db.goal()).toMatchObject({ currentWeek: 4, movedDays: 0, startDate: START, targetDate: TARGET });
+    expect(db.week(3).jumped).toBe(true);
+    expect(db.tasksOf(4).filter((t) => !t.notOffered)[0].date).toBe(at.slice(0, 10));
+  });
+
+  it('"Do my final week" ends on the date: week 12 started 3 days ago, so its first 3 days are not offered', async () => {
+    // Week 10 closing, away 49 days: today is the plan's day 120; the date is 39 days after day 90.
+    seed(10, 0, shifted(DAY_90, 39));
+    const at = atGap(10, 49);
+    expect((await close(at, 'final_week')).status).toBe(200);
+    expect(db.goal()).toMatchObject({ currentWeek: 12, movedDays: 39, targetDate: shifted(TARGET, 39) });
+    const week12 = db.tasksOf(12);
+    expect(week12[3].date).toBe(at.slice(0, 10));
+    expect(week12.filter((t) => t.notOffered)).toHaveLength(3);
+  });
+
+  it('a date that has already passed holds nothing back', async () => {
+    seed(2, 0, shifted(START, 10));
+    const at = atGap(2, 5);
+    expect((await close(at)).status).toBe(200);
+    expect(db.goal()).toMatchObject({ movedDays: 5 });
   });
 });

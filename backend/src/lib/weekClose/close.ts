@@ -22,6 +22,7 @@ import {
   breakLength,
   firstWeekBackFor,
   goalLoad,
+  fixedDateRoom,
   pastLimitMove,
   type PastLimitChoice,
 } from './breaks.js';
@@ -100,7 +101,8 @@ export function weekScore(tasks: readonly DailyTask[]) {
  * `WEEK_CLOSE_ENABLED` off (RULE-18: no gap, no move, no days not offered) and for week 12, which has no week after it.
  * - `gap`: days from the new week's planned start to the local date of the first open that tried to close this week
  *   (`closeTriedAt` when `closeTriedWeek` is this week, else `now`), so days spent on failed writes never count (RULE-9).
- * - `days`: for a gap of 2 or more, `min(gap, 28 - movedDays)`; else 0.
+ * - `days`: for a gap of 2 or more, `min(gap, 28 - movedDays)`, and never past the goal's fixed date (B-106,
+ *   `fixedDateRoom`); else 0.
  * - `writtenOn`: the person's local date now. Every row of the new week dated before it is not offered.
  * - `breakDays` (M1.5a, RULE-13, WU-18): for a gap of 7 or more, the break's length (`breakLength`, from the closing
  *   week's last done step in `closingTasks` to the first try); else null. The move itself is the same either way.
@@ -122,6 +124,8 @@ export interface WeekMove {
   choiceNeeded: PastLimitChoice | null;
   /** The choice the move follows: `choiceNeeded` when the request gave it, else null. */
   choice: PastLimitChoice | null;
+  /** B-106: the days the goal's fixed date still allowed (`fixedDateRoom`), or null with no fixed date ahead. */
+  dateRoom: number | null;
 }
 
 /** M1.5b (WU-19, WU-40 (1)): the weeks a move jumps, first to last; empty for an ordinary close. */
@@ -157,7 +161,7 @@ export function jumpedWeeks(closedWeek: number, move: Pick<WeekMove, 'weekBack'>
 }
 
 export function planWeekMove(
-  goal: Pick<Goal, 'startDate' | 'targetDate' | 'movedDays' | 'closeTriedAt' | 'closeTriedWeek'>,
+  goal: Pick<Goal, 'startDate' | 'targetDate' | 'movedDays' | 'closeTriedAt' | 'closeTriedWeek'> & { fixedDate?: Date | null },
   closedWeek: number,
   now: Date,
   timezone?: string | null,
@@ -169,11 +173,13 @@ export function planWeekMove(
   const firstTry = goal.closeTriedWeek === closedWeek && goal.closeTriedAt && goal.closeTriedAt.getTime() <= now.getTime() ? goal.closeTriedAt : now;
   const gap = gapDays(goal.startDate, closedWeek, firstTry, timezone);
   const moved = Math.max(0, goal.movedDays ?? 0);
-  const room = Math.max(0, MOVE_LIMIT_DAYS - moved);
-  const past = pastLimitMove(gap, room, closedWeek);
+  const tz = normalizeTimezone(timezone);
+  // B-106: a fixed date ahead cuts the room, so the plan's end never moves past it.
+  const dateRoom = fixedDateRoom(goal.targetDate, goal.fixedDate, getZonedDateString(firstTry, tz));
+  const room = Math.max(0, Math.min(MOVE_LIMIT_DAYS - moved, dateRoom ?? Infinity));
+  const past = pastLimitMove(gap, room, closedWeek, dateRoom);
   const chosen = past && choice === past.choice ? past : null;
   const days = chosen ? chosen.days : gap >= MOVE_FROM_GAP_DAYS ? Math.min(gap, room) : 0;
-  const tz = normalizeTimezone(timezone);
   const breakDays =
     gap >= BREAK_FROM_GAP_DAYS ? breakLength(closingTasks, weekStartFor(goal.startDate, closedWeek).toISOString().slice(0, 10), getZonedDateString(firstTry, tz)) : null;
   return {
@@ -187,6 +193,7 @@ export function planWeekMove(
     weekBack: chosen ? chosen.weekBack : closedWeek + 1,
     choiceNeeded: past?.choice ?? null,
     choice: chosen?.choice ?? null,
+    dateRoom,
   };
 }
 
@@ -466,6 +473,10 @@ export function gapDays(goalStart: Date, closedWeek: number, now: Date, timezone
  * past the 28-day limit (WU-38 (2), the only case). Never fails a close that is already saved.
  */
 export function logJump(goal: Pick<Goal, 'id'>, weekNumber: number, move: WeekMove | null | undefined): void {
+  // B-106: one line when the fixed date held the move back.
+  if (move && move.dateRoom !== null && move.days < move.gap && move.dateRoom < MOVE_LIMIT_DAYS) {
+    console.log(`[WeekClose] goal ${goal.id} week ${weekNumber} fixedDate room ${move.dateRoom} moved ${move.days} gap ${move.gap}`);
+  }
   if (!move?.choice) return;
   try {
     const jumped = jumpedWeeks(weekNumber, move);

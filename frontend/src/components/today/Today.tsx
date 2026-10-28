@@ -37,6 +37,7 @@ import { DailyTimeCard, RetestNotice } from './Retest';
 import { CheckpointCard } from './Checkpoint';
 import { CLOSE_FAILED } from './WeekClose';
 import { closeLineWeek } from '../../lib/weekClose';
+import { fixedDateLine } from '../../lib/fixedDate';
 import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
@@ -343,6 +344,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   // Weekly update M1.2b (WU-28): the automatic close's line, once. Dismissing it hides it here at once and records it
   // on the server, so no device shows it again; if that save fails, the next load shows it again.
   const closeLine = closeLineWeek(goal);
+  const dateLine = fixedDateLine(goal);
   const dismissCloseLine = (weekNumber: number) => {
     const seenAt = new Date().toISOString();
     goalContext.updateActiveGoal({
@@ -495,6 +497,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               </span>
             </div>
           </div>
+          {/* B-106: a goal with a fixed date shows it next to the plan's end. */}
+          {dateLine && <p className="mt-4 text-small text-text-secondary">{dateLine}</p>}
         </div>
       </header>
 

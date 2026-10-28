@@ -1,6 +1,9 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { RoutineSettings } from '../../types';
+import { FIXED_DATE_INVALID, FIXED_DATE_LABEL, checkFixedDate, fixedDateHint } from '../../lib/fixedDate';
+import { addDaysToDateKey } from '../../lib/dateUtils';
+import { todayKey } from '../../lib/today';
 import { Button, ChoiceCard, ChoiceGroup, ErrorState, Field, Input, SegmentedControl } from '../ui';
 import type { OnboardingError } from './requestErrors';
 import { GoalContext, StepFooter, StepHeader } from './StepLayout';
@@ -38,6 +41,9 @@ interface StepScheduleProps {
   timeline: React.ReactNode;
   commitments: React.ReactNode;
   scheduleChosen: boolean;
+  /** B-106: the optional fixed date (`YYYY-MM-DD`, '' for none). */
+  fixedDate: string;
+  onFixedDateChange: (value: string) => void;
   /** A custom goal leaves the schedule for its questions, which may still be on their way. */
   isWaitingForClarification: boolean;
   clarificationError: OnboardingError | null;
@@ -57,6 +63,8 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
   timeline,
   commitments,
   scheduleChosen,
+  fixedDate,
+  onFixedDateChange,
   isWaitingForClarification,
   clarificationError,
   isClarifying,
@@ -66,6 +74,9 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
   onContinue,
 }) => {
   const waiting = isWaitingForClarification && isClarifying;
+  const today = todayKey(new Date());
+  const dateCheck = checkFixedDate(fixedDate, today);
+  const dateInvalid = dateCheck === 'invalid';
   const setField = (field: 'wakeTime' | 'sleepTime' | 'busyHours') => (e: React.ChangeEvent<HTMLInputElement>) =>
     onRoutineChange((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -103,6 +114,10 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
             {MINUTES_HINT[routine.dailyMinutes] ?? '60 minutes is recommended for most goals.'}
           </p>
         </div>
+
+        <Field label={FIXED_DATE_LABEL} showOptional hint={dateInvalid ? undefined : fixedDateHint(dateCheck)} error={dateInvalid ? FIXED_DATE_INVALID : undefined} className="max-w-sm">
+          <Input type="date" min={addDaysToDateKey(today, 1)} value={fixedDate} onChange={(e) => onFixedDateChange(e.target.value)} />
+        </Field>
       </div>
 
       <section aria-labelledby="day-heading" className="mt-14 border-t border-border pt-10">
@@ -155,7 +170,7 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
       >
         <Button
           size="lg"
-          disabled={!scheduleChosen}
+          disabled={!scheduleChosen || dateInvalid}
           loading={waiting}
           onClick={onContinue}
           trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-5" />}

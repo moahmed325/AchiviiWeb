@@ -79,7 +79,7 @@ function lessonWeek(weekStart: Date, whereTheyAre: string[] = []): WeekDayPlan[]
 }
 
 /** Week 1 written at goal create; weeks 2 to 12 wait for the close. */
-function seed() {
+function seed(fixedDate: Date | null = null) {
   db.state.goals.push({
     id: 'g1',
     userId: USER.id,
@@ -90,6 +90,7 @@ function seed() {
     clarifiedOutcome: 'Hold a conversation',
     startDate: START,
     targetDate: addDays(START, 90),
+    fixedDate,
     routine: JSON.stringify({ dailyMinutes: DAILY_MINUTES, planVariant: 'steady', sleepTime: '23:00', preferredSlot: 'evening' }),
     roadmap: {
       finalGoal: 'Learn 100 words',
@@ -207,6 +208,8 @@ interface Person {
   away?: (day: number) => boolean;
   /** Whether they do the day's practice when they open it. */
   practises?: (day: number) => boolean;
+  /** B-106: the goal's fixed date (a race, an exam), as a plan day (0 = START). */
+  fixedDay?: number;
 }
 
 const steps = (task: { detailedSteps: string }): Array<{ title: string; durationMinutes: number; toNextWeek?: Array<{ step: { title: string } }> }> =>
@@ -242,6 +245,10 @@ async function open(person: Person, day: number, problems: string[]) {
   const again = await post('/close-week', at, { mode: 'check' });
   if (again.body.due === true && goal.currentWeek === weekBefore && close.body.due === true) problems.push(`${where}: still due after closing`);
   if (goal.currentWeek < 1 || goal.currentWeek > 12) problems.push(`${where}: currentWeek ${goal.currentWeek}`);
+  // B-106: the plan's end (day 90, the day before targetDate) never moves past a fixed date.
+  if (goal.fixedDate && dateKey(addDays(goal.targetDate, -1)) > dateKey(goal.fixedDate)) {
+    problems.push(`${where}: the plan ends ${dateKey(addDays(goal.targetDate, -1))}, after the fixed date ${dateKey(goal.fixedDate)}`);
+  }
 
   // No week written in the past: a week this open wrote has no day before today that is offered.
   if (goal.currentWeek !== weekBefore) {
@@ -270,7 +277,7 @@ async function open(person: Person, day: number, problems: string[]) {
 }
 
 async function runPlan(person: Person) {
-  seed();
+  seed(person.fixedDay === undefined ? null : addDays(START, person.fixedDay));
   const problems: string[] = [];
   for (let day = 0; day < 140 && db.goal().status === 'active'; day++) {
     if (person.away?.(day)) continue;
@@ -309,6 +316,23 @@ describe('90 days, made-up people (B-46 (3))', () => {
     const problems = await runPlan({ name: 'Tom', away: (day) => day >= 15 && day < 57 });
     expect(problems).toEqual([]);
     expect(db.goal().currentWeek).toBe(12);
+    expect(db.state.weeks.some((week) => week.jumped === true)).toBe(true);
+  }, 120_000);
+
+  it('Race-day Rae has a race 3 days after day 90 and is away 10 days in week 5 (B-106)', async () => {
+    const problems = await runPlan({ name: 'Rae', fixedDay: 92, away: (day) => day >= 30 && day < 40 });
+    expect(problems).toEqual([]);
+    expect(db.goal().currentWeek).toBe(12);
+    // The break's gap is 5 days; the plan moved only the 3 the race allows, so day 90 is race day.
+    expect(db.goal().movedDays).toBe(3);
+    expect(dateKey(addDays(db.goal().targetDate, -1))).toBe(dateKey(addDays(START, 92)));
+  }, 120_000);
+
+  it('Exam-day Eve\'s exam is on day 90 and she is away 6 weeks: nothing moves, weeks are jumped (B-106)', async () => {
+    const problems = await runPlan({ name: 'Eve', fixedDay: 89, away: (day) => day >= 15 && day < 57 });
+    expect(problems).toEqual([]);
+    expect(db.goal().currentWeek).toBe(12);
+    expect(db.goal().movedDays).toBe(0);
     expect(db.state.weeks.some((week) => week.jumped === true)).toBe(true);
   }, 120_000);
 });

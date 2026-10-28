@@ -1,6 +1,6 @@
 # Fixed date: plan for the small fix (B-106)
 
-Status: PLANNED, waiting on Mo's choices in section 4. Nothing is built.
+Status: BUILT 2026-10-28 on `claude/trusting-edison-v1d3od`, with Mo's picks for all four choices (the recommended option in each of a to d). Waiting on review and merge.
 
 ## 1. The problem
 
@@ -36,23 +36,23 @@ Out of scope (the medium and large fixes): a plan shorter than 90 days, planning
 | `lib/weekClose/close.ts`, `planWeekMove` | The room becomes `min(28 - movedDays, days from targetDate to fixedDate)`, never below 0. With no `fixedDate`, exactly as now. |
 | `lib/weekClose/breaks.ts`, `pastLimitMove` | Already works from `room`, so a smaller room gives the choice card sooner. `final_week` may today go past the 28-day limit; with a fixed date it must not end after it (see 4c). |
 | `lib/nextPlan.ts` | A fresh plan after a break carries the fixed date over, if it is still ahead. |
-| `routes/goal/present.ts` | Send `fixedDate` to the app. |
+| `routes/goal/present.ts` | Sends `fixedDate` to the app already (it spreads the goal); no change needed. |
 | Logs | The `[WeekClose]` line adds `fixedDate` when the room was cut by it. |
 
 ### Frontend
 
 | Where | Change |
 |---|---|
-| Onboarding (`components/onboarding/`, `payload.ts`) | An optional date field (step to choose, 4a). Sent as `fixedDate`. The create body is pinned by the R-4 baseline (`e2e/fixtures/onboarding`), so the fixture changes too. |
+| Onboarding (`components/onboarding/`, `payload.ts`) | An optional date field on the schedule step (4a). Sent as `fixedDate` only when set, so the R-4 baseline bodies (`e2e/fixtures/onboarding`) are unchanged. |
 | `types/index.ts`, `GoalContext` | `fixedDate` on the goal. |
-| Today / progress, where the end date shows | "Your date: {date}" next to the plan's end date. The welcome-back lines (`WELCOME_BACK_INSIGHT` and others) stay as they are. |
+| Today | Under the Day 1 to Day 90 bar: "Your date: {date}. Your plan ends on {end}.", or "..., after it, and won't move any later." when the plan ends after the date (`lib/fixedDate.ts`). The welcome-back lines stay as they are. |
 
 ### Tests
 
 - `planWeekMove` and `pastLimitMove` with a fixed date: room cut by the date, cut to 0, a date further away than 28 days (no change), no date (no change).
 - Create route: valid date, bad date, date before the start, no date.
-- `backend/test/ninetyDays.test.ts`: a new person, "Race-day Rae", with a fixed date and a 10-day break in week 5; the rule that must hold is "the plan never ends after the fixed date".
-- Frontend: the field, the payload, the end-date line; e2e onboarding fixture.
+- `backend/test/ninetyDays.test.ts`: "Race-day Rae" (race 3 days after day 90, away 10 days in week 5: moves 3, not 5) and "Exam-day Eve" (exam on day 90, away 6 weeks: nothing moves, weeks are jumped); every open checks "the plan never ends after the fixed date".
+- Frontend: the field (`StepSchedule.test.tsx`), the payload, the Today line, `lib/fixedDate.test.ts`.
 
 Code review before merging: it changes stored data and the week-close logic.
 
@@ -65,7 +65,7 @@ b. **A date less than 90 days away.** Options:
    2. Refuse the date and say plans need 90 days.
 
 c. **The final-week choice after a long break.** Today "Do my final week" starts week 12 on the day they return. With a fixed date, if that week would end after the date:
-   1. Start week 12 so it ends on the date (fewer days of it are offered) (recommended).
+   1. Start week 12 so it ends on the date (fewer days of it are offered) (recommended). As built, week 12 always keeps today: when the date is under a week away, the plan may end up to 6 days after it rather than leave no final week at all.
    2. Keep it as now and let it end after the date.
 
 d. **Copy.** The question, the hint under it and the end-date line. Suggested: "Is there a fixed date this has to be ready by?", hint "An exam, a race, a talk. Leave it empty if not."

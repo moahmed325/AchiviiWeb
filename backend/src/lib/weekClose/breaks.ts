@@ -41,7 +41,13 @@ export type PastLimitChoice = 'keep_going' | 'final_week';
  * - `final_week`, when `weekBack` would be past week 12: week 12 starts on the first try's date, every week before it
  *   from `closedWeek + 1` is jumped, and `days` is whatever that takes, past the limit if needed (the only case).
  */
-export function pastLimitMove(gap: number, room: number, closedWeek: number): { choice: PastLimitChoice; days: number; weekBack: number } | null {
+export function pastLimitMove(
+  gap: number,
+  room: number,
+  closedWeek: number,
+  /** B-106: `fixedDateRoom`'s days, or null with no fixed date ahead. Only the final week reads it. */
+  dateRoom: number | null = null
+): { choice: PastLimitChoice; days: number; weekBack: number } | null {
   const space = Math.max(0, room);
   if (closedWeek + 1 > TOTAL_WEEKS || gap < BREAK_FROM_GAP_DAYS || gap - space < JUMP_FROM_OVERFLOW_DAYS) return null;
   const aligned = space - ((((space - gap) % 7) + 7) % 7);
@@ -49,7 +55,24 @@ export function pastLimitMove(gap: number, room: number, closedWeek: number): { 
   const weekBack = closedWeek + 1 + Math.floor((gap - days) / 7);
   if (weekBack <= TOTAL_WEEKS) return { choice: 'keep_going', days, weekBack };
   // Week 12 starts on the first try's date: week `closedWeek + 1` would start `gap` days ago, week 12 that many weeks later.
-  return { choice: 'final_week', days: gap - 7 * (TOTAL_WEEKS - closedWeek - 1), weekBack: TOTAL_WEEKS };
+  const needed = gap - 7 * (TOTAL_WEEKS - closedWeek - 1);
+  // B-106 (Mo, choice c): with a fixed date ahead, week 12 moves only as far as the date allows, so it started earlier
+  // and its passed days are not offered; it always keeps today (at most 6 days earlier), so the final week is never over.
+  const final = dateRoom === null ? needed : Math.min(needed, Math.max(dateRoom, needed - 6));
+  return { choice: 'final_week', days: final, weekBack: TOTAL_WEEKS };
+}
+
+/**
+ * B-106: how many days the plan may still move before its end (day 90, the day before `targetDate`) would fall after
+ * the goal's fixed date, never below 0. Null with no fixed date, or once the fixed date is before `today` (the person's
+ * local date at the first try): a date that has passed holds nothing back.
+ */
+export function fixedDateRoom(targetDate: Date, fixedDate: Date | null | undefined, today: string): number | null {
+  if (!fixedDate || !Number.isFinite(fixedDate.getTime()) || !isDate(today)) return null;
+  const fixed = dayIndex(fixedDate.toISOString().slice(0, 10));
+  if (fixed < dayIndex(today)) return null;
+  const end = dayIndex(targetDate.toISOString().slice(0, 10)) - 1;
+  return Number.isFinite(end) ? Math.max(0, Math.round(fixed - end)) : null;
 }
 
 const dayIndex = (date: string) => Date.parse(`${date}T00:00:00Z`) / 86_400_000;

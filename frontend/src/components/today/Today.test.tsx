@@ -110,6 +110,17 @@ describe('Today', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows no fixed-date line for a goal without one (B-106)', async () => {
+    await renderToday();
+    expect(screen.queryByText(/Your date:/)).not.toBeInTheDocument();
+  });
+
+  it('shows a fixed date next to the plan end (B-106)', async () => {
+    mocked.fetchActiveGoal.mockResolvedValue({ ...GOAL, fixedDate: `${isoDay(120)}T00:00:00.000Z` } as Goal);
+    await renderToday();
+    expect(screen.getByText(/^Your date: .+\. Your plan ends on .+\.$/)).toBeInTheDocument();
+  });
+
   it("shows today's step, its duration and slot, and the week as practice days", async () => {
     await renderToday();
     const step = screen.getByRole('region', { name: 'Easy base run' });

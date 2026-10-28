@@ -74,6 +74,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     routine,
     setRoutine,
     scheduleChosen,
+    fixedDate,
+    setFixedDate,
     planSteps,
     generationError,
     startClarification,
@@ -271,6 +273,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               />
             }
             scheduleChosen={scheduleChosen}
+            fixedDate={fixedDate}
+            onFixedDateChange={setFixedDate}
             isWaitingForClarification={isWaitingForClarification}
             clarificationError={clarificationError}
             isClarifying={isClarifying}
