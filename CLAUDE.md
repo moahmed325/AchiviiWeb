@@ -82,7 +82,7 @@ Main areas (details in `docs/architecture/backend-details.md`; read the part you
 - Billing: `lib/billing/`, `config/billing.ts` (Lemon Squeezy, test mode by default).
 - LLM: `lib/ai/gemini.ts` (Gemini only, no fallback provider).
 
-Feature switches, all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `WEEKLY_UPDATE_ENABLED` (on, also turns on checkpoints), `CUSTOM_RECOVERY_PROFILES_ENABLED` (off). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
+Feature switches, all managed in the Render dashboard only (`sync: false`, unset means off). **Never turn them on or off from code or tests:** `MISSED_SESSIONS_CARRY_ENABLED` (on), `METHOD_RECOVERY_ENABLED` (on), `WEEK_CLOSE_ENABLED` (on), `WEEKLY_UPDATE_ENABLED` (on, also turns on checkpoints), `CUSTOM_RECOVERY_PROFILES_ENABLED` (on). They are read through `lib/flags.ts` (`flagOn`, exactly `true`, per request), and the server logs them all at startup (`[Flags]`).
 
 The routes that call the model are rate limited in memory (`lib/rateLimit.ts`): `POST /api/goal/clarify` 10 a minute per IP, `POST /api/goal/create` 10 per 10 minutes per person; over it, 429 `rate_limited`.
 
