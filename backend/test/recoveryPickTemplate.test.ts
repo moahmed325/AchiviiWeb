@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { pickTemplate, PATHWAY_TEMPLATES } from '../src/lib/recovery/index.js';
+import { withoutRunSomething } from '../src/lib/recovery/pickTemplate.js';
 import { CERTIFIED_PRESETS } from '../src/lib/ai/presets/index.js';
 import { presetMethod } from '../src/lib/ai/roadmap.js';
 
@@ -37,6 +38,22 @@ describe('pickTemplate', () => {
   it('lets the domain outweigh the goal text', () => {
     // The goal text says "run"; the domain says it is a business.
     expect(pickTemplate({ domain: 'Software product', goalText: 'Run my first startup launch' })).toBe('product');
+  });
+
+  it('"run" that means running something is not running the sport', () => {
+    expect(pickTemplate({ goalText: 'Grow my running business to 10 clients' })).toBe('general');
+    expect(pickTemplate({ goalText: 'Run my own bakery profitably' })).toBe('general');
+    expect(pickTemplate({ goalText: 'Start running my small business full time' })).toBe('general');
+    expect(pickTemplate({ goalText: 'Run a YouTube channel with 10k subscribers' })).toBe('content');
+    expect(withoutRunSomething('run my own bakery')).toBe('my own bakery');
+  });
+
+  it('running as a sport still picks endurance, a running club and team included', () => {
+    expect(pickTemplate({ goalText: 'Run my first half marathon' })).toBe('endurance');
+    expect(pickTemplate({ goalText: 'Running 5k three times a week' })).toBe('endurance');
+    expect(pickTemplate({ goalText: 'Join a running club' })).toBe('endurance');
+    expect(pickTemplate({ goalText: 'Make the running team' })).toBe('endurance');
+    expect(pickTemplate({ goalText: 'Run my company and train for a 10k' })).toBe('endurance');
   });
 
   it('matches on the method name when nothing else does', () => {
