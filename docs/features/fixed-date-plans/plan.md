@@ -1,6 +1,6 @@
 # Plans that fit a fixed date: plan
 
-**Status:** BUILT on `claude/trusting-edison-v1d3od` (2026-10-29), after the code review in section 8. Not merged. Left: the live check (section 4, step 4).
+**Status:** BUILT and merged to main (2026-10-29), after the code review in section 8. Left: the live check (section 4, step 4).
 **Backlog:** B-109. **Ideas:** I-29. **Builds on:** B-106 (the fixed date field).
 
 ## 1. The problem
