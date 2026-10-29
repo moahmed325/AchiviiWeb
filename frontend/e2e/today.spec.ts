@@ -443,12 +443,16 @@ test.describe('layout, keyboard and motion', () => {
     }
   });
 
-  test('keyboard only: the skip link, then Start, then focus mode', async ({ page }) => {
+  test('keyboard only: the skip link, then the steps, then Start, then focus mode', async ({ page }) => {
     await openToday(page);
     await page.keyboard.press('Tab');
     await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(main(page)).toBeFocused();
+    // ND-28: the session's two steps come first; each opens in place.
+    await page.keyboard.press('Tab');
+    await expect(stepRegion(page).getByRole('button', { name: /Sketch the core screen/ })).toBeFocused();
+    await page.keyboard.press('Tab');
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Start', exact: true })).toBeFocused();
     await page.keyboard.press('Enter');

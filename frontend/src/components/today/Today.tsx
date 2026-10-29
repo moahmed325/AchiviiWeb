@@ -250,7 +250,7 @@ const WeekGlance: React.FC<{
   const { practiceDays, practiceDone } = weekProgress(tasks);
   const complete = practiceDays > 0 && practiceDone >= practiceDays;
   return (
-    <section aria-labelledby="week-heading" className="dash-panel animate-rise-in relative mt-6 p-6 sm:p-8" style={stagger(240)}>
+    <section aria-labelledby="week-heading" className="dash-panel animate-rise-in relative mt-6 p-5 sm:p-8" style={stagger(240)}>
       <div className="flex items-baseline justify-between gap-4">
         <h2 id="week-heading" className="font-ui-mono text-micro uppercase text-text-secondary">
           This week
@@ -259,7 +259,8 @@ const WeekGlance: React.FC<{
           {complete ? 'Every session done' : `${practiceDone} of ${practiceDays} practice ${practiceDays === 1 ? 'day' : 'days'} done`}
         </p>
       </div>
-      <ul className="mt-5 grid grid-cols-7 gap-1">
+      {/* The day buttons reach into the card's side padding on a phone, so each stays a 44 px target at 360 px. */}
+      <ul className="-mx-5 mt-4 grid grid-cols-7 sm:mx-0 sm:mt-5 sm:gap-1">
         {tasks.map((task) => {
           const selected = task.id === selectedId;
           const today = isToday(task, now, timezone);
@@ -772,7 +773,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   )}
                   {!done && !task.isRestDay && <span>Already did it?</span>}
                   <Button variant="quiet" size="sm" loading={busy} onClick={onToggle}>
-                    {done ? 'Mark not done' : task.isRestDay ? "Log today's rest" : 'Mark complete'}
+                    {done ? 'Mark not done' : task.isRestDay ? 'Log your rest' : 'Mark complete'}
                   </Button>
                 </div>
               )}

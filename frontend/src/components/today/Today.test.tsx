@@ -498,7 +498,7 @@ describe('Today', () => {
     expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
 
     // Logging the rest is optional and quiet
-    const recoveryBtn = screen.getByRole('button', { name: "Log today's rest" });
+    const recoveryBtn = screen.getByRole('button', { name: 'Log your rest' });
     expect(recoveryBtn).toBeVisible();
 
     await user.click(recoveryBtn);
@@ -1711,7 +1711,7 @@ describe('Today after a move (weekly update M1.4)', () => {
     const card = screen.getByRole('region', { name: 'No practice planned' });
     expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
     // Review fix 1: nothing to complete on a day not offered.
-    expect(within(card).queryByRole('button', { name: "Log today's rest" })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Log your rest' })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Mark not done' })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();

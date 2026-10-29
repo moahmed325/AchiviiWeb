@@ -46,7 +46,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     // Start button is suppressed on rest day
     await expect(stepCard.getByRole('button', { name: 'Start' })).toHaveCount(0);
     // Logging the rest is a quiet option
-    await expect(stepCard.getByRole('button', { name: "Log today's rest" })).toBeVisible();
+    await expect(stepCard.getByRole('button', { name: 'Log your rest' })).toBeVisible();
 
     // Next step preview is visible
     await expect(stepCard.getByText('Tomorrow · Thursday')).toBeVisible();
