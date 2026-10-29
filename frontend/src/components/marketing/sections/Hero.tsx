@@ -2,8 +2,7 @@ import React from 'react';
 import { CERTIFIED_PATHWAYS } from '../../../lib/certifiedPresets';
 import { Button } from '../Button';
 import { Eyebrow } from '../Section';
-import { TodayPreview } from '../TodayPreview';
-import { WeekLine } from '../WeekLine';
+import { GoalPreview } from '../GoalPreview';
 
 const MINUTES = CERTIFIED_PATHWAYS.map((p) => p.dailyMinutes);
 
@@ -13,7 +12,7 @@ export const Hero: React.FC = () => (
     aria-labelledby="hero-title"
     className="relative isolate overflow-hidden bg-background px-gutter pb-20 pt-28 sm:pb-28 sm:pt-40"
   >
-    <div aria-hidden="true" className="landing-satin" />
+    <div aria-hidden="true" className="landing-art landing-art-stairs" />
     <div className="mx-auto w-full max-w-[1120px]">
       <div className="grid items-center gap-14 lg:grid-cols-12 lg:gap-10">
         <div className="lg:col-span-7">
@@ -38,10 +37,8 @@ export const Hero: React.FC = () => (
           </p>
         </div>
 
-        <TodayPreview className="mx-auto w-full max-w-[440px] lg:col-span-5" />
+        <GoalPreview className="mx-auto w-full max-w-[440px] lg:col-span-5" />
       </div>
-
-      <WeekLine className="mt-20 sm:mt-24" />
     </div>
   </section>
 );
