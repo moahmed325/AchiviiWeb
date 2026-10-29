@@ -1869,6 +1869,29 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-28 — Today puts the step first
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: Today's look and features; a review found the step below a large header, its steps folded away, and little change when a session was done |
+| Decided | 2026-10-29 — Mo ("Everything sounds great, make sure everything you build is visually satisfying") |
+
+**Context.** Today opened with the goal, "90-day outcome: 49.98" (the stored `clarifiedOutcome`, raw), a giant "33 / 90" and a progress line; on a phone Start sat behind the bottom bar. The session's steps were behind "Show the 2 steps", Start and Mark complete looked equally important, up to five folded rows sat under the card, finishing changed only one small line, and the same review was offered from the week and from a footer. Some copy was filler ("This is your pivotal session…", "Implementation intention", "Deliberate practice logged"), and a test day's heading printed the stored test type ("TYPING_TEST BENCHMARK").
+
+**Decision.** **Today is "do the thing", fast.** A one-line header (day, week, phase, the goal) over a thin thread; the step with its steps listed and opening in place; one gold Start with "Already did it? Mark complete" beneath; a real done state ("Session N is in the books.", the light, the next day's preview, quiet "Do it again" and "Mark not done"); the 10-minute version, when and where, and the resource in one "More" row; a test day's "Today's check"; plain rest-day words. The end of a focus session names the session's number and the week, with today's mark lighting up. The week's marks are the day buttons; the review is offered only where it is due; no footer links. Everything the plan does (missed sessions, swaps, carry, checkpoints, week close) is unchanged.
+
+**Consequences.**
+* Today no longer shows the stored outcome (ND-18's "beneath it" applies to the Roadmap only); `90-day outcome` stays on the Roadmap.
+* The weekly review can no longer be opened (to draft) before its last day from Today; the bridge says when it opens (ND-24).
+* `Design.md` §6 describes the new order; styles in `index.css` ("Today v2", and the focus completion block).
+
+**Related.** ND-18, ND-24, ND-27.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 * **OD-3** — Superseded by **ND-19** on 2026-10-07.
@@ -1917,6 +1940,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-26 | ND-25 Decided by Mo: a missed key session is swapped onto its receiving day without asking (the question only if the swap is refused); moved steps show the day they came from. |
 | 2026-10-26 | ND-26 Decided by Mo: a missed-day reminder email, on by default, sent through Resend, behind `MISSED_DAY_REMINDERS_ENABLED`. |
 | 2026-10-29 | ND-27 Decided by Mo: the Dashboard shows how the person is doing (sessions counted up, goal measure, 90-day map); its Start opens the session on Today in one tap. |
+| 2026-10-29 | ND-28 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
 
 ### PAY-1 — Achivii Pro pricing
 

@@ -4,7 +4,7 @@ import { playSessionStart, playStepTransition, playSessionComplete } from '../li
 import { FocusHeader } from './focus/FocusHeader';
 import { FocusTimer } from './focus/FocusTimer';
 import { FocusStepRunner } from './focus/FocusStepRunner';
-import { FocusCompletion } from './focus/FocusCompletion';
+import { FocusCompletion, type SessionProgress } from './focus/FocusCompletion';
 import { Button } from './ui';
 import { StepInstructions } from './today/StepInstructions';
 import { visibleDay, type DoneDays } from '../lib/stepLines';
@@ -31,6 +31,8 @@ export interface FocusSessionModalProps {
    * `visibleDay` does (B-50, B-52, B-55).
    */
   doneDays?: DoneDays;
+  /** ND-28: what finishing adds (the session's number, the week with today lit), shown on the completion screen. */
+  progress?: SessionProgress;
 }
 
 interface FocusSessionContentProps {
@@ -42,6 +44,7 @@ interface FocusSessionContentProps {
   onCompleteSession: (reflectionNotes?: string, options?: FocusCompletionOptions) => Promise<void> | void;
   startWith: 'full' | 'minimum';
   doneDays?: DoneDays;
+  progress?: SessionProgress;
 }
 
 const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
@@ -53,6 +56,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
   onCompleteSession,
   startWith,
   doneDays,
+  progress,
 }) => {
   // Timer & UI State initialized cleanly on mount
   const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
@@ -289,6 +293,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
             onSave={handleSaveAndExit}
             isSubmitting={isSubmitting}
             saveError={saveError}
+            progress={progress}
           />
         )}
       </div>
@@ -305,6 +310,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   onCompleteSession,
   startWith = 'full',
   doneDays,
+  progress,
 }) => {
   // The day as shown (B-50, B-52): its steps, minutes and text. The session only shows it; completing goes by id.
   const { steps, ...shown } = useMemo(() => visibleDay(task, doneDays ?? new Map()), [task, doneDays]);
@@ -326,6 +332,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
       onCompleteSession={onCompleteSession}
       startWith={startWith}
       doneDays={doneDays}
+      progress={progress}
     />
   );
 };

@@ -453,7 +453,6 @@ test.describe('Missed sessions: state coverage (M3.4)', () => {
     await signIn(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await main(page).getByRole('button', { name: 'Show week' }).click();
     await main(page).getByRole('list').last().getByRole('button').nth(3).click();
     await expect(main(page).getByRole('heading', { level: 2, name: 'Session 4' })).toBeVisible();
     for (const name of ['Set today aside', 'Swap with another day', 'Swap the days', 'Just move its main step']) {

@@ -432,7 +432,7 @@ test.describe('Weekly Review Flow (M7.2)', () => {
     await expect(dialog.getByRole('heading', { level: 2, name: 'Closing Stretch Ready' })).toBeAttached();
   });
 
-  test('accessible everyday review entry point can be opened from WeekGlance and footer nav (M7.4-R5)', async ({ page }) => {
+  test('before the review opens, Today has no review button on the week or in a footer (ND-28)', async ({ page }) => {
     // Normal in-progress week: reviewDue is false
     const normalGoal = shellGoal();
     await mockApi(page, { goal: normalGoal });
@@ -441,24 +441,7 @@ test.describe('Weekly Review Flow (M7.2)', () => {
 
     // Review due banner is not present
     await expect(page.locator('section[aria-labelledby="review-due-heading"]')).toHaveCount(0);
-
-    // WeekGlance header has 'Review week' button
-    const glanceReviewBtn = page.getByRole('button', { name: 'Review week' });
-    await expect(glanceReviewBtn).toBeVisible();
-    await glanceReviewBtn.click();
-
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
-
-    // Close modal
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await expect(dialog).not.toBeVisible();
-
-    // Footer nav has 'Weekly review' button
-    const navReviewBtn = page.getByRole('button', { name: 'Weekly review' });
-    await expect(navReviewBtn).toBeVisible();
-    await navReviewBtn.click();
-    await expect(dialog).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Review week' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Weekly review' })).toHaveCount(0);
   });
 });

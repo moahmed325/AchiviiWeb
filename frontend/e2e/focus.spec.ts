@@ -133,7 +133,8 @@ test.describe('Focus Mode', () => {
     const modal = await completeSession(page);
 
     // Completion view inside modal
-    await expect(modal.getByText('Session complete', { exact: true })).toBeVisible();
+    await expect(modal.getByText('Session complete · Session 3', { exact: true })).toBeVisible();
+    await expect(modal.getByText('3 of 6 this week.')).toBeVisible();
     await expect(modal.getByRole('heading', { name: 'You did the work.' })).toBeVisible();
 
     // Enter reflection note
@@ -147,7 +148,7 @@ test.describe('Focus Mode', () => {
     // Modal closed and Today reflects completed task
     await expect(modal).toHaveCount(0);
     await expect(page.getByText('Done', { exact: true })).toBeVisible();
-    await expect(page.getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+    await expect(page.getByText('Session 3 is in the books.')).toBeVisible();
 
     // Check mockApi recorded the task update with the reflection; a full session is not the minimum version (ND-3)
     const update = calls.taskUpdates.find((u) => u.taskId === 't3');
@@ -170,7 +171,7 @@ test.describe('Focus Mode', () => {
     await expect(minimum.getByRole('heading', { name: MINIMUM_VERSION.title })).toBeVisible();
     await minimum.getByRole('button', { name: 'Complete minimum' }).click();
 
-    await expect(modal.getByText('Minimum complete', { exact: true })).toBeVisible();
+    await expect(modal.getByText(/^10-minute version done/)).toBeVisible();
     await modal.getByRole('button', { name: 'Finish & return' }).click();
     await expect(modal).toHaveCount(0);
     await expect(page.getByText('Done', { exact: true })).toBeVisible();

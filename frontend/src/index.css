@@ -1547,3 +1547,94 @@ html:has(.marketing) {
     letter-spacing: 0.08em;
   }
 }
+
+/* ============================================================
+   Today v2 (ND-28): the step first. A thin gold thread under a one-line header, the session's steps as a numbered
+   list that opens in place, and a done moment: the check settles in with a light that sweeps the card once.
+   Tokens only; the global reduced-motion rule makes every animation here near-instant.
+   ============================================================ */
+@layer components {
+  @keyframes today-sweep {
+    from { transform: translateX(-120%); }
+    to { transform: translateX(120%); }
+  }
+
+  .today-thread .dash-journey__fill::after {
+    width: 0.375rem;
+    height: 0.375rem;
+  }
+
+  .today-steps {
+    counter-reset: none;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .today-step {
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .today-step__num {
+    display: inline-flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid color-mix(in oklab, var(--color-achievement) 45%, transparent);
+    font-family: var(--font-ui-mono);
+    font-size: var(--text-micro);
+    color: var(--color-achievement);
+    transition: background-color var(--duration-quick) ease, color var(--duration-quick) ease;
+  }
+
+  .today-step[data-open] .today-step__num {
+    background-color: var(--color-achievement);
+    color: var(--color-text-on-inverse);
+  }
+
+  .today-done-banner {
+    animation: dash-fade-in 400ms ease backwards;
+  }
+
+  /* One soft band of light crosses a card the moment its step is done. */
+  .dash-card.today-done::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(100deg, transparent 30%, color-mix(in oklab, var(--color-achievement) 14%, transparent) 50%, transparent 70%);
+    transform: translateX(120%);
+    animation: today-sweep 1400ms var(--ease-ascend) 200ms backwards;
+  }
+
+  .today-next {
+    border-color: color-mix(in oklab, var(--color-achievement) 22%, transparent);
+  }
+}
+
+/* ND-28: the end of a focus session. The check settles in, then today's mark lights up among the week's. */
+@layer components {
+  @keyframes focus-day-light {
+    0% { transform: scale(0.4); background-color: transparent; }
+    60% { transform: scale(1.25); box-shadow: 0 0 22px 4px color-mix(in oklab, var(--color-achievement) 70%, transparent); }
+    100% { transform: scale(1); }
+  }
+
+  .focus-done__mark {
+    display: flex;
+    width: 4.5rem;
+    height: 4.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background-color: var(--color-achievement);
+    color: var(--color-text-on-inverse);
+    box-shadow: 0 0 48px 6px color-mix(in oklab, var(--color-achievement) 38%, transparent);
+    animation: dash-pop 680ms var(--ease-ascend) 120ms backwards;
+  }
+
+  .focus-done .dash-day[data-new] {
+    animation: focus-day-light 700ms var(--ease-ascend) 900ms backwards;
+  }
+}

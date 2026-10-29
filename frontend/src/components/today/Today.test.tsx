@@ -97,24 +97,32 @@ beforeEach(() => {
   mocked.updateDailyTask.mockImplementation(async (id, updates) => ({ ...tasks.find((t) => t.id === id)!, ...updates }) as DailyTask);
 });
 
+/** ND-28: opens every step on today's card, so its details are on screen. */
+const openAllSteps = async () => {
+  const list = screen.getByRole('list', { name: 'Steps in this session' });
+  for (const button of within(list).getAllByRole('button')) {
+    if (button.getAttribute('aria-expanded') === 'false') await userEvent.click(button);
+  }
+};
+
 describe('Today', () => {
-  it('heads with the goal the user chose, the stored outcome beneath it as stored, then Day N / 90', async () => {
+  it('ND-28: one line of where you are, then the goal the user chose; never the stored outcome', async () => {
     const heading = await renderToday();
     expect(heading).toHaveTextContent('Run a 10K Under 50 Minutes');
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
-    expect(screen.getByText('49.98')).toBeInTheDocument();
-    expect(screen.getByText('49.98').closest('p')).toHaveTextContent('90-day outcome: 49.98');
-    expect(screen.getByLabelText('Day 3 of 90')).toHaveTextContent('3/ 90');
-    expect(
-      screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === 'Week 1 · Aerobic base · Easy miles'),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/49\.98/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Day 3 of 90')).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === 'Day 3 of 90 · Week 1 · Aerobic base')).toBeInTheDocument();
   });
 
   it("shows today's step, its duration and slot, and the week as practice days", async () => {
     await renderToday();
     const step = screen.getByRole('region', { name: 'Easy base run' });
     expect(within(step).getByText("Today's step")).toBeInTheDocument();
-    expect(within(step).getByText('30 min · at 19:30')).toBeInTheDocument();
+    expect(within(step).getByText('30 min · 2 steps · at 19:30')).toBeInTheDocument();
+    // ND-28: the steps are on the card from the start, each opening in place.
+    const list = within(step).getByRole('list', { name: 'Steps in this session' });
+    expect(within(list).getAllByRole('button').map((b) => b.getAttribute('aria-expanded'))).toEqual(['false', 'false']);
     expect(screen.getByText('2 of 6 practice days done')).toBeInTheDocument();
   });
 
@@ -141,7 +149,7 @@ describe('Today', () => {
     await user.click(screen.getByRole('button', { name: /start focused session/i }));
     await user.click(screen.getByRole('button', { name: /low energy/i }));
     await user.click(screen.getByRole('button', { name: /complete minimum/i }));
-    expect(screen.getByText('Minimum complete')).toBeInTheDocument();
+    expect(screen.getByText(/10-minute version done · Session 3/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /finish & return/i }));
     expect(mocked.updateDailyTask).toHaveBeenCalledTimes(1);
     expect(mocked.updateDailyTask).toHaveBeenCalledWith('t3', { status: 'completed', notes: undefined, usedMinimumVersion: true }, 't');
@@ -179,15 +187,19 @@ describe('Today', () => {
     expect(screen.getByRole('button', { name: 'Mark not done' })).toBeInTheDocument();
   });
 
-  it('the steps reveal shows each instruction and focus cue', async () => {
+  it('a step opens in place to show its instruction and focus cue', async () => {
     await renderToday();
-    const reveal = screen.getByRole('button', { name: 'Show the 2 steps' });
-    expect(reveal).toHaveAttribute('aria-expanded', 'false');
+    const step = screen.getByRole('button', { name: /Warm up/ });
+    expect(step).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('Jog gently for ten minutes.')).not.toBeVisible();
-    await userEvent.click(reveal);
-    expect(screen.getByRole('button', { name: 'Hide the steps' })).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(step);
+    expect(step).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Jog gently for ten minutes.')).toBeVisible();
     expect(screen.getByText('Nose breathing.')).toBeVisible();
+    // Several can be open at once.
+    await userEvent.click(screen.getByRole('button', { name: /Steady run/ }));
+    expect(screen.getByText('Jog gently for ten minutes.')).toBeVisible();
+    expect(screen.getByText('Hold an easy pace.')).toBeVisible();
   });
 
   it('a saved note goes with the completion', async () => {
@@ -217,9 +229,7 @@ describe('Today', () => {
   });
 
   it("choosing another day shows that day's step", async () => {
-    const user = userEvent.setup();
     await renderToday();
-    await user.click(screen.getByRole('button', { name: 'Show week' }));
     const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
     const thursday = days.find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!;
     await userEvent.click(thursday);
@@ -284,13 +294,9 @@ describe('Today', () => {
     expect(screen.getByText('Aerobic base running trains fat oxidation.')).toBeVisible();
     expect(screen.queryByText(/Follow the deliberate practice steps/)).not.toBeInTheDocument();
 
-    // 2. Step fields hidden initially behind "Show the 2 steps"
-    const stepsReveal = screen.getByRole('button', { name: 'Show the 2 steps' });
-    expect(stepsReveal).toHaveAttribute('aria-expanded', 'false');
+    // 2. Step fields hidden until the step is opened (ND-28)
     expect(screen.queryByText('Complete 10 min without stopping.')).not.toBeVisible();
-
-    await userEvent.click(stepsReveal);
-    expect(screen.getByRole('button', { name: 'Hide the steps' })).toHaveAttribute('aria-expanded', 'true');
+    await openAllSteps();
     // Step 1: all optional fields present with their labels
     expect(screen.getByText('Complete 10 min without stopping.')).toBeVisible();
     expect(screen.getByText('Elevated heart rate.')).toBeVisible();
@@ -308,32 +314,24 @@ describe('Today', () => {
     expect(within(step2).queryByText(/Timing:/)).not.toBeInTheDocument();
     expect(within(step2).queryByText(/Resource:/)).not.toBeInTheDocument();
 
-    // 3. The 10-minute version is closed by default, not forced, and shows stored copy on open
-    const minimumReveal = screen.getByRole('button', { name: 'The 10-minute version' });
-    expect(minimumReveal).toHaveAttribute('aria-expanded', 'false');
+    // 3. ND-28: the 10-minute version, when and where, and the resource share one closed "More" row
+    const moreReveal = screen.getByRole('button', { name: 'The 10-minute version · When and where · Resource' });
+    expect(moreReveal).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText('10-minute shakeout')).not.toBeVisible();
-    await userEvent.click(minimumReveal);
-    expect(screen.getByRole('button', { name: 'Hide the 10-minute version' })).toHaveAttribute('aria-expanded', 'true');
+    await userEvent.click(moreReveal);
+    expect(screen.getByRole('button', { name: 'Less' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('10-minute shakeout')).toBeVisible();
     expect(screen.getByText('10 minutes easy jog around the block.')).toBeVisible();
     expect(screen.getByText('Finish continuous 10 min.')).toBeVisible();
     // Only one Start button on screen (from the main step, not inside the 10-minute version)
     expect(screen.getAllByRole('button', { name: 'Start' })).toHaveLength(1);
 
-    // 4. Implementation intention
-    const intentionReveal = screen.getByRole('button', { name: 'Implementation intention' });
-    expect(intentionReveal).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('7:00 AM')).not.toBeVisible();
-    await userEvent.click(intentionReveal);
+    // 4. When and where
     expect(screen.getByText('7:00 AM')).toBeVisible();
     expect(screen.getByText('Park trail')).toBeVisible();
     expect(screen.getByText('Run steadily')).toBeVisible();
 
     // 5. Task-level resource
-    const resourceReveal = screen.getByRole('button', { name: 'Resource' });
-    expect(resourceReveal).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByText('Pacing Strategy')).not.toBeVisible();
-    await userEvent.click(resourceReveal);
     const taskLink = screen.getByRole('link', { name: /Pacing Strategy/ });
     expect(taskLink).toHaveAttribute('href', 'https://example.com/pacing');
     expect(screen.getByText('guide')).toBeVisible();
@@ -344,8 +342,8 @@ describe('Today', () => {
     // Default GOAL tasks have empty whyToday, implementationIntention, minimumVersion, resourceTitle
     await renderToday();
     expect(screen.queryByRole('button', { name: /10-minute version/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Implementation intention/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Resource$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /When and where/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Resource/i })).not.toBeInTheDocument();
   });
 
   it('renders raw implementation intention when not partitioned into when/where/action', async () => {
@@ -361,15 +359,14 @@ describe('Today', () => {
     mocked.fetchActiveGoal.mockResolvedValueOnce(rawGoal);
     await renderToday();
 
-    const intentionReveal = screen.getByRole('button', { name: 'Implementation intention' });
-    await userEvent.click(intentionReveal);
+    await userEvent.click(screen.getByRole('button', { name: 'When and where' }));
     expect(screen.getByText('Just put on running shoes and head out right away.')).toBeVisible();
     expect(screen.queryByText('When')).not.toBeInTheDocument();
   });
 
-  it('displays onward navigation to Roadmap and retires the full day view link (OD-3)', async () => {
+  it('ND-28: no footer links (the app navigation has Roadmap) and no full day view link (OD-3)', async () => {
     await renderToday();
-    expect(screen.getByRole('link', { name: 'Roadmap' })).toHaveAttribute('href', '/roadmap');
+    expect(screen.queryByRole('navigation', { name: 'More of your plan' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open full day view' })).not.toBeInTheDocument();
     expect(screen.queryByText(/The full day view shows/i)).not.toBeInTheDocument();
   });
@@ -379,14 +376,14 @@ describe('Today', () => {
     await renderToday();
 
     // Initially pending: no completion confirmation, no next step preview
-    expect(screen.queryByText('Step completed. Deliberate practice logged for today.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Session 3 is in the books.')).not.toBeInTheDocument();
     expect(screen.queryByText('Tomorrow · Thursday')).not.toBeInTheDocument();
 
     // Mark complete
     await user.click(screen.getByRole('button', { name: 'Mark complete' }));
 
     // 1. Completed step lighting & quiet confirmation
-    expect(screen.getByText('Step completed. Deliberate practice logged for today.')).toBeVisible();
+    expect(screen.getByText('Session 3 is in the books.')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Mark not done' })).toBeVisible();
 
     // 2. Next step preview card appears
@@ -398,13 +395,12 @@ describe('Today', () => {
     expect(screen.getByRole('region', { name: 'Session 4' })).toBeInTheDocument();
 
     // Switch back to Wednesday
-    await user.click(screen.getByRole('button', { name: 'Show week' }));
     const wedBtn = screen.getAllByRole('button', { pressed: false }).find((b) => b.getAttribute('aria-label')?.startsWith('Wed'))!;
     await user.click(wedBtn);
 
     // Revert completion
     await user.click(screen.getByRole('button', { name: 'Mark not done' }));
-    expect(screen.queryByText('Step completed. Deliberate practice logged for today.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Session 3 is in the books.')).not.toBeInTheDocument();
     expect(screen.queryByText('Tomorrow · Thursday')).not.toBeInTheDocument();
   });
 
@@ -426,7 +422,6 @@ describe('Today', () => {
   });
 
   it('shows where a moved step came from, on the day it landed', async () => {
-    const user = userEvent.setup();
     const [first, second] = JSON.parse(STEPS);
     const moved = JSON.stringify([first, { ...second, title: 'Hill repeats', carriedFrom: { taskId: 't2', date: tasks[1].date, replaced: [] } }]);
     mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: tasks.map((t) => (t.id === 't3' ? { ...t, detailedSteps: moved } : t)) } as unknown as Goal);
@@ -434,14 +429,12 @@ describe('Today', () => {
 
     const from = new Date(`${tasks[1].date}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
     expect(screen.getByText(`Includes a step from ${from}`)).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Show the 2 steps' }));
     expect(screen.getByText(`From ${from}`)).toBeVisible();
   });
 
   it('shows a day still ahead as a preview: no Start and no Mark complete', async () => {
     const user = userEvent.setup();
     await renderToday();
-    await user.click(screen.getByRole('button', { name: 'Show week' }));
     const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
     await user.click(days.find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!);
 
@@ -497,38 +490,30 @@ describe('Today', () => {
     mocked.updateDailyTask.mockImplementation(async (id, updates) => ({ ...week.find((t) => t.id === id)!, ...updates }) as DailyTask);
     await renderToday();
 
-    // Eyebrow and badge
+    // Eyebrow, and plain words: nothing to do
     expect(screen.getByText("Today's rest")).toBeVisible();
-    expect(screen.getByText('Rest day')).toBeVisible();
-
-    // Intentional adaptation explanation
-    expect(
-      screen.getByText('Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity.')
-    ).toBeVisible();
+    expect(screen.getByText("Nothing to do today. Rest is part of the plan: it's when the practice settles in.")).toBeVisible();
 
     // Start (focus mode) button is suppressed on rest days
     expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
 
-    // Recovery action button
-    const recoveryBtn = screen.getByRole('button', { name: 'Log recovery complete' });
+    // Logging the rest is optional and quiet
+    const recoveryBtn = screen.getByRole('button', { name: "Log today's rest" });
     expect(recoveryBtn).toBeVisible();
 
-    // Toggle recovery complete
     await user.click(recoveryBtn);
-    expect(screen.getByText('Rest logged. Deliberate recovery recorded for today.')).toBeVisible();
+    expect(screen.getByText('Rest logged')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Mark not done' })).toBeVisible();
   });
 
-  it('renders key session state with accent badge and pivotal session callout', async () => {
+  it('renders key session state with its badge and no filler callout (ND-28)', async () => {
     const keyTask: DailyTask = { ...tasks[2], isKeySession: true };
     const goalWithKey = { ...GOAL, dailyTasks: tasks.map((t) => (t.id === 't3' ? keyTask : t)) } as unknown as Goal;
     mocked.fetchActiveGoal.mockResolvedValueOnce(goalWithKey);
     await renderToday();
 
     expect(screen.getByText('Key session')).toBeVisible();
-    expect(
-      screen.getByText('This is your pivotal session for Week 1. Focus on execution quality and adherence.')
-    ).toBeVisible();
+    expect(screen.queryByText(/pivotal session/)).not.toBeInTheDocument();
     // Start button still available
     expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
   });
@@ -556,9 +541,10 @@ describe('Today', () => {
     await renderToday();
 
     expect(screen.getByText('Test day')).toBeVisible();
-    expect(screen.getByText('5K Benchmark')).toBeVisible();
+    // ND-28: a plain heading, never the stored test type ("5K Benchmark", "typing_test Benchmark").
+    expect(screen.getByRole('heading', { level: 3, name: "Today's check" })).toBeVisible();
+    expect(screen.queryByText(/Benchmark/)).not.toBeInTheDocument();
     expect(screen.getByText('Run 5K at maximum sustainable effort on a flat course.')).toBeVisible();
-    expect(screen.getByText('Pass mark:')).toBeVisible();
     expect(screen.getByText('Pass if finish in under 25:00.')).toBeVisible();
 
     // Honesty rule (OD-1a): No score inputs, sliders, or pass/fail submit forms
@@ -691,7 +677,6 @@ describe('Today', () => {
       reconciled({ notice: 'carried', carried: [carriedFrom(-1, 0)] });
       await renderToday();
       expect(lines()).toHaveLength(1);
-      await user.click(screen.getByRole('button', { name: 'Show week' }));
       const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
       await user.click(days.find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!);
       expect(screen.getByText("Thursday's step")).toBeInTheDocument();
@@ -750,7 +735,7 @@ describe('Today', () => {
       await renderToday();
       expect(await screen.findByText(WELCOME)).toBeVisible();
       const card = screen.getByRole('region', { name: tasks[2].title });
-      expect(within(card).getByText(/^10 min · at 19:30$/)).toBeInTheDocument();
+      expect(within(card).getByText(/^10 min · 2 steps · at 19:30$/)).toBeInTheDocument();
       expect(within(card).queryByText(/^30 min/)).not.toBeInTheDocument();
     });
 
@@ -874,12 +859,12 @@ describe('Today', () => {
       } as unknown as Goal);
       await renderToday();
       expect(button('Start the 10-minute version')).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Show week' }));
       const days = screen.getAllByRole('button', { pressed: false }).filter((b) => b.getAttribute('aria-label')?.includes(','));
       await user.click(days.find((b) => b.getAttribute('aria-label')?.startsWith('Tue'))!);
       expect(screen.getByText("Tuesday's step")).toBeInTheDocument();
       expectUnchanged();
-      expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
+      // Tuesday is done: ND-28 offers it again quietly, never the 10-minute version.
+      expect(screen.getByRole('button', { name: 'Do it again' })).toBeVisible();
     });
   });
 
@@ -1015,21 +1000,18 @@ describe('Today', () => {
     expect(alert).toHaveTextContent("That didn't save. Please check your connection and try again.");
     // Failed write did not leave step in fake completed state
     expect(screen.getByRole('button', { name: 'Mark complete' })).toBeVisible();
-    expect(screen.queryByText('Step completed. Deliberate practice logged for today.')).not.toBeInTheDocument();
+    expect(screen.queryByText('Session 3 is in the books.')).not.toBeInTheDocument();
   });
 
   it('does not make the review due before the week\'s last day, even with every practice day done', async () => {
-    const user = userEvent.setup();
     const completedTasks = tasks.map((t) => (t.isRestDay ? t : { ...t, status: 'completed' as const }));
     mocked.fetchActiveGoal.mockResolvedValueOnce({ ...GOAL, dailyTasks: completedTasks } as unknown as Goal);
     await renderToday();
 
     expect(screen.queryByText('Review due')).not.toBeInTheDocument();
 
-    // The review can be opened and drafted, but not submitted until the last day.
-    await user.click(screen.getByRole('button', { name: 'Review week' }));
-    expect(screen.getByText('You can submit this review on Sunday, the last day of the week. What you write here is kept until then.')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Start Week 2' })).toBeDisabled();
+    // ND-28: no way into the review before it opens; the bridge says when it does.
+    expect(screen.queryByRole('button', { name: /review/i })).not.toBeInTheDocument();
   });
 
   it('renders review due card on the week\'s last day once every practice day is done (M7.4-R3)', async () => {
@@ -1058,37 +1040,13 @@ describe('Today', () => {
     ).toBeVisible();
   });
 
-  it('allows opening weekly review prior to review due from WeekGlance and footer nav (M7.4-R5)', async () => {
-    const user = userEvent.setup();
-    // Default GOAL has pending practice tasks in the future so reviewDue is false
+  it('ND-28: before the review opens there is no review button on the week or in a footer', async () => {
     await renderToday();
-
-    // Review due banner is not displayed
     expect(screen.queryByText('Review due')).not.toBeInTheDocument();
-
-    // But everyday review entry point is available in WeekGlance
-    const glanceReviewBtn = screen.getByRole('button', { name: 'Review week' });
-    expect(glanceReviewBtn).toBeVisible();
-    await user.click(glanceReviewBtn);
-
-    // Modal opens
-    expect(screen.getByRole('dialog')).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: 'Week 1 Review' })).toBeVisible();
-
-    // Close modal
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-    // Footer nav entry point is also available
-    const navReviewBtn = screen.getByRole('button', { name: 'Weekly review' });
-    expect(navReviewBtn).toBeVisible();
-    await user.click(navReviewBtn);
-
-    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Review week' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Weekly review' })).not.toBeInTheDocument();
   });
 });
-
-
-
 
 describe('Today: swap offer, set today aside, swap with another day (missed sessions M3.3)', () => {
   const NONE: MissedSignals = { carried: [], dropped: [], swapOffer: null, shortOnTime: false, gentleReturn: null, notice: null };
@@ -1219,7 +1177,6 @@ describe('Today: swap offer, set today aside, swap with another day (missed sess
       mocked.swapDays.mockRejectedValueOnce(REFUSED());
       await renderToday();
       await screen.findByRole('button', { name: 'Swap the days' });
-      await user.click(screen.getByRole('button', { name: 'Show week' }));
       await user.click(screen.getByRole('button', { name: /^Thu / }));
       for (const name of NEW) expect(button(name)).not.toBeInTheDocument();
       expect(screen.queryByText(/key session didn't happen/)).not.toBeInTheDocument();
@@ -1427,7 +1384,6 @@ describe('Today: swap offer, set today aside, swap with another day (missed sess
     mocked.reconcileGoal.mockResolvedValue(body());
     await renderToday();
     expect(button('Set today aside')).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Show week' }));
     await user.click(screen.getByRole('button', { name: /^Thu / }));
     for (const name of NEW) expect(button(name)).not.toBeInTheDocument();
   });
@@ -1626,7 +1582,7 @@ describe('Today with method-aware recovery (M3.3)', () => {
       mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'pending' }, t3: { detailedSteps: steps, minimumVersion } }));
       mocked.reconcileGoal.mockResolvedValue(body());
       await renderToday();
-      await user.click(screen.getByRole('button', { name: 'Show the 2 steps' }));
+      await openAllSteps();
       const first = screen.getByText('Draft chapter').closest('li')!;
       const lines = [`Pick up where ${weekday(-2)} stopped.`, EASY, WARM, 'Write the next scene.'];
       for (const text of lines) expect(within(first).getByText(text).tagName).toBe('P');
@@ -1646,7 +1602,7 @@ describe('Today with method-aware recovery (M3.3)', () => {
       mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'completed' }, t3: { detailedSteps: steps } }));
       mocked.reconcileGoal.mockResolvedValue(body());
       await renderToday();
-      await user.click(screen.getByRole('button', { name: 'Show the 1 step' }));
+      await openAllSteps();
       expect(screen.getByText('Write the next scene.')).toBeVisible();
       expect(screen.queryByText(pickUp)).not.toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Start' }));
@@ -1657,7 +1613,7 @@ describe('Today with method-aware recovery (M3.3)', () => {
 
       mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'pending' }, t3: { detailedSteps: steps } }));
       await renderToday();
-      await user.click(screen.getByRole('button', { name: 'Show the 1 step' }));
+      await openAllSteps();
       expect(screen.getByText(pickUp)).toBeVisible();
     });
 
@@ -1680,14 +1636,13 @@ describe('Today with method-aware recovery (M3.3)', () => {
       mocked.reconcileGoal.mockResolvedValue(body());
       await renderToday();
       expect(screen.getByRole('heading', { level: 2, name: 'Strides' })).toBeInTheDocument();
-      expect(screen.getByText('10 min · at 19:30')).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Show the 2 steps' }));
+      expect(screen.getByText('10 min · 2 steps · at 19:30')).toBeInTheDocument();
+      await openAllSteps();
       expect(screen.queryByText('Run at tempo.')).not.toBeInTheDocument();
       expect(screen.getAllByText('Six easy strides.')[0]).toBeVisible();
-      await user.click(screen.getByRole('button', { name: 'The 10-minute version' }));
+      await user.click(screen.getByRole('button', { name: 'The 10-minute version · When and where' }));
       expect(screen.getByText('Short version: Strides')).toBeVisible();
       expect(screen.queryByText('Ten minutes at tempo.')).not.toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Implementation intention' }));
       expect(screen.getByText('At 19:30: Strides.')).toBeVisible();
       await user.click(screen.getByRole('button', { name: 'Start' }));
       expect(within(screen.getByRole('dialog')).getByRole('heading', { level: 2, name: 'Strides' })).toBeInTheDocument();
@@ -1699,8 +1654,8 @@ describe('Today with method-aware recovery (M3.3)', () => {
       mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'pending' }, t3: stored }));
       await renderToday();
       expect(screen.getByRole('heading', { level: 2, name: 'Tempo run' })).toBeInTheDocument();
-      expect(screen.getByText('30 min · at 19:30')).toBeInTheDocument();
-      await user.click(screen.getByRole('button', { name: 'Show the 3 steps' }));
+      expect(screen.getByText('30 min · 3 steps · at 19:30')).toBeInTheDocument();
+      await openAllSteps();
       expect(screen.getByText('Run at tempo.')).toBeVisible();
       cleanup();
 
@@ -1708,7 +1663,7 @@ describe('Today with method-aware recovery (M3.3)', () => {
       mocked.fetchActiveGoal.mockResolvedValue(goalWith({ t1: { status: 'completed', detailedSteps: '[]' }, t3: stored }));
       await renderToday();
       expect(screen.getByRole('heading', { level: 2, name: 'Tempo run' })).toBeInTheDocument();
-      expect(screen.getByText('30 min · at 19:30')).toBeInTheDocument();
+      expect(screen.getByText('30 min · 3 steps · at 19:30')).toBeInTheDocument();
     });
   });
 });
@@ -1751,14 +1706,12 @@ describe('Today after a move (weekly update M1.4)', () => {
     const days = screen.getAllByRole('button', { hidden: true, name: /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d/ });
     expect(days[0]).toHaveAccessibleName(expect.stringMatching(/, rest day$/));
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Show week' }));
     await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
     // B-73: the rest view names no practice.
     const card = screen.getByRole('region', { name: 'No practice planned' });
     expect(within(card).getByText("Monday's rest")).toBeInTheDocument();
-    expect(within(card).getByText('Rest day')).toBeInTheDocument();
     // Review fix 1: nothing to complete on a day not offered.
-    expect(within(card).queryByRole('button', { name: 'Log recovery complete' })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: "Log today's rest" })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Mark not done' })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Mark complete' })).not.toBeInTheDocument();
@@ -1782,7 +1735,6 @@ describe('Today after a move (weekly update M1.4)', () => {
     expect(within(screen.getByRole('region', { name: 'Easy base run' })).getByText('Lesson 100')).toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Show week' }));
     await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Mon'))!);
     // B-73: the rest view names no practice.
     const card = screen.getByRole('region', { name: 'No practice planned' });
@@ -1818,5 +1770,32 @@ describe('Today: the Dashboard\'s Start link (ND-27)', () => {
     await renderStarting();
     await screen.findByRole('region', { name: 'Easy base run' });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('Today: the done moment and another day (ND-28)', () => {
+  it('a done session says its number, offers it again quietly, and Focus counts it before it is saved', async () => {
+    const user = userEvent.setup();
+    await renderToday();
+    await user.click(screen.getByRole('button', { name: 'Start' }));
+    await user.click(screen.getByRole('button', { name: /start focused session/i }));
+    await user.click(screen.getByRole('button', { name: /done — next/i }));
+    await user.click(screen.getByRole('button', { name: /complete session/i }));
+    expect(screen.getByText('Session complete · Session 3')).toBeInTheDocument();
+    expect(screen.getByText('3 of 6 this week.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /finish & return/i }));
+    expect(await screen.findByText('Session 3 is in the books.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Do it again' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Start' })).not.toBeInTheDocument();
+  });
+
+  it('another day has a way back to today', async () => {
+    const user = userEvent.setup();
+    await renderToday();
+    await user.click(screen.getAllByRole('button').find((b) => b.getAttribute('aria-label')?.startsWith('Thu'))!);
+    expect(screen.getByText("Thursday's step")).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Back to today' }));
+    expect(screen.getByText("Today's step")).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Back to today' })).not.toBeInTheDocument();
   });
 });
