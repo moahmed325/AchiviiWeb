@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, Check } from 'lucide-react';
-import { Button, Textarea, VisuallyHidden } from '../ui';
+import { Button, Textarea } from '../ui';
 import { TASK_NOTES_MAX_LENGTH } from '../../lib/today';
 
 /**
@@ -53,19 +53,16 @@ export const FocusCompletion: React.FC<FocusCompletionProps> = ({
     </div>
 
     {progress && progress.days.length > 0 && (
-      <>
-        <ol aria-hidden="true" className="mx-auto mt-7 flex max-w-sm items-start justify-between gap-1">
-          {progress.days.map((day, index) => (
-            <li key={index} className="flex flex-col items-center gap-2">
-              <span className="dash-day" data-state={day.state === 'new' ? 'completed' : day.state} data-new={day.state === 'new' || undefined}>
-                {(day.state === 'completed' || day.state === 'new') && <Check aria-hidden="true" strokeWidth={2.25} className="size-3.5" />}
-              </span>
-              <span className="font-ui-mono text-micro uppercase text-text-secondary">{day.label}</span>
-            </li>
-          ))}
-        </ol>
-        <VisuallyHidden>{`Session ${progress.sessionNumber}. ${weekLine(progress)}`}</VisuallyHidden>
-      </>
+      <ol aria-hidden="true" className="mx-auto mt-7 flex max-w-sm items-start justify-between gap-1">
+        {progress.days.map((day, index) => (
+          <li key={index} className="flex flex-col items-center gap-2">
+            <span className="dash-day" data-state={day.state === 'new' ? 'completed' : day.state} data-new={day.state === 'new' || undefined}>
+              {(day.state === 'completed' || day.state === 'new') && <Check aria-hidden="true" strokeWidth={2.25} className="size-3.5" />}
+            </span>
+            <span className="font-ui-mono text-micro uppercase text-text-secondary">{day.label}</span>
+          </li>
+        ))}
+      </ol>
     )}
 
     <div className="mt-8 space-y-2 text-left">

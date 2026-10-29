@@ -37,7 +37,6 @@ describe('FocusCompletion progress (ND-28)', () => {
     renderWith({ sessionNumber: 25, weekDone: 5, weekDays: 6, days: days(['completed', 'completed', 'new', 'upcoming', 'rest']) });
     expect(screen.getByText('Session complete · Session 25')).toBeInTheDocument();
     expect(screen.getByText('5 of 6 this week.')).toBeInTheDocument();
-    expect(screen.getByText('Session 25. 5 of 6 this week.')).toBeInTheDocument();
   });
 
   it('says so when the week is complete', () => {
