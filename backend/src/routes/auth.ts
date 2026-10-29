@@ -23,7 +23,7 @@ const authUserSelect = {
   remindersEnabled: true,
 } as const;
 
-/** The user as the app gets it: ND-26 adds whether reminder emails are being sent at all, so Account shows the
+/** The user as the app gets it: ND-28 adds whether reminder emails are being sent at all, so Account shows the
  * setting only then. */
 function presentUser<T extends object>(user: T): T & { remindersAvailable: boolean } {
   return { ...user, remindersAvailable: remindersLive() };
@@ -173,7 +173,7 @@ authRouter.put('/timezone', async (req: Request, res: Response): Promise<void> =
   res.status(200).json({ user: presentUser(updated) });
 });
 
-// PUT /api/auth/reminders: ND-26, the missed-day reminder email on or off (Account). The email's own unsubscribe link
+// PUT /api/auth/reminders: ND-28, the missed-day reminder email on or off (Account). The email's own unsubscribe link
 // turns it off without signing in (`routes/reminders.ts`).
 authRouter.put('/reminders', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {

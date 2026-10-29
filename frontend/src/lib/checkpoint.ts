@@ -14,12 +14,18 @@ export interface CheckpointCopy {
   keep: string;
 }
 
+/** B-109: "day 90" on a 12-week plan; a shorter plan's final week. */
+const byWhen = (checkpoint: Checkpoint) => (checkpoint.finalWeek === undefined ? 'day 90' : `the end of week ${checkpoint.finalWeek}`);
+const targetName = (checkpoint: Checkpoint) => (checkpoint.finalWeek === undefined ? 'day-90 target' : 'final target');
+
 export function checkpointCopy(checkpoint: Checkpoint): CheckpointCopy {
   const { kind, target, offered, last, toFullGoal } = checkpoint;
+  const by = byWhen(checkpoint);
+  const name = targetName(checkpoint);
   if (kind === 'raise') {
     return {
       title: "You've caught up",
-      body: toFullGoal ? `At this pace you'll reach ${offered} by day 90.` : `At this pace you'll reach about ${offered} by day 90. Your day-90 target is ${target}.`,
+      body: toFullGoal ? `At this pace you'll reach ${offered} by ${by}.` : `At this pace you'll reach about ${offered} by ${by}. Your ${name} is ${target}.`,
       accept: `Aim for ${offered}`,
       keep: `Keep ${target}`,
     };
@@ -28,14 +34,14 @@ export function checkpointCopy(checkpoint: Checkpoint): CheckpointCopy {
   if (kind === 'line_only' || offered === null) {
     return {
       title,
-      body: `Your result hasn't improved yet. Your day-90 target stays at ${target}, and the next weeks build toward it.`,
+      body: `Your result hasn't improved yet. Your ${name} stays at ${target}, and the next weeks build toward it.`,
       accept: null,
       keep: 'Got it',
     };
   }
   return {
     title,
-    body: `At this pace you'll reach about ${offered} by day 90. Your day-90 target is ${target}.`,
+    body: `At this pace you'll reach about ${offered} by ${by}. Your ${name} is ${target}.`,
     accept: `Aim for ${offered}`,
     keep: 'Keep my goal',
   };
@@ -43,7 +49,7 @@ export function checkpointCopy(checkpoint: Checkpoint): CheckpointCopy {
 
 /** Section 6: the line after an accepted offer. */
 export function acceptedLine(checkpoint: Checkpoint): string {
-  return checkpoint.kind === 'raise' && checkpoint.toFullGoal
-    ? `Your day-90 target is back to ${checkpoint.offered}.`
-    : `Your day-90 target is now ${checkpoint.offered}.`;
+  const name = targetName(checkpoint);
+  const line = checkpoint.kind === 'raise' && checkpoint.toFullGoal ? `is back to ${checkpoint.offered}` : `is now ${checkpoint.offered}`;
+  return `Your ${name} ${line}.`;
 }

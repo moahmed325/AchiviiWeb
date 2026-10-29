@@ -1,5 +1,6 @@
 import type { DailyTask } from '@prisma/client';
-import { TOTAL_WEEKS, type WeekTarget } from '../ai/roadmap.js';
+import type { WeekTarget } from '../ai/roadmap.js';
+import { DEFAULT_SHAPE, type PlanShape } from '../planLength.js';
 import { isHighLoadGoal } from '../highLoad.js';
 import { sameUnit } from '../research/statedTarget.js';
 import { isWeekTarget } from '../safety/storedTargets.js';
@@ -26,6 +27,9 @@ export const KEEP_GOING_INSIGHT = 'Welcome back. Your plan picks up at week {n} 
 /** M1.5b (WU-40 (2)): the line after "Do my final week". `{date}` is filled by the app. */
 export const FINAL_WEEK_INSIGHT = 'Welcome back. Your final week starts today and ends on {date}.';
 
+/** B-106: the line after "Do my final week" when the fixed date kept week 12 from starting today. */
+export const FINAL_WEEK_DATE_INSIGHT = 'Welcome back. Your final week is under way, and your plan ends on {date}.';
+
 /** WU-37 (3): the card shows only when at least this many days of the break don't fit in the room (a whole week). */
 export const JUMP_FROM_OVERFLOW_DAYS = 7;
 
@@ -41,15 +45,49 @@ export type PastLimitChoice = 'keep_going' | 'final_week';
  * - `final_week`, when `weekBack` would be past week 12: week 12 starts on the first try's date, every week before it
  *   from `closedWeek + 1` is jumped, and `days` is whatever that takes, past the limit if needed (the only case).
  */
-export function pastLimitMove(gap: number, room: number, closedWeek: number): { choice: PastLimitChoice; days: number; weekBack: number } | null {
+export function pastLimitMove(
+  gap: number,
+  room: number,
+  closedWeek: number,
+  /** B-106: `fixedDateRoom`'s days, or null with no fixed date ahead. Only the final week reads it. */
+  dateRoom: number | null = null,
+  /** B-109: the plan's length; missing is 12 weeks. */
+  shape: PlanShape = DEFAULT_SHAPE
+): { choice: PastLimitChoice; days: number; weekBack: number } | null {
   const space = Math.max(0, room);
-  if (closedWeek + 1 > TOTAL_WEEKS || gap < BREAK_FROM_GAP_DAYS || gap - space < JUMP_FROM_OVERFLOW_DAYS) return null;
+  if (closedWeek + 1 > shape.weeks || gap < BREAK_FROM_GAP_DAYS || gap - space < JUMP_FROM_OVERFLOW_DAYS) return null;
   const aligned = space - ((((space - gap) % 7) + 7) % 7);
   const days = aligned >= 0 ? aligned : space;
   const weekBack = closedWeek + 1 + Math.floor((gap - days) / 7);
-  if (weekBack <= TOTAL_WEEKS) return { choice: 'keep_going', days, weekBack };
+  // B-109: the final week is the one with the final test (week 12; a shorter plan's week before its ready week, which
+  // then follows it), never a week already closed. "Keep going" never jumps past it to the ready week.
+  const finalWeek = Math.max(shape.finalWeek, closedWeek + 1);
+  if (weekBack <= finalWeek) return { choice: 'keep_going', days, weekBack };
   // Week 12 starts on the first try's date: week `closedWeek + 1` would start `gap` days ago, week 12 that many weeks later.
-  return { choice: 'final_week', days: gap - 7 * (TOTAL_WEEKS - closedWeek - 1), weekBack: TOTAL_WEEKS };
+  const needed = gap - 7 * (finalWeek - closedWeek - 1);
+  // B-106 (Mo, choice c): with a fixed date ahead, week 12 moves only as far as the date allows, so it started earlier
+  // and its passed days are not offered; it always keeps today (at most 6 days earlier), so the final week is never over.
+  const final = dateRoom === null ? needed : Math.min(needed, Math.max(dateRoom, needed - 6));
+  return { choice: 'final_week', days: final, weekBack: finalWeek };
+}
+
+/**
+ * B-106: how many days the plan may still move before its end (day 90, the day before `targetDate`) would fall after
+ * the goal's fixed date, never below 0. Null with no fixed date, or once the fixed date is before `today` (the person's
+ * local date at the first try): a date that has passed holds nothing back.
+ */
+export function fixedDateRoom(
+  targetDate: Date,
+  fixedDate: Date | null | undefined,
+  today: string,
+  /** B-109: a shorter plan ends the day before the date at the latest (its ready week is for arriving rested). */
+  endsBefore = false
+): number | null {
+  if (!fixedDate || !Number.isFinite(fixedDate.getTime()) || !isDate(today)) return null;
+  const fixed = dayIndex(fixedDate.toISOString().slice(0, 10)) - (endsBefore ? 1 : 0);
+  if (fixed < dayIndex(today)) return null;
+  const end = dayIndex(targetDate.toISOString().slice(0, 10)) - 1;
+  return Number.isFinite(end) ? Math.max(0, Math.round(fixed - end)) : null;
 }
 
 const dayIndex = (date: string) => Date.parse(`${date}T00:00:00Z`) / 86_400_000;
@@ -110,10 +148,12 @@ export function restartLevel(
   breakDays: number,
   closingWeek: number,
   weeks: readonly { weekNumber: number; target: unknown; light: boolean }[],
-  weekBack: number
+  weekBack: number,
+  /** B-109: the week of the final test; missing is 12. */
+  finalWeek: number = DEFAULT_SHAPE.finalWeek
 ): RestartLevel | null {
-  const shows = weeks.find((week) => week.weekNumber >= weekBack && !week.light)?.weekNumber ?? TOTAL_WEEKS;
-  if (weekBack >= TOTAL_WEEKS || shows >= TOTAL_WEEKS) return null;
+  const shows = weeks.find((week) => week.weekNumber >= weekBack && !week.light)?.weekNumber ?? finalWeek;
+  if (weekBack >= finalWeek || shows >= finalWeek) return null;
   const restart = returnRuleEntry(profile, breakDays)?.restart ?? 'last level';
   const targetOf = (n: number) => {
     const target = weeks.find((week) => week.weekNumber === n)?.target;

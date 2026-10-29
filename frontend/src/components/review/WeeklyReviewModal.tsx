@@ -19,6 +19,7 @@ import { week12NoteText } from '../../lib/week12Line';
 import { isRestLike, reviewOpensOn } from '../../lib/today';
 import { isLightTest } from '../../lib/lightTest';
 import { WEEK_CLOSED_LINES } from '../../lib/weekClose';
+import { finalWeekOf, planWeeks } from '../../lib/planLength';
 
 export interface WeeklyReviewModalProps {
   isOpen: boolean;
@@ -276,7 +277,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
 
   const nextWeekNum = adaptationData?.nextWeekNumber;
   const isClosingStretch =
-    (adaptationData ? adaptationData.nextWeekNumber === null : false) || currentWeekNum >= 12;
+    (adaptationData ? adaptationData.nextWeekNumber === null : false) || currentWeekNum >= planWeeks(goal);
   const nextRoadmapWeek = nextWeekNum ? roadmapWeeks.find((w) => w.weekNumber === nextWeekNum) : null;
 
   return (
@@ -314,7 +315,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
                   ? 'Done'
                   : reviewError
                   ? 'Try again'
-                  : currentWeekNum >= 12
+                  : currentWeekNum >= planWeeks(goal)
                   ? 'Enter Closing Stretch'
                   : `Start Week ${currentWeekNum + 1}`}
               </Button>
@@ -332,6 +333,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
               target={activeWeek?.target}
               test={activeWeek?.test}
               weekNumber={currentWeekNum}
+              totalWeeks={goal.totalWeeks}
             />
 
             <ReviewTestResultStep
@@ -341,6 +343,7 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
               onChange={handleTestResultChange}
               disabled={isSubmitting}
               weekNumber={currentWeekNum}
+              totalWeeks={goal.totalWeeks}
             />
 
             {opensOn && !weekClosed && (
@@ -368,7 +371,8 @@ export const WeeklyReviewModal: React.FC<WeeklyReviewModalProps> = ({
             testResult={adaptationData?.testResult ?? testResult}
             currentWeekLight={isLightTest(activeWeek?.test)}
             nextWeekLight={isLightTest(nextRoadmapWeek?.test)}
-            nextWeekLine={nextWeekNum === 12 ? week12NoteText(goal) : null}
+            nextWeekLine={nextWeekNum === finalWeekOf(goal) ? week12NoteText(goal) : null}
+            totalWeeks={goal.totalWeeks}
             milestoneGateTransition={adaptationData?.milestoneGateTransition}
             onContinue={handleFinish}
           />

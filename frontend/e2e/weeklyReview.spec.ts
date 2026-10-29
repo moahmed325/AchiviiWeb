@@ -432,7 +432,7 @@ test.describe('Weekly Review Flow (M7.2)', () => {
     await expect(dialog.getByRole('heading', { level: 2, name: 'Closing Stretch Ready' })).toBeAttached();
   });
 
-  test('before the review opens, Today has no review button on the week or in a footer (ND-28)', async ({ page }) => {
+  test('before the review opens, Today has no review button on the week or in a footer (ND-30)', async ({ page }) => {
     // Normal in-progress week: reviewDue is false
     const normalGoal = shellGoal();
     await mockApi(page, { goal: normalGoal });

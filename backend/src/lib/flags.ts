@@ -9,7 +9,7 @@ export const FEATURE_FLAGS = [
   'WEEK_CLOSE_ENABLED',
   'WEEKLY_UPDATE_ENABLED',
   'CUSTOM_RECOVERY_PROFILES_ENABLED',
-  // ND-26: the missed-day reminder email. Off until Resend is set up; turning it off is the kill switch.
+  // ND-28: the missed-day reminder email. Off until Resend is set up; turning it off is the kill switch.
   'MISSED_DAY_REMINDERS_ENABLED',
 ] as const;
 

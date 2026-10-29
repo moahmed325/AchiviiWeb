@@ -2,6 +2,7 @@ import type { Goal, DailyTask, RoadmapWeek, AchievementSummary, FinalTestEvaluat
 import { isRestLike } from './today';
 import { isLightTest } from './lightTest';
 import { formatTarget } from './formatters';
+import { finalWeekOf, planDays, planWeeks } from './planLength';
 
 /**
  * Derives verified, real achievement summary metrics from stored goal records.
@@ -11,8 +12,8 @@ export function computeAchievementSummary(goal: Goal): AchievementSummary {
   const tasks: DailyTask[] = goal.dailyTasks || [];
   const weeks: RoadmapWeek[] = goal.roadmapWeeks || [];
 
-  // OD-2: Total days clamped to 90
-  const totalDays = 90;
+  // OD-2: Total days clamped to 90 (B-109: a shorter plan's own days).
+  const totalDays = planDays(goal);
 
   // Active practice = non-rest days
   const activeTasks = tasks.filter((t) => !isRestLike(t));
@@ -27,7 +28,7 @@ export function computeAchievementSummary(goal: Goal): AchievementSummary {
 
   // Completed weeks count. Weekly update M1.5b (WU-40 (1)): a jumped week is never a week done.
   const completedWeeks = weeks.filter((w) => w.status === 'completed' && !w.jumped).length;
-  const totalWeeks = Math.max(12, weeks.length);
+  const totalWeeks = Math.max(planWeeks(goal), weeks.length);
 
   // Benchmarks from roadmapWeeks. M1.5b: a jumped week had no test to run, so it is no benchmark.
   // M2.1 (WU-43 (2)): a light week's test is done plus a note, not a benchmark against the target.
@@ -98,7 +99,8 @@ export function formatAchievementDate(isoString?: string | null): string {
  */
 export function extractFinalTestEvaluation(goal: Goal): FinalTestEvaluation | null {
   const weeks: RoadmapWeek[] = goal.roadmapWeeks || [];
-  const week12 = weeks.find((w) => w.weekNumber === 12) || weeks[weeks.length - 1];
+  // B-109: a shorter plan's final test is in its week before the ready week.
+  const week12 = weeks.find((w) => w.weekNumber === finalWeekOf(goal)) || weeks[weeks.length - 1];
 
   const roadmapFinalTest = goal.roadmap?.finalTest;
 

@@ -23,6 +23,15 @@ Every decision below was agreed in chat before any code was written.
 Presets (guitar, chess, 10K and others) skip the method part of prompt 2: their method is fixed; their roadmap is
 built from their own routine and questions.
 
+**Plan length (B-109, `docs/features/fixed-date-plans/plan.md`).** A plan is 12 weeks unless the goal has a fixed
+date (an exam, a race, a talk) under 12 weeks away. Then it has the whole weeks that fit before the date, 4 to 11
+(`Goal.totalWeeks`; `lib/planLength.ts` on the server, `frontend/src/lib/planLength.ts` in the app). The final test,
+with the full target, is in the week before the last, and the last is an easier "ready" week that keeps that target.
+Big tests fall every fourth week back from the final test (from week 3 on), and checkpoints after each big test but
+the final one. A date under 4 weeks away gets no plan (400 `fixed_date_too_close`). Wherever this spec says "12 weeks",
+"week 12" or "day 90", a shorter plan reads its own weeks, its final test week and its last day. The prompts for a
+12-week plan are exactly as written here.
+
 Plan v2 is the only plan model (docs/decisions.md ND-21). Every goal is created with `planVersion: 2`; plan v1 and
 its code were removed. A goal that is not plan v2 gets a refusal (`not_plan_v2`), never v1 behavior.
 
@@ -110,7 +119,7 @@ action; the model only tags steps (and, when switched on, writes a custom profil
   catch-all, Weekly test and Fixed-time session; each kind has one action and may be hard or in order; a rest gap
   of 0 to 2 days; a return rule. A pathway gets its hand-written profile (its domain template). A custom goal
   gets one of the 13 templates, picked by keywords and used unchanged; the profile call that adjusts it runs only
-  when `CUSTOM_RECOVERY_PROFILES_ENABLED` is exactly `true` (off). An older goal gets its profile at its next
+  when `CUSTOM_RECOVERY_PROFILES_ENABLED` is exactly `true` (on since 2026-10-28). An older goal gets its profile at its next
   weekly review.
 - **Kinds.** The week call tags every practice-day step with a kind from the profile's menu; a missing or unknown
   kind fails the week (one retry). Code makes every test-day step Weekly test and a `highLoad` step hard. Rest-day

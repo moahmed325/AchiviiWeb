@@ -63,7 +63,7 @@ services:
       # WEEK_CLOSE_ENABLED is also "true". Unset or anything but "true" means off. Dashboard only (sync: false).
       - key: WEEKLY_UPDATE_ENABLED
         sync: false
-      # ND-26: the missed-day reminder email. Unset or anything but "true" means off: nothing is sent. Turn it on
+      # ND-28: the missed-day reminder email. Unset or anything but "true" means off: nothing is sent. Turn it on
       # only after the Resend settings below are in place; turning it off is the kill switch. Dashboard only.
       - key: MISSED_DAY_REMINDERS_ENABLED
         sync: false

@@ -1,9 +1,10 @@
 // B-102: how a goal is sent to the app (presentGoal and its helpers) and the plan stream, moved out of routes/goal.ts unchanged (a pure move).
+import { shapeOf } from '../../lib/planLength.js';
 import { Request, Response } from 'express';
 import { journeyResultOf, readPreviousPlan, type JourneyGoal, type JourneyResult, type PreviousPlan } from '../../lib/nextPlan.js';
 import { safeGoalTargets, type StoredWeek, type Week12Line } from '../../lib/safety/storedTargets.js';
 import { formatBasisBadge } from '../../lib/research/planGrounding.js';
-import { readRoutine } from '../../lib/planV2.js';
+import { goalScheduleOf, readRoutine, type GoalSchedule } from '../../lib/planV2.js';
 import { weeklyUpdateEnabled } from '../../lib/weekClose/switch.js';
 import { checkpointViewOf, dayNinetyLineOf, type CheckpointView } from '../../lib/weekClose/checkpoint.js';
 import type { DayNinetyLine } from '../../lib/ai/dayNinety.js';
@@ -38,6 +39,7 @@ export function safeTargetsOf(goal: Record<string, unknown>): { roadmapWeeks: un
     clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
     roadmap: goal.roadmap,
     roadmapWeeks: goal.roadmapWeeks as StoredWeek[] | undefined,
+    totalWeeks: totalWeeksOf(goal),
   });
   if (!safe) return null;
   const roadmap = goal.roadmap as Record<string, unknown>;
@@ -48,6 +50,9 @@ export function safeTargetsOf(goal: Record<string, unknown>): { roadmapWeeks: un
   };
 }
 
+/** B-109: the row's `totalWeeks` (null when a test double or an old select left it out: a 12-week plan). */
+const totalWeeksOf = (goal: Record<string, unknown>): number | null => (typeof goal.totalWeeks === 'number' ? goal.totalWeeks : null);
+
 /**
  * Weekly update M3.3b (WU-58 (1)): the open week's re-test and the daily-time check, from the stored rows. Both null
  * with either switch off (RULE-18), so a switch turned off hides them as it refuses the daily-time answer.
@@ -57,7 +62,7 @@ export function retestOfGoal(goal: Record<string, unknown>): { retest: RetestInf
   if (!weeklyUpdateEnabled() || !Array.isArray(weeks)) return { retest: null, dailyTimeCheck: null };
   const routine = typeof goal.routine === 'string' ? goal.routine : '{}';
   const tasks = Array.isArray(goal.dailyTasks) ? (goal.dailyTasks as RetestTask[]) : [];
-  return { retest: retestInfo(weeks, tasks), dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes) };
+  return { retest: retestInfo(weeks, tasks), dailyTimeCheck: dailyTimeCheckOf(weeks, readRoutine({ routine }).dailyMinutes, shapeOf({ totalWeeks: totalWeeksOf(goal) }).weeks) };
 }
 
 /**
@@ -70,6 +75,7 @@ export function checkpointOfGoal(goal: Record<string, unknown>): { checkpoint: C
     clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
     roadmap: goal.roadmap,
     roadmapWeeks: goal.roadmapWeeks as StoredWeek[] | undefined,
+    totalWeeks: totalWeeksOf(goal),
   };
   return { checkpoint: checkpointViewOf(read), dayNinetyLine: dayNinetyLineOf(read) };
 }
@@ -81,6 +87,7 @@ export function journeyGoalOf(goal: Record<string, unknown>): JourneyGoal {
     clarifiedOutcome: typeof goal.clarifiedOutcome === 'string' ? goal.clarifiedOutcome : null,
     roadmap: goal.roadmap,
     roadmapWeeks: goal.roadmapWeeks as JourneyGoal['roadmapWeeks'],
+    totalWeeks: totalWeeksOf(goal),
   };
 }
 
@@ -105,6 +112,7 @@ export function presentGoal<T extends Record<string, unknown>>(
   dayNinetyLine: DayNinetyLine | null;
   journeyResult: JourneyResult | null;
   previousPlan: PreviousPlan | null;
+  schedule: GoalSchedule | null;
 } {
   const safe = safeTargetsOf(goal);
   const weeks = safe ? safe.roadmapWeeks : goal.roadmapWeeks;
@@ -116,6 +124,8 @@ export function presentGoal<T extends Record<string, unknown>>(
     ...nextPlanOfGoal(goal),
     // RULE-3 (B-95, B-98): the status stays inside; no goal response carries `updateStatus`.
     ...(Array.isArray(weeks) ? { roadmapWeeks: weeks.map(withoutStatus) } : {}),
+    // B-108: the schedule in force, so the app shows what the next week will use without reading the routine itself.
+    schedule: typeof goal.routine === 'string' && goal.startDate ? goalScheduleOf({ routine: goal.routine, startDate: goal.startDate as Date }) : null,
     basis: formatBasisBadge({
       methodKind: goal.methodKind as string | null | undefined,
       methodConfidence: goal.methodConfidence as string | null | undefined,

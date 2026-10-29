@@ -508,7 +508,7 @@ test.describe('Keyboard and reduced motion on the busiest Today (M3.4)', () => {
     const card = stepCard(page);
     const names = ['Swap the days', 'Just move its main step', 'Start', 'Mark complete', 'Set today aside', 'Swap with another day'];
     for (const name of names) await expect(card.getByRole('button', { name, exact: true })).toBeVisible();
-    // ND-28: the session's steps are buttons that open in place, between the answers and Start.
+    // ND-30: the session's steps are buttons that open in place, between the answers and Start.
     const order = [...names.slice(0, 2), '1Sketch the core screen20 min', '2List the data it needs25 min', ...names.slice(2)];
 
     await card.getByRole('button', { name: names[0], exact: true }).focus();

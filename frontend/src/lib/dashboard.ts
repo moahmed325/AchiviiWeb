@@ -2,13 +2,12 @@ import type { DailyTask, Goal, RoadmapWeek, WeekTarget } from '../types';
 import { addDaysToDateKey } from './dateUtils';
 import { isLightTest } from './lightTest';
 import { isRestLike, todayKey } from './today';
+import { planDays } from './planLength';
 
 /**
- * The Dashboard's numbers (ND-27): how the person is doing, read only from stored state. Nothing here writes or
+ * The Dashboard's numbers (ND-29): how the person is doing, read only from stored state. Nothing here writes or
  * decides anything (ND-19); Today stays the place where a step is done.
  */
-
-export const TOTAL_DAYS = 90;
 
 /** Set on the Dashboard's Start link: Today opens the session at once when today's step can be started. */
 export const START_SESSION_STATE = { startSession: true } as const;
@@ -26,11 +25,17 @@ export interface MapDay {
   isToday: boolean;
 }
 
-/** The date key of plan day `day` (1–90): the same count as `dayNumber` in `lib/today.ts` (day 90 is the day before `targetDate`). */
-export function dateOfDay(goal: Pick<Goal, 'targetDate'>, day: number): string | null {
+/** The goal fields a plan's length is read from (B-109: a fixed date can make it shorter than 90 days). */
+type PlanSpan = Pick<Goal, 'targetDate'> & Partial<Pick<Goal, 'startDate' | 'totalWeeks'>>;
+
+/**
+ * The date key of plan day `day` (1 to `planDays`): the same count as `dayNumber` in `lib/today.ts` (the last day is the
+ * day before `targetDate`).
+ */
+export function dateOfDay(goal: PlanSpan, day: number): string | null {
   const target = new Date(goal.targetDate);
   if (Number.isNaN(target.getTime())) return null;
-  return addDaysToDateKey(target.toISOString().slice(0, 10), day - (TOTAL_DAYS + 1));
+  return addDaysToDateKey(target.toISOString().slice(0, 10), day - (planDays(goal) + 1));
 }
 
 const rowsByDate = (tasks: readonly DailyTask[]) => {
@@ -40,11 +45,12 @@ const rowsByDate = (tasks: readonly DailyTask[]) => {
 };
 
 /** Every day of the plan, in order, with its state. A date can hold two rows (a week boundary): any done row makes it done. */
-export function journeyDays(goal: Pick<Goal, 'targetDate' | 'dailyTasks'>, now: Date, timezone?: string): MapDay[] {
+export function journeyDays(goal: PlanSpan & Pick<Goal, 'dailyTasks'>, now: Date, timezone?: string): MapDay[] {
   const today = todayKey(now, timezone);
   const byDate = rowsByDate(goal.dailyTasks ?? []);
   const days: MapDay[] = [];
-  for (let day = 1; day <= TOTAL_DAYS; day += 1) {
+  const total = planDays(goal);
+  for (let day = 1; day <= total; day += 1) {
     const date = dateOfDay(goal, day);
     if (!date) return [];
     const rows = byDate.get(date) ?? [];
@@ -75,7 +81,7 @@ export interface PracticeTotals {
   daysSoFar: number;
 }
 
-export function practiceTotals(goal: Pick<Goal, 'targetDate' | 'dailyTasks'>, now: Date, timezone?: string): PracticeTotals {
+export function practiceTotals(goal: PlanSpan & Pick<Goal, 'dailyTasks'>, now: Date, timezone?: string): PracticeTotals {
   const done = (goal.dailyTasks ?? []).filter((task) => task.status === 'completed' && !isRestLike(task));
   const days = journeyDays(goal, now, timezone);
   return {

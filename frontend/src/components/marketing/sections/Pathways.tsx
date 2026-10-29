@@ -1,67 +1,70 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowUpRight } from 'lucide-react';
-import { PATHWAY_GROUPS, type CertifiedPathway } from '../../../lib/certifiedPresets';
+import { CERTIFIED_PATHWAYS } from '../../../lib/certifiedPresets';
+import { Button } from '../Button';
+import { GoalRail } from '../GoalRail';
 import { Section, Eyebrow, HEADING } from '../Section';
-import { Reveal } from '../Reveal';
 
-/** The shared groups (OD-11), largest first so the three-column grid stays balanced. */
-const GROUPS = [...PATHWAY_GROUPS].sort((a, b) => b.pathways.length - a.pathways.length);
+/** Goals people could bring to Pro. Illustrations only, never presented as other people's plans. */
+const OWN_GOAL_EXAMPLES = [
+  'Swim 1 km without stopping',
+  'Pass my driving theory test',
+  'Learn the basics of Python',
+  'Sketch a portrait from life',
+];
 
-const PathwayRow: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => (
-  <li>
-    <Link
-      to={`/signup?pathway=${encodeURIComponent(pathway.id)}`}
-      className="group flex min-h-11 w-full items-start justify-between gap-4 border-t border-border py-4 text-left transition-colors sm:py-5 hover:border-achievement/50"
-    >
-      <span>
-        <span className="block text-[17px] font-medium leading-snug tracking-[-0.015em] text-text transition-colors group-hover:text-achievement-hover">
-          {pathway.title}
-        </span>
-        <span className="mt-1.5 line-clamp-2 hidden text-sm sm:block leading-relaxed text-text-secondary">{pathway.summary}</span>
-        <span className="tabular mt-1.5 block font-ui-mono sm:mt-3 text-[11px] uppercase tracking-[0.16em] text-text-secondary/80">
-          {pathway.dailyMinutes} min a day
-        </span>
-      </span>
-      <ArrowUpRight
-        aria-hidden="true"
-        strokeWidth={1.5}
-        className="mt-0.5 h-5 w-5 shrink-0 text-text-muted transition-[color,transform] duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-achievement"
-      />
-    </Link>
-  </li>
+/** The case for a goal of your own (Pro): a still picture of the goal box with examples, so a visitor imagines theirs. */
+const OwnGoal: React.FC = () => (
+  <div className="relative isolate mt-16 grid items-center overflow-hidden gap-10 rounded-panel border border-border-strong bg-surface p-7 sm:p-10 sm:pl-24 lg:grid-cols-12 lg:pl-32 lg:gap-12">
+    <div aria-hidden="true" className="landing-art landing-art-vine" />
+    <div className="lg:col-span-6">
+      <p className="text-small text-achievement-hover">Achivii Pro</p>
+      <h3 className="mt-3 text-balance text-h2 text-text">Or bring your own goal.</h3>
+      <p className="mt-4 max-w-[30rem] text-body-lg text-text-secondary">
+        Describe anything you want to get good at. Achivii asks a few questions, then builds a 90-day plan around it,
+        with one step a day sized to your time and a weekly review that keeps it on track.
+      </p>
+      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+        <Button size="lg" variant="gold" withArrow to="/signup?premium=1" className="self-start">
+          Build my own plan
+        </Button>
+        <p className="text-small text-text-secondary">$9 a month or $72 a year</p>
+      </div>
+    </div>
+
+    <figure className="lg:col-span-6">
+      <div aria-hidden="true" className="rounded-card border border-border-strong bg-background p-5 sm:p-6">
+        <p className="text-small text-text-secondary">What do you want to get good at?</p>
+        <p className="mt-3 border-b border-border-control pb-3 text-h3 text-text">
+          {OWN_GOAL_EXAMPLES[0]}
+          <span className="ml-1 inline-block h-[1.1em] w-px translate-y-[0.15em] bg-achievement" />
+        </p>
+      </div>
+      <figcaption className="mt-5">
+        <p className="text-small text-text-secondary">For example</p>
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {OWN_GOAL_EXAMPLES.slice(1).map((example) => (
+            <li key={example} className="rounded-full border border-border px-3 py-1.5 text-small text-text-secondary">
+              {example}
+            </li>
+          ))}
+        </ul>
+      </figcaption>
+    </figure>
+  </div>
 );
 
 export const Pathways: React.FC = () => (
-  <Section id="pathways" labelledBy="pathways-title" className="py-16 sm:py-36">
-    <div className="grid gap-8 lg:grid-cols-12 lg:gap-10">
-      <div className="lg:col-span-7">
-        <Reveal>
-          <Eyebrow>Guided pathways</Eyebrow>
-        </Reveal>
-        <Reveal as="h2" id="pathways-title" delayMs={80} className={`mt-8 ${HEADING}`}>
-          Ten journeys, ready to begin.
-        </Reveal>
-      </div>
-      <Reveal as="p" delayMs={160} className="text-lg leading-relaxed text-text-secondary lg:col-span-4 lg:col-start-9 lg:pt-20">
-        Pick one to create your account and begin. Each is shaped around your schedule when you start.
-      </Reveal>
-    </div>
+  <Section id="goals" labelledBy="goals-title">
+    <Eyebrow>Goals</Eyebrow>
+    <h2 id="goals-title" className={`mt-4 ${HEADING}`}>
+      What do you want to get good at?
+    </h2>
+    <p className="mt-4 max-w-[36rem] text-body-lg text-text-secondary">
+      {CERTIFIED_PATHWAYS.length} free 90-day plans. See where each one starts, and where it takes you.
+    </p>
 
-    <div className="mt-16 grid gap-x-12 gap-y-14 md:grid-cols-2 lg:grid-cols-3">
-      {GROUPS.map((group, groupIndex) => (
-        <Reveal key={group.direction} delayMs={(groupIndex % 3) * 100}>
-          <h3 className="mb-2 flex items-center gap-2.5 font-ui-mono text-xs uppercase tracking-[0.2em] text-achievement">
-            <span aria-hidden="true" className="h-1 w-1 rounded-full bg-achievement shadow-[0_0_8px_2px_rgba(200,169,107,0.6)]" />
-            {group.direction}
-          </h3>
-          <ul>
-            {group.pathways.map((pathway) => (
-              <PathwayRow key={pathway.id} pathway={pathway} />
-            ))}
-          </ul>
-        </Reveal>
-      ))}
-    </div>
+    <GoalRail />
+
+    <OwnGoal />
   </Section>
 );

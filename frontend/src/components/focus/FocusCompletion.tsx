@@ -4,7 +4,7 @@ import { Button, Textarea } from '../ui';
 import { TASK_NOTES_MAX_LENGTH } from '../../lib/today';
 
 /**
- * ND-28: what finishing this session adds, worked out by Today before it is saved: the session's number over the whole
+ * ND-30: what finishing this session adds, worked out by Today before it is saved: the session's number over the whole
  * plan and the week with today lit. `new` is the day being finished now.
  */
 export interface SessionProgress {
@@ -18,6 +18,8 @@ interface FocusCompletionProps {
   dayNumber: number;
   durationMinutes: number;
   isMinimumVersion?: boolean;
+  /** The person's first practice step. */
+  isFirstStep?: boolean;
   reflectionNote: string;
   onReflectionChange: (val: string) => void;
   onSave: () => void;
@@ -32,7 +34,7 @@ const weekLine = (p: SessionProgress) =>
     : `${p.weekDone} of ${p.weekDays} this week.`;
 
 export const FocusCompletion: React.FC<FocusCompletionProps> = ({
-  isMinimumVersion = false, reflectionNote, onReflectionChange, onSave, isSubmitting, saveError, progress,
+  isMinimumVersion = false, isFirstStep = false, reflectionNote, onReflectionChange, onSave, isSubmitting, saveError, progress,
 }) => (
   <section aria-label="Session complete" className="focus-done mx-auto my-auto w-full max-w-lg text-center">
     <span className="focus-done__mark mx-auto" aria-hidden="true">
@@ -44,7 +46,7 @@ export const FocusCompletion: React.FC<FocusCompletionProps> = ({
         {isMinimumVersion ? '10-minute version done' : 'Session complete'}
         {progress ? ` · Session ${progress.sessionNumber}` : ''}
       </p>
-      <h2 className="text-h2 text-text">You did the work.</h2>
+      <h2 className="text-h2 text-text">{isFirstStep ? 'Your first step is done.' : 'You did the work.'}</h2>
       {progress ? (
         <p className="text-body-lg text-text-secondary">{weekLine(progress)}</p>
       ) : (

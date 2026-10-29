@@ -154,7 +154,7 @@ describe('withPathwayTests on a split pathway (WU-43 (1), (3), (7))', () => {
   }
 
   it('maps each light week to its next check: 1 to 3 week 4, 5 to 7 week 8, 9 to 11 week 12', () => {
-    expect([1, 2, 3, 5, 6, 7, 9, 10, 11].map(nextCheckWeek)).toEqual([4, 4, 4, 8, 8, 8, 12, 12, 12]);
+    expect([1, 2, 3, 5, 6, 7, 9, 10, 11].map((week) => nextCheckWeek(week))).toEqual([4, 4, 4, 8, 8, 8, 12, 12, 12]);
   });
 
   it('fills a deliverable target into the big test, and a light week takes the next check\'s deliverable', () => {

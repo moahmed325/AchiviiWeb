@@ -31,8 +31,10 @@ export interface FocusSessionModalProps {
    * `visibleDay` does (B-50, B-52, B-55).
    */
   doneDays?: DoneDays;
-  /** ND-28: what finishing adds (the session's number, the week with today lit), shown on the completion screen. */
+  /** ND-30: what finishing adds (the session's number, the week with today lit), shown on the completion screen. */
   progress?: SessionProgress;
+  /** The person's first practice step (`isFirstStep`): the completion screen says so. */
+  isFirstStep?: boolean;
 }
 
 interface FocusSessionContentProps {
@@ -45,6 +47,7 @@ interface FocusSessionContentProps {
   startWith: 'full' | 'minimum';
   doneDays?: DoneDays;
   progress?: SessionProgress;
+  isFirstStep?: boolean;
 }
 
 const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
@@ -57,6 +60,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
   startWith,
   doneDays,
   progress,
+  isFirstStep = false,
 }) => {
   // Timer & UI State initialized cleanly on mount
   const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
@@ -288,6 +292,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
             dayNumber={dayNumber}
             durationMinutes={sessionMinutes}
             isMinimumVersion={isMinimumVersion}
+            isFirstStep={isFirstStep}
             reflectionNote={reflectionNote}
             onReflectionChange={setReflectionNote}
             onSave={handleSaveAndExit}
@@ -311,6 +316,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   startWith = 'full',
   doneDays,
   progress,
+  isFirstStep,
 }) => {
   // The day as shown (B-50, B-52): its steps, minutes and text. The session only shows it; completing goes by id.
   const { steps, ...shown } = useMemo(() => visibleDay(task, doneDays ?? new Map()), [task, doneDays]);
@@ -333,6 +339,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
       startWith={startWith}
       doneDays={doneDays}
       progress={progress}
+      isFirstStep={isFirstStep}
     />
   );
 };

@@ -31,6 +31,8 @@ interface OnboardingWizardProps {
   currentGoalId?: string | null;
   /** Next plan (NP-3): set when this plan continues an earlier one. */
   nextPlan?: NextPlanLaunch | null;
+  /** B-106: the fixed date to fill in, from the plan a fresh or next plan follows. */
+  initialFixedDate?: string;
   /** The app's health check couldn't reach Achivii when it loaded. */
   apiOffline?: boolean;
 }
@@ -46,9 +48,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   isPreset,
   currentGoalId,
   nextPlan = null,
+  initialFixedDate,
   apiOffline = false
 }) => {
-  const onboarding = useOnboardingState({ token, onGoalCreated, initialGoal, isPreset, currentGoalId, nextPlan });
+  const onboarding = useOnboardingState({ token, onGoalCreated, initialGoal, isPreset, currentGoalId, nextPlan, initialFixedDate });
   const {
     goalKind,
     order,
@@ -74,6 +77,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     routine,
     setRoutine,
     scheduleChosen,
+    fixedDate,
+    setFixedDate,
+    fixedDateCheck,
+    fixedDateToday,
     planSteps,
     generationError,
     startClarification,
@@ -271,6 +278,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               />
             }
             scheduleChosen={scheduleChosen}
+            fixedDate={fixedDate}
+            fixedDateCheck={fixedDateCheck}
+            today={fixedDateToday}
+            onFixedDateChange={setFixedDate}
             isWaitingForClarification={isWaitingForClarification}
             clarificationError={clarificationError}
             isClarifying={isClarifying}

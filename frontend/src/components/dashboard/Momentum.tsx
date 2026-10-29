@@ -1,6 +1,6 @@
 import React from 'react';
 import { VisuallyHidden } from '../ui';
-import { usePrefersReducedMotion } from '../marketing/hooks';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { practiceTimeLabel } from '../../lib/dashboard';
 
 const SEEN_PREFIX = 'achivii:dashboard-seen:';

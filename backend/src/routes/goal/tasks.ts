@@ -7,6 +7,7 @@ import { getUserTodayDateString, normalizeTimezone } from '../../lib/timezone.js
 import { presentGoal } from './present.js';
 import { refuse } from './actions.js';
 import { validateWeeklyTestResult } from './weeks.js';
+import { shapeOf } from '../../lib/planLength.js';
 
 export const taskRoutes = Router();
 
@@ -44,7 +45,8 @@ taskRoutes.post('/complete', async (req: Request, res: Response): Promise<void> 
       const validTest = validateWeeklyTestResult(finalTestResult);
       if (validTest.valid && validTest.result) {
         const targetWeek =
-          activeGoal.roadmapWeeks?.find((w) => w.weekNumber === 12) ||
+          // B-109: the final test's week (12; a shorter plan's week before its ready week).
+          activeGoal.roadmapWeeks?.find((w) => w.weekNumber === shapeOf(activeGoal).finalWeek) ||
           activeGoal.roadmapWeeks?.[activeGoal.roadmapWeeks.length - 1];
         if (targetWeek) {
           await prisma.roadmapWeek.update({
@@ -57,7 +59,7 @@ taskRoutes.post('/complete', async (req: Request, res: Response): Promise<void> 
 
     if (typeof finalReflection === 'string' && finalReflection.trim()) {
       const targetReview =
-        activeGoal.weeklyReviews?.find((r) => r.weekNumber === 12) ||
+        activeGoal.weeklyReviews?.find((r) => r.weekNumber === shapeOf(activeGoal).weeks) ||
         activeGoal.weeklyReviews?.[activeGoal.weeklyReviews.length - 1];
       if (targetReview) {
         await prisma.weeklyReview.update({

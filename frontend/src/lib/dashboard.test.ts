@@ -13,7 +13,7 @@ const task = (date: string, overrides: Partial<DailyTask> = {}): DailyTask => ({
 
 const goalWith = (dailyTasks: DailyTask[]) => ({ targetDate: TARGET, dailyTasks }) as Pick<Goal, 'targetDate' | 'dailyTasks'>;
 
-describe('journeyDays (ND-27)', () => {
+describe('journeyDays (ND-29)', () => {
   it('counts plan days the way Today does: day 1 is 90 days before the target, today is day 10', () => {
     expect(dateOfDay({ targetDate: TARGET }, 10)).toBe('2026-10-29');
     expect(dateOfDay({ targetDate: TARGET }, 1)).toBe('2026-10-20');
@@ -53,7 +53,7 @@ describe('journeyDays (ND-27)', () => {
   });
 });
 
-describe('practiceTotals (ND-27)', () => {
+describe('practiceTotals (ND-29)', () => {
   it('sessions, minutes (the 10-minute version counts as its own minutes) and practice days so far', () => {
     const totals = practiceTotals(
       goalWith([
@@ -83,7 +83,7 @@ const week = (weekNumber: number, overrides: Partial<RoadmapWeek> = {}): Roadmap
 const minutes = (value: number) => ({ kind: 'number' as const, metric: '10K time', value, unit: 'min', direction: 'lower_is_better' as const });
 const roadmap = (start: number | null) => ({ startingPoint: { value: start, description: '' } }) as Goal['roadmap'];
 
-describe('goalTrend (ND-27)', () => {
+describe('goalTrend (ND-29)', () => {
   it('a time to beat: the gap closed, the latest result, and a new best', () => {
     const trend = goalTrend({
       roadmap: roadmap(60),
@@ -134,7 +134,7 @@ describe('goalTrend (ND-27)', () => {
   });
 });
 
-describe('nextTestDay and greetingFor (ND-27)', () => {
+describe('nextTestDay and greetingFor (ND-29)', () => {
   it('the next open test day from today, never one done or past', () => {
     const tasks = [
       task('2026-10-27', { isTestDay: true }),

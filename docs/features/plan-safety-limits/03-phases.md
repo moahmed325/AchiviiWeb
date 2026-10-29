@@ -16,7 +16,7 @@
 | M2.2a | Week limits against the base week | AC-5, AC-6, AC-10 (weeks) | DONE 2026-10-21 | [m2.2a](milestones/m2.2a-week-limits.md) |
 | M2.2b | First week back, and the older weeks it reads | AC-7 | DONE 2026-10-21 | [m2.2b](milestones/m2.2b-first-week-back.md) |
 | O2 | Mo: after M2.2b is live, read a week of `[Safety]` lines and note false alarms and failed weeks (`01-brief.md` section 9, question 9), plus how often `load_missing` and `[AI] Week n attempt 1 rejected` show on run10k and recomp (M2.1 review), and how often `hard_runs_over_2`, `running_total_over_limit`, `longest_run_over_limit` and `no_base` show and end `failed` or `first_answer` (M2.2a review, PSL-17); `first_week_back_base` lines, and whether a first week back at the 30-minute floor or the half share ends `failed` or a shortened `light_test` (M2.2b review, PSL-18 (8)); a live Gemini check of such a week, as PSL-17's, before or with this read | — | NOT STARTED | |
-| M3.1 | Acceptance, regression and close | AC-8, all | NOT STARTED | |
+| M3.1 | Acceptance, regression and close | AC-8, all | DONE 2026-10-28 except O2's findings (Mo's log read); adds PSL-19 to PSL-22 | [m3.1](milestones/m3.1-acceptance-and-close.md) |
 
 ## 2. Order
 - **P1 Targets:** limits in one module; the 12 targets climb by safe steps, for new goals and older ones. Needs O1's numbers only to check the family rules against real data, not to start M1.2.

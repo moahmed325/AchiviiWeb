@@ -61,7 +61,7 @@ const richSteps = JSON.stringify([
   },
 ]);
 
-/** ND-28: the rich day's extras share one row, named by what is in it. */
+/** ND-30: the rich day's extras share one row, named by what is in it. */
 const MORE = 'The 10-minute version · When and where · Resource';
 
 const richGoal = () => {
@@ -95,12 +95,12 @@ const richGoal = () => {
 };
 
 test.describe('the practice day', () => {
-  test('reads in order: Day N, the goal, the step, its duration, its steps, Start, the week (ND-28)', async ({ page }) => {
+  test('reads in order: Day N, the goal, the step, its duration, its steps, Start, the week (ND-30)', async ({ page }) => {
     await openToday(page);
     const heading = page.getByRole('heading', { level: 1 });
     await expect(heading).toHaveText(SHELL_GOAL_TITLE);
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
-    // ND-18, ND-28: the stored outcome is not shown on Today.
+    // ND-18, ND-30: the stored outcome is not shown on Today.
     await expect(main(page).getByText(STORED_OUTCOME)).toHaveCount(0);
     const day = page.getByLabel('Day 3 of 90');
     await expect(day).toBeVisible();
@@ -233,7 +233,7 @@ test.describe('the practice day', () => {
   test('the steps reveal shows instructions and focus cues, with pass mark, pitfall and output visible only when stored', async ({ page }) => {
     // 1. When absent in the mock (default shellGoal)
     await openToday(page);
-    // ND-28: the steps are listed; each opens in place.
+    // ND-30: the steps are listed; each opens in place.
     await expect(page.getByText('Draw the one screen a user needs first.')).toBeHidden();
     await stepRegion(page).getByRole('button', { name: /Sketch the core screen/ }).click();
     await stepRegion(page).getByRole('button', { name: /List the data it needs/ }).click();
@@ -284,7 +284,7 @@ test.describe('the practice day', () => {
 
   test("the week glance picks another day, and that day's step is the one shown", async ({ page }) => {
     await openToday(page);
-    // ND-28: the week's day marks are the buttons.
+    // ND-30: the week's day marks are the buttons.
     const days = main(page).getByRole('list').last().getByRole('button');
     await expect(days).toHaveCount(7);
     await days.nth(0).click();
@@ -297,7 +297,7 @@ test.describe('the practice day', () => {
     await expect(page.getByRole('heading', { level: 2, name: TODAY_TITLE })).toBeVisible();
   });
 
-  test('no footer of links (the app navigation has them) and no full day view link (ND-28, OD-3)', async ({ page }) => {
+  test('no footer of links (the app navigation has them) and no full day view link (ND-30, OD-3)', async ({ page }) => {
     await openToday(page);
     await expect(main(page).getByRole('navigation')).toHaveCount(0);
     await expect(main(page).getByRole('link', { name: 'Open full day view' })).toHaveCount(0);
@@ -312,7 +312,7 @@ test.describe('the practice day', () => {
     await expect(main(page).getByRole('button', { name: /Mark complete|Start/ })).toHaveCount(0);
   });
 
-  test("the Dashboard's Start opens the same step's session on Today in one tap (ND-19, ND-27)", async ({ page }) => {
+  test("the Dashboard's Start opens the same step's session on Today in one tap (ND-19, ND-29)", async ({ page }) => {
     await openToday(page);
     await page.goto('/dashboard');
     await main(page).getByRole('link', { name: 'Start session' }).click();
@@ -449,7 +449,7 @@ test.describe('layout, keyboard and motion', () => {
     await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(main(page)).toBeFocused();
-    // ND-28: the session's two steps come first; each opens in place.
+    // ND-30: the session's two steps come first; each opens in place.
     await page.keyboard.press('Tab');
     await expect(stepRegion(page).getByRole('button', { name: /Sketch the core screen/ })).toBeFocused();
     await page.keyboard.press('Tab');
@@ -503,5 +503,33 @@ test.describe('checkpoints (M2)', () => {
     expect(calls.checkpoints).toEqual([{ week: 4, answer: 'accept' }]);
     await settled(page);
     await shot('checkpoint-accepted');
+  });
+});
+
+test.describe('the first step', () => {
+  /** Nothing done yet: today (t3) is the person's first practice step. */
+  const firstStepGoal = () => {
+    const base = richGoal();
+    return { ...base, dailyTasks: base.dailyTasks.map((t) => ({ ...t, status: 'pending' as const })) };
+  };
+
+  test('makes starting easy, and marks it done with an optional share card', async ({ page }) => {
+    await openToday(page, { goal: firstStepGoal() });
+    const step = stepRegion(page);
+    await expect(step.getByText(/Your first step\. Start whenever you’re ready/)).toBeVisible();
+    await expect(step.getByRole('button', { name: 'Start the 10-minute version' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Your first step is done.' })).toHaveCount(0);
+
+    await step.getByRole('button', { name: 'Mark complete' }).click();
+    const marked = page.getByRole('region', { name: 'Your first step is done.' });
+    await expect(marked).toBeVisible();
+    await expect(marked.getByRole('img', { name: `Share card: Day 3 of 90, ${SHELL_GOAL_TITLE}.` })).toBeVisible();
+    await expect(marked.getByRole('button', { name: 'Download image' })).toBeVisible();
+    await expect(step.getByRole('button', { name: 'Start the 10-minute version' })).toHaveCount(0);
+  });
+
+  test('is not offered once another practice day is done', async ({ page }) => {
+    await openToday(page);
+    await expect(stepRegion(page).getByText(/Your first step\./)).toHaveCount(0);
   });
 });

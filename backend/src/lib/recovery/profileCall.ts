@@ -77,8 +77,9 @@ export const PROFILE_RESPONSE_SCHEMA = {
           hard: { type: 'boolean' },
           inOrder: { type: 'boolean' },
           highLoad: { type: 'boolean' },
+          why: { type: 'string' },
         },
-        required: ['id', 'name', 'description', 'action', 'hard', 'inOrder', 'highLoad'],
+        required: ['id', 'name', 'description', 'action', 'hard', 'inOrder', 'highLoad', 'why'],
       },
     },
     catchAll: { type: 'string' },
@@ -168,6 +169,9 @@ WRITE THE PROFILE
    - "kinds": 2 to 8 kinds plus one catch-all kind. Each has a snake_case "id", a short "name", a one-sentence
      "description" of what the step looks like, one "action" (move, continue, let_go, fixed or restart), and "hard",
      "inOrder" and "highLoad" true or false.
+   - Each kind's "why": one short sentence naming the method rule or reason behind its action, from THE METHOD above
+     where it says (e.g. "The method makes the long run the week's key session, so a missed one is made up."). Write
+     the reason for this goal; never copy a template's reason without checking it holds for this method.
    - "highLoad" is true only for physical strain (running, lifting, high-intensity or impact work); a highLoad kind
      must be hard.
    - A hard kind never continues or restarts.
@@ -188,7 +192,11 @@ interface RawKind {
   hard?: unknown;
   inOrder?: unknown;
   highLoad?: unknown;
+  why?: unknown;
 }
+
+/** The longest "why" kept; a longer one is dropped rather than cut mid-sentence. */
+export const MAX_WHY = 240;
 
 export interface RawProfileAnswer {
   template?: unknown;
@@ -243,6 +251,8 @@ export function checkProfileAnswer(
       hard: raw.hard === true,
       inOrder: raw.inOrder === true,
       ...(raw.highLoad === true ? { highLoad: true } : {}),
+      // Soft: a missing or too long "why" never fails the profile; it is just not kept.
+      ...(text(raw.why) && text(raw.why).length <= MAX_WHY ? { why: text(raw.why) } : {}),
     }));
   const rawRule = data.returnRule && typeof data.returnRule === 'object' ? data.returnRule : {};
   const breaks = Array.isArray(rawRule.breaks) ? (rawRule.breaks as Array<{ length?: unknown; restart?: unknown }>) : [];
@@ -265,6 +275,40 @@ export function checkProfileAnswer(
   return reasons.length > 0 ? { reason: reasons.slice(0, 8).join(' ') } : { value: profile };
 }
 
+/**
+ * How many rules of `profile` differ from `template`, the one it started from: each kind added or left out (by id),
+ * each changed action, hard, in-order or high-load flag on a kind both have (the catch-all included), the rest gap, and
+ * each break length whose restart changed or that only one of them has. Names, descriptions, "why" lines and the
+ * "first week back" note are wording, not rules, and don't count. The two kinds code adds are left out. 0 means the
+ * template was copied. Pure.
+ */
+export function templateChanges(profile: RecoveryProfile, template: RecoveryProfile): number {
+  const own = (p: RecoveryProfile) => new Map(p.kinds.filter((kind) => !ADDED_IDS.has(kind.id)).map((kind) => [kind.id, kind]));
+  const mine = own(profile);
+  const theirs = own(template);
+  let changes = 0;
+  for (const [id, kind] of mine) {
+    const was = theirs.get(id);
+    if (!was) {
+      changes++;
+      continue;
+    }
+    if (kind.action !== was.action) changes++;
+    if (kind.hard !== was.hard) changes++;
+    if (kind.inOrder !== was.inOrder) changes++;
+    if ((kind.highLoad === true) !== (was.highLoad === true)) changes++;
+  }
+  for (const id of theirs.keys()) if (!mine.has(id)) changes++;
+  if (profile.restGapDays !== template.restGapDays) changes++;
+  const restarts = (p: RecoveryProfile) => new Map((p.returnRule?.breaks ?? []).map((item) => [item.length, item.restart]));
+  const myBreaks = restarts(profile);
+  const theirBreaks = restarts(template);
+  for (const length of new Set([...myBreaks.keys(), ...theirBreaks.keys()])) {
+    if (myBreaks.get(length) !== theirBreaks.get(length)) changes++;
+  }
+  return changes;
+}
+
 /** The profile call. Never throws; always returns a checked profile and where it came from. */
 export async function generateRecoveryProfile(input: ProfileCallInput): Promise<ProfileCallResult> {
   const deliverableGoal = isDeliverableTarget(input.weeklyTargets[11]);
@@ -280,7 +324,10 @@ export async function generateRecoveryProfile(input: ProfileCallInput): Promise<
       },
       'Recovery profile'
     );
-    if (profile) return { profile, source: 'model', pickedTemplate };
+    if (profile) {
+      const changes = templateChanges(profile, RECOVERY_TEMPLATES[profile.template]);
+      return { profile: { ...profile, templateChanges: changes }, source: 'model', pickedTemplate };
+    }
   } catch (err) {
     console.warn('[Recovery] Profile call failed:', err);
   }

@@ -8,7 +8,7 @@ import type { DetailedStep, StepLoad } from '../ai/goalDecomposer.js';
 import type { WeekTarget } from '../ai/roadmap.js';
 import { findPresetForGoal } from '../ai/presets/index.js';
 import { HIGH_LOAD_PRESET_IDS } from '../highLoad.js';
-import { targetFamily } from './targetSteps.js';
+import { runLevelOf, targetFamily, type RunLevel } from './targetSteps.js';
 
 /** The week call's input on a load goal: present means the goal is asked for load. */
 export interface LoadGoal {
@@ -16,25 +16,29 @@ export interface LoadGoal {
   running: boolean;
   /** B-89: the profile's kinds marked `highLoad`; a step of one needs some load, like a flagged step. */
   highLoadKinds?: readonly string[];
+  /** M3.1 (PSL-19): what they already run in one go, from the starting point (`runLevelOf`); raises the no-base cap. */
+  runLevel?: RunLevel;
 }
 
 /**
  * RULE-4: a goal is asked for load when it is a physical preset (`isHighLoadGoal`) or the week's target has a family.
  * Undefined for any other goal, whose week call stays exactly as before.
  */
-export function loadGoalFor(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget): LoadGoal | undefined {
+export function loadGoalFor(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget, startValue?: number | null): LoadGoal | undefined {
   // One lookup, the way `isHighLoadGoal` finds the preset.
   const preset = findPresetForGoal(goal.rawGoal) || findPresetForGoal(goal.clarifiedOutcome);
   const run10k = preset?.id === 'run10k';
   const family = targetFamily(target, { run10k });
   const highLoadGoal = preset !== null && HIGH_LOAD_PRESET_IDS.includes(preset.id);
   if (!highLoadGoal && !family) return undefined;
-  return { running: run10k || family === 'running_distance' || family === 'running_time' };
+  const running = run10k || family === 'running_distance' || family === 'running_time';
+  const runLevel = running ? runLevelOf(target, startValue, { run10k }) : null;
+  return { running, ...(runLevel ? { runLevel } : {}) };
 }
 
 /** The week call input's `loadGoal`, spread in by both callers: `{}` for a goal that is not a load goal. */
-export function loadGoalInput(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget): { loadGoal?: LoadGoal } {
-  const loadGoal = loadGoalFor(goal, target);
+export function loadGoalInput(goal: Pick<Goal, 'rawGoal' | 'clarifiedOutcome'>, target: WeekTarget, startValue?: number | null): { loadGoal?: LoadGoal } {
+  const loadGoal = loadGoalFor(goal, target, startValue);
   return loadGoal ? { loadGoal } : {};
 }
 

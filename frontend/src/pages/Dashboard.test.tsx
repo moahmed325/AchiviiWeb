@@ -49,7 +49,7 @@ const renderWith = (goal: Goal, reconciliation: Reconciliation | null = null) =>
 describe('Dashboard', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('ND-27: today first with one way in, the sessions done, the 90-day map and a status sentence from real state', () => {
+  it('ND-29: today first with one way in, the sessions done, the 90-day map and a status sentence from real state', () => {
     renderWith(buildGoal('pending'));
 
     expect(screen.getByText('1 of 3 sessions done this week. Keep the rhythm.')).toBeInTheDocument();
@@ -363,7 +363,7 @@ describe('Dashboard: method-aware recovery lines (M3.3, section 6, AC-7)', () =>
   });
 });
 
-describe('Dashboard: the count since the last visit (ND-27)', () => {
+describe('Dashboard: the count since the last visit (ND-29)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();

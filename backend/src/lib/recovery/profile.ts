@@ -63,6 +63,12 @@ export interface RecoveryKind {
   inOrder: boolean;
   /** Set by the profile call (M1.3b) when the kind is physical strain; such a kind must be hard (RULE-4). */
   highLoad?: boolean;
+  /**
+   * Written by the profile call: one sentence naming the method rule or reason behind this kind's action, so every
+   * profile can be checked against its method. For people reading the stored profile only: no prompt is sent it, and
+   * the week writer never sees a kind's action.
+   */
+  why?: string;
 }
 
 export type BreakLength = 'any' | '1-2 weeks' | '3+ weeks';
@@ -90,6 +96,11 @@ export interface RecoveryProfile {
   /** Full days between two hard steps, 0 to 2. */
   restGapDays: number;
   returnRule: ReturnRule;
+  /**
+   * Set when the profile call wrote the profile: how many rules differ from the template it started from
+   * (`templateChanges` in `profileCall.ts`). 0 means the template was copied. Absent for pathway and template profiles.
+   */
+  templateChanges?: number;
 }
 
 // ---------------------------------------------------------------------------------------------------------------

@@ -24,6 +24,7 @@ import {
   TEST_STEP_TITLE,
   firstWeekBackLimit,
   firstWeekBackSummary,
+  noBaseCap,
   runOf,
   runningLimit,
   runningLimitMinutes,
@@ -39,6 +40,9 @@ import {
   type LoadBreach,
   type Run,
 } from '../safety/weekLoad.js';
+import { isExperiencedLifter } from '../safety/experience.js';
+import type { RunLevel } from '../safety/targetSteps.js';
+import { DEFAULT_WEEKS, planShape } from '../planLength.js';
 import {
   formatAnswerLines,
   formatTarget,
@@ -62,7 +66,7 @@ export function activeDaysFor(variant: PlanVariant): number {
   return variant === 'minimal' ? 4 : variant === 'accelerated' ? 6 : 5;
 }
 
-/** 0-based days of the week that are rest days. Never two in a row. */
+/** 0-based days of the week that are rest days, the variant's own: never two in a row. Chosen ones may be (B-108). */
 export function restDayIndices(variant: PlanVariant): number[] {
   return variant === 'minimal' ? [2, 4, 6] : variant === 'accelerated' ? [6] : [3, 6];
 }
@@ -80,8 +84,25 @@ export interface DayLayout {
 }
 
 /** Which days are practice, rest and test is decided here, not by the model. */
-export function weekLayout(variant: PlanVariant, weekStart: Date): DayLayout[] {
+/**
+ * Edit my schedule (B-108): the rest days the person chose, as weekdays (0 Sunday to 6 Saturday), when they are valid for
+ * `variant`: whole numbers 0 to 6, no repeats, exactly `7 - activeDaysFor(variant)` of them. Sorted; null otherwise, so
+ * the variant's own positions apply. Two in a row (a weekend off) is allowed.
+ */
+export function validRestWeekdays(variant: PlanVariant, value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  if (!value.every((day) => Number.isInteger(day) && day >= 0 && day <= 6)) return null;
+  const days = [...new Set(value as number[])].sort((a, b) => a - b);
+  return days.length === value.length && days.length === 7 - activeDaysFor(variant) ? days : null;
+}
+
+/**
+ * The week's seven days from `weekStart`. Rest days: the chosen weekdays (`restWeekdays`, B-108) when valid for the
+ * variant, otherwise the variant's fixed positions from the week's first day. The test day is the last practice day.
+ */
+export function weekLayout(variant: PlanVariant, weekStart: Date, restWeekdays?: readonly number[] | null): DayLayout[] {
   const rest = restDayIndices(variant);
+  const chosen = validRestWeekdays(variant, restWeekdays);
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(weekStart);
     date.setUTCDate(date.getUTCDate() + index);
@@ -89,7 +110,7 @@ export function weekLayout(variant: PlanVariant, weekStart: Date): DayLayout[] {
       dayNumber: index + 1,
       date: date.toISOString().split('T')[0],
       dayOfWeek: DAY_NAMES[date.getUTCDay()],
-      isRestDay: rest.includes(index),
+      isRestDay: chosen ? chosen.includes(date.getUTCDay()) : rest.includes(index),
       isTestDay: false,
     };
   });
@@ -126,6 +147,8 @@ export interface WeekCallInput {
   answers: PlanAnswer[];
   dailyMinutes: number;
   planVariant: PlanVariant;
+  /** Edit my schedule (B-108): the chosen rest weekdays (0 Sunday to 6 Saturday); absent keeps the variant's positions. */
+  restWeekdays?: number[];
   slotTime: string;
   method: Pick<ChosenMethod, 'name' | 'creator' | 'rules'>;
   weekNumber: number;
@@ -186,9 +209,16 @@ export interface WeekCallInput {
   baseWeek?: BaseWeek;
 }
 
-export const WEEK_SYSTEM = `You write one week of daily practice for a person following a 90-day plan. The goal, the method and this week's
+/** The week call's system text; B-109: a shorter plan names its weeks (`weekSystem(12)` is exactly as before). */
+export function weekSystem(totalWeeks: number = DEFAULT_WEEKS): string {
+  const plan = planShape(totalWeeks).weeks === DEFAULT_WEEKS ? '90-day' : `${planShape(totalWeeks).weeks}-week`;
+  return `You write one week of daily practice for a person following a ${plan} plan. The goal, the method and this week's
 target are already decided. Do not change them. Every day must move the person toward this week's target.
 Respond with one JSON object that matches the schema.`;
+}
+
+/** A 12-week plan's system text. */
+export const WEEK_SYSTEM = weekSystem();
 
 const stepProperties = {
   title: { type: 'string' },
@@ -307,6 +337,15 @@ function kindsBlock(recovery: RecoveryProfile): string {
 }
 
 /**
+ * M3.1 (PSL-20): the one place that decides whether weeks 1 to 3 drop the % of 1RM and reps-in-reserve caps, read by
+ * the prompt and the checks alike: someone who already lifts (`isExperiencedLifter`), on a goal that isn't a running
+ * goal, outside a light week (a high-load first week back keeps every cap).
+ */
+export function liftCapsRelaxed(input: Pick<WeekCallInput, 'answers' | 'loadGoal' | 'firstWeekBack'>): boolean {
+  return input.loadGoal?.running !== true && !isLightWeek(input) && isExperiencedLifter(input.answers);
+}
+
+/**
  * B-63 (PSL-1, PSL-2): the limits. In weeks 1 to 3 it says plainly that it overrides the method's reps-in-reserve
  * range. Plan safety limits M2.2a (RULE-5, PSL-11 Q17): told on every load goal, with the running line naming the number
  * from the base week, the longest-run rule and the intake floor; every number is from the limits module. Without a load
@@ -319,12 +358,15 @@ function safetyLimitsBlock(input: WeekCallInput): string {
     '',
     '',
     'SAFETY LIMITS (these override the method and the target; a week whose steps break any of them is not saved)',
-    ...runningLines(input.baseWeek),
+    ...runningLines(input.baseWeek, input.loadGoal?.runLevel),
     `- At most ${HARD_RUNS_MAX} hard runs this week (intervals, tempo, race pace; a hard weekly test counts as one).`,
     `- Calorie deficit: ${CALORIE_DEFICIT_MIN} to ${CALORIE_DEFICIT_MAX} kcal a day, never more.`,
     `- Daily intake: never below ${DAILY_INTAKE_MIN_KCAL} kcal a day.`,
   ];
-  if (input.weekNumber <= EARLY_WEEKS) {
+  // M3.1 (PSL-20): an experienced lifter keeps the method's % of 1RM and reps in reserve; failure and max tests still wait.
+  if (input.weekNumber <= EARLY_WEEKS && liftCapsRelaxed(input)) {
+    lines.push(`- Weeks 1 to 3: nothing to failure, no max or 1RM test; loads and reps in reserve follow the method (they already lift).`);
+  } else if (input.weekNumber <= EARLY_WEEKS) {
     lines.push(
       `- Weeks 1 to 3: no lift above ${EARLY_WEEK_MAX_1RM_PERCENT}% of 1RM, at least ${EARLY_WEEK_MIN_RIR} reps in reserve, nothing to failure, no max or 1RM test.`,
       `- In weeks 1 to 3 this overrides the method's RIR range: at least ${EARLY_WEEK_MIN_RIR} reps in reserve.`
@@ -340,14 +382,17 @@ function safetyLimitsBlock(input: WeekCallInput): string {
  * M2.2b (PSL-18): a first week back names its limit (no allowance, the floor, half after a long break); its unknown base
  * gets the 0-run base's longest-run and cap lines, with its running line saying it isn't known.
  */
-export function runningLines(base: BaseWeek | undefined): string[] {
+export function runningLines(base: BaseWeek | undefined, level?: RunLevel | null): string[] {
   const longest = `- Longest run: at most ${LONGEST_RUN_MAX_PERCENT}% of the week's running when there are ${LONGEST_RUN_MIN_RUNS} or more runs.`;
   const cap = `${LONGEST_RUN_NO_BASE_MAX_MINUTES} minutes (${LONGEST_RUN_NO_BASE_MAX_KM} km when every run is given in km)`;
+  // M3.1 (PSL-19): with no last week, the cap is never below what they already run in one go (their starting point).
+  // Rounded down as the check reads it (`shownLimit`), so the prompt never names more than the check allows.
+  const noBase = `${shownLimit(noBaseCap('minutes', level), 'minutes')} minutes (${shownLimit(noBaseCap('km', level), 'km')} km when every run is given in km)`;
   const zeroLines = ['- Running: last week had no running; keep it at their level.', longest, `- No run longer than ${cap}.`];
   if (!base?.known) {
     // M2.2b review: held like a 0-run base, told as not known.
     if (base?.firstWeekBack) return ["- Running: last week's running isn't known; keep it at their level.", ...zeroLines.slice(1)];
-    return ['- Running: there is no last week to count from; keep it at their level.', longest, `- With fewer than ${LONGEST_RUN_MIN_RUNS} runs, no run longer than ${cap}.`];
+    return ['- Running: there is no last week to count from; keep it at their level.', longest, `- With fewer than ${LONGEST_RUN_MIN_RUNS} runs, no run longer than ${noBase}.`];
   }
   if (base.runs === 0) return zeroLines;
   if (base.firstWeekBack) return [...firstWeekBackLines({ ...base, firstWeekBack: base.firstWeekBack }), longest];
@@ -447,10 +492,27 @@ function thisWeekTestLines(input: WeekCallInput): string {
   if (!input.test.light) {
     return `Target: ${formatTarget(input.target)}${NL}Weekly test: ${input.test.instructions.trim().replace(/\.+$/, '')}. Pass if: ${input.test.passIf}`;
   }
+  const shape = planShape(input.totalWeeks);
+  // B-109: a shorter plan's ready week has no check ahead: the final test was last week.
+  const targetLine =
+    shape.readyWeek === input.weekNumber
+      ? `Final target (tested last week, week ${shape.finalWeek}): ${formatTarget(input.target)}. Keep it; nothing is built toward a test this week.`
+      : `Next check (week ${nextCheckWeek(input.weekNumber, shape)}): ${formatTarget(input.target)}. Build toward it; it is not tested this week.`;
   return [
-    `Next check (week ${nextCheckWeek(input.weekNumber)}): ${formatTarget(input.target)}. Build toward it; it is not tested this week.`,
+    targetLine,
     `Weekly test (the light test, done as written; no number against the target): ${input.test.instructions}`,
   ].join(NL);
+}
+
+/**
+ * B-109: a shorter plan's last week is the ready week before their date; the line says so. Empty in any other week, so
+ * every 12-week plan's prompt is exactly as before.
+ */
+function readyWeekLine(input: WeekCallInput): string {
+  if (planShape(input.totalWeeks).readyWeek !== input.weekNumber) return '';
+  return `${NL}Ready week: their date (an exam, a race, a talk) is right after this week, and last week held the final test. Make this
+week lighter than last week: shorter, easier sessions and nothing new, only sharpening what they already do, so they
+arrive rested and confident. No hard or all-out effort, and no max or test beyond the weekly test above.`;
 }
 
 /** M3.3a (WU-56): the half of the day the re-test takes, as `testStepFor`'s step takes half of the test day. */
@@ -491,7 +553,7 @@ ${input.method.rules.map((rule) => `- ${rule}`).join('\n')}
 THIS WEEK
 Week ${input.weekNumber} of ${input.totalWeeks}, phase "${input.phase.name}": ${input.phase.purpose}
 Focus: ${input.focus}
-${thisWeekTestLines(input)}
+${thisWeekTestLines(input)}${readyWeekLine(input)}
 ${lastWeekBlock(input)}
 
 THE DAYS (already decided; keep them)
@@ -754,7 +816,7 @@ export function checkWeekAnswer(
   options: { quiet?: boolean } = {}
 ): { value: WeekDayPlan[] } | { reason: string; safetyRule?: SafetyRule } {
   const log = options.quiet !== true;
-  const layout = weekLayout(input.planVariant, input.weekStart);
+  const layout = weekLayout(input.planVariant, input.weekStart, input.restWeekdays);
   const rawDays = Array.isArray(data.days) ? (data.days as RawDay[]) : [];
   const soft: string[] = [];
   const days: WeekDayPlan[] = [];
@@ -1039,16 +1101,18 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
   const hits: Breach[] = [];
   // M1.5b (WU-41): a first week back of a high-load goal runs a light test, so nothing from the stored test is let through,
   // and every step is scanned, not only the high-load ones.
-  const scan = { light: isLightWeek(input) };
+  // M3.1 (PSL-20): an experienced lifter's weeks 1 to 3 skip the % of 1RM and reps-in-reserve rules.
+  const experiencedLifter = liftCapsRelaxed(input);
+  const scan = { light: isLightWeek(input), experiencedLifter };
   const profileHighLoad = (input.recovery?.kinds ?? []).some((kind) => kind.highLoad === true);
   // The test step runs the roadmap's test as written (a goal stored before B-63 was never checked): what the test itself
   // says is logged, never refused, or that week could never be written.
-  const testText = scan.light ? [] : textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber);
+  const testText = scan.light ? [] : textSafetyHits([input.test.instructions, input.test.passIf].join(NL), input.weekNumber, { experiencedLifter });
   /** On the test step a rule the test itself breaks is allowed; elsewhere only a sentence copied from the test. */
   const fromTest = (rule: SafetyRule, matched: string | null, testStep: boolean) =>
     testText.some((item) => item.rule === rule && (testStep || (matched !== null && (matched.includes(item.matched) || item.matched.includes(matched)))));
   // M3.3a (WU-55): the re-test step runs the re-tested week's stored test, read as the test step reads its own.
-  const retestText = scan.light || !input.retest ? [] : textSafetyHits([input.retest.test.instructions, input.retest.test.passIf].join(NL), input.weekNumber);
+  const retestText = scan.light || !input.retest ? [] : textSafetyHits([input.retest.test.instructions, input.retest.test.passIf].join(NL), input.weekNumber, { experiencedLifter });
   for (const day of days) {
     const steps = [...day.detailedSteps, ...(day.minimumVersion ? [day.minimumVersion] : [])];
     for (const step of steps) {
@@ -1072,7 +1136,7 @@ function safetyBreachList(days: WeekDayPlan[], input: WeekCallInput, lastAttempt
         }
       }
       if (!input.loadGoal) continue;
-      for (const breach of stepLoadBreaches(step.load, input.weekNumber)) {
+      for (const breach of stepLoadBreaches(step.load, input.weekNumber, { experiencedLifter })) {
         hits.push({
           day,
           step,
@@ -1217,7 +1281,7 @@ function weekLoadBreaches(days: WeekDayPlan[], input: WeekCallInput): Breach[] {
   // M2.2a review: a measured week's test is hard; a light week's (a light test, or a high-load first week back) is not.
   const measured = input.test.light !== true && !isLightWeek(input);
   const week = weekRunning(weekRuns(days, input.loadGoal?.running === true, measured));
-  return weekBreaches(week, input.baseWeek).map((breach: LoadBreach & { run?: Run }) => ({
+  return weekBreaches(week, input.baseWeek, input.loadGoal?.runLevel).map((breach: LoadBreach & { run?: Run }) => ({
     name: breach.run ? breach.run.name : 'This week',
     rule: breach.rule,
     matched: breach.matched,
@@ -1331,7 +1395,7 @@ function safetyLog(input: Pick<WeekCallInput, 'heldSafetyLines'>, line: SafetyLo
 }
 
 export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPlan[] | null> {
-  const layout = weekLayout(input.planVariant, input.weekStart);
+  const layout = weekLayout(input.planVariant, input.weekStart, input.restWeekdays);
   // M2.2a (PSL-15 (1)): a base week whose running isn't known is no base; said once per week call.
   // M2.2a review: only where running is expected, or a run step of the base week had no load.
   if (input.loadGoal && input.baseWeek && !input.baseWeek.known && (input.loadGoal.running || input.baseWeek.runWithoutLoad)) {
@@ -1346,7 +1410,7 @@ export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPla
   let first: RawWeekAnswer | null = null;
   return generateWithOneRetry<RawWeekAnswer, WeekDayPlan[]>(
     buildWeekPrompt(input, layout),
-    WEEK_SYSTEM,
+    weekSystem(input.totalWeeks),
     weekResponseSchema(input.recovery, input.loadGoal),
     (data, lastAttempt) => {
       if (!lastAttempt) {

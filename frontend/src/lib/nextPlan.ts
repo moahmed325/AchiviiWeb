@@ -1,4 +1,5 @@
 import type { FollowUpQuestion, Goal, JourneyResult, NextPlanMode, NextPlanRequest, PlanAnswer } from '../types';
+import { fixedDateKey } from './fixedDate';
 import { findPathwayByTitle } from './certifiedPresets';
 
 /**
@@ -10,7 +11,7 @@ import { findPathwayByTitle } from './certifiedPresets';
 /** NP-1: the line the day-90 screen leads with; null when there is nothing measured to show. */
 export function journeyHeadline(result: JourneyResult | null | undefined): string | null {
   if (!result) return null;
-  if (result.kind === 'deliverable') return `You finished ${result.weeksFinished} of 12 weeks.`;
+  if (result.kind === 'deliverable') return `You finished ${result.weeksFinished} of ${result.totalWeeks ?? 12} weeks.`;
   if (!result.reached) return null;
   return result.start ? `You went from ${result.start} to ${result.reached}.` : `You reached ${result.reached}.`;
 }
@@ -23,7 +24,9 @@ export function journeyOutcome(result: JourneyResult | null | undefined): string
   if (!result?.goal) return null;
   if (result.madeIt) return `You reached your goal: ${result.goal}.`;
   if (result.dayNinetyTarget) {
-    const lead = result.reachedDayNinety ? `You reached your day-90 target: ${result.dayNinetyTarget}.` : `Day-90 target: ${result.dayNinetyTarget}.`;
+    // B-109: a shorter plan has no day 90; its checkpoint target is the final target.
+    const name = result.totalWeeks === undefined ? 'day-90 target' : 'final target';
+    const lead = result.reachedDayNinety ? `You reached your ${name}: ${result.dayNinetyTarget}.` : `${name.charAt(0).toUpperCase()}${name.slice(1)}: ${result.dayNinetyTarget}.`;
     return `${lead} Your goal: ${result.goal}. That's your next plan.`;
   }
   return `Your goal: ${result.goal}. That's your next plan.`;
@@ -68,6 +71,8 @@ export interface NextPlanLaunch {
   startsFrom: string | null;
   /** The old plan's answers, filled in again (NP-3). */
   answers: PlanAnswer[];
+  /** B-106: the old plan's fixed date (`YYYY-MM-DD`) to fill in; none for go further. Onboarding keeps it only while ahead. */
+  fixedDate?: string;
 }
 
 /** Formats a level the person typed as the server will show it. */
@@ -83,6 +88,7 @@ export function nextPlanLaunch(goal: Goal, mode: NextPlanMode, level?: number): 
     isPreset: mode !== 'go_further' && Boolean(findPathwayByTitle(goal.rawGoal)),
     startsFrom,
     answers: goal.roadmap?.answers ?? [],
+    ...(mode !== 'go_further' && fixedDateKey(goal) ? { fixedDate: fixedDateKey(goal) } : {}),
   };
 }
 

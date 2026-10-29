@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RemindersSetting } from './AccountMenu';
 
-// ND-26: the missed-day reminder email, on unless turned off, switched from the account menu.
+// ND-28: the missed-day reminder email, on unless turned off, switched from the account menu.
 
 const auth = vi.hoisted(() => ({
   user: { id: 'u1', email: 'leo@example.com', created_at: '' } as { remindersEnabled?: boolean; remindersAvailable?: boolean } & Record<string, unknown>,

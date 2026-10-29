@@ -20,6 +20,8 @@ export interface PayloadInput extends AnswerState {
   editedOutcome: string;
   clarification: GoalClarification | null;
   routine: RoutineSettings;
+  /** B-106: the fixed date (`YYYY-MM-DD`); added only when set, so a body without one stays as the R-4 baseline pins it. */
+  fixedDate?: string;
   /** Next plan: added last, only when set, so every other body stays as the R-4 baseline pins it. */
   nextPlan?: NextPlanRequest;
 }
@@ -41,6 +43,7 @@ export function buildCreatePayload(input: PayloadInput): CreateGoalPayload {
     answerList,
     domain: clarification?.primaryDomain,
     routine,
+    ...(input.fixedDate ? { fixedDate: input.fixedDate } : {}),
     ...(input.nextPlan ? { nextPlan: input.nextPlan } : {}),
   };
 }

@@ -67,7 +67,7 @@ describe('PUT /api/auth/timezone', () => {
   });
 });
 
-// ND-26: the missed-day reminder email on or off, from Account.
+// ND-28: the missed-day reminder email on or off, from Account.
 describe('PUT /api/auth/reminders', () => {
   const putReminders = (body: unknown, auth = true) =>
     fetch(`${baseUrl}/api/auth/reminders`, {

@@ -8,6 +8,7 @@ import type { MilestoneGateTransition } from '../../types';
 import { formatTarget } from '../../lib/formatters';
 import { isRestLike } from '../../lib/today';
 import { nextCheckLine } from '../../lib/lightTest';
+import { planWeeks } from '../../lib/planLength';
 
 export interface AdaptationMomentStepProps {
   currentWeekNumber: number;
@@ -26,6 +27,8 @@ export interface AdaptationMomentStepProps {
   nextWeekLine?: string | null;
   milestoneGateTransition?: MilestoneGateTransition | null;
   onContinue: () => void;
+  /** B-109: the plan's weeks (a shorter plan's ready week reads as its final target); missing is 12. */
+  totalWeeks?: number;
 }
 
 /**
@@ -48,6 +51,7 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
   nextWeekLine = null,
   milestoneGateTransition,
   onContinue,
+  totalWeeks,
 }) => {
   const isClosingStretch = nextWeekNumber === null;
   const plannedSessions = nextWeekTasks ? nextWeekTasks.filter((t) => !isRestLike(t)).length : 0;
@@ -64,7 +68,7 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
         </h2>
         <p className="text-small text-text-secondary">
           {isClosingStretch
-            ? 'You have completed the 12 planned weeks. Welcome to the Closing Stretch.'
+            ? `You have completed the ${planWeeks({ totalWeeks })} planned weeks. Welcome to the Closing Stretch.`
             : "Next week's practice sessions have been generated from your actual pace and reflection."}
         </p>
       </div>
@@ -166,7 +170,7 @@ export const AdaptationMomentStep: React.FC<AdaptationMomentStepProps> = ({
           )}
 
           {nextWeekTarget && nextWeekLight && nextWeekNumber !== null ? (
-            <p className="font-medium text-text">{nextCheckLine(nextWeekNumber, nextWeekTarget)}</p>
+            <p className="font-medium text-text">{nextCheckLine(nextWeekNumber, nextWeekTarget, { totalWeeks })}</p>
           ) : nextWeekTarget && (
             <div className="flex items-start justify-between gap-3">
               <span className="text-text-secondary shrink-0">Target</span>

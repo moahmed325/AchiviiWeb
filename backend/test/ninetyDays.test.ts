@@ -20,7 +20,7 @@ vi.mock('../src/lib/ai/weekPlan.js', async (importOriginal) => ({
 import { db } from './weekCloseStore.js';
 import { getAuthUser } from '../src/routes/auth.js';
 import { goalRouter } from '../src/routes/goal.js';
-import { generateWeekPlan, weekLayout, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
+import { generateWeekPlan, weekLayout, type PlanVariant, type WeekDayPlan } from '../src/lib/ai/weekPlan.js';
 import { RECOVERY_TEMPLATES } from '../src/lib/recovery/index.js';
 
 const USER = { id: 'u1', email: 'u1@achivii.com', timezone: 'UTC' };
@@ -56,11 +56,12 @@ const written: string[] = [];
  * to (`handoffBrief`), the first lesson sessions hold a seat for each lesson still to do from last week (code puts that
  * lesson there), and new lessons continue after them.
  */
-function lessonWeek(weekStart: Date, whereTheyAre: string[] = []): WeekDayPlan[] {
+function lessonWeek(weekStart: Date, whereTheyAre: string[] = [], variant: PlanVariant = 'steady', restWeekdays?: number[]): WeekDayPlan[] {
   const behind = whereTheyAre.find((line) => line.includes(`kind ${LESSON}`) && line.includes('have not done these steps yet'));
   // The quoted titles before "They are at": the steps still to do, in order.
   let seats = behind ? (behind.split('They are at')[0].match(/"Lesson \d+"/g) ?? []).length : 0;
-  return weekLayout('steady', weekStart).map((day) => {
+  // As the real week call does: the layout from the goal's schedule (B-108).
+  return weekLayout(variant, weekStart, restWeekdays).map((day) => {
     const seat = !day.isRestDay && !day.isTestDay && seats > 0 ? (seats--, true) : false;
     const lesson = day.isRestDay ? null : seat ? `Seat ${day.date}` : `Lesson ${nextLesson++}`;
     if (lesson && !seat) written.push(lesson);
@@ -78,8 +79,12 @@ function lessonWeek(weekStart: Date, whereTheyAre: string[] = []): WeekDayPlan[]
   });
 }
 
-/** Week 1 written at goal create; weeks 2 to 12 wait for the close. */
-function seed() {
+/**
+ * Week 1 written at goal create; weeks 2 to 12 wait for the close. B-109: with `totalWeeks` under 12 the plan is that
+ * many weeks ending on the fixed date, the second-to-last week holds the goal and the last (the ready week) keeps it.
+ */
+function seed(fixedDate: Date | null = null, totalWeeks = 12) {
+  const finalWeek = totalWeeks === 12 ? 12 : totalWeeks - 1;
   db.state.goals.push({
     id: 'g1',
     userId: USER.id,
@@ -89,7 +94,9 @@ function seed() {
     rawGoal: 'Learn Spanish',
     clarifiedOutcome: 'Hold a conversation',
     startDate: START,
-    targetDate: addDays(START, 90),
+    targetDate: totalWeeks === 12 ? addDays(START, 90) : fixedDate!,
+    fixedDate,
+    totalWeeks,
     routine: JSON.stringify({ dailyMinutes: DAILY_MINUTES, planVariant: 'steady', sleepTime: '23:00', preferredSlot: 'evening' }),
     roadmap: {
       finalGoal: 'Learn 100 words',
@@ -98,7 +105,7 @@ function seed() {
       method: { name: 'Lessons', creator: '', rules: ['One lesson at a time'] },
       phases: [
         { name: 'Base', purpose: 'Build.', startWeek: 1, endWeek: 4 },
-        { name: 'Build', purpose: 'Grow.', startWeek: 5, endWeek: 12 },
+        { name: 'Build', purpose: 'Grow.', startWeek: 5, endWeek: Math.max(5, totalWeeks) },
       ],
       answers: [],
       recovery: LANGUAGE,
@@ -107,14 +114,14 @@ function seed() {
     closeTriedAt: null,
     closeTriedWeek: null,
   });
-  for (let weekNumber = 1; weekNumber <= 12; weekNumber++) {
+  for (let weekNumber = 1; weekNumber <= totalWeeks; weekNumber++) {
     db.state.weeks.push({
       id: `w${weekNumber}`,
       goalId: 'g1',
       weekNumber,
       phase: weekNumber <= 4 ? 'Base' : 'Build',
       theme: `Theme ${weekNumber}`,
-      target: { ...TARGET, value: weekNumber * 8 + 4 },
+      target: { ...TARGET, value: weekNumber >= finalWeek ? 100 : Math.round((weekNumber * 96) / finalWeek) + 4 },
       test: TEST,
       status: weekNumber === 1 ? 'active' : 'pending',
       testResult: null,
@@ -175,7 +182,7 @@ beforeEach(() => {
   written.length = 0;
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.mocked(getAuthUser).mockResolvedValue(USER as never);
-  vi.mocked(generateWeekPlan).mockImplementation(async (input) => lessonWeek(input.weekStart, input.whereTheyAre));
+  vi.mocked(generateWeekPlan).mockImplementation(async (input) => lessonWeek(input.weekStart, input.whereTheyAre, input.planVariant, input.restWeekdays));
   for (const method of ['log', 'warn', 'error', 'info'] as const) vi.spyOn(console, method).mockImplementation(() => {});
   // The production switch states (WEEKLY_UPDATE_ENABLED is off there).
   vi.stubEnv('WEEK_CLOSE_ENABLED', 'true');
@@ -191,10 +198,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-async function post(path: string, at: Date, body: unknown = {}) {
+async function post(path: string, at: Date, body: unknown = {}, method = 'POST') {
   vi.setSystemTime(at);
   const res = await fetch(`${baseUrl}/api/goal${path}`, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
     body: JSON.stringify(body),
   });
@@ -207,6 +214,12 @@ interface Person {
   away?: (day: number) => boolean;
   /** Whether they do the day's practice when they open it. */
   practises?: (day: number) => boolean;
+  /** B-106: the goal's fixed date (a race, an exam), as a plan day (0 = START). */
+  fixedDay?: number;
+  /** B-108: on this plan day, before opening the app, they change their schedule with this body. */
+  schedule?: { day: number; body: Record<string, unknown> };
+  /** B-109: a plan shorter than 12 weeks, ending on `fixedDay`. */
+  totalWeeks?: number;
 }
 
 const steps = (task: { detailedSteps: string }): Array<{ title: string; durationMinutes: number; toNextWeek?: Array<{ step: { title: string } }> }> =>
@@ -238,10 +251,17 @@ async function open(person: Person, day: number, problems: string[]) {
   if (reconcile.status !== 200) problems.push(`${where}: reconcile answered ${reconcile.status}`);
 
   const goal = db.goal();
+  const lastWeek = person.totalWeeks ?? 12;
   // Never stuck: one open never leaves a week due again, and the plan never runs past week 12.
   const again = await post('/close-week', at, { mode: 'check' });
   if (again.body.due === true && goal.currentWeek === weekBefore && close.body.due === true) problems.push(`${where}: still due after closing`);
-  if (goal.currentWeek < 1 || goal.currentWeek > 12) problems.push(`${where}: currentWeek ${goal.currentWeek}`);
+  if (goal.currentWeek < 1 || goal.currentWeek > lastWeek) problems.push(`${where}: currentWeek ${goal.currentWeek}`);
+  // B-106: the plan's end (day 90, the day before targetDate) never moves past a fixed date.
+  // B-109: a shorter plan ends the day before it at the latest.
+  const latestEnd = goal.fixedDate ? dateKey(addDays(goal.fixedDate, lastWeek === 12 ? 0 : -1)) : '';
+  if (goal.fixedDate && dateKey(addDays(goal.targetDate, -1)) > latestEnd) {
+    problems.push(`${where}: the plan ends ${dateKey(addDays(goal.targetDate, -1))}, after the fixed date ${dateKey(goal.fixedDate)}`);
+  }
 
   // No week written in the past: a week this open wrote has no day before today that is offered.
   if (goal.currentWeek !== weekBefore) {
@@ -257,9 +277,10 @@ async function open(person: Person, day: number, problems: string[]) {
   // No lesson lost: every lesson written is still stored somewhere (done, waiting, or listed for next week).
   const stored = storedLessons();
   for (const lesson of written) if (!stored.has(lesson)) problems.push(`${where}: ${lesson} is gone`);
-  // Week 12 still aims at the goal.
-  const week12 = db.week(12);
-  if (week12.target?.value !== 100) problems.push(`${where}: week 12 aims at ${JSON.stringify(week12.target)}`);
+  // Week 12 still aims at the goal (B-109: on a shorter plan, the final week and the ready week after it).
+  for (const n of lastWeek === 12 ? [12] : [lastWeek - 1, lastWeek]) {
+    if (db.week(n).target?.value !== 100) problems.push(`${where}: week ${n} aims at ${JSON.stringify(db.week(n).target)}`);
+  }
 
   // They do today's practice if the plan offers it and they choose to.
   const task = db.state.tasks.find((t) => t.date === today && t.weekNumber === goal.currentWeek && !t.isRestDay && !t.notOffered);
@@ -270,13 +291,18 @@ async function open(person: Person, day: number, problems: string[]) {
 }
 
 async function runPlan(person: Person) {
-  seed();
+  seed(person.fixedDay === undefined ? null : addDays(START, person.fixedDay), person.totalWeeks);
   const problems: string[] = [];
   for (let day = 0; day < 140 && db.goal().status === 'active'; day++) {
     if (person.away?.(day)) continue;
+    if (person.schedule?.day === day) {
+      const at = new Date(addDays(START, day).getTime() + 7 * 3_600_000);
+      const changed = await post('/schedule', at, person.schedule.body, 'PATCH');
+      if (changed.status !== 200) problems.push(`${person.name}, plan day ${day + 1}: schedule answered ${changed.status} ${JSON.stringify(changed.body)}`);
+    }
     await open(person, day, problems);
     // Week 12 closed: the plan is done.
-    if (db.week(12).status === 'completed') break;
+    if (db.week(person.totalWeeks ?? 12).status === 'completed') break;
   }
   return problems;
 }
@@ -311,4 +337,52 @@ describe('90 days, made-up people (B-46 (3))', () => {
     expect(db.goal().currentWeek).toBe(12);
     expect(db.state.weeks.some((week) => week.jumped === true)).toBe(true);
   }, 120_000);
+
+  it('Race-day Rae has a race 3 days after day 90 and is away 10 days in week 5 (B-106)', async () => {
+    const problems = await runPlan({ name: 'Rae', fixedDay: 92, away: (day) => day >= 30 && day < 40 });
+    expect(problems).toEqual([]);
+    expect(db.goal().currentWeek).toBe(12);
+    // The break's gap is 5 days; the plan moved only the 3 the race allows, so day 90 is race day.
+    expect(db.goal().movedDays).toBe(3);
+    expect(dateKey(addDays(db.goal().targetDate, -1))).toBe(dateKey(addDays(START, 92)));
+  }, 120_000);
+
+  it('Exam-day Eve\'s exam is on day 90 and she is away 6 weeks: nothing moves, weeks are jumped (B-106)', async () => {
+    const problems = await runPlan({ name: 'Eve', fixedDay: 89, away: (day) => day >= 15 && day < 57 });
+    expect(problems).toEqual([]);
+    expect(db.goal().currentWeek).toBe(12);
+    expect(db.goal().movedDays).toBe(0);
+    expect(db.state.weeks.some((week) => week.jumped === true)).toBe(true);
+  }, 120_000);
+
+  it('Exam Ella has an exam 7 weeks away: a 7-week plan, every week written, the last one ends before the exam (B-109)', async () => {
+    const problems = await runPlan({ name: 'Ella', fixedDay: 51, totalWeeks: 7, practises: (day) => day % 4 !== 2 });
+    expect(problems).toEqual([]);
+    expect(db.goal().currentWeek).toBe(7);
+    expect(db.state.weeks).toHaveLength(7);
+    for (let week = 1; week <= 7; week++) expect(db.tasksOf(week).length).toBe(7);
+    // Week 7's last day is the day before the exam at the latest.
+    const lastDay = db.tasksOf(7).map((t) => t.date).sort().pop()!;
+    expect(lastDay < dateKey(addDays(START, 51))).toBe(true);
+    // The week writer was told it is a 7-week plan.
+    expect(vi.mocked(generateWeekPlan).mock.calls.every(([input]) => input.totalWeeks === 7)).toBe(true);
+  }, 120_000);
+
+  it('Busy Ben has a race 6 weeks away and is away 10 days in week 3: the plan never moves past race day (B-109)', async () => {
+    const problems = await runPlan({ name: 'Ben', fixedDay: 44, totalWeeks: 6, away: (day) => day >= 16 && day < 26 });
+    expect(problems).toEqual([]);
+    expect(db.goal().currentWeek).toBe(6);
+    expect(dateKey(addDays(db.goal().targetDate, -1)) <= dateKey(addDays(START, 44))).toBe(true);
+  }, 120_000);
+
+  it('Shift-change Sam moves from 5 days to 4 in week 5, weekends and Wednesdays off (B-108)', async () => {
+    const problems = await runPlan({ name: 'Shift Sam', schedule: { day: 30, body: { planVariant: 'minimal', restWeekdays: [0, 3, 6] } } });
+    expect(problems).toEqual([]);
+    expect(db.goal().currentWeek).toBe(12);
+    // Week 5 was written before the change; from week 6 on, 4 practice days on Monday, Tuesday, Thursday and Friday.
+    const weekdays = (week: number) => db.tasksOf(week).filter((t) => !t.isRestDay).map((t) => new Date(`${t.date}T00:00:00Z`).getUTCDay()).sort();
+    expect(weekdays(5)).toHaveLength(5);
+    for (const week of [6, 9, 12]) expect(weekdays(week)).toEqual([1, 2, 4, 5]);
+  }, 120_000);
 });
+

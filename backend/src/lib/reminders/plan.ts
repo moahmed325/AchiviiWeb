@@ -2,7 +2,7 @@ import { getZonedTimeParts, normalizeTimezone } from '../timezone.js';
 import { addDays } from '../missedSessions.js';
 
 /**
- * ND-26: who gets the missed-day reminder email, decided in code from stored data only. One gentle email the morning
+ * ND-28: who gets the missed-day reminder email, decided in code from stored data only. One gentle email the morning
  * after a missed practice day, pointing back to today's step. Never nagging:
  * - only when yesterday was a practice day with nothing done and today has an open practice day;
  * - only in the person's morning (`SEND_FROM_HOUR` to `SEND_UNTIL_HOUR`, their time zone);

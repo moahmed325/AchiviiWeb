@@ -20,6 +20,7 @@ vi.mock('../../lib/api', async (importOriginal) => {
     fetchActiveGoal: vi.fn(),
     reconcileGoal: vi.fn().mockResolvedValue({ applies: false, reason: 'no_active_goal' }),
     resetActiveGoal: vi.fn(),
+    updateSchedule: vi.fn(),
   };
 });
 
@@ -235,6 +236,66 @@ describe('Account', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
     expect(trigger).toHaveFocus();
     expect(rail().queryByRole('button', { name: 'Sign out' })).toBeNull();
+  });
+
+  // B-108: Edit my schedule, from the account menu.
+  const SCHEDULED = {
+    ...GOAL,
+    startDate: '2026-09-21T00:00:00.000Z',
+    // As the server sends it: a Monday start, "steady" resting on Thursday and Sunday by position.
+    schedule: { planVariant: 'steady', dailyMinutes: 45, preferredSlot: 'evening', restWeekdays: [0, 4], restWeekdaysChosen: false },
+  } as Goal;
+
+  it('Edit my schedule shows the schedule in force and saves a change from next week', async () => {
+    signedIn(SCHEDULED);
+    mocked.updateSchedule.mockResolvedValue({ startsWeek: 4, startsOn: '2026-10-12' });
+    const user = userEvent.setup();
+    renderAt('/roadmap');
+    await shellReady();
+    await rail().findByRole('link', { name: 'Roadmap' });
+    await user.click(rail().getByRole('button', { name: /^Account/ }));
+    await user.click(rail().getByRole('button', { name: 'Edit my schedule' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit my schedule' });
+    // A Monday start: "steady" rests on Thursday and Sunday until they choose.
+    expect(within(dialog).getByRole('checkbox', { name: 'Thu' })).not.toBeChecked();
+    expect(within(dialog).getByRole('checkbox', { name: 'Sun' })).not.toBeChecked();
+    expect(within(dialog).getByRole('checkbox', { name: 'Mon' })).toBeChecked();
+
+    // A weekend off: train Thursday, rest Saturday.
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Thu' }));
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Sat' }));
+    await user.click(within(dialog).getByRole('radio', { name: '60 min' }));
+    await user.click(within(dialog).getByRole('radio', { name: 'Morning' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Save schedule' }));
+
+    expect(mocked.updateSchedule).toHaveBeenCalledWith({ planVariant: 'steady', restWeekdays: [0, 6], dailyMinutes: 60, preferredSlot: 'morning' }, 't');
+    expect(await within(dialog).findByText('Saved. Your new schedule starts next week, on October 12.')).toBeInTheDocument();
+  });
+
+  it('Edit my schedule holds Save until the days add up, and says when it is the final week', async () => {
+    signedIn(SCHEDULED);
+    const user = userEvent.setup();
+    const { unmount } = renderAt('/roadmap');
+    await shellReady();
+    await rail().findByRole('link', { name: 'Roadmap' });
+    await user.click(rail().getByRole('button', { name: /^Account/ }));
+    await user.click(rail().getByRole('button', { name: 'Edit my schedule' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit my schedule' });
+    await user.click(within(dialog).getByRole('checkbox', { name: 'Thu' }));
+    expect(within(dialog).getByText('6 picked. Pick exactly 5.')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Save schedule' })).toBeDisabled();
+    unmount();
+
+    signedIn({ ...SCHEDULED, currentWeek: 12 } as Goal);
+    renderAt('/roadmap');
+    await shellReady();
+    await rail().findByRole('link', { name: 'Roadmap' });
+    await user.click(rail().getByRole('button', { name: /^Account/ }));
+    await user.click(rail().getByRole('button', { name: 'Edit my schedule' }));
+    const last = await screen.findByRole('dialog', { name: 'Edit my schedule' });
+    expect(last).toHaveTextContent("This is your plan's final week, so there is no next week to change.");
+    expect(within(last).getByRole('button', { name: 'Save schedule' })).toBeDisabled();
   });
 
   it('Reset asks first; confirming deletes the plan and opens onboarding', async () => {

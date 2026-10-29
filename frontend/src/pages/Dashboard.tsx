@@ -14,13 +14,14 @@ import {
   weekProgress,
   type MissNotice,
 } from '../lib/today';
-import { goalTrend, greetingFor, journeyDays, milestones, nextTestDay, practiceTotals, START_SESSION_STATE, TOTAL_DAYS } from '../lib/dashboard';
+import { goalTrend, greetingFor, journeyDays, milestones, nextTestDay, practiceTotals, START_SESSION_STATE } from '../lib/dashboard';
 import { Badge, Button, LoadingState, Skeleton } from '../components/ui';
 import { doneDaysOf, visibleDay } from '../lib/stepLines';
 import { GettingReady } from '../components/today/WeekClose';
 import { Momentum } from '../components/dashboard/Momentum';
 import { JourneyMap } from '../components/dashboard/JourneyMap';
 import { GoalProgress } from '../components/dashboard/GoalProgress';
+import { planDays } from '../lib/planLength';
 
 export const DashboardSkeleton: React.FC = () => (
   <main id="main" className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
@@ -91,7 +92,7 @@ const EmptyShell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 const shortWeekday = (date: string) => new Date(date + 'T12:00:00Z').toLocaleDateString(undefined, { weekday: 'long', timeZone: 'UTC' });
 
 /**
- * ND-27: the Dashboard answers "how am I doing" (ND-19 keeps it an overview; Today is where a step is done). Today's
+ * ND-29: the Dashboard answers "how am I doing" (ND-19 keeps it an overview; Today is where a step is done). Today's
  * session sits first with one way in; below it, the whole plan as a map of days and the goal's own measure. Every
  * number is real stored state, and the page writes nothing.
  */
@@ -139,8 +140,9 @@ export const Dashboard: React.FC = () => {
   const trend = goalTrend(activeGoal);
   const test = nextTestDay(activeGoal.dailyTasks ?? [], now, timezone);
   const nextCheck = test ? 'Next check: ' + (test.date === days.find((d) => d.isToday)?.date ? 'today' : shortWeekday(test.date)) + '.' : null;
-  const daysLeft = Math.max(0, TOTAL_DAYS - day);
-  const mapSummary = totals.daysDone + ' of ' + totals.daysSoFar + ' practice days done so far. Day ' + day + ' of ' + TOTAL_DAYS + '.';
+  const totalDays = planDays(activeGoal);
+  const daysLeft = Math.max(0, totalDays - day);
+  const mapSummary = totals.daysDone + ' of ' + totals.daysSoFar + ' practice days done so far. Day ' + day + ' of ' + totalDays + '.';
 
   const checks = milestones(activeGoal);
   // GoalProgress has nothing to show for a goal with no number, no checks and no milestone this week.
@@ -222,13 +224,13 @@ export const Dashboard: React.FC = () => {
 
       <section aria-labelledby="map-heading" className="dash-panel animate-rise-in relative mt-5 grid gap-8 p-7 sm:p-8 md:grid-cols-[minmax(0,14rem)_1fr] md:items-center" style={stagger(320)}>
         <div>
-          <h2 id="map-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Your 90 days</h2>
+          <h2 id="map-heading" className="font-ui-mono text-micro uppercase text-text-secondary">Your {totalDays} days</h2>
           <p className="mt-5 flex items-baseline gap-2">
             <span className="tabular text-5xl font-semibold tracking-[-0.04em] text-text">{totals.daysDone}</span>
             <span className="text-body text-text-secondary">of {totals.daysSoFar} so far</span>
           </p>
           <p className="mt-3 text-small text-text-secondary">
-            Day {day} of {TOTAL_DAYS}
+            Day {day} of {totalDays}
             {week?.phase ? ' · ' + week.phase : ''}
             <span className="block">{daysLeft > 1 ? daysLeft + ' days to go' : daysLeft === 1 ? '1 day to go' : 'Final day'}</span>
           </p>

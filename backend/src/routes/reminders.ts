@@ -6,7 +6,7 @@ import { emailConfigured, validUnsubscribeToken } from '../lib/reminders/email.j
 import { runReminders } from '../lib/reminders/run.js';
 
 /**
- * ND-26: the missed-day reminder email.
+ * ND-28: the missed-day reminder email.
  * - `POST /api/reminders/run`: one pass, called hourly by `.github/workflows/reminders.yml` with
  *   `Authorization: Bearer <REMINDERS_CRON_SECRET>`. Sends nothing unless `MISSED_DAY_REMINDERS_ENABLED` is on and
  *   the email settings are all present.

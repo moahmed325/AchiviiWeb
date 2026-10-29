@@ -15,7 +15,7 @@ export const SEND_SPACING_MS = 600;
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * ND-26: one pass over everyone with reminders on and an active goal. Only the days around today are loaded (every
+ * ND-28: one pass over everyone with reminders on and an active goal. Only the days around today are loaded (every
  * zone's yesterday and today fall within two days of UTC's today); the last completion is loaded only for someone who
  * had a reminder before and would get one now. Each reminder is claimed first with a conditional write of
  * `lastReminderAt` (still the value loaded), so overlapping runs never send twice; a failed send puts the old value

@@ -105,6 +105,34 @@ export function targetFamily(target: WeekTarget, context: FamilyContext = {}): T
   return null;
 }
 
+/**
+ * Plan safety limits M3.1 (PSL-19): what the person already runs in one go, read from the roadmap's starting point (in
+ * the targets' metric and unit): a single run's distance or its continuous minutes, higher is better, with a metric
+ * that names one run ("longest run", "continuous run") and no week ("weekly mileage", "total"). A race time is never
+ * read (the roadmap's cautious guess for a time is a slower, so larger, number, and it isn't time they have run), nor
+ * a pace, another family or no starting point. Used only to raise the fixed longest-run cap of a week with no base
+ * week, never above what they already do.
+ */
+/** A metric that names a single run, and one that names a week's running. */
+const ONE_RUN_WORDS = /\b(?:longest|long run|continuous|continuously|non-?stop|single|in one go|without stopping|one run)\b/;
+const WEEK_WORDS = /\b(?:week|weeks|weekly|per week|a week|mileage|total|volume|cumulative|monthly)\b/;
+
+export interface RunLevel {
+  km?: number;
+  minutes?: number;
+}
+
+export function runLevelOf(target: WeekTarget, startValue: number | null | undefined, context: FamilyContext = {}): RunLevel | null {
+  if (target.kind !== 'number' || typeof startValue !== 'number' || !Number.isFinite(startValue) || startValue <= 0) return null;
+  if (targetFamily(target, context) !== 'running_distance' || target.direction !== 'higher_is_better' || isPaceUnit(target.unit)) return null;
+  const metric = target.metric.toLowerCase();
+  if (!ONE_RUN_WORDS.test(metric) || WEEK_WORDS.test(metric)) return null;
+  const km = kmPerUnit(target.unit);
+  if (km !== null) return { km: startValue * km };
+  const minutes = minutesPerUnit(target.unit);
+  return minutes !== null ? { minutes: startValue * minutes } : null;
+}
+
 /** A target outside every family that still looks physical, for the `unknown_family` log line (never refused). */
 export function looksPhysical(target: WeekTarget, context: { highLoad?: boolean } = {}): boolean {
   if (target.kind !== 'number') return false;
@@ -190,22 +218,28 @@ export interface TargetClimb {
  * week 1 is not checked and the check runs from week 2 (PSL-11 Q14). Targets with no family come back unchanged.
  */
 export function safeTargetClimb(targets: WeekTarget[], startValue: number | null, context: FamilyContext = {}): TargetClimb {
-  return climbBySteps(targets, targets.map((_, index) => index + 1), startValue, context, 1);
+  return climbBySteps(targets, targets.map((_, index) => index + 1), startValue, context, () => 1);
 }
 
 /** PSL-11 Q1: weeks 4, 8 and 12 are four weeks apart, so four safe steps apart. Not a limit: the weeks between them. */
-const STEPS_BETWEEN_CHECKS = 4;
-
 /**
  * Plan safety limits M1.3 (RULE-2, PSL-11 Q1): a stored split-pathway goal, checked on its big-test weeks only
- * (`weeks`, in order, normally 4, 8 and 12), each at most four safe steps beyond the one before and the first against
- * the starting point. The same rules as `safeTargetClimb`, so a goal it already checked is never lowered again.
+ * (`weeks`, in order, normally 4, 8 and 12), each at most one safe step a week beyond the one before (four on a 12-week
+ * plan) and the first against the starting point, as of week `fromWeek` (0: the start; the last closed big week when
+ * the climb starts there). B-109: a shorter plan's big weeks are 3 to 6 weeks apart. The same rules as
+ * `safeTargetClimb`, so a goal it already checked is never lowered again.
  */
-export function safeCheckWeekClimb(targets: WeekTarget[], weeks: number[], startValue: number | null, context: FamilyContext = {}): TargetClimb {
-  return climbBySteps(targets, weeks, startValue, context, STEPS_BETWEEN_CHECKS);
+export function safeCheckWeekClimb(
+  targets: WeekTarget[],
+  weeks: number[],
+  startValue: number | null,
+  context: FamilyContext = {},
+  fromWeek = 0
+): TargetClimb {
+  return climbBySteps(targets, weeks, startValue, context, (index) => weeks[index] - (index === 0 ? fromWeek : weeks[index - 1]));
 }
 
-function climbBySteps(targets: WeekTarget[], weeks: number[], startValue: number | null, context: FamilyContext, steps: number): TargetClimb {
+function climbBySteps(targets: WeekTarget[], weeks: number[], startValue: number | null, context: FamilyContext, stepsAt: (index: number) => number): TargetClimb {
   const first = targets[0];
   const family = first ? targetFamily(first, context) : null;
   const out = targets.map((target) => ({ ...target }));
@@ -223,6 +257,7 @@ function climbBySteps(targets: WeekTarget[], weeks: number[], startValue: number
       return;
     }
     let limit: number | null = prev ?? target.value;
+    const steps = stepsAt(index);
     for (let step = 0; step < steps && limit !== null; step += 1) limit = nextSafeStep(target, limit, context);
     if (limit !== null && harder(target.value, limit, target.direction)) {
       lowered.push({ week, model: target.value, safe: limit });

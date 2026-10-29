@@ -3,9 +3,9 @@ export interface User {
   email: string;
   timezone?: string;
   created_at: string;
-  /** ND-26: the missed-day reminder email; on unless the person turned it off. */
+  /** ND-28: the missed-day reminder email; on unless the person turned it off. */
   remindersEnabled?: boolean;
-  /** ND-26: whether reminder emails are being sent at all (the server's switch and settings); the setting shows only then. */
+  /** ND-28: whether reminder emails are being sent at all (the server's switch and settings); the setting shows only then. */
   remindersAvailable?: boolean;
 }
 
@@ -61,6 +61,8 @@ export interface RoutineSettings {
   preferredSlot: 'morning' | 'afternoon' | 'evening';
   dailyMinutes: number; // 30, 45, 60, 90
   planVariant?: 'steady' | 'accelerated' | 'minimal';
+  /** Edit my schedule (B-108): the chosen rest weekdays (0 Sunday to 6 Saturday); sent only when the person picked them. */
+  restWeekdays?: number[];
   commitments?: CommitmentItem[];
 }
 
@@ -410,6 +412,18 @@ export interface Goal {
   status: 'active' | 'completed' | 'paused' | 'archived';
   startDate: string;
   targetDate: string;
+  /** B-106: the outside date the plan never moves past (an exam, a race, a talk), or null. */
+  fixedDate?: string | null;
+  /** B-109: the plan's weeks, 4 to 12 (`lib/planLength.ts`); missing on an older response means 12. */
+  totalWeeks?: number;
+  /** B-108: the schedule in force, as the server's week writer will use it (`goalScheduleOf`). */
+  schedule?: {
+    planVariant: 'steady' | 'accelerated' | 'minimal';
+    dailyMinutes: number;
+    preferredSlot: 'morning' | 'afternoon' | 'evening';
+    restWeekdays: number[];
+    restWeekdaysChosen: boolean;
+  } | null;
   currentWeek: number;
   answers: string; // JSON string
   routine: string; // JSON string
@@ -461,6 +475,8 @@ export interface JourneyResult {
   nearGoal: boolean;
   weeksFinished: number;
   lastDone: string | null;
+  /** B-109: the plan's weeks, sent only when not 12. */
+  totalWeeks?: number;
 }
 
 export interface PreviousPlan {
@@ -493,12 +509,16 @@ export interface Checkpoint {
   last: boolean;
   /** A raise all the way back to the full goal. */
   toFullGoal: boolean;
+  /** B-109: a shorter plan's final-test week; the card says "by the end of week n", not "by day 90". */
+  finalWeek?: number;
 }
 
 /** Checkpoints (RULE-11): the day-90 target and the goal shown. */
 export interface DayNinetyLine {
   target: string;
   goal: string;
+  /** B-109: a shorter plan's final-test week; the line says "Final target", not "Day-90 target". */
+  finalWeek?: number;
 }
 
 export interface Retest {
@@ -529,6 +549,8 @@ export interface CreateGoalPayload {
   domain?: string;
   routine: RoutineSettings;
   startDate?: string;
+  /** B-106: the fixed date (`YYYY-MM-DD`), only when one is set. */
+  fixedDate?: string;
   /** Next plan: only when this plan continues an earlier one. */
   nextPlan?: NextPlanRequest;
 }

@@ -1,6 +1,6 @@
 import { Prisma, type DailyTask, type Goal, type RoadmapWeek } from '@prisma/client';
 import { prisma } from '../prisma.js';
-import { TOTAL_WEEKS } from '../ai/roadmap.js';
+import { shapeOf } from '../planLength.js';
 import { slotTimeFor, type WeekDayPlan } from '../ai/weekPlan.js';
 import type { Retest } from '../ai/retestStep.js';
 import { dayCloseInstant } from '../missedSessions.js';
@@ -16,12 +16,14 @@ import { answerLogLine, expireOpen, openCheckpoint, readCheckpoints } from './ch
 import type { CloseCheckpoint } from './checkpointClose.js';
 import {
   BREAK_FROM_GAP_DAYS,
+  FINAL_WEEK_DATE_INSIGHT,
   FINAL_WEEK_INSIGHT,
   KEEP_GOING_INSIGHT,
   WELCOME_BACK_INSIGHT,
   breakLength,
   firstWeekBackFor,
   goalLoad,
+  fixedDateRoom,
   pastLimitMove,
   type PastLimitChoice,
 } from './breaks.js';
@@ -63,7 +65,7 @@ export const NOT_OFFERED_WEEK_INSIGHT = 'No practice days were offered this week
 export function autoCloseInsight(move: WeekMove | null): string {
   // M1.5b (WU-40 (2)): after the choice past the limit, the line names the week they pick up at.
   if (move?.choice === 'keep_going') return KEEP_GOING_INSIGHT.replace('{n}', String(move.weekBack));
-  if (move?.choice === 'final_week') return FINAL_WEEK_INSIGHT;
+  if (move?.choice === 'final_week') return move.finalStartedBefore ? FINAL_WEEK_DATE_INSIGHT : FINAL_WEEK_INSIGHT;
   if (move && move.breakDays !== null) return WELCOME_BACK_INSIGHT;
   if (!move || move.days <= 0) return AUTO_CLOSE_INSIGHT;
   return move.days < move.gap ? PARTIAL_MOVE_INSIGHT : MOVED_INSIGHT;
@@ -100,7 +102,8 @@ export function weekScore(tasks: readonly DailyTask[]) {
  * `WEEK_CLOSE_ENABLED` off (RULE-18: no gap, no move, no days not offered) and for week 12, which has no week after it.
  * - `gap`: days from the new week's planned start to the local date of the first open that tried to close this week
  *   (`closeTriedAt` when `closeTriedWeek` is this week, else `now`), so days spent on failed writes never count (RULE-9).
- * - `days`: for a gap of 2 or more, `min(gap, 28 - movedDays)`; else 0.
+ * - `days`: for a gap of 2 or more, `min(gap, 28 - movedDays)`, and never past the goal's fixed date (B-106,
+ *   `fixedDateRoom`); else 0.
  * - `writtenOn`: the person's local date now. Every row of the new week dated before it is not offered.
  * - `breakDays` (M1.5a, RULE-13, WU-18): for a gap of 7 or more, the break's length (`breakLength`, from the closing
  *   week's last done step in `closingTasks` to the first try); else null. The move itself is the same either way.
@@ -122,6 +125,12 @@ export interface WeekMove {
   choiceNeeded: PastLimitChoice | null;
   /** The choice the move follows: `choiceNeeded` when the request gave it, else null. */
   choice: PastLimitChoice | null;
+  /** B-106: the days the goal's fixed date still allowed (`fixedDateRoom`), or null with no fixed date ahead. */
+  dateRoom: number | null;
+  /** B-106: the fixed date made the move shorter than it would have been without it. */
+  dateCut: boolean;
+  /** B-106: "Do my final week" moved less than it takes for week 12 to start today, so week 12 started earlier. */
+  finalStartedBefore: boolean;
 }
 
 /** M1.5b (WU-19, WU-40 (1)): the weeks a move jumps, first to last; empty for an ordinary close. */
@@ -142,7 +151,8 @@ export class CheckpointAcceptedError extends Error {
  */
 export function withUpdateEntries(roadmap: Record<string, unknown>, update: PlannedUpdate | null | undefined): Record<string, unknown> {
   if (update?.week12) {
-    const kept = Array.isArray(roadmap.loweredTargets) ? (roadmap.loweredTargets as LoweredTarget[]).filter((item) => item.week !== TOTAL_WEEKS) : [];
+    const week12 = update.week12.week;
+    const kept = Array.isArray(roadmap.loweredTargets) ? (roadmap.loweredTargets as LoweredTarget[]).filter((item) => item.week !== week12) : [];
     roadmap.loweredTargets = [...kept, update.week12].sort((a, b) => a.week - b.week);
   }
   // M3.1 review (WU-46): a pathway's week 12 test names its target, so `finalTest` follows a lowered week 12.
@@ -157,7 +167,7 @@ export function jumpedWeeks(closedWeek: number, move: Pick<WeekMove, 'weekBack'>
 }
 
 export function planWeekMove(
-  goal: Pick<Goal, 'startDate' | 'targetDate' | 'movedDays' | 'closeTriedAt' | 'closeTriedWeek'>,
+  goal: Pick<Goal, 'startDate' | 'targetDate' | 'movedDays' | 'closeTriedAt' | 'closeTriedWeek'> & { fixedDate?: Date | null; totalWeeks?: number | null },
   closedWeek: number,
   now: Date,
   timezone?: string | null,
@@ -165,15 +175,23 @@ export function planWeekMove(
   /** M1.5b: the person's choice past the limit; used only when it is the one this break needs. */
   choice?: PastLimitChoice | null
 ): WeekMove | null {
-  if (!weekCloseEnabled() || closedWeek + 1 > TOTAL_WEEKS) return null;
+  const shape = shapeOf(goal);
+  if (!weekCloseEnabled() || closedWeek + 1 > shape.weeks) return null;
   const firstTry = goal.closeTriedWeek === closedWeek && goal.closeTriedAt && goal.closeTriedAt.getTime() <= now.getTime() ? goal.closeTriedAt : now;
   const gap = gapDays(goal.startDate, closedWeek, firstTry, timezone);
   const moved = Math.max(0, goal.movedDays ?? 0);
-  const room = Math.max(0, MOVE_LIMIT_DAYS - moved);
-  const past = pastLimitMove(gap, room, closedWeek);
-  const chosen = past && choice === past.choice ? past : null;
-  const days = chosen ? chosen.days : gap >= MOVE_FROM_GAP_DAYS ? Math.min(gap, room) : 0;
   const tz = normalizeTimezone(timezone);
+  // B-106: a fixed date ahead cuts the room, so the plan's end never moves past it.
+  const dateRoom = fixedDateRoom(goal.targetDate, goal.fixedDate, getZonedDateString(firstTry, tz), shape.readyWeek !== null);
+  const moveWith = (limit: number | null) => {
+    const room = Math.max(0, Math.min(MOVE_LIMIT_DAYS - moved, limit ?? Infinity));
+    const past = pastLimitMove(gap, room, closedWeek, limit, shape);
+    const chosen = past && choice === past.choice ? past : null;
+    return { past, chosen, days: chosen ? chosen.days : gap >= MOVE_FROM_GAP_DAYS ? Math.min(gap, room) : 0 };
+  };
+  const { past, chosen, days } = moveWith(dateRoom);
+  const dateCut = dateRoom !== null && days < moveWith(null).days;
+  const finalStartedBefore = chosen?.choice === 'final_week' && chosen.days < gap - 7 * (chosen.weekBack - closedWeek - 1);
   const breakDays =
     gap >= BREAK_FROM_GAP_DAYS ? breakLength(closingTasks, weekStartFor(goal.startDate, closedWeek).toISOString().slice(0, 10), getZonedDateString(firstTry, tz)) : null;
   return {
@@ -187,6 +205,9 @@ export function planWeekMove(
     weekBack: chosen ? chosen.weekBack : closedWeek + 1,
     choiceNeeded: past?.choice ?? null,
     choice: chosen?.choice ?? null,
+    dateRoom,
+    dateCut,
+    finalStartedBefore,
   };
 }
 
@@ -212,7 +233,7 @@ export async function writeWeekAfter(
    */
   context: { now?: Date; timezone?: string | null; choice?: PastLimitChoice | null; coachNote?: string; weekBefore?: DailyTask[]; retest?: Retest } = {}
 ): Promise<{ written: WeekDayPlan[] | null; move: WeekMove | null; choiceNeeded?: PastLimitChoice } | null> {
-  if (weekNumber + 1 > TOTAL_WEEKS) return { written: null, move: null };
+  if (weekNumber + 1 > shapeOf(goal).weeks) return { written: null, move: null };
   const move = planWeekMove(goal, weekNumber, context.now ?? new Date(), context.timezone, goal.dailyTasks, context.choice);
   // M1.5b (WU-38 (1)): past the limit nothing is written until the person chooses; refused before any model call.
   if (move?.choiceNeeded && !move.choice) return { written: null, move, choiceNeeded: move.choiceNeeded };
@@ -392,7 +413,7 @@ export async function saveWeekClose(input: WeekCloseInput): Promise<SavedClose |
     }
 
     let nextTasks: DailyTask[] = [];
-    if (written && nextWeek <= TOTAL_WEEKS) {
+    if (written && nextWeek <= shapeOf(goal).weeks) {
       nextTasks = await saveWeekTasks(goal.id, nextWeek, written, tx, move ? { notOfferedBefore: move.writtenOn } : undefined);
       // M1.5a (WU-18): the break's length is stored on the first week back, by the request that wins only.
       const breakDays = move && move.breakDays !== null ? { breakDays: move.breakDays } : {};
@@ -423,7 +444,7 @@ export function closeAnswer(goal: ClosingGoal, weekNumber: number, saved: SavedC
     review: saved.review,
     // WU-33 (3): 0 for a week with no score, as its review row stores it; the row's `tasksPlanned` of 0 says not counted.
     scorePercentage: score ?? 0,
-    nextWeekNumber: weekNumber + 1 <= TOTAL_WEEKS ? move?.weekBack ?? weekNumber + 1 : null,
+    nextWeekNumber: weekNumber + 1 <= shapeOf(goal).weeks ? move?.weekBack ?? weekNumber + 1 : null,
     nextWeekTasks: saved.nextTasks,
     isMilestoneCheckpoint: Boolean(gate),
     milestoneGateTransition: gate,
@@ -475,6 +496,12 @@ export function logJump(goal: Pick<Goal, 'id'>, weekNumber: number, move: WeekMo
   } catch (err) {
     console.warn('[WeekClose] Could not log the jump:', err);
   }
+}
+
+/** B-106: one line per close (review or automatic) whose move the fixed date made shorter. Never fails a saved close. */
+export function logFixedDate(goal: Pick<Goal, 'id'>, weekNumber: number, move: WeekMove | null | undefined): void {
+  if (!move?.dateCut) return;
+  console.log(`[WeekClose] goal ${goal.id} week ${weekNumber} fixedDate room ${move.dateRoom} moved ${move.days} gap ${move.gap}`);
 }
 
 /** WU-30 (1): one line per close, for O1's production checks. Never fails a close that is already saved. */

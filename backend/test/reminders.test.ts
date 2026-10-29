@@ -35,7 +35,7 @@ const candidate = (over: Partial<ReminderCandidate> = {}): ReminderCandidate => 
   ...over,
 });
 
-describe('reminderFor (ND-26)', () => {
+describe('reminderFor (ND-28)', () => {
   it('reminds the morning after a missed practice day', () => {
     expect(reminderFor(candidate(), NOW)).toEqual({ userId: 'u1', email: 'leo@example.com', today: '2026-10-26', hasMinimum: true });
   });
@@ -96,7 +96,7 @@ describe('reminderFor (ND-26)', () => {
   });
 });
 
-describe('the reminder email (ND-26)', () => {
+describe('the reminder email (ND-28)', () => {
   beforeEach(() => {
     vi.stubEnv('REMINDERS_SIGNING_SECRET', 'test-signing-secret');
     vi.stubEnv('API_PUBLIC_URL', 'https://api.example.com/');
@@ -135,7 +135,7 @@ describe('the reminder email (ND-26)', () => {
   });
 });
 
-describe('runReminders (ND-26)', () => {
+describe('runReminders (ND-28)', () => {
   const fetchMock = vi.fn();
   const row = (over: Record<string, unknown> = {}) => ({
     id: 'u1',
@@ -212,7 +212,7 @@ describe('runReminders (ND-26)', () => {
   });
 });
 
-describe('/api/reminders routes (ND-26)', () => {
+describe('/api/reminders routes (ND-28)', () => {
   let server: Server;
   let baseUrl: string;
 

@@ -1,100 +1,43 @@
 import React from 'react';
+import { CERTIFIED_PATHWAYS } from '../../../lib/certifiedPresets';
 import { Button } from '../Button';
 import { Eyebrow } from '../Section';
-import { StaircaseScene } from '../StaircaseScene';
+import { GoalPreview } from '../GoalPreview';
 
-const LEAD_WORDS = ['Your', 'ambition', 'deserves'];
-const WORD_STEP_MS = 110;
+const MINUTES = CERTIFIED_PATHWAYS.map((p) => p.dailyMinutes);
 
 export const Hero: React.FC = () => (
   <section
     id="top"
     aria-labelledby="hero-title"
-    className="relative isolate overflow-hidden px-5 pt-28 sm:px-10 sm:pt-32 lg:px-16 lg:pt-0 lg:min-h-[100svh]"
+    className="relative isolate overflow-hidden bg-background px-gutter pb-20 pt-28 sm:pb-28 sm:pt-40"
   >
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-      <div
-        className="hero-parallax absolute -right-[10%] top-[8%] h-[70vmin] w-[70vmin]"
-        style={{ transform: 'translate3d(0, calc(var(--hero-p, 0) * -90px), 0)' }}
-      >
-        <div className="gold-breathe h-full w-full rounded-full bg-[radial-gradient(circle,rgba(200,169,107,0.22),rgba(200,169,107,0.06)_45%,transparent_70%)]" />
-      </div>
-      <div className="absolute inset-x-0 bottom-0 h-px gold-hairline" />
-    </div>
-
-    <div className="mx-auto grid w-full max-w-[1280px] items-center gap-4 lg:min-h-[100svh] lg:grid-cols-12 lg:gap-8">
-      <div
-        className="hero-parallax relative z-10 lg:col-span-6 lg:py-32"
-        style={{
-          transform: 'translate3d(0, calc(var(--hero-p, 0) * -36px), 0)',
-          opacity: 'calc(1 - var(--hero-p, 0) * 0.55)',
-        }}
-      >
-        <Eyebrow tone="achievement" className="reveal is-visible">
-          A 90-day system for one meaningful goal
-        </Eyebrow>
-        <h1
-          id="hero-title"
-          className="mt-6 max-w-[10ch] text-[clamp(3rem,15vw,6.25rem)] font-semibold leading-[0.92] tracking-[-0.055em] text-text sm:mt-7"
-        >
-          {LEAD_WORDS.map((word, index) => (
-            <React.Fragment key={word}>
-              <span className="word-rise" style={{ animationDelay: `${160 + index * WORD_STEP_MS}ms` }}>
-                {word}
-              </span>{' '}
-            </React.Fragment>
-          ))}
-          <span
-            className="word-rise gold-text whitespace-nowrap"
-            style={{ animationDelay: `${160 + LEAD_WORDS.length * WORD_STEP_MS + 80}ms` }}
-          >
-            a path.
-          </span>
-        </h1>
-        <p className="mt-6 max-w-[34rem] text-[clamp(1rem,1.4vw,1.2rem)] leading-[1.65] text-text-secondary sm:mt-7">
-          Achivii turns what you want into a 90-day journey with phases, milestones and one focused step every day,
-          fitted around the hours you actually have.
-        </p>
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Button size="lg" variant="gold" withArrow to="/signup">
-            Start your journey
-          </Button>
-          <Button size="lg" variant="secondary" href="#method">
-            See how it works
-          </Button>
-        </div>
-        <p className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-2 font-ui-mono text-[12px] uppercase tracking-[0.18em] text-text-secondary/80">
-          <span className="flex items-center gap-3 whitespace-nowrap">
-            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-achievement shadow-[0_0_10px_2px_rgba(200,169,107,0.6)]" />
-            Free to start
-          </span>
-          <span aria-hidden="true" className="hidden text-text-muted sm:inline">
-            /
-          </span>
-          <span className="whitespace-nowrap">Built around your schedule</span>
-        </p>
-      </div>
-
-      <div className="relative -mx-6 sm:-mx-10 lg:mx-0 lg:col-span-6 lg:h-[100svh]">
-        <div
-          className="hero-parallax scene-fade mx-auto h-[62svh] max-h-[640px] w-full sm:h-[70svh] lg:h-full lg:max-h-none"
-          style={{ transform: 'translate3d(0, calc(var(--hero-p, 0) * 54px), 0)' }}
-        >
-          <StaircaseScene className="h-full w-full" />
-        </div>
-
-        <div
-          aria-hidden="true"
-          className="stair-piece absolute bottom-[14%] left-6 hidden w-[260px] rounded-panel border border-achievement/30 bg-background/70 p-4 shadow-[0_24px_60px_-30px_rgba(200,169,107,0.5)] backdrop-blur-md sm:block lg:bottom-[22%] lg:left-0"
-          style={{ '--stair-delay': '2300ms' } as React.CSSProperties}
-        >
-          <p className="font-ui-mono text-[11px] uppercase tracking-[0.18em] text-achievement-hover">Today · Day 01</p>
-          <p className="mt-2 text-[15px] font-medium leading-snug text-text">Write the one-sentence version of your goal.</p>
-          <p className="mt-3 flex items-center gap-2 font-ui-mono text-[11px] uppercase tracking-[0.16em] text-text-secondary">
-            <span className="h-1.5 w-1.5 rounded-full bg-achievement" />
-            15 min · then you're done
+    <div aria-hidden="true" className="landing-art landing-art-stairs" />
+    <div className="mx-auto w-full max-w-[1120px]">
+      <div className="grid items-center gap-14 lg:grid-cols-12 lg:gap-10">
+        <div className="lg:col-span-7">
+          <Eyebrow>Free 90-day plans</Eyebrow>
+          <h1 id="hero-title" className="mt-5 max-w-[14ch] text-balance text-h1 text-text">
+            Pick a goal. Get a plan for the next 90 days.
+          </h1>
+          <p className="mt-6 max-w-[32rem] text-body-lg text-text-secondary">
+            Choose from {CERTIFIED_PATHWAYS.length} guided goals, from running a 10K to writing a book, or bring your
+            own. Every day you get one step, sized to the time you have. Miss a day and the plan adjusts.
+          </p>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Button size="lg" variant="gold" withArrow href="#goals">
+              Choose your goal
+            </Button>
+            <Button size="lg" variant="secondary" href="#how">
+              How it works
+            </Button>
+          </div>
+          <p className="tabular mt-6 text-small text-text-secondary">
+            Free · No card needed · {Math.min(...MINUTES)}–{Math.max(...MINUTES)} min a day
           </p>
         </div>
+
+        <GoalPreview className="mx-auto w-full max-w-[440px] lg:col-span-5" />
       </div>
     </div>
   </section>

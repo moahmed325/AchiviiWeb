@@ -38,6 +38,8 @@ import { DailyTimeCard, RetestNotice } from './Retest';
 import { CheckpointCard } from './Checkpoint';
 import { CLOSE_FAILED } from './WeekClose';
 import { closeLineWeek } from '../../lib/weekClose';
+import { fixedDateLine } from '../../lib/fixedDate';
+import { closingStartDay, planDays, planWeeks } from '../../lib/planLength';
 import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
@@ -46,6 +48,8 @@ import { useAutoSwap } from './useAutoSwap';
 import { StepInstructions } from './StepInstructions';
 import { doneDaysOf, movedFrom, movedHereLine, visibleDay } from '../../lib/stepLines';
 import { usePlanAction } from './usePlanAction';
+import { FirstStepShare } from './FirstStepShare';
+import { isFirstStep } from '../../lib/firstStep';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
 
@@ -238,7 +242,7 @@ const DayMark: React.FC<{ task: DailyTask; now: Date; timezone?: string }> = ({ 
 
 /**
  * The current week: done, rest, today and the rest, from real task status. Each day is a button; choosing one shows its
- * step (ND-28: no separate "Show week" row).
+ * step (ND-30: no separate "Show week" row).
  */
 const WeekGlance: React.FC<{
   tasks: DailyTask[];
@@ -330,6 +334,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   // Weekly update M1.2b (WU-28): the automatic close's line, once. Dismissing it hides it here at once and records it
   // on the server, so no device shows it again; if that save fails, the next load shows it again.
   const closeLine = closeLineWeek(goal);
+  const dateLine = fixedDateLine(goal, new Date(), timezone);
   const dismissCloseLine = (weekNumber: number) => {
     const seenAt = new Date().toISOString();
     goalContext.updateActiveGoal({
@@ -362,18 +367,18 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const intention = parseIntention(shown?.implementationIntention);
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now, timezone);
-  const journeyPercent = Math.min(100, Math.max(2, Math.round((day / 90) * 100)));
+  const journeyPercent = Math.min(100, Math.max(2, Math.round((day / planDays(goal)) * 100)));
   // A day not offered is never done here (the server never classifies it done).
   const done = task?.status === 'completed' && !task.notOffered;
   const nextTask = task ? findNextTask(tasks, task.id) : null;
   const shownNext = nextTask ? visibleDay(nextTask, doneDays) : null;
   const todayTask = tasks.find((t) => isToday(t, now, timezone)) ?? null;
-  // ND-28: the done line counts every practice session so far, this one included.
+  // ND-30: the done line counts every practice session so far, this one included.
   const sessionNumber = (goal.dailyTasks ?? []).filter((t) => t.status === 'completed' && !isRestLike(t)).length;
   const moreParts = [shown?.minimumVersion ? 'The 10-minute version' : '', intention ? 'When and where' : '', task?.resourceTitle ? 'Resource' : ''].filter(Boolean);
   const hasMore = moreParts.length > 0;
   const weekCount = weekProgress(tasks);
-  // ND-28: what finishing this session adds, for the focus completion screen; none for a day already done or a rest.
+  // ND-30: what finishing this session adds, for the focus completion screen; none for a day already done or a rest.
   const sessionProgress: SessionProgress | undefined =
     task && !done && !isRestLike(task)
       ? {
@@ -401,12 +406,16 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   // M3.2: on a gentle-return day the 10-minute version is the default; when short on time it is one tap away.
   const gentleReturn = notice?.kind === 'gentle_return';
   const shortOnTime = viewingToday && !gentleReturn && shortOnTimeOffer(goalContext.reconciliation, goal, now, timezone);
+  // The first practice step: starting is made easy (the 10-minute version is offered) and finishing it is marked.
+  const firstStep = isFirstStep(goal, task);
+  const firstStepToday = firstStep && viewingToday && !done && !gentleReturn;
+  const offerMinimum = shortOnTime || (firstStepToday && Boolean(shown?.minimumVersion));
   const openFocus = (startWith: 'full' | 'minimum') => {
     setFocusStart(startWith);
     setFocusOpen(true);
   };
 
-  // ND-27: the Dashboard's Start link arrives with `startSession`; the session opens at once when today's step can be
+  // ND-29: the Dashboard's Start link arrives with `startSession`; the session opens at once when today's step can be
   // started here (not ahead, not done, not a rest day, no swap question waiting). Either way the request is used once.
   const location = useLocation();
   const navigate = useNavigate();
@@ -479,10 +488,10 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         </div>
       )}
 
-      {/* ND-28: one line of where you are; the Dashboard holds the progress story, so the step comes first here. */}
+      {/* ND-30: one line of where you are; the Dashboard holds the progress story, so the step comes first here. */}
       <header className="animate-rise-in relative" style={stagger(0)}>
         <p className="tabular font-ui-mono text-micro uppercase text-achievement">
-          <span aria-label={`Day ${day} of 90`}>Day {day} of 90</span>
+          <span aria-label={`Day ${day} of ${planDays(goal)}`}>Day {day} of {planDays(goal)}</span>
           <span aria-hidden="true"> · </span>
           {isClosingStretch ? 'Closing stretch' : `Week ${goal.currentWeek || 1}`}
           {week?.phase && !isClosingStretch && <> · {week.phase}</>}
@@ -493,6 +502,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
             <div className="dash-journey__fill" />
           </div>
         </div>
+        {/* B-106: a goal with a fixed date shows it next to the plan's end. */}
+        {dateLine && <p className="mt-3 text-small text-text-secondary">{dateLine}</p>}
         {goal.basis?.label && (
           <div className="mt-4">
             <BasisBadge basis={goal.basis} />
@@ -535,8 +546,10 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 Week {goal.currentWeek || 1} is ready for review
               </h2>
               <p className="mt-2 max-w-md text-small text-text-secondary">
-                {goal.currentWeek && goal.currentWeek >= 12
-                  ? "You've reached the end of Week 12. Complete this review to unlock your final closing stretch (days 85–90)."
+                {goal.currentWeek && goal.currentWeek >= planWeeks(goal)
+                  ? `You've reached the end of Week ${planWeeks(goal)}. Complete this review to unlock your final closing stretch${
+                      closingStartDay(goal) <= planDays(goal) ? ` (days ${closingStartDay(goal)}–${planDays(goal)})` : ''
+                    }.`
                   : "You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path."}
               </p>
             </div>
@@ -653,12 +666,18 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   {week?.test?.instructions && <p className="mt-3 text-body text-text">{week.test.instructions}</p>}
                   {/* M2.1: a light week shows the next check it builds toward, not a pass mark against the target. */}
                   {isLightTest(week?.test) && week?.target && (
-                    <p className="mt-2 text-small text-text-secondary">{nextCheckLine(week.weekNumber, week.target)}</p>
+                    <p className="mt-2 text-small text-text-secondary">{nextCheckLine(week.weekNumber, week.target, goal)}</p>
                   )}
                   {week?.test?.passIf && !isLightTest(week.test) && (
                     <p className="mt-2 text-small text-text-secondary">{formatPassIf(week.test.passIf)}</p>
                   )}
                 </div>
+              )}
+
+              {firstStepToday && (
+                <Callout>
+                  <p className="text-text">Your first step. Start whenever you’re ready; it only has to be today’s.</p>
+                </Callout>
               )}
 
               {steps.length > 0 && !done && !task.isRestDay && (
@@ -750,14 +769,14 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                       </Button>
                     )
                   ))}
-                {shortOnTime && !done && (
+                {offerMinimum && !done && (
                   <Button variant="secondary" onClick={() => openFocus('minimum')} className="w-full sm:w-auto">
                     Start the 10-minute version
                   </Button>
                 )}
               </div>
               )}
-              {shortOnTime && !done && <p className="mt-3 text-small text-text-secondary">The 10-minute version still counts toward this week.</p>}
+              {offerMinimum && !done && <p className="mt-3 text-small text-text-secondary">The 10-minute version still counts toward this week.</p>}
               {/* The quiet way: a step done without the timer, a rest day logged, or a done day undone. */}
               {!task.notOffered && !(ahead && !done) && (
                 <div
@@ -781,6 +800,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 {actionError ?? ''}
               </p>
               {viewingToday && <TodayPlanActions goal={goal} action={planAction} now={now} timezone={timezone} />}
+
+              {done && firstStep && <FirstStepShare goalText={goal.rawGoal} dayNumber={task.dayNumber} />}
               {(done || task.isRestDay) && (
                 <div className="today-next mt-8 rounded-card border border-border bg-background/50 p-5 sm:p-6">
                   {nextTask && shownNext ? (
@@ -964,6 +985,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           startWith={focusStart}
           doneDays={doneDays}
           progress={sessionProgress}
+          isFirstStep={firstStep}
         />
       )}
 

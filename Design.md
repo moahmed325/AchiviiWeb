@@ -65,6 +65,7 @@ Tokens are named by **role, never by colour**, so a rebrand changes only the `@t
 | `text-secondary` | `#A7A59E` | Supporting text, labels, **all micro text** |
 | `text-muted` | `#6F6D67` | Large text, placeholders and decorative dividers only (see §2.2) |
 | `text-on-inverse` | `#0B0B0A` | Text on `surface-inverse`, on the primary button, and on accent fills |
+| `text-secondary-on-inverse` | `#5B564C` | Supporting text on `surface-inverse` |
 | `accent` | `#7FA58B` | Progress, selected state, active markers |
 | `accent-hover` | `#A8C8A9` | Hover of accent elements; **the focus ring**; accent text on dark |
 | `accent-on-inverse` | `#3F6B4E` | Any green text, icon or focus ring on `surface-inverse` |
@@ -106,6 +107,7 @@ On the light surface:
 |---|---|---|
 | `text-on-inverse` on `surface-inverse` | 17.11 | Pass |
 | `accent-on-inverse` on `surface-inverse` | 5.33 | Pass |
+| `text-secondary-on-inverse` on `surface-inverse` | 6.41 | Pass |
 | `text-muted` on `surface-inverse` | 4.496 | **Fail** for normal text (large text only) |
 | `text-secondary` on `surface-inverse` | 2.14 | **Fail** |
 | `accent` on `surface-inverse` | 2.38 | **Fail.** Use `accent-on-inverse`. |
@@ -121,7 +123,7 @@ Rules that follow from this:
 - **`text-muted` fails AA for normal text.** Use it only for large text, placeholders and decorative marks. Anything a user must read at body size or smaller uses `text-secondary` or stronger.
 - **Micro text (`text-micro`, 12px) always uses `text-secondary` or stronger, never `text-muted`.**
 - **Controls a user must find have a 3:1 boundary.** Inputs, textareas, selects, checkboxes and radios use `border-control`. `border` and `border-strong` are decorative: they may outline buttons, cards, choice cards and segmented tracks only because those are identified by their text label, not by the line around them.
-- **On `surface-inverse`, only `text-on-inverse` and `accent-on-inverse` pass.** Every status colour, `text-secondary` and `accent-hover` fail there, which is why the light surface holds text and `TextLink` only for now.
+- **On `surface-inverse`, only `text-on-inverse`, `text-secondary-on-inverse` and `accent-on-inverse` pass.** Every status colour, `text-secondary` and `accent-hover` fail there, which is why the light surface holds text and `TextLink` only for now.
 - **Colour is never the only signal.** Status has a word (Badge), progress has a number (`ProgressBar` `valueText`), step states have different shapes (`StepMarker`), and errors have an icon and a sentence.
 
 ### 2.3 Typography
@@ -406,11 +408,12 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 `components/today/Today.tsx` is `/` for a signed-in user with a goal (OD-3, M5.3, M5.4). Visual level 1: minimal and immediate, one solid surface for the step, no dashboard of cards and no charts.
 
-Today is where the step is done. `/dashboard` (`pages/Dashboard.tsx`, ND-19, ND-27) shows how the person is doing: the sessions done (counted up from the last visit), today's session with one Start (it opens Focus on Today through the `startSession` router state), the goal's own measure (`GoalProgress`) and the 90-day map (`JourneyMap`). It reads the same `lib/today.ts` helpers plus `lib/dashboard.ts`, so it always agrees with Today, and writes nothing itself.
+Today is where the step is done. `/dashboard` (`pages/Dashboard.tsx`, ND-19, ND-29) shows how the person is doing: the sessions done (counted up from the last visit), today's session with one Start (it opens Focus on Today through the `startSession` router state), the goal's own measure (`GoalProgress`) and the 90-day map (`JourneyMap`). It reads the same `lib/today.ts` helpers plus `lib/dashboard.ts`, so it always agrees with Today, and writes nothing itself.
 
-- **Order (ND-28):** one line "Day N of 90 · Week N · phase" (gold mono; the day part carries `aria-label="Day N of 90"`), the goal the user chose (`rawGoal`, the page's one `h1`, `text-h3`, quiet), a thin gold thread to day 90, then the step. No big day numeral and no stored outcome here: the Dashboard tells the progress story, the Roadmap shows the outcome (ND-18 as extended by ND-28).
+- **Order (ND-30):** one line "Day N of {plan days} · Week N · phase" (gold mono; `planDays` from `lib/planLength.ts`, 90 unless a fixed date makes the plan shorter, B-109; the day part carries `aria-label="Day N of {plan days}"`), a fixed date's line when there is one (B-106), the goal the user chose (`rawGoal`, the page's one `h1`, `text-h3`, quiet), a thin gold thread to day 90, then the step. No big day numeral and no stored outcome here: the Dashboard tells the progress story, the Roadmap shows the outcome (ND-18 as extended by ND-30).
 - **The step:** the title as `h2`, "N min · N steps · at HH:MM", `whyToday` when present (no fallback copy), the notice line, a test day's "Today's check" box (instructions and pass mark; "Today's light check" on a light week), then **the steps as a numbered list** (`Steps in this session`): each row is a button that opens its instruction, focus cue, timing, output, "Watch out for", "Done when" and step resource in place; several can be open. Then **Start** (the one gold button; "Start the 10-minute version" on a gentle-return day) and, quietly beneath it, "Already did it? Mark complete". A rest day says "Nothing to do today…" with a quiet "Log your rest". No key-session callout: the badge says it.
 - **Done:** a gold check settles in with "Session N is in the books." (N counts every practice session so far), a band of light crosses the card once, the next practice day's preview (with its Test day or Key session badge) sits under it, and "Do it again" and "Mark not done" are quiet. The steps fold into "Show the N steps".
+- **The first step** (`isFirstStep`): a line ("Your first step. Start whenever you’re ready; it only has to be today’s."), the 10-minute version offered beside Start, "Your first step is done." at the end of the focus session, and the share card (`FirstStepShare`) once it is done.
 - **More:** one closed row named by what it holds ("The 10-minute version · When and where · Resource"), only when one of them is stored. Notes keep their own row (blur and explicit Save).
 - **The end of a focus session** (`FocusCompletion`, `progress` from Today) names the session's number and the week ("5 of 6 this week.", or "Week complete. Every session done."), with the week's marks and today's lighting up, before the optional note.
 - **Start stays in the first screen** at 390 × 844 with a normal-length title and `whyToday` present, above the bottom bar.

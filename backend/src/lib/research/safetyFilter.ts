@@ -8,8 +8,8 @@
  * improvement, never a completion: treat every new production observation as a candidate
  * entry rather than assuming the current list is sufficient.
  *
- * The numbers in plans that do get written are kept in range by the deterministic clamps
- * in safetyClamps.ts, not by this filter.
+ * The numbers in plans that do get written are kept in range by the plan safety limits
+ * (`lib/safety/`: targets at roadmap time, each week's load in the week call), not by this filter.
  */
 
 export type UnsafeCategory =

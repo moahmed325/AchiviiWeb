@@ -328,6 +328,9 @@ test.describe('pathways, account and offline', () => {
     } else {
       await expect(trigger).toHaveAttribute('aria-expanded', 'true');
       await page.keyboard.press('Tab');
+      // B-108: Edit my schedule comes first in the panel.
+      await expect(page.getByRole('button', { name: 'Edit my schedule' })).toBeFocused();
+      await page.keyboard.press('Tab');
       await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toBeFocused();
       await page.keyboard.press('Tab');
       await expect(signOut).toBeFocused();
@@ -357,6 +360,8 @@ test.describe('pathways, account and offline', () => {
     }
     expect(order).toEqual(['Skip to content', 'Achivii, home', 'Dashboard', 'Today', 'Roadmap', 'Progress', 'Pathways', 'Coach ✦', 'Account']);
     await page.keyboard.press('Enter');
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: 'Edit my schedule' })).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toBeFocused();
     await page.keyboard.press('Tab');
@@ -420,7 +425,7 @@ test.describe('pathways, account and offline', () => {
     await accountButton(page).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Your ambition deserves a path.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick a goal. Get a plan for the next 90 days.');
   });
 
   test('the offline chip appears in the shell from the load-time check, above the bottom bar', async ({ page, isMobile }) => {

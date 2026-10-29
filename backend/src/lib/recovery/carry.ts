@@ -36,7 +36,7 @@ import {
   type PlannedCarry,
 } from '../carryForward.js';
 import type { DetailedStep } from '../ai/goalDecomposer.js';
-import { TOTAL_WEEKS } from '../ai/roadmap.js';
+import { shapeOf } from '../planLength.js';
 import { isRestLike, type DayClassification } from '../missedSessions.js';
 import { byWritten, doneStepsOf, followsMethod, inOrderMoveKinds, inOrderQueue, isDoneCopy, originOf, stepKey, type QueueItem } from './inOrder.js';
 import { actionOf, MARKS_NEXT_SESSION, type RecoveryProfile, type StepRecovery } from './profile.js';
@@ -624,7 +624,7 @@ export function planRecovery(input: RecoveryInput): RecoveryPlan {
     for (const session of sessions) if (session.holds) queueEnd.set(`${kind}\u0000${stepKey(session.holds, session.holds.title)}`, 'session');
     for (const item of queue.steps) if (item.status === 'still_open') queueEnd.set(`${kind}\u0000${item.key}`, 'session');
     // MR-32 (6): the plan's final week has no next week, so its leftovers are left out.
-    const finalWeek = weekNumber >= TOTAL_WEEKS;
+    const finalWeek = weekNumber >= shapeOf(input.goal).weeks;
     for (const item of [...left, ...listed]) queueEnd.set(`${kind}\u0000${item.key}`, finalWeek ? 'left_out' : 'next_week');
     for (const key of handedOn) queueEnd.set(`${kind}\u0000${key}`, 'next_week');
     const leftover = [...left, ...listed].sort(byWritten).map((item) => ({ ...refOf(item), step: asWritten(item.step) }));

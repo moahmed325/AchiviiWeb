@@ -1,6 +1,6 @@
 name: Missed-day reminders
 
-# ND-26: once an hour, ask the API to send the missed-day reminder emails that are due (each person gets theirs in
+# ND-28: once an hour, ask the API to send the missed-day reminder emails that are due (each person gets theirs in
 # their own morning). The API sends nothing unless MISSED_DAY_REMINDERS_ENABLED is "true" in Render. Needs the
 # repository secret REMINDERS_CRON_SECRET (the same value as in Render); without it this run does nothing.
 on:

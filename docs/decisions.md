@@ -107,10 +107,10 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | D-12 | Mobile acceptance in every phase | Process | Decided | All |
 | D-13 | Framework documents live in `docs/` | Process | Decided | 2026-09-27 — Mo |
 | D-14 | Brand master images and where they live | Design | Decided | 1, 9, 12 |
-| D-15 | Hero staircase is an SVG scene, not the photo | Design | Decided | 1 |
+| D-15 | Hero staircase is an SVG scene, not the photo | Design | Superseded by ND-26 | 1 |
 | D-16 | Marketing motion uses IntersectionObserver and CSS, no library | Technology | Decided | 1 |
-| D-17 | No pricing in the marketing nav while no pricing exists | Product | Decided | 1, 10 |
-| D-18 | Landing page presents Custom Journeys as future Premium; no free-text goal box | Product | Decided | 1, 3, 10 |
+| D-17 | No pricing in the marketing nav while no pricing exists | Product | Superseded by ND-26 | 1, 10 |
+| D-18 | Landing page presents Custom Journeys as future Premium; no free-text goal box | Product | Superseded by ND-26 | 1, 3, 10 |
 | D-19 | Pathway choice carries through signup, waiting for the goal to load | Architecture | Decided | 1, 2 |
 | OD-1a | Store weekly test results | Architecture | Decided (A) | 7, 8 |
 | OD-1b | Goal completion transition | Architecture | Decided (B) | 9 |
@@ -148,6 +148,8 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-20 | Legacy billing columns on `users` (schema drift) | Technology | Decided (A) | — |
 | ND-21 | Retire plan v1 goals | Architecture | Decided (A) | — |
 | ND-22 | Gemini only; no fallback model for now | Architecture | Decided | — |
+| ND-26 | The landing page is built around picking a goal | Product | Decided | — |
+| ND-27 | Visitors see their plan before signing up | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -458,7 +460,7 @@ The Roman-garden website screenshot is a layout reference only, not an asset.
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by [ND-26](#nd-26--the-landing-page-is-built-around-picking-a-goal) |
 | Category | Design |
 | Needed by | 1 |
 | Raised | Phase 1 |
@@ -492,7 +494,7 @@ The Roman-garden website screenshot is a layout reference only, not an asset.
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by [ND-26](#nd-26--the-landing-page-is-built-around-picking-a-goal) |
 | Category | Product |
 | Needed by | 1, 10 |
 | Raised | Phase 1 (VDS §13 lists "Pricing") |
@@ -508,7 +510,7 @@ The Roman-garden website screenshot is a layout reference only, not an asset.
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by [ND-26](#nd-26--the-landing-page-is-built-around-picking-a-goal) |
 | Category | Product |
 | Needed by | 1, 3, 10 |
 | Raised | Phase 1 |
@@ -1823,7 +1825,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
-### ND-26 — A missed-day reminder email, on by default
+### ND-28 — A missed-day reminder email, on by default
 
 | Field | Value |
 |---|---|
@@ -1846,7 +1848,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
-### ND-27 — The Dashboard shows how the person is doing
+### ND-29 — The Dashboard shows how the person is doing
 
 | Field | Value |
 |---|---|
@@ -1869,7 +1871,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
-### ND-28 — Today puts the step first
+### ND-30 — Today puts the step first
 
 | Field | Value |
 |---|---|
@@ -1888,7 +1890,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 * The weekly review can no longer be opened (to draft) before its last day from Today; the bridge says when it opens (ND-24).
 * `Design.md` §6 describes the new order; styles in `index.css` ("Today v2", and the focus completion block).
 
-**Related.** ND-18, ND-24, ND-27.
+**Related.** ND-18, ND-24, ND-29.
 
 ---
 
@@ -1938,9 +1940,11 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-09 | ND-22 Decided by Mo: Groq removed; Gemini is the only provider until a better second model is added (`3edac07`). |
 | 2026-10-25 | ND-24 Decided by Mo: days ahead cannot be completed (409 `not_yet`) and the weekly review opens on the week's last day (409 `week_not_over`). |
 | 2026-10-26 | ND-25 Decided by Mo: a missed key session is swapped onto its receiving day without asking (the question only if the swap is refused); moved steps show the day they came from. |
-| 2026-10-26 | ND-26 Decided by Mo: a missed-day reminder email, on by default, sent through Resend, behind `MISSED_DAY_REMINDERS_ENABLED`. |
-| 2026-10-29 | ND-27 Decided by Mo: the Dashboard shows how the person is doing (sessions counted up, goal measure, 90-day map); its Start opens the session on Today in one tap. |
-| 2026-10-29 | ND-28 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
+| 2026-10-26 | ND-26 Decided by Mo: the landing page is rebuilt around picking a goal, calmer and without invented proof; D-15, D-17 and D-18 marked Superseded. |
+| 2026-10-29 | ND-27 Decided by Mo: a free goal card opens a plan preview (two schedule questions, then the shape of the visitor's 90 days) before sign-up. |
+| 2026-10-26 | ND-28 Decided by Mo: a missed-day reminder email, on by default, sent through Resend, behind `MISSED_DAY_REMINDERS_ENABLED`. |
+| 2026-10-29 | ND-29 Decided by Mo: the Dashboard shows how the person is doing (sessions counted up, goal measure, 90-day map); its Start opens the session on Today in one tap. |
+| 2026-10-29 | ND-30 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
 
 ### PAY-1 — Achivii Pro pricing
 
@@ -1970,3 +1974,51 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Nothing to build; this is what the code already does (`authorizeNewCustomGoal`, `authorizeNextPlan` are the only Pro checks). Starting another custom goal, or a next plan at day 90, needs Pro again.
 
 **Related.** ND-9, ND-10, next-plan NP-7, `docs/features/billing/03-feature.md` ("Lose paid access").
+
+---
+
+### ND-26 — The landing page is built around picking a goal
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-26 — Mo: the landing page is too vague and too visually busy |
+| Decided | 2026-10-26 — Mo |
+
+**Context.** Visitors will mostly come from social posts (X, LinkedIn) without a goal in mind. The old page opened on an abstract headline and a decorative staircase, answered "does it cover my goal?" only in its sixth section, and layered parallax, a scroll thread, a cursor spotlight, grain and count-ups. Pro is live, so D-17 and D-18 (no pricing, Custom Journeys "planned") no longer matched the product. There are no real user results yet.
+
+**Decision.**
+* The page follows the visitor's questions: hero (what Achivii does, in one line, beside an example day), goals (every pathway with its daily time and the method it is built on, and a link to Pro for a goal of your own), how it works, why it works, pricing (Free and Pro), FAQ, a closing call to action.
+* The hero's main action jumps to the goals; signup without a goal stays in the nav and the closing call to action.
+* No testimonials, user counts or invented numbers until real results exist. "Why it works" shows how plans are made instead: named methods, fixed safety limits in code, plans that adjust to missed days. Method names carry a note that their authors don't endorse Achivii.
+* Calm: no parallax, scroll effects, cursor effects, grain, marquee or word and number animations. Dark with gold stays. The staircase scene is retired (D-15).
+* Pricing is in the nav and on the page; Coach isn't shown until it exists.
+
+**Consequences.** Supersedes D-15, D-17 and D-18. The landing copy must stay true of the product: change it when pricing, pathways or the plan rules change. A light (white with gold) section is a later design decision under D-3.
+
+**Related.** D-3, PAY-1, `frontend/src/components/marketing/`.
+
+---
+
+### ND-27 — Visitors see their plan before signing up
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: make visitors honestly excited about using Achivii, while keeping the page light |
+| Decided | 2026-10-29 — Mo |
+
+**Context.** The landing page described a plan but showed nothing about the visitor's own. Excitement comes from seeing something that is yours, and visitors from social posts arrive without a goal.
+
+**Decision.**
+* A free goal card on the landing page opens a plan preview instead of going straight to sign-up: daily time, then days a week (one question per screen), then the shape of the 90 days: sessions and hours, Day 1 and the Day 90 goal, the three phases, the first session, and the method. Then "Save my plan, free" goes to `/signup?pathway=<id>`.
+* Nothing in the preview is generated or invented: it is the pathway's own data (`lib/certifiedPresets.ts`) and the two answers (`lib/planPreview.ts`). It says the full plan is written after sign-up, from where the person is starting.
+* The two answers are kept in `localStorage['achivii_plan_preview']` and fill in onboarding's schedule step for the same pathway, so nothing is asked twice. They are cleared when the plan is created.
+
+**Consequences.** The preview's questions are onboarding's own choices (`PLAN_VARIANT_OPTIONS`, `DAILY_MINUTE_OPTIONS` in `lib/schedule.ts`); change them in one place. A custom goal (Pro) has no preview.
+
+**Related.** ND-26, ND-4, `frontend/src/components/marketing/PlanPreviewDialog.tsx`.

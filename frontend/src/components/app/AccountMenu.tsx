@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, CircleUser, LogOut, RotateCcw } from 'lucide-react';
+import { CalendarDays, ChevronDown, CircleUser, LogOut, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import { Button, Checkbox, Dialog, DialogContent, DialogTrigger, cx } from '../ui';
 import { ResetPlanDialog } from './ResetPlanDialog';
+import { EditScheduleDialog } from './EditScheduleDialog';
 import { fetchBillingAccountState, BillingAccountState } from '../../lib/api';
 
 /**
@@ -32,6 +33,8 @@ const itemClass =
 
 interface AccountPanelProps {
   context: AccountContext;
+  /** B-108: opens "Edit my schedule". */
+  onEditSchedule: () => void;
   onReset: () => void;
   onSignOut: () => void;
 }
@@ -79,7 +82,7 @@ export const TimezoneNotice: React.FC = () => {
 };
 
 /**
- * ND-26: the missed-day reminder email, on unless turned off. Shown only while reminders are really sent
+ * ND-28: the missed-day reminder email, on unless turned off. Shown only while reminders are really sent
  * (`remindersAvailable`), so it never promises an email that won't come. Saves on change; a failed save says so.
  */
 export const RemindersSetting: React.FC = () => {
@@ -113,7 +116,7 @@ export const RemindersSetting: React.FC = () => {
   );
 };
 
-const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut }) => {
+const AccountPanel: React.FC<AccountPanelProps> = ({ context, onEditSchedule, onReset, onSignOut }) => {
   const { user, token } = useAuth();
   const [billing, setBilling] = useState<BillingAccountState | null>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
@@ -168,6 +171,14 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onReset, onSignOut
       </div>      <ul className="mt-2 flex flex-col gap-1">
         {withGoal && (
           <li>
+            <button type="button" onClick={onEditSchedule} className={itemClass}>
+              <CalendarDays aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0" />
+              Edit my schedule
+            </button>
+          </li>
+        )}
+        {withGoal && (
+          <li>
             <button type="button" onClick={onReset} className={itemClass}>
               <RotateCcw aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0" />
               Reset 90-Day Plan
@@ -201,19 +212,25 @@ export const AccountDisclosure: React.FC<AccountDisclosureProps> = ({ context, p
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
-  const resetOpenRef = useRef(false);
+  const dialogOpenRef = useRef(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
 
   const openReset = (next: boolean) => {
-    resetOpenRef.current = next;
+    dialogOpenRef.current = next;
     setResetOpen(next);
+  };
+  // B-108: like the reset dialog, it owns Escape and outside clicks while open.
+  const openSchedule = (next: boolean) => {
+    dialogOpenRef.current = next;
+    setScheduleOpen(next);
   };
 
   useEffect(() => {
     // While the reset dialog is open, it owns Escape and outside clicks.
-    if (!open || resetOpen) return;
+    if (!open || resetOpen || scheduleOpen) return;
     const onPointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
@@ -228,12 +245,12 @@ export const AccountDisclosure: React.FC<AccountDisclosureProps> = ({ context, p
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [open, resetOpen]);
+  }, [open, resetOpen, scheduleOpen]);
 
   // Only a keyboard move to somewhere else closes it: a mouse click that doesn't focus its target has no relatedTarget.
   const onBlur = (event: React.FocusEvent) => {
     const next = event.relatedTarget as Node | null;
-    if (!next || resetOpenRef.current || rootRef.current?.contains(next)) return;
+    if (!next || dialogOpenRef.current || rootRef.current?.contains(next)) return;
     setOpen(false);
   };
 
@@ -272,9 +289,10 @@ export const AccountDisclosure: React.FC<AccountDisclosureProps> = ({ context, p
           placement === 'up' ? 'inset-x-0 bottom-full mb-2' : 'right-0 top-full mt-2 w-72',
         )}
       >
-        <AccountPanel context={context} onReset={() => openReset(true)} onSignOut={signOut} />
+        <AccountPanel context={context} onEditSchedule={() => openSchedule(true)} onReset={() => openReset(true)} onSignOut={signOut} />
       </div>
       {context === 'app' && <ResetPlanDialog open={resetOpen} onOpenChange={openReset} onReset={() => setOpen(false)} />}
+      {context === 'app' && <EditScheduleDialog open={scheduleOpen} onOpenChange={openSchedule} />}
     </div>
   );
 };
@@ -291,6 +309,7 @@ export const AccountSheet: React.FC<AccountSheetProps> = ({ context, triggerClas
   const signOut = useSignOut();
   const [open, setOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -302,6 +321,7 @@ export const AccountSheet: React.FC<AccountSheetProps> = ({ context, triggerClas
       <DialogContent title="Account" size="sm">
         <AccountPanel
           context={context}
+          onEditSchedule={() => setScheduleOpen(true)}
           onReset={() => setResetOpen(true)}
           onSignOut={() => {
             setOpen(false);
@@ -309,6 +329,7 @@ export const AccountSheet: React.FC<AccountSheetProps> = ({ context, triggerClas
           }}
         />
         {context === 'app' && <ResetPlanDialog open={resetOpen} onOpenChange={setResetOpen} onReset={() => setOpen(false)} />}
+        {context === 'app' && <EditScheduleDialog open={scheduleOpen} onOpenChange={setScheduleOpen} />}
       </DialogContent>
     </Dialog>
   );

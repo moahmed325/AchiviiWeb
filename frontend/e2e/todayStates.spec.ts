@@ -62,7 +62,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     }
   });
 
-  test('key session: displays key session badge, without a filler callout (ND-28)', async ({ page }) => {
+  test('key session: displays key session badge, without a filler callout (ND-30)', async ({ page }) => {
     const base = shellGoal();
     const keyGoal = {
       ...base,

@@ -15,7 +15,7 @@
 | M2.1 | The week call tags every step | AC-3, AC-4 | DONE 2026-10-09 | [m2.1](milestones/m2.1-tag-steps.md) |
 | M2.2 | The eval | AC-11 | DONE 2026-10-09 (eval failed) | [m2.2](milestones/m2.2-eval.md) |
 | M2.3 | Tighter kinds, and the eval again | AC-3, AC-4, AC-11 | DONE 2026-10-09 (eval missed by one kind) | [m2.3](milestones/m2.3-tighter-kinds.md) |
-| O1 | Mo: agree to switch on custom profiles once the eval has passed (M2.3 re-run; MR-14) | AC-2 | KEPT OFF 2026-10-09 (Mo); kept off again 2026-10-16 at M4.1 (Mo, MR-38): re-run the eval, then decide (B-56) | |
+| O1 | Mo: agree to switch on custom profiles once the eval has passed (M2.3 re-run; MR-14) | AC-2 | KEPT OFF 2026-10-09 (Mo); kept off again 2026-10-16 at M4.1 (Mo, MR-38): re-run the eval, then decide (B-56). DONE: eval passed 2026-10-25 (B-56 round 3, actions 90.3%); switched on 2026-10-28 (Mo) | |
 | M3.1a | Carry: move, continue, let go, fixed; counts; the switch | AC-5, AC-9, AC-10 | DONE 2026-10-10 | [m3.1a](milestones/m3.1a-carry-actions.md) |
 | M3.1b | Carry: order and rest gaps | AC-6 | DONE 2026-10-10 | [m3.1b](milestones/m3.1b-order-and-rest-gaps.md) |
 | M3.1c | In-order steps never lost inside the week; easy first hard session back; warm-up line only on physical steps | AC-14, AC-15 | DONE 2026-10-11 | [m3.1c](milestones/m3.1c-in-order-never-lost.md) |

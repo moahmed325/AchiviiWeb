@@ -1,4 +1,4 @@
-# Missed-day reminder email (ND-26)
+# Missed-day reminder email (ND-28)
 
 One gentle email the morning after a missed practice day: "No catch-up needed", a link to today's step, and the
 10-minute version when it has one. The email does not name the step: opening the app can still move it (a carry, or

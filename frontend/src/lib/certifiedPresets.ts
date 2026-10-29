@@ -281,6 +281,36 @@ export function groupPathways(pathways: CertifiedPathway[]): PathwayGroup[] {
 /** The directions that hold at least one pathway, in display order. An empty direction is never shown. */
 export const PATHWAY_GROUPS: PathwayGroup[] = groupPathways(CERTIFIED_PATHWAYS);
 
+/** The four pathways the landing page shows as photos, one per direction; the rest sit behind "See all". */
+export const FEATURED_PATHWAYS: CertifiedPathway[] = ['run10k', 'spanish', 'youtube', 'speech'].map((id) => {
+  const pathway = CERTIFIED_PATHWAYS.find((p) => p.id === id);
+  if (!pathway) throw new Error(`Unknown featured pathway: ${id}`);
+  return pathway;
+});
+
+/**
+ * Where each pathway starts and what it aims for, in plain words, for the landing page's goal cards. `dayNinety` is
+ * the plan's target, shown as "Day 90 goal", never as a promise. `weekOneSession` is a real session from week 1.
+ */
+export interface PathwayArc {
+  dayOne: string;
+  dayNinety: string;
+  weekOneSession: string;
+}
+
+export const PATHWAY_ARCS: Record<string, PathwayArc> = {
+  run10k: { dayOne: 'Find your easy running pace', dayNinety: '10K in under 50 minutes', weekOneSession: 'Aerobic base pace and cadence' },
+  spanish: { dayOne: 'Say your first sentences out loud', dayNinety: 'A 15-minute conversation, no freezing', weekOneSession: 'Building sentences from memory, out loud' },
+  youtube: { dayOne: 'Write your first 10 video ideas', dayNinety: '12 videos published', weekOneSession: 'Thumbnail framing and a 30-second hook' },
+  speech: { dayOne: 'Your talk’s message in one line', dayNinety: '15 minutes on stage, from memory', weekOneSession: 'Your opening hook, recorded three times' },
+  guitar: { dayOne: 'Your first clean chord changes', dayNinety: '5 songs, from memory', weekOneSession: 'Chord changes to a metronome at 72 BPM' },
+  book: { dayOne: 'Your first 500 words', dayNinety: 'A finished 30,000-word manuscript', weekOneSession: 'A 60-minute closed-door writing sprint' },
+  chess: { dayOne: 'Your first forks and pins', dayNinety: 'A 1200 rapid rating', weekOneSession: '15 puzzles and one rated rapid game' },
+  saas: { dayOne: 'Your app’s first data model', dayNinety: 'Live and ready for users', weekOneSession: 'Database schema and API endpoints' },
+  recomp: { dayOne: 'Your starting numbers and first lifts', dayNinety: 'Leaner, with muscle kept', weekOneSession: 'Upper-body strength with slow lowering' },
+  deepwork: { dayOne: 'One phone-free focus hour', dayNinety: '4 hours of deep work a day', weekOneSession: 'A 60-minute airplane-mode focus block' },
+};
+
 /** Looks up a pathway by the slug used in `/signup?pathway=<slug>`; the slug is the pathway's `id`. */
 export function findPathwayBySlug(slug: string | null | undefined): CertifiedPathway | undefined {
   if (!slug) return undefined;

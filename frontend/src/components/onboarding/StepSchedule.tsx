@@ -1,20 +1,15 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { RoutineSettings } from '../../types';
+import { FIXED_DATE_LABEL, fixedDateBlocks, fixedDateError, fixedDateHint, type FixedDateCheck } from '../../lib/fixedDate';
+import { addDaysToDateKey } from '../../lib/dateUtils';
+import { DAILY_MINUTE_OPTIONS, PLAN_VARIANT_OPTIONS, defaultRestWeekdays, weekdayOf, type PlanVariant } from '../../lib/schedule';
+import { TrainingDays } from './TrainingDays';
 import { Button, ChoiceCard, ChoiceGroup, ErrorState, Field, Input, SegmentedControl } from '../ui';
 import type { OnboardingError } from './requestErrors';
 import { GoalContext, StepFooter, StepHeader } from './StepLayout';
 
-type PlanVariant = NonNullable<RoutineSettings['planVariant']>;
 type PreferredSlot = RoutineSettings['preferredSlot'];
-
-const PLAN_VARIANTS: Array<{ id: PlanVariant; title: string; meta: string; desc: string }> = [
-  { id: 'minimal', title: 'Light', meta: '4 days a week', desc: '4 sessions and 3 rest days. For a busy season.' },
-  { id: 'steady', title: 'Steady', meta: '5 days a week · Recommended', desc: '5 sessions and 2 rest days. Consistent progress most weeks can hold.' },
-  { id: 'accelerated', title: 'Intensive', meta: '6 days a week', desc: '6 sessions and 1 rest day. For when you want to move fast.' },
-];
-
-const DAILY_MINUTES = [30, 45, 60, 90];
 
 const MINUTES_HINT: Record<number, string> = {
   30: 'Good for building a light, steady habit.',
@@ -38,6 +33,11 @@ interface StepScheduleProps {
   timeline: React.ReactNode;
   commitments: React.ReactNode;
   scheduleChosen: boolean;
+  /** B-106: the optional fixed date (`YYYY-MM-DD`, '' for none), its check and the plan's start day (`YYYY-MM-DD`). */
+  fixedDate: string;
+  fixedDateCheck: FixedDateCheck;
+  today: string;
+  onFixedDateChange: (value: string) => void;
   /** A custom goal leaves the schedule for its questions, which may still be on their way. */
   isWaitingForClarification: boolean;
   clarificationError: OnboardingError | null;
@@ -57,6 +57,10 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
   timeline,
   commitments,
   scheduleChosen,
+  fixedDate,
+  fixedDateCheck,
+  today,
+  onFixedDateChange,
   isWaitingForClarification,
   clarificationError,
   isClarifying,
@@ -66,6 +70,7 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
   onContinue,
 }) => {
   const waiting = isWaitingForClarification && isClarifying;
+  const dateInvalid = fixedDateBlocks(fixedDateCheck);
   const setField = (field: 'wakeTime' | 'sleepTime' | 'busyHours') => (e: React.ChangeEvent<HTMLInputElement>) =>
     onRoutineChange((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -84,18 +89,28 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
           legend="How many days a week?"
           description="Rest days are part of the plan, not a break from it."
           value={routine.planVariant}
-          onChange={(value) => onRoutineChange((prev) => ({ ...prev, planVariant: value as PlanVariant }))}
+          // B-108: a new number of days starts again from its own rest days.
+          onChange={(value) => onRoutineChange((prev) => ({ ...prev, planVariant: value as PlanVariant, restWeekdays: undefined }))}
           columns={3}
         >
-          {PLAN_VARIANTS.map((variant) => (
+          {PLAN_VARIANT_OPTIONS.map((variant) => (
             <ChoiceCard key={variant.id} value={variant.id} title={variant.title} description={variant.desc} meta={variant.meta} />
           ))}
         </ChoiceGroup>
 
+        {routine.planVariant && (
+          <TrainingDays
+            variant={routine.planVariant}
+            // The plan starts today, so its weeks start on today's weekday.
+            restWeekdays={routine.restWeekdays ?? defaultRestWeekdays(routine.planVariant, weekdayOf(today))}
+            onChange={(restWeekdays) => onRoutineChange((prev) => ({ ...prev, restWeekdays }))}
+          />
+        )}
+
         <div>
           <SegmentedControl
             legend="How long each day?"
-            options={DAILY_MINUTES.map((mins) => ({ value: String(mins), label: `${mins} min` }))}
+            options={DAILY_MINUTE_OPTIONS.map((mins) => ({ value: String(mins), label: `${mins} min` }))}
             value={routine.dailyMinutes > 0 ? String(routine.dailyMinutes) : undefined}
             onChange={(value) => onRoutineChange((prev) => ({ ...prev, dailyMinutes: Number(value) }))}
           />
@@ -103,6 +118,10 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
             {MINUTES_HINT[routine.dailyMinutes] ?? '60 minutes is recommended for most goals.'}
           </p>
         </div>
+
+        <Field label={FIXED_DATE_LABEL} showOptional hint={dateInvalid ? undefined : fixedDateHint(fixedDateCheck, fixedDate, today)} error={fixedDateError(fixedDateCheck)} className="max-w-sm">
+          <Input type="date" min={addDaysToDateKey(today, 1)} value={fixedDate} onChange={(e) => onFixedDateChange(e.target.value)} />
+        </Field>
       </div>
 
       <section aria-labelledby="day-heading" className="mt-14 border-t border-border pt-10">
@@ -147,7 +166,9 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
         onBack={onBack}
         status={
           !scheduleChosen
-            ? 'Choose how many days a week and how long each day.'
+            ? routine.planVariant && routine.dailyMinutes > 0
+              ? 'Pick your training days.'
+              : 'Choose how many days a week and how long each day.'
             : waiting
               ? 'Preparing your questions. Your schedule is kept while you wait.'
               : undefined
@@ -155,7 +176,7 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
       >
         <Button
           size="lg"
-          disabled={!scheduleChosen}
+          disabled={!scheduleChosen || dateInvalid}
           loading={waiting}
           onClick={onContinue}
           trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-5" />}

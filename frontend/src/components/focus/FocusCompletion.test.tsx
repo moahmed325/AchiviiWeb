@@ -28,7 +28,7 @@ describe('FocusCompletion reflection box (B-29)', () => {
   });
 });
 
-describe('FocusCompletion progress (ND-28)', () => {
+describe('FocusCompletion progress (ND-30)', () => {
   const days = (states: Array<'completed' | 'rest' | 'today' | 'upcoming' | 'new'>) => states.map((state, i) => ({ label: 'D' + i, state }));
   const renderWith = (progress: Parameters<typeof FocusCompletion>[0]['progress']) =>
     render(<FocusCompletion dayNumber={3} durationMinutes={30} reflectionNote="" onReflectionChange={vi.fn()} onSave={vi.fn()} isSubmitting={false} saveError={null} progress={progress} />);

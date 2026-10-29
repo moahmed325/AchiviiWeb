@@ -5,7 +5,8 @@
  * decides in `checkpointClose.ts` and stores in `saveWeekClose`; the answer is `POST /api/goal/checkpoint`. Everything
  * here runs only with `weeklyUpdateEnabled()` (RULE-1, CP-8).
  */
-import { nextCheckWeek, pathwayFor, shownAmount, TOTAL_WEEKS, type WeekTarget } from '../ai/roadmap.js';
+import { nextCheckWeek, pathwayFor, shownAmount, type WeekTarget } from '../ai/roadmap.js';
+import { DEFAULT_SHAPE, shapeOf, type PlanShape } from '../planLength.js';
 import type { DayNinetyLine } from '../ai/dayNinety.js';
 import type { CertifiedPresetBlueprint } from '../ai/presets/index.js';
 import { CHECKPOINT_BEHIND_PERCENT, CHECKPOINT_FLAT_PLAN_PERCENT } from '../safety/limits.js';
@@ -13,8 +14,8 @@ import { isClosedWeek, isWeekTarget, safeGoalTargets, safeStoredTargets, testOf,
 import { harder, nextSafeStep, targetFamily, type FamilyContext } from '../safety/targetSteps.js';
 import { weeklyUpdateEnabled } from './switch.js';
 
-/** RULE-2: the only weeks whose close runs a checkpoint. */
-export const CHECKPOINT_WEEKS: readonly number[] = [4, 8];
+/** RULE-2: the only weeks whose close runs a checkpoint, on a 12-week plan. B-109: a goal's own are `shapeOf(goal).checkpointWeeks`. */
+export const CHECKPOINT_WEEKS: readonly number[] = DEFAULT_SHAPE.checkpointWeeks;
 
 export type NumberTarget = Extract<WeekTarget, { kind: 'number' }>;
 export type CheckpointKind = 'lower' | 'raise' | 'line_only';
@@ -98,6 +99,8 @@ export interface CheckInput {
   raiseCheck?: boolean;
   /** RULE-9, RULE-10: whether every week spread to this raised week 12 passes the safe climb. */
   raiseIsSafe?: (offered: number) => boolean;
+  /** B-109: the week of the final test (`PlanShape.finalWeek`); missing is 12. */
+  finalWeek?: number;
 }
 
 export interface CheckResult {
@@ -127,7 +130,7 @@ export function checkpointFor(input: CheckInput): CheckResult {
   if (!(climb > 1e-9)) return none('no_climb');
   const plannedProgress = along(input.planned);
   const done = along(input.result);
-  const weeksLeft = TOTAL_WEEKS - week;
+  const weeksLeft = (input.finalWeek ?? DEFAULT_SHAPE.finalWeek) - week;
 
   // RULE-3 (CP-15): the plan's own shape, or the straight line while the plan is nearly flat.
   let forecast: number;
@@ -186,31 +189,36 @@ export function acceptedWeeks<W extends StoredWeek>(
   openWeek: number,
   week12: number,
   kind: 'lower' | 'raise',
-  pathway: Pick<CertifiedPresetBlueprint, 'id' | 'weeklyTests'> | null
+  pathway: Pick<CertifiedPresetBlueprint, 'id' | 'weeklyTests'> | null,
+  shape: PlanShape = DEFAULT_SHAPE
 ): AcceptedWeeks<W> | null {
+  const final = shape.finalWeek;
   const byWeek = new Map(rows.map((week) => [week.weekNumber, week]));
-  const ordered = Array.from({ length: TOTAL_WEEKS }, (_, index) => byWeek.get(index + 1));
+  const ordered = Array.from({ length: shape.weeks }, (_, index) => byWeek.get(index + 1));
   if (ordered.some((week) => !week || !isWeekTarget(week.target) || (week.target as WeekTarget).kind !== 'number')) return null;
   const open = byWeek.get(openWeek);
-  if (!open || openWeek >= TOTAL_WEEKS) return null;
+  if (!open || openWeek >= final) return null;
   const context = { run10k: pathway?.id === 'run10k' };
   const light = (week: W) => testOf(week)?.light === true;
   const lightGoal = rows.some(light);
   const from = (open.target as NumberTarget).value;
 
-  const values = new Map<number, number>([[TOTAL_WEEKS, week12]]);
-  for (let weekNumber = openWeek + 1; weekNumber < TOTAL_WEEKS; weekNumber++) {
+  const values = new Map<number, number>([[final, week12]]);
+  // B-109: the ready week keeps the final week's target.
+  if (shape.readyWeek !== null && !isClosedWeek(byWeek.get(shape.readyWeek)!)) values.set(shape.readyWeek, week12);
+  for (let weekNumber = openWeek + 1; weekNumber < final; weekNumber++) {
     const week = byWeek.get(weekNumber)!;
     if (lightGoal && light(week)) continue;
     const target = week.target as NumberTarget;
-    const spread = roundEasier(from + ((week12 - from) * (weekNumber - openWeek)) / (TOTAL_WEEKS - openWeek), target, context);
+    const spread = roundEasier(from + ((week12 - from) * (weekNumber - openWeek)) / (final - openWeek), target, context);
     const keepsOld = kind === 'lower' ? harder(spread, target.value, target.direction) : harder(target.value, spread, target.direction);
     values.set(weekNumber, keepsOld ? target.value : spread);
   }
   if (lightGoal) {
     for (const week of rows) {
-      if (week.weekNumber >= openWeek && week.weekNumber < TOTAL_WEEKS && light(week) && !isClosedWeek(week)) {
-        const big = values.get(nextCheckWeek(week.weekNumber)) ?? (byWeek.get(nextCheckWeek(week.weekNumber))!.target as NumberTarget).value;
+      if (week.weekNumber >= openWeek && week.weekNumber < final && light(week) && !isClosedWeek(week)) {
+        const check = nextCheckWeek(week.weekNumber, shape);
+        const big = values.get(check) ?? (byWeek.get(check)!.target as NumberTarget).value;
         values.set(week.weekNumber, big);
       }
     }
@@ -222,7 +230,7 @@ export function acceptedWeeks<W extends StoredWeek>(
     const week = byWeek.get(weekNumber)!;
     const target = week.target as NumberTarget;
     if (Math.abs(target.value - value) < 1e-9) continue;
-    const rebuilt = withTargetText(week, { ...target, value }, pathway?.weeklyTests);
+    const rebuilt = withTargetText(week, { ...target, value }, pathway?.weeklyTests, shape);
     if (rebuilt.finalTest !== null) finalTest = rebuilt.finalTest;
     weeks.push(rebuilt.week);
   }
@@ -235,11 +243,12 @@ export function spreadIsSafe<W extends StoredWeek>(
   changed: readonly W[],
   startValue: number | null,
   finalTest: string,
-  pathway: Pick<CertifiedPresetBlueprint, 'id' | 'weeklyTests'> | null
+  pathway: Pick<CertifiedPresetBlueprint, 'id' | 'weeklyTests'> | null,
+  shape: PlanShape = DEFAULT_SHAPE
 ): boolean {
   const byWeek = new Map(changed.map((week) => [week.weekNumber, week]));
   const weeks = rows.map((week) => byWeek.get(week.weekNumber) ?? week);
-  return safeStoredTargets({ weeks, startValue, finalTest, pathway }).foundNow.length === 0;
+  return safeStoredTargets({ weeks, startValue, finalTest, pathway, shape }).foundNow.length === 0;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -276,11 +285,11 @@ export function answerLogLine(goalId: string, item: Pick<StoredCheckpoint, 'week
 // ---------------------------------------------------------------------------------------------------------------------
 // RULE-11, section 7: what the goal response reads
 
-type GoalRead = { rawGoal: string; clarifiedOutcome: string | null; roadmap: unknown; roadmapWeeks: StoredWeek[] | undefined };
+type GoalRead = { rawGoal: string; clarifiedOutcome: string | null; roadmap: unknown; roadmapWeeks: StoredWeek[] | undefined; totalWeeks?: number | null };
 
 function week12Of(goal: GoalRead): { target: NumberTarget; goal: string | null } | null {
   const safe = safeGoalTargets(goal);
-  const target = safe?.weeks.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
+  const target = safe?.weeks.find((week) => week.weekNumber === shapeOf(goal).finalWeek)?.target;
   if (!safe || !isWeekTarget(target) || target.kind !== 'number') return null;
   return { target, goal: safe.week12Line?.goal ?? null };
 }
@@ -298,7 +307,12 @@ export function dayNinetyLineOf(goal: GoalRead): DayNinetyLine | null {
   if (!list.some((item) => item.answer === 'accept')) return null;
   const week12 = week12Of(goal);
   if (!week12 || !harder(list[0].fullGoal, week12.target.value, week12.target.direction)) return null;
-  return { target: shownAmount(week12.target), goal: goalShown(week12, list[0].fullGoal) };
+  const shape = shapeOf(goal);
+  return {
+    target: shownAmount(week12.target),
+    goal: goalShown(week12, list[0].fullGoal),
+    ...(shape.readyWeek !== null ? { finalWeek: shape.finalWeek } : {}),
+  };
 }
 
 /** Section 7: the open offer as the goal response sends it; amounts as RULE-7 shows them. */
@@ -308,10 +322,12 @@ export interface CheckpointView {
   target: string;
   offered: string | null;
   goal: string;
-  /** Week 8: worded as the last check. */
+  /** Week 8 (B-109: the goal's last checkpoint week): worded as the last check. */
   last: boolean;
   /** A raise all the way back to the full goal (section 6 words it without "about"). */
   toFullGoal: boolean;
+  /** B-109: a shorter plan's final-test week; missing on a 12-week plan. */
+  finalWeek?: number;
 }
 
 export function checkpointViewOf(goal: GoalRead): CheckpointView | null {
@@ -327,8 +343,10 @@ export function checkpointViewOf(goal: GoalRead): CheckpointView | null {
     target: amount(open.target),
     offered: open.offered === null ? null : amount(open.offered),
     goal: goalShown(week12, list[0].fullGoal),
-    last: open.week === 8,
+    last: open.week === shapeOf(goal).checkpointWeeks[shapeOf(goal).checkpointWeeks.length - 1],
     toFullGoal: open.kind === 'raise' && open.offered !== null && Math.abs(open.offered - list[0].fullGoal) < 1e-9,
+    // B-109: a shorter plan's card names its final week, not day 90.
+    ...(shapeOf(goal).readyWeek !== null ? { finalWeek: shapeOf(goal).finalWeek } : {}),
   };
 }
 

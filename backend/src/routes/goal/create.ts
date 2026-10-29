@@ -11,8 +11,9 @@ import { isHighLoadGoal } from '../../lib/highLoad.js';
 import { loadGoalInput } from '../../lib/safety/stepLoad.js';
 import { logRoadmapTargets } from '../../lib/safety/targetSteps.js';
 import { generateRoadmap, lightTestSession, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../../lib/ai/roadmap.js';
-import { activeDaysFor, generateWeekPlan, slotTimeFor, type PlanVariant, type WeekDayPlan } from '../../lib/ai/weekPlan.js';
-import { dailyTaskRows, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
+import { MIN_WEEKS, planLengthFor } from '../../lib/planLength.js';
+import { activeDaysFor, generateWeekPlan, slotTimeFor, validRestWeekdays, type PlanVariant, type WeekDayPlan } from '../../lib/ai/weekPlan.js';
+import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, dailyTaskRows, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
 import { makeGoalProfile } from '../../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../../lib/recovery/profile.js';
@@ -87,6 +88,23 @@ export async function readNextPlanRequest(userId: string, body: unknown): Promis
   };
 }
 
+/**
+ * B-106: the goal's optional fixed date (an exam, a race, a talk), sent as `fixedDate` (`YYYY-MM-DD`, the person's
+ * local date). Stored like `startDate` (ND-1: that date at 00:00 UTC). It must be after the start date. B-109: under 12
+ * weeks away the plan is shorter and ends before it (`planLengthFor`); under 4 weeks it is refused. Absent, null or ''
+ * is no date. A next plan
+ * carries nothing itself: the app fills the old plan's date in the field, so what the person sees is what is saved.
+ */
+export function readFixedDate(value: unknown, start: Date): { date: Date | null } | { error: string } {
+  if (value === undefined || value === null || value === '') return { date: null };
+  const date = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T00:00:00.000Z`) : null;
+  if (!date || !Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    return { error: 'Choose a real date for your fixed date, or leave it empty.' };
+  }
+  if (date.getTime() <= start.getTime()) return { error: 'Your fixed date needs to be after the day your plan starts.' };
+  return { date };
+}
+
 export async function saveV2Goal(input: {
   userId: string;
   rawGoal: string;
@@ -97,6 +115,10 @@ export async function saveV2Goal(input: {
   routine: UserRoutineInput;
   start: Date;
   targetDate: Date;
+  /** B-106: the outside date the plan never moves past, or null. */
+  fixedDate?: Date | null;
+  /** B-109: the plan's weeks (`planLengthFor`); missing is 12. */
+  totalWeeks?: number;
   isPreset: boolean;
   /** Method-aware recovery (M1.3a): saved under `recovery` when it passed the checks. */
   recovery?: RecoveryProfile | null;
@@ -117,6 +139,8 @@ export async function saveV2Goal(input: {
         status: 'active',
         startDate: input.start,
         targetDate: input.targetDate,
+        fixedDate: input.fixedDate ?? null,
+        totalWeeks: input.totalWeeks ?? TOTAL_WEEKS,
         currentWeek: 1,
         answers: JSON.stringify(input.answers),
         routine: JSON.stringify(input.routine),
@@ -167,6 +191,8 @@ export async function recoveryProfileAtCreate(input: {
         weeklyTargets: [...weeks].sort((a, b) => a.weekNumber - b.weekNumber).map((week) => week.target),
       });
       if (result.source !== 'model') console.warn('[Recovery] Profile call fell back to a template:', result.source);
+      // The copy count: 0 means the model copied its template's rules unchanged.
+      else console.log(`[Recovery] Profile from the model: template ${result.profile.template}, rule changes ${result.profile.templateChanges ?? 'unknown'}`);
       return result.profile;
     } catch (err) {
       console.warn('[Recovery] Profile call failed at goal create:', err);
@@ -238,19 +264,41 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
       return;
     }
     const dailyMinutes = Number(routine?.dailyMinutes);
-    if (!Number.isFinite(dailyMinutes) || dailyMinutes < 10 || dailyMinutes > 480) {
+    if (!Number.isFinite(dailyMinutes) || dailyMinutes < DAILY_MINUTES_MIN || dailyMinutes > DAILY_MINUTES_MAX) {
       res.status(400).json({ error: 'Choose how many minutes a day you can practise.' });
       return;
     }
-    if (!['steady', 'accelerated', 'minimal'].includes(routine?.planVariant)) {
+    if (!PLAN_VARIANTS.includes(routine?.planVariant)) {
       res.status(400).json({ error: 'Choose how many days a week you can practise.' });
+      return;
+    }
+    // Edit my schedule (B-108): the chosen rest days are optional; sent, they must fit the days a week.
+    const restWeekdays = routine?.restWeekdays === undefined || routine?.restWeekdays === null ? null : validRestWeekdays(routine.planVariant, routine.restWeekdays);
+    if (routine?.restWeekdays !== undefined && routine?.restWeekdays !== null && !restWeekdays) {
+      res.status(400).json({ error: 'Choose your rest days again: as many as the days a week leave free.' });
       return;
     }
 
     // ND-1: the goal starts on the user's local calendar day, stored as that date at 00:00 UTC.
     const start = resolveGoalStart(normalizeTimezone(user.timezone), startDate);
-    const targetDate = new Date(start);
-    targetDate.setUTCDate(targetDate.getUTCDate() + 90);
+    const fixed = readFixedDate(req.body?.fixedDate, start);
+    if ('error' in fixed) {
+      res.status(400).json({ error: fixed.error });
+      return;
+    }
+    // B-109: a fixed date under 12 weeks away gives the whole weeks that fit before it; under 4 weeks, no plan (Mo, (a)).
+    const length = planLengthFor(start, fixed.date);
+    if ('tooClose' in length) {
+      res.status(400).json({
+        error: `Your date is too close for a full plan. Choose a date at least ${MIN_WEEKS} weeks away, or leave it empty.`,
+        code: 'fixed_date_too_close',
+      });
+      return;
+    }
+    const { targetDate } = length;
+    const totalWeeks = length.weeks;
+    // Only a shorter plan adds the key, so every other roadmap call is exactly as before.
+    const lengthInput = totalWeeks !== TOTAL_WEEKS ? { totalWeeks } : {};
 
     const routineInput: UserRoutineInput = {
       wakeTime: routine?.wakeTime || '07:00',
@@ -259,6 +307,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
       preferredSlot: routine?.preferredSlot || 'evening',
       dailyMinutes,
       planVariant: routine.planVariant,
+      ...(restWeekdays ? { restWeekdays } : {}),
       commitments: routine?.commitments || []
     };
 
@@ -299,6 +348,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
       activeDays: activeDaysFor(planVariant),
       answers: answerList,
       ...(measuredStart ? { measuredStart } : {}),
+      ...lengthInput,
     });
 
     let week1: WeekDayPlan[] | null = null;
@@ -324,10 +374,11 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         answers: answerList,
         dailyMinutes,
         planVariant,
+        ...(restWeekdays ? { restWeekdays } : {}),
         slotTime: slotTimeFor(routineInput.preferredSlot),
         method: roadmap.method,
         weekNumber: 1,
-        totalWeeks: TOTAL_WEEKS,
+        totalWeeks,
         phase: roadmap.phases[0],
         focus: first.focus,
         target: first.target,
@@ -337,7 +388,8 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         ...(firstSession ? { testSession: firstSession } : {}),
         highLoadGoal: isHighLoadGoal({ rawGoal, clarifiedOutcome }),
         // Plan safety limits M2.1 (RULE-4): only a load goal adds the key.
-        ...loadGoalInput({ rawGoal, clarifiedOutcome }, first.target),
+        // M3.1 (PSL-19): the starting point raises week 1's longest-run cap to what they already run.
+        ...loadGoalInput({ rawGoal, clarifiedOutcome }, first.target, roadmap.startingPoint?.value ?? null),
         recovery,
         heldSafetyLines: week1SafetyLines,
       });
@@ -355,6 +407,8 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         routine: routineInput,
         start,
         targetDate,
+        fixedDate: fixed.date,
+        ...lengthInput,
         isPreset: Boolean(preset),
         recovery,
         previousPlan: nextPlan ? nextPlan.previousPlan : null,

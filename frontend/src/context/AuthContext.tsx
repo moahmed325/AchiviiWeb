@@ -31,7 +31,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   /** B-46 (2): moves the plan to this zone (an IANA name). */
   setTimezone: (timezone: string) => Promise<void>;
-  /** ND-26: the missed-day reminder email on or off. */
+  /** ND-28: the missed-day reminder email on or off. */
   setReminders: (enabled: boolean) => Promise<void>;
   /** B-15: emails a reset link that opens /reset-password signed in for recovery. */
   requestPasswordReset: (email: string) => Promise<void>;

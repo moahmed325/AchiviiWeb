@@ -3,7 +3,7 @@ import type { Reminder } from './plan.js';
 import { flagOn } from '../flags.js';
 
 /**
- * ND-26: the reminder email, its unsubscribe link and the send (Resend's HTTP API, no SDK). Settings, all in the
+ * ND-28: the reminder email, its unsubscribe link and the send (Resend's HTTP API, no SDK). Settings, all in the
  * Render dashboard: `RESEND_API_KEY`, `REMINDER_FROM` (e.g. `Achivii <reminders@mail.example.com>`, a domain verified
  * in Resend), `REMINDERS_SIGNING_SECRET` (signs unsubscribe links). The app link uses `CLIENT_ORIGIN`; the unsubscribe
  * link uses the API's public URL (`API_PUBLIC_URL`, else Render's `RENDER_EXTERNAL_URL`).

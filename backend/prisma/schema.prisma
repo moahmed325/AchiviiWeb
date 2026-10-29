@@ -14,7 +14,7 @@ model User {
   auth_user_id  String?  @unique
   timezone      String   @default("UTC")
   created_at    DateTime @default(now())
-  // ND-26: the missed-day reminder email. On unless the person turns it off (Account or the email's unsubscribe link).
+  // ND-28: the missed-day reminder email. On unless the person turns it off (Account or the email's unsubscribe link).
   remindersEnabled Boolean   @default(true)
   // When the last reminder was sent; one per gap (no new one until a practice day is completed after it).
   lastReminderAt   DateTime?
@@ -95,6 +95,8 @@ model Goal {
   movedDays           Int       @default(0) // RULE-14/15: days gaps and breaks pushed the plan later, max 28
   closeTriedAt        DateTime? // RULE-9: the first open that tried to close week `closeTriedWeek`
   closeTriedWeek      Int?
+  fixedDate           DateTime? // B-106: an outside date the goal must be ready by (exam, race, talk); the plan never moves past it
+  totalWeeks          Int       @default(12) // B-109: the plan's weeks, 4 to 12; under 12 only when a fixed date is closer
 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   roadmapWeeks     RoadmapWeek[]

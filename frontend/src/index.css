@@ -16,6 +16,8 @@
   /* 4.5:1 on background: suitable for body copy and secondary labels */
   --color-text-muted: #817A6F;
   --color-text-on-inverse: #11110F;
+  /* Supporting text on surface-inverse; 6.4:1 */
+  --color-text-secondary-on-inverse: #5B564C;
 
   --color-accent: #86A98F;
   --color-accent-hover: #B0CFB0;
@@ -74,7 +76,7 @@
   --text-numeral--line-height: 0.82;
   --text-numeral--letter-spacing: -0.06em;
   --text-numeral--font-weight: 600;
-  /* ND-27: the Dashboard's session count, smaller than the day numeral so it sits beside the greeting. */
+  /* ND-29: the Dashboard's session count, smaller than the day numeral so it sits beside the greeting. */
   --text-tally: clamp(3.5rem, 2.4rem + 4.5vw, 6.5rem);
   --text-tally--line-height: 0.85;
   --text-tally--letter-spacing: -0.05em;
@@ -102,9 +104,14 @@
   --animate-sheet-in: sheet-in 420ms var(--ease-settle) both;
   --animate-sheet-out: sheet-out 240ms ease-in both;
   --animate-rise-in: rise-in 520ms var(--ease-ascend) both;
+  /* A line drawing itself left to right, for the plan preview's Day 1 to Day 90 line. Use with origin-left. */
+  --animate-line-fill: line-fill 1100ms var(--ease-ascend) 200ms both;
 
   @keyframes rise-in {
     from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  }
+  @keyframes line-fill {
+    from { transform: scaleX(0); }
   }
   @keyframes overlay-in {
     from { opacity: 0; }
@@ -313,78 +320,6 @@ html:has(.marketing) {
 
 .tabular {
   font-variant-numeric: tabular-nums;
-}
-
-/* Static film grain. No blend mode, so it costs nothing while scrolling.
-   Sits above the marketing nav (z-40) but below the auth modal (z-50). */
-.grain-overlay {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 45;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* Scroll reveal: slow, upward, once */
-.reveal {
-  opacity: 0;
-  transform: translate3d(0, 28px, 0);
-  transition:
-    opacity 1.1s var(--ease-ascend),
-    transform 1.1s var(--ease-ascend);
-  transition-delay: var(--reveal-delay, 0ms);
-}
-
-.reveal.is-visible {
-  opacity: 1;
-  transform: none;
-}
-
-/* Staircase: steps rise into place from the bottom flight to the top.
-   The scene is SVG, so px here are scene units (one riser is 0.55). */
-@keyframes stair-rise {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 1.2px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes portal-open {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.stair-piece {
-  animation: stair-rise 1s var(--ease-ascend) both;
-  animation-delay: var(--stair-delay, 0ms);
-}
-
-.portal-light {
-  animation: portal-open 2.4s ease-out both;
-  animation-delay: var(--stair-delay, 0ms);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal,
-  .reveal.is-visible {
-    opacity: 1;
-    transform: none;
-    transition: none;
-  }
-
-  .stair-piece,
-  .portal-light {
-    animation: none;
-  }
 }
 
 /* ============================================================
@@ -996,47 +931,190 @@ html:has(.marketing) {
 }
 
 /* ============================================================
-   Landing page: the gold thread
-   Gold is the light at the top of the stairs. On the landing page it
-   marks everything that moves you toward the summit.
+   Landing page: photographic layers
+   All static: staircases (hero, how it works), palms (why it works, questions), gold vine (Pro) and botanicals (close).
    ============================================================ */
-.gold-text {
-  background-image: linear-gradient(100deg, #f1dfb0 0%, #c8a96b 48%, #e6cf95 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+/* Photographic layers share one recipe: absolutely placed behind the content, static, faded at the edges with masks.
+   On the dark page they blend with lighten, so each photo's black becomes the page's own black and only the light
+   shows; on the light section they multiply, so only the dark silhouettes show. */
+.landing-art {
+  position: absolute;
+  z-index: -1;
+  background-repeat: no-repeat;
+  background-size: cover;
+  mix-blend-mode: lighten;
+  pointer-events: none;
 }
 
-@media (forced-colors: active) {
-  .gold-text {
-    background: none;
-    -webkit-text-fill-color: currentColor;
-    color: CanvasText;
+/* Hero: the staircase walking into the light. One step at a time, which is the product. */
+/* On phones it sits low, behind the example card, so the grain never runs under the text. */
+.landing-art-stairs {
+  inset: auto 0 0;
+  height: 55%;
+  background-image: url('/images/brand/stairs-light.webp');
+  background-position: center 40%;
+  opacity: 0.45;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+}
+
+@media (width >= 64rem) {
+  .landing-art-stairs {
+    inset: 0 0 0 auto;
+    height: auto;
+    width: 60%;
+    /* Enlarged and pulled up-left so the walking figure lands in the gap between the text and the card. */
+    background-size: auto 150%;
+    background-position: 100% 58%;
+    opacity: 0.75;
+    -webkit-mask-image: linear-gradient(to right, transparent, black 25%), linear-gradient(to bottom, black 70%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent, black 25%), linear-gradient(to bottom, black 70%, transparent);
+    mask-composite: intersect;
   }
 }
 
-.gold-hairline {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(200, 169, 107, 0.6), transparent);
+/* How it works: three lit flights of stairs, the plan's three phases. Faint behind the heading on smaller screens; on
+   wide screens the steps stack on the left and the staircase takes the right side. */
+.landing-art-phases {
+  top: 0;
+  right: 0;
+  width: 70%;
+  height: 26rem;
+  background-image: url('/images/brand/stairs-phases.webp');
+  background-position: center 30%;
+  opacity: 0.45;
+  -webkit-mask-image: linear-gradient(to left, black 30%, transparent), linear-gradient(to bottom, black 40%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to left, black 30%, transparent), linear-gradient(to bottom, black 40%, transparent);
+  mask-composite: intersect;
 }
 
-@keyframes gold-breathe {
-  0%,
-  100% {
-    opacity: 0.5;
-    transform: scale(1);
+@media (width >= 64rem) {
+  .landing-art-phases {
+    width: 50%;
+    height: 100%;
+    background-position: center 45%;
+    opacity: 0.9;
+    -webkit-mask-image: linear-gradient(to left, black 55%, transparent), linear-gradient(to bottom, black 75%, transparent);
+    mask-image: linear-gradient(to left, black 55%, transparent), linear-gradient(to bottom, black 75%, transparent);
   }
-  50% {
-    opacity: 0.95;
-    transform: scale(1.07);
+}
+
+/* Pro block: the gold vine along its left edge, in the block's widened left padding. Not on phones, where it would
+   sit behind the text. */
+.landing-art-vine {
+  display: none;
+  inset-block: 0;
+  left: 0;
+  width: 6rem;
+  background-image: url('/images/brand/vine-linen.webp');
+  background-position: left center;
+  opacity: 0.3;
+  -webkit-mask-image: linear-gradient(to right, black, transparent);
+  mask-image: linear-gradient(to right, black, transparent);
+}
+
+@media (width >= 40rem) {
+  .landing-art-vine {
+    display: block;
   }
 }
 
-.gold-breathe {
-  animation: gold-breathe 8s ease-in-out infinite;
+@media (width >= 64rem) {
+  .landing-art-vine {
+    width: 8rem;
+    opacity: 0.45;
+  }
 }
 
+/* Why it works (the light section): palms in daylight, dark silhouettes only. */
+.landing-art-palms {
+  right: 0;
+  top: 0;
+  width: 55%;
+  height: 22rem;
+  background-image: url('/images/brand/palms-day.webp');
+  background-position: center top;
+  mix-blend-mode: multiply;
+  opacity: 0.1;
+  -webkit-mask-image: linear-gradient(to left, black 30%, transparent), linear-gradient(to bottom, black 30%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to left, black 30%, transparent), linear-gradient(to bottom, black 30%, transparent);
+  mask-composite: intersect;
+}
+
+@media (width >= 64rem) {
+  .landing-art-palms {
+    top: auto;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    width: 38%;
+    height: 72%;
+    background-position: center top;
+    opacity: 0.12;
+    -webkit-mask-image: linear-gradient(to right, black 40%, transparent), linear-gradient(to top, black 40%, transparent);
+    mask-image: linear-gradient(to right, black 40%, transparent), linear-gradient(to top, black 40%, transparent);
+  }
+}
+
+/* Questions: one palm at night, under the heading on wide screens. Hidden on phones, where it would sit behind text. */
+.landing-art-palm-night {
+  display: none;
+}
+
+@media (width >= 64rem) {
+  .landing-art-palm-night {
+    display: block;
+    bottom: 0;
+    left: 0;
+    width: 30%;
+    height: 85%;
+    background-image: url('/images/brand/palm-night.webp');
+    background-position: 30% bottom;
+    opacity: 0.55;
+    -webkit-mask-image: linear-gradient(to right, black 50%, transparent), linear-gradient(to top, black 50%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, black 50%, transparent), linear-gradient(to top, black 50%, transparent);
+    mask-composite: intersect;
+  }
+}
+
+/* Gold botanical engraving framing the closing section from both sides: the garden at the top of the stairs.
+   Faint, and fading toward the centre so the call to action stays clear. */
+.landing-botanical {
+  position: absolute;
+  inset-block: 0;
+  z-index: -1;
+  width: 60%;
+  background: url('/images/brand/botanical.webp') center / cover no-repeat;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+.landing-botanical-left {
+  left: 0;
+  -webkit-mask-image: linear-gradient(to right, black, transparent);
+  mask-image: linear-gradient(to right, black, transparent);
+}
+
+.landing-botanical-right {
+  right: 0;
+  -webkit-mask-image: linear-gradient(to left, black, transparent);
+  mask-image: linear-gradient(to left, black, transparent);
+}
+
+@media (width >= 48rem) {
+  .landing-botanical {
+    width: min(34%, 420px);
+    opacity: 0.22;
+  }
+}
+
+/* ============================================================
+   Landing page: the gold button
+   ============================================================ */
 .btn-gold {
   position: relative;
   overflow: hidden;
@@ -1068,113 +1146,11 @@ html:has(.marketing) {
   transform: translateX(130%);
 }
 
-/* Gold-bordered panel with a soft lit corner */
-.gold-panel {
-  border: 1px solid rgba(200, 169, 107, 0.32);
-  background:
-    radial-gradient(90% 70% at 100% 0%, rgba(200, 169, 107, 0.16), transparent 62%),
-    var(--color-surface);
-  box-shadow: 0 40px 100px -50px rgba(200, 169, 107, 0.35);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .gold-breathe {
-    animation: none;
-    opacity: 0.8;
-  }
-
   .btn-gold::after {
     display: none;
   }
 }
-
-
-/* ============================================================
-   Landing page: motion and polish
-   ============================================================ */
-
-/* Headline words rise out of a soft blur, one after another */
-@keyframes word-rise {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 0.45em, 0);
-    filter: blur(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-    filter: blur(0);
-  }
-}
-
-.word-rise {
-  display: inline-block;
-  animation: word-rise 1.1s var(--ease-ascend) both;
-}
-
-/* Cursor-following gold light on cards. Position is set by SpotlightEffect. */
-.spotlight {
-  position: relative;
-}
-
-.spotlight::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.45s ease;
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 50%), rgba(200, 169, 107, 0.13), transparent 62%);
-}
-
-.spotlight:hover::before {
-  opacity: 1;
-}
-
-/* Pathway marquee: decorative ribbon of real journey names */
-@keyframes marquee-scroll {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(-50%, 0, 0);
-  }
-}
-
-.marquee-track {
-  display: flex;
-  width: max-content;
-  animation: marquee-scroll 70s linear infinite;
-}
-
-.marquee:hover .marquee-track {
-  animation-play-state: paused;
-}
-
-.marquee {
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
-}
-
-/* Soft horizontal fade so the lit edge of the stair scene never shows a hard line */
-.scene-fade {
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 84%, transparent 100%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .marquee-track {
-    animation: none;
-  }
-
-  .hero-parallax {
-    transform: none !important;
-    opacity: 1 !important;
-  }
-}
-
 
 /* ============================================================
    Today. It borrows the Dashboard's vocabulary (dash-card, dash-panel, dash-day, dash-journey), so the two pages read
@@ -1394,7 +1370,7 @@ html:has(.marketing) {
 }
 
 /* ============================================================
-   Dashboard v3 (ND-27): the reward layer. The session count counts up and glows, each done day lights up in order on
+   Dashboard v3 (ND-29): the reward layer. The session count counts up and glows, each done day lights up in order on
    the 90-day map, the goal's line draws itself, and a done day's check settles in. Tokens only; a missed day is an
    empty cell, never a warning colour. The global reduced-motion rule makes every animation here near-instant.
    ============================================================ */
@@ -1449,7 +1425,7 @@ html:has(.marketing) {
   .dash-map,
   .dash-map__phases {
     display: grid;
-    grid-template-columns: repeat(13, minmax(0, 1.75rem));
+    grid-template-columns: repeat(var(--map-cols, 13), minmax(0, 1.75rem));
     column-gap: 0.3rem;
     justify-content: space-between;
   }
@@ -1549,7 +1525,7 @@ html:has(.marketing) {
 }
 
 /* ============================================================
-   Today v2 (ND-28): the step first. A thin gold thread under a one-line header, the session's steps as a numbered
+   Today v2 (ND-30): the step first. A thin gold thread under a one-line header, the session's steps as a numbered
    list that opens in place, and a done moment: the check settles in with a light that sweeps the card once.
    Tokens only; the global reduced-motion rule makes every animation here near-instant.
    ============================================================ */
@@ -1613,7 +1589,7 @@ html:has(.marketing) {
   }
 }
 
-/* ND-28: the end of a focus session. The check settles in, then today's mark lights up among the week's. */
+/* ND-30: the end of a focus session. The check settles in, then today's mark lights up among the week's. */
 @layer components {
   @keyframes focus-day-light {
     0% { transform: scale(0.4); background-color: transparent; }
