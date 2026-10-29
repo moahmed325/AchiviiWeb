@@ -74,6 +74,11 @@
   --text-numeral--line-height: 0.82;
   --text-numeral--letter-spacing: -0.06em;
   --text-numeral--font-weight: 600;
+  /* ND-27: the Dashboard's session count, smaller than the day numeral so it sits beside the greeting. */
+  --text-tally: clamp(3.5rem, 2.4rem + 4.5vw, 6.5rem);
+  --text-tally--line-height: 0.85;
+  --text-tally--letter-spacing: -0.05em;
+  --text-tally--font-weight: 600;
 
   --spacing-gutter: clamp(1.25rem, 0.75rem + 2.5vw, 3rem);
   --spacing-section: clamp(6rem, 3rem + 9vw, 11rem);
@@ -1385,5 +1390,160 @@ html:has(.marketing) {
     pointer-events: none;
     background: radial-gradient(closest-side, color-mix(in oklab, var(--color-achievement) 22%, transparent), transparent);
     animation: dash-orb 7s ease-in-out infinite;
+  }
+}
+
+/* ============================================================
+   Dashboard v3 (ND-27): the reward layer. The session count counts up and glows, each done day lights up in order on
+   the 90-day map, the goal's line draws itself, and a done day's check settles in. Tokens only; a missed day is an
+   empty cell, never a warning colour. The global reduced-motion rule makes every animation here near-instant.
+   ============================================================ */
+@layer components {
+  @keyframes dash-cell-light {
+    0% { opacity: 0; transform: scale(0.4); }
+    60% { opacity: 1; transform: scale(1.18); box-shadow: 0 0 14px 2px color-mix(in oklab, var(--color-achievement) 70%, transparent); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes dash-count-glow {
+    0% { text-shadow: 0 0 0 transparent; }
+    40% { text-shadow: 0 0 48px color-mix(in oklab, var(--color-achievement) 75%, transparent); }
+    100% { text-shadow: 0 0 36px color-mix(in oklab, var(--color-achievement) 28%, transparent); }
+  }
+
+  @keyframes dash-line-draw {
+    from { stroke-dashoffset: 1; }
+  }
+
+  @keyframes dash-pop {
+    0% { opacity: 0; transform: scale(0.3); }
+    65% { opacity: 1; transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+
+  .dash-count {
+    text-shadow: 0 0 36px color-mix(in oklab, var(--color-achievement) 28%, transparent);
+    animation: dash-count-glow 1600ms var(--ease-ascend) 200ms backwards;
+  }
+
+  .dash-gain {
+    background-color: color-mix(in oklab, var(--color-achievement) 12%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-achievement) 35%, transparent);
+    animation: dash-pop 520ms var(--ease-ascend) 1300ms backwards;
+  }
+
+  .dash-done-mark {
+    display: inline-flex;
+    width: 3rem;
+    height: 3rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background-color: var(--color-achievement);
+    color: var(--color-text-on-inverse);
+    box-shadow: 0 0 28px 2px color-mix(in oklab, var(--color-achievement) 45%, transparent);
+    animation: dash-pop 620ms var(--ease-ascend) 260ms backwards;
+  }
+
+  /* The 90-day map: a column per week (13: twelve weeks and the closing six days), a cell per day. */
+  .dash-map,
+  .dash-map__phases {
+    display: grid;
+    grid-template-columns: repeat(13, minmax(0, 1.75rem));
+    column-gap: 0.3rem;
+    justify-content: space-between;
+  }
+
+  @media (min-width: 768px) {
+    .dash-map,
+    .dash-map__phases {
+      justify-content: end;
+    }
+  }
+
+  .dash-map {
+    grid-auto-flow: column;
+    grid-template-rows: repeat(7, auto);
+    row-gap: 0.3rem;
+  }
+
+  .dash-map__cell {
+    display: block;
+    aspect-ratio: 1;
+    border-radius: 0.25rem;
+    background-color: color-mix(in oklab, var(--color-text) 5%, transparent);
+  }
+
+  .dash-map__cell[data-state='done'] {
+    background-color: var(--color-achievement);
+    animation: dash-cell-light 560ms var(--ease-ascend) backwards;
+    animation-delay: calc(400ms + min(var(--i, 0) * 22ms, 1400ms));
+  }
+
+  .dash-map__cell[data-state='missed'] {
+    background-color: transparent;
+    box-shadow: inset 0 0 0 1px var(--color-border-strong);
+  }
+
+  .dash-map__cell[data-state='rest'],
+  .dash-map__cell[data-state='quiet'] {
+    background-color: transparent;
+    background-image: radial-gradient(circle, color-mix(in oklab, var(--color-text) 22%, transparent) 0 1.5px, transparent 2px);
+  }
+
+  .dash-map__cell[data-today] {
+    box-shadow: 0 0 0 2px var(--color-background), 0 0 0 3.5px var(--color-achievement);
+  }
+
+  .dash-map__cell[data-state='today'] {
+    background-color: color-mix(in oklab, var(--color-achievement) 22%, transparent);
+    animation: dash-breathe 3.6s ease-in-out infinite;
+  }
+
+  /* The goal's line: better is always up. Drawn on arrival; the stretch still ahead is a quiet dashed line. */
+  .dash-trend__goal-line {
+    stroke: color-mix(in oklab, var(--color-achievement) 45%, transparent);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+  }
+
+  .dash-trend__ahead {
+    stroke: var(--color-text-muted);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 5;
+    stroke-linecap: round;
+  }
+
+  .dash-trend__line {
+    fill: none;
+    stroke: var(--color-achievement);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    animation: dash-line-draw 1400ms var(--ease-ascend) 400ms backwards;
+  }
+
+  .dash-trend__dot {
+    fill: var(--color-surface);
+    stroke: var(--color-achievement);
+    stroke-width: 2;
+  }
+
+  .dash-trend__now {
+    fill: var(--color-achievement);
+    stroke: var(--color-surface);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--color-achievement) 70%, transparent));
+    animation: dash-pop 520ms var(--ease-ascend) 1500ms backwards;
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .dash-trend__label {
+    fill: var(--color-achievement);
+    font-family: var(--font-ui-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
   }
 }

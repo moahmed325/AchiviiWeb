@@ -309,13 +309,22 @@ test.describe('the practice day', () => {
     await expect(main(page).getByRole('button', { name: /Mark complete|Start/ })).toHaveCount(0);
   });
 
-  test("the Dashboard's action leads into Today for the same step (ND-19)", async ({ page }) => {
+  test("the Dashboard's Start opens the same step's session on Today in one tap (ND-19, ND-27)", async ({ page }) => {
     await openToday(page);
     await page.goto('/dashboard');
-    await main(page).getByRole('link', { name: 'Begin today' }).click();
+    await main(page).getByRole('link', { name: 'Start session' }).click();
     await expect(page).toHaveURL('/');
+    const focus = page.getByRole('dialog');
+    await expect(focus.getByRole('heading', { name: TODAY_TITLE })).toBeVisible();
+    await expect(focus.getByRole('button', { name: /start focused session/i })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(focus).toBeHidden();
     await expect(page.getByRole('heading', { level: 1, name: SHELL_GOAL_TITLE })).toBeVisible();
     await expect(stepRegion(page).getByRole('button', { name: 'Mark complete' })).toBeVisible();
+    // Used once: a reload does not open it again.
+    await page.reload();
+    await expect(stepRegion(page).getByRole('button', { name: 'Mark complete' })).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
   test('a goal with no tasks this week says so plainly', async ({ page }) => {

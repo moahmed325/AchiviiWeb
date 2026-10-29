@@ -406,7 +406,7 @@ The list scrolls horizontally on narrow screens instead of wrapping, so triggers
 
 `components/today/Today.tsx` is `/` for a signed-in user with a goal (OD-3, M5.3, M5.4). Visual level 1: minimal and immediate, one solid surface for the step, no dashboard of cards and no charts.
 
-Today is where the step is done. `/dashboard` (`pages/Dashboard.tsx`, ND-19) is a read-only overview of the day and the week: it reads the same `lib/today.ts` helpers, so the two always agree, writes nothing itself, and links into Today for every action.
+Today is where the step is done. `/dashboard` (`pages/Dashboard.tsx`, ND-19, ND-27) shows how the person is doing: the sessions done (counted up from the last visit), today's session with one Start (it opens Focus on Today through the `startSession` router state), the goal's own measure (`GoalProgress`) and the 90-day map (`JourneyMap`). It reads the same `lib/today.ts` helpers plus `lib/dashboard.ts`, so it always agrees with Today, and writes nothing itself.
 
 - **Order (BP §09, §31):** your goal → Day N / 90 → today's step → duration → whyToday (when stored) → Start and Complete → progressive reveals → a glance at the week → the way onward (Roadmap, and the full day view until M5.8).
 - **The heading is the goal the user chose** (`rawGoal`, the page's one `h1`, ND-18). The stored 90-day outcome (`clarifiedOutcome`) sits beneath it in `text-small`, exactly as stored: never hidden, guessed at, rewritten or passed through `formatGoalTitle`.

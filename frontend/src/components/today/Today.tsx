@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, ChevronDown, Clock, ExternalLink, Flag, Map as MapIcon, Play, X } from 'lucide-react';
 import type { DailyTask, Goal } from '../../types';
@@ -401,6 +401,21 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
     setFocusStart(startWith);
     setFocusOpen(true);
   };
+
+  // ND-27: the Dashboard's Start link arrives with `startSession`; the session opens at once when today's step can be
+  // started here (not ahead, not done, not a rest day, no swap question waiting). Either way the request is used once.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const startRequested = Boolean((location.state as { startSession?: boolean } | null)?.startSession);
+  const canStartNow = Boolean(task) && viewingToday && !ahead && !done && !task?.isRestDay && !(notice?.kind === 'swap_offer' && autoSwap.status === 'ask');
+  useEffect(() => {
+    if (!startRequested || autoSwap.status === 'moving') return;
+    navigate(location.pathname + location.search, { replace: true, state: null });
+    if (canStartNow) {
+      setFocusStart(gentleReturn ? 'minimum' : 'full');
+      setFocusOpen(true);
+    }
+  }, [startRequested, autoSwap.status, canStartNow, gentleReturn, navigate, location.pathname, location.search]);
 
   const selectDay = (id: string) => {
     setSelectedId(id);

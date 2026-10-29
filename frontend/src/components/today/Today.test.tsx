@@ -1793,3 +1793,30 @@ describe('Today after a move (weekly update M1.4)', () => {
     expect(within(card).queryByText('Rest logged')).not.toBeInTheDocument();
   });
 });
+
+describe('Today: the Dashboard\'s Start link (ND-27)', () => {
+  const renderStarting = async () => {
+    render(
+      <AuthProvider>
+        <GoalProvider>
+          <MemoryRouter initialEntries={[{ pathname: '/', state: { startSession: true } }]}>
+            <Harness />
+          </MemoryRouter>
+        </GoalProvider>
+      </AuthProvider>,
+    );
+    return screen.findByRole('heading', { level: 1 });
+  };
+
+  it("opens today's session at once", async () => {
+    await renderStarting();
+    expect(await screen.findByRole('button', { name: /start focused session/i })).toBeVisible();
+  });
+
+  it('opens nothing when today is already done', async () => {
+    mocked.fetchActiveGoal.mockResolvedValue({ ...GOAL, dailyTasks: tasks.map((t) => (t.id === 't3' ? { ...t, status: 'completed' as const } : t)) });
+    await renderStarting();
+    await screen.findByRole('region', { name: 'Easy base run' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
