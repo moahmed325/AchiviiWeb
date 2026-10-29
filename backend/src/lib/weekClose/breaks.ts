@@ -1,5 +1,6 @@
 import type { DailyTask } from '@prisma/client';
-import { TOTAL_WEEKS, type WeekTarget } from '../ai/roadmap.js';
+import type { WeekTarget } from '../ai/roadmap.js';
+import { DEFAULT_SHAPE, type PlanShape } from '../planLength.js';
 import { isHighLoadGoal } from '../highLoad.js';
 import { sameUnit } from '../research/statedTarget.js';
 import { isWeekTarget } from '../safety/storedTargets.js';
@@ -49,20 +50,25 @@ export function pastLimitMove(
   room: number,
   closedWeek: number,
   /** B-106: `fixedDateRoom`'s days, or null with no fixed date ahead. Only the final week reads it. */
-  dateRoom: number | null = null
+  dateRoom: number | null = null,
+  /** B-109: the plan's length; missing is 12 weeks. */
+  shape: PlanShape = DEFAULT_SHAPE
 ): { choice: PastLimitChoice; days: number; weekBack: number } | null {
   const space = Math.max(0, room);
-  if (closedWeek + 1 > TOTAL_WEEKS || gap < BREAK_FROM_GAP_DAYS || gap - space < JUMP_FROM_OVERFLOW_DAYS) return null;
+  if (closedWeek + 1 > shape.weeks || gap < BREAK_FROM_GAP_DAYS || gap - space < JUMP_FROM_OVERFLOW_DAYS) return null;
   const aligned = space - ((((space - gap) % 7) + 7) % 7);
   const days = aligned >= 0 ? aligned : space;
   const weekBack = closedWeek + 1 + Math.floor((gap - days) / 7);
-  if (weekBack <= TOTAL_WEEKS) return { choice: 'keep_going', days, weekBack };
+  if (weekBack <= shape.weeks) return { choice: 'keep_going', days, weekBack };
+  // B-109: the final week is the one with the final test (week 12; a shorter plan's week before its ready week, which
+  // then follows it), never a week already closed.
+  const finalWeek = Math.max(shape.finalWeek, closedWeek + 1);
   // Week 12 starts on the first try's date: week `closedWeek + 1` would start `gap` days ago, week 12 that many weeks later.
-  const needed = gap - 7 * (TOTAL_WEEKS - closedWeek - 1);
+  const needed = gap - 7 * (finalWeek - closedWeek - 1);
   // B-106 (Mo, choice c): with a fixed date ahead, week 12 moves only as far as the date allows, so it started earlier
   // and its passed days are not offered; it always keeps today (at most 6 days earlier), so the final week is never over.
   const final = dateRoom === null ? needed : Math.min(needed, Math.max(dateRoom, needed - 6));
-  return { choice: 'final_week', days: final, weekBack: TOTAL_WEEKS };
+  return { choice: 'final_week', days: final, weekBack: finalWeek };
 }
 
 /**
@@ -136,10 +142,12 @@ export function restartLevel(
   breakDays: number,
   closingWeek: number,
   weeks: readonly { weekNumber: number; target: unknown; light: boolean }[],
-  weekBack: number
+  weekBack: number,
+  /** B-109: the week of the final test; missing is 12. */
+  finalWeek: number = DEFAULT_SHAPE.finalWeek
 ): RestartLevel | null {
-  const shows = weeks.find((week) => week.weekNumber >= weekBack && !week.light)?.weekNumber ?? TOTAL_WEEKS;
-  if (weekBack >= TOTAL_WEEKS || shows >= TOTAL_WEEKS) return null;
+  const shows = weeks.find((week) => week.weekNumber >= weekBack && !week.light)?.weekNumber ?? finalWeek;
+  if (weekBack >= finalWeek || shows >= finalWeek) return null;
   const restart = returnRuleEntry(profile, breakDays)?.restart ?? 'last level';
   const targetOf = (n: number) => {
     const target = weeks.find((week) => week.weekNumber === n)?.target;

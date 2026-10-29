@@ -11,6 +11,7 @@ import { isHighLoadGoal } from '../../lib/highLoad.js';
 import { loadGoalInput } from '../../lib/safety/stepLoad.js';
 import { logRoadmapTargets } from '../../lib/safety/targetSteps.js';
 import { generateRoadmap, lightTestSession, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../../lib/ai/roadmap.js';
+import { MIN_WEEKS, planLengthFor } from '../../lib/planLength.js';
 import { activeDaysFor, generateWeekPlan, slotTimeFor, validRestWeekdays, type PlanVariant, type WeekDayPlan } from '../../lib/ai/weekPlan.js';
 import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, dailyTaskRows, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
 import { makeGoalProfile } from '../../lib/recovery/forGoal.js';
@@ -89,8 +90,9 @@ export async function readNextPlanRequest(userId: string, body: unknown): Promis
 
 /**
  * B-106: the goal's optional fixed date (an exam, a race, a talk), sent as `fixedDate` (`YYYY-MM-DD`, the person's
- * local date). Stored like `startDate` (ND-1: that date at 00:00 UTC). It must be after the start date; it may be less
- * than 90 days away (the plan stays 90 days and only never moves past it). Absent, null or '' is no date. A next plan
+ * local date). Stored like `startDate` (ND-1: that date at 00:00 UTC). It must be after the start date. B-109: under 12
+ * weeks away the plan is shorter and ends before it (`planLengthFor`); under 4 weeks it is refused. Absent, null or ''
+ * is no date. A next plan
  * carries nothing itself: the app fills the old plan's date in the field, so what the person sees is what is saved.
  */
 export function readFixedDate(value: unknown, start: Date): { date: Date | null } | { error: string } {
@@ -115,6 +117,8 @@ export async function saveV2Goal(input: {
   targetDate: Date;
   /** B-106: the outside date the plan never moves past, or null. */
   fixedDate?: Date | null;
+  /** B-109: the plan's weeks (`planLengthFor`); missing is 12. */
+  totalWeeks?: number;
   isPreset: boolean;
   /** Method-aware recovery (M1.3a): saved under `recovery` when it passed the checks. */
   recovery?: RecoveryProfile | null;
@@ -136,6 +140,7 @@ export async function saveV2Goal(input: {
         startDate: input.start,
         targetDate: input.targetDate,
         fixedDate: input.fixedDate ?? null,
+        totalWeeks: input.totalWeeks ?? TOTAL_WEEKS,
         currentWeek: 1,
         answers: JSON.stringify(input.answers),
         routine: JSON.stringify(input.routine),
@@ -276,13 +281,24 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
 
     // ND-1: the goal starts on the user's local calendar day, stored as that date at 00:00 UTC.
     const start = resolveGoalStart(normalizeTimezone(user.timezone), startDate);
-    const targetDate = new Date(start);
-    targetDate.setUTCDate(targetDate.getUTCDate() + 90);
     const fixed = readFixedDate(req.body?.fixedDate, start);
     if ('error' in fixed) {
       res.status(400).json({ error: fixed.error });
       return;
     }
+    // B-109: a fixed date under 12 weeks away gives the whole weeks that fit before it; under 4 weeks, no plan (Mo, (a)).
+    const length = planLengthFor(start, fixed.date);
+    if ('tooClose' in length) {
+      res.status(400).json({
+        error: `Your date is too close for a full plan. Choose a date at least ${MIN_WEEKS} weeks away, or leave it empty.`,
+        code: 'fixed_date_too_close',
+      });
+      return;
+    }
+    const { targetDate } = length;
+    const totalWeeks = length.weeks;
+    // Only a shorter plan adds the key, so every other roadmap call is exactly as before.
+    const lengthInput = totalWeeks !== TOTAL_WEEKS ? { totalWeeks } : {};
 
     const routineInput: UserRoutineInput = {
       wakeTime: routine?.wakeTime || '07:00',
@@ -332,6 +348,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
       activeDays: activeDaysFor(planVariant),
       answers: answerList,
       ...(measuredStart ? { measuredStart } : {}),
+      ...lengthInput,
     });
 
     let week1: WeekDayPlan[] | null = null;
@@ -361,7 +378,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         slotTime: slotTimeFor(routineInput.preferredSlot),
         method: roadmap.method,
         weekNumber: 1,
-        totalWeeks: TOTAL_WEEKS,
+        totalWeeks,
         phase: roadmap.phases[0],
         focus: first.focus,
         target: first.target,
@@ -391,6 +408,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         start,
         targetDate,
         fixedDate: fixed.date,
+        ...lengthInput,
         isPreset: Boolean(preset),
         recovery,
         previousPlan: nextPlan ? nextPlan.previousPlan : null,

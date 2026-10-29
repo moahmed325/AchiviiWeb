@@ -300,7 +300,7 @@ describe('POST /api/goal/reconcile with method-aware recovery (M3.1a)', () => {
     const off = (prisma.goal.findFirst as any).mock.calls[0][0];
     expect(off).toEqual({ where: { userId: user.id, status: 'active' }, select: RECONCILE_GOAL_SELECT });
     expect(off.select).not.toHaveProperty('roadmap');
-    expect(Object.keys(RECONCILE_GOAL_SELECT).sort()).toEqual(['clarifiedOutcome', 'dailyTasks', 'id', 'planVersion', 'rawGoal', 'routine']);
+    expect(Object.keys(RECONCILE_GOAL_SELECT).sort()).toEqual(['clarifiedOutcome', 'dailyTasks', 'id', 'planVersion', 'rawGoal', 'routine', 'totalWeeks']);
 
     await withSwitches('true', undefined);
     const on = (prisma.goal.findFirst as any).mock.calls[1][0];

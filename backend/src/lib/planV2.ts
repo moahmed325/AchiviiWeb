@@ -1,10 +1,10 @@
 import type { DailyTask, Goal, Prisma, RoadmapWeek as RoadmapWeekRow } from '@prisma/client';
 import { prisma } from './prisma.js';
+import { shapeOf } from './planLength.js';
 import {
   formatTarget,
   keyMilestoneText,
   lightTestSession,
-  TOTAL_WEEKS,
   type ChosenMethod,
   type PlanAnswer,
   type Roadmap,
@@ -66,7 +66,7 @@ export function roadmapWeekRows(goalId: string, roadmap: Roadmap, dailyMinutes: 
     theme: week.focus,
     objective: formatTarget(week.target),
     keyMilestone: keyMilestoneText(week.test),
-    targetIntensity: Math.round(60 + (40 * (week.weekNumber - 1)) / (TOTAL_WEEKS - 1)),
+    targetIntensity: Math.round(60 + (40 * (week.weekNumber - 1)) / (roadmap.weeks.length - 1)),
     plannedMinutes: dailyMinutes * activeDaysFor(planVariant),
     target: json(week.target),
     test: json(week.test),
@@ -294,7 +294,7 @@ export async function writeNextWeek(
     slotTime,
     method: stored.method,
     weekNumber: next.weekNumber,
-    totalWeeks: TOTAL_WEEKS,
+    totalWeeks: shapeOf(goal).weeks,
     phase,
     focus: next.theme,
     target: next.target as unknown as WeekTarget,

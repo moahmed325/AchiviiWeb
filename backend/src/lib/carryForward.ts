@@ -141,7 +141,8 @@ export interface CarryInput {
   days: readonly DayClassification[];
   gap: Gap | null;
   tasks: readonly CarryTask[];
-  goal: { rawGoal: string; clarifiedOutcome: string };
+  /** B-109: `totalWeeks`, the plan's weeks (missing is 12): its last week has no next week. */
+  goal: { rawGoal: string; clarifiedOutcome: string; totalWeeks?: number | null };
   /** The user's local calendar date, 'YYYY-MM-DD'. */
   today: string;
   timezone: string;

@@ -84,6 +84,8 @@ export interface WeeklyUpdateInput {
   history: UpdateHistoryWeek[];
   /** Every week after this one, in order, with its current target. */
   weeksLeft: UpdateWeekLeft[];
+  /** B-109: the week of the final test (12; a shorter plan's week before its ready week, which is not in `weeksLeft`). */
+  finalWeek?: number;
   /** WU-45 (3): the most the first week the model sets may rise to (`nextSafeStep`); null for a target with no family. */
   safeMax: { weekNumber: number; value: number } | null;
   /** WU-11: only with `METHOD_RECOVERY_ENABLED` on, and only kinds with steps still to do. */
@@ -207,17 +209,21 @@ export function nextWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'nextWe
 }
 
 /** The week the next week shows: a light week shows its next big week's target. */
-function bigWeekFor(weekNumber: number, weeksLeft: readonly UpdateWeekLeft[]): number {
-  return weeksLeft.find((week) => week.weekNumber >= weekNumber && !week.light)?.weekNumber ?? TOTAL_WEEKS;
+function bigWeekFor(weekNumber: number, weeksLeft: readonly UpdateWeekLeft[], final: number = TOTAL_WEEKS): number {
+  return weeksLeft.find((week) => week.weekNumber >= weekNumber && !week.light)?.weekNumber ?? final;
 }
+
+/** B-109: the week of the final test, week 12 unless the input names another. */
+export const finalWeekOf = (input: Pick<WeeklyUpdateInput, 'finalWeek'>): number => input.finalWeek ?? TOTAL_WEEKS;
 
 /**
  * WU-47 (amends WU-15): next week shows week 12's target: it is week 12, or a light week whose next check is week 12 (on
  * a light-test goal, the close of week 8). No hold applies then.
  */
-export function nextWeekIsLast(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): boolean {
+export function nextWeekIsLast(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek' | 'finalWeek'>): boolean {
   const next = nextWeekOf(input);
-  return next >= TOTAL_WEEKS || bigWeekFor(next, input.weeksLeft) === TOTAL_WEEKS;
+  const final = finalWeekOf(input);
+  return next >= final || bigWeekFor(next, input.weeksLeft, final) === final;
 }
 
 /**
@@ -233,18 +239,18 @@ export function holdsOf(
 }
 
 /** WU-49: the week a hold binds is the week the model sets: next week, or on a light-test goal the big week it shows. */
-export function heldWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): number {
-  return bigWeekFor(nextWeekOf(input), input.weeksLeft);
+export function heldWeekOf(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek' | 'finalWeek'>): number {
+  return bigWeekFor(nextWeekOf(input), input.weeksLeft, finalWeekOf(input));
 }
 
 /** "week 4", or "week 8 (next week shows it)" when next week is a light week. */
-function heldWeekName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): string {
+function heldWeekName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek' | 'finalWeek'>): string {
   const week = heldWeekOf(input);
   return week === nextWeekOf(input) ? `week ${week}` : `week ${week} (next week shows it)`;
 }
 
 /** "week 4's target", or "week 8's target (next week shows it)". */
-function heldTargetName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek'>): string {
+function heldTargetName(input: Pick<WeeklyUpdateInput, 'weekNumber' | 'weeksLeft' | 'nextWeek' | 'finalWeek'>): string {
   const week = heldWeekOf(input);
   return week === nextWeekOf(input) ? `week ${week}'s target` : `week ${week}'s target (next week shows it)`;
 }
@@ -275,7 +281,7 @@ export function fallbackHold(input: WeeklyUpdateInput): { held: FallbackHold[]; 
   const sameNow = (target: WeekTarget) => goesUp(input.target, target) === false && goesUp(target, input.target) === false;
   if (!up) return { held, targets: [], keeps: sameNow(planned) };
   const targets = input.weeksLeft
-    .filter((item) => item.weekNumber <= week && bigWeekFor(item.weekNumber, input.weeksLeft) === week)
+    .filter((item) => item.weekNumber <= week && bigWeekFor(item.weekNumber, input.weeksLeft, finalWeekOf(input)) === week)
     .map((item) => ({ weekNumber: item.weekNumber, target: input.target }));
   return { held, targets, keeps: true };
 }
@@ -290,7 +296,7 @@ export function fallbackRestart(input: WeeklyUpdateInput): Array<{ weekNumber: n
   const week = heldWeekOf(input);
   const level = input.restart.level;
   return input.weeksLeft
-    .filter((item) => item.weekNumber <= week && bigWeekFor(item.weekNumber, input.weeksLeft) === week)
+    .filter((item) => item.weekNumber <= week && bigWeekFor(item.weekNumber, input.weeksLeft, finalWeekOf(input)) === week)
     .map((item) => ({ weekNumber: item.weekNumber, target: level }));
 }
 
@@ -318,7 +324,7 @@ function breakLines(input: WeeklyUpdateInput, restart: UpdateRestart): string[] 
     restart.fellBack
       ? `- They were away ${restart.awayDays} days. The restart stays at this week's target (week ${restart.week}).`
       : `- They were away ${restart.awayDays} days. The method's return rule for a break this long: ${RESTART_WORDS[restart.restart]} (week ${restart.week}'s target).`,
-    `- W${held.slice(1)} must be exactly ${level}. Spread the remaining weeks from there up to week 12; none easier than it.`,
+    `- W${held.slice(1)} must be exactly ${level}. Spread the remaining weeks from there up to week ${finalWeekOf(input)}; none easier than it.`,
     // M3.4 review: the app's welcome-back line comes first, so the sentence must not repeat it.
     '- The app already welcomes them back, so the message must not greet them or say "welcome back".',
   ];
@@ -353,10 +359,10 @@ function countLines(counts: UpdateCounts): string[] {
  * WU-46 (2): the lower bound never goes above week 12's current target; null without a result or without a number
  * week 12. WU-46 (1) is `checkWeeklyUpdate`'s: a held next week may be below it.
  */
-export function boundOf(input: Pick<WeeklyUpdateInput, 'lowerBound' | 'weeksLeft' | 'target' | 'restart'>): number | null {
+export function boundOf(input: Pick<WeeklyUpdateInput, 'lowerBound' | 'weeksLeft' | 'target' | 'restart' | 'finalWeek'>): number | null {
   // M3.4 (WU-16, WU-59 (2)): after a break the restart level is the lower bound, not the last result.
   const lowerBound = input.restart ? (input.restart.level.kind === 'number' ? input.restart.level.value : null) : input.lowerBound;
-  const week12 = input.weeksLeft.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
+  const week12 = input.weeksLeft.find((week) => week.weekNumber === finalWeekOf(input))?.target;
   if (lowerBound === null || input.target.kind !== 'number' || week12?.kind !== 'number') return lowerBound;
   return harder(lowerBound, week12.value, input.target.direction) ? week12.value : lowerBound;
 }
@@ -376,7 +382,8 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   const method = input.method.creator ? `${input.method.name} by ${input.method.creator}` : input.method.name;
   const asked = askedWeeks(input);
   const askedList = asked.map((week) => week.weekNumber).join(', ');
-  const week12 = input.weeksLeft.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
+  const final = finalWeekOf(input);
+  const week12 = input.weeksLeft.find((week) => week.weekNumber === final)?.target;
   const counts = input.counts;
   const holds = holdsOf(input);
   const nextWeek = nextWeekOf(input);
@@ -409,11 +416,11 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
   }
 
   const targetRules = [
-    '   - on_track: keep the plan. Raise it only if they clearly beat the target, never above week 12\'s target before week 12.',
+    `   - on_track: keep the plan. Raise it only if they clearly beat the target, never above week ${final}'s target before week ${final}.`,
     '   - a_bit_behind: make the next step smaller and spread the remaining climb over the weeks left.',
   ];
   if (nextWeekIsLast(input)) {
-    targetRules.push(`   - Week ${nextWeek} shows week 12's target: it keeps the goal whatever the status, and the message says the final week aims at the goal.`);
+    targetRules.push(`   - Week ${nextWeek} shows week ${final}'s target: it keeps the goal whatever the status, and the message says the final week aims at the goal.`);
   } else if (input.restart) {
     // M3.4 (WU-59 (2)): after a break the restart level decides next week, whatever the status; no other hold applies.
     targetRules.push(`   - After the break, ${heldTargetName(input)} equals ${formatTarget(input.restart.level)} whatever the status.`);
@@ -439,7 +446,7 @@ export function buildWeeklyUpdatePrompt(input: WeeklyUpdateInput): string {
         : `   - Never set a target easier than what they last achieved (${amount(input.target, bound)}), and no week easier than the week before it.${
             heldBelow ? ` A held ${heldWeekName(input)} may stay at this week's target instead.` : ''
           }`,
-    `   - Week 12 stays exactly ${week12 ? formatTarget(week12) : 'the goal'}.`,
+    `   - Week ${final} stays exactly ${week12 ? formatTarget(week12) : 'the goal'}.`,
     '   - Keep each week\'s kind, metric and unit as planned.',
     // M3.3a (03-phases M3.3 note (b)): WU-51's rule, told as well as checked.
     '   - In the message, don\'t say held, kept or stays when next week\'s target moves on, or goes up, raised or rises when it stays the same.',
@@ -558,10 +565,11 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
   // WU-45 (2): each light week left holds its next big week's target.
   const targets = input.weeksLeft.map((week) => ({
     weekNumber: week.weekNumber,
-    target: set.get(week.weekNumber) ?? set.get(bigWeekFor(week.weekNumber, input.weeksLeft)) ?? week.target,
+    target: set.get(week.weekNumber) ?? set.get(bigWeekFor(week.weekNumber, input.weeksLeft, finalWeekOf(input))) ?? week.target,
   }));
-  const week12Now = input.weeksLeft.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
-  const week12 = targets.find((item) => item.weekNumber === TOTAL_WEEKS)?.target;
+  const final = finalWeekOf(input);
+  const week12Now = input.weeksLeft.find((week) => week.weekNumber === final)?.target;
+  const week12 = targets.find((item) => item.weekNumber === final)?.target;
   const next = targets[0]?.target;
   const holds = holdsOf(input);
   const restart = input.restart && !nextWeekIsLast(input) ? input.restart : null;
@@ -574,7 +582,7 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
   if (week12Now?.kind === 'deliverable' || input.target.kind === 'deliverable') {
     // WU-20 (3): words can't be compared for "lower" or "backwards"; a held week repeats this week's text exactly.
     if (week12Now?.kind === 'deliverable' && week12?.kind === 'deliverable' && week12.description !== week12Now.description) {
-      reasons.push(`week 12 must stay exactly "${week12Now.description}".`);
+      reasons.push(`week ${final} must stay exactly "${week12Now.description}".`);
     }
     if (heldBy.length && next?.kind === 'deliverable' && input.target.kind === 'deliverable' && next.description !== input.target.description) {
       reasons.push(`${heldWeekName(input)} must repeat this week's target exactly ("${input.target.description}") because ${heldBy.join(' and ')}.`);
@@ -582,7 +590,7 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
   } else if (input.target.kind === 'number' && week12Now?.kind === 'number' && week12?.kind === 'number') {
     const direction = input.target.direction;
     const label = (value: number) => formatAmount(value, input.target.kind === 'number' ? input.target.unit : '');
-    if (Math.abs(week12.value - week12Now.value) > EPSILON) reasons.push(`week 12 must stay exactly ${label(week12Now.value)}.`);
+    if (Math.abs(week12.value - week12Now.value) > EPSILON) reasons.push(`week ${final} must stay exactly ${label(week12Now.value)}.`);
     const bound = boundOf(input);
     const held = nextWeekHeld(input, status);
     let before: number | null = null;
@@ -599,8 +607,8 @@ export function checkWeeklyUpdate(raw: RawWeeklyUpdate, input: WeeklyUpdateInput
         );
       }
       if (before !== null && harder(before, value, direction)) reasons.push(`week ${item.weekNumber}'s ${label(value)} is easier than the week before it (${label(before)}).`);
-      if (item.weekNumber < TOTAL_WEEKS && harder(value, week12Now.value, direction)) {
-        reasons.push(`week ${item.weekNumber}'s ${label(value)} is harder than week 12's ${label(week12Now.value)}.`);
+      if (item.weekNumber < final && harder(value, week12Now.value, direction)) {
+        reasons.push(`week ${item.weekNumber}'s ${label(value)} is harder than week ${final}'s ${label(week12Now.value)}.`);
       }
       before = value;
     }

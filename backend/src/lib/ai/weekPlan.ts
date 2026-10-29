@@ -42,6 +42,7 @@ import {
 } from '../safety/weekLoad.js';
 import { isExperiencedLifter } from '../safety/experience.js';
 import type { RunLevel } from '../safety/targetSteps.js';
+import { DEFAULT_WEEKS, planShape } from '../planLength.js';
 import {
   formatAnswerLines,
   formatTarget,
@@ -208,9 +209,16 @@ export interface WeekCallInput {
   baseWeek?: BaseWeek;
 }
 
-export const WEEK_SYSTEM = `You write one week of daily practice for a person following a 90-day plan. The goal, the method and this week's
+/** The week call's system text; B-109: a shorter plan names its weeks (`weekSystem(12)` is exactly as before). */
+export function weekSystem(totalWeeks: number = DEFAULT_WEEKS): string {
+  const plan = planShape(totalWeeks).weeks === DEFAULT_WEEKS ? '90-day' : `${planShape(totalWeeks).weeks}-week`;
+  return `You write one week of daily practice for a person following a ${plan} plan. The goal, the method and this week's
 target are already decided. Do not change them. Every day must move the person toward this week's target.
 Respond with one JSON object that matches the schema.`;
+}
+
+/** A 12-week plan's system text. */
+export const WEEK_SYSTEM = weekSystem();
 
 const stepProperties = {
   title: { type: 'string' },
@@ -485,9 +493,20 @@ function thisWeekTestLines(input: WeekCallInput): string {
     return `Target: ${formatTarget(input.target)}${NL}Weekly test: ${input.test.instructions.trim().replace(/\.+$/, '')}. Pass if: ${input.test.passIf}`;
   }
   return [
-    `Next check (week ${nextCheckWeek(input.weekNumber)}): ${formatTarget(input.target)}. Build toward it; it is not tested this week.`,
+    `Next check (week ${nextCheckWeek(input.weekNumber, planShape(input.totalWeeks))}): ${formatTarget(input.target)}. Build toward it; it is not tested this week.`,
     `Weekly test (the light test, done as written; no number against the target): ${input.test.instructions}`,
   ].join(NL);
+}
+
+/**
+ * B-109: a shorter plan's last week is the ready week before their date; the line says so. Empty in any other week, so
+ * every 12-week plan's prompt is exactly as before.
+ */
+function readyWeekLine(input: WeekCallInput): string {
+  if (planShape(input.totalWeeks).readyWeek !== input.weekNumber) return '';
+  return `${NL}Ready week: their date (an exam, a race, a talk) is right after this week, and last week held the final test. Make this
+week lighter than last week: shorter, easier sessions and nothing new, only sharpening what they already do, so they
+arrive rested and confident. No hard or all-out effort, and no max or test beyond the weekly test above.`;
 }
 
 /** M3.3a (WU-56): the half of the day the re-test takes, as `testStepFor`'s step takes half of the test day. */
@@ -528,7 +547,7 @@ ${input.method.rules.map((rule) => `- ${rule}`).join('\n')}
 THIS WEEK
 Week ${input.weekNumber} of ${input.totalWeeks}, phase "${input.phase.name}": ${input.phase.purpose}
 Focus: ${input.focus}
-${thisWeekTestLines(input)}
+${thisWeekTestLines(input)}${readyWeekLine(input)}
 ${lastWeekBlock(input)}
 
 THE DAYS (already decided; keep them)
@@ -1385,7 +1404,7 @@ export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPla
   let first: RawWeekAnswer | null = null;
   return generateWithOneRetry<RawWeekAnswer, WeekDayPlan[]>(
     buildWeekPrompt(input, layout),
-    WEEK_SYSTEM,
+    weekSystem(input.totalWeeks),
     weekResponseSchema(input.recovery, input.loadGoal),
     (data, lastAttempt) => {
       if (!lastAttempt) {

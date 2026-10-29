@@ -4,11 +4,10 @@
  * only when its close wins. Empty with either switch off.
  */
 import type { WeekTarget } from '../ai/roadmap.js';
-import { TOTAL_WEEKS } from '../ai/roadmap.js';
+import { shapeOf } from '../planLength.js';
 import { sameUnit } from '../research/statedTarget.js';
 import { safeGoalTargets, testOf, isWeekTarget } from '../safety/storedTargets.js';
 import {
-  CHECKPOINT_WEEKS,
   acceptedWeeks,
   checkpointFor,
   pathwayOf,
@@ -47,8 +46,9 @@ export function checkpointsAtClose(
 ): CloseCheckpoint[] {
   if (!weeklyUpdateEnabled()) return [];
   const skip = (week: number, reason: string): CloseCheckpoint => ({ week, line: checkpointLogLine(goal.id, week, { outcome: 'none', reason }), entry: null });
-  const out = jumpedWeeks(weekNumber, context.move).filter((week) => CHECKPOINT_WEEKS.includes(week)).map((week) => skip(week, 'jumped'));
-  if (!CHECKPOINT_WEEKS.includes(weekNumber)) return out;
+  const checkpointWeeks = shapeOf(goal).checkpointWeeks;
+  const out = jumpedWeeks(weekNumber, context.move).filter((week) => checkpointWeeks.includes(week)).map((week) => skip(week, 'jumped'));
+  if (!checkpointWeeks.includes(weekNumber)) return out;
   out.push(decide(goal, weekNumber, context, skip));
   return out;
 }
@@ -69,8 +69,9 @@ function decide(
   const safe = safeGoalTargets({ ...updated, roadmap, roadmapWeeks });
   const rows = safe?.weeks ?? [];
   const week = rows.find((item) => item.weekNumber === weekNumber);
-  const last = rows.find((item) => item.weekNumber === TOTAL_WEEKS);
-  if (!safe || rows.length !== TOTAL_WEEKS || !week || !last || !isWeekTarget(week.target) || !isWeekTarget(last.target)) return skip(weekNumber, 'unreadable');
+  const shape = shapeOf(goal);
+  const last = rows.find((item) => item.weekNumber === shape.finalWeek);
+  if (!safe || rows.length !== shape.weeks || !week || !last || !isWeekTarget(week.target) || !isWeekTarget(last.target)) return skip(weekNumber, 'unreadable');
   const planned = week.target as WeekTarget;
   const target = last.target as WeekTarget;
 
@@ -93,7 +94,9 @@ function decide(
   const context10k = { run10k: pathway?.id === 'run10k' };
   const openWeek = weekNumber + 1;
   const weeksDone = weekNumber - goal.roadmapWeeks.filter((item) => item.weekNumber < weekNumber && item.jumped).length;
-  const raiseCheck = weekNumber === 8 && list.some((item) => item.week === 4 && item.kind === 'lower' && item.answer === 'accept');
+  // The second checkpoint (week 8 on a 12-week plan) after the first's lower was accepted.
+  const [firstCheck, secondCheck] = shape.checkpointWeeks;
+  const raiseCheck = weekNumber === secondCheck && list.some((item) => item.week === firstCheck && item.kind === 'lower' && item.answer === 'accept');
   const finalTest = typeof roadmap.finalTest === 'string' ? roadmap.finalTest : '';
 
   const check: CheckResult = checkpointFor({
@@ -107,9 +110,10 @@ function decide(
     weeksDone,
     context: context10k,
     raiseCheck,
+    finalWeek: shape.finalWeek,
     raiseIsSafe: (offered) => {
-      const spread = acceptedWeeks(rows, openWeek, offered, 'raise', pathway);
-      return spread !== null && spreadIsSafe(rows, spread.weeks, start, finalTest, pathway);
+      const spread = acceptedWeeks(rows, openWeek, offered, 'raise', pathway, shape);
+      return spread !== null && spreadIsSafe(rows, spread.weeks, start, finalTest, pathway, shape);
     },
   });
   const line = checkpointLogLine(goal.id, weekNumber, { result, planned: planned.value, forecast: check.forecast, share: check.share, outcome: check.outcome, reason: check.reason });

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, beforeAll, afterAll, afterEach } 
 import express from 'express';
 import type { Server } from 'node:http';
 
-// B-106: goal create takes an optional fixed date (an exam, a race, a talk), checks it and saves it on the goal. The
-// plan stays 90 days.
+// B-106: goal create takes an optional fixed date (an exam, a race, a talk), checks it and saves it on the goal. B-109:
+// under 12 weeks away the plan is shorter and ends before it; under 4 weeks, no plan.
 
 const db = vi.hoisted(() => ({
   goalCreate: vi.fn(),
@@ -129,13 +129,49 @@ async function create(extra: Record<string, unknown> = {}) {
 const savedGoal = () => db.goalCreate.mock.calls[0][0].data;
 
 describe('goal create with a fixed date (B-106)', () => {
-  it('saves the date as that day at 00:00 UTC and keeps the plan at 90 days', async () => {
-    expect((await create({ fixedDate: '2026-12-15' })).status).toBe(201);
+  it('saves the date as that day at 00:00 UTC; 12 weeks or more away, the plan stays 90 days (B-109)', async () => {
+    expect((await create({ fixedDate: '2027-02-15' })).status).toBe(201);
     expect(savedGoal()).toMatchObject({
       startDate: new Date('2026-10-28T00:00:00Z'),
       targetDate: new Date('2027-01-26T00:00:00Z'),
-      fixedDate: new Date('2026-12-15T00:00:00Z'),
+      fixedDate: new Date('2027-02-15T00:00:00Z'),
+      totalWeeks: 12,
     });
+    expect(vi.mocked(generateRoadmap).mock.calls[0][0]).not.toHaveProperty('totalWeeks');
+    expect(vi.mocked(generateWeekPlan).mock.calls[0][0].totalWeeks).toBe(12);
+  });
+
+  it('B-109: under 12 weeks away, the plan has the whole weeks before it and ends on the day before it at the latest', async () => {
+    // 48 days: 6 whole weeks (42 days), so the plan's last day is the day before the date at the latest.
+    expect((await create({ fixedDate: '2026-12-15' })).status).toBe(201);
+    expect(savedGoal()).toMatchObject({
+      targetDate: new Date('2026-12-15T00:00:00Z'),
+      fixedDate: new Date('2026-12-15T00:00:00Z'),
+      totalWeeks: 6,
+    });
+    expect(vi.mocked(generateRoadmap).mock.calls[0][0].totalWeeks).toBe(6);
+    expect(vi.mocked(generateWeekPlan).mock.calls[0][0].totalWeeks).toBe(6);
+  });
+
+  it('B-109: 84 to 89 days away is still 12 weeks, ending on the day before the date', async () => {
+    expect((await create({ fixedDate: '2027-01-21' })).status).toBe(201);
+    expect(savedGoal()).toMatchObject({ targetDate: new Date('2027-01-21T00:00:00Z'), totalWeeks: 12 });
+  });
+
+  it.each([
+    ['27 days away', '2026-11-24'],
+    ['a week away', '2026-11-04'],
+  ])('B-109: %s answers 400 (fewer than 4 weeks fit) before any model call', async (_name, fixedDate) => {
+    const { status, body } = await create({ fixedDate });
+    expect(status).toBe(400);
+    expect(body).toEqual({ error: 'Your date is too close for a full plan. Choose a date at least 4 weeks away, or leave it empty.', code: 'fixed_date_too_close' });
+    expect(generateRoadmap).not.toHaveBeenCalled();
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it('B-109: exactly 4 weeks away gives a 4-week plan', async () => {
+    expect((await create({ fixedDate: '2026-11-25' })).status).toBe(201);
+    expect(savedGoal()).toMatchObject({ totalWeeks: 4, targetDate: new Date('2026-11-25T00:00:00Z') });
   });
 
   it.each([['no field', {}], ['null', { fixedDate: null }], ['an empty string', { fixedDate: '' }]])('%s saves no date', async (_name, extra) => {

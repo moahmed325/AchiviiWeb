@@ -5,6 +5,7 @@ import { screenQuery } from '../research/safetyFilter.js';
 import type { VelocityTarget } from '../research/types.js';
 import { SAFETY_LIMIT_TEXT, logSafetyHit, textSafetyHits } from './safetyScan.js';
 import { safeTargetClimb, type TargetCheck } from '../safety/targetSteps.js';
+import { checkWeekFor, DEFAULT_SHAPE, DEFAULT_WEEKS, planShape, type PlanShape } from '../planLength.js';
 
 export const TEST_TYPES = ['typing_test', 'quiz', 'timer', 'count', 'photo', 'video'] as const;
 export type TestType = (typeof TEST_TYPES)[number];
@@ -103,9 +104,12 @@ export interface RoadmapInput {
   answers: PlanAnswer[];
   /** Next plan (NP-3): the level code measured from the last plan; the starting point must be it (in the same unit). */
   measuredStart?: { value: number; unit: string } | null;
+  /** B-109: the plan's weeks (`planLengthFor`); missing is 12, and the prompt is then exactly as before. */
+  totalWeeks?: number;
 }
 
-export const TOTAL_WEEKS = 12;
+/** A 12-week plan's length: the default (`planLength.ts`). A goal's own count is `shapeOf(goal).weeks`. */
+export const TOTAL_WEEKS = DEFAULT_WEEKS;
 const MIN_RULES = 5;
 const MAX_RULES = 8;
 /** Week 1 may cover at most this share of the climb from the starting point to week 12. */
@@ -162,14 +166,17 @@ export function shownAmount(target: WeekTarget): string {
   return target.kind === 'number' ? `${formatAmount(target.value, target.unit)}${target.direction === 'lower_is_better' ? ' or less' : ''}` : target.description;
 }
 
-const ROADMAP_SYSTEM = `You design the 12-week roadmap for one person's goal. You do not write daily tasks; another step does that.
+/** The roadmap call's system text; B-109: a shorter plan names its own weeks (12 is exactly as before). */
+export function roadmapSystem(weeks: number = DEFAULT_WEEKS): string {
+  return `You design the ${weeks}-week roadmap for one person's goal. You do not write daily tasks; another step does that.
 
 Your job, in order:
-1. Turn their goal and answers into one specific, checkable 90-day goal.
+1. Turn their goal and answers into one specific, checkable ${weeks === DEFAULT_WEEKS ? '90-day' : `${weeks}-week`} goal.
 2. Choose the method with the best record of getting people like this person to this outcome.
-3. Lay out 12 weeks, each with one target, that climb from where they are now to the goal.
+3. Lay out ${weeks} weeks, each with one target, that climb from where they are now to the goal.
 
 Respond with one JSON object that matches the schema.`;
+}
 
 const candidateSchema = {
   type: 'object',
@@ -291,12 +298,12 @@ function fixedMethodBlock(method: FixedMethod): string {
    "rules": 5 to 8 rules of this method that every week must follow. Rules, not tasks. No motivation lines.`;
 }
 
-const OPEN_METHOD_BLOCK = `2. THE METHOD
+const openMethodBlock = (weeks: number) => `2. THE METHOD
    List 2 or 3 real, established methods people use to reach this outcome. For each: "name", "creator"
    ("" if none or unsure), "summary", and "strengths" / "weaknesses" for THIS person.
    Choose the one most likely to get THIS person to the goal. What matters, in order:
    - Results: people who follow it actually reach this kind of outcome.
-   - Sticking with it: people at their level keep doing it for 12 weeks with their time and days.
+   - Sticking with it: people at their level keep doing it for ${weeks} weeks with their time and days.
    - Fit: it matches where they are now, their equipment, and their obstacle.
    When an established, well-known program fits equally well, prefer it; it has a track record.
    A method built for a different starting level does not fit.
@@ -312,27 +319,28 @@ const OPEN_METHOD_BLOCK = `2. THE METHOD
  * A number the user named is checked in week 12 (`statedTargetMet`), so the model hears it up front, not only in a
  * retry: a method's own metric (chord changes per minute for "5 songs") can never reach it.
  */
-function statedTargetLines(statedTargets: StatedTarget[]): string {
+function statedTargetLines(statedTargets: StatedTarget[], shape: PlanShape = DEFAULT_SHAPE): string {
   if (statedTargets.length === 0) return '';
+  const final = shape.finalWeek;
   const phrases = statedTargets.map((item) => `"${item.phrase}"`).join(', ');
   // M1.2 review (PSL-5): "lose N" is measured from where they start, not reached as a level.
   const reach = statedTargets.some((item) => item.change === 'lose')
     ? statedTargets
         .map((item) =>
           item.change === 'lose'
-            ? `For "${item.phrase}", week 12 is ${item.value} ${item.unit} below the starting point (or, counting what is lost, ${item.value} ${item.unit} or more).`
-            : `Week 12's target must reach "${item.phrase}".`
+            ? `For "${item.phrase}", week ${final} is ${item.value} ${item.unit} below the starting point (or, counting what is lost, ${item.value} ${item.unit} or more).`
+            : `Week ${final}'s target must reach "${item.phrase}".`
         )
         .join(' ')
-    : "Week 12's target must reach it.";
+    : `Week ${final}'s target must reach it.`;
   return `
    They named a number: ${phrases}. ${reach} Count the weekly targets in that unit; if week 1
-   can't be counted in it yet, use deliverables for all 12 weeks and name it in week 12's (e.g. "${statedTargets[0].phrase} ...").
+   can't be counted in it yet, use deliverables for all ${shape.weeks} weeks and name it in week ${final}'s (e.g. "${statedTargets[0].phrase} ...").
    A method's own measure (speed, reps, a score) goes in the weekly tests, not in place of it.`;
 }
 
 /** The two ways a roadmap can meet the user's own number, for a retry reason. */
-function statedTargetWayOut(statedTargets: StatedTarget[]): string {
+function statedTargetWayOut(statedTargets: StatedTarget[], shape: PlanShape = DEFAULT_SHAPE): string {
   const item = statedTargets[0];
   const reach =
     item.change === 'lose'
@@ -341,7 +349,9 @@ function statedTargetWayOut(statedTargets: StatedTarget[]): string {
         ? `${item.value} ${item.unit} or less`
         : `${item.value} ${item.unit} or more, only if week 1 already has a count above 0 in it`;
   const all = statedTargets.map((target) => `"${target.phrase}"`).join(', ');
-  return `The user asked for ${all}. Fix it one of two ways, never a mix: (a) number targets in "${item.unit}" for all 12 weeks, week 12 at ${reach}; or (b) deliverable targets for all 12 weeks, with week 12's description naming the number and unit (e.g. "${item.phrase} ..."). Not another unit.`;
+  const n = shape.weeks;
+  const final = shape.finalWeek;
+  return `The user asked for ${all}. Fix it one of two ways, never a mix: (a) number targets in "${item.unit}" for all ${n} weeks, week ${final} at ${reach}; or (b) deliverable targets for all ${n} weeks, with week ${final}'s description naming the number and unit (e.g. "${item.phrase} ..."). Not another unit.`;
 }
 
 /** "%" and "percent", "minute" and "minutes": one unit written two ways. */
@@ -351,31 +361,55 @@ function unitKey(unit: string): string {
   return lower.replace(/s$/, '');
 }
 
+/** B-109: "4, 8 and 12" (or "4, 8 or 12"), as the prompt names test weeks. */
+export function weekList(weeks: readonly (number | string)[], join: 'and' | 'or' = 'and'): string {
+  if (weeks.length <= 1) return weeks.join('');
+  return `${weeks.slice(0, -1).join(', ')} ${join} ${weeks[weeks.length - 1]}`;
+}
+
+/** B-109: the lines a shorter plan adds after the target rules: the final week and the ready week before their date. */
+function readyWeekLines(shape: PlanShape): string {
+  if (shape.readyWeek === null) return '';
+  return `
+   - Week ${shape.readyWeek} is the ready week before their date: lighter training and nothing new, so they arrive rested.
+     Its target is week ${shape.finalWeek}'s (the same target, never higher or lower), and its test is a short, easy check.`;
+}
+
 export function buildRoadmapPrompt(input: RoadmapInput, fixedMethod?: FixedMethod, statedTargets: StatedTarget[] = []): string {
+  const shape = planShape(input.totalWeeks);
+  const n = shape.weeks;
+  const final = shape.finalWeek;
+  // B-109: "day 90" on a 12-week plan, as before; a shorter plan's final test is on the last day of its final week.
+  const finalDay = shape.readyWeek === null ? 'day 90' : `the last day of week ${final}`;
+  const big = weekList(shape.bigWeeks);
   return `Goal as typed: "${input.workingTitle}" (${input.domain})
-Time: ${input.dailyMinutes} minutes a day, ${input.activeDays} days a week, for 12 weeks.
+Time: ${input.dailyMinutes} minutes a day, ${input.activeDays} days a week, for ${n} weeks.${
+    shape.readyWeek === null
+      ? ''
+      : `\nTheir date: they have a fixed date (an exam, a race, a talk) right after week ${n}. The final test is in week ${final}; week ${n} is the ready week before the date.`
+  }
 Their answers:
 ${formatAnswerLines(input.answers)}
 (Skipped answers: assume a beginner, basic equipment, and no target they did not give.)
 
 1. THE GOAL
-   "finalGoal": their success answer as one specific outcome that can be checked on day 90.
+   "finalGoal": their success answer as one specific outcome that can be checked on ${finalDay}.
    Keep their ambition exactly. If their answer is vague ("get better"), make it concrete at the level they
    described, using a real, recognised marker for this domain when one exists (e.g. "Twitch Affiliate",
    "25 words per minute", "a loaf with an open crumb"). Never raise or lower it.
-   If the weekly targets are numbers, "finalGoal" states week 12's number.${statedTargetLines(statedTargets)}
-   "finalTest": how they prove it on day 90, in one sentence.
+   If the weekly targets are numbers, "finalGoal" states week ${final}'s number.${statedTargetLines(statedTargets, shape)}
+   "finalTest": how they prove it on ${finalDay}, in one sentence.
    "startingPoint": where they are today. When the targets are numbers, "value" is today's level in the same
    metric and unit as the targets (from their current-level answer; a cautious beginner value if they skipped it)
    and "description" says it in words. If their answer uses another measure (a 5K time for a 10K goal), convert it
    to the targets' metric. When the targets are deliverables, leave "value" out.
 
-${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
+${fixedMethod ? fixedMethodBlock(fixedMethod) : openMethodBlock(n)}
 
-3. THE 12 WEEKS
+3. THE ${n} WEEKS
    "phases": 2 to 4 phases in the order the method uses them. Each has "name", "startWeek", "endWeek",
-   and "purpose" (one sentence). Together they cover weeks 1 to 12 with no gaps.
-   "weeks": exactly 12. Each has:
+   and "purpose" (one sentence). Together they cover weeks 1 to ${n} with no gaps.
+   "weeks": exactly ${n}. Each has:
    - "weekNumber", "phase" (a phase name from above).
    - "focus": what this week works on, in a few words.
    - "target": what they must reach by the end of the week. Either
@@ -383,13 +417,13 @@ ${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
      or
        { "kind": "deliverable", "description" }, e.g. "one loaf with an even, open crumb".
      Use numbers whenever the goal can be counted and every week, week 1 included, has a count above 0 in that
-     unit. Otherwise use deliverables for all 12 weeks. Never mix number weeks and deliverable weeks.
-     Keep the same metric and unit every week, week 12 included, even when the final test reports on another scale.
+     unit. Otherwise use deliverables for all ${n} weeks. Never mix number weeks and deliverable weeks.
+     Keep the same metric and unit every week, week ${n} included, even when the final test reports on another scale.
      Counts that stay at 0 until late (sales, users, subscribers, customers, orders) can't be counted in week 1: use
-     deliverables for all 12 weeks (what gets built, launched or sent each week), and make week 12's the number,
+     deliverables for all ${n} weeks (what gets built, launched or sent each week), and make week ${final}'s the number,
      e.g. "50 sales of the template".
      Exams: one measure every week, e.g. metric "Practice test score", unit "percent"; the short weekly quiz and the
-     full mock exam in weeks 4, 8 and 12 both report that same percent. Never switch to questions, topics or hours.${
+     full mock exam in week${shape.bigWeeks.length > 1 ? 's' : ''} ${big} both report that same percent. Never switch to questions, topics or hours.${
        statedTargets.length
          ? `\n     They named ${statedTargets.map((item) => `"${item.phrase}"`).join(', ')}: count every week in that unit, or use deliverables. Never another unit.`
          : ''
@@ -397,14 +431,14 @@ ${fixedMethod ? fixedMethodBlock(fixedMethod) : OPEN_METHOD_BLOCK}
      "metric" names what is measured ("Typing speed", "5K time"); "unit" is its unit ("words per minute", "minutes").
    - "test": { "type": "typing_test" | "quiz" | "timer" | "count" | "photo" | "video", "instructions", "passIf" }.
      The test is part of a normal session, needs no special tools and is short: no all-out effort, no max and nothing
-     to failure. Any harder test (a full mock exam, a full run-through) goes only in weeks 4, 8 and 12.
+     to failure. Any harder test (a full mock exam, a full run-through) goes only in week${shape.bigWeeks.length > 1 ? 's' : ''} ${big}.
      Prefer tests the app runs itself, then proof (photo, video), then a count. Use the same type every week.
    How the targets climb:
    - Week 1 starts just above where they are now: an early win, not a leap.
    - Steps are small in weeks 1 to 3, larger in the middle, and smaller again before the final test.
    - Never go backwards: each week's target is at least as good as the week before. A lighter week (a taper, a
-     deload, a review week) or the harder test in week 4, 8 or 12 keeps the previous week's target; it never lowers
-     it. Week 12's target is the finalGoal.
+     deload, a review week) or the harder test in week ${weekList(shape.bigWeeks, 'or')} keeps the previous week's target; it never lowers
+     it. Week ${final}'s target is the finalGoal.${readyWeekLines(shape)}
    - A target is what they can do on that week's test (the longest distance in one go, the best time, the score),
      not how much they train that week. For distance and endurance goals, a taper or recovery week trains less but
      its target stays at the previous week's distance or time.
@@ -514,17 +548,17 @@ function cleanTest(raw: RawWeek['test']): WeekTest | null {
   return { type, instructions, passIf };
 }
 
-function phaseFailures(phases: RoadmapPhase[]): string | null {
+function phaseFailures(phases: RoadmapPhase[], weeks: number): string | null {
   if (phases.length < 2 || phases.length > 4) return `"phases" must have 2 to 4 phases; got ${phases.length}.`;
   let expected = 1;
   for (const phase of phases) {
     if (!phase.name) return 'Every phase needs a "name".';
     if (phase.startWeek !== expected || phase.endWeek < phase.startWeek) {
-      return `Phases must cover weeks 1 to 12 in order with no gaps or overlaps; "${phase.name}" covers weeks ${phase.startWeek}-${phase.endWeek}.`;
+      return `Phases must cover weeks 1 to ${weeks} in order with no gaps or overlaps; "${phase.name}" covers weeks ${phase.startWeek}-${phase.endWeek}.`;
     }
     expected = phase.endWeek + 1;
   }
-  if (expected !== TOTAL_WEEKS + 1) return `Phases end at week ${expected - 1}; they must end at week 12.`;
+  if (expected !== weeks + 1) return `Phases end at week ${expected - 1}; they must end at week ${weeks}.`;
   return null;
 }
 
@@ -569,7 +603,9 @@ interface ClimbProblem {
   fix?: string;
 }
 
-function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbProblem | null {
+function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint, shape: PlanShape): ClimbProblem | null {
+  const n = shape.weeks;
+  const final = shape.finalWeek;
   const hard = (reason: string, fix?: string): ClimbProblem => ({ reason, hard: true, fix });
   const soft = (reason: string): ClimbProblem => ({ reason, hard: false });
   const targets = weeks.map((week) => week.target);
@@ -579,7 +615,7 @@ function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbPr
     const deliverableWeeks = targets.flatMap((target, index) => (target.kind === 'deliverable' ? [index + 1] : []));
     return hard(
       `Some weeks have a number target and some a deliverable (weeks ${deliverableWeeks.join(', ')}).`,
-      'Use one kind for all 12 weeks, never a mix: numbers only if week 1 already has a count above 0 in that unit; otherwise deliverables for all 12 weeks, with week 12\'s description naming the final number (e.g. "50 sales").'
+      `Use one kind for all ${n} weeks, never a mix: numbers only if week 1 already has a count above 0 in that unit; otherwise deliverables for all ${n} weeks, with week ${final}'s description naming the final number (e.g. "50 sales").`
     );
   }
   const first = numbers[0];
@@ -589,26 +625,26 @@ function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbPr
     if (target.direction === 'higher_is_better' && target.value <= 0) {
       return hard(
         `Week ${i + 1}'s target is ${target.value} ${target.unit}, which is nothing to reach.`,
-        `If the early weeks can't be counted in "${target.unit}" (no sales or users yet), use deliverable targets for all 12 weeks, with week 12's description naming the final number.`
+        `If the early weeks can't be counted in "${target.unit}" (no sales or users yet), use deliverable targets for all ${n} weeks, with week ${final}'s description naming the final number.`
       );
     }
     if (unitKey(target.unit) !== unit || target.direction !== first.direction) {
       return hard(
         `Week ${i + 1} uses "${target.unit}" (${target.direction}); every week must use "${first.unit}" (${first.direction}).`,
-        `Keep one metric and unit for all 12 weeks: restate week ${i + 1}'s target in "${first.unit}" (an exam, for example, keeps one practice-test score every week).`
+        `Keep one metric and unit for all ${n} weeks: restate week ${i + 1}'s target in "${first.unit}" (an exam, for example, keeps one practice-test score every week).`
       );
     }
     if (i > 0 && !isBetterOrEqual(target.value, numbers[i - 1].value, first.direction)) {
       const previous = numbers[i - 1].value;
       const bound = first.direction === 'higher_is_better' ? 'at least' : 'at most';
       return hard(
-        `Week ${i + 1}'s target (${target.value}) goes backwards from week ${i} (${previous}). A target is what they can do on the weekly test, not how much they train that week, so it never goes down: a lighter, taper or harder-test week keeps the previous week's target, and a running total (words written so far) never drops. Set week ${i + 1} to ${bound} ${previous} ${first.unit} and keep every later week ${bound} the week before. Keep "${first.unit}" for all 12 weeks.`
+        `Week ${i + 1}'s target (${target.value}) goes backwards from week ${i} (${previous}). A target is what they can do on the weekly test, not how much they train that week, so it never goes down: a lighter, taper or harder-test week keeps the previous week's target, and a running total (words written so far) never drops. Set week ${i + 1} to ${bound} ${previous} ${first.unit} and keep every later week ${bound} the week before. Keep "${first.unit}" for all ${n} weeks.`
       );
     }
   }
   const end = numbers[numbers.length - 1].value;
   if (end === first.value && numbers.length > 1) {
-    return soft('The targets never move from week 1 to week 12. They must climb from where the person is to the goal.');
+    return soft(`The targets never move from week 1 to week ${final}. They must climb from where the person is to the goal.`);
   }
   if (start.value === null) {
     return soft('"startingPoint.value" is missing. Give today\'s level in the same metric and unit as the targets.');
@@ -618,7 +654,7 @@ function numberClimbFailure(weeks: RoadmapWeek[], start: StartingPoint): ClimbPr
   }
   const climb = Math.abs(end - start.value);
   if (climb > 0 && Math.abs(first.value - start.value) > climb * MAX_WEEK1_SHARE) {
-    return soft(`Week 1 (${first.value}) jumps too far from the starting point (${start.value}) toward week 12 (${end}). Week 1 is an early win, not a leap.`);
+    return soft(`Week 1 (${first.value}) jumps too far from the starting point (${start.value}) toward week ${final} (${end}). Week 1 is an early win, not a leap.`);
   }
   return null;
 }
@@ -640,6 +676,8 @@ export interface RoadmapCheckContext {
   pathwayId?: string;
   /** Next plan (NP-3): `RoadmapInput.measuredStart`. */
   measuredStart?: { value: number; unit: string } | null;
+  /** B-109: the plan's length and test weeks; missing is a 12-week plan. */
+  shape?: PlanShape;
 }
 
 /**
@@ -694,11 +732,13 @@ export function checkRoadmapAnswer(
       purpose: text(item?.purpose),
     }))
     .sort((a, b) => a.startWeek - b.startWeek);
-  const phaseProblem = phaseFailures(phases);
+  const shape = context.shape ?? DEFAULT_SHAPE;
+  const final = shape.finalWeek;
+  const phaseProblem = phaseFailures(phases, shape.weeks);
   if (phaseProblem) return { reason: phaseProblem };
 
   const rawWeeks = Array.isArray(data.weeks) ? (data.weeks as RawWeek[]) : [];
-  if (rawWeeks.length !== TOTAL_WEEKS) return { reason: `"weeks" must have exactly 12 weeks; got ${rawWeeks.length}.` };
+  if (rawWeeks.length !== shape.weeks) return { reason: `"weeks" must have exactly ${shape.weeks} weeks; got ${rawWeeks.length}.` };
   const ordered = [...rawWeeks].sort((a, b) => (num(a.weekNumber) ?? 0) - (num(b.weekNumber) ?? 0));
   const weeks: RoadmapWeek[] = [];
   for (let i = 0; i < ordered.length; i++) {
@@ -711,6 +751,11 @@ export function checkRoadmapAnswer(
     const phase = phases.find((item) => weekNumber >= item.startWeek && weekNumber <= item.endWeek)!;
     weeks.push({ weekNumber, phase: phase.name, focus: text(raw.focus) || phase.purpose, target, test });
   }
+  // B-109: the ready week keeps the final week's target exactly, whatever the model wrote (a lighter week never lowers it).
+  const keepReadyTarget = () => {
+    if (shape.readyWeek !== null) weeks[shape.readyWeek - 1].target = { ...weeks[final - 1].target };
+  };
+  keepReadyTarget();
 
   // B-63 (PSL-1): no week's test breaks a limit the week call checks (the same rules, by week), or that week's call
   // would fail on its own test every time. Hard.
@@ -755,11 +800,11 @@ export function checkRoadmapAnswer(
     startingPoint.value = measured.value;
   }
 
-  const climbProblem = numberClimbFailure(weeks, startingPoint);
+  const climbProblem = numberClimbFailure(weeks, startingPoint, shape);
   if (climbProblem && (climbProblem.hard || !lastAttempt)) {
     // A unit change or a mix that drifts toward the user's own number: name that unit, not week 1's, as the way out.
     const fix =
-      climbProblem.fix !== undefined && context.statedTargets.length > 0 ? statedTargetWayOut(context.statedTargets) : climbProblem.fix;
+      climbProblem.fix !== undefined && context.statedTargets.length > 0 ? statedTargetWayOut(context.statedTargets, shape) : climbProblem.fix;
     return { reason: fix ? `${climbProblem.reason} ${fix}` : climbProblem.reason };
   }
 
@@ -772,16 +817,19 @@ export function checkRoadmapAnswer(
   // Plan safety limits M1.2 (RULE-2, PSL-6, PSL-11 Q1, Q2, Q14): code lowers any target that climbs faster than a safe
   // step, on the model's 12 targets, before the stated-target check and before light weeks copy them
   // (`withPathwayTests`). Logged only after goal create saves the goal (`logRoadmapTargets`).
-  const modelWeek12 = weeks[TOTAL_WEEKS - 1].target;
+  const modelWeek12 = weeks[final - 1].target;
   const climb = safeTargetClimb(
     weeks.map((week) => week.target),
     startingPoint.value,
     { run10k: context.pathwayId === 'run10k' }
   );
   weeks.forEach((week, index) => (week.target = climb.targets[index]));
-  const week12Lowered = climb.lowered.some((item) => item.week === TOTAL_WEEKS);
+  keepReadyTarget();
+  // B-109: a lowered ready week is the final week's lowering, not one of its own.
+  const lowered = climb.lowered.filter((item) => item.week !== shape.readyWeek);
+  const week12Lowered = lowered.some((item) => item.week === final);
 
-  const week12 = weeks[TOTAL_WEEKS - 1].target;
+  const week12 = weeks[final - 1].target;
   // Before the finalGoal check: its retry reason would otherwise anchor the model on the wrong unit. RULE-3: a number
   // the model's own week 12 met, and only the lowering put out of reach, is accepted at the highest safe step.
   const missed = context.statedTargets.filter(
@@ -789,18 +837,20 @@ export function checkRoadmapAnswer(
   );
   if (missed.length > 0) {
     return {
-      reason: `Week 12 must reach the number the user asked for: ${missed.map((item) => item.phrase).join(', ')}. ${statedTargetWayOut(missed)}`,
+      reason: `Week ${final} must reach the number the user asked for: ${missed.map((item) => item.phrase).join(', ')}. ${statedTargetWayOut(missed, shape)}`,
     };
   }
-  const week4 = weeks[3]?.target;
-  if (!lastAttempt && context.lightTests && week4?.kind === 'number' && week12.kind === 'number' && week4.value === week12.value) {
+  const firstBig = shape.bigWeeks.length > 1 ? shape.bigWeeks[0] : null;
+  const week4 = firstBig === null ? undefined : weeks[firstBig - 1]?.target;
+  if (!lastAttempt && context.lightTests && firstBig !== null && week4?.kind === 'number' && week12.kind === 'number' && week4.value === week12.value) {
+    const steps = shape.bigWeeks.slice(1).map((week, index) => `from week ${shape.bigWeeks[index]} to week ${week}`);
     return {
-      reason: `Week 4's target (${week4.value}) already equals week 12's. Weeks 4, 8 and 12 are the big tests, so the target must still climb from week 4 to week 8 and from week 8 to week 12.`,
+      reason: `Week ${firstBig}'s target (${week4.value}) already equals week ${final}'s. Weeks ${weekList(shape.bigWeeks)} are the big tests, so the target must still climb ${weekList(steps)}.`,
     };
   }
   // M1.2 (PSL-11 Q2): finalGoal keeps the person's goal when week 12 was lowered, so it is not asked for again.
   if (!lastAttempt && !week12Lowered && week12.kind === 'number' && !numberMentioned(finalGoal, week12.value)) {
-    return { reason: `"finalGoal" must state week 12's target (${formatTarget(week12)}).` };
+    return { reason: `"finalGoal" must state week ${final}'s target (${formatTarget(week12)}).` };
   }
 
   const testTypes = new Set(weeks.map((week) => week.test.type));
@@ -830,20 +880,23 @@ export function checkRoadmapAnswer(
       method,
       phases,
       weeks,
-      ...(climb.lowered.length > 0 ? { loweredTargets: climb.lowered } : {}),
+      ...(lowered.length > 0 ? { loweredTargets: lowered } : {}),
       targetCheck: { family: climb.family, noStart: climb.noStart, ...(context.pathwayId ? { pathwayId: context.pathwayId } : {}) },
     },
   };
 }
 
-/** RULE-19: the weeks whose test measures the target on a pathway with light tests (the big test). */
-export const BIG_TEST_WEEKS: readonly number[] = [4, 8, 12];
+/** RULE-19: a 12-week plan's weeks whose test measures the target on a pathway with light tests (the big test). B-109: a goal's own are `shapeOf(goal).bigWeeks`. */
+export const BIG_TEST_WEEKS: readonly number[] = DEFAULT_SHAPE.bigWeeks;
 /** WU-43 (3): a light test's pass mark, exactly. */
 export const LIGHT_TEST_PASS_IF = 'Done as written';
 
-/** WU-43 (1): the big-test week a week builds toward: weeks 1 to 3 week 4, 5 to 7 week 8, 9 to 11 week 12. */
-export function nextCheckWeek(weekNumber: number): number {
-  return BIG_TEST_WEEKS.find((week) => week >= weekNumber) ?? TOTAL_WEEKS;
+/**
+ * WU-43 (1): the big-test week a week builds toward: weeks 1 to 3 week 4, 5 to 7 week 8, 9 to 11 week 12. B-109: on a
+ * shorter plan its own big weeks; the ready week shows the final week's.
+ */
+export function nextCheckWeek(weekNumber: number, shape: PlanShape = DEFAULT_SHAPE): number {
+  return checkWeekFor(weekNumber, shape);
 }
 
 /** The pathway a goal is on, as the roadmap call finds it (the raw goal first, then the clarified one). */
@@ -886,13 +939,17 @@ export function statedTargetText(rawGoal: string, answers: PlanAnswer[]): string
  * written", `light: true`) and the next big-test week's target. Week 12's test is the final test. Pure; a custom goal
  * (no preset, or a preset without tests) is returned as it is.
  */
-export function withPathwayTests(roadmap: Roadmap, preset: Pick<CertifiedPresetBlueprint, 'weeklyTests'> | null | undefined): Roadmap {
+export function withPathwayTests(
+  roadmap: Roadmap,
+  preset: Pick<CertifiedPresetBlueprint, 'weeklyTests'> | null | undefined,
+  shape: PlanShape = DEFAULT_SHAPE
+): Roadmap {
   const tests = preset?.weeklyTests;
   if (!tests) return roadmap;
   const targetOf = new Map(roadmap.weeks.map((week) => [week.weekNumber, week.target]));
   const weeks = roadmap.weeks.map((week): RoadmapWeek => {
-    if (tests.light && !BIG_TEST_WEEKS.includes(week.weekNumber)) {
-      const check = targetOf.get(nextCheckWeek(week.weekNumber)) ?? week.target;
+    if (tests.light && !shape.bigWeeks.includes(week.weekNumber)) {
+      const check = targetOf.get(nextCheckWeek(week.weekNumber, shape)) ?? week.target;
       return {
         ...week,
         target: { ...check },
@@ -901,7 +958,7 @@ export function withPathwayTests(roadmap: Roadmap, preset: Pick<CertifiedPresetB
     }
     return { ...week, test: measuredPathwayTest(tests, week.target) };
   });
-  const week12 = weeks.find((week) => week.weekNumber === TOTAL_WEEKS);
+  const week12 = weeks.find((week) => week.weekNumber === shape.finalWeek);
   return { ...roadmap, weeks, finalTest: week12 ? week12.test.instructions : roadmap.finalTest };
 }
 
@@ -936,11 +993,18 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
   const fixedMethod = preset ? presetMethod(preset) : undefined;
   const statedTargets = extractStatedTargets(statedTargetText(input.rawGoal, input.answers));
 
-  const prompt = buildRoadmapPrompt(input, fixedMethod, statedTargets) + (preset ? `\n\nMETHOD DETAIL\n${preset.expertPromptContext}` : '');
+  const shape = planShape(input.totalWeeks);
+  // B-109: a preset's method text names a 12-week plan's weeks; a shorter plan says which of its own to use instead.
+  const presetWeeks =
+    preset && shape.readyWeek !== null
+      ? `\n\nThis plan is ${shape.weeks} weeks, so the week numbers in the method detail (written for 12 weeks) don't apply. Keep the method's order, shrink its phases to fit, put the big tests in week${shape.bigWeeks.length > 1 ? 's' : ''} ${weekList(shape.bigWeeks)} and the final test in week ${shape.finalWeek}, and make week ${shape.weeks} the ready week.`
+      : '';
+  const prompt =
+    buildRoadmapPrompt(input, fixedMethod, statedTargets) + (preset ? `\n\nMETHOD DETAIL\n${preset.expertPromptContext}${presetWeeks}` : '');
   let lowSafety = false;
   const checked = await generateWithOneRetry<RawRoadmapAnswer, CheckedRoadmap>(
     prompt,
-    ROADMAP_SYSTEM,
+    roadmapSystem(shape.weeks),
     ROADMAP_RESPONSE_SCHEMA,
     (data, lastAttempt) => {
       const verdict = checkRoadmapAnswer(
@@ -952,6 +1016,7 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
           lightTests: Boolean(preset?.weeklyTests?.light),
           pathwayId: preset?.id,
           measuredStart: input.measuredStart ?? null,
+          shape,
         },
         lastAttempt
       );
@@ -968,12 +1033,12 @@ export async function generateRoadmap(input: RoadmapInput): Promise<RoadmapResul
   if (checked) {
     // Taken off here so `storedRoadmap`'s spread never stores it.
     const { targetCheck, ...roadmap } = checked;
-    return { ok: true, roadmap: withPathwayTests(roadmap, preset), targetCheck };
+    return { ok: true, roadmap: withPathwayTests(roadmap, preset, shape), targetCheck };
   }
   if (lowSafety) {
     return {
       ok: false,
-      reason: 'We could not find a safe way to plan this goal in 12 weeks. Try a smaller goal.',
+      reason: `We could not find a safe way to plan this goal in ${shape.weeks} weeks. Try a smaller goal.`,
       lowSafety: true,
     };
   }

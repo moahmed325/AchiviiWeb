@@ -400,7 +400,7 @@ describe('POST /api/goal/checkpoint (RULE-8, RULE-9, section 7, AC-7)', () => {
     expect(values(5, 12)).toEqual(PLAN.slice(4));
   });
 
-  it.each([[{ week: 5, answer: 'keep' }], [{ week: 4, answer: 'maybe' }], [{ week: '4', answer: 'keep' }], [{}]])('400 for any other body: %j', async (body) => {
+  it.each([[{ week: 7, answer: 'keep' }], [{ week: 4, answer: 'maybe' }], [{ week: '4', answer: 'keep' }], [{}]])('400 for any other body: %j', async (body) => {
     seed(5, { checkpoints: [OFFER] });
     expect((await post('/checkpoint', body)).status).toBe(400);
   });

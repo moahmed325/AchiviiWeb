@@ -1,7 +1,7 @@
 // Edit my schedule (B-108, docs/archive/edit-schedule/plan.md): change the active goal's days, minutes and time of day.
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
-import { TOTAL_WEEKS } from '../../lib/ai/roadmap.js';
+import { shapeOf } from '../../lib/planLength.js';
 import { activeDaysFor, validRestWeekdays, type PlanVariant } from '../../lib/ai/weekPlan.js';
 import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, PREFERRED_SLOTS, readRoutine, routineRecord, weekStartFor } from '../../lib/planV2.js';
 import { weekCloseDue } from '../../lib/weekClose/close.js';
@@ -89,6 +89,7 @@ scheduleRoutes.patch('/schedule', async (req: Request, res: Response): Promise<v
         planVersion: true,
         routine: true,
         currentWeek: true,
+        totalWeeks: true,
         startDate: true,
         roadmapWeeks: { select: { weekNumber: true, status: true } },
       },
@@ -98,7 +99,7 @@ scheduleRoutes.patch('/schedule', async (req: Request, res: Response): Promise<v
       return;
     }
     if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
-    if (goal.currentWeek >= TOTAL_WEEKS) return refuse(res, 'last_week');
+    if (goal.currentWeek >= shapeOf(goal).weeks) return refuse(res, 'last_week');
     // Code review: once the open week is over, its close (which writes next week from the routine it read) may already
     // be running, and a gap may move the dates; the change waits until that close is saved.
     const weekTasks = await prisma.dailyTask.findMany({ where: { goalId: goal.id, weekNumber: goal.currentWeek }, select: { date: true } });
