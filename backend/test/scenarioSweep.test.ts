@@ -244,7 +244,9 @@ function fakeWeek(input: WeekCallInput): WeekDayPlan[] {
 
 /** An honest weekly update: keeps the plan, holds where the rules hold, never backwards, week 12 exactly as it is. */
 function honestUpdate(input: WeeklyUpdateInput): RawWeeklyUpdate {
-  const score = input.counts.score;
+  const counts = input.counts as unknown as { practiceDone: number; practicePlanned: number };
+  const score = counts.practicePlanned > 0 ? (counts.practiceDone / counts.practicePlanned) * 100 : null;
+  // As a careful model would read it: the practice done and, when logged, the result against the target.
   const status = score === null ? 'a_bit_behind' : score >= 80 ? 'on_track' : score >= 50 ? 'a_bit_behind' : 'far_behind';
   const asked = askedWeeks(input);
   const holds = holdsOf(input);
@@ -471,6 +473,7 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
   let lastWeekSeen = 1;
   let day = 0;
   let checkpointsSeen: string[] = [];
+  let tookFinalWeek = false;
   const dailyMinutes = () => JSON.parse(db.goal().routine).dailyMinutes as number;
 
   for (; day < 175 && db.goal().status === 'active'; day++) {
@@ -490,7 +493,10 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     const weekBefore = db.goal().currentWeek;
     let close = await call('/close-week', at);
     // The card offers one choice next to "Start a fresh plan"; the person takes it.
-    if (close.status === 409 && close.body?.reason === 'choice_needed') close = await call('/close-week', at, { choice: close.body.choice });
+    if (close.status === 409 && close.body?.reason === 'choice_needed') {
+      if (close.body.choice === 'final_week') tookFinalWeek = true;
+      close = await call('/close-week', at, { choice: close.body.choice });
+    }
     if (close.status !== 200) add(where, `close answered ${close.status} ${JSON.stringify(close.body)}`);
     const rec = await call('/reconcile', at);
     if (rec.status !== 200) add(where, `reconcile answered ${rec.status} ${JSON.stringify(rec.body)?.slice(0, 200)}`);
@@ -507,12 +513,12 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     const planOver = db.week(shape.weeks).status === 'completed';
     if (goal.status === 'active' && !planOver && (active.length !== 1 || active[0].weekNumber !== goal.currentWeek)) add(where, `open weeks ${active.map((w) => w.weekNumber).join(',') || 'none'}, current ${goal.currentWeek}`);
     // The plan never ends after a fixed date (a shorter plan: the day before it), except "Do my final week" (B-106).
-    if (fixedDate && person.choice !== 'final_week') {
+    if (fixedDate && !tookFinalWeek) {
       const latest = dateKey(addDays(fixedDate, shape.readyWeek === null ? 0 : -1));
       if (dateKey(addDays(goal.targetDate, -1)) > latest) add(where, `plan ends ${dateKey(addDays(goal.targetDate, -1))}, after ${latest}`);
     }
     // The move limit (28 days), except "Do my final week".
-    if ((goal.movedDays ?? 0) > 28 && person.choice !== 'final_week') add(where, `movedDays ${goal.movedDays}`);
+    if ((goal.movedDays ?? 0) > 28 && !tookFinalWeek) add(where, `movedDays ${goal.movedDays}`);
     // A week written now offers no past day.
     if (goal.currentWeek !== weekBefore) {
       for (const task of db.tasksOf(goal.currentWeek)) {
