@@ -6,6 +6,7 @@ import { clarifyGoal, createGoalPlan, fetchActiveGoal } from '../../lib/api';
 import presetFixture from '../../../e2e/fixtures/onboarding/clarify-run10k.json';
 import customFixture from '../../../e2e/fixtures/onboarding/clarify-custom-sourdough.json';
 import { DRAFT_GOAL_KEY } from './payload';
+import { PLAN_PREVIEW_KEY } from '../../lib/planPreview';
 import { resetPlanCreateGuardForTests, useOnboardingState, type OnboardingStateOptions } from './useOnboardingState';
 
 vi.mock('../../lib/api', () => ({ clarifyGoal: vi.fn(), createGoalPlan: vi.fn(), fetchActiveGoal: vi.fn() }));
@@ -76,6 +77,15 @@ describe('clarify', () => {
     expect(result.current.scheduleChosen).toBe(false);
     act(() => result.current.setRoutine((prev) => ({ ...prev, restWeekdays: [0, 6] })));
     expect(result.current.scheduleChosen).toBe(true);
+  });
+
+  it('starts with the daily time and days a week picked in the landing page’s plan preview, for that goal only', () => {
+    localStorage.setItem(PLAN_PREVIEW_KEY, JSON.stringify({ pathwayId: 'run10k', dailyMinutes: 60, planVariant: 'minimal' }));
+    clarify.mockReturnValue(new Promise(() => {}));
+    const previewed = setup({ initialGoal: PRESET, isPreset: true }).result.current;
+    expect(previewed.routine).toMatchObject({ dailyMinutes: 60, planVariant: 'minimal' });
+    expect(previewed.scheduleChosen).toBe(true);
+    expect(setup({ initialGoal: CUSTOM }).result.current.routine.dailyMinutes).toBe(0);
   });
 
   it('fills in a fixed date that is still ahead, and drops one that has passed (B-106)', () => {

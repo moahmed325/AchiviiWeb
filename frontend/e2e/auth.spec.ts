@@ -62,7 +62,12 @@ test.describe('entry points', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome back');
 
     await page.goBack();
-    await page.getByRole('link', { name: /Run a 10K Under 50 Minutes/ }).click();
+    await page.getByRole('list', { name: 'Free goals' }).getByRole('button', { name: /Run a 10K Under 50 Minutes/ }).click();
+    const preview = page.getByRole('dialog', { name: 'Run a 10K Under 50 Minutes' });
+    await preview.getByRole('button', { name: 'Next' }).click();
+    await preview.getByRole('button', { name: 'Show my plan' }).click();
+    await expect(preview.getByText('60 sessions over 12 weeks, about 30 hours of practice.')).toBeVisible();
+    await preview.getByRole('link', { name: 'Save my plan, free' }).click();
     await expect(page).toHaveURL('/signup?pathway=run10k');
     await expect(page.getByText('Your chosen journey').locator('visible=true')).toHaveCount(1);
     await expect(page.getByText('35 min a day').locator('visible=true')).toHaveCount(1);

@@ -149,6 +149,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-21 | Retire plan v1 goals | Architecture | Decided (A) | — |
 | ND-22 | Gemini only; no fallback model for now | Architecture | Decided | — |
 | ND-26 | The landing page is built around picking a goal | Product | Decided | — |
+| ND-27 | Visitors see their plan before signing up | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1871,6 +1872,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-25 | ND-24 Decided by Mo: days ahead cannot be completed (409 `not_yet`) and the weekly review opens on the week's last day (409 `week_not_over`). |
 | 2026-10-26 | ND-25 Decided by Mo: a missed key session is swapped onto its receiving day without asking (the question only if the swap is refused); moved steps show the day they came from. |
 | 2026-10-26 | ND-26 Decided by Mo: the landing page is rebuilt around picking a goal, calmer and without invented proof; D-15, D-17 and D-18 marked Superseded. |
+| 2026-10-29 | ND-27 Decided by Mo: a free goal card opens a plan preview (two schedule questions, then the shape of the visitor's 90 days) before sign-up. |
 
 ### PAY-1 — Achivii Pro pricing
 
@@ -1925,3 +1927,26 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** Supersedes D-15, D-17 and D-18. The landing copy must stay true of the product: change it when pricing, pathways or the plan rules change. A light (white with gold) section is a later design decision under D-3.
 
 **Related.** D-3, PAY-1, `frontend/src/components/marketing/`.
+
+---
+
+### ND-27 — Visitors see their plan before signing up
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: make visitors honestly excited about using Achivii, while keeping the page light |
+| Decided | 2026-10-29 — Mo |
+
+**Context.** The landing page described a plan but showed nothing about the visitor's own. Excitement comes from seeing something that is yours, and visitors from social posts arrive without a goal.
+
+**Decision.**
+* A free goal card on the landing page opens a plan preview instead of going straight to sign-up: daily time, then days a week (one question per screen), then the shape of the 90 days: sessions and hours, Day 1 and the Day 90 goal, the three phases, the first session, and the method. Then "Save my plan, free" goes to `/signup?pathway=<id>`.
+* Nothing in the preview is generated or invented: it is the pathway's own data (`lib/certifiedPresets.ts`) and the two answers (`lib/planPreview.ts`). It says the full plan is written after sign-up, from where the person is starting.
+* The two answers are kept in `localStorage['achivii_plan_preview']` and fill in onboarding's schedule step for the same pathway, so nothing is asked twice. They are cleared when the plan is created.
+
+**Consequences.** The preview's questions are onboarding's own choices (`PLAN_VARIANT_OPTIONS`, `DAILY_MINUTE_OPTIONS` in `lib/schedule.ts`); change them in one place. A custom goal (Pro) has no preview.
+
+**Related.** ND-26, ND-4, `frontend/src/components/marketing/PlanPreviewDialog.tsx`.

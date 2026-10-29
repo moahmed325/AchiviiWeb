@@ -8,6 +8,16 @@ export type PlanVariant = NonNullable<RoutineSettings['planVariant']>;
 
 export const DAYS_A_WEEK: Record<PlanVariant, number> = { minimal: 4, steady: 5, accelerated: 6 };
 
+/** The days-a-week choices, as onboarding and the landing page's plan preview offer them. */
+export const PLAN_VARIANT_OPTIONS: Array<{ id: PlanVariant; title: string; meta: string; desc: string }> = [
+  { id: 'minimal', title: 'Light', meta: '4 days a week', desc: '4 sessions and 3 rest days. For a busy season.' },
+  { id: 'steady', title: 'Steady', meta: '5 days a week · Recommended', desc: '5 sessions and 2 rest days. Consistent progress most weeks can hold.' },
+  { id: 'accelerated', title: 'Intensive', meta: '6 days a week', desc: '6 sessions and 1 rest day. For when you want to move fast.' },
+];
+
+/** The daily time choices, in minutes. */
+export const DAILY_MINUTE_OPTIONS = [30, 45, 60, 90];
+
 /** The variants' own rest days, as positions from the plan week's first day (the server's `restDayIndices`). */
 const REST_POSITIONS: Record<PlanVariant, number[]> = { minimal: [2, 4, 6], steady: [3, 6], accelerated: [6] };
 

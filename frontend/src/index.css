@@ -99,9 +99,14 @@
   --animate-sheet-in: sheet-in 420ms var(--ease-settle) both;
   --animate-sheet-out: sheet-out 240ms ease-in both;
   --animate-rise-in: rise-in 520ms var(--ease-ascend) both;
+  /* A line drawing itself left to right, for the plan preview's Day 1 to Day 90 line. Use with origin-left. */
+  --animate-line-fill: line-fill 1100ms var(--ease-ascend) 200ms both;
 
   @keyframes rise-in {
     from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  }
+  @keyframes line-fill {
+    from { transform: scaleX(0); }
   }
   @keyframes overlay-in {
     from { opacity: 0; }
