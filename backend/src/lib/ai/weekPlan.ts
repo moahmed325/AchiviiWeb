@@ -65,7 +65,7 @@ export function activeDaysFor(variant: PlanVariant): number {
   return variant === 'minimal' ? 4 : variant === 'accelerated' ? 6 : 5;
 }
 
-/** 0-based days of the week that are rest days. Never two in a row. */
+/** 0-based days of the week that are rest days, the variant's own: never two in a row. Chosen ones may be (B-108). */
 export function restDayIndices(variant: PlanVariant): number[] {
   return variant === 'minimal' ? [2, 4, 6] : variant === 'accelerated' ? [6] : [3, 6];
 }
@@ -83,8 +83,25 @@ export interface DayLayout {
 }
 
 /** Which days are practice, rest and test is decided here, not by the model. */
-export function weekLayout(variant: PlanVariant, weekStart: Date): DayLayout[] {
+/**
+ * Edit my schedule (B-108): the rest days the person chose, as weekdays (0 Sunday to 6 Saturday), when they are valid for
+ * `variant`: whole numbers 0 to 6, no repeats, exactly `7 - activeDaysFor(variant)` of them. Sorted; null otherwise, so
+ * the variant's own positions apply. Two in a row (a weekend off) is allowed.
+ */
+export function validRestWeekdays(variant: PlanVariant, value: unknown): number[] | null {
+  if (!Array.isArray(value)) return null;
+  if (!value.every((day) => Number.isInteger(day) && day >= 0 && day <= 6)) return null;
+  const days = [...new Set(value as number[])].sort((a, b) => a - b);
+  return days.length === value.length && days.length === 7 - activeDaysFor(variant) ? days : null;
+}
+
+/**
+ * The week's seven days from `weekStart`. Rest days: the chosen weekdays (`restWeekdays`, B-108) when valid for the
+ * variant, otherwise the variant's fixed positions from the week's first day. The test day is the last practice day.
+ */
+export function weekLayout(variant: PlanVariant, weekStart: Date, restWeekdays?: readonly number[] | null): DayLayout[] {
   const rest = restDayIndices(variant);
+  const chosen = validRestWeekdays(variant, restWeekdays);
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(weekStart);
     date.setUTCDate(date.getUTCDate() + index);
@@ -92,7 +109,7 @@ export function weekLayout(variant: PlanVariant, weekStart: Date): DayLayout[] {
       dayNumber: index + 1,
       date: date.toISOString().split('T')[0],
       dayOfWeek: DAY_NAMES[date.getUTCDay()],
-      isRestDay: rest.includes(index),
+      isRestDay: chosen ? chosen.includes(date.getUTCDay()) : rest.includes(index),
       isTestDay: false,
     };
   });
@@ -129,6 +146,8 @@ export interface WeekCallInput {
   answers: PlanAnswer[];
   dailyMinutes: number;
   planVariant: PlanVariant;
+  /** Edit my schedule (B-108): the chosen rest weekdays (0 Sunday to 6 Saturday); absent keeps the variant's positions. */
+  restWeekdays?: number[];
   slotTime: string;
   method: Pick<ChosenMethod, 'name' | 'creator' | 'rules'>;
   weekNumber: number;
@@ -772,7 +791,7 @@ export function checkWeekAnswer(
   options: { quiet?: boolean } = {}
 ): { value: WeekDayPlan[] } | { reason: string; safetyRule?: SafetyRule } {
   const log = options.quiet !== true;
-  const layout = weekLayout(input.planVariant, input.weekStart);
+  const layout = weekLayout(input.planVariant, input.weekStart, input.restWeekdays);
   const rawDays = Array.isArray(data.days) ? (data.days as RawDay[]) : [];
   const soft: string[] = [];
   const days: WeekDayPlan[] = [];
@@ -1351,7 +1370,7 @@ function safetyLog(input: Pick<WeekCallInput, 'heldSafetyLines'>, line: SafetyLo
 }
 
 export async function generateWeekPlan(input: WeekCallInput): Promise<WeekDayPlan[] | null> {
-  const layout = weekLayout(input.planVariant, input.weekStart);
+  const layout = weekLayout(input.planVariant, input.weekStart, input.restWeekdays);
   // M2.2a (PSL-15 (1)): a base week whose running isn't known is no base; said once per week call.
   // M2.2a review: only where running is expected, or a run step of the base week had no load.
   if (input.loadGoal && input.baseWeek && !input.baseWeek.known && (input.loadGoal.running || input.baseWeek.runWithoutLoad)) {

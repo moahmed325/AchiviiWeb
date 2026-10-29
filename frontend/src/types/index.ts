@@ -57,6 +57,8 @@ export interface RoutineSettings {
   preferredSlot: 'morning' | 'afternoon' | 'evening';
   dailyMinutes: number; // 30, 45, 60, 90
   planVariant?: 'steady' | 'accelerated' | 'minimal';
+  /** Edit my schedule (B-108): the chosen rest weekdays (0 Sunday to 6 Saturday); sent only when the person picked them. */
+  restWeekdays?: number[];
   commitments?: CommitmentItem[];
 }
 
@@ -408,6 +410,14 @@ export interface Goal {
   targetDate: string;
   /** B-106: the outside date the plan never moves past (an exam, a race, a talk), or null. */
   fixedDate?: string | null;
+  /** B-108: the schedule in force, as the server's week writer will use it (`goalScheduleOf`). */
+  schedule?: {
+    planVariant: 'steady' | 'accelerated' | 'minimal';
+    dailyMinutes: number;
+    preferredSlot: 'morning' | 'afternoon' | 'evening';
+    restWeekdays: number[];
+    restWeekdaysChosen: boolean;
+  } | null;
   currentWeek: number;
   answers: string; // JSON string
   routine: string; // JSON string

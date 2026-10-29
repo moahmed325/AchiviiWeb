@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 're
 import type { CreateGoalResponse, FollowUpQuestion, Goal, GoalClarification, RoutineSettings } from '../../types';
 import { clarifyGoal, createGoalPlan, fetchActiveGoal, type PlanProgressEvent } from '../../lib/api';
 import { checkFixedDate } from '../../lib/fixedDate';
+import { validRestWeekdays } from '../../lib/schedule';
 import { nextPlanQuestions, prefilledAnswers, type NextPlanLaunch } from '../../lib/nextPlan';
 import { todayKey } from '../../lib/today';
 import { useUserTimezone } from '../../context/AuthContext';
@@ -99,7 +100,11 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
     planVariant: undefined,
     commitments: [],
   });
-  const scheduleChosen = routine.dailyMinutes > 0 && Boolean(routine.planVariant);
+  // B-108: picked training days count only once they match the days a week.
+  const scheduleChosen =
+    routine.dailyMinutes > 0 &&
+    Boolean(routine.planVariant) &&
+    (routine.restWeekdays === undefined || validRestWeekdays(routine.planVariant!, routine.restWeekdays) !== null);
   // B-106: the optional fixed date, kept apart from the routine (the server stores it on the goal). Checked against
   // today in the person's stored time zone, as the server resolves the plan's start.
   const timezone = useUserTimezone();

@@ -156,3 +156,23 @@ describe('goal create with a fixed date (B-106)', () => {
     expect(db.transaction).not.toHaveBeenCalled();
   });
 });
+
+// Edit my schedule (B-108): onboarding may send the chosen rest days with the routine.
+describe('goal create with chosen rest days (B-108)', () => {
+  it('saves valid rest days on the routine and passes them to week 1', async () => {
+    expect((await create({ routine: { dailyMinutes: 30, planVariant: 'steady', restWeekdays: [6, 0] } })).status).toBe(201);
+    expect(JSON.parse(savedGoal().routine).restWeekdays).toEqual([0, 6]);
+    expect(vi.mocked(generateWeekPlan).mock.calls[0][0].restWeekdays).toEqual([0, 6]);
+  });
+
+  it('none sent keeps the variant\'s rest days; ones that do not fit answer 400 before any model call', async () => {
+    expect((await create()).status).toBe(201);
+    expect(JSON.parse(savedGoal().routine).restWeekdays).toBeUndefined();
+    vi.mocked(generateRoadmap).mockClear();
+    const res = await create({ routine: { dailyMinutes: 30, planVariant: 'steady', restWeekdays: [0] } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Choose your rest days again: as many as the days a week leave free.');
+    expect(generateRoadmap).not.toHaveBeenCalled();
+  });
+});
+

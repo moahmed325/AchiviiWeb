@@ -14,7 +14,7 @@ import {
   type WeekTarget,
   type WeekTest,
 } from './ai/roadmap.js';
-import { activeDaysFor, codeMadeTestStep, generateWeekPlan, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
+import { activeDaysFor, codeMadeTestStep, generateWeekPlan, validRestWeekdays, weekLayout, type PlanVariant, type WeekDayPlan } from './ai/weekPlan.js';
 import type { Retest } from './ai/retestStep.js';
 import { parseStoredSteps } from './carryForward.js';
 import { isHighLoadGoal } from './highLoad.js';
@@ -109,6 +109,8 @@ interface RoutineShape {
   preferredSlot?: string;
   /** 'HH:MM', written at goal create. Read and validated by `missedSessions.ts`. */
   sleepTime?: string;
+  /** Edit my schedule (B-108): the chosen rest weekdays (0 Sunday to 6 Saturday), kept only when valid for the variant. */
+  restWeekdays?: number[];
 }
 
 /** B-103: the stored routine as a plain object, or {} when it is missing or not JSON. The one place it is parsed. */
@@ -121,18 +123,48 @@ export function routineRecord(goal: Pick<Goal, 'routine'>): Record<string, unkno
   }
 }
 
-const PLAN_VARIANTS: readonly PlanVariant[] = ['steady', 'accelerated', 'minimal'];
+export const PLAN_VARIANTS: readonly PlanVariant[] = ['steady', 'accelerated', 'minimal'];
+/** The daily minutes goal create and the schedule edit accept (B-108: one range for both). */
+export const DAILY_MINUTES_MIN = 10;
+export const DAILY_MINUTES_MAX = 480;
+export const PREFERRED_SLOTS = ['morning', 'afternoon', 'evening'] as const;
+
+/**
+ * Edit my schedule (B-108, code review): the schedule in force, as the week writer will use it, for the app: the
+ * variant, the minutes, the time of day (anything but morning or afternoon is evening, as `slotTimeFor` reads it) and
+ * the rest weekdays (the chosen ones, or the variant's own from the plan's week start, read off `weekLayout`).
+ */
+export interface GoalSchedule {
+  planVariant: PlanVariant;
+  dailyMinutes: number;
+  preferredSlot: (typeof PREFERRED_SLOTS)[number];
+  restWeekdays: number[];
+  /** The rest days were chosen; false means they follow the variant's own positions. */
+  restWeekdaysChosen: boolean;
+}
+
+export function goalScheduleOf(goal: Pick<Goal, 'routine' | 'startDate'>): GoalSchedule {
+  const routine = readRoutine(goal);
+  const slot = routine.preferredSlot === 'morning' || routine.preferredSlot === 'afternoon' ? routine.preferredSlot : 'evening';
+  const restWeekdays = weekLayout(routine.planVariant, new Date(goal.startDate), routine.restWeekdays)
+    .filter((day) => day.isRestDay)
+    .map((day) => new Date(`${day.date}T00:00:00Z`).getUTCDay())
+    .sort((a, b) => a - b);
+  return { planVariant: routine.planVariant, dailyMinutes: routine.dailyMinutes, preferredSlot: slot, restWeekdays, restWeekdaysChosen: Boolean(routine.restWeekdays) };
+}
 
 /** The stored routine, checked field by field (B-103): a field of the wrong type is left out, so its default applies. */
 export function readRoutine(goal: Pick<Goal, 'routine'>): Required<Pick<RoutineShape, 'dailyMinutes' | 'planVariant'>> & RoutineShape {
   const raw = routineRecord(goal);
   const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value : undefined);
-  const variant = PLAN_VARIANTS.find((item) => item === raw.planVariant);
+  const variant = PLAN_VARIANTS.find((item) => item === raw.planVariant) ?? 'steady';
+  const restWeekdays = validRestWeekdays(variant, raw.restWeekdays);
   return {
     ...(text(raw.preferredSlot) ? { preferredSlot: text(raw.preferredSlot) } : {}),
     ...(text(raw.sleepTime) ? { sleepTime: text(raw.sleepTime) } : {}),
     dailyMinutes: Number(raw.dailyMinutes) || 30,
-    planVariant: variant ?? 'steady',
+    planVariant: variant,
+    ...(restWeekdays ? { restWeekdays } : {}),
   };
 }
 
@@ -258,6 +290,7 @@ export async function writeNextWeek(
     answers: stored.answers,
     dailyMinutes: routine.dailyMinutes,
     planVariant: routine.planVariant,
+    ...(routine.restWeekdays ? { restWeekdays: routine.restWeekdays } : {}),
     slotTime,
     method: stored.method,
     weekNumber: next.weekNumber,

@@ -73,7 +73,7 @@ Auth: the frontend signs in with Supabase and sends the access token as `Authori
 
 Main areas (details in `docs/architecture/backend-details.md`; read the part you need before changing that area):
 
-- Routes: `routes/goal.ts` holds the router, the active-goal routes and reconcile; each area's routes live in `routes/goal/` (`present.ts` presentGoal, `create.ts` clarify and create, `actions.ts` mark missed, carry now and swap, `tasks.ts` task updates, `weeks.ts` review, close and the week routes) (B-102).
+- Routes: `routes/goal.ts` holds the router, the active-goal routes and reconcile; each area's routes live in `routes/goal/` (`present.ts` presentGoal, `create.ts` clarify and create, `actions.ts` mark missed, carry now and swap, `tasks.ts` task updates, `weeks.ts` review, close and the week routes, `schedule.ts` editing the schedule, B-108) (B-102).
 - Goal creation: `routes/goal/create.ts` (`POST /api/goal/create`): clarify (`lib/ai/clarify.ts`), preset match (10 pathways in `lib/ai/presets/`; other goals are custom and need Pro), roadmap (`lib/ai/roadmap.ts`), recovery profile (`lib/recovery/`), week 1 (`lib/ai/weekPlan.ts`). If the roadmap or week 1 can't be written, answer 503 and save nothing; an unsafe goal answers 422. No fallback plan.
 - Plan v2 is the only plan model (`lib/planV2.ts`, spec in `docs/architecture/plan-v2.md`). Don't add plan v1 code back.
 - Safety limits: every number lives in `lib/safety/limits.ts`. Code, not the model, decides how fast targets climb and holds weekly load.

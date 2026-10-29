@@ -11,8 +11,8 @@ import { isHighLoadGoal } from '../../lib/highLoad.js';
 import { loadGoalInput } from '../../lib/safety/stepLoad.js';
 import { logRoadmapTargets } from '../../lib/safety/targetSteps.js';
 import { generateRoadmap, lightTestSession, TOTAL_WEEKS, type PlanAnswer, type Roadmap } from '../../lib/ai/roadmap.js';
-import { activeDaysFor, generateWeekPlan, slotTimeFor, type PlanVariant, type WeekDayPlan } from '../../lib/ai/weekPlan.js';
-import { dailyTaskRows, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
+import { activeDaysFor, generateWeekPlan, slotTimeFor, validRestWeekdays, type PlanVariant, type WeekDayPlan } from '../../lib/ai/weekPlan.js';
+import { DAILY_MINUTES_MAX, DAILY_MINUTES_MIN, PLAN_VARIANTS, dailyTaskRows, roadmapWeekRows, storedRoadmap } from '../../lib/planV2.js';
 import { makeGoalProfile } from '../../lib/recovery/forGoal.js';
 import { customProfilesEnabled, generateRecoveryProfile } from '../../lib/recovery/profileCall.js';
 import type { RecoveryProfile } from '../../lib/recovery/profile.js';
@@ -259,12 +259,18 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
       return;
     }
     const dailyMinutes = Number(routine?.dailyMinutes);
-    if (!Number.isFinite(dailyMinutes) || dailyMinutes < 10 || dailyMinutes > 480) {
+    if (!Number.isFinite(dailyMinutes) || dailyMinutes < DAILY_MINUTES_MIN || dailyMinutes > DAILY_MINUTES_MAX) {
       res.status(400).json({ error: 'Choose how many minutes a day you can practise.' });
       return;
     }
-    if (!['steady', 'accelerated', 'minimal'].includes(routine?.planVariant)) {
+    if (!PLAN_VARIANTS.includes(routine?.planVariant)) {
       res.status(400).json({ error: 'Choose how many days a week you can practise.' });
+      return;
+    }
+    // Edit my schedule (B-108): the chosen rest days are optional; sent, they must fit the days a week.
+    const restWeekdays = routine?.restWeekdays === undefined || routine?.restWeekdays === null ? null : validRestWeekdays(routine.planVariant, routine.restWeekdays);
+    if (routine?.restWeekdays !== undefined && routine?.restWeekdays !== null && !restWeekdays) {
+      res.status(400).json({ error: 'Choose your rest days again: as many as the days a week leave free.' });
       return;
     }
 
@@ -285,6 +291,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
       preferredSlot: routine?.preferredSlot || 'evening',
       dailyMinutes,
       planVariant: routine.planVariant,
+      ...(restWeekdays ? { restWeekdays } : {}),
       commitments: routine?.commitments || []
     };
 
@@ -350,6 +357,7 @@ createRoutes.post('/create', routeLimit({ windowMs: 10 * 60_000, max: 10, keyOf:
         answers: answerList,
         dailyMinutes,
         planVariant,
+        ...(restWeekdays ? { restWeekdays } : {}),
         slotTime: slotTimeFor(routineInput.preferredSlot),
         method: roadmap.method,
         weekNumber: 1,
