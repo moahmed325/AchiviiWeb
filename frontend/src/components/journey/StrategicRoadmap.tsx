@@ -197,7 +197,10 @@ const Destination: React.FC<{ closingStretch: JourneyData['closingStretch']; goa
     <div className="dash-card p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="font-ui-mono text-micro uppercase tracking-[0.16em] text-achievement">Final stretch</p>
-        <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">{'Days ' + closingStretch.startDay + '\u2013' + closingStretch.endDay}</span>
+        {/* B-109: a plan that ends with its last week has no closing days to name. */}
+        {closingStretch.startDay <= closingStretch.endDay && (
+          <span className="font-ui-mono text-micro uppercase tracking-[0.14em] text-text-secondary">{'Days ' + closingStretch.startDay + '\u2013' + closingStretch.endDay}</span>
+        )}
       </div>
       <h3 className="mt-5 max-w-[30ch] text-2xl font-semibold leading-tight tracking-[-0.02em] text-text sm:text-3xl">{goal}</h3>
       <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">Your final benchmark: {closingStretch.finalTest}</p>

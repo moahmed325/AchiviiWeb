@@ -393,7 +393,11 @@ ${formatAnswerLines(input.answers)}
 (Skipped answers: assume a beginner, basic equipment, and no target they did not give.)
 
 1. THE GOAL
-   "finalGoal": their success answer as one specific outcome that can be checked on ${finalDay}.
+   "finalGoal": their success answer as one specific outcome that can be checked on ${finalDay}.${
+     shape.readyWeek === null
+       ? ''
+       : `\n   Their answers may have been given for 90 days; their date leaves ${n} weeks. Code holds every week to a safe\n   step, so aim week ${final} at their goal and let code lower it if it can't be reached safely.`
+   }
    Keep their ambition exactly. If their answer is vague ("get better"), make it concrete at the level they
    described, using a real, recognised marker for this domain when one exists (e.g. "Twitch Affiliate",
    "25 words per minute", "a loaf with an open crumb"). Never raise or lower it.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bigTestWeeks, closingStartDay, finalDayPhrase, finalWeekOf, nextCheckWeekOf, planDays, planLengthLabel, planWeeks, readyWeekOf, weeksBefore } from './planLength';
+import { bigTestWeeks, closingStartDay, finalWeekOf, nextCheckWeekOf, planDays, planLengthLabel, planWeeks, readyWeekOf, weeksBefore } from './planLength';
 import { nextCheckLine, weekTargetText } from './lightTest';
 import { dayNumber } from './today';
 import { acceptedLine, checkpointCopy } from './checkpoint';
@@ -16,7 +16,6 @@ describe('plan length', () => {
       expect(readyWeekOf(goal)).toBeNull();
       expect(bigTestWeeks(goal)).toEqual([4, 8, 12]);
       expect(planLengthLabel(goal)).toBe('90-day');
-      expect(finalDayPhrase(goal)).toBe('day 90');
       expect(closingStartDay(goal)).toBe(85);
     }
   });
@@ -28,7 +27,6 @@ describe('plan length', () => {
     expect(bigTestWeeks({ totalWeeks: 10 })).toEqual([5, 9]);
     expect([1, 6, 7].map((week) => nextCheckWeekOf(week, goal))).toEqual([6, 6, 6]);
     expect(planLengthLabel(goal)).toBe('7-week');
-    expect(finalDayPhrase(goal)).toBe('the end of week 6');
     expect(closingStartDay(goal)).toBe(50);
   });
 

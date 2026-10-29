@@ -1,6 +1,6 @@
 # Plans that fit a fixed date: plan
 
-**Status:** PLANNED (2026-10-29). Waiting on Mo's choices in section 7.
+**Status:** BUILT on `claude/trusting-edison-v1d3od` (2026-10-29), after the code review in section 8. Not merged. Left: the live check (section 4, step 4).
 **Backlog:** B-109. **Ideas:** I-29. **Builds on:** B-106 (the fixed date field).
 
 ## 1. The problem
@@ -88,7 +88,29 @@ Code review before merging (stored data, the roadmap and week writers, safety).
 
 ## 7. Mo's choices
 
+Mo took every recommendation (2026-10-29): (a) a date under 4 weeks away is refused; (b) the final test in week N-1 with an easier week N; (c) same as today on free and Pro; (d) whole weeks, ending up to 6 days before the date, with Today's rest line.
+
 a. **A date under 4 weeks away.** Recommended: say "Your date is too close for a full plan. Choose a date at least 4 weeks away, or leave it empty." Alternatives: a 4-week plan that ends after the date, or a 2- or 3-week "sharpen up" plan (no checkpoints, one test).
 b. **Where the final test goes.** Recommended: week N-1, with an easier week N before the date (what coaches do for races and exams). Alternative: the final test in week N, as close to the date as possible.
 c. **Free or Pro.** Recommended: same as today, so pathways free and custom goals Pro, with a fixed date allowed on both.
 d. **The last few days.** Recommended: the plan ends with whole weeks, up to 6 days before the date, and Today says to rest. Alternative: stretch the ready week to end the day before the date (a week of 7 to 13 days; more code, since every week is 7 days today).
+
+## 8. Built (2026-10-29)
+
+- **Server:** `lib/planLength.ts` (`planLengthFor`, `PlanShape`, `shapeOf`, `checkWeekFor`, `ANY_CHECKPOINT_WEEKS`); migration `20261029120000_goal_total_weeks` (`Goal.totalWeeks`, default 12). Goal create answers 400 `fixed_date_too_close` under 4 weeks. Every `TOTAL_WEEKS` read now reads the goal's shape: "week 12" as the final target is `finalWeek`, "the last week" is `weeks`. The roadmap and week prompts name the weeks, the final test week and the ready week; a 12-week plan's prompts are byte for byte as before (tests pin it).
+- **App:** `frontend/src/lib/planLength.ts`; the day counter, closing stretch, review, progress, roadmap, dashboard, checkpoint, end-screen and edit-my-schedule copy follow `goal.totalWeeks`. Onboarding: "Your plan will be 6 weeks, with the final test in week 5, the week before your date." and the too-close error. The closing stretch shows "Your date is in 3 days. Rest, and trust the work."
+- **Tests:** `backend/test/fixedDatePlans.test.ts`; two short-plan people in `ninetyDays.test.ts` (Exam Ella, 7 weeks with misses; Busy Ben, 6 weeks with a 10-day break); `goalCreateFixedDate.test.ts`; `frontend/src/lib/planLength.test.ts`, `fixedDate.test.ts`, `StepSchedule.test.tsx`, `ClosingStretchView.test.tsx`. Backend 1998, frontend 928 tests pass; e2e today, onboarding, generation, weekly review, progress, next plan, light test, week close and journey (desktop) pass.
+
+### Code review (`/code-review high`, 2026-10-29)
+
+Ten findings, all fixed on the branch:
+1. "Keep going" after a long break could jump past the final test straight to the ready week. It now stops at the final test week; past it, "Do my final week".
+2. On read, a light-test goal's big weeks were held four safe steps apart, but a shorter plan's are 3 to 6 weeks apart, so targets were lowered after create (or held too loosely). `safeCheckWeekClimb` now allows one step per week between them; the weekly update's safe maximum the same.
+3. A light pathway's ready week was told to build toward last week's check. It now says the final test was last week.
+4. The roadmap's final stretch could show "Days 50–49" when the plan ends with its last week. Hidden when there are no closing days.
+5. Today's day counter still announced "of 90" to screen readers.
+6. The weekly update's system text said "90-day plan", and the success answer is asked for 90 days. The update names the plan's weeks; the roadmap prompt says code lowers what can't be reached safely by the date.
+7. A small move could put a shorter plan's last day on the date itself. `fixedDateRoom` now keeps it the day before.
+8. The achievement screen's "Total Path" still said 90 days.
+9. A type guard in `checkWeekFor` existed only for one test's `.map(nextCheckWeek)`; the test now passes the week, and the guard is gone.
+10. An unused frontend helper and a stale `[4, 8, 12]` constant were removed.

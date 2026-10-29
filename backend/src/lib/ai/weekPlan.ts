@@ -492,8 +492,14 @@ function thisWeekTestLines(input: WeekCallInput): string {
   if (!input.test.light) {
     return `Target: ${formatTarget(input.target)}${NL}Weekly test: ${input.test.instructions.trim().replace(/\.+$/, '')}. Pass if: ${input.test.passIf}`;
   }
+  const shape = planShape(input.totalWeeks);
+  // B-109: a shorter plan's ready week has no check ahead: the final test was last week.
+  const targetLine =
+    shape.readyWeek === input.weekNumber
+      ? `Final target (tested last week, week ${shape.finalWeek}): ${formatTarget(input.target)}. Keep it; nothing is built toward a test this week.`
+      : `Next check (week ${nextCheckWeek(input.weekNumber, shape)}): ${formatTarget(input.target)}. Build toward it; it is not tested this week.`;
   return [
-    `Next check (week ${nextCheckWeek(input.weekNumber, planShape(input.totalWeeks))}): ${formatTarget(input.target)}. Build toward it; it is not tested this week.`,
+    targetLine,
     `Weekly test (the light test, done as written; no number against the target): ${input.test.instructions}`,
   ].join(NL);
 }

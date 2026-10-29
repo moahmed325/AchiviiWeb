@@ -182,7 +182,7 @@ export function planWeekMove(
   const moved = Math.max(0, goal.movedDays ?? 0);
   const tz = normalizeTimezone(timezone);
   // B-106: a fixed date ahead cuts the room, so the plan's end never moves past it.
-  const dateRoom = fixedDateRoom(goal.targetDate, goal.fixedDate, getZonedDateString(firstTry, tz));
+  const dateRoom = fixedDateRoom(goal.targetDate, goal.fixedDate, getZonedDateString(firstTry, tz), shape.readyWeek !== null);
   const moveWith = (limit: number | null) => {
     const room = Math.max(0, Math.min(MOVE_LIMIT_DAYS - moved, limit ?? Infinity));
     const past = pastLimitMove(gap, room, closedWeek, limit, shape);

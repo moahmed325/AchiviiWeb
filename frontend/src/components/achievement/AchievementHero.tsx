@@ -8,7 +8,7 @@ import { usePathwayLaunch } from '../pathways/launch';
 import { Button, cx } from '../ui';
 import { NextPlanLevelDialog } from './NextPlanLevelDialog';
 import { useNextPlanLaunch } from './useNextPlanLaunch';
-import { planWeeks } from '../../lib/planLength';
+import { planDays, planWeeks } from '../../lib/planLength';
 
 interface AchievementHeroProps {
   goal: Goal;
@@ -122,7 +122,7 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="rounded-control border border-border bg-surface-elevated/70 p-3 text-left">
               <span className="font-ui-mono text-micro text-text-secondary">Total Path</span>
-              <p className="font-ui-mono text-h3 font-semibold tabular-nums text-text">90 Days</p>
+              <p className="font-ui-mono text-h3 font-semibold tabular-nums text-text">{planDays(goal)} Days</p>
             </div>
             <div className="rounded-control border border-border bg-surface-elevated/70 p-3 text-left">
               <span className="font-ui-mono text-micro text-text-secondary">Practice Sessions</span>

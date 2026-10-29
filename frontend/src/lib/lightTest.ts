@@ -11,7 +11,6 @@ type LengthGoal = Partial<Pick<Goal, 'totalWeeks'>> | null | undefined;
  * the next check's. A test without `light` (every goal created before M2.1, every custom goal) reads as before.
  */
 
-export const BIG_TEST_WEEKS = [4, 8, 12];
 export const LIGHT_DONE_VALUE = 'Done';
 
 export function isLightTest(test: Pick<WeekTest, 'light'> | null | undefined): boolean {

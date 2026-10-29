@@ -71,11 +71,6 @@ export function planLengthLabel(goal: LengthGoal): string {
   return weeks === DEFAULT_WEEKS ? '90-day' : `${weeks}-week`;
 }
 
-/** The plan's end as a phrase: "day 90" on a 12-week plan, "the end of week 6" (its final test) on a shorter one. */
-export function finalDayPhrase(goal: LengthGoal): string {
-  return readyWeekOf(goal) === null ? 'day 90' : `the end of week ${finalWeekOf(goal)}`;
-}
-
 /** The whole weeks that fit from `start` to the day before `date` (both `YYYY-MM-DD`); 12 at most, as the server counts. */
 export function weeksBefore(start: string, date: string): number {
   const days = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / DAY_MS);

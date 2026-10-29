@@ -137,6 +137,11 @@ export interface RawWeeklyUpdate {
 export const WEEKLY_UPDATE_SYSTEM = `You review one week of a person's 90-day plan and set the targets for the weeks that are left. You do not write
 daily tasks. Respond with one JSON object that matches the schema.`;
 
+/** B-109: a shorter plan's system text names its weeks; a 12-week plan's is `WEEKLY_UPDATE_SYSTEM` exactly. */
+export function weeklyUpdateSystem(input: Pick<WeeklyUpdateInput, 'finalWeek'>): string {
+  return input.finalWeek === undefined ? WEEKLY_UPDATE_SYSTEM : WEEKLY_UPDATE_SYSTEM.replace("90-day plan", `${input.finalWeek + 1}-week plan`);
+}
+
 export const WEEKLY_UPDATE_SCHEMA = {
   type: 'object',
   properties: {
@@ -656,7 +661,7 @@ export async function askWeeklyUpdate(input: WeeklyUpdateInput, options: { deadl
     }
     const attemptPrompt =
       attempt === 0 ? prompt : `${prompt}\n\nYOUR PREVIOUS ANSWER WAS REJECTED: ${rejection}\nReturn the complete JSON again with that problem fixed.`;
-    const result = await generateStructuredContent<RawWeeklyUpdate>(attemptPrompt, WEEKLY_UPDATE_SYSTEM, undefined, {
+    const result = await generateStructuredContent<RawWeeklyUpdate>(attemptPrompt, weeklyUpdateSystem(input), undefined, {
       responseSchema: weeklyUpdateSchema(input),
       temperature: attempt === 0 ? 0 : 0.4,
     });

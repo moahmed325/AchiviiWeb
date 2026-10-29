@@ -63,8 +63,6 @@ export function shapeOf(goal: { totalWeeks?: number | null } | null | undefined)
 
 /** The big-test week a week builds toward (WU-43 (1)); the ready week, and anything past the last big week, the final week. */
 export function checkWeekFor(weekNumber: number, shape: PlanShape = DEFAULT_SHAPE): number {
-  // Passed straight to `.map`, the second argument is an index: a 12-week plan then.
-  if (typeof shape !== 'object' || shape === null) shape = DEFAULT_SHAPE;
   return shape.bigWeeks.find((week) => week >= weekNumber) ?? shape.finalWeek;
 }
 

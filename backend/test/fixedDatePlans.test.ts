@@ -299,3 +299,60 @@ describe('the day-90 line on a shorter plan', () => {
     );
   });
 });
+
+describe('code review fixes (B-109)', () => {
+  it('"Keep going" never jumps past the final test to the ready week', async () => {
+    // 8 weeks: final test in week 7. Closing week 4 after 22 days with 1 day of room lands on week 8.
+    expect(pastLimitMove(22, 1, 4, 1, planShape(8))).toMatchObject({ choice: 'final_week', weekBack: 7 });
+    expect(pastLimitMove(15, 1, 4, 1, planShape(8))).toMatchObject({ choice: 'keep_going', weekBack: 7 });
+  });
+
+  it('on read, big weeks allow one safe step per week between them, so a shorter plan made at one step a week is never lowered', async () => {
+    const { safeCheckWeekClimb, safeTargetClimb } = await import('../src/lib/safety/targetSteps.js');
+    const km = (value: number) => ({ kind: 'number' as const, metric: 'Longest run', value, unit: 'km', direction: 'higher_is_better' as const });
+    const made = safeTargetClimb(Array.from({ length: 10 }, (_, i) => km(3 + i * 5)), 3, { run10k: true }).targets;
+    expect(safeCheckWeekClimb([made[5], made[9]], [6, 10], 3, { run10k: true }).lowered).toEqual([]);
+    // From the last closed big week: its own gap.
+    expect(safeCheckWeekClimb([made[9]], [10], (made[5] as { value: number }).value, { run10k: true }, 6).lowered).toEqual([]);
+  });
+
+  it('a shorter plan may move only until its last day is the day before the date', async () => {
+    const { fixedDateRoom } = await import('../src/lib/weekClose/breaks.js');
+    // targetDate = the date: the last day is already the day before it.
+    expect(fixedDateRoom(day('2026-12-15'), day('2026-12-15'), '2026-11-01', true)).toBe(0);
+    expect(fixedDateRoom(day('2026-12-15'), day('2026-12-15'), '2026-11-01')).toBe(1);
+  });
+
+  it('a light pathway\'s ready week is told the final test was last week, with nothing to build toward', () => {
+    const input: WeekCallInput = {
+      finalGoal: 'Run 10 km',
+      answers: [],
+      dailyMinutes: 45,
+      planVariant: 'steady',
+      slotTime: '07:00',
+      method: { name: 'Run10k', creator: '', rules: ['Mostly easy'] },
+      weekNumber: 8,
+      totalWeeks: 8,
+      phase: { name: 'Ready', purpose: 'Arrive rested.' },
+      focus: 'Taper',
+      target: { kind: 'number', metric: 'Longest run', value: 10, unit: 'km', direction: 'higher_is_better' },
+      test: { type: 'timer', instructions: 'Run the long run easy', passIf: 'Done as written', light: true },
+      weekStart: new Date('2026-12-14T00:00:00Z'),
+    };
+    const prompt = buildWeekPrompt(input, weekLayout('steady', input.weekStart));
+    expect(prompt).toContain('Final target (tested last week, week 7): Longest run: 10 km. Keep it;');
+    expect(prompt).not.toContain('Next check (week 7)');
+    expect(buildWeekPrompt({ ...input, weekNumber: 5 }, weekLayout('steady', input.weekStart))).toContain('Next check (week 7)');
+  });
+
+  it('the weekly update\'s system text names a shorter plan\'s weeks', async () => {
+    const { weeklyUpdateSystem, WEEKLY_UPDATE_SYSTEM } = await import('../src/lib/ai/weeklyUpdate.js');
+    expect(weeklyUpdateSystem({})).toBe(WEEKLY_UPDATE_SYSTEM);
+    expect(weeklyUpdateSystem({ finalWeek: 6 })).toContain("a person's 7-week plan");
+  });
+
+  it('the roadmap prompt for a shorter plan says answers may be for 90 days and code lowers what is unsafe', () => {
+    expect(buildRoadmapPrompt({ ...roadmapInput, totalWeeks: 7 })).toContain('their date leaves 7 weeks');
+    expect(buildRoadmapPrompt(roadmapInput)).not.toContain('their date leaves');
+  });
+});

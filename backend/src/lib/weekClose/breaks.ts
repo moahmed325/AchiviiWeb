@@ -59,10 +59,10 @@ export function pastLimitMove(
   const aligned = space - ((((space - gap) % 7) + 7) % 7);
   const days = aligned >= 0 ? aligned : space;
   const weekBack = closedWeek + 1 + Math.floor((gap - days) / 7);
-  if (weekBack <= shape.weeks) return { choice: 'keep_going', days, weekBack };
   // B-109: the final week is the one with the final test (week 12; a shorter plan's week before its ready week, which
-  // then follows it), never a week already closed.
+  // then follows it), never a week already closed. "Keep going" never jumps past it to the ready week.
   const finalWeek = Math.max(shape.finalWeek, closedWeek + 1);
+  if (weekBack <= finalWeek) return { choice: 'keep_going', days, weekBack };
   // Week 12 starts on the first try's date: week `closedWeek + 1` would start `gap` days ago, week 12 that many weeks later.
   const needed = gap - 7 * (finalWeek - closedWeek - 1);
   // B-106 (Mo, choice c): with a fixed date ahead, week 12 moves only as far as the date allows, so it started earlier
@@ -76,9 +76,15 @@ export function pastLimitMove(
  * the goal's fixed date, never below 0. Null with no fixed date, or once the fixed date is before `today` (the person's
  * local date at the first try): a date that has passed holds nothing back.
  */
-export function fixedDateRoom(targetDate: Date, fixedDate: Date | null | undefined, today: string): number | null {
+export function fixedDateRoom(
+  targetDate: Date,
+  fixedDate: Date | null | undefined,
+  today: string,
+  /** B-109: a shorter plan ends the day before the date at the latest (its ready week is for arriving rested). */
+  endsBefore = false
+): number | null {
   if (!fixedDate || !Number.isFinite(fixedDate.getTime()) || !isDate(today)) return null;
-  const fixed = dayIndex(fixedDate.toISOString().slice(0, 10));
+  const fixed = dayIndex(fixedDate.toISOString().slice(0, 10)) - (endsBefore ? 1 : 0);
   if (fixed < dayIndex(today)) return null;
   const end = dayIndex(targetDate.toISOString().slice(0, 10)) - 1;
   return Number.isFinite(end) ? Math.max(0, Math.round(fixed - end)) : null;

@@ -251,13 +251,15 @@ async function open(person: Person, day: number, problems: string[]) {
   if (reconcile.status !== 200) problems.push(`${where}: reconcile answered ${reconcile.status}`);
 
   const goal = db.goal();
+  const lastWeek = person.totalWeeks ?? 12;
   // Never stuck: one open never leaves a week due again, and the plan never runs past week 12.
   const again = await post('/close-week', at, { mode: 'check' });
   if (again.body.due === true && goal.currentWeek === weekBefore && close.body.due === true) problems.push(`${where}: still due after closing`);
-  const lastWeek = person.totalWeeks ?? 12;
   if (goal.currentWeek < 1 || goal.currentWeek > lastWeek) problems.push(`${where}: currentWeek ${goal.currentWeek}`);
   // B-106: the plan's end (day 90, the day before targetDate) never moves past a fixed date.
-  if (goal.fixedDate && dateKey(addDays(goal.targetDate, -1)) > dateKey(goal.fixedDate)) {
+  // B-109: a shorter plan ends the day before it at the latest.
+  const latestEnd = goal.fixedDate ? dateKey(addDays(goal.fixedDate, lastWeek === 12 ? 0 : -1)) : '';
+  if (goal.fixedDate && dateKey(addDays(goal.targetDate, -1)) > latestEnd) {
     problems.push(`${where}: the plan ends ${dateKey(addDays(goal.targetDate, -1))}, after the fixed date ${dateKey(goal.fixedDate)}`);
   }
 

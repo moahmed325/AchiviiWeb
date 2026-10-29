@@ -119,7 +119,8 @@ export function safeStoredTargets<W extends StoredWeek>(input: StoredTargetsInpu
         checked.map((week) => targets[week - 1]),
         checked,
         lastBig === undefined ? input.startValue : valueAt(lastBig),
-        context
+        context,
+        lastBig ?? 0
       );
       found = climb.lowered;
       checked.forEach((week, index) => safe.set(week, climb.targets[index]));

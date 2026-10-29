@@ -454,7 +454,14 @@ async function runUpdate(
   const lastBig = [...shape.bigWeeks].filter((week) => week < final12Week && week < nextWeek).pop();
   const firstAsked = lightTestGoal ? left.find((week) => !isLight(week)) : left[0];
   const safeMax = lightTestGoal
-    ? safeMaxOf(lastBig === undefined ? startValue : valueOf(rows.find((week) => week.weekNumber === lastBig)), target, firstAsked?.weekNumber ?? final12Week, 4, run10k)
+    ? safeMaxOf(
+        lastBig === undefined ? startValue : valueOf(rows.find((week) => week.weekNumber === lastBig)),
+        target,
+        firstAsked?.weekNumber ?? final12Week,
+        // One safe step a week from the base big week (four on a 12-week plan; B-109: a shorter plan's own gap).
+        (firstAsked?.weekNumber ?? final12Week) - (lastBig ?? 0),
+        run10k
+      )
     : safeMaxOf(valueOf(rows.find((week) => week.weekNumber === nextWeek - 1)), target, nextWeek, 1, run10k);
 
   // Independent reads, side by side. The week before is read once, for the kinds here and for `writeWeekAfter`.
@@ -515,7 +522,7 @@ async function runUpdate(
     const after = left.find((week) => week.weekNumber > restartWeek && (!lightTestGoal || !isLight(week)));
     input.safeMax =
       after && after.weekNumber < final12Week && level.level.kind === 'number'
-        ? safeMaxOf(level.level.value, target, after.weekNumber, lightTestGoal ? 4 : 1, run10k)
+        ? safeMaxOf(level.level.value, target, after.weekNumber, lightTestGoal ? after.weekNumber - restartWeek : 1, run10k)
         : null;
   }
 

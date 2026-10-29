@@ -482,7 +482,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         )}
 
         <div className="mt-12">
-          <p aria-label={`Day ${day} of 90`} className="flex items-baseline gap-3">
+          <p aria-label={`Day ${day} of ${planDays(goal)}`} className="flex items-baseline gap-3">
             <span className="today-numeral tabular text-numeral text-text">{day}</span>
             <span className="tabular text-h3 text-text-secondary">/ {planDays(goal)}</span>
           </p>
