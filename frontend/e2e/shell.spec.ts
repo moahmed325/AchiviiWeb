@@ -435,7 +435,7 @@ test.describe('pathways, account and offline', () => {
     await accountButton(page).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick a goal. Get a plan for the next 90 days.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
   });
 
   test('the offline chip appears in the shell from the load-time check, above the bottom bar', async ({ page, isMobile }) => {

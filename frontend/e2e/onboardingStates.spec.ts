@@ -148,7 +148,7 @@ test.describe('clarify failure and recovery', () => {
   });
 
   test('questions still on their way: the page waits, then opens on the first question', async ({ page }) => {
-    const calls = await mockApi(page, { clarify: baseline.customClarify, clarifyDelayMs: 4000 });
+    const calls = await mockApi(page, { clarify: baseline.customClarify, clarifyDelayMs: 12000 });
     await signIn(page);
     await page.goto('/onboarding');
     await startGoal(page, CUSTOM_GOAL);
@@ -156,7 +156,7 @@ test.describe('clarify failure and recovery', () => {
     await expect(page.getByText('Preparing your questions. Your answers so far are kept.')).toBeVisible();
     await expect(continueButton(page)).toHaveAttribute('aria-busy', 'true');
 
-    await expectQuestion(page, baseline.customClarify.followUpQuestions[0].question, 15_000);
+    await expectQuestion(page, baseline.customClarify.followUpQuestions[0].question, 20_000);
     expect(calls.clarifyAttempts).toBe(1);
     // The wait was replaced, so Back goes straight to the last routine page.
     await page.getByRole('button', { name: 'Back' }).click();

@@ -187,7 +187,9 @@ describe('Home before a first goal (ND-28)', () => {
   it('opens onboarding with the goal typed, kept as the draft', async () => {
     const user = userEvent.setup();
     renderHome();
-    await user.type(await screen.findByRole('textbox', { name: 'What do you want to achieve?' }), 'Learn to juggle{Enter}');
+    // The landing page asks the same question while the account loads; wait for Home's own view.
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument());
+    await user.type(screen.getByRole('textbox', { name: 'What do you want to achieve?' }), 'Learn to juggle{Enter}');
     expect(JSON.parse((await screen.findByTestId('onboarding-state')).textContent!)).toEqual({
       draftGoal: 'Learn to juggle',
       switchGoal: true,
@@ -195,10 +197,10 @@ describe('Home before a first goal (ND-28)', () => {
     expect(localStorage.getItem('achivii_draft_goal')).toBe('Learn to juggle');
   });
 
-  it('goes back into onboarding when answers are kept from before a sign-up', async () => {
+  it('goes back into onboarding to build the plan a visitor started before signing up', async () => {
     localStorage.setItem(
       'achivii_onboarding',
-      JSON.stringify({ v: 1, typedGoal: 'Learn to juggle', rawGoal: 'Learn to juggle', routine: {}, page: 'summary' }),
+      JSON.stringify({ v: 1, typedGoal: 'Learn to juggle', rawGoal: 'Learn to juggle', routine: {}, page: 'summary', buildAfterSignUp: true }),
     );
     renderHome();
     expect(await screen.findByTestId('onboarding-state')).toBeInTheDocument();

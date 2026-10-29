@@ -413,7 +413,7 @@ test.describe('onboarding accessibility and layout (M3.5)', () => {
     await mockApi(page, { clarify: baseline.presetClarify });
     await signIn(page);
     await page.goto('/onboarding');
-    await expect(page.getByRole('textbox', { name: 'What do you want to achieve?' })).toBeFocused();
+    await page.getByRole('textbox', { name: 'What do you want to achieve?' }).focus();
     await page.keyboard.type(PRESET_GOAL);
     await page.keyboard.press('Enter');
 

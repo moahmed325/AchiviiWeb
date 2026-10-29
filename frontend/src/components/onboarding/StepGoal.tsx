@@ -16,6 +16,6 @@ export const StepGoal: React.FC<StepGoalProps> = ({ rawGoal, onStartGoal }) => (
       title="What do you want to achieve?"
       description="Say it however it comes to mind. We'll shape it into a plan you can follow, one step a day."
     />
-    <GoalStartForm className="mt-10" initialGoal={rawGoal} onStart={onStartGoal} submitLabel="Continue" autoFocus />
+    <GoalStartForm className="mt-10" initialGoal={rawGoal} onStart={onStartGoal} submitLabel="Continue" />
   </div>
 );

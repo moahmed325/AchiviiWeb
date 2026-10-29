@@ -59,7 +59,8 @@ export const Home: React.FC = () => {
 
     // No goal yet (ND-28): one question, the goal in their own words. Answers kept from before a sign-up resume.
     if (!activeGoal) {
-      if (readSnapshot()) return <Navigate to="/onboarding" replace />;
+      // A visitor who tapped Start and then signed up goes straight back to have their plan built.
+      if (readSnapshot()?.buildAfterSignUp) return <Navigate to="/onboarding" replace />;
       return (
         <main id="main" className="ui-root mx-auto w-full max-w-2xl flex-1 px-gutter py-16 text-left sm:py-24">
           <p className="font-ui-mono text-micro uppercase text-accent-hover">Your next 90 days</p>
@@ -67,7 +68,7 @@ export const Home: React.FC = () => {
           <p className="mt-4 max-w-xl text-body-lg text-text-secondary">
             Say it however it comes to mind. We'll shape it into a plan you can follow, one step a day.
           </p>
-          <GoalStartForm className="mt-10" onStart={startTypedGoal} autoFocus />
+          <GoalStartForm className="mt-10" onStart={startTypedGoal} />
         </main>
       );
     }
