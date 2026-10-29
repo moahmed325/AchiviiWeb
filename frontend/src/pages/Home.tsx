@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useGoal } from '../context/GoalContext';
-import { PathwayCustomGoal, PathwayLibrary, usePathwayLaunch } from '../components/pathways';
-import { CustomGoalGate } from '../components/billing';
+import { Navigate } from 'react-router-dom';
+import { usePathwayLaunch } from '../components/pathways';
+import { GoalStartForm } from '../components/onboarding/GoalStartForm';
+import { readSnapshot } from '../components/onboarding/snapshot';
 import { Button, Surface } from '../components/ui';
 import { LandingPage } from '../components/marketing/LandingPage';
 import { Today, TodaySkeleton } from '../components/today/Today';
@@ -15,7 +16,7 @@ const AchievementPage = React.lazy(() => import('./AchievementPage'));
 export const Home: React.FC = () => {
   const { user, token, loading: authLoading } = useAuth();
   const { activeGoal, loadingGoal, goalLoadFailed, refreshGoal, apiStatus, closingWeek, heldClose, pendingChoice } = useGoal();
-  const { startPathway, startCustomGoal } = usePathwayLaunch();
+  const { startTypedGoal } = usePathwayLaunch();
   const [retrying, setRetrying] = useState(false);
 
   const handleRetry = async () => {
@@ -56,37 +57,17 @@ export const Home: React.FC = () => {
       );
     }
 
-    // No goal yet: the pathway library, with a goal of the user's own as the quieter route (ND-6).
+    // No goal yet (ND-28): one question, the goal in their own words. Answers kept from before a sign-up resume.
     if (!activeGoal) {
+      if (readSnapshot()) return <Navigate to="/onboarding" replace />;
       return (
-        <main id="main" className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-12 text-left sm:py-16">
-          <header className="flex flex-col gap-4">
-            <p className="font-ui-mono text-micro uppercase text-accent-hover">Start your journey</p>
-            <h1 className="max-w-[20ch] text-h1 text-text">Choose a pathway</h1>
-            <p className="max-w-xl text-body-lg text-text-secondary">
-              Pick a direction, then a pathway. Each one is a guided 90-day journey, planned around your life.
-            </p>
-          </header>
-
-          <PathwayLibrary
-            className="mt-12"
-            action={{ label: 'Start this pathway', onChoose: startPathway }}
-            customGoal={
-              <PathwayCustomGoal className="mt-16">
-                {/* A new custom goal is Pro (ND-10): a free user is told here, before onboarding. */}
-                <CustomGoalGate>
-                  <Button
-                    variant="secondary"
-                    onClick={startCustomGoal}
-                    className="w-full sm:w-auto"
-                    trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
-                  >
-                    Describe my own goal
-                  </Button>
-                </CustomGoalGate>
-              </PathwayCustomGoal>
-            }
-          />
+        <main id="main" className="ui-root mx-auto w-full max-w-2xl flex-1 px-gutter py-16 text-left sm:py-24">
+          <p className="font-ui-mono text-micro uppercase text-accent-hover">Your next 90 days</p>
+          <h1 className="mt-4 max-w-[20ch] text-display text-text">What do you want to achieve?</h1>
+          <p className="mt-4 max-w-xl text-body-lg text-text-secondary">
+            Say it however it comes to mind. We'll shape it into a plan you can follow, one step a day.
+          </p>
+          <GoalStartForm className="mt-10" onStart={startTypedGoal} autoFocus />
         </main>
       );
     }

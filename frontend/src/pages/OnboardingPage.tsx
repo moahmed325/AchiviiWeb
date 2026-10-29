@@ -14,10 +14,6 @@ export const OnboardingPage: React.FC = () => {
   const location = useLocation();
   const [retrying, setRetrying] = useState(false);
 
-  if (!token) {
-    return null;
-  }
-
   const handleRetry = async () => {
     setRetrying(true);
     try {
@@ -28,7 +24,7 @@ export const OnboardingPage: React.FC = () => {
   };
 
   // If goal load failed, do not allow creating a goal or guessing activeGoal (OD-9, ND-12)
-  if (goalLoadFailed) {
+  if (token && goalLoadFailed) {
     return (
       <main id="main" className="ui-root mx-auto w-full max-w-xl flex-1 px-gutter py-16 text-center">
         <Surface role="alert" tone="base" padding="lg" radius="card" className="flex flex-col items-center gap-4 text-center">
@@ -62,7 +58,6 @@ export const OnboardingPage: React.FC = () => {
     fixedDate?: string;
   } | null;
   const initialGoal = navState?.presetGoal || navState?.draftGoal;
-  const isPreset = Boolean(navState?.isPreset || navState?.presetGoal);
   const nextPlan = navState?.nextPlan ?? null;
   const isFromCompleted = !nextPlan && Boolean(navState?.fromCompletedGoal || activeGoal?.status === 'completed');
   // NP-3, NP-4: where the next plan starts; the earlier plan stays as it is.
@@ -104,9 +99,10 @@ export const OnboardingPage: React.FC = () => {
       <OnboardingWizard
         token={token}
         onGoalCreated={handleGoalCreated}
+        // ND-28: a visitor answers everything first; their answers wait in this browser while they sign up.
+        onSignUp={() => navigate(`/signup?next=${encodeURIComponent('/onboarding')}`)}
         initialGoal={initialGoal}
-        isPreset={isPreset}
-        currentGoalId={goalLoadFailed ? null : activeGoal?.id}
+        currentGoalId={!token ? undefined : goalLoadFailed ? null : activeGoal?.id}
         nextPlan={nextPlan}
         initialFixedDate={navState?.fixedDate ?? nextPlan?.fixedDate}
         apiOffline={apiStatus === 'offline'}

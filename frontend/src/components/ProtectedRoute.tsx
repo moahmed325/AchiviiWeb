@@ -7,11 +7,14 @@ import { GettingReady } from './today/WeekClose';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireGoal?: boolean;
+  /** ND-28: onboarding is open to visitors, who sign up from its last page. */
+  allowAnonymous?: boolean;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requireGoal = true,
+  allowAnonymous = false,
 }) => {
   const { user, token, loading: authLoading } = useAuth();
   const { activeGoal, loadingGoal, goalLoadFailed, closingWeek } = useGoal();
@@ -28,6 +31,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         <p className="text-xs text-text-muted font-ui-mono">Loading your space...</p>
       </div>
     );
+  }
+
+  if ((!user || !token) && allowAnonymous) {
+    return <div className="animate-fadeIn w-full flex-1 flex flex-col">{children}</div>;
   }
 
   // Not logged in -> sign in, then come back here

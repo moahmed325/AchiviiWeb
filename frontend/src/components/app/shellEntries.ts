@@ -14,8 +14,9 @@ export function shellMode(pathname: string, signedIn: boolean, previewPath?: str
   if ((pathname === '/' && !signedIn) || AUTH_ROUTES.includes(pathname) || (previewPath && pathname === previewPath)) {
     return 'chromeless';
   }
-  if (!signedIn) return 'bare';
+  // ND-28: onboarding is open to visitors and keeps its top bar for them too.
   if (pathname === '/onboarding') return 'focused';
+  if (!signedIn) return 'bare';
   return 'app';
 }
 

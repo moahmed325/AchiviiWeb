@@ -40,6 +40,8 @@ export interface GoalClarification {
   primaryDomain: string;
   followUpQuestions: FollowUpQuestion[];
   evidenceTriad?: EvidenceTriad;
+  /** ND-28: set only when the goal is too vague to measure in 90 days; 3 to 5 concrete goals to choose from. */
+  focusOptions?: string[];
 }
 
 export interface CommitmentItem {

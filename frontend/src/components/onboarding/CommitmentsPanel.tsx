@@ -68,15 +68,13 @@ export const CommitmentsPanel: React.FC<CommitmentsPanelProps> = ({
 
   return (
     <section aria-labelledby={COMMITMENTS_HEADING_ID}>
-      <h3 id={COMMITMENTS_HEADING_ID} tabIndex={-1} className="text-body font-medium text-text outline-none">
-        Anything else that repeats each week? <span className="font-normal text-text-secondary">(optional)</span>
-      </h3>
-      <p className="mt-1 max-w-xl text-small text-text-secondary">
-        Add regular commitments, like the gym or a commute, and your practice is planned around them.
-      </p>
+      {/* The page's own heading asks the question; this one is where focus returns after the editor closes. */}
+      <h2 id={COMMITMENTS_HEADING_ID} tabIndex={-1} className="sr-only">
+        Your commitments
+      </h2>
 
       {commitments.length > 0 && (
-        <ul className="mt-5 divide-y divide-border rounded-card border border-border">
+        <ul className="mb-5 divide-y divide-border rounded-card border border-border">
           {commitments.map((c) => {
             const Icon = getCategoryDetails(c.category).icon;
             const placed = placedCommitments[c.id];
@@ -98,7 +96,7 @@ export const CommitmentsPanel: React.FC<CommitmentsPanelProps> = ({
         </ul>
       )}
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         {suggestions.map((preset) => (
           <Button
             key={preset.id}

@@ -115,7 +115,7 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
     expect(screen.queryByText('Loading your day')).not.toBeInTheDocument();
   });
 
-  it('renders pathway library when active goal is genuinely null without error', async () => {
+  it('asks for the goal when there is genuinely none, without an error (ND-28)', async () => {
     mocked.fetchActiveGoal.mockResolvedValueOnce(null as unknown as Goal);
 
     render(
@@ -128,7 +128,9 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
       </AuthProvider>
     );
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Choose a pathway' })).toBeVisible();
+    // The landing page asks the same question while the account loads; Home's own view follows.
+    await waitFor(() => expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument());
+    expect(screen.getByRole('heading', { level: 1, name: 'What do you want to achieve?' })).toBeVisible();
     expect(screen.queryByRole('heading', { name: "We couldn't load your goal" })).not.toBeInTheDocument();
   });
 
@@ -156,7 +158,7 @@ describe('Home Page (R1 — Goal-load error & pathway guarding)', () => {
   });
 });
 
-describe('Home: a goal of your own is Pro (ND-10, billing OD-3)', () => {
+describe('Home before a first goal (ND-28)', () => {
   const Onboarding = () => <pre data-testid="onboarding-state">{JSON.stringify(useLocation().state)}</pre>;
 
   const renderHome = () =>
@@ -182,30 +184,23 @@ describe('Home: a goal of your own is Pro (ND-10, billing OD-3)', () => {
     mocked.fetchActiveGoal.mockResolvedValue(null as unknown as Goal);
   });
 
-  it('tells a free user before onboarding, and leaves the pathways free', async () => {
-    mocked.fetchBillingEntitlement.mockResolvedValue({ plan: 'free', entitled: false });
+  it('opens onboarding with the goal typed, kept as the draft', async () => {
+    const user = userEvent.setup();
     renderHome();
-    expect(await screen.findByRole('heading', { level: 1, name: 'Choose a pathway' })).toBeVisible();
-    const custom = screen.getByRole('region', { name: 'Have something unique in mind?' });
-
-    expect(await screen.findByRole('heading', { name: 'Make the journey yours.' })).toBeVisible();
-    expect(custom).toContainElement(screen.getByRole('button', { name: 'Continue to Pro' }));
-    expect(screen.queryByRole('button', { name: 'Describe my own goal' })).not.toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Choose a direction' })).toBeVisible();
-    expect(screen.queryByTestId('onboarding-state')).not.toBeInTheDocument();
+    await user.type(await screen.findByRole('textbox', { name: 'What do you want to achieve?' }), 'Learn to juggle{Enter}');
+    expect(JSON.parse((await screen.findByTestId('onboarding-state')).textContent!)).toEqual({
+      draftGoal: 'Learn to juggle',
+      switchGoal: true,
+    });
+    expect(localStorage.getItem('achivii_draft_goal')).toBe('Learn to juggle');
   });
 
-  it('takes a Pro user straight into onboarding with a custom goal, as before', async () => {
-    const user = userEvent.setup();
-    mocked.fetchBillingEntitlement.mockResolvedValue({ plan: 'pro', entitled: true });
+  it('goes back into onboarding when answers are kept from before a sign-up', async () => {
+    localStorage.setItem(
+      'achivii_onboarding',
+      JSON.stringify({ v: 1, typedGoal: 'Learn to juggle', rawGoal: 'Learn to juggle', routine: {}, page: 'summary' }),
+    );
     renderHome();
-    const describeOwnGoal = await screen.findByRole('button', { name: 'Describe my own goal' });
-    expect(screen.queryByRole('button', { name: 'Continue to Pro' })).not.toBeInTheDocument();
-
-    await user.click(describeOwnGoal);
-    expect(JSON.parse((await screen.findByTestId('onboarding-state')).textContent!)).toEqual({
-      isPreset: false,
-      customGoal: true,
-    });
+    expect(await screen.findByTestId('onboarding-state')).toBeInTheDocument();
   });
 });

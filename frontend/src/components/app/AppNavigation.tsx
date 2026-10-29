@@ -2,7 +2,8 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Award, CircleUser, Compass, LayoutDashboard, Map as MapIcon, Sparkles, Sun, TrendingUp, type LucideIcon } from 'lucide-react';
 import { useGoal } from '../../context/GoalContext';
-import { cx } from '../ui';
+import { Button, cx } from '../ui';
+import { useAuth } from '../../context/AuthContext';
 import { Wordmark } from '../marketing/Wordmark';
 import { AccountDisclosure, AccountSheet } from './AccountMenu';
 import { OfflineChip } from './OfflineChip';
@@ -200,6 +201,7 @@ export const AppBottomBar: React.FC<AppNavigationProps> = ({ onOpenPathways, onO
 /** Onboarding and generation: the wordmark, the offline chip and Account (email and Sign out). No rail, no bottom bar. */
 export const AppTopBar: React.FC = () => {
   const { apiStatus } = useGoal();
+  const { token } = useAuth();
 
   return (
     <header className="ui-root sticky top-0 z-40 flex h-14 items-center justify-between gap-3 border-b border-border bg-background px-gutter">
@@ -208,14 +210,23 @@ export const AppTopBar: React.FC = () => {
       </Link>
       <div className="flex min-w-0 items-center gap-2">
         {apiStatus === 'offline' && <OfflineChip />}
-        <AccountDisclosure context="focused" placement="down" className="hidden lg:block" />
-        <AccountSheet
-          context="focused"
-          triggerClassName="focus-ring inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-small text-text-secondary transition-colors duration-(--duration-quick) hover:bg-text/[0.06] hover:text-text lg:hidden"
-        >
-          <CircleUser aria-hidden="true" strokeWidth={1.5} className="size-5" />
-          Account
-        </AccountSheet>
+        {/* ND-28: a visitor in onboarding can sign in instead; their answers are kept. */}
+        {!token ? (
+          <Button asChild variant="quiet" size="sm">
+            <Link to={`/login?next=${encodeURIComponent('/onboarding')}`}>Sign in</Link>
+          </Button>
+        ) : (
+          <>
+            <AccountDisclosure context="focused" placement="down" className="hidden lg:block" />
+            <AccountSheet
+              context="focused"
+              triggerClassName="focus-ring inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full px-3 text-small text-text-secondary transition-colors duration-(--duration-quick) hover:bg-text/[0.06] hover:text-text lg:hidden"
+            >
+              <CircleUser aria-hidden="true" strokeWidth={1.5} className="size-5" />
+              Account
+            </AccountSheet>
+          </>
+        )}
       </div>
     </header>
   );
