@@ -135,18 +135,16 @@ test.describe('clarify failure and recovery', () => {
     onlyLoggedFailures();
   });
 
-  test('a clarify failure on Achivii’s side shows Achivii’s own message [network errors expected]', async ({ page }) => {
+  test('a clarify failure on Achivii’s side while the routine is answered is sent again on reaching the questions [network errors expected]', async ({ page }) => {
     const message = 'Unable to analyze your goal right now. AI services are temporarily unavailable. Please retry.';
-    await mockApi(page, { clarify: baseline.customClarify, clarifyError: { status: 503, error: message } });
+    const calls = await mockApi(page, { clarify: baseline.customClarify, clarifyError: { status: 503, error: message } });
     await signIn(page);
     await page.goto('/onboarding');
     await startGoal(page, CUSTOM_GOAL);
     await answerEssentials(page);
-    const alert = page.getByRole('alert');
-    await expect(alert).toContainText("We couldn't prepare your questions");
-    await expect(alert).toContainText(message);
-    await alert.getByRole('button', { name: 'Try again' }).click();
     await expectQuestion(page, baseline.customClarify.followUpQuestions[0].question);
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    expect(calls.clarifyAttempts).toBe(2);
   });
 
   test('questions still on their way: the page waits, then opens on the first question', async ({ page }) => {
