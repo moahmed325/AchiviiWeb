@@ -14,7 +14,8 @@ const OWN_GOAL_EXAMPLES = [
 
 /** The case for a goal of your own (Pro): a still picture of the goal box with examples, so a visitor imagines theirs. */
 const OwnGoal: React.FC = () => (
-  <div className="mt-16 grid items-center gap-10 rounded-panel border border-border-strong bg-surface p-7 sm:p-10 lg:grid-cols-12 lg:gap-12">
+  <div className="relative isolate mt-16 grid items-center overflow-hidden gap-10 rounded-panel border border-border-strong bg-surface p-7 sm:p-10 sm:pl-24 lg:grid-cols-12 lg:pl-32 lg:gap-12">
+    <div aria-hidden="true" className="landing-art landing-art-vine" />
     <div className="lg:col-span-6">
       <p className="text-small text-achievement-hover">Achivii Pro</p>
       <h3 className="mt-3 text-balance text-h2 text-text">Or bring your own goal.</h3>

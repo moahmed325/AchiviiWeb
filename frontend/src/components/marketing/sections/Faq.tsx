@@ -31,7 +31,8 @@ const QUESTIONS = [
 ];
 
 export const Faq: React.FC = () => (
-  <Section id="faq" labelledBy="faq-title">
+  <Section id="faq" labelledBy="faq-title" className="isolate overflow-hidden">
+    <div aria-hidden="true" className="landing-art landing-art-palm-night" />
     <div className="grid gap-10 lg:grid-cols-12">
       <div className="lg:col-span-5">
         <Eyebrow>Questions</Eyebrow>

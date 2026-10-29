@@ -921,28 +921,152 @@ html:has(.marketing) {
 }
 
 /* ============================================================
-   Landing page: satin and botanicals
-   Two photographic layers, both static: dark satin behind the hero and a faint gold botanical frame at the close.
+   Landing page: photographic layers
+   All static: staircases (hero, how it works), palms (why it works, questions), gold vine (Pro) and botanicals (close).
    ============================================================ */
-/* Dark satin behind the hero. Lighten against the page black, so the photo's pure black becomes the page's own
-   black and only the fold of light shows. Right side on desktop, the whole hero on phones; both fade out. */
-.landing-satin {
+/* Photographic layers share one recipe: absolutely placed behind the content, static, faded at the edges with masks.
+   On the dark page they blend with lighten, so each photo's black becomes the page's own black and only the light
+   shows; on the light section they multiply, so only the dark silhouettes show. */
+.landing-art {
   position: absolute;
-  inset: 0;
-  z-index: -2;
-  background: url('/images/brand/satin.webp') center 30% / cover no-repeat;
+  z-index: -1;
+  background-repeat: no-repeat;
+  background-size: cover;
   mix-blend-mode: lighten;
-  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent);
-  mask-image: linear-gradient(to bottom, black 55%, transparent);
+  pointer-events: none;
+}
+
+/* Hero: the staircase walking into the light. One step at a time, which is the product. */
+/* On phones it sits low, behind the example card, so the grain never runs under the text. */
+.landing-art-stairs {
+  inset: auto 0 0;
+  height: 55%;
+  background-image: url('/images/brand/stairs-light.webp');
+  background-position: center 40%;
+  opacity: 0.45;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
 }
 
 @media (width >= 64rem) {
-  .landing-satin {
-    left: auto;
-    width: 62%;
-    -webkit-mask-image: linear-gradient(to right, transparent, black 40%), linear-gradient(to bottom, black 70%, transparent);
+  .landing-art-stairs {
+    inset: 0 0 0 auto;
+    height: auto;
+    width: 60%;
+    /* Enlarged and pulled up-left so the walking figure lands in the gap between the text and the card. */
+    background-size: auto 150%;
+    background-position: 100% 58%;
+    opacity: 0.75;
+    -webkit-mask-image: linear-gradient(to right, transparent, black 25%), linear-gradient(to bottom, black 70%, transparent);
     -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to right, transparent, black 40%), linear-gradient(to bottom, black 70%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 25%), linear-gradient(to bottom, black 70%, transparent);
+    mask-composite: intersect;
+  }
+}
+
+/* How it works: three lit flights of stairs, the plan's three phases. Faint behind the heading on smaller screens; on
+   wide screens the steps stack on the left and the staircase takes the right side. */
+.landing-art-phases {
+  top: 0;
+  right: 0;
+  width: 70%;
+  height: 26rem;
+  background-image: url('/images/brand/stairs-phases.webp');
+  background-position: center 30%;
+  opacity: 0.45;
+  -webkit-mask-image: linear-gradient(to left, black 30%, transparent), linear-gradient(to bottom, black 40%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to left, black 30%, transparent), linear-gradient(to bottom, black 40%, transparent);
+  mask-composite: intersect;
+}
+
+@media (width >= 64rem) {
+  .landing-art-phases {
+    width: 50%;
+    height: 100%;
+    background-position: center 45%;
+    opacity: 0.9;
+    -webkit-mask-image: linear-gradient(to left, black 55%, transparent), linear-gradient(to bottom, black 75%, transparent);
+    mask-image: linear-gradient(to left, black 55%, transparent), linear-gradient(to bottom, black 75%, transparent);
+  }
+}
+
+/* Pro block: the gold vine along its left edge, in the block's widened left padding. Not on phones, where it would
+   sit behind the text. */
+.landing-art-vine {
+  display: none;
+  inset-block: 0;
+  left: 0;
+  width: 6rem;
+  background-image: url('/images/brand/vine-linen.webp');
+  background-position: left center;
+  opacity: 0.3;
+  -webkit-mask-image: linear-gradient(to right, black, transparent);
+  mask-image: linear-gradient(to right, black, transparent);
+}
+
+@media (width >= 40rem) {
+  .landing-art-vine {
+    display: block;
+  }
+}
+
+@media (width >= 64rem) {
+  .landing-art-vine {
+    width: 8rem;
+    opacity: 0.45;
+  }
+}
+
+/* Why it works (the light section): palms in daylight, dark silhouettes only. */
+.landing-art-palms {
+  right: 0;
+  top: 0;
+  width: 55%;
+  height: 22rem;
+  background-image: url('/images/brand/palms-day.webp');
+  background-position: center top;
+  mix-blend-mode: multiply;
+  opacity: 0.1;
+  -webkit-mask-image: linear-gradient(to left, black 30%, transparent), linear-gradient(to bottom, black 30%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to left, black 30%, transparent), linear-gradient(to bottom, black 30%, transparent);
+  mask-composite: intersect;
+}
+
+@media (width >= 64rem) {
+  .landing-art-palms {
+    top: auto;
+    right: auto;
+    bottom: 0;
+    left: 0;
+    width: 38%;
+    height: 72%;
+    background-position: center top;
+    opacity: 0.12;
+    -webkit-mask-image: linear-gradient(to right, black 40%, transparent), linear-gradient(to top, black 40%, transparent);
+    mask-image: linear-gradient(to right, black 40%, transparent), linear-gradient(to top, black 40%, transparent);
+  }
+}
+
+/* Questions: one palm at night, under the heading on wide screens. Hidden on phones, where it would sit behind text. */
+.landing-art-palm-night {
+  display: none;
+}
+
+@media (width >= 64rem) {
+  .landing-art-palm-night {
+    display: block;
+    bottom: 0;
+    left: 0;
+    width: 30%;
+    height: 85%;
+    background-image: url('/images/brand/palm-night.webp');
+    background-position: 30% bottom;
+    opacity: 0.55;
+    -webkit-mask-image: linear-gradient(to right, black 50%, transparent), linear-gradient(to top, black 50%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, black 50%, transparent), linear-gradient(to top, black 50%, transparent);
     mask-composite: intersect;
   }
 }

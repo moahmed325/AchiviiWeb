@@ -17,13 +17,14 @@ const STEPS = [
 ];
 
 export const HowItWorks: React.FC = () => (
-  <Section id="how" labelledBy="how-title">
+  <Section id="how" labelledBy="how-title" className="isolate overflow-hidden">
+    <div aria-hidden="true" className="landing-art landing-art-phases" />
     <Eyebrow>How it works</Eyebrow>
     <h2 id="how-title" className={`mt-4 ${HEADING}`}>
       Open it and know what to do today.
     </h2>
 
-    <ol className="mt-12 grid gap-4 md:grid-cols-3">
+    <ol className="mt-12 grid gap-4 md:grid-cols-3 lg:max-w-[34rem] lg:grid-cols-1">
       {STEPS.map((step, index) => (
         <li key={step.title} className="rounded-panel border border-border bg-surface p-6 sm:p-7">
           <span className="tabular font-ui-mono text-small text-text-secondary">{`0${index + 1}`}</span>

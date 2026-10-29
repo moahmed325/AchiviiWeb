@@ -12,7 +12,7 @@ export const Hero: React.FC = () => (
     aria-labelledby="hero-title"
     className="relative isolate overflow-hidden bg-background px-gutter pb-20 pt-28 sm:pb-28 sm:pt-40"
   >
-    <div aria-hidden="true" className="landing-satin" />
+    <div aria-hidden="true" className="landing-art landing-art-stairs" />
     <div className="mx-auto w-full max-w-[1120px]">
       <div className="grid items-center gap-14 lg:grid-cols-12 lg:gap-10">
         <div className="lg:col-span-7">

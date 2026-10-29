@@ -23,8 +23,9 @@ export const WhyItWorks: React.FC = () => (
   <section
     id="why"
     aria-labelledby="why-title"
-    className="on-inverse scroll-mt-24 bg-surface-inverse px-gutter py-20 text-text-on-inverse sm:py-32"
+    className="on-inverse relative isolate scroll-mt-24 overflow-hidden bg-surface-inverse px-gutter py-20 text-text-on-inverse sm:py-32"
   >
+    <div aria-hidden="true" className="landing-art landing-art-palms" />
     <div className="mx-auto grid w-full max-w-[1120px] gap-12 lg:grid-cols-12">
       <div className="lg:col-span-5">
         <p className="text-small text-text-secondary-on-inverse">Why it works</p>
