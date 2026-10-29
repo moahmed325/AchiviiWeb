@@ -47,6 +47,8 @@ import { useAutoSwap } from './useAutoSwap';
 import { StepInstructions } from './StepInstructions';
 import { doneDaysOf, movedFrom, movedHereLine, visibleDay } from '../../lib/stepLines';
 import { usePlanAction } from './usePlanAction';
+import { FirstStepShare } from './FirstStepShare';
+import { isFirstStep } from '../../lib/firstStep';
 
 const NOT_SAVED = "That didn't save. Please check your connection and try again.";
 
@@ -400,6 +402,10 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   // M3.2: on a gentle-return day the 10-minute version is the default; when short on time it is one tap away.
   const gentleReturn = notice?.kind === 'gentle_return';
   const shortOnTime = viewingToday && !gentleReturn && shortOnTimeOffer(goalContext.reconciliation, goal, now, timezone);
+  // The first practice step: starting is made easy (the 10-minute version is offered) and finishing it is marked.
+  const firstStep = isFirstStep(goal, task);
+  const firstStepToday = firstStep && viewingToday && !done && !gentleReturn;
+  const offerMinimum = shortOnTime || (firstStepToday && Boolean(shown?.minimumVersion));
   const openFocus = (startWith: 'full' | 'minimum') => {
     setFocusStart(startWith);
     setFocusOpen(true);
@@ -655,6 +661,12 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 </div>
               )}
 
+              {firstStepToday && (
+                <Callout>
+                  <p className="text-text">Your first step. Start whenever you’re ready; it only has to be today’s.</p>
+                </Callout>
+              )}
+
               {done && (
                 <p className="mt-6 flex items-center gap-2 text-small font-medium text-achievement">
                   <Check aria-hidden="true" strokeWidth={2} className="size-4 shrink-0" />
@@ -694,7 +706,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                     </Button>
                   )
                 )}
-                {shortOnTime && (
+                {offerMinimum && (
                   <Button variant="secondary" onClick={() => openFocus('minimum')} className="w-full sm:w-auto">
                     Start the 10-minute version
                   </Button>
@@ -712,11 +724,13 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   </Button>
                 )}
               </div>
-              {shortOnTime && <p className="mt-3 text-small text-text-secondary">The 10-minute version still counts toward this week.</p>}
+              {offerMinimum && <p className="mt-3 text-small text-text-secondary">The 10-minute version still counts toward this week.</p>}
               <p role="alert" className="mt-3 text-small text-danger empty:hidden">
                 {actionError ?? ''}
               </p>
               {viewingToday && <TodayPlanActions goal={goal} action={planAction} now={now} timezone={timezone} />}
+
+              {done && firstStep && <FirstStepShare goalText={goal.rawGoal} dayNumber={task.dayNumber} />}
 
               {(done || task.isRestDay) && (
                 <div className="mt-8 rounded-card border border-border bg-background/50 p-5">
@@ -969,6 +983,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           onCompleteSession={onFinishFocus}
           startWith={focusStart}
           doneDays={doneDays}
+          isFirstStep={firstStep}
         />
       )}
 

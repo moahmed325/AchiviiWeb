@@ -31,6 +31,8 @@ export interface FocusSessionModalProps {
    * `visibleDay` does (B-50, B-52, B-55).
    */
   doneDays?: DoneDays;
+  /** The person's first practice step (`isFirstStep`): the completion screen says so. */
+  isFirstStep?: boolean;
 }
 
 interface FocusSessionContentProps {
@@ -42,6 +44,7 @@ interface FocusSessionContentProps {
   onCompleteSession: (reflectionNotes?: string, options?: FocusCompletionOptions) => Promise<void> | void;
   startWith: 'full' | 'minimum';
   doneDays?: DoneDays;
+  isFirstStep?: boolean;
 }
 
 const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
@@ -53,6 +56,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
   onCompleteSession,
   startWith,
   doneDays,
+  isFirstStep = false,
 }) => {
   // Timer & UI State initialized cleanly on mount
   const [secondsRemaining, setSecondsRemaining] = useState<number>(totalDurationSeconds);
@@ -284,6 +288,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
             dayNumber={dayNumber}
             durationMinutes={sessionMinutes}
             isMinimumVersion={isMinimumVersion}
+            isFirstStep={isFirstStep}
             reflectionNote={reflectionNote}
             onReflectionChange={setReflectionNote}
             onSave={handleSaveAndExit}
@@ -305,6 +310,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
   onCompleteSession,
   startWith = 'full',
   doneDays,
+  isFirstStep,
 }) => {
   // The day as shown (B-50, B-52): its steps, minutes and text. The session only shows it; completing goes by id.
   const { steps, ...shown } = useMemo(() => visibleDay(task, doneDays ?? new Map()), [task, doneDays]);
@@ -326,6 +332,7 @@ export const FocusSessionModal: React.FC<FocusSessionModalProps> = ({
       onCompleteSession={onCompleteSession}
       startWith={startWith}
       doneDays={doneDays}
+      isFirstStep={isFirstStep}
     />
   );
 };
