@@ -16,13 +16,15 @@ export interface ReviewTestResultStepProps {
   disabled?: boolean;
   /** M2.1: the week the test belongs to; a light week shows "Next check, week {n}" with it. */
   weekNumber?: number;
+  /** B-109: the plan's weeks (a shorter plan's ready week reads as its final target); missing is 12. */
+  totalWeeks?: number;
 }
 
 /**
  * M2.1 (requirement 7): a light week's entry in the review: "I did it" sets `{ value: 'Done', passed: true, note }`, which
  * the review saves with the week; not pressing it leaves the test unlogged, as before.
  */
-const LightReviewEntry: React.FC<ReviewTestResultStepProps & { test: WeekTest }> = ({ weekNumber, target, test, testResult, onChange, disabled }) => {
+const LightReviewEntry: React.FC<ReviewTestResultStepProps & { test: WeekTest }> = ({ weekNumber, target, test, testResult, onChange, disabled, totalWeeks }) => {
   const [note, setNote] = useState(testResult?.note ?? '');
   const done = testResult !== null;
   const onNoteChange = (next: string) => {
@@ -32,6 +34,7 @@ const LightReviewEntry: React.FC<ReviewTestResultStepProps & { test: WeekTest }>
   return (
     <LightTestEntry
       weekNumber={weekNumber}
+      totalWeeks={totalWeeks}
       target={target}
       test={test}
       note={note}
@@ -79,6 +82,7 @@ export const ReviewTestResultStep: React.FC<ReviewTestResultStepProps> = ({
   onChange,
   disabled = false,
   weekNumber,
+  totalWeeks,
 }) => {
   // If neither target nor benchmark test instructions exist for this week, render nothing
   if (!target && !test) {
@@ -86,7 +90,7 @@ export const ReviewTestResultStep: React.FC<ReviewTestResultStepProps> = ({
   }
   if (test && isLightTest(test)) {
     return (
-      <LightReviewEntry weekNumber={weekNumber} target={target} test={test} testResult={testResult} onChange={onChange} disabled={disabled} />
+      <LightReviewEntry weekNumber={weekNumber} totalWeeks={totalWeeks} target={target} test={test} testResult={testResult} onChange={onChange} disabled={disabled} />
     );
   }
 

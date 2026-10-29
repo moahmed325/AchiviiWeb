@@ -86,6 +86,23 @@ describe('ClosingStretchView Component (M9.4)', () => {
     expect(roadmapLink).toHaveAttribute('href', '/roadmap');
   });
 
+  it('B-109: a 6-week plan ending 3 days before an exam shows its own days and the days to the date', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    // 6 weeks (42 days) ended yesterday; the exam is in 3 days, so the plan has 44 days (days 43 and 44 closing).
+    const startDate = new Date(today.getTime() - 42 * DAY).toISOString();
+    const fixedDate = new Date(today.getTime() + 3 * DAY).toISOString();
+    const targetDate = new Date(today.getTime() + 2 * DAY).toISOString();
+    renderComponent({ totalWeeks: 6, startDate, targetDate, fixedDate, currentWeek: 6 });
+
+    expect(screen.getByText(/DAYS 43.*44.*THE CLOSING STRETCH/)).toBeVisible();
+    expect(screen.getByText(/The 42 planned practice days are complete/)).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Review 6-week staircase' })).toBeVisible();
+    expect(screen.getByText('Day 43 of 44')).toBeVisible();
+    expect(screen.queryByText(/84 planned/)).toBeNull();
+  });
+
   it('renders capstone evaluation card with target deliverable and instructions (M9.4-R2)', () => {
     renderComponent();
 

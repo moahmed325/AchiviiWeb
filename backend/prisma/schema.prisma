@@ -92,6 +92,7 @@ model Goal {
   closeTriedAt        DateTime? // RULE-9: the first open that tried to close week `closeTriedWeek`
   closeTriedWeek      Int?
   fixedDate           DateTime? // B-106: an outside date the goal must be ready by (exam, race, talk); the plan never moves past it
+  totalWeeks          Int       @default(12) // B-109: the plan's weeks, 4 to 12; under 12 only when a fixed date is closer
 
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   roadmapWeeks     RoadmapWeek[]

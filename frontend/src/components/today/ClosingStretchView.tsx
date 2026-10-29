@@ -15,6 +15,8 @@ import { useUserTimezone } from '../../context/AuthContext';
 import { extractFinalTestEvaluation } from '../../lib/achievement';
 import { week12NoteText } from '../../lib/week12Line';
 import { dayNumber } from '../../lib/today';
+import { lastDaysLine } from '../../lib/fixedDate';
+import { closingStartDay, planDays, planLengthLabel, planWeeks } from '../../lib/planLength';
 import { Button } from '../ui/Button';
 import { Field, Input, Textarea } from '../ui/Field';
 import { cx } from '../ui/cx';
@@ -26,6 +28,16 @@ export interface ClosingStretchViewProps {
 }
 
 const STORAGE_KEY_PREFIX = 'achivii_closing_reflection_';
+
+/** B-109: the closing stretch's grid, one column per day (a shorter plan may have 1 to 6). */
+const GRID_COLUMNS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+  3: 'grid-cols-3',
+  4: 'grid-cols-4',
+  5: 'grid-cols-5',
+  6: 'grid-cols-6',
+};
 
 const Eyebrow: React.FC<{ children: React.ReactNode; className?: string }> = ({
   children,
@@ -154,8 +166,12 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
     }
   };
 
-  // 6-day closing stretch approach steps: Days 85 to 90
-  const closingDays = [85, 86, 87, 88, 89, 90];
+  // 6-day closing stretch approach steps: Days 85 to 90. B-109: a shorter plan's days after its last week (0 to 6).
+  const lastDay = planDays(goal);
+  const firstDay = closingStartDay(goal);
+  const closingDays = Array.from({ length: Math.max(0, lastDay - firstDay + 1) }, (_, index) => firstDay + index);
+  const shortPlan = planWeeks(goal) !== 12;
+  const restLine = lastDaysLine(goal, now, timezone);
 
   return (
     <section
@@ -165,7 +181,9 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
       {/* Eyebrow & Headline */}
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Eyebrow className="text-achievement">DAYS 85–90 · THE CLOSING STRETCH</Eyebrow>
+          <Eyebrow className="text-achievement">
+            {closingDays.length > 0 ? `DAYS ${firstDay}–${lastDay} · ` : ''}THE CLOSING STRETCH
+          </Eyebrow>
           <Button
             asChild
             variant="quiet"
@@ -173,30 +191,34 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
             trailingIcon={<ArrowRight aria-hidden="true" strokeWidth={1.5} className="size-4" />}
             className="text-text-secondary hover:text-text"
           >
-            <Link to="/roadmap">Review 90-day staircase</Link>
+            <Link to="/roadmap">Review {planLengthLabel(goal)} staircase</Link>
           </Button>
         </div>
         <h2 id="closing-stretch-heading" className="mt-3 text-h2 font-semibold text-text">
           The Final Evaluation & Arrival
         </h2>
         <p className="mt-2 text-body text-text-secondary max-w-2xl leading-relaxed">
-          The 84 planned deliberate practice days are complete. These final six days are dedicated to
+          {shortPlan
+            ? `The ${firstDay - 1} planned practice days are complete. Take your capstone evaluation, reflect on your ${planLengthLabel(goal)} journey, and arrive at your date rested.`
+            : `The 84 planned deliberate practice days are complete. These final six days are dedicated to
           taking your capstone evaluation, reflecting on your 90-day journey, and arriving at the
-          destination.
+          destination.`}
         </p>
+        {/* B-109: a shorter plan's last days before the date (Mo, choice d). */}
+        {restLine && <p className="mt-3 text-body text-text">{restLine}</p>}
       </div>
 
       {/* 6-Day Approach Progress Indicator */}
-      <div className="rounded-card border border-border bg-surface-elevated/50 p-4 sm:p-5">
+      {closingDays.length > 0 && <div className="rounded-card border border-border bg-surface-elevated/50 p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2 mb-3">
           <span className="font-ui-mono text-micro uppercase tracking-wider text-text-secondary">
             Closing Stretch Approach
           </span>
           <span className="font-ui-mono text-micro text-achievement">
-            Day {currentDay} of 90
+            Day {currentDay} of {lastDay}
           </span>
         </div>
-        <div className="grid grid-cols-6 gap-2 text-center">
+        <div className={cx('grid gap-2 text-center', GRID_COLUMNS[closingDays.length] ?? 'grid-cols-6')}>
           {closingDays.map((d) => {
             const isDone = currentDay > d;
             const isCurrent = currentDay === d;
@@ -213,16 +235,16 @@ export const ClosingStretchView: React.FC<ClosingStretchViewProps> = ({
                 )}
               >
                 <div className="font-ui-mono text-micro uppercase">
-                  {d === 90 ? 'Summit ✦' : `Day ${d}`}
+                  {d === lastDay ? 'Summit ✦' : `Day ${d}`}
                 </div>
                 <div className="mt-1 text-micro text-text-secondary">
-                  {d === 90 ? 'Arrival' : isDone ? 'Done' : isCurrent ? 'Today' : 'Ahead'}
+                  {d === lastDay ? 'Arrival' : isDone ? 'Done' : isCurrent ? 'Today' : 'Ahead'}
                 </div>
               </div>
             );
           })}
         </div>
-      </div>
+      </div>}
 
       {/* Capstone Evaluation Card */}
       <div className="rounded-card border border-border bg-surface-elevated/70 p-5 sm:p-6 space-y-4 text-left">

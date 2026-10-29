@@ -4,6 +4,7 @@ import type { Goal, RoadmapWeek, WeekTarget, WeekTest } from '../../types';
 import type { WeeklyTestResult } from '../../types/review';
 import { cx } from '../ui';
 import { isLightTest, weekTargetText } from '../../lib/lightTest';
+import { planWeeks } from '../../lib/planLength';
 
 interface BenchmarkResultsCardProps {
   goal: Goal;
@@ -40,7 +41,7 @@ function formatResultValue(result: WeeklyTestResult): string {
 }
 
 function deriveBenchmarks(goal: Goal): BenchmarkEntry[] {
-  const currentWeek = Math.min(12, Math.max(1, goal.currentWeek || 1));
+  const currentWeek = Math.min(planWeeks(goal), Math.max(1, goal.currentWeek || 1));
   const weeks: RoadmapWeek[] = goal.roadmapWeeks || [];
 
   return weeks
@@ -133,7 +134,7 @@ export const BenchmarkResultsCard: React.FC<BenchmarkResultsCardProps> = ({ goal
       <div className="space-y-2">
         {benchmarks.map((entry) => {
           const light = isLightTest(entry.test);
-          const targetStr = entry.target ? weekTargetText(entry.weekNumber, entry.target, entry.test, formatTarget) : null;
+          const targetStr = entry.target ? weekTargetText(entry.weekNumber, entry.target, entry.test, formatTarget, goal) : null;
 
           return (
             <div

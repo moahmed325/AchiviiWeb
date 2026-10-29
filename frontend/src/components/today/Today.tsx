@@ -38,6 +38,7 @@ import { CheckpointCard } from './Checkpoint';
 import { CLOSE_FAILED } from './WeekClose';
 import { closeLineWeek } from '../../lib/weekClose';
 import { fixedDateLine } from '../../lib/fixedDate';
+import { closingStartDay, planDays, planWeeks } from '../../lib/planLength';
 import { markCloseLineSeen } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTaskActions } from './useTaskActions';
@@ -377,7 +378,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const intention = parseIntention(shown?.implementationIntention);
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now, timezone);
-  const journeyPercent = Math.min(100, Math.max(2, Math.round((day / 90) * 100)));
+  const journeyPercent = Math.min(100, Math.max(2, Math.round((day / planDays(goal)) * 100)));
   // A day not offered is never done here (the server never classifies it done).
   const done = task?.status === 'completed' && !task.notOffered;
   const nextTask = task ? findNextTask(tasks, task.id) : null;
@@ -481,9 +482,9 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         )}
 
         <div className="mt-12">
-          <p aria-label={`Day ${day} of 90`} className="flex items-baseline gap-3">
+          <p aria-label={`Day ${day} of ${planDays(goal)}`} className="flex items-baseline gap-3">
             <span className="today-numeral tabular text-numeral text-text">{day}</span>
-            <span className="tabular text-h3 text-text-secondary">/ 90</span>
+            <span className="tabular text-h3 text-text-secondary">/ {planDays(goal)}</span>
           </p>
           <div aria-hidden="true" className="mt-6">
             <div className="dash-journey" style={{ '--dash-progress': `${journeyPercent}%` } as React.CSSProperties}>
@@ -493,7 +494,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
               <span className="text-text-secondary">Day 1</span>
               <span className="inline-flex items-center gap-2 text-achievement">
                 <StepMarker state="destination" size="sm" />
-                Day 90
+                Day {planDays(goal)}
               </span>
             </div>
           </div>
@@ -537,8 +538,10 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 Week {goal.currentWeek || 1} is ready for review
               </h2>
               <p className="mt-2 max-w-md text-small text-text-secondary">
-                {goal.currentWeek && goal.currentWeek >= 12
-                  ? "You've reached the end of Week 12. Complete this review to unlock your final closing stretch (days 85–90)."
+                {goal.currentWeek && goal.currentWeek >= planWeeks(goal)
+                  ? `You've reached the end of Week ${planWeeks(goal)}. Complete this review to unlock your final closing stretch${
+                      closingStartDay(goal) <= planDays(goal) ? ` (days ${closingStartDay(goal)}–${planDays(goal)})` : ''
+                    }.`
                   : "You've reached the end of this week's scheduled practice. Reflect on your progress and adapt next week's path."}
               </p>
             </div>
@@ -641,7 +644,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   {week?.test?.instructions && <p className="mt-3 text-small text-text-secondary">{week.test.instructions}</p>}
                   {/* M2.1: a light week shows the next check it builds toward, not a pass mark against the target. */}
                   {isLightTest(week?.test) && week?.target && (
-                    <p className="mt-3 text-small text-text">{nextCheckLine(week.weekNumber, week.target)}</p>
+                    <p className="mt-3 text-small text-text">{nextCheckLine(week.weekNumber, week.target, goal)}</p>
                   )}
                   {week?.test?.passIf && !isLightTest(week.test) && (
                     <p className="mt-3 text-small text-text">

@@ -1,7 +1,7 @@
 import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import type { CreateGoalResponse, FollowUpQuestion, Goal, GoalClarification, RoutineSettings } from '../../types';
 import { clarifyGoal, createGoalPlan, fetchActiveGoal, type PlanProgressEvent } from '../../lib/api';
-import { checkFixedDate } from '../../lib/fixedDate';
+import { checkFixedDate, fixedDateBlocks } from '../../lib/fixedDate';
 import { validRestWeekdays } from '../../lib/schedule';
 import { nextPlanQuestions, prefilledAnswers, type NextPlanLaunch } from '../../lib/nextPlan';
 import { todayKey } from '../../lib/today';
@@ -114,11 +114,11 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
   // today in the person's stored time zone, as the server resolves the plan's start.
   const timezone = useUserTimezone();
   const [fixedDate, setFixedDate] = useState(() =>
-    initialFixedDate && checkFixedDate(initialFixedDate, todayKey(new Date(), timezone)) !== 'invalid' ? initialFixedDate : ''
+    initialFixedDate && !fixedDateBlocks(checkFixedDate(initialFixedDate, todayKey(new Date(), timezone))) ? initialFixedDate : ''
   );
   const fixedDateToday = todayKey(new Date(), timezone);
   const fixedDateCheck = checkFixedDate(fixedDate, fixedDateToday);
-  const fixedDateOk = fixedDateCheck !== 'invalid';
+  const fixedDateOk = !fixedDateBlocks(fixedDateCheck);
 
   const [planSteps, setPlanSteps] = useState<PlanProgressEvent[]>([]);
   const [generationError, setGenerationError] = useState<OnboardingError | null>(null);

@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Compass } from 'lucide-react';
 import { useJourneyData } from '../hooks/useJourneyData';
 import { StrategicRoadmap } from '../components/journey/StrategicRoadmap';
 import { Button, StepMarker } from '../components/ui';
+import { planLengthLabel } from '../lib/planLength';
 
 export const RoadmapPage: React.FC = () => {
   const journey = useJourneyData();
@@ -53,7 +54,7 @@ const RoadmapContent: React.FC<{ journey: NonNullable<ReturnType<typeof useJourn
         <h1 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-[-0.03em] text-text sm:text-4xl">{journey.rawGoal}</h1>
         {outcome && outcome !== journey.rawGoal && (
           <p className="mt-3 max-w-3xl text-small text-text-secondary">
-            <span className="font-medium text-text">90-day outcome: </span>
+            <span className="font-medium text-text">{planLengthLabel({ totalWeeks: journey.metrics.totalWeeks })} outcome: </span>
             {outcome}
           </p>
         )}

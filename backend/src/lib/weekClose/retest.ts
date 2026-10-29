@@ -1,7 +1,7 @@
 import type { DailyTask, RoadmapWeek } from '@prisma/client';
 import { codeMadeRetestStep } from '../ai/retestStep.js';
 import { parseStoredSteps } from '../carryForward.js';
-import { TOTAL_WEEKS } from '../ai/roadmap.js';
+import { DEFAULT_WEEKS } from '../planLength.js';
 import { isLogged } from './update.js';
 
 /**
@@ -93,9 +93,9 @@ export function retestInfo(weeks: readonly RetestWeek[], tasks: readonly RetestT
  * week is not week 12 (no week is written after it) and was not asked yet, and no earlier week of the same run was
  * followed by a week that was asked.
  */
-export function dailyTimeCheckOf(weeks: readonly RetestWeek[], dailyMinutes: number): DailyTimeCheck | null {
+export function dailyTimeCheckOf(weeks: readonly RetestWeek[], dailyMinutes: number, totalWeeks: number = DEFAULT_WEEKS): DailyTimeCheck | null {
   const open = openWeekOf(weeks);
-  if (!open || open.weekNumber >= TOTAL_WEEKS || open.dailyTimeAskedAt) return null;
+  if (!open || open.weekNumber >= totalWeeks || open.dailyTimeAskedAt) return null;
   if (!twoHardWeeks(weeks, open.weekNumber - 1)) return null;
   const byNumber = (n: number) => weeks.find((week) => week.weekNumber === n);
   for (let n = open.weekNumber - 2; isHard(byNumber(n)); n -= 1) {

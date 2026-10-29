@@ -29,6 +29,7 @@ export const RECONCILE_GOAL_SELECT = {
   routine: true,
   rawGoal: true,
   clarifiedOutcome: true,
+  totalWeeks: true,
   dailyTasks: {
     select: {
       id: true,

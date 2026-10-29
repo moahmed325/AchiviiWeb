@@ -10,7 +10,8 @@ import { readRoutine, routineRecord } from '../../lib/planV2.js';
 import { CheckpointAcceptedError, closeAnswer, logFixedDate, logJump, logWeekClose, planWeekMove, reviewInsight, saveWeekClose, weekCloseDue } from '../../lib/weekClose/close.js';
 import { autoCloseUpdateInsight, logUpdateLowered, retestOfWeekFor, updateThenWrite } from '../../lib/weekClose/update.js';
 import { weekCloseEnabled, weeklyUpdateEnabled } from '../../lib/weekClose/switch.js';
-import { CHECKPOINT_WEEKS, acceptedWeeks, answerLogLine, pathwayOf, readCheckpoints } from '../../lib/weekClose/checkpoint.js';
+import { ANY_CHECKPOINT_WEEKS, shapeOf } from '../../lib/planLength.js';
+import { acceptedWeeks, answerLogLine, pathwayOf, readCheckpoints } from '../../lib/weekClose/checkpoint.js';
 import { checkpointsAtClose } from '../../lib/weekClose/checkpointClose.js';
 import { RETEST_LOGGED_KEY, dailyTimeCheckOf } from '../../lib/weekClose/retest.js';
 import { refuse, refuseChoice, isChoice, actionUser } from './actions.js';
@@ -326,7 +327,7 @@ weekRoutes.post('/close-week', async (req: Request, res: Response): Promise<void
     }
 
     const startedAt = Date.now();
-    const lastWeek = weekNum >= TOTAL_WEEKS;
+    const lastWeek = weekNum >= shapeOf(found).weeks;
     const choice = isChoice(req.body?.choice) ? req.body.choice : null;
     // M3.3a (RULE-1, RULE-18, WU-52): the same update as the review, with no reflection; none for week 12, before a
     // choice past the limit or with either switch off, and then the close is exactly as before. M3.4: a break runs it.
@@ -482,6 +483,7 @@ weekRoutes.post('/daily-time', async (req: Request, res: Response): Promise<void
         id: true,
         planVersion: true,
         routine: true,
+        totalWeeks: true,
         roadmapWeeks: {
           orderBy: { weekNumber: 'asc' },
           select: {
@@ -503,7 +505,7 @@ weekRoutes.post('/daily-time', async (req: Request, res: Response): Promise<void
     }
     if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
 
-    const check = dailyTimeCheckOf(goal.roadmapWeeks, readRoutine(goal).dailyMinutes);
+    const check = dailyTimeCheckOf(goal.roadmapWeeks, readRoutine(goal).dailyMinutes, shapeOf(goal).weeks);
     const openWeek = goal.roadmapWeeks.find((w) => w.status === 'active');
     if (!check || !openWeek) return refuse(res, 'no_daily_time_check');
     const minutes = req.body?.minutes;
@@ -545,20 +547,22 @@ weekRoutes.post('/checkpoint', async (req: Request, res: Response): Promise<void
     if (!weeklyUpdateEnabled()) return refuse(res, 'weekly_update_disabled');
     const week = req.body?.week;
     const answer = req.body?.answer;
-    if (!CHECKPOINT_WEEKS.includes(week) || (answer !== 'keep' && answer !== 'accept')) {
-      res.status(400).json({ error: 'week must be 4 or 8 and answer keep or accept.' });
+    // B-109: a shorter plan's checkpoints are other weeks; the goal's own offer decides below.
+    if (!ANY_CHECKPOINT_WEEKS.includes(week) || (answer !== 'keep' && answer !== 'accept')) {
+      res.status(400).json({ error: 'week must be a checkpoint week (4 or 8) and answer keep or accept.' });
       return;
     }
 
     const goal = await prisma.goal.findFirst({
       where: { userId: user.id, status: 'active' },
-      select: { id: true, planVersion: true, roadmapWeeks: { where: { status: 'active' }, select: { weekNumber: true } }, roadmap: true },
+      select: { id: true, planVersion: true, totalWeeks: true, roadmapWeeks: { where: { status: 'active' }, select: { weekNumber: true } }, roadmap: true },
     });
     if (!goal) {
       res.status(404).json({ error: 'Active goal not found.' });
       return;
     }
     if (goal.planVersion !== 2) return refuse(res, 'not_plan_v2');
+    if (!shapeOf(goal).checkpointWeeks.includes(week)) return refuse(res, 'no_checkpoint');
     const openWeek = goal.roadmapWeeks[0]?.weekNumber;
     const offerOf = (roadmap: unknown) => readCheckpoints(roadmap).find((item) => item.week === week && (item.answer === null || item.answer === undefined));
     const offer = offerOf(goal.roadmap);
@@ -579,7 +583,7 @@ weekRoutes.post('/checkpoint', async (req: Request, res: Response): Promise<void
         // RULE-9: the weeks as the app reads them (an older goal's targets lowered on read), spread from the open week.
         const rows = safeGoalTargets(row)?.weeks ?? row.roadmapWeeks;
         const kind = offer.kind === 'raise' ? 'raise' : 'lower';
-        const spread = acceptedWeeks(rows, openWeek, offer.offered as number, kind, pathwayOf(row));
+        const spread = acceptedWeeks(rows, openWeek, offer.offered as number, kind, pathwayOf(row), shapeOf(row));
         if (!spread) return false;
         for (const changed of spread.weeks) {
           await tx.roadmapWeek.update({

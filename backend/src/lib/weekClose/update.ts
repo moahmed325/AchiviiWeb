@@ -33,7 +33,8 @@ import { weekLayout, type WeekDayPlan } from '../ai/weekPlan.js';
 import type { WeekTest } from '../ai/roadmap.js';
 import { restartLevel, type PastLimitChoice } from './breaks.js';
 import type { Restart } from '../recovery/profile.js';
-import { BIG_TEST_WEEKS, pathwayFor, shownAmount, statedTargetText, TOTAL_WEEKS, type LoweredTarget, type WeekTarget } from '../ai/roadmap.js';
+import { pathwayFor, shownAmount, statedTargetText, type LoweredTarget, type WeekTarget } from '../ai/roadmap.js';
+import { DEFAULT_WEEKS as TOTAL_WEEKS, shapeOf } from '../planLength.js';
 import { logSafetyHit } from '../ai/safetyScan.js';
 import { parseStoredSteps } from '../carryForward.js';
 import { weekCounts } from '../missedSignals.js';
@@ -132,7 +133,8 @@ export const RESTART_FALLBACK_BIG_WEEK_INSIGHT = 'Week {w} picks up at {level}.'
  * limit needs (`choice`, the close's): that close is refused with 409 `choice_needed` before any model call.
  */
 export function updateRuns(goal: ClosingGoal, weekNumber: number, now: Date, timezone?: string | null, choice?: PastLimitChoice | null): boolean {
-  if (!weeklyUpdateEnabled() || weekNumber < 1 || weekNumber >= TOTAL_WEEKS) return false;
+  // B-109: never after the final test (week 12; a shorter plan's ready week keeps the final week's target).
+  if (!weeklyUpdateEnabled() || weekNumber < 1 || weekNumber >= shapeOf(goal).finalWeek) return false;
   return runsWith(planWeekMove(goal, weekNumber, now, timezone, goal.dailyTasks, choice));
 }
 
@@ -207,7 +209,7 @@ export async function planWeeklyUpdate(
   weekNumber: number,
   context: { userId: string; reflection: string; now: Date; timezone?: string | null; choice?: PastLimitChoice | null }
 ): Promise<PlannedUpdate | null> {
-  if (!weeklyUpdateEnabled() || weekNumber < 1 || weekNumber >= TOTAL_WEEKS) return null;
+  if (!weeklyUpdateEnabled() || weekNumber < 1 || weekNumber >= shapeOf(goal).finalWeek) return null;
   const read = closingRead(goal, weekNumber, context);
   if (!runsWith(read.move)) return null;
   let update: PlannedUpdate;
@@ -423,6 +425,8 @@ async function runUpdate(
   // M3.4 (WU-59 (7)): next week is the week this close writes; the weeks a "Keep going" jumps are read as they will be
   // stored (closed and jumped), so the weeks left are `nextWeek` to 12 and no jumped week is ever stored.
   const { move, nextWeek, jumped, readGoal } = read;
+  const shape = shapeOf(goal);
+  const final12Week = shape.finalWeek;
   const safe = safeGoalTargets(readGoal);
   const rows = safe?.weeks ?? [];
   const thisWeek = rows.find((week) => week.weekNumber === weekNumber);
@@ -432,7 +436,7 @@ async function runUpdate(
     !safe ||
     !thisWeek ||
     !isWeekTarget(thisWeek.target) ||
-    left.length !== TOTAL_WEEKS - nextWeek + 1 ||
+    left.length !== shape.weeks - nextWeek + 1 ||
     !left.every((week) => isWeekTarget(week.target))
   ) {
     return fallback(['unreadable_targets']);
@@ -447,10 +451,17 @@ async function runUpdate(
   // The climb's base, as `safeStoredTargets` reads the goal once this week is closed: this week's target, or on a
   // light-test goal the last big week up to this one (the starting point when none). M3.4: every week before next week
   // is closed then (jumped weeks too), so the base is the week before next week, or the last big week before it.
-  const lastBig = [...BIG_TEST_WEEKS].filter((week) => week < TOTAL_WEEKS && week < nextWeek).pop();
+  const lastBig = [...shape.bigWeeks].filter((week) => week < final12Week && week < nextWeek).pop();
   const firstAsked = lightTestGoal ? left.find((week) => !isLight(week)) : left[0];
   const safeMax = lightTestGoal
-    ? safeMaxOf(lastBig === undefined ? startValue : valueOf(rows.find((week) => week.weekNumber === lastBig)), target, firstAsked?.weekNumber ?? TOTAL_WEEKS, 4, run10k)
+    ? safeMaxOf(
+        lastBig === undefined ? startValue : valueOf(rows.find((week) => week.weekNumber === lastBig)),
+        target,
+        firstAsked?.weekNumber ?? final12Week,
+        // One safe step a week from the base big week (four on a 12-week plan; B-109: a shorter plan's own gap).
+        (firstAsked?.weekNumber ?? final12Week) - (lastBig ?? 0),
+        run10k
+      )
     : safeMaxOf(valueOf(rows.find((week) => week.weekNumber === nextWeek - 1)), target, nextWeek, 1, run10k);
 
   // Independent reads, side by side. The week before is read once, for the kinds here and for `writeWeekAfter`.
@@ -473,7 +484,11 @@ async function runUpdate(
     counts,
     reflection: context.reflection,
     history,
-    weeksLeft: left.map((week) => ({ weekNumber: week.weekNumber, target: week.target as unknown as WeekTarget, light: isLight(week) })),
+    // B-109: up to the final test; a shorter plan's ready week follows its target and is not the model's to set.
+    weeksLeft: left
+      .filter((week) => week.weekNumber <= final12Week)
+      .map((week) => ({ weekNumber: week.weekNumber, target: week.target as unknown as WeekTarget, light: isLight(week) })),
+    ...(final12Week !== TOTAL_WEEKS ? { finalWeek: final12Week } : {}),
     safeMax,
   };
   const kinds = kindsOf(goal, weekBefore);
@@ -492,7 +507,8 @@ async function runUpdate(
           move.breakDays,
           weekNumber,
           rows.map((week) => ({ weekNumber: week.weekNumber, target: week.target, light: isLight(week) })),
-          nextWeek
+          nextWeek,
+          final12Week
         )
       : null;
   if (move && move.breakDays !== null && level) {
@@ -505,8 +521,8 @@ async function runUpdate(
     const restartWeek = heldWeekOf(input);
     const after = left.find((week) => week.weekNumber > restartWeek && (!lightTestGoal || !isLight(week)));
     input.safeMax =
-      after && after.weekNumber < TOTAL_WEEKS && level.level.kind === 'number'
-        ? safeMaxOf(level.level.value, target, after.weekNumber, lightTestGoal ? 4 : 1, run10k)
+      after && after.weekNumber < final12Week && level.level.kind === 'number'
+        ? safeMaxOf(level.level.value, target, after.weekNumber, lightTestGoal ? after.weekNumber - restartWeek : 1, run10k)
         : null;
   }
 
@@ -545,11 +561,12 @@ async function runUpdate(
   const postClose = rows.map((week) => {
     if (week.weekNumber === weekNumber) return { ...week, status: 'completed' };
     const next = accepted.get(week.weekNumber);
-    return next && week.weekNumber >= nextWeek && !sameTarget(next, week.target) ? withTargetText(week, next, tests).week : week;
+    return next && week.weekNumber >= nextWeek && !sameTarget(next, week.target) ? withTargetText(week, next, tests, shape).week : week;
   });
-  const checked = safeStoredTargets({ weeks: postClose, startValue, finalTest: stored.finalTest, pathway });
+  const checked = safeStoredTargets({ weeks: postClose, startValue, finalTest: stored.finalTest, pathway, shape });
   const final = checked.weeks.filter((week) => week.weekNumber >= nextWeek);
-  const lowered = final.flatMap((week) => {
+  // B-109: the ready week follows the final week's target; that is not a lowering of its own.
+  const lowered = final.filter((week) => week.weekNumber !== shape.readyWeek).flatMap((week) => {
     const model = valueOf(postClose.find((item) => item.weekNumber === week.weekNumber));
     const safeValue = valueOf(week);
     const t = week.target as unknown as WeekTarget;
@@ -579,7 +596,7 @@ async function runUpdate(
       const next = toStore.get(week.weekNumber);
       return next ? { ...week, target: next.target as never, objective: next.objective, keyMilestone: next.keyMilestone, test: next.test as never } : week;
     });
-    const reread = safeStoredTargets({ weeks: afterSave, startValue, finalTest: stored.finalTest, pathway });
+    const reread = safeStoredTargets({ weeks: afterSave, startValue, finalTest: stored.finalTest, pathway, shape });
     const differs = final.filter((week) => !toStore.has(week.weekNumber) && !sameTarget(week.target as unknown as WeekTarget, reread.weeks.find((item) => item.weekNumber === week.weekNumber)?.target));
     if (differs.length === 0) break;
     for (const week of differs) {
@@ -591,15 +608,15 @@ async function runUpdate(
 
   // Week 12: its `loweredTargets` entry only when this update lowered it (the only case it is not the goal, WU-23), or
   // when the read-back above has to store a week 12 that was lowered on read, so `week12Line` keeps showing.
-  const final12 = final.find((week) => week.weekNumber === TOTAL_WEEKS);
-  const current12 = valueOf(left.find((week) => week.weekNumber === TOTAL_WEEKS));
-  const loweredNow = lowered.some((item) => item.week === TOTAL_WEEKS);
-  const prior = safe.lowered.find((item) => item.week === TOTAL_WEEKS);
+  const final12 = final.find((week) => week.weekNumber === final12Week);
+  const current12 = valueOf(left.find((week) => week.weekNumber === final12Week));
+  const loweredNow = lowered.some((item) => item.week === final12Week);
+  const prior = safe.lowered.find((item) => item.week === final12Week);
   const final12Value = valueOf(final12);
-  const stores12 = toStore.has(TOTAL_WEEKS);
+  const stores12 = toStore.has(final12Week);
   const week12: LoweredTarget | null =
     final12Value !== null && current12 !== null && stores12 && (loweredNow || prior)
-      ? { week: TOTAL_WEEKS, model: prior?.model ?? current12, safe: final12Value }
+      ? { week: final12Week, model: prior?.model ?? current12, safe: final12Value }
       : null;
   // A pathway's week 12 test names its target, so `finalTest` follows whenever week 12 is stored: rebuilt by this
   // update's climb, else as the read rebuilt it (a week 12 lowered on read that the read-back stores).
@@ -610,14 +627,14 @@ async function runUpdate(
   const nextLowered = final.find((week) => week.weekNumber === nextWeek);
   if (loweredNow && week12 && final12) {
     const statedText = statedTargetText(goal.rawGoal, stored.answers ?? []);
-    const line = week12LineFor([week12], final12.target as unknown as WeekTarget, statedText, startValue);
+    const line = week12LineFor([week12], final12.target as unknown as WeekTarget, statedText, startValue, shape);
     if (line) insight = week12Sentence(line);
     // WU-61 (3): when the week next week shows is held at this week's target, code's sentence says that too.
     const shownWeek = heldWeekOf(input);
     const shown = final.find((week) => week.weekNumber === shownWeek);
     // As the fallback's hold reads it (`fallbackHold`): the same amount, whatever the week's metric label or unit.
     const stays = shown && isWeekTarget(shown.target) && target.kind === 'number' && shown.target.kind === 'number' ? Math.abs(target.value - shown.target.value) < 1e-9 : Boolean(shown && sameTarget(target, shown.target));
-    if (line && shownWeek < TOTAL_WEEKS && shown && stays) {
+    if (line && shownWeek < final12Week && shown && stays) {
       insight += ` Next week stays at ${shownAmount(shown.target as unknown as WeekTarget)}.`;
     }
   } else if (nextLowered && lowered.some((item) => item.week === nextWeek)) {

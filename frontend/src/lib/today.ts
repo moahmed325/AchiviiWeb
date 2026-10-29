@@ -1,6 +1,7 @@
 import type { DailyTask, DetailedStep, Goal, ReconcileLineKind, Reconciliation, RoadmapWeek } from '../types';
 import { addDaysToDateKey, daysBetweenDateKeys, getLocalDateString } from './dateUtils';
 import { doneDaysOf, fromDoneDay, type DoneDays } from './stepLines';
+import { closingStartDay, planDays, planWeeks } from './planLength';
 
 /**
  * Today's date key ('YYYY-MM-DD') in the user's timezone (ND-1, missed-sessions M1.1b).
@@ -50,14 +51,18 @@ export function selectTodayTask(tasks: DailyTask[], now: Date, selectedId?: stri
   return tasks.find((t) => isToday(t, now, timezone)) ?? tasks.find((t) => t.status === 'pending' && !t.notOffered) ?? tasks[0];
 }
 
-/** Calendar days until `targetDate`, counted down from 90, clamped to 1–90. */
-export function dayNumber(goal: Pick<Goal, 'targetDate'>, now: Date, timezone?: string): number {
+/**
+ * Calendar days until `targetDate`, counted down from the plan's days (90; B-109: a shorter plan's own, `planDays`),
+ * clamped to 1 to that.
+ */
+export function dayNumber(goal: Pick<Goal, 'targetDate'> & Partial<Pick<Goal, 'startDate' | 'totalWeeks'>>, now: Date, timezone?: string): number {
   // Whole calendar days, counted on date keys, so the day number turns over at the user's local midnight
   // together with the task dates. `targetDate` is a UTC instant whose UTC date is the target day.
   const target = new Date(goal.targetDate);
   if (Number.isNaN(target.getTime())) return 1;
   const daysRemaining = Math.max(0, daysBetweenDateKeys(todayKey(now, timezone), target.toISOString().slice(0, 10)));
-  return Math.min(90, Math.max(1, 91 - daysRemaining));
+  const days = planDays(goal);
+  return Math.min(days, Math.max(1, days + 1 - daysRemaining));
 }
 
 /** The stored steps. Bad or missing JSON gives no steps rather than an error. */
@@ -464,15 +469,17 @@ export function isAheadDay(task: Pick<DailyTask, 'date'>, now: Date, timezone?: 
 export function isClosingStretchActive(goal: Goal, now: Date, timezone?: string): boolean {
   if (goal.status === 'completed' || goal.status === 'archived') return false;
 
+  // B-109: a shorter plan's closing stretch starts after its own last week.
   const day = dayNumber(goal, now, timezone);
-  if (day >= 85) return true;
+  if (day >= closingStartDay(goal)) return true;
 
   const currentWeek = goal.currentWeek ?? 1;
-  if (currentWeek >= 12) {
-    const week12Tasks = (goal.dailyTasks || []).filter((t) => t.weekNumber === 12);
+  const lastWeek = planWeeks(goal);
+  if (currentWeek >= lastWeek) {
+    const week12Tasks = (goal.dailyTasks || []).filter((t) => t.weekNumber === lastWeek);
     const activeTasks = week12Tasks.filter((t) => !isRestLike(t));
     const allDone = activeTasks.length > 0 && activeTasks.every((t) => t.status === 'completed');
-    const reviewed = Boolean(goal.weeklyReviews?.some((r) => r.weekNumber === 12));
+    const reviewed = Boolean(goal.weeklyReviews?.some((r) => r.weekNumber === lastWeek));
     if (allDone || reviewed) {
       return true;
     }

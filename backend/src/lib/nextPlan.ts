@@ -4,6 +4,7 @@
  * old goal when a next plan starts from it (NP-8), so the starting point never comes from the browser.
  */
 import { formatAmount, pathwayFor, shownAmount, TOTAL_WEEKS, type PlanAnswer, type WeekTarget } from './ai/roadmap.js';
+import { shapeOf } from './planLength.js';
 import { readCheckpoints, unitStep, type NumberTarget } from './weekClose/checkpoint.js';
 import { isWeekTarget, safeGoalTargets, testOf, type StoredWeek } from './safety/storedTargets.js';
 import { harder, nextSafeStep } from './safety/targetSteps.js';
@@ -42,6 +43,8 @@ export interface JourneyResult {
   weeksFinished: number;
   /** Deliverable goals: the last week's target whose test passed. */
   lastDone: string | null;
+  /** B-109: the plan's weeks, only when not 12. */
+  totalWeeks?: number;
 }
 
 /** NP-8: what a next plan stores in `Goal.roadmap.previousPlan` (no migration), and the goal response sends back. */
@@ -61,6 +64,8 @@ export interface JourneyGoal {
   clarifiedOutcome: string | null;
   roadmap: unknown;
   roadmapWeeks: JourneyWeek[] | undefined;
+  /** B-109: the plan's weeks; missing is 12. */
+  totalWeeks?: number | null;
 }
 
 const passed = (testResult: unknown) =>
@@ -78,12 +83,15 @@ function leadingNumber(text: string): number | null {
   return match ? Number(match[0]) : null;
 }
 
+/** B-109: a shorter plan's week count, for the summary and the next plan's answer; nothing on a 12-week plan. */
+const lengthOf = (goal: JourneyGoal): { totalWeeks?: number } => (shapeOf(goal).weeks === TOTAL_WEEKS ? {} : { totalWeeks: shapeOf(goal).weeks });
+
 /** NP-1, NP-2: null for a goal with no v2 roadmap or no weeks. */
 export function journeyResultOf(goal: JourneyGoal): JourneyResult | null {
   const safe = safeGoalTargets(goal);
   if (!safe) return null;
   const weeks = [...safe.weeks].sort((a, b) => a.weekNumber - b.weekNumber);
-  const week12 = weeks.find((week) => week.weekNumber === TOTAL_WEEKS) ?? weeks[weeks.length - 1];
+  const week12 = weeks.find((week) => week.weekNumber === shapeOf(goal).finalWeek) ?? weeks[weeks.length - 1];
   const target = week12 && isWeekTarget(week12.target) ? (week12.target as WeekTarget) : null;
   if (!target) return null;
   const weeksFinished = weeks.filter((week) => week.status === 'completed' && week.jumped !== true).length;
@@ -108,6 +116,7 @@ export function journeyResultOf(goal: JourneyGoal): JourneyResult | null {
       nearGoal: false,
       weeksFinished,
       lastDone: last ? (last.target as WeekTarget & { kind: 'deliverable' }).description || null : null,
+      ...lengthOf(goal),
     };
   }
 
@@ -157,13 +166,14 @@ export function journeyResultOf(goal: JourneyGoal): JourneyResult | null {
     nearGoal,
     weeksFinished,
     lastDone: null,
+    ...lengthOf(goal),
   };
 }
 
 /** NP-8: the Progress line's summary of a plan. */
 export function journeySummary(result: JourneyResult): string {
   if (result.kind === 'number' && result.reached) return result.start ? `${result.start} → ${result.reached}` : `reached ${result.reached}`;
-  return `${result.weeksFinished} of ${TOTAL_WEEKS} weeks`;
+  return `${result.weeksFinished} of ${result.totalWeeks ?? TOTAL_WEEKS} weeks`;
 }
 
 /** `Goal.roadmap.previousPlan`; missing or unreadable means none. */
@@ -196,7 +206,7 @@ export function nextPlanStart(result: JourneyResult, mode: NextPlanMode, given: 
       answer: {
         id: MEASURED_LEVEL_ID,
         question,
-        answer: `They finished ${result.weeksFinished} of ${TOTAL_WEEKS} weeks of a plan for "${result.goal}"${done}. Start from there, not from the beginning.`,
+        answer: `They finished ${result.weeksFinished} of ${result.totalWeeks ?? TOTAL_WEEKS} weeks of a plan for "${result.goal}"${done}. Start from there, not from the beginning.`,
       },
     };
   }

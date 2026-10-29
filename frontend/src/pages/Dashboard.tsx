@@ -21,6 +21,7 @@ import type { DailyTask } from '../types';
 import { Badge, Button, LoadingState, Skeleton, StepMarker } from '../components/ui';
 import { doneDaysOf, visibleDay } from '../lib/stepLines';
 import { GettingReady } from '../components/today/WeekClose';
+import { planDays } from '../lib/planLength';
 
 export const DashboardSkeleton: React.FC = () => (
   <main id="main" className="ui-root mx-auto w-full max-w-5xl flex-1 px-gutter py-10 sm:py-16">
@@ -221,7 +222,7 @@ export const Dashboard: React.FC = () => {
             {activeGoal.clarifiedOutcome || activeGoal.rawGoal}
           </p>
         </div>
-        <div className="justify-self-center sm:justify-self-end"><DayRing day={day} total={90} /></div>
+        <div className="justify-self-center sm:justify-self-end"><DayRing day={day} total={planDays(activeGoal)} /></div>
       </header>
 
       <section aria-labelledby="next-heading" className="relative mt-12 grid gap-5 lg:grid-cols-[1.5fr_1fr]">

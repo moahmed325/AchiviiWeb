@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { Goal, RoadmapWeek, DailyTask } from '../../types';
 import { cx } from '../ui';
 import { isRestLike } from '../../lib/today';
+import { planWeeks } from '../../lib/planLength';
 
 interface WeekBreakdownListProps {
   goal: Goal;
@@ -19,12 +20,12 @@ interface WeekEntry {
 }
 
 function deriveWeeks(goal: Goal): WeekEntry[] {
-  const currentWeek = Math.min(12, Math.max(1, goal.currentWeek || 1));
+  const currentWeek = Math.min(planWeeks(goal), Math.max(1, goal.currentWeek || 1));
   const weeks: RoadmapWeek[] = goal.roadmapWeeks || [];
   const tasks: DailyTask[] = goal.dailyTasks || [];
 
-  // Build entries for all roadmap weeks (typically 12)
-  const totalWeeks = Math.max(12, weeks.length);
+  // Build entries for all roadmap weeks (typically 12; B-109: a shorter plan's own)
+  const totalWeeks = Math.max(planWeeks(goal), weeks.length);
   const entries: WeekEntry[] = [];
 
   for (let wNum = 1; wNum <= totalWeeks; wNum++) {

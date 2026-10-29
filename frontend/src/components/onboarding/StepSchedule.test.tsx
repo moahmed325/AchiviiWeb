@@ -4,7 +4,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { RoutineSettings } from '../../types';
 import { addDaysToDateKey } from '../../lib/dateUtils';
-import { FIXED_DATE_FITS, FIXED_DATE_HINT, FIXED_DATE_INVALID, FIXED_DATE_SHORT, checkFixedDate } from '../../lib/fixedDate';
+import { FIXED_DATE_FITS, FIXED_DATE_HINT, FIXED_DATE_INVALID, FIXED_DATE_TOO_CLOSE, checkFixedDate } from '../../lib/fixedDate';
 import { todayKey } from '../../lib/today';
 import { StepSchedule } from './StepSchedule';
 
@@ -51,14 +51,23 @@ describe('StepSchedule: fixed date (B-106)', () => {
     expect(onContinue).toHaveBeenCalled();
   });
 
-  it('a date before day 90 says the plan ends after it; a later one says it ends by it', async () => {
+  it('B-109: a date under 12 weeks away names the shorter plan; a later one says the plan ends by it', async () => {
     render(<Harness onContinue={() => {}} />);
     const today = todayKey(new Date());
-    await userEvent.type(field(), addDaysToDateKey(today, 30));
-    expect(screen.getByText(FIXED_DATE_SHORT)).toBeInTheDocument();
+    await userEvent.type(field(), addDaysToDateKey(today, 45));
+    expect(screen.getByText('Your plan will be 6 weeks, with the final test in week 5, the week before your date.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
     await userEvent.clear(field());
     await userEvent.type(field(), addDaysToDateKey(today, 120));
     expect(screen.getByText(FIXED_DATE_FITS)).toBeInTheDocument();
+  });
+
+  it('B-109: a date under 4 weeks away is an error and blocks Continue', async () => {
+    render(<Harness onContinue={() => {}} />);
+    await userEvent.type(field(), addDaysToDateKey(todayKey(new Date()), 20));
+    expect(screen.getByText(FIXED_DATE_TOO_CLOSE)).toBeInTheDocument();
+    expect(field()).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled();
   });
 
   it('a date that is not after today is an error and blocks Continue', async () => {

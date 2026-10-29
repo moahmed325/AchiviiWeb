@@ -5,7 +5,6 @@
  * rewritten. The same check as goal create, so a goal created since M1.2 comes back unchanged. Pure.
  */
 import {
-  BIG_TEST_WEEKS,
   formatAmount,
   formatTarget,
   keyMilestoneText,
@@ -15,7 +14,6 @@ import {
   pathwayFor,
   statedTargetMet,
   statedTargetText,
-  TOTAL_WEEKS,
   type LoweredTarget,
   type PlanAnswer,
   type WeekTarget,
@@ -24,6 +22,7 @@ import {
 import type { CertifiedPresetBlueprint } from '../ai/presets/index.js';
 import { extractStatedTargets } from '../research/statedTarget.js';
 import { safeCheckWeekClimb, safeTargetClimb } from './targetSteps.js';
+import { DEFAULT_SHAPE, shapeOf, type PlanShape } from '../planLength.js';
 
 /** What the check reads of a stored `RoadmapWeek` row; every other field is passed through as stored. */
 export interface StoredWeek {
@@ -46,6 +45,8 @@ export interface StoredTargetsInput<W extends StoredWeek> {
   loweredTargets?: LoweredTarget[];
   /** `pathwayFor(rawGoal, clarifiedOutcome)`: decides run10k's family reading and the pathway's tests. */
   pathway: Pick<CertifiedPresetBlueprint, 'id' | 'weeklyTests'> | null;
+  /** B-109: the goal's length and test weeks (`shapeOf(goal)`); missing is a 12-week plan. */
+  shape?: PlanShape;
 }
 
 export interface SafeStoredTargets<W extends StoredWeek> {
@@ -93,9 +94,10 @@ function isPresetTest(test: WeekTest | null, tests: NonNullable<CertifiedPresetB
 export function safeStoredTargets<W extends StoredWeek>(input: StoredTargetsInput<W>): SafeStoredTargets<W> {
   const stored = input.loweredTargets ?? [];
   const unchanged: SafeStoredTargets<W> = { weeks: input.weeks, finalTest: input.finalTest, lowered: stored, foundNow: [] };
+  const shape = input.shape ?? DEFAULT_SHAPE;
   const byWeek = new Map(input.weeks.map((week) => [week.weekNumber, week]));
-  const ordered = Array.from({ length: TOTAL_WEEKS }, (_, index) => byWeek.get(index + 1));
-  if (input.weeks.length !== TOTAL_WEEKS || ordered.some((week) => !week || !isWeekTarget(week.target))) return unchanged;
+  const ordered = Array.from({ length: shape.weeks }, (_, index) => byWeek.get(index + 1));
+  if (input.weeks.length !== shape.weeks || ordered.some((week) => !week || !isWeekTarget(week.target))) return unchanged;
   const rows = ordered as W[];
   const targets = rows.map((week) => week.target as WeekTarget);
   const context = { run10k: input.pathway?.id === 'run10k' };
@@ -110,30 +112,37 @@ export function safeStoredTargets<W extends StoredWeek>(input: StoredTargetsInpu
   let found: LoweredTarget[] = [];
   if (rows.some((week) => testOf(week)?.light === true)) {
     // A closed light week holds a later week's target, so only a closed big week (4 or 8) is the starting value.
-    const lastBig = [...BIG_TEST_WEEKS].filter((week) => week < TOTAL_WEEKS && isClosedWeek(rows[week - 1])).pop();
-    const checked = BIG_TEST_WEEKS.filter((week) => week > (lastBig ?? 0) && !isClosedWeek(rows[week - 1]));
+    const lastBig = [...shape.bigWeeks].filter((week) => week < shape.finalWeek && isClosedWeek(rows[week - 1])).pop();
+    const checked = shape.bigWeeks.filter((week) => week > (lastBig ?? 0) && !isClosedWeek(rows[week - 1]));
     if (checked.length > 0) {
       const climb = safeCheckWeekClimb(
         checked.map((week) => targets[week - 1]),
         checked,
         lastBig === undefined ? input.startValue : valueAt(lastBig),
-        context
+        context,
+        lastBig ?? 0
       );
       found = climb.lowered;
       checked.forEach((week, index) => safe.set(week, climb.targets[index]));
     }
     for (const week of rows) {
-      const big = nextCheckWeek(week.weekNumber);
+      const big = nextCheckWeek(week.weekNumber, shape);
       if (testOf(week)?.light === true && !isClosedWeek(week) && found.some((item) => item.week === big)) {
         safe.set(week.weekNumber, { ...(safe.get(big) as WeekTarget) });
       }
     }
   } else {
     const lastClosed = rows.filter(isClosedWeek).map((week) => week.weekNumber).pop() ?? 0;
-    if (lastClosed < TOTAL_WEEKS) {
+    if (lastClosed < shape.weeks) {
       const climb = safeTargetClimb(targets.slice(lastClosed), lastClosed === 0 ? input.startValue : valueAt(lastClosed), context);
       found = climb.lowered.map((item) => ({ ...item, week: item.week + lastClosed }));
       climb.targets.forEach((target, index) => safe.set(lastClosed + index + 1, target));
+    }
+    // B-109: the ready week keeps the final week's target; its lowering is the final week's, not one of its own.
+    const ready = shape.readyWeek;
+    if (ready !== null && !isClosedWeek(rows[ready - 1])) {
+      found = found.filter((item) => item.week !== ready);
+      safe.set(ready, { ...(safe.get(shape.finalWeek) ?? targets[shape.finalWeek - 1]) });
     }
   }
 
@@ -147,7 +156,7 @@ export function safeStoredTargets<W extends StoredWeek>(input: StoredTargetsInpu
   const weeks = input.weeks.map((week): W => {
     const target = changed(week);
     if (!target) return week;
-    const rebuilt = withTargetText(week, target, tests);
+    const rebuilt = withTargetText(week, target, tests, shape);
     if (rebuilt.finalTest !== null) finalTest = rebuilt.finalTest;
     return rebuilt.week;
   });
@@ -166,7 +175,8 @@ export function safeStoredTargets<W extends StoredWeek>(input: StoredTargetsInpu
 export function withTargetText<W extends StoredWeek>(
   week: W,
   target: WeekTarget,
-  tests: CertifiedPresetBlueprint['weeklyTests'] | undefined
+  tests: CertifiedPresetBlueprint['weeklyTests'] | undefined,
+  shape: PlanShape = DEFAULT_SHAPE
 ): { week: W; finalTest: string | null } {
   const storedTest = testOf(week);
   let test: WeekTest | null = storedTest;
@@ -177,7 +187,7 @@ export function withTargetText<W extends StoredWeek>(
   } else if (tests && isPresetTest(storedTest, tests, week.target as WeekTarget)) {
     test = measuredPathwayTest(tests, target);
     keyMilestone = keyMilestoneText(test);
-    if (week.weekNumber === TOTAL_WEEKS) finalTest = test.instructions;
+    if (week.weekNumber === shape.finalWeek) finalTest = test.instructions;
   } else {
     // A test the model wrote (a custom goal, or an older pathway goal from before its preset tests): only its pass
     // mark, which code reads as the target, changes; `finalTest` stays as stored.
@@ -199,8 +209,14 @@ export interface Week12Line {
  * RULE-3, PSL-12 (1): set whenever week 12 was lowered (at create or on read). `goal` is a stated number (read from the
  * same text goal create reads) that week 12 met before lowering and no longer meets.
  */
-export function week12LineFor(lowered: LoweredTarget[], week12: WeekTarget | null, statedText: string, startValue: number | null): Week12Line | null {
-  const entry = lowered.find((item) => item.week === TOTAL_WEEKS);
+export function week12LineFor(
+  lowered: LoweredTarget[],
+  week12: WeekTarget | null,
+  statedText: string,
+  startValue: number | null,
+  shape: PlanShape = DEFAULT_SHAPE
+): Week12Line | null {
+  const entry = lowered.find((item) => item.week === shape.finalWeek);
   if (!entry || !week12 || week12.kind !== 'number') return null;
   const before: NumberTarget = { ...week12, value: entry.model };
   const missed = extractStatedTargets(statedText).find(
@@ -233,18 +249,22 @@ export function safeGoalTargets<W extends StoredWeek>(goal: {
   clarifiedOutcome: string | null;
   roadmap: unknown;
   roadmapWeeks: W[] | undefined;
+  /** B-109: the plan's weeks; missing is 12. */
+  totalWeeks?: number | null;
 }): SafeGoal<W> | null {
   const roadmap = goal.roadmap as StoredRoadmapShape | null;
   if (!roadmap || typeof roadmap !== 'object' || !roadmap.method || !Array.isArray(goal.roadmapWeeks)) return null;
   const startValue = typeof roadmap.startingPoint?.value === 'number' ? roadmap.startingPoint.value : null;
+  const shape = shapeOf(goal);
   const result = safeStoredTargets({
     weeks: goal.roadmapWeeks,
     startValue,
     finalTest: typeof roadmap.finalTest === 'string' ? roadmap.finalTest : '',
     loweredTargets: Array.isArray(roadmap.loweredTargets) ? roadmap.loweredTargets : undefined,
     pathway: pathwayFor(goal.rawGoal, goal.clarifiedOutcome),
+    shape,
   });
-  const week12 = result.weeks.find((week) => week.weekNumber === TOTAL_WEEKS)?.target;
+  const week12 = result.weeks.find((week) => week.weekNumber === shape.finalWeek)?.target;
   const statedText = statedTargetText(goal.rawGoal, Array.isArray(roadmap.answers) ? roadmap.answers : []);
-  return { ...result, week12Line: week12LineFor(result.lowered, isWeekTarget(week12) ? week12 : null, statedText, startValue) };
+  return { ...result, week12Line: week12LineFor(result.lowered, isWeekTarget(week12) ? week12 : null, statedText, startValue, shape) };
 }
