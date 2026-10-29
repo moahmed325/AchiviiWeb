@@ -489,3 +489,31 @@ test.describe('checkpoints (M2)', () => {
     await shot('checkpoint-accepted');
   });
 });
+
+test.describe('the first step', () => {
+  /** Nothing done yet: today (t3) is the person's first practice step. */
+  const firstStepGoal = () => {
+    const base = richGoal();
+    return { ...base, dailyTasks: base.dailyTasks.map((t) => ({ ...t, status: 'pending' as const })) };
+  };
+
+  test('makes starting easy, and marks it done with an optional share card', async ({ page }) => {
+    await openToday(page, { goal: firstStepGoal() });
+    const step = stepRegion(page);
+    await expect(step.getByText(/Your first step\. Start whenever you’re ready/)).toBeVisible();
+    await expect(step.getByRole('button', { name: 'Start the 10-minute version' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Your first step is done.' })).toHaveCount(0);
+
+    await step.getByRole('button', { name: 'Mark complete' }).click();
+    const marked = page.getByRole('region', { name: 'Your first step is done.' });
+    await expect(marked).toBeVisible();
+    await expect(marked.getByRole('img', { name: `Share card: Day 3 of 90, ${SHELL_GOAL_TITLE}.` })).toBeVisible();
+    await expect(marked.getByRole('button', { name: 'Download image' })).toBeVisible();
+    await expect(step.getByRole('button', { name: 'Start the 10-minute version' })).toHaveCount(0);
+  });
+
+  test('is not offered once another practice day is done', async ({ page }) => {
+    await openToday(page);
+    await expect(stepRegion(page).getByText(/Your first step\./)).toHaveCount(0);
+  });
+});
