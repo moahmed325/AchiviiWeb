@@ -5,6 +5,7 @@ import { checkFixedDate } from '../../lib/fixedDate';
 import { validRestWeekdays } from '../../lib/schedule';
 import { nextPlanQuestions, prefilledAnswers, type NextPlanLaunch } from '../../lib/nextPlan';
 import { todayKey } from '../../lib/today';
+import { clearPlanPreview, previewScheduleFor } from '../../lib/planPreview';
 import { useUserTimezone } from '../../context/AuthContext';
 import { DRAFT_GOAL_KEY, answerFor as answerForState, buildCreatePayload } from './payload';
 import { describeOnboardingError, type OnboardingError } from './requestErrors';
@@ -91,14 +92,18 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
   /** Index within the questions of the current question step (ND-14 groups). */
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
 
-  const [routine, setRoutine] = useState<RoutineSettings>({
-    wakeTime: '07:00',
-    sleepTime: '23:00',
-    busyHours: '09:00 - 17:00',
-    preferredSlot: 'evening',
-    dailyMinutes: 0,
-    planVariant: undefined,
-    commitments: [],
+  // A pathway chosen in the landing page's plan preview starts with the daily time and days a week picked there.
+  const [routine, setRoutine] = useState<RoutineSettings>(() => {
+    const previewed = initialDraft && !nextPlan ? previewScheduleFor(initialDraft) : null;
+    return {
+      wakeTime: '07:00',
+      sleepTime: '23:00',
+      busyHours: '09:00 - 17:00',
+      preferredSlot: 'evening',
+      dailyMinutes: previewed?.dailyMinutes ?? 0,
+      planVariant: previewed?.planVariant,
+      commitments: [],
+    };
   });
   // B-108: picked training days count only once they match the days a week.
   const scheduleChosen =
@@ -314,6 +319,7 @@ export function useOnboardingState({ token, onGoalCreated, initialGoal, isPreset
 
   const finishWithGoal = (goal: Goal) => {
     localStorage.removeItem(DRAFT_GOAL_KEY);
+    clearPlanPreview();
     sessionStorage.removeItem(PRIOR_GOAL_KEY);
     onGoalCreated(goal);
   };

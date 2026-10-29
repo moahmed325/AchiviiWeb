@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { IconButton } from '../ui';
+import { Dialog, IconButton } from '../ui';
+import { PlanPreviewDialog } from './PlanPreviewDialog';
 import { CERTIFIED_PATHWAYS, FEATURED_PATHWAYS, PATHWAY_ARCS, type CertifiedPathway } from '../../lib/certifiedPresets';
 
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -15,10 +15,16 @@ const TIME_FILTERS = [
   { label: '45 min or less', max: 45 },
 ];
 
-const GoalCard: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => {
+/** Opens the plan preview for its goal. */
+const GoalCard: React.FC<{ pathway: CertifiedPathway; onOpen: (pathway: CertifiedPathway) => void }> = ({ pathway, onOpen }) => {
   const arc = PATHWAY_ARCS[pathway.id];
   return (
-    <Link to={`/signup?pathway=${encodeURIComponent(pathway.id)}`} className="focus-ring group block rounded-card">
+    <button
+      type="button"
+      onClick={() => onOpen(pathway)}
+      aria-haspopup="dialog"
+      className="focus-ring group block w-full cursor-pointer rounded-card text-left"
+    >
       <span className="relative block overflow-hidden rounded-card bg-surface">
         <img
           src={pathway.image}
@@ -54,19 +60,24 @@ const GoalCard: React.FC<{ pathway: CertifiedPathway }> = ({ pathway }) => {
           </span>
         </span>
       )}
-    </Link>
+    </button>
   );
 };
 
 /**
  * Every free pathway as one swipeable row of photo cards, each showing where the plan starts and what it aims for,
  * with a daily-time filter for the visitor who thinks they are too busy. Arrows scroll the row on wider screens.
+ * A card opens the plan preview: two questions, then the shape of that visitor's 90 days, then sign-up.
  */
 export const GoalRail: React.FC = () => {
   const railId = useId();
   const scroller = useRef<HTMLUListElement>(null);
   const [maxMinutes, setMaxMinutes] = useState(Infinity);
   const [edges, setEdges] = useState({ atStart: true, atEnd: false });
+  // The opened goal stays set while the dialog closes, so its closing animation has content; `opens` remounts the
+  // preview for each opening, so it always starts at the first question.
+  const [preview, setPreview] = useState<{ pathway: CertifiedPathway; open: boolean; opens: number } | null>(null);
+  const openPreview = (pathway: CertifiedPathway) => setPreview((prev) => ({ pathway, open: true, opens: (prev?.opens ?? 0) + 1 }));
   const shown = ORDERED.filter((p) => p.dailyMinutes <= maxMinutes);
 
   const readEdges = () => {
@@ -151,10 +162,14 @@ export const GoalRail: React.FC = () => {
       >
         {shown.map((pathway) => (
           <li key={pathway.id} className="w-[72%] shrink-0 snap-start sm:w-[42%] lg:w-[calc((100%-3rem)/3.6)]">
-            <GoalCard pathway={pathway} />
+            <GoalCard pathway={pathway} onOpen={openPreview} />
           </li>
         ))}
       </ul>
+
+      <Dialog open={preview?.open ?? false} onOpenChange={(open) => setPreview((prev) => (prev ? { ...prev, open } : prev))}>
+        {preview && <PlanPreviewDialog key={preview.opens} pathway={preview.pathway} />}
+      </Dialog>
     </div>
   );
 };

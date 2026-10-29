@@ -3,22 +3,13 @@ import { ArrowRight } from 'lucide-react';
 import type { RoutineSettings } from '../../types';
 import { FIXED_DATE_INVALID, FIXED_DATE_LABEL, fixedDateHint, type FixedDateCheck } from '../../lib/fixedDate';
 import { addDaysToDateKey } from '../../lib/dateUtils';
-import { defaultRestWeekdays, weekdayOf } from '../../lib/schedule';
+import { DAILY_MINUTE_OPTIONS, PLAN_VARIANT_OPTIONS, defaultRestWeekdays, weekdayOf, type PlanVariant } from '../../lib/schedule';
 import { TrainingDays } from './TrainingDays';
 import { Button, ChoiceCard, ChoiceGroup, ErrorState, Field, Input, SegmentedControl } from '../ui';
 import type { OnboardingError } from './requestErrors';
 import { GoalContext, StepFooter, StepHeader } from './StepLayout';
 
-type PlanVariant = NonNullable<RoutineSettings['planVariant']>;
 type PreferredSlot = RoutineSettings['preferredSlot'];
-
-const PLAN_VARIANTS: Array<{ id: PlanVariant; title: string; meta: string; desc: string }> = [
-  { id: 'minimal', title: 'Light', meta: '4 days a week', desc: '4 sessions and 3 rest days. For a busy season.' },
-  { id: 'steady', title: 'Steady', meta: '5 days a week · Recommended', desc: '5 sessions and 2 rest days. Consistent progress most weeks can hold.' },
-  { id: 'accelerated', title: 'Intensive', meta: '6 days a week', desc: '6 sessions and 1 rest day. For when you want to move fast.' },
-];
-
-const DAILY_MINUTES = [30, 45, 60, 90];
 
 const MINUTES_HINT: Record<number, string> = {
   30: 'Good for building a light, steady habit.',
@@ -102,7 +93,7 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
           onChange={(value) => onRoutineChange((prev) => ({ ...prev, planVariant: value as PlanVariant, restWeekdays: undefined }))}
           columns={3}
         >
-          {PLAN_VARIANTS.map((variant) => (
+          {PLAN_VARIANT_OPTIONS.map((variant) => (
             <ChoiceCard key={variant.id} value={variant.id} title={variant.title} description={variant.desc} meta={variant.meta} />
           ))}
         </ChoiceGroup>
@@ -119,7 +110,7 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
         <div>
           <SegmentedControl
             legend="How long each day?"
-            options={DAILY_MINUTES.map((mins) => ({ value: String(mins), label: `${mins} min` }))}
+            options={DAILY_MINUTE_OPTIONS.map((mins) => ({ value: String(mins), label: `${mins} min` }))}
             value={routine.dailyMinutes > 0 ? String(routine.dailyMinutes) : undefined}
             onChange={(value) => onRoutineChange((prev) => ({ ...prev, dailyMinutes: Number(value) }))}
           />
