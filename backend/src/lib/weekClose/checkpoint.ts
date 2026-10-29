@@ -326,6 +326,8 @@ export interface CheckpointView {
   last: boolean;
   /** A raise all the way back to the full goal (section 6 words it without "about"). */
   toFullGoal: boolean;
+  /** B-109: a shorter plan's final-test week; missing on a 12-week plan. */
+  finalWeek?: number;
 }
 
 export function checkpointViewOf(goal: GoalRead): CheckpointView | null {
@@ -343,6 +345,8 @@ export function checkpointViewOf(goal: GoalRead): CheckpointView | null {
     goal: goalShown(week12, list[0].fullGoal),
     last: open.week === shapeOf(goal).checkpointWeeks[shapeOf(goal).checkpointWeeks.length - 1],
     toFullGoal: open.kind === 'raise' && open.offered !== null && Math.abs(open.offered - list[0].fullGoal) < 1e-9,
+    // B-109: a shorter plan's card names its final week, not day 90.
+    ...(shapeOf(goal).readyWeek !== null ? { finalWeek: shapeOf(goal).finalWeek } : {}),
   };
 }
 

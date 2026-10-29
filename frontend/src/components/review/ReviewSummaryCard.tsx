@@ -15,6 +15,8 @@ export interface ReviewSummaryCardProps {
   test?: WeekTest | null;
   /** M2.1: the week shown; a light week's target reads "Next check, week {n}: {target}". */
   weekNumber?: number;
+  /** B-109: the plan's weeks (a shorter plan's ready week reads as its final target); missing is 12. */
+  totalWeeks?: number;
 }
 
 /**
@@ -30,6 +32,7 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
   target,
   test,
   weekNumber,
+  totalWeeks,
 }) => {
   // M2.1: a light week's target is the next check; without the week number it shows as before.
   const light = isLightTest(test) && weekNumber !== undefined;
@@ -91,7 +94,7 @@ export const ReviewSummaryCard: React.FC<ReviewSummaryCardProps> = ({
             <div className="flex items-start justify-between gap-3 text-small">
               {!light && <span className="text-text-secondary shrink-0">Target</span>}
               <span className={cx('font-medium text-text', !light && 'text-right')}>
-                {weekNumber !== undefined ? weekTargetText(weekNumber, target, test) : formatTarget(target)}
+                {weekNumber !== undefined ? weekTargetText(weekNumber, target, test, undefined, { totalWeeks }) : formatTarget(target)}
               </span>
             </div>
           )}

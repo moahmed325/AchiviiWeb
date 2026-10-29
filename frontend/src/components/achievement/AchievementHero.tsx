@@ -8,6 +8,7 @@ import { usePathwayLaunch } from '../pathways/launch';
 import { Button, cx } from '../ui';
 import { NextPlanLevelDialog } from './NextPlanLevelDialog';
 import { useNextPlanLaunch } from './useNextPlanLaunch';
+import { planWeeks } from '../../lib/planLength';
 
 interface AchievementHeroProps {
   goal: Goal;
@@ -69,7 +70,7 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
         <div className="flex flex-col text-left lg:col-span-7">
           <div className="flex items-center gap-2">
             <span className="font-ui-mono text-micro uppercase tracking-widest text-achievement">
-              ✦ 90 DAYS
+              ✦ {planWeeks(goal) === 12 ? '90 DAYS' : `${planWeeks(goal)} WEEKS`}
             </span>
             <span className="h-1 w-1 rounded-full bg-achievement/60" aria-hidden="true" />
             <span className="font-ui-mono text-micro uppercase tracking-widest text-text-secondary">
@@ -86,12 +87,12 @@ export const AchievementHero: React.FC<AchievementHeroProps> = ({
 
           {/* Next plan (NP-1, NP-2): what they reached, against their full goal. */}
           <p className="mt-2 text-h2 font-medium text-text">
-            {headline ?? (madeIt ? 'You made it.' : '90 days done.')}
+            {headline ?? (madeIt ? 'You made it.' : planWeeks(goal) === 12 ? '90 days done.' : `${planWeeks(goal)} weeks done.`)}
           </p>
           {outcome && <p className="mt-2 max-w-xl text-body-lg text-text">{outcome}</p>}
 
           <p className="mt-2 max-w-xl text-body-lg text-text-secondary">
-            You walked the ninety days one clear action at a time. The staircase was the
+            You walked the {planWeeks(goal) === 12 ? 'ninety days' : `${planWeeks(goal)} weeks`} one clear action at a time. The staircase was the
             journey; this quiet garden is your arrival.
           </p>
 

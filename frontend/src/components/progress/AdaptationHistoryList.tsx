@@ -3,6 +3,7 @@ import { Sparkles, MessageSquareText, Award } from 'lucide-react';
 import type { Goal, RoadmapWeek, WeeklyReview } from '../../types';
 import { cx } from '../ui';
 import { fillPlanEnd } from '../../lib/weekClose';
+import { planWeeks } from '../../lib/planLength';
 
 interface AdaptationHistoryListProps {
   goal: Goal;
@@ -27,7 +28,7 @@ interface AdaptationEntry {
  * chronological adaptation timeline.
  */
 function deriveAdaptationHistory(goal: Goal): AdaptationEntry[] {
-  const currentWeek = Math.min(12, Math.max(1, goal.currentWeek || 1));
+  const currentWeek = Math.min(planWeeks(goal), Math.max(1, goal.currentWeek || 1));
   const weeks: RoadmapWeek[] = goal.roadmapWeeks || [];
   const reviews: WeeklyReview[] = goal.weeklyReviews || [];
 

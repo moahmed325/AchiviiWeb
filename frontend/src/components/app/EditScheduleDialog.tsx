@@ -6,6 +6,7 @@ import { DAYS_A_WEEK, goalSchedule, validRestWeekdays, weekdayOf, defaultRestWee
 import { utcDateLabel } from '../../lib/weekClose';
 import { TrainingDays } from '../onboarding/TrainingDays';
 import { Button, Dialog, DialogClose, DialogContent, SegmentedControl } from '../ui';
+import { planWeeks } from '../../lib/planLength';
 
 interface EditScheduleDialogProps {
   open: boolean;
@@ -20,8 +21,6 @@ const SLOTS: Array<{ value: GoalSchedule['preferredSlot']; label: string }> = [
   { value: 'evening', label: 'Evening' },
 ];
 
-/** The final week has no next week to change (the server answers 409 `last_week`). */
-const LAST_WEEK = 12;
 
 /**
  * Edit my schedule (B-108): the active goal's days, minutes and time of day, saved from next week (`PATCH
@@ -50,7 +49,8 @@ export const EditScheduleDialog: React.FC<EditScheduleDialogProps> = ({ open, on
   // Nothing is read until it opens (the menu mounts it closed).
   if (!activeGoal || !open) return null;
   const current = draft ?? goalSchedule(activeGoal);
-  const lastWeek = (activeGoal.currentWeek || 1) >= LAST_WEEK;
+  // The final week has no next week to change (the server answers 409 `last_week`); B-109: a shorter plan's own.
+  const lastWeek = (activeGoal.currentWeek || 1) >= planWeeks(activeGoal);
   const daysFit = validRestWeekdays(current.planVariant, current.restWeekdays) !== null;
   // A shortened daily time (the weekly update's card) is kept as an option.
   const minutes = MINUTES.includes(current.dailyMinutes) ? MINUTES : [...MINUTES, current.dailyMinutes].sort((a, b) => a - b);

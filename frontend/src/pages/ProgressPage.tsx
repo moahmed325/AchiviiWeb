@@ -6,6 +6,7 @@ import { useUserTimezone } from '../context/AuthContext';
 import { dayNumber, isRestLike } from '../lib/today';
 import { LoadingState, Skeleton, Button } from '../components/ui';
 import { WeekBreakdownList, BenchmarkResultsCard, AdaptationHistoryList } from '../components/progress';
+import { planLengthLabel, planWeeks } from '../lib/planLength';
 
 const ProgressSkeleton: React.FC = () => (
   <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-gutter py-10">
@@ -31,7 +32,7 @@ export const ProgressPage: React.FC = () => {
   const timezone = useUserTimezone();
   const now = useMemo(() => new Date(), []);
   const currentDay = activeGoal ? dayNumber(activeGoal, now, timezone) : 1;
-  const currentWeek = activeGoal ? Math.min(12, Math.max(1, activeGoal.currentWeek || 1)) : 1;
+  const currentWeek = activeGoal ? Math.min(planWeeks(activeGoal), Math.max(1, activeGoal.currentWeek || 1)) : 1;
 
   const progress = useMemo(() => {
     if (!activeGoal) return { completed: 0, planned: 0, percent: 0 };
@@ -86,7 +87,7 @@ export const ProgressPage: React.FC = () => {
         {/* B-18: labelled as on Today and the Roadmap. */}
         {activeGoal.clarifiedOutcome?.trim() && (
           <p className="mt-2 max-w-xl text-body text-text-secondary">
-            <span className="font-medium text-text">90-day outcome: </span>
+            <span className="font-medium text-text">{planLengthLabel(activeGoal)} outcome: </span>
             {activeGoal.clarifiedOutcome}
           </p>
         )}
@@ -118,7 +119,7 @@ export const ProgressPage: React.FC = () => {
       <section aria-labelledby="journey-heading" className="mt-12 border-t border-border pt-8">
         <div className="flex items-baseline justify-between gap-4">
           <h2 id="journey-heading" className="text-h3 text-text">Your journey</h2>
-          <span className="text-micro text-text-secondary">12 weeks</span>
+          <span className="text-micro text-text-secondary">{activeGoal ? planWeeks(activeGoal) : 12} weeks</span>
         </div>
         <div className="mt-7 grid grid-cols-3 gap-2 sm:gap-4">
           {phases.map((phase) => {

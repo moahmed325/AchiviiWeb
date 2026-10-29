@@ -13,6 +13,7 @@ import { useGoal } from '../context/GoalContext';
 import { useUserTimezone } from '../context/AuthContext';
 import { week12NoteText } from './week12Line';
 import { dayNumber, isRestLike, todayKey } from './today';
+import { closingStartDay, planDays, planLengthLabel, planWeeks } from './planLength';
 import { doneDaysOf, visibleDay, type DoneDays } from './stepLines';
 
 const DAY_MS = 1000 * 60 * 60 * 24;
@@ -23,7 +24,7 @@ const DAY_MS = 1000 * 60 * 60 * 24;
  * Falls back to startDate or created_at if targetDate is missing.
  */
 export function calculateDayNumber(
-  goal: Partial<Pick<Goal, 'targetDate' | 'startDate' | 'created_at'>>,
+  goal: Partial<Pick<Goal, 'targetDate' | 'startDate' | 'created_at' | 'totalWeeks'>>,
   now: Date,
   timezone?: string
 ): number {
@@ -31,7 +32,7 @@ export function calculateDayNumber(
     const targetTime = new Date(goal.targetDate).getTime();
     if (!isNaN(targetTime)) {
       // Same calendar-day count as Today (user's timezone), so the two screens never disagree.
-      return dayNumber({ targetDate: goal.targetDate }, now, timezone);
+      return dayNumber({ targetDate: goal.targetDate, startDate: goal.startDate, totalWeeks: goal.totalWeeks }, now, timezone);
     }
   }
 
@@ -40,7 +41,7 @@ export function calculateDayNumber(
     const startTime = new Date(startStr).getTime();
     if (!isNaN(startTime)) {
       const elapsedDays = Math.floor((now.getTime() - startTime) / DAY_MS) + 1;
-      return Math.min(90, Math.max(1, elapsedDays));
+      return Math.min(planDays(goal), Math.max(1, elapsedDays));
     }
   }
 
@@ -106,7 +107,11 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
   const todayStr = isDayKey ? (todayDate as string) : todayKey(now, timezone);
 
   const currentDay = calculateDayNumber(goal, now, timezone);
-  const currentWeek = Math.min(12, Math.max(1, goal.currentWeek || 1));
+  // B-109: a shorter plan's own weeks and closing stretch.
+  const totalWeeks = planWeeks(goal);
+  const totalDays = planDays(goal);
+  const closingStart = closingStartDay(goal);
+  const currentWeek = Math.min(totalWeeks, Math.max(1, goal.currentWeek || 1));
 
   // Phase count flexibility (OD-7): the roadmap has 2-4 method-named phases.
   // A goal without a roadmap (not plan v2, ND-21) gets no phases rather than invented ones.
@@ -125,7 +130,7 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
       p.startWeek === p.endWeek ? `Week ${p.startWeek}` : `Weeks ${p.startWeek}–${p.endWeek}`;
 
     let phaseStatus: JourneyStatus;
-    if (goal.status === 'completed' || currentDay >= 85 || currentWeek > p.endWeek) {
+    if (goal.status === 'completed' || currentDay >= closingStart || currentWeek > p.endWeek) {
       phaseStatus = 'completed';
     } else if (currentWeek >= p.startWeek && currentWeek <= p.endWeek) {
       phaseStatus = 'active';
@@ -139,7 +144,7 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
       const isCurrentWeek = wNum === currentWeek;
 
       let weekStatus: JourneyStatus;
-      if (goal.status === 'completed' || currentDay >= 85 || wNum < currentWeek) {
+      if (goal.status === 'completed' || currentDay >= closingStart || wNum < currentWeek) {
         weekStatus = 'completed';
       } else if (wNum === currentWeek) {
         weekStatus = 'active';
@@ -199,8 +204,8 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
     };
   });
 
-  // Closing Stretch (OD-2 Option A): Days 85-90 dedicated to final test, reflection & arrival
-  const isClosingStretchActive = currentDay >= 85 && goal.status !== 'completed';
+  // Closing Stretch (OD-2 Option A): Days 85-90 (B-109: after a shorter plan's last week) for the final test, reflection & arrival
+  const isClosingStretchActive = currentDay >= closingStart && goal.status !== 'completed';
   const isClosingStretchCompleted = goal.status === 'completed';
 
   let closingStretchStatus: JourneyStatus;
@@ -213,9 +218,9 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
   }
 
   const closingStretch: JourneyClosingStretch = {
-    startDay: 85,
-    endDay: 90,
-    finalTest: goal.roadmap?.finalTest || 'Complete your 90-day final evaluation',
+    startDay: closingStart,
+    endDay: totalDays,
+    finalTest: goal.roadmap?.finalTest || `Complete your ${planLengthLabel(goal)} final evaluation`,
     finalGoal: goal.roadmap?.finalGoal || goal.clarifiedOutcome || goal.rawGoal,
     status: closingStretchStatus,
     isCurrent: isClosingStretchActive,
@@ -234,14 +239,14 @@ export function toJourneyData(goal: Goal | null | undefined, todayDate?: Date | 
   } else if (allDailyTasks.length > 0) {
     percentComplete = Math.min(100, Math.max(0, Math.round((completedTasksCount / allDailyTasks.length) * 100)));
   } else {
-    percentComplete = Math.min(100, Math.max(0, Math.round((currentDay / 90) * 100)));
+    percentComplete = Math.min(100, Math.max(0, Math.round((currentDay / totalDays) * 100)));
   }
 
   const metrics: JourneyProgressMetrics = {
     currentDay,
-    totalDays: 90,
+    totalDays,
     currentWeek,
-    totalWeeks: 12,
+    totalWeeks,
     currentPhaseIndex,
     totalPhases: phases.length,
     completedTasksCount,

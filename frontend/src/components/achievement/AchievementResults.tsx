@@ -9,6 +9,7 @@ import {
 } from '../../lib/achievement';
 import { cx } from '../ui';
 import { isLightTest, weekTargetText } from '../../lib/lightTest';
+import { planLengthLabel, planWeeks } from '../../lib/planLength';
 
 interface AchievementResultsProps {
   goal: Goal;
@@ -94,7 +95,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
             </p>
             <p className="mt-1 text-small text-text-secondary">
               {summary.adherenceRate >= 80
-                ? 'Strong consistency honoring the 90-day protocol.'
+                ? `Strong consistency honoring the ${planLengthLabel(goal)} protocol.`
                 : 'Steady progress honoring deliberate practice.'}
             </p>
           </div>
@@ -220,7 +221,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
             Milestone Benchmark Log
           </h3>
           <p className="mt-1 text-body text-text-secondary">
-            Results stored during your weekly reviews across the 12 planned weeks.
+            Results stored during your weekly reviews across the {planWeeks(goal)} planned weeks.
           </p>
         </div>
 
@@ -233,7 +234,7 @@ export const AchievementResults: React.FC<AchievementResultsProps> = ({
             {benchmarkItems.map((item) => {
               // M2.1: a light week shows its next check, and a logged light test as "Done", never against the target.
               const light = isLightTest(item.test);
-              const targetStr = item.target ? weekTargetText(item.weekNumber, item.target, item.test, formatTarget) : null;
+              const targetStr = item.target ? weekTargetText(item.weekNumber, item.target, item.test, formatTarget, goal) : null;
               const hasResult = item.testResult != null;
               const isPassed = item.testResult?.passed === true;
 

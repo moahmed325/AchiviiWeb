@@ -410,6 +410,8 @@ export interface Goal {
   targetDate: string;
   /** B-106: the outside date the plan never moves past (an exam, a race, a talk), or null. */
   fixedDate?: string | null;
+  /** B-109: the plan's weeks, 4 to 12 (`lib/planLength.ts`); missing on an older response means 12. */
+  totalWeeks?: number;
   /** B-108: the schedule in force, as the server's week writer will use it (`goalScheduleOf`). */
   schedule?: {
     planVariant: 'steady' | 'accelerated' | 'minimal';
@@ -469,6 +471,8 @@ export interface JourneyResult {
   nearGoal: boolean;
   weeksFinished: number;
   lastDone: string | null;
+  /** B-109: the plan's weeks, sent only when not 12. */
+  totalWeeks?: number;
 }
 
 export interface PreviousPlan {
@@ -501,12 +505,16 @@ export interface Checkpoint {
   last: boolean;
   /** A raise all the way back to the full goal. */
   toFullGoal: boolean;
+  /** B-109: a shorter plan's final-test week; the card says "by the end of week n", not "by day 90". */
+  finalWeek?: number;
 }
 
 /** Checkpoints (RULE-11): the day-90 target and the goal shown. */
 export interface DayNinetyLine {
   target: string;
   goal: string;
+  /** B-109: a shorter plan's final-test week; the line says "Final target", not "Day-90 target". */
+  finalWeek?: number;
 }
 
 export interface Retest {

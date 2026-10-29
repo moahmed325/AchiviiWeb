@@ -3,6 +3,7 @@ import { CheckCircle2, Milestone, BookOpen, Quote, Calendar } from 'lucide-react
 import type { Goal, AchievementSummary, WeeklyReview } from '../../types';
 import { formatAchievementDate } from '../../lib/achievement';
 import { cx } from '../ui';
+import { planDays, planWeeks } from '../../lib/planLength';
 
 interface AchievementJourneyProps {
   goal: Goal;
@@ -71,7 +72,7 @@ export const AchievementJourney: React.FC<AchievementJourneyProps> = ({
             {goal.clarifiedOutcome || goal.rawGoal}
           </h3>
           <p className="mt-2 text-small text-text-secondary">
-            Verified across 90 deliberate days and 12 structured weeks.
+            Verified across {planDays(goal)} deliberate days and {planWeeks(goal)} structured weeks.
           </p>
         </div>
       </div>

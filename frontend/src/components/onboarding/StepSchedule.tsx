@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 import type { RoutineSettings } from '../../types';
-import { FIXED_DATE_INVALID, FIXED_DATE_LABEL, fixedDateHint, type FixedDateCheck } from '../../lib/fixedDate';
+import { FIXED_DATE_LABEL, fixedDateBlocks, fixedDateError, fixedDateHint, type FixedDateCheck } from '../../lib/fixedDate';
 import { addDaysToDateKey } from '../../lib/dateUtils';
 import { defaultRestWeekdays, weekdayOf } from '../../lib/schedule';
 import { TrainingDays } from './TrainingDays';
@@ -79,7 +79,7 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
   onContinue,
 }) => {
   const waiting = isWaitingForClarification && isClarifying;
-  const dateInvalid = fixedDateCheck === 'invalid';
+  const dateInvalid = fixedDateBlocks(fixedDateCheck);
   const setField = (field: 'wakeTime' | 'sleepTime' | 'busyHours') => (e: React.ChangeEvent<HTMLInputElement>) =>
     onRoutineChange((prev) => ({ ...prev, [field]: e.target.value }));
 
@@ -128,7 +128,7 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
           </p>
         </div>
 
-        <Field label={FIXED_DATE_LABEL} showOptional hint={dateInvalid ? undefined : fixedDateHint(fixedDateCheck)} error={dateInvalid ? FIXED_DATE_INVALID : undefined} className="max-w-sm">
+        <Field label={FIXED_DATE_LABEL} showOptional hint={dateInvalid ? undefined : fixedDateHint(fixedDateCheck, fixedDate, today)} error={fixedDateError(fixedDateCheck)} className="max-w-sm">
           <Input type="date" min={addDaysToDateKey(today, 1)} value={fixedDate} onChange={(e) => onFixedDateChange(e.target.value)} />
         </Field>
       </div>
