@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
 import { ApiError, logWeeklyTestResult } from '../../lib/api';
 import { DRAFT_GOAL_KEY } from '../onboarding/payload';
+import { clearSnapshot } from '../onboarding/snapshot';
 import { ReviewTestResultStep } from '../review/ReviewTestResultStep';
 import { LightTestEntry } from '../review/LightTestEntry';
 import { isLightTest, lightTestResult } from '../../lib/lightTest';
@@ -191,6 +192,8 @@ export const BreakChoice: React.FC<{ goal: Goal; choice: PastLimitChoice }> = ({
     } catch {
       // Without storage the navigation state still carries the text.
     }
+    // ND-28: a fresh plan starts afresh, never from answers kept for an earlier, unfinished onboarding.
+    clearSnapshot();
     // B-106: the goal's fixed date is filled in too, so it isn't lost (and can be cleared).
     const fixedDate = fixedDateKey(goal);
     navigate('/onboarding', { state: { draftGoal: goal.rawGoal, isPreset: false, switchGoal: true, ...(fixedDate ? { fixedDate } : {}) } });

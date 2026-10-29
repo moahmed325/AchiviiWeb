@@ -14,6 +14,8 @@ const SLOT_LABEL: Record<RoutineSettings['preferredSlot'], string> = {
 
 interface StepSummaryProps {
   outcome: string;
+  /** What a cleared goal falls back to: clarify's working title, or the goal as typed. */
+  defaultOutcome: string;
   onOutcomeChange: (outcome: string) => void;
   routine: RoutineSettings;
   /** 12, or fewer before a fixed date under 12 weeks away (B-109). */
@@ -27,8 +29,12 @@ interface StepSummaryProps {
 }
 
 /** ND-28: the last page. Short on purpose: where they're going, what it asks of them, and the button to begin. */
-export const StepSummary: React.FC<StepSummaryProps> = ({ outcome, onOutcomeChange, routine, weeks, fixedDate, signedIn, onBack, onStart }) => {
+export const StepSummary: React.FC<StepSummaryProps> = ({ outcome, defaultOutcome, onOutcomeChange, routine, weeks, fixedDate, signedIn, onBack, onStart }) => {
   const [editing, setEditing] = useState(false);
+  const toggleEditing = () => {
+    if (editing && !outcome.trim()) onOutcomeChange(defaultOutcome);
+    setEditing(!editing);
+  };
   const days = routine.planVariant ? DAYS_A_WEEK[routine.planVariant] : 0;
   const sessions = days * weeks;
   const facts = [
@@ -46,9 +52,8 @@ export const StepSummary: React.FC<StepSummaryProps> = ({ outcome, onOutcomeChan
           <h2 id="summary-destination" className="font-ui-mono text-micro uppercase text-achievement">
             {fixedDate ? `By ${utcDateLabel(new Date(`${fixedDate}T00:00:00Z`), new Date())}` : 'In 90 days'}
           </h2>
-          <Button variant="quiet" size="sm" onClick={() => setEditing(!editing)} className="-my-2 -mr-3">
+          <Button variant="quiet" size="sm" aria-label={editing ? 'Done' : 'Edit your goal'} onClick={toggleEditing} className="-my-2 -mr-3">
             {editing ? 'Done' : 'Edit'}
-            <span className="sr-only"> your goal</span>
           </Button>
         </div>
         {editing ? (

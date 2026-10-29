@@ -68,6 +68,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     submitGoal,
     clarificationError,
     connection,
+    clarification,
     focusChosen,
     focusOptions,
     chooseFocus,
@@ -243,6 +244,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         {page === 'summary' && (
           <StepSummary
             outcome={editedOutcome}
+            defaultOutcome={clarification?.clarifiedOutcome || rawGoal}
             onOutcomeChange={setEditedOutcome}
             routine={routine}
             weeks={fixedDateCheck === 'short' ? weeksBefore(today, fixedDate) : 12}

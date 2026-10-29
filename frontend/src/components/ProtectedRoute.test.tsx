@@ -197,5 +197,27 @@ describe('ProtectedRoute (R1 — OD-9 / ND-12 Route Protection)', () => {
     expect(await screen.findByText('Onboarding Content')).toBeInTheDocument();
     expect(screen.queryByText('Home Root Page')).not.toBeInTheDocument();
   });
-});
 
+  it('lets a visitor into a route open to visitors, and still sends them to sign in elsewhere (ND-28)', async () => {
+    localStorage.removeItem('achivii_auth_token');
+    const renderAt = (path: string) =>
+      render(
+        <AuthProvider>
+          <GoalProvider>
+            <MemoryRouter initialEntries={[path]}>
+              <Routes>
+                <Route path="/onboarding" element={<ProtectedRoute requireGoal={false} allowAnonymous><div>Onboarding Page</div></ProtectedRoute>} />
+                <Route path="/progress" element={<ProtectedRoute requireGoal={false}><div>Progress Page</div></ProtectedRoute>} />
+                <Route path="/login" element={<div>Login Page</div>} />
+              </Routes>
+            </MemoryRouter>
+          </GoalProvider>
+        </AuthProvider>,
+      );
+    const first = renderAt('/onboarding');
+    expect(await screen.findByText('Onboarding Page')).toBeInTheDocument();
+    first.unmount();
+    renderAt('/progress');
+    expect(await screen.findByText('Login Page')).toBeInTheDocument();
+  });
+});

@@ -86,11 +86,11 @@ test.describe('entries', () => {
     }
   });
 
-  test('without a goal: no Dashboard, Roadmap or Progress, and / still invites a pathway', async ({ page }) => {
+  test('without a goal: no Dashboard, Roadmap or Progress, and / asks for the goal (ND-28)', async ({ page }) => {
     await mockApi(page, { goal: null });
     await signIn(page);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1, name: 'Choose a pathway' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'What do you want to achieve?' })).toBeVisible();
     const names = await entryNames(page);
     expect(names.map((name) => name.replace(/e2e@example\.com$/, ''))).toEqual(['Today', 'Pathways', 'Coach ✦', 'Account']);
   });
@@ -123,7 +123,7 @@ test.describe('entries', () => {
     await mockApi(page, { goal: null });
     await signIn(page);
     await page.goto('/onboarding');
-    await expect(page.getByRole('heading', { level: 1, name: 'Where are you going?' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'What do you want to achieve?' })).toBeVisible();
     await expect(primary(page)).toHaveCount(0);
     const banner = page.getByRole('banner');
     await expect(banner.getByRole('link', { name: 'Achivii, home' })).toHaveAttribute('href', '/');
@@ -131,6 +131,16 @@ test.describe('entries', () => {
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Reset 90-Day Plan' })).toHaveCount(0);
     await expect(page.getByText(SHELL_GOAL_TITLE)).toHaveCount(0);
+  });
+
+  test('a visitor in onboarding gets the top bar with Sign in, which comes back to onboarding (ND-28)', async ({ page }) => {
+    await mockApi(page, { goal: null });
+    await page.goto('/onboarding');
+    await expect(page.getByRole('heading', { level: 1, name: 'What do you want to achieve?' })).toBeVisible();
+    const banner = page.getByRole('banner');
+    await expect(banner.getByRole('link', { name: 'Achivii, home' })).toHaveAttribute('href', '/');
+    await banner.getByRole('link', { name: 'Sign in' }).click();
+    await expect(page).toHaveURL('/login?next=%2Fonboarding');
   });
 });
 
@@ -293,7 +303,7 @@ test.describe('pathways, account and offline', () => {
     await chooseOption(page, PRESET_GOAL);
     await explorer(page).getByRole('button', { name: /Switch to this pathway/ }).click();
     await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'starting');
+    await expectStep(page, 'days');
     await expect.poll(() => calls.clarify.length).toBeGreaterThan(0);
     for (const body of calls.clarify) expect(body).toEqual({ rawGoal: PRESET_GOAL });
     expect(calls.create).toEqual([]);

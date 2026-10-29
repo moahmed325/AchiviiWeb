@@ -90,6 +90,8 @@ describe('shellMode and shellEntries', () => {
     expect(shellMode('/__ui', true, '/__ui')).toBe('chromeless');
     expect(shellMode('/roadmap', false)).toBe('bare');
     expect(shellMode('/onboarding', true)).toBe('focused');
+    // ND-28: a visitor answering onboarding gets the same top bar.
+    expect(shellMode('/onboarding', false)).toBe('focused');
     expect(shellMode('/', true)).toBe('app');
     expect(shellMode('/dashboard', true)).toBe('app');
   });

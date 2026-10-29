@@ -138,8 +138,8 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-10 | Custom-goal gating | Product | Decided (A) | 10 |
 | ND-11 | Coach scope | Product | Decided (A) | 10 |
 | ND-12 | Phase 2 frontend scope additions (`api.ts` status, `GoalContext` failure flag) | Architecture | Decided (A) | 2 |
-| ND-13 | Onboarding step order around the clarify wait | Design | Decided (A) | 3 |
-| ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Decided (A) | 3 |
+| ND-13 | Onboarding step order around the clarify wait | Design | Superseded by ND-28 | 3 |
+| ND-14 | Grouping clarify questions into "starting point" and "success" | Design | Superseded by ND-28 | 3 |
 | ND-15 | Scope of the single pathway library | Architecture | Decided (A) | 3 |
 | ND-16 | Pre-existing onboarding bugs fixed in Phase 3 | Architecture | Decided (A) | 3 |
 | ND-17 | TED-style speech pathway matching | Product | Decided (A) | 4 |
@@ -150,6 +150,7 @@ A Decided entry is never silently edited. To change it, add a new entry that sup
 | ND-22 | Gemini only; no fallback model for now | Architecture | Decided | — |
 | ND-26 | The landing page is built around picking a goal | Product | Decided | — |
 | ND-27 | Visitors see their plan before signing up | Product | Decided | — |
+| ND-28 | Achivii starts from the goal the person types | Product | Decided | — |
 
 **What blocks the next phase:** Phases 0–9 are complete. Phase 10 (Premium Architecture) is unblocked and **IN PROGRESS** (M10.1 complete: ND-9 Decided A, ND-10 Decided A, ND-11 Decided A, OD-1c Decided B). M10.2 (Coach placement and honest state) is active.
 
@@ -1493,7 +1494,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by ND-28 |
 | Category | Design |
 | Needed by | 3 (M3.5) |
 | Raised | 2026-09-23 — Phase 3 kickoff (W2) |
@@ -1518,7 +1519,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 | Field | Value |
 |---|---|
-| Status | Decided |
+| Status | Superseded by ND-28 |
 | Category | Design |
 | Needed by | 3 (M3.5) |
 | Raised | 2026-09-23 — Phase 3 kickoff (W2) |
@@ -1873,6 +1874,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-26 | ND-25 Decided by Mo: a missed key session is swapped onto its receiving day without asking (the question only if the swap is refused); moved steps show the day they came from. |
 | 2026-10-26 | ND-26 Decided by Mo: the landing page is rebuilt around picking a goal, calmer and without invented proof; D-15, D-17 and D-18 marked Superseded. |
 | 2026-10-29 | ND-27 Decided by Mo: a free goal card opens a plan preview (two schedule questions, then the shape of the visitor's 90 days) before sign-up. |
+| 2026-10-29 | ND-28 Decided by Mo (stage 1 of 4): the landing page and Home ask for the goal first; onboarding asks one thing per page, routine first, turns a vague goal into a measurable one, and is open to visitors, who sign up from the summary. ND-13 and ND-14 marked Superseded. |
 
 ### PAY-1 — Achivii Pro pricing
 
@@ -1950,3 +1952,30 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 **Consequences.** The preview's questions are onboarding's own choices (`PLAN_VARIANT_OPTIONS`, `DAILY_MINUTE_OPTIONS` in `lib/schedule.ts`); change them in one place. A custom goal (Pro) has no preview.
 
 **Related.** ND-26, ND-4, `frontend/src/components/marketing/PlanPreviewDialog.tsx`.
+
+---
+
+### ND-28 — Achivii starts from the goal the person types
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: the site read as a freemium catalogue of 10 goals; the first thing should be "what do you want to achieve?" |
+| Decided | 2026-10-29 — Mo (all of the agent's suggestions accepted) |
+
+**Context.** The landing page led with the free pathways, and onboarding had a full page of schedule settings, then grouped question steps. People may type a goal that can't be reached or measured in 90 days ("get fit"). Mo's plan has four stages: (1) this flow; (2) a 30-day trial, then Pro; (3) the pathways become Pro skills added to the timeline; (4) a skill running alongside the main goal.
+
+**Decision (stage 1).**
+* The landing page (hero and closing section) and Home before a first goal ask one question: "What do you want to achieve?" Enter opens onboarding at once, with no account needed (`/onboarding` is open to visitors).
+* Onboarding asks one thing per page. The routine comes first, since it needs no AI call: days a week, which days, minutes per session, time of day, wake, sleep and busy hours, fixed commitments (commute, gym), an optional fixed date. Clarify reads the goal meanwhile.
+* Clarify judges whether the goal is measurable in 90 days. If not, it suggests 3 to 5 concrete goals (a pathway's title word for word where one fits); the person picks one or writes their own on a page placed after the daily-time question (or after the routine, if clarify answers later), and the chosen goal is clarified while the rest is answered. A chosen goal is never sent back to that page.
+* Clarify's questions follow, one per page, then a short summary (where they're going, the 90-day line, days, minutes, time of day) with "Start my journey".
+* A visitor signs up from the summary. The answers are kept in `localStorage['achivii_onboarding']` across sign-up, reloads and an email confirmation, and the plan is built as soon as they are signed in. They are cleared when the plan is built or a new goal is typed.
+* Until the trial (stage 2), a person's first plan is allowed whatever the goal; after that a new custom goal still needs Pro (ND-10).
+
+**Consequences.** Supersedes ND-13 and ND-14. The create request body is unchanged (the R-4 baseline still holds). The pathway library leaves Home and onboarding; the landing page's pathway rail and pricing stay until stages 2 and 3.
+
+**Related.** ND-10, ND-26, ND-27, `frontend/src/components/onboarding/`, `backend/src/lib/ai/clarify.ts`, `backend/src/lib/billing/goalAuthorization.ts`.
+

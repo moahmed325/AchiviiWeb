@@ -4,12 +4,15 @@ import { mockApi, signIn } from './mockApi';
 import {
   CUSTOM_GOAL,
   PRESET_GOAL,
+  answerEssentials,
   answerPresetQuestions,
   baseline,
   chooseOption,
-  chooseSchedule,
+  continueButton,
+  expectQuestion,
   expectStep,
   generate,
+  startGoal,
 } from './onboardingFlow';
 
 /** M3.7: every onboarding state that can fail, wait or be recovered from. */
@@ -49,20 +52,18 @@ test.afterEach(async ({}, testInfo) => {
 const onlyLoggedFailures = () =>
   expect(consoleErrors.filter((e) => !/Clarification error|Failed to fetch|Couldn't design|TypeError/.test(e))).toEqual([]);
 
-const startPathwayInOnboarding = async (page: Page) => {
-  await page.goto('/onboarding');
-  await chooseOption(page, 'Fitness');
-  await chooseOption(page, PRESET_GOAL);
-  await page.getByRole('button', { name: 'Start this pathway' }).click();
+/** ND-28: a goal typed on Home before a first plan, which (like the landing page) writes the draft goal. */
+const startFromHome = async (page: Page, goal = PRESET_GOAL) => {
+  await page.goto('/');
+  await startGoal(page, goal);
+  await expect(page).toHaveURL('/onboarding');
 };
 
-/** A launch from Home, which (like Today and signup) writes the draft goal; choosing inside onboarding never has. */
-const launchPathwayFromHome = async (page: Page) => {
-  await page.goto('/');
-  await chooseOption(page, 'Fitness');
-  await chooseOption(page, PRESET_GOAL);
-  await page.getByRole('button', { name: 'Start this pathway' }).click();
-  await expect(page).toHaveURL('/onboarding');
+/** From Home to the summary, every answer the preset baseline's. */
+const reachSummary = async (page: Page) => {
+  await startFromHome(page);
+  await answerEssentials(page);
+  await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
 };
 
 const settled = (page: Page) =>
@@ -83,57 +84,51 @@ const expectNoAxeViolations = async (page: Page) => {
 };
 
 test.describe('clarify failure and recovery', () => {
-  test('custom goal: Achivii unreachable on the schedule, then back: retry keeps the schedule and sends once [network errors expected]', async ({
+  test('Achivii unreachable while the routine is answered: the questions page says so, and Try again keeps every answer [network errors expected]', async ({
     page,
   }) => {
-    const calls = await mockApi(page, { clarify: baseline.customClarify, clarifyFailures: 1 });
+    const calls = await mockApi(page, { clarify: baseline.customClarify, clarifyFailures: 2 });
     await signIn(page);
     await page.goto('/onboarding');
-    await page.getByRole('textbox', { name: 'Your goal' }).fill(CUSTOM_GOAL);
-    await page.getByRole('button', { name: /^Continue/ }).click();
-    await expectStep(page, 'schedule');
+    await startGoal(page, CUSTOM_GOAL);
+    await answerEssentials(page);
 
+    // Arriving at the questions sends clarify again; it fails a second time.
     const alert = page.getByRole('alert');
     await expect(alert).toContainText("We can't reach Achivii right now");
-    await expect(alert).toContainText('Your schedule is kept.');
     await expect(page.getByText('Failed to fetch')).toHaveCount(0);
-    await chooseOption(page, 'Steady');
-    await chooseOption(page, '45 min');
     await expectNoAxeViolations(page);
+    expect(calls.clarifyAttempts).toBe(2);
 
     await alert.getByRole('button', { name: 'Try again' }).click();
-    await expect(page.getByRole('alert')).toHaveCount(0);
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await expectStep(page, 'starting');
-    expect(calls.clarifyAttempts).toBe(2);
+    await expectQuestion(page, baseline.customClarify.followUpQuestions[0].question);
+    expect(calls.clarifyAttempts).toBe(3);
     expect(calls.clarify).toEqual([{ rawGoal: CUSTOM_GOAL }]);
 
     await page.goBack();
-    await expectStep(page, 'schedule');
-    await expect(page.getByRole('radio', { name: 'Steady' })).toBeChecked();
+    await expectStep(page, 'date');
+    await page.goBack();
+    await page.goBack();
+    await page.goBack();
+    await page.goBack();
+    await expectStep(page, 'minutes');
     await expect(page.getByRole('radio', { name: '45 min' })).toBeChecked();
     onlyLoggedFailures();
   });
 
-  test('pathway: a failed clarify keeps the draft across a reload, and retry after recovery shows the questions [network errors expected]', async ({
-    page,
-  }) => {
+  test('a failed clarify keeps the draft and the page across a reload [network errors expected]', async ({ page }) => {
     const calls = await mockApi(page, { clarify: baseline.presetClarify, clarifyFailures: 2 });
     await signIn(page);
-    await launchPathwayFromHome(page);
-    await expectStep(page, 'starting');
-    await expect(page.getByRole('alert')).toContainText("We can't reach Achivii right now");
-    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeDisabled();
+    await startFromHome(page);
     expect(await draftGoal(page)).toBe(PRESET_GOAL);
 
     await page.reload();
-    await expectStep(page, 'starting');
-    await expect(page.getByRole('alert')).toContainText("We can't reach Achivii right now");
+    await expectStep(page, 'days');
     expect(await draftGoal(page)).toBe(PRESET_GOAL);
-    expect(calls.clarifyAttempts).toBe(2);
+    await expect.poll(() => calls.clarifyAttempts).toBe(2);
 
-    await page.getByRole('button', { name: 'Try again' }).click();
-    await expect(page.getByRole('heading', { level: 2, name: baseline.presetClarify.followUpQuestions[0].question })).toBeVisible();
+    await answerEssentials(page);
+    await expectQuestion(page, baseline.presetClarify.followUpQuestions[0].question);
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(calls.clarifyAttempts).toBe(3);
     for (const body of calls.clarify) expect(body).toEqual({ rawGoal: PRESET_GOAL });
@@ -142,37 +137,32 @@ test.describe('clarify failure and recovery', () => {
 
   test('a clarify failure on Achivii’s side shows Achivii’s own message [network errors expected]', async ({ page }) => {
     const message = 'Unable to analyze your goal right now. AI services are temporarily unavailable. Please retry.';
-    await mockApi(page, { clarify: baseline.presetClarify, clarifyError: { status: 503, error: message } });
+    await mockApi(page, { clarify: baseline.customClarify, clarifyError: { status: 503, error: message } });
     await signIn(page);
-    await startPathwayInOnboarding(page);
+    await page.goto('/onboarding');
+    await startGoal(page, CUSTOM_GOAL);
+    await answerEssentials(page);
     const alert = page.getByRole('alert');
     await expect(alert).toContainText("We couldn't prepare your questions");
     await expect(alert).toContainText(message);
     await alert.getByRole('button', { name: 'Try again' }).click();
-    await expect(page.getByRole('heading', { level: 2, name: baseline.presetClarify.followUpQuestions[0].question })).toBeVisible();
+    await expectQuestion(page, baseline.customClarify.followUpQuestions[0].question);
   });
 
-  test('leaving the schedule while the questions are coming cancels the wait', async ({ page }) => {
-    const calls = await mockApi(page, { clarify: baseline.customClarify, clarifyDelayMs: 5000 });
+  test('questions still on their way: the page waits, then opens on the first question', async ({ page }) => {
+    const calls = await mockApi(page, { clarify: baseline.customClarify, clarifyDelayMs: 4000 });
     await signIn(page);
     await page.goto('/onboarding');
-    await page.getByRole('textbox', { name: 'Your goal' }).fill(CUSTOM_GOAL);
-    await page.getByRole('button', { name: /^Continue/ }).click();
-    await chooseOption(page, 'Steady');
-    await chooseOption(page, '45 min');
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await expect(page.getByText('Preparing your questions. Your schedule is kept while you wait.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Continue', exact: true })).toHaveAttribute('aria-busy', 'true');
+    await startGoal(page, CUSTOM_GOAL);
+    await answerEssentials(page);
+    await expect(page.getByText('Preparing your questions. Your answers so far are kept.')).toBeVisible();
+    await expect(continueButton(page)).toHaveAttribute('aria-busy', 'true');
 
-    await page.getByRole('button', { name: 'Back' }).click();
-    await expectStep(page, 'goal');
-    await expect.poll(() => calls.clarify.length).toBe(1);
-    await page.waitForTimeout(300);
-    await expectStep(page, 'goal');
-
-    await page.getByRole('button', { name: /^Continue with my goal/ }).click();
-    await chooseSchedule(page, 'starting');
+    await expectQuestion(page, baseline.customClarify.followUpQuestions[0].question, 15_000);
     expect(calls.clarifyAttempts).toBe(1);
+    // The wait was replaced, so Back goes straight to the last routine page.
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'date');
   });
 });
 
@@ -185,10 +175,7 @@ test.describe('offline', () => {
     await expect(notice).toContainText('your answers stay on this page');
     await expectNoAxeViolations(page);
 
-    await chooseOption(page, 'Fitness');
-    await chooseOption(page, PRESET_GOAL);
-    await page.getByRole('button', { name: 'Start this pathway' }).click();
-    await expect(page.getByRole('heading', { level: 2, name: baseline.presetClarify.followUpQuestions[0].question })).toBeVisible();
+    await startGoal(page, PRESET_GOAL);
     await expect(notice).toHaveCount(0);
   });
 });
@@ -204,9 +191,7 @@ test.describe('generation handoff', () => {
       createResult: { goal: CREATED_GOAL, roadmapWeeks: [], dailyTasks: [] },
     });
     await signIn(page);
-    await launchPathwayFromHome(page);
-    await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
-    await chooseSchedule(page, 'review');
+    await reachSummary(page);
     await generate(page);
 
     const alert = page.getByRole('alert');
@@ -216,9 +201,9 @@ test.describe('generation handoff', () => {
     expect(await draftGoal(page)).toBe(PRESET_GOAL);
 
     await alert.getByRole('button', { name: 'Review your answers' }).click();
-    await expectStep(page, 'review');
-    await expect(page.getByText(baseline.presetClarify.followUpQuestions[0].options[0])).toBeVisible();
-    await expect(page.getByText('Steady: 5 days a week')).toBeVisible();
+    await expectStep(page, 'summary');
+    await expect(page.getByText('5 days a week')).toBeVisible();
+    await expect(page.getByText('45 min a session')).toBeVisible();
 
     await generate(page);
     await expect(page).toHaveURL('/');
@@ -232,16 +217,14 @@ test.describe('generation handoff', () => {
   }) => {
     const calls = await mockApi(page, { clarify: baseline.presetClarify, createFailures: ['offline'], goalAfterCreate: CREATED_GOAL });
     await signIn(page);
-    await startPathwayInOnboarding(page);
-    await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
-    await chooseSchedule(page, 'review');
+    await reachSummary(page);
     await generate(page);
     await expect(page).toHaveURL('/');
     expect(calls.create).toHaveLength(1);
     expect(await draftGoal(page)).toBeNull();
   });
 
-  test('a reload during generation keeps the draft, and the next Build uses the plan the server saved [dashboard errors expected]', async ({
+  test('a reload during generation keeps the answers, and the next Start uses the plan the server saved [dashboard errors expected]', async ({
     page,
   }) => {
     const saved = {
@@ -251,9 +234,7 @@ test.describe('generation handoff', () => {
     };
     const calls = await mockApi(page, { clarify: baseline.presetClarify, goalAfterCreate: saved });
     await signIn(page);
-    await launchPathwayFromHome(page);
-    await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
-    await chooseSchedule(page, 'review');
+    await reachSummary(page);
     await generate(page);
     await expect(page.getByRole('heading', { name: 'Building your path' })).toBeVisible();
     expect(await draftGoal(page)).toBe(PRESET_GOAL);
@@ -262,12 +243,10 @@ test.describe('generation handoff', () => {
     await expect.poll(() => calls.active).toBeGreaterThan(0);
 
     await page.reload();
-    await expectStep(page, 'starting');
+    await expectStep(page, 'summary');
     await expect(page.getByRole('heading', { name: 'Building your path' })).toHaveCount(0);
     expect(await draftGoal(page)).toBe(PRESET_GOAL);
 
-    await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
-    await chooseSchedule(page, 'review');
     await generate(page);
     await expect(page).toHaveURL('/');
     expect(calls.create).toHaveLength(1);
@@ -277,9 +256,7 @@ test.describe('generation handoff', () => {
   test('a connection lost while building with nothing finished is explained honestly [network errors expected]', async ({ page }) => {
     const calls = await mockApi(page, { clarify: baseline.presetClarify, createFailures: ['offline'] });
     await signIn(page);
-    await launchPathwayFromHome(page);
-    await answerPresetQuestions(page, baseline.presetClarify.followUpQuestions);
-    await chooseSchedule(page, 'review');
+    await reachSummary(page);
     await generate(page);
     const alert = page.getByRole('alert');
     await expect(alert).toContainText('We lost the connection');
@@ -291,50 +268,35 @@ test.describe('generation handoff', () => {
   });
 });
 
-test.describe('outcome', () => {
-  test('an edited outcome survives Back and Forward and is what the plan is built from', async ({ page }) => {
+test.describe('the goal on the summary', () => {
+  test('an edited goal survives Back and Forward and is what the plan is built from', async ({ page }) => {
     const edited = 'Run 10 km in under 48 minutes by December';
     const calls = await mockApi(page, { clarify: baseline.presetClarify });
     await signIn(page);
-    await startPathwayInOnboarding(page);
-    await expectStep(page, 'starting');
-    for (const question of baseline.presetClarify.followUpQuestions) {
-      await chooseOption(page, question.options[0]);
-      await page.getByRole('button', { name: /^(Next question|Continue)$/ }).click();
-    }
-    await expectStep(page, 'success');
-    await page.getByRole('button', { name: 'Edit outcome' }).click();
-    const field = page.getByRole('textbox', { name: 'Your 90-day outcome' });
+    await reachSummary(page);
+    await page.getByRole('button', { name: 'Edit your goal' }).click();
+    const field = page.getByRole('textbox', { name: 'Your 90-day goal' });
     await expect(field).toBeFocused();
     await field.fill(edited);
     await page.getByRole('button', { name: 'Done', exact: true }).click();
     await expect(page.getByText(edited)).toBeVisible();
-    await page.getByRole('button', { name: 'Continue', exact: true }).click();
-    await expectStep(page, 'schedule');
 
     await page.goBack();
-    await expectStep(page, 'success');
-    await expect(page.getByText(edited)).toBeVisible();
+    await expectQuestion(page, baseline.presetClarify.followUpQuestions.at(-1)!.question);
     await page.goForward();
-    await expectStep(page, 'schedule');
-    await chooseSchedule(page, 'review');
+    await expectStep(page, 'summary');
     await expect(page.getByText(edited)).toBeVisible();
     await generate(page);
     await expect.poll(() => calls.create.length).toBe(1);
     expect((calls.create[0].body as { clarifiedOutcome: string }).clarifiedOutcome).toBe(edited);
   });
 
-  test('clearing the outcome brings back the suggested one instead of leaving it blank', async ({ page }) => {
+  test('clearing the goal brings back the suggested one instead of leaving it blank', async ({ page }) => {
     await mockApi(page, { clarify: baseline.presetClarify });
     await signIn(page);
-    await startPathwayInOnboarding(page);
-    await expectStep(page, 'starting');
-    for (const question of baseline.presetClarify.followUpQuestions) {
-      await chooseOption(page, question.options[0]);
-      await page.getByRole('button', { name: /^(Next question|Continue)$/ }).click();
-    }
-    await page.getByRole('button', { name: 'Edit outcome' }).click();
-    await page.getByRole('textbox', { name: 'Your 90-day outcome' }).fill('   ');
+    await reachSummary(page);
+    await page.getByRole('button', { name: 'Edit your goal' }).click();
+    await page.getByRole('textbox', { name: 'Your 90-day goal' }).fill('   ');
     await page.getByRole('button', { name: 'Done', exact: true }).click();
     await expect(page.getByText(baseline.presetClarify.clarifiedOutcome)).toBeVisible();
   });
@@ -345,9 +307,13 @@ test.describe('commitment sheet', () => {
     await mockApi(page, { clarify: baseline.customClarify });
     await signIn(page);
     await page.goto('/onboarding');
-    await page.getByRole('textbox', { name: 'Your goal' }).fill(CUSTOM_GOAL);
-    await page.getByRole('button', { name: /^Continue/ }).click();
-    await expectStep(page, 'schedule');
+    await startGoal(page, CUSTOM_GOAL);
+    await chooseOption(page, 'Steady');
+    for (let i = 0; i < 5; i += 1) {
+      if (i === 2) await chooseOption(page, '45 min');
+      await continueButton(page).click();
+    }
+    await expectStep(page, 'commitments');
 
     const opener = page.getByRole('button', { name: 'Gym & Fitness' });
     await opener.click();
@@ -373,14 +339,12 @@ test.describe('commitment sheet', () => {
 });
 
 test.describe('small screens', () => {
-  test('on a 360 px screen the first answer starts above the footer, on both question steps', async ({ page }) => {
+  test('on a 360 px screen the first answer starts above the footer', async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
     await mockApi(page, { clarify: baseline.customClarify });
     await signIn(page);
     await page.goto('/onboarding');
-    await page.getByRole('textbox', { name: 'Your goal' }).fill(CUSTOM_GOAL);
-    await page.getByRole('button', { name: /^Continue/ }).click();
-    await chooseSchedule(page, 'starting');
+    await startGoal(page, CUSTOM_GOAL);
 
     const firstAnswerClearsFooter = () =>
       page.evaluate(() => {
@@ -390,7 +354,9 @@ test.describe('small screens', () => {
       });
     await settled(page);
     expect(await firstAnswerClearsFooter()).toBeGreaterThanOrEqual(44);
-    // The step description stays available to screen readers.
-    await expect(page.getByText('A few questions about where you are today')).toHaveCount(1);
+    await answerEssentials(page);
+    await expectQuestion(page, baseline.customClarify.followUpQuestions[0].question);
+    await settled(page);
+    expect(await firstAnswerClearsFooter()).toBeGreaterThanOrEqual(44);
   });
 });

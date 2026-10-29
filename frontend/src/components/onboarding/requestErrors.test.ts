@@ -39,7 +39,7 @@ describe('describeOnboardingError', () => {
     expect(describeOnboardingError(refusal, 'create')).toEqual({
       kind: 'pro',
       title: 'Custom Goals require Achivii Pro',
-      message: 'Certified pathways stay free. Pro unlocks creating your own custom 90-day journeys.',
+      message: 'Your first plan is included. After that, Pro builds a plan around any goal of your own, and the guided plans stay free.',
     });
   });
 

@@ -17,7 +17,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     await expect(alert).toBeVisible();
     await expect(alert.getByRole('heading', { level: 1, name: "We couldn't load your goal" })).toBeVisible();
     await expect(alert.getByText('Your plan is safe, but we had trouble reaching Achivii. Check your connection or try again.')).toBeVisible();
-    await expect(page.getByText('Choose a pathway')).not.toBeVisible();
+    await expect(page.getByText('What do you want to achieve?')).not.toBeVisible();
 
     // 2. Mock API route update on retry so active goal loads successfully
     await page.route('http://localhost:5000/api/goal/active', (route) => {
@@ -277,7 +277,7 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
   const cases: Case[] = [
     { name: 'load error', goal: shellGoal(), options: { activeStatus: 500 }, ready: (page) => expect(main(page).getByRole('alert')).toBeVisible(), card: (page) => main(page).getByRole('alert') },
     { name: 'offline', goal: shellGoal(), options: { healthDown: true }, ready: (page) => expect(page.getByText(/Achivii is offline/)).toBeVisible(), card: stepCard },
-    { name: 'no goal', goal: null, ready: (page) => expect(page.getByRole('heading', { level: 1, name: 'Choose a pathway' })).toBeVisible() },
+    { name: 'no goal', goal: null, ready: (page) => expect(page.getByRole('heading', { level: 1, name: 'What do you want to achieve?' })).toBeVisible() },
     { name: 'ordinary day, to do', goal: shellGoal(), ready: (page) => expect(stepCard(page).getByRole('button', { name: 'Start', exact: true })).toBeVisible(), card: stepCard },
     {
       name: 'ordinary day, done',

@@ -49,10 +49,11 @@ test.describe('entry points', () => {
     await mockApi(page);
     await page.goto('/');
 
-    await page.locator('#top').getByRole('link', { name: 'Choose your goal' }).click();
-    await expect(page).toHaveURL('/#goals');
+    // ND-28: Start leads to the question at the top; typing a goal there opens onboarding (onboarding.spec.ts).
+    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Start' }).click();
+    await expect(page).toHaveURL('/#top');
 
-    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Start free' }).click();
+    await page.locator('#pricing').getByRole('link', { name: 'Start free' }).click();
     await expect(page).toHaveURL('/signup');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Create your account');
 
@@ -86,11 +87,11 @@ test.describe('entry points', () => {
   test('back from an auth screen returns to the landing page', async ({ page }) => {
     await mockApi(page);
     await page.goto('/');
-    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Start free' }).click();
+    await page.locator('#pricing').getByRole('link', { name: 'Start free' }).click();
     await expect(page).toHaveURL('/signup');
     await page.goBack();
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick a goal. Get a plan for the next 90 days.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
   });
 
   test('reload keeps the auth screen and the chosen pathway', async ({ page }) => {
@@ -162,7 +163,7 @@ test.describe('after authentication', () => {
     await page.getByRole('navigation', { name: 'Primary' }).getByRole('button', { name: /^Account/ }).click();
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pick a goal. Get a plan for the next 90 days.');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
   });
 });
 

@@ -323,7 +323,7 @@ describe('a custom goal refused without Pro', () => {
   const PRO_REQUIRED: OnboardingError = {
     kind: 'pro',
     title: 'Custom Goals require Achivii Pro',
-    message: 'Certified pathways stay free. Pro unlocks creating your own custom 90-day journeys.',
+    message: 'Your first plan is included. After that, Pro builds a plan around any goal of your own, and the guided plans stay free.',
   };
   const entitlement = vi.mocked(api.fetchBillingEntitlement);
 
@@ -342,7 +342,7 @@ describe('a custom goal refused without Pro', () => {
     );
     const alert = screen.getByRole('alert');
     expect(screen.getByRole('heading', { level: 1, name: 'Custom Goals require Achivii Pro' })).toBeInTheDocument();
-    expect(alert).toHaveTextContent('Certified pathways stay free. Pro unlocks creating your own custom 90-day journeys.');
+    expect(alert).toHaveTextContent('Your first plan is included. After that, Pro builds a plan around any goal of your own, and the guided plans stay free.');
     expect(alert).toHaveTextContent('No plan was made, and your current journey, if you have one, is unchanged.');
     expect(alert).not.toHaveTextContent("We couldn't build your plan");
 
@@ -350,7 +350,7 @@ describe('a custom goal refused without Pro', () => {
     expect(alert).not.toContainElement(upgrade);
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Choose a certified pathway' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a different goal' }));
     expect(onChooseGoal).toHaveBeenCalledOnce();
     expect(onRetry).not.toHaveBeenCalled();
   });

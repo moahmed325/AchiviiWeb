@@ -32,13 +32,18 @@ export const PRESET_GOAL = 'Run a 10K Under 50 Minutes';
 export const CUSTOM_GOAL = 'Bake sourdough bread at home';
 export const CUSTOM_TYPED_SUCCESS = 'Bake a loaf with an open crumb every weekend';
 
-/** Step headings since M3.5. Steps are named rather than numbered because their order depends on the goal (ND-13). */
+/** ND-28: one page per question. Clarify's questions are headed by their own text. */
 export const STEP_HEADING = {
-  goal: 'Where are you going?',
-  starting: 'Where are you starting?',
-  success: 'What does success look like?',
-  schedule: 'When can you make time for this?',
-  review: 'Before we build your path',
+  goal: 'What do you want to achieve?',
+  days: 'How many days a week can you give it?',
+  weekdays: 'Which days work best?',
+  minutes: 'How long can each session be?',
+  slot: 'When do you have the most energy for it?',
+  day: 'What does a normal day look like?',
+  commitments: 'Anything else fixed in your week?',
+  date: 'Is there a date this has to be ready by?',
+  focus: "Let's give it a finish line",
+  summary: 'Here’s where you’re going',
 } as const;
 
 export type Step = keyof typeof STEP_HEADING;
@@ -47,8 +52,12 @@ export async function expectStep(page: Page, step: Step, timeout?: number) {
   await expect(page.getByRole('heading', { level: 1, name: STEP_HEADING[step] })).toBeVisible({ timeout });
 }
 
+export async function expectQuestion(page: Page, question: string, timeout?: number) {
+  await expect(page.getByRole('heading', { level: 1, name: question })).toBeVisible({ timeout });
+}
+
 /**
- * Answers, plans and day lengths are native radios inside their labels (ChoiceCard, SegmentedControl).
+ * Answers, plans and day lengths are native radios inside their labels (ChoiceCard).
  * Scroll to the centre first: on a phone the sticky step footer covers a control that `click` has only
  * scrolled to the bottom edge, and the click never lands.
  */
@@ -58,52 +67,62 @@ export async function chooseOption(page: Page, option: string) {
   await label.click();
 }
 
-const nextOrContinue = (page: Page) => page.getByRole('button', { name: /^(Next question|Continue)$/ });
+export const continueButton = (page: Page) => page.getByRole('button', { name: 'Continue', exact: true });
+
+/** Types the goal on the goal page (or the landing page's own field) and starts. */
+export async function startGoal(page: Page, goal: string) {
+  await page.getByRole('textbox', { name: STEP_HEADING.goal }).first().fill(goal);
+  await page.keyboard.press('Enter');
+  await expectStep(page, 'days');
+}
 
 /**
- * The schedule used by both baselines: Steady, 45 minutes, every other field left at its default. A custom goal
- * goes on to its questions, which may still be coming from clarify; a pathway goes on to the review (ND-13).
+ * The routine used by both baselines: Steady, 45 minutes, every other page left at its default. Ends on the page
+ * after the date: the first question, or the wait for them.
  */
-export async function chooseSchedule(page: Page, next: 'starting' | 'review') {
-  await expectStep(page, 'schedule');
+export async function answerEssentials(page: Page) {
+  await expectStep(page, 'days');
   await chooseOption(page, 'Steady');
+  await continueButton(page).click();
+  await expectStep(page, 'weekdays');
+  await continueButton(page).click();
+  await expectStep(page, 'minutes');
   await chooseOption(page, '45 min');
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expectStep(page, next, 90_000);
-}
-
-/** Preset baseline: the first option of every question. A pathway has no success question, so that step only confirms the outcome. */
-export async function answerPresetQuestions(page: Page, questions: ClarifyQuestion[]) {
-  await expectStep(page, 'starting');
-  for (const question of questions) {
-    await chooseOption(page, question.options[0]);
-    await nextOrContinue(page).click();
+  await continueButton(page).click();
+  for (const step of ['slot', 'day', 'commitments', 'date'] as const) {
+    await expectStep(page, step);
+    await continueButton(page).click();
   }
-  await expectStep(page, 'success');
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
-/**
- * Custom baseline: an option, a question skipped twice and an option on the starting point, then a typed answer to
- * the success question (ND-14 moves it next to the outcome).
- */
+/** Preset baseline: the first option of every question, then the summary. */
+export async function answerPresetQuestions(page: Page, questions: ClarifyQuestion[]) {
+  for (const question of questions) {
+    await expectQuestion(page, question.question, 90_000);
+    await chooseOption(page, question.options[0]);
+    await continueButton(page).click();
+  }
+  await expectStep(page, 'summary');
+}
+
+/** Custom baseline: an option, a typed success answer, a question skipped twice and an option, then the summary. */
 export async function answerCustomQuestions(page: Page, questions: ClarifyQuestion[]) {
   expect(questions.map((q) => q.id)).toEqual(['current_level', 'success', 'equipment', 'obstacle']);
-  await expectStep(page, 'starting');
+  await expectQuestion(page, questions[0].question, 90_000);
   await chooseOption(page, questions[0].options[0]);
-  await page.getByRole('button', { name: 'Next question' }).click();
+  await continueButton(page).click();
+  await expectQuestion(page, questions[1].question);
+  await page.getByLabel('Or put it in your own words').fill(CUSTOM_TYPED_SUCCESS);
+  await continueButton(page).click();
+  await expectQuestion(page, questions[2].question);
   await page.getByRole('button', { name: 'Skip this' }).click();
   await page.getByRole('button', { name: 'Skip anyway' }).click();
   await chooseOption(page, questions[3].options[0]);
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
-
-  await expectStep(page, 'success');
-  await page.getByLabel('Or put it in your own words').fill(CUSTOM_TYPED_SUCCESS);
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
-  await expectStep(page, 'review');
+  await continueButton(page).click();
+  await expectStep(page, 'summary');
 }
 
-export const generateButton = (page: Page) => page.getByRole('button', { name: 'Build my 90-day path' });
+export const generateButton = (page: Page) => page.getByRole('button', { name: 'Start my journey' });
 
 export async function generate(page: Page) {
   await generateButton(page).click();

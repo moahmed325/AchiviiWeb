@@ -81,87 +81,50 @@ const expectTapTarget = async (target: Locator) => {
   expect(Math.min(box!.width, box!.height)).toBeGreaterThanOrEqual(44);
 };
 
-test.describe('pathway library without a goal', () => {
-  test('Home offers directions, then pathways, and starts the chosen one in onboarding', async ({ page }) => {
+test.describe('Home without a goal (ND-28)', () => {
+  test('Home asks for the goal and starts onboarding with it', async ({ page }) => {
     const calls = await mockApi(page, { clarify: baseline.presetClarify });
     await signIn(page);
     await page.goto('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Choose a pathway');
-    await expect(page.getByRole('group', { name: 'Choose a direction' }).getByRole('radio')).toHaveCount(6);
-    await expect(page.getByRole('button', { name: 'Start this pathway' })).toHaveCount(0);
-
-    await chooseOption(page, 'Fitness');
-    await chooseOption(page, PRESET_GOAL);
-    await page.getByRole('button', { name: 'Start this pathway' }).click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
+    await page.getByRole('textbox', { name: 'What do you want to achieve?' }).fill(PRESET_GOAL);
+    await page.keyboard.press('Enter');
 
     await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'starting');
+    await expectStep(page, 'days');
     expect(await draftGoal(page)).toBe(PRESET_GOAL);
     await expect.poll(() => calls.clarify.length).toBeGreaterThan(0);
     for (const body of calls.clarify) expect(body).toEqual({ rawGoal: PRESET_GOAL });
 
     await page.goBack();
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Choose a pathway');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
     await page.goForward();
     await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'starting');
+    await expectStep(page, 'days');
   });
 
-  test('a one-pathway direction is ready to start at once', async ({ page }) => {
-    await mockApi(page, { clarify: baseline.presetClarify });
+  test('an example starts in one tap', async ({ page }) => {
+    await mockApi(page, { clarify: baseline.customClarify });
     await signIn(page);
     await page.goto('/');
-    await chooseOption(page, 'Personal');
-    await expect(page.getByRole('radio', { name: 'Master Deep Work & Double Daily Output' })).toBeChecked();
-    await page.getByRole('button', { name: 'Start this pathway' }).click();
-    await expectStep(page, 'starting');
-    expect(await draftGoal(page)).toBe('Master Deep Work & Double Daily Output');
-  });
-
-  // ND-6 kept custom goals free only until payments existed; custom goals are now the Pro capability (ND-10, billing
-  // OD-3), so this no longer asserts free wording. What still holds: the route sits after the pathways (secondary)
-  // and opens onboarding on an empty goal, never a preset.
-  test('a goal of your own comes after the pathways and opens onboarding without a preset (ND-6)', async ({ page }) => {
-    await mockApi(page);
-    await page.addInitScript(() => localStorage.setItem('achivii_draft_goal', 'Run a 10K Under 50 Minutes'));
-    await signIn(page);
-    await page.goto('/');
-    const custom = page.getByRole('region', { name: 'Have something unique in mind?' });
-    const directions = page.getByRole('group', { name: 'Choose a direction' });
-    await expect(custom).toBeVisible();
-    expect((await custom.boundingBox())!.y).toBeGreaterThan((await directions.boundingBox())!.y);
-    await custom.getByRole('button', { name: 'Describe my own goal' }).click();
-    await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'goal');
-    await expect(page.getByRole('textbox', { name: 'Your goal' })).toHaveValue('');
+    await page.getByRole('button', { name: 'Speak conversational Spanish' }).click();
+    await expectStep(page, 'days');
+    expect(await draftGoal(page)).toBe('Speak conversational Spanish');
   });
 
   test('Home fits small screens and passes axe', async ({ page }) => {
     await mockApi(page);
     await signIn(page);
     await page.goto('/');
-    await chooseOption(page, 'Creative');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('What do you want to achieve?');
     for (const width of [390, 360]) {
       await page.setViewportSize({ width, height: 800 });
       await noOverflow(page);
-      await expectTapTarget(page.locator('label').filter({ has: page.getByRole('radio', { name: 'Creative' }) }));
-      await expectTapTarget(page.getByRole('button', { name: 'Describe my own goal' }));
+      await expectTapTarget(page.getByRole('textbox', { name: 'What do you want to achieve?' }));
+      await expectTapTarget(page.getByRole('button', { name: 'Get fit' }));
     }
     await expectNoAxeViolations(page, page.locator('main'));
-  });
-
-  test('with reduced motion, pathways appear without animation', async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await mockApi(page);
-    await signIn(page);
-    await page.goto('/');
-    await chooseOption(page, 'Learning');
-    const durations = await page.evaluate(() =>
-      [...document.querySelectorAll('main .animate-rise-in')].map((el) => parseFloat(getComputedStyle(el).animationDuration)),
-    );
-    expect(durations.length).toBeGreaterThan(0);
-    for (const d of durations) expect(d).toBeLessThanOrEqual(0.001);
   });
 });
 
@@ -196,7 +159,7 @@ test.describe('pathway library with a goal', () => {
     await chooseOption(page, PRESET_GOAL);
     await dialog.getByRole('button', { name: /Switch to this pathway/ }).click();
     await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'starting');
+    await expectStep(page, 'days');
     expect(await draftGoal(page)).toBe(PRESET_GOAL);
     await expect.poll(() => calls.clarify.length).toBeGreaterThan(0);
     for (const body of calls.clarify) expect(body).toEqual({ rawGoal: PRESET_GOAL });
@@ -208,7 +171,7 @@ test.describe('pathway library with a goal', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(CURRENT);
     await page.goForward();
     await expect(page).toHaveURL('/onboarding');
-    await expectStep(page, 'starting');
+    await expectStep(page, 'days');
   });
 
   test('Pathways from Today opens on the current pathway, where the action restarts it', async ({ page }) => {

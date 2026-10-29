@@ -37,7 +37,7 @@ export const CUSTOM_GOAL_REQUIRES_PRO = 'CUSTOM_GOAL_REQUIRES_PRO';
 
 const PRO_REQUIRED: Omit<OnboardingError, 'kind'> = {
   title: 'Custom Goals require Achivii Pro',
-  message: 'Certified pathways stay free. Pro unlocks creating your own custom 90-day journeys.',
+  message: 'Your first plan is included. After that, Pro builds a plan around any goal of your own, and the guided plans stay free.',
 };
 
 /** Read by shape, not `instanceof`, so a test that mocks `lib/api` still gets the same answer. */

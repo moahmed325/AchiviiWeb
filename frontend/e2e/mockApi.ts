@@ -54,7 +54,7 @@ export interface MockOptions {
   authDelayMs?: number;
   /**
    * A recorded `/api/goal/clarify` response (`e2e/fixtures/onboarding`). When set, clarify answers with it and
-   * `/api/goal/create` is recorded, then held open so generation never starts.
+   * `/api/goal/create` is recorded, then held open so generation never starts. A function answers each request body.
    */
   clarify?: unknown;
   /** With `clarify`: answer `/api/goal/create` with this JSON body (`{ goal, roadmapWeeks, dailyTasks }`) instead of holding it. */
@@ -426,8 +426,10 @@ export async function mockApi(page: Page, options: MockOptions = {}): Promise<Mo
       await wait(clarifyDelayMs);
       if (calls.clarifyAttempts <= clarifyFailures) return route.abort('connectionrefused');
       if (clarifyError && calls.clarifyAttempts === 1) return json(route, clarifyError.status, { error: clarifyError.error });
-      calls.clarify.push(route.request().postDataJSON());
-      return json(route, 200, clarify);
+      const body = route.request().postDataJSON();
+      calls.clarify.push(body);
+      // ND-28: a function answers per goal, for a vague goal whose chosen goal is clarified next.
+      return json(route, 200, typeof clarify === 'function' ? clarify(body) : clarify);
     }
     if (path === '/api/goal/create' && clarify !== undefined) {
       const failure = createFailures[calls.create.length];

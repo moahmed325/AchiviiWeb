@@ -47,8 +47,8 @@ export const OnboardingShell: React.FC<OnboardingShellProps> = ({ page, goal, ra
               <p className="font-ui-mono text-micro uppercase text-text-secondary">Your goal</p>
               <p className="mt-3 break-words text-h3 text-text">{goal}</p>
               {onChangeGoal && (
-                <Button variant="quiet" size="sm" onClick={onChangeGoal} className="-ml-3 mt-2">
-                  Change<span className="sr-only"> your goal</span>
+                <Button variant="quiet" size="sm" aria-label="Change your goal" onClick={onChangeGoal} className="-ml-3 mt-2">
+                  Change
                 </Button>
               )}
             </>
