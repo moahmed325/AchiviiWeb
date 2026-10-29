@@ -1,6 +1,6 @@
 # Edit my schedule: plan
 
-**Status:** BUILT (2026-10-28) on `claude/trusting-edison-v1d3od`, with Mo's picks for all four choices (free, two rest days in a row allowed, the account menu, any time). Waiting on review and merge.
+**Status:** DONE. Merged to main on 2026-10-29, after the code review in section 7.
 **Backlog:** B-108. **Ideas:** I-31.
 
 ## 1. The problem

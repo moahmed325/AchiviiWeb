@@ -1,4 +1,4 @@
-// Edit my schedule (B-108, docs/features/edit-schedule/plan.md): change the active goal's days, minutes and time of day.
+// Edit my schedule (B-108, docs/archive/edit-schedule/plan.md): change the active goal's days, minutes and time of day.
 import { Router, Request, Response } from 'express';
 import { prisma } from '../../lib/prisma.js';
 import { TOTAL_WEEKS } from '../../lib/ai/roadmap.js';
