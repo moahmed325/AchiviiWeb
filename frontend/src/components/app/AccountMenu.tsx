@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarDays, ChevronDown, CircleUser, LogOut, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useGoal } from '../../context/GoalContext';
-import { Button, Dialog, DialogContent, DialogTrigger, cx } from '../ui';
+import { Button, Checkbox, Dialog, DialogContent, DialogTrigger, cx } from '../ui';
 import { ResetPlanDialog } from './ResetPlanDialog';
 import { EditScheduleDialog } from './EditScheduleDialog';
 import { fetchBillingAccountState, BillingAccountState } from '../../lib/api';
@@ -81,6 +81,41 @@ export const TimezoneNotice: React.FC = () => {
   );
 };
 
+/**
+ * ND-28: the missed-day reminder email, on unless turned off. Shown only while reminders are really sent
+ * (`remindersAvailable`), so it never promises an email that won't come. Saves on change; a failed save says so.
+ */
+export const RemindersSetting: React.FC = () => {
+  const { user, setReminders } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+  if (!user?.remindersAvailable) return null;
+  const on = user.remindersEnabled !== false;
+  const change = async (enabled: boolean) => {
+    setSaving(true);
+    setFailed(false);
+    try {
+      await setReminders(enabled);
+    } catch {
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="mt-4">
+      <Checkbox
+        label="Email me after a missed day"
+        description="One gentle note with today's step. Never more than one per break."
+        checked={on}
+        disabled={saving}
+        onChange={(event) => void change(event.target.checked)}
+      />
+      {failed && <p role="alert" className="mt-1 text-small text-danger">That didn't save. Please try again.</p>}
+    </div>
+  );
+};
+
 const AccountPanel: React.FC<AccountPanelProps> = ({ context, onEditSchedule, onReset, onSignOut }) => {
   const { user, token } = useAuth();
   const [billing, setBilling] = useState<BillingAccountState | null>(null);
@@ -114,6 +149,7 @@ const AccountPanel: React.FC<AccountPanelProps> = ({ context, onEditSchedule, on
         <p className="font-ui-mono text-micro uppercase text-text-secondary">Signed in as</p>
         <p className="mt-1 truncate text-small text-text">{user?.email ?? 'Your account'}</p>
         <TimezoneNotice />
+        <RemindersSetting />
         {withGoal && (
           <>
             <p className="tabular mt-4 font-ui-mono text-micro uppercase text-text-secondary">

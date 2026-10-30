@@ -1825,6 +1825,75 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-28 — A missed-day reminder email, on by default
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-26 — Mo: the missed-sessions work only helps people who come back to the app |
+| Decided | 2026-10-26 — Mo |
+
+**Context.** Nothing brought people back after a miss: the app sent no reminders of any kind, so the calm notices, the gentle return and the 10-minute version reached only people who opened the app anyway.
+
+**Decision.** **Email only, on by default, sent through Resend.** One gentle email the morning after a missed practice day ("No catch-up needed", a link to today's step, the 10-minute version; the step is not named, as opening the app can still move it), at most one per gap and never two within three days, never on a rest day. Off from the email (its link asks to confirm; the mail app's one-click unsubscribe) or from the Account menu, which shows the setting only while reminders are really sent. Behind the `MISSED_DAY_REMINDERS_ENABLED` switch. How it works and the setup steps: `docs/architecture/reminders.md`.
+
+**Consequences.**
+* `User` gains `remindersEnabled` (default true) and `lastReminderAt` (migration `20261026180000_add_user_reminders`).
+* An hourly GitHub Action calls the API, because the free Render service sleeps. Nothing is sent until Resend, the Render settings and the repository secret are set up and the switch is turned on.
+* Web push is not built; it can follow later for people who install the app.
+
+**Related.** ND-25; `lib/reminders/`, `routes/reminders.ts`, `.github/workflows/reminders.yml`.
+
+---
+
+### ND-29 — The Dashboard shows how the person is doing
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: the Dashboard's look and features; a review found it repeated Today almost one for one |
+| Decided | 2026-10-29 — Mo ("make it as visually appealing as possible while keeping visual noise as low as possible") |
+
+**Context.** The Dashboard (ND-19) showed the same day count, step card and week dots as Today, and its only action led to Today, where a second tap started the step. Nothing on it showed change over time, its big ring measured days passed rather than work done, and its goal line showed the stored outcome (ND-18 says the person's own goal leads).
+
+**Decision.** **Today is "what do I do now"; the Dashboard is "how am I doing, and what's next".** Top to bottom: a greeting with the status line and the person's goal (`rawGoal`); every session ever done, counted up on arrival from the count at the last visit, with "+N since your last visit"; today's session with one Start that opens the session on Today at once; the goal's own measure (a number goal: the share of the gap from the start to the target closed, its line with better always up, "New best"; a deliverable goal: milestones reached, or this week's milestone); the whole plan as a 90-day map, a cell per day, done days lit in order on arrival, a day not done only an empty cell. Every number is stored state; the page still writes nothing (ND-19). Celebration is light and count-based, not confetti (BP 18), and every animation has the reduced-motion path.
+
+**Consequences.**
+* `lib/dashboard.ts` (`journeyDays`, `practiceTotals`, `goalTrend`, `milestones`, `nextTestDay`, `greetingFor`), `components/dashboard/` (`Momentum`, `GoalProgress`, `JourneyMap`), styles in `index.css` ("Dashboard v3"), token `--text-tally`.
+* Today reads `startSession` from the Start link's router state and opens Focus once, only when today's step can be started there (not ahead, done or a rest day, no swap question waiting).
+* The day ring, the step list and the coming-up strip are gone from the Dashboard; the last visit's count is kept per browser (`localStorage`), so a new device counts up from zero.
+
+**Related.** ND-18, ND-19.
+
+---
+
+### ND-30 — Today puts the step first
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-29 — Mo: Today's look and features; a review found the step below a large header, its steps folded away, and little change when a session was done |
+| Decided | 2026-10-29 — Mo ("Everything sounds great, make sure everything you build is visually satisfying") |
+
+**Context.** Today opened with the goal, "90-day outcome: 49.98" (the stored `clarifiedOutcome`, raw), a giant "33 / 90" and a progress line; on a phone Start sat behind the bottom bar. The session's steps were behind "Show the 2 steps", Start and Mark complete looked equally important, up to five folded rows sat under the card, finishing changed only one small line, and the same review was offered from the week and from a footer. Some copy was filler ("This is your pivotal session…", "Implementation intention", "Deliberate practice logged"), and a test day's heading printed the stored test type ("TYPING_TEST BENCHMARK").
+
+**Decision.** **Today is "do the thing", fast.** A one-line header (day, week, phase, the goal) over a thin thread; the step with its steps listed and opening in place; one gold Start with "Already did it? Mark complete" beneath; a real done state ("Session N is in the books.", the light, the next day's preview, quiet "Do it again" and "Mark not done"); the 10-minute version, when and where, and the resource in one "More" row; a test day's "Today's check"; plain rest-day words. The end of a focus session names the session's number and the week, with today's mark lighting up. The week's marks are the day buttons; the review is offered only where it is due; no footer links. Everything the plan does (missed sessions, swaps, carry, checkpoints, week close) is unchanged.
+
+**Consequences.**
+* Today no longer shows the stored outcome (ND-18's "beneath it" applies to the Roadmap only); `90-day outcome` stays on the Roadmap.
+* The weekly review can no longer be opened (to draft) before its last day from Today; the bridge says when it opens (ND-24).
+* `Design.md` §6 describes the new order; styles in `index.css` ("Today v2", and the focus completion block).
+
+**Related.** ND-18, ND-24, ND-29.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 * **OD-3** — Superseded by **ND-19** on 2026-10-07.
@@ -1873,6 +1942,9 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-26 | ND-25 Decided by Mo: a missed key session is swapped onto its receiving day without asking (the question only if the swap is refused); moved steps show the day they came from. |
 | 2026-10-26 | ND-26 Decided by Mo: the landing page is rebuilt around picking a goal, calmer and without invented proof; D-15, D-17 and D-18 marked Superseded. |
 | 2026-10-29 | ND-27 Decided by Mo: a free goal card opens a plan preview (two schedule questions, then the shape of the visitor's 90 days) before sign-up. |
+| 2026-10-26 | ND-28 Decided by Mo: a missed-day reminder email, on by default, sent through Resend, behind `MISSED_DAY_REMINDERS_ENABLED`. |
+| 2026-10-29 | ND-29 Decided by Mo: the Dashboard shows how the person is doing (sessions counted up, goal measure, 90-day map); its Start opens the session on Today in one tap. |
+| 2026-10-29 | ND-30 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
 
 ### PAY-1 — Achivii Pro pricing
 

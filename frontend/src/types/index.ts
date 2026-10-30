@@ -3,6 +3,10 @@ export interface User {
   email: string;
   timezone?: string;
   created_at: string;
+  /** ND-28: the missed-day reminder email; on unless the person turned it off. */
+  remindersEnabled?: boolean;
+  /** ND-28: whether reminder emails are being sent at all (the server's switch and settings); the setting shows only then. */
+  remindersAvailable?: boolean;
 }
 
 export interface AuthResponse {

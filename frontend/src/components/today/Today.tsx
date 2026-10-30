@@ -1,6 +1,6 @@
-import React, { useId, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, ChevronDown, Clock, ExternalLink, Flag, Map as MapIcon, Play, X } from 'lucide-react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ArrowRight, Check, ChevronDown, Clock, ExternalLink, Flag, Play, X } from 'lucide-react';
 import type { DailyTask, Goal } from '../../types';
 import { useGoal } from '../../context/GoalContext';
 import { formatPassIf } from '../../lib/formatters';
@@ -27,8 +27,9 @@ import {
   weekProgress,
   type MissNotice,
 } from '../../lib/today';
-import { Badge, Button, ErrorState, Field, IconButton, LoadingState, Skeleton, StepMarker, Textarea, cx } from '../ui';
+import { Badge, Button, ErrorState, Field, IconButton, LoadingState, Skeleton, Textarea, cx } from '../ui';
 import { FocusSessionModal, type FocusCompletionOptions } from '../FocusSessionModal';
+import type { SessionProgress } from '../focus/FocusCompletion';
 import { BasisBadge } from '../BasisBadge';
 import { WeeklyReviewModal } from '../review';
 import { ClosingStretchView } from './ClosingStretchView';
@@ -81,6 +82,22 @@ const Line: React.FC<{ label: string; children: React.ReactNode }> = ({ label, c
     {children}
   </p>
 );
+
+/** A resource title, linked when its address is a web address. */
+const ResourceLink: React.FC<{ title: string; url?: string | null }> = ({ title, url }) =>
+  isHttpUrl(url) ? (
+    <a
+      href={url!}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="focus-ring inline-flex items-center gap-1 rounded-block font-medium text-text underline decoration-achievement/50 underline-offset-4 hover:decoration-achievement"
+    >
+      <span>{title}</span>
+      <ExternalLink aria-hidden="true" strokeWidth={1.5} className="size-3.5 shrink-0 text-achievement" />
+    </a>
+  ) : (
+    <span className="font-medium text-text">{title}</span>
+  );
 
 /** A guidance note: a thin gold rule and quiet copy, never an alarm. */
 const Callout: React.FC<{ icon?: React.ReactNode; children: React.ReactNode }> = ({ icon, children }) => (
@@ -223,57 +240,31 @@ const DayMark: React.FC<{ task: DailyTask; now: Date; timezone?: string }> = ({ 
   );
 };
 
-/** The current week: done, rest, today and the rest, from real task status. Choosing a day shows its step. */
+/**
+ * The current week: done, rest, today and the rest, from real task status. Each day is a button; choosing one shows its
+ * step (ND-30: no separate "Show week" row).
+ */
 const WeekGlance: React.FC<{
   tasks: DailyTask[];
   selectedId?: string;
   now: Date;
   timezone?: string;
   onSelect: (id: string) => void;
-  onOpenReview: () => void;
-}> = ({ tasks, selectedId, now, timezone, onSelect, onOpenReview }) => {
+}> = ({ tasks, selectedId, now, timezone, onSelect }) => {
   const { practiceDays, practiceDone } = weekProgress(tasks);
-  const [showWeek, setShowWeek] = useState(false);
+  const complete = practiceDays > 0 && practiceDone >= practiceDays;
   return (
-    <section aria-labelledby="week-heading" className="dash-panel animate-rise-in relative mt-10 p-6 sm:p-8" style={stagger(240)}>
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <div>
-          <h2 id="week-heading" className="font-ui-mono text-micro uppercase text-text-secondary">
-            This week
-          </h2>
-          <p className="tabular mt-3 text-body text-text">
-            {practiceDone} of {practiceDays} practice {practiceDays === 1 ? 'day' : 'days'} done
-          </p>
-        </div>
-        <div className="-mr-3 flex items-center">
-          <Button type="button" variant="quiet" size="sm" onClick={onOpenReview}>
-            Review week
-          </Button>
-          <Button
-            type="button"
-            variant="quiet"
-            size="sm"
-            aria-expanded={showWeek}
-            aria-controls="week-glance-days"
-            onClick={() => setShowWeek((value) => !value)}
-          >
-            {showWeek ? 'Hide week' : 'Show week'}
-          </Button>
-        </div>
+    <section aria-labelledby="week-heading" className="dash-panel animate-rise-in relative mt-6 p-5 sm:p-8" style={stagger(240)}>
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 id="week-heading" className="font-ui-mono text-micro uppercase text-text-secondary">
+          This week
+        </h2>
+        <p className={cx('tabular text-small', complete ? 'text-achievement' : 'text-text-secondary')}>
+          {complete ? 'Every session done' : `${practiceDone} of ${practiceDays} practice ${practiceDays === 1 ? 'day' : 'days'} done`}
+        </p>
       </div>
-
-      {!showWeek && (
-        <ol aria-hidden="true" className="mt-7 flex items-start justify-between gap-1">
-          {tasks.map((task) => (
-            <li key={task.id} className="flex flex-col items-center gap-2">
-              <DayMark task={task} now={now} timezone={timezone} />
-              <span className="font-ui-mono text-micro uppercase text-text-secondary">{task.dayOfWeek.slice(0, 3)}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      <ul id="week-glance-days" hidden={!showWeek} className="mt-6 grid grid-cols-7 gap-1">
+      {/* The day buttons reach into the card's side padding on a phone, so each stays a 44 px target at 360 px. */}
+      <ul className="-mx-5 mt-4 grid grid-cols-7 sm:mx-0 sm:mt-5 sm:gap-1">
         {tasks.map((task) => {
           const selected = task.id === selectedId;
           const today = isToday(task, now, timezone);
@@ -292,7 +283,6 @@ const WeekGlance: React.FC<{
               >
                 <span className={cx('font-ui-mono text-micro uppercase', today && 'text-achievement')}>{task.dayOfWeek.slice(0, 3)}</span>
                 <DayMark task={task} now={now} timezone={timezone} />
-                <span className="tabular text-small">{task.date.slice(8)}</span>
               </button>
             </li>
           );
@@ -325,9 +315,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const [focusStart, setFocusStart] = useState<'full' | 'minimum'>('full');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
-  const [showMinimum, setShowMinimum] = useState(false);
-  const [showIntention, setShowIntention] = useState(false);
-  const [showResource, setShowResource] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [openSteps, setOpenSteps] = useState<ReadonlySet<number>>(new Set());
   const [showNotes, setShowNotes] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -339,9 +328,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const { toggleComplete, saveNote, finishFocus } = useTaskActions();
   const planAction = usePlanAction();
   const stepsId = useId();
-  const minimumId = useId();
-  const intentionId = useId();
-  const resourceId = useId();
+  const moreId = useId();
   const notesId = useId();
 
   // Weekly update M1.2b (WU-28): the automatic close's line, once. Dismissing it hides it here at once and records it
@@ -385,6 +372,23 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const done = task?.status === 'completed' && !task.notOffered;
   const nextTask = task ? findNextTask(tasks, task.id) : null;
   const shownNext = nextTask ? visibleDay(nextTask, doneDays) : null;
+  const todayTask = tasks.find((t) => isToday(t, now, timezone)) ?? null;
+  // ND-30: the done line counts every practice session so far, this one included.
+  const sessionNumber = (goal.dailyTasks ?? []).filter((t) => t.status === 'completed' && !isRestLike(t)).length;
+  const moreParts = [shown?.minimumVersion ? 'The 10-minute version' : '', intention ? 'When and where' : '', task?.resourceTitle ? 'Resource' : ''].filter(Boolean);
+  const hasMore = moreParts.length > 0;
+  const weekCount = weekProgress(tasks);
+  // ND-30: what finishing this session adds, for the focus completion screen; none for a day already done or a rest.
+  const sessionProgress: SessionProgress | undefined =
+    task && !done && !isRestLike(task)
+      ? {
+          sessionNumber: sessionNumber + 1,
+          weekDone: weekCount.practiceDone + (tasks.some((t) => t.id === task.id) ? 1 : 0),
+          weekDays: weekCount.practiceDays,
+          days: tasks.map((t) => ({ label: t.dayOfWeek.slice(0, 3), state: t.id === task.id ? 'new' : markState(t, now, timezone) })),
+        }
+      : undefined;
+  const moreLabel = moreParts.join(' · ');
   const parsedNotes = parseTaskNotes(task?.notes);
   const focusWins = parsedNotes.focusWins;
   const draft = task ? drafts[task.id] : undefined;
@@ -411,8 +415,24 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
     setFocusOpen(true);
   };
 
+  // ND-29: the Dashboard's Start link arrives with `startSession`; the session opens at once when today's step can be
+  // started here (not ahead, not done, not a rest day, no swap question waiting). Either way the request is used once.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const startRequested = Boolean((location.state as { startSession?: boolean } | null)?.startSession);
+  const canStartNow = Boolean(task) && viewingToday && !ahead && !done && !task?.isRestDay && !(notice?.kind === 'swap_offer' && autoSwap.status === 'ask');
+  useEffect(() => {
+    if (!startRequested || autoSwap.status === 'moving') return;
+    navigate(location.pathname + location.search, { replace: true, state: null });
+    if (canStartNow) {
+      setFocusStart(gentleReturn ? 'minimum' : 'full');
+      setFocusOpen(true);
+    }
+  }, [startRequested, autoSwap.status, canStartNow, gentleReturn, navigate, location.pathname, location.search]);
+
   const selectDay = (id: string) => {
     setSelectedId(id);
+    setOpenSteps(new Set());
     setActionError(null);
     setNoteError(null);
   };
@@ -468,45 +488,27 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
         </div>
       )}
 
+      {/* ND-30: one line of where you are; the Dashboard holds the progress story, so the step comes first here. */}
       <header className="animate-rise-in relative" style={stagger(0)}>
-        <Eyebrow gold>
-          <span className="tabular">{isClosingStretch ? 'Days 85–90 · Closing Stretch' : `Week ${goal.currentWeek || 1}`}</span>
-          {week?.phase && <> · {week.phase}</>}
-          {week?.theme && <> · {week.theme}</>}
-        </Eyebrow>
-        <h1 className="mt-5 max-w-2xl break-words text-h2 text-text">{goal.rawGoal}</h1>
-        {goal.clarifiedOutcome?.trim() && (
-          <p className="mt-3 max-w-2xl break-words text-body text-text-secondary">
-            <span className="font-medium text-text">90-day outcome: </span>
-            {goal.clarifiedOutcome}
-          </p>
-        )}
+        <p className="tabular font-ui-mono text-micro uppercase text-achievement">
+          <span aria-label={`Day ${day} of ${planDays(goal)}`}>Day {day} of {planDays(goal)}</span>
+          <span aria-hidden="true"> · </span>
+          {isClosingStretch ? 'Closing stretch' : `Week ${goal.currentWeek || 1}`}
+          {week?.phase && !isClosingStretch && <> · {week.phase}</>}
+        </p>
+        <h1 className="mt-3 max-w-2xl break-words text-h3 text-text-secondary">{goal.rawGoal}</h1>
+        <div aria-hidden="true" className="today-thread mt-5">
+          <div className="dash-journey" style={{ '--dash-progress': `${journeyPercent}%` } as React.CSSProperties}>
+            <div className="dash-journey__fill" />
+          </div>
+        </div>
+        {/* B-106: a goal with a fixed date shows it next to the plan's end. */}
+        {dateLine && <p className="mt-3 text-small text-text-secondary">{dateLine}</p>}
         {goal.basis?.label && (
           <div className="mt-4">
             <BasisBadge basis={goal.basis} />
           </div>
         )}
-
-        <div className="mt-12">
-          <p aria-label={`Day ${day} of ${planDays(goal)}`} className="flex items-baseline gap-3">
-            <span className="today-numeral tabular text-numeral text-text">{day}</span>
-            <span className="tabular text-h3 text-text-secondary">/ {planDays(goal)}</span>
-          </p>
-          <div aria-hidden="true" className="mt-6">
-            <div className="dash-journey" style={{ '--dash-progress': `${journeyPercent}%` } as React.CSSProperties}>
-              <div className="dash-journey__fill" />
-            </div>
-            <div className="mt-4 flex items-center justify-between font-ui-mono text-micro uppercase">
-              <span className="text-text-secondary">Day 1</span>
-              <span className="inline-flex items-center gap-2 text-achievement">
-                <StepMarker state="destination" size="sm" />
-                Day {planDays(goal)}
-              </span>
-            </div>
-          </div>
-          {/* B-106: a goal with a fixed date shows it next to the plan's end. */}
-          {dateLine && <p className="mt-4 text-small text-text-secondary">{dateLine}</p>}
-        </div>
       </header>
 
       {/* Weekly update M1.2b (RULE-9): the close couldn't write next week; the plan shows as stored. */}
@@ -589,25 +591,46 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                     {task.isRestDay ? 'Rest logged' : 'Done'}
                   </Badge>
                 )}
-                {task.isRestDay && !done && <Badge>Rest day</Badge>}
-                {task.isKeySession && <Badge tone="achievement">Key session</Badge>}
-                {task.isTestDay && <Badge tone="achievement">Test day</Badge>}
+                {task.isKeySession && !done && <Badge tone="achievement">Key session</Badge>}
+                {task.isTestDay && !done && <Badge tone="achievement">Test day</Badge>}
                 {movedHere && <Badge>{movedHere}</Badge>}
+                {!viewingToday && todayTask && (
+                  <Button variant="quiet" size="sm" className="-my-2 ml-auto" onClick={() => selectDay(todayTask.id)}>
+                    Back to today
+                  </Button>
+                )}
               </div>
 
-              <h2 id="step-heading" className="mt-6 max-w-[24ch] break-words text-h2 text-text">
+              {done && !task.isRestDay && (
+                <div className="today-done-banner mt-7 flex items-center gap-4">
+                  <span className="dash-done-mark" aria-hidden="true">
+                    <Check strokeWidth={2.25} className="size-6" />
+                  </span>
+                  <p className="text-body-lg text-text">
+                    {sessionNumber ? `Session ${sessionNumber} is in the books.` : 'This session is in the books.'}
+                  </p>
+                </div>
+              )}
+
+              <h2 id="step-heading" className={cx('max-w-[24ch] break-words text-h2 text-text', done && !task.isRestDay ? 'mt-6' : 'mt-6')}>
                 {shown.title}
               </h2>
               {/* B-72: a rest day stores 0 minutes; it shows none, not the 30-minute fallback. */}
               {!task.isRestDay && (
                 <p className="tabular mt-4 inline-flex items-center gap-2 text-small text-text-secondary">
                   <Clock aria-hidden="true" strokeWidth={1.5} className="size-4 shrink-0 text-achievement" />
-                  {(gentleReturn && shown.minimumVersion?.durationMinutes) || shown.durationMinutes || 30} min{task.slotTime ? ` · at ${task.slotTime}` : ''}
+                  {[
+                    `${(gentleReturn && shown.minimumVersion?.durationMinutes) || shown.durationMinutes || 30} min`,
+                    steps.length > 0 ? `${steps.length} ${steps.length === 1 ? 'step' : 'steps'}` : '',
+                    task.slotTime ? `at ${task.slotTime}` : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </p>
               )}
               {task.isRestDay && (
                 <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">
-                  Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity.
+                  Nothing to do today. Rest is part of the plan: it's when the practice settles in.
                 </p>
               )}
               {shown.whyToday?.trim() ? <p className="mt-4 max-w-xl text-body leading-7 text-text-secondary">{shown.whyToday}</p> : null}
@@ -634,29 +657,19 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 )
               )}
 
-              {task.isKeySession && (
-                <Callout icon={<Flag aria-hidden="true" strokeWidth={1.5} className="mt-0.5 size-4 shrink-0 text-achievement" />}>
-                  <span className="text-text">
-                    This is your pivotal session for Week {goal.currentWeek || 1}. Focus on execution quality and adherence.
-                  </span>
-                </Callout>
-              )}
-
               {task.isTestDay && (
-                <div className="mt-6 rounded-card border border-border bg-background/50 p-5">
-                  <h3 className="font-ui-mono text-micro uppercase text-achievement">
-                    {isLightTest(week?.test) ? 'Light test' : week?.test?.type ? `${week.test.type} Benchmark` : 'Weekly Benchmark'}
+                <div className="mt-6 rounded-card border border-achievement/25 bg-achievement/[0.04] p-5">
+                  <h3 className="flex items-center gap-2 font-ui-mono text-micro uppercase text-achievement">
+                    <Flag aria-hidden="true" strokeWidth={1.5} className="size-3.5" />
+                    {isLightTest(week?.test) ? "Today's light check" : "Today's check"}
                   </h3>
-                  {week?.test?.instructions && <p className="mt-3 text-small text-text-secondary">{week.test.instructions}</p>}
+                  {week?.test?.instructions && <p className="mt-3 text-body text-text">{week.test.instructions}</p>}
                   {/* M2.1: a light week shows the next check it builds toward, not a pass mark against the target. */}
                   {isLightTest(week?.test) && week?.target && (
-                    <p className="mt-3 text-small text-text">{nextCheckLine(week.weekNumber, week.target, goal)}</p>
+                    <p className="mt-2 text-small text-text-secondary">{nextCheckLine(week.weekNumber, week.target, goal)}</p>
                   )}
                   {week?.test?.passIf && !isLightTest(week.test) && (
-                    <p className="mt-3 text-small text-text">
-                      <span className="font-medium">Pass mark: </span>
-                      <span className="text-text-secondary">{formatPassIf(week.test.passIf)}</span>
-                    </p>
+                    <p className="mt-2 text-small text-text-secondary">{formatPassIf(week.test.passIf)}</p>
                   )}
                 </div>
               )}
@@ -667,83 +680,144 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                 </Callout>
               )}
 
-              {done && (
-                <p className="mt-6 flex items-center gap-2 text-small font-medium text-achievement">
-                  <Check aria-hidden="true" strokeWidth={2} className="size-4 shrink-0" />
-                  {task.isRestDay ? 'Rest logged. Deliberate recovery recorded for today.' : 'Step completed. Deliberate practice logged for today.'}
-                </p>
+              {steps.length > 0 && !done && !task.isRestDay && (
+                <ol aria-label="Steps in this session" className="today-steps mt-8">
+                  {steps.map((step, index) => {
+                    const open = openSteps.has(index);
+                    const from = movedFrom(step, task.id);
+                    return (
+                      <li key={index} className="today-step" data-open={open || undefined}>
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          aria-controls={`${stepsId}-${index}`}
+                          onClick={() =>
+                            setOpenSteps((prev) => {
+                              const next = new Set(prev);
+                              if (open) next.delete(index);
+                              else next.add(index);
+                              return next;
+                            })
+                          }
+                          className="focus-ring group flex min-h-14 w-full cursor-pointer items-center gap-4 rounded-control py-3 text-left"
+                        >
+                          <span className="today-step__num tabular" aria-hidden="true">{step.stepNumber}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-body text-text">{step.title}</span>
+                            {from && <span className="block text-small text-text-secondary">From {from}</span>}
+                          </span>
+                          {step.durationMinutes ? <span className="tabular shrink-0 text-small text-text-secondary">{step.durationMinutes} min</span> : null}
+                          <ChevronDown
+                            aria-hidden="true"
+                            strokeWidth={1.5}
+                            className={cx('size-4 shrink-0 text-text-secondary transition-transform duration-(--duration-base) ease-ascend group-hover:text-achievement', open && 'rotate-180 text-achievement')}
+                          />
+                        </button>
+                        <div id={`${stepsId}-${index}`} hidden={!open} className="pb-5 pl-11">
+                          <StepInstructions step={step} doneDays={doneDays} className="text-small text-text-secondary" />
+                          {step.timing && <Line label="Timing">{step.timing}</Line>}
+                          {step.focusCue && <Line label="Focus">{step.focusCue}</Line>}
+                          {step.output && <Line label="Output">{step.output}</Line>}
+                          {step.pitfallToAvoid && <Line label="Watch out for">{step.pitfallToAvoid}</Line>}
+                          {step.passMark && <Line label="Done when">{step.passMark}</Line>}
+                          {step.resourceTitle && (
+                            <div className="mt-2 text-small">
+                              <span className="text-text-secondary">Resource: </span>
+                              <ResourceLink title={step.resourceTitle} url={step.resourceUrl} />
+                              {step.resourceWhy && <p className="mt-1 text-small text-text-secondary">{step.resourceWhy}</p>}
+                            </div>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
               )}
 
+              {!done && (!task.isRestDay || gentleReturn) && (
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 {ahead && !done && (
                   <p className="text-small text-text-secondary">This step opens on {task.dayOfWeek}. You can read it now and do it on the day.</p>
                 )}
-                {gentleReturn ? (
-                  <>
-                    <Button
-                      variant="gold"
-                      size="lg"
-                      onClick={() => openFocus('minimum')}
-                      leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
-                      className="w-full sm:w-auto sm:min-w-44"
-                    >
-                      Start the 10-minute version
-                    </Button>
-                    <Button variant="secondary" onClick={() => openFocus('full')} className="w-full sm:w-auto">
-                      Start the full session
-                    </Button>
-                  </>
-                ) : (
-                  !task.isRestDay && !ahead && (
-                    <Button
-                      variant={done ? 'secondary' : 'gold'}
-                      size="lg"
-                      onClick={() => openFocus('full')}
-                      leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
-                      className="w-full sm:w-auto sm:min-w-44"
-                    >
-                      Start
-                    </Button>
-                  )
-                )}
-                {offerMinimum && (
+                {!done &&
+                  (gentleReturn ? (
+                    <>
+                      <Button
+                        variant="gold"
+                        size="lg"
+                        onClick={() => openFocus('minimum')}
+                        leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                        className="w-full sm:w-auto sm:min-w-56"
+                      >
+                        Start the 10-minute version
+                      </Button>
+                      <Button variant="secondary" onClick={() => openFocus('full')} className="w-full sm:w-auto">
+                        Start the full session
+                      </Button>
+                    </>
+                  ) : (
+                    !task.isRestDay &&
+                    !ahead && (
+                      <Button
+                        variant="gold"
+                        size="lg"
+                        onClick={() => openFocus('full')}
+                        leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-4" />}
+                        className="w-full sm:w-auto sm:min-w-56"
+                      >
+                        Start
+                      </Button>
+                    )
+                  ))}
+                {offerMinimum && !done && (
                   <Button variant="secondary" onClick={() => openFocus('minimum')} className="w-full sm:w-auto">
                     Start the 10-minute version
                   </Button>
                 )}
-                {!task.notOffered && !(ahead && !done) && (
-                  <Button
-                    variant={task.isRestDay && !done ? 'primary' : 'secondary'}
-                    size={task.isRestDay ? 'lg' : 'md'}
-                    loading={busy}
-                    onClick={onToggle}
-                    leadingIcon={done ? <Check aria-hidden="true" strokeWidth={1.5} className="size-4" /> : undefined}
-                    className="w-full sm:w-auto"
-                  >
-                    {done ? 'Mark not done' : task.isRestDay ? 'Log recovery complete' : 'Mark complete'}
-                  </Button>
-                )}
               </div>
-              {offerMinimum && <p className="mt-3 text-small text-text-secondary">The 10-minute version still counts toward this week.</p>}
+              )}
+              {offerMinimum && !done && <p className="mt-3 text-small text-text-secondary">The 10-minute version still counts toward this week.</p>}
+              {/* The quiet way: a step done without the timer, a rest day logged, or a done day undone. */}
+              {!task.notOffered && !(ahead && !done) && (
+                <div
+                  className={cx(
+                    'flex flex-wrap items-center gap-x-1 gap-y-2 text-small text-text-secondary',
+                    done || task.isRestDay ? '-ml-3 mt-7' : 'mt-4',
+                  )}
+                >
+                  {done && !task.isRestDay && (
+                    <Button variant="quiet" size="sm" onClick={() => openFocus('full')} leadingIcon={<Play aria-hidden="true" strokeWidth={1.5} className="size-3.5" />}>
+                      Do it again
+                    </Button>
+                  )}
+                  {!done && !task.isRestDay && <span>Already did it?</span>}
+                  <Button variant="quiet" size="sm" loading={busy} onClick={onToggle}>
+                    {done ? 'Mark not done' : task.isRestDay ? 'Log your rest' : 'Mark complete'}
+                  </Button>
+                </div>
+              )}
               <p role="alert" className="mt-3 text-small text-danger empty:hidden">
                 {actionError ?? ''}
               </p>
               {viewingToday && <TodayPlanActions goal={goal} action={planAction} now={now} timezone={timezone} />}
 
               {done && firstStep && <FirstStepShare goalText={goal.rawGoal} dayNumber={task.dayNumber} />}
-
               {(done || task.isRestDay) && (
-                <div className="mt-8 rounded-card border border-border bg-background/50 p-5">
+                <div className="today-next mt-8 rounded-card border border-border bg-background/50 p-5 sm:p-6">
                   {nextTask && shownNext ? (
                     <div>
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className="font-ui-mono text-micro uppercase text-achievement">
                           {nextTask.dayNumber === task.dayNumber + 1 ? `Tomorrow · ${nextTask.dayOfWeek}` : `Next practice · ${nextTask.dayOfWeek}`}
                         </span>
-                        <span className="tabular font-ui-mono text-micro text-text-secondary">{shownNext.durationMinutes || 30} min</span>
+                        <span className="flex items-center gap-2">
+                          {nextTask.isTestDay && <Badge tone="achievement">Test day</Badge>}
+                          {nextTask.isKeySession && !nextTask.isTestDay && <Badge tone="achievement">Key session</Badge>}
+                          <span className="tabular font-ui-mono text-micro text-text-secondary">{shownNext.durationMinutes || 30} min</span>
+                        </span>
                       </div>
-                      <h3 className="mt-2 text-body font-medium text-text">{shownNext.title}</h3>
-                      {shownNext.whyToday ? <p className="mt-1 line-clamp-2 text-small text-text-secondary">{shownNext.whyToday}</p> : null}
+                      <h3 className="mt-3 text-h3 text-text">{shownNext.title}</h3>
+                      {shownNext.whyToday ? <p className="mt-2 line-clamp-2 text-small text-text-secondary">{shownNext.whyToday}</p> : null}
                       <div className="-mb-2 mt-3 flex items-center justify-end">
                         <Button
                           variant="quiet"
@@ -758,12 +832,12 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   ) : (
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-small font-medium text-text">Week {goal.currentWeek || 1} practice complete.</p>
+                        <p className="text-body font-medium text-text">Week {goal.currentWeek || 1} practice complete.</p>
                         <p className="mt-0.5 text-small text-text-secondary">
                           {reviewOpensDay ? `Weekly review opens on ${reviewOpensDay}.` : 'Weekly review ready.'}
                         </p>
                       </div>
-                      {!reviewOpensDay && (
+                      {!reviewOpensDay && !reviewDue && (
                         <Button type="button" variant="secondary" size="sm" onClick={() => setReviewOpen(true)}>
                           Start weekly review
                         </Button>
@@ -772,143 +846,83 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
                   )}
                 </div>
               )}
-
               <div className="mt-9 border-t border-border">
-                {steps.length > 0 && (
+                {done && steps.length > 0 && (
                   <Disclosure
                     id={stepsId}
                     open={showSteps}
                     onToggle={() => setShowSteps((value) => !value)}
                     label={showSteps ? 'Hide the steps' : `Show the ${steps.length} ${steps.length === 1 ? 'step' : 'steps'}`}
                   >
-                    <ol className="flex flex-col gap-3">
+                    <ol className="flex flex-col gap-2">
                       {steps.map((step, index) => (
-                        <li key={index} className="rounded-card border border-border bg-background/40 p-4">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <p className="text-small font-medium text-text">
-                              <span className="tabular text-achievement">{step.stepNumber}.</span> {step.title}
-                              {task && movedFrom(step, task.id) && (
-                                <span className="ml-2 font-normal text-text-secondary">From {movedFrom(step, task.id)}</span>
-                              )}
-                            </p>
-                            {step.durationMinutes ? <span className="tabular shrink-0 text-small text-text-secondary">{step.durationMinutes} min</span> : null}
-                          </div>
-                          <StepInstructions step={step} doneDays={doneDays} className="mt-2 text-small text-text-secondary" />
-                          {step.timing && <Line label="Timing">{step.timing}</Line>}
-                          {step.focusCue && <Line label="Focus">{step.focusCue}</Line>}
-                          {step.output && <Line label="Output">{step.output}</Line>}
-                          {step.pitfallToAvoid && <Line label="Pitfall">{step.pitfallToAvoid}</Line>}
-                          {step.passMark && <Line label="Done when">{step.passMark}</Line>}
-                          {step.resourceTitle && (
-                            <div className="mt-2 text-small">
-                              <span className="text-text-secondary">Resource: </span>
-                              {isHttpUrl(step.resourceUrl) ? (
-                                <a
-                                  href={step.resourceUrl!}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="focus-ring inline-flex items-center gap-1 rounded-block font-medium text-text underline decoration-achievement/50 underline-offset-4 hover:decoration-achievement"
-                                >
-                                  <span>{step.resourceTitle}</span>
-                                  <ExternalLink aria-hidden="true" strokeWidth={1.5} className="size-3.5 shrink-0 text-achievement" />
-                                </a>
-                              ) : (
-                                <span className="font-medium text-text">{step.resourceTitle}</span>
-                              )}
-                              {step.resourceWhy && <p className="mt-1 text-small text-text-secondary">{step.resourceWhy}</p>}
-                            </div>
-                          )}
+                        <li key={index} className="flex items-baseline gap-3 text-small">
+                          <span className="tabular text-achievement">{step.stepNumber}.</span>
+                          <span className="min-w-0 flex-1 text-text">{step.title}</span>
+                          {step.durationMinutes ? <span className="tabular shrink-0 text-text-secondary">{step.durationMinutes} min</span> : null}
                         </li>
                       ))}
                     </ol>
                   </Disclosure>
                 )}
-
-                {shown.minimumVersion && (
-                  <Disclosure
-                    id={minimumId}
-                    open={showMinimum}
-                    onToggle={() => setShowMinimum((value) => !value)}
-                    label={showMinimum ? 'Hide the 10-minute version' : 'The 10-minute version'}
-                  >
-                    <div className="rounded-card border border-border bg-background/40 p-4">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <h3 className="text-small font-medium text-text">{shown.minimumVersion.title}</h3>
-                        {shown.minimumVersion.durationMinutes ? (
-                          <span className="tabular shrink-0 text-small text-text-secondary">{shown.minimumVersion.durationMinutes} min</span>
-                        ) : null}
-                      </div>
-                      <StepInstructions step={shown.minimumVersion} doneDays={doneDays} className="mt-2 text-small text-text-secondary" />
-                      {shown.minimumVersion.passMark && <Line label="Done when">{shown.minimumVersion.passMark}</Line>}
-                    </div>
-                  </Disclosure>
-                )}
-
-                {intention && (
-                  <Disclosure
-                    id={intentionId}
-                    open={showIntention}
-                    onToggle={() => setShowIntention((value) => !value)}
-                    label={showIntention ? 'Hide implementation intention' : 'Implementation intention'}
-                  >
-                    <div className="rounded-card border border-border bg-background/40 p-4">
-                      {'raw' in intention ? (
-                        <p className="text-small text-text-secondary">{intention.raw}</p>
-                      ) : (
-                        <dl className="grid grid-cols-1 gap-4 text-small sm:grid-cols-3">
-                          {intention.when ? (
-                            <div>
-                              <dt className="font-ui-mono text-micro uppercase text-achievement">When</dt>
-                              <dd className="mt-1 text-text">{intention.when}</dd>
-                            </div>
-                          ) : null}
-                          {intention.where ? (
-                            <div>
-                              <dt className="font-ui-mono text-micro uppercase text-achievement">Where</dt>
-                              <dd className="mt-1 text-text">{intention.where}</dd>
-                            </div>
-                          ) : null}
-                          {intention.action ? (
-                            <div>
-                              <dt className="font-ui-mono text-micro uppercase text-achievement">Action</dt>
-                              <dd className="mt-1 text-text">{intention.action}</dd>
-                            </div>
-                          ) : null}
-                        </dl>
+                {hasMore && (
+                  <Disclosure id={moreId} open={showMore} onToggle={() => setShowMore((value) => !value)} label={showMore ? 'Less' : moreLabel}>
+                    <div className="flex flex-col gap-6">
+                      {shown.minimumVersion && (
+                        <div>
+                          <Eyebrow>The 10-minute version</Eyebrow>
+                          <div className="mt-2 flex items-baseline justify-between gap-3">
+                            <h3 className="text-small font-medium text-text">{shown.minimumVersion.title}</h3>
+                            {shown.minimumVersion.durationMinutes ? (
+                              <span className="tabular shrink-0 text-small text-text-secondary">{shown.minimumVersion.durationMinutes} min</span>
+                            ) : null}
+                          </div>
+                          <StepInstructions step={shown.minimumVersion} doneDays={doneDays} className="mt-2 text-small text-text-secondary" />
+                          {shown.minimumVersion.passMark && <Line label="Done when">{shown.minimumVersion.passMark}</Line>}
+                        </div>
+                      )}
+                      {intention && (
+                        <div>
+                          <Eyebrow>When and where</Eyebrow>
+                          {'raw' in intention ? (
+                            <p className="mt-2 text-small text-text-secondary">{intention.raw}</p>
+                          ) : (
+                            <dl className="mt-2 grid grid-cols-1 gap-4 text-small sm:grid-cols-3">
+                              {intention.when ? (
+                                <div>
+                                  <dt className="text-text-secondary">When</dt>
+                                  <dd className="mt-1 text-text">{intention.when}</dd>
+                                </div>
+                              ) : null}
+                              {intention.where ? (
+                                <div>
+                                  <dt className="text-text-secondary">Where</dt>
+                                  <dd className="mt-1 text-text">{intention.where}</dd>
+                                </div>
+                              ) : null}
+                              {intention.action ? (
+                                <div>
+                                  <dt className="text-text-secondary">Action</dt>
+                                  <dd className="mt-1 text-text">{intention.action}</dd>
+                                </div>
+                              ) : null}
+                            </dl>
+                          )}
+                        </div>
+                      )}
+                      {task.resourceTitle && (
+                        <div>
+                          <Eyebrow>Resource</Eyebrow>
+                          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2 text-small">
+                            <ResourceLink title={task.resourceTitle} url={task.resourceUrl} />
+                            {task.resourceType && <Badge>{task.resourceType}</Badge>}
+                          </div>
+                          {task.resourceWhy && <p className="mt-2 text-small text-text-secondary">{task.resourceWhy}</p>}
+                        </div>
                       )}
                     </div>
                   </Disclosure>
                 )}
-
-                {task.resourceTitle && (
-                  <Disclosure
-                    id={resourceId}
-                    open={showResource}
-                    onToggle={() => setShowResource((value) => !value)}
-                    label={showResource ? 'Hide resource' : 'Resource'}
-                  >
-                    <div className="rounded-card border border-border bg-background/40 p-4">
-                      <div className="flex flex-wrap items-baseline justify-between gap-2">
-                        {isHttpUrl(task.resourceUrl) ? (
-                          <a
-                            href={task.resourceUrl!}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="focus-ring inline-flex items-center gap-1 rounded-block font-medium text-text underline decoration-achievement/50 underline-offset-4 hover:decoration-achievement"
-                          >
-                            <span>{task.resourceTitle}</span>
-                            <ExternalLink aria-hidden="true" strokeWidth={1.5} className="size-3.5 shrink-0 text-achievement" />
-                          </a>
-                        ) : (
-                          <span className="font-medium text-text">{task.resourceTitle}</span>
-                        )}
-                        {task.resourceType && <Badge>{task.resourceType}</Badge>}
-                      </div>
-                      {task.resourceWhy && <p className="mt-2 text-small text-text-secondary">{task.resourceWhy}</p>}
-                    </div>
-                  </Disclosure>
-                )}
-
                 <Disclosure id={notesId} open={showNotes} onToggle={() => setShowNotes((value) => !value)} label="Notes">
                   {focusWins.length > 0 && (
                     <div className="mb-5">
@@ -958,21 +972,8 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
       )}
 
       {!isClosingStretch && tasks.length > 0 && (
-        <WeekGlance tasks={tasks} selectedId={task?.id} now={now} timezone={timezone} onSelect={selectDay} onOpenReview={() => setReviewOpen(true)} />
+        <WeekGlance tasks={tasks} selectedId={task?.id} now={now} timezone={timezone} onSelect={selectDay} />
       )}
-
-      <nav
-        aria-label="More of your plan"
-        className="animate-rise-in relative mt-10 flex flex-wrap gap-x-2 gap-y-1 border-t border-border pt-6"
-        style={stagger(320)}
-      >
-        <Button asChild variant="quiet" size="sm" leadingIcon={<MapIcon aria-hidden="true" strokeWidth={1.5} className="size-4 text-achievement" />}>
-          <Link to="/roadmap">Roadmap</Link>
-        </Button>
-        <Button type="button" variant="quiet" size="sm" onClick={() => setReviewOpen(true)}>
-          Weekly review
-        </Button>
-      </nav>
 
       {task && (
         <FocusSessionModal
@@ -983,6 +984,7 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           onCompleteSession={onFinishFocus}
           startWith={focusStart}
           doneDays={doneDays}
+          progress={sessionProgress}
           isFirstStep={firstStep}
         />
       )}

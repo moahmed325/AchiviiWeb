@@ -412,7 +412,7 @@ describe('getting ready, a failed close and the line once (RULE-8, RULE-9, WU-28
     expect(alert).toBeVisible();
     expect(screen.getByRole('heading', { level: 1, name: 'Run a 10K' })).toBeVisible();
     // The plan as stored: still week 1.
-    expect(document.querySelector('header')).toHaveTextContent(/^Week 1 · Base · Theme 1/);
+    expect(document.querySelector('header')).toHaveTextContent(/Week 1 · BaseRun a 10K/);
     expect(calls).toEqual(['close:check', 'close', 'reconcile', 'fetch']);
 
     failing = false;
@@ -420,7 +420,7 @@ describe('getting ready, a failed close and the line once (RULE-8, RULE-9, WU-28
     await user.click(within(alert).getByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(screen.queryByText("Couldn't get your next week ready. Please try again.")).not.toBeInTheDocument());
     expect(calls).toEqual(['close:check', 'close', 'reconcile', 'fetch']);
-    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/^Week 2 · Base · Theme 2/));
+    await waitFor(() => expect(document.querySelector('header')).toHaveTextContent(/Week 2 · BaseRun a 10K/));
   });
 
   it('after an automatic close Today shows the line once; dismissing records it', async () => {

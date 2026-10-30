@@ -41,15 +41,12 @@ test.describe('OD-9 States on Today (M5.7)', () => {
 
     const stepCard = main(page).locator('section[aria-labelledby="step-heading"]');
     await expect(stepCard.getByText("Today's rest")).toBeVisible();
-    await expect(stepCard.getByText('Rest day')).toBeVisible();
-    await expect(
-      stepCard.getByText('Rest is where adaptation happens. Take today to recover so you can execute your next session at full intensity.')
-    ).toBeVisible();
+    await expect(stepCard.getByText("Nothing to do today. Rest is part of the plan: it's when the practice settles in.")).toBeVisible();
 
     // Start button is suppressed on rest day
     await expect(stepCard.getByRole('button', { name: 'Start' })).toHaveCount(0);
-    // Log recovery button is present
-    await expect(stepCard.getByRole('button', { name: 'Log recovery complete' })).toBeVisible();
+    // Logging the rest is a quiet option
+    await expect(stepCard.getByRole('button', { name: 'Log your rest' })).toBeVisible();
 
     // Next step preview is visible
     await expect(stepCard.getByText('Tomorrow · Thursday')).toBeVisible();
@@ -65,7 +62,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
     }
   });
 
-  test('key session: displays key session badge and pivotal session callout', async ({ page }) => {
+  test('key session: displays key session badge, without a filler callout (ND-30)', async ({ page }) => {
     const base = shellGoal();
     const keyGoal = {
       ...base,
@@ -77,9 +74,7 @@ test.describe('OD-9 States on Today (M5.7)', () => {
 
     const stepCard = main(page).locator('section[aria-labelledby="step-heading"]');
     await expect(stepCard.getByText('Key session')).toBeVisible();
-    await expect(
-      stepCard.getByText('This is your pivotal session for Week 1. Focus on execution quality and adherence.')
-    ).toBeVisible();
+    await expect(stepCard.getByText(/pivotal session/)).toHaveCount(0);
     await expect(stepCard.getByRole('button', { name: 'Start' })).toBeVisible();
   });
 
@@ -107,9 +102,9 @@ test.describe('OD-9 States on Today (M5.7)', () => {
 
     const stepCard = main(page).locator('section[aria-labelledby="step-heading"]');
     await expect(stepCard.getByText('Test day')).toBeVisible();
-    await expect(stepCard.getByText('Prototype Demo Benchmark')).toBeVisible();
+    await expect(stepCard.getByRole('heading', { level: 3, name: "Today's check" })).toBeVisible();
+    await expect(stepCard.getByText(/Benchmark/)).toHaveCount(0);
     await expect(stepCard.getByText('Walk a real user through the interactive onboarding prototype.')).toBeVisible();
-    await expect(stepCard.getByText('Pass mark:')).toBeVisible();
     await expect(stepCard.getByText('Pass if user completes the flow in under 5 minutes without guidance.')).toBeVisible();
 
     // Zero fake score inputs
@@ -282,7 +277,7 @@ test.describe('Every Today state is clean at 360-412 px (M3.4)', () => {
     {
       name: 'ordinary day, done',
       goal: withTasks({ t3: { status: 'completed' } }),
-      ready: (page) => expect(stepCard(page).getByText('Step completed. Deliberate practice logged for today.')).toBeVisible(),
+      ready: (page) => expect(stepCard(page).getByText(/^Session \d+ is in the books\.$/)).toBeVisible(),
       card: stepCard,
     },
     { name: 'rest day', goal: withTasks({ t3: { isRestDay: true } }), ready: (page) => expect(stepCard(page).getByText("Today's rest")).toBeVisible(), card: stepCard },
