@@ -449,8 +449,9 @@ async function runPlan(spec: GoalSpec, person: Person, length: (typeof LENGTHS)[
     const active = db.state.weeks.filter((w) => w.status === 'active');
     const planOver = db.week(shape.weeks).status === 'completed';
     if (goal.status === 'active' && !planOver && (active.length !== 1 || active[0].weekNumber !== goal.currentWeek)) add(where, `open weeks ${active.map((w) => w.weekNumber).join(',') || 'none'}, current ${goal.currentWeek}`);
-    // The plan never ends after a fixed date (a shorter plan: the day before it), except "Do my final week" (B-106).
-    if (fixedDate && !tookFinalWeek) {
+    // The plan never ends after a fixed date (a shorter plan: the day before it), except "Do my final week" and once the
+    // date has passed while they were away (B-106: no room is kept for a date already gone).
+    if (fixedDate && !tookFinalWeek && today <= dateKey(fixedDate)) {
       const latest = dateKey(addDays(fixedDate, shape.readyWeek === null ? 0 : -1));
       if (dateKey(addDays(goal.targetDate, -1)) > latest) add(where, `plan ends ${dateKey(addDays(goal.targetDate, -1))}, after ${latest}`);
     }

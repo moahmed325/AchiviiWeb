@@ -63,3 +63,8 @@ Mo (2026-10-30): yes to a to d, with (a) changed by section 7.
   Notes ("my knee hurts", "ran out of time") go to the writer word for word, to take into account.
 - **Stored:** `DailyTask.feel` (`too_easy`, `just_right`, `too_hard`, or null), one additive column. The note is `DailyTask.notes`, as today.
 - **Mid-week changes** (adjust the rest of the running week after two "too hard" taps): an idea, I-32, for later.
+
+## 8. Checked (2026-10-30)
+
+- Scenario sweep (`backend/test/scenarioSweep.test.ts`, `SWEEP=full`): 912 whole plans (every custom template and pathway, 19 people, 12 and 7 weeks) through the real routes. All clean; everyone who kept opening the app reached the end; no in-order step lost; the week writer was told exactly the week before (sessions, taps, notes) every time; every pace was used (move on 4,689, repeat 946, smaller step 910, bigger step 823).
+- Backend 1,377 tests, app 844 tests, every e2e spec on desktop and mobile; a code review (high), whose findings were fixed (old goals' stored test text hidden from the Roadmap, the ready week's pace, the typed number kept, notes capped, one feel save at a time).
