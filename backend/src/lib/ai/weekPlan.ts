@@ -126,6 +126,11 @@ export interface WeekDayPlan extends DailyTaskPlan {
   whyToday: string;
   /** The 10-minute step for days the full session won't happen. Null on rest days. */
   minimumVersion: DetailedStep | null;
+  /**
+   * The id the day is saved with, given before code places last week's steps so a step it moves keeps the day it was
+   * written on (`placeHandoff`). Missing: the database gives one.
+   */
+  taskId?: string;
 }
 
 export interface LastWeekSummary {

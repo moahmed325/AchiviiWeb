@@ -75,8 +75,17 @@ export function roadmapWeekRows(goalId: string, roadmap: Roadmap, dailyMinutes: 
 }
 
 /** `notOfferedBefore` (WU-13, M1.4): every row dated before this local date ('YYYY-MM-DD') is stored not offered. */
+/**
+ * A written day's id, given before it is saved (`WeekDayPlan.taskId`): the goal's id and the day of the plan. Unique
+ * (one row per goal and day) and the same every time the week is written, so a retried write names the same days.
+ */
+export function dayTaskId(goalId: string, weekNumber: number, dayOfWeek: number): string {
+  return `${goalId}-d${(weekNumber - 1) * 7 + dayOfWeek}`;
+}
+
 export function dailyTaskRows(goalId: string, weekNumber: number, days: WeekDayPlan[], notOfferedBefore?: string) {
   return days.map((day) => ({
+    ...(day.taskId ? { id: day.taskId } : {}),
     goalId,
     weekNumber,
     dayNumber: (weekNumber - 1) * 7 + day.dayNumber,
@@ -339,6 +348,7 @@ export async function writeNextWeek(
   if (!days) return days;
   // M1.5a review: the goal's load is worked out once (`goalLoad` in `writeWeekAfter`); the line acts only for a high-load goal.
   const back = options.firstWeekBack?.highLoad ? { everyStep: options.firstWeekBack.everyStep } : null;
+  // Each day's id is known before placement, so a step code moves within the new week keeps the day it was written on.
   const placed = handOn && profile ? placeHandedOn(goal.id, next.weekNumber, days, handOn, profile, back) : days;
   if (!back) return placed;
   try {
@@ -406,9 +416,13 @@ function placeHandedOn(
   firstWeekBack: { everyStep: boolean } | null
 ) {
   try {
-    const placement = placeHandoff({ days, handoff: handOn.handoff, profile, lastWeek: handOn.tasks, firstWeekBack });
+    // Each day's id is known before placement, so a step code moves within the new week keeps the day it was written on.
+    const withIds = days.map((day) => ({ ...day, taskId: dayTaskId(goalId, weekNumber, day.dayNumber) }));
+    const placement = placeHandoff({ days: withIds, handoff: handOn.handoff, profile, lastWeek: handOn.tasks, firstWeekBack });
     logWaits(goalId, weekNumber, placement.waiting);
-    return placement.days;
+    // The ids given before placement are kept only when a bumped step names its day by one; otherwise the week is saved
+    // exactly as before (the database gives the ids).
+    return placement.bumped > 0 ? placement.days : placement.days.map(({ taskId: _id, ...day }) => day as WeekDayPlan);
   } catch (err) {
     // Never a new failure for the review: the week is kept as written.
     console.error('[PlanV2] Could not place what last week hands on:', err);

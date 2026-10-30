@@ -358,7 +358,7 @@ describe('code places the carried steps (requirement 3, MR-32 (1), (2))', () => 
     expect(lessonsCarried(weekHandoff({ tasks: withNew, profile: PROFILE }))).toEqual(['Lesson 6', 'Lesson 7', 'Lesson 8', 'Lesson 9', 'Lesson 10']);
   });
 
-  it('a step too long for its session: that session gives its lesson up, and the step takes the next session', () => {
+  it('a step too long for its session: that session gives its lesson up, the step takes the next session, and the new lesson it displaced waits (scenario sweep)', () => {
     const last = storedWeek(1, {
       fri: {
         done: false,
@@ -383,7 +383,9 @@ describe('code places the carried steps (requirement 3, MR-32 (1), (2))', () => 
     // Lesson 4 is 25 minutes: Lesson B's extra and review make room, lowest priority first.
     expect(titles(result.days, 'wed')).toEqual(['Lesson 4']);
     expect(result.days[2].durationMinutes).toBe(25);
-    expect(result.waiting).toEqual([]);
+    // Lesson B was new (the writer was asked for one session for Lesson 4): it is never lost, it waits for next week.
+    expect(result.waiting).toEqual([{ kind: 'lesson', title: 'Lesson B', why: 'sessions_full' }]);
+    expect(result.bumped).toBe(1);
   });
 
   it('a step too long for every session waits; a session whose lesson is its only step is never emptied', () => {
@@ -406,10 +408,14 @@ describe('code places the carried steps (requirement 3, MR-32 (1), (2))', () => 
     expect(result.placed).toEqual([]);
     // Monday's lesson is its day's only step: it is kept, and Wednesday is tried (it gives its lesson up).
     expect(result.gaveUp).toEqual([{ kind: 'lesson', date: '2026-09-23', title: 'Lesson B' }]);
-    expect(result.waiting).toEqual([{ kind: 'lesson', title: 'Lesson 4', why: 'only_step' }]);
+    // Lesson B (new, after the one session asked for) gave its place up: it waits after Lesson 4, never lost.
+    expect(result.waiting).toEqual([
+      { kind: 'lesson', title: 'Lesson 4', why: 'only_step' },
+      { kind: 'lesson', title: 'Lesson B', why: 'only_step' },
+    ]);
     expect(titles(result.days, 'mon')).toEqual(['Lesson A']);
     expect(titles(result.days, 'wed')).toEqual(['Group call']);
-    expect(stepOf(result.days, 'mon', 'Lesson A').toNextWeek!.map((r) => r.step.title)).toEqual(['Lesson 4']);
+    expect(stepOf(result.days, 'mon', 'Lesson A').toNextWeek!.map((r) => r.step.title)).toEqual(['Lesson 4', 'Lesson B']);
   });
 
   it("a session whose only step is too short is skipped, not the end: Tuesday keeps its step, Wednesday and Friday hold 4 and 5, and 6 waits", () => {
@@ -1169,12 +1175,22 @@ function simulate(seed: number, follows: boolean) {
           const onDays = days.flatMap((d) => (d.detailedSteps as CarriedStep[]).filter((s) => s.kind === k && s.shiftedFrom).map((s) => s.title));
           const placedTitles = result.placed.filter((p) => p.kind === k).map((p) => p.title);
           expect(onDays).toEqual(placedTitles);
-          expect(placedTitles).toEqual(carried.slice(0, placedTitles.length).map((s) => s.title));
-          // Nothing lost: the rest wait, in order, as records.
+          const placedCarried = Math.min(placedTitles.length, carried.length);
+          expect(placedTitles.slice(0, placedCarried)).toEqual(carried.slice(0, placedCarried).map((s) => s.title));
+          // Nothing lost: the rest wait, in order, as records; after them, any new step a carried one displaced (sweep fix).
           const recorded = days.flatMap((d) =>
             (d.detailedSteps as CarriedStep[]).flatMap((s) => (s.toNextWeek ?? []).filter((r) => r.step.kind === k).map((r) => r.step.title))
           );
-          expect([...placedTitles, ...recorded]).toEqual(carried.map((s) => s.title));
+          const queue = [...placedTitles, ...recorded];
+          expect(queue.slice(0, carried.length)).toEqual(carried.map((s) => s.title));
+          // Every step of the kind the writer wrote is still there: on its day, moved later in the week, or waiting.
+          const unmoved = days.flatMap((d) => (d.detailedSteps as CarriedStep[]).filter((s) => s.kind === k && !s.shiftedFrom).map((s) => s.title));
+          const gaveUpHere = new Set(result.gaveUp.filter((g) => g.kind === k).map((g) => g.title));
+          for (const w of written.flatMap((d) => (d.detailedSteps as CarriedStep[]).filter((s) => s.kind === k).map((s) => s.title))) {
+            const kept = unmoved.includes(w) || queue.slice(carried.length).includes(w);
+            // A session the writer gave to a carried step (one of the first ones) may give its placeholder up.
+            if (!kept) expect(gaveUpHere.has(w) || result.placed.some((p) => p.kind === k), `${w} lost`).toBe(true);
+          }
           for (const s of carried) {
             if (placedTitles.includes(s.title)) waits.delete(s.title);
             else {

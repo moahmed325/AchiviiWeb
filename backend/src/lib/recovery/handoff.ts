@@ -198,6 +198,8 @@ export const hasHandoff = (handoff: WeekHandoff) => handoff.carried.length > 0 |
 /** The days of the week just written, as `generateWeekPlan` returns them. */
 export interface PlacedDay {
   date: string;
+  /** The id the day will be saved with, when known: the origin of a step this week's placement bumps (see below). */
+  taskId?: string;
   isRestDay: boolean;
   isTestDay: boolean;
   durationMinutes: number;
@@ -223,6 +225,8 @@ export interface HandoffPlacement<T extends PlacedDay> {
   gaveUp: Array<{ kind: string; date: string; title: string }>;
   /** No-room steps of other kinds placed by code (MR-32 (3)). */
   noRoomPlaced: Array<{ kind: string; title: string; date: string }>;
+  /** New steps of an in-order kind that a carried step displaced: each moved one session later, or waits (sweep fix). */
+  bumped: number;
 }
 
 /** Plan safety limits M2.2a review: a step whose load gives `runMinutes` or `runKm` above 0 (`runOf`'s rule). */
@@ -259,6 +263,7 @@ export function placeHandoff<T extends PlacedDay>(input: {
   const waiting: HandoffPlacement<T>['waiting'] = [];
   const gaveUp: HandoffPlacement<T>['gaveUp'] = [];
   const noRoomPlaced: HandoffPlacement<T>['noRoomPlaced'] = [];
+  let bumped = 0;
 
   const recoveryOf = (step: CarriedStep) => actionOf(step, profile);
   const isHard = (step: CarriedStep) => recoveryOf(step)?.hard ?? step.highLoad === true;
@@ -336,10 +341,20 @@ export function placeHandoff<T extends PlacedDay>(input: {
     // Every step of the kind on a practice day, in date then row order. Each is one session.
     const written = (step: CarriedStep) => step.kind === kind && !shiftMarkerOf(step);
     const slots = practiceIndexes.flatMap((at) => rows[at].steps.filter(written).map((step) => ({ at, title: step.title })));
+    // The writer was asked for one session of the kind per carried step (its first ones); the sessions after those hold
+    // new steps. Scenario sweep (2026-10-30): when a carried step had to go past those first sessions (one couldn't take
+    // it), it took a new step's place and the new step was lost. Now a new step it displaces, or that gives its place up,
+    // joins the end of the queue: it moves one session later, in order, and the last one waits for next week.
+    const queue: HandoffStep[] = [...carried];
+    const bump = (at: number, step: CarriedStep) => {
+      bumped += 1;
+      queue.push({ taskId: input.days[at].taskId ?? '', date: input.days[at].date, title: step.title, step: asWritten(step) });
+    };
     let next = 0;
     let keptOnly = false;
-    for (const slot of slots) {
-      const item = carried[next];
+    for (const [slotIndex, slot] of slots.entries()) {
+      const isNewStep = slotIndex >= carried.length;
+      const item = queue[next];
       if (!item) break;
       // M2.2a review: a step that names running waits, with the ones after it (in order), as a step that doesn't fit;
       // no session gives its own step up for it.
@@ -351,6 +366,7 @@ export function placeHandoff<T extends PlacedDay>(input: {
         rows[slot.at] = row;
         placed.push({ kind, title: item.title, date: input.days[slot.at].date });
         next += 1;
+        if (isNewStep) bump(slot.at, current);
         continue;
       }
       const kept = rows[slot.at].steps.filter((step) => step !== current);
@@ -363,9 +379,10 @@ export function placeHandoff<T extends PlacedDay>(input: {
       const minutes = kept.reduce((sum, step) => sum + Math.max(0, step.durationMinutes || 0), 0);
       rows[slot.at] = { steps: keepRecords(rows[slot.at].steps, renumber(kept), 0), durationMinutes: limit > 0 ? Math.min(limit, minutes) : minutes };
       gaveUp.push({ kind, date: input.days[slot.at].date, title: current.title });
+      if (isNewStep) bump(slot.at, current);
     }
     const why = slots.length === 0 ? 'no_session' : keptOnly ? 'only_step' : 'sessions_full';
-    for (const item of carried.slice(next)) {
+    for (const item of queue.slice(next)) {
       waiting.push({ kind, title: item.title, why });
       records.push({ kind, record: { taskId: item.taskId, date: item.date, step: asWritten(item.step) } });
     }
@@ -414,7 +431,7 @@ export function placeHandoff<T extends PlacedDay>(input: {
       ...(text.whyToday !== undefined ? { whyToday: text.whyToday } : {}),
     };
   });
-  return { days, placed, waiting, gaveUp, noRoomPlaced };
+  return { days, placed, waiting, gaveUp, noRoomPlaced, bumped };
 }
 
 /** Requirement 4: what the week writer is told, as plain lines; empty when there is nothing to say. */
