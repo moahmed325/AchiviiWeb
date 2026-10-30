@@ -43,7 +43,7 @@ export const JourneyMap: React.FC<{ days: MapDay[]; summary: string }> = ({ days
         })}
       </div>
       {first && last && (
-        <p aria-hidden="true" className="tabular mt-3 flex justify-between font-ui-mono text-micro text-text-muted">
+        <p aria-hidden="true" className="tabular mt-3 flex justify-between font-ui-mono text-micro text-text-secondary">
           <span>{shortDate(first.date)}</span>
           <span>{shortDate(last.date)}</span>
         </p>
