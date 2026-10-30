@@ -1894,6 +1894,31 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 
 ---
 
+### ND-31 — A calmer app: no glow, one Roadmap page, a plain Pathways dialog
+
+| Field | Value |
+|---|---|
+| Status | Decided |
+| Category | Product |
+| Needed by | — |
+| Raised | 2026-10-30 — Mo: "remove the fact that everything is super glowy", "roadmap and progress can be in one single page", "fix pathway tab it's too much", Today "too much info", the Dashboard's map cells too big and its right-hand box unwanted |
+| Decided | 2026-10-30 — Mo |
+
+**Context.** Every in-app page carried glow: gold halos on marks and buttons, breathing lights, warm light washes and an orb behind cards, a light sweep on done cards, a shiny gold button. The Roadmap repeated the day count and a "You are here" card above a stack of folding phase cards, while the Progress page (a separate menu entry) held a percentage, a phase strip and a hidden history; neither showed the weekly targets or the results against them. The Pathways dialog had an eyebrow, icon tabs, gold cards with a methods line, an empty preview panel and a footer status.
+
+**Decision.**
+* **No glow anywhere in the app.** Gold is a flat colour; raised surfaces keep `shadow-raised`, never a coloured shadow (Design.md §1).
+* **Roadmap and Progress are one page at `/roadmap`** (`/progress` redirects; one menu entry): the goal, the climb (the weekly targets as a staircase with each check), every week by phase with dates, target and what was done, the finish line, and why the plan works. Supersedes ND-8's separate Progress page.
+* **Dashboard:** GitHub-sized map cells; the goal box on the right is removed (the climb lives on the Roadmap).
+* **Pathways dialog:** plain tabs and a plain list (title, summary, daily time), the custom goal beneath; no preview panel, gold cards or footer status.
+* **Today:** no progress line under the header; the week sits under the card without a box.
+
+**Consequences.** `ProgressPage`, `components/progress/`, `StrategicRoadmap`, `GoalProgress`, `PathwayCard`, `PathwayAscent` and their styles are removed. New: `lib/plan.ts` (week rows, `formatMetric`: times as 54:40), `components/journey/Staircase.tsx`.
+
+**Related.** ND-8, ND-29, ND-30.
+
+---
+
 # 5 — SUPERSEDED AND REJECTED
 
 * **OD-3** — Superseded by **ND-19** on 2026-10-07.
@@ -1945,6 +1970,7 @@ The parameter is cleared once consumed. The slugs are the existing pathway `id`s
 | 2026-10-26 | ND-28 Decided by Mo: a missed-day reminder email, on by default, sent through Resend, behind `MISSED_DAY_REMINDERS_ENABLED`. |
 | 2026-10-29 | ND-29 Decided by Mo: the Dashboard shows how the person is doing (sessions counted up, goal measure, 90-day map); its Start opens the session on Today in one tap. |
 | 2026-10-29 | ND-30 Decided by Mo: Today puts the step first (one-line header, steps listed, one Start, a real done state, the focus session's end names the session and the week). |
+| 2026-10-30 | ND-31 Decided by Mo: no glow in the app; Roadmap and Progress are one page; a plain Pathways dialog; GitHub-sized map cells and no goal box on the Dashboard; less on Today. |
 
 ### PAY-1 — Achivii Pro pricing
 

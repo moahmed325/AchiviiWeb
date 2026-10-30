@@ -467,61 +467,15 @@ html:has(.marketing) {
   visibility: hidden !important;
 }
 
-
 /* ============================================================
-   Pathways dialog (premium)
-   Gold is the destination colour (VDS section 2). Here it marks where a pathway ends, the one you have chosen and
-   the way up to it. Same vocabulary as the Progress header: mono eyebrows, a hairline with a glowing segment, soft
-   halos. Motion is slow and upward; the global reduced-motion rule above neutralises all of it.
+   Pathways dialog (ND-31: plain). Direction tabs as words, the active one underlined in gold.
    ============================================================ */
 @layer components {
-  @keyframes ascent-draw {
-    from { stroke-dashoffset: 1; }
-    to { stroke-dashoffset: 0; }
-  }
-
-  @keyframes destination-glow {
-    0%, 100% { filter: drop-shadow(0 0 3px color-mix(in oklab, var(--color-achievement) 35%, transparent)); }
-    50% { filter: drop-shadow(0 0 9px color-mix(in oklab, var(--color-achievement) 80%, transparent)); }
-  }
-
-  /* The dialog surface: a warm light falling from above, a gold hairline on the top edge, and a glowing
-     hairline beside the title that echoes the Progress header. */
   .pathways-dialog {
     --focus-ring-color: var(--color-achievement-hover);
-    background-image:
-      radial-gradient(70% 38% at 50% -6%, color-mix(in oklab, var(--color-achievement) 11%, transparent), transparent 72%),
-      linear-gradient(180deg, color-mix(in oklab, var(--color-text) 2.5%, transparent), transparent 220px);
   }
 
-  .pathways-dialog::before {
-    content: '';
-    position: absolute;
-    inset-inline: 14%;
-    top: -1px;
-    height: 1px;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-achievement) 80%, transparent), transparent);
-  }
-
-  .pathways-dialog [data-slot='header'] > div:first-child {
-    position: relative;
-    padding-left: 1.125rem;
-    border-left: 1px solid color-mix(in oklab, var(--color-achievement) 40%, transparent);
-  }
-
-  .pathways-dialog [data-slot='header'] > div:first-child::before {
-    content: '';
-    position: absolute;
-    left: -1px;
-    top: 0;
-    width: 1px;
-    height: 3rem;
-    background: var(--color-achievement);
-    box-shadow: 0 0 18px 2px color-mix(in oklab, var(--color-achievement) 28%, transparent);
-  }
-
-  /* Direction tabs: the active tab is lit from beneath by a gold line that rises into place. */
+  /* Direction tabs: the active tab is underlined in gold. */
   .pathway-tabs {
     scrollbar-width: none;
   }
@@ -546,7 +500,6 @@ html:has(.marketing) {
     height: 2px;
     border-radius: 9999px;
     background: var(--color-achievement);
-    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 55%, transparent);
     opacity: 0;
     transform: scaleX(0.4);
     transition: opacity 280ms ease, transform 520ms var(--ease-ascend);
@@ -555,259 +508,6 @@ html:has(.marketing) {
   .pathway-tab[data-state='active']::after {
     opacity: 1;
     transform: none;
-  }
-
-  .pathway-tab svg {
-    transition: color var(--duration-quick) ease;
-  }
-
-  .pathway-tab[data-state='active'] svg {
-    color: var(--color-achievement);
-  }
-}
-
-@layer components {
-  /* Pathway card: a quiet architectural surface. Choosing it raises a gold rail up its left edge and lights the mark. */
-  .pathway-card {
-    position: relative;
-    cursor: pointer;
-    padding: 1.125rem 1.25rem 1.125rem 1.375rem;
-    border-radius: var(--radius-card);
-    border: 1px solid var(--color-border);
-    background-color: var(--color-surface);
-    transition: border-color 280ms ease, background-color 280ms ease, box-shadow 520ms var(--ease-ascend);
-  }
-
-  .pathway-card:hover {
-    border-color: var(--color-border-strong);
-    background-color: var(--color-surface-elevated);
-  }
-
-  .pathway-card::before {
-    content: '';
-    position: absolute;
-    left: -1px;
-    top: 1rem;
-    bottom: 1rem;
-    width: 2px;
-    border-radius: 2px;
-    background: linear-gradient(to top, color-mix(in oklab, var(--color-achievement) 35%, transparent), var(--color-achievement));
-    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 45%, transparent);
-    transform: scaleY(0);
-    transform-origin: bottom;
-    transition: transform 620ms var(--ease-ascend);
-  }
-
-  .pathway-card:has(input:checked) {
-    border-color: color-mix(in oklab, var(--color-achievement) 55%, transparent);
-    background-color: var(--color-surface-elevated);
-    background-image: linear-gradient(135deg, color-mix(in oklab, var(--color-achievement) 9%, transparent), transparent 60%);
-    box-shadow:
-      0 0 0 1px color-mix(in oklab, var(--color-achievement) 16%, transparent),
-      0 24px 48px -28px color-mix(in oklab, var(--color-achievement) 50%, transparent);
-  }
-
-  .pathway-card:has(input:checked)::before {
-    transform: scaleY(1);
-  }
-
-  .pathway-card:has(input:focus-visible) {
-    outline: 2px solid var(--focus-ring-color);
-    outline-offset: 2px;
-  }
-
-  .pathway-card__mark {
-    display: flex;
-    width: 1.375rem;
-    height: 1.375rem;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    border: 1px solid var(--color-border-control);
-    color: var(--color-text-on-inverse);
-    transition: background-color 280ms ease, border-color 280ms ease, box-shadow 420ms ease;
-  }
-
-  .pathway-card__mark > svg {
-    opacity: 0;
-    transform: scale(0.6);
-    transition: opacity 200ms ease, transform 360ms var(--ease-ascend);
-  }
-
-  .pathway-card:has(input:checked) .pathway-card__mark {
-    background-color: var(--color-achievement);
-    border-color: var(--color-achievement);
-    box-shadow: 0 0 16px 1px color-mix(in oklab, var(--color-achievement) 45%, transparent);
-  }
-
-  .pathway-card:has(input:checked) .pathway-card__mark > svg {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@layer components {
-  /* The ascent: where a pathway ends, and the three flights that climb there. Light gathers toward the top. */
-  .pathway-ascent {
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--radius-panel);
-    border: 1px solid color-mix(in oklab, var(--color-achievement) 24%, transparent);
-    background-color: var(--color-surface);
-    background-image:
-      radial-gradient(90% 70% at 100% 0%, color-mix(in oklab, var(--color-achievement) 14%, transparent), transparent 62%),
-      linear-gradient(180deg, color-mix(in oklab, var(--color-text) 3%, transparent), transparent 40%);
-    box-shadow: var(--shadow-raised);
-  }
-
-  .pathway-ascent--empty {
-    border-color: var(--color-border);
-    background-image: linear-gradient(180deg, color-mix(in oklab, var(--color-text) 2%, transparent), transparent 50%);
-  }
-
-  .pathway-ascent--empty .pathway-ascent__stairs {
-    opacity: 0.35;
-  }
-
-  .pathway-ascent--empty .pathway-ascent__stairs path {
-    stroke: var(--color-text-secondary);
-    animation: none;
-    stroke-dashoffset: 0;
-    opacity: 0.6;
-  }
-
-  .pathway-ascent--empty .pathway-ascent__stairs circle {
-    fill: var(--color-text-secondary);
-    animation: none;
-  }
-
-  .pathway-ascent__stairs {
-    position: absolute;
-    right: 1.25rem;
-    top: 1.5rem;
-    width: 5.5rem;
-    height: auto;
-    overflow: visible;
-    pointer-events: none;
-  }
-
-  .pathway-ascent__stairs path {
-    fill: none;
-    stroke: var(--color-achievement);
-    stroke-width: 1;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-dasharray: 1;
-    opacity: 0.6;
-    animation: ascent-draw 1600ms var(--ease-ascend) 120ms both;
-  }
-
-  .pathway-ascent__stairs circle {
-    fill: var(--color-achievement);
-    animation: destination-glow 3.6s ease-in-out infinite;
-  }
-
-  .pathway-ascent__dest {
-    animation: destination-glow 3.6s ease-in-out infinite;
-  }
-
-  /* One continuous rail through the destination and the three flights, brightest at the top. Each row draws its own
-     segment, so the rail needs no measuring. Rows are spaced with padding so the segments touch. */
-  .pathway-ascent__row {
-    position: relative;
-  }
-
-  .pathway-ascent__row::before {
-    content: '';
-    position: absolute;
-    left: 11.5px;
-    top: 0;
-    bottom: 0;
-    width: 1px;
-    background: linear-gradient(
-      to bottom,
-      color-mix(in oklab, var(--color-achievement) var(--rail-from, 40%), transparent),
-      color-mix(in oklab, var(--color-achievement) var(--rail-to, 40%), transparent)
-    );
-  }
-
-  .pathway-ascent__row[data-rung='destination'] { --rail-from: 90%; --rail-to: 72%; }
-  .pathway-ascent__row[data-rung='destination']::before { top: 14px; }
-  .pathway-ascent__row[data-rung='peak'] { --rail-from: 72%; --rail-to: 50%; }
-  .pathway-ascent__row[data-rung='rise'] { --rail-from: 50%; --rail-to: 30%; }
-  .pathway-ascent__row[data-rung='base'] { --rail-from: 30%; --rail-to: 30%; }
-  .pathway-ascent__row[data-rung='base']::before { bottom: auto; height: 14px; }
-
-  .pathway-ascent__marker {
-    position: absolute;
-    left: 0;
-    top: 0;
-    display: flex;
-    width: 1.5rem;
-    height: 1.5rem;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* A milestone: a small diamond. The last flight is filled and lit, because it is where the climb tops out. */
-  .pathway-ascent__diamond {
-    display: block;
-    width: 0.5625rem;
-    height: 0.5625rem;
-    transform: rotate(45deg);
-    border: 1px solid color-mix(in oklab, var(--color-achievement) 75%, transparent);
-    background-color: var(--color-background);
-  }
-
-  .pathway-ascent__diamond.is-final {
-    border-color: var(--color-achievement);
-    background-color: var(--color-achievement);
-    box-shadow: 0 0 10px 2px color-mix(in oklab, var(--color-achievement) 38%, transparent);
-  }
-}
-
-@layer components {
-  /* Custom Journey: the open door beside the certified pathways. Same gold, warmer and quieter. */
-  .pathway-custom {
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--radius-panel);
-    border: 1px solid color-mix(in oklab, var(--color-achievement) 26%, transparent);
-    background-color: color-mix(in oklab, var(--color-surface) 70%, transparent);
-    background-image: linear-gradient(120deg, color-mix(in oklab, var(--color-achievement) 12%, transparent), transparent 58%);
-    transition: border-color 420ms ease, box-shadow 520ms var(--ease-ascend);
-  }
-
-  .pathway-custom:hover {
-    border-color: color-mix(in oklab, var(--color-achievement) 50%, transparent);
-    box-shadow: 0 24px 56px -32px color-mix(in oklab, var(--color-achievement) 55%, transparent);
-  }
-
-  /* Gold call to action: used where the next step is arrival, not routine. A slow sheen crosses it on hover. */
-  .btn-gold {
-    overflow: hidden;
-    box-shadow:
-      0 0 0 1px color-mix(in oklab, var(--color-achievement) 55%, transparent),
-      0 14px 34px -14px color-mix(in oklab, var(--color-achievement) 70%, transparent);
-  }
-
-  .btn-gold::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.38) 50%, transparent 65%);
-    transform: translateX(-120%);
-    transition: transform 900ms var(--ease-ascend);
-  }
-
-  .btn-gold:hover:not(:disabled)::after {
-    transform: translateX(120%);
-  }
-
-  .btn-gold:disabled {
-    box-shadow: none;
   }
 }
 
@@ -820,20 +520,6 @@ html:has(.marketing) {
 @layer components {
   @keyframes dash-grow {
     from { width: 0; }
-  }
-
-  @keyframes dash-breathe {
-    0%, 100% { box-shadow: 0 0 8px 1px color-mix(in oklab, var(--color-achievement) 40%, transparent); }
-    50% { box-shadow: 0 0 18px 4px color-mix(in oklab, var(--color-achievement) 65%, transparent); }
-  }
-
-  /* Warm light falling from above the header. Decorative, sits behind the content. */
-  .dash-glow {
-    position: absolute;
-    inset: -2rem 0 auto 0;
-    height: 30rem;
-    pointer-events: none;
-    background: radial-gradient(60% 60% at 50% 0%, color-mix(in oklab, var(--color-achievement) 12%, transparent), transparent 72%);
   }
 
   /* The journey hairline: 90 days, filled in gold up to today. */
@@ -851,7 +537,6 @@ html:has(.marketing) {
     width: var(--dash-progress, 0%);
     border-radius: 9999px;
     background: linear-gradient(90deg, color-mix(in oklab, var(--color-achievement) 12%, transparent), var(--color-achievement));
-    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 45%, transparent);
     animation: dash-grow 1500ms var(--ease-ascend) 240ms backwards;
   }
 
@@ -865,7 +550,6 @@ html:has(.marketing) {
     border-radius: 9999px;
     transform: translate(50%, -50%);
     background: var(--color-achievement);
-    animation: dash-breathe 3.6s ease-in-out infinite;
   }
 
   /* The next session: the one lit surface on the page. */
@@ -875,20 +559,6 @@ html:has(.marketing) {
     border-radius: var(--radius-panel);
     border: 1px solid color-mix(in oklab, var(--color-achievement) 28%, transparent);
     background-color: var(--color-surface);
-    background-image:
-      radial-gradient(80% 70% at 100% 0%, color-mix(in oklab, var(--color-achievement) 15%, transparent), transparent 62%),
-      linear-gradient(180deg, color-mix(in oklab, var(--color-text) 3%, transparent), transparent 42%);
-    box-shadow: var(--shadow-raised), 0 34px 80px -50px color-mix(in oklab, var(--color-achievement) 60%, transparent);
-  }
-
-  .dash-card::before {
-    content: '';
-    position: absolute;
-    inset-inline: 12%;
-    top: -1px;
-    height: 1px;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-achievement) 85%, transparent), transparent);
   }
 
   .dash-panel {
@@ -916,12 +586,10 @@ html:has(.marketing) {
   .dash-day[data-state='completed'] {
     background-color: var(--color-achievement);
     border-color: var(--color-achievement);
-    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 42%, transparent);
   }
 
   .dash-day[data-state='today'] {
     border-color: var(--color-achievement);
-    box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-achievement) 16%, transparent);
   }
 
   .dash-day[data-state='rest'] {
@@ -1113,60 +781,16 @@ html:has(.marketing) {
 }
 
 /* ============================================================
-   Landing page: the gold button
-   ============================================================ */
-.btn-gold {
-  position: relative;
-  overflow: hidden;
-  background-image: linear-gradient(180deg, #e8d3a0 0%, #c8a96b 58%, #b39358 100%);
-  color: #0b0b0a;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.38),
-    0 10px 30px -12px rgba(200, 169, 107, 0.6);
-}
-
-.btn-gold::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(110deg, transparent 32%, rgba(255, 255, 255, 0.5) 50%, transparent 68%);
-  transform: translateX(-130%);
-  transition: transform 0.9s var(--ease-ascend);
-  pointer-events: none;
-}
-
-.btn-gold:hover {
-  filter: brightness(1.06);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 16px 44px -10px rgba(218, 196, 139, 0.75);
-}
-
-.btn-gold:hover::after {
-  transform: translateX(130%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .btn-gold::after {
-    display: none;
-  }
-}
-
-/* ============================================================
    Today. It borrows the Dashboard's vocabulary (dash-card, dash-panel, dash-day, dash-journey), so the two pages read
    as one product. Two additions only: a warm glow behind the day numeral, and a brighter light on the step card once
    the step is done. Quiet confirmation, no confetti (BP 18). Reduced motion is handled by the global rule above.
    ============================================================ */
 @layer components {
   .today-numeral {
-    text-shadow: 0 0 56px color-mix(in oklab, var(--color-achievement) 30%, transparent);
   }
 
   .dash-card.today-done {
     border-color: color-mix(in oklab, var(--color-achievement) 48%, transparent);
-    background-image:
-      radial-gradient(90% 80% at 100% 0%, color-mix(in oklab, var(--color-achievement) 22%, transparent), transparent 62%),
-      linear-gradient(180deg, color-mix(in oklab, var(--color-text) 3%, transparent), transparent 42%);
     transition: border-color 600ms var(--ease-ascend);
   }
 }
@@ -1193,7 +817,6 @@ html:has(.marketing) {
 
   .road-week[data-state='current'] {
     background-color: var(--color-achievement-hover);
-    animation: dash-breathe 3.6s ease-in-out infinite;
   }
 
   /* Weekly update M1.5b (WU-40 (1)): a jumped week, outlined with no fill, so it never reads as done. */
@@ -1222,7 +845,6 @@ html:has(.marketing) {
 
   .road-row[data-status='completed']::before {
     background: color-mix(in oklab, var(--color-achievement) 70%, transparent);
-    box-shadow: 0 0 10px 0 color-mix(in oklab, var(--color-achievement) 30%, transparent);
   }
 
   .road-row[data-status='active']::before {
@@ -1251,12 +873,10 @@ html:has(.marketing) {
   .road-row[data-status='completed'] .road-node {
     background-color: var(--color-achievement);
     border-color: var(--color-achievement);
-    box-shadow: 0 0 14px 1px color-mix(in oklab, var(--color-achievement) 40%, transparent);
   }
 
   .road-row[data-status='active'] .road-node {
     border-color: var(--color-achievement);
-    animation: dash-breathe 3.6s ease-in-out infinite;
   }
 
   .road-row[data-status='active'] .road-node::after {
@@ -1275,7 +895,6 @@ html:has(.marketing) {
     border: 0;
     background: transparent;
     box-shadow: none !important;
-    animation: destination-glow 3.6s ease-in-out infinite !important;
   }
 
   .road-node--destination::after { content: none !important; }
@@ -1297,7 +916,6 @@ html:has(.marketing) {
   .road-row[data-status='active'] .road-card {
     border-color: color-mix(in oklab, var(--color-achievement) 45%, transparent);
     background-image: linear-gradient(135deg, color-mix(in oklab, var(--color-achievement) 9%, transparent), transparent 60%);
-    box-shadow: var(--shadow-raised), 0 26px 56px -36px color-mix(in oklab, var(--color-achievement) 55%, transparent);
   }
 
   .road-detail {
@@ -1320,11 +938,6 @@ html:has(.marketing) {
     from { opacity: 0; }
   }
 
-  @keyframes dash-orb {
-    0%, 100% { opacity: 0.55; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.08); }
-  }
-
   /* The day ring: the page's focal point. Gold arc drawn up to today, a glowing head where the user stands. */
   .dash-ring__track,
   .dash-ring__arc {
@@ -1341,32 +954,14 @@ html:has(.marketing) {
     stroke-linecap: round;
     stroke-dasharray: var(--ring-c);
     stroke-dashoffset: var(--ring-offset);
-    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--color-achievement) 45%, transparent));
     animation: dash-ring-draw 1700ms var(--ease-ascend) 300ms backwards;
   }
 
   .dash-ring__head {
     fill: var(--color-achievement-hover);
-    animation: dash-fade-in 500ms ease 1800ms backwards, destination-glow 3.6s ease-in-out 2300ms infinite;
+    animation: dash-fade-in 500ms ease 1800ms backwards;
   }
 
-  /* A warm orb behind the next-session card. Sits under the content and breathes slowly. */
-  .dash-card--glow > * {
-    position: relative;
-  }
-
-  .dash-card--glow::after {
-    content: '';
-    position: absolute;
-    right: -5rem;
-    top: -6rem;
-    width: 20rem;
-    height: 20rem;
-    border-radius: 9999px;
-    pointer-events: none;
-    background: radial-gradient(closest-side, color-mix(in oklab, var(--color-achievement) 22%, transparent), transparent);
-    animation: dash-orb 7s ease-in-out infinite;
-  }
 }
 
 /* ============================================================
@@ -1377,14 +972,8 @@ html:has(.marketing) {
 @layer components {
   @keyframes dash-cell-light {
     0% { opacity: 0; transform: scale(0.4); }
-    60% { opacity: 1; transform: scale(1.18); box-shadow: 0 0 14px 2px color-mix(in oklab, var(--color-achievement) 70%, transparent); }
+    60% { opacity: 1; transform: scale(1.12); }
     100% { opacity: 1; transform: scale(1); }
-  }
-
-  @keyframes dash-count-glow {
-    0% { text-shadow: 0 0 0 transparent; }
-    40% { text-shadow: 0 0 48px color-mix(in oklab, var(--color-achievement) 75%, transparent); }
-    100% { text-shadow: 0 0 36px color-mix(in oklab, var(--color-achievement) 28%, transparent); }
   }
 
   @keyframes dash-line-draw {
@@ -1398,13 +987,10 @@ html:has(.marketing) {
   }
 
   .dash-count {
-    text-shadow: 0 0 36px color-mix(in oklab, var(--color-achievement) 28%, transparent);
-    animation: dash-count-glow 1600ms var(--ease-ascend) 200ms backwards;
   }
 
   .dash-gain {
     background-color: color-mix(in oklab, var(--color-achievement) 12%, transparent);
-    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-achievement) 35%, transparent);
     animation: dash-pop 520ms var(--ease-ascend) 1300ms backwards;
   }
 
@@ -1417,36 +1003,24 @@ html:has(.marketing) {
     border-radius: 9999px;
     background-color: var(--color-achievement);
     color: var(--color-text-on-inverse);
-    box-shadow: 0 0 28px 2px color-mix(in oklab, var(--color-achievement) 45%, transparent);
     animation: dash-pop 620ms var(--ease-ascend) 260ms backwards;
   }
 
   /* The 90-day map: a column per week (13: twelve weeks and the closing six days), a cell per day. */
-  .dash-map,
-  .dash-map__phases {
-    display: grid;
-    grid-template-columns: repeat(var(--map-cols, 13), minmax(0, 1.75rem));
-    column-gap: 0.3rem;
-    justify-content: space-between;
-  }
-
-  @media (min-width: 768px) {
-    .dash-map,
-    .dash-map__phases {
-      justify-content: end;
-    }
-  }
-
+  /* GitHub-sized cells: small squares, a three-pixel gap, a column per week. */
   .dash-map {
+    display: grid;
+    width: max-content;
     grid-auto-flow: column;
-    grid-template-rows: repeat(7, auto);
-    row-gap: 0.3rem;
+    grid-template-columns: repeat(var(--map-cols, 13), var(--map-cell));
+    grid-template-rows: repeat(7, var(--map-cell));
+    gap: 3px;
+    --map-cell: 0.75rem;
   }
 
   .dash-map__cell {
     display: block;
-    aspect-ratio: 1;
-    border-radius: 0.25rem;
+    border-radius: 2px;
     background-color: color-mix(in oklab, var(--color-text) 5%, transparent);
   }
 
@@ -1467,13 +1041,14 @@ html:has(.marketing) {
     background-image: radial-gradient(circle, color-mix(in oklab, var(--color-text) 22%, transparent) 0 1.5px, transparent 2px);
   }
 
+  /* Today: a crisp gold outline, no glow. */
   .dash-map__cell[data-today] {
-    box-shadow: 0 0 0 2px var(--color-background), 0 0 0 3.5px var(--color-achievement);
+    outline: 1.5px solid var(--color-achievement);
+    outline-offset: 1px;
   }
 
   .dash-map__cell[data-state='today'] {
     background-color: color-mix(in oklab, var(--color-achievement) 22%, transparent);
-    animation: dash-breathe 3.6s ease-in-out infinite;
   }
 
   /* The goal's line: better is always up. Drawn on arrival; the stretch still ahead is a quiet dashed line. */
@@ -1510,7 +1085,6 @@ html:has(.marketing) {
     fill: var(--color-achievement);
     stroke: var(--color-surface);
     stroke-width: 2;
-    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--color-achievement) 70%, transparent));
     animation: dash-pop 520ms var(--ease-ascend) 1500ms backwards;
     transform-box: fill-box;
     transform-origin: center;
@@ -1530,10 +1104,6 @@ html:has(.marketing) {
    Tokens only; the global reduced-motion rule makes every animation here near-instant.
    ============================================================ */
 @layer components {
-  @keyframes today-sweep {
-    from { transform: translateX(-120%); }
-    to { transform: translateX(120%); }
-  }
 
   .today-thread .dash-journey__fill::after {
     width: 0.375rem;
@@ -1581,7 +1151,6 @@ html:has(.marketing) {
     pointer-events: none;
     background: linear-gradient(100deg, transparent 30%, color-mix(in oklab, var(--color-achievement) 14%, transparent) 50%, transparent 70%);
     transform: translateX(120%);
-    animation: today-sweep 1400ms var(--ease-ascend) 200ms backwards;
   }
 
   .today-next {
@@ -1593,7 +1162,7 @@ html:has(.marketing) {
 @layer components {
   @keyframes focus-day-light {
     0% { transform: scale(0.4); background-color: transparent; }
-    60% { transform: scale(1.25); box-shadow: 0 0 22px 4px color-mix(in oklab, var(--color-achievement) 70%, transparent); }
+    60% { transform: scale(1.18); }
     100% { transform: scale(1); }
   }
 
@@ -1606,11 +1175,130 @@ html:has(.marketing) {
     border-radius: 9999px;
     background-color: var(--color-achievement);
     color: var(--color-text-on-inverse);
-    box-shadow: 0 0 48px 6px color-mix(in oklab, var(--color-achievement) 38%, transparent);
     animation: dash-pop 680ms var(--ease-ascend) 120ms backwards;
   }
 
   .focus-done .dash-day[data-new] {
     animation: focus-day-light 700ms var(--ease-ascend) 900ms backwards;
+  }
+}
+
+/* ============================================================
+   Roadmap v3 (ND-31): one page for the plan and how it is going. The staircase draws in once and each check pops in;
+   no glow anywhere. Tokens only; the global reduced-motion rule makes it all near-instant.
+   ============================================================ */
+@layer components {
+  @keyframes stair-draw {
+    from { stroke-dashoffset: 1; }
+  }
+
+  @keyframes stair-dot-in {
+    from { opacity: 0; transform: scale(0.3); }
+  }
+
+  .stair__band {
+    fill: color-mix(in oklab, var(--color-text) 3%, transparent);
+  }
+
+  .stair__phase,
+  .stair__axis,
+  .stair__now-label {
+    fill: var(--color-text-secondary);
+    font-family: var(--font-ui-mono);
+    font-size: 11px;
+  }
+
+  .stair__axis--goal,
+  .stair__goal {
+    fill: var(--color-achievement);
+  }
+
+  .stair__goal {
+    font-family: var(--font-ui-mono);
+    font-size: 11px;
+  }
+
+  .stair__now {
+    stroke: var(--color-text-secondary);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+  }
+
+  .stair__steps {
+    fill: none;
+    stroke: color-mix(in oklab, var(--color-achievement) 70%, transparent);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    animation: stair-draw 1400ms var(--ease-ascend) 200ms backwards;
+  }
+
+  .stair__start {
+    fill: var(--color-surface);
+    stroke: var(--color-text-secondary);
+    stroke-width: 1.5;
+  }
+
+  .stair__dot {
+    fill: var(--color-surface);
+    stroke: var(--color-achievement);
+    stroke-width: 2;
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: stair-dot-in 420ms var(--ease-ascend) backwards;
+  }
+
+  .stair__dot--met {
+    fill: var(--color-achievement);
+    stroke: var(--color-surface);
+  }
+
+  .stair-key {
+    display: inline-block;
+    width: 0.625rem;
+    height: 0.625rem;
+    border-radius: 9999px;
+    border: 2px solid var(--color-achievement);
+  }
+
+  .stair-key--met {
+    background-color: var(--color-achievement);
+  }
+
+  .stair-key--line {
+    width: 1rem;
+    height: 2px;
+    border: 0;
+    border-radius: 0;
+    background-color: color-mix(in oklab, var(--color-achievement) 70%, transparent);
+  }
+
+  /* One row per week: what it was for on the left, what happened on the right. */
+  .road-week-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    padding: 1rem 0 1rem 0.875rem;
+    border-bottom: 1px solid var(--color-border);
+    border-left: 2px solid transparent;
+  }
+
+  .road-week-row[data-state='current'] {
+    border-left-color: var(--color-achievement);
+    background-color: color-mix(in oklab, var(--color-achievement) 5%, transparent);
+  }
+
+  .road-week-row__side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.125rem;
+    text-align: right;
+  }
+
+  .road-finish {
+    border-radius: var(--radius-panel);
+    border: 1px solid color-mix(in oklab, var(--color-achievement) 30%, transparent);
+    background-color: var(--color-surface);
   }
 }

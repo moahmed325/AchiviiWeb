@@ -47,7 +47,7 @@ describe('PathwaysExplorerModal', () => {
   it('switches from the current goal to another pathway with the switch launch state', async () => {
     renderScreen({ activeGoalTitle: 'Build & Ship a SaaS Web App' });
     const dialog = await open();
-    expect(dialog).toHaveAccessibleDescription(/Your current journey stays as it is until you finish setting up a new one\./);
+    expect(dialog).toHaveAccessibleDescription('Pick a new goal. Your current plan stays as it is until you start the new one.');
     expect(screen.getByRole('tab', { name: 'Business' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('radio', { name: 'Build & Ship a SaaS Web App' })).toHaveAccessibleDescription(/^Current pathway/);
     expect(screen.getByRole('button', { name: /Restart this pathway/ })).toBeEnabled();
@@ -77,7 +77,7 @@ describe('PathwaysExplorerModal', () => {
   it('offers to start, not switch, when there is no goal', async () => {
     renderScreen();
     const dialog = await open();
-    expect(dialog).toHaveAccessibleDescription('Each pathway is a guided 90-day journey, planned around your life.');
+    expect(dialog).toHaveAccessibleDescription('Pick a goal to start your plan.');
     expect(screen.getByRole('button', { name: /Start this pathway/ })).toBeInTheDocument();
     expect(screen.queryByText(/Current pathway/)).not.toBeInTheDocument();
   });

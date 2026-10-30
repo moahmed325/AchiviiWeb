@@ -254,7 +254,7 @@ const WeekGlance: React.FC<{
   const { practiceDays, practiceDone } = weekProgress(tasks);
   const complete = practiceDays > 0 && practiceDone >= practiceDays;
   return (
-    <section aria-labelledby="week-heading" className="dash-panel animate-rise-in relative mt-6 p-5 sm:p-8" style={stagger(240)}>
+    <section aria-labelledby="week-heading" className="animate-rise-in relative mt-8 px-1" style={stagger(240)}>
       <div className="flex items-baseline justify-between gap-4">
         <h2 id="week-heading" className="font-ui-mono text-micro uppercase text-text-secondary">
           This week
@@ -263,8 +263,7 @@ const WeekGlance: React.FC<{
           {complete ? 'Every session done' : `${practiceDone} of ${practiceDays} practice ${practiceDays === 1 ? 'day' : 'days'} done`}
         </p>
       </div>
-      {/* The day buttons reach into the card's side padding on a phone, so each stays a 44 px target at 360 px. */}
-      <ul className="-mx-5 mt-4 grid grid-cols-7 sm:mx-0 sm:mt-5 sm:gap-1">
+      <ul className="-mx-1 mt-3 grid grid-cols-7 sm:gap-1">
         {tasks.map((task) => {
           const selected = task.id === selectedId;
           const today = isToday(task, now, timezone);
@@ -367,7 +366,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
   const intention = parseIntention(shown?.implementationIntention);
   const week = currentRoadmapWeek(goal);
   const day = dayNumber(goal, now, timezone);
-  const journeyPercent = Math.min(100, Math.max(2, Math.round((day / planDays(goal)) * 100)));
   // A day not offered is never done here (the server never classifies it done).
   const done = task?.status === 'completed' && !task.notOffered;
   const nextTask = task ? findNextTask(tasks, task.id) : null;
@@ -475,7 +473,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
 
   return (
     <main id="main" className="ui-root relative mx-auto w-full max-w-3xl flex-1 px-gutter py-10 text-left sm:py-14">
-      <div aria-hidden="true" className="dash-glow" />
       <PathwayNotice />
 
       {apiStatus === 'offline' && (
@@ -497,11 +494,6 @@ export const Today: React.FC<TodayProps> = ({ goal, apiStatus: propApiStatus }) 
           {week?.phase && !isClosingStretch && <> · {week.phase}</>}
         </p>
         <h1 className="mt-3 max-w-2xl break-words text-h3 text-text-secondary">{goal.rawGoal}</h1>
-        <div aria-hidden="true" className="today-thread mt-5">
-          <div className="dash-journey" style={{ '--dash-progress': `${journeyPercent}%` } as React.CSSProperties}>
-            <div className="dash-journey__fill" />
-          </div>
-        </div>
         {/* B-106: a goal with a fixed date shows it next to the plan's end. */}
         {dateLine && <p className="mt-3 text-small text-text-secondary">{dateLine}</p>}
         {goal.basis?.label && (

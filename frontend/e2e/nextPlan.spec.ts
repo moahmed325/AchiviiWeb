@@ -71,9 +71,9 @@ test('free: no next plan and no Pro line on the day-90 screen', async ({ page })
   await expect(page.getByText(/\bPro\b/)).toHaveCount(0);
 });
 
-test('the next plan’s Progress names the plan it follows', async ({ page }) => {
+test('the next plan’s Roadmap names the plan it follows (ND-31: Progress is part of it)', async ({ page }) => {
   await mockApi(page, { goal: { ...shellGoal(), previousPlan: { goalId: 'old', number: 2, mode: 'keep_going', summary: '3 km → 8 km' } } });
   await signIn(page);
-  await page.goto('/progress');
+  await page.goto('/roadmap');
   await expect(page.getByText('Plan 2. Plan 1: 3 km → 8 km.')).toBeVisible();
 });

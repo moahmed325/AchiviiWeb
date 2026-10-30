@@ -219,11 +219,6 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
       aria-labelledby="focus-session-heading"
       className="fixed inset-0 z-50 bg-background text-text flex flex-col justify-between pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 w-full h-full overflow-y-auto select-none"
     >
-      {/* Subtle atmospheric ambient glow */}
-      <div
-        className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_65%_55%_at_50%_40%,rgba(200,169,107,0.07),transparent_76%)]"
-        aria-hidden="true"
-      />
 
       {/* Top Controls Bar */}
       <FocusHeader
@@ -248,7 +243,7 @@ const FocusSessionContent: React.FC<FocusSessionContentProps> = ({
                 variant="primary"
                 size="lg"
                 onClick={startSession}
-                className="w-full max-w-md mx-auto min-h-[56px] text-base shadow-[0_14px_40px_rgba(199,167,92,0.2)]"
+                className="w-full max-w-md mx-auto min-h-[56px] text-base"
               >
                 Start focused session
               </Button>

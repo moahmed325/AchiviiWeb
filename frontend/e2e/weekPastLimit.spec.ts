@@ -80,17 +80,12 @@ test.describe('Past the limit (M1.5b)', () => {
     expect(calls.reconcile).toBe(1);
     await evidence(page, info, 'after-keep-going');
 
+    // ND-31: progress is part of the Roadmap; its week by week names each jumped week "Paused", never done.
     await page.goto('/progress');
-    await page.getByRole('button', { name: 'Detailed history' }).click();
-    const breakdown = page.getByRole('region', { name: 'Week by week' });
-    await expect(breakdown.getByText('Paused')).toHaveCount(4);
-    await breakdown.scrollIntoViewIfNeeded();
-    await evidence(page, info, 'paused-progress');
-
-    await page.goto('/roadmap');
-    await page.getByRole('button', { name: /Foundation/ }).click();
-    await expect(page.getByText('Paused').first()).toBeVisible();
-    await expect(page.getByText('1 of 4 weeks')).toBeVisible();
+    await expect(page).toHaveURL('/roadmap');
+    const weeks = page.getByRole('region', { name: 'Week by week' });
+    await expect(weeks.getByText('Paused', { exact: true })).toHaveCount(4);
+    await weeks.scrollIntoViewIfNeeded();
     await evidence(page, info, 'paused-roadmap');
   });
 

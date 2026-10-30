@@ -1,10 +1,8 @@
-import React, { useId, useRef } from 'react';
+import React, { useRef } from 'react';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { Activity, ArrowRight, BookOpen, Briefcase, Compass, Palette, TrendingUp, type LucideIcon } from 'lucide-react';
 import { Badge, Button, ChoiceCard, ChoiceGroup, Tabs, TabsContent } from '../ui';
 import { PATHWAY_GROUPS, pathwaysInDirection, type CertifiedPathway, type PathwayDirection } from '../../lib/certifiedPresets';
-import { PathwayAscent } from './PathwayAscent';
-import { PathwayCard } from './PathwayCard';
 import { usePathwaySelection, type PathwaySelection } from './usePathwaySelection';
 
 const DIRECTION_ICONS: Record<PathwayDirection, LucideIcon> = {
@@ -30,36 +28,15 @@ interface PathwayChoicesProps {
   selection: PathwaySelection;
   currentId?: string;
   hideLegend?: boolean;
-  /** The gold pathway cards, for the dialog. Without it, the plain choice cards used on Home and in onboarding. */
-  premium?: boolean;
+  /** The dialog's short form: the summary and the daily time, without the methods line. */
+  compact?: boolean;
 }
 
 /** One direction's pathways as a radio group: the selected card carries the outline, the filled marker and `checked`. */
-const PathwayChoices: React.FC<PathwayChoicesProps> = ({ direction, selection, currentId, hideLegend, premium }) => {
-  const groupName = useId();
+const PathwayChoices: React.FC<PathwayChoicesProps> = ({ direction, selection, currentId, hideLegend, compact }) => {
   const pathways = pathwaysInDirection(direction);
   const name = direction.toLowerCase();
   const legend = pathways.length === 1 ? `The ${name} pathway` : `Choose a ${name} pathway`;
-
-  if (premium) {
-    return (
-      <fieldset className="min-w-0">
-        <legend className="sr-only">{legend}</legend>
-        <div className="grid gap-3">
-          {pathways.map((p) => (
-            <PathwayCard
-              key={p.id}
-              pathway={p}
-              name={groupName}
-              checked={selection.selectedId === p.id}
-              isCurrent={p.id === currentId}
-              onSelect={selection.select}
-            />
-          ))}
-        </div>
-      </fieldset>
-    );
-  }
 
   return (
     <ChoiceGroup legend={legend} hideLegend={hideLegend} value={selection.selectedId} onChange={selection.select}>
@@ -76,7 +53,7 @@ const PathwayChoices: React.FC<PathwayChoicesProps> = ({ direction, selection, c
                 </Badge>
               )}
               <span className="block">{p.summary}</span>
-              <span className="mt-1.5 block">Built on {p.badge}</span>
+              {!compact && <span className="mt-1.5 block">Built on {p.badge}</span>}
             </>
           }
           meta={`${p.dailyMinutes} min a day \u00b7 90 days`}
@@ -86,7 +63,7 @@ const PathwayChoices: React.FC<PathwayChoicesProps> = ({ direction, selection, c
   );
 };
 
-/** Direction tabs: a hairline with the active direction lit from beneath by a gold line (see `.pathway-tab`). */
+/** Direction tabs: plain words on a hairline; the active one is underlined in gold (see `.pathway-tab`). */
 const directionTab =
   'pathway-tab focus-ring-inset -mb-px inline-flex min-h-12 shrink-0 cursor-pointer items-center gap-2 px-3.5 text-small font-medium ' +
   'text-text-secondary transition-colors duration-(--duration-quick) hover:text-text data-[state=active]:text-text';
@@ -99,8 +76,7 @@ export interface PathwayLibraryAction {
 export interface PathwayLibraryProps {
   /**
    * `cards`: choose a direction, then its pathways appear beneath it (the "direction first" moment, BP §28).
-   * `tabs`: a compact direction bar with one panel each, for dialogs. Each panel pairs its pathways with the
-   * chosen pathway's ascent: where it ends and how the twelve weeks climb there.
+   * `tabs`: a compact direction bar with one plain list of pathways each, for dialogs (ND-31).
    */
   navigation?: 'cards' | 'tabs';
   /** Selected at first when the library owns its selection. */
@@ -154,22 +130,15 @@ export const PathwayLibrary: React.FC<PathwayLibraryProps> = ({
           <TabsPrimitive.List aria-label="Directions" className="pathway-tabs flex gap-1 overflow-x-auto border-b border-border">
             {PATHWAY_GROUPS.map((group) => (
               <TabsPrimitive.Trigger key={group.direction} value={group.direction} className={directionTab}>
-                <DirectionIcon direction={group.direction} className="size-4" />
                 {group.direction}
               </TabsPrimitive.Trigger>
             ))}
           </TabsPrimitive.List>
-          {PATHWAY_GROUPS.map((group) => {
-            const previewed = selected && selected.direction === group.direction ? selected : undefined;
-            return (
-              <TabsContent key={group.direction} value={group.direction}>
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start">
-                  <PathwayChoices direction={group.direction} selection={selection} currentId={currentId} hideLegend premium />
-                  <PathwayAscent key={previewed?.id ?? 'none'} pathway={previewed} className="lg:sticky lg:top-1" />
-                </div>
-              </TabsContent>
-            );
-          })}
+          {PATHWAY_GROUPS.map((group) => (
+            <TabsContent key={group.direction} value={group.direction}>
+              <PathwayChoices direction={group.direction} selection={selection} currentId={currentId} hideLegend compact />
+            </TabsContent>
+          ))}
         </Tabs>
         {actionButton}
         {customGoal}
